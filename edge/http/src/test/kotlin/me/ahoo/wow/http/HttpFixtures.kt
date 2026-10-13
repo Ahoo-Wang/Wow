@@ -15,6 +15,7 @@ package me.ahoo.wow.http
 
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
@@ -38,7 +39,7 @@ import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.admission.CommandGateway
-import me.ahoo.wow.runtime.admission.CommandRewriter
+import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.admission.TenantPolicy
@@ -54,6 +55,7 @@ import org.springframework.test.web.reactive.server.WebTestClient
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.seconds
 import me.ahoo.wow.manifest.Creation as ManifestCreation
 
@@ -63,6 +65,9 @@ const val TENANT = "acme"
 data class OpenCart(val note: String = "")
 data class AddItem(val sku: String, val quantity: Int = 1)
 data class Checkout(val note: String = "")
+
+/** A command mounted under the cart (decision D182): a transformer turns it into [OpenCart]. */
+data class ImportCart(val legacyNote: String = "")
 
 class Cart {
     var items = 0
@@ -77,14 +82,25 @@ const val CART_EMPTY = "cart.empty"
 /** A domain rejection no table lists: 422. */
 const val CART_CLOSED = "cart.closed"
 
-val cartModel = aggregate<Cart>(CONTEXT, "cart") {
+val cartModel = cartModel(CopyOnWriteArrayList())
+
+/** The cart model, recording the commands it decides into [commands], with [ImportCart] mounted when [mounted]. */
+fun cartModel(commands: MutableList<Command<*>>, mounted: Boolean = false) = aggregate<Cart>(CONTEXT, "cart") {
     initial { Cart() }
     decide<OpenCart>(Creation.REQUIRED) { _, body ->
+        commands += command
         putResult("opened", body.note)
         Decision.events(CartOpened(body.note))
     }
-    decide<AddItem>(Creation.ALLOWED) { _, body -> Decision.events(ItemAdded(body.sku, body.quantity)) }
+    decide<AddItem>(Creation.ALLOWED) { _, body ->
+        commands += command
+        Decision.events(ItemAdded(body.sku, body.quantity))
+    }
+    if (mounted) {
+        mount<ImportCart>()
+    }
     decide<Checkout> { state, body ->
+        commands += command
         when {
             body.note == "closed" -> Decision.reject(CART_CLOSED, "The cart is closed.")
             state.items == 0 -> Decision.reject(CART_EMPTY, "The cart is empty.")
@@ -95,8 +111,11 @@ val cartModel = aggregate<Cart>(CONTEXT, "cart") {
     evolve<ItemAdded> { items += it.quantity }
 }
 
-/** The Manifest of [cartModel] as the compiler writes it, with the lifecycle commands [lifecycle] lists. */
-fun cartManifest(lifecycle: List<String> = Lifecycle.COMMANDS.keys.sorted()): Manifest {
+/**
+ * The Manifest of [cartModel] as the compiler writes it, with the lifecycle commands [lifecycle] lists, and [ImportCart]
+ * mounted when [mounted].
+ */
+fun cartManifest(lifecycle: List<String> = Lifecycle.COMMANDS.keys.sorted(), mounted: Boolean = false): Manifest {
     fun command(name: String, creation: ManifestCreation) = CommandManifest(
         name = name,
         schema = Manifest.schemaRef(name),
@@ -116,6 +135,14 @@ fun cartManifest(lifecycle: List<String> = Lifecycle.COMMANDS.keys.sorted()): Ma
                             command("AddItem", ManifestCreation.ALLOWED),
                             command("Checkout", ManifestCreation.NONE),
                             command("OpenCart", ManifestCreation.REQUIRED),
+                        ) + listOfNotNull(
+                            CommandManifest(
+                                name = "ImportCart",
+                                schema = Manifest.schemaRef("ImportCart"),
+                                routes = CommandRoutes.of(CONTEXT, "cart", "ImportCart", ManifestCreation.NONE, true),
+                                mounted = true,
+                                transformsTo = listOf("$CONTEXT.cart.OpenCart"),
+                            ).takeIf { mounted },
                         ),
                         lifecycle = lifecycle,
                     ),
@@ -151,11 +178,15 @@ private val auditDirectory = object : SubscriptionDirectory {
     override suspend fun hasHandled(subscription: String, stream: EventStreamRecord): Boolean = false
 }
 
-/** A node in memory serving [cartModel] behind [wowRoutes]. */
+/**
+ * A node in memory serving [cartModel] behind [wowRoutes], which records the commands it decides in [commands], with
+ * [ImportCart] mounted when [mounted].
+ */
 class HttpNode(
-    manifest: Manifest = cartManifest(),
+    manifest: Manifest? = null,
     validators: List<CommandValidator> = emptyList(),
-    rewriters: List<CommandRewriter> = emptyList(),
+    transformers: List<CommandTransformer> = emptyList(),
+    mounted: Boolean = false,
     callers: CallerResolver = headerCallers,
     options: WowHttpOptions = WowHttpOptions(),
     tenants: TenantPolicy = TenantPolicy.CALLERS,
@@ -163,6 +194,9 @@ class HttpNode(
     queries: (InMemoryEventLog) -> HttpQueries = { HttpQueries.NONE },
 ) {
     val log = InMemoryEventLog(partitions = 2)
+
+    /** The commands the node decided, in order. */
+    val commands: MutableList<Command<*>> = CopyOnWriteArrayList()
 
     /** The commit times of the kernel: the system clock unless a test sets it. */
     var now: () -> Long = System::currentTimeMillis
@@ -177,17 +211,19 @@ class HttpNode(
         LocalSignalSender(origin.node, registry),
         WaitOptions(origin, maxTimeout = 30.seconds, defaultTimeout = defaultWaitTimeout),
     )
-    private val models = ModelRegistry(listOf(cartModel))
+    private val models = ModelRegistry(listOf(cartModel(commands, mounted)))
     val gateway = CommandGateway(
         models,
         mapOf(CONTEXT to coordinator),
-        rewriters = rewriters,
+        transformers = transformers,
         validators = validators,
         tenants = tenants,
     )
     val reads = KernelStateReads(models, mapOf(CONTEXT to KernelStateReads.ContextReads(kernel, snapshots)))
     val client: WebTestClient = WebTestClient
-        .bindToRouterFunction(wowRoutes(manifest, gateway, reads, callers, options, queries(log)))
+        .bindToRouterFunction(
+            wowRoutes(manifest ?: cartManifest(mounted = mounted), gateway, reads, callers, options, queries(log)),
+        )
         .build()
         .mutate()
         .responseTimeout(Duration.ofSeconds(10))

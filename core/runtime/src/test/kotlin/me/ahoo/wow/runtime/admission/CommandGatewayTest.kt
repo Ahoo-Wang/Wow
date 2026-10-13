@@ -25,11 +25,11 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
-import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.TransformedFrom
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.Creation
@@ -72,6 +72,9 @@ class CommandGatewayTest {
     /** The operators of the [AddItem] commands decided, in order. */
     private val operators = CopyOnWriteArrayList<Operator?>()
 
+    /** The [AddItem] commands decided, in order. */
+    private val commands = CopyOnWriteArrayList<Command<*>>()
+
     /** While not null, deciding [AddItem] waits for it. */
     @Volatile
     private var hold: CompletableDeferred<Unit>? = null
@@ -85,6 +88,7 @@ class CommandGatewayTest {
         decideSuspending<AddItem>(Creation.ALLOWED) { _, body ->
             decided += command.id
             operators += command.operator
+            commands += command
             hold?.await()
             Decision.events(ItemAdded(body.sku, body.quantity))
         }
@@ -111,7 +115,7 @@ class CommandGatewayTest {
 
     private fun gateway(
         authorizer: CommandAuthorizer = CommandAuthorizer.ALLOW_ALL,
-        rewriters: List<CommandRewriter> = emptyList(),
+        transformers: List<CommandTransformer> = emptyList(),
         validators: List<CommandValidator> = emptyList(),
         tenants: TenantPolicy = TenantPolicy.CALLERS,
         coordinator: WaitCoordinator = this.coordinator,
@@ -119,7 +123,7 @@ class CommandGatewayTest {
         ModelRegistry(listOf(model)),
         mapOf(CONTEXT to coordinator),
         authorizer = authorizer,
-        rewriters = rewriters,
+        transformers = transformers,
         validators = validators,
         tenants = tenants,
     )
@@ -283,14 +287,13 @@ class CommandGatewayTest {
 
     @Test
     fun `a request that names no plan waits the coordinator's default timeout`(): Unit = runBlocking {
-        val waits = CopyOnWriteArrayList<WaitPlan>()
-        val recording = CommandRewriter { command -> command.also { waits += it.wait } }
-        val gateway = gateway(rewriters = listOf(recording), coordinator = coordinator(4.seconds))
+        val gateway = gateway(coordinator = coordinator(4.seconds))
         gateway.defaultWaitTimeout(CONTEXT).assert().isEqualTo(4.seconds)
         gateway.defaultWaitTimeout("elsewhere").assert().isEqualTo(WaitPlan.DEFAULT_TIMEOUT)
         gateway.execute(request()).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         gateway.execute(request(wait = WaitPlan.COMMITTED.within(2.seconds)))
-        waits.assert().containsExactly(WaitPlan.DEFAULT.within(4.seconds), WaitPlan.COMMITTED.within(2.seconds))
+        commands.map { it.wait }.assert()
+            .containsExactly(WaitPlan.DEFAULT.within(4.seconds), WaitPlan.COMMITTED.within(2.seconds))
 
         // A default longer than the maximum is capped by it.
         val capped = gateway(coordinator = coordinator(60.seconds))
@@ -379,45 +382,36 @@ class CommandGatewayTest {
     }
 
     @Test
-    fun `rewriters change the body and headers, and are validated after`(): Unit = runBlocking {
-        val seen = CopyOnWriteArrayList<Command<*>>()
-        val defaults = CommandRewriter { command ->
-            val body = command.body as AddItem
-            command.edit { copy(body = body.copy(quantity = 5), headers = headers + ("App" to "web")) }
-        }
-        val recording = CommandRewriter { command -> command.also { seen += it } }
-        val validator = CommandValidator { _, body ->
-            if ((body as AddItem).quantity == 5) emptyList() else listOf(Violation("quantity", "Five", "Not 5."))
-        }
-        val result = gateway(rewriters = listOf(defaults, recording), validators = listOf(validator))
-            .execute(request(body = """{"sku":"apple","quantity":0}""", wait = WaitPlan.COMMITTED.within(10.minutes)))
-        result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-        seen.single().headers.assert().isEqualTo(mapOf("App" to "web"))
-        // The wait is capped by the coordinator's maximum when the command is built.
-        seen.single().wait.timeout.assert().isEqualTo(30.seconds)
-    }
+    fun `a transformer changes the body and headers, the result is validated, and the wait is capped`(): Unit =
+        runBlocking {
+            val defaults = object : CommandTransformer {
+                override val input = model.commandType(AddItem::class.java)
 
-    @Test
-    fun `a rewriter may not change the identity, the ids, the operator or the wait`(): Unit = runBlocking {
-        val rewrites = listOf<Command<Any>.() -> Command<Any>>(
-            { copy(ref = ref.copy(tenantId = "other")) },
-            { copy(scope = Scope("bob")) },
-            { copy(id = "forged") },
-            { copy(requestId = "forged") },
-            { copy(wait = WaitPlan.ACCEPTED) },
-            { copy(expectedVersion = 3) },
-            { copy(causation = Causation("root", "upstream")) },
-            { copy(operator = Operator("forged", TENANT)) },
-            { copy(body = Checkout()) },
-            { copy(headers = mapOf("Wow-Scope" to "owner=\"bob\"")) },
-        )
-        rewrites.forEach { rewrite ->
-            val gateway = gateway(rewriters = listOf(CommandRewriter { it.edit(rewrite) }))
-            runCatching { gateway.execute(request()) }.exceptionOrNull()
-                .assert().isInstanceOf(IllegalStateException::class.java)
+                override suspend fun transform(input: CommandInput): CommandTarget = CommandTarget(
+                    input.type,
+                    input.aggregateId,
+                    (input.body as AddItem).copy(quantity = 5),
+                    input.headers + ("App" to "web"),
+                )
+            }
+            val validator = CommandValidator { _, body ->
+                if ((body as AddItem).quantity == 5) emptyList() else listOf(Violation("quantity", "Five", "Not 5."))
+            }
+            val result = gateway(transformers = listOf(defaults), validators = listOf(validator)).execute(
+                request(body = """{"sku":"apple","quantity":0}""", wait = WaitPlan.COMMITTED.within(10.minutes)),
+            )
+            result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            result.transformedFrom.assert().isEqualTo(TransformedFrom("shop.cart.AddItem", "cart-1"))
+            commands.single().headers.assert().isEqualTo(
+                mapOf(
+                    "App" to "web",
+                    CommandTransformer.TRANSFORMED_FROM to "shop.cart.AddItem",
+                    CommandTransformer.TRANSFORMED_FROM_ID to "cart-1",
+                ),
+            )
+            // The wait is capped by the coordinator's maximum when the command is built.
+            commands.single().wait.timeout.assert().isEqualTo(30.seconds)
         }
-        decided.assert().isEmpty()
-    }
 
     @Test
     fun `a full lane answers busy, as a result`(): Unit = runBlocking {
@@ -541,9 +535,6 @@ class CommandGatewayTest {
     }
 
     private companion object {
-        @Suppress("UNCHECKED_CAST")
-        fun Command<*>.edit(change: Command<Any>.() -> Command<Any>): Command<*> = (this as Command<Any>).change()
-
         const val CONTEXT = "shop"
         const val TENANT = "acme"
     }

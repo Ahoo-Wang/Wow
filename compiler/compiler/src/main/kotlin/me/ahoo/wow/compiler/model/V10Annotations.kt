@@ -37,6 +37,7 @@ internal object V10Annotations {
         "OnSourcing",
         "CreateAggregate",
         "AllowCreate",
+        "MountedCommand",
         "AfterCommand",
         "Name",
         "Revision",

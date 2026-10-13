@@ -19,9 +19,9 @@ package me.ahoo.wow.manifest
  * library writes and reads such a tree, so the Manifest's field names are defined here once and `wow-manifest` needs
  * none.
  *
- * Absent optional values (a null description, unknown `produces`, `derives` or `schedules`, a fragment's service) are
- * left out,
- * not written as null, and so is a subscription source's `nullableState` when false.
+ * Absent optional values (a null description, unknown `produces`, `derives`, `schedules` or `transformsTo`, a fragment's
+ * service) are left out, not written as null, and so are a subscription source's `nullableState` and a command's
+ * `mounted` when false.
  */
 object ManifestTree {
     private const val DEFS = "\$defs"
@@ -61,6 +61,8 @@ object ManifestTree {
                 "creation" to it.creation.name,
                 "produces" to it.produces,
                 "routes" to it.routes.map(::writeRoute),
+                "mounted" to it.mounted.takeIf { mounted -> mounted },
+                "transformsTo" to it.transformsTo,
             )
         },
         "events" to aggregate.events.map {
@@ -157,6 +159,8 @@ object ManifestTree {
                     creation = Creation.valueOf(it.string("creation")),
                     produces = if (it.has("produces")) it.strings("produces") else null,
                     routes = it.objects("routes").map(::readRoute),
+                    mounted = it.booleanOrNull("mounted") ?: false,
+                    transformsTo = if (it.has("transformsTo")) it.strings("transformsTo") else null,
                 )
             },
             events = node.objects("events").map {

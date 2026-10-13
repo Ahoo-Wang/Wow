@@ -25,10 +25,8 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.http.command.JakartaCommandValidator
 import me.ahoo.wow.runtime.FrameworkCodes
-import me.ahoo.wow.runtime.admission.CommandRewriter
 import org.junit.jupiter.api.Test
 import java.util.UUID
-import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -154,8 +152,7 @@ class CommandRoutesTest {
 
     @Test
     fun `Wow-Wait-Timeout alone bounds the default plan`() {
-        val waits = CopyOnWriteArrayList<WaitPlan>()
-        val node = HttpNode(rewriters = listOf(CommandRewriter { command -> command.also { waits += it.wait } }))
+        val node = HttpNode()
         node.post(
             "/shop/cart/c-1/add-item",
             """{"sku":"apple"}""",
@@ -163,16 +160,15 @@ class CommandRoutesTest {
         )
             .assertSucceeded()
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""").assertSucceeded()
-        waits.assert().containsExactly(WaitPlan.DEFAULT.within(1500.milliseconds), WaitPlan.DEFAULT)
+        node.commands.map { it.wait }.assert().containsExactly(
+            WaitPlan.DEFAULT.within(1500.milliseconds),
+            WaitPlan.DEFAULT
+        )
     }
 
     @Test
     fun `a request that names no timeout waits the node's default timeout`() {
-        val waits = CopyOnWriteArrayList<WaitPlan>()
-        val node = HttpNode(
-            rewriters = listOf(CommandRewriter { command -> command.also { waits += it.wait } }),
-            defaultWaitTimeout = 4.seconds,
-        )
+        val node = HttpNode(defaultWaitTimeout = 4.seconds)
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""").assertSucceeded()
         node.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""", headers = mapOf(WowHeaders.WAIT to "committed"))
             .assertSucceeded()
@@ -181,7 +177,7 @@ class CommandRoutesTest {
             """{"sku":"apple"}""",
             headers = mapOf(WowHeaders.WAIT to "committed", WowHeaders.WAIT_TIMEOUT to "2s"),
         ).assertSucceeded()
-        waits.assert().containsExactly(
+        node.commands.map { it.wait }.assert().containsExactly(
             WaitPlan.DEFAULT.within(4.seconds),
             WaitPlan.COMMITTED.within(4.seconds),
             WaitPlan.COMMITTED.within(2.seconds),
@@ -268,9 +264,7 @@ class CommandRoutesTest {
 
     @Test
     fun `only the listed request facts reach the command`() {
-        val seen = CopyOnWriteArrayList<Map<String, String>>()
         val node = HttpNode(
-            rewriters = listOf(CommandRewriter { command -> command.also { seen += it.headers } }),
             options = WowHttpOptions(requestFacts = setOf("X-App-Id", "X-Device-Id")),
         )
         node.post(
@@ -278,7 +272,7 @@ class CommandRoutesTest {
             """{"sku":"apple"}""",
             headers = mapOf("X-App-Id" to "app-1", "X-Other" to "ignored"),
         ).assertSucceeded()
-        seen.assert().containsExactly(mapOf("X-App-Id" to "app-1"))
+        node.commands.map { it.headers }.assert().containsExactly(mapOf("X-App-Id" to "app-1"))
     }
 
     @Test

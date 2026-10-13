@@ -96,7 +96,8 @@ class ContractDirectory(
         manifests.forEach { manifest ->
             manifest.contexts.forEach { context ->
                 context.aggregates.forEach { aggregate ->
-                    aggregate.commands.forEach { command ->
+                    // A mounted command (decision D182) is only an edge's: no one sends it as a command.
+                    aggregate.commands.filterNot { it.mounted }.forEach { command ->
                         val type = "${context.name}.${aggregate.name}.${command.name}"
                         commandsBySchema.putIfAbsent(command.schema, type)
                         schemasByCommand[type] = command.schema

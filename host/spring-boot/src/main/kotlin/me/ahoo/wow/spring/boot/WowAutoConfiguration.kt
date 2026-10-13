@@ -34,7 +34,7 @@ import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
-import me.ahoo.wow.runtime.admission.CommandRewriter
+import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.IdGenerator
 import me.ahoo.wow.runtime.admission.TenantPolicy
@@ -89,7 +89,7 @@ import me.ahoo.cosid.provider.IdGeneratorProvider as CosIdGeneratorProvider
  * - **Backend** (`wow.backend`, [BackendSelection]): PostgreSQL over the application's `DataSource`, MongoDB over its
  *   `MongoClient`, in memory (one node, with a warning) when it has neither, or the application's own
  *   [BackendFactory] bean.
- * - **Admission**: the application's [CommandAuthorizer], [CommandRewriter]s and [CommandValidator]s, the Jakarta
+ * - **Admission**: the application's [CommandAuthorizer], [CommandTransformer]s (D182) and [CommandValidator]s, the Jakarta
  *   validator when it has a Bean Validation provider (D106), the [IdGenerator]: CosId's shared generator when it
  *   runs CosId, UUIDv7 otherwise (D114), the fixed tenants of `wow.aggregates.*.tenant` (D116), and
  *   `wow.wait.default-timeout`, the node's default wait timeout for every entry (D64).
@@ -229,7 +229,7 @@ class WowAutoConfiguration {
         signals: SignalSender,
         ids: IdGenerator,
         authorizers: ObjectProvider<CommandAuthorizer>,
-        rewriters: ObjectProvider<CommandRewriter>,
+        transformers: ObjectProvider<CommandTransformer>,
         validators: ObjectProvider<CommandValidator>,
         subscriptions: ObjectProvider<SubscriptionFactory>,
         listeners: ObjectProvider<ServiceNodeListener>,
@@ -262,7 +262,7 @@ class WowAutoConfiguration {
             ),
             admission = AdmissionPlugins(
                 authorizer = authorizers.getIfAvailable { CommandAuthorizer.ALLOW_ALL },
-                rewriters = rewriters.orderedStream().toList(),
+                transformers = transformers.orderedStream().toList(),
                 validators = validators.orderedStream().toList(),
                 ids = ids,
                 tenants = tenants(properties, models.models),

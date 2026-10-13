@@ -53,7 +53,10 @@ import org.springframework.web.reactive.function.server.coRouter
  * The routes of the public port (roadmap 5b.2; decisions D16, D30, D92–D104, D112, D113), materialized from
  * [manifest] alone:
  *
- * - every route of every command (`CommandManifest.routes`, decision D104) sends that command through [gateway];
+ * - every route of every command (`CommandManifest.routes`, decision D104) sends that command through [gateway], and so
+ *   does `POST /{context}/{aggregate}/{command}` for each command that [gateway] transforms (decision D182) and the
+ *   Manifest gives no route without an id: its transformer finds the aggregate. The Manifest the node serves lists
+ *   that route too;
  * - the lifecycle commands each aggregate lists (decision D113): `DELETE /{context}/{aggregate}/{id}` sends
  *   `DeleteAggregate`, `POST /{context}/{aggregate}/{id}/wow.lifecycle.<kebab>` the others;
  * - `GET /{context}/{aggregate}/{id}/state`, `?version=`, `?at=` and `GET …/{id}/state/trace` read [reads]
@@ -93,7 +96,8 @@ fun wowRoutes(
     )
     val queryHandler = QueryHandler(queries, authenticator, headers, statuses, gateway.tenants, scope)
     val states = StateHandler(reads, authenticator, headers, statuses, gateway.tenants)
-    val manifestBody = HttpJson.write(ManifestTree.write(manifest))
+    val served = withTransformedRoutes(manifest, gateway)
+    val manifestBody = HttpJson.write(ManifestTree.write(served))
     return coRouter {
         if (options.manifestEndpoint) {
             GET(WowPaths.MANIFEST) { request ->
@@ -107,7 +111,7 @@ fun wowRoutes(
         if (queries.datasets !== DatasetQueryGateways.NONE) {
             datasetRoutes(queryHandler)
         }
-        manifest.contexts.forEach { context ->
+        served.contexts.forEach { context ->
             context.aggregates.forEach { aggregate ->
                 commandRoutes(context.name, aggregate, commands)
                 val type = AggregateType(context.name, aggregate.name)
@@ -124,6 +128,30 @@ fun wowRoutes(
         }
     }
 }
+
+/**
+ * [manifest] with the route without an id (`POST /{context}/{aggregate}/{command}`) of each command [gateway]
+ * transforms (decision D182) that has none, such as a command whose transformer finds its aggregate by a reserved key.
+ */
+internal fun withTransformedRoutes(manifest: Manifest, gateway: CommandGateway): Manifest = manifest.copy(
+    contexts = manifest.contexts.map { context ->
+        context.copy(
+            aggregates = context.aggregates.map { aggregate ->
+                val type = AggregateType(context.name, aggregate.name)
+                aggregate.copy(
+                    commands = aggregate.commands.map { command ->
+                        val route = CommandRoutes.unaddressed(context.name, aggregate.name, command.name)
+                        if (route !in command.routes && gateway.transforms(type, command.name)) {
+                            command.copy(routes = command.routes + route)
+                        } else {
+                            command
+                        }
+                    },
+                )
+            },
+        )
+    },
+)
 
 /** The routes of [aggregate]'s commands and of the lifecycle commands it lists. */
 private fun CoRouterFunctionDsl.commandRoutes(context: String, aggregate: AggregateManifest, handler: CommandHandler) {

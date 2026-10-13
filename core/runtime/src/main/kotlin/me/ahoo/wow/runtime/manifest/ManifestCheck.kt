@@ -30,6 +30,8 @@ import me.ahoo.wow.manifest.Manifest
  * - a former name ([me.ahoo.wow.manifest.CommandManifest.aliases]) the model does not read as that command, or one the
  *   model reads as the command and the Manifest does not list;
  * - a different [creation][me.ahoo.wow.manifest.Creation];
+ * - a mounted command (decision D182) of the Manifest the model does not mount under that name, or one the model mounts
+ *   ([AggregateModel.mountedCommandTypes]) that the Manifest does not list as mounted;
  * - an event of the Manifest the model does not name so, or of another revision;
  * - a different set of lifecycle commands.
  */
@@ -89,11 +91,17 @@ object ManifestCheck {
         model: AggregateModel<*>,
     ): List<String> =
         buildList {
-            val listed = aggregate.commands.mapTo(HashSet()) { fullName(type, it.name) }
+            val (mounted, decided) = aggregate.commands.partition { it.mounted }
+            val listed = decided.mapTo(HashSet()) { fullName(type, it.name) }
             model.commandTypes
                 .filter { Lifecycle.nameOf(it.type) == null && it.name !in listed }
                 .forEach { add("command ${it.name} is decided by the model of $type but not in the Manifest") }
-            aggregate.commands.forEach { command ->
+            val listedMounted = mounted.mapTo(HashSet()) { fullName(type, it.name) }
+            model.mountedCommandTypes.filter { it.name !in listedMounted }
+                .forEach { add("command ${it.name} is mounted by the model of $type but not in the Manifest") }
+            mounted.map { fullName(type, it.name) }.filter { model.findMountedCommandType(it)?.name != it }
+                .forEach { add("command $it is mounted in the Manifest but the model of $type does not mount it") }
+            decided.forEach { command ->
                 val name = fullName(type, command.name)
                 val commandType = model.findCommandType(name)
                 if (commandType == null || commandType.name != name) {

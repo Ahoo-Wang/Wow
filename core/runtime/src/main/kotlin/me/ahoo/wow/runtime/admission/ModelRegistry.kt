@@ -18,15 +18,18 @@ import me.ahoo.wow.kernel.AggregateModel
 
 /** The aggregate models a node serves, found by their [AggregateType] (decision D92, step 1). */
 class ModelRegistry(models: Collection<AggregateModel<*>>) {
-    private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
+    private val byType: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
 
     init {
-        require(this.models.size == models.size) { "Two models share an aggregate type." }
+        require(byType.size == models.size) { "Two models share an aggregate type." }
     }
 
+    /** The models, one per aggregate type. */
+    val models: Collection<AggregateModel<*>> get() = byType.values
+
     /** The contexts of the models. */
-    val contexts: Set<String> = this.models.keys.mapTo(LinkedHashSet()) { it.context }
+    val contexts: Set<String> = byType.keys.mapTo(LinkedHashSet()) { it.context }
 
     /** The model of [type], or null when this node serves none. */
-    fun find(type: AggregateType): AggregateModel<*>? = models[type]
+    fun find(type: AggregateType): AggregateModel<*>? = byType[type]
 }

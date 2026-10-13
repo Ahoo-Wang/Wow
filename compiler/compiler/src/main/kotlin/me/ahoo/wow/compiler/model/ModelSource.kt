@@ -49,6 +49,10 @@ internal object ModelSource {
             appendLine("            me.ahoo.wow.kernel.decisionOf(${awaited(call, command.reactor)})")
             appendLine("        }")
         }
+        binding.mounted.forEach { mounted ->
+            val name = mounted.commandName?.let { "name = \"\$type.$it\"" }.orEmpty()
+            appendLine("        mount<${mounted.command}>($name)")
+        }
         renderSourcing(binding.sourcing)
         renderAliasesAndUpgrades(binding)
         binding.afters.forEach { after ->

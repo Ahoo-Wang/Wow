@@ -134,6 +134,7 @@ class AggregateModel<S : Any>(
     commandTypes: Collection<CommandType>,
     private val afterFunctions: List<AfterFunction<S>> = emptyList(),
     lifecycle: Set<Class<*>> = Lifecycle.COMMANDS.values.toSet(),
+    mountedCommandTypes: Collection<CommandType> = emptyList(),
 ) {
     private val deciders: Map<Class<*>, DecideFunction<S>> =
         lifecycle.filterNot { it in deciders }.associateWith { KernelLifecycle.decider<S>(it) } + deciders
@@ -162,6 +163,15 @@ class AggregateModel<S : Any>(
     private val afterByCommand: Map<Class<*>, List<AfterFunction<S>>> =
         this.deciders.keys.associateWith { command -> afterFunctions.filter { it.applies(command) } }
 
+    /**
+     * The commands mounted under this aggregate's routes that it does not decide (decision D182): admission finds them
+     * by name, and a transformer turns each into a command that is decided.
+     */
+    val mountedCommandTypes: List<CommandType> = mountedCommandTypes.toList()
+    private val mountedByName: Map<String, CommandType> = this.mountedCommandTypes.flatMap { type ->
+        (type.aliases + type.name).map { it to type }
+    }.toMap()
+
     /** The lifecycle commands this model handles, by the kernel or by its own decide functions. */
     val lifecycleCommands: Set<Class<*>> = this.deciders.keys.filter { it in KernelLifecycle.COMMANDS }.toSet()
 
@@ -173,9 +183,14 @@ class AggregateModel<S : Any>(
         require(names.size == names.toSet().size) { "Two event types of $type share a name or an alias." }
         val missing = this.eventTypes.map { it.type } - this.evolvers.keys
         require(missing.isEmpty()) { "Event types of $type without an evolve function: $missing" }
-        val commandNames = this.commandTypes.flatMap { it.aliases + it.name }
+        val commandNames = (this.commandTypes + this.mountedCommandTypes).flatMap { it.aliases + it.name }
         require(commandNames.size == commandNames.toSet().size) {
             "Two command types of $type share a name or an alias."
+        }
+        val decidedAndMounted = this.mountedCommandTypes.map { it.type }.filter { it in this.deciders }
+        require(decidedAndMounted.isEmpty()) { "Command types of $type both decided and mounted: $decidedAndMounted" }
+        require(this.mountedCommandTypes.none { isSystemName(it.name) || it.aliases.any(::isSystemName) }) {
+            "A mounted command of $type takes a name in ${Lifecycle.NAMESPACE}."
         }
         val unnamed = this.deciders.keys - commandsByType.keys
         require(unnamed.isEmpty()) { "Command types of $type without a name: $unnamed" }
@@ -221,6 +236,9 @@ class AggregateModel<S : Any>(
      * arrives in its wire form (design 08 §3, a forwarded one) finds the class its body is read as.
      */
     fun findCommandType(name: String): CommandType? = commandsByName[name]
+
+    /** The command mounted under this aggregate named [name] (or formerly named so), or null when none is. */
+    fun findMountedCommandType(name: String): CommandType? = mountedByName[name]
 
     /** The name of [commandClass], a command this aggregate decides. */
     fun commandType(commandClass: Class<*>): CommandType =

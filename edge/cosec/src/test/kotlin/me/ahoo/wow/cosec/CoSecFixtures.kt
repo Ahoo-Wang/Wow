@@ -38,7 +38,7 @@ import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.admission.CommandGateway
-import me.ahoo.wow.runtime.admission.CommandRewriter
+import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
@@ -132,7 +132,7 @@ fun coSecFilter(tenant: String = "acme"): WebFilter = WebFilter { exchange, chai
 class CoSecNode(
     callers: CallerResolver,
     options: WowHttpOptions = WowHttpOptions(),
-    rewriters: List<CommandRewriter> = emptyList(),
+    transformers: List<CommandTransformer> = emptyList(),
 ) {
     private val registry = WaitRegistry()
     private val coordinator = WaitCoordinator(
@@ -145,7 +145,7 @@ class CoSecNode(
     private val gateway = CommandGateway(
         ModelRegistry(listOf(cartModel)),
         mapOf(CONTEXT to coordinator),
-        rewriters = rewriters,
+        transformers = transformers,
     )
     val client: WebTestClient = WebTestClient
         .bindToRouterFunction(wowRoutes(cartManifest(), gateway, callerResolver = callers, options = options))
