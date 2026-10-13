@@ -20,6 +20,7 @@ import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
+import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.runtime.state.StateView
 import me.ahoo.wow.runtime.state.StateViewReader
@@ -29,6 +30,7 @@ import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.state.StateEventRecord
+import kotlin.time.Duration
 
 /**
  * A subscription (design 04 §1): a [name], a [filter] and exactly one handler. The checkpoint belongs to the
@@ -76,6 +78,11 @@ class Subscription private constructor(
     private val takesEventless: Boolean = false,
     /** The bounded context the subscription belongs to: its filter's, unless it reads another context's stream. */
     val context: String = filter.context,
+    /**
+     * The handler's own in-process retry budget (`@Retry`, roadmap P.3), under the host's for this subscription and
+     * over its global one ([SubscriptionOptions.retryOf]); null when the handler gives none.
+     */
+    val retry: HandlerRetry? = null,
 ) {
     constructor(
         name: String,
@@ -85,6 +92,7 @@ class Subscription private constructor(
         models: Collection<AggregateModel<*>> = emptyList(),
         kind: FunctionKind = FunctionKind.PROJECT,
         context: String = filter.context,
+        retry: HandlerRetry? = null,
         handler: suspend (SubscribedEntry) -> Unit,
     ) : this(
         name,
@@ -98,6 +106,7 @@ class Subscription private constructor(
             HandledEntry.NOTHING
         },
         context = context,
+        retry = retry,
     )
 
     val filter: SubscriptionFilter = filter.resolve(models)
@@ -138,6 +147,7 @@ class Subscription private constructor(
             decoder: EntryDecoder = EntryDecoder.RECORDS,
             models: Collection<AggregateModel<*>> = emptyList(),
             context: String = filter.context,
+            retry: HandlerRetry? = null,
             handler: suspend (SubscribedEntry) -> HandledEntry,
         ): Subscription = Subscription(
             name,
@@ -148,6 +158,7 @@ class Subscription private constructor(
             FunctionKind.SAGA,
             EntryHandler { handler(it) },
             context = context,
+            retry = retry,
         )
 
         /** A subscription that [coalesces]: [handler] gets the latest entry of each aggregate's batch only. */
@@ -243,6 +254,17 @@ data class HandledEntry(val derived: List<String> = emptyList(), val rejection: 
  * retry it but parks the aggregate at once, and a wait at the hop ends REJECTED with [error].
  */
 open class HandlingRejectedException(val error: ErrorInfo, message: String) : IllegalStateException(message)
+
+/**
+ * An attempt of [subscription]'s handler at [ref]'s [version] that ran longer than its budget's [timeout] (roadmap
+ * P.3, [RetryPolicy.timeout]): it was cancelled and counts as a failed attempt, retried like any other failure.
+ */
+class HandlerTimeoutException(
+    val subscription: String,
+    val ref: AggregateRef,
+    val version: Int,
+    val timeout: Duration,
+) : IllegalStateException("$subscription did not handle $ref@$version within $timeout.")
 
 /**
  * The streams a subscription handles: those of one bounded [context], of the [aggregates] named (every aggregate of
