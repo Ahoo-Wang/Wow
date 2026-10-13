@@ -17,34 +17,33 @@ import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 
 /**
- * The skeleton of the eShop's end-to-end suite (work package E.0): the catalog and basket services, each in a JVM of
- * its own on the memory backend, serve their own context only and accept a command each.
+ * The skeleton of the eShop's end-to-end suite (work package E.0): the catalog and inventory services, each in a JVM
+ * of its own on the memory backend, serve their own context only and accept a command each. The basket is not one of
+ * them: its checkout saga sends the ordering context's commands, so it starts only with a command transport
+ * ([EshopOrderFlowTest] gives it Kafka).
  */
 class EshopE2eTest {
     @Test
     fun `two services should each serve their own context and accept its command`() {
         EshopService.start("catalog", CATALOG_MAIN).use { catalog ->
-            EshopService.start("basket", BASKET_MAIN).use { basket ->
+            EshopService.start("inventory", INVENTORY_MAIN).use { inventory ->
                 catalog.contexts().assert().containsExactly("eshop-catalog")
-                basket.contexts().assert().containsExactly("eshop-basket")
+                inventory.contexts().assert().containsExactly("eshop-inventory")
 
                 val product = catalog.post("/eshop-catalog/product/create-product", """{"name":"Wow mug","price":8.50}""")
                 product.status.assert().describedAs(product.body).isEqualTo(200)
                 val productId = json.readTree(product.body)["ref"]["id"].asString()
                 productId.assert().isNotBlank()
 
-                val basketItem = basket.post(
-                    "/eshop-basket/basket/alice/add-basket-item",
-                    """{"productId":"$productId","quantity":2}""",
-                )
-                basketItem.status.assert().describedAs(basketItem.body).isEqualTo(200)
-                json.readTree(basketItem.body)["ref"]["id"].asString().assert().isEqualTo("alice")
+                val stock = inventory.post("/eshop-inventory/stock/$productId/receive-stock", """{"quantity":10}""")
+                stock.status.assert().describedAs(stock.body).isEqualTo(200)
+                json.readTree(stock.body)["ref"]["id"].asString().assert().isEqualTo(productId)
             }
         }
     }
 
     private companion object {
         const val CATALOG_MAIN = "me.ahoo.wow.example.eshop.catalog.server.CatalogServerKt"
-        const val BASKET_MAIN = "me.ahoo.wow.example.eshop.basket.server.BasketServerKt"
+        const val INVENTORY_MAIN = "me.ahoo.wow.example.eshop.inventory.server.InventoryServerKt"
     }
 }

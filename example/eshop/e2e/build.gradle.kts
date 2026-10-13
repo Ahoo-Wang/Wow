@@ -1,12 +1,19 @@
 description = "Wow V10 eShop: end-to-end tests across the eShop's services"
 
-// Test-only and never published (decision D159), like :example-e2e. EshopE2eTest runs each service in a JVM of its
-// own, on the runtime class path of its server project alone; the class paths reach the tests as system properties
-// (`eshop.<context>.classpath`). EshopSharedJvmTest runs two services in the test's own JVM, on one class path that
-// holds both servers: each selects its own context with `wow.contexts.include` (decision D169), since the host
-// serves every binding index on its class path by default. The suite on PostgreSQL, Kafka and ClickHouse comes with work package E.6;
-// this is its skeleton (E.0).
-val servers = listOf("catalog", "basket").associateWith { context ->
+// Test-only and never published (decision D159), like :example-e2e.
+//
+// - EshopE2eTest runs the catalog and inventory services each in a JVM of its own, on the runtime class path of its
+//   server project alone; the class paths reach the tests as system properties (`eshop.<context>.classpath`).
+// - EshopSharedJvmTest runs the catalog and basket services in the test's own JVM, on one class path that holds both
+//   servers: each selects its own context with `wow.contexts.include` (decision D169), since the host serves every
+//   binding index on its class path by default.
+// - EshopOrderFlowTest runs the basket, ordering and inventory services each in a JVM of its own, on PostgreSQL and
+//   Kafka in containers: the checkout, the order flow, the stock rejection's compensation and the payment grace
+//   period. They cannot share one class path: the host reads every peer Manifest on it, and the ordering server's copy
+//   of the inventory's Manifest makes the inventory its own peer (DX-GAPS.md).
+//
+// The suite with all five services, ClickHouse and the failure scenarios comes with work package E.6.
+val servers = listOf("catalog", "basket", "ordering", "inventory").associateWith { context ->
     configurations.create("eshop${context.replaceFirstChar { it.uppercase() }}Server") {
         isCanBeConsumed = false
         isCanBeResolved = true
@@ -26,10 +33,18 @@ val servers = listOf("catalog", "basket").associateWith { context ->
 dependencies {
     "eshopCatalogServer"(project(":eshop-catalog-server"))
     "eshopBasketServer"(project(":eshop-basket-server"))
+    "eshopOrderingServer"(project(":eshop-ordering-server"))
+    "eshopInventoryServer"(project(":eshop-inventory-server"))
     integrationTestImplementation("tools.jackson.core:jackson-databind")
     integrationTestImplementation(project(":eshop-catalog-server"))
     integrationTestImplementation(project(":eshop-basket-server"))
+    // The in-memory command transport the basket needs without Kafka (InMemoryTopics, SourceTopics).
+    integrationTestImplementation(project(":spring-boot"))
     integrationTestImplementation("org.springframework.boot:spring-boot")
+    // The order flow's test creates the Kafka topics and runs PostgreSQL and Kafka in containers.
+    integrationTestImplementation("org.apache.kafka:kafka-clients")
+    integrationTestImplementation("org.testcontainers:testcontainers-kafka")
+    integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
 }
 
 tasks.named<Test>("integrationTest") {
