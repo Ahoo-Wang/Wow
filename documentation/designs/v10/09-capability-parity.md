@@ -25,7 +25,7 @@
 | 请求事实传播 | `CommandRequestHeaderPropagator` | 已有：`wow.http.request-facts` 白名单 |
 | 操作人 | `CommandOperator` | 计划：`Operator`（D163，6.0e） |
 | ID 生成（全局、按聚合、CosId、领域内取 ID） | `GlobalIdGenerator`、`AggregateIdGenerator` | 计划：D171，6.0f |
-| 批量命令 | `wow-core` `batch/*` | **缺失**（见 §13） |
+| 批量写入（批量准入、车道） | `wow-core` `batch/*` | 替代：追加队列与组提交（D11，`wow.log.append-queue.*`） |
 | 命令结果 | `CommandResultAccessor` | 替代：`DecideScope.putResult`（D49、D51） |
 | 跨聚合唯一键 | `infra/prepare`、`@PreparableKey` | 替代：`DecideScope.reserve` 与预留存储（D38、D50） |
 | 期望版本 | `Command-Aggregate-Version` | 已有：`If-Match`，412 |
@@ -159,20 +159,41 @@
 
 ## 13. 缺失项（M7 之前须补齐或获批豁免）
 
-| # | 缺失项 | 影响 | 阻塞 | 规模 |
-|---|---|---|---|---|
-| 1 | `SagaSpec` 与投影测试 DSL | Saga、投影的作者没有单元测试 DSL；平台移植与迁移 Skill 改写 9.x 的 `SagaSpec` 都要用 | M7、M8 | M |
-| 2 | `wow-models`、`wow-apiclient`、`wow-cocache` 的去留 | 迁移 Skill 需要目标或明确的放弃；analytics 与控制台可能用到 `wow-models` 的类型 | M8（可能 M7） | 决定 S；实现各 M |
-| 3 | 按处理函数的重试（9.x `@Retry`） | 迁移无处映射按函数调过的重试 | M8 | S |
-| 4 | 批量命令 | 一次请求提交多条命令的导入方只能逐条发送 | 可能 M8 | M |
-| 5 | 处理函数的拦截器（9.x 过滤器链） | 用过滤器做日志、指标、租户上下文的用户失去扩展点；OTel（D174）覆盖一部分 | 否 | M，或决定放弃 |
-| 6 | Kotlin 查询构建 DSL | 平台代码要手写查询数据类 | 否 | S |
-| 7 | `AggregateSpec` 分叉场景，`expectUnchanged` 后 `expectState`（G12） | 多分支测试场景要展平重写 | 否 | S |
-| 8 | 从状态提取标签（9.x `StateAggregateTagsExtractor`、`AbacTags`） | 依赖按标签做 ABAC 的服务（analytics，D129）要手发 `ApplyTags` | M7 | M |
-| 9 | wow-ops 的失败通知（9.x 补偿服务的企业微信 webhook） | 运维收不到新增或失败的告警，7.1 落后于 9.x 补偿服务 | M7 | M |
-| 10 | 跨上下文命令缺少 Kafka 时的启动检查（DX-GAPS G9） | Saga 只在运行时失败并停放 | M7 | S |
-| 11 | 生成的查询字段常量（9.x 编译器的 `<State>Properties`） | Kotlin 调用方构建查询时没有编译期安全的字段名 | M8 | S |
-| 12 | K8s 部署清单（9.x `deploy/compensation`、`deploy/example`） | 部署 ops 与示例的运维；V10 还要写明内部端口（D173） | 否 | S |
+第三轮核对（覆盖 webflux 路由、starter 配置、测试 DSL、补偿服务）后的合并清单。批量写入经复核为「替代」（追加队列与组提交），不再列入。
+
+**阻塞 M7（平台迁移）**
+
+| # | 缺失项 | 影响 | 规模 |
+|---|---|---|---|
+| 1 | 停放的长周期自动重试（9.x `CompensationScheduler`、`RetrySpec`） | wow-ops 失去无人值守的恢复：V10 只在进程内重试几次后停放，等人工恢复 | M |
+| 2 | 每条失败的运维操作（`MarkRecoverable`、`ApplyRetrySpec`、`ChangeFunction`、强制准备），D141 只有 Resume/Skip | 运维无法按条调整重试 | S～M |
+| 3 | 失败通知（企业微信 webhook） | 值班收不到告警 | S |
+| 4 | Kotlin 查询 DSL 与生成的字段常量（`<State>Properties`） | 平台移植（补偿的 `SnapshotFindNextRetry`、view-store、dataset-registry）要手写查询 | M |
+| 5 | 按订阅的重试与超时（9.x `@Retry`） | 调用慢外部系统的处理函数要有自己的预算；现在只有全局 `wow.subscription.retry` | S |
+| 6 | V10 的 K8s 部署清单（内部端口、PostgreSQL） | 跑不起 M7 的平台服务 | S |
+| 7 | `SagaSpec` 与投影/反应器测试 DSL | 平台移植与迁移 Skill 改写 9.x 测试都要用 | M |
+| 8 | 跨上下文命令缺少 Kafka 时的启动检查（G9） | Saga 只在运行时失败并停放 | S |
+
+**阻塞 M8（迁移）**
+
+| # | 缺失项 | 影响 | 规模 |
+|---|---|---|---|
+| 9 | 升级时丢弃过时事件（9.x `DroppedEvent`） | 数据工具导入不了含已退役事件类型的历史 | S |
+| 10 | 隐式放弃的项需要明确决定：`@VoidCommand`、`@Order`、`@EntityObject`、`@ValueObject`、`wow-mock`、`@StaticAggregateId` | 迁移 Skill 的缺口表要有决定编号 | S（文档） |
+| 11 | 从状态提取标签（`StateAggregateTagsExtractor`） | 依赖 ABAC 的领域失去自动打标签 | S～M |
+| 12 | 测试 DSL：`fork`/`ref` 分叉、`givenState`、按类型 `expectError`、`expectUnchanged` 后 `expectState`（G12） | 多场景测试要展平重写 | S |
+| 13 | `wow-models`（`EnumText`、`StatusCapable`、`Tree` 聚合）、`wow-apiclient`、`wow-cocache` 的去留（06 §6） | 9.x 用户依赖它们 | 决定 S；实现各 M |
+
+**不阻塞（10.x 或决定放弃）**
+
+| # | 缺失项 | 规模 |
+|---|---|---|
+| 14 | 处理函数拦截器 SPI 与排序 | M |
+| 15 | 全局 ID 的 HTTP 路由（`GET /wow/id/global`） | S |
+| 16 | Kafka 解码失败的跳过策略 | S |
+| 17 | `TestValidator`、Testcontainers 夹具、发布 `wow-tck` | S |
+
+**已决定但没有工作包**：按聚合关闭快照（D4）、跨上下文事件带类型（D178）、订阅起点写在注解上（D179，G10 标为阻塞 M7）、ClickHouse 嵌套展开（D142）、L1 布隆过滤器（D46，可选）、用 Manifest 的 JSON schema 取代 `schema/wow-metadata.schema.json`。
 
 计划中但同样卡在 M7 门槛上的：6.2c、6.1c、6.1d、6.4a/b、6.3f、6.9、5a.2、5a.3、6.0e、D179、6.0h。卡在 M8 的：6.0f、6.0g、6.7、6.2e、6.5。
 
