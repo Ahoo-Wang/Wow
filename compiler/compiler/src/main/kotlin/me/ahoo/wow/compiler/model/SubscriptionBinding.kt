@@ -48,6 +48,10 @@ internal data class HandlerBinding(
     val subscription: String,
     /** The state type of the `StateEvent` it takes; null for a star projection. */
     val state: String?,
+    /**
+     * Whether it takes a null state (decision D140): `StateEvent<S?>`, or `StateEvent<*>`, whose state may be anything.
+     */
+    val nullableState: Boolean = state == null,
     /** Whether it takes its kind's context after the state event. */
     val context: Boolean,
     val suspending: Boolean,
@@ -67,12 +71,6 @@ internal data class HandlerBinding(
 ) {
     /** The context of the aggregates it reads, when `@OnEvent(aggregates)` names them. */
     val sourceContext: String? get() = aggregates.firstOrNull()?.substringBefore('.')
-
-    /**
-     * Whether it reads another context than [context], the module's: the runtime does not subscribe to another
-     * context's published streams yet, so such a handler is in the Manifest but gets no binding.
-     */
-    fun isForeign(context: String?): Boolean = sourceContext != null && sourceContext != context
 }
 
 /**

@@ -29,7 +29,12 @@ import me.ahoo.wow.api.subscribe.SubscriptionContext
  *
  * - [stateType] is the state of the `StateEvent<S>` the handler takes: the subscription reads the aggregates of its
  *   context whose state is one, and hands each commit over with the state after it. Null for `StateEvent<*>`: every
- *   aggregate of the context.
+ *   aggregate of the context. [nullableState] says the handler takes a null state, `StateEvent<S?>` or
+ *   `StateEvent<*>` (decision D140): what a stream another context publishes without its state needs.
+ * - [aggregates] are those `@OnEvent(aggregates)` names, `context.aggregate`, all of one context (decision D138). When
+ *   they are of another context than the module's ([sourceContext]), the handler reads that context's published
+ *   streams instead of the log (decision D134): its state, if any, is decoded from the published state into
+ *   [stateType], and its events are the published ones.
  * - [startFrom] is where the subscription starts in a partition it has no checkpoint in yet: by default a
  *   projection from the beginning of the log, so it builds its read model from the whole history, and a reactor or a
  *   saga from its end (04 §3: a new subscription chooses), so deploying one does not replay side effects or derive
@@ -41,21 +46,29 @@ import me.ahoo.wow.api.subscribe.SubscriptionContext
  *
  * Built with [project], [react] or [saga], one per kind.
  */
-class ProcessorBinding<S : Any> private constructor(
+class ProcessorBinding<S> private constructor(
     /** The processor's name: its `@Name`, or its class's simple name. */
     val processor: String,
     /** The handler function's name. */
     val function: String,
     val kind: FunctionKind,
-    val stateType: Class<S>?,
+    val stateType: Class<S & Any>?,
     val startFrom: StartFrom,
     val blocking: Boolean,
     val rejections: List<RejectionBinding<*>>,
+    val aggregates: List<String>,
+    val nullableState: Boolean,
     private val call: suspend (StateEvent<S>, SubscriptionContext) -> List<Command<*>>,
 ) {
     init {
         require(processor.isNotBlank()) { "A handler names its processor." }
         require(function.isNotBlank()) { "A handler names its function." }
+        require(
+            aggregates.all { AGGREGATE.matches(it) }
+        ) { "$processor.$function reads $aggregates: each is context.aggregate." }
+        require(aggregates.map { it.substringBefore('.') }.distinct().size <= 1) {
+            "$processor.$function reads the aggregates of more than one context: $aggregates."
+        }
         rejections.forEach {
             require(it.processor == processor) { "$it is not a handler of $processor." }
         }
@@ -75,6 +88,12 @@ class ProcessorBinding<S : Any> private constructor(
     /** The subscription the handler is compiled into: `processor.function` (design 04 §1). */
     val name: String = "$processor.$function"
 
+    /** The context of the [aggregates] the handler names; null when it names none: its module's. */
+    val sourceContext: String? get() = aggregates.firstOrNull()?.substringBefore('.')
+
+    /** Whether the handler reads the published streams of a context other than [context], its module's (D134). */
+    fun isSourced(context: String): Boolean = sourceContext.let { it != null && it != context }
+
     /**
      * Calls the handler with [event], whose state is a [stateType], and the [context] of its kind ([contextOf]), in
      * the caller's coroutine: running a [blocking] one elsewhere is the runtime's.
@@ -86,6 +105,8 @@ class ProcessorBinding<S : Any> private constructor(
     override fun toString(): String = "ProcessorBinding($name, $kind)"
 
     companion object {
+        private val AGGREGATE = Regex("[^.\\s]+\\.[^.\\s]+")
+
         /** A projection starts from the beginning of the log; a reactor or a saga from its end. */
         @JvmStatic
         fun defaultStartFrom(kind: FunctionKind): StartFrom =
@@ -94,12 +115,14 @@ class ProcessorBinding<S : Any> private constructor(
         /** A `@Projection`'s handler [function] of [processor]. */
         @JvmStatic
         @Suppress("LongParameterList")
-        fun <S : Any> project(
+        fun <S> project(
             processor: String,
             function: String,
-            stateType: Class<S>?,
+            stateType: Class<S & Any>?,
             blocking: Boolean = false,
             startFrom: StartFrom = defaultStartFrom(FunctionKind.PROJECT),
+            aggregates: List<String> = emptyList(),
+            nullableState: Boolean = stateType == null,
             handle: suspend (StateEvent<S>, ProjectContext) -> Unit,
         ): ProcessorBinding<S> =
             ProcessorBinding(
@@ -109,7 +132,9 @@ class ProcessorBinding<S : Any> private constructor(
                 stateType,
                 startFrom,
                 blocking,
-                emptyList()
+                emptyList(),
+                aggregates,
+                nullableState,
             ) { e, c ->
                 handle(e, c as ProjectContext)
                 emptyList()
@@ -118,12 +143,14 @@ class ProcessorBinding<S : Any> private constructor(
         /** A `@Reactor`'s handler [function] of [processor]. */
         @JvmStatic
         @Suppress("LongParameterList")
-        fun <S : Any> react(
+        fun <S> react(
             processor: String,
             function: String,
-            stateType: Class<S>?,
+            stateType: Class<S & Any>?,
             blocking: Boolean = false,
             startFrom: StartFrom = defaultStartFrom(FunctionKind.REACT),
+            aggregates: List<String> = emptyList(),
+            nullableState: Boolean = stateType == null,
             handle: suspend (StateEvent<S>, ReactContext) -> Unit,
         ): ProcessorBinding<S> =
             ProcessorBinding(
@@ -133,7 +160,9 @@ class ProcessorBinding<S : Any> private constructor(
                 stateType,
                 startFrom,
                 blocking,
-                emptyList()
+                emptyList(),
+                aggregates,
+                nullableState,
             ) { e, c ->
                 handle(e, c as ReactContext)
                 emptyList()
@@ -145,13 +174,15 @@ class ProcessorBinding<S : Any> private constructor(
          */
         @JvmStatic
         @Suppress("LongParameterList")
-        fun <S : Any> saga(
+        fun <S> saga(
             processor: String,
             function: String,
-            stateType: Class<S>?,
+            stateType: Class<S & Any>?,
             blocking: Boolean = false,
             startFrom: StartFrom = defaultStartFrom(FunctionKind.SAGA),
             rejections: List<RejectionBinding<*>> = emptyList(),
+            aggregates: List<String> = emptyList(),
+            nullableState: Boolean = stateType == null,
             handle: suspend (StateEvent<S>, SagaContext) -> List<Command<*>>,
         ): ProcessorBinding<S> =
             ProcessorBinding(
@@ -161,7 +192,9 @@ class ProcessorBinding<S : Any> private constructor(
                 stateType,
                 startFrom,
                 blocking,
-                rejections
+                rejections,
+                aggregates,
+                nullableState,
             ) { e, c ->
                 handle(e, c as SagaContext)
             }

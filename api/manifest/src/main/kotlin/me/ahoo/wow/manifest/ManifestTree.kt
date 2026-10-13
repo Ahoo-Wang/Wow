@@ -20,7 +20,7 @@ package me.ahoo.wow.manifest
  * none.
  *
  * Absent optional values (a null description, unknown `produces` or `derives`, a fragment's service) are left out,
- * not written as null.
+ * not written as null, and so is a subscription source's `nullableState` when false.
  */
 object ManifestTree {
     private const val DEFS = "\$defs"
@@ -81,6 +81,7 @@ object ManifestTree {
             "context" to subscription.source.context,
             "aggregates" to subscription.source.aggregates,
             "events" to subscription.source.events,
+            "nullableState" to subscription.source.nullableState.takeIf { it },
         ),
         "function" to obj(
             "kind" to subscription.function.kind.name,
@@ -175,6 +176,7 @@ object ManifestTree {
                 context = source.stringOrNull("context"),
                 aggregates = source.strings("aggregates"),
                 events = source.strings("events"),
+                nullableState = source.booleanOrNull("nullableState") ?: false,
             ),
             function = FunctionManifest(
                 kind = FunctionKind.valueOf(function.string("kind")),

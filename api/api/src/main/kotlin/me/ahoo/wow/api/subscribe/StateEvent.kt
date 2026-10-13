@@ -28,9 +28,12 @@ import me.ahoo.wow.api.decide.Causation
  * - [scope] is the aggregate's owner and space after the commit (decision D56), not the caller's.
  * - [causation] and [headers] come from the command: the chain it belongs to and the request facts admission kept.
  *
- * [state] is a copy read from the commit's state view, never the live instance: changing it affects no one.
+ * [state] is a copy read from the commit's state view, never the live instance: changing it affects no one. A
+ * handler of another context's published stream declares a nullable state, `StateEvent<OrderView?>`, when the
+ * upstream publishes the stream without it (decision D140): [state] is then null. `S` is covariant, so a
+ * `StateEvent<OrderView>` is a `StateEvent<OrderView?>`.
  */
-data class StateEvent<S : Any>(
+data class StateEvent<out S>(
     val ref: AggregateRef,
     val version: Int,
     val commandId: String,

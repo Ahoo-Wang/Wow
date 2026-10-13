@@ -101,8 +101,9 @@ import tools.jackson.databind.json.JsonMapper
  * `@ErrorCode` constants (decision D121, [ErrorCodeResolver]) are the context's `errors` in the fragment.
  *
  * `@OnEvent(aggregates = ["ctx.agg"])` names the aggregates a handler reads (decision D138): of the module's context,
- * they must be aggregates of the module whose state the handler takes; of another context, the handler is in the
- * fragment but gets no binding, with a note, until the runtime subscribes to published streams. A saga's
+ * they must be aggregates of the module whose state the handler takes; of another context, the handler's binding
+ * names them, and the runtime reads their published streams for it (decision D134). A handler of a nullable state,
+ * `StateEvent<S?>` or `StateEvent<*>`, says so in its binding and in its Manifest source (decision D140). A saga's
  * `@OnRejected` handlers (decisions D136, D153) are in the fragment too, and bound with each of its handlers.
  */
 internal class ModelSymbolProcessor(
@@ -247,20 +248,11 @@ internal class ModelSymbolProcessor(
     }
 
     private fun generate(binding: SubscriptionBinding, processor: KSClassDeclaration) {
-        val context = context()
-        binding.handlers.filter { it.isForeign(context) }.forEach {
-            logger.info(
-                "${binding.processor}: handler ${it.subscription} reads ${it.aggregates.joinToString()} of another " +
-                    "context; the Manifest lists it, but it gets no binding until the runtime subscribes to " +
-                    "published streams (decision D138)",
-                processor,
-            )
-        }
         codeGenerator.createNewFile(
             Dependencies(aggregating = false, sources = listOfNotNull(processor.containingFile).toTypedArray()),
             binding.packageName,
             "${binding.simpleNames.joinToString("")}Subscriptions",
-        ).bufferedWriter().use { it.write(SubscriptionSource.render(binding, context)) }
+        ).bufferedWriter().use { it.write(SubscriptionSource.render(binding)) }
     }
 
     @OptIn(KspExperimental::class)
