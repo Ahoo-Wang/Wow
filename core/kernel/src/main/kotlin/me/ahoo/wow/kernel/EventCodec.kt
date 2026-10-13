@@ -72,6 +72,9 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         return mapper.readValue(mapper.writeValueAsString(payload), type.type)
     }
 
+    /** [command] as JSON: the body of a scheduled command (decision D166), read back by its type when it is due. */
+    fun commandText(command: Any): String = mapper.writeValueAsString(command)
+
     /** [state] as text, to tell whether something changed it, and as a snapshot holds it. */
     fun stateText(state: Any): String = mapper.writeValueAsString(state)
 

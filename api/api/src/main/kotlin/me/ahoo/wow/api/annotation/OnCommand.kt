@@ -25,10 +25,14 @@ import kotlin.reflect.KClass
  *   `Any`. Each must be an event of the aggregate. A function whose return type already names its events (an event,
  *   a sealed type, a list of them) may not declare them again. Empty, the default, declares nothing: `produces` stays
  *   unknown.
+ * @param schedules the commands the function may schedule with `DecideScope.schedule` (decision D166), each by its
+ *   full type name `context.aggregate.Command`, which the Manifest lists as the aggregate's `schedules`. The compiler
+ *   cannot read the calls in a function's body, so they are declared; empty, the default, declares none.
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
 @MustBeDocumented
 annotation class OnCommand(
     val produces: Array<KClass<*>> = [],
+    val schedules: Array<String> = [],
 )

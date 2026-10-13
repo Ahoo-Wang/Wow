@@ -41,6 +41,9 @@ data class EventRecord(val name: String, val revision: Int, val payload: String)
  * - [scope] is the aggregate's owner and space **after** this commit, not the caller's (D56): every fact carries it,
  *   so projections and query authorization read it without replaying history.
  * - [causation] and [headers] come from the command: the chain it belongs to and the request facts admission kept.
+ * - [schedules] are the scheduled commands the decision put or cancelled (decision D166), at most one change per key:
+ *   framework metadata committed with the events, from which the built-in `timers` subscription derives the timer
+ *   store. Projections do not see them. A stream may hold schedules and no event: a decision that only schedules.
  */
 data class EventStreamRecord(
     val ref: AggregateRef,
@@ -53,11 +56,15 @@ data class EventStreamRecord(
     val scope: Scope,
     val causation: Causation? = null,
     val headers: Map<String, String> = emptyMap(),
+    val schedules: List<ScheduleChange> = emptyList(),
 ) {
     init {
         require(version >= 1) { "An event stream's version starts at 1." }
         require(commandType.isNotBlank()) { "An event stream names the type of its command." }
-        require(events.isNotEmpty()) { "An event stream holds at least one event." }
+        require(events.isNotEmpty() || schedules.isNotEmpty()) { "An event stream holds an event or a schedule." }
+        require(schedules.size < 2 || schedules.distinctBy { it.key }.size == schedules.size) {
+            "An event stream changes a schedule once."
+        }
     }
 }
 

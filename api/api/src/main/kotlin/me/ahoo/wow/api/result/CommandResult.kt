@@ -34,6 +34,9 @@ enum class FunctionKind {
 
     /** The built-in subscription that confirms reservations (decision D50). */
     RESERVATION,
+
+    /** The built-in subscription that writes the timers of scheduled commands (decision D166). */
+    TIMERS,
 }
 
 /**

@@ -15,6 +15,8 @@ package me.ahoo.wow.api.subscribe
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Command
+import java.time.Instant
+import kotlin.time.Duration
 
 /**
  * One execution of a subscription's handler for one commit (design 01 §1): the [subscription] (`processor.function`,
@@ -52,4 +54,21 @@ interface SagaContext : SubscriptionContext {
      * requests and they are not decided twice; its causation links it to the commit and to the root of the chain.
      */
     fun <C : Any> command(ref: AggregateRef, body: C): Command<C>
+
+    /**
+     * Schedules [command] to be sent to [target] at [at] (decision D166). [key] names the schedule among this saga's
+     * schedules of [target]: scheduling it again replaces it, and [cancel] cancels it, from any execution of the saga.
+     *
+     * The schedule is written before the saga's checkpoint passes this commit, with an id deterministic from
+     * [executionId] and the order of the calls, so handling the commit again writes the same schedule. The command is
+     * sent at least once, not before [at], and decided once; a rejection when it is due is a normal guard, not handed
+     * to `@OnRejected`.
+     */
+    fun schedule(key: String, at: Instant, target: AggregateRef, command: Any)
+
+    /** Schedules [command] to be sent to [target] [after] the commit this execution handles; see the other [schedule]. */
+    fun schedule(key: String, after: Duration, target: AggregateRef, command: Any)
+
+    /** Cancels this saga's schedule of [target] under [key]; nothing when there is none. */
+    fun cancel(key: String, target: AggregateRef)
 }

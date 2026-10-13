@@ -100,6 +100,9 @@ data class ContextManifest(
  * their full names in the system namespace (`wow.lifecycle.DeleteAggregate`): they are the same types for every
  * aggregate, so unlike [commands] they are not names within the aggregate and never conflict between aggregates.
  * [queries] are the read models of the aggregate a client queries ([QueryManifest], decision D128).
+ *
+ * [schedules] names the commands the aggregate's decide functions may schedule (decision D166), each by its full type
+ * name (`context.aggregate.Command`), as their `@OnCommand(schedules)` declare; null when none declares any.
  */
 data class AggregateManifest(
     val name: String,
@@ -110,6 +113,7 @@ data class AggregateManifest(
     val events: List<EventManifest> = emptyList(),
     val lifecycle: List<String> = emptyList(),
     val queries: List<QueryManifest> = emptyList(),
+    val schedules: List<String>? = null,
 )
 
 /**
@@ -191,6 +195,8 @@ data class EventManifest(
  *   handler reads rejections, not state events: its [source] is empty and not read.
  * - [start] is where a new subscription starts in the log (decision D154): [SubscriptionStart.defaultFor] its kind,
  *   unless the host configures another. Null on an `@OnRejected` handler, which reads no log.
+ * - [schedules] names the commands a saga's handler may schedule (decision D166), each by its full type name, as its
+ *   `@OnEvent(schedules)` declares; null when it declares none, and always for a projection or a reactor.
  */
 data class SubscriptionManifest(
     val name: String,
@@ -200,6 +206,7 @@ data class SubscriptionManifest(
     val derives: List<String>? = null,
     val rejected: List<String>? = null,
     val start: SubscriptionStart? = null,
+    val schedules: List<String>? = null,
 )
 
 enum class SubscriptionKind { PROJECTION, REACTOR, SAGA }

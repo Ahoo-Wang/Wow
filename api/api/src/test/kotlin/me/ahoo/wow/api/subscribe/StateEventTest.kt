@@ -21,6 +21,8 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import org.junit.jupiter.api.Test
+import java.time.Instant
+import kotlin.time.Duration
 
 class StateEventTest {
     private val ref = AggregateType("example", "cart").ref("tenant", "c-1")
@@ -85,6 +87,12 @@ class StateEventTest {
                 val id = "$executionId#${index++}"
                 return Command(id, id, ref, body, causation = Causation("cmd-3", "$ref@3"))
             }
+
+            override fun schedule(key: String, at: Instant, target: AggregateRef, command: Any) = Unit
+
+            override fun schedule(key: String, after: Duration, target: AggregateRef, command: Any) = Unit
+
+            override fun cancel(key: String, target: AggregateRef) = Unit
         }
         listOf(project, react, saga).map { it.executionId }.distinct().assert().containsExactly(execution)
         saga.command(ref, "Pay").id.assert().isEqualTo("payment-saga.onEvent:example.cart/tenant/c-1@3#0")

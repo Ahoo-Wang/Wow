@@ -158,6 +158,7 @@ internal object ManifestFragmentBuilder {
             }.sortedBy { it.name },
             lifecycle = binding.lifecycle,
             queries = QueryRoutes.queries(context, binding.aggregateName, snapshot.enabled),
+            schedules = binding.commands.flatMap { it.schedules }.distinct().sorted().ifEmpty { null },
         )
     }
 
@@ -193,6 +194,7 @@ internal object ManifestFragmentBuilder {
                 function = FunctionManifest(functionKind, context, binding.name, handler.function),
                 derives = derives.takeIf { kind == SubscriptionKind.SAGA },
                 start = SubscriptionStart.defaultFor(kind),
+                schedules = handler.schedules.distinct().sorted().ifEmpty { null },
             )
         }
         val rejections = binding.rejections.map { rejection ->

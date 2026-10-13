@@ -94,6 +94,8 @@ internal data class CommandBinding(
     val yields: List<String>?,
     /** The events `@OnCommand(produces)` declares (decision D120), checked against the aggregate's events. */
     val declaredProduces: List<String>,
+    /** `@OnCommand(schedules)`: the full type names of the commands the function declares it schedules (D166). */
+    val schedules: List<String> = emptyList(),
 )
 
 internal data class SourcingBinding(

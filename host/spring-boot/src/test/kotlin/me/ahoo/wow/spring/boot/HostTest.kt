@@ -36,6 +36,7 @@ import org.springframework.boot.availability.ReadinessState
 import org.springframework.context.SmartLifecycle
 import tools.jackson.databind.json.JsonMapper
 import java.util.UUID
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -53,6 +54,10 @@ class HostTest {
         "wow.wait.max-hops" to 3,
         "wow.subscription.max-in-flight" to 64,
         "wow.subscription.retry.max-attempts" to 2,
+        "wow.timers.poll-interval" to "250ms",
+        "wow.timers.lookahead" to "10s",
+        "wow.timers.max-attempts" to 4,
+        "wow.timers.expires-after" to "1h",
         "wow.http.errors.[bank.account.frozen].status" to 409,
         "wow.http.request-facts" to "X-Device",
         "spring.lifecycle.timeout-per-shutdown-phase" to "1s",
@@ -98,6 +103,11 @@ class HostTest {
         options.subscription.maxInFlight.assert().isEqualTo(64)
         options.subscription.retry.maxAttempts.assert().isEqualTo(2)
         options.subscription.checkpointInterval.assert().isEqualTo(100.milliseconds)
+        options.timers.pollInterval.assert().isEqualTo(250.milliseconds)
+        options.timers.lookahead.assert().isEqualTo(10.seconds)
+        options.timers.retry.maxAttempts.assert().isEqualTo(4)
+        options.timers.expiresAfter.assert().isEqualTo(1.hours)
+        host.node.context(BANK).timers!!.runner.partitions.size.assert().isEqualTo(8)
         host.node.context(BANK).log.partitions.assert().isEqualTo(8)
     }
 

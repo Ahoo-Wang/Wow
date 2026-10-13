@@ -19,13 +19,14 @@ import me.ahoo.wow.postgres.reservation.PostgresReservationStore
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.postgres.subscription.PostgresCheckpointStore
 import me.ahoo.wow.postgres.subscription.PostgresLeaseStore
+import me.ahoo.wow.postgres.timer.PostgresTimerStore
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.ContextBackends
 import javax.sql.DataSource
 
 /**
- * The PostgreSQL backend (wow-postgres) over the application's [DataSource]: each context its own log and snapshot
- * tables; the checkpoints, leases, failure ledger and reservations shared. Loaded only when it is selected, so the
+ * The PostgreSQL backend (wow-postgres) over the application's [DataSource]: each context its own log, snapshot and
+ * timer tables; the checkpoints, leases, failure ledger and reservations shared. Loaded only when it is selected, so the
  * host runs without wow-postgres on the classpath.
  */
 internal object PostgresBackends {
@@ -43,9 +44,11 @@ internal object PostgresBackends {
         return HostBackends(BackendKind.POSTGRES, AppendQueueOptions.POSTGRES, shared) { context, schemas ->
             val log = PostgresEventLog(dataSource, context, partitions)
             val snapshots = PostgresSnapshotStore(dataSource, context)
+            val timers = PostgresTimerStore(dataSource, context)
             schemas += log::createSchema
             schemas += snapshots::createSchema
-            ContextBackends(log, checkpoints, leases, ledger, snapshots, reservations)
+            schemas += timers::createSchema
+            ContextBackends(log, checkpoints, leases, ledger, snapshots, reservations, timers)
         }
     }
 }

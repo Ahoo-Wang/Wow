@@ -25,6 +25,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
@@ -58,11 +59,18 @@ import me.ahoo.wow.runtime.state.StateViewReader
 import me.ahoo.wow.runtime.state.StateViews
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
+import me.ahoo.wow.runtime.timer.ContextCommandTypes
+import me.ahoo.wow.runtime.timer.ContextTimerFirer
+import me.ahoo.wow.runtime.timer.SagaTimers
+import me.ahoo.wow.runtime.timer.TimerFirer
+import me.ahoo.wow.runtime.timer.TimerRunner
+import me.ahoo.wow.runtime.timer.TimersSubscription
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.wait.Origin
 import java.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
@@ -103,6 +111,11 @@ class ContextNode internal constructor(
     val intake: SubscriptionRuntime? = null,
     /** Sends the commands of the context's sagas to other contexts (decision D33); null without a producer. */
     val sender: CommandSender? = null,
+    /**
+     * The built-in `timers` subscription and the context's timer runner (decision D166), when its backends have a
+     * timer store: the runner's [TimerRunner.resume] and [TimerRunner.skip] serve an operator.
+     */
+    val timers: ContextTimers? = null,
 ) {
     /**
      * Reads the state after a commit as the state consumer [reader] of [views] ([StateViewReader]), from the
@@ -114,6 +127,17 @@ class ContextNode internal constructor(
 }
 
 /**
+ * The scheduled commands of one context on a node (decision D166): the built-in `timers` [subscription] writes the
+ * timers its aggregates schedule, [sagas] those its sagas schedule, and the [runner] sends them from the partitions
+ * the node owns.
+ */
+class ContextTimers internal constructor(
+    val subscription: TimersSubscription,
+    val runner: TimerRunner,
+    val sagas: SagaTimers,
+)
+
+/**
  * One node of a service, assembled without a host (decision D108; roadmap 4.8): what a host (Spring Boot, a test, a
  * sample) wires to its ports.
  *
@@ -123,7 +147,8 @@ class ContextNode internal constructor(
  * [SnapshotSubscription] (for the aggregates whose Manifest enables snapshots) and [ReservationSubscription], with
  * the application's subscriptions, in a
  * [SubscriptionRuntime]; a [PartitionOwnership] of the lease group `(service, context)`; a [WaitCoordinator]; a
- * [ForwardEndpoint].
+ * [ForwardEndpoint]. With a timer store, the built-in [TimersSubscription] and a [TimerRunner] driven by the
+ * context's [PartitionOwnership], which sends the scheduled commands of the partitions the node owns (decision D166).
  *
  * **Per node**: the [waits] registered here, the [signals] sender (a signal to this node goes straight to [waits],
  * one to another node through the host's remote sender), the [router] over every context's lease group, the
@@ -289,7 +314,11 @@ class ServiceNode(
         // A start configured for a subscription the node does not have is a typo, not a no-op (decision D154).
         val names = contexts.values.flatMapTo(HashSet()) { context ->
             applicationSubscriptions.getValue(context).map { it.name } +
-                listOfNotNull(context.snapshots?.subscription?.name, context.reservations?.subscription?.name) +
+                listOfNotNull(
+                    context.snapshots?.subscription?.name,
+                    context.reservations?.subscription?.name,
+                    context.timers?.subscription?.subscription?.name,
+                ) +
                 listOfNotNull(intakes[context]?.subscription?.name)
         }
         topicSubscriptions.values.flatMapTo(names) { topic -> topic.subscriptions.map { it.name } }
@@ -524,27 +553,23 @@ class ServiceNode(
         application: SubscriptionFactory,
     ): Parts {
         val log = PartitionAppendQueue(backends.log, options.appendQueue)
-        val states = if (options.stateCacheCapacity > 0) LruStateCache(options.stateCacheCapacity) else StateCache.None
-        val kernel = Kernel(
-            log,
-            codec = codec,
-            reservations = backends.reservations,
-            states = states,
-            snapshots = backends.snapshots,
-        )
+        val names = ContextCommandTypes(models, contracts)
+        val kernel = kernelOf(log, backends, codec, names)
         val snapshotted = if (backends.snapshots == null) emptyList() else models.filter { snapshotEnabled(it) }
         val views = StateViews(codec, stateReaders(context, models, snapshotted, application), options.stateViews)
         val snapshots = backends.snapshots?.takeIf { snapshotted.isNotEmpty() }?.let {
             SnapshotSubscription(context, snapshotted, it, kernel, backends.log, codec, views)
         }
         val reservations = backends.reservations?.let { ReservationSubscription(context, it) }
+        val firing = LateFirer()
+        val timers = timersOf(context, backends, names, firing, codec)
         val group = LeaseGroup(service, context)
         val subscriptions = SubscriptionRuntime(
             group.name,
             backends.log,
             backends.checkpoints,
             backends.ledger,
-            listOfNotNull(snapshots?.subscription, reservations?.subscription),
+            listOfNotNull(snapshots?.subscription, reservations?.subscription, timers?.subscription?.subscription),
             options.subscription,
             signals = signals,
         )
@@ -560,6 +585,7 @@ class ServiceNode(
             // Connected ahead of the first forward, so its timeout is not spent opening a connection (D80).
             peers = { peer -> if (options.routing == Routing.PARTITIONED) channel.connect(peer.address) },
             intake = intake,
+            timers = timers?.runner,
         )
         val executor = Executor(kernel, options.laneCapacity, views.takeIf { it.types.isNotEmpty() })
         return Parts(
@@ -577,6 +603,34 @@ class ServiceNode(
             codec,
             views,
             intake,
+            timers,
+            firing,
+        )
+    }
+
+    /** The kernel of a context over its [log], with its state cache, snapshot and reservation stores. */
+    private fun kernelOf(log: PartitionAppendQueue, backends: ContextBackends, codec: EventCodec, names: CommandTypes) =
+        Kernel(
+            log,
+            codec = codec,
+            reservations = backends.reservations,
+            states = if (options.stateCacheCapacity > 0) LruStateCache(options.stateCacheCapacity) else StateCache.None,
+            snapshots = backends.snapshots,
+            commandTypes = names,
+        )
+
+    /** The scheduled commands of [context] (decision D166), when its [backends] have a timer store. */
+    private fun timersOf(
+        context: String,
+        backends: ContextBackends,
+        names: ContextCommandTypes,
+        firer: TimerFirer,
+        codec: EventCodec,
+    ): ContextTimers? = backends.timers?.let { store ->
+        ContextTimers(
+            TimersSubscription(context, store, backends.log.partitions),
+            TimerRunner(context, store, backends.ledger, firer, options.timers),
+            SagaTimers(store, names, backends.log.partitions, codec),
         )
     }
 
@@ -620,11 +674,14 @@ class ServiceNode(
         val codec: EventCodec,
         val views: StateViews,
         val intake: SubscriptionRuntime?,
+        val timers: ContextTimers?,
+        val firing: LateFirer,
     ) {
         fun complete(): ContextNode {
             val directory = contracts.over(subscriptions, context)
             val coordinator = WaitCoordinator(executor, waits, directory, signals, waitOptions, router = router)
             val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership))
+            firing.firer = ContextTimerFirer(models, coordinator, sender)
             return ContextNode(
                 context,
                 models,
@@ -643,8 +700,17 @@ class ServiceNode(
                 views,
                 intake,
                 sender,
+                timers,
             )
         }
+    }
+
+    /** The context's timer firer, known once its coordinator is: the runner is built before it. */
+    private class LateFirer : TimerFirer {
+        @Volatile
+        lateinit var firer: TimerFirer
+
+        override suspend fun fire(timer: Timer): String = firer.fire(timer)
     }
 
     /** Where a node is in its lifecycle. */

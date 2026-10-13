@@ -19,6 +19,7 @@ import me.ahoo.wow.kernel.InMemoryFailureLedger
 import me.ahoo.wow.kernel.InMemoryLeaseStore
 import me.ahoo.wow.kernel.InMemoryReservationStore
 import me.ahoo.wow.kernel.InMemorySnapshotStore
+import me.ahoo.wow.kernel.InMemoryTimerStore
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
@@ -57,7 +58,9 @@ class HostBackends(
     }
 
     companion object {
-        /** In memory, each context its own log and snapshots: for one node, whose data does not outlive it. */
+        /**
+         * In memory, each context its own log, snapshots and timers: for one node, whose data does not outlive it.
+         */
         fun memory(partitions: Int): HostBackends {
             val checkpoints = InMemoryCheckpointStore()
             val leases = InMemoryLeaseStore()
@@ -71,6 +74,7 @@ class HostBackends(
                     ledger = ledger,
                     snapshots = InMemorySnapshotStore(),
                     reservations = reservations,
+                    timers = InMemoryTimerStore(),
                 )
             }
         }

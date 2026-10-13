@@ -37,6 +37,7 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
+import me.ahoo.wow.runtime.timer.TimerRunner
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
 import java.util.concurrent.ConcurrentHashMap
@@ -95,7 +96,8 @@ data class RenewalRound(
  *   apart from the refresh: the node connects to it there ([ClusterChannel.connect]) before forwarding to it.
  *
  * Acquiring a partition starts its subscriptions in [subscriptions] ([SubscriptionRuntime.startPartition]), then the
- * same partition of the context's command topic in [intake], before the node accepts commands for it.
+ * same partition of the context's command topic in [intake], then its [timers], before the node accepts commands for
+ * it. A hand-off stops the timers first, once the node stops accepting, so it sends no command it would not run.
  *
  * [stop] is a graceful leave: the node leaves the members at once, so the others take its partitions on their next
  * round, then hands off every partition it holds.
@@ -122,6 +124,11 @@ class PartitionOwnership internal constructor(
      * started and stopped with each partition the node holds, so the owner of a log partition executes its commands.
      */
     private val intake: SubscriptionRuntime? = null,
+    /**
+     * The context's timer runner (decision D166): it sends the timers of each partition the node holds, from the
+     * partition's acquisition until its hand-off begins.
+     */
+    private val timers: TimerRunner? = null,
 ) {
     @Suppress("LongParameterList") // The parts of an ownership, as the primary constructor takes them.
     constructor(
@@ -246,6 +253,7 @@ class PartitionOwnership internal constructor(
                 target = emptySet()
                 handOff(gates.keys.toList())
             }
+            timers?.stop()
             intake?.stop()
             subscriptions?.stop()
         } finally {
@@ -263,6 +271,7 @@ class PartitionOwnership internal constructor(
         running = null
         run.root.cancelAndJoin()
         gates.clear()
+        timers?.stop()
         intake?.stop()
         subscriptions?.stop()
     }
@@ -361,6 +370,7 @@ class PartitionOwnership internal constructor(
         try {
             subscriptions?.startPartition(partition)
             intake?.startPartition(partition)
+            timers?.startPartition(partition)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
@@ -379,6 +389,7 @@ class PartitionOwnership internal constructor(
             async {
                 val gate = gates[partition] ?: return@async
                 gate.accepting = false
+                quietly("stop the timers of partition $partition") { timers?.stopPartition(partition) }
                 // The intake stops taking the partition's commands, settles those in flight and saves its checkpoint.
                 quietly("stop the command intake of partition $partition") { intake?.stopPartition(partition) }
                 withTimeoutOrNull(options.drainTimeout) { gate.inFlight.first { it <= 0 } } ?: logger.warn {
@@ -466,6 +477,7 @@ class PartitionOwnership internal constructor(
     /** Stops the partitions whose lease expired before it was renewed; another node may own them now. */
     private suspend fun dropLost() {
         gates.filterValues { it.lost }.forEach { (partition, gate) ->
+            quietly("stop the timers of partition $partition") { timers?.stopPartition(partition) }
             quietly("stop the command intake of partition $partition") { intake?.stopPartition(partition) }
             quietly("stop the subscriptions of partition $partition") { subscriptions?.stopPartition(partition) }
             gates.remove(partition, gate)

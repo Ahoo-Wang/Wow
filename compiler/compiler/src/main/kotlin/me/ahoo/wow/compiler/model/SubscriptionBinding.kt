@@ -63,6 +63,8 @@ internal data class HandlerBinding(
     val aggregates: List<String> = emptyList(),
     /** `@OnEvent(derives)`: the full type names of the commands a saga's handler declares it derives. */
     val derives: List<String> = emptyList(),
+    /** `@OnEvent(schedules)`: the full type names of the commands a saga's handler declares it schedules (D166). */
+    val schedules: List<String> = emptyList(),
     /**
      * The binary names of the command classes a saga's handler returns, as its return type says (`Command<X>`, a
      * list of them); null when it does not say (`Command<*>`), and for a projection or a reactor.

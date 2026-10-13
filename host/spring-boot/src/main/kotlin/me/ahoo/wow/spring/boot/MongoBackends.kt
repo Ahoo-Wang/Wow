@@ -20,12 +20,13 @@ import me.ahoo.wow.mongo.reservation.MongoReservationStore
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.mongo.subscription.MongoCheckpointStore
 import me.ahoo.wow.mongo.subscription.MongoLeaseStore
+import me.ahoo.wow.mongo.timer.MongoTimerStore
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.ContextBackends
 
 /**
  * The MongoDB backend (wow-mongo) over the application's `MongoClient` ([client]), in [database]: each context its
- * own log and snapshot collections; the checkpoints, leases, failure ledger and reservations shared. Its appends go
+ * own log, snapshot and timer collections; the checkpoints, leases, failure ledger and reservations shared. Its appends go
  * through the partition append queue by default (decision D52). Loaded only when it is selected; [client] is typed
  * loosely so that the caller does not load the driver's classes.
  */
@@ -45,9 +46,11 @@ internal object MongoBackends {
         return HostBackends(BackendKind.MONGO, AppendQueueOptions.MONGO, shared) { context, schemas ->
             val log = MongoEventLog(mongo, database, context, partitions)
             val snapshots = MongoSnapshotStore(mongo, database, context)
+            val timers = MongoTimerStore(mongo, database, context)
             schemas += log::createSchema
             schemas += snapshots::createSchema
-            ContextBackends(log, checkpoints, leases, ledger, snapshots, reservations)
+            schemas += timers::createSchema
+            ContextBackends(log, checkpoints, leases, ledger, snapshots, reservations, timers)
         }
     }
 }
