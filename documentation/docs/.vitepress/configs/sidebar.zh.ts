@@ -226,6 +226,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '编译器生成什么', link: 'generated-code'},
                 {text: '测试', link: 'testing'},
                 {text: 'HTTP API', link: 'http-api'},
+                {text: '查询语言', link: 'query'},
                 {text: '配置项', link: 'configuration'},
                 {text: '部署', link: 'deployment'},
             ],
