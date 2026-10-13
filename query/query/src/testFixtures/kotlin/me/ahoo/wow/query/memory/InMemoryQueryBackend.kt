@@ -97,19 +97,20 @@ class InMemoryQueryStorage(
 
     override fun create(aggregateType: AggregateType): QueryBackendBinding<InMemoryQueryBackend> =
         backends.computeIfAbsent(aggregateType) {
-            QueryBackendBinding(InMemoryQueryBackend(it, this, delay), InMemoryQueryStorageAdapter)
+            QueryBackendBinding(InMemoryQueryBackend(it, { records(it) }, delay), InMemoryQueryStorageAdapter)
         }
 }
 
 /**
- * The snapshot query backend of one aggregate type over an [InMemoryQueryStorage]: every filter operator but
+ * The query backend of one record set: an aggregate type's snapshots in an [InMemoryQueryStorage], or a dataset's
+ * rows in an [InMemoryDatasetStorage]. It evaluates every filter operator but
  * full-text search, sort, offset and keyset pages, bounded counts, projection and aggregation; HAVING, top-N by a
  * metric, dense fill and windows are left to the core ([InMemoryQueryStorageAdapter]). [timeouts] records the timeout
  * of every query it received, so a test can see that the timeout reached the backend.
  */
 class InMemoryQueryBackend internal constructor(
     override val aggregateType: AggregateType,
-    private val storage: InMemoryQueryStorage,
+    private val records: () -> List<ObjectNode>,
     private val delay: Duration,
 ) : QueryBackend {
     override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
@@ -127,7 +128,7 @@ class InMemoryQueryBackend internal constructor(
 
     private fun matched(query: AdmittedQuery<Queryable<*>>): List<ObjectNode> {
         val filters = InMemoryFilters(query)
-        val matched = storage.records(aggregateType).filter { filters.matches(query.query.filter, RecordScope(it)) }
+        val matched = records().filter { filters.matches(query.query.filter, RecordScope(it)) }
         return matched.sortedWith(comparator(query, query.query.sort))
     }
 
@@ -167,14 +168,14 @@ class InMemoryQueryBackend internal constructor(
     override suspend fun count(query: AdmittedQuery<ICountQuery>): Long {
         receive(query)
         val filters = InMemoryFilters(query)
-        val matches = storage.records(aggregateType).count { filters.matches(query.query.filter, RecordScope(it)) }
+        val matches = records().count { filters.matches(query.query.filter, RecordScope(it)) }
         // As `count(*)` over `LIMIT limit + 1`: never more than one past the limit.
         return query.query.limit?.let { minOf(matches.toLong(), it + 1L) } ?: matches.toLong()
     }
 
     override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flow<ObjectNode> = flow {
         receive(query)
-        InMemoryAggregation(query).run(storage.records(aggregateType), window).forEach { emit(it) }
+        InMemoryAggregation(query).run(records(), window).forEach { emit(it) }
     }
 
     private fun sortKey(query: AdmittedQuery<*>, sort: Sort, record: ObjectNode): JsonNode? =

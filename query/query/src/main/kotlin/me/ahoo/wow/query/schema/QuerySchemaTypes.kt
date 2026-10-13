@@ -20,7 +20,7 @@ private fun requireQuerySchemaIdentifier(value: String) {
 }
 
 /**
- * A read model a query runs against: [SNAPSHOT], a [DATASET] (6.1d), or a custom model. The V10 `events` model of an
+ * A read model a query runs against: [SNAPSHOT], a [DATASET] ([QueryDataset][me.ahoo.wow.query.dataset.QueryDataset]), or a custom model. The V10 `events` model of an
  * aggregate's log (decision D131) is not a record set a backend filters freely, so it is not one of these (6.2c).
  */
 data class QueryModel(

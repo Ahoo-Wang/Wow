@@ -27,13 +27,15 @@ import java.util.Collections
 import java.util.concurrent.TimeUnit
 
 /**
- * Record layout and invariants of one [QueryModel]: the built-in Snapshot, and each declared dataset (6.1d).
+ * Record layout and invariants of one [QueryModel]: the built-in Snapshot, and each declared dataset
+ * ([DatasetQueryModelProfile][me.ahoo.wow.query.dataset.DatasetQueryModelProfile]). The hierarchy is closed to this
+ * module: its constructor is internal.
  *
  * Every model difference that the query runtime depends on lives here, so gateways, validators and backends ask the
  * profile instead of branching on [QueryModel] themselves. A schema carries its profile ([QueryModelSchema.profile]);
  * other custom models have none, and operations that need one of these facts reject them.
  */
-sealed class QueryModelProfile(val model: QueryModel) {
+abstract class QueryModelProfile internal constructor(val model: QueryModel) {
     /**
      * Unique record identity: the target of id filters and the tie-breaker of every cursor; `null` when the model
      * declares none, which rejects both.

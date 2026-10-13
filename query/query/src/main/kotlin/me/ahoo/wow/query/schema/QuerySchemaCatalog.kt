@@ -17,6 +17,9 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.query.dataset.QueryDatasetChange
+import me.ahoo.wow.query.dataset.QueryDatasetListener
+import me.ahoo.wow.query.dataset.QueryDatasets
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 
@@ -44,7 +47,7 @@ fun interface QueryStorageLocator {
  * periodically: each schema of [aggregates] is reloaded and published only if it compiles, otherwise the previous one
  * stays and the failure is reported. A model without a backend, or whose backend reports an
  * [UnavailableQueryStorageAdapter], has nothing to load or revalidate: its provider fails every load and revalidation
- * skips it. Datasets join the Catalog in 6.1d.
+ * skips it. Each dataset of [datasets] is compiled as its [QueryModel.DATASET] model, and revalidated with them.
  */
 class QuerySchemaCatalog(
     private val storages: QueryStorageLocator = QueryStorageLocator.NONE,
@@ -53,10 +56,42 @@ class QuerySchemaCatalog(
     aggregates: Collection<AggregateType> = emptyList(),
     /** Sees every revalidation of one schema: its outcome and how long it took (the 9.x refresh timer's hook). */
     private val listener: QuerySchemaRefreshListener = QuerySchemaRefreshListener.NONE,
+    /**
+     * The datasets [versions] and [revalidate] cover (decision D75). A dataset occupies a name slot of its context, so
+     * it never takes the name of one of [aggregates]: the Catalog refuses such a dataset now and when it joins later.
+     * A dataset that joins, changes or leaves drops its compiled schema, so the next reader compiles the current
+     * declaration; the Catalog follows [datasets] before any listener registered after it is built, such as the
+     * gateways. Compile datasets with [QueryModelCompiler.of]`(datasets = ...)` and locate their storage with
+     * `QueryBackendStorages(datasetFactory = ..., datasets = ...)` over the same instance.
+     */
+    private val datasets: QueryDatasets = QueryDatasets.NONE,
 ) {
     private val aggregates = aggregates.distinct()
+    private val aggregateNames = this.aggregates.toSet()
     private val providers = ConcurrentHashMap<Pair<AggregateType, QueryModel>, QueryModelSchemaProvider>()
     private val inFlight = ConcurrentHashMap<QueryModelSchemaProvider, CompletableDeferred<Status>>()
+
+    init {
+        datasets.all.forEach { requireDatasetName(it.name) }
+        if (datasets !== QueryDatasets.NONE) {
+            datasets.listen(
+                object : QueryDatasetListener {
+                    override fun validate(change: QueryDatasetChange) {
+                        if (change is QueryDatasetChange.Added) requireDatasetName(change.dataset.name)
+                    }
+
+                    // Also on an addition: a reader may have asked for the name before it was served.
+                    override fun apply(change: QueryDatasetChange) {
+                        providers.remove(change.dataset.name to QueryModel.DATASET)
+                    }
+                },
+            )
+        }
+    }
+
+    private fun requireDatasetName(name: AggregateType) {
+        require(name !in aggregateNames) { "Dataset [$name] must not take the name of an aggregate of its context." }
+    }
 
     /** One schema provider of one aggregate's model. */
     private data class Entry(
@@ -89,9 +124,11 @@ class QuerySchemaCatalog(
         }
 
     // Models without a configured backend have nothing to load or revalidate.
-    private fun entries(): List<Entry> = aggregates.flatMap { aggregateType ->
-        BUILT_IN_MODELS.map { model -> Entry(aggregateType, model, provider(aggregateType, model)) }
-    }.filterNot { it.provider is UnavailableQueryModelSchemaProvider }
+    private fun entries(): List<Entry> = (
+        aggregates.flatMap { aggregateType ->
+            BUILT_IN_MODELS.map { model -> Entry(aggregateType, model, provider(aggregateType, model)) }
+        } + datasets.all.map { Entry(it.name, QueryModel.DATASET, provider(it.name, QueryModel.DATASET)) }
+        ).filterNot { it.provider is UnavailableQueryModelSchemaProvider }
 
     /** The current version of every schema ([aggregate]'s only, when given), loading those not loaded yet. */
     suspend fun versions(aggregate: String? = null): List<Status> =
@@ -187,20 +224,22 @@ fun interface QueryModelCompiler {
     companion object {
         /**
          * Merges the declarations of [sources] into the logical model under [sensitivity] and compiles the storage's
-         * facts about it.
+         * facts about it. [datasets] supplies each dataset model's fields and record layout.
          */
         @JvmStatic
         @JvmOverloads
         fun of(
             sources: List<QuerySchemaSource> = emptyList(),
             sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
+            datasets: QueryDatasets = QueryDatasets.NONE,
         ): QueryModelCompiler {
-            val declared = sources.toList()
+            val declared = if (datasets === QueryDatasets.NONE) sources.toList() else sources + datasets.schemaSource
             return QueryModelCompiler { context, storage ->
                 DefaultQueryModelSchemaProvider(
                     context = context,
                     sources = declared,
                     adapter = storage,
+                    profile = datasets.profile(context),
                     sensitivity = sensitivity,
                 )
             }
