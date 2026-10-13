@@ -56,6 +56,10 @@ import kotlin.time.Duration.Companion.seconds
  *    fresh state with the events, **append** once.
  * 3. A version conflict decides again on the newer state, up to [maxAttempts]; an unknown append outcome is settled
  *    by reading the version slot.
+ * 4. A rejection or an unchanged outcome decided on a cached state stands only once the log holds nothing after the
+ *    state's version: one read of the next version slot, else the state is reloaded and the command decided again
+ *    (not counted as an attempt). Another node of the service may have appended (decisions D45, D71), and only an
+ *    append meets the version-unique key.
  *
  * An attempt whose events are surely not appended (rejected, conflicting, failing) runs the compensations its
  * decide functions registered ([DecideScope.onAppendFailure]); a committed one runs their after-append actions. Once
@@ -131,9 +135,13 @@ class Kernel(
             ?.let { return duplicate(it, command, commandType) }
         val waitBeyondCommitted = wait?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
         val encode = { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
-        repeat(maxAttempts) {
-            val loaded = load(model, command)
+        var attempts = 0
+        while (attempts < maxAttempts) {
+            val (loaded, cached) = load(model, command)
             admissible(decider, command, loaded)?.let {
+                if (cached && behindLog(command.ref, loaded.version)) {
+                    continue
+                }
                 states.put(command.ref, loaded)
                 return it
             }
@@ -149,9 +157,12 @@ class Kernel(
             }
             val (stream, evolved) = when (prepared) {
                 is Prepared.Done -> {
+                    attempt.compensate()
+                    if (cached && behindLog(command.ref, loaded.version)) {
+                        continue
+                    }
                     // Decided without evolving: the state is as loaded (decide purity is the user's contract, F4).
                     states.put(command.ref, loaded)
-                    attempt.compensate()
                     return prepared.outcome
                 }
 
@@ -176,7 +187,11 @@ class Kernel(
                     return settled(appended.existing, commandType)
                 }
 
-                is AppendOutcome.Conflict -> attempt.compensate()
+                is AppendOutcome.Conflict -> {
+                    attempt.compensate()
+                    attempts++
+                }
+
                 is AppendOutcome.Unknown -> return CommandOutcome.Unknown(appended.cause)
             }
         }
@@ -287,12 +302,24 @@ class Kernel(
         }
     }
 
-    /** The aggregate's committed state, version and scope: cached, else from its snapshot and tail, else replayed. */
-    private suspend fun <S : Any> load(model: AggregateModel<S>, command: Command<*>): CachedState {
-        states.take(command.ref)?.let { return it }
-        loadSnapshot(command.ref)?.let { snapshot -> fromSnapshot(model, snapshot)?.let { return it } }
-        return replay(model, CachedState(model.initialState(command.ref), 0), log.read(command.ref).toList())
+    /**
+     * The aggregate's committed state, version and scope: cached, else from its snapshot and tail, else replayed; and
+     * whether it came from the cache.
+     */
+    private suspend fun <S : Any> load(model: AggregateModel<S>, command: Command<*>): Pair<CachedState, Boolean> {
+        states.take(command.ref)?.let { return it to true }
+        loadSnapshot(command.ref)?.let { snapshot -> fromSnapshot(model, snapshot)?.let { return it to false } }
+        return replay(model, CachedState(model.initialState(command.ref), 0), log.read(command.ref).toList()) to false
     }
+
+    /**
+     * Whether the log holds a stream of [ref] after [version], the version of a cached state a command was rejected
+     * on or changed nothing on. Without fencing (decision D45), another node may have committed to the aggregate while
+     * its owner's cache held it: a command that appends meets that stream as a version conflict, but one that appends
+     * nothing must read the next version slot, or it answers from a state the log has moved past.
+     */
+    private suspend fun behindLog(ref: AggregateRef, version: Int): Boolean =
+        log.read(ref, version + 1, version + 1).firstOrNull() != null
 
     /**
      * The committed state of [ref] at [version], read-only (design 04 §1: the state a subscription hands over when

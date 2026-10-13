@@ -51,8 +51,9 @@ class ContextCommandTypes(models: Collection<AggregateModel<*>>, private val con
 
 /**
  * Sends a due timer's command for one bounded context (decision D166), as the context's saga sends its derived
- * commands: to an aggregate of the context's [models] through its [coordinator], on this node, which owns the target's
- * partition; to one of another context through the sender, to that context's command topic (decisions D33, D137).
+ * commands: to an aggregate of the context's [models] through its [coordinator], which routes it to the owner of the
+ * target's partition (this node, which runs the partition's timers, unless the partition is changing hands; a command
+ * another node executed and that changed nothing is reported committed); to one of another context through the sender, to that context's command topic (decisions D33, D137).
  *
  * The command's id and request id are the timer's id, so a timer sent twice is decided once. Its scope is none, as
  * for any command a system sends; its causation is the commit that scheduled it, and its headers are the scheduling
@@ -82,25 +83,22 @@ class ContextTimerFirer(
         val command = checkNotNull(ClusterCodec.command(model, wire)) {
             "${model.type} has no command type ${timer.commandType}, which the timer ${timer.id} sends."
         }
-        return when (val outcome = coordinator.forward(model, command, null)) {
-            is CommandOutcome.Committed -> TimerOutcomes.COMMITTED
-            is CommandOutcome.AlreadyCommitted -> TimerOutcomes.ALREADY_COMMITTED
-            is CommandOutcome.Unchanged -> TimerOutcomes.UNCHANGED
-            is CommandOutcome.Rejected -> TimerOutcomes.REJECTED.also {
-                logger.info {
-                    "The timer ${timer.id} sent ${timer.commandType} to ${timer.target}, which rejected it: " +
-                        "${outcome.rejection.code} ${outcome.rejection.message}"
-                }
+        val settlement = coordinator.forward(model, command, null)
+        settlement.rejection?.let { rejection ->
+            logger.info {
+                "The timer ${timer.id} sent ${timer.commandType} to ${timer.target}, which rejected it: " +
+                    "${rejection.code} ${rejection.message}"
             }
-
-            is CommandOutcome.Contended -> throw IllegalStateException(
-                "The command of the timer ${timer.id} on ${timer.target} was contended ${outcome.attempts} times.",
-            )
-
-            is CommandOutcome.Unknown -> throw IllegalStateException(
-                "The outcome of the command of the timer ${timer.id} on ${timer.target} is unknown.",
-                outcome.cause,
-            )
+            return TimerOutcomes.REJECTED
+        }
+        check(!settlement.failed) {
+            val error = settlement.committed.error
+            "The command of the timer ${timer.id} on ${timer.target} failed: ${error?.code} ${error?.message}"
+        }
+        return when {
+            settlement.committed.duplicate -> TimerOutcomes.ALREADY_COMMITTED
+            settlement.outcome is CommandOutcome.Unchanged -> TimerOutcomes.UNCHANGED
+            else -> TimerOutcomes.COMMITTED
         }
     }
 
