@@ -39,6 +39,9 @@ import java.time.Duration
  * - `wow.query.sensitivity.display-comparable` (true): whether filters and sorts may compare a `DISPLAY` value.
  * - `wow.query.index.ddl` (`auto`, `validate` or `none`; D151): how the snapshot backend manages the indexes of
  *   each aggregate's `x-wow-index` at startup.
+ * - `wow.query.dataset.config-directory` (`config`; D75, D145): the working directory whose `wow/dataset/` holds
+ *   dataset files, `{context}.{dataset}.json`; each takes precedence over the classpath's `META-INF/wow/dataset/` file
+ *   of the same dataset. The datasets of both are served when a dataset backend is wired (ClickHouse's, say).
  */
 @ConfigurationProperties(prefix = QueryProperties.PREFIX)
 class QueryProperties {
@@ -50,6 +53,7 @@ class QueryProperties {
     var abac: Abac = Abac()
     var sensitivity: Sensitivity = Sensitivity()
     var index: Index = Index()
+    var dataset: Dataset = Dataset()
 
     /** The entry policy these settings give every gateway. */
     fun entryPolicy(): QueryEntryPolicy = QueryEntryPolicy(
@@ -111,6 +115,10 @@ class QueryProperties {
 
     class Index {
         var ddl: QueryIndexDdl = QueryIndexDdl.AUTO
+    }
+
+    class Dataset {
+        var configDirectory: String = HostDatasets.DEFAULT_CONFIG_DIRECTORY
     }
 
     companion object {

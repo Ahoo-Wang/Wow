@@ -15,11 +15,16 @@ package me.ahoo.wow.http.query
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.dataset.DatasetQueryGateways
 
 /**
- * The query models the public routes serve (decisions D127, D131), by aggregate type: the [snapshots] of each
+ * The query models the public routes serve (decisions D127, D131, D145), by aggregate type: the [snapshots] of each
  * aggregate a snapshot query backend serves, and the [events] of each aggregate. A model of the Manifest without one
  * here has no route: a request for it is the context's 404.
+ *
+ * The [datasets] (decision D75) are served under `/wow/dataset/{context}/{dataset}/query`, each by its gateway as it
+ * is when the request comes: a dataset that joins or leaves while the node runs is served or not from then on.
+ * [datasetVisibility] decides which of them a caller sees, in `GET /wow/dataset` and on its routes.
  *
  * [defaultListSize] is the limit a `list` query that names none (`limit` 0) runs with over HTTP, at most the HTTP
  * budget's `maxListSize`; `0` keeps 0's meaning, every match, where the budget allows it.
@@ -28,6 +33,8 @@ class HttpQueries(
     snapshots: Collection<QueryGateway> = emptyList(),
     events: Collection<EventQueryGateway> = emptyList(),
     val defaultListSize: Int = DEFAULT_LIST_SIZE,
+    val datasets: DatasetQueryGateways = DatasetQueryGateways.NONE,
+    val datasetVisibility: DatasetVisibility = DatasetVisibility.DEFAULT,
 ) {
     private val snapshots: Map<AggregateType, QueryGateway> = snapshots.associateBy { it.aggregateType }
     private val events: Map<AggregateType, EventQueryGateway> = events.associateBy { it.aggregateType }

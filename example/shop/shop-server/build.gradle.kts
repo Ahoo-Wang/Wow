@@ -28,6 +28,9 @@ dependencies {
     // Kafka (decisions D58, D137).
     implementation(project(":kafka"))
     "wowPeers"(project(":inventory-server"))
+    // The `clickhouse` profile: the order stream is written to ClickHouse by the Sink, and the datasets of
+    // META-INF/wow/dataset are queried there (decision D145).
+    implementation(project(":clickhouse"))
     testImplementation("org.springframework:spring-test")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     // The in-memory reference query backend, behind the snapshot queries of the memory backend's tests (6.2c).
@@ -35,4 +38,5 @@ dependencies {
     integrationTestImplementation(sourceSets["test"].output)
     integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
     integrationTestImplementation("org.testcontainers:testcontainers-kafka")
+    integrationTestImplementation("org.testcontainers:testcontainers-clickhouse")
 }

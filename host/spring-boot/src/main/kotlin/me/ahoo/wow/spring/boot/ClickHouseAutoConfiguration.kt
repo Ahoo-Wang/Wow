@@ -15,11 +15,14 @@ package me.ahoo.wow.spring.boot
 
 import com.clickhouse.client.api.Client
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.clickhouse.query.ClickHouseDatasetOptions
+import me.ahoo.wow.clickhouse.query.ClickHouseDatasetQueryBackendFactory
 import me.ahoo.wow.clickhouse.sink.AggregateSinkOptions
 import me.ahoo.wow.clickhouse.sink.ClickHouseSinkOptions
 import me.ahoo.wow.clickhouse.sink.ClickHouseSinks
 import me.ahoo.wow.clickhouse.sink.DdlMode
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -32,8 +35,8 @@ import org.springframework.context.annotation.Configuration
 import kotlin.time.toKotlinDuration
 
 /**
- * The ClickHouse Sink (wow-clickhouse, decisions D142, D164), active when the application has wow-clickhouse on its
- * classpath and sets `wow.clickhouse.endpoint` ([ClickHouseProperties]); the dataset backend comes with 6.4a.
+ * The ClickHouse Sink and dataset backend (wow-clickhouse, decisions D142, D145, D164), active when the application
+ * has wow-clickhouse on its classpath and sets `wow.clickhouse.endpoint` ([ClickHouseProperties]).
  *
  * - **Client**: a client-v2 [Client] of the endpoint and credentials, unless the application has one of its own;
  *   closed with the context.
@@ -41,6 +44,10 @@ import kotlin.time.toKotlinDuration
  *   publishes (`ContextManifest.published`), as subscriptions named `clickhouse-sink.<aggregate>`: a
  *   [SubscriptionFactory] bean ([PublishedSinks]), which the node takes with every other one. Each sink creates or
  *   validates its tables before its first write, as `wow.clickhouse.sink.ddl` says.
+ * - **Datasets** (unless `wow.clickhouse.query.enabled=false` or the application has a [DatasetQueryBackendFactory]
+ *   of its own): a [ClickHouseDatasetQueryBackendFactory] over the same client, a dataset's bare `table` in
+ *   `wow.clickhouse.database`, where the Sink writes. The query plane ([QueryAutoConfiguration]) serves the datasets
+ *   of the dataset files over it, such as a `<context>_<aggregate>_state_flat` view the Sink keeps.
  */
 @AutoConfiguration
 @ConditionalOnClass(name = [CLICKHOUSE_MODULE])
@@ -69,11 +76,31 @@ class ClickHouseAutoConfiguration {
                 sinks.sinkOf(context, stream.aggregate)
             }
         }
+
+        @Bean
+        @ConditionalOnMissingBean(DatasetQueryBackendFactory::class)
+        @ConditionalOnProperty(
+            prefix = "${ClickHouseProperties.PREFIX}.query",
+            name = ["enabled"],
+            matchIfMissing = true
+        )
+        fun wowClickHouseDatasets(
+            client: Client,
+            properties: ClickHouseProperties
+        ): ClickHouseDatasetQueryBackendFactory =
+            ClickHouseDatasetQueryBackendFactory(client, datasetOptions(properties))
     }
 
     companion object {
         /** The name of the ClickHouse Sink's [SubscriptionFactory] bean. */
         const val CLICKHOUSE_SINKS: String = "wowClickHouseSinks"
+
+        /** The dataset backend's options from [properties]. */
+        fun datasetOptions(properties: ClickHouseProperties): ClickHouseDatasetOptions = ClickHouseDatasetOptions(
+            database = properties.database,
+            metadataTtl = properties.query.metadataTtl,
+            settings = properties.query.settings.toMap(),
+        )
 
         /** The Sink's options from [properties]. */
         fun options(properties: ClickHouseProperties): ClickHouseSinkOptions {

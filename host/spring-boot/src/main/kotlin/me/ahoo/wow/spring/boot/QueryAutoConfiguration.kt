@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.http.query.DatasetVisibility
 import me.ahoo.wow.http.query.EventQueryGateway
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.manifest.Manifest
@@ -28,6 +29,9 @@ import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.ScopeQueryPolicy
+import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
+import me.ahoo.wow.query.dataset.DatasetQueryGateways
+import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.query.schema.QueryModel
@@ -46,6 +50,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.util.ClassUtils
+import java.nio.file.Path
 import javax.sql.DataSource
 
 /**
@@ -63,8 +68,12 @@ import javax.sql.DataSource
  *   [ScopeQueryPolicy] (tenant by [HostQueryTenants], D116), the [AbacQueryPolicy] (`wow.query.abac`) and the
  *   application's [QueryPolicy] and [QueryFilter] beans, observed by [QueryLogObserver] and the [QueryObserver] beans;
  *   and [EventQueryGateway] for its events, over the context's log;
- * - [HttpQueries], which the public routes serve, and [QueryIndexesLifecycle], which manages the `x-wow-index`
- *   indexes at startup as `wow.query.index.ddl` says.
+ * - the [QueryDatasets] of the dataset files (decisions D75, D145; [HostDatasets]), compiled by the same Catalog
+ *   against the storage of the application's [DatasetQueryBackendFactory] bean (ClickHouse's, when wow-clickhouse
+ *   is wired), and their [DatasetQueryGateways] under the same policies, filters and observers;
+ * - [HttpQueries], which the public routes serve (the datasets under `/wow/dataset`, seen as [DatasetVisibility]
+ *   says: the application's bean, else by scope and `wow.query.abac`), and [QueryIndexesLifecycle], which manages
+ *   the `x-wow-index` indexes at startup as `wow.query.index.ddl` says.
  */
 @AutoConfiguration(after = [WowAutoConfiguration::class])
 @ConditionalOnClass(name = [QUERY_MODULE])
@@ -112,25 +121,84 @@ class QueryAutoConfiguration {
             }
         }
 
+        /**
+         * The datasets of the dataset files (decisions D75, D145), `wow.query.dataset.config-directory` first, then
+         * the classpath; an application may give its own [QueryDatasets], or add to this one while the node runs.
+         */
         @Bean
         @ConditionalOnMissingBean
+        fun wowQueryDatasets(properties: QueryProperties, beanFactory: ConfigurableListableBeanFactory): QueryDatasets =
+            HostDatasets.load(
+                Path.of(properties.dataset.configDirectory),
+                beanFactory.beanClassLoader ?: QueryAutoConfiguration::class.java.classLoader,
+            )
+
+        @Bean
+        @ConditionalOnMissingBean
+        @Suppress("LongParameterList") // One parameter per part of the Catalog, each a bean the application may give.
         fun wowQuerySchemaCatalog(
             manifest: Manifest,
             node: ServiceNode,
             properties: QueryProperties,
             backend: SnapshotQueryBackend,
+            datasets: QueryDatasets,
+            datasetBackends: ObjectProvider<DatasetQueryBackendFactory>,
             strategies: ObjectProvider<MaskStrategyResolver>,
             sources: ObjectProvider<QuerySchemaSource>,
         ): QuerySchemaCatalog {
             val manifestSource = ManifestStateSchemas(manifest, strategies.getIfAvailable { MaskStrategyResolver.NONE })
             return QuerySchemaCatalog(
-                storages = QueryBackendStorages(backend.factory),
+                storages = QueryBackendStorages(backend.factory, datasetBackends.ifAvailable, datasets),
                 compiler = QueryModelCompiler.of(
                     listOf(manifestSource) + sources.orderedStream().toList(),
                     properties.sensitivity.policy(),
+                    datasets,
                 ),
                 aggregates = snapshotTypes(manifest, node.contexts.keys),
+                datasets = datasets,
             )
+        }
+
+        /**
+         * A gateway per dataset (decision D145) over the [DatasetQueryBackendFactory] bean (ClickHouse's, say), under
+         * the snapshots' policies, filters, observers and entry policy; it follows the [QueryDatasets] as datasets join,
+         * change or leave, and a dataset that leaves is evicted from the backend. Without a dataset backend, none.
+         */
+        @Bean
+        @ConditionalOnMissingBean
+        @Suppress("LongParameterList") // One parameter per part of a gateway, each a bean the application may give.
+        fun wowDatasetQueryGateways(
+            properties: QueryProperties,
+            datasets: QueryDatasets,
+            catalog: QuerySchemaCatalog,
+            entryPolicy: QueryEntryPolicy,
+            tenants: QueryTenantPolicy,
+            datasetBackends: ObjectProvider<DatasetQueryBackendFactory>,
+            policies: ObjectProvider<QueryPolicy>,
+            filters: ObjectProvider<QueryFilter>,
+            observers: ObjectProvider<QueryObserver>,
+        ): DatasetQueryGateways {
+            val factory = datasetBackends.ifAvailable
+            if (factory == null) {
+                if (datasets.all.isNotEmpty()) {
+                    logger.warn {
+                        "No dataset query backend is wired: the datasets ${datasets.all.map { it.name }} are not " +
+                            "served; add wow-clickhouse with wow.clickhouse.endpoint, or a DatasetQueryBackendFactory bean."
+                    }
+                }
+                return DatasetQueryGateways.NONE
+            }
+            val gateways = DatasetQueryGateways.of(
+                datasets,
+                catalog,
+                factory,
+                filters = filters.orderedStream().toList(),
+                policies = scopePolicies(tenants, properties) + policies.orderedStream().toList(),
+                observer = observerOf(observers),
+                entryPolicy = entryPolicy,
+            )
+            HostDatasets.evictOnRemoval(datasets, factory)
+            return gateways
         }
 
         @Bean
@@ -147,10 +215,12 @@ class QueryAutoConfiguration {
             policies: ObjectProvider<QueryPolicy>,
             filters: ObjectProvider<QueryFilter>,
             observers: ObjectProvider<QueryObserver>,
+            datasets: DatasetQueryGateways,
+            visibility: ObjectProvider<DatasetVisibility>,
         ): HttpQueries {
             val contexts = node.contexts.keys
-            val observer = QueryObserver.of(listOf(QueryLogObserver()) + observers.orderedStream().toList())
-            val scope = listOf(ScopeQueryPolicy(tenants), AbacQueryPolicy(properties.abac.options()))
+            val observer = observerOf(observers)
+            val scope = scopePolicies(tenants, properties)
             val factory = backend.factory
             val snapshots = if (factory == null) {
                 emptyList()
@@ -170,7 +240,13 @@ class QueryAutoConfiguration {
             val events = queryTypes(manifest, contexts, QueryRoutes.EVENTS).map { type ->
                 EventQueryGateway(type, node.contexts.getValue(type.context).backends.log, tenants, entryPolicy)
             }
-            return HttpQueries(snapshots, events, properties.http.defaultListSize)
+            return HttpQueries(
+                snapshots,
+                events,
+                properties.http.defaultListSize,
+                datasets,
+                visibility.getIfAvailable { DatasetVisibility.of(properties.abac.options()) },
+            )
         }
 
         @Bean
@@ -192,6 +268,14 @@ class QueryAutoConfiguration {
     private companion object {
         const val MONGO_CLIENT = "com.mongodb.client.MongoClient"
         val logger = KotlinLogging.logger {}
+
+        /** The scope and ABAC policies every gateway runs first (decision D129). */
+        fun scopePolicies(tenants: QueryTenantPolicy, properties: QueryProperties): List<QueryPolicy> =
+            listOf(ScopeQueryPolicy(tenants), AbacQueryPolicy(properties.abac.options()))
+
+        /** The query log and the application's observers. */
+        fun observerOf(observers: ObjectProvider<QueryObserver>): QueryObserver =
+            QueryObserver.of(listOf(QueryLogObserver()) + observers.orderedStream().toList())
     }
 }
 

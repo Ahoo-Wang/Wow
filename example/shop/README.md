@@ -48,6 +48,16 @@ other broker through `wow.kafka.bootstrap-servers`):
 Without Kafka the order saga cannot reach the inventory: each placed order
 parks `OrderSaga.onOrderCreated` in the failure ledger after its retries.
 
+With ClickHouse at `localhost:8123` (the `clickhouse` profile; any other server
+through `wow.clickhouse.endpoint`), the ClickHouse Sink writes the order stream
+to `example_order_state_flat`, and the dataset `example.orders`, which
+`META-INF/wow/dataset/example.orders.json` declares over that view, is queried
+at `/wow/dataset/example/orders/query`:
+
+```bash
+./gradlew -Pwow.scope=v10 :shop-server:run --args='--spring.profiles.active=postgres,clickhouse'
+```
+
 The server declares no `CallerResolver`, so every request is served as the
 anonymous caller (default tenant, no owner), with a warning; CoSec's resolver
 takes its place later. The end-to-end tests resolve the caller from an `X-User`
@@ -71,6 +81,9 @@ header instead.
 | `GET`    | `/example/{aggregate}/{id}/state`, `?version=n`                       | The latest state, or the one at version `n`       |
 | `POST`   | `/example/{aggregate}/snapshot/query`, `/events/query`                | A query of the snapshots or of one's events       |
 | `GET`    | `/example/{aggregate}/snapshot/query`, `/events/query`                | The model's capability descriptor, with an ETag   |
+| `POST`   | `/wow/dataset/example/orders/query`                                   | A query of the `example.orders` dataset           |
+| `GET`    | `/wow/dataset/example/orders/query`                                   | The dataset's capability descriptor, with an ETag |
+| `GET`    | `/wow/dataset`                                                        | The datasets the caller sees                      |
 | `GET`    | `/wow/manifest`                                                       | The Manifest the routes are built from            |
 
 A command answers its `CommandResult` (200, or 202 for a wait that ends at
