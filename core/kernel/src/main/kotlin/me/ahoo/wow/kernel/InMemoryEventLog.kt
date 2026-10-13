@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -31,12 +32,15 @@ import me.ahoo.wow.spi.log.Transport
 
 /**
  * An [EventLog] in memory, for tests and samples. Appends are serialized by one lock, so the sequence within a
- * partition is trivially the order commits became visible.
+ * partition is trivially the order commits became visible. As the durable backends, it keeps the request key per
+ * aggregate type (decision D162).
  */
 class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) : EventLog {
     private val lock = Mutex()
     private val streams = HashMap<AggregateRef, MutableList<EventStreamRecord>>()
-    private val requests = HashMap<Pair<String, String>, EventStreamRecord>()
+
+    /** The streams committed for each (tenant, request id), in commit order: at most one per aggregate type. */
+    private val requests = HashMap<Pair<String, String>, MutableList<EventStreamRecord>>()
     private val aggregateEntries = HashMap<AggregateRef, MutableList<LogEntry>>()
     private val entries = List(partitions) { ArrayList<LogEntry>() }
     private val appended = List(partitions) { MutableStateFlow(0L) }
@@ -46,14 +50,16 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) : Even
     }
 
     override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome = lock.withLock {
-        requests[stream.ref.tenantId to stream.requestId]?.let { return AppendOutcome.AlreadyCommitted(it) }
+        val request = stream.ref.tenantId to stream.requestId
+        requests[request]?.firstOrNull { it.ref.type == stream.ref.type }
+            ?.let { return AppendOutcome.AlreadyCommitted(it) }
         val aggregate = streams.getOrPut(stream.ref) { ArrayList() }
         val current = aggregate.size
         if (stream.version != current + 1) {
             return AppendOutcome.Conflict(current)
         }
         aggregate += stream
-        requests[stream.ref.tenantId to stream.requestId] = stream
+        requests.getOrPut(request) { ArrayList() } += stream
         val partition = Partitioner.partitionOf(stream.ref, partitions)
         val log = entries[partition]
         val position = LogPosition(partition, log.size + 1L)
@@ -76,8 +82,11 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) : Even
     override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? =
         lock.withLock { aggregateEntries[ref]?.getOrNull(version - 1)?.position }
 
+    override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
+        lock.withLock { requests[tenantId to requestId]?.firstOrNull { it.ref.type == type } }
+
     override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
-        lock.withLock { requests[tenantId to requestId] }
+        lock.withLock { requests[tenantId to requestId]?.firstOrNull() }
 
     override suspend fun head(partition: Int): Long? {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }

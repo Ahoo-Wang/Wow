@@ -62,14 +62,22 @@ class PostgresSnapshotStore(
         tables(aggregateName)
     }
 
-    private fun tables(aggregateName: String): PostgresSnapshotTables = created.computeIfAbsent(aggregateName) {
-        PostgresSnapshotTables(context, it).also { tables ->
+    /**
+     * The tables of [aggregateName], created when this store has not yet made sure they are. Not `computeIfAbsent`:
+     * it would hold a monitor across the JDBC calls, and virtual threads blocked on a monitor pin their carriers (JDK
+     * 21), so concurrent first uses could take every carrier and deadlock. Concurrent creations are serialized by
+     * [PostgresFormat.creating] instead, and creating twice is harmless.
+     */
+    private fun tables(aggregateName: String): PostgresSnapshotTables = created[aggregateName]
+        ?: PostgresSnapshotTables(context, aggregateName).also { tables ->
             dataSource.connection.use { connection ->
-                PostgresFormat.claim(connection, tables.base, PostgresSnapshotTables.FORMAT)
-                connection.createStatement().use { statement -> tables.ddl().forEach { statement.execute(it) } }
+                PostgresFormat.creating(connection) {
+                    PostgresFormat.claim(connection, tables.base, PostgresSnapshotTables.FORMAT)
+                    connection.createStatement().use { statement -> tables.ddl().forEach { statement.execute(it) } }
+                }
             }
+            created[aggregateName] = tables
         }
-    }
 
     override suspend fun save(snapshot: SnapshotRecord): Boolean = withContext(dispatcher) {
         require(snapshot.ref.type.context == context) { "${snapshot.ref} is not in context $context." }

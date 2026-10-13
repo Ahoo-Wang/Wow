@@ -15,7 +15,7 @@ package me.ahoo.wow.postgres.query
 
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.postgres.snapshot.PostgresIdentifiers
+import me.ahoo.wow.postgres.PostgresIdentifiers
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryCardinality

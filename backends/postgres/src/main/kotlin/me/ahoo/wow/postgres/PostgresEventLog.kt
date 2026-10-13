@@ -46,6 +46,7 @@ import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.SQLException
 import java.sql.Types
+import java.util.concurrent.ConcurrentHashMap
 import javax.sql.DataSource
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -53,12 +54,31 @@ import kotlin.time.Duration.Companion.milliseconds
 /**
  * The [EventLog] of one bounded context on PostgreSQL (documentation/designs/v10/03-log-and-snapshot.md §2).
  *
- * One table holds the log; a second holds one counter row per partition. An append is one autocommitted statement
- * (see [PostgresEventLogTables.append]): it bumps its partition's counter, which locks the row until the statement
- * commits, and inserts the stream at that sequence only if the aggregate is exactly one version behind. Because the
- * lock is held until commit, the sequence order is the order commits become visible, so [tail] never skips an entry;
- * a failed append rolls its sequence back too, so there are no gaps. The transport is stored in its own column and
- * read back only by [tail] and [readEntries].
+ * The log takes one table per aggregate type, `wow_log__<context>__<aggregate>` (decision D162); a context-level
+ * table holds one counter row per partition, so partitions, their sequences, leases and checkpoints stay per context.
+ * An append is one autocommitted statement (see [AggregateLogTable.append]): it bumps its partition's counter, which
+ * locks the row until the statement commits, and inserts the stream into its aggregate's table at that sequence only
+ * if the aggregate is exactly one version behind. Because the lock is held until commit, the sequence order is the
+ * order commits become visible, whichever table they land in; a failed append rolls its sequence back too, so a
+ * partition's sequences have no gaps. The transport is stored in its own column and read back only by [tail] and
+ * [readEntries].
+ *
+ * **Aggregate tables.** As the snapshot tables ([me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore]), an aggregate
+ * type's table is created the first time this log touches the type, or up front by [createTable]; a new aggregate
+ * type needs no restart. Every aggregate table
+ * is recorded in a registry table ([PostgresEventLogTables.REGISTRY]) before its first entry is written, and [tail]
+ * reads the context's tables from it: a node tailing a partition finds the tables other nodes created, whether or not
+ * it knows their aggregate types.
+ *
+ * **Tail.** [tail] merges the partition's entries of every aggregate table by sequence, in one statement and so one
+ * snapshot, which also reads the partition's counter. It emits only a contiguous run from the last sequence: entries
+ * the snapshot should hold but does not (a table registered after this log last read the registry) make it read the
+ * registry again and retry, and it never steps over a missing sequence.
+ *
+ * **Request ids.** The request key is `(tenant_id, request_id)` within each aggregate table: a request id reused by
+ * two aggregate types commits twice (decision D55 makes the reuse the caller's error). The kernel's pre-check, the
+ * [findByRequestId] taking the aggregate type, reads that type's table alone; the context-wide one searches every
+ * aggregate table this log knows.
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29).
  */
@@ -72,32 +92,96 @@ class PostgresEventLog(
 ) : EventLog {
     private val tables = PostgresEventLogTables(context)
 
+    /** The aggregate tables whose creation and registration this log has made sure of. */
+    private val ensured = ConcurrentHashMap<String, AggregateLogTable>()
+
+    /** The aggregate tables of the context, as of the last read of the registry, in registry order. */
+    @Volatile
+    private var registered: List<AggregateLogTable>? = null
+
     init {
         require(partitions >= 1) { "There is at least one partition." }
     }
 
     /**
-     * Creates the tables and the partition counters when missing; refuses a different partition count, and a log
-     * recorded in another format version ([PostgresFormat]).
+     * Creates the partition counters and the registry when missing; refuses a different partition count, and a log
+     * recorded in another format version ([PostgresFormat]). The aggregate tables are created on first use, or by
+     * [createTable].
      */
     fun createSchema() {
         dataSource.connection.use { connection ->
-            PostgresFormat.claim(connection, tables.base, PostgresEventLogTables.FORMAT)
-            connection.createStatement().use { statement ->
-                tables.ddl().forEach { statement.execute(it) }
-                statement.execute(tables.initializePartitions(partitions))
+            PostgresFormat.creating(connection) {
+                PostgresFormat.claim(connection, tables.partitionsBase, PostgresEventLogTables.FORMAT)
+                PostgresFormat.claim(connection, PostgresEventLogTables.REGISTRY, PostgresEventLogTables.FORMAT)
+                connection.createStatement().use { statement ->
+                    tables.ddl().forEach { statement.execute(it) }
+                    statement.execute(tables.initializePartitions(partitions))
+                }
             }
             connection.prepareStatement("SELECT count(*) FROM ${tables.partitions}").use { query ->
                 query.executeQuery().use { rows ->
                     rows.next()
-                    check(rows.getInt(1) == partitions) {
-                        "The log of $context has ${rows.getInt(
-                            1
-                        )} partitions, not $partitions: changing it is a repartition."
+                    val existing = rows.getInt(1)
+                    check(existing == partitions) {
+                        "The log of $context has $existing partitions, not $partitions: changing it is a repartition."
                     }
                 }
             }
         }
+    }
+
+    /**
+     * Creates and registers the log table of [aggregateName] when missing, once per log; refuses a table recorded in
+     * another format version ([PostgresFormat]), and an aggregate whose table name another aggregate has.
+     */
+    fun createTable(aggregateName: String) {
+        dataSource.connection.use { tableOf(it, aggregateName) }
+    }
+
+    /** The table of [aggregate], created and registered when this log has not yet made sure it is. */
+    private fun tableOf(connection: Connection, aggregate: String): AggregateLogTable =
+        ensured[aggregate] ?: ensure(connection, tables.aggregate(aggregate)).also { ensured[aggregate] = it }
+
+    private fun tableOf(connection: Connection, type: AggregateType): AggregateLogTable {
+        require(type.context == context) { "$type is not in context $context." }
+        return tableOf(connection, type.name)
+    }
+
+    /**
+     * Claims [table]'s format, creates it and records it in the registry, in one transaction under an advisory lock,
+     * so that nodes creating tables at once neither race the format record nor two aggregates take one table name.
+     */
+    private fun ensure(connection: Connection, table: AggregateLogTable): AggregateLogTable =
+        PostgresFormat.creating(connection) {
+            PostgresFormat.claim(connection, table.base, PostgresEventLogTables.FORMAT)
+            connection.createStatement().use { it.execute(table.ddl()) }
+            connection.prepareStatement(tables.register).use { register ->
+                register.setString(1, context)
+                register.setString(2, table.aggregate)
+                register.setString(3, table.base)
+                register.executeUpdate()
+            }
+            val holder = connection.prepareStatement(tables.holder).use { query ->
+                query.setString(1, table.base)
+                query.executeQuery().use { rows ->
+                    rows.next()
+                    rows.getString(1) to rows.getString(2)
+                }
+            }
+            check(holder == context to table.aggregate) {
+                "The aggregate ${table.aggregate} of $context takes the log table ${table.base}, " +
+                    "which the aggregate ${holder.second} of ${holder.first} has."
+            }
+            table
+        }
+
+    /** Reads the registry again: the aggregate tables of the context, in registry order. */
+    private fun register(connection: Connection): List<AggregateLogTable> {
+        val names = connection.prepareStatement(tables.registered).use { query ->
+            query.setString(1, context)
+            query.executeQuery().use { rows -> rows.map { it.getString(1) } }
+        }
+        return names.map { tables.aggregate(it) }.also { registered = it }
     }
 
     override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
@@ -105,7 +189,9 @@ class PostgresEventLog(
             require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
             val partition = Partitioner.partitionOf(stream.ref, partitions)
             try {
-                dataSource.connection.use { connection -> appendIn(connection, partition, stream, transport) }
+                dataSource.connection.use { connection ->
+                    appendIn(connection, tableOf(connection, stream.ref.type), partition, stream, transport)
+                }
             } catch (failure: SQLException) {
                 AppendOutcome.Unknown(failure)
             }
@@ -113,44 +199,43 @@ class PostgresEventLog(
 
     private fun appendIn(
         connection: Connection,
+        table: AggregateLogTable,
         partition: Int,
         stream: EventStreamRecord,
         transport: Transport?,
     ): AppendOutcome {
         try {
-            val sequence = connection.prepareStatement(tables.append).use { append ->
+            val sequence = connection.prepareStatement(table.append).use { append ->
                 append.setString(1, stream.ref.id)
                 append.setString(2, stream.ref.tenantId)
-                append.setString(3, stream.ref.type.name)
-                append.setInt(4, partition)
-                append.setInt(5, stream.version - 1)
-                append.setInt(6, partition)
-                append.setString(7, stream.ref.type.name)
-                append.setString(8, stream.ref.tenantId)
-                append.setString(9, stream.ref.id)
-                append.setInt(10, stream.version)
-                append.setString(11, stream.commandId)
-                append.setString(12, stream.requestId)
-                append.setString(13, stream.commandType)
-                append.setLong(14, stream.commitTime)
-                append.setString(15, encodeEvents(stream.events))
-                append.setNullableString(16, stream.scope.ownerId)
-                append.setNullableString(17, stream.scope.spaceId)
-                append.setNullableString(18, stream.causation?.correlationId)
-                append.setNullableString(19, stream.causation?.causationId)
-                append.setString(20, json.writeValueAsString(stream.headers))
-                append.setNullableString(21, transport?.let { encodeTransport(it) })
+                append.setInt(3, partition)
+                append.setInt(4, stream.version - 1)
+                append.setInt(5, partition)
+                append.setString(6, stream.ref.tenantId)
+                append.setString(7, stream.ref.id)
+                append.setInt(8, stream.version)
+                append.setString(9, stream.commandId)
+                append.setString(10, stream.requestId)
+                append.setString(11, stream.commandType)
+                append.setLong(12, stream.commitTime)
+                append.setString(13, encodeEvents(stream.events))
+                append.setNullableString(14, stream.scope.ownerId)
+                append.setNullableString(15, stream.scope.spaceId)
+                append.setNullableString(16, stream.causation?.correlationId)
+                append.setNullableString(17, stream.causation?.causationId)
+                append.setString(18, json.writeValueAsString(stream.headers))
+                append.setNullableString(19, transport?.let { encodeTransport(it) })
                 append.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else null }
             }
             return if (sequence == null) {
-                AppendOutcome.Conflict(currentVersion(connection, stream.ref))
+                AppendOutcome.Conflict(currentVersion(connection, table, stream.ref))
             } else {
                 AppendOutcome.Committed(LogPosition(partition, sequence))
             }
         } catch (failure: PSQLException) {
             return when (failure.serverErrorMessage?.constraint) {
-                tables.versionKey -> AppendOutcome.Conflict(currentVersion(connection, stream.ref))
-                tables.requestKey -> findByRequestIdIn(connection, stream.ref.tenantId, stream.requestId)
+                table.versionKey -> AppendOutcome.Conflict(currentVersion(connection, table, stream.ref))
+                table.requestKey -> findByRequestIdIn(connection, table, stream.ref.tenantId, stream.requestId)
                     ?.let { AppendOutcome.AlreadyCommitted(it) }
                     ?: AppendOutcome.Unknown(failure)
 
@@ -162,13 +247,13 @@ class PostgresEventLog(
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = flow {
         val streams = withContext(dispatcher) {
             dataSource.connection.use { connection ->
-                connection.prepareStatement(tables.read).use { query ->
+                val table = tableOf(connection, ref.type)
+                connection.prepareStatement(table.read).use { query ->
                     query.setString(1, ref.id)
                     query.setString(2, ref.tenantId)
-                    query.setString(3, ref.type.name)
-                    query.setInt(4, fromVersion)
-                    query.setInt(5, toVersion)
-                    query.executeQuery().use { rows -> rows.map { streamOf(it) } }
+                    query.setInt(3, fromVersion)
+                    query.setInt(4, toVersion)
+                    query.executeQuery().use { rows -> rows.map { streamOf(table.aggregate, it) } }
                 }
             }
         }
@@ -178,13 +263,15 @@ class PostgresEventLog(
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = flow {
         val entries = withContext(dispatcher) {
             dataSource.connection.use { connection ->
-                connection.prepareStatement(tables.entries).use { query ->
+                val table = tableOf(connection, ref.type)
+                connection.prepareStatement(table.entries).use { query ->
                     query.setString(1, ref.id)
                     query.setString(2, ref.tenantId)
-                    query.setString(3, ref.type.name)
-                    query.setInt(4, fromVersion)
-                    query.setInt(5, toVersion)
-                    query.executeQuery().use { rows -> rows.map { entryOf(it.getInt("partition"), it) } }
+                    query.setInt(3, fromVersion)
+                    query.setInt(4, toVersion)
+                    query.executeQuery().use { rows ->
+                        rows.map { entryOf(it.getInt("partition"), table.aggregate, it) }
+                    }
                 }
             }
         }
@@ -193,11 +280,10 @@ class PostgresEventLog(
 
     override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = withContext(dispatcher) {
         dataSource.connection.use { connection ->
-            connection.prepareStatement(tables.position).use { query ->
+            connection.prepareStatement(tableOf(connection, ref.type).position).use { query ->
                 query.setString(1, ref.id)
                 query.setString(2, ref.tenantId)
-                query.setString(3, ref.type.name)
-                query.setInt(4, version)
+                query.setInt(3, version)
                 query.executeQuery().use { rows ->
                     if (rows.next()) LogPosition(rows.getInt("partition"), rows.getLong("sequence")) else null
                 }
@@ -205,36 +291,92 @@ class PostgresEventLog(
         }
     }
 
+    /** The stream committed for [requestId] within [tenantId] in [type]'s table: one indexed read of one table. */
+    override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
+        withContext(dispatcher) {
+            dataSource.connection.use { connection ->
+                findByRequestIdIn(connection, tableOf(connection, type), tenantId, requestId)
+            }
+        }
+
+    /**
+     * The stream committed for [requestId] within [tenantId] in any aggregate table of the context this log knows
+     * (the registry as last read, and the tables it touched since), the earliest committed when two aggregate types
+     * hold it: one statement over every table.
+     */
     override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
         withContext(dispatcher) {
-            dataSource.connection.use { connection -> findByRequestIdIn(connection, tenantId, requestId) }
+            dataSource.connection.use { connection ->
+                val known = ((registered ?: register(connection)) + ensured.values).distinctBy { it.base }
+                if (known.isEmpty()) return@use null
+                connection.prepareStatement(tables.byRequest(known)).use { query ->
+                    known.indices.forEach { index ->
+                        query.setString(index * 2 + 1, tenantId)
+                        query.setString(index * 2 + 2, requestId)
+                    }
+                    query.executeQuery().use { rows ->
+                        if (rows.next()) streamOf(known[rows.getInt("branch")].aggregate, rows) else null
+                    }
+                }
+            }
         }
 
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> = flow {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         var last = after ?: 0L
         while (true) {
-            val batch = withContext(dispatcher) {
-                dataSource.connection.use { connection ->
-                    connection.prepareStatement(tables.tail).use { query ->
-                        query.setInt(1, partition)
-                        query.setLong(2, last)
-                        query.setInt(3, tailBatch)
-                        query.executeQuery().use { rows ->
-                            rows.map { entryOf(partition, it) }
-                        }
-                    }
-                }
-            }
-            batch.forEach {
+            val batch = withContext(dispatcher) { dataSource.connection.use { readTail(it, partition, last) } }
+            batch.entries.forEach {
                 emit(it)
                 last = it.position.sequence
             }
-            if (batch.size < tailBatch) {
+            if (!batch.again) {
                 delay(pollInterval)
             }
         }
     }
+
+    /**
+     * One read of the tail after [last]: the contiguous run of entries from `last + 1`, and whether to read again at
+     * once. A run shorter than the partition's counter calls for means an aggregate table this log does not know yet:
+     * it reads the registry and, when that finds new tables, reads again at once.
+     */
+    private fun readTail(connection: Connection, partition: Int, last: Long): TailBatch {
+        val known = registered ?: register(connection)
+        val (head, entries) = connection.prepareStatement(tables.tail(known)).use { query ->
+            var index = 1
+            query.setInt(index++, partition)
+            known.forEach { _ ->
+                query.setInt(index++, partition)
+                query.setLong(index++, last)
+                query.setInt(index++, tailBatch)
+            }
+            if (known.isNotEmpty()) {
+                query.setInt(index, tailBatch)
+            }
+            query.executeQuery().use { rows ->
+                var head = 0L
+                val entries = ArrayList<LogEntry>()
+                while (rows.next()) {
+                    head = rows.getLong("head")
+                    val branch = rows.getInt("branch")
+                    if (!rows.wasNull()) {
+                        entries += entryOf(partition, known[branch].aggregate, rows)
+                    }
+                }
+                head to entries
+            }
+        }
+        val run = contiguousRun(entries, last)
+        val expected = minOf(head - last, tailBatch.toLong()).coerceAtLeast(0)
+        val again = when {
+            run.size < expected -> register(connection).map { it.base } != known.map { it.base }
+            else -> run.size == tailBatch
+        }
+        return TailBatch(run, again)
+    }
+
+    private class TailBatch(val entries: List<LogEntry>, val again: Boolean)
 
     override suspend fun head(partition: Int): Long? {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
@@ -248,35 +390,35 @@ class PostgresEventLog(
         }
     }
 
-    private fun findByRequestIdIn(connection: Connection, tenantId: String, requestId: String): EventStreamRecord? =
-        connection.prepareStatement(tables.byRequest).use { query ->
-            query.setString(1, tenantId)
-            query.setString(2, requestId)
-            query.executeQuery().use { rows -> if (rows.next()) streamOf(rows) else null }
-        }
+    private fun findByRequestIdIn(
+        connection: Connection,
+        table: AggregateLogTable,
+        tenantId: String,
+        requestId: String,
+    ): EventStreamRecord? = connection.prepareStatement(table.byRequest).use { query ->
+        query.setString(1, tenantId)
+        query.setString(2, requestId)
+        query.executeQuery().use { rows -> if (rows.next()) streamOf(table.aggregate, rows) else null }
+    }
 
-    private fun currentVersion(connection: Connection, ref: AggregateRef): Int =
-        connection.prepareStatement(tables.currentVersion).use { query ->
+    private fun currentVersion(connection: Connection, table: AggregateLogTable, ref: AggregateRef): Int =
+        connection.prepareStatement(table.currentVersion).use { query ->
             query.setString(1, ref.id)
             query.setString(2, ref.tenantId)
-            query.setString(3, ref.type.name)
             query.executeQuery().use { rows ->
                 rows.next()
                 rows.getInt(1)
             }
         }
 
-    private fun entryOf(partition: Int, row: ResultSet) = LogEntry(
+    private fun entryOf(partition: Int, aggregate: String, row: ResultSet) = LogEntry(
         LogPosition(partition, row.getLong("sequence")),
-        streamOf(row),
+        streamOf(aggregate, row),
         row.getString("transport")?.let(::decodeTransport),
     )
 
-    private fun streamOf(row: ResultSet) = EventStreamRecord(
-        ref = AggregateType(
-            context,
-            row.getString("aggregate_name")
-        ).ref(row.getString("tenant_id"), row.getString("aggregate_id")),
+    private fun streamOf(aggregate: String, row: ResultSet) = EventStreamRecord(
+        ref = AggregateType(context, aggregate).ref(row.getString("tenant_id"), row.getString("aggregate_id")),
         version = row.getInt("version"),
         commandId = row.getString("command_id"),
         requestId = row.getString("request_id"),
@@ -303,6 +445,12 @@ class PostgresEventLog(
     private companion object {
         val DEFAULT_POLL_INTERVAL = 50.milliseconds
         const val DEFAULT_TAIL_BATCH = 500
+
+        /** The entries of [entries], in sequence order, that continue `last` without a gap. */
+        fun contiguousRun(entries: List<LogEntry>, last: Long): List<LogEntry> {
+            var next = last + 1
+            return entries.takeWhile { it.position.sequence == next++ }
+        }
 
         /** Wow's mapper: its trees keep every number exact, as `jsonb` stores them (`numeric`), so `2.50` stays. */
         val json: JsonMapper = WowJson.mapper

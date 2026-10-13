@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.postgres.snapshot
 
+import me.ahoo.wow.postgres.PostgresIdentifiers
+
 /**
  * The table and statements of one aggregate type's snapshots (decision D161): one table per bounded context and
  * aggregate, `wow_snapshot__<context>__<aggregate>`, so a query service can read one aggregate's table directly. Each
@@ -28,9 +30,7 @@ package me.ahoo.wow.postgres.snapshot
  * are not deleted.
  */
 internal class PostgresSnapshotTables(context: String, aggregate: String) {
-    val base: String = PostgresIdentifiers.limited(
-        "wow_snapshot__" + context.normalized() + "__" + aggregate.normalized()
-    )
+    val base: String = PostgresIdentifiers.of(PREFIX, context, aggregate)
     val snapshot = "\"$base\""
 
     /** The partial index of the owner scope. */
@@ -91,8 +91,6 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
         /** The version of this layout. */
         const val FORMAT = 1
 
-        private val INVALID = Regex("[^a-z0-9_]")
-
-        private fun String.normalized(): String = lowercase().replace(INVALID, "_")
+        const val PREFIX = "wow_snapshot"
     }
 }
