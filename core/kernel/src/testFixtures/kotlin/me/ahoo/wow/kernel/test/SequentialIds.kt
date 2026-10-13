@@ -20,9 +20,9 @@ import me.ahoo.wow.api.id.Ids
  * The ids the test DSL gives domain code (decision D171), the same on every run: the n-th global id is `id-n`, the
  * n-th id of an aggregate type is `<aggregate>-n` (`order-1`, `order-2`), each counted from 1.
  *
- * An [aggregateSpec] counts across the whole specification (a fork replays its prefix, so it counts as the
- * specification did up to there); a [sagaSpec] counts anew for each handling, as each handling of a commit gets a
- * context of its own, so handling it again takes the same ids.
+ * An [aggregateSpec] gives them to its decide functions, counted across the whole specification (a fork replays its
+ * prefix, so it counts as the specification did up to there). A [sagaSpec] gives a saga the ids it takes on a node,
+ * name-based UUIDs of its handling ([me.ahoo.wow.kernel.HandlingIds]).
  */
 class SequentialIds : Ids {
     private var global = 0

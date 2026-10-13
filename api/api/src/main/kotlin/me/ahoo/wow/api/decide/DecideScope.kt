@@ -36,7 +36,8 @@ interface DecideScope {
 
     /**
      * The ids this decision takes (decision D171): the node's global and aggregate id generators, fixed ids in the
-     * test DSL. A decision decided again, after a version conflict, takes new ones.
+     * test DSL. A command decided again, after a version conflict, takes new ones; that is harmless, as the attempt
+     * that conflicted committed nothing, so no id it took was ever written.
      */
     val ids: Ids
 

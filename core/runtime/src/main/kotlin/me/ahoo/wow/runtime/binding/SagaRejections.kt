@@ -14,14 +14,12 @@
 package me.ahoo.wow.runtime.binding
 
 import kotlinx.coroutines.withContext
-import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionBinding
 import me.ahoo.wow.kernel.rejectionContextOf
 import me.ahoo.wow.runtime.command.RejectionHandler
-import me.ahoo.wow.spi.id.IdGenerators
 
 /**
  * Hands the rejections of the commands a context's sagas derive to their `@OnRejected` handlers (decisions D136,
@@ -43,12 +41,7 @@ import me.ahoo.wow.spi.id.IdGenerators
  * compensate itself): it fails the handling with [DerivedCommandRejectedException], which parks the aggregate. A
  * technical failure throws, for the caller to retry.
  */
-class SagaRejections(
-    sagas: Collection<ProcessorBinding<*>>,
-    private val derived: DerivedCommands,
-    /** The ids the handlers take (decision D171): the node's generators. */
-    private val ids: Ids = IdGenerators.DEFAULT,
-) : RejectionHandler {
+class SagaRejections(sagas: Collection<ProcessorBinding<*>>, private val derived: DerivedCommands) : RejectionHandler {
     private val sagas: Map<String, ProcessorBinding<*>> =
         sagas.filter { it.kind == FunctionKind.SAGA }.associateBy { it.name }
 
@@ -73,8 +66,8 @@ class SagaRejections(
         if (handler.blocking) {
             withContext(
                 SubscriptionBindings.BLOCKING
-            ) { handler.invoke(rejected, rejectionContextOf(handler, rejected, ids)) }
+            ) { handler.invoke(rejected, rejectionContextOf(handler, rejected)) }
         } else {
-            handler.invoke(rejected, rejectionContextOf(handler, rejected, ids))
+            handler.invoke(rejected, rejectionContextOf(handler, rejected))
         }
 }

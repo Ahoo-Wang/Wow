@@ -15,6 +15,7 @@ package me.ahoo.wow.kernel
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
@@ -135,41 +136,77 @@ class DomainIdsTest {
         )
     }
 
+    private val order = model.type.ref("tenant", "order-1")
+    private val placed = OrderPlaced(emptyMap(), "invoice-1")
+    private val onPlaced = ExecutionId("ShipmentSaga.onPlaced", order, 1)
+    private val firstShipment = derivedShipment(onPlaced.toString(), 0)
+
+    private fun derivedShipment(seed: String, index: Int) =
+        ShipmentSaga.SHIPMENT.ref("tenant", HandlingIds.idOf(seed, ShipmentSaga.SHIPMENT, index))
+
+    private fun rejectionOf(command: Command<*>) = CommandRejected<CreateShipment>(
+        commandId = command.id,
+        commandType = "shop.shipment.CreateShipment",
+        ref = command.ref,
+        error = ErrorInfo("shop.shipment.exists", "exists"),
+        causation = Causation("command-1", command.id),
+        executionId = onPlaced,
+    )
+
     @Test
-    fun `a saga specification should give fixed ids, the same on every handling`() =
+    fun `a saga specification should give the ids of the handling, the same on every handling`() =
         sagaSpec(shipmentSagaHandlers()) {
-            val order = model.type.ref("tenant", "order-1")
-            whenEvent(stateEvent(order, Order("order-1"), OrderPlaced(emptyMap(), "invoice-1"))) {
-                expectCommand(CreateShipment("order-1"), to = ShipmentSaga.SHIPMENT.ref("tenant", "shipment-1"))
+            whenEvent(stateEvent(order, Order("order-1"), placed)) {
+                expectCommand(CreateShipment("order-1"), to = firstShipment)
                 expectDeterministic()
-                whenRejected(commands.single(), code = "shop.shipment.exists") {
-                    expectCommand(CreateShipment("id-1"), to = ShipmentSaga.SHIPMENT.ref("tenant", "shipment-1"))
+                val rejected = commands.single()
+                whenRejected(rejected, code = "shop.shipment.exists") {
+                    val seed = "${ExecutionId("ShipmentSaga.onCreateRejected", order, 1)}!${rejected.id}"
+                    expectCommand(
+                        CreateShipment(HandlingIds.idOf(seed, null, 1)),
+                        to = derivedShipment(seed, 0),
+                    )
                     expectDeterministic()
                 }
             }
         }
 
     @Test
-    fun `a saga's context should take its ids from the generators it is given, UUIDv7 by default`() {
-        val order = model.type.ref("tenant", "order-1")
-        val event = stateEvent(order, Order("order-1"), OrderPlaced(emptyMap(), "invoice-1"))
-        val execution = ExecutionId("ShipmentSaga.onPlaced", order, 1)
-        val fixed = IdGenerators(GlobalIdGenerator { "g" }, AggregateIdGenerator { "a-${it.name}" })
-        val context = contextOf(FunctionKind.SAGA, execution.subscription, event, fixed) as SagaContext
-        context.ids.assert().isSameAs(fixed)
-        ShipmentSaga().onPlaced(event, context)!!.ref.id.assert().isEqualTo("a-shipment")
-        UUID.fromString(ExecutionSagaContext(execution, event).ids.next()).version().assert().isEqualTo(7)
+    fun `handling the same commit twice should derive the same ids, whatever the node's generators`() {
+        val event = stateEvent(order, Order("order-1"), placed)
+        val saga = ShipmentSaga()
+        val first = saga.onPlaced(event, contextOf(FunctionKind.SAGA, onPlaced.subscription, event) as SagaContext)!!
+        val again = saga.onPlaced(event, ExecutionSagaContext(onPlaced, event))!!
+        first.assert().isEqualTo(again)
+        first.ref.assert().isEqualTo(firstShipment)
+        UUID.fromString(first.ref.id).version().assert().isEqualTo(5)
+        val later = stateEvent(order, Order("order-1"), placed, version = 2)
+        saga.onPlaced(later, ExecutionSagaContext(onPlaced.copy(version = 2), later))!!.ref
+            .assert().isNotEqualTo(first.ref)
         val handler = shipmentSagaHandlers().single().rejectionHandlerOf(CreateShipment::class.java)!!
-        val rejected = CommandRejected<CreateShipment>(
-            commandId = "c-1",
-            commandType = "shop.shipment.CreateShipment",
-            ref = ShipmentSaga.SHIPMENT.ref("tenant", "s-1"),
-            error = ErrorInfo("shop.shipment.exists", "exists"),
-            causation = Causation("c-0", "c-1"),
-            executionId = execution,
-        )
-        rejectionContextOf(handler, rejected, fixed).ids.assert().isSameAs(fixed)
-        rejectionContextOf(handler, rejected).ids.assert().isSameAs(IdGenerators.DEFAULT)
+        val rejected = rejectionOf(first)
+        val compensation = saga.onCreateRejected(rejected, rejectionContextOf(handler, rejected))
+        compensation.assert().isEqualTo(saga.onCreateRejected(rejected, rejectionContextOf(handler, rejected)))
+        compensation.ref.assert().isNotEqualTo(first.ref)
+        val other = rejectionOf(first.copy(id = "other"))
+        saga.onCreateRejected(other, rejectionContextOf(handler, other)).ref.assert().isNotEqualTo(compensation.ref)
+    }
+
+    @Test
+    fun `a handling's ids should count its calls, global and per type, as version 5 UUIDs`() {
+        val ids = HandlingIds("seed")
+        val global = ids.next()
+        val shipment = ids.next(ShipmentSaga.SHIPMENT)
+        global.assert().isEqualTo(HandlingIds.idOf("seed", null, 0))
+        shipment.assert().isEqualTo(HandlingIds.idOf("seed", ShipmentSaga.SHIPMENT, 1))
+        HandlingIds.idOf("seed", ShipmentSaga.SHIPMENT, 0).assert().isNotEqualTo(HandlingIds.idOf("seed", null, 0))
+        HandlingIds.idOf("other", null, 0).assert().isNotEqualTo(global)
+        UUID.fromString(global).let {
+            it.version().assert().isEqualTo(5)
+            it.variant().assert().isEqualTo(2)
+        }
+        assertThrownBy<IllegalArgumentException> { HandlingIds.idOf("seed", null, -1) }
+        assertThrownBy<IllegalArgumentException> { HandlingIds(" ") }
     }
 
     @Test

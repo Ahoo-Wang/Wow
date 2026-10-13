@@ -115,7 +115,8 @@ data class ServiceNodeOptions(
 /**
  * The admission plug-ins of a node's [me.ahoo.wow.runtime.admission.CommandGateway] (decisions D92, D114, D182), and the
  * [tenants] of its aggregate types (decision D116). [ids] are the node's id generators (decision D171): admission's
- * command and aggregate ids, the wait ids, and the ids its decide functions and sagas take.
+ * command and aggregate ids, the wait ids, and the ids its decide functions take (a saga's are name-based,
+ * [me.ahoo.wow.kernel.HandlingIds]).
  */
 data class AdmissionPlugins(
     val authorizer: CommandAuthorizer = CommandAuthorizer.ALLOW_ALL,
