@@ -30,6 +30,7 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
@@ -361,17 +362,25 @@ class WaitCoordinator(
             is CommandOutcome.AlreadyCommitted -> handledBefore(command, outcome, after.firstOrNull(), after.size == 1)
             else -> null
         }
-        return Settlement(committed, listOfNotNull(reached))
+        return Settlement(committed, listOfNotNull(reached), outcome)
     }
 
     /**
-     * Executes [command], derived on the way of a wait (by a saga, or later sent from another context), on [model]'s
-     * aggregate with the [wait] context it inherited, and signals its results to the waiting node: ACCEPTED when the
-     * context waits for it, then COMMITTED or the failure. Without a context, or past its deadline, it only executes.
+     * Executes [command], derived on the way of a wait (by a saga, or later sent from another context), or sent by a
+     * timer, on [model]'s aggregate with the [wait] context it inherited, and signals its results to the waiting node:
+     * ACCEPTED when the context waits for it, then COMMITTED or the failure, then the later hop it reached at once.
+     * Without a context, or past its deadline, it only executes.
+     *
+     * It is routed as an admitted command is ([router], design 02 §2; decisions D6, D71): to the owner of its
+     * partition, degrading to this node, so the owner's state cache sees every commit of its partitions. A saga's
+     * subscription runs on the owner of the partition of the entry it handles, which is not the derived command's
+     * partition in general.
+     *
+     * Returns the [Settlement]: its [Settlement.outcome] is the kernel's when this node executed it.
      */
-    suspend fun forward(model: AggregateModel<*>, command: Command<*>, wait: WaitContext?): CommandOutcome {
+    suspend fun forward(model: AggregateModel<*>, command: Command<*>, wait: WaitContext?): Settlement {
         if (wait == null || wait.expiredAt(clock())) {
-            return executor.execute(model, command)
+            return router.route(model, command, null) { executeHere(model, command, null) }
         }
         val function = commandFunction(model, command)
         val context = command.ref.type.context
@@ -379,30 +388,12 @@ class WaitCoordinator(
         leading.firstOrNull { it.stage == Stage.ACCEPTED }?.let { accepted ->
             signal(wait, reachedResult(command, function, accepted, clock()))
         }
-        val outcome = executor.execute(model, command, wait)
-        val committed = outcome.toResult(
-            command,
-            function,
-            leading.firstOrNull { it.stage == Stage.COMMITTED } ?: Hop.committed(context),
-            clock(),
-        )
-        signal(wait, committed)
-        when (outcome) {
-            is CommandOutcome.Unchanged -> reachVacuously(
-                committed,
-                wait.afterCommitted().nextHandled
-            ) { signal(wait, it) }
-            is CommandOutcome.AlreadyCommitted -> {
-                // A retried saga derives the same command again: its entry carries the same wait context, so the
-                // subscription signals when it handles it. If it already has, that signal is gone: answer from the
-                // checkpoint.
-                val remaining = wait.afterCommitted().remaining
-                handledBefore(command, outcome, remaining.firstOrNull(), remaining.size == 1)?.let { signal(wait, it) }
-            }
-
-            else -> Unit
-        }
-        return outcome
+        val settlement = router.route(model, command, wait) { executeHere(model, command, wait) }
+        val hop = leading.firstOrNull { it.stage == Stage.COMMITTED } ?: Hop.committed(context)
+        signal(wait, settlement.committed.copy(hop = hop))
+        // A command that changed nothing, or a duplicate whose subscription is past it (D63): no entry signals them.
+        settlement.reached.forEach { signal(wait, it) }
+        return settlement
     }
 
     /**
@@ -424,16 +415,6 @@ class WaitCoordinator(
         val kind = directory.kindOf(context, subscription) ?: return null
         return handledResult(outcome.stream, handled, subscriptionFunction(kind, context, subscription), clock())
             .copy(commandId = command.id, duplicate = true)
-    }
-
-    /**
-     * A command that changed nothing appended no entry, so no subscription will handle it: its next HANDLED hop,
-     * [handled], is reached at once, deriving nothing.
-     */
-    private inline fun reachVacuously(committed: CommandResult, handled: Hop?, reach: (CommandResult) -> Unit) {
-        if (handled != null) {
-            reach(committed.copy(hop = handled, signalTime = clock()))
-        }
     }
 
     @Suppress("TooGenericExceptionCaught") // A signal is best effort: whatever fails, the command's result stands.
@@ -466,5 +447,19 @@ val WaitPlan.isAcceptedOnly: Boolean get() = hops.size == 1 && hops.single().sta
 /**
  * What executing a command reached at once: its [committed] result (design 08 §7), at its COMMITTED hop, then the
  * later hops it [reached] without waiting for a subscription. The hops after them are signalled to the wait's origin.
+ * [outcome] is the kernel's when this node executed the command; null when another node did and replied, or when the
+ * executor did not take it.
  */
-data class Settlement(val committed: CommandResult, val reached: List<CommandResult> = emptyList())
+data class Settlement(
+    val committed: CommandResult,
+    val reached: List<CommandResult> = emptyList(),
+    val outcome: CommandOutcome? = null,
+) {
+    /** The rejection [committed] ends with, when it is REJECTED (a business outcome, decision D153). */
+    val rejection: Rejection?
+        get() = committed.error?.takeIf { committed.status == CommandResult.Status.REJECTED }
+            ?.let { Rejection(it.code, it.message) }
+
+    /** Whether [committed] is FAILED: a technical failure, such as contention, an unknown outcome or a busy lane. */
+    val failed: Boolean get() = committed.status == CommandResult.Status.FAILED
+}

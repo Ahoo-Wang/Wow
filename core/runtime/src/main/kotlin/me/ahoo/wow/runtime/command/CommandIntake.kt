@@ -76,16 +76,16 @@ class CommandIntake internal constructor(
         val command = checkNotNull(ClusterCodec.command(model, wire)) {
             "${wire.ref.type} has no command type ${wire.type}, which the command ${wire.id} is."
         }
-        when (val outcome = coordinator.forward(model, command, wait)) {
-            is CommandOutcome.Committed, is CommandOutcome.AlreadyCommitted, is CommandOutcome.Unchanged -> Unit
-            is CommandOutcome.Rejected -> reply(wire, ErrorInfo(outcome.rejection.code, outcome.rejection.message))
-            is CommandOutcome.Contended -> throw IllegalStateException(
-                "The command ${wire.id} on ${wire.ref} was contended ${outcome.attempts} times.",
-            )
-
-            is CommandOutcome.Unknown -> throw IllegalStateException(
-                "The outcome of the command ${wire.id} on ${wire.ref} is unknown.",
-                outcome.cause,
+        val settlement = coordinator.forward(model, command, wait)
+        settlement.rejection?.let { rejection ->
+            reply(wire, ErrorInfo(rejection.code, rejection.message))
+            return
+        }
+        if (settlement.failed) {
+            val error = settlement.committed.error
+            throw IllegalStateException(
+                "The command ${wire.id} on ${wire.ref} failed: ${error?.code} ${error?.message}",
+                (settlement.outcome as? CommandOutcome.Unknown)?.cause,
             )
         }
     }

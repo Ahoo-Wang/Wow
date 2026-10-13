@@ -74,7 +74,7 @@ class ClusterWaitTest {
     }
 
     @Test
-    fun `the stream emits one result per derived command, signalled from the owner`(): Unit = runBlocking {
+    fun `the stream emits one result per derived command, each executed on its partition's owner`(): Unit = runBlocking {
         val (one, two, id) = forwarded()
         cluster.derives[id] = 3
         val command = one.command(id, wait = WaitPlan.of(Hop.handled(SAGA), Hop.committed()))
@@ -94,7 +94,36 @@ class ClusterWaitTest {
         }
         settled.map { it.commandId }.assert().containsExactlyInAnyOrder(*derived.toTypedArray())
         two.decided.assert().contains(command.id)
-        two.decided.assert().contains(*derived.toTypedArray())
+        // The saga runs on node-2, the owner of the deposit's partition; each command it derives runs on the owner of
+        // its own partition, as an admitted command does (G32).
+        val names = cluster.running.map { it.name }
+        derived.forEach { derivedId ->
+            val owner = Hrw.owner(cluster.partitionOf("$id-d-${derivedId.substringAfterLast('-')}"), names)
+            cluster.node(owner!!).decided.assert().describedAs(derivedId).contains(derivedId)
+            cluster.nodes.values.filter { it.name != owner }.forEach { it.decided.assert().doesNotContain(derivedId) }
+        }
         one.registry.size.assert().isEqualTo(0)
     }
+
+    @Test
+    fun `a saga's derived command runs on its partition's owner, not on the node running the saga`(): Unit =
+        runBlocking {
+            val (one, two) = cluster.start("node-1", "node-2")
+            cluster.awaitStable()
+            val names = cluster.running.map { it.name }
+            // A deposit node-1 owns, whose saga derives a deposit node-2 owns (G32).
+            val id = (0 until 256).map { "acc-$it" }.first {
+                Hrw.owner(cluster.partitionOf(it), names) == one.name &&
+                    Hrw.owner(cluster.partitionOf("$it-d-1"), names) == two.name
+            }
+            cluster.derives[id] = 1
+            val command = one.command(id, wait = WaitPlan.of(Hop.handled(SAGA), Hop.committed()))
+            val emitted = withTimeout(10.seconds) { one.coordinator.stream(one.model, command).toList() }
+
+            emitted.last().status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            val derived = "${command.id}-d-1"
+            emitted.last().commandId.assert().isEqualTo(derived)
+            one.decided.assert().contains(command.id).doesNotContain(derived)
+            two.decided.assert().contains(derived)
+        }
 }

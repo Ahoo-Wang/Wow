@@ -310,10 +310,8 @@ class SubscriptionRuntime internal constructor(
         val partition = part.partition
         val checkpoint = checkpoints.load(group, subscription.name, partition) ?: source
             .checkpointOf(startOf(subscription), partition).also {
-                // Saved at once, so a restart before the first entry does not move the start to a later end.
-                if (it > 0) {
-                    checkpoints.save(group, subscription.name, partition, it)
-                }
+                // Saved at once, 0 included, so a restart before the first save does not move the start to a later end.
+                checkpoints.save(group, subscription.name, partition, it)
             }
         return SubscriptionWorker(
             group = group,
