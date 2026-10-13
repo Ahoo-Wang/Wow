@@ -77,7 +77,8 @@ import me.ahoo.cosid.provider.IdGeneratorProvider as CosIdGeneratorProvider
  * The Wow V10 host (roadmap 5b.3; decisions D30, D44, D89, D105–D110, D114): by what the classpath and the
  * application's beans offer, it assembles one [ServiceNode] and serves it on two ports.
  *
- * - **Models and Manifest**: the binding index on the classpath ([ModelProvider.load]), the models' parameters from the
+ * - **Models and Manifest**: the binding index on the classpath ([ModelProvider.load]) of the contexts
+ *   `wow.contexts.include` / `exclude` select ([ContextSelection], decision D169; all by default), the models' parameters from the
  *   application's beans ([BeanFactoryDependencies]), the Manifest merged from the modules' fragments
  *   ([ManifestLoader], read with [WowJson.mapper], never Spring's mapper), and with it the peers' Manifests on the
  *   classpath ([ContractDirectory], decision D139).
@@ -124,8 +125,12 @@ class WowAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun wowModels(beanFactory: ConfigurableListableBeanFactory, dependencies: Dependencies): WowModels {
-        val providers = ModelProvider.load(beanFactory.beanClassLoader)
+    fun wowModels(
+        properties: WowProperties,
+        beanFactory: ConfigurableListableBeanFactory,
+        dependencies: Dependencies,
+    ): WowModels {
+        val providers = properties.contexts.selection().select(ModelProvider.load(beanFactory.beanClassLoader))
         return WowModels(providers, ServiceNode.models(dependencies, providers))
     }
 
@@ -212,7 +217,6 @@ class WowAutoConfiguration {
         manifest: Manifest,
         contracts: ContractDirectory,
         backends: HostBackends,
-        beanFactory: ConfigurableListableBeanFactory,
         dependencies: Dependencies,
         channel: ClusterChannel,
         signals: SignalSender,
@@ -255,7 +259,7 @@ class WowAutoConfiguration {
                 ids = ids,
                 tenants = tenants(properties, models.models),
             ),
-            subscriptions = bindings(beanFactory, dependencies, subscriptions.orderedStream().toList()),
+            subscriptions = bindings(models.providers, dependencies, subscriptions.orderedStream().toList()),
             listener = { step -> stepListeners.forEach { it.onStep(step) } },
             contracts = contracts,
             topics = topics.ifAvailable,
@@ -411,16 +415,16 @@ class WowAutoConfiguration {
         }
 
         /**
-         * The subscriptions of the annotated processors on the class path (their modules' generated
-         * [ModelProvider.processors]), their processors built from [dependencies], then those of every
-         * [SubscriptionFactory] bean in [factories], in their order.
+         * The subscriptions of the annotated processors of the node's contexts (the generated
+         * [ModelProvider.processors] of [providers], the selected ones on the class path), their processors built
+         * from [dependencies], then those of every [SubscriptionFactory] bean in [factories], in their order.
          */
         internal fun bindings(
-            beanFactory: ConfigurableListableBeanFactory,
+            providers: List<ModelProvider>,
             dependencies: Dependencies,
             factories: List<SubscriptionFactory>,
         ): SubscriptionFactory {
-            val bindings = SubscriptionBindings.of(dependencies, ModelProvider.load(beanFactory.beanClassLoader))
+            val bindings = SubscriptionBindings.of(dependencies, providers)
             return SubscriptionFactory.of(listOf(bindings) + factories)
         }
 

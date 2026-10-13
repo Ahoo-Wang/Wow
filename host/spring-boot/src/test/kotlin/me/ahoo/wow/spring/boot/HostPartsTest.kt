@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
+import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.MissingDependencyException
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.ClusterOptions
@@ -118,9 +119,9 @@ class BackendSelectionTest {
 
     @Test
     fun `the processors on the class path should be registered beside the application's subscriptions`() {
-        val beanFactory = DefaultListableBeanFactory()
         val models = BankModels().models(Dependencies.of(DecidedCommands()))
-        val discovered = WowAutoConfiguration.bindings(beanFactory, Dependencies.NONE, emptyList())
+        val providers = ModelProvider.load()
+        val discovered = WowAutoConfiguration.bindings(providers, Dependencies.NONE, emptyList())
         discovered.assert().isInstanceOf(SubscriptionBindings::class.java)
         discovered.viewTypes(BANK, models).assert().isEmpty()
         val application = object : SubscriptionFactory {
@@ -128,7 +129,7 @@ class BackendSelectionTest {
 
             override fun viewTypes(context: String, models: List<AggregateModel<*>>) = models.map { it.type }.toSet()
         }
-        val both = WowAutoConfiguration.bindings(beanFactory, Dependencies.NONE, listOf(application, application))
+        val both = WowAutoConfiguration.bindings(providers, Dependencies.NONE, listOf(application, application))
         both.assert().isNotInstanceOf(SubscriptionBindings::class.java)
         both.viewTypes(BANK, models).assert().containsExactly(AggregateType(BANK, "account"))
     }
