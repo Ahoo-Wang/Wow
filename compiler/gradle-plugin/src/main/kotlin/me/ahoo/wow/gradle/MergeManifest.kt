@@ -35,7 +35,7 @@ import javax.inject.Inject
  */
 @CacheableTask
 abstract class MergeManifest @Inject constructor(private val workers: WorkerExecutor) : DefaultTask() {
-    /** The module's runtime class path, its own resources included. */
+    /** The module's runtime class path, with its own completed fragment. */
     @get:Classpath
     abstract val classpath: ConfigurableFileCollection
 

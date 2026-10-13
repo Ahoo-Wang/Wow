@@ -43,6 +43,7 @@ import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
 import me.ahoo.wow.runtime.cluster.PartitionedRouter
 import me.ahoo.wow.runtime.cluster.Refusal
+import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.log.PartitionAppendQueue
 import me.ahoo.wow.runtime.manifest.ManifestCheck
 import me.ahoo.wow.runtime.reservation.ReservationSubscription
@@ -115,7 +116,9 @@ class ContextNode internal constructor(
  * to its context's endpoint.
  *
  * **Startup checks**: the [manifest] (normally [me.ahoo.wow.runtime.manifest.ManifestLoader]'s) names this
- * [service], and it and the [models] agree ([ManifestCheck]); otherwise the node is not built.
+ * [service], and it and the [models] agree ([ManifestCheck]); otherwise the node is not built. The [contracts] are
+ * those of this [manifest] and its peers (decision D139), checked when they were built; each context's waits name
+ * subscriptions through them, so a chain may name one of another context.
  *
  * **Internal address**: the [address] the other nodes reach this node at, given when the node is built, or learned
  * with [bind] once the host's internal port is bound (a port the system chose, such as `0`), before [start].
@@ -163,6 +166,8 @@ class ServiceNode(
     private val listener: (Step) -> Unit = {},
     /** The kernel's codec, shared with the snapshot subscriptions. */
     codec: EventCodec = EventCodec(),
+    /** The contracts of the [manifest] and its peers ([ContractDirectory.load] reads the peers on the class path). */
+    val contracts: ContractDirectory = ContractDirectory(manifest),
 ) {
     init {
         require(service.isNotBlank()) { "A node names its service." }
@@ -171,6 +176,7 @@ class ServiceNode(
         val named = manifest.service?.name
         require(named == null || named == service) { "The Manifest is of service $named, not $service." }
         ManifestCheck.check(manifest, models)
+        require(contracts.local == manifest) { "The contracts are not of the node's Manifest." }
     }
 
     @Volatile
@@ -461,7 +467,8 @@ class ServiceNode(
         val views: StateViews,
     ) {
         fun complete(): ContextNode {
-            val coordinator = WaitCoordinator(executor, waits, subscriptions, signals, waitOptions, router = router)
+            val directory = contracts.over(subscriptions, context)
+            val coordinator = WaitCoordinator(executor, waits, directory, signals, waitOptions, router = router)
             val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership))
             return ContextNode(
                 context,
