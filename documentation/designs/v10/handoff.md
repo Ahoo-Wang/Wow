@@ -47,7 +47,7 @@ E.D 写指南时发现、尚无工作包的不一致（待定是改代码还是�
 
 - **分工**：主会话只做协调、审查与设计文档；实现交给隔离 worktree 里的子代理。子代理从最新 `origin/v10` 开分支，开 PR 到 `v10`，不合并。
 - **子代理说明里必须写明**：JUnit 测试函数返回 `Unit`（否则被静默跳过，按 `build/test-results` 的 XML 核对数量）；M7 出口前 V10 模块不做 ABI 转储（D88、D147）；先 `detekt --auto-correct`；不改 `documentation/designs/v10/**`；并行的子代理不碰同一批文件（列出禁区）；分步提交并尽早推送；不 rebase、不 force-push，需要时 merge `origin/v10`；新增第三方依赖须先问用户。
-- **合并前**：在本地把 PR 合到最新 `origin/v10` 上演练，跑完整验证命令（下方）并按 XML 核对测试数；看 `gh pr checks`，红色检查要逐项确认与本 PR 无关（Codecov 的组件状态常在上传未齐时先报红，可查 `https://api.codecov.io/api/v2/github/Ahoo-Wang/repos/Wow/compare/components?pullid=<N>`）。合并用 `gh pr merge <N> --squash --admin --match-head-commit <完整 SHA> --subject "<标题> (#N)" --body "<正文>"`：显式写标题与正文，**不带 `Co-authored-by`**。
+- **合并前**：在本地把 PR 合到最新 `origin/v10` 上演练，跑完整验证命令（下方）并按 XML 核对测试数；看 `gh pr checks`，红色检查要逐项确认与本 PR 无关（Codecov 的组件状态常在上传未齐时先报红，可查 `https://api.codecov.io/api/v2/github/Ahoo-Wang/repos/Wow/compare/components?pullid=<N>`）。合并用 `gh pr merge <N> --squash --admin --match-head-commit <完整 SHA> --subject "<标题> (#N)" --body "<正文>"`：显式写标题与正文。
 - **完整验证命令**（本机需 JDK 21；不要 `./gradlew --stop`，会杀掉其他代理的守护进程）：
 
 ```text
@@ -77,7 +77,7 @@ E.D 写指南时发现、尚无工作包的不一致（待定是改代码还是�
 ## 6. 用户的长期要求（原记在协调者本机记忆，换机器时以此为准）
 
 - 与用户用中文交流；代码、提交与 PR 用英文。默认按协调者的推荐推进，只有真正需要用户拍板的才问（标注推荐项）；用户说「先讨论」「先记录」的议题不派工。
-- **提交与 PR 不带 `Co-authored-by`**；squash 合并时显式写 `--subject` 与 `--body`。
+- squash 合并时显式写 `--subject` 与 `--body`。
 - `--admin` 合并会绕过红色 CI：合并前必须看 `gh pr checks`，红色逐项确认与本 PR 无关（Codecov 状态常过时，以 compare API 为准），并在本地演练。
 - 直接推送 `v10` 会被拦截：前向合并推旁路分支，请用户执行 `git push origin <SHA>:v10`。
 - 不发预发布（alpha、beta、rc），全部 V10 目标完成后一次发版；打标签前问用户。
