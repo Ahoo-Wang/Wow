@@ -53,7 +53,7 @@ flowchart LR
 | M5 契约、边缘与宿主 | 由 Manifest 驱动的 HTTP 与客户端 | CI 绿（含 `shop-server` 端到端） | （已全部拍板） |
 | M6 读平面与 Sinks | 快照查询、跨上下文、数仓 | CI 绿（含 `:example-e2e`） | （已全部拍板，D125～D149） |
 | M6e eShop 验证 | 经典 eShop 的 5 个上下文全跑在 V10 上，验证 M1～M6 的能力与开发体验（D158～D160） | CI 绿（含 `:eshop-e2e` 的下单全链路与故障场景）；`DX-GAPS.md` 里阻塞 M7 的条目已补 | （已全部拍板） |
-| M7 平台迁移 | 平台模块跑在 V10 上 | CI 绿；API 冻结，V10 模块开始 ABI 转储与校验（D88、D147） | 入口：`09-capability-parity.md` 入库，缺失项补齐或获用户批准豁免（D183） |
+| M7 平台迁移 | 平台模块跑在 V10 上 | CI 绿；API 冻结，V10 模块开始 ABI 转储与校验（D88、D147） | 入口：`09-capability-parity.md` 入库，缺失项补齐或获用户批准豁免（D183）；即 M6p 的 P.1～P.5 完成（D184） |
 | M8 迁移层 | 源码与数据一次性迁移 | CI 绿（含 8c.1 演练） | （已全部拍板） |
 | M9 发布 | GA 与合入 main | `10.0.0`（打标签前须用户确认，D124） | （已全部拍板） |
 
@@ -216,6 +216,22 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | E.7 | Web UI：用 5a.3 生成的 TypeScript 客户端（D160）；**移到 M7**，与 7.3 一起做（D181） | E.6、5a.3 | UI 的端到端 |
 
 并行：5a.2～5a.4 与 E.1～E.6 同时推进；E.7 移到 M7（D181）。M6e 期间冻结范围：新议题只登记，除非阻塞 E.1～E.6（D181）。
+
+### M6p 能力补齐
+
+来自 [09 能力对照](09-capability-parity.md) §13 的补齐项（D184）；放弃的项见 D185～D188。P.1～P.5 是 M7 的入口门槛（D183），P.6～P.9 在 M8 之前。
+
+| WP | 内容 | 规模 | 时机 | 出口 |
+|---|---|---|---|---|
+| P.1 | 停放的长周期自动重试（9.x `CompensationScheduler`、`RetrySpec`）；按条运维操作 `MarkRecoverable`、`ApplyRetrySpec` 与 Resume、Skip 的路由；失败通知 webhook | M | M7 前 | 停放后按退避自动恢复的测试；运维路由与通知的端到端 |
+| P.2 | Kotlin 查询 DSL；编译器生成字段常量 `<State>Properties`；查询语言参考（DX G15） | M | M7 前 | DSL 与 JSON 查询等价的测试；指南新增查询参考页 |
+| P.3 | 按订阅的重试与超时（9.x `@Retry`），注解与 `wow.subscriptions.[…]` 配置 | S | M7 前 | 预算耗尽后停放的测试 |
+| P.4 | V10 的 K8s 部署清单：内部端口、PostgreSQL、Kafka | S | M7 前 | 清单可在本地集群起 eShop 一个服务 |
+| P.5 | 测试 DSL：`SagaSpec`、投影与反应器测试、`fork`/`ref` 分叉、`givenState`、按类型 `expectError` | M | M7 前 | eShop 与 shop 的 Saga 测试改用它 |
+| P.6 | 升级时丢弃过时事件（9.x `DroppedEvent`） | S | M8 前 | 含已退役事件类型的历史可导入 |
+| P.7 | 从状态提取 ABAC 标签（9.x `StateAggregateTagsExtractor`） | S～M | M8 前 | 标签随状态变化的查询策略测试 |
+| P.8 | `wow-models` 迁到 V10（`EnumText`、`StatusCapable`、`Tree` 聚合） | M | M8 前 | 各自的 V10 测试 |
+| P.9 | `TestValidator`、Testcontainers 夹具、发布 `wow-tck` | S | M8 前 | 外部项目可依赖 TCK 跑后端契约 |
 
 ### M7 平台迁移
 
