@@ -26,6 +26,7 @@ import tools.jackson.databind.json.JsonMapper
 import tools.jackson.databind.jsonFormatVisitors.JsonFormatVisitorWrapper
 import tools.jackson.databind.jsonFormatVisitors.JsonObjectFormatVisitor
 import tools.jackson.databind.jsonFormatVisitors.JsonStringFormatVisitor
+import tools.jackson.databind.module.SimpleModule
 import java.security.MessageDigest
 import java.util.TreeMap
 import java.util.TreeSet
@@ -36,7 +37,8 @@ import java.util.concurrent.ConcurrentHashMap
  * or moving a class does not orphan its history. States go into and come out of snapshots the same way.
  *
  * The default mapper is Wow's ([WowJson], decision D122), which keeps every JSON number exact: an untyped value reads
- * a decimal as a [java.math.BigDecimal]. It also fills a mutable state's read-only collections in place.
+ * a decimal as a [java.math.BigDecimal]. It also fills a mutable state's read-only collections in place, and reads
+ * sets and maps back in the order they were written.
  */
 class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
     private val stateFingerprints = ConcurrentHashMap<Class<*>, String>()
@@ -257,6 +259,15 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         val DEFAULT_MAPPER: JsonMapper = WowJson.builder()
             // A mutable state (D7) holds collections in read-only properties; reading a snapshot fills them in place.
             .enable(MapperFeature.USE_GETTERS_AS_SETTERS)
+            // Sets and maps read back in the order they were written, as Kotlin's keep theirs. Jackson would read a
+            // `Set` as a HashSet (of enums, an EnumSet) and a `Map` keyed by an enum as an EnumMap, which write back in
+            // hash or ordinal order: decodeState would refuse a state with such a set as not holding its own text, and
+            // a state read from a snapshot would not write back as the snapshot holds it.
+            .addModule(
+                SimpleModule("wow-ordered-collections")
+                    .addAbstractTypeMapping(Set::class.java, LinkedHashSet::class.java)
+                    .addAbstractTypeMapping(Map::class.java, LinkedHashMap::class.java),
+            )
             .build()
     }
 }

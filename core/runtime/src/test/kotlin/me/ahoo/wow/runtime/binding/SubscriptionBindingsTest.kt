@@ -55,6 +55,7 @@ class SubscriptionBindingsTest {
     private val projected = CopyOnWriteArrayList<StateEvent<OrderState>>()
     private val executions = CopyOnWriteArrayList<String>()
     private val everything = CopyOnWriteArrayList<String>()
+    private val carts = CopyOnWriteArrayList<List<String>>()
 
     /** Keeps what it is handed; fails for the order `boom`. */
     private val projection = ProcessorBinding.project(
@@ -70,6 +71,7 @@ class SubscriptionBindingsTest {
     /** Every aggregate of the context, through `StateEvent<*>`. */
     private val audit = ProcessorBinding.react<Any>("Audit", "onEvent", null) { event, context ->
         everything += "${event.ref.type.name}@${event.version}:${context.executionId.subscription}"
+        (event.state as? CartState)?.let { carts += it.items.toList() }
     }
 
     /** Removes the ordered items from the cart of the order's owner; derives nothing for an order without one. */
@@ -147,6 +149,17 @@ class SubscriptionBindingsTest {
         event.causation.assert().isNull()
         executions.assert().containsExactly("OrderView.onEvent:shop.order/t/o-1@1")
         eventually { everything.contains("order@1:Audit.onEvent") }
+    }
+
+    @Test
+    fun `a handler should get a state holding a set in the order it was written, not park it`(): Unit = runBlocking {
+        node.start()
+        // Not in hash order: read as a HashSet, the state would not write back as its view, and its handlers park.
+        val items = (1..20).map { "item-$it" }.reversed()
+        fill("dave", *items.toTypedArray()).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        eventually { carts.isNotEmpty() }
+        carts.single().assert().isEqualTo(items)
+        backends.opened.getValue(SHOP).ledger.isParked("Audit.onEvent", CART.ref(TENANT, "dave")).assert().isFalse()
     }
 
     @Test
