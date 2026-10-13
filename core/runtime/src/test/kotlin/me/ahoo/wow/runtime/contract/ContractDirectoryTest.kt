@@ -154,7 +154,9 @@ class ContractDirectoryTest {
         directory.derivedContextsOf("shop", "Unknown.onCart").assert().isNull()
         // A schema reference no Manifest declares cannot be placed in a context: unchecked too.
         val unresolved = ContractDirectory(
-            shop(subscriptions = listOf(subscription("Lost.onCart", derives = listOf(Manifest.schemaRef("sample.Lost"))))),
+            shop(
+                subscriptions = listOf(subscription("Lost.onCart", derives = listOf(Manifest.schemaRef("sample.Lost"))))
+            ),
             ContractFixtures.peers,
         )
         unresolved.derivedContextsOf("shop", "Lost.onCart").assert().isNull()

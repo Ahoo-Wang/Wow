@@ -71,12 +71,9 @@ internal class WaitChain private constructor(val hops: List<Hop>) : CheckedPlan 
                 }
                 last = hop.stage
                 if (hop.stage == Stage.HANDLED) {
-                    val kind = directory.kindOf(hop.context!!, hop.subscription!!)
-                        ?: return Invalid("Hop $hop names an unknown subscription.")
-                    if (index < hops.lastIndex) {
-                        if (kind != FunctionKind.SAGA) {
-                            return Invalid("Only a saga's hop may be followed by more hops; $hop is a $kind.")
-                        }
+                    val followed = index < hops.lastIndex
+                    handledProblem(hop, followed, directory)?.let { return Invalid(it) }
+                    if (followed) {
                         last = null
                         saga = hop
                     }
@@ -85,6 +82,15 @@ internal class WaitChain private constructor(val hops: List<Hop>) : CheckedPlan 
                 }
             }
             return WaitChain(hops)
+        }
+
+        /** Why the HANDLED [hop] cannot be reached, or null: it names a known subscription, a saga's when [followed]. */
+        private fun handledProblem(hop: Hop, followed: Boolean, directory: SubscriptionDirectory): String? {
+            val kind = directory.kindOf(hop.context!!, hop.subscription!!)
+                ?: return "Hop $hop names an unknown subscription."
+            return "Only a saga's hop may be followed by more hops; $hop is a $kind.".takeIf {
+                followed && kind != FunctionKind.SAGA
+            }
         }
 
         /**

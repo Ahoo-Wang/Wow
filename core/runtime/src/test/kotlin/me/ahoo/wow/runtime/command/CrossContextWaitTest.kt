@@ -296,7 +296,11 @@ class CrossContextWaitTest {
 
             var count = 0
 
-            suspend fun rejected(vararg hops: Hop): CommandResult = sales.place("x-${++count}", 1, *hops).toList().single()
+            suspend fun rejected(vararg hops: Hop): CommandResult = sales.place(
+                "x-${++count}",
+                1,
+                *hops
+            ).toList().single()
 
             // The sales saga derives only the stock's reservations (decision D138).
             rejected(Hop.committed(), SAGA_HOP, Hop.committed(SALES)).let {
