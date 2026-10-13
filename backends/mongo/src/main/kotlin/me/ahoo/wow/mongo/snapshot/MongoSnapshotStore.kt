@@ -15,6 +15,7 @@ package me.ahoo.wow.mongo.snapshot
 
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoCollection
+import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.IndexOptions
 import com.mongodb.client.model.Indexes
@@ -42,7 +43,9 @@ import java.util.concurrent.ConcurrentHashMap
  * Each aggregate type has its own collection, `wow_snapshot__<context>__<aggregate>` (decision D161), holding one
  * document per aggregate, keyed by a unique index on (tenant, aggregate id); the document has no aggregate name, the
  * collection is the aggregate type. An aggregate type's collection is created, with its key and format record, the
- * first time this store touches the type, or up front by [createCollection].
+ * first time this store touches the type, or up front by [createCollection]. Two partial indexes cover the predicates
+ * the query side adds to every query (decision D151): `{tenant_id, owner_id}` and `{tenant_id, space_id}`, over the
+ * snapshots that are not deleted.
  * The state and the tags are BSON documents, so the snapshot can be queried in place as the default read model; the
  * state's decimals are `Decimal128`, exact ([ExactBson]).
  * A save is one conditional upsert whose filter carries the version guard (`version < new`): no transaction, and
@@ -79,13 +82,7 @@ class MongoSnapshotStore(
     private fun collectionOf(aggregate: String): MongoCollection<Document> =
         ensured[aggregate] ?: ensure(aggregate).also { ensured[aggregate] = it }
 
-    private fun ensure(aggregate: String): MongoCollection<Document> {
-        val name = MongoNames.of(PREFIX, context, aggregate)
-        MongoFormat.claim(database, name, FORMAT)
-        return database.getCollection(name).also {
-            it.createIndex(Indexes.ascending(TENANT_ID, AGGREGATE_ID), IndexOptions().unique(true).name(SNAPSHOT_KEY))
-        }
-    }
+    private fun ensure(aggregate: String): MongoCollection<Document> = ensure(database, context, aggregate)
 
     override suspend fun save(snapshot: SnapshotRecord): Boolean = withContext(dispatcher) {
         require(snapshot.ref.type.context == context) { "${snapshot.ref} is not in context $context." }
@@ -133,11 +130,52 @@ class MongoSnapshotStore(
         )
     }
 
-    private companion object {
+    internal companion object {
         /** The version of this layout (decision D59). */
         const val FORMAT = 1
 
         const val SNAPSHOT_KEY = "snapshot_key"
+
+        /** The partial index of the owner scope (decision D151). */
+        const val OWNER_INDEX = "owner_ix"
+
+        /** The partial index of the space scope (decision D151). */
+        const val SPACE_INDEX = "space_ix"
+
+        /**
+         * The indexes that cover the predicates admission adds to every query (decision D151): the tenant and the
+         * caller's owner or space, by index name and the scope field after the tenant.
+         */
+        val SCOPE_INDEXES: Map<String, String> = linkedMapOf(OWNER_INDEX to "owner_id", SPACE_INDEX to "space_id")
+
+        /** The partial filter of every query index: the snapshots that are not deleted, the default scope. */
+        fun notDeleted(): Document = Document(DELETED, false)
+
+        /** The options of a query index of this collection: [name], partial on the snapshots that are not deleted. */
+        fun scopeIndexOptions(name: String): IndexOptions =
+            IndexOptions().name(name).partialFilterExpression(notDeleted())
+
+        /** The collection of [aggregate]'s snapshots in [context]. */
+        fun collectionName(context: String, aggregate: String): String = MongoNames.of(PREFIX, context, aggregate)
+
+        /**
+         * Makes sure of the snapshot collection of [aggregate] in [context]: claims its format record ([MongoFormat]),
+         * then creates its key and scope indexes when missing, which creates the collection itself.
+         */
+        fun ensure(database: MongoDatabase, context: String, aggregate: String): MongoCollection<Document> {
+            val name = collectionName(context, aggregate)
+            MongoFormat.claim(database, name, FORMAT)
+            return database.getCollection(name).also { collection ->
+                collection.createIndex(
+                    Indexes.ascending(TENANT_ID, AGGREGATE_ID),
+                    IndexOptions().unique(true).name(SNAPSHOT_KEY),
+                )
+                SCOPE_INDEXES.forEach { (index, field) ->
+                    collection.createIndex(Indexes.ascending(TENANT_ID, field), scopeIndexOptions(index))
+                }
+            }
+        }
+
         const val TENANT_ID = "tenant_id"
         const val PREFIX = "wow_snapshot"
         const val AGGREGATE_ID = "aggregate_id"
