@@ -23,4 +23,7 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     integrationTestImplementation(sourceSets["test"].output)
     integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
+    // The Kafka Sink publishing the shop's state events (decision D58).
+    integrationTestImplementation(project(":kafka"))
+    integrationTestImplementation("org.testcontainers:testcontainers-kafka")
 }

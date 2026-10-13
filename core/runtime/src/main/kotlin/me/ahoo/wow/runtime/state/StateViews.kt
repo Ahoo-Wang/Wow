@@ -31,7 +31,9 @@ import kotlin.time.TimeSource
  * The state of an aggregate after its stream [version] (design 01 §2, 08 §5): its [state] as the kernel's codec
  * serialized it, the [scope] of the stream, and whether it is [deleted] and its [tags], as the kernel committed them.
  * A view is serialized once and decoded afresh by each reader, so no reader sees another's changes nor the live
- * instance. The runtime's form of the `StateView` of design 08 §5 until `:spi` holds it (decision D132).
+ * instance. This is the runtime's form, the text a snapshot stores; what a sink publishes is the `:spi`
+ * [me.ahoo.wow.spi.state.StateView] of design 08 §5 (decision D132), a JSON tree with its schema's fingerprint, which
+ * [me.ahoo.wow.runtime.sink.SinkSubscription] maps this one to.
  */
 class StateView(
     val version: Int,
