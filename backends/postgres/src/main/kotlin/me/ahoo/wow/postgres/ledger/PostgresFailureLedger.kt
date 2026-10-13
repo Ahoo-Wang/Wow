@@ -23,6 +23,7 @@ import me.ahoo.wow.spi.ledger.ParkedAggregate
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.ResultSet
+import java.sql.Types
 import javax.sql.DataSource
 
 /**
@@ -31,7 +32,8 @@ import javax.sql.DataSource
  *
  * Every write is one autocommitted statement. A park is an upsert that replaces the row only with an earlier from
  * version, so concurrent or replayed parks converge on the earliest (decision D45) without a transaction; a repark is
- * one update of an existing row; a resolve is one delete returning the removed row. Key columns use the "C" collation, so [list] orders by code point on every
+ * one update of an existing row; a resolve is one delete returning the removed row. The source position of a
+ * Kafka-sourced subscription's entry (decision D134) is a nullable column, added to a table created before it. Key columns use the "C" collation, so [list] orders by code point on every
  * database, whatever its default collation.
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29).
@@ -46,7 +48,10 @@ class PostgresFailureLedger(
     /** Creates the ledger's table when missing. */
     fun createSchema() {
         dataSource.connection.use { connection ->
-            connection.createStatement().use { statement -> statement.execute(tables.ddl) }
+            connection.createStatement().use { statement ->
+                statement.execute(tables.ddl)
+                statement.execute(tables.addFromPosition)
+            }
         }
     }
 
@@ -56,6 +61,7 @@ class PostgresFailureLedger(
             park.setInt(KEY_COLUMNS + 1, entry.fromVersion)
             park.setString(KEY_COLUMNS + 2, entry.reason)
             park.setLong(KEY_COLUMNS + 3, entry.failedAt)
+            park.setPosition(KEY_COLUMNS + 4, entry.fromPosition)
             park.executeQuery().use { rows -> rows.next() }
         }
     }
@@ -65,6 +71,7 @@ class PostgresFailureLedger(
             repark.setInt(1, entry.fromVersion)
             repark.setString(2, entry.reason)
             repark.setLong(3, entry.failedAt)
+            repark.setPosition(4, entry.fromPosition)
             repark.setKey(entry.subscription, entry.ref, first = REPARK_VALUES + 1)
             repark.executeUpdate() > 0
         }
@@ -113,7 +120,7 @@ class PostgresFailureLedger(
     private companion object {
         const val DEFAULT_TABLE = "wow_failure_ledger"
         const val KEY_COLUMNS = 5
-        const val REPARK_VALUES = 3
+        const val REPARK_VALUES = 4
 
         /**
          * Binds the key (subscription, context, aggregate name, tenant, id) to the [KEY_COLUMNS] parameters from
@@ -127,6 +134,10 @@ class PostgresFailureLedger(
             setString(first + 4, ref.id)
         }
 
+        fun PreparedStatement.setPosition(index: Int, position: Long?) {
+            if (position == null) setNull(index, Types.BIGINT) else setLong(index, position)
+        }
+
         fun entryOf(row: ResultSet) = ParkedAggregate(
             subscription = row.getString("subscription"),
             ref = AggregateType(row.getString("context"), row.getString("aggregate_name"))
@@ -134,6 +145,7 @@ class PostgresFailureLedger(
             fromVersion = row.getInt("from_version"),
             reason = row.getString("reason"),
             failedAt = row.getLong("failed_at"),
+            fromPosition = row.getLong("from_position").takeUnless { row.wasNull() },
         )
     }
 }

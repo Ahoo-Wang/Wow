@@ -31,9 +31,13 @@ internal class PostgresFailureLedgerTables(name: String) {
             from_version integer NOT NULL,
             reason text NOT NULL,
             failed_at bigint NOT NULL,
+            from_position bigint,
             PRIMARY KEY ($KEY)
         )
     """.trimIndent()
+
+    /** Adds the source position (decision D134) to a table created before it. */
+    val addFromPosition = "ALTER TABLE $table ADD COLUMN IF NOT EXISTS from_position bigint"
 
     /**
      * Inserts the entry, or replaces the parked one only when this entry's from version is earlier. The conflict
@@ -41,15 +45,17 @@ internal class PostgresFailureLedgerTables(name: String) {
      * the earliest. Returns a row only when the ledger changed.
      */
     val park = """
-        INSERT INTO $table AS parked ($KEY, from_version, reason, failed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO $table AS parked ($KEY, from_version, reason, failed_at, from_position)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT ($KEY) DO UPDATE
-        SET from_version = excluded.from_version, reason = excluded.reason, failed_at = excluded.failed_at
+        SET from_version = excluded.from_version, reason = excluded.reason, failed_at = excluded.failed_at,
+            from_position = excluded.from_position
         WHERE excluded.from_version < parked.from_version
         RETURNING from_version
     """.trimIndent()
 
-    /** Replaces the parked entry's from version, reason and time, only when there is one. */
-    val repark = "UPDATE $table SET from_version = ?, reason = ?, failed_at = ? WHERE $MATCH"
+    /** Replaces the parked entry's from version, reason, time and position, only when there is one. */
+    val repark = "UPDATE $table SET from_version = ?, reason = ?, failed_at = ?, from_position = ? WHERE $MATCH"
 
     val parked = "SELECT * FROM $table WHERE $MATCH"
 

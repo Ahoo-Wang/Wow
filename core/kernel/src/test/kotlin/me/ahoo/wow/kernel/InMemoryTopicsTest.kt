@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.kernel
 
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.spi.transport.PartitionOffsets
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.SourceMessage
 import me.ahoo.wow.spi.transport.TopicMessage
@@ -46,6 +48,19 @@ class InMemoryTopicsTest : TopicTransportSpec() {
         topics.send("t", TopicMessage("k", byteArrayOf(1)))
         topics.messages("t").single().offset.assert().isEqualTo(0L)
         topics.partitionOf("t", "k").assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `retention should drop the oldest messages and keep the offsets`(): Unit = runBlocking {
+        val topics = InMemoryTopics(1)
+        topics.send("t", (0 until 4).map { TopicMessage("k", byteArrayOf(it.toByte())) })
+        topics.retain("t", 0, 2)
+        topics.offsets("t", 0).assert().isEqualTo(PartitionOffsets(2, 4))
+        topics.read("t", 0, 0, 4).toList().map { it.offset }.assert().containsExactly(2L, 3L)
+        topics.send("t", TopicMessage("k", byteArrayOf(9)))
+        topics.messages("t").map { it.offset }.assert().containsExactly(2L, 3L, 4L)
+        topics.retain("t", 0, 10)
+        topics.offsets("t", 0).assert().isEqualTo(PartitionOffsets(5, 5))
     }
 
     @Test

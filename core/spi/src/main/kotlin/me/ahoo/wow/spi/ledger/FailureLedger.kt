@@ -31,18 +31,18 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 interface FailureLedger {
     /**
      * Parks [entry]'s aggregate for its subscription. When the aggregate is already parked, the entry with the
-     * earlier from version is kept (on a tie, the one already there).
+     * earlier from version is kept (on a tie, the one already there), its from position with it.
      *
      * @return true when the ledger changed: the aggregate was not parked, or is now parked from an earlier version.
      */
     suspend fun park(entry: ParkedAggregate): Boolean
 
     /**
-     * Replaces the entry parking [entry]'s aggregate with [entry] (its from version, reason and failure time), when
-     * the aggregate is parked; it never parks one that is not. Unlike [park] it may move the from version later: a
-     * resume that handled the aggregate's streams up to a version and failed again there records where it now stands
-     * and why, so the next resume starts at that stream rather than handling the earlier ones again. Only the
-     * subscription resuming the aggregate calls it, while no live entry of that aggregate is handled.
+     * Replaces the entry parking [entry]'s aggregate with [entry] (its from version and position, reason and failure
+     * time), when the aggregate is parked; it never parks one that is not. Unlike [park] it may move the from version
+     * later: a resume that handled the aggregate's streams up to a version and failed again there records where it
+     * now stands and why, so the next resume starts at that stream rather than handling the earlier ones again. Only
+     * the subscription resuming the aggregate calls it, while no live entry of that aggregate is handled.
      *
      * @return true when an entry was replaced; false when the aggregate is not parked (it was resolved meanwhile).
      */
@@ -83,6 +83,14 @@ interface FailureLedger {
 /**
  * One parked aggregate: [subscription] stopped handling [ref] at its stream [fromVersion], at [failedAt] (epoch
  * milliseconds), because of [reason].
+ *
+ * [fromPosition] is where that stream lies in the subscription's source when the source cannot be read by aggregate
+ * (decision D134): the offset of its record in another context's topic, whose partition the ref's key always maps to.
+ * A resume re-scans that partition from it, keeping the records keyed by [ref]. Null for a subscription of the log,
+ * which reads an aggregate's streams by version.
+ *
+ * An entry whose source no longer retains [fromPosition] cannot be resumed, only skipped: the runtime marks it
+ * [unrecoverable] by its [reason], which then starts with [UNRECOVERABLE].
  */
 data class ParkedAggregate(
     val subscription: String,
@@ -90,9 +98,19 @@ data class ParkedAggregate(
     val fromVersion: Int,
     val reason: String,
     val failedAt: Long,
+    val fromPosition: Long? = null,
 ) {
     init {
         require(subscription.isNotBlank()) { "A parked aggregate needs a subscription." }
         require(fromVersion >= 1) { "An event stream's version starts at 1." }
+        require(fromPosition == null || fromPosition >= 0) { "A source position is never negative." }
+    }
+
+    /** Whether the source no longer retains [fromPosition]: the entry can only be skipped. */
+    val unrecoverable: Boolean get() = reason.startsWith(UNRECOVERABLE)
+
+    companion object {
+        /** The start of the [reason] of an entry that can no longer be resumed, only skipped. */
+        const val UNRECOVERABLE: String = "wow.subscription.unrecoverable"
     }
 }

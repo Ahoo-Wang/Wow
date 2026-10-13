@@ -60,6 +60,28 @@ abstract class FailureLedgerSpec {
     }
 
     @Test
+    fun `a source position reads back with its entry, and moves with the earlier version or a repark`(): Unit =
+        runBlocking {
+            val parked = entry(ref("a"), 4).copy(fromPosition = 40)
+            ledger.park(parked).assert().isTrue()
+            ledger.parked(subscription, ref("a")).assert().isEqualTo(parked)
+            ledger.list(subscription).assert().containsExactly(parked)
+            ledger.park(entry(ref("a"), 6).copy(fromPosition = 60)).assert().isFalse()
+            ledger.parked(subscription, ref("a"))!!.fromPosition.assert().isEqualTo(40L)
+            val earlier = entry(ref("a"), 2).copy(fromPosition = Long.MAX_VALUE)
+            ledger.park(earlier).assert().isTrue()
+            ledger.parked(subscription, ref("a")).assert().isEqualTo(earlier)
+            val unrecoverable = earlier.copy(reason = "${ParkedAggregate.UNRECOVERABLE}: gone", fromPosition = 0)
+            ledger.repark(unrecoverable).assert().isTrue()
+            ledger.parked(subscription, ref("a")).assert().isEqualTo(unrecoverable)
+            ledger.parked(subscription, ref("a"))!!.unrecoverable.assert().isTrue()
+            val withoutPosition = earlier.copy(fromPosition = null)
+            ledger.repark(withoutPosition).assert().isTrue()
+            ledger.parked(subscription, ref("a")).assert().isEqualTo(withoutPosition)
+            ledger.resolve(subscription, ref("a")).assert().isEqualTo(withoutPosition)
+        }
+
+    @Test
     fun `parking an aggregate again keeps the earliest from version`(): Unit = runBlocking {
         val first = entry(ref("a"), 5)
         ledger.park(first).assert().isTrue()

@@ -14,6 +14,8 @@
 package me.ahoo.wow.spi.transport
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.transformWhile
 
 /** A message read from a partition of a topic at its [offset], with its [key] (null when it has none). */
 class SourceMessage(val offset: Long, val key: String?, val headers: Map<String, String>, val value: ByteArray) {
@@ -37,17 +39,38 @@ data class PartitionOffsets(val start: Long, val end: Long) {
  * told.
  *
  * - [partitions] are the topic's partitions, in order.
+ * - [partitionOf] is the partition a message keyed `key` lands in, as the [TopicProducer] of the same broker picks it:
+ *   every message of a key is in that partition, so the records of one aggregate are found by re-scanning it.
  * - [offsets] are what a partition holds now: where a subscription that starts from the end starts, and whether an
  *   offset is still retained.
  * - [read] emits the messages of one partition with an offset at or after `from`, in offset order. A message that is
  *   no longer retained is skipped, so the first one emitted may be later than `from`; offsets may also have gaps
  *   within a partition. The flow does not complete: after the messages written so far it waits for new ones, until
- *   it is cancelled.
+ *   it is cancelled. Bounded by `until`, it emits those before `until` only and completes once it has passed them.
  */
 interface PartitionedSource {
     suspend fun partitions(topic: String): List<Int>
 
+    suspend fun partitionOf(topic: String, key: String): Int
+
     suspend fun offsets(topic: String, partition: Int): PartitionOffsets
 
     fun read(topic: String, partition: Int, from: Long): Flow<SourceMessage>
+
+    /**
+     * The messages of [partition] from [from] to before [until], then completes. By default the unbounded [read]
+     * up to the message at `until - 1`: a source whose partitions may end in a gap (such as transaction markers)
+     * overrides it.
+     */
+    fun read(topic: String, partition: Int, from: Long, until: Long): Flow<SourceMessage> =
+        if (from >= until) {
+            emptyFlow()
+        } else {
+            read(topic, partition, from).transformWhile { message ->
+                if (message.offset < until) {
+                    emit(message)
+                }
+                message.offset < until - 1
+            }
+        }
 }
