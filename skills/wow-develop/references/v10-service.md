@@ -79,10 +79,15 @@ Requirements: JDK 21, Kotlin with KSP (Java sources need the Kotlin Gradle plugi
 
 ## Tests
 
-- `aggregateSpec(model, id, tenantId, start) { given(...); whenCommand(cmd, scope = …) { expectEvents / expectEventTypes / expectUnchanged / expectRejected / expectState / expectScope / expectScheduled / expectScheduleCancelled }; advanceTime(d) { … } }` from `me.ahoo.wow.kernel.test`, in the kernel's test fixtures. Build the model with the generated factory and stub services.
-- After `expectUnchanged()`, `expectState` checks the current state.
+- `aggregateSpec(model, id, tenantId, start) { given(...) or givenState(state, version) / givenState(version) { … }; whenCommand(cmd, scope = …) { expectEvents / expectEventTypes(X::class) / expectEvent<E> { } / expectUnchanged / expectRejected(code) { } / expectError<T> { } / expectNoError / expectState / expectScope / expectScheduled / expectScheduleCancelled }; advanceTime(d) { … }; expectNothingDue(within = d) }` from `me.ahoo.wow.kernel.test`, in the kernel's test fixtures. Build the model with the generated factory and stub services.
+- `givenState` is the first step: the aggregate starts in that state at that version (copied through JSON), and later streams continue from it.
+- Shared prefixes: `ref("name")` marks a point; `fork("name") { … }` or `fork(from = "name") { … }` runs on a copy of the aggregate (log, timers, clock), leaving the spec as it was.
+- After a command that committed nothing (`expectUnchanged`, `expectRejected`, `expectError`), `expectState` checks the current state. A rejection is a code (`expectRejected`); an exception the decide function throws is checked by type (`expectError<T>`), and fails the spec when unchecked.
+- `advanceTime(d) { … }` fails when nothing was due; without a block it never fails. Show that a cancelled schedule does not fire with `expectNothingDue(within = d)`.
 - JUnit test functions must return `Unit`; one that returns a value is skipped silently. Count executed tests in `build/test-results` XML when it matters.
-- Processor tests call the handler with a `StateEvent` and `ExecutionSagaContext`/`ExecutionProjectContext`/`ExecutionReactContext` (`me.ahoo.wow.kernel`); `@OnRejected` through `ModelProvider.load().single().processors(...)`, `rejectionHandlerOf`, `rejectionContextOf`.
+- Processor tests: `sagaSpec(<processor>Handlers(Dependencies.of(…)))`, `projectionSpec(…)`, `reactorSpec(…)`. The compiler generates `<processor>Handlers(dependencies)` per processor (`orderSagaHandlers`), which constructs that processor only, with its own services; `ModelProvider.processors(...)` builds every processor of the module and needs all their services.
+- `sagaSpec(handlers) { whenEvent(stateEvent(ref, state, *events, version = …), handler = null) { expectCommands / expectCommandTypes / expectCommand(body, to) / expectCommand<C> { } / expectNoCommand / expectScheduled / expectScheduleCancelled / expectNoSchedule / expectHandledBy / expectDeterministic / expectError<T>; whenRejected(commands.single(), code, message) { … } } }`. `whenEvent` calls every handler reading the event (its `aggregates`, or its state type); events of another context's stream are `publishedEvent(name, body)`. Each call gets a fresh `ExecutionSagaContext`, so derived ids are stable per commit; a hand-built context must be new for each call.
+- Projections and reactors write to a port: pass a fake through the handlers' dependencies, `whenEvent(...)`, then assert on the fake.
 - Server tests start the application with `server.port=0`, `wow.internal.port=0`, a test `CallerResolver`; the memory backend serves no snapshot queries unless `testFixtures("…:wow-query")` is on the test class path.
 
 ## Host and HTTP
