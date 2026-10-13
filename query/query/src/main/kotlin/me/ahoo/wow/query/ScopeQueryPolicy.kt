@@ -77,10 +77,6 @@ class ScopeQueryPolicy(
     }
 }
 
-/** The filter of the query being admitted. */
+/** The filter of the query being admitted: every gateway operation's query carries one. */
 internal val QueryContext<*>.filter: FilterExpression
-    get() = when (val current = query) {
-        is FilterExpression -> current
-        is FilterCapable<*> -> current.filter
-        else -> MatchAllFilter
-    }
+    get() = (query as FilterCapable<*>).filter

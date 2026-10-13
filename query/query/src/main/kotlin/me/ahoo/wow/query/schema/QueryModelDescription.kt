@@ -202,7 +202,7 @@ private class QueryModelDescription(private val schema: QueryModelSchema, privat
             val spec = operator.spec
             when (spec.target) {
                 OperatorTarget.SYSTEM_FIELD ->
-                    systemPath(checkNotNull(spec.systemField))?.let { byPath[it] }?.filter?.operators?.isNotEmpty() == true
+                    systemPath(spec.systemField!!)?.let { byPath[it] }?.filter?.operators?.isNotEmpty() == true
                 OperatorTarget.EXPRESSION -> allowExpensive
                 else -> false
             }

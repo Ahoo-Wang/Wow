@@ -48,7 +48,7 @@ internal data class QueryMaskValue(
      * node: each masked item keeps this value's rule, allowed as any item [allowed] declares.
      */
     val arrayMembers: List<QueryMaskValue> by lazy {
-        val rule = checkNotNull(masked.maskRule)
+        val rule = masked.maskRule!!
         val allowedItems = allowed.arrayItems()
         if (allowedItems.isEmpty()) return@lazy emptyList()
         val allowedValue = allowedItems.singleOrNull() ?: QueryValueSchema(QueryValueKind.UNION, alternatives = allowedItems)
@@ -57,7 +57,7 @@ internal data class QueryMaskValue(
 }
 
 private fun QueryValueSchema.arrayItems(): List<QueryValueSchema> = when (kind) {
-    QueryValueKind.ARRAY -> listOf(checkNotNull(items))
+    QueryValueKind.ARRAY -> listOf(items!!)
     QueryValueKind.UNION -> alternatives.flatMap { it.arrayItems() }
     else -> emptyList()
 }
@@ -156,7 +156,7 @@ internal class QueryProtectedSources(schema: QueryModelSchema) {
             edges.forEach { edgeIndex.add(it.from.namespace, it.from.path, it) }
             val facts = schema.maskedValues.mapTo(linkedSetOf()) {
                 source(QuerySourceNamespace.LOGICAL, it.first, it.first) to
-                    QueryMaskValue(it.second, checkNotNull(schema.definition.value(it.first)))
+                    QueryMaskValue(it.second, schema.definition.value(it.first)!!)
             }
             val visited = facts.mapTo(
                 hashSetOf()
@@ -175,7 +175,7 @@ internal class QueryProtectedSources(schema: QueryModelSchema) {
                     val narrowed = domains.masked.descendant(edge.from.path.drop(origin.path.size)) ?: return@any false
                     val allowed = domains.allowed.descendant(edge.from.path.drop(origin.path.size)) ?: narrowed
                     // Physical array flattening can relate a member to an array alias of that same source.
-                    val rule = checkNotNull(domains.masked.maskRule)
+                    val rule = domains.masked.maskRule!!
                     val propagated = QueryMaskValue(
                         if (targetValue == null) {
                             narrowed.withMask(rule)
@@ -194,12 +194,12 @@ internal class QueryProtectedSources(schema: QueryModelSchema) {
                     false
                 }
             }
-            facts.mapTo(linkedSetOf()) { (source, value) -> source to checkNotNull(value.masked.maskRule).level }
+            facts.mapTo(linkedSetOf()) { (source, value) -> source to value.masked.maskRule!!.level }
                 .forEach { (source, level) -> protected.add(source.namespace, source.path.withoutItems(), level) }
             responseMasks = facts.filter { it.first.namespace == QuerySourceNamespace.RESPONSE }.map { (source, values) ->
                 source.path.template() to values.copy(excludedKeys = source.path.exclusions())
             } + schema.maskedValues.filter { schema.bindings[it.first]?.responsePath == null }.map {
-                it.first to QueryMaskValue(it.second, checkNotNull(schema.definition.value(it.first)), schema.definition.keyExclusions(it.first))
+                it.first to QueryMaskValue(it.second, schema.definition.value(it.first)!!, schema.definition.keyExclusions(it.first))
             }
         }
     }

@@ -137,7 +137,7 @@ internal class SchemaMasker private constructor(private val definition: QueryMas
             group.names.forEach { name ->
                 objectNode.get(
                     name
-                )?.let { child -> objectNode.set(name, visit(child, checkNotNull(group.property(name)))) }
+                )?.let { child -> objectNode.set(name, visit(child, group.property(name)!!)) }
             }
         }
     }
@@ -175,7 +175,7 @@ private fun QueryValueSchema.matchesShape(node: JsonNode): Boolean {
         QueryValueKind.UNKNOWN -> true
         QueryValueKind.NULL -> false
         QueryValueKind.OBJECT -> node.isObject
-        QueryValueKind.ARRAY -> node.isArray && node.all { checkNotNull(items).matchesShape(it) }
+        QueryValueKind.ARRAY -> node.isArray && node.all { items!!.matchesShape(it) }
         QueryValueKind.UNION -> alternatives.any { it.matchesShape(node) }
         QueryValueKind.SCALAR -> matchesScalarShape(node)
     }

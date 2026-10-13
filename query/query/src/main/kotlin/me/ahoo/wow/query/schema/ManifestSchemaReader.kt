@@ -295,7 +295,7 @@ private class ManifestKeywords(private val schema: Map<*, *>, private val field:
         val pattern = temporal["pattern"] as? String
         declared(ManifestQueryKeywords.TEMPORAL) {
             require((unit == null) != (pattern == null)) { "declares either a unit or a pattern, not both" }
-            if (pattern != null) Temporal.Formatted(pattern) else Temporal.Epoch(TimeUnit.valueOf(checkNotNull(unit)))
+            if (pattern != null) Temporal.Formatted(pattern) else Temporal.Epoch(TimeUnit.valueOf(unit!!))
         }
     }
 
@@ -367,8 +367,6 @@ private class ManifestKeywords(private val schema: Map<*, *>, private val field:
     @Suppress("TooGenericExceptionCaught")
     private inline fun <T> declared(keyword: String, read: () -> T): T = try {
         read()
-    } catch (error: QuerySchemaException) {
-        throw error
     } catch (error: RuntimeException) {
         throw QuerySchemaConflictException("Invalid $keyword on [$field]: ${error.message}", error)
     }
@@ -389,7 +387,7 @@ private fun QueryFieldDeclaration.withScalarSemantic(
     field: String,
 ): QueryFieldDeclaration = when (inferredKind()) {
     QueryValueKind.ARRAY -> copy(
-        items = DeclarationValue.Set(checkNotNull(items.valueOr(null)).withScalarSemantic(semantic, field)),
+        items = DeclarationValue.Set(items.valueOr(null)!!.withScalarSemantic(semantic, field)),
     )
     QueryValueKind.UNION -> copy(
         alternatives = DeclarationValue.Set(
@@ -407,7 +405,7 @@ private fun QueryFieldDeclaration.withTemporal(temporal: Temporal, field: String
     val wire = if (temporal is Temporal.Formatted) QueryValueType.STRING else QueryValueType.INTEGER
     return when (inferredKind()) {
         QueryValueKind.ARRAY -> copy(
-            items = DeclarationValue.Set(checkNotNull(items.valueOr(null)).withTemporal(temporal, field)),
+            items = DeclarationValue.Set(items.valueOr(null)!!.withTemporal(temporal, field)),
         )
         QueryValueKind.UNION -> copy(
             alternatives = DeclarationValue.Set(

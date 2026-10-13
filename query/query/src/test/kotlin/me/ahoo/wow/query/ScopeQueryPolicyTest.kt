@@ -37,7 +37,11 @@ import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.schema.FixedQueryModelSchemaProvider
 import me.ahoo.wow.query.schema.ManifestFixtures
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
+import me.ahoo.wow.query.schema.boundSchemaFixture
+import me.ahoo.wow.query.schema.objectFixture
+import me.ahoo.wow.query.schema.scalarFixture
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
 
@@ -89,6 +93,18 @@ class ScopeQueryPolicyTest {
                 .isEqualTo(MatchAllFilter)
             policy.evaluate(QueryCaller(tenantId = "t1"), context(DeletionFilter(DeletionState.ALL))).assert()
                 .isEqualTo(TenantIdFilter("t1"))
+        }
+    }
+
+    @Test
+    fun `a model without a profile gets the caller's scope and no deletion default`() {
+        runTest {
+            val schema = boundSchemaFixture(
+                objectFixture("tenantId" to scalarFixture()),
+                model = QueryModel("CUSTOM"),
+            )
+            ScopeQueryPolicy().evaluate(QueryCaller(tenantId = "t1"), context(schema = schema))
+                .assert().isEqualTo(TenantIdFilter("t1"))
         }
     }
 

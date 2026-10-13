@@ -138,7 +138,7 @@ internal class QueryMaskDefinition private constructor(
 private fun QueryValueSchema.maskable(): Boolean = when (kind) {
     QueryValueKind.NULL -> true
     QueryValueKind.SCALAR -> valueTypes == setOf(QueryValueType.STRING)
-    QueryValueKind.ARRAY -> checkNotNull(items).maskable()
+    QueryValueKind.ARRAY -> items!!.maskable()
     QueryValueKind.UNION -> alternatives.all { it.maskable() }
     else -> false
 }
@@ -148,7 +148,7 @@ private fun QueryValueSchema.isStringShape(): Boolean =
 
 private fun QueryValueSchema.hasUnknownShape(): Boolean = when (kind) {
     QueryValueKind.UNKNOWN -> true
-    QueryValueKind.ARRAY -> checkNotNull(items).hasUnknownShape()
+    QueryValueKind.ARRAY -> items!!.hasUnknownShape()
     QueryValueKind.UNION -> alternatives.any { it.hasUnknownShape() }
     else -> false
 }

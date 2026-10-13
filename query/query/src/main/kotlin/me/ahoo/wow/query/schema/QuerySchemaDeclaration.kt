@@ -240,7 +240,7 @@ private fun preserveAlternativeMasks(
             )
         }
         val index = candidates.single()
-        result[index] = checkNotNull(protected.preserveMasks(result[index], field))
+        result[index] = protected.preserveMasks(result[index], field)!!
     }
     return result
 }

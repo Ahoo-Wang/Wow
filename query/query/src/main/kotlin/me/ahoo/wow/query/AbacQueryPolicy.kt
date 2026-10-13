@@ -128,11 +128,15 @@ class AbacQueryPolicy(
 
 /** An HTTP query rejected because its caller has no ABAC tags; see [AbacQueryOptions.requirePrincipalTags]. */
 class AbacPrincipalTagsRequiredException :
-    RuntimeException("Query requires the principal's ABAC tags."),
+    RuntimeException(MESSAGE),
     QueryError {
     override val errorCode: String
         get() = QueryErrors.FORBIDDEN
 
     override val errorMsg: String
-        get() = checkNotNull(message)
+        get() = MESSAGE
+
+    private companion object {
+        const val MESSAGE = "Query requires the principal's ABAC tags."
+    }
 }
