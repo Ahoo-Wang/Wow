@@ -56,6 +56,9 @@ import kotlin.reflect.jvm.kotlinProperty
  *   use; a type referred to once is inlined.
  * - A custom serializer is opaque to introspection: [schemaOverrides] gives the schema of such a class, by binary
  *   name, and a class Jackson does not write as an object fails the generation until it has one.
+ * - The query field annotations of `wow-query-api` become `x-wow-*` keywords of the property schemas
+ *   ([QueryKeywords]), and the `@QueryIndex` declarations of a state the `x-wow-index` of its schema
+ *   ([QueryIndexes]); an invalid declaration fails the generation.
  * - The fingerprint is the kernel's [EventCodec.stateSchemaFingerprint] with its default mapper, the one a snapshot
  *   is written under (design 03 §3).
  */
@@ -68,13 +71,16 @@ internal class SchemaIntrospector(
 
     fun complete(fragment: Manifest): Manifest {
         val keys = fragment.unresolvedSchemaRefs.map(Manifest::schemaKey)
-        val builder = generator().buildMultipleSchemaDefinitions()
+        val states = fragment.contexts.flatMap { it.aggregates }.map { load(Manifest.schemaKey(it.state.schema)) }
+        val queryKeywords = QueryFieldKeywords(states.toSet())
+        val builder = generator(queryKeywords).buildMultipleSchemaDefinitions()
         val references = keys.associateWith { builder.createSchemaReference(load(it)) }
         val definitions = builder.collectDefinitions(DEFS)
         // A type referred to only by the fragment is inlined into its reference: it becomes the definition.
         val defined = definitions.properties().associate { it.key to it.value }
         val inlined = references.filterKeys { !definitions.has(it) }
         val generated = (defined + inlined).mapValues { (_, schema) -> mapper.convertValue(schema, Map::class.java) }
+        val defs = fragment.defs + generated
         return fragment.copy(
             contexts = fragment.contexts.map { context ->
                 context.copy(
@@ -85,8 +91,48 @@ internal class SchemaIntrospector(
                     },
                 )
             },
-            defs = (fragment.defs + generated).toSortedMap(),
+            defs = (defs + queryIndexes(fragment, queryKeywords, defs)).toSortedMap(),
         )
+    }
+
+    /**
+     * The state schemas of [fragment] that declare query indexes, with their `x-wow-index` ([QueryIndexes]); fails
+     * on an invalid index, on a name repeated within a context, and on such a state shared by several aggregates.
+     */
+    private fun queryIndexes(
+        fragment: Manifest,
+        queryKeywords: QueryFieldKeywords,
+        defs: Map<String, Any?>,
+    ): Map<String, Any?> {
+        val indexed = mutableMapOf<String, String>()
+        return fragment.contexts.flatMap { context ->
+            val names = mutableMapOf<String, String>()
+            context.aggregates.mapNotNull { aggregate ->
+                val key = Manifest.schemaKey(aggregate.state.schema)
+                val state = load(key)
+                val indexes = QueryIndexes.of(aggregate.name, state, queryKeywords.propertyIndexes(state), defs)
+                if (indexes.isEmpty()) return@mapNotNull null
+                val owner = "${context.name}.${aggregate.name}"
+                indexed.put(key, owner)?.let { other ->
+                    error(
+                        "The state ${state.name} declares query indexes, so it is the state of one aggregate " +
+                            "only, but $other and $owner share it."
+                    )
+                }
+                indexes.forEach { index ->
+                    val name = index.getValue("name") as String
+                    names.put(name, owner)?.let { other ->
+                        error(
+                            "The query index name $name is declared twice in the context ${context.name}: by " +
+                                "$other and $owner."
+                        )
+                    }
+                }
+                @Suppress("UNCHECKED_CAST")
+                val schema = defs[key] as Map<String, Any?>
+                key to schema + (QueryKeywords.INDEX_KEYWORD to indexes)
+            }
+        }.toMap()
     }
 
     private fun load(binaryName: String): Class<*> = Class.forName(binaryName, false, classLoader)
@@ -106,7 +152,7 @@ internal class SchemaIntrospector(
             ),
         )
 
-    private fun generator(): SchemaGenerator {
+    private fun generator(queryKeywords: QueryFieldKeywords): SchemaGenerator {
         val builder = SchemaGeneratorConfigBuilder(mapper, SchemaVersion.DRAFT_2020_12, OptionPreset.PLAIN_JSON)
             .with(
                 JacksonNames(
@@ -121,9 +167,11 @@ internal class SchemaIntrospector(
             .withCustomDefinitionProvider(
                 Overrides(schemaOverrides.mapValues { (type, schema) -> parse(type, schema) }, mapper),
             )
+            .withTypeAttributeOverride(queryKeywords)
         builder.forFields()
             .withRequiredCheck(::isKotlinRequired)
             .withNullableCheck(::isKotlinNullable)
+            .withInstanceAttributeOverride(queryKeywords)
         return SchemaGenerator(builder.build())
     }
 
