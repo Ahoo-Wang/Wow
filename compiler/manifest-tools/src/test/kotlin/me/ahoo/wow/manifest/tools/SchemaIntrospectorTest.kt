@@ -22,9 +22,14 @@ import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.FunctionKind
+import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.Manifest.Companion.schemaRef
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.SubscriptionKind
+import me.ahoo.wow.manifest.SubscriptionManifest
+import me.ahoo.wow.manifest.SubscriptionSource
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -110,6 +115,25 @@ class SchemaIntrospectorTest {
             CartState::class.java.name,
             Tag::class.java.name
         )
+    }
+
+    /** A command of another context a saga derives, which only its schema reference names in this Manifest. */
+    data class ReserveStock(val quantity: Int)
+
+    @Test
+    fun `a command a subscription refers to by its schema should get its schema too`() {
+        val saga = SubscriptionManifest(
+            name = "OrderSaga.onPlaced",
+            kind = SubscriptionKind.SAGA,
+            source = SubscriptionSource(),
+            function = FunctionManifest(FunctionKind.SAGA, "shop", "OrderSaga", "onPlaced"),
+            derives = listOf("shop.cart.AddItem", schemaRef(ReserveStock::class.java.name)),
+        )
+        val fragment = fragment()
+        val withSaga = fragment.copy(contexts = fragment.contexts.map { it.copy(subscriptions = listOf(saga)) })
+        val completed = introspector.complete(withSaga)
+        completed.unresolvedSchemaRefs.assert().isEmpty()
+        defOf(completed, ReserveStock::class.java)["required"].assert().isEqualTo(listOf("quantity"))
     }
 
     @Test

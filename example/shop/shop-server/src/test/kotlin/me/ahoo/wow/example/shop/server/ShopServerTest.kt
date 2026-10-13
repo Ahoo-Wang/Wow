@@ -97,6 +97,31 @@ class ShopServerTest {
     }
 
     @Test
+    fun `the manifest should list the query models, the published streams, the saga and the query errors`() {
+        val manifest = shop.get("/wow/manifest", "alice").json
+        val context = manifest["contexts"].values().single()
+        val order = context["aggregates"].values().single { it["name"].asString() == "order" }
+        order["queries"].values().map { it["model"].asString() }.assert().containsExactly("snapshot", "events")
+        order["queries"].values().first()["routes"].values()
+            .map { "${it["method"].asString()} ${it["path"].asString()}" }
+            .assert().containsExactly("POST /example/order/snapshot/query", "GET /example/order/snapshot/query")
+        context["published"].values().map { "${it["aggregate"].asString()} ${it["topic"].asString()}" }
+            .assert().containsExactly("cart wow.example.cart.state", "order wow.example.order.state")
+        val saga = context["subscriptions"].values().single()
+        saga["name"].asString().assert().isEqualTo("CartSaga.onOrderCreated")
+        saga["derives"].values().map { it.asString() }.assert().containsExactly("example.cart.RemoveCartItem")
+        saga["start"].asString().assert().isEqualTo("END")
+        manifest["errors"].statuses().assert().containsAllEntriesOf(
+            mapOf(
+                "wow.query.malformed" to 400,
+                "wow.query.invalid" to 400,
+                "wow.query.failed" to 500,
+                "wow.query.timeout" to 503,
+            ),
+        )
+    }
+
+    @Test
     fun `the manifest should need credentials`() {
         shop.get("/wow/manifest").assertProblem(401, FrameworkCodes.UNAUTHENTICATED)
     }

@@ -26,7 +26,6 @@ import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
 import com.google.devtools.ksp.processing.SymbolProcessorProvider
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
@@ -100,6 +99,11 @@ import tools.jackson.databind.json.JsonMapper
  * `@OnCommand(produces = [...])` declares the events of a function whose return type does not say (decision D120),
  * such as a `Decision`; a conventionally named `onCommand` needs the annotation to declare them. The module's
  * `@ErrorCode` constants (decision D121, [ErrorCodeResolver]) are the context's `errors` in the fragment.
+ *
+ * `@OnEvent(aggregates = ["ctx.agg"])` names the aggregates a handler reads (decision D138): of the module's context,
+ * they must be aggregates of the module whose state the handler takes; of another context, the handler is in the
+ * fragment but gets no binding, with a note, until the runtime subscribes to published streams. A saga's
+ * `@OnRejected` handlers (decisions D136, D153) are in the fragment too, and get no binding yet (roadmap 6.0c).
  */
 internal class ModelSymbolProcessor(
     private val mode: Mode,
@@ -216,7 +220,8 @@ internal class ModelSymbolProcessor(
     }
 
     private fun processSubscriptions(resolver: Resolver): List<KSAnnotated> {
-        val handlerClasses = resolver.getSymbolsWithAnnotation(SubscriptionResolver.ON_EVENT)
+        val handlerClasses = listOf(SubscriptionResolver.ON_EVENT, SubscriptionResolver.ON_REJECTED).asSequence()
+            .flatMap { resolver.getSymbolsWithAnnotation(it) }
             .filterIsInstance<KSFunctionDeclaration>()
             .mapNotNull { it.parentDeclaration as? KSClassDeclaration }
         val processors = (
@@ -242,11 +247,27 @@ internal class ModelSymbolProcessor(
     }
 
     private fun generate(binding: SubscriptionBinding, processor: KSClassDeclaration) {
+        val context = context()
+        binding.handlers.filter { it.isForeign(context) }.forEach {
+            logger.info(
+                "${binding.processor}: handler ${it.subscription} reads ${it.aggregates.joinToString()} of another " +
+                    "context; the Manifest lists it, but it gets no binding until the runtime subscribes to " +
+                    "published streams (decision D138)",
+                processor,
+            )
+        }
+        binding.rejections.forEach {
+            logger.info(
+                "${binding.processor}: @OnRejected handler ${it.subscription} is in the Manifest; the runtime hands " +
+                    "rejections to it from roadmap 6.0c on",
+                processor,
+            )
+        }
         codeGenerator.createNewFile(
             Dependencies(aggregating = false, sources = listOfNotNull(processor.containingFile).toTypedArray()),
             binding.packageName,
             "${binding.simpleNames.joinToString("")}Subscriptions",
-        ).bufferedWriter().use { it.write(SubscriptionSource.render(binding)) }
+        ).bufferedWriter().use { it.write(SubscriptionSource.render(binding, context)) }
     }
 
     @OptIn(KspExperimental::class)
@@ -288,6 +309,11 @@ internal class ModelSymbolProcessor(
                     "@BoundedContext; set the KSP option ${ModelSymbolProcessorProvider.CONTEXT_OPTION} to name " +
                     "its bounded context",
             )
+            return
+        }
+        val problems = ManifestFragmentBuilder.problems(context, bindings, subscriptions)
+        if (problems.isNotEmpty()) {
+            problems.forEach { logger.error(it) }
             return
         }
         val module = manifest.module ?: context
@@ -676,12 +702,6 @@ internal class ModelSymbolProcessor(
         .toList()
 
     /** The JVM binary name of this class: `a.b.Outer$Inner` for a nested class. */
-    private fun KSClassDeclaration.binaryName(): String {
-        val names = generateSequence<KSDeclaration>(this) { it.parentDeclaration }.map { it.simpleName.asString() }
-        val packageName = packageName.asString()
-        return (if (packageName.isEmpty()) "" else "$packageName.") + names.toList().asReversed().joinToString("$")
-    }
-
     private fun KSAnnotated.hasAnnotation(qualifiedName: String): Boolean = annotations.any {
         it.annotationType.resolve().declaration.qualifiedName?.asString() == qualifiedName
     }

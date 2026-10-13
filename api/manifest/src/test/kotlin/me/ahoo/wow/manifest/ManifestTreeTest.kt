@@ -41,7 +41,7 @@ class ManifestTreeTest {
         tree.keys.assert().containsExactly("format", "contexts", "errors", "\$defs")
         tree["errors"].assert().isEqualTo(emptyList<Any>())
         val context = (tree["contexts"] as List<*>).single() as Map<*, *>
-        context.keys.assert().containsExactly("name", "aggregates", "subscriptions", "errors")
+        context.keys.assert().containsExactly("name", "aggregates", "subscriptions", "published", "errors")
         context["errors"].assert().isEqualTo(
             listOf(mapOf("code" to "cart.empty", "status" to 422, "description" to "The cart has no items")),
         )
@@ -54,8 +54,27 @@ class ManifestTreeTest {
             "commands",
             "events",
             "lifecycle",
+            "queries",
         )
         aggregate["lifecycle"].assert().isEqualTo(Manifests.LIFECYCLE)
+        aggregate["queries"].assert().isEqualTo(
+            listOf(
+                mapOf(
+                    "model" to "snapshot",
+                    "routes" to listOf(
+                        mapOf("method" to "POST", "path" to "/shop/cart/snapshot/query"),
+                        mapOf("method" to "GET", "path" to "/shop/cart/snapshot/query"),
+                    ),
+                ),
+                mapOf(
+                    "model" to "events",
+                    "routes" to listOf(
+                        mapOf("method" to "POST", "path" to "/shop/cart/events/query"),
+                        mapOf("method" to "GET", "path" to "/shop/cart/events/query"),
+                    ),
+                ),
+            ),
+        )
         aggregate["state"].assert().isEqualTo(mapOf("schema" to "#/\$defs/sample.CartState", "fingerprint" to "abc123"))
         val commands = aggregate["commands"] as List<*>
         (commands[0] as Map<*, *>)["produces"].assert().isEqualTo(listOf("CartCreated"))
@@ -67,6 +86,39 @@ class ManifestTreeTest {
         )
         (commands[1] as Map<*, *>).containsKey("produces").assert().isFalse()
         (commands[1] as Map<*, *>)["creation"].assert().isEqualTo("NONE")
+    }
+
+    @Test
+    fun `the tree should name the published streams and the subscriptions' M6 fields`() {
+        val context = (ManifestTree.write(Manifests.fragment())["contexts"] as List<*>).single() as Map<*, *>
+        context["published"].assert().isEqualTo(
+            listOf(mapOf("aggregate" to "cart", "topic" to "wow.shop.cart.state", "includeState" to true)),
+        )
+        val subscriptions = (context["subscriptions"] as List<*>).map { it as Map<*, *> }
+        subscriptions[0].keys.assert().containsExactly("name", "kind", "source", "function", "start")
+        subscriptions[0]["start"].assert().isEqualTo("BEGINNING")
+        subscriptions[1]["derives"].assert().isEqualTo(listOf("shop.cart.PutItem", "#/\$defs/sales.Refund"))
+        subscriptions[1]["source"].assert().isEqualTo(
+            mapOf("context" to "sales", "aggregates" to listOf("order"), "events" to emptyList<String>()),
+        )
+        subscriptions[2].keys.assert().containsExactly("name", "kind", "source", "function", "derives", "rejected")
+        subscriptions[2]["rejected"].assert().isEqualTo(listOf("#/\$defs/sales.Refund"))
+    }
+
+    @Test
+    fun `the M6 fields should default to nothing`() {
+        PublishedManifest("cart", "t").includeState.assert().isTrue()
+        QueryManifest("events").routes.assert().isEmpty()
+        SubscriptionManifest(
+            "CartSummary.onEvent",
+            SubscriptionKind.PROJECTION,
+            SubscriptionSource(),
+            FunctionManifest(FunctionKind.PROJECT, "shop", "CartSummary", "onEvent"),
+        ).let {
+            it.derives.assert().isNull()
+            it.rejected.assert().isNull()
+            it.start.assert().isNull()
+        }
     }
 
     @Test
@@ -119,6 +171,7 @@ class ManifestTreeTest {
         expected.contexts.single().let { context ->
             context.description.assert().isNull()
             context.subscriptions.assert().isEmpty()
+            context.published.assert().isEmpty()
             context.errors.assert().isEmpty()
             context.aggregates.single().let { aggregate ->
                 aggregate.description.assert().isNull()
@@ -126,6 +179,7 @@ class ManifestTreeTest {
                 aggregate.commands.assert().isEmpty()
                 aggregate.events.assert().isEmpty()
                 aggregate.lifecycle.assert().isEmpty()
+                aggregate.queries.assert().isEmpty()
                 aggregate.state.fingerprint.assert().isNull()
             }
         }
@@ -183,12 +237,15 @@ class ManifestTreeTest {
     @Test
     fun `unresolved references should be those without a schema`() {
         val fragment = Manifests.fragment()
-        fragment.schemaRefs.assert().hasSize(5)
+        // A command a subscription derives or handles the rejection of, which the module does not decide, has its
+        // schema in $defs too.
+        fragment.schemaRefs.assert().hasSize(7)
         fragment.unresolvedSchemaRefs.assert().containsExactly(
             "#/\$defs/sample.CreateCart",
             "#/\$defs/sample.AddItem",
             "#/\$defs/sample.CartCreated",
             "#/\$defs/sample.ItemAdded",
+            "#/\$defs/sales.Refund",
         )
     }
 }

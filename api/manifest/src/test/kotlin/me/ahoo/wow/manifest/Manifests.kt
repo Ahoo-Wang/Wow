@@ -45,6 +45,7 @@ object Manifests {
             ),
         ),
         lifecycle = LIFECYCLE,
+        queries = QueryRoutes.queries(context, aggregate, snapshots = true),
     )
 
     /** The lifecycle commands every sample aggregate lists. */
@@ -66,8 +67,28 @@ object Manifests {
                         kind = SubscriptionKind.PROJECTION,
                         source = SubscriptionSource(context = context, aggregates = listOf("cart")),
                         function = FunctionManifest(FunctionKind.PROJECT, context, "CartSummary", "onEvent"),
+                        start = SubscriptionStart.BEGINNING,
+                    ),
+                    SubscriptionManifest(
+                        name = "CheckoutSaga.onOrderPaid",
+                        kind = SubscriptionKind.SAGA,
+                        source = SubscriptionSource(context = "sales", aggregates = listOf("order")),
+                        function = FunctionManifest(FunctionKind.SAGA, context, "CheckoutSaga", "onOrderPaid"),
+                        derives = listOf("$context.cart.PutItem", Manifest.schemaRef("sales.Refund")),
+                        start = SubscriptionStart.END,
+                    ),
+                    SubscriptionManifest(
+                        name = "CheckoutSaga.onRefundRejected",
+                        kind = SubscriptionKind.SAGA,
+                        source = SubscriptionSource(),
+                        function = FunctionManifest(FunctionKind.SAGA, context, "CheckoutSaga", "onRefundRejected"),
+                        derives = emptyList(),
+                        rejected = listOf(Manifest.schemaRef("sales.Refund")),
                     ),
                 ),
+                published = aggregates.map {
+                    PublishedManifest(it.name, PublishedManifest.defaultTopic(context, it.name))
+                },
                 errors = listOf(ErrorManifest("cart.empty", 422, "The cart has no items")),
             ),
         ),

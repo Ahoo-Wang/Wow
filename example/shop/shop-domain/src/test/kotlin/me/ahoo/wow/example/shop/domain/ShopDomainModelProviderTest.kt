@@ -28,9 +28,17 @@ import me.ahoo.wow.kernel.MissingDependencyException
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.test.aggregateSpec
 import me.ahoo.wow.manifest.Creation
+import me.ahoo.wow.manifest.FunctionKind
+import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
+import me.ahoo.wow.manifest.PublishedManifest
+import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.RouteManifest
+import me.ahoo.wow.manifest.SubscriptionKind
+import me.ahoo.wow.manifest.SubscriptionManifest
+import me.ahoo.wow.manifest.SubscriptionSource
+import me.ahoo.wow.manifest.SubscriptionStart
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.json.JsonMapper
 
@@ -159,6 +167,37 @@ class ShopDomainModelProviderTest {
                     "ReceiptOrder" to listOf("OrderReceived"),
                     "ShipOrder" to listOf("OrderShipped"),
                 ),
+            ),
+        )
+    }
+
+    @Test
+    fun `the fragment should route the query models of each aggregate and publish its state events`() {
+        val context = fragment().contexts.single()
+        context.aggregates.forEach { aggregate ->
+            aggregate.queries.assert().isEqualTo(
+                listOf("snapshot", "events").map { model ->
+                    val path = "/example/${aggregate.name}/$model/query"
+                    QueryManifest(model, listOf(RouteManifest("POST", path), RouteManifest("GET", path)))
+                },
+            )
+        }
+        context.published.assert().containsExactly(
+            PublishedManifest("cart", "wow.example.cart.state", includeState = true),
+            PublishedManifest("order", "wow.example.order.state", includeState = true),
+        )
+    }
+
+    @Test
+    fun `the fragment should list the cart saga with the command it derives and where it starts`() {
+        fragment().contexts.single().subscriptions.assert().containsExactly(
+            SubscriptionManifest(
+                name = "CartSaga.onOrderCreated",
+                kind = SubscriptionKind.SAGA,
+                source = SubscriptionSource(context = "example", aggregates = listOf("order")),
+                function = FunctionManifest(FunctionKind.SAGA, "example", "CartSaga", "onOrderCreated"),
+                derives = listOf("example.cart.RemoveCartItem"),
+                start = SubscriptionStart.END,
             ),
         )
     }

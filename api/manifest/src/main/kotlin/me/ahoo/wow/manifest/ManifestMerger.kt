@@ -26,7 +26,11 @@ package me.ahoo.wow.manifest
  * - an aggregate's lifecycle commands are not names it declares: every aggregate may list the same system commands,
  *   and an aggregate keeps its list as its one fragment declares it;
  * - a schema key of `$defs` declared by two fragments holds the same schema in both (a type shared by two modules);
- * - a route, a method and a path, belongs to one command only;
+ * - a route, a method and a path, belongs to one command or one query model only, and an aggregate lists a query
+ *   model once;
+ * - a context publishes the state events of one of its own aggregates, each once, and a topic carries one aggregate's
+ *   state events only, across all contexts;
+ * - only a saga's subscription handles rejections;
  * - no context takes the name of the framework's endpoints, and no command route ends in a segment the framework
  *   keeps for itself ([CommandRoutes]);
  * - a context documents an error code once, and not a framework (`wow.*`) one; a fragment's top-level errors, if
@@ -48,6 +52,7 @@ object ManifestMerger {
         conflicts += typeNameConflicts(contexts, "command") { aggregate -> aggregate.commands.map { it.name to it.aliases } }
         conflicts += typeNameConflicts(contexts, "event") { aggregate -> aggregate.events.map { it.name to it.aliases } }
         conflicts += routeConflicts(contexts)
+        conflicts += topicConflicts(contexts)
         conflicts += fragments.flatMap(::frameworkErrorConflicts)
 
         val defs = sortedMapOf<String, Any?>()
@@ -87,6 +92,15 @@ object ManifestMerger {
         context.subscriptions.groupBy { it.name }.filterValues { it.size > 1 }.keys.forEach {
             add("subscription $it of context ${context.name} is declared twice in $source")
         }
+        context.aggregates.forEach { aggregate ->
+            aggregate.queries.groupBy { it.model }.filterValues { it.size > 1 }.keys.forEach {
+                add("query model $it of aggregate ${context.name}.${aggregate.name} is declared twice in $source")
+            }
+        }
+        context.subscriptions.filter { it.rejected != null && it.kind != SubscriptionKind.SAGA }.forEach {
+            add("subscription ${it.name} of context ${context.name} in $source handles rejections but is a ${it.kind}")
+        }
+        addAll(publishedConflicts(source, context))
         context.errors.groupBy { it.code }.filterValues { it.size > 1 }.keys.forEach {
             add("error $it of context ${context.name} is declared twice in $source")
         }
@@ -95,22 +109,52 @@ object ManifestMerger {
         }
     }
 
-    /** Routes that more than one command declares, and command routes that end in a reserved segment. */
+    /** A published stream of an aggregate the context does not declare, and an aggregate published twice. */
+    private fun publishedConflicts(source: String, context: ContextManifest): List<String> = buildList {
+        val aggregates = context.aggregates.map { it.name }.toSet()
+        context.published.filter { it.aggregate !in aggregates }.forEach {
+            add("context ${context.name} in $source publishes ${it.aggregate}, which is not one of its aggregates")
+        }
+        context.published.groupBy { it.aggregate }.filterValues { it.size > 1 }.keys.forEach {
+            add("aggregate ${context.name}.$it is published twice in $source")
+        }
+    }
+
+    /** Topics that more than one published stream is written to. */
+    private fun topicConflicts(contexts: List<Pair<String, ContextManifest>>): List<String> =
+        contexts.flatMap { (source, context) ->
+            context.published.map { it.topic to "${context.name}.${it.aggregate} ($source)" }
+        }.groupBy({ it.first }, { it.second }).filterValues { it.size > 1 }.map { (topic, owners) ->
+            "topic $topic is published by ${owners.joinToString(" and ")}"
+        }
+
+    /**
+     * Routes that more than one command or query model declares, and command routes that end in a reserved segment.
+     */
     private fun routeConflicts(contexts: List<Pair<String, ContextManifest>>): List<String> {
-        val routes = contexts.flatMap { (source, context) ->
+        val commandRoutes = contexts.flatMap { (source, context) ->
             context.aggregates.flatMap { aggregate ->
                 aggregate.commands.flatMap { command ->
                     command.routes.map { it to "${context.name}.${aggregate.name}.${command.name} ($source)" }
                 }
             }
         }
-        val reserved = routes.filter { (route, _) -> CommandRoutes.isReserved(route.path.substringAfterLast('/')) }
-            .map { (route, owner) ->
-                "route ${route.method} ${route.path} of $owner ends in a segment the framework reserves"
+        val queryRoutes = contexts.flatMap { (source, context) ->
+            context.aggregates.flatMap { aggregate ->
+                aggregate.queries.flatMap { query ->
+                    query.routes.map { it to "query ${context.name}.${aggregate.name}.${query.model} ($source)" }
+                }
             }
-        val shared = routes.groupBy({ it.first }, { it.second }).filterValues { it.size > 1 }.map { (route, owners) ->
-            "route ${route.method} ${route.path} is declared by ${owners.joinToString(" and ")}"
         }
+        val reserved = commandRoutes.filter { (route, _) ->
+            CommandRoutes.isReserved(route.path.substringAfterLast('/'))
+        }.map { (route, owner) ->
+            "route ${route.method} ${route.path} of $owner ends in a segment the framework reserves"
+        }
+        val shared = (commandRoutes + queryRoutes).groupBy({ it.first }, { it.second }).filterValues { it.size > 1 }
+            .map { (route, owners) ->
+                "route ${route.method} ${route.path} is declared by ${owners.joinToString(" and ")}"
+            }
         return reserved + shared
     }
 

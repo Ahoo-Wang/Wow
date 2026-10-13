@@ -17,6 +17,8 @@ package me.ahoo.wow.manifest
  * The framework's error codes and the HTTP status each is answered with (design 05 §3, decisions D102, D103): the
  * one table the Manifest's top-level `errors` ([Manifest.errors]) and the edge's problem+json answers both read.
  *
+ * The query codes (decisions D130, D150) are answered by the query routes (`POST /{context}/{aggregate}/{model}/query`).
+ *
  * The kernel and the runtime define the codes they produce themselves (`KernelRejections`, `ResultCodes`); the
  * strings are the same. A domain rejection's code is not here: it is answered with [DOMAIN_REJECTION_STATUS] unless
  * the host configures another status for it.
@@ -40,6 +42,10 @@ object FrameworkErrors {
     const val NODE_CLOSING: String = "wow.node.closing"
     const val SUBSCRIPTION_PARKED: String = "wow.subscription.parked"
     const val WAIT_TIMEOUT: String = "wow.wait.timeout"
+    const val QUERY_MALFORMED: String = "wow.query.malformed"
+    const val QUERY_INVALID: String = "wow.query.invalid"
+    const val QUERY_FAILED: String = "wow.query.failed"
+    const val QUERY_TIMEOUT: String = "wow.query.timeout"
 
     /** The status of a domain rejection, a code the domain chose, unless the host configures another for the code. */
     const val DOMAIN_REJECTION_STATUS: Int = 422
@@ -86,6 +92,18 @@ object FrameworkErrors {
             WAIT_TIMEOUT,
             504,
             "The wait ran out of time; the command may have committed. The problem carries the last stage reached.",
+        ),
+        ErrorManifest(QUERY_MALFORMED, 400, "The query body cannot be read as a query."),
+        ErrorManifest(
+            QUERY_INVALID,
+            400,
+            "The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...).",
+        ),
+        ErrorManifest(QUERY_FAILED, 500, "The query backend failed to run the query."),
+        ErrorManifest(
+            QUERY_TIMEOUT,
+            503,
+            "The query ran longer than its budget allows; narrow it, or retry later.",
         ),
     )
 
