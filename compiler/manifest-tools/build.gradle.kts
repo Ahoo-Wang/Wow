@@ -5,6 +5,8 @@ dependencies {
     implementation(project(":manifest"))
     // The state schema fingerprint is the kernel's own (EventCodec.stateSchemaFingerprint), computed at build time.
     implementation(project(":kernel"))
+    // The query field annotations it writes as the x-wow-* keywords of the state schema (decisions D125, D151).
+    implementation(project(":query-api"))
     // Build time only (decision D73): schemas are introspected in the plugin's isolated workers (decision D83).
     implementation("com.github.victools:jsonschema-generator")
     implementation("com.github.victools:jsonschema-module-jackson")

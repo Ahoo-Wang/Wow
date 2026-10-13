@@ -106,7 +106,7 @@ object V10Rules {
         // compiler, kernel, manifest-tools and wow-dependencies only for the TestKit fixture and tests.
         GRADLE_PLUGIN to setOf("manifest", "manifest-tools", "kernel", "compiler", "wow-dependencies"),
         // kernel for the state fingerprint.
-        MANIFEST_TOOLS to setOf("manifest", "kernel"),
+        MANIFEST_TOOLS to setOf("manifest", "kernel", "query-api"),
     )
 
     private val SPRING = listOf("org.springframework")
