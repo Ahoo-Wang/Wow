@@ -20,7 +20,10 @@ import me.ahoo.wow.api.aggregate.AggregateRef
  * The log of one bounded context: the only place a fact is written (V10 axiom A1).
  *
  * The contract every backend keeps, checked by the TCK:
- * - unique keys are (`ref`, `version`) and (`tenantId`, `requestId`); `ref` includes the tenant;
+ * - unique keys are (`ref`, `version`) and (`tenantId`, `requestId`); `ref` includes the tenant. A backend that
+ *   stores each aggregate type apart (decision D162) may keep the request key per aggregate type: a request id
+ *   reused by two aggregate types of the context then commits twice (decision D55 makes the reuse the caller's
+ *   error);
  * - an aggregate's first stream is version 1 and each next stream is exactly one more;
  * - a stream lands in the partition [Partitioner] assigns its ref, and the sequence within a partition is the order
  *   in which commits became visible: [tail] never skips a committed entry and reads the same entries again from the
@@ -61,7 +64,10 @@ interface EventLog {
      */
     suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition?
 
-    /** The stream committed for [requestId] within [tenantId], if any: facts only. */
+    /**
+     * The stream committed for [requestId] within [tenantId], in any aggregate type of the context, if any: facts
+     * only. When two aggregate types hold it (a request key per aggregate type), the earliest committed.
+     */
     suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord?
 
     /**

@@ -88,7 +88,7 @@ class PartitionSequenceThroughputSpike {
 
     private fun run(scenario: Scenario): Result {
         val context = MongoLogFixture.newContext("h1")
-        val log = MongoLogFixture.log(scenario.partitions, context)
+        val log = MongoLogFixture.log(scenario.partitions, context, listOf("aggregate"))
         val type = AggregateType(context, "aggregate")
         val locks = List(scenario.partitions) { Mutex() }
         val committerScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
@@ -146,11 +146,10 @@ class PartitionSequenceThroughputSpike {
     private suspend fun plainInsert(context: String, stream: EventStreamRecord): AppendOutcome =
         kotlinx.coroutines.withContext(Dispatchers.IO) {
             MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
-                .getCollection("wow_log_" + context.replace('-', '_'))
+                .getCollection("wow_log__" + context.replace('-', '_') + "__aggregate")
                 .insertOne(
                     org.bson.Document("partition", 0)
                         .append("sequence", stream.requestId.removePrefix("r-").toLong())
-                        .append("aggregate_name", stream.ref.type.name)
                         .append("tenant_id", stream.ref.tenantId)
                         .append("aggregate_id", stream.ref.id)
                         .append("version", stream.version)

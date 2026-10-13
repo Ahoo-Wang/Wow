@@ -27,17 +27,22 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoFormat
+import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.bson.Document
 import org.bson.conversions.Bson
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The [SnapshotStore] of one bounded context on MongoDB (documentation/designs/v10/03-log-and-snapshot.md §3).
  *
- * One collection holds one document per aggregate, keyed by a unique index on (tenant, aggregate name, aggregate id).
+ * Each aggregate type has its own collection, `wow_snapshot__<context>__<aggregate>` (decision D161), holding one
+ * document per aggregate, keyed by a unique index on (tenant, aggregate id); the document has no aggregate name, the
+ * collection is the aggregate type. The collections of [aggregates] are created by [createSchema]; any other aggregate
+ * type's is created, with its key and format record, the first time this store touches the type.
  * The state and the tags are BSON documents, so the snapshot can be queried in place as the default read model; the
  * state's decimals are `Decimal128`, exact ([ExactBson]).
  * A save is one conditional upsert whose filter carries the version guard (`version < new`): no transaction, and
@@ -50,23 +55,36 @@ class MongoSnapshotStore(
     client: MongoClient,
     databaseName: String,
     private val context: String,
+    private val aggregates: Collection<String> = emptyList(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
 ) : SnapshotStore {
     private val database = client.getDatabase(databaseName)
-    private val name = "wow_snapshot_" + context.lowercase().replace(Regex("[^a-z0-9_]"), "_")
-    private val snapshots: MongoCollection<Document> = database.getCollection(name)
 
-    /** Creates the key index when missing; refuses snapshots recorded in another format version ([MongoFormat]). */
+    /** The collections whose key and format this store has made sure of, by aggregate name. */
+    private val ensured = ConcurrentHashMap<String, MongoCollection<Document>>()
+
+    /**
+     * Creates the collections of [aggregates] with their key index when missing; refuses snapshots recorded in
+     * another format version ([MongoFormat]).
+     */
     fun createSchema() {
+        aggregates.forEach { collectionOf(it) }
+    }
+
+    private fun collectionOf(aggregate: String): MongoCollection<Document> =
+        ensured[aggregate] ?: ensure(aggregate).also { ensured[aggregate] = it }
+
+    private fun ensure(aggregate: String): MongoCollection<Document> {
+        val name = MongoNames.of(PREFIX, context, aggregate)
         MongoFormat.claim(database, name, FORMAT)
-        snapshots.createIndex(
-            Indexes.ascending(TENANT_ID, AGGREGATE_NAME, AGGREGATE_ID),
-            IndexOptions().unique(true).name(SNAPSHOT_KEY),
-        )
+        return database.getCollection(name).also {
+            it.createIndex(Indexes.ascending(TENANT_ID, AGGREGATE_ID), IndexOptions().unique(true).name(SNAPSHOT_KEY))
+        }
     }
 
     override suspend fun save(snapshot: SnapshotRecord): Boolean = withContext(dispatcher) {
         require(snapshot.ref.type.context == context) { "${snapshot.ref} is not in context $context." }
+        val snapshots = collectionOf(snapshot.ref.type.name)
         val guarded = Filters.and(keyFilter(snapshot.ref), Filters.lt(VERSION, snapshot.version))
         val update = Updates.combine(
             Updates.set(VERSION, snapshot.version),
@@ -87,20 +105,18 @@ class MongoSnapshotStore(
 
     override suspend fun load(ref: AggregateRef): SnapshotRecord? = withContext(dispatcher) {
         require(ref.type.context == context) { "$ref is not in context $context." }
-        snapshots.find(keyFilter(ref)).firstOrNull()?.let { snapshotOf(it) }
+        collectionOf(ref.type.name).find(keyFilter(ref)).firstOrNull()?.let { snapshotOf(ref.type, it) }
     }
 
     private fun keyFilter(ref: AggregateRef): Bson = Filters.and(
         Filters.eq(TENANT_ID, ref.tenantId),
-        Filters.eq(AGGREGATE_NAME, ref.type.name),
         Filters.eq(AGGREGATE_ID, ref.id),
     )
 
-    private fun snapshotOf(document: Document): SnapshotRecord {
+    private fun snapshotOf(type: AggregateType, document: Document): SnapshotRecord {
         val tags = document.get(TAGS, Document::class.java)
         return SnapshotRecord(
-            ref = AggregateType(context, document.getString(AGGREGATE_NAME))
-                .ref(document.getString(TENANT_ID), document.getString(AGGREGATE_ID)),
+            ref = type.ref(document.getString(TENANT_ID), document.getString(AGGREGATE_ID)),
             version = document.getInteger(VERSION),
             schemaFingerprint = document.getString(SCHEMA_FINGERPRINT),
             state = ExactBson.json(document.get(STATE, Document::class.java)),
@@ -118,7 +134,7 @@ class MongoSnapshotStore(
 
         const val SNAPSHOT_KEY = "snapshot_key"
         const val TENANT_ID = "tenant_id"
-        const val AGGREGATE_NAME = "aggregate_name"
+        const val PREFIX = "wow_snapshot"
         const val AGGREGATE_ID = "aggregate_id"
         const val VERSION = "version"
         const val SCHEMA_FINGERPRINT = "schema_fingerprint"
