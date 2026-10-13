@@ -39,10 +39,11 @@ import java.time.Duration
  * - **Grace period.** An order whose stock is confirmed cancels itself, by a scheduled command, when it is not paid in
  *   time.
  *
- * The payment context (work package E.5) is not here: the test pays the order itself.
+ * The payment service is not here, so the test pays the order itself, and an order it does not pay waits out its
+ * grace period; `EshopPaymentFlowTest` runs the payment service.
  *
- * The services do not share the test's class path, as `EshopSharedJvmTest`'s do: on one class path, the host reads
- * every server's peer Manifests, and the inventory and the ordering services find themselves among their peers.
+ * The services do not share the test's class path, as `EshopSharedJvmTest`'s do: each JVM reads its own server's
+ * `application.yaml`, as a deployment does, where one class path would give them one.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class EshopOrderFlowTest {
@@ -88,21 +89,7 @@ class EshopOrderFlowTest {
         kafka.stop()
     }
 
-    private fun arguments(database: String): List<String> = listOf(
-        "--spring.profiles.active=postgres,kafka",
-        "--spring.datasource.url=jdbc:postgresql://${postgres.host}:${postgres.firstMappedPort}/$database",
-        "--spring.datasource.username=${postgres.username}",
-        "--spring.datasource.password=${postgres.password}",
-        "--wow.kafka.bootstrap-servers=${kafka.bootstrapServers}",
-        "--wow.log.partitions=$PARTITIONS",
-        "--wow.cluster.lease-ttl=5s",
-        "--wow.cluster.renew-interval=1s",
-        "--wow.cluster.member-ttl=5s",
-        "--wow.cluster.heartbeat-interval=1s",
-        "--wow.cluster.reconcile-interval=200ms",
-        "--wow.cluster.route-refresh-interval=200ms",
-        "--wow.subscription.checkpoint-interval=100ms",
-    )
+    private fun arguments(database: String): List<String> = backendArguments(postgres, kafka, database, PARTITIONS)
 
     @Test
     fun `a checkout should become an order, reserved, paid, shipped and taken out of stock`() {

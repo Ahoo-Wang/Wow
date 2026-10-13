@@ -18,8 +18,12 @@ apply(from = rootProject.file("example/wow-manifest-fragment.gradle.kts"))
 
 dependencies {
     api(project(":eshop-payment-api"))
+    // The ordering's commands, which the order-payment saga sends to the ordering context.
+    implementation(project(":eshop-ordering-api"))
     // The generated models and the binding index build on the kernel only (decision D149).
     api(project(":kernel"))
     ksp(project(":compiler"))
     testImplementation(testFixtures(project(":kernel")))
+    // The sagas' suspending handler and an `@OnRejected` handler's binding are invoked from a coroutine.
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
 }

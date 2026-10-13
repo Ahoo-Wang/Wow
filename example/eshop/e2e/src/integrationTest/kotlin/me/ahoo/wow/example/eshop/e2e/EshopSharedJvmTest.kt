@@ -16,6 +16,9 @@ package me.ahoo.wow.example.eshop.e2e
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.example.eshop.basket.server.BasketServer
 import me.ahoo.wow.example.eshop.catalog.server.CatalogServer
+import me.ahoo.wow.example.eshop.inventory.server.InventoryServer
+import me.ahoo.wow.example.eshop.ordering.server.OrderingServer
+import me.ahoo.wow.example.eshop.payment.server.PaymentServer
 import me.ahoo.wow.kernel.InMemoryTopics
 import me.ahoo.wow.runtime.node.SourceTopics
 import org.junit.jupiter.api.Test
@@ -30,10 +33,10 @@ import java.net.http.HttpResponse
 import java.time.Duration
 
 /**
- * The catalog and basket services in this one JVM, on one class path that holds both domain modules (decision D169,
- * DX gap G4): each selects its own context with `wow.contexts.include`, so each serves that context alone. The
- * basket's checkout saga sends the ordering context's commands, so the basket gets its command transport in memory
- * ([InMemoryTopicsBeans]).
+ * eShop services in this one JVM, on one class path that holds every server (decision D169, DX gaps G4 and G21): each
+ * selects its own context with `wow.contexts.include`, so each serves that context alone, and none takes another
+ * server's copy of its own Manifest for a peer. The basket's and the ordering's sagas send other contexts' commands,
+ * so they get their command transport in memory ([InMemoryTopicsBeans]).
  */
 class EshopSharedJvmTest {
     @Test
@@ -54,6 +57,36 @@ class EshopSharedJvmTest {
                     """{"productId":"${json.readTree(product.body)["ref"]["id"].asString()}","unitPrice":8.50,"quantity":2}""",
                 )
                 basketItem.status.assert().describedAs(basketItem.body).isEqualTo(OK)
+            }
+        }
+    }
+
+    /**
+     * DX gap G21: the ordering server carries the inventory's Manifest as its peer, and the basket and payment servers
+     * each carry the ordering's, so on one class path the inventory and ordering nodes find other servers' copies of
+     * their own Manifests. They are no peers of the contexts the nodes serve.
+     */
+    @Test
+    fun `services that are each other's peers should start on one class path`() {
+        start(InventoryServer::class.java, "inventory").use { inventory ->
+            start(
+                OrderingServer::class.java,
+                "ordering",
+                InMemoryTopicsBeans::class.java,
+                arguments = listOf("--eshop.ordering.payment-grace-period=30m"),
+            ).use { ordering ->
+                start(
+                    PaymentServer::class.java,
+                    "payment",
+                    InMemoryTopicsBeans::class.java,
+                    arguments = listOf("--eshop.payment.gateway.limit=100.00"),
+                ).use { payment ->
+                    inventory.contexts().assert().containsExactly("eshop-inventory")
+                    ordering.contexts().assert().containsExactly("eshop-ordering")
+                    payment.contexts().assert().containsExactly("eshop-payment")
+                    val received = inventory.post("/eshop-inventory/stock/mug/receive-stock", """{"quantity":10}""")
+                    received.status.assert().describedAs(received.body).isEqualTo(OK)
+                }
             }
         }
     }
@@ -98,10 +131,17 @@ class EshopSharedJvmTest {
 
         /**
          * Starts [application] as the eShop service of [context], serving the context `eshop-<context>` alone, with the
-         * further configuration [sources].
+         * further configuration [sources] and command-line [arguments]. The services share one class path, so Spring
+         * Boot reads one `application.yaml` for all of them: each gets what it needs as arguments.
          */
-        fun start(application: Class<*>, context: String, vararg sources: Class<*>): InJvmService = InJvmService(
+        fun start(
+            application: Class<*>,
+            context: String,
+            vararg sources: Class<*>,
+            arguments: List<String> = emptyList(),
+        ): InJvmService = InJvmService(
             SpringApplicationBuilder(application, *sources).run(
+                *arguments.toTypedArray(),
                 "--spring.main.banner-mode=off",
                 "--spring.application.name=eshop-$context-service",
                 "--server.address=127.0.0.1",

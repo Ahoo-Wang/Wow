@@ -32,7 +32,9 @@ import tools.jackson.databind.json.JsonMapper
 /**
  * The contracts a service knows (decision D139): its own Manifest, [local], and the merged Manifests of its peers,
  * [peers] (`META-INF/wow/peers/<service>.json`, which the Gradle plugin's `wowPeers` configuration puts on the class
- * path; [load] reads them). It answers, for any context of either:
+ * path; [load] reads them), without the contexts [local] serves ([PeerManifests.outside], DX gap G21: on a class path
+ * that several services share, another server's copy of this service's Manifest is no peer of it). It answers, for any
+ * context of either:
  *
  * - which service a context belongs to ([serviceOf], [isLocal]), and its contract ([contextOf], [aggregateOf]);
  * - the stream a context publishes for an aggregate, with its topic and whether it carries the state ([publishedOf]);
@@ -44,7 +46,8 @@ import tools.jackson.databind.json.JsonMapper
  *
  * **Startup checks**: building it fails with a [ContractException] listing every problem:
  *
- * - the peers conflict ([PeerManifests.conflicts]): a context belongs to one service;
+ * - the peers conflict ([PeerManifests.conflicts]): two peers of different services declare one context, or one
+ *   service is two different peers;
  * - a subscription of [local] reads another context (`@OnEvent(aggregates = ["ctx.agg"])`, decision D138) that no
  *   Manifest declares, an aggregate the context does not have, or one it does not publish;
  * - such a subscription reads a stream published without the state (`includeState = false`) but its handler takes a
@@ -57,7 +60,7 @@ import tools.jackson.databind.json.JsonMapper
  */
 class ContractDirectory(
     val local: Manifest,
-    val peers: List<ManifestFragment> = emptyList(),
+    peers: List<ManifestFragment> = emptyList(),
     /**
      * The subscriptions (`processor.function`) whose handler takes a `StateEvent` of a nullable state (D140), besides
      * those [local]'s Manifest marks so ([me.ahoo.wow.manifest.SubscriptionSource.nullableState]).
@@ -69,7 +72,10 @@ class ContractDirectory(
         context.subscriptions.filter { it.source.nullableState }.map { it.name }
     }
 
-    private val manifests: List<Manifest> = listOf(local) + peers.map { it.manifest }
+    /** The peers given, each without the contexts [local] serves, and without those left with none. */
+    val peers: List<ManifestFragment> = PeerManifests.outside(local.contexts.map { it.name }, peers)
+
+    private val manifests: List<Manifest> = listOf(local) + this.peers.map { it.manifest }
 
     /** Every context by its name; on a conflict, which fails the build, the service's own or the first peer's. */
     private val contexts: Map<String, Owned> = HashMap<String, Owned>().also { contexts ->
@@ -98,7 +104,9 @@ class ContractDirectory(
                 }
             }
         }
-        val problems = PeerManifests.conflicts(local.service?.name, local.contexts.map { it.name }, peers) +
+        // The peers no longer hold a context of the service, so what is left to refuse is among the peers alone: a
+        // peer of the service itself keeps only contexts the node does not serve, which is no conflict.
+        val problems = PeerManifests.conflicts(null, emptyList(), this.peers) +
             local.contexts.flatMap { context -> context.subscriptions.flatMap { sourceProblems(context, it) } }
         if (problems.isNotEmpty()) {
             throw ContractException(problems)

@@ -121,6 +121,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: `OrderStockSaga` is a `@Saga`.
 - **Proposed fix**: Word the decision and the guide as "a saga". State plainly in the programming model page that sending a command makes the processor a saga.
 - **Blocks M7**: no.
+- **Met again**: in E.5. The guide now says it ("A reactor cannot send a command"), but the roadmap still calls the payment "a reactor over a simulated payment gateway". The gateway's answer becomes a command on the payment, so `PaymentGatewaySaga` is a saga that does the outside call itself.
 
 ### G9. A saga's command to another context fails only at run time without Kafka (resolved)
 
@@ -263,7 +264,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Proposed fix**: Document the pattern for tenant-wide aggregates: a resolver that leaves the owner unset, and how command authorization (CoSec) then protects the writes. Or add a per-aggregate scope setting that makes an aggregate's owner not apply to its reads.
 - **Blocks M7**: no for the eShop. Yes before M7 puts CoSec in front of users, since a reference catalog behind CoSec needs the answer.
 
-### G21. Services on one class path read each other's peer Manifests
+### G21. Services on one class path read each other's peer Manifests (resolved)
 
 - **Work package**: E.2 to E.4
 - **Area**: host
@@ -273,6 +274,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: `EshopOrderFlowTest` runs each service in a JVM of its own, on its server's runtime class path, as `EshopE2eTest` does. That also lets each service read its own `application.yaml`.
 - **Proposed fix**: Ignore a peer Manifest of the node's own service, and a peer whose contexts the node serves, or scope the peers by `wow.contexts.include`. Say in the guide that services sharing a class path share one `application.yaml`.
 - **Blocks M7**: no, but E.6 runs five services and will meet it again; the guide presents shared-JVM tests as supported.
+- **Resolved**: by #4385 (work package E.5). A node reads its peers without the contexts it serves (`PeerManifests.outside`): another server's copy of its own Manifest is no peer of those contexts, and a copy left with no context is dropped. Two peers of different services that claim one context still fail the startup. `EshopSharedJvmTest` starts the ordering and inventory services on one class path. The second trap stays as it is: services on one class path share the first `application.yaml` on it, so a shared-JVM test passes each service's configuration as arguments, and `EshopOrderFlowTest` keeps a JVM per service so that each reads its own.
 
 ### G22. A saga's command cannot give the aggregate it creates an owner
 
@@ -328,10 +330,30 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 
 ### G27. A service whose saga sends to another context cannot run locally without Kafka
 
-- **Work package**: E.2, E.3
+- **Work package**: E.2, E.3, E.5
 - **Area**: host, docs
-- **What happened**: The quick start runs a new service on the memory backend with `./gradlew :<svc>-server:run`. Since G9's check, the basket and ordering services refuse to start that way: their sagas send other contexts' commands. The guide gives an in-memory transport only for tests (`InMemoryTopics` and `SourceTopics` beans), not a switch for trying a service out.
+- **What happened**: The quick start runs a new service on the memory backend with `./gradlew :<svc>-server:run`. Since G9's check, the basket, ordering and payment services refuse to start that way: their sagas send other contexts' commands. The guide gives an in-memory transport only for tests (`InMemoryTopics` and `SourceTopics` beans), not a switch for trying a service out.
 - **Where they looked**: `guide/v10/index` (Run it and send a command); `guide/v10/programming-model` (Sending a command to another context).
 - **Workaround**: The servers keep Kafka in a `kafka` profile, like the shop; the README says to start Kafka and create the topics first.
 - **Proposed fix**: A host property for in-memory topics on the memory backend (`wow.kafka.in-memory`, say), or a note in the quick start.
+- **Blocks M7**: no.
+
+### G28. Testing an `@OnRejected` handler needs the services of every processor of the module
+
+- **Work package**: E.5
+- **Area**: testing, docs
+- **What happened**: `guide/v10/testing` takes an `@OnRejected` handler's binding from `ModelProvider.load().single().processors(Dependencies.NONE)`. In the payment module, that fails before it reaches the handler: "MissingDependencyException: No dependency of …PaymentGateway to build the aggregate models with". `processors` builds every processor of the module, and `PaymentGatewaySaga` takes the gateway, though the handler under test (`OrderPaymentSaga.onPayRejected`) does not. The message also speaks of aggregate models, not processors.
+- **Where they looked**: `guide/v10/testing` (Testing sagas).
+- **Workaround**: `OrderPaymentSagaTest` passes `Dependencies.of(SimulatedPaymentGateway(…))`, a service the saga under test does not use.
+- **Proposed fix**: Build processors lazily or one at a time (`processor("OrderPaymentSaga", dependencies)`), or give the test fixtures a way to bind one `@OnRejected` handler of a processor instance; say in the guide that `Dependencies.NONE` works only for a module whose processors take no services. Name processors, not models, in the message.
+- **Blocks M7**: no.
+
+### G29. A saga that derives one of several commands names them as strings
+
+- **Work package**: E.5
+- **Area**: compiler, docs
+- **What happened**: `PaymentGatewaySaga` sends `ConfirmPayment` or `FailPayment`, whichever the gateway answers. Its handler returns `Command<*>?`, so the guide asks for `@OnEvent(derives = ["eshop-payment.payment.ConfirmPayment", "eshop-payment.payment.FailPayment"])`: full type names as strings, where `@OnCommand(produces = [...])` takes classes. The guide does not say whether the compiler checks the names, or whether a sealed command type in the return type would let it infer them.
+- **Where they looked**: `guide/v10/programming-model` (Sagas).
+- **Workaround**: The names as constants in the saga.
+- **Proposed fix**: Accept classes in `derives` (`derives = [ConfirmPayment::class]`), or infer the commands from a sealed type in `Command<…>`; document whether a name that decides no command fails the build.
 - **Blocks M7**: no.
