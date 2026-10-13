@@ -42,3 +42,13 @@ wow:
     # partition, so no reservation published before the ordering service first started is missed.
     "[StockConfirmationSaga.onStockReserved]":
       start: beginning
+---
+spring:
+  config:
+    activate:
+      on-profile: clickhouse
+wow:
+  clickhouse:
+    # The order stream is written to ClickHouse by the Sink (eshop_ordering_order_state_flat, ...), and the sales
+    # dataset, META-INF/wow/dataset/eshop-ordering.sales.json, is queried there: /wow/dataset/eshop-ordering/sales/query.
+    endpoint: http://localhost:8123

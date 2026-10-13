@@ -13,8 +13,10 @@ description = "Wow V10 eShop: end-to-end tests across the eShop's services"
 //   reads only one of them.
 // - EshopPaymentFlowTest runs the ordering, inventory and payment services the same way: the payment the simulated
 //   gateway approves pays the order, and the one it declines cancels it and releases its stock (work package E.5).
-//
-// The suite with all five services, ClickHouse and the failure scenarios comes with work package E.6.
+// - EshopFullChainTest runs all five services the same way through EshopStack, with ClickHouse for the ordering's
+//   sales dataset (work package E.6): the full chain with one Wow-Wait from the checkout to the paid order, the short
+//   stock's cancellation, the sales dataset, and an ordering node killed mid-flow and replaced.
+// - EshopLoad, the load script, starts the same EshopStack (the task eshopLoad below; README.md holds its baseline).
 val servers = listOf("catalog", "basket", "ordering", "inventory", "payment").associateWith { context ->
     configurations.create("eshop${context.replaceFirstChar { it.uppercase() }}Server") {
         isCanBeConsumed = false
@@ -52,11 +54,36 @@ dependencies {
     integrationTestImplementation("org.testcontainers:testcontainers-kafka")
     // CatalogPostgresTest: the catalog's storefront queries on PostgreSQL (work package E.1).
     integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
+    // EshopFullChainTest and EshopLoad: the ordering's order stream in ClickHouse, for the sales dataset (E.6).
+    integrationTestImplementation("org.testcontainers:testcontainers-clickhouse")
+}
+
+/** The class paths of the servers, and the directory of their output, as the services' JVMs take them. */
+fun JavaForkOptions.eshopServers() {
+    servers.forEach { (context, classpath) ->
+        jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Deshop.$context.classpath=${classpath.asPath}") })
+    }
+    // Each service's output, kept for a failed run.
+    val logs = layout.buildDirectory.dir("eshop-logs")
+    jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Deshop.logs=${logs.get().asFile}") })
 }
 
 tasks.named<Test>("integrationTest") {
     servers.forEach { (context, classpath) ->
         inputs.files(classpath).withNormalizer(ClasspathNormalizer::class).withPropertyName("${context}Server")
-        jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Deshop.$context.classpath=${classpath.asPath}") })
+    }
+    eshopServers()
+}
+
+// The load script (EshopLoad.kt), outside every check: `./gradlew -Pwow.scope=v10 :eshop-e2e:eshopLoad`, with the
+// properties `-Peshop.load.checkouts=200 -Peshop.load.concurrency=8 -Peshop.load.warm-up=40` (e2e/README.md, its baseline).
+tasks.register<JavaExec>("eshopLoad") {
+    description = "Drives checkouts through the eShop's five services and reports their throughput and latency."
+    classpath = project.the<SourceSetContainer>()["integrationTest"].runtimeClasspath
+    mainClass.set("me.ahoo.wow.example.eshop.e2e.EshopLoadKt")
+    servers.values.forEach { dependsOn(it) }
+    eshopServers()
+    listOf("eshop.load.checkouts", "eshop.load.concurrency", "eshop.load.warm-up").forEach { name ->
+        providers.gradleProperty(name).orNull?.let { systemProperty(name, it) }
     }
 }

@@ -1,0 +1,20 @@
+{
+  "title": "Sales",
+  "identity": "id",
+  "eventTime": "commit_time",
+  "scope": { "tenant": "tenant_id", "owner": "owner_id", "space": "space_id" },
+  "storage": { "table": "eshop_ordering_order_state_flat" },
+  "fields": {
+    "id": { "types": ["STRING"], "nullable": false, "description": "The commit of the order's current state: ref@version." },
+    "tenant_id": { "types": ["STRING"], "nullable": false },
+    "aggregate_id": { "types": ["STRING"], "nullable": false, "description": "The order's id." },
+    "owner_id": { "types": ["STRING"], "nullable": false },
+    "space_id": { "types": ["STRING"], "nullable": false },
+    "version": { "types": ["INTEGER"], "nullable": false },
+    "commit_time": { "types": ["STRING"], "semantic": { "type": "TEMPORAL_DATE" }, "nullable": false },
+    "deleted": { "types": ["BOOLEAN"], "nullable": false },
+    "buyerId": { "types": ["STRING"], "nullable": false, "description": "The buyer who checked the order out." },
+    "status": { "types": ["STRING"], "nullable": false, "description": "SUBMITTED, AWAITING_VALIDATION, STOCK_CONFIRMED, PAID, SHIPPED or CANCELLED." },
+    "totalAmount": { "types": ["DECIMAL"], "nullable": false, "description": "The order's total: each line's unit price times its quantity." }
+  }
+}
