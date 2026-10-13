@@ -46,7 +46,7 @@ fun interface RejectionHandler {
  *   that fails or is rejected in turn, fails the receipt: retried, then the saga's aggregate parks under the
  *   subscription's name, at the receipt's offset.
  */
-internal class Receipts(
+class Receipts internal constructor(
     private val context: String,
     private val contracts: ContractDirectory,
     private val handler: RejectionHandler,
@@ -63,7 +63,7 @@ internal class Receipts(
     }
 
     /** Hands [rejected] to the handler once per command id. */
-    suspend fun handle(rejected: CommandRejected<*>) {
+    internal suspend fun handle(rejected: CommandRejected<*>) {
         if (synchronized(handled) { rejected.commandId in handled }) {
             logger.debug { "Dropping a copy of the receipt of ${rejected.commandId}." }
             return
@@ -79,7 +79,7 @@ internal class Receipts(
     }
 
     /** The class of the command type [commandType] (`ctx.agg.Command`), by its schema in the contracts. */
-    fun commandClassOf(commandType: String): Class<*> {
+    internal fun commandClassOf(commandType: String): Class<*> {
         val schema = checkNotNull(contracts.schemaOf(commandType)) {
             "No Manifest of the service or its peers declares the command type $commandType."
         }

@@ -54,7 +54,7 @@ import me.ahoo.wow.spi.wait.WaitContext
  * (the subscription's contiguous low watermark), so a handover or a restart executes again at most what was in
  * flight, which the kernel deduplicates.
  */
-internal class CommandIntake(
+class CommandIntake internal constructor(
     private val context: String,
     models: Collection<AggregateModel<*>>,
     private val coordinator: WaitCoordinator,
@@ -69,7 +69,7 @@ internal class CommandIntake(
     }
 
     /** Executes [wire] with [wait] and settles its outcome, or throws a technical failure. */
-    suspend fun execute(wire: CommandWire, wait: WaitContext?) {
+    internal suspend fun execute(wire: CommandWire, wait: WaitContext?) {
         val model = checkNotNull(models[wire.ref.type]) {
             "Context $context has no aggregate ${wire.ref.type}, which the command ${wire.id} is sent to."
         }
@@ -119,7 +119,7 @@ internal class CommandIntake(
          * the producers pick a command's partition by the log's partitioner over the topic's partitions, so any other
          * count sends commands to partitions whose owner does not own their aggregates.
          */
-        suspend fun checkPartitions(topic: String, source: PartitionedSource, context: String, partitions: Int) {
+        internal suspend fun checkPartitions(topic: String, source: PartitionedSource, context: String, partitions: Int) {
             val count = source.partitions(topic).size
             check(count == partitions) {
                 val found = if (count == 0) "does not exist" else "has $count partitions"

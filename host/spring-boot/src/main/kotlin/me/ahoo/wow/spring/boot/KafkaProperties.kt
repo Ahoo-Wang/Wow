@@ -29,6 +29,10 @@ import java.time.Duration
  *   write under it and the subscriptions of other contexts' streams read under it.
  * - `wow.kafka.poll-timeout`: the longest a consumer's poll waits (200 ms by default); a read that is cancelled, and
  *   a partition that joins or leaves a topic's shared consumer, take effect within it.
+ * - `wow.kafka.command-intake`: whether each context the node hosts executes the commands other contexts send to its
+ *   command topic, `wow.<context>.commands` (decisions D135, D137); off by default. The topic must exist with as
+ *   many partitions as the context's log, and the node checks it at start. Sending commands to other contexts and
+ *   reading their receipts need no switch.
  */
 @ConfigurationProperties(prefix = KafkaProperties.PREFIX)
 class KafkaProperties {
@@ -36,6 +40,7 @@ class KafkaProperties {
     var properties: MutableMap<String, String> = LinkedHashMap()
     var topicPrefix: String = ""
     var pollTimeout: Duration = Duration.ofMillis(DEFAULT_POLL_TIMEOUT_MILLIS)
+    var commandIntake: Boolean = false
 
     companion object {
         const val PREFIX: String = "wow.kafka"

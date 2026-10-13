@@ -1,0 +1,215 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.runtime.command
+
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.ExecutionId
+import me.ahoo.wow.kernel.InMemoryTopics
+import me.ahoo.wow.runtime.cluster.ClusterCodec
+import me.ahoo.wow.runtime.cluster.CommandWire
+import me.ahoo.wow.runtime.cluster.ReplyTo
+import me.ahoo.wow.runtime.contract.ContractDirectory
+import me.ahoo.wow.runtime.node.ContextNode
+import me.ahoo.wow.runtime.node.SourceTopics
+import me.ahoo.wow.runtime.node.SubscriptionFactory
+import me.ahoo.wow.runtime.subscription.SubscriptionStart
+import me.ahoo.wow.runtime.subscription.UnrecoverableException
+import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.transport.EnvelopeCodec
+import me.ahoo.wow.spi.transport.EnvelopeHeaders
+import me.ahoo.wow.spi.transport.EnvelopeKind
+import me.ahoo.wow.spi.wait.Origin
+import me.ahoo.wow.spi.wait.WaitContext
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import java.math.BigDecimal
+import java.util.concurrent.CopyOnWriteArrayList
+
+/**
+ * The wire forms of the command and receipts topics (design 08 §8), how a command is named and partitioned when it is
+ * sent (decisions D135, D157), and how their entries are read, resumed and handed to a saga's handler.
+ */
+class CommandMessagesTest {
+    private val topics = InMemoryTopics(2).also { it.create(COMMANDS, PARTITIONS) }
+    private val ref = ITEM.ref(TENANT, "i-1")
+    private val execution = ExecutionId("OrderSaga.onOrderPlaced", ORDER.ref(TENANT, "o-1"), 3)
+    private val wait = WaitContext("w-1", Origin("sales-1", "sales-1:9090", SALES_SERVICE), listOf(Hop.committed(STOCK)), 99)
+
+    data class Priced(val price: BigDecimal)
+
+    @Test
+    fun `a command should travel in its envelope with its wait context and the reply it asks for`() {
+        val replyTo = ReplyTo.of(SALES, execution)
+        val wire = ClusterCodec.wire(
+            "stock.item.Reserve",
+            Command("c-1", "r-1", ref, Priced(BigDecimal("2.50")), causation = Causation("root", "o-1@3")),
+            replyTo,
+        )
+        val message = CommandMessages.command(wire, 3, wait)
+        message.partition.assert().isEqualTo(3)
+        message.key.assert().isEqualTo(ref.toString())
+        message.headers[EnvelopeHeaders.KIND].assert().isEqualTo("command")
+        message.headers[EnvelopeHeaders.TYPE].assert().isEqualTo("stock.item.Reserve")
+        val envelope = EnvelopeCodec.decode(message.value)
+        envelope.id.assert().isEqualTo("c-1")
+        envelope.transport!!.wait.assert().isEqualTo(wait)
+        val read = CommandMessages.commandOf(envelope)
+        read.assert().isEqualTo(wire)
+        read.body.toString().assert().isEqualTo("""{"price":2.50}""")
+        read.replyTo!!.executionId().assert().isEqualTo(execution)
+        assertThrows<IllegalArgumentException> { CommandMessages.rejectedOf(envelope) }
+        // Without a reply, the field is absent from what older readers see as an unknown field.
+        CommandMessages.commandOf(EnvelopeCodec.decode(CommandMessages.command(wire.copy(replyTo = null), 0).value))
+            .replyTo.assert().isNull()
+    }
+
+    @Test
+    fun `a receipt should carry the rejection without the command's body`() {
+        val rejected = CommandRejected<Any>(
+            "c-1",
+            "stock.item.Reserve",
+            ref,
+            ErrorInfo(INSUFFICIENT, "Only 5 left."),
+            Causation("root", "o-1@3"),
+            execution,
+        )
+        val message = CommandMessages.receipt(rejected)
+        message.key.assert().isEqualTo(execution.ref.toString())
+        message.partition.assert().isNull()
+        val envelope = EnvelopeCodec.decode(message.value)
+        envelope.kind.assert().isEqualTo(EnvelopeKind.COMMAND_RECEIPT)
+        envelope.id.assert().isEqualTo("c-1")
+        CommandMessages.rejectedOf(envelope).assert().isEqualTo(rejected)
+        assertThrows<IllegalArgumentException> { CommandMessages.commandOf(envelope) }
+    }
+
+    @Test
+    fun `a command should be sent under the type its target's Manifest gives its class, in its log partition`(): Unit =
+        runBlocking {
+            val sender = CommandSender(
+                ContractDirectory(salesManifest(), listOf(peer(stockManifest()))),
+                SourceTopics(topics, PREFIX, topics),
+            )
+            sender.typeOf(Command("c", "r", ref, Reserve(1))).assert().isEqualTo("stock.item.Reserve")
+            assertThrows<IllegalStateException> { sender.typeOf(Command("c", "r", ref, "not a command")) }
+                .message.assert().contains("wowPeers")
+            val wrong = AggregateType(STOCK, "warehouse").ref(TENANT, "w")
+            assertThrows<IllegalStateException> { sender.typeOf(Command("c", "r", wrong, Reserve(1))) }
+                .message.assert().contains("not one of stock.warehouse")
+            sender.send(Command("c-1", "r-1", ref, Reserve(1)), wait)
+            val partition = Partitioner.partitionOf(ref, PARTITIONS)
+            topics.offsets(COMMANDS, partition).end.assert().isEqualTo(1L)
+            // A context with no command topic yet: InMemoryTopics creates topics on first use, so test the check itself.
+            assertThrows<IllegalStateException> {
+                runBlocking { CommandIntake.checkPartitions(COMMANDS, topics, STOCK, PARTITIONS + 1) }
+            }.message.assert().contains("has $PARTITIONS partitions")
+            CommandIntake.checkPartitions(COMMANDS, topics, STOCK, PARTITIONS)
+            assertThrows<IllegalArgumentException> { CommandSender(ContractDirectory(stockManifest()), SourceTopics(topics)) }
+        }
+
+    @Test
+    fun `the entries of a command topic should be ordered, parked and resumed by offset`(): Unit = runBlocking {
+        val entries = MessageEntries.commands(COMMANDS, topics, PARTITIONS)
+        val partition = Partitioner.partitionOf(ref, PARTITIONS)
+        val wire: (String) -> CommandWire = { id -> ClusterCodec.wire("stock.item.Reserve", Command(id, id, ref, Reserve(1))) }
+        topics.send(COMMANDS, listOf("a", "b", "c").map { CommandMessages.command(wire(it), partition) })
+        entries.partitionOf(ref).assert().isEqualTo(partition)
+        entries.checkpointOf(SubscriptionStart.End, partition).assert().isEqualTo(3L)
+        entries.checkpointOf(SubscriptionStart.Beginning, partition).assert().isEqualTo(0L)
+        val resumed = entries.resume(ref, 1, 1).toList()
+        resumed.map { (it.message as CommandWire).id }.assert().containsExactly("b", "c")
+        resumed.map { entries.ordinalOf(it) }.assert().containsExactly(2L, 3L)
+        resumed.map { entries.sourcePosition(it) }.assert().containsExactly(1L, 2L)
+        resumed.first().stream.version.assert().isEqualTo(1)
+        entries.ordinalOf(ParkedAggregate(CommandIntake.NAME, ref, 1, "r", 0, 1)).assert().isEqualTo(2L)
+        entries.ordinalOf(ParkedAggregate(CommandIntake.NAME, ref, 1, "r", 0)).assert().isEqualTo(0L)
+        entries.positionOf(ref, 1).assert().isNull()
+        assertThrows<UnrecoverableException> { runBlocking { entries.resume(ref, 1, null) } }
+        topics.retain(COMMANDS, partition, 2)
+        assertThrows<UnrecoverableException> { runBlocking { entries.resume(ref, 1, 1) } }
+            .message.assert().contains("no longer retains offset 1")
+        assertThrows<IllegalArgumentException> { entries.requirePartition(PARTITIONS) }
+    }
+
+    @Test
+    fun `a receipt should reach the handler once per command id with the command's class`(): Unit = runBlocking {
+        val handled = CopyOnWriteArrayList<Pair<String, Class<*>>>()
+        var answer: List<String>? = listOf("compensated")
+        val receipts = Receipts(
+            SALES,
+            ContractDirectory(salesManifest(), listOf(peer(stockManifest()))),
+            RejectionHandler { rejected, command ->
+                handled += rejected.commandId to command
+                answer
+            },
+        )
+        receipts.subscription.name.assert().isEqualTo("wow.receipts.sales")
+        val rejected = CommandRejected<Any>(
+            "c-1",
+            "stock.item.Reserve",
+            ref,
+            ErrorInfo(INSUFFICIENT, "none"),
+            Causation("root", "o-1@3"),
+            execution,
+        )
+        receipts.handle(rejected)
+        receipts.handle(rejected)
+        handled.assert().containsExactly("c-1" to Reserve::class.java)
+        // No handler takes it: logged and passed over, once.
+        answer = null
+        receipts.handle(rejected.copy(commandId = "c-2"))
+        receipts.handle(rejected.copy(commandId = "c-2"))
+        handled.size.assert().isEqualTo(2)
+        assertThrows<IllegalStateException> { runBlocking { receipts.handle(rejected.copy(commandId = "c-3", commandType = "stock.item.Gone")) } }
+            .message.assert().contains("stock.item.Gone")
+    }
+
+    @Test
+    fun `combined factories should ask each for the handler of a rejection in turn`(): Unit = runBlocking {
+        val first = object : SubscriptionFactory {
+            override fun subscriptions(context: ContextNode) = emptyList<me.ahoo.wow.runtime.subscription.Subscription>()
+
+            override fun rejections(context: ContextNode) = RejectionHandler { rejected, _ ->
+                listOf("first").takeIf { rejected.commandId == "mine" }
+            }
+        }
+        val second = object : SubscriptionFactory {
+            override fun subscriptions(context: ContextNode) = emptyList<me.ahoo.wow.runtime.subscription.Subscription>()
+
+            override fun rejections(context: ContextNode) = RejectionHandler { _, _ -> listOf("second") }
+        }
+        val context = io.mockk.mockk<ContextNode>()
+        val rejected = CommandRejected<Any>("mine", "t", ref, ErrorInfo("e", "m"), Causation("a", "b"), execution)
+        val combined = (first + second).rejections(context)!!
+        combined.handle(rejected, Reserve::class.java).assert().containsExactly("first")
+        combined.handle(rejected.copy(commandId = "theirs"), Reserve::class.java).assert().containsExactly("second")
+        (SubscriptionFactory.NONE + second).rejections(context).assert().isNotNull()
+        (first + SubscriptionFactory.NONE).rejections(context).assert().isNotNull()
+        (SubscriptionFactory.NONE + SubscriptionFactory.NONE).rejections(context).assert().isNull()
+    }
+
+    private companion object {
+        const val PARTITIONS = 4
+        const val COMMANDS = PREFIX + "wow.stock.commands"
+    }
+}
