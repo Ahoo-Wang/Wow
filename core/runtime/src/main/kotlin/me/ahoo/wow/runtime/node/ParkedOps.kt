@@ -197,6 +197,13 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
         const val DEFAULT_LIMIT: Int = 100
         const val MAX_LIMIT: Int = 1_000
 
+        /** The entries of [runtimes]' subscriptions, for a host that runs them without a [ServiceNode]. */
+        @JvmStatic
+        fun of(runtimes: Collection<SubscriptionRuntime>): ParkedOps {
+            val scopes = runtimes.map { Scope.of(it) }
+            return ParkedOps { scopes }
+        }
+
         /** The ledger's aggregate order (context, aggregate name, tenant, id), each compared by code point. */
         private val REF_ORDER: Comparator<AggregateRef> = Comparator { left, right ->
             sequenceOf(
