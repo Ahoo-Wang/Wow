@@ -30,15 +30,16 @@ val json: JsonMapper = JsonMapper.builder().build()
 
 /**
  * The arguments of a service on [postgres]'s [database] and on [kafka], with the `postgres` and `kafka` profiles of
- * its `application.yaml`, a log of [partitions] and short cluster timings.
+ * its `application.yaml` (and any further [profiles]), a log of [partitions] and short cluster timings.
  */
 fun backendArguments(
     postgres: PostgreSQLContainer,
     kafka: ConfluentKafkaContainer,
     database: String,
     partitions: Int,
+    profiles: List<String> = emptyList(),
 ): List<String> = listOf(
-    "--spring.profiles.active=postgres,kafka",
+    "--spring.profiles.active=" + (listOf("postgres", "kafka") + profiles).joinToString(","),
     "--spring.datasource.url=jdbc:postgresql://${postgres.host}:${postgres.firstMappedPort}/$database",
     "--spring.datasource.username=${postgres.username}",
     "--spring.datasource.password=${postgres.password}",
@@ -62,7 +63,7 @@ data class Answer(val status: Int, val body: String)
  * interface. Its output goes to a log file, printed when it fails to start.
  */
 class EshopService private constructor(
-    private val context: String,
+    val name: String,
     private val process: Process,
     private val log: File,
     val publicPort: Int,
@@ -87,7 +88,7 @@ class EshopService private constructor(
     /** The names of the contexts the service's Manifest lists. */
     fun contexts(): List<String> {
         val manifest = get("/wow/manifest")
-        check(manifest.status == OK) { "GET /wow/manifest of $context answered ${manifest.status}: ${manifest.body}" }
+        check(manifest.status == OK) { "GET /wow/manifest of $name answered ${manifest.status}: ${manifest.body}" }
         return json.readTree(manifest.body)["contexts"].values().map { it["name"].asString() }
     }
 
@@ -101,7 +102,7 @@ class EshopService private constructor(
     private fun awaitReady() {
         val deadline = System.nanoTime() + START_TIMEOUT.toNanos()
         while (System.nanoTime() < deadline) {
-            check(process.isAlive) { "The $context service exited with ${process.exitValue()}:\n${log.readText()}" }
+            check(process.isAlive) { "The $name service exited with ${process.exitValue()}:\n${log.readText()}" }
             val ready = try {
                 get("/wow/manifest").status == OK
             } catch (_: IOException) {
@@ -110,7 +111,13 @@ class EshopService private constructor(
             if (ready) return
             Thread.sleep(POLL_INTERVAL.toMillis())
         }
-        error("The $context service did not start in $START_TIMEOUT:\n${log.readText()}")
+        error("The $name service did not start in $START_TIMEOUT:\n${log.readText()}")
+    }
+
+    /** Kills the service's JVM at once (`SIGKILL`), as a crash would: it neither leaves its cluster nor gives up a lease. */
+    fun kill() {
+        process.destroyForcibly().waitFor()
+        http.shutdownNow()
     }
 
     override fun close() {
@@ -136,7 +143,9 @@ class EshopService private constructor(
             val classpath = requireNotNull(System.getProperty(property)) { "System property $property is not set." }
             val java = ProcessHandle.current().info().command().orElseThrow()
             val publicPort = freePort()
-            val log = File.createTempFile("eshop-$context-", ".log").apply { deleteOnExit() }
+            // Kept in `eshop.logs` (the build's `eshop-logs`) when the build names it, so a failed run can be read.
+            val logs = System.getProperty("eshop.logs")?.let { File(it).apply { mkdirs() } }
+            val log = File.createTempFile("eshop-$context-", ".log", logs).apply { if (logs == null) deleteOnExit() }
             val process = ProcessBuilder(
                 java,
                 "-cp",

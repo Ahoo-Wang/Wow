@@ -52,6 +52,8 @@ dependencies {
     integrationTestImplementation("org.testcontainers:testcontainers-kafka")
     // CatalogPostgresTest: the catalog's storefront queries on PostgreSQL (work package E.1).
     integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
+    // EshopFullChainTest and EshopLoad: the ordering's order stream in ClickHouse, for the sales dataset (E.6).
+    integrationTestImplementation("org.testcontainers:testcontainers-clickhouse")
 }
 
 tasks.named<Test>("integrationTest") {
@@ -59,4 +61,7 @@ tasks.named<Test>("integrationTest") {
         inputs.files(classpath).withNormalizer(ClasspathNormalizer::class).withPropertyName("${context}Server")
         jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Deshop.$context.classpath=${classpath.asPath}") })
     }
+    // Each service's output, kept for a failed run.
+    val logs = layout.buildDirectory.dir("eshop-logs")
+    jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Deshop.logs=${logs.get().asFile}") })
 }
