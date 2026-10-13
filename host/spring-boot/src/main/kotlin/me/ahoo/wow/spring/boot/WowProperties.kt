@@ -24,6 +24,7 @@ import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
+import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.runtime.wait.WaitOptions
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
@@ -50,6 +51,8 @@ import kotlin.time.toKotlinDuration
  * - `wow.subscriptions.[<subscription>].start`: `beginning`, `end` or an ISO-8601 instant, where the subscription
  *   (`processor.function`, bracketed for its dot) starts in a partition it has no checkpoint in yet, instead of its
  *   kind's default (decision D154), see [SubscriptionSettings].
+ * - `wow.timers.poll-interval` (1s), `lookahead` (30s), `max-attempts` (10), `expires-after` (none): the timer runner
+ *   of the scheduled commands (decision D166), see [Timers].
  * - `wow.tenant.default`: the tenant of a caller that has none (D97).
  * - `wow.http.request-facts`, `wow.http.errors.[<code>].status`, `wow.http.manifest.enabled`.
  * - `wow.aggregates.[<context>.<aggregate>].tenant`: a fixed tenant per aggregate type (decision D116), see
@@ -72,6 +75,7 @@ class WowProperties {
 
     /** Per subscription, by its name (bracketed in a property name: `wow.subscriptions.[CartSaga.onOrderCreated]`). */
     var subscriptions: MutableMap<String, SubscriptionSettings> = LinkedHashMap()
+    var timers: Timers = Timers()
     var tenant: Tenant = Tenant()
     var http: Http = Http()
 
@@ -211,6 +215,26 @@ class WowProperties {
         var start: String? = null
     }
 
+    /**
+     * The timer runner of each context (decision D166): how often each owned partition reads the timers due within
+     * [lookahead] ([pollInterval]); how many attempts a technical failure to send one gets before it is parked under
+     * `wow.timers` ([maxAttempts]); and, when set, how late a timer may be sent before it expires instead
+     * ([expiresAfter]).
+     */
+    class Timers {
+        var pollInterval: Duration = DEFAULT_TIMERS.pollInterval.toJavaDuration()
+        var lookahead: Duration = DEFAULT_TIMERS.lookahead.toJavaDuration()
+        var maxAttempts: Int = DEFAULT_TIMERS.retry.maxAttempts
+        var expiresAfter: Duration? = null
+
+        fun options(): TimerOptions = DEFAULT_TIMERS.copy(
+            pollInterval = pollInterval.toKotlinDuration(),
+            lookahead = lookahead.toKotlinDuration(),
+            retry = DEFAULT_TIMERS.retry.copy(maxAttempts = maxAttempts),
+            expiresAfter = expiresAfter?.toKotlinDuration(),
+        )
+    }
+
     class Retry {
         var maxAttempts: Int = 1
         var initialBackoff: Duration = Duration.ZERO
@@ -273,6 +297,7 @@ class WowProperties {
         const val DEFAULT_MONGO_DATABASE: String = "wow"
         private val DEFAULT_CLUSTER = ClusterOptions()
         private val DEFAULT_SUBSCRIPTION = SubscriptionOptions()
+        private val DEFAULT_TIMERS = TimerOptions()
     }
 }
 

@@ -245,6 +245,7 @@ class WowAutoConfiguration {
                 laneCapacity = properties.executor.laneCapacity,
                 stateCacheCapacity = properties.stateCache.capacity,
                 defaultWaitTimeout = properties.wait.defaultTimeout.toKotlinDuration(),
+                timers = properties.timers.options(),
             ),
             admission = AdmissionPlugins(
                 authorizer = authorizers.getIfAvailable { CommandAuthorizer.ALLOW_ALL },
