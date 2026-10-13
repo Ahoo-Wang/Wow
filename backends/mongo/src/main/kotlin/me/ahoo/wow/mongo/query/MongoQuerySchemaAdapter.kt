@@ -54,7 +54,13 @@ class MongoQuerySchemaAdapter internal constructor(
     override suspend fun facts(logicalSchema: LogicalQuerySchema): QueryStorageFacts = withContext(dispatcher) {
         val (info, indexes) = try {
             val info = database.listCollections().filter(Filters.eq("name", collection)).first()
-            val indexes = if (info == null) emptyList() else database.getCollection(collection).listIndexes().into(ArrayList())
+            val indexes = if (info == null) {
+                emptyList()
+            } else {
+                database.getCollection(
+                    collection
+                ).listIndexes().into(ArrayList())
+            }
             info to indexes
         } catch (error: MongoException) {
             throw QuerySchemaUnavailableException("Failed to read the MongoDB snapshot collection $collection.", error)
@@ -149,7 +155,7 @@ class MongoQuerySchemaAdapter internal constructor(
                 if (invalidAncestor) return@associateWith QueryValueBindings()
                 // A validator may declare an array the logical model does not know of (the Catalog rules out logical ones).
                 val nativeArrayAncestor = nativeArrays.any { it.isPhysicalAncestorOf(physical) }
-                // TODO(6.1c): set QueryFieldBindingTemplate's `indexed` from `indexes` once the core has the fact.
+                // Pending 6.1c (#4344): set the binding's `indexed` fact from `indexes` once the core has it on v10.
                 val native = QueryFieldBindingTemplate(physical, storage?.types?.takeIf { it.isNotEmpty() })
                 QueryValueBindings(
                     bindings = FIELD_CAPABILITIES.filter { capability ->

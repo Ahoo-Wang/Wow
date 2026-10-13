@@ -119,7 +119,13 @@ internal object ExactBson {
         is Long -> LongNode.valueOf(value)
         is Double -> DoubleNode.valueOf(value)
         // A NaN or an infinity has no JSON number; an aggregation computes them only from values that are not JSON.
-        is Decimal128 -> if (value.isNaN || value.isInfinite) NullNode.instance else DecimalNode.valueOf(value.bigDecimalValue())
+        is Decimal128 -> if (value.isNaN || value.isInfinite) {
+            NullNode.instance
+        } else {
+            DecimalNode.valueOf(
+                value.bigDecimalValue()
+            )
+        }
         else -> throw IllegalStateException("A stored ${value.javaClass.name} is not JSON.")
     }
 }

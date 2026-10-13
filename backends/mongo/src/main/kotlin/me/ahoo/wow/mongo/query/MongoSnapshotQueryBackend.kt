@@ -228,10 +228,14 @@ class MongoSnapshotQueryBackend internal constructor(
         /** Runs [block]: MongoDB stopping it at its `maxTimeMS` fails as the core's [QueryTimeoutException]. */
         inline fun <T> timed(timeout: Duration?, block: () -> T): T = try {
             block()
+        } catch (error: MongoExecutionTimeoutException) {
+            throw expired(timeout, error)
         } catch (error: MongoException) {
-            val expired = error is MongoExecutionTimeoutException || error.code == MAX_TIME_MS_EXPIRED
-            if (timeout != null && expired) throw QueryTimeoutException(timeout, error)
-            throw error
+            throw if (error.code == MAX_TIME_MS_EXPIRED) expired(timeout, error) else error
         }
+
+        /** [error] as the core's [QueryTimeoutException] of [timeout]; as it is when the query had no timeout. */
+        fun expired(timeout: Duration?, error: MongoException): RuntimeException =
+            timeout?.let { QueryTimeoutException(it, error) } ?: error
     }
 }

@@ -103,11 +103,15 @@ class MongoFilterCompilerTest {
         json(InFilter(quantity, listOf(1, 2))).assert().isEqualTo("""{"state.quantity": {"${'$'}in": [1, 2]}}""")
         json(NotInFilter(quantity, listOf(1))).assert().isEqualTo("""{"state.quantity": {"${'$'}nin": [1]}}""")
         json(BetweenFilter(quantity, 1, 3)).assert()
-            .isEqualTo("""{"${'$'}and": [{"state.quantity": {"${'$'}gte": 1}}, {"state.quantity": {"${'$'}lte": 3}}]}""")
+            .isEqualTo(
+                """{"${'$'}and": [{"state.quantity": {"${'$'}gte": 1}}, {"state.quantity": {"${'$'}lte": 3}}]}"""
+            )
         json(LessThanOrEqualFilter(quantity, 1)).assert().isEqualTo("""{"state.quantity": {"${'$'}lte": 1}}""")
         json(ContainsAllFilter(QueryField("state.keywords"), listOf("a", "b"))).assert()
             .isEqualTo("""{"state.keywords": {"${'$'}all": ["a", "b"]}}""")
-        json(IsEmptyFilter(QueryField("state.keywords"))).assert().isEqualTo("""{"state.keywords": {"${'$'}size": 0}}""")
+        json(
+            IsEmptyFilter(QueryField("state.keywords"))
+        ).assert().isEqualTo("""{"state.keywords": {"${'$'}size": 0}}""")
         json(IsNullFilter(name)).assert().isEqualTo("""{"state.name": null}""")
         json(IsNotNullFilter(name)).assert().isEqualTo("""{"state.name": {"${'$'}ne": null}}""")
         json(ExistsFilter(name)).assert().isEqualTo("""{"state.name": {"${'$'}exists": true}}""")
@@ -223,7 +227,9 @@ class MongoFilterCompilerTest {
     @Test
     fun `full-text search runs once, outside NOR, and a phrase has no quotes`() {
         val text = MongoQueryTestSchemas.schema(
-            MongoQueryTestSchemas.adapter(indexes = listOf(Document("name", "text").append("key", Document("state.name", "text")))),
+            MongoQueryTestSchemas.adapter(
+                indexes = listOf(Document("name", "text").append("key", Document("state.name", "text")))
+            ),
         )
         compile(SearchFilter("wow"), text).toJson().assert()
             .isEqualTo("""{"${'$'}text": {"${'$'}search": "wow"}}""")

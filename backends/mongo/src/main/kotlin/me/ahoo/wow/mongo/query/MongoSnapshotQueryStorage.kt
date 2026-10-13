@@ -54,7 +54,11 @@ class MongoSnapshotQueryStorage @JvmOverloads constructor(
      * collection as the snapshot store does (its format record and key) before it indexes it.
      */
     fun manageIndexes(indexes: List<MongoQueryIndex>): MongoQueryIndexReport {
-        indexes.forEach { require(it.context == context) { "${it.collection} is not a snapshot collection of context $context." } }
+        indexes.forEach {
+            require(
+                it.context == context
+            ) { "${it.collection} is not a snapshot collection of context $context." }
+        }
         return MongoQueryIndexes.manage(database, options.indexDdl, indexes) { index ->
             MongoSnapshotStore.ensure(database, context, index.aggregate)
         }

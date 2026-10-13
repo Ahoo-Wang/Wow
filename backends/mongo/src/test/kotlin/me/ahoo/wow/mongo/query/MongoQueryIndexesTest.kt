@@ -29,7 +29,8 @@ class MongoQueryIndexesTest {
 
     @Test
     fun `the scope indexes and each declared one lead with the tenant over the snapshots not deleted`() {
-        val indexes = plan(QueryIndexDeclaration("ix_order_state_name", listOf("state.name", "ownerId", "state.amount")))
+        val indexes =
+            plan(QueryIndexDeclaration("ix_order_state_name", listOf("state.name", "ownerId", "state.amount")))
         indexes.map { it.toString() }.assert().containsExactly(
             """wow_snapshot__shop__order.owner_ix {"tenant_id": 1, "owner_id": 1} partialFilterExpression {"deleted": false}""",
             """wow_snapshot__shop__order.space_ix {"tenant_id": 1, "space_id": 1} partialFilterExpression {"deleted": false}""",

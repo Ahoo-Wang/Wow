@@ -46,7 +46,9 @@ class MongoQuerySchemaAdapterTest {
         checkNotNull(schema.field(QueryField("tenantId"))).let { field ->
             field.responseField.assert().isEqualTo(QueryField("tenantId"))
             field.projectionField.assert().isEqualTo(QueryField("tenant_id"))
-            field.binding(QueryCapability.EXACT_MATCH)?.storageTypes.assert().isEqualTo(setOf(QueryStorageType("string")))
+            field.binding(
+                QueryCapability.EXACT_MATCH
+            )?.storageTypes.assert().isEqualTo(setOf(QueryStorageType("string")))
         }
         checkNotNull(schema.field(QueryField("version"))).binding(QueryCapability.RANGE)?.storageTypes
             .assert().isEqualTo(setOf(QueryStorageType("int")))
@@ -63,7 +65,9 @@ class MongoQuerySchemaAdapterTest {
             QueryCapability.AGGREGATE_NUMERIC,
         )
         schema.capabilities("state.createdAt").assert().contains(QueryCapability.AGGREGATE_TEMPORAL)
-        schema.capabilities("lastEventTime").assert().contains(QueryCapability.AGGREGATE_TEMPORAL, QueryCapability.CURSOR_SORT)
+        schema.capabilities(
+            "lastEventTime"
+        ).assert().contains(QueryCapability.AGGREGATE_TEMPORAL, QueryCapability.CURSOR_SORT)
         // A date string is stored as text: it only exists.
         schema.capabilities("state.issuedAt").assert().containsExactly(QueryCapability.PRESENCE)
         // MongoDB reads each type of a mixed value on its own, unlike PostgreSQL; no cursor orders it.
@@ -108,7 +112,9 @@ class MongoQuerySchemaAdapterTest {
         )
         val schema = MongoQueryTestSchemas.schema(MongoQueryTestSchemas.adapter(validator = validator))
         schema.capabilities("version").assert().containsExactly(QueryCapability.PRESENCE)
-        schema.capabilities("state.amount").assert().doesNotContain(QueryCapability.RANGE, QueryCapability.AGGREGATE_NUMERIC)
+        schema.capabilities(
+            "state.amount"
+        ).assert().doesNotContain(QueryCapability.RANGE, QueryCapability.AGGREGATE_NUMERIC)
         schema.capabilities("state.quantity").assert().contains(QueryCapability.RANGE, QueryCapability.CURSOR_SORT)
         checkNotNull(schema.field(QueryField("state.quantity"))).binding(QueryCapability.RANGE)?.storageTypes
             .assert().isEqualTo(setOf(QueryStorageType("int"), QueryStorageType("long")))
@@ -129,7 +135,9 @@ class MongoQuerySchemaAdapterTest {
         fun search(index: Document): Set<QueryCapability> =
             MongoQueryTestSchemas.schema(MongoQueryTestSchemas.adapter(indexes = listOf(index))).capabilities
         val text = Document("name", "text").append("key", Document("state.name", "text"))
-        search(text).assert().containsExactlyInAnyOrder(QueryCapability.FULL_TEXT_TERMS, QueryCapability.FULL_TEXT_PHRASE)
+        search(
+            text
+        ).assert().containsExactlyInAnyOrder(QueryCapability.FULL_TEXT_TERMS, QueryCapability.FULL_TEXT_PHRASE)
         search(Document(text).append("hidden", true)).assert().isEmpty()
         search(Document(text).append("partialFilterExpression", Document("deleted", false))).assert().isEmpty()
         search(Document("name", "owner_ix").append("key", Document("tenant_id", 1))).assert().isEmpty()

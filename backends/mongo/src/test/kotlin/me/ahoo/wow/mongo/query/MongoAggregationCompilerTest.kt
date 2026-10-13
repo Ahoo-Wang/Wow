@@ -48,7 +48,9 @@ class MongoAggregationCompilerTest {
         return MongoAggregationCompiler.compile(admitted, limit)
     }
 
-    private fun json(query: AggregationQuery): String = pipeline(query).joinToString("\n") { it.toBsonDocument().toJson() }
+    private fun json(query: AggregationQuery): String = pipeline(
+        query
+    ).joinToString("\n") { it.toBsonDocument().toJson() }
 
     @Test
     fun `terms group by the first value, null without one, and a missing key is a literal`() {
@@ -103,7 +105,9 @@ class MongoAggregationCompilerTest {
     fun `a dense date histogram densifies the bucket index`() {
         val compiled = json(
             AggregationQuery(
-                groupBy = listOf(AggregationGroup.DateHistogram(CREATED, "hour", AggregationDateUnit.HOUR, dense = true)),
+                groupBy = listOf(
+                    AggregationGroup.DateHistogram(CREATED, "hour", AggregationDateUnit.HOUR, dense = true)
+                ),
                 metrics = listOf(AggregationMetric.Count("count")),
             ),
         )
@@ -117,54 +121,28 @@ class MongoAggregationCompilerTest {
             AggregationQuery(
                 metrics = listOf(
                     AggregationMetric.First(NAME, "first", orderBy = CREATED),
-                    AggregationMetric.Last(NAME, "last", orderBy = QueryField("aggregateId"), filter = EqualFilter(STATUS, "\$x")),
+                    AggregationMetric.Last(
+                        NAME,
+                        "last",
+                        orderBy = QueryField("aggregateId"),
+                        filter = EqualFilter(STATUS, "\$x")
+                    ),
                 ),
             ),
         )
         compiled.assert().contains(
             """"${'$'}top": {"sortBy": {"__wow_edge_0": -1, "state.createdAt": 1, "aggregate_id": 1, "tenant_id": 1}""",
         )
-        compiled.assert().contains(""""${'$'}bottom": {"sortBy": {"__wow_edge_1": 1, "aggregate_id": 1, "tenant_id": 1}""")
+        compiled.assert().contains(
+            """"${'$'}bottom": {"sortBy": {"__wow_edge_1": 1, "aggregate_id": 1, "tenant_id": 1}"""
+        )
         // A metric filter's string operand is a literal, not a field path, in expression position.
         compiled.assert().contains("""{"${'$'}literal": "${'$'}x"}""")
     }
 
     @Test
     fun `metrics, derived metrics, windows and HAVING compile in order`() {
-        val query = AggregationQuery(
-            groupBy = listOf(AggregationGroup.Terms(STATUS, "status")),
-            metrics = listOf(
-                AggregationMetric.Count("count", NotEqualFilter(QUANTITY, 1)),
-                AggregationMetric.Numeric(AggregationFunction.SUM, AggregationExpression.Field(AMOUNT), "total"),
-                AggregationMetric.Numeric(AggregationFunction.VARIANCE, AggregationExpression.Field(AMOUNT), "variance"),
-                AggregationMetric.Percentile(AggregationExpression.Field(AMOUNT), 90.0, "p90", ExistsFilter(NAME)),
-                AggregationMetric.DistinctCount(AggregationExpression.Field(QUANTITY), "quantities", InFilter(STATUS, listOf("A"))),
-                AggregationMetric.Any(NAME, "anyName", ContainsFilter(NAME, "a")),
-                AggregationMetric.Derived(
-                    "share",
-                    DerivedExpression.Binary(
-                        AggregationExpressionOperator.DIVIDE,
-                        DerivedExpression.MetricRef("total"),
-                        DerivedExpression.Total("total"),
-                    ),
-                ),
-                AggregationMetric.Derived("running", DerivedExpression.Running("total", Sort(QueryField("status"), Sort.Direction.ASC), frame = 2, function = RunningFunction.SUM)),
-                AggregationMetric.Derived("rank", DerivedExpression.Rank("total", direction = Sort.Direction.DESC)),
-                AggregationMetric.Derived("constant", DerivedExpression.Constant(1.0)),
-            ),
-            having = HavingExpression.And(
-                listOf(
-                    HavingExpression.Condition("count", ComparisonOperator.GT, 1.0),
-                    HavingExpression.Between("total", 1.0, 2.0),
-                    HavingExpression.In("count", listOf(1.0)),
-                    HavingExpression.IsNull("share", negated = true),
-                    HavingExpression.IsNull("rank"),
-                ),
-            ),
-            sort = listOf(Sort(QueryField("total"), Sort.Direction.DESC)),
-            limit = 5,
-        )
-        val stages = pipeline(query, limit = 3)
+        val stages = pipeline(WINDOWED, limit = 3)
         stages.map { it.toBsonDocument().firstKey }.assert().containsExactly(
             "\$match", "\$group", "\$project",
             "\$setWindowFields", "\$set",
@@ -210,7 +188,9 @@ class MongoAggregationCompilerTest {
             ),
         )
         age.assert().contains(""""${'$'}last_event_time"""")
-        age.assert().contains(""""${'$'}divide": [{"${'$'}subtract": ["${'$'}${'$'}to", "${'$'}${'$'}from"]}, 8.64E+7]""")
+        age.assert().contains(
+            """"${'$'}divide": [{"${'$'}subtract": ["${'$'}${'$'}to", "${'$'}${'$'}from"]}, 8.64E+7]"""
+        )
     }
 
     @Test
@@ -236,5 +216,56 @@ class MongoAggregationCompilerTest {
         val AMOUNT = QueryField("state.amount")
         val QUANTITY = QueryField("state.quantity")
         val CREATED = QueryField("state.createdAt")
+
+        /** Every metric kind, a derived metric over each native window, and every HAVING form. */
+        val WINDOWED = AggregationQuery(
+            groupBy = listOf(AggregationGroup.Terms(STATUS, "status")),
+            metrics = listOf(
+                AggregationMetric.Count("count", NotEqualFilter(QUANTITY, 1)),
+                AggregationMetric.Numeric(AggregationFunction.SUM, AggregationExpression.Field(AMOUNT), "total"),
+                AggregationMetric.Numeric(
+                    AggregationFunction.VARIANCE,
+                    AggregationExpression.Field(AMOUNT),
+                    "variance"
+                ),
+                AggregationMetric.Percentile(AggregationExpression.Field(AMOUNT), 90.0, "p90", ExistsFilter(NAME)),
+                AggregationMetric.DistinctCount(
+                    AggregationExpression.Field(QUANTITY),
+                    "quantities",
+                    InFilter(STATUS, listOf("A"))
+                ),
+                AggregationMetric.Any(NAME, "anyName", ContainsFilter(NAME, "a")),
+                AggregationMetric.Derived(
+                    "share",
+                    DerivedExpression.Binary(
+                        AggregationExpressionOperator.DIVIDE,
+                        DerivedExpression.MetricRef("total"),
+                        DerivedExpression.Total("total"),
+                    ),
+                ),
+                AggregationMetric.Derived(
+                    "running",
+                    DerivedExpression.Running(
+                        "total",
+                        Sort(QueryField("status"), Sort.Direction.ASC),
+                        frame = 2,
+                        function = RunningFunction.SUM
+                    )
+                ),
+                AggregationMetric.Derived("rank", DerivedExpression.Rank("total", direction = Sort.Direction.DESC)),
+                AggregationMetric.Derived("constant", DerivedExpression.Constant(1.0)),
+            ),
+            having = HavingExpression.And(
+                listOf(
+                    HavingExpression.Condition("count", ComparisonOperator.GT, 1.0),
+                    HavingExpression.Between("total", 1.0, 2.0),
+                    HavingExpression.In("count", listOf(1.0)),
+                    HavingExpression.IsNull("share", negated = true),
+                    HavingExpression.IsNull("rank"),
+                ),
+            ),
+            sort = listOf(Sort(QueryField("total"), Sort.Direction.DESC)),
+            limit = 5,
+        )
     }
 }
