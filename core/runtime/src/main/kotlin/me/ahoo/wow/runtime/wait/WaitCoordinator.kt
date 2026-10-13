@@ -29,6 +29,7 @@ import kotlinx.coroutines.job
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.result.CommandResult
@@ -42,6 +43,7 @@ import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.ExecutorBusyException
 import me.ahoo.wow.runtime.ExecutorClosedException
 import me.ahoo.wow.runtime.cluster.CommandRouter
+import me.ahoo.wow.runtime.cluster.TopicRouter
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import java.util.UUID
@@ -52,6 +54,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -121,6 +124,14 @@ data class WaitOptions(
  * owner, which executes it with the same wait context and replies with its [Settlement]; either way the wait goes
  * on here, and the later hops are signalled here.
  *
+ * The commands of the types [topicRouter] routes take the `Kafka` router instead (design 02 §2, decision D143): the
+ * command is written to its context's command topic, with the wait context, and the wait reaches ACCEPTED once the
+ * broker acknowledged it, durable from then on; the owner of its log partition executes it from the topic
+ * ([me.ahoo.wow.runtime.command.CommandIntake]) and signals its COMMITTED result and the later hops here, as for a
+ * saga's command. A broker that does not acknowledge it before the deadline ends the wait at ACCEPTED, FAILED. Only
+ * the commands admitted here take it: [forward] routes a saga's, an intake's and a timer's command as before, since
+ * the intake that reads the topic forwards what it reads.
+ *
  * The executions outlive their waits, so a node that stops [join]s them before it closes its executor, then [close]s
  * the coordinator.
  */
@@ -134,6 +145,8 @@ class WaitCoordinator(
     private val waitIds: () -> String = { UUID.randomUUID().toString() },
     private val router: CommandRouter = CommandRouter.LOCAL,
     private val executionContext: CoroutineContext = Dispatchers.Default,
+    /** The `Kafka` router of the context's types configured for it (decision D143); none by default. */
+    private val topicRouter: TopicRouter? = null,
 ) {
     /** Where the commands of [stream] execute, apart from their waits (decision D64). */
     private val executions = CoroutineScope(SupervisorJob() + executionContext)
@@ -208,7 +221,23 @@ class WaitCoordinator(
         val waiting = registry.register(waitId, chain.hops, command.id)
         val settled = AtomicBoolean()
         var expiry: ScheduledFuture<*>? = null
+        val topic = topicRouter?.takeIf { it.routes(command.ref.type) }
         try {
+            if (topic != null) {
+                // The Kafka router (D143): ACCEPTED once durable; the owner signals the rest.
+                val remaining = chain.hops.dropWhile { it.stage == Stage.ACCEPTED }
+                val wait = WaitContext(waitId, options.origin, remaining, deadline).takeIf { remaining.isNotEmpty() }
+                sendToTopic(topic, model, command, wait, deadline)?.let { failed ->
+                    emit(failed)
+                    return@flow
+                }
+                waiting.offer(reachedResult(command, function, Hop.accepted(context), clock()))
+                expiry = expireAt(deadline, waiting, settled)
+                for (result in waiting.results) {
+                    emit(waiting.carry(result))
+                }
+                return@flow
+            }
             waiting.offer(reachedResult(command, function, Hop.accepted(context), clock()))
             // Once ACCEPTED is reached: a timeout answers at the last hop reached.
             expiry = expireAt(deadline, waiting, settled)
@@ -257,11 +286,60 @@ class WaitCoordinator(
      * and returns its result at ACCEPTED at once (decision D100). The command is routed and executed in [scope], apart
      * from the caller, with no wait context, so nothing is signalled about it; its outcome is only logged. Not durable
      * (D15): a node that stops before running it loses it.
+     *
+     * A command of a type [topicRouter] routes is durable instead (decisions D15, D143): it is answered at ACCEPTED
+     * once the broker acknowledged it on its context's command topic, and FAILED at ACCEPTED when the broker did not
+     * within its wait's timeout; the owner of its log partition executes it from there.
      */
-    fun accept(model: AggregateModel<*>, command: Command<*>, scope: CoroutineScope): CommandResult {
+    suspend fun accept(model: AggregateModel<*>, command: Command<*>, scope: CoroutineScope): CommandResult {
         require(command.wait.isAcceptedOnly) { "Only a plan whose only hop is ACCEPTED is answered at once." }
-        scope.launch { runDetached(model, command) }
-        return reachedResult(command, commandFunction(model, command), Hop.accepted(command.ref.type.context), clock())
+        val function = commandFunction(model, command)
+        val hop = Hop.accepted(command.ref.type.context)
+        val topic = topicRouter?.takeIf { it.routes(command.ref.type) }
+        if (topic == null) {
+            scope.launch { runDetached(model, command) }
+            return reachedResult(command, function, hop, clock())
+        }
+        val deadline = clock() + minOf(command.wait.timeout, options.maxTimeout).inWholeMilliseconds
+        return sendToTopic(topic, model, command, null, deadline) ?: reachedResult(command, function, hop, clock())
+    }
+
+    /**
+     * Writes [command] to [topic]'s command topic with [wait] (the Kafka router, decision D143); null once the broker
+     * acknowledged it, else its result at ACCEPTED, FAILED: [ResultCodes.UNKNOWN] when the send failed, the command
+     * perhaps written all the same, or [ResultCodes.WAIT_TIMEOUT] at [deadline]. Either way a retry with the same
+     * request id is safe.
+     */
+    @Suppress("TooGenericExceptionCaught") // Whatever the producer throws, the command may or may not be written.
+    private suspend fun sendToTopic(
+        topic: TopicRouter,
+        model: AggregateModel<*>,
+        command: Command<*>,
+        wait: WaitContext?,
+        deadline: Long,
+    ): CommandResult? {
+        val accepted = {
+            reachedResult(command, commandFunction(model, command), Hop.accepted(command.ref.type.context), clock())
+        }
+        val sent = try {
+            withTimeoutOrNull((deadline - clock()).coerceAtLeast(0).milliseconds) { topic.send(model, command, wait) }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            logger.warn(failure) { "Command ${command.id} on ${command.ref} was not acknowledged on ${topic.topic}." }
+            return accepted().failed(
+                ResultCodes.UNKNOWN,
+                "The command topic ${topic.topic} did not acknowledge the command: ${failure.message}",
+            )
+        }
+        return if (sent == null) {
+            accepted().failed(
+                ResultCodes.WAIT_TIMEOUT,
+                "The wait timed out at ACCEPTED, before the command topic ${topic.topic} acknowledged the command.",
+            )
+        } else {
+            null
+        }
     }
 
     @Suppress("TooGenericExceptionCaught") // Nobody waits for a detached command: whatever fails is logged.

@@ -18,6 +18,7 @@ wow:
   aggregates:
     "[example.cart]":
       tenant: shop
+      routing: kafka
 ```
 
 ## Service and node
@@ -73,6 +74,7 @@ The host serves every context of the domain modules on its class path. `wow.cont
 | `wow.state-cache.capacity` | `4096` | The aggregate states kept per context between commands; `0` keeps none |
 | `wow.tenant.default` | `(0)` | The tenant of a caller that has none, such as the anonymous one |
 | `wow.aggregates.[<context>.<aggregate>].tenant` | None | A fixed tenant for every aggregate of the type, whoever the caller is. A type the node does not serve is refused at startup |
+| `wow.aggregates.[<context>.<aggregate>].routing` | `cluster` | How the type's commands are routed: `cluster` by `wow.cluster.router`; `kafka` through the context's command topic, durable once accepted (decision D143, see [Deployment](./deployment.md#kafka-router)). `kafka` needs `wow.kafka.bootstrap-servers`, and turns on the context's command intake. A type the node does not serve is refused at startup |
 
 Unless the application sets `spring.lifecycle.timeout-per-shutdown-phase`, the host sets it to `wow.wait.max-timeout + wow.cluster.drain-timeout`, so a stopping node has the time it needs; a smaller value the application sets is kept, with a warning.
 

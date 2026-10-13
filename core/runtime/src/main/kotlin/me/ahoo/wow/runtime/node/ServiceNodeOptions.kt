@@ -88,6 +88,11 @@ enum class Routing {
  * - [stateCacheCapacity]: the aggregate states kept per context between commands; 0 keeps none.
  * - [stateViews]: the bounds of each context's state views, shared by its state consumers (decision D133).
  * - [timers]: the timer runner of each context that has a timer store (decision D166).
+ * - [kafkaRouted]: the aggregate types whose commands the `Kafka` router takes (design 02 §2, decision D143): an
+ *   admitted command of one of them is written to its context's command topic, accepted once the broker acknowledged
+ *   it, and executed by the owner of its log partition from there. Each must be a type the node serves, the node
+ *   needs a producer ([SourceTopics.producer]), and each of their contexts takes the commands of its command topic
+ *   whether or not [SourceTopics.intake] is set. None by default.
  */
 data class ServiceNodeOptions(
     val cluster: ClusterOptions = ClusterOptions(),
@@ -101,6 +106,7 @@ data class ServiceNodeOptions(
     val defaultWaitTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT,
     val stateViews: StateViewOptions = StateViewOptions(),
     val timers: TimerOptions = TimerOptions(),
+    val kafkaRouted: Set<AggregateType> = emptySet(),
 ) {
     init {
         require(defaultWaitTimeout.isPositive()) { "The default wait timeout is positive." }

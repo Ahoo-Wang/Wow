@@ -66,10 +66,27 @@ wow:
 | 主题 | 写入方 | 读取方 |
 | --- | --- | --- |
 | `wow.<context>.<aggregate>.state` | 本上下文的 Sink，每个发布的聚合每次提交一条记录 | 其他上下文中读取该流的处理函数 |
-| `wow.<context>.commands` | 其他上下文的 Saga 与定时器 | 本上下文，需设置 `wow.kafka.command-intake: true` |
+| `wow.<context>.commands` | 其他上下文的 Saga 与定时器；本上下文的节点，针对经 Kafka 路由的类型 | 本上下文，需设置 `wow.kafka.command-intake: true` 或有经 Kafka 路由的类型 |
 | `wow.<context>.receipts` | 其他上下文，针对它们拒绝的本上下文命令 | 本上下文的 `@OnRejected` 处理函数 |
 
 Saga 向其他上下文发送命令的节点，没有 Kafka（或其他命令传输）就无法启动。
+
+### Kafka Router
+
+默认情况下，节点经集群通道把命令路由到其聚合日志分区的属主（`wow.cluster.router`）。此时 `accepted` 只表示命令通过了准入：节点在执行它之前停止，命令就会丢失。对于接受之后不能丢失的命令，例如异步摄入或削峰，把它们的聚合类型配置为经 Kafka 路由（决定 D143）：
+
+```yaml
+wow:
+  kafka:
+    bootstrap-servers: kafka:9092
+  aggregates:
+    "[eshop-ordering.order]":
+      routing: kafka
+```
+
+准入这类命令的节点把它写入所在上下文的命令主题，写到其聚合日志分区对应的分区，并等待 broker 确认。该日志分区的属主从主题读取并执行它，所以同一聚合的命令保持顺序。只有 `accepted` 的等待计划在 broker 确认后回 **202**：命令从此持久，节点可以立即宕机。更长的等待（`committed`、`snapshot`、Saga 的跳）照常靠执行它的节点发来的信号。broker 在等待超时前没有确认时，等待在 `accepted` 结束并失败；用同一请求 ID 重试不会重复决定。
+
+无论 `wow.kafka.command-intake` 怎么设，该上下文都会运行命令入口，所以它的命令主题必须恰好有 `wow.log.partitions` 个分区。只有经网关（HTTP、`CommandGateway`）准入的命令走这条路由。Saga、定时器或命令入口发出的命令按 `wow.cluster.router` 路由：它们已经是持久的，因为其订阅或定时器会重试到提交为止。
 
 ### 主题管理
 

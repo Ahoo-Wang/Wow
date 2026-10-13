@@ -18,6 +18,7 @@ wow:
   aggregates:
     "[example.cart]":
       tenant: shop
+      routing: kafka
 ```
 
 ## 服务与节点
@@ -73,6 +74,7 @@ wow:
 | `wow.state-cache.capacity` | `4096` | 每个上下文在命令之间缓存的聚合状态数；`0` 不缓存 |
 | `wow.tenant.default` | `(0)` | 没有租户的调用方（例如匿名调用方）的租户 |
 | `wow.aggregates.[<context>.<aggregate>].tenant` | 无 | 为该类型的所有聚合固定租户，与调用方无关。节点不提供的类型在启动时被拒绝 |
+| `wow.aggregates.[<context>.<aggregate>].routing` | `cluster` | 该类型命令的路由方式：`cluster` 按 `wow.cluster.router`；`kafka` 经所在上下文的命令主题，接受即持久（决定 D143，见[部署](./deployment.md#kafka-router)）。`kafka` 需要 `wow.kafka.bootstrap-servers`，并开启该上下文的命令入口。节点不提供的类型在启动时被拒绝 |
 
 应用未设置 `spring.lifecycle.timeout-per-shutdown-phase` 时，宿主把它设为 `wow.wait.max-timeout + wow.cluster.drain-timeout`，让正在停止的节点有足够的时间；应用设置了更小的值时保留它，并给出警告。
 

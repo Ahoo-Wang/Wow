@@ -66,10 +66,27 @@ With `wow-kafka` and `wow.kafka.bootstrap-servers`, the node uses these topics (
 | Topic | Written by | Read by |
 | --- | --- | --- |
 | `wow.<context>.<aggregate>.state` | This context's Sink, one record per commit of each published aggregate | Other contexts' handlers of the stream |
-| `wow.<context>.commands` | Other contexts' sagas and timers | This context, with `wow.kafka.command-intake: true` |
+| `wow.<context>.commands` | Other contexts' sagas and timers; this context's nodes, for the types routed through Kafka | This context, with `wow.kafka.command-intake: true` or a type routed through Kafka |
 | `wow.<context>.receipts` | Other contexts, for the commands of this context they rejected | This context's `@OnRejected` handlers |
 
 A node whose sagas send commands to another context does not start without Kafka (or another command transport).
+
+### Kafka Router
+
+By default a node routes a command over the cluster channel to the owner of its aggregate's log partition (`wow.cluster.router`). An `accepted` answer then only means the command passed admission: a node that stops before running it loses it. For commands that must not be lost once accepted, such as asynchronous intake or load peaks, route their aggregate type through Kafka (decision D143):
+
+```yaml
+wow:
+  kafka:
+    bootstrap-servers: kafka:9092
+  aggregates:
+    "[eshop-ordering.order]":
+      routing: kafka
+```
+
+The node that admits such a command writes it to the context's command topic, in the partition of its aggregate's log partition, and waits for the broker. The owner of that log partition reads it from there and executes it, so one aggregate's commands keep their order. A wait plan of only `accepted` is answered **202** once the broker acknowledged the command: it is durable from then on, and the node may die at once. A longer wait (`committed`, `snapshot`, a saga's hops) goes on as usual, by the signals of the node that executed it. A broker that does not acknowledge within the wait's timeout ends the wait at `accepted`, failed; a retry with the same request id is not decided twice.
+
+The context runs its command intake whatever `wow.kafka.command-intake` says, so its command topic must have exactly `wow.log.partitions` partitions. Only commands admitted through the gateway (HTTP, `CommandGateway`) take this route. A saga's, a timer's or an intake's command is routed by `wow.cluster.router`: it is already durable, because its subscription or timer retries until it is committed.
 
 ### Topic management
 

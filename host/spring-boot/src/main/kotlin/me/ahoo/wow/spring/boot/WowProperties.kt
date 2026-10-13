@@ -72,8 +72,9 @@ import kotlin.time.toKotlinDuration
  *   of the scheduled commands (decision D166), see [Timers].
  * - `wow.tenant.default`: the tenant of a caller that has none (D97).
  * - `wow.http.request-facts`, `wow.http.errors.[<code>].status`, `wow.http.manifest.enabled`.
- * - `wow.aggregates.[<context>.<aggregate>].tenant`: a fixed tenant per aggregate type (decision D116), see
- *   [Aggregate].
+ * - `wow.aggregates.[<context>.<aggregate>].tenant`: a fixed tenant per aggregate type (decision D116), and
+ *   `wow.aggregates.[<context>.<aggregate>].routing`: `cluster` (the default, the node's `wow.cluster.router`) or
+ *   `kafka`, the `Kafka` router (decision D143), see [Aggregate].
  */
 @ConfigurationProperties(prefix = WowProperties.PREFIX)
 class WowProperties {
@@ -429,6 +430,25 @@ class WowProperties {
      */
     class Aggregate {
         var tenant: String? = null
+
+        /**
+         * How the commands of the type are routed (design 02 §2): by the node's router, or through its context's
+         * command topic, accepted once the broker acknowledged them (decision D143), which needs Kafka.
+         */
+        var routing: AggregateRouting = AggregateRouting.CLUSTER
+    }
+
+    /** How the commands of an aggregate type are routed (`wow.aggregates.[<context>.<aggregate>].routing`). */
+    enum class AggregateRouting {
+        /** By the node's router, `wow.cluster.router`: on the owner of the aggregate's partition, or here. */
+        CLUSTER,
+
+        /**
+         * The `Kafka` router (decision D143): written to the context's command topic `wow.<context>.commands`, and
+         * executed from there by the owner of the aggregate's log partition. ACCEPTED means durable: a plan that
+         * waits only for it is answered 202 once the broker acknowledged the command.
+         */
+        KAFKA,
     }
 
     companion object {

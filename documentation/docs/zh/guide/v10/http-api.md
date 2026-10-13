@@ -89,7 +89,7 @@ Wow-Wait: committed > handled(example/OrderSaga.onOrderCreated) > committed(inve
 
 ### 响应
 
-- **200** 带等待结束时的 `CommandResult`；计划止于 `accepted` 时为 **202**。
+- **200** 带等待结束时的 `CommandResult`；计划止于 `accepted` 时为 **202**。只有当聚合类型经 Kafka 路由时（[Kafka Router](./deployment.md#kafka-router)），202 才表示命令不会丢失；否则命令在接收它的节点上脱离请求执行。
 - 命令被拒绝或失败时返回 **RFC 9457 问题详情**（`application/problem+json`）：`type` 为 `urn:wow:error:<code>`，`code` 与 `status` 重复给出，正文带上结果。领域错误码的状态码取自它的 `@ErrorCode(status)`，默认 422，可用 `wow.http.errors.[<code>].status` 按错误码覆盖。
 - **带 `Accept: text/event-stream`** 时由第一个结果决定：准入拒绝返回问题详情；否则返回 200，之后每个结果一个事件（事件名为该跳的阶段，数据为结果），直到等待结束。准入之后的拒绝或失败是最后一个事件。
 

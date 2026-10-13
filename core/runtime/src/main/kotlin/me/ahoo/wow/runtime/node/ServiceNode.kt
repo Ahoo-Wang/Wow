@@ -45,6 +45,7 @@ import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
 import me.ahoo.wow.runtime.cluster.PartitionedRouter
 import me.ahoo.wow.runtime.cluster.Refusal
+import me.ahoo.wow.runtime.cluster.TopicRouter
 import me.ahoo.wow.runtime.command.CommandIntake
 import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.command.MessageEntries
@@ -172,6 +173,11 @@ class ContextTimers internal constructor(
  * [PartitionOwnership]: the owner of a log partition reads the same partition of the topic, and [start] fails unless
  * the topic has as many partitions as the log.
  *
+ * **The `Kafka` router** (design 02 §2, decision D143): the commands admitted for the aggregate types of
+ * [ServiceNodeOptions.kafkaRouted] are written to their context's command topic ([TopicRouter]) and executed by the
+ * owner of their log partition through the context's intake, which every such context runs; the node is not built
+ * when it does not serve one of those types, or has no producer in [topics].
+ *
  * **Topics** (decision D168): [start] first validates or creates the topics the node's contexts own
  * ([topicRequirements]) as [SourceTopics.ddl] says, and fails when one is not as they need it.
  *
@@ -285,6 +291,21 @@ class ServiceNode(
                         "$subscription sends commands to ${contexts.joinToString()}"
                     } + ": a command across contexts goes through its context's command topic (decision D33)."
             }
+        }
+    }
+
+    /** The contexts of the types the `Kafka` router takes (decision D143): each takes the commands of its topic. */
+    private val kafkaRoutedContexts: Set<String> = options.kafkaRouted.mapTo(LinkedHashSet()) { it.context }
+
+    init {
+        val unknown = options.kafkaRouted.filter { registry.find(it) == null }
+        require(unknown.isEmpty()) {
+            "The Kafka router is configured for $unknown, which node $node does not serve; it serves " +
+                "${registry.models.map { it.type }}."
+        }
+        require(options.kafkaRouted.isEmpty() || topics?.producer != null) {
+            "The Kafka router of ${options.kafkaRouted} writes their commands to their command topics, but node $node " +
+                "has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers; decision D143)."
         }
     }
 
@@ -633,7 +654,7 @@ class ServiceNode(
      * its lease [group] and stores: the topic's partitions are the log's (decision D135), so the same leases drive both.
      */
     private fun intakeOf(context: String, group: LeaseGroup, backends: ContextBackends): SubscriptionRuntime? =
-        topics?.takeIf { it.intake }?.let {
+        topics?.takeIf { it.intake || context in kafkaRoutedContexts }?.let {
             SubscriptionRuntime(
                 group.name,
                 MessageEntries.commands(it.commandsOf(context), it.source, backends.log.partitions),
@@ -780,7 +801,15 @@ class ServiceNode(
     ) {
         fun complete(): ContextNode {
             val directory = contracts.over(subscriptions, context)
-            val coordinator = WaitCoordinator(executor, waits, directory, signals, waitOptions, router = router)
+            val coordinator = WaitCoordinator(
+                executor,
+                waits,
+                directory,
+                signals,
+                waitOptions,
+                router = router,
+                topicRouter = topicRouterOf(context, backends),
+            )
             val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership))
             firing.firer = ContextTimerFirer(models, coordinator, sender)
             return ContextNode(
@@ -804,6 +833,21 @@ class ServiceNode(
                 timers,
             )
         }
+    }
+
+    /** The `Kafka` router of [context]'s types in [ServiceNodeOptions.kafkaRouted], if any (decision D143). */
+    private fun topicRouterOf(context: String, backends: ContextBackends): TopicRouter? {
+        val types = options.kafkaRouted.filterTo(LinkedHashSet()) { it.context == context }
+        if (types.isEmpty()) {
+            return null
+        }
+        val transport = checkNotNull(topics)
+        return TopicRouter(
+            types,
+            transport.commandsOf(context),
+            backends.log.partitions,
+            checkNotNull(transport.producer)
+        )
     }
 
     /** The context's timer firer, known once its coordinator is: the runner is built before it. */
