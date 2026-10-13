@@ -78,9 +78,8 @@ import kotlin.time.Duration.Companion.milliseconds
  * sequence is skipped. That abort-and-retry is why appends to one partition should come from its owner, serialized
  * (finding F1).
  *
- * **Aggregate collections.** The collections of [aggregates] and their indexes are created by [createSchema]; any
- * other aggregate type's are created the first time this log touches the type, so a new aggregate type needs no
- * restart. Every aggregate collection is recorded in a registry collection ([REGISTRY]) before its first entry is
+ * **Aggregate collections.** An aggregate type's collection and its indexes are created the first time this log
+ * touches the type, or up front by [createCollection]; a new aggregate type needs no restart. Every aggregate collection is recorded in a registry collection ([REGISTRY]) before its first entry is
  * written, and [tail] reads the context's collections from it.
  *
  * **Tail.** [tail] reads a partition in one aggregation: the partition's counter first, then, through `$unionWith`,
@@ -107,7 +106,6 @@ class MongoEventLog(
     databaseName: String,
     private val context: String,
     override val partitions: Int,
-    private val aggregates: Collection<String> = emptyList(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     private val pollInterval: Duration = DEFAULT_POLL_INTERVAL,
     private val tailBatch: Int = DEFAULT_TAIL_BATCH,
@@ -138,8 +136,8 @@ class MongoEventLog(
     }
 
     /**
-     * Creates the partition counters and the collections of [aggregates] with their indexes when missing; refuses a
-     * different partition count, and a log recorded in another format version ([MongoFormat]).
+     * Creates the partition counters when missing; refuses a different partition count, and a log recorded in another
+     * format version ([MongoFormat]). The aggregate collections are created on first use, or by [createCollection].
      */
     fun createSchema() {
         MongoFormat.claim(database, countersName, FORMAT)
@@ -151,12 +149,20 @@ class MongoEventLog(
         check(existing == partitions.toLong()) {
             "The log of $context has $existing partitions, not $partitions: changing it is a repartition."
         }
-        aggregates.forEach { collectionOf(it) }
     }
 
     private fun collectionOf(type: AggregateType): AggregateCollection {
         require(type.context == context) { "$type is not in context $context." }
         return collectionOf(type.name)
+    }
+
+    /**
+     * Creates the indexes of [aggregateName]'s log collection and registers it when missing, once per log; refuses a
+     * collection recorded in another format version ([MongoFormat]), and an aggregate whose collection name another
+     * aggregate has.
+     */
+    fun createCollection(aggregateName: String) {
+        collectionOf(aggregateName)
     }
 
     /** The collection of [aggregate], created and registered when this log has not yet made sure it is. */

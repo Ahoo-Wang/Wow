@@ -44,7 +44,10 @@ object PostgresFixture {
         partitions: Int,
         context: String = newContext(),
         aggregates: Collection<String> = emptyList(),
-    ): PostgresEventLog = PostgresEventLog(dataSource, context, partitions, aggregates).also { it.createSchema() }
+    ): PostgresEventLog = PostgresEventLog(dataSource, context, partitions).also { log ->
+        log.createSchema()
+        aggregates.forEach { log.createTable(it) }
+    }
 
     fun snapshotStore(context: String = newContext()): PostgresSnapshotStore =
         PostgresSnapshotStore(dataSource, context).also { it.createSchema() }

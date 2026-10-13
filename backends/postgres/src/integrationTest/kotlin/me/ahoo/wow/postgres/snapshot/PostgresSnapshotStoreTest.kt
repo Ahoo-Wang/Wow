@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.postgres.PostgresFixture
+import me.ahoo.wow.postgres.PostgresIdentifiers
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotStoreSpec
 import org.junit.jupiter.api.Test

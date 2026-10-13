@@ -95,9 +95,9 @@ class PostgresEventLogTest : EventLogSpec() {
         val log = PostgresFixture.log(1, context, listOf(long.name))
         log.append(stream("a", 1, aggregate = long)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
         log.append(stream("a", 1, aggregate = long)).assert().isEqualTo(AppendOutcome.Conflict(1))
-        val name = PostgresNames.of("wow_log", context, long.name)
-        name.length.assert().isEqualTo(PostgresNames.MAX_LENGTH)
-        name.assert().isEqualTo(PostgresNames.limited(table(context, long.name)))
+        val name = PostgresIdentifiers.of("wow_log", context, long.name)
+        name.length.assert().isEqualTo(PostgresIdentifiers.MAX_LENGTH)
+        name.assert().isEqualTo(PostgresIdentifiers.limited(table(context, long.name)))
     }
 
     @Test

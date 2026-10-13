@@ -41,8 +41,8 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * Each aggregate type has its own collection, `wow_snapshot__<context>__<aggregate>` (decision D161), holding one
  * document per aggregate, keyed by a unique index on (tenant, aggregate id); the document has no aggregate name, the
- * collection is the aggregate type. The collections of [aggregates] are created by [createSchema]; any other aggregate
- * type's is created, with its key and format record, the first time this store touches the type.
+ * collection is the aggregate type. An aggregate type's collection is created, with its key and format record, the
+ * first time this store touches the type, or up front by [createCollection].
  * The state and the tags are BSON documents, so the snapshot can be queried in place as the default read model; the
  * state's decimals are `Decimal128`, exact ([ExactBson]).
  * A save is one conditional upsert whose filter carries the version guard (`version < new`): no transaction, and
@@ -55,7 +55,6 @@ class MongoSnapshotStore(
     client: MongoClient,
     databaseName: String,
     private val context: String,
-    private val aggregates: Collection<String> = emptyList(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
 ) : SnapshotStore {
     private val database = client.getDatabase(databaseName)
@@ -64,11 +63,17 @@ class MongoSnapshotStore(
     private val ensured = ConcurrentHashMap<String, MongoCollection<Document>>()
 
     /**
-     * Creates the collections of [aggregates] with their key index when missing; refuses snapshots recorded in
-     * another format version ([MongoFormat]).
+     * Nothing to create up front: each aggregate type's collection is created on its first use ([createCollection]),
+     * since the store does not know the context's aggregate types. Kept for the host, which calls it at startup.
      */
-    fun createSchema() {
-        aggregates.forEach { collectionOf(it) }
+    fun createSchema() = Unit
+
+    /**
+     * Creates the key index of [aggregateName]'s collection when missing, once per store; refuses snapshots recorded
+     * in another format version ([MongoFormat]).
+     */
+    fun createCollection(aggregateName: String) {
+        collectionOf(aggregateName)
     }
 
     private fun collectionOf(aggregate: String): MongoCollection<Document> =

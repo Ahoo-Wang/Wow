@@ -63,8 +63,9 @@ import kotlin.time.Duration.Companion.milliseconds
  * partition's sequences have no gaps. The transport is stored in its own column and read back only by [tail] and
  * [readEntries].
  *
- * **Aggregate tables.** The tables of [aggregates] are created by [createSchema]; any other aggregate type's table is
- * created the first time this log touches the type, so a new aggregate type needs no restart. Every aggregate table
+ * **Aggregate tables.** As the snapshot tables ([me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore]), an aggregate
+ * type's table is created the first time this log touches the type, or up front by [createTable]; a new aggregate
+ * type needs no restart. Every aggregate table
  * is recorded in a registry table ([PostgresEventLogTables.REGISTRY]) before its first entry is written, and [tail]
  * reads the context's tables from it: a node tailing a partition finds the tables other nodes created, whether or not
  * it knows their aggregate types.
@@ -84,7 +85,6 @@ class PostgresEventLog(
     private val dataSource: DataSource,
     private val context: String,
     override val partitions: Int,
-    private val aggregates: Collection<String> = emptyList(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     private val pollInterval: Duration = DEFAULT_POLL_INTERVAL,
     private val tailBatch: Int = DEFAULT_TAIL_BATCH,
@@ -103,16 +103,19 @@ class PostgresEventLog(
     }
 
     /**
-     * Creates the partition counters, the registry and the tables of [aggregates] when missing; refuses a different
-     * partition count, and a log recorded in another format version ([PostgresFormat]).
+     * Creates the partition counters and the registry when missing; refuses a different partition count, and a log
+     * recorded in another format version ([PostgresFormat]). The aggregate tables are created on first use, or by
+     * [createTable].
      */
     fun createSchema() {
         dataSource.connection.use { connection ->
-            PostgresFormat.claim(connection, tables.partitionsBase, PostgresEventLogTables.FORMAT)
-            PostgresFormat.claim(connection, PostgresEventLogTables.REGISTRY, PostgresEventLogTables.FORMAT)
-            connection.createStatement().use { statement ->
-                tables.ddl().forEach { statement.execute(it) }
-                statement.execute(tables.initializePartitions(partitions))
+            PostgresFormat.creating(connection) {
+                PostgresFormat.claim(connection, tables.partitionsBase, PostgresEventLogTables.FORMAT)
+                PostgresFormat.claim(connection, PostgresEventLogTables.REGISTRY, PostgresEventLogTables.FORMAT)
+                connection.createStatement().use { statement ->
+                    tables.ddl().forEach { statement.execute(it) }
+                    statement.execute(tables.initializePartitions(partitions))
+                }
             }
             connection.prepareStatement("SELECT count(*) FROM ${tables.partitions}").use { query ->
                 query.executeQuery().use { rows ->
@@ -123,8 +126,15 @@ class PostgresEventLog(
                     }
                 }
             }
-            aggregates.forEach { tableOf(connection, it) }
         }
+    }
+
+    /**
+     * Creates and registers the log table of [aggregateName] when missing, once per log; refuses a table recorded in
+     * another format version ([PostgresFormat]), and an aggregate whose table name another aggregate has.
+     */
+    fun createTable(aggregateName: String) {
+        dataSource.connection.use { tableOf(it, aggregateName) }
     }
 
     /** The table of [aggregate], created and registered when this log has not yet made sure it is. */
@@ -140,13 +150,8 @@ class PostgresEventLog(
      * Claims [table]'s format, creates it and records it in the registry, in one transaction under an advisory lock,
      * so that nodes creating tables at once neither race the format record nor two aggregates take one table name.
      */
-    private fun ensure(connection: Connection, table: AggregateLogTable): AggregateLogTable {
-        connection.autoCommit = false
-        try {
-            connection.prepareStatement("SELECT pg_advisory_xact_lock(?)").use { lock ->
-                lock.setLong(1, PostgresEventLogTables.REGISTRY_LOCK)
-                lock.executeQuery().close()
-            }
+    private fun ensure(connection: Connection, table: AggregateLogTable): AggregateLogTable =
+        PostgresFormat.creating(connection) {
             PostgresFormat.claim(connection, table.base, PostgresEventLogTables.FORMAT)
             connection.createStatement().use { it.execute(table.ddl()) }
             connection.prepareStatement(tables.register).use { register ->
@@ -166,18 +171,8 @@ class PostgresEventLog(
                 "The aggregate ${table.aggregate} of $context takes the log table ${table.base}, " +
                     "which the aggregate ${holder.second} of ${holder.first} has."
             }
-            connection.commit()
-        } catch (
-            @Suppress("TooGenericExceptionCaught") // Rolls back whatever failed, then rethrows it unchanged.
-            failure: Throwable,
-        ) {
-            connection.rollback()
-            throw failure
-        } finally {
-            connection.autoCommit = true
+            table
         }
-        return table
-    }
 
     /** Reads the registry again: the aggregate tables of the context, in registry order. */
     private fun register(connection: Connection): List<AggregateLogTable> {

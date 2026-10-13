@@ -38,7 +38,10 @@ object MongoLogFixture {
         partitions: Int,
         context: String = newContext(),
         aggregates: Collection<String> = emptyList(),
-    ): MongoEventLog = MongoEventLog(client, DATABASE, context, partitions, aggregates).also { it.createSchema() }
+    ): MongoEventLog = MongoEventLog(client, DATABASE, context, partitions).also { log ->
+        log.createSchema()
+        aggregates.forEach { log.createCollection(it) }
+    }
 
     /** Creates [collection] the way a build without format records did: the collection alone. */
     fun createUnrecorded(collection: String) {

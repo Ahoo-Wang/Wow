@@ -22,7 +22,7 @@ package me.ahoo.wow.postgres
  * - [REGISTRY], shared by every context: which aggregate tables each context's log has, so that a tail finds them all.
  */
 internal class PostgresEventLogTables(val context: String) {
-    val partitionsBase = PostgresNames.of(PREFIX, context, PARTITION)
+    val partitionsBase = PostgresIdentifiers.of(PREFIX, context, PARTITION)
     val partitions = "\"$partitionsBase\""
 
     fun ddl(): List<String> = listOf(
@@ -49,7 +49,7 @@ internal class PostgresEventLogTables(val context: String) {
 
     /** The table of [aggregate]; refuses a name that takes the counter table's. */
     fun aggregate(aggregate: String): AggregateLogTable {
-        val table = AggregateLogTable(aggregate, PostgresNames.of(PREFIX, context, aggregate), partitions)
+        val table = AggregateLogTable(aggregate, PostgresIdentifiers.of(PREFIX, context, aggregate), partitions)
         require(table.base != partitionsBase) {
             "The aggregate $aggregate of $context would take the name of the log's partition counters."
         }
@@ -109,9 +109,6 @@ internal class PostgresEventLogTables(val context: String) {
         /** The registry of aggregate tables, shared by the logs of every context. */
         const val REGISTRY = "wow_log_aggregate"
 
-        /** Serializes the creation and registration of aggregate tables (`pg_advisory_xact_lock`). */
-        const val REGISTRY_LOCK = 0x776f775f6c6f67L
-
         const val PREFIX = "wow_log"
         const val PARTITION = "partition"
     }
@@ -126,8 +123,8 @@ internal class PostgresEventLogTables(val context: String) {
  */
 internal class AggregateLogTable(val aggregate: String, val base: String, private val partitions: String) {
     val log = "\"$base\""
-    val versionKey = PostgresNames.limited("${base}_version_key")
-    val requestKey = PostgresNames.limited("${base}_request_key")
+    val versionKey = PostgresIdentifiers.limited("${base}_version_key")
+    val requestKey = PostgresIdentifiers.limited("${base}_request_key")
 
     fun ddl(): String = """
         CREATE TABLE IF NOT EXISTS $log (

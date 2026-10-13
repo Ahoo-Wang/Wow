@@ -30,8 +30,8 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
     override fun createStore(context: String): SnapshotStore = store(context)
 
     private fun store(context: String = MongoLogFixture.newContext()) =
-        MongoSnapshotStore(MongoLogFixture.client, MongoLogFixture.DATABASE, context, listOf("aggregate"))
-            .also { it.createSchema() }
+        MongoSnapshotStore(MongoLogFixture.client, MongoLogFixture.DATABASE, context)
+            .also { it.createCollection("aggregate") }
 
     private fun collection(context: String, aggregate: String = "aggregate") =
         "wow_snapshot__${context.replace('-', '_')}__$aggregate"
