@@ -23,6 +23,7 @@ import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
+import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.wait.WaitOptions
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
@@ -46,6 +47,9 @@ import kotlin.time.toKotlinDuration
  * - `wow.wait.default-timeout` (10s), `max-timeout` (60s), `max-hops` (4): the default timeout is the node's
  *   ([ServiceNodeOptions.defaultWaitTimeout]), for every command whose request names none.
  * - `wow.executor.lane-capacity`, `wow.state-cache.capacity`, `wow.subscription.*`.
+ * - `wow.subscriptions.[<subscription>].start`: `beginning`, `end` or an ISO-8601 instant, where the subscription
+ *   (`processor.function`, bracketed for its dot) starts in a partition it has no checkpoint in yet, instead of its
+ *   kind's default (decision D154), see [SubscriptionSettings].
  * - `wow.tenant.default`: the tenant of a caller that has none (D97).
  * - `wow.http.request-facts`, `wow.http.errors.[<code>].status`, `wow.http.manifest.enabled`.
  * - `wow.aggregates.[<context>.<aggregate>].tenant`: a fixed tenant per aggregate type (decision D116), see
@@ -65,6 +69,9 @@ class WowProperties {
     var executor: Executor = Executor()
     var stateCache: StateCache = StateCache()
     var subscription: Subscription = Subscription()
+
+    /** Per subscription, by its name (bracketed in a property name: `wow.subscriptions.[CartSaga.onOrderCreated]`). */
+    var subscriptions: MutableMap<String, SubscriptionSettings> = LinkedHashMap()
     var tenant: Tenant = Tenant()
     var http: Http = Http()
 
@@ -179,13 +186,29 @@ class WowProperties {
         /** How a failing read of the log is retried. */
         var readRetry: Retry = Retry.of(DEFAULT_SUBSCRIPTION.readRetry)
 
-        fun options(): SubscriptionOptions = SubscriptionOptions(
-            maxInFlight = maxInFlight,
-            retry = retry.policy(),
-            checkpointInterval = checkpointInterval.toKotlinDuration(),
-            stopTimeout = stopTimeout.toKotlinDuration(),
-            readRetry = readRetry.policy(),
-        )
+        /** These options, with the starts [subscriptions] configure. */
+        fun options(subscriptions: Map<String, SubscriptionSettings> = emptyMap()): SubscriptionOptions =
+            SubscriptionOptions(
+                maxInFlight = maxInFlight,
+                retry = retry.policy(),
+                checkpointInterval = checkpointInterval.toKotlinDuration(),
+                stopTimeout = stopTimeout.toKotlinDuration(),
+                readRetry = readRetry.policy(),
+                starts = subscriptions.mapNotNull { (name, settings) ->
+                    settings.start?.takeIf { it.isNotBlank() }?.let { name to SubscriptionStart.parse(it) }
+                }.toMap(),
+            )
+    }
+
+    /**
+     * One subscription's settings. [start] is where it starts in a partition it has no checkpoint in yet (decision
+     * D154): `beginning`, `end`, or an ISO-8601 instant (`2026-10-01T00:00:00Z`), the first entry committed at or
+     * after it; unset, its kind's default (a projection from the beginning, a reactor or a saga from the end). A
+     * subscription that has a checkpoint goes on from it. A name the node has no subscription of is refused at
+     * startup.
+     */
+    class SubscriptionSettings {
+        var start: String? = null
     }
 
     class Retry {

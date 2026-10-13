@@ -15,7 +15,9 @@ package me.ahoo.wow.runtime.binding
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.InMemoryEventLog
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.runtime.Executor
@@ -63,8 +65,8 @@ class DerivedCommandsTest {
         runBlocking {
             val add = command("c-1", AddItems(listOf("apple")))
             derived.execute(listOf(add, command("c-2", RemoveItems(listOf("pear")))), null)
-                .assert().containsExactly("c-1", "c-2")
-            derived.execute(listOf(add), null).assert().containsExactly("c-1")
+                .executed.assert().containsExactly("c-1", "c-2")
+            derived.execute(listOf(add), null).executed.assert().containsExactly("c-1")
             decided.assert().containsExactly("c-2")
         }
 
@@ -80,12 +82,29 @@ class DerivedCommandsTest {
     }
 
     @Test
-    fun `a rejected command should fail the saga with its rejection`(): Unit = runBlocking {
+    fun `a rejected command should stop the execution and say which it was, not fail it`(): Unit = runBlocking {
         derived.execute(listOf(command("c-1", AddItems(listOf("apple")))), null)
-        val failure = runCatching {
-            derived.execute(listOf(command("c-2", RemoveItems(listOf(FORBIDDEN_ITEM)))), null)
-        }.exceptionOrNull() as DerivedCommandRejectedException
-        failure.rejection.code.assert().isEqualTo(FORBIDDEN)
-        failure.command.id.assert().isEqualTo("c-2")
+        val rejected = command("c-2", RemoveItems(listOf(FORBIDDEN_ITEM)))
+        val after = command("c-3", AddItems(listOf("pear")))
+        val executed = derived.execute(listOf(rejected, after), null)
+        // Decision D153: a business outcome, not a failure; the commands after it are not executed.
+        executed.executed.assert().containsExactly("c-2")
+        val rejection = executed.rejected!!
+        rejection.command.assert().isEqualTo(rejected)
+        rejection.rejection.code.assert().isEqualTo(FORBIDDEN)
+        rejection.error.code.assert().isEqualTo(FORBIDDEN)
+        rejection.commandType.assert().isEqualTo("shop.cart.RemoveItems")
+        decided.assert().doesNotContain("c-3")
+        val execution = ExecutionId("CartSaga.onEvent", ORDER.ref(TENANT, "o-1"), 2)
+        val handed = rejection.toCommandRejected(execution)
+        handed.commandId.assert().isEqualTo("c-2")
+        handed.commandType.assert().isEqualTo("shop.cart.RemoveItems")
+        handed.ref.assert().isEqualTo(rejected.ref)
+        handed.executionId.assert().isEqualTo(execution)
+        // A command without a causation is its own root.
+        handed.causation.assert().isEqualTo(Causation("c-2", "c-2"))
+        val failure = DerivedCommandRejectedException(rejected, rejection.rejection)
+        failure.error.code.assert().isEqualTo(FORBIDDEN)
+        failure.message!!.assert().contains("c-2", FORBIDDEN)
     }
 }

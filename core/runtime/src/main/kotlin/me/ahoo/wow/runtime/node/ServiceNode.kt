@@ -234,6 +234,19 @@ class ServiceNode(
 
     private val applicationSubscriptions = contexts.values.associateWith { subscriptions.subscriptions(it) }
 
+    init {
+        // A start configured for a subscription the node does not have is a typo, not a no-op (decision D154).
+        val names = contexts.values.flatMapTo(HashSet()) { context ->
+            applicationSubscriptions.getValue(context).map { it.name } +
+                listOfNotNull(context.snapshots?.subscription?.name, context.reservations?.subscription?.name)
+        }
+        options.subscription.starts.keys.filterNot { it in names }.forEach {
+            throw IllegalArgumentException(
+                "A start is configured for the subscription $it, which node $node does not have: ${names.sorted()}.",
+            )
+        }
+    }
+
     private val lifecycle = Mutex()
 
     /** Where the node is in its lifecycle. */

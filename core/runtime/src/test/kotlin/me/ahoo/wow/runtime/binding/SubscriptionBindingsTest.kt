@@ -201,20 +201,23 @@ class SubscriptionBindingsTest {
     }
 
     @Test
-    fun `a rejected derived command should fail the saga, park the order and fail the wait at its hop`(): Unit = runBlocking {
-        node.start()
-        fill("bob", "apple")
-        val all = mutableListOf<CommandResult>()
-        place("o-4", "bob", FORBIDDEN_ITEM, wait = sagaChain).collect { all += it }
-        val last = all.last()
-        last.status.assert().isEqualTo(CommandResult.Status.FAILED)
-        last.hop.subscription.assert().isEqualTo(saga.name)
-        val ledger = backends.opened.getValue(SHOP).ledger
-        eventually { ledger.isParked(saga.name, ORDER.ref(TENANT, "o-4")) }
-        ledger.parked(saga.name, ORDER.ref(TENANT, "o-4"))!!.reason.assert().contains(FORBIDDEN)
-        // Each retry derived the same request again.
-        decided.distinct().assert().hasSize(1)
-    }
+    fun `a rejected derived command no handler takes should park the order at once and reject the wait at its hop`(): Unit =
+        runBlocking {
+            node.start()
+            fill("bob", "apple")
+            val all = mutableListOf<CommandResult>()
+            place("o-4", "bob", FORBIDDEN_ITEM, wait = sagaChain).collect { all += it }
+            // Decision D153: the wait ends at the saga's hop with the rejection, not a parking failure.
+            val last = all.last()
+            last.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            last.error!!.code.assert().isEqualTo(FORBIDDEN)
+            last.hop.subscription.assert().isEqualTo(saga.name)
+            val ledger = backends.opened.getValue(SHOP).ledger
+            eventually { ledger.isParked(saga.name, ORDER.ref(TENANT, "o-4")) }
+            ledger.parked(saga.name, ORDER.ref(TENANT, "o-4"))!!.reason.assert().contains(FORBIDDEN)
+            // A rejection is not retried: the cart decided the request once.
+            decided.assert().hasSize(1)
+        }
 
     @Test
     fun `a failing handler should park its aggregate and fail the wait for its hop`(): Unit = runBlocking {
@@ -242,7 +245,7 @@ class SubscriptionBindingsTest {
         val stream = log.read(ORDER.ref(TENANT, "o-5")).first()
         val entry = subscription.decoder.decode(stream, null, null)
         val again = subscription.handle(entry)
-        again.assert().containsExactly(decided.single())
+        again.derived.assert().containsExactly(decided.single())
         // The kernel found the request committed: the cart did not decide it again.
         decided.assert().hasSize(1)
     }
@@ -301,6 +304,6 @@ class SubscriptionBindingsTest {
         val elsewhere = Command("c", "r", me.ahoo.wow.api.aggregate.AggregateType("mail", "box").ref(TENANT, "m"), "x")
         runCatching { derived.execute(listOf(elsewhere), null) }.exceptionOrNull()!!.message.assert()
             .contains("an aggregate type its context does not have")
-        derived.execute(emptyList(), null).assert().isEmpty()
+        derived.execute(emptyList(), null).executed.assert().isEmpty()
     }
 }

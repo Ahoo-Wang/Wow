@@ -36,6 +36,8 @@ import me.ahoo.wow.api.subscribe.SubscriptionContext
  *   commands for the history.
  * - [blocking] (`@Blocking`, design 01 §4) asks the runtime to run the call on virtual threads instead of inline.
  * - [invoke] calls the handler directly and returns the commands a saga derives; a projection's or a reactor's none.
+ * - [rejections] are a saga's `@OnRejected` handlers (decisions D136, D153), the same for each handler of the saga:
+ *   the runtime hands the rejection of a command this handler derived to the one [rejectionHandlerOf] its class.
  *
  * Built with [project], [react] or [saga], one per kind.
  */
@@ -48,12 +50,27 @@ class ProcessorBinding<S : Any> private constructor(
     val stateType: Class<S>?,
     val startFrom: StartFrom,
     val blocking: Boolean,
+    val rejections: List<RejectionBinding<*>>,
     private val call: suspend (StateEvent<S>, SubscriptionContext) -> List<Command<*>>,
 ) {
     init {
         require(processor.isNotBlank()) { "A handler names its processor." }
         require(function.isNotBlank()) { "A handler names its function." }
+        rejections.forEach {
+            require(it.processor == processor) { "$it is not a handler of $processor." }
+        }
+        rejections.groupBy { it.commandType }.filterValues { it.size > 1 }.keys.forEach {
+            throw IllegalArgumentException(
+                "$processor has two @OnRejected handlers of the rejections of ${it?.name ?: "every command"}.",
+            )
+        }
     }
+
+    /**
+     * The `@OnRejected` handler of the saga for the rejection of a command of [command] this handler derived
+     * ([RejectionBinding.handlerOf]); null when the saga has none for it.
+     */
+    fun rejectionHandlerOf(command: Class<*>): RejectionBinding<*>? = RejectionBinding.handlerOf(rejections, command)
 
     /** The subscription the handler is compiled into: `processor.function` (design 04 §1). */
     val name: String = "$processor.$function"
@@ -85,7 +102,15 @@ class ProcessorBinding<S : Any> private constructor(
             startFrom: StartFrom = defaultStartFrom(FunctionKind.PROJECT),
             handle: suspend (StateEvent<S>, ProjectContext) -> Unit,
         ): ProcessorBinding<S> =
-            ProcessorBinding(processor, function, FunctionKind.PROJECT, stateType, startFrom, blocking) { e, c ->
+            ProcessorBinding(
+                processor,
+                function,
+                FunctionKind.PROJECT,
+                stateType,
+                startFrom,
+                blocking,
+                emptyList()
+            ) { e, c ->
                 handle(e, c as ProjectContext)
                 emptyList()
             }
@@ -101,12 +126,23 @@ class ProcessorBinding<S : Any> private constructor(
             startFrom: StartFrom = defaultStartFrom(FunctionKind.REACT),
             handle: suspend (StateEvent<S>, ReactContext) -> Unit,
         ): ProcessorBinding<S> =
-            ProcessorBinding(processor, function, FunctionKind.REACT, stateType, startFrom, blocking) { e, c ->
+            ProcessorBinding(
+                processor,
+                function,
+                FunctionKind.REACT,
+                stateType,
+                startFrom,
+                blocking,
+                emptyList()
+            ) { e, c ->
                 handle(e, c as ReactContext)
                 emptyList()
             }
 
-        /** A `@Saga`'s handler [function] of [processor]: it returns the commands it derives ([derivedOf]). */
+        /**
+         * A `@Saga`'s handler [function] of [processor]: it returns the commands it derives ([derivedOf]); the saga's
+         * `@OnRejected` handlers, the [rejections], take the rejections of those commands.
+         */
         @JvmStatic
         @Suppress("LongParameterList")
         fun <S : Any> saga(
@@ -115,9 +151,18 @@ class ProcessorBinding<S : Any> private constructor(
             stateType: Class<S>?,
             blocking: Boolean = false,
             startFrom: StartFrom = defaultStartFrom(FunctionKind.SAGA),
+            rejections: List<RejectionBinding<*>> = emptyList(),
             handle: suspend (StateEvent<S>, SagaContext) -> List<Command<*>>,
         ): ProcessorBinding<S> =
-            ProcessorBinding(processor, function, FunctionKind.SAGA, stateType, startFrom, blocking) { e, c ->
+            ProcessorBinding(
+                processor,
+                function,
+                FunctionKind.SAGA,
+                stateType,
+                startFrom,
+                blocking,
+                rejections
+            ) { e, c ->
                 handle(e, c as SagaContext)
             }
     }

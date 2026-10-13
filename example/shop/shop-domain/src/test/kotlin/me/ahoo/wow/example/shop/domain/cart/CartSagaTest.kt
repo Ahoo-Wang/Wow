@@ -17,7 +17,10 @@ import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.example.shop.api.cart.RemoveCartItem
@@ -28,6 +31,7 @@ import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.StartFrom
+import me.ahoo.wow.kernel.rejectionContextOf
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 
@@ -97,8 +101,26 @@ class CartSagaTest {
             val event = event()
             handler.invoke(event, context(event)).single().body.assert()
                 .isEqualTo(RemoveCartItem(setOf("apple", "pear")))
+            // Decision D153: the rejection of the removal goes to onRemoveRejected, which derives nothing.
+            val onRejected = handler.rejectionHandlerOf(RemoveCartItem::class.java)!!
+            onRejected.name.assert().isEqualTo("CartSaga.onRemoveRejected")
+            onRejected.invoke(rejected, rejectionContextOf(onRejected, rejected)).assert().isEmpty()
         }
     }
+
+    @Test
+    fun `a cart that refused the removal should leave the order as it is`() {
+        CartSaga().onRemoveRejected(rejected).assert().isNull()
+    }
+
+    private val rejected = CommandRejected<RemoveCartItem>(
+        commandId = "derived-1",
+        commandType = "example.cart.RemoveCartItem",
+        ref = AggregateType("example", "cart").ref("tenant", "alice"),
+        error = ErrorInfo("wow.aggregate.deleted", "example.cart/tenant/alice is deleted."),
+        causation = Causation("command-1", "example.order/tenant/order-1@1"),
+        executionId = ExecutionId(SUBSCRIPTION, order, 1),
+    )
 
     private companion object {
         const val SUBSCRIPTION = "CartSaga.onOrderCreated"

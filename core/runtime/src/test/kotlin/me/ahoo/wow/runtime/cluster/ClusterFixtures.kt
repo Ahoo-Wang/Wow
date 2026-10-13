@@ -42,6 +42,7 @@ import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
+import me.ahoo.wow.runtime.subscription.HandledEntry
 import me.ahoo.wow.runtime.subscription.RecordingCheckpoints
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
@@ -262,7 +263,7 @@ class TestNode(val name: String, private val cluster: TestCluster) {
                 )
             }
             commands.forEach { coordinator.forward(model, it, wait) }
-            commands.map { it.id }
+            HandledEntry(commands.map { it.id })
         }
 
     /** Checkpoints are saved only when a partition stops, so a save shows the hand-off. */

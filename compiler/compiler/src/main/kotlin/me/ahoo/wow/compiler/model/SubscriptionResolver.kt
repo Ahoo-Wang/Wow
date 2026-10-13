@@ -52,7 +52,8 @@ import me.ahoo.wow.api.subscribe.StateEvent
  * - `@OnEvent(aggregates)` names aggregates as `context.aggregate`, all of one context, and only a saga's handler
  *   declares `@OnEvent(derives)`, each a full command type name `context.aggregate.Command` (decision D138);
  * - an `@OnRejected` handler (decisions D136, D153) is a saga's, takes a `CommandRejected` and, optionally, the
- *   `SagaContext`, returns what a saga's handler returns, and is not an `@OnEvent` handler too;
+ *   `SagaContext`, returns what a saga's handler returns, and is not an `@OnEvent` handler too; no two of a saga take
+ *   the rejections of the same command class, or both of every command (`CommandRejected<*>`);
  * - no annotation outside the V10 set ([V10Annotations]);
  * - the generated binding can reach it: the class is concrete, not private, not generic, an `object` or constructed
  *   by a constructor that is not private, whose parameters are domain services, each qualified by its `@Name`
@@ -127,6 +128,10 @@ internal object SubscriptionResolver {
         }
         val handlers = functions.mapNotNull { handler(it, name, kind, reactorTypes, problems) }
         val rejections = rejectionFunctions.mapNotNull { rejection(it, name, reactorTypes, problems) }
+        rejections.groupBy { it.command }.filterValues { it.size > 1 }.forEach { (command, same) ->
+            problems += "processor $className has two @OnRejected handlers of the rejections of " +
+                "${command ?: "every command (CommandRejected<*>)"}: ${same.joinToString { it.function }}"
+        }
         val isObject = processor.classKind == ClassKind.OBJECT
         problems += constructionProblems(processor, className, isObject)
         val dependencies = if (isObject) emptyList() else dependencies(processor, className, problems)
@@ -344,10 +349,12 @@ internal object SubscriptionResolver {
         if (problems.size > count) {
             return null
         }
+        val command = commandClass(first!!)
         return RejectionBinding(
             function = name,
             subscription = "$processor.$name",
-            command = commandClass(first!!),
+            command = command,
+            commandSource = command?.let { first.arguments.firstOrNull()?.type?.resolve()?.qualifiedName() },
             context = context != null,
             suspending = Modifier.SUSPEND in function.modifiers,
             reactor = reactor,

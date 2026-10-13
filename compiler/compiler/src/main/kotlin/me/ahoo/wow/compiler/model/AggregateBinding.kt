@@ -44,6 +44,8 @@ internal data class AggregateBinding(
      * call `lifecycle(...)`, which the processor cannot see.
      */
     val lifecycle: List<String> = ALL_LIFECYCLE_COMMANDS,
+    /** The stream of its state events the context publishes (decision D156). */
+    val publication: Publication = Publication(),
 ) {
     /** Whether `@AggregateRoot(lifecycle)` narrows the lifecycle commands, which the generated model then says. */
     val narrowsLifecycle: Boolean get() = lifecycle != ALL_LIFECYCLE_COMMANDS
@@ -121,4 +123,33 @@ internal data class AfterBinding(
 ) {
     /** Whether the hook runs after [command], a command type as [CommandBinding.command] renders it. */
     fun appliesTo(command: String): Boolean = (include.isEmpty() || command in include) && command !in exclude
+}
+
+/**
+ * The published stream of an aggregate's state events, as `@AggregateRoot` declares it (decision D156): none unless
+ * [published]; with the state after each commit unless [includeState] is false; on [topic], or on
+ * `wow.<context>.<aggregate>.state` when it is null.
+ */
+internal data class Publication(
+    val published: Boolean = true,
+    val includeState: Boolean = true,
+    val topic: String? = null,
+) {
+    companion object {
+        /** The longest topic name Kafka accepts. */
+        const val MAX_TOPIC_LENGTH = 249
+        private val TOPIC = Regex("[a-zA-Z0-9._-]+")
+
+        /** Why Kafka would refuse [topic] as a topic name, or null when it accepts it. */
+        fun topicProblem(topic: String): String? = when {
+            topic.length > MAX_TOPIC_LENGTH ->
+                "@AggregateRoot(topic) is ${topic.length} characters long: a Kafka topic has at most $MAX_TOPIC_LENGTH"
+
+            !TOPIC.matches(topic) ->
+                "@AggregateRoot(topic) \"$topic\" is not a Kafka topic name: only a-z, A-Z, 0-9, '.', '_' and '-'"
+
+            topic == "." || topic == ".." -> "@AggregateRoot(topic) \"$topic\" is not a Kafka topic name"
+            else -> null
+        }
+    }
 }

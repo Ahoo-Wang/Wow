@@ -26,6 +26,7 @@ import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
+import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.support.DefaultListableBeanFactory
@@ -36,6 +37,7 @@ import org.springframework.boot.context.properties.source.MapConfigurationProper
 import org.springframework.core.env.MapPropertySource
 import org.springframework.core.env.StandardEnvironment
 import java.time.Duration
+import java.time.Instant
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -225,6 +227,29 @@ class WowPropertiesTest {
         properties.http.errors.getValue("shop.cart.full").status.assert().isEqualTo(409)
         properties.http.requestFacts.assert().containsExactly("X-App")
         properties.aggregates.getValue("shop.cart").tenant.assert().isEqualTo("t0")
+    }
+
+    @Test
+    fun `a subscription's start should bind by its name (D154)`() {
+        val properties = bind(
+            "wow.subscriptions.[CartSaga.onOrderCreated].start" to "beginning",
+            "wow.subscriptions.[Audit.onEvent].start" to "2026-10-01T00:00:00Z",
+            "wow.subscriptions.[Mail.send].start" to "end",
+            "wow.subscriptions.[View.onEvent].start" to "",
+        )
+        properties.subscriptions.keys.assert()
+            .containsExactlyInAnyOrder("CartSaga.onOrderCreated", "Audit.onEvent", "Mail.send", "View.onEvent")
+        properties.subscription.options(properties.subscriptions).starts.assert().isEqualTo(
+            mapOf(
+                "CartSaga.onOrderCreated" to SubscriptionStart.Beginning,
+                "Audit.onEvent" to SubscriptionStart.At(Instant.parse("2026-10-01T00:00:00Z")),
+                "Mail.send" to SubscriptionStart.End,
+            ),
+        )
+        properties.subscription.options().starts.assert().isEmpty()
+        val invalid = bind("wow.subscriptions.[Mail.send].start" to "soon")
+        assertThrows<IllegalArgumentException> { invalid.subscription.options(invalid.subscriptions) }
+            .message.assert().contains("soon")
     }
 
     @Test

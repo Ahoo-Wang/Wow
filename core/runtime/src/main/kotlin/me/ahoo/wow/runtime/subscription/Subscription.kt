@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.subscription
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.kernel.AggregateModel
@@ -41,8 +42,9 @@ import me.ahoo.wow.spi.snapshot.SnapshotRecord
  * way round.
  *
  * [kind] says what the handler is (design 08 §7): it is reported as the [function] that handled a commit, and a wait
- * chain may continue only after a saga's hop (decision D62). A saga reports the commands it derived from each entry,
- * so it is made with [saga]; the constructor makes every other kind.
+ * chain may continue only after a saga's hop (decision D62). A saga reports what it did with each entry ([HandledEntry]:
+ * the commands it derived, and the rejection that ended its hop), so it is made with [saga]; the constructor makes
+ * every other kind.
  *
  * A subscription that [coalesces] is handed only the latest of an aggregate's entries that wait together in its lane
  * (a batch): it keeps the latest of something per aggregate, so the earlier ones add nothing. Every entry of the
@@ -76,7 +78,7 @@ class Subscription private constructor(
         kind.also { require(it != FunctionKind.SAGA) { "A saga reports what it derived: make it with saga()." } },
         EntryHandler { entry ->
             handler(entry)
-            emptyList()
+            HandledEntry.NOTHING
         },
     )
 
@@ -90,16 +92,18 @@ class Subscription private constructor(
         require(kind != FunctionKind.COMMAND) { "A subscription handles commits, not commands." }
     }
 
-    /** Handles [entry]; returns the ids of the commands it derived, a saga's only. */
-    internal suspend fun handle(entry: SubscribedEntry): List<String> = handler.handle(entry)
+    /** Handles [entry]; returns what it did: a saga's derived commands and the rejection that ended its hop. */
+    internal suspend fun handle(entry: SubscribedEntry): HandledEntry = handler.handle(entry)
 
     override fun toString(): String = "Subscription($name)"
 
     companion object {
         /**
-         * A saga: [handler] returns the ids of the commands it derived from the entry (decision D62). A wait whose
-         * chain continues after this saga's hop then waits for each of them; the saga passes the entry's wait context
-         * on to them ([me.ahoo.wow.spi.wait.WaitContext.derived]) when it executes them.
+         * A saga: [handler] returns what it did with the entry ([HandledEntry]): the ids of the commands it derived
+         * (decision D62), and the rejection of one of them that it handled (decision D153). A wait whose chain
+         * continues after this saga's hop then waits for each of them, or ends at the hop with the rejection; the saga
+         * passes the entry's wait context on to them ([me.ahoo.wow.spi.wait.WaitContext.derived]) when it executes
+         * them.
          */
         fun saga(
             name: String,
@@ -107,7 +111,7 @@ class Subscription private constructor(
             startFrom: StartFrom = StartFrom.BEGINNING,
             decoder: EntryDecoder = EntryDecoder.RECORDS,
             models: Collection<AggregateModel<*>> = emptyList(),
-            handler: suspend (SubscribedEntry) -> List<String>,
+            handler: suspend (SubscribedEntry) -> HandledEntry,
         ): Subscription = Subscription(
             name,
             filter,
@@ -134,17 +138,36 @@ class Subscription private constructor(
             kind,
             EntryHandler { entry ->
                 handler(entry)
-                emptyList()
+                HandledEntry.NOTHING
             },
             coalesces = true,
         )
     }
 }
 
-/** What a subscription runs for an entry: it returns the ids of the commands it derived. */
+/** What a subscription runs for an entry: it returns what it did with it. */
 internal fun interface EntryHandler {
-    suspend fun handle(entry: SubscribedEntry): List<String>
+    suspend fun handle(entry: SubscribedEntry): HandledEntry
 }
+
+/**
+ * What a subscription's handler did with an entry, as its hop reports it (design 04 §6.3): the ids of the commands a
+ * saga [derived] (decision D62), and the [rejection] of one of them, a business outcome the saga handled (decision
+ * D153): the entry is done with, and the wait at the hop ends REJECTED with it instead of going on.
+ */
+data class HandledEntry(val derived: List<String> = emptyList(), val rejection: ErrorInfo? = null) {
+    companion object {
+        /** Handled, nothing derived. */
+        @JvmField
+        val NOTHING: HandledEntry = HandledEntry()
+    }
+}
+
+/**
+ * A handling that failed for a business reason, which no retry changes (decision D153): the subscription does not
+ * retry it but parks the aggregate at once, and a wait at the hop ends REJECTED with [error].
+ */
+open class HandlingRejectedException(val error: ErrorInfo, message: String) : IllegalStateException(message)
 
 /**
  * The streams a subscription handles: those of one bounded [context], of the [aggregates] named (every aggregate of

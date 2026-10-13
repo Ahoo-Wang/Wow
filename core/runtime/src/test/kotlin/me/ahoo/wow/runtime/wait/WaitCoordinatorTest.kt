@@ -42,6 +42,7 @@ import me.ahoo.wow.kernel.InMemoryFailureLedger
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.runtime.Executor
+import me.ahoo.wow.runtime.subscription.HandledEntry
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
@@ -158,7 +159,7 @@ class WaitCoordinatorTest {
                 }
             }
         }
-        commands.map { it.id }
+        HandledEntry(commands.map { it.id })
     }
 
     private val failing = Subscription("order.failing", SubscriptionFilter("shop", setOf("order"))) {

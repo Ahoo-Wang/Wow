@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.example.shop.server
 
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.http.WowHeaders
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -87,6 +89,25 @@ class CartSagaEndToEndTest {
         placed.json["hop"]["subscription"].asString().assert().isEqualTo(SAGA)
         placed.json["derived"].values().toList().assert().isEmpty()
         cartProducts("ivan").assert().containsExactly("apple", "pear", "durian")
+    }
+
+    @Test
+    fun `an order from a deleted cart should end the wait at the saga's hop with the rejection, parking nothing`() {
+        fill("judy")
+        shop.delete("/example/cart/judy", "judy").status.assert().isEqualTo(200)
+        val placed = order("judy", "committed > handled(example/$SAGA) > committed")
+        // Decision D153: the cart's refusal is the outcome of the saga's hop, handed to CartSaga.onRemoveRejected.
+        placed.assertProblem(410, "wow.aggregate.deleted")
+        val result = placed.json["result"]
+        result["status"].asString().assert().isEqualTo("REJECTED")
+        result["hop"]["subscription"].asString().assert().isEqualTo(SAGA)
+        result["derived"].values().toList().assert().hasSize(1)
+        // The saga parks the order before it signals the hop, so a park would be in the ledger by now.
+        val ref = result["ref"]
+        val placedOrder = AggregateType("example", "order").ref(ref["tenantId"].asString(), ref["id"].asString())
+        val ledger = shop.node.context("example").backends.ledger
+        runBlocking { ledger.isParked(SAGA, placedOrder) }.assert().isFalse()
+        shop.get("/example/order/${placedOrder.id}/state", "judy").status.assert().isEqualTo(200)
     }
 
     private companion object {

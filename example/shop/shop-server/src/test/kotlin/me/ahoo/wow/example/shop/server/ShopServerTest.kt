@@ -107,8 +107,10 @@ class ShopServerTest {
             .assert().containsExactly("POST /example/order/snapshot/query", "GET /example/order/snapshot/query")
         context["published"].values().map { "${it["aggregate"].asString()} ${it["topic"].asString()}" }
             .assert().containsExactly("cart wow.example.cart.state", "order wow.example.order.state")
-        val saga = context["subscriptions"].values().single()
+        val (saga, rejections) = context["subscriptions"].values().toList()
         saga["name"].asString().assert().isEqualTo("CartSaga.onOrderCreated")
+        rejections["name"].asString().assert().isEqualTo("CartSaga.onRemoveRejected")
+        rejections["rejected"].values().map { it.asString() }.assert().containsExactly("example.cart.RemoveCartItem")
         saga["derives"].values().map { it.asString() }.assert().containsExactly("example.cart.RemoveCartItem")
         saga["start"].asString().assert().isEqualTo("END")
         manifest["errors"].statuses().assert().containsAllEntriesOf(

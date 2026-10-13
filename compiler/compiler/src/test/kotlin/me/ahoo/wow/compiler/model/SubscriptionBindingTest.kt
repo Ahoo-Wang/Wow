@@ -20,8 +20,11 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.Dependencies
@@ -31,6 +34,7 @@ import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.MissingDependencyException
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.ProcessorBinding
+import me.ahoo.wow.kernel.rejectionContextOf
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 import java.io.File
@@ -52,11 +56,13 @@ class SubscriptionBindingTest {
         import me.ahoo.wow.api.annotation.Blocking
         import me.ahoo.wow.api.annotation.Name
         import me.ahoo.wow.api.annotation.OnEvent
+        import me.ahoo.wow.api.annotation.OnRejected
         import me.ahoo.wow.api.annotation.Projection
         import me.ahoo.wow.api.annotation.Reactor
         import me.ahoo.wow.api.annotation.Saga
         import me.ahoo.wow.api.aggregate.AggregateType
         import me.ahoo.wow.api.decide.Command
+        import me.ahoo.wow.api.subscribe.CommandRejected
         import me.ahoo.wow.api.subscribe.ProjectContext
         import me.ahoo.wow.api.subscribe.ReactContext
         import me.ahoo.wow.api.subscribe.SagaContext
@@ -114,7 +120,17 @@ class SubscriptionBindingTest {
             @OnEvent
             fun flux(event: StateEvent<OrderState>, context: SagaContext): Flux<Command<Remove>> =
                 Flux.just(context.command(CART.ref(event.ref.tenantId, "bob"), Remove("p-4")))
+
+            @OnRejected
+            fun onRemoveRejected(rejected: CommandRejected<Remove>, context: SagaContext): Command<Restore> =
+                context.command(rejected.ref, Restore(rejected.commandId))
+
+            @Blocking
+            @OnRejected
+            suspend fun onAnyRejected(rejected: CommandRejected<*>): Flux<Command<*>> = Flux.empty()
         }
+
+        data class Restore(val commandId: String)
         """.trimIndent(),
     )
 
@@ -239,6 +255,42 @@ class SubscriptionBindingTest {
         derive("single").map { it.body.toString() }.assert().containsExactly("Remove(productId=p-3)")
         derive("none").assert().isEmpty()
         derive("flux").map { it.ref.id }.assert().containsExactly("bob")
+    }
+
+    @Test
+    fun `a saga's handlers should carry its @OnRejected handlers, each calling its function`(): Unit = runBlocking {
+        val (compilation, result) = compile(processors)
+        generated(compilation, "CartSagaSubscriptions.kt")!!.readText().assert().contains(
+            "val rejections = listOf<me.ahoo.wow.kernel.RejectionBinding<*>>(",
+            "me.ahoo.wow.kernel.RejectionBinding.of<sample.shop.Remove>(\"CartSaga\", \"onRemoveRejected\", " +
+                "sample.shop.Remove::class.java, false)",
+            "me.ahoo.wow.kernel.RejectionBinding.of<Any>(\"CartSaga\", \"onAnyRejected\", null, true)",
+            "rejections = rejections) {",
+        )
+        val handlers = provider(compilation, result)
+            .processors(Dependencies.of(mapOf("audit" to rows(result, Rows())), rows(result, Rows())))
+        val sagas = handlers.filter { it.kind == FunctionKind.SAGA }
+        sagas.map { it.rejections }.distinct().assert().hasSize(1)
+        val remove = result.classLoader.loadClass("sample.shop.Remove")
+        val onRemove = sagas.first().rejectionHandlerOf(remove)!!
+        onRemove.name.assert().isEqualTo("CartSaga.onRemoveRejected")
+        val onAny = sagas.first().rejectionHandlerOf(String::class.java)!!
+        onAny.name.assert().isEqualTo("CartSaga.onAnyRejected")
+        onAny.blocking.assert().isTrue()
+        val event = event(result)
+        val rejected = CommandRejected<Any>(
+            "c-9",
+            "shop.cart.Remove",
+            AggregateType("shop", "cart").ref("t", "alice"),
+            ErrorInfo("cart.forbidden", "No."),
+            Causation("root", "shop.order/t/o-1@2"),
+            ExecutionId("CartSaga.onEvent", event.ref, event.version),
+        )
+        val compensations = onRemove.invoke(rejected, rejectionContextOf(onRemove, rejected))
+        compensations.single().body.toString().assert().isEqualTo("Restore(commandId=c-9)")
+        compensations.single().causation!!.causationId.assert().isEqualTo("c-9")
+        onAny.invoke(rejected, rejectionContextOf(onAny, rejected)).assert().isEmpty()
+        handlers.filter { it.kind != FunctionKind.SAGA }.forEach { it.rejections.assert().isEmpty() }
     }
 
     @Test

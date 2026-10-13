@@ -48,8 +48,9 @@ import me.ahoo.wow.manifest.SubscriptionStart
  *
  * - an aggregate's `queries` (decision D128): `snapshot` when it keeps snapshots, which nothing declared in the model
  *   turns off yet, and `events`, each with its routes ([QueryRoutes], decision D127);
- * - the context's `published` streams (decisions D58, D135): every aggregate's state events, with its state, on
- *   `wow.<context>.<aggregate>.state`, since nothing declares another topic or a stream without the state yet;
+ * - the context's `published` streams (decisions D58, D135, D156): the state events of every aggregate whose
+ *   `@AggregateRoot(published)` is not false, with its state unless `publishState` is false, on its `topic`, else
+ *   on `wow.<context>.<aggregate>.state`;
  * - a subscription's `start` (decision D154), its kind's default;
  * - a saga's `derives` (decision D138): what `@OnEvent(derives)` declares, else the commands its return type names, a
  *   command a module's aggregate decides by its full type name and any other by its class's schema reference;
@@ -74,9 +75,13 @@ internal object ManifestFragmentBuilder {
                     aggregates = aggregateManifests,
                     subscriptions = subscriptions.flatMap { subscriptions(context, it, aggregates, commands) }
                         .sortedBy { it.name },
-                    published = aggregateManifests.map {
-                        PublishedManifest(it.name, PublishedManifest.defaultTopic(context, it.name))
-                    },
+                    published = aggregates.filter { it.publication.published }.map {
+                        PublishedManifest(
+                            it.aggregateName,
+                            it.publication.topic ?: PublishedManifest.defaultTopic(context, it.aggregateName),
+                            it.publication.includeState,
+                        )
+                    }.sortedBy { it.aggregate },
                     errors = errors.sortedBy { it.code },
                 ),
             ),

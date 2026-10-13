@@ -15,8 +15,10 @@ package me.ahoo.wow.example.shop.domain.cart
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.OnEvent
+import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.example.shop.api.ExampleContext
@@ -33,6 +35,10 @@ import me.ahoo.wow.example.shop.domain.order.OrderState
  * handling the order's commit again does not remove anything twice; it carries no scope, so the cart's scope guard
  * (decision D94) does not refuse it, whatever space the order is in. An order without an owner, or not placed from
  * the cart, derives nothing.
+ *
+ * The cart may refuse the removal: the customer deleted it, or never had one (decision D153). The order stands all
+ * the same, so [onRemoveRejected] takes the rejection and derives nothing to compensate; without it, the order would
+ * be parked for this saga until someone resolved it.
  */
 @Saga
 class CartSaga {
@@ -48,6 +54,11 @@ class CartSaga {
             RemoveCartItem(productIds = created.items.mapTo(linkedSetOf()) { it.productId }),
         )
     }
+
+    /** A cart that is deleted, or does not exist, holds nothing to remove: the order stands as it is. */
+    @OnRejected
+    @Suppress("UNUSED_PARAMETER", "FunctionOnlyReturningConstant") // Whatever the cart said, the order stands.
+    fun onRemoveRejected(rejected: CommandRejected<RemoveCartItem>): Command<*>? = null
 
     private companion object {
         val CART = AggregateType(ExampleContext.NAME, ExampleContext.CART)

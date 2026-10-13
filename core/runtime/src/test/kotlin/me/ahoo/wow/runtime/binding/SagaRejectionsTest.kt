@@ -1,0 +1,254 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.runtime.binding
+
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.Stage
+import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.subscribe.CommandRejected
+import me.ahoo.wow.api.subscribe.ExecutionId
+import me.ahoo.wow.kernel.ExecutionSagaContext
+import me.ahoo.wow.kernel.ProcessorBinding
+import me.ahoo.wow.kernel.RejectionBinding
+import me.ahoo.wow.kernel.RejectionSagaContext
+import me.ahoo.wow.runtime.admission.Caller
+import me.ahoo.wow.runtime.admission.CommandBody
+import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
+import me.ahoo.wow.runtime.node.InMemoryBackends
+import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.runtime.node.fastNodeOptions
+import me.ahoo.wow.runtime.subscription.eventually
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Test
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
+
+/**
+ * Decision D153: a command a saga derived in its own context that the kernel rejects is a business outcome. The wait
+ * ends at the saga's hop with the rejection, nothing is retried for it, and the saga's `@OnRejected` handler for the
+ * command compensates instead of the aggregate being parked; technical failures are still retried.
+ */
+class SagaRejectionsTest {
+    private val backends = InMemoryBackends(partitions = 4)
+    private val decided = CopyOnWriteArrayList<String>()
+    private val rejections = CopyOnWriteArrayList<CommandRejected<*>>()
+    private val anyRejections = CopyOnWriteArrayList<CommandRejected<*>>()
+    private val failures = AtomicInteger()
+
+    @Volatile
+    private var compensation: Any = AddItems(listOf("restored"))
+
+    /** Puts the compensation back in the cart a rejected removal was for; fails [failures] times first. */
+    private val onRemoveRejected = RejectionBinding.of(
+        "CartSaga",
+        "onRemoveRejected",
+        RemoveItems::class.java,
+    ) { rejected, context ->
+        rejections += rejected
+        check(failures.getAndDecrement() <= 0) { "The compensation could not be prepared." }
+        listOf(context.command(rejected.ref, compensation))
+    }
+
+    private val onAnyRejected = RejectionBinding.of<Any>("CartSaga", "onAnyRejected", null) { rejected, _ ->
+        anyRejections += rejected
+        emptyList()
+    }
+
+    private fun saga(vararg rejections: RejectionBinding<*>) = ProcessorBinding.saga(
+        "CartSaga",
+        "onOrderPlaced",
+        OrderState::class.java,
+        rejections = rejections.toList(),
+    ) { event, context ->
+        val owner = event.scope.ownerId ?: return@saga emptyList()
+        event.events.filterIsInstance<Placed>().map {
+            context.command(CART.ref(event.ref.tenantId, owner), RemoveItems(it.items))
+        }
+    }
+
+    private var node: ServiceNode? = null
+
+    private fun start(saga: ProcessorBinding<*>): ServiceNode = ServiceNode(
+        SHOP_SERVICE,
+        "node-1",
+        "node-1.internal:9090",
+        listOf(orderModel(), cartModel(decided)),
+        shopManifest(),
+        backends,
+        LoopbackClusterChannel(),
+        options = fastNodeOptions(),
+        subscriptions = SubscriptionBindings(mapOf(SHOP to listOf(saga))),
+    ).also {
+        node = it
+        runBlocking { it.start() }
+    }
+
+    @AfterEach
+    fun stop(): Unit = runBlocking { node?.stop() ?: Unit }
+
+    private fun request(aggregate: String, command: String, items: List<String>, id: String, wait: WaitPlan) =
+        CommandRequest(
+            context = SHOP,
+            aggregate = aggregate,
+            command = command,
+            body = CommandBody.of("""{"items":[${items.joinToString { "\"$it\"" }}]}"""),
+            caller = Caller(TENANT, Scope(ownerId = "bob")),
+            aggregateId = id,
+            wait = wait,
+        )
+
+    private suspend fun ServiceNode.fill() {
+        gateway.execute(request("cart", "AddItems", listOf("apple"), "bob", WaitPlan.COMMITTED))
+            .status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+    }
+
+    private suspend fun ServiceNode.place(id: String, vararg items: String): List<CommandResult> =
+        gateway.send(request("order", "Place", items.toList(), id, CHAIN)).toList()
+
+    private val cart = CART.ref(TENANT, "bob")
+    private val ledger get() = backends.opened.getValue(SHOP).ledger
+    private val log get() = backends.opened.getValue(SHOP).log
+
+    private fun rejectedId(order: String) =
+        ExecutionSagaContext.derivedId(ExecutionId(SAGA, ORDER.ref(TENANT, order), 1), 0)
+
+    private fun compensationId(order: String, handler: String = "CartSaga.onRemoveRejected") =
+        RejectionSagaContext.compensationId(ExecutionId(handler, ORDER.ref(TENANT, order), 1), rejectedId(order), 0)
+
+    @Test
+    fun `a rejection should go to the saga's handler, which compensates, and end the wait at the saga's hop`(): Unit =
+        runBlocking {
+            val node = start(saga(onRemoveRejected, onAnyRejected))
+            node.fill()
+            val all = node.place("o-1", FORBIDDEN_ITEM)
+            val last = all.last()
+            last.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            last.hop.subscription.assert().isEqualTo(SAGA)
+            last.error!!.code.assert().isEqualTo(FORBIDDEN)
+            last.derived.assert().containsExactly(rejectedId("o-1"), compensationId("o-1"))
+            // The handler of RemoveItems, not the one of every command, got it once: no retry.
+            val rejected = rejections.single()
+            anyRejections.assert().isEmpty()
+            rejected.commandId.assert().isEqualTo(rejectedId("o-1"))
+            rejected.commandType.assert().isEqualTo("shop.cart.RemoveItems")
+            rejected.ref.assert().isEqualTo(cart)
+            rejected.error.assert().isEqualTo(ErrorInfo(FORBIDDEN, "$FORBIDDEN_ITEM cannot be removed."))
+            rejected.executionId.assert().isEqualTo(ExecutionId(SAGA, ORDER.ref(TENANT, "o-1"), 1))
+            rejected.causation.causationId.assert().isEqualTo("shop.order/t/o-1@1")
+            rejected.causation.correlationId.assert().isEqualTo(all.first().commandId)
+            decided.assert().containsExactly(rejectedId("o-1"))
+            // The compensation is committed, caused by the rejected command; the order is not parked.
+            val compensated = log.findByRequestId(TENANT, compensationId("o-1"))!!
+            compensated.ref.assert().isEqualTo(cart)
+            compensated.causation.assert().isEqualTo(Causation(all.first().commandId, rejectedId("o-1")))
+            ledger.isParked(SAGA, ORDER.ref(TENANT, "o-1")).assert().isFalse()
+        }
+
+    @Test
+    fun `handling the same rejection again should derive the same compensation, which is not decided twice`(): Unit =
+        runBlocking {
+            val node = start(saga(onRemoveRejected))
+            node.fill()
+            node.place("o-2", FORBIDDEN_ITEM).last().status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            val versions = log.read(cart).toList().size
+
+            // The saga's subscription handles the same entry again, as after a crash or an ownership change.
+            val context = node.context(SHOP)
+            val subscription = SubscriptionBindings(mapOf(SHOP to listOf(saga(onRemoveRejected))))
+                .subscriptions(context).single()
+            val entry = subscription.decoder.decode(log.read(ORDER.ref(TENANT, "o-2")).first(), null, null)
+            val again = subscription.handle(entry)
+            again.derived.assert().containsExactly(rejectedId("o-2"), compensationId("o-2"))
+            again.rejection!!.code.assert().isEqualTo(FORBIDDEN)
+            rejections.map { it.commandId }.distinct().assert().containsExactly(rejectedId("o-2"))
+            log.read(cart).toList().size.assert().isEqualTo(versions)
+        }
+
+    @Test
+    fun `a handler that fails should be retried, and a rejection none takes should park the aggregate`(): Unit =
+        runBlocking {
+            val node = start(saga(onRemoveRejected))
+            node.fill()
+            failures.set(1)
+            node.place("o-3", FORBIDDEN_ITEM).last().status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            // A technical failure retries the handling: the saga derives the same command, rejected again.
+            rejections.map { it.commandId }.assert().containsExactly(rejectedId("o-3"), rejectedId("o-3"))
+            ledger.isParked(SAGA, ORDER.ref(TENANT, "o-3")).assert().isFalse()
+            log.findByRequestId(TENANT, compensationId("o-3")).assert().isNotNull()
+
+            // A compensation that is rejected in turn is not handed to a handler again: the order parks.
+            compensation = RemoveItems(listOf(FORBIDDEN_ITEM))
+            val last = node.place("o-4", FORBIDDEN_ITEM).last()
+            last.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            last.error!!.code.assert().isEqualTo(FORBIDDEN)
+            eventually { ledger.isParked(SAGA, ORDER.ref(TENANT, "o-4")) }
+            decided.assert().contains(compensationId("o-4"))
+        }
+
+    @Test
+    fun `a saga with only a handler of every command should hand it the rejection`(): Unit = runBlocking {
+        val node = start(saga(onAnyRejected))
+        node.fill()
+        val last = node.place("o-5", FORBIDDEN_ITEM).last()
+        last.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+        last.derived.assert().containsExactly(rejectedId("o-5"))
+        anyRejections.single().commandId.assert().isEqualTo(rejectedId("o-5"))
+        ledger.isParked(SAGA, ORDER.ref(TENANT, "o-5")).assert().isFalse()
+        // A removal that is not rejected goes on past the saga's hop to the COMMITTED one.
+        node.place("o-6", "apple").last().hop.stage.assert().isEqualTo(Stage.COMMITTED)
+    }
+
+    @Test
+    fun `a rejection of no saga of the context, or no handler, should be left to the caller`(): Unit = runBlocking {
+        val node = start(saga())
+        val rejections = SagaRejections(
+            listOf(saga(onRemoveRejected)),
+            DerivedCommands(node.context(SHOP).models, node.context(SHOP).coordinator),
+        )
+        val rejected = CommandRejected<Any>(
+            "c-1",
+            "shop.cart.RemoveItems",
+            cart,
+            ErrorInfo(FORBIDDEN, "No."),
+            Causation("root", "shop.order/t/o-7@1"),
+            ExecutionId("Other.saga", ORDER.ref(TENANT, "o-7"), 1),
+        )
+        rejections.handle(rejected, RemoveItems::class.java).assert().isNull()
+        rejections.handle(
+            rejected.copy(executionId = rejected.executionId.copy(subscription = SAGA)),
+            String::class.java
+        )
+            .assert().isNull()
+        // The entry point of a receipt from another context (decision D136) takes the same rejection.
+        rejections.handle(
+            rejected.copy(executionId = rejected.executionId.copy(subscription = SAGA)),
+            RemoveItems::class.java
+        )
+            .assert().hasSize(1)
+    }
+
+    private companion object {
+        const val SAGA = "CartSaga.onOrderPlaced"
+        val CHAIN: WaitPlan = WaitPlan.of(Hop.committed(), Hop.handled(SAGA), Hop.committed())
+    }
+}

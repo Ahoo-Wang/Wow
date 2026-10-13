@@ -26,6 +26,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.runtime.wait.ResultCodes
@@ -57,8 +58,13 @@ import java.time.Clock
  * State touched from several coroutines is guarded by this object's monitor; the sections under it never suspend.
  *
  * When an entry carries a wait context whose next hop is this subscription, the worker signals the waiting node
- * once the entry is done with (design 04 §6.3): handled, or passed over by the filter, SUCCEEDED; parked, FAILED. The
- * signal is a side path: it never fails the entry nor holds the checkpoint.
+ * once the entry is done with (design 04 §6.3): handled, or passed over by the filter, SUCCEEDED; parked, FAILED; a
+ * rejection the handler met ([HandledEntry.rejection], [HandlingRejectedException]; decision D153), REJECTED with its
+ * error, whether it handled it or parked. The signal is a side path: it never fails the entry nor holds the
+ * checkpoint.
+ *
+ * A handler that fails is retried, then parks its aggregate; one that fails with a [HandlingRejectedException], a
+ * business outcome, parks it at once.
  */
 internal class SubscriptionWorker(
     private val group: String,
@@ -129,7 +135,7 @@ internal class SubscriptionWorker(
             complete(slot)
             if (waitsHere(entry)) {
                 val parked = parkedAt(stream)
-                lanes.launch { signal(entry, Result.success(emptyList()), parked) }
+                lanes.launch { signal(entry, Result.success(HandledEntry.NOTHING), parked) }
             }
         } else {
             enqueue(stream.ref, Item.Live(entry, slot), first = false)
@@ -161,10 +167,11 @@ internal class SubscriptionWorker(
 
     /**
      * Signals the wait on [entry], if it waits for this subscription next and is not over: SUCCEEDED with the
-     * commands [handled] derived, or FAILED when it failed or the aggregate is [parked].
+     * commands [handled] derived, REJECTED with the rejection it met, or FAILED when it failed or the aggregate is
+     * [parked].
      */
     @Suppress("TooGenericExceptionCaught") // A signal is best effort: whatever fails, the entry is done with.
-    private suspend fun signal(entry: LogEntry, handled: Result<List<String>>, parked: Boolean = false) {
+    private suspend fun signal(entry: LogEntry, handled: Result<HandledEntry>, parked: Boolean = false) {
         if (!waitsHere(entry)) {
             return
         }
@@ -174,7 +181,9 @@ internal class SubscriptionWorker(
             return
         }
         val failure = handled.exceptionOrNull()
+        val rejection = (failure as? HandlingRejectedException)?.error ?: handled.getOrNull()?.rejection
         val error = when {
+            rejection != null -> rejection
             failure != null -> ErrorInfo(ResultCodes.SUBSCRIPTION_PARKED, reason(failure))
             parked -> ErrorInfo(
                 ResultCodes.SUBSCRIPTION_PARKED,
@@ -183,7 +192,14 @@ internal class SubscriptionWorker(
             else -> null
         }
         val hop = checkNotNull(wait.nextHandled)
-        val result = handledResult(entry.stream, hop, subscription.function, now, handled.getOrNull().orEmpty(), error)
+        val result = handledResult(
+            entry.stream,
+            hop,
+            subscription.function,
+            now,
+            handled.getOrNull()?.derived.orEmpty(),
+            error,
+        ).let { if (rejection != null) it.copy(status = CommandResult.Status.REJECTED) else it }
         try {
             signals.send(wait.origin, WaitSignal(waitId = wait.waitId, result = result))
         } catch (cancelled: CancellationException) {
@@ -231,7 +247,11 @@ internal class SubscriptionWorker(
         val entry = item.entry
         val stream = entry.stream
         val (skipped, parked) = synchronized(this) { skippedInLane(stream) to parkedAt(stream) }
-        val handled = if (skipped) Result.success(emptyList()) else handle(stream, entry.position, entry.transport)
+        val handled = if (skipped) {
+            Result.success(HandledEntry.NOTHING)
+        } else {
+            handle(stream, entry.position, entry.transport)
+        }
         handled.exceptionOrNull()?.let { park(stream, it as Exception) }
         synchronized(this) { complete(item.slot) }
         signal(entry, handled, skipped && parked)
@@ -256,12 +276,12 @@ internal class SubscriptionWorker(
         val result = handled.lastOrNull()?.let { latest ->
             val entry = latest.item.entry
             handle(entry.stream, entry.position, entry.transport)
-        } ?: Result.success(emptyList())
+        } ?: Result.success(HandledEntry.NOTHING)
         result.exceptionOrNull()?.let { park(handled.first().item.entry.stream, it as Exception) }
         synchronized(this) { batch.forEach { complete(it.item.slot) } }
         batch.forEach {
             if (it.skipped) {
-                signal(it.item.entry, Result.success(emptyList()), it.parked)
+                signal(it.item.entry, Result.success(HandledEntry.NOTHING), it.parked)
             } else {
                 signal(it.item.entry, result)
             }
@@ -286,21 +306,23 @@ internal class SubscriptionWorker(
     }
 
     /**
-     * Runs the handler with retries; returns the ids of the commands it derived, or the last failure once the
-     * retries are spent.
+     * Runs the handler with retries; returns what it did, or the last failure once the retries are spent. A
+     * [HandlingRejectedException] is not retried: a business outcome does not change.
      */
     @Suppress("TooGenericExceptionCaught") // A handler may fail with anything; only cancellation stops the retries.
     private suspend fun handle(
         stream: EventStreamRecord,
         position: LogPosition?,
         transport: Transport?,
-    ): Result<List<String>> {
+    ): Result<HandledEntry> {
         var failures = 0
         while (true) {
             try {
                 return Result.success(subscription.handle(subscription.decoder.decode(stream, position, transport)))
             } catch (cancelled: CancellationException) {
                 throw cancelled
+            } catch (rejected: HandlingRejectedException) {
+                return Result.failure(rejected)
             } catch (failure: Exception) {
                 failures++
                 if (failures >= options.retry.maxAttempts) {
@@ -315,8 +337,8 @@ internal class SubscriptionWorker(
     private suspend fun park(stream: EventStreamRecord, failure: Exception) {
         val entry = ParkedAggregate(subscription.name, stream.ref, stream.version, reason(failure), clock.millis())
         logger.warn(failure) {
-            "Subscription ${subscription.name} parks ${stream.ref} from version ${stream.version} after " +
-                "${options.retry.maxAttempts} attempts."
+            val after = if (failure is HandlingRejectedException) "a rejection" else "${options.retry.maxAttempts} attempts"
+            "Subscription ${subscription.name} parks ${stream.ref} from version ${stream.version} after $after."
         }
         retryForever(options.readRetry, { "park ${stream.ref} for ${subscription.name}" }) { ledger.park(entry) }
         synchronized(this) {

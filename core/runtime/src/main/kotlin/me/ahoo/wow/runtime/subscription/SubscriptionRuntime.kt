@@ -28,7 +28,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.spi.ledger.FailureLedger
@@ -245,6 +244,10 @@ class SubscriptionRuntime(
         return progress >= position.sequence && !ledger.isParked(subscription, stream.ref)
     }
 
+    /** Where [subscription] starts without a checkpoint: as the host overrides it (decision D154), else as it says. */
+    private fun startOf(subscription: Subscription): SubscriptionStart =
+        options.starts[subscription.name] ?: SubscriptionStart.of(subscription.startFrom)
+
     private fun workerOf(subscription: String, ref: AggregateRef): SubscriptionWorker? =
         running?.workers?.get(subscription to Partitioner.partitionOf(ref, log.partitions))
 
@@ -255,15 +258,13 @@ class SubscriptionRuntime(
         parked: Map<Int, Map<AggregateRef, Int>>,
     ): SubscriptionWorker {
         val partition = part.partition
-        val checkpoint = checkpoints.load(group, subscription.name, partition) ?: when (subscription.startFrom) {
-            StartFrom.BEGINNING -> 0L
-            // Saved at once, so a restart before the first entry does not move the start to a later end.
-            StartFrom.END -> (log.head(partition) ?: 0L).also {
+        val checkpoint = checkpoints.load(group, subscription.name, partition) ?: startOf(subscription)
+            .checkpointIn(log, partition).also {
+                // Saved at once, so a restart before the first entry does not move the start to a later end.
                 if (it > 0) {
                     checkpoints.save(group, subscription.name, partition, it)
                 }
             }
-        }
         return SubscriptionWorker(
             group = group,
             subscription = subscription,

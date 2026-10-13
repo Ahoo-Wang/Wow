@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.kernel.InMemoryEventLog
 import me.ahoo.wow.kernel.InMemoryFailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
@@ -75,6 +76,25 @@ class SubscriptionParkingTest {
     private suspend fun checkpointsReachEnd(): Boolean = all.all { partition ->
         val end = appender.ends[partition] ?: 0L
         end == 0L || checkpoints.load("group", "parking", partition) == end
+    }
+
+    @Test
+    fun `a rejection should park its aggregate at once, without a retry`(): Unit = runBlocking {
+        val rejections = AtomicInteger()
+        val rejecting = Subscription("rejecting", SubscriptionFilter("shop")) { entry ->
+            if (entry.ref.id == "x") {
+                rejections.incrementAndGet()
+                throw HandlingRejectedException(ErrorInfo("cart.forbidden", "No."), "x is refused.")
+            }
+        }
+        val runtime = SubscriptionRuntime("group", log, checkpoints, ledger, listOf(rejecting), testOptions(), clock)
+        appender.append("x")
+        runtime.start(all)
+        eventually { ledger.isParked("rejecting", cart("x")) }
+        runtime.stop()
+        // Decision D153: a business outcome does not change on a retry.
+        rejections.get().assert().isEqualTo(1)
+        ledger.parked("rejecting", cart("x"))!!.reason.assert().contains("x is refused.")
     }
 
     @Test
