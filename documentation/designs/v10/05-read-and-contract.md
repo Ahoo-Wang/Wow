@@ -15,7 +15,7 @@
 
 - **模块**：`:query-api` 是 9.x `api.query` 的纯数据移植，包名不变、不带 Jackson，查询字段注解也在这里（D125）；`:query` 是 9.x `wow-query` 的协程移植，身份是显式的 `QueryCaller`，schema 由 Manifest 的 `$defs` 加 `x-wow-*` 关键字编出，准入、预算、游标与残余窗口不变，数据集模型也在这里（D126）。
 - **后端**（D131）：M6 只做 PostgreSQL 与 MongoDB 的快照查询、限一个聚合的 `events` 模型（按版本或时间范围，由 `EventLog.read` 提供）与 ClickHouse 数据集后端。Elasticsearch 是 M6 之后的 6.7；自定义投影的查询模型、跨聚合的时间线与 ClickHouse 作快照查询后端推迟。
-- **调用方**（D165）：命令与查询共用 `Caller` 与一个 `CallerResolver`；查询的 `QueryCaller` 只多执行上下文（入口、选择）。结果可 `expand=operator`，由 `OperatorDirectory` 解析显示名，只用于展示。
+- **调用方**（D165）：命令与查询共用 `Caller` 与一个 `CallerResolver`；查询的 `QueryCaller` 只多执行上下文（入口、选择）。操作人的显示名由前端展示层按 `operator.id` 自行解析。
 - **操作人**（D163）：快照的系统字段恢复 `operator` 与 `firstOperator`（9.x 同名），可查询、可排序。
 - **作用域**（D129）：准入总是追加租户（`TenantPolicy`）、调用方的所有者与空间、默认只查未删除的；ABAC 以 `abac.*` 调用方属性匹配快照 `tags`，在 `:query` 里通用实现，默认关闭，不依赖 CoSec。
 - **计数与性能**（D150～D152）：`count` 与分页总数默认有界（`{count, exact}`，分页 `total` 默认 `bounded`），每个查询带预算给出的执行超时（`wow.query.timeout`）；快照表自带覆盖作用域谓词的部分索引，状态字段的索引由 `@QueryIndex` → `x-wow-index` 声明、后端生成；计数结果以快照写入检查点为校验值缓存（6.2d）。`count` 只承担带过滤、有界的计数，固定维度的统计走投影计数器或 ClickHouse 数据集。
