@@ -245,6 +245,8 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 
 顺序：5a.3 尽早并行 → 7.2a view-store → 7.1a ops 服务 → 7.2b dataset-registry → 7.2c analytics → 7.3 → 7.1b ops 控制台。
 
+**7.2b dataset-registry 与 7.2c analytics 须先与用户讨论确认设计再开工**（用户要求，2026-10-13），不按默认推荐派工。
+
 ### M8 迁移层
 
 | WP | 内容 | 出口 |
