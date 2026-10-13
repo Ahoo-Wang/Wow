@@ -76,13 +76,11 @@ class OrderEndToEndTest {
     }
 
     @Test
-    fun `an order for more than the stock should be rejected with the domain's 422`() {
-        val rejected = createOrder(items = """[{"productId":"durian","price":30.00,"quantity":2}]""")
-            .assertProblem(422, OrderRejections.INSUFFICIENT_INVENTORY)
+    fun `an order at a stale price or without items should be rejected with the domain's 422`() {
+        val rejected = createOrder(items = """[{"productId":"apple","price":2.00,"quantity":1}]""")
+            .assertProblem(422, OrderRejections.PRICE_CHANGED)
         rejected.json["result"]["status"].asString().assert().isEqualTo("REJECTED")
         rejected.json["result"]["hop"]["stage"].asString().assert().isEqualTo("COMMITTED")
-        createOrder(items = """[{"productId":"apple","price":2.00,"quantity":1}]""")
-            .assertProblem(422, OrderRejections.PRICE_CHANGED)
         createOrder(items = "[]").assertProblem(422, OrderRejections.NO_ITEMS)
     }
 

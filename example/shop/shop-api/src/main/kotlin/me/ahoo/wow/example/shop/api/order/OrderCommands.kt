@@ -59,3 +59,12 @@ data object ShipOrder
 /** Confirms that the customer received a shipped order. */
 @Summary("Receive the order")
 data object ReceiptOrder
+
+/**
+ * Cancels an order that is not shipped yet, for [reason]. The order saga sends it when the inventory cannot reserve a
+ * product of the order (decision D144).
+ */
+@Summary("Cancel the order")
+data class CancelOrder(
+    val reason: String,
+)

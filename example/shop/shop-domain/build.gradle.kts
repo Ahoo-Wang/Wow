@@ -16,6 +16,8 @@ ksp {
 
 dependencies {
     api(project(":shop-api"))
+    // The inventory's commands, which the order saga sends to the inventory context (decision D144).
+    implementation(project(":inventory-api"))
     // The generated models, the processor bindings and the binding index build on the kernel only (decision D149).
     api(project(":kernel"))
     ksp(project(":compiler"))

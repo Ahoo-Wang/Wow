@@ -185,6 +185,8 @@ migration/migrate-data/     :migrate-data   Imports 9.x event streams into the V
 test/architecture/          :architecture   V10 module graph and dependency rules
 test/kernel-benchmarks/     :kernel-benchmarks, test/routing-spike/ :routing-spike, test/lease-spike/ :lease-spike: spikes H3, H2, H6
 example/shop/               :shop-api, :shop-domain, :shop-server: the V10 example (D111); never published
+example/inventory/          :inventory-api, :inventory-domain, :inventory-server: the example's second context (D144)
+example/e2e/                :example-e2e: the shop and the inventory end to end on Kafka and PostgreSQL (D144)
 ```
 
 - V10 Gradle project names and directories carry no `wow-` prefix (`:kernel` in `core/kernel`); the root build sets their jar name and Maven artifactId to `wow-<name>` (D87). A V10 module that replaces a 9.x one (`:api`, `:compiler`, `:mongo`) lives in its own directory; the 9.x module keeps its name and directory, and no module may depend on both (D85; `:kernel-benchmarks` is exempt, D90).

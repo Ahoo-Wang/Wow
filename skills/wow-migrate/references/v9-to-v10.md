@@ -206,6 +206,8 @@ suspend fun onCommand(
 
 The 9.x `CreateOrderSpec` indirection existed to inject one qualified bean; the port injects the two services directly and turns their `Mono` APIs into `suspend` functions. Keeping the indirection with `@Name("createOrderSpec")` on the parameter is also valid. The host supplies the services by type and qualifier (in the shop, Spring beans).
 
+This is the one-to-one port. The shop has since moved the stock out of the order: placing an order consults the pricing service only, and the order's `OrderSaga` reserves each product in the `inventory` context, another service, with a cross-context command; a reservation the inventory rejects comes back to the saga's `@OnRejected` handler, which cancels the order (`example/inventory/README.md`). Make that move only when the stock belongs to another context; a 9.x service call inside decide stays a service parameter otherwise.
+
 Rejections are values with stable codes. Declare them beside the aggregate so the compiler lists them in the context's Manifest `errors`; codes must not start with `wow.` and must be unique in the module. The HTTP status defaults to 422.
 
 ```kotlin

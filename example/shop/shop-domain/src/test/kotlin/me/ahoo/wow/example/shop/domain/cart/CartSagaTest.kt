@@ -92,7 +92,7 @@ class CartSagaTest {
     @Test
     fun `the binding index should list the saga's handler`() {
         runTest {
-            val handler = ModelProvider.load().single().processors(Dependencies.NONE).single()
+            val handler = ModelProvider.load().single().processors(Dependencies.NONE).single { it.name == SUBSCRIPTION }
             handler.name.assert().isEqualTo(SUBSCRIPTION)
             handler.kind.assert().isEqualTo(FunctionKind.SAGA)
             handler.stateType.assert().isEqualTo(OrderState::class.java)

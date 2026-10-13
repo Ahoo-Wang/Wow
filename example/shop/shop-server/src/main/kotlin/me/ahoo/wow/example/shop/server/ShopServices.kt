@@ -13,44 +13,36 @@
 
 package me.ahoo.wow.example.shop.server
 
-import me.ahoo.wow.example.shop.domain.order.InventoryService
 import me.ahoo.wow.example.shop.domain.order.PricingService
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.math.BigDecimal
 
 /**
- * The services placing an order consults, as beans: the host passes them to the order model's factory, found by type
- * (decision D107). Products live outside the shop; these stubs serve a fixed [Catalog].
+ * The service placing an order consults, as a bean: the host passes it to the order model's factory, found by type
+ * (decision D107). Products live outside the shop; this stub serves a fixed [Catalog]. Their stock is the inventory
+ * service's, which the order saga reserves (decision D144).
  */
 @Configuration(proxyBeanMethods = false)
 class ShopServices {
     @Bean
-    fun inventoryService(): InventoryService = CatalogInventoryService(Catalog.DEFAULT)
-
-    @Bean
     fun pricingService(): PricingService = CatalogPricingService(Catalog.DEFAULT)
 }
 
-/** A product of the [Catalog]: its unit [price] and the units in [stock]. */
-data class Product(val price: BigDecimal, val stock: Int)
+/** A product of the [Catalog]: its unit [price]. */
+data class Product(val price: BigDecimal)
 
 /** The products the stub services know, by id. */
 data class Catalog(val products: Map<String, Product>) {
     companion object {
         val DEFAULT: Catalog = Catalog(
             mapOf(
-                "apple" to Product(BigDecimal("2.50"), 100),
-                "pear" to Product(BigDecimal("4.00"), 10),
-                "durian" to Product(BigDecimal("30.00"), 1),
+                "apple" to Product(BigDecimal("2.50")),
+                "pear" to Product(BigDecimal("4.00")),
+                "durian" to Product(BigDecimal("30.00")),
             ),
         )
     }
-}
-
-/** The stock of the catalog's products; a product it does not list has none. */
-class CatalogInventoryService(private val catalog: Catalog) : InventoryService {
-    override suspend fun getInventory(productId: String): Int = catalog.products[productId]?.stock ?: 0
 }
 
 /** The price of the catalog's products; a product it does not list has no price. */

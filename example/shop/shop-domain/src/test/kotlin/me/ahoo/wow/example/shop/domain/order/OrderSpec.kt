@@ -15,8 +15,10 @@ package me.ahoo.wow.example.shop.domain.order
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.example.shop.api.order.AddressChanged
+import me.ahoo.wow.example.shop.api.order.CancelOrder
 import me.ahoo.wow.example.shop.api.order.ChangeAddress
 import me.ahoo.wow.example.shop.api.order.CreateOrder
+import me.ahoo.wow.example.shop.api.order.OrderCancelled
 import me.ahoo.wow.example.shop.api.order.OrderOverPaid
 import me.ahoo.wow.example.shop.api.order.OrderPaid
 import me.ahoo.wow.example.shop.api.order.OrderPayDuplicated
@@ -26,7 +28,6 @@ import me.ahoo.wow.example.shop.api.order.OrderStatus
 import me.ahoo.wow.example.shop.api.order.PayOrder
 import me.ahoo.wow.example.shop.api.order.ReceiptOrder
 import me.ahoo.wow.example.shop.api.order.ShipOrder
-import me.ahoo.wow.example.shop.domain.order.OrderFixtures.APPLE_PRICE
 import me.ahoo.wow.example.shop.domain.order.OrderFixtures.HOME
 import me.ahoo.wow.example.shop.domain.order.OrderFixtures.OFFICE
 import me.ahoo.wow.example.shop.domain.order.OrderFixtures.ORDER_ID
@@ -41,7 +42,7 @@ import me.ahoo.wow.kernel.test.aggregateSpec
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 
-/** The order on the kernel, through the generated model with stub inventory and pricing services. */
+/** The order on the kernel, through the generated model with a stub pricing service. */
 class OrderSpec {
     private fun orderSpec(block: AggregateSpec<OrderState>.() -> Unit) = aggregateSpec(
         model,
@@ -78,12 +79,6 @@ class OrderSpec {
     fun `an order at a price that changed should be rejected`() = orderSpec {
         val stale = createOrder.copy(items = listOf(CreateOrder.Item("apple", BigDecimal("2.00"), 1)))
         whenCommand(stale) { expectRejected(OrderRejections.PRICE_CHANGED) }
-    }
-
-    @Test
-    fun `an order for more than the stock should be rejected`() = orderSpec {
-        val tooMany = createOrder.copy(items = listOf(CreateOrder.Item("apple", APPLE_PRICE, 11)))
-        whenCommand(tooMany) { expectRejected(OrderRejections.INSUFFICIENT_INVENTORY) }
     }
 
     @Test
@@ -187,5 +182,38 @@ class OrderSpec {
     fun `an order that is not shipped should not be received`() = orderSpec {
         paid()
         whenCommand(ReceiptOrder) { expectRejected(OrderRejections.WRONG_STATUS) }
+    }
+
+    @Test
+    fun `an order not shipped yet should be cancelled, once`() = orderSpec {
+        given(orderCreated)
+        whenCommand(CancelOrder("pear cannot be reserved")) {
+            expectEvents(OrderCancelled("pear cannot be reserved"))
+            expectState {
+                status.assert().isEqualTo(OrderStatus.CANCELLED)
+                cancelReason.assert().isEqualTo("pear cannot be reserved")
+            }
+        }
+        whenCommand(CancelOrder("apple cannot be reserved")) { expectUnchanged() }
+    }
+
+    @Test
+    fun `a paid order should be cancelled`() = orderSpec {
+        paid()
+        whenCommand(CancelOrder("out of stock")) { expectEvents(OrderCancelled("out of stock")) }
+    }
+
+    @Test
+    fun `a shipped order should not be cancelled`() = orderSpec {
+        paid()
+        given(OrderShipped)
+        whenCommand(CancelOrder("too late")) { expectRejected(OrderRejections.WRONG_STATUS) }
+    }
+
+    @Test
+    fun `a cancelled order should not ship`() = orderSpec {
+        paid()
+        given(OrderCancelled("out of stock"))
+        whenCommand(ShipOrder) { expectRejected(OrderRejections.WRONG_STATUS) }
     }
 }

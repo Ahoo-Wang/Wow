@@ -15,6 +15,7 @@ package me.ahoo.wow.example.shop.domain.order
 
 import me.ahoo.wow.api.annotation.Upgrade
 import me.ahoo.wow.example.shop.api.order.AddressChanged
+import me.ahoo.wow.example.shop.api.order.OrderCancelled
 import me.ahoo.wow.example.shop.api.order.OrderCreated
 import me.ahoo.wow.example.shop.api.order.OrderItem
 import me.ahoo.wow.example.shop.api.order.OrderOverPaid
@@ -41,6 +42,10 @@ class OrderState(val id: String) {
     var paidAmount: BigDecimal = BigDecimal.ZERO
         private set
     var status: OrderStatus = OrderStatus.CREATED
+        private set
+
+    /** Why the order was cancelled; null while it is not. */
+    var cancelReason: String? = null
         private set
 
     fun onSourcing(event: OrderCreated) {
@@ -81,6 +86,11 @@ class OrderState(val id: String) {
     @Suppress("UnusedParameter")
     fun onSourcing(event: OrderReceived) {
         status = OrderStatus.RECEIVED
+    }
+
+    fun onSourcing(event: OrderCancelled) {
+        cancelReason = event.reason
+        status = OrderStatus.CANCELLED
     }
 }
 

@@ -21,3 +21,13 @@ spring:
     password: postgres
 wow:
   backend: postgres
+---
+spring:
+  config:
+    activate:
+      on-profile: kafka
+wow:
+  kafka:
+    # The order stream is published to wow.example.order.state; the order saga sends the inventory's commands to
+    # wow.inventory.commands and reads the receipts of those it rejects from wow.example.receipts.
+    bootstrap-servers: localhost:9092

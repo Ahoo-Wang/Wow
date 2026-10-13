@@ -38,6 +38,13 @@ class V10ArchitectureTest {
         }
     }
 
+    @Test
+    fun `every example project the settings include should be listed among the examples`() {
+        V10Rules.v10SettingsProjects(repositoryRoot).filter(V10Rules::isExample).toSet().assert()
+            .describedAs("the example projects of settings.gradle.kts, as V10Rules.EXAMPLES lists them")
+            .isEqualTo(V10Rules.EXAMPLES.map { it.name }.toSet())
+    }
+
     @TestFactory
     fun `V10 modules should depend only on the projects the module graph allows`(): List<DynamicTest> =
         V10Rules.MODULES.map { module ->

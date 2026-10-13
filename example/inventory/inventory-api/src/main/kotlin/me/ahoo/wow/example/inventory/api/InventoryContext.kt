@@ -11,19 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.example.e2e
+package me.ahoo.wow.example.inventory.api
 
-import me.ahoo.test.asserts.assert
-import org.junit.jupiter.api.Test
-
-/** The skeleton of the end-to-end suite (work package 6.00): the shop server is on its class path. */
-class ExampleE2eTest {
-    @Test
-    fun `the shop server should be on the class path`() {
-        Class.forName(SHOP_SERVER).name.assert().isEqualTo(SHOP_SERVER)
-    }
-
-    private companion object {
-        const val SHOP_SERVER = "me.ahoo.wow.example.shop.server.ShopServerKt"
-    }
+/**
+ * The names of the example's second bounded context and its aggregate (decision D144): `inventory`, with a `stock`
+ * per product, its id the product's id. Its commands and events are named `inventory.stock.<Name>` (decision D55);
+ * the shop's order saga sends `inventory.stock.ReserveStock` to it across contexts.
+ */
+object InventoryContext {
+    const val NAME = "inventory"
+    const val STOCK = "stock"
 }

@@ -50,6 +50,9 @@ object V10Rules {
     val SHOP_API = V10Module("shop-api", "example/shop/shop-api")
     val SHOP_DOMAIN = V10Module("shop-domain", "example/shop/shop-domain")
     val SHOP_SERVER = V10Module("shop-server", "example/shop/shop-server")
+    val INVENTORY_API = V10Module("inventory-api", "example/inventory/inventory-api")
+    val INVENTORY_DOMAIN = V10Module("inventory-domain", "example/inventory/inventory-domain")
+    val INVENTORY_SERVER = V10Module("inventory-server", "example/inventory/inventory-server")
     val EXAMPLE_E2E = V10Module("example-e2e", "example/e2e")
 
     /** The eShop's five contexts (decision D158), each an `-api`, a `-domain` and a `-server` project. */
@@ -64,7 +67,8 @@ object V10Rules {
      * The V10 examples (decisions D111, D144, D159): applications of the V10 modules, not ones of them, and the
      * end-to-end tests across them.
      */
-    val EXAMPLES = listOf(SHOP_API, SHOP_DOMAIN, SHOP_SERVER, EXAMPLE_E2E) + ESHOP
+    val EXAMPLES =
+        listOf(SHOP_API, SHOP_DOMAIN, SHOP_SERVER, INVENTORY_API, INVENTORY_DOMAIN, INVENTORY_SERVER, EXAMPLE_E2E) + ESHOP
 
     /** Whether [project] belongs to the eShop (decision D159). */
     fun isEshop(project: String): Boolean = project.startsWith("eshop-")
