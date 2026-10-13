@@ -291,6 +291,39 @@ class QueryKeywordsTest {
             .isEqualTo(mapOf("strategy" to PublicStrategy::class.java.name))
     }
 
+    abstract class AbstractStrategy : MaskStrategy
+
+    data class AbstractMask(
+        @field:Sensitive(SensitivityLevel.DISPLAY, mask = Mask(strategy = AbstractStrategy::class))
+        val value: String,
+    )
+
+    @Test
+    fun `an abstract mask strategy should be refused`() {
+        failure(
+            AbstractMask::class.java
+        ).assert().contains("the mask strategy ${AbstractStrategy::class.java.name} must be")
+    }
+
+    @Test
+    fun `a Java state should carry its keywords and indexes`() {
+        val account = state(JavaAccount::class.java)
+        val properties = account["properties"] as Map<*, *>
+        (properties["holder"] as Map<*, *>)["x-wow-alias"].assert().isEqualTo(listOf("state.owner"))
+        (properties["secret"] as Map<*, *>)["x-wow-sensitive"].assert().isEqualTo(mapOf("level" to "CONFIDENTIAL"))
+        listOf("codes", "names", "limits").forEach { property ->
+            (properties[property] as Map<*, *>).containsKey("x-wow-sensitive").assert().isFalse()
+        }
+        account["x-wow-index"].assert().isEqualTo(
+            listOf(
+                mapOf(
+                    "name" to "ix_order_state_holder_last_event_time",
+                    "keys" to listOf("state.holder", "lastEventTime")
+                )
+            ),
+        )
+    }
+
     private val introspector = SchemaIntrospector(javaClass.classLoader)
 
     private fun complete(state: Class<*>): Manifest = introspector.complete(fragment(state))

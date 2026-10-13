@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.manifest.tools
 
-import com.fasterxml.classmate.ResolvedType
 import com.fasterxml.jackson.annotation.JsonValue
 import com.github.victools.jsonschema.generator.FieldScope
 import com.github.victools.jsonschema.generator.InstanceAttributeOverrideV2
@@ -258,11 +257,12 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) :
 
         /**
          * The class the property's values are declared with: its Kotlin classifier (a value class erases to its
-         * underlying type on the JVM), unwrapped through maps, collections and arrays down to their values.
+         * underlying type on the JVM; Kotlin reflection also types a Java field), unwrapped through maps,
+         * collections and arrays down to their values.
          */
         fun FieldScope.valueType(): Class<*> {
             val kotlinType = runCatching { rawMember.kotlinProperty?.returnType }.getOrNull()
-            return kotlinType?.valueClass() ?: type.valueClass()
+            return kotlinType?.valueClass() ?: type.erasedType
         }
 
         fun KType.valueClass(): Class<*>? {
@@ -276,20 +276,6 @@ internal class QueryFieldKeywords(private val states: Set<Class<*>>) :
                     else -> return declared
                 }
                 current = contained ?: return declared
-            }
-        }
-
-        fun ResolvedType.valueClass(): Class<*> {
-            var current = this
-            while (true) {
-                current = when {
-                    current.isArray -> current.arrayElementType
-                    Map::class.java.isAssignableFrom(current.erasedType) ->
-                        current.typeParameters.lastOrNull() ?: return current.erasedType
-                    Iterable::class.java.isAssignableFrom(current.erasedType) ->
-                        current.typeParameters.singleOrNull() ?: return current.erasedType
-                    else -> return current.erasedType
-                }
             }
         }
 
