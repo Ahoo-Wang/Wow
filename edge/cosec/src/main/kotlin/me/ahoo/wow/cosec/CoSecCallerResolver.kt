@@ -19,9 +19,9 @@ import me.ahoo.cosec.api.principal.SpacedRoleId
 import me.ahoo.cosec.api.tenant.Tenant
 import me.ahoo.cosec.webflux.ServerWebExchanges.getSecurityContext
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.caller.CallerResolver
-import me.ahoo.wow.runtime.admission.Caller
 import org.springframework.web.reactive.function.server.ServerRequest
 
 /**

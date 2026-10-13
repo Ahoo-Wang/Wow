@@ -18,6 +18,8 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
@@ -79,6 +81,8 @@ class OrderSagaEndToEndTest {
         sent.map { it.type }.assert().containsOnly("inventory.stock.ReserveStock")
         sent.map { it.ref.id to it.body["quantity"].asInt() }.assert().containsExactly("apple" to 2, "durian" to 1)
         sent.forEach { it.body["orderId"].asString().assert().isEqualTo(id) }
+        // The commands a saga derives keep the root command's operator, across contexts too (decision D163).
+        sent.forEach { it.operator.assert().isEqualTo(Operator(ALICE, Caller.DEFAULT_TENANT)) }
         val durian = sent.last()
         val replyTo = checkNotNull(durian.replyTo)
         replyTo.context.assert().isEqualTo("example")
@@ -88,6 +92,14 @@ class OrderSagaEndToEndTest {
         topics.send(RECEIPTS, listOf(CommandMessages.receipt(receiptOf(durian))))
         eventually { state(id)["status"].asString() == "CANCELLED" }
         state(id)["cancelReason"].asString().assert().contains("durian").contains("Only 0 of durian")
+        // The compensation that cancelled the order is in alice's name as well.
+        val streams = shop.post(
+            "/example/order/events/query",
+            """{"kind":"list","filter":{"op":"ID","value":"$id"}}""",
+            ALICE,
+        ).json.values().toList()
+        streams.assert().hasSizeGreaterThan(1)
+        streams.forEach { it["operator"]["id"].asString().assert().isEqualTo(ALICE) }
     }
 
     private fun receiptOf(command: CommandWire): CommandRejected<Any> {
@@ -99,6 +111,7 @@ class OrderSagaEndToEndTest {
             error = ErrorInfo("inventory.stock.insufficient", "Only 0 of durian are available, not 1."),
             causation = checkNotNull(command.causation),
             executionId = ExecutionId(replyTo.subscription, replyTo.ref, replyTo.version),
+            operator = command.operator,
         )
     }
 

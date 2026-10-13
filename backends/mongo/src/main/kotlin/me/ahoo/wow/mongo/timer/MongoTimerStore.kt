@@ -28,6 +28,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
+import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.spi.timer.Timer
@@ -99,6 +100,7 @@ class MongoTimerStore(
             Updates.set(STATUS, TimerStatus.PENDING.name),
             Updates.set(ATTEMPTS, 0),
             Updates.set(OUTCOME, null),
+            Updates.set(OPERATOR, MongoOperators.document(timer.operator)),
         )
         conditionalUpsert { upsert ->
             val result = timers.updateOne(replaceable, write, UpdateOptions().upsert(upsert))
@@ -194,6 +196,7 @@ class MongoTimerStore(
         status = TimerStatus.valueOf(document.getString(STATUS)),
         attempts = document.getInteger(ATTEMPTS),
         outcome = document.getString(OUTCOME),
+        operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
     )
 
     private companion object {
@@ -221,6 +224,7 @@ class MongoTimerStore(
         const val STATUS = "status"
         const val ATTEMPTS = "attempts"
         const val OUTCOME = "outcome"
+        const val OPERATOR = "operator"
         val DUE_ORDER: Bson = Sorts.ascending(DUE_AT, TIMER_ID)
     }
 }

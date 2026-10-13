@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.command
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.subscribe.CommandRejected
@@ -36,7 +37,7 @@ import me.ahoo.wow.spi.wait.WaitContext
  *   partitions, which are the target context's log partitions.
  * - **Receipt** ([EnvelopeKind.COMMAND_RECEIPT]): `id` is the rejected command's id, the one a reader deduplicates by,
  *   `type` its type, `payload` the rejection as the saga's `@OnRejected` handler takes it, `{commandId, commandType,
- *   ref, error, causation, executionId}` (decision D157), without the command's body. Keyed by the ref of the commit
+ *   ref, error, causation, executionId, operator}` (decisions D157, D163), without the command's body. Keyed by the ref of the commit
  *   the saga handled, so the receipts of one saga aggregate keep their order.
  *
  * Bodies and payloads are read and written with the cluster channel's lenient mapper ([ClusterCodec]): unknown fields
@@ -79,6 +80,7 @@ object CommandMessages {
                     rejected.error,
                     rejected.causation,
                     rejected.executionId,
+                    rejected.operator,
                 ),
             ),
         )
@@ -89,7 +91,15 @@ object CommandMessages {
     fun rejectedOf(envelope: Envelope): CommandRejected<Any> {
         require(envelope.kind == EnvelopeKind.COMMAND_RECEIPT) { "A ${envelope.kind} envelope holds no receipt." }
         val wire = mapper.treeToValue(envelope.payload, RejectedWire::class.java)
-        return CommandRejected(wire.commandId, wire.commandType, wire.ref, wire.error, wire.causation, wire.executionId)
+        return CommandRejected(
+            wire.commandId,
+            wire.commandType,
+            wire.ref,
+            wire.error,
+            wire.causation,
+            wire.executionId,
+            wire.operator,
+        )
     }
 
     private data class RejectedWire(
@@ -99,5 +109,6 @@ object CommandMessages {
         val error: ErrorInfo,
         val causation: Causation,
         val executionId: ExecutionId,
+        val operator: Operator? = null,
     )
 }

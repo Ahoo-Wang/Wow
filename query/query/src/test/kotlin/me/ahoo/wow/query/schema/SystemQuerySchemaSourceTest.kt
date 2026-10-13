@@ -91,11 +91,18 @@ class SystemQuerySchemaSourceTest {
             SnapshotFields.TAGS,
             SnapshotFields.FIRST_EVENT_TIME,
             SnapshotFields.LAST_EVENT_TIME,
+            SnapshotFields.OPERATOR,
+            SnapshotFields.FIRST_OPERATOR,
             SnapshotFields.STATE,
         )
         fields.forEach { (field, declaration) ->
             declaration.required.assert().describedAs(field.path).isEqualTo(DeclarationValue.Set(true))
-            val nullable = field.path == SnapshotFields.OWNER_ID || field.path == SnapshotFields.SPACE_ID
+            val nullable = field.path in setOf(
+                SnapshotFields.OWNER_ID,
+                SnapshotFields.SPACE_ID,
+                SnapshotFields.OPERATOR,
+                SnapshotFields.FIRST_OPERATOR,
+            )
             declaration.nullable.assert().describedAs(field.path).isEqualTo(DeclarationValue.Set(nullable))
         }
     }

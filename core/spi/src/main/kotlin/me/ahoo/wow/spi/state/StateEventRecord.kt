@@ -15,6 +15,7 @@ package me.ahoo.wow.spi.state
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.spi.log.Transport
 import tools.jackson.databind.JsonNode
@@ -38,8 +39,8 @@ data class StateEventPayload(val name: String, val revision: Int, val payload: J
  *
  * - [ref] and [version] identify the commit; [id] (`ref@version`) is what a reader deduplicates by (decision D45:
  *   publishing is at least once).
- * - [commandId], [requestId], [commandType], [commitTime], [scope], [causation] and [headers] are the stream's facts
- *   (design 08 §4); [events] are its events at their current revision.
+ * - [commandId], [requestId], [commandType], [commitTime], [scope], [causation], [headers] and [operator] are the
+ *   stream's facts (design 08 §4, decision D163); [events] are its events at their current revision.
  * - [state] is the aggregate's state after the stream; null when the sink publishes the aggregate type without it
  *   (`PublishedManifest.includeState`, decision D140). [deleted] and [tags] are the aggregate's after the stream, as
  *   the kernel evolved them, published either way.
@@ -60,6 +61,7 @@ data class StateEventRecord(
     val tags: Map<String, List<String>> = emptyMap(),
     val causation: Causation? = null,
     val headers: Map<String, String> = emptyMap(),
+    val operator: Operator? = null,
     val transport: Transport? = null,
 ) {
     init {

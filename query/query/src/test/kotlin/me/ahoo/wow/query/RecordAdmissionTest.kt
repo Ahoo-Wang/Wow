@@ -237,7 +237,7 @@ class RecordAdmissionTest {
     ): Boolean {
         var admitted: ObjectNode? = null
         runTest {
-            admitted = admission.admitRecord(selection, record, schema, QueryCaller(QueryEntry.HTTP, scope))
+            admitted = admission.admitRecord(selection, record, schema, QueryCaller(entry = QueryEntry.HTTP, scope = scope))
         }
         return admitted != null
     }

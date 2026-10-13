@@ -15,6 +15,7 @@ package me.ahoo.wow.spi.log
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.wait.WaitContext
@@ -41,6 +42,8 @@ data class EventRecord(val name: String, val revision: Int, val payload: String)
  * - [scope] is the aggregate's owner and space **after** this commit, not the caller's (D56): every fact carries it,
  *   so projections and query authorization read it without replaying history.
  * - [causation] and [headers] come from the command: the chain it belongs to and the request facts admission kept.
+ * - [operator] comes from the command too: whose name the commit is recorded in (decision D163), the primary record of
+ *   an audit; null for an anonymous caller.
  * - [schedules] are the scheduled commands the decision put or cancelled (decision D166), at most one change per key:
  *   framework metadata committed with the events, from which the built-in `timers` subscription derives the timer
  *   store. Projections do not see them. A stream may hold schedules and no event: a decision that only schedules.
@@ -56,6 +59,7 @@ data class EventStreamRecord(
     val scope: Scope,
     val causation: Causation? = null,
     val headers: Map<String, String> = emptyMap(),
+    val operator: Operator? = null,
     val schedules: List<ScheduleChange> = emptyList(),
 ) {
     init {

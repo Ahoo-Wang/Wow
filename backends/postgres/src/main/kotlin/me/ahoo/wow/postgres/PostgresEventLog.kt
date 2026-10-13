@@ -21,6 +21,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
@@ -118,9 +119,9 @@ class PostgresEventLog(
                     tables.ddl().forEach { statement.execute(it) }
                     statement.execute(tables.initializePartitions(partitions))
                 }
-                // A table created before the schedules column (decision D166) gets it, so the tail reads every table.
+                // A table created before format 1's added columns (D163, D166) gets them, so the tail reads every table.
                 register(connection).forEach { table ->
-                    connection.createStatement().use { it.execute(table.addSchedules) }
+                    connection.createStatement().use { it.execute(table.additions) }
                 }
                 // Read again on first use, with the tables created from now on.
                 registered = null
@@ -163,7 +164,7 @@ class PostgresEventLog(
             PostgresFormat.claim(connection, table.base, PostgresEventLogTables.FORMAT)
             connection.createStatement().use {
                 it.execute(table.ddl())
-                it.execute(table.addSchedules)
+                it.execute(table.additions)
             }
             connection.prepareStatement(tables.register).use { register ->
                 register.setString(1, context)
@@ -236,6 +237,10 @@ class PostgresEventLog(
                 append.setString(18, json.writeValueAsString(stream.headers))
                 append.setNullableString(19, transport?.let { encodeTransport(it) })
                 append.setNullableString(20, stream.schedules.takeIf { it.isNotEmpty() }?.let(::encodeSchedules))
+                val operator = stream.operator
+                append.setNullableString(21, operator?.id)
+                append.setNullableString(22, operator?.tenantId)
+                if (operator == null) append.setNull(23, Types.BOOLEAN) else append.setBoolean(23, operator.crossScope)
                 append.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else null }
             }
             return if (sequence == null) {
@@ -440,6 +445,9 @@ class PostgresEventLog(
         causation = row.getString("correlation_id")?.let { Causation(it, row.getString("causation_id")) },
         headers = decodeStrings(row.getString("headers")),
         schedules = row.getString("schedules")?.let(::decodeSchedules).orEmpty(),
+        operator = row.getString("operator_id")?.let {
+            Operator(it, row.getString("operator_tenant_id"), row.getBoolean("operator_cross_scope"))
+        },
     )
 
     private fun PreparedStatement.setNullableString(index: Int, value: String?) {

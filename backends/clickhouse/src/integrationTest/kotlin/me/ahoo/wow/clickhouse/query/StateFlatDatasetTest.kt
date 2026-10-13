@@ -18,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
@@ -171,12 +172,12 @@ class StateFlatDatasetTest {
         val target = target()
         val gateways = DatasetQueryGateways.of(target.datasets, target.catalog, factory, policies = listOf(ScopeQueryPolicy()))
         val gateway = checkNotNull(gateways[dataset.name])
-        val owner2 = QueryCaller(QueryEntry.HTTP, tenantId = "tenant-1", principal = Scope("owner-2", "space-1"))
+        val owner2 = QueryCaller(Caller(tenantId = "tenant-1", scope = Scope("owner-2", "space-1")), entry = QueryEntry.HTTP)
         gateway.list(ListQuery(MatchAllFilter, limit = 10), owner2).toList().map { it.get("aggregate_id").stringValue() }
             .assert().containsExactly("order-2")
-        gateway.count(CountQuery(MatchAllFilter), QueryCaller(QueryEntry.HTTP, tenantId = "tenant-1")).count
+        gateway.count(CountQuery(MatchAllFilter), QueryCaller(Caller(tenantId = "tenant-1"), entry = QueryEntry.HTTP)).count
             .assert().isEqualTo(2L)
-        gateway.count(CountQuery(MatchAllFilter), QueryCaller(QueryEntry.HTTP, tenantId = "tenant-2", principal = Scope("owner-2")))
+        gateway.count(CountQuery(MatchAllFilter), QueryCaller(Caller(tenantId = "tenant-2", scope = Scope("owner-2")), entry = QueryEntry.HTTP))
             .count.assert().isEqualTo(0L)
     }
 

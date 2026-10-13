@@ -95,8 +95,9 @@ import java.util.Base64
  * returned. The HTTP entry runs under [entryPolicy]'s HTTP budget: its list, page and count limits and its timeout.
  *
  * A record is the stream: `aggregateId`, `tenantId`, `version`, `commitTime`, `commandId`, `requestId`,
- * `commandType`, `ownerId` and `spaceId` when set, and `events`, each `{name, revision, body}` as the log stores it
- * (at its own revision, not upgraded).
+ * `commandType`, `ownerId` and `spaceId` when set, `operator` (`{id, tenantId, crossScope}`, decision D163) when the
+ * stream has one, and `events`, each `{name, revision, body}` as the log stores it (at its own revision, not
+ * upgraded).
  */
 class EventQueryGateway(
     val aggregateType: AggregateType,
@@ -279,7 +280,7 @@ class EventQueryGateway(
         private val OPERATIONS = listOf("single", "list", "paged", "cursor", "count")
         private val RECORD = listOf(
             AGGREGATE_ID, TENANT_ID, VERSION, COMMIT_TIME, "commandId", "requestId", "commandType", "ownerId",
-            "spaceId", "events",
+            "spaceId", "operator", "events",
         )
         private const val CURSOR_PREFIX = "v:"
 
@@ -317,6 +318,12 @@ class EventQueryGateway(
                 .put("commandType", stream.commandType)
             stream.scope.ownerId?.let { record.put("ownerId", it) }
             stream.scope.spaceId?.let { record.put("spaceId", it) }
+            stream.operator?.let { operator ->
+                record.putObject("operator")
+                    .put("id", operator.id)
+                    .put("tenantId", operator.tenantId)
+                    .put("crossScope", operator.crossScope)
+            }
             val events = record.putArray("events")
             stream.events.forEach { event ->
                 events.addObject()

@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationMetric
@@ -70,7 +71,10 @@ class SensitivityGatewayTest {
     fun `responses mask every sensitive value whatever its level and whoever asks`() {
         runTest {
             val (gateway, _) = gateway()
-            listOf(QueryCaller.IN_PROCESS, QueryCaller(QueryEntry.HTTP, tenantId = "t")).forEach { caller ->
+            listOf(
+                QueryCaller.IN_PROCESS,
+                QueryCaller(Caller(tenantId = "t"), entry = QueryEntry.HTTP)
+            ).forEach { caller ->
                 val rows = gateway.list(
                     ListQuery(MatchAllFilter, sort = listOf(Sort(ID, Sort.Direction.ASC)), limit = 10),
                     caller

@@ -20,8 +20,8 @@ import me.ahoo.cosec.tenant.SimpleTenant
 import me.ahoo.cosec.webflux.ServerWebExchanges.setSecurityContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.WowHeaders
-import me.ahoo.wow.runtime.admission.Caller
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.http.codec.ServerCodecConfigurer

@@ -13,10 +13,10 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalHttp
-import me.ahoo.wow.runtime.admission.Caller
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.Routing

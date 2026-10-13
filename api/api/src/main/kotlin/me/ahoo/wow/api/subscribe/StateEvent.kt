@@ -15,6 +15,7 @@ package me.ahoo.wow.api.subscribe
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 
 /**
@@ -27,6 +28,7 @@ import me.ahoo.wow.api.decide.Causation
  *   produced it; [commitTime] is when, in epoch milliseconds.
  * - [scope] is the aggregate's owner and space after the commit (decision D56), not the caller's.
  * - [causation] and [headers] come from the command: the chain it belongs to and the request facts admission kept.
+ * - [operator] is whose name the commit is recorded in (decision D163); the commands a saga derives from it keep it.
  *
  * [state] is a copy read from the commit's state view, never the live instance: changing it affects no one. A
  * handler of another context's published stream declares a nullable state, `StateEvent<OrderView?>`, when the
@@ -45,6 +47,7 @@ data class StateEvent<out S>(
     val scope: Scope = Scope.NONE,
     val causation: Causation? = null,
     val headers: Map<String, String> = emptyMap(),
+    val operator: Operator? = null,
 ) {
     init {
         require(version >= 1) { "A committed version starts at 1." }

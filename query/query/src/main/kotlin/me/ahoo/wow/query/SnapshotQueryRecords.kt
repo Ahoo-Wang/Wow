@@ -15,14 +15,17 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.query.schema.OperatorFields
 import me.ahoo.wow.query.schema.SnapshotFields
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
 /**
  * This snapshot as the record a snapshot query reads and returns (decision D128): the [SnapshotFields] in their
- * order, an absent owner or space as `null`, and the state parsed as JSON under [SnapshotFields.STATE]. Every snapshot
+ * order, an absent owner, space or operator as `null`, and the state parsed as JSON under [SnapshotFields.STATE]. Every snapshot
  * backend returns records of this shape, whatever its storage keeps.
  */
 fun SnapshotRecord.toQueryRecord(): ObjectNode = newRecord().apply {
@@ -42,5 +45,17 @@ fun SnapshotRecord.toQueryRecord(): ObjectNode = newRecord().apply {
     )
     put(SnapshotFields.FIRST_EVENT_TIME, firstEventTime)
     put(SnapshotFields.LAST_EVENT_TIME, lastEventTime)
+    set(SnapshotFields.OPERATOR, operator.toQueryValue())
+    set(SnapshotFields.FIRST_OPERATOR, firstOperator.toQueryValue())
     set(SnapshotFields.STATE, WowJson.mapper.readTree(state))
+}
+
+/** This operator as a snapshot record's operator field: `{id, tenantId, crossScope}`, or JSON null when absent. */
+fun Operator?.toQueryValue(): JsonNode = if (this == null) {
+    jsonNodes.nullNode()
+} else {
+    newRecord()
+        .put(OperatorFields.ID, id)
+        .put(OperatorFields.TENANT_ID, tenantId)
+        .put(OperatorFields.CROSS_SCOPE, crossScope)
 }

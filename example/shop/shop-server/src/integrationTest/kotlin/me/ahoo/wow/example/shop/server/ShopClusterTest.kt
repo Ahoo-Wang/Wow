@@ -15,11 +15,11 @@ package me.ahoo.wow.example.shop.server
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.example.shop.api.ExampleContext
 import me.ahoo.wow.example.shop.domain.order.Order
 import me.ahoo.wow.example.shop.domain.order.PricingService
 import me.ahoo.wow.http.internal.InternalHttp
-import me.ahoo.wow.runtime.admission.Caller
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.spi.log.Partitioner
 import org.junit.jupiter.api.AfterAll

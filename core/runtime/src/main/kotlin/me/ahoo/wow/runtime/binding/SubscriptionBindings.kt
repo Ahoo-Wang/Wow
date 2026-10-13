@@ -272,7 +272,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
 
         /**
          * The [StateEvent] of [entry] (design 04 §1, design 08 §5): the stream's identity, command, commit time, scope
-         * (the aggregate's after the commit, decision D56), causation and headers, its decoded events, and the state
+         * (the aggregate's after the commit, decision D56), causation, headers and operator, its decoded events, and the state
          * after the commit decoded afresh from its view, so no handler sees another's changes nor the live instance.
          */
         /**
@@ -305,6 +305,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 scope = record.scope,
                 causation = record.causation,
                 headers = record.headers,
+                operator = record.operator,
             )
         }
 
@@ -324,6 +325,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 scope = stream.scope,
                 causation = stream.causation,
                 headers = stream.headers,
+                operator = stream.operator,
             )
         }
     }

@@ -22,7 +22,9 @@ import me.ahoo.wow.postgres.PostgresIdentifiers
  * name longer than PostgreSQL's 63 characters is cut by [PostgresIdentifiers.limited]. The name is part of the format,
  * whose version is [FORMAT] and is recorded per table (decision D59). The key leads with the tenant, so a query within
  * one tenant scans one key range. The scope is two nullable columns, the owner and the space, which the query side
- * filters on.
+ * filters on. The operator and the first operator (decision D163) are nullable `jsonb` objects, `{id, tenantId,
+ * crossScope}`, which the query side reads as the system fields `operator` and `firstOperator`: columns added within
+ * format 1, so a table created before them gets them on its next ensure ([additions]).
  *
  * The text columns the query side compares and sorts by use the `C` collation: they order by code point, as the query
  * backend orders the state's text values, and their indexes serve that order. Two partial indexes cover the predicates
@@ -53,12 +55,20 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
             first_event_time bigint NOT NULL,
             last_event_time bigint NOT NULL,
             tags jsonb NOT NULL,
+            operator jsonb,
+            first_operator jsonb,
             PRIMARY KEY (tenant_id, aggregate_id)
         )
         """.trimIndent(),
+        additions,
         "CREATE INDEX IF NOT EXISTS \"$ownerIndex\" ON $snapshot (tenant_id, owner_id) WHERE NOT deleted",
         "CREATE INDEX IF NOT EXISTS \"$spaceIndex\" ON $snapshot (tenant_id, space_id) WHERE NOT deleted",
     )
+
+    /** Adds format 1's added columns (the operators, decision D163) to a table created before them. */
+    val additions: String
+        get() = "ALTER TABLE $snapshot ADD COLUMN IF NOT EXISTS operator jsonb, " +
+            "ADD COLUMN IF NOT EXISTS first_operator jsonb"
 
     /**
      * The whole version-guarded save as one autocommitted statement: insert, or on the key's conflict replace the
@@ -69,8 +79,8 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
      */
     val save = """
         INSERT INTO $snapshot AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state,
-            owner_id, space_id, deleted, first_event_time, last_event_time, tags)
-        VALUES (?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?::jsonb)
+            owner_id, space_id, deleted, first_event_time, last_event_time, tags, operator, first_operator)
+        VALUES (?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb)
         ON CONFLICT (tenant_id, aggregate_id) DO UPDATE SET
             version = excluded.version,
             schema_fingerprint = excluded.schema_fingerprint,
@@ -80,7 +90,9 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
             deleted = excluded.deleted,
             first_event_time = excluded.first_event_time,
             last_event_time = excluded.last_event_time,
-            tags = excluded.tags
+            tags = excluded.tags,
+            operator = excluded.operator,
+            first_operator = excluded.first_operator
         WHERE excluded.version > stored.version
         RETURNING version
     """.trimIndent()

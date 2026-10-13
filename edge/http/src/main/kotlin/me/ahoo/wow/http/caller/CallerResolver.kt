@@ -14,7 +14,7 @@
 package me.ahoo.wow.http.caller
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.wow.runtime.admission.Caller
+import me.ahoo.wow.api.caller.Caller
 import org.springframework.web.reactive.function.server.ServerRequest
 import java.util.concurrent.atomic.AtomicBoolean
 

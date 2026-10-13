@@ -14,6 +14,7 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 
@@ -64,38 +65,39 @@ enum class QueryEntry {
 }
 
 /**
- * Who runs a query (decision D126): the explicit argument of every gateway operation and of [QueryPolicy], in place
- * of 9.x's Reactor `ContextView`. The HTTP edge maps its `Caller` (and `Wow-Scope` for a cross-scope caller) to one
- * (decision D129, work package 6.2c): [tenantId] is the caller's tenant (or the one `Wow-Scope` names), [principal] its
- * scope (or the target's), [subject] and [attributes] unchanged, and the entry [QueryEntry.HTTP]. In-process code
- * passes [IN_PROCESS].
+ * Who runs a query, and how (decisions D126, D165): the explicit argument of every gateway operation and of
+ * [QueryPolicy], in place of 9.x's Reactor `ContextView`. The identity is the [Caller] commands are admitted with:
+ * the HTTP edge resolves one per request and, for a `Wow-Scope` request (decision D129, work package 6.2c), states the
+ * tenant and scope it acts in on it; the query adds only its execution context. In-process code passes [IN_PROCESS].
  *
+ * - [caller]: who; null for trusted in-process code, which is bound to no tenant, owner or space. Policies read it:
+ *   [ScopeQueryPolicy] restricts a query to its tenant (through the host's [QueryTenantPolicy]) and its scope, and
+ *   [AbacQueryPolicy] matches its `abac.` attributes against the snapshot tags.
  * - [entry]: where the query came from, which picks its budget.
- * - [scope]: the caller's scope as filters (tenant, owner, space), which admission step 2 appends to the query.
  * - [selection]: what a route names in its URL (an aggregate id, a version range): an operation constraint, not
  *   caller scope. Admission appends it at step 2 with the scope, after every
  *   [QueryFilter][me.ahoo.wow.query.filter.QueryFilter], so a rewrite can neither see nor remove it, and it is neither
  *   budgeted as scope nor reported among the audit's scope fields.
- * - [subject] names the principal, for policies and audit; `null` for an anonymous or in-process caller.
- * - [attributes] are further facts about the principal a policy may read, such as the `abac.` attributes the ABAC
- *   policy matches against snapshot tags ([AbacQueryPolicy]).
- * - [tenantId] is the tenant the caller acts in, which [ScopeQueryPolicy] restricts its queries to (through the host's
- *   [QueryTenantPolicy]); `null` for a caller bound to no tenant, such as trusted in-process code.
- * - [principal] is the owner and space the caller acts in: [ScopeQueryPolicy] restricts its queries to each part that
- *   is present.
+ * - [scope]: the caller's scope as filters (tenant, owner, space) a trusted component stated, which admission step 2
+ *   appends to the query with what the policies add.
  */
 data class QueryCaller(
+    val caller: Caller? = null,
     val entry: QueryEntry = QueryEntry.UNSPECIFIED,
-    val scope: QueryScope = QueryScope.NONE,
     val selection: FilterExpression = MatchAllFilter,
-    val subject: String? = null,
-    val attributes: Map<String, List<String>> = emptyMap(),
-    val tenantId: String? = null,
-    val principal: Scope = Scope.NONE,
+    val scope: QueryScope = QueryScope.NONE,
 ) {
-    init {
-        require(tenantId == null || tenantId.isNotBlank()) { "A query caller's tenant, when present, is not blank." }
-    }
+    /** The [caller]'s subject, for policies and audit; null for an anonymous or in-process caller. */
+    val subject: String? get() = caller?.subject
+
+    /** The [caller]'s attributes, such as the `abac.` attributes [AbacQueryPolicy] matches; none in process. */
+    val attributes: Map<String, List<String>> get() = caller?.attributes ?: emptyMap()
+
+    /** The tenant the [caller] acts in; null for a query bound to no tenant, such as trusted in-process code. */
+    val tenantId: String? get() = caller?.tenantId
+
+    /** The owner and space the [caller] acts in: [ScopeQueryPolicy] restricts its queries to each part present. */
+    val principal: Scope get() = caller?.scope ?: Scope.NONE
 
     /** This caller with [scope] appended to its scope. */
     fun withScope(scope: QueryScope): QueryCaller = copy(scope = this.scope.append(scope))
@@ -105,18 +107,18 @@ data class QueryCaller(
         if (selection === MatchAllFilter) this else copy(selection = this.selection.appendFilter(selection))
 
     /**
-     * The caller of a query issued from inside a query extension, a policy or a cache loader: the scope, route
-     * selection, tenant, principal scope and entry are dropped and the entry is [QueryEntry.IN_PROCESS], so an HTTP
-     * caller's budgets and scope do not leak into a nested lookup. The subject and attributes stay, for audit.
+     * The caller of a query issued from inside a query extension, a policy or a cache loader: trusted in-process code,
+     * [IN_PROCESS]. The caller, scope, route selection and entry are all dropped, so an HTTP caller's budgets, tenant,
+     * scope and tags do not leak into a nested lookup.
      */
-    fun inProcess(): QueryCaller = QueryCaller(QueryEntry.IN_PROCESS, subject = subject, attributes = attributes)
+    fun inProcess(): QueryCaller = IN_PROCESS
 
     companion object {
-        /** Trusted in-process code with no scope. */
+        /** Trusted in-process code with no caller and no scope. */
         @JvmField
-        val IN_PROCESS: QueryCaller = QueryCaller(QueryEntry.IN_PROCESS)
+        val IN_PROCESS: QueryCaller = QueryCaller(entry = QueryEntry.IN_PROCESS)
 
-        /** A caller that states nothing: in-process unless the entry policy requires explicit entries. */
+        /** A query that states nothing: in-process unless the entry policy requires explicit entries. */
         @JvmField
         val UNSPECIFIED: QueryCaller = QueryCaller()
     }

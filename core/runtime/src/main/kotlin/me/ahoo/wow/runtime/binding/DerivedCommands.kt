@@ -141,6 +141,7 @@ class DerivedCommands(
             error = error,
             causation = command.causation ?: Causation(command.id, command.id),
             executionId = execution,
+            operator = command.operator,
         )
     }
 
