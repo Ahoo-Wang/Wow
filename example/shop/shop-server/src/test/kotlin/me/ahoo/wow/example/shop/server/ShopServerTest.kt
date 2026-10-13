@@ -131,6 +131,27 @@ class ShopServerTest {
     }
 
     @Test
+    fun `the manifest should carry the state schemas of both aggregates`() {
+        val manifest = shop.get("/wow/manifest", "alice").json
+        val context = manifest["contexts"].values().single()
+        val defs = manifest["\$defs"]
+        context["aggregates"].values().map { it["state"]["schema"].asString() }.assert().containsExactly(
+            "#/\$defs/me.ahoo.wow.example.shop.domain.cart.CartState",
+            "#/\$defs/me.ahoo.wow.example.shop.domain.order.OrderState",
+        )
+        val cart = defs["me.ahoo.wow.example.shop.domain.cart.CartState"]
+        cart["type"].asString().assert().isEqualTo("object")
+        cart["properties"]["items"]["type"].asString().assert().isEqualTo("array")
+        val order = defs["me.ahoo.wow.example.shop.domain.order.OrderState"]
+        order["properties"]["status"]["enum"].values().map { it.asString() }.assert()
+            .containsExactly("CREATED", "PAID", "SHIPPED", "RECEIVED", "CANCELLED")
+        order["properties"]["address"].assert().isNotNull()
+        // The schemas the states refer to are carried with them, so every reference resolves.
+        defs["me.ahoo.wow.example.shop.api.order.OrderItem"]["type"].asString().assert().isEqualTo("object")
+        defs["me.ahoo.wow.example.shop.api.order.ShippingAddress"]["type"].asString().assert().isEqualTo("object")
+    }
+
+    @Test
     fun `the manifest should need credentials`() {
         shop.get("/wow/manifest").assertProblem(401, FrameworkCodes.UNAUTHENTICATED)
     }
