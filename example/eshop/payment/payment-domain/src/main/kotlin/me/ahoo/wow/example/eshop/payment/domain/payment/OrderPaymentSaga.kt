@@ -44,6 +44,9 @@ import java.math.BigDecimal
  *   any cancelled order does (the ordering's order-process saga).
  * - [onPayRejected]: an order that refuses its payment (it was cancelled meanwhile, its grace period passed, say)
  *   comes back as a receipt on `wow.eshop-payment.receipts`, and the payment is refunded.
+ *
+ * A `CancelOrder` the order rejects has no handler: only a paid order rejects it, and a failed payment paid nothing,
+ * so such a rejection parks the payment for [onPaymentFailed], to be looked at.
  */
 @Saga
 class OrderPaymentSaga {

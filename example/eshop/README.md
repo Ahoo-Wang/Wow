@@ -7,7 +7,7 @@ A multi-service shop on Wow V10, modelled on the classic eShop reference applica
 
 The eShop builds on the V10 modules only, and is never published. `example/shop` stays as the minimal example and as the reference for 9.x-to-V10 migration.
 
-> **Status: E.1 to E.4 done.** The catalog has its products, brands and categories, and its storefront queries. The basket, ordering and inventory contexts and the order flow between them work end to end on PostgreSQL and Kafka. The payment (E.5) is still the skeleton of work package E.0, with one aggregate and one creating command; the full suite comes with E.6.
+> **Status: E.1 to E.5 done.** The catalog has its products, brands and categories, and its storefront queries. The basket, ordering, inventory and payment contexts and the order flow between them work end to end on PostgreSQL and Kafka, the payment over a simulated gateway. The full suite of all five services comes with E.6.
 
 ## Contexts
 
@@ -19,7 +19,7 @@ Five bounded contexts. Each one runs as its own service, and the services will t
 | `eshop-basket` | `:eshop-basket-{api,domain,server}` | `basket`, one per buyer (its id the buyer's) | Done (E.2): add, change and remove items, clear; checkout sends `SubmitOrder` to ordering | `Basket.API` |
 | `eshop-ordering` | `:eshop-ordering-{api,domain,server}` | `order` | Done (E.3): the order state machine, the order-process saga, the payment grace period | `Ordering.API`, `Ordering.Domain`, `OrderProcessor`, `GracePeriodManager` |
 | `eshop-inventory` | `:eshop-inventory-{api,domain,server}` | `stock`, one per product | Done (E.4): reservation, commit and release; a short stock is rejected, and ordering's `@OnRejected` cancels the order | The `AvailableStock` of `Catalog.API` and its stock-confirmation events, split out into a context of their own |
-| `eshop-payment` | `:eshop-payment-{api,domain,server}` | `payment` (`RequestPayment`) | A reactor over a simulated payment gateway (E.5) | `PaymentProcessor` |
+| `eshop-payment` | `:eshop-payment-{api,domain,server}` | `payment`, one per order (its id the order's) | Done (E.5): a payment requested once the order's stock is confirmed, charged through a simulated gateway; it pays the order or cancels it | `PaymentProcessor` |
 
 The rest of the classic eShop maps like this:
 
@@ -43,19 +43,24 @@ CheckoutBasket
                                     │ ◀──ConfirmOrderStock── StockConfirmationSaga ◀┘ reads wow.eshop-inventory.stock.state
                                     ▼
                              STOCK_CONFIRMED ── schedules CancelOrder after the payment grace period
-                                    │ PayOrder (cancels the schedule)
-                                    ▼
-                             PAID ── ShipOrder ──▶ SHIPPED ──CommitReservation──▶ ReservationCommitted
+                                    │
+                                    │ OrderPaymentSaga reads wow.eshop-ordering.order.state ──RequestPayment──▶ payment REQUESTED
+                                    │                                       PaymentGatewaySaga charges the gateway │
+                                    │ ◀──PayOrder (cancels the schedule)── OrderPaymentSaga ◀── SUCCEEDED ◀────────┤
+                                    ▼                                                                              │
+                             PAID ── ShipOrder ──▶ SHIPPED ──CommitReservation──▶ ReservationCommitted             │
+                                                                                                                   │
+                             CANCELLED ◀──CancelOrder── OrderPaymentSaga ◀── FAILED ◀──────────────────────────────┘
 
 A rejected ReserveStock comes back as a receipt on wow.eshop-ordering.receipts:
 OrderProcessSaga's @OnRejected sends CancelOrder ──▶ CANCELLED ──ReleaseReservation──▶ ReservationReleased
-The grace period's scheduled CancelOrder does the same for an order not paid in time.
+A declined payment's CancelOrder, and the grace period's scheduled one for an order not paid in time, do the same.
 ```
 
 - **Order ids.** The basket numbers its checkouts: `alice`'s first order is `alice-1`. The checkout answers it as the result `orderId`.
 - **States.** `SUBMITTED → AWAITING_VALIDATION → STOCK_CONFIRMED → PAID → SHIPPED`, or `CANCELLED` from any state before `PAID`.
 - **Grace period.** `eshop.ordering.payment-grace-period` (30 minutes) is a durable scheduled command (decision D166), written with the commit that confirms the stock. Paying or cancelling the order cancels it. If it fires late on a paid order, the order rejects it, which is a normal guard.
-- **Payment.** Until the payment context (E.5) exists, a client sends `pay-order` with the order's total.
+- **Payment.** See [Payment](#payment). A client may still send `pay-order` itself, with the order's total.
 - **Buyer.** A saga's command carries no caller scope, so `SubmitOrder` carries the buyer in its body (DX gap G22).
 
 ### Naming
@@ -71,6 +76,24 @@ Each `-api` depends on `:api`. Each `-domain` depends on its API and on `:kernel
 
 - The eShop reaches V10 modules and other eShop projects only.
 - No `-api` or `-domain` reaches `:runtime`.
+
+## Payment
+
+Work package E.5, after the classic eShop's `PaymentProcessor`. One aggregate, `payment`, one per order: its id is the order's.
+
+| Command | Sent by | Accepted when | Rejections |
+| --- | --- | --- | --- |
+| `RequestPayment` (creates it) | `OrderPaymentSaga`, on the order's `OrderStockConfirmed` | The payment does not exist yet | `invalid-amount` (422): an amount that is not positive |
+| `ConfirmPayment` | `PaymentGatewaySaga`, when the gateway approves | `REQUESTED`; again on `SUCCEEDED` changes nothing | `wrong-status` (409) |
+| `FailPayment` | `PaymentGatewaySaga`, when the gateway declines | `REQUESTED`; again on `FAILED` changes nothing | `wrong-status` (409) |
+| `RefundPayment` | `OrderPaymentSaga`, when the order rejects its `PayOrder` | `SUCCEEDED`; again on `REFUNDED` changes nothing | `wrong-status` (409) |
+
+- **States.** `REQUESTED`, then `SUCCEEDED` or `FAILED`; a succeeded payment may become `REFUNDED`.
+- **Request.** `OrderPaymentSaga.onOrderStockConfirmed` reads the order stream the ordering context publishes, `wow.eshop-ordering.order.state`, matches `eshop-ordering.order.OrderStockConfirmed` by name and reads the order's `totalAmount` from its published state. The server starts it at the beginning of the stream.
+- **Gateway.** `PaymentGatewaySaga` charges the `PaymentGateway` for each requested payment, with its execution as the idempotency key, and records the answer. It is a saga, not a reactor, because it sends a command. The server binds the `SimulatedPaymentGateway`: it approves an amount up to `eshop.payment.gateway.limit` (1000.00) and declines one above it, so a test picks the outcome by the order's total.
+- **Outcome.** A succeeded payment sends `PayOrder` (the payment's id and amount) to the ordering context; a failed one sends `CancelOrder`, and the cancelled order releases its stock as any cancelled order does.
+- **Refund.** An order that rejects its `PayOrder` (cancelled meanwhile, when its grace period passed, say) comes back as a receipt on `wow.eshop-payment.receipts`, and `OrderPaymentSaga.onPayRejected` refunds the payment.
+- **Peers.** The payment server takes the ordering's Manifest as its peer (`wowPeers`). The ordering knows nothing of the payment.
 
 ## Catalog
 
@@ -124,10 +147,10 @@ Use JDK 21. Start a service from the repository root. Each one runs on the memor
 
 `-Pwow.scope=v10` leaves the 9.x modules out of the build. Without it, the build is slower but the result is the same.
 
-The basket, ordering and inventory services talk over Kafka. The basket and ordering services do not start without it, because their sagas send other contexts' commands. Each of the three has two profiles:
+The basket, ordering, inventory and payment services talk over Kafka. The basket, ordering and payment services do not start without it, because their sagas send other contexts' commands. Each of the four has two profiles:
 
-- **`kafka`** sets Kafka on `localhost:9092`. On ordering and inventory it also turns on the command intake. On ordering it starts `StockConfirmationSaga.onStockReserved` at the beginning of the stock stream.
-- **`postgres`** puts the service on PostgreSQL. Its database is `eshop_basket`, `eshop_ordering` or `eshop_inventory` on `localhost:5432`.
+- **`kafka`** sets Kafka on `localhost:9092`. On ordering and inventory it also turns on the command intake. On ordering it starts `StockConfirmationSaga.onStockReserved` at the beginning of the stock stream, and on payment `OrderPaymentSaga.onOrderStockConfirmed` at the beginning of the order stream.
+- **`postgres`** puts the service on PostgreSQL. Its database is `eshop_basket`, `eshop_ordering`, `eshop_inventory` or `eshop_payment` on `localhost:5432`.
 
 The nodes do not create topics. Create the command topics with exactly as many partitions as the log (`wow.log.partitions`, 64 by default) before the first start:
 
@@ -137,6 +160,7 @@ kafka-topics --bootstrap-server localhost:9092 --create --topic wow.eshop-invent
 ./gradlew -Pwow.scope=v10 :eshop-inventory-server:run --args='--spring.profiles.active=kafka'
 ./gradlew -Pwow.scope=v10 :eshop-ordering-server:run --args='--spring.profiles.active=kafka'
 ./gradlew -Pwow.scope=v10 :eshop-basket-server:run --args='--spring.profiles.active=kafka'
+./gradlew -Pwow.scope=v10 :eshop-payment-server:run --args='--spring.profiles.active=kafka'
 ```
 
 The servers have no `CallerResolver` yet, so every request is served as the anonymous caller. For example:
@@ -157,9 +181,8 @@ curl -s -X POST localhost:8082/eshop-basket/basket/alice/add-basket-item \
   -H 'Content-Type: application/json' -d '{"productId":"mug","unitPrice":8.50,"quantity":2}'
 curl -s -X POST localhost:8082/eshop-basket/basket/alice/checkout-basket -H 'Content-Type: application/json' -d '{}' \
   -H 'Wow-Wait: committed > handled(eshop-basket/BasketCheckoutSaga.onBasketCheckedOut) > committed(eshop-ordering)'
-curl -s localhost:8083/eshop-ordering/order/alice-1/state
-curl -s -X POST localhost:8083/eshop-ordering/order/alice-1/pay-order \
-  -H 'Content-Type: application/json' -d '{"paymentId":"p-1","amount":17.00}'
+curl -s localhost:8083/eshop-ordering/order/alice-1/state     # STOCK_CONFIRMED, then PAID once the payment succeeds
+curl -s localhost:8085/eshop-payment/payment/alice-1/state
 ```
 
 ## Tests
@@ -172,13 +195,14 @@ The catalog's tests are in three places:
 
 The basket, ordering and inventory tests:
 
-- **Aggregates.** Each domain module has `aggregateSpec` specs: `BasketSpec`, `OrderSpec` (the state machine and the grace period, with `advanceTime`) and `StockSpec`.
-- **Sagas.** `BasketCheckoutSagaTest`, `OrderProcessSagaTest` (with the `@OnRejected` handlers) and `StockConfirmationSagaTest`.
-- **Servers.** Each server test starts its service on the memory backend. The basket and ordering tests give it in-memory topics and drive it over HTTP: the basket's checkout, and the order's flow and grace period without an inventory.
+- **Aggregates.** Each domain module has `aggregateSpec` specs: `BasketSpec`, `OrderSpec` (the state machine and the grace period, with `advanceTime`), `StockSpec` and `PaymentSpec`.
+- **Sagas.** `BasketCheckoutSagaTest`, `OrderProcessSagaTest` (with the `@OnRejected` handlers), `StockConfirmationSagaTest`, `PaymentGatewaySagaTest` (over the simulated gateway) and `OrderPaymentSagaTest` (with the refund on a rejected `PayOrder`).
+- **Servers.** Each server test starts its service on the memory backend. The basket, ordering and payment tests give it in-memory topics and drive it over HTTP: the basket's checkout, the order's flow and grace period without an inventory, and the payment's approval and decline without an ordering.
 - **`:eshop-e2e`.** Besides `CatalogPostgresTest`:
   - `EshopE2eTest`: the catalog and inventory, each in a JVM of its own.
-  - `EshopSharedJvmTest`: the catalog and basket in the test's JVM, each including its own context.
-  - `EshopOrderFlowTest`: the basket, ordering and inventory, each in a JVM of its own with its `postgres` and `kafka` profiles, on PostgreSQL and Kafka in containers. It covers the checkout end to end, the rejection's compensation and the grace period. These three cannot share a class path yet (DX gap G21).
+  - `EshopSharedJvmTest`: services in the test's JVM, on one class path, each including its own context: the catalog and basket; and the inventory, ordering and payment, whose servers carry each other's Manifests as peers (DX gap G21). Services on one class path read one `application.yaml`, so the test passes each one's configuration as arguments.
+  - `EshopOrderFlowTest`: the basket, ordering and inventory, each in a JVM of its own with its `postgres` and `kafka` profiles, on PostgreSQL and Kafka in containers. It covers the checkout end to end, the rejection's compensation and the grace period. No payment service runs, so the test pays the order itself.
+  - `EshopPaymentFlowTest`: the ordering, inventory and payment the same way, with a gateway limit of 100.00. An order of 29.00 is paid and shipped; an order of 150.00 is declined, cancelled, and its stock released.
 
 ```bash
 ./gradlew -Pwow.scope=v10 :eshop-catalog-domain:check :eshop-catalog-server:check   # one context
