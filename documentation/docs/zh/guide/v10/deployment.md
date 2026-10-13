@@ -1,6 +1,6 @@
 ---
 title: 部署 V10 服务
-description: Wow V10 服务的后端、内部端口、多节点、Kafka 主题、ClickHouse、停机、事件中的个人信息与共用的租户空间。
+description: Wow V10 服务的后端、内部端口、多节点、Kafka 主题、ClickHouse、停机、Kubernetes 清单、事件中的个人信息与共用的租户空间。
 outline: deep
 ---
 
@@ -84,6 +84,22 @@ kafka-topics --bootstrap-server localhost:9092 --create --topic wow.inventory.co
 ## 停机与健康
 
 正在停止的节点不再接收新命令（`wow.node.closing`），在其在途命令完成后交出分区（`wow.cluster.drain-timeout`），让进行中的等待结束（`wow.wait.max-timeout`），并保存检查点。除非设置了 `spring.lifecycle.timeout-per-shutdown-phase`，宿主把 Spring Boot 的停机阶段时限设为两者之和；平台的终止宽限期至少要这么长。
+
+宿主没有自己的健康端点。公开端口在节点启动完成（后端、内部端口、分区）后才打开，停止时最先关闭，所以探测公开端口能看出节点是否接收流量。内部端口一直开到节点停止完成，所以探测它能看出节点是否存活，排空期间也是。类路径上有 Spring Boot Actuator 时，节点开始停止后 `/actuator/health/readiness` 报告 `REFUSING_TRAFFIC`。
+
+## Kubernetes
+
+[`deploy/v10/eshop-ordering`](https://github.com/Ahoo-Wang/Wow/tree/v10/deploy/v10/eshop-ordering) 把 eShop 的订单服务部署为 PostgreSQL 与 Kafka 上的两个节点，用 `kubectl apply -k` 应用普通清单。可以把它当作 V10 服务的模板。它的 README 说明了镜像构建和 Kafka 主题。
+
+| 关注点 | 清单的做法 |
+| --- | --- |
+| 节点 id | `wow.node.id` 取 Pod 名（`metadata.name`），替换后的 Pod 作为新成员加入 |
+| 内部端口 | `wow.internal.host` 取 Pod IP，内部端口只绑定内网接口。`wow.node.address` 是 Pod 在无头服务下的名字（`<pod>.eshop-ordering-cluster.<namespace>.svc.cluster.local:9093`）。该服务也发布未就绪的节点，所以正在启动或排空的节点仍能收到同伴转发的命令与信号 |
+| 谁能访问它 | 只有内部端口的无头服务指向它；没有 `LoadBalancer` 类型的 `Service` 或 Ingress 指向它。`NetworkPolicy` 只放行带 `app.kubernetes.io/part-of: eshop` 标签的 Pod（决定 D173） |
+| HTTP | 公开端口上的普通 `Service` |
+| PostgreSQL 与 Kafka | 由环境变量组成的 `ConfigMap`（`SPRING_DATASOURCE_URL`、`WOW_KAFKA_BOOTSTRAPSERVERS`、`WOW_LOG_PARTITIONS`、启用的 profile），以及存放数据库用户与密码的 `Secret` |
+| 探针 | 启动探针与就绪探针探测公开端口，存活探针探测内部端口 |
+| 停机 | `terminationGracePeriodSeconds: 90`：先是 5 s 的 `preStop` 暂停，再是 `wow.wait.max-timeout`（60 s）与 `wow.cluster.drain-timeout`（10 s），并留有余量。调大这两项时也要调大它 |
 
 ## 事件中的个人信息
 
