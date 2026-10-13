@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.node
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -43,6 +44,10 @@ import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
 import me.ahoo.wow.runtime.cluster.PartitionedRouter
 import me.ahoo.wow.runtime.cluster.Refusal
+import me.ahoo.wow.runtime.command.CommandIntake
+import me.ahoo.wow.runtime.command.CommandSender
+import me.ahoo.wow.runtime.command.MessageEntries
+import me.ahoo.wow.runtime.command.Receipts
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.log.PartitionAppendQueue
 import me.ahoo.wow.runtime.manifest.ManifestCheck
@@ -59,6 +64,7 @@ import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.wait.Origin
+import java.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.TimeSource
 
@@ -90,6 +96,13 @@ class ContextNode internal constructor(
     val backends: ContextBackends,
     val codec: EventCodec,
     val views: StateViews,
+    /**
+     * The runtime of the context's command topic (decision D137), driven by [ownership]: null unless the node takes
+     * commands from topics ([SourceTopics.intake]).
+     */
+    val intake: SubscriptionRuntime? = null,
+    /** Sends the commands of the context's sagas to other contexts (decision D33); null without a producer. */
+    val sender: CommandSender? = null,
 ) {
     /**
      * Reads the state after a commit as the state consumer [reader] of [views] ([StateViewReader]), from the
@@ -215,6 +228,9 @@ class ServiceNode(
         options.defaultWaitTimeout,
     )
 
+    /** Sends the commands of every context's sagas to the command topics of other contexts; null without a producer. */
+    private val sender: CommandSender? = topics?.takeIf { it.producer != null }?.let { CommandSender(contracts, it) }
+
     private val parts: List<Parts> = models.groupBy { it.type.context }.map { (context, contextModels) ->
         assemble(context, contextModels, backends.backends(context), codec, subscriptions)
     }
@@ -254,13 +270,19 @@ class ServiceNode(
      * The subscriptions of other contexts' published streams (decision D134), by the topic they read: one runtime
      * per topic on this node.
      */
-    val topicSubscriptions: Map<String, TopicSubscriptions> = topicSubscriptions(subscriptions)
+    val topicSubscriptions: Map<String, TopicSubscriptions> = topicSubscriptions(subscriptions) + receipts(subscriptions)
+
+    /** The command intake of each context that takes commands from its topic (decision D137). */
+    private val intakes: Map<ContextNode, CommandIntake> = contexts.values.filter { it.intake != null }.associateWith {
+        CommandIntake(it.context, it.models, it.coordinator, topics!!)
+    }
 
     init {
         // A start configured for a subscription the node does not have is a typo, not a no-op (decision D154).
         val names = contexts.values.flatMapTo(HashSet()) { context ->
             applicationSubscriptions.getValue(context).map { it.name } +
-                listOfNotNull(context.snapshots?.subscription?.name, context.reservations?.subscription?.name)
+                listOfNotNull(context.snapshots?.subscription?.name, context.reservations?.subscription?.name) +
+                listOfNotNull(intakes[context]?.subscription?.name)
         }
         topicSubscriptions.values.flatMapTo(names) { topic -> topic.subscriptions.map { it.name } }
         options.subscription.starts.keys.filterNot { it in names }.forEach {
@@ -307,8 +329,17 @@ class ServiceNode(
         check(hasAddress) { "Node $node has no internal address: bind it before it starts." }
         state = State.STARTING
         try {
+            intakes.keys.forEach { context ->
+                CommandIntake.checkPartitions(
+                    topics!!.commandsOf(context.context),
+                    topics.source,
+                    context.context,
+                    context.backends.log.partitions,
+                )
+            }
             contexts.values.forEach { context ->
                 applicationSubscriptions.getValue(context).forEach { context.subscriptions.add(it) }
+                intakes[context]?.let { context.intake!!.add(it.subscription) }
                 context.ownership.start()
             }
             topicSubscriptions.values.forEach { it.start() }
@@ -430,6 +461,37 @@ class ServiceNode(
         }
     }
 
+    /**
+     * The runtimes of the receipts topics of the contexts whose sagas the [application] gives `@OnRejected` handlers
+     * ([SubscriptionFactory.rejections], decision D136), each in the lease group of its topic and the stores of its
+     * context. None without [topics]: no command left for another context then.
+     */
+    private fun receipts(application: SubscriptionFactory): Map<String, TopicSubscriptions> {
+        val sources = topics ?: return emptyMap()
+        return contexts.values.mapNotNull { context ->
+            val handler = application.rejections(context) ?: return@mapNotNull null
+            val topic = sources.receiptsOf(context.context)
+            val receipts = Receipts(context.context, contracts, handler)
+            topic to TopicSubscriptions(
+                service = service,
+                topic = topic,
+                node = node,
+                addressOf = { address },
+                source = sources.source,
+                checkpoints = context.backends.checkpoints,
+                leases = context.backends.leases,
+                ledger = context.backends.ledger,
+                subscriptions = listOf(receipts.subscription),
+                options = options.subscription,
+                cluster = options.cluster,
+                clock = Clock.systemUTC(),
+                context = Dispatchers.Default,
+                signals = signals,
+                entries = { partitions -> MessageEntries.receipts(topic, sources.source, partitions) },
+            )
+        }.toMap()
+    }
+
     private fun assemble(
         context: String,
         models: List<AggregateModel<*>>,
@@ -462,6 +524,17 @@ class ServiceNode(
             options.subscription,
             signals = signals,
         )
+        // The command topic's partitions are the log's (decision D135): the same leases drive both.
+        val intake = topics?.takeIf { it.intake }?.let {
+            SubscriptionRuntime(
+                group.name,
+                MessageEntries.commands(it.commandsOf(context), it.source, backends.log.partitions),
+                backends.checkpoints,
+                backends.ledger,
+                options = options.subscription,
+                signals = signals,
+            )
+        }
         val ownership = PartitionOwnership(
             group,
             node,
@@ -472,6 +545,7 @@ class ServiceNode(
             subscriptions,
             // Connected ahead of the first forward, so its timeout is not spent opening a connection (D80).
             peers = { peer -> if (options.routing == Routing.PARTITIONED) channel.connect(peer.address) },
+            intake = intake,
         )
         val executor = Executor(kernel, options.laneCapacity, views.takeIf { it.types.isNotEmpty() })
         return Parts(
@@ -488,6 +562,7 @@ class ServiceNode(
             backends,
             codec,
             views,
+            intake,
         )
     }
 
@@ -530,6 +605,7 @@ class ServiceNode(
         val backends: ContextBackends,
         val codec: EventCodec,
         val views: StateViews,
+        val intake: SubscriptionRuntime?,
     ) {
         fun complete(): ContextNode {
             val directory = contracts.over(subscriptions, context)
@@ -551,6 +627,8 @@ class ServiceNode(
                 backends,
                 codec,
                 views,
+                intake,
+                sender,
             )
         }
     }

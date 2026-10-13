@@ -22,6 +22,7 @@ import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.IdGenerator
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.cluster.ClusterOptions
+import me.ahoo.wow.runtime.command.RejectionHandler
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.state.StateViewOptions
 import me.ahoo.wow.runtime.subscription.Subscription
@@ -34,6 +35,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.transport.PartitionedSource
+import me.ahoo.wow.spi.transport.TopicProducer
 import kotlin.time.Duration
 
 /**
@@ -137,6 +139,13 @@ fun interface SubscriptionFactory {
     fun sourced(context: ContextNode): List<SourcedSubscription> = emptyList()
 
     /**
+     * What handles the receipts of the commands [context]'s sagas sent to other contexts that rejected them (decision
+     * D136): the node reads the context's receipts topic for it ([SourceTopics.receiptsOf]). None by default; a
+     * factory whose sagas have `@OnRejected` handlers gives them.
+     */
+    fun rejections(context: ContextNode): RejectionHandler? = null
+
+    /**
      * The aggregate types among [context]'s [models] whose state after each commit the subscriptions read (design 04
      * §1): the context's executor keeps their state views ([ContextNode.views]), asked before the context is
      * assembled. None by default.
@@ -164,6 +173,14 @@ fun interface SubscriptionFactory {
 
             override fun sourced(context: ContextNode): List<SourcedSubscription> =
                 first.sourced(context) + other.sourced(context)
+
+            override fun rejections(context: ContextNode): RejectionHandler? {
+                val mine = first.rejections(context) ?: return other.rejections(context)
+                val theirs = other.rejections(context) ?: return mine
+                return RejectionHandler { rejected, command ->
+                    mine.handle(rejected, command) ?: theirs.handle(rejected, command)
+                }
+            }
 
             override fun viewTypes(context: String, models: List<AggregateModel<*>>): Set<AggregateType> =
                 first.viewTypes(context, models) + other.viewTypes(context, models)
@@ -205,11 +222,34 @@ data class SourcedSubscription(val subscription: Subscription, val types: Set<Ag
 }
 
 /**
- * Where a node reads other contexts' published streams (decision D134): the topics of [source], each named as the
- * publishing context's Manifest names it (`PublishedManifest.topic`) after [prefix], the prefix the publisher's sinks
- * write under too.
+ * The topics of a node's broker, each named after [prefix], the prefix every service on the broker writes under:
+ *
+ * - **Published streams** (decision D134): the node reads other contexts' streams from [source], each topic named as
+ *   the publishing context's Manifest names it (`PublishedManifest.topic`, [topicOf]).
+ * - **Commands across contexts** (decisions D33, D135, D137), with a [producer]: a saga's command to an aggregate of
+ *   a context outside its own is sent to that context's command topic, `wow.<context>.commands` ([commandsOf]), and
+ *   the receipts of those another context rejects are read from the saga's context's receipts topic,
+ *   `wow.<context>.receipts` ([receiptsOf], decision D136).
+ * - **Command intake** (decision D137), when [intake] is set: each context the node hosts executes the commands of its
+ *   command topic, whose partitions must be its log's, and sends the receipts of those it rejects through
+ *   [producer].
  */
-data class SourceTopics(val source: PartitionedSource, val prefix: String = "") {
+data class SourceTopics(
+    val source: PartitionedSource,
+    val prefix: String = "",
+    val producer: TopicProducer? = null,
+    val intake: Boolean = false,
+) {
+    init {
+        require(!intake || producer != null) { "A command intake sends receipts: it needs a producer." }
+    }
+
     /** The topic of a stream the Manifest publishes on [topic]. */
     fun topicOf(topic: String): String = prefix + topic
+
+    /** The command topic of [context] (decision D135). */
+    fun commandsOf(context: String): String = "${prefix}wow.$context.commands"
+
+    /** The receipts topic of [context] (decision D136). */
+    fun receiptsOf(context: String): String = "${prefix}wow.$context.receipts"
 }

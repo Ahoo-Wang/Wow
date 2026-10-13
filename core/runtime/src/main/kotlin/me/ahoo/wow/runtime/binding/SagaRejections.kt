@@ -19,6 +19,7 @@ import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionBinding
 import me.ahoo.wow.kernel.rejectionContextOf
+import me.ahoo.wow.runtime.command.RejectionHandler
 
 /**
  * Hands the rejections of the commands a context's sagas derive to their `@OnRejected` handlers (decisions D136,
@@ -40,16 +41,19 @@ import me.ahoo.wow.kernel.rejectionContextOf
  * compensate itself): it fails the handling with [DerivedCommandRejectedException], which parks the aggregate. A
  * technical failure throws, for the caller to retry.
  */
-class SagaRejections(sagas: Collection<ProcessorBinding<*>>, private val derived: DerivedCommands) {
+class SagaRejections(sagas: Collection<ProcessorBinding<*>>, private val derived: DerivedCommands) : RejectionHandler {
     private val sagas: Map<String, ProcessorBinding<*>> =
         sagas.filter { it.kind == FunctionKind.SAGA }.associateBy { it.name }
+
+    /** Whether a saga of this context has an `@OnRejected` handler: only then do its commands ask for receipts. */
+    val isEmpty: Boolean get() = sagas.values.all { it.rejections.isEmpty() }
 
     /**
      * Hands [rejected], the rejection of a command of the class [command], to the `@OnRejected` handler of the saga
      * whose handler derived it, executes what that derives and returns their ids; null when the saga has no handler
      * for it, or [rejected] names no saga handler of this context.
      */
-    suspend fun handle(rejected: CommandRejected<*>, command: Class<*>): List<String>? {
+    override suspend fun handle(rejected: CommandRejected<*>, command: Class<*>): List<String>? {
         val handler = sagas[rejected.executionId.subscription]?.rejectionHandlerOf(command) ?: return null
         val compensations = call(handler, rejected)
         val executed = derived.execute(compensations, wait = null)

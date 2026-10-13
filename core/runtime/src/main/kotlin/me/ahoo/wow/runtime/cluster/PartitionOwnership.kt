@@ -85,7 +85,8 @@ data class RenewalRound(
  *   grow with the number held times the store's latency (spike H6). Renewing starts before the first acquisition.
  *   Each round is reported to [renewalRounds] and logged, as a warning when it took more than half the margin
  *   `leaseTtl − renewInterval`. A lease lost to expiry stops the partition here.
- * - **Hand-off** of a partition goes in this order: stop accepting new commands for it, wait for its commands in
+ * - **Hand-off** of a partition goes in this order: stop accepting new commands for it, stop its command intake
+ *   (decision D137), which settles the commands it took and saves its checkpoint, wait for its other commands in
  *   flight for at most [ClusterOptions.drainTimeout], stop its subscriptions, which saves their checkpoints
  *   ([SubscriptionRuntime.stopPartition]), and release the lease, so the new owner acquires it on its next round.
  *   State caches are not handed over: the new owner loads from the snapshot and the log's tail.
@@ -93,8 +94,8 @@ data class RenewalRound(
  *   and members into its [routes]. Each other member they show at an address not seen before is handed to [peers],
  *   apart from the refresh: the node connects to it there ([ClusterChannel.connect]) before forwarding to it.
  *
- * Acquiring a partition starts its subscriptions in [subscriptions] ([SubscriptionRuntime.startPartition]) before
- * the node accepts commands for it.
+ * Acquiring a partition starts its subscriptions in [subscriptions] ([SubscriptionRuntime.startPartition]), then the
+ * same partition of the context's command topic in [intake], before the node accepts commands for it.
  *
  * [stop] is a graceful leave: the node leaves the members at once, so the others take its partitions on their next
  * round, then hands off every partition it holds.
@@ -116,6 +117,11 @@ class PartitionOwnership internal constructor(
     private val renewalRounds: (RenewalRound) -> Unit = {},
     /** Called, in its own coroutine, for each other member the routes show at an address not seen before. */
     private val peers: suspend (Member) -> Unit = {},
+    /**
+     * The context's command intake (decision D137): the runtime of its command topic, whose partitions are the log's,
+     * started and stopped with each partition the node holds, so the owner of a log partition executes its commands.
+     */
+    private val intake: SubscriptionRuntime? = null,
 ) {
     @Suppress("LongParameterList") // The parts of an ownership, as the primary constructor takes them.
     constructor(
@@ -195,6 +201,9 @@ class PartitionOwnership internal constructor(
         if (subscriptions != null && !subscriptions.isRunning) {
             subscriptions.start()
         }
+        if (intake != null && !intake.isRunning) {
+            intake.start()
+        }
         leases.heartbeat(group.name, node, address, options.memberTtl)
         val root = SupervisorJob()
         val run = Running(root, CoroutineScope(context + root))
@@ -237,6 +246,7 @@ class PartitionOwnership internal constructor(
                 target = emptySet()
                 handOff(gates.keys.toList())
             }
+            intake?.stop()
             subscriptions?.stop()
         } finally {
             running = null
@@ -253,6 +263,7 @@ class PartitionOwnership internal constructor(
         running = null
         run.root.cancelAndJoin()
         gates.clear()
+        intake?.stop()
         subscriptions?.stop()
     }
 
@@ -349,10 +360,12 @@ class PartitionOwnership internal constructor(
         val gate = Gate()
         try {
             subscriptions?.startPartition(partition)
+            intake?.startPartition(partition)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (@Suppress("TooGenericExceptionCaught") failure: Exception) {
             logger.warn(failure) { "$node failed to start partition $partition of $group; releasing it." }
+            quietly("stop the subscriptions of partition $partition") { subscriptions?.stopPartition(partition) }
             quietly("release partition $partition") { leases.release(group.name, partition, node) }
             return@withContext
         }
@@ -366,6 +379,8 @@ class PartitionOwnership internal constructor(
             async {
                 val gate = gates[partition] ?: return@async
                 gate.accepting = false
+                // The intake stops taking the partition's commands, settles those in flight and saves its checkpoint.
+                quietly("stop the command intake of partition $partition") { intake?.stopPartition(partition) }
                 withTimeoutOrNull(options.drainTimeout) { gate.inFlight.first { it <= 0 } } ?: logger.warn {
                     "$node handed off partition $partition of $group with commands still in flight."
                 }
@@ -451,6 +466,7 @@ class PartitionOwnership internal constructor(
     /** Stops the partitions whose lease expired before it was renewed; another node may own them now. */
     private suspend fun dropLost() {
         gates.filterValues { it.lost }.forEach { (partition, gate) ->
+            quietly("stop the command intake of partition $partition") { intake?.stopPartition(partition) }
             quietly("stop the subscriptions of partition $partition") { subscriptions?.stopPartition(partition) }
             gates.remove(partition, gate)
         }

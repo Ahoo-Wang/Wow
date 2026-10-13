@@ -20,6 +20,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitSignal
+import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.wait.Origin
@@ -30,8 +31,11 @@ import tools.jackson.databind.json.JsonMapper
 
 /**
  * A command in its wire form (design 08 §3): `{ type, id, requestId, ref, body, expectedVersion, scope, headers,
- * causation }`. [type] is the command type's model name, which the receiver reads [body] by; the wait plan does not
- * travel, only a wait context does.
+ * causation, replyTo }`. [type] is the command type's model name, which the receiver reads [body] by; the wait plan
+ * does not travel, only a wait context does.
+ *
+ * [replyTo] is set only on a command a saga sends to another context (decision D136, an addition within format 1):
+ * where the target sends the receipt of a rejection.
  */
 data class CommandWire(
     val type: String,
@@ -43,7 +47,30 @@ data class CommandWire(
     val scope: Scope = Scope.NONE,
     val headers: Map<String, String> = emptyMap(),
     val causation: Causation? = null,
+    val replyTo: ReplyTo? = null,
 )
+
+/**
+ * Where the receipt of a cross-context command goes when the target rejects it (decisions D47, D136): the receipts
+ * topic of [context], the sender's, and the saga handler [subscription] (`processor.function`) whose execution of the
+ * commit [ref]@[version] derived it, the [executionId] the saga's `@OnRejected` handler gets. The design's
+ * `{context, subscription}` carries the commit too, so the receipt names the execution exactly.
+ */
+data class ReplyTo(val context: String, val subscription: String, val ref: AggregateRef, val version: Int) {
+    init {
+        require(context.isNotBlank()) { "A reply names its context." }
+        require(subscription.isNotBlank()) { "A reply names its subscription." }
+    }
+
+    /** The saga's execution that derived the command. */
+    fun executionId(): ExecutionId = ExecutionId(subscription, ref, version)
+
+    companion object {
+        /** The reply to [execution], a saga's of [context]. */
+        fun of(context: String, execution: ExecutionId): ReplyTo =
+            ReplyTo(context, execution.subscription, execution.ref, execution.version)
+    }
+}
 
 /** A wait context (design 04 §6.2) in its wire form. */
 data class WaitWire(val waitId: String, val origin: Origin, val remaining: List<Hop>, val deadline: Long) {
@@ -140,8 +167,12 @@ object ClusterCodec {
     fun decodeSignal(bytes: ByteArray): WaitSignal = mapper.readValue(bytes, WaitSignal::class.java)
 
     /** [command], a command of [model], in its wire form. */
-    fun wire(model: AggregateModel<*>, command: Command<*>): CommandWire = CommandWire(
-        type = model.commandType(command.body.javaClass).name,
+    fun wire(model: AggregateModel<*>, command: Command<*>): CommandWire =
+        wire(model.commandType(command.body.javaClass).name, command)
+
+    /** [command], of the command type named [type], in its wire form, with the [replyTo] of a rejection. */
+    fun wire(type: String, command: Command<*>, replyTo: ReplyTo? = null): CommandWire = CommandWire(
+        type = type,
         id = command.id,
         requestId = command.requestId,
         ref = command.ref,
@@ -150,6 +181,7 @@ object ClusterCodec {
         scope = command.scope,
         headers = command.headers,
         causation = command.causation,
+        replyTo = replyTo,
     )
 
     /** The command [wire] holds, its body read as [model]'s command type of that name; null when it has none. */
