@@ -18,6 +18,7 @@ import me.ahoo.wow.example.eshop.basket.server.BasketServer
 import me.ahoo.wow.example.eshop.catalog.server.CatalogServer
 import me.ahoo.wow.example.eshop.inventory.server.InventoryServer
 import me.ahoo.wow.example.eshop.ordering.server.OrderingServer
+import me.ahoo.wow.example.eshop.payment.server.PaymentServer
 import me.ahoo.wow.kernel.InMemoryTopics
 import me.ahoo.wow.runtime.node.SourceTopics
 import org.junit.jupiter.api.Test
@@ -61,8 +62,9 @@ class EshopSharedJvmTest {
     }
 
     /**
-     * DX gap G21: the ordering server carries the inventory's Manifest as its peer, so on one class path the inventory
-     * node finds another server's copy of its own Manifest. It is no peer of the contexts the node serves.
+     * DX gap G21: the ordering server carries the inventory's Manifest as its peer, and the basket and payment servers
+     * each carry the ordering's, so on one class path the inventory and ordering nodes find other servers' copies of
+     * their own Manifests. They are no peers of the contexts the nodes serve.
      */
     @Test
     fun `services that are each other's peers should start on one class path`() {
@@ -73,10 +75,18 @@ class EshopSharedJvmTest {
                 InMemoryTopicsBeans::class.java,
                 arguments = listOf("--eshop.ordering.payment-grace-period=30m"),
             ).use { ordering ->
-                inventory.contexts().assert().containsExactly("eshop-inventory")
-                ordering.contexts().assert().containsExactly("eshop-ordering")
-                val received = inventory.post("/eshop-inventory/stock/mug/receive-stock", """{"quantity":10}""")
-                received.status.assert().describedAs(received.body).isEqualTo(OK)
+                start(
+                    PaymentServer::class.java,
+                    "payment",
+                    InMemoryTopicsBeans::class.java,
+                    arguments = listOf("--eshop.payment.gateway.limit=100.00"),
+                ).use { payment ->
+                    inventory.contexts().assert().containsExactly("eshop-inventory")
+                    ordering.contexts().assert().containsExactly("eshop-ordering")
+                    payment.contexts().assert().containsExactly("eshop-payment")
+                    val received = inventory.post("/eshop-inventory/stock/mug/receive-stock", """{"quantity":10}""")
+                    received.status.assert().describedAs(received.body).isEqualTo(OK)
+                }
             }
         }
     }

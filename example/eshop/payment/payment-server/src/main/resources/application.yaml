@@ -5,7 +5,38 @@ server:
   port: 8085
 wow:
   service: eshop-payment-service
-  # One node, its data in memory: the skeleton's backend (work package E.0).
+  # One node, its data in memory, for trying the service out. The `postgres` profile serves it from PostgreSQL; the
+  # `kafka` profile connects it to the other contexts, which the node needs to start: its sagas send the ordering's
+  # commands.
   backend: memory
   internal:
     port: 9095
+eshop:
+  payment:
+    gateway:
+      # The simulated gateway approves a payment up to this amount and declines one above it.
+      limit: 1000.00
+---
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    url: jdbc:postgresql://localhost:5432/eshop_payment
+    username: postgres
+    password: postgres
+wow:
+  backend: postgres
+---
+spring:
+  config:
+    activate:
+      on-profile: kafka
+wow:
+  kafka:
+    bootstrap-servers: localhost:9092
+  subscriptions:
+    # The saga on the ordering's order stream starts at the beginning of the stream the first time it reads a
+    # partition, so no order confirmed before the payment service first started goes unpaid.
+    "[OrderPaymentSaga.onOrderStockConfirmed]":
+      start: beginning

@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.example.eshop.e2e
 
+import org.testcontainers.kafka.ConfluentKafkaContainer
+import org.testcontainers.postgresql.PostgreSQLContainer
 import tools.jackson.databind.json.JsonMapper
 import java.io.File
 import java.io.IOException
@@ -25,6 +27,31 @@ import java.time.Duration
 import java.util.concurrent.TimeUnit
 
 val json: JsonMapper = JsonMapper.builder().build()
+
+/**
+ * The arguments of a service on [postgres]'s [database] and on [kafka], with the `postgres` and `kafka` profiles of
+ * its `application.yaml`, a log of [partitions] and short cluster timings.
+ */
+fun backendArguments(
+    postgres: PostgreSQLContainer,
+    kafka: ConfluentKafkaContainer,
+    database: String,
+    partitions: Int,
+): List<String> = listOf(
+    "--spring.profiles.active=postgres,kafka",
+    "--spring.datasource.url=jdbc:postgresql://${postgres.host}:${postgres.firstMappedPort}/$database",
+    "--spring.datasource.username=${postgres.username}",
+    "--spring.datasource.password=${postgres.password}",
+    "--wow.kafka.bootstrap-servers=${kafka.bootstrapServers}",
+    "--wow.log.partitions=$partitions",
+    "--wow.cluster.lease-ttl=5s",
+    "--wow.cluster.renew-interval=1s",
+    "--wow.cluster.member-ttl=5s",
+    "--wow.cluster.heartbeat-interval=1s",
+    "--wow.cluster.reconcile-interval=200ms",
+    "--wow.cluster.route-refresh-interval=200ms",
+    "--wow.subscription.checkpoint-interval=100ms",
+)
 
 /** A response: its status and its body. */
 data class Answer(val status: Int, val body: String)

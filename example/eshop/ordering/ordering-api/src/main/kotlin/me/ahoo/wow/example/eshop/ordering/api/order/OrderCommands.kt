@@ -51,8 +51,8 @@ data class ConfirmOrderStock(
 )
 
 /**
- * Pays [amount] of the order with the payment [paymentId]. The payment context (work package E.5) will send it; until
- * then, a client sends it.
+ * Pays [amount] of the order with the payment [paymentId]. The payment context sends it once its gateway approves the
+ * order's payment; a client may send it too.
  */
 @Summary("Pay the order")
 data class PayOrder(
@@ -66,7 +66,8 @@ data object ShipOrder
 
 /**
  * Cancels an order that is not paid yet, for [reason]. The order-process saga sends it when the inventory cannot
- * reserve a product, and the order schedules it for itself when it is not paid within the payment grace period.
+ * reserve a product, the payment context when its gateway declines the order's payment, and the order schedules it for
+ * itself when it is not paid within the payment grace period.
  */
 @Summary("Cancel the order")
 data class CancelOrder(

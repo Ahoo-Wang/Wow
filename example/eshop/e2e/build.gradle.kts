@@ -11,9 +11,11 @@ description = "Wow V10 eShop: end-to-end tests across the eShop's services"
 //   Kafka in containers: the checkout, the order flow, the stock rejection's compensation and the payment grace
 //   period. Each JVM reads its own server's `application.yaml`, as a deployment does; on one class path, Spring Boot
 //   reads only one of them.
+// - EshopPaymentFlowTest runs the ordering, inventory and payment services the same way: the payment the simulated
+//   gateway approves pays the order, and the one it declines cancels it and releases its stock (work package E.5).
 //
 // The suite with all five services, ClickHouse and the failure scenarios comes with work package E.6.
-val servers = listOf("catalog", "basket", "ordering", "inventory").associateWith { context ->
+val servers = listOf("catalog", "basket", "ordering", "inventory", "payment").associateWith { context ->
     configurations.create("eshop${context.replaceFirstChar { it.uppercase() }}Server") {
         isCanBeConsumed = false
         isCanBeResolved = true
@@ -35,11 +37,13 @@ dependencies {
     "eshopBasketServer"(project(":eshop-basket-server"))
     "eshopOrderingServer"(project(":eshop-ordering-server"))
     "eshopInventoryServer"(project(":eshop-inventory-server"))
+    "eshopPaymentServer"(project(":eshop-payment-server"))
     integrationTestImplementation("tools.jackson.core:jackson-databind")
     integrationTestImplementation(project(":eshop-catalog-server"))
     integrationTestImplementation(project(":eshop-basket-server"))
     integrationTestImplementation(project(":eshop-ordering-server"))
     integrationTestImplementation(project(":eshop-inventory-server"))
+    integrationTestImplementation(project(":eshop-payment-server"))
     // The in-memory command transport the basket needs without Kafka (InMemoryTopics, SourceTopics).
     integrationTestImplementation(project(":spring-boot"))
     integrationTestImplementation("org.springframework.boot:spring-boot")

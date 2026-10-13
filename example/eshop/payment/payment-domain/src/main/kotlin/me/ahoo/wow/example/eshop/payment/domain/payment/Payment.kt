@@ -16,13 +16,70 @@ package me.ahoo.wow.example.eshop.payment.domain.payment
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.OnCommand
+import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment
+import me.ahoo.wow.example.eshop.payment.api.payment.FailPayment
+import me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed
+import me.ahoo.wow.example.eshop.payment.api.payment.PaymentRefunded
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested
+import me.ahoo.wow.example.eshop.payment.api.payment.PaymentStatus
+import me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded
+import me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment
 
-/** The payment of an order. The skeleton's one command (work package E.0). */
+/**
+ * The payment of an order, after the classic eShop's `PaymentProcessor`; its id is the order's:
+ *
+ * ```text
+ * REQUESTED -> SUCCEEDED -> REFUNDED
+ *          \-> FAILED
+ * ```
+ *
+ * - [RequestPayment] creates it: [OrderPaymentSaga] sends it once the ordering context confirms the order's stock.
+ * - [PaymentGatewaySaga] charges the gateway for a requested payment and records the outcome: [ConfirmPayment] or
+ *   [FailPayment]. [OrderPaymentSaga] then pays the order, or cancels it.
+ * - [RefundPayment] refunds a confirmed payment the order refused.
+ *
+ * Recording an outcome the payment already has changes nothing, so a command sent again is harmless; recording the
+ * other outcome is a rejection.
+ */
 @AggregateRoot
-@Description("The payment of an order")
-class Payment(@Suppress("UnusedPrivateProperty") private val state: PaymentState) {
-    @OnCommand
-    fun onCommand(command: RequestPayment): PaymentRequested = PaymentRequested(command.orderId, command.amount)
+@Description("The payment of an order through the payment gateway")
+class Payment(private val state: PaymentState) {
+    @OnCommand(produces = [PaymentRequested::class])
+    fun onCommand(command: RequestPayment): Decision =
+        if (command.amount.signum() > 0) {
+            Decision.events(PaymentRequested(command.orderId, command.amount))
+        } else {
+            Decision.reject(
+                PaymentRejections.INVALID_AMOUNT,
+                "A payment is of a positive amount, not ${command.amount}."
+            )
+        }
+
+    @OnCommand(produces = [PaymentSucceeded::class])
+    fun onCommand(command: ConfirmPayment): Decision = when (state.status) {
+        PaymentStatus.REQUESTED -> Decision.events(PaymentSucceeded(command.transactionId))
+        PaymentStatus.SUCCEEDED -> Decision.NoOp
+        else -> wrongStatus("be confirmed")
+    }
+
+    @OnCommand(produces = [PaymentFailed::class])
+    fun onCommand(command: FailPayment): Decision = when (state.status) {
+        PaymentStatus.REQUESTED -> Decision.events(PaymentFailed(command.reason))
+        PaymentStatus.FAILED -> Decision.NoOp
+        else -> wrongStatus("fail")
+    }
+
+    @OnCommand(produces = [PaymentRefunded::class])
+    fun onCommand(command: RefundPayment): Decision = when (state.status) {
+        PaymentStatus.SUCCEEDED -> Decision.events(PaymentRefunded(command.reason))
+        PaymentStatus.REFUNDED -> Decision.NoOp
+        else -> wrongStatus("be refunded")
+    }
+
+    private fun wrongStatus(action: String): Decision = Decision.reject(
+        PaymentRejections.WRONG_STATUS,
+        "The payment ${state.id} is ${state.status}: it cannot $action.",
+    )
 }

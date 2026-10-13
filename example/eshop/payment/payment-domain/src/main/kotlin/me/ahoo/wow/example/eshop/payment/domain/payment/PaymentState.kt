@@ -13,10 +13,17 @@
 
 package me.ahoo.wow.example.eshop.payment.domain.payment
 
+import me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed
+import me.ahoo.wow.example.eshop.payment.api.payment.PaymentRefunded
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested
+import me.ahoo.wow.example.eshop.payment.api.payment.PaymentStatus
+import me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded
 import java.math.BigDecimal
 
-/** The state of a [Payment], changed in place by its events. */
+/**
+ * The state of a [Payment], changed in place by its events. Every property has a value before the payment is
+ * requested: the kernel serializes the state as it is.
+ */
 class PaymentState(val id: String) {
     var orderId: String = ""
         private set
@@ -24,8 +31,35 @@ class PaymentState(val id: String) {
     var amount: BigDecimal = BigDecimal.ZERO
         private set
 
+    var status: PaymentStatus = PaymentStatus.REQUESTED
+        private set
+
+    /** The gateway's transaction of a succeeded payment; null until then. */
+    var transactionId: String? = null
+        private set
+
+    /** Why the gateway declined the payment, or why it was refunded; null otherwise. */
+    var reason: String? = null
+        private set
+
     fun onSourcing(event: PaymentRequested) {
         orderId = event.orderId
         amount = event.amount
+        status = PaymentStatus.REQUESTED
+    }
+
+    fun onSourcing(event: PaymentSucceeded) {
+        transactionId = event.transactionId
+        status = PaymentStatus.SUCCEEDED
+    }
+
+    fun onSourcing(event: PaymentFailed) {
+        reason = event.reason
+        status = PaymentStatus.FAILED
+    }
+
+    fun onSourcing(event: PaymentRefunded) {
+        reason = event.reason
+        status = PaymentStatus.REFUNDED
     }
 }

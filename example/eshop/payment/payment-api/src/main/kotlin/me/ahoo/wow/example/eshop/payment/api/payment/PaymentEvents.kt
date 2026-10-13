@@ -21,3 +21,26 @@ data class PaymentRequested(
     val orderId: String,
     val amount: BigDecimal,
 )
+
+@Summary("The gateway approved a payment")
+data class PaymentSucceeded(
+    val transactionId: String,
+)
+
+@Summary("The gateway declined a payment")
+data class PaymentFailed(
+    val reason: String,
+)
+
+@Summary("A payment was refunded")
+data class PaymentRefunded(
+    val reason: String,
+)
+
+/** Where a payment is: requested, then succeeded or failed; a succeeded one may be refunded. */
+enum class PaymentStatus {
+    REQUESTED,
+    SUCCEEDED,
+    FAILED,
+    REFUNDED,
+}
