@@ -158,6 +158,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | WP | 内容 | 规模 | 依赖 | 出口 |
 |---|---|---|---|---|
 | 6.0b | 订阅绑定：`:kernel` 的 `ProcessorBinding`、KSP 生成、运行时适配（D149）、`SagaContext` 的上下文内派发、多读者状态视图与 `stateEvents` 解码器（D133）；阻塞 K 路与 S 路 | L | 6.0a | shop 的 Saga 与投影在运行时执行；进行中：KSP 订阅绑定 |
+| 6.0c | 本上下文的拒绝交给 `@OnRejected`、等待立即失败（D153）；订阅起点配置（D154） | M | 6.0a、6.0b | 拒绝不停放、`@OnRejected` 补偿与起点覆盖的测试 |
 | 6.3a | `:spi` 的端口与信封（D132）；`:kafka` 传输；Kafka Sink | M | 6.0b | Sink 的集成测试 |
 | 6.3b | Kafka 来源的订阅运行时：租约分配、停放与按 key 重扫（D134、D140） | L | 6.3a | 来源订阅的停放与恢复测试 |
 | 6.3c | 对端 Manifest：Gradle 插件 `wowPeers` 与 `ContractDirectory`（D139） | M | 6.0a | 插件与加载测试 |
@@ -241,6 +242,6 @@ M6 的新模块（`:query`、`:kafka`、`:clickhouse`、`:example-e2e`）要由 
 | 顺序 | 工作包 | 依赖与要点 |
 |---|---|---|
 | 4 | 把 `!example/shop/**` 排除提到 main | 9.x 工作流的路径排除（与 #4289 同类） |
-| 4 | H2 阶段 2 | 4.2b 的真实传输已在 #4296 完成：用 3 个 JVM 与持久化的 PostgreSQL 复测 p99，并测属主被杀时的不可用窗口，确认 D6 |
+| 4 | H2 阶段 2 | 4.2b 的真实传输已在 #4296 完成：用 3 个 JVM 与持久化的 PostgreSQL 复测 p99，并测属主被杀时的不可用窗口，确认 D6；时机按 D155：K 路到 6.3 前后的空档，作为 M6 出口证据 |
 | 5 | M6 前置 6.00 → 6.0a | 串行；6.0a 一次改完 M6 的 Manifest 与 `FrameworkErrors`（D148） |
 | 6 | M6 的 Q、K、S 三路 | 见 §3 的 M6；K 路的 6.0b 接着进行中的订阅绑定，阻塞 K 路与 S 路的 Sink |
