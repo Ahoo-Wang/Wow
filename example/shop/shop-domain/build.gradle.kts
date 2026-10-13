@@ -16,10 +16,8 @@ ksp {
 
 dependencies {
     api(project(":shop-api"))
-    // The generated models and the binding index build on the kernel.
+    // The generated models, the processor bindings and the binding index build on the kernel only (decision D149).
     api(project(":kernel"))
-    // The generated subscription bindings of CartSaga build on the runtime's binding API.
-    api(project(":runtime"))
     ksp(project(":compiler"))
     // The aggregate tests run the domain on the kernel, with its test DSL.
     testImplementation(testFixtures(project(":kernel")))

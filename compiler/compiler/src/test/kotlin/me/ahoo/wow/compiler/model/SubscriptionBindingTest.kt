@@ -25,12 +25,12 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.Dependencies
+import me.ahoo.wow.kernel.ExecutionProjectContext
+import me.ahoo.wow.kernel.ExecutionReactContext
+import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.MissingDependencyException
-import me.ahoo.wow.runtime.binding.BoundHandler
-import me.ahoo.wow.runtime.binding.RuntimeProjectContext
-import me.ahoo.wow.runtime.binding.RuntimeReactContext
-import me.ahoo.wow.runtime.binding.RuntimeSagaContext
-import me.ahoo.wow.runtime.binding.SubscriptionProvider
+import me.ahoo.wow.kernel.ModelProvider
+import me.ahoo.wow.kernel.ProcessorBinding
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 import java.io.File
@@ -128,10 +128,10 @@ class SubscriptionBindingTest {
         compilation.workingDir.walkTopDown().firstOrNull { it.isFile && it.name == name }
 
     /** The compiled classes with the services file KSP generated, as a jar would hold them. */
-    private fun provider(compilation: KotlinCompilation, result: JvmCompilationResult): SubscriptionProvider {
-        val services = generated(compilation, SubscriptionSource.SUBSCRIPTION_PROVIDER)!!
+    private fun provider(compilation: KotlinCompilation, result: JvmCompilationResult): ModelProvider {
+        val services = generated(compilation, ModelProviderSource.MODEL_PROVIDER)!!
         val root = services.parentFile.parentFile.parentFile
-        return SubscriptionProvider.load(URLClassLoader(arrayOf(root.toURI().toURL()), result.classLoader)).single()
+        return ModelProvider.load(URLClassLoader(arrayOf(root.toURI().toURL()), result.classLoader)).single()
     }
 
     private class Rows : HashMap<String, String>()
@@ -161,7 +161,7 @@ class SubscriptionBindingTest {
         )
     }
 
-    private fun execution(handler: BoundHandler<*>, event: StateEvent<*>) = ExecutionId(
+    private fun execution(handler: ProcessorBinding<*>, event: StateEvent<*>) = ExecutionId(
         handler.name,
         event.ref,
         event.version
@@ -170,8 +170,13 @@ class SubscriptionBindingTest {
     @Test
     fun `each handler should be bound to its processor, built from the dependencies once`() {
         val (compilation, result) = compile(processors)
-        generated(compilation, SubscriptionSource.SUBSCRIPTION_PROVIDER)!!.readText()
-            .assert().isEqualTo("sample.shop.ShopDomainSubscriptionProvider\n")
+        // The model provider lists the processors (decision D149): no other binding index.
+        generated(compilation, ModelProviderSource.MODEL_PROVIDER)!!.readText()
+            .assert().isEqualTo("sample.shop.ShopDomainModelProvider\n")
+        generated(compilation, "ShopDomainModelProvider.kt")!!.readText().assert().contains(
+            "override fun processors(",
+            "sample.shop.cartSagaHandlers(dependencies),",
+        )
         generated(compilation, "OrderProjectionSubscriptions.kt")!!.readText().assert().contains(
             "sample.shop.OrderProjection(dependencies.get(sample.shop.Rows::class.javaObjectType), " +
                 "dependencies.get(sample.shop.Rows::class.javaObjectType, \"audit\"))",
@@ -180,7 +185,7 @@ class SubscriptionBindingTest {
         provider.context.assert().isEqualTo("shop")
         val rows = linkedMapOf<String, String>()
         val audit = linkedMapOf<String, String>()
-        val handlers = provider.handlers(Dependencies.of(mapOf("audit" to rows(result, audit)), rows(result, rows)))
+        val handlers = provider.processors(Dependencies.of(mapOf("audit" to rows(result, audit)), rows(result, rows)))
         handlers.map { "${it.name}:${it.kind}:${it.stateType?.simpleName}:${it.blocking}" }.assert().containsExactlyInAnyOrder(
             "CartSaga.onEvent:SAGA:OrderState:false",
             "CartSaga.single:SAGA:OrderState:false",
@@ -195,13 +200,15 @@ class SubscriptionBindingTest {
         val event = event(result)
         runBlocking {
             handlers.filter { it.kind == FunctionKind.PROJECT }.forEach {
-                it.handle(event, RuntimeProjectContext(execution(it, event))).assert().isEmpty()
+                it.invoke(event, ExecutionProjectContext(execution(it, event))).assert().isEmpty()
             }
             val notifier = handlers.single { it.kind == FunctionKind.REACT }
-            notifier.handle(event, RuntimeReactContext(execution(notifier, event))).assert().isEmpty()
+            notifier.invoke(event, ExecutionReactContext(execution(notifier, event))).assert().isEmpty()
         }
+        // A binding calls its handler in the caller's coroutine: moving a blocking one to a virtual thread is the
+        // runtime's, which reads the binding's blocking flag.
         rows.assert().isEqualTo(
-            mapOf("sync" to "o-1", "mono" to "shop.order/t/o-1@2", "blocking" to "true"),
+            mapOf("sync" to "o-1", "mono" to "shop.order/t/o-1@2", "blocking" to "false"),
         )
         audit.assert().isEqualTo(mapOf("suspend" to "OrderProjection.withContext:shop.order/t/o-1@2"))
         val seen = result.classLoader.loadClass("sample.shop.Notifier").getField("INSTANCE").get(null)
@@ -215,12 +222,12 @@ class SubscriptionBindingTest {
         val handlers = provider(
             compilation,
             result
-        ).handlers(Dependencies.of(mapOf("audit" to rows(result, Rows())), rows(result, Rows())))
+        ).processors(Dependencies.of(mapOf("audit" to rows(result, Rows())), rows(result, Rows())))
             .filter { it.kind == FunctionKind.SAGA }.associateBy { it.function }
         val event = event(result)
         fun derive(function: String): List<Command<*>> = runBlocking {
             val handler = handlers.getValue(function)
-            handler.handle(event, RuntimeSagaContext(execution(handler, event), event))
+            handler.invoke(event, ExecutionSagaContext(execution(handler, event), event))
         }
         val derived = derive("onEvent")
         derived.map { it.ref.toString() }.assert().containsExactly("shop.cart/t/alice", "shop.cart/t/alice")
@@ -237,12 +244,12 @@ class SubscriptionBindingTest {
     @Test
     fun `a missing dependency should fail the binding, naming its type`() {
         val (compilation, result) = compile(processors)
-        assertThrownBy<MissingDependencyException> { provider(compilation, result).handlers(Dependencies.NONE) }
+        assertThrownBy<MissingDependencyException> { provider(compilation, result).processors(Dependencies.NONE) }
             .hasMessageContaining("sample.shop.Rows")
     }
 
     @Test
-    fun `a module of aggregates only should have no subscription provider`() {
+    fun `a module of aggregates only should list no processors`() {
         val account = SourceFile.kotlin(
             "Account.kt",
             """
@@ -260,13 +267,14 @@ class SubscriptionBindingTest {
             }
             """.trimIndent(),
         )
-        val (compilation, _) = compile(account)
-        generated(compilation, SubscriptionSource.SUBSCRIPTION_PROVIDER).assert().isNull()
+        val (compilation, result) = compile(account)
         generated(compilation, ModelProviderSource.MODEL_PROVIDER).assert().isNotNull()
+        generated(compilation, "ShopDomainModelProvider.kt")!!.readText().assert().doesNotContain("processors")
+        provider(compilation, result).processors(Dependencies.NONE).assert().isEmpty()
     }
 
     @Test
-    fun `a module without wow-runtime should only check its processors, with a warning`() {
+    fun `a module of processors should compile against wow-kernel alone`() {
         val view = SourceFile.kotlin(
             "View.kt",
             """
@@ -286,16 +294,20 @@ class SubscriptionBindingTest {
         val (compilation, result) = compileModel(
             "generate",
             options,
-            { !it.invariantSeparatorsPath.contains("core/runtime/") && !it.name.startsWith("runtime") },
+            { file ->
+                val path = file.invariantSeparatorsPath
+                listOf("core/runtime/", "core/reactor/").none { it in path } &&
+                    !file.name.startsWith("runtime") && !file.name.startsWith("reactor")
+            },
             view,
         )
+        // Decision D149: a domain module binds its processors with wow-kernel on its class path, not the runtime.
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
-        result.messages.assert().contains(
-            "sample.view.View: its subscriptions are not bound: the module does not depend on wow-runtime",
-        )
-        generated(compilation, "ViewSubscriptions.kt").assert().isNull()
-        generated(compilation, SubscriptionSource.SUBSCRIPTION_PROVIDER).assert().isNull()
-        generated(compilation, ModelProviderSource.MODEL_PROVIDER).assert().isNotNull()
+        result.messages.assert().doesNotContain("not bound")
+        generated(compilation, "ViewSubscriptions.kt")!!.readText()
+            .assert().contains("me.ahoo.wow.kernel.ProcessorBinding.project<Any>(\"View\", \"onEvent\", null, false)")
+        val processors = provider(compilation, result).processors(Dependencies.NONE)
+        processors.map { it.name }.assert().containsExactly("View.onEvent")
     }
 
     @Test

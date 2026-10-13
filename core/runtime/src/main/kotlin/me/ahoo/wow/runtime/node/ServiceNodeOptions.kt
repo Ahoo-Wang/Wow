@@ -23,6 +23,7 @@ import me.ahoo.wow.runtime.admission.IdGenerator
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.log.AppendQueueOptions
+import me.ahoo.wow.runtime.state.StateViewOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.wait.WaitOptions
@@ -74,6 +75,7 @@ enum class Routing {
  *   [AppendQueueOptions.POSTGRES]).
  * - [laneCapacity]: the commands one aggregate may have waiting in the executor.
  * - [stateCacheCapacity]: the aggregate states kept per context between commands; 0 keeps none.
+ * - [stateViews]: the bounds of each context's state views, shared by its state consumers (decision D133).
  */
 data class ServiceNodeOptions(
     val cluster: ClusterOptions = ClusterOptions(),
@@ -85,6 +87,7 @@ data class ServiceNodeOptions(
     val laneCapacity: Int = DEFAULT_LANE_CAPACITY,
     val stateCacheCapacity: Int = DEFAULT_STATE_CACHE_CAPACITY,
     val defaultWaitTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT,
+    val stateViews: StateViewOptions = StateViewOptions(),
 ) {
     init {
         require(defaultWaitTimeout.isPositive()) { "The default wait timeout is positive." }
@@ -127,7 +130,19 @@ fun interface SubscriptionFactory {
      */
     fun viewTypes(context: String, models: List<AggregateModel<*>>): Set<AggregateType> = emptySet()
 
-    /** This factory's subscriptions, then [other]'s, with the state views either asks for. */
+    /**
+     * The state consumers among the subscriptions of [context] (decision D133), by the reader name each reads the
+     * state views with ([ContextNode.stateReader]), with the aggregate types it reads: a view is evicted once every
+     * reader of its type passed it, or it ages out. By default one reader named after this factory's class, of the
+     * types [viewTypes] names: it passes nothing unless its subscriptions read under that name, so their views only
+     * age out. A factory that overrides it also overrides [viewTypes] with the types it names.
+     */
+    fun stateReaders(context: String, models: List<AggregateModel<*>>): Map<String, Set<AggregateType>> {
+        val types = viewTypes(context, models)
+        return if (types.isEmpty()) emptyMap() else mapOf(javaClass.name to types)
+    }
+
+    /** This factory's subscriptions, then [other]'s, with the state readers either has. */
     operator fun plus(other: SubscriptionFactory): SubscriptionFactory {
         val first = this
         return object : SubscriptionFactory {
@@ -136,6 +151,17 @@ fun interface SubscriptionFactory {
 
             override fun viewTypes(context: String, models: List<AggregateModel<*>>): Set<AggregateType> =
                 first.viewTypes(context, models) + other.viewTypes(context, models)
+
+            override fun stateReaders(
+                context: String,
+                models: List<AggregateModel<*>>,
+            ): Map<String, Set<AggregateType>> {
+                val readers = first.stateReaders(context, models).toMutableMap()
+                other.stateReaders(context, models).forEach { (reader, types) ->
+                    readers.merge(reader, types) { left, right -> left + right }
+                }
+                return readers
+            }
         }
     }
 

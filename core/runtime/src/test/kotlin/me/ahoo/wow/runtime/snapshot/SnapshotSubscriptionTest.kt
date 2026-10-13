@@ -301,12 +301,13 @@ class SnapshotSubscriptionTest {
         runtime.stop()
         val saved = store.saves.size
 
-        // A replay finds the late view of a version the store already holds: dropped, never saved again.
+        // A replay finds the late view of a version the store already holds: passed, never saved again. It stays only
+        // as the base of the aggregate's next commit.
         val replay = runtime(InMemoryCheckpointStore())
         replay.start(setOf(0))
         eventually { replay.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, third.stream) }
         store.saves.size.assert().isEqualTo(saved)
-        snapshots.views.size.assert().isEqualTo(0)
+        snapshots.views.size.assert().isEqualTo(1)
         store.load(ref("a"))!!.state.assert().isEqualTo("""{"total":3}""")
     }
 
@@ -342,7 +343,7 @@ class SnapshotSubscriptionTest {
         runtime.stop()
         // The view is recorded as the command commits, before the stopped runtime reads the entry.
         val committed = executor.execute(counter, add("a", WaitPlan.COMMITTED)) as CommandOutcome.Committed
-        snapshots.views.size.assert().isEqualTo(1)
+        snapshots.views.get(ref("a"), 2).assert().isNotNull()
         log.reads.clear()
         val loads = store.loads.get()
 
@@ -351,7 +352,9 @@ class SnapshotSubscriptionTest {
         eventually { resumed.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, committed.stream) }
         store.loads.get().assert().isEqualTo(loads)
         log.reads.assert().isEmpty()
-        snapshots.views.size.assert().isEqualTo(0)
+        // Its only reader passed it: the earlier view is evicted, the latest kept as the next commit's base.
+        snapshots.views.get(ref("a"), 1).assert().isNull()
+        snapshots.views.size.assert().isEqualTo(1)
         store.load(ref("a"))!!.lastEventTime.assert().isEqualTo(committed.stream.commitTime)
     }
 
@@ -362,7 +365,7 @@ class SnapshotSubscriptionTest {
         runtime.stop()
         // The view is recorded as the deletion commits, before the stopped runtime reads the entry.
         val deleted = executor.execute(counter, command("a", DeleteAggregate)) as CommandOutcome.Committed
-        snapshots.views.size.assert().isEqualTo(1)
+        snapshots.views.get(ref("a"), 2)!!.deleted.assert().isTrue()
         log.reads.clear()
         val loads = store.loads.get()
 
@@ -405,7 +408,7 @@ class SnapshotSubscriptionTest {
         eventually { resumed.hasHandled(Hop.SNAPSHOT_SUBSCRIPTION, deleted.stream) }
         // The first event time comes from the stored snapshot and the rest from the view: the log is not read.
         log.reads.assert().isEmpty()
-        other.views.size.assert().isEqualTo(0)
+        other.views.size.assert().isEqualTo(1)
         val snapshot = store.load(ref("a"))!!
         snapshot.version.assert().isEqualTo(3)
         snapshot.deleted.assert().isTrue()
@@ -498,10 +501,11 @@ class SnapshotSubscriptionTest {
 
         executor.execute(fragile, add()).assert().isInstanceOf(CommandOutcome.Committed::class.java)
         subscription.views.size.assert().isEqualTo(1)
-        // Version 2 cannot be serialized: still committed, and the stale view of version 1 is dropped.
+        // Version 2 cannot be serialized: still committed, without a view; the view of version 1 stays, right for it.
         val second = executor.execute(fragile, add()) as CommandOutcome.Committed
         second.stream.version.assert().isEqualTo(2)
-        subscription.views.size.assert().isEqualTo(0)
+        subscription.views.get(ref, 2).assert().isNull()
+        subscription.views.size.assert().isEqualTo(1)
 
         val ledger = InMemoryFailureLedger()
         val running = SubscriptionRuntime(

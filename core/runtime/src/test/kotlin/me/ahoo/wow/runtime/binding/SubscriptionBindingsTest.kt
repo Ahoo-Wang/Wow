@@ -26,6 +26,9 @@ import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.kernel.ExecutionSagaContext
+import me.ahoo.wow.kernel.ProcessorBinding
+import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.runtime.admission.Caller
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandRequest
@@ -34,7 +37,6 @@ import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.node.fastNodeOptions
-import me.ahoo.wow.runtime.subscription.EntryDecoder
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.eventually
@@ -55,19 +57,23 @@ class SubscriptionBindingsTest {
     private val everything = CopyOnWriteArrayList<String>()
 
     /** Keeps what it is handed; fails for the order `boom`. */
-    private val projection = BoundHandler.project("OrderView", "onEvent", OrderState::class.java) { event, context ->
+    private val projection = ProcessorBinding.project(
+        "OrderView",
+        "onEvent",
+        OrderState::class.java
+    ) { event, context ->
         check(event.ref.id != "boom") { "${event.ref} cannot be projected." }
         projected += event
         executions += context.executionId.toString()
     }
 
     /** Every aggregate of the context, through `StateEvent<*>`. */
-    private val audit = BoundHandler.react<Any>("Audit", "onEvent", null) { event, context ->
+    private val audit = ProcessorBinding.react<Any>("Audit", "onEvent", null) { event, context ->
         everything += "${event.ref.type.name}@${event.version}:${context.executionId.subscription}"
     }
 
     /** Removes the ordered items from the cart of the order's owner; derives nothing for an order without one. */
-    private val saga = BoundHandler.saga("CartSaga", "onOrderPlaced", OrderState::class.java) { event, context ->
+    private val saga = ProcessorBinding.saga("CartSaga", "onOrderPlaced", OrderState::class.java) { event, context ->
         val owner = event.scope.ownerId ?: return@saga emptyList()
         event.events.filterIsInstance<Placed>().map {
             context.command(CART.ref(event.ref.tenantId, owner), RemoveItems(it.items))
@@ -156,7 +162,7 @@ class SubscriptionBindingsTest {
             val handled = all.single { it.hop.stage == Stage.HANDLED }
             handled.function.kind.assert().isEqualTo(FunctionKind.SAGA)
             val execution = ExecutionId(saga.name, ORDER.ref(TENANT, "o-2"), 1)
-            val derived = RuntimeSagaContext.derivedId(execution, 0)
+            val derived = ExecutionSagaContext.derivedId(execution, 0)
             handled.derived.assert().containsExactly(derived)
             val last = all.last()
             last.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
@@ -221,7 +227,7 @@ class SubscriptionBindingsTest {
         val subscription = bindings.subscriptions(context).single { it.name == saga.name }
         val log = backends.opened.getValue(SHOP).log
         val stream = log.read(ORDER.ref(TENANT, "o-5")).first()
-        val entry = EntryDecoder.models(context.models, context.codec).decode(stream, null, null)
+        val entry = subscription.decoder.decode(stream, null, null)
         val again = subscription.handle(entry)
         again.assert().containsExactly(decided.single())
         // The kernel found the request committed: the cart did not decide it again.
@@ -249,9 +255,9 @@ class SubscriptionBindingsTest {
         subscriptions.getValue("Audit.onEvent").kind.assert().isEqualTo(FunctionKind.REACT)
         subscriptions.getValue("CartSaga.onOrderPlaced").kind.assert().isEqualTo(FunctionKind.SAGA)
         subscriptions.getValue("OrderView.onEvent").startFrom.assert()
-            .isEqualTo(me.ahoo.wow.runtime.subscription.StartFrom.BEGINNING)
+            .isEqualTo(StartFrom.BEGINNING)
         subscriptions.getValue("CartSaga.onOrderPlaced").startFrom.assert()
-            .isEqualTo(me.ahoo.wow.runtime.subscription.StartFrom.END)
+            .isEqualTo(StartFrom.END)
         SubscriptionBindings(emptyMap()).subscriptions(node.context(SHOP)).assert().isEmpty()
     }
 

@@ -13,45 +13,50 @@
 
 package me.ahoo.wow.runtime.binding
 
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FunctionKind
-import me.ahoo.wow.api.subscribe.ExecutionId
+import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
+import me.ahoo.wow.kernel.ModelProvider
+import me.ahoo.wow.kernel.ProcessorBinding
+import me.ahoo.wow.kernel.contextOf
 import me.ahoo.wow.runtime.node.ContextNode
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.subscription.EntryDecoder
-import me.ahoo.wow.runtime.subscription.StartFrom
+import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import java.util.concurrent.Executors
 
 /**
- * Registers the handlers of annotated processors ([BoundHandler]) in a [me.ahoo.wow.runtime.node.ServiceNode]: one
- * subscription per handler (design 04 §1), in the bounded context its processor's module belongs to, by context in
- * [handlers].
+ * Adapts the handlers of annotated processors ([ProcessorBinding], decision D149) into the subscriptions of a
+ * [me.ahoo.wow.runtime.node.ServiceNode]: one per handler (design 04 §1), in the bounded context its processor's
+ * module belongs to, by context in [processors].
  *
- * - **Name and filter**: the subscription is the handler's [BoundHandler.name], `processor.function`, of the
- *   aggregates of the context whose state is the handler's state type (every aggregate for `StateEvent<*>`), of any of
- *   their events: a handler's signature names its state, not its events. A state type no aggregate of the context
- *   has fails the node's assembly.
- * - **What the handler gets**: the entry's events decoded through the context's models with the kernel's codec, the
- *   state after the commit ([StateEventReader]; the node keeps the state views of the aggregates read here,
- *   [viewTypes]), and the context of its kind, whose [ExecutionId] is (subscription, aggregate, version).
+ * - **Name, filter and start**: the subscription is the handler's [ProcessorBinding.name], `processor.function`, of
+ *   the aggregates of the context whose state is the handler's state type (every aggregate for `StateEvent<*>`), of
+ *   any of their events: a handler's signature names its state, not its events. It starts where the handler says
+ *   ([ProcessorBinding.startFrom]). A state type no aggregate of the context has fails the node's assembly.
+ * - **What the handler gets**: the entry decoded by [EntryDecoder.stateEvents] (decision D133), each subscription
+ *   the state reader of its own name ([stateReaders]): its events decoded and upgraded, and the state after the
+ *   commit, a copy decoded from the context's shared view for this handler alone; with the context of its kind, whose
+ *   [me.ahoo.wow.api.subscribe.ExecutionId] is (subscription, aggregate, version).
+ * - **Calls**: in the subscription's coroutine, or on a virtual thread for a `@Blocking` handler
+ *   ([ProcessorBinding.blocking]).
  * - **Sagas** execute what they derive through the context's wait coordinator ([DerivedCommands]) and report the
  *   commands' ids, so a wait chain may go on after their hop (decision D62).
  * - **Failures**: a handler that throws, or a state that cannot be read, is retried, then parks its aggregate, as any
  *   subscription ([me.ahoo.wow.runtime.subscription.SubscriptionOptions.retry]).
- * - **Start**: a new projection starts from the beginning of the log, so it builds its read model from the whole
- *   history; a new reactor or saga from its end (04 §3: a new subscription chooses), so deploying one does not replay
- *   side effects or derive commands for the history ([startFrom]).
  */
-class SubscriptionBindings(
-    private val handlers: Map<String, List<BoundHandler<*>>>,
-    private val startFrom: (BoundHandler<*>) -> StartFrom = ::defaultStartFrom,
-) : SubscriptionFactory {
+class SubscriptionBindings(private val processors: Map<String, List<ProcessorBinding<*>>>) : SubscriptionFactory {
     init {
-        handlers.forEach { (context, bound) ->
+        processors.forEach { (context, bound) ->
             bound.groupBy { it.name }.filterValues { it.size > 1 }.keys.forEach {
                 throw IllegalArgumentException("Context $context has two handlers named $it.")
             }
@@ -59,21 +64,18 @@ class SubscriptionBindings(
     }
 
     override fun viewTypes(context: String, models: List<AggregateModel<*>>): Set<AggregateType> =
-        handlers[context].orEmpty().flatMapTo(LinkedHashSet()) { handler -> read(handler, models).map { it.type } }
+        stateReaders(context, models).values.flatMapTo(LinkedHashSet()) { it }
+
+    override fun stateReaders(context: String, models: List<AggregateModel<*>>): Map<String, Set<AggregateType>> =
+        processors[context].orEmpty().associate { handler ->
+            handler.name to read(handler, models).mapTo(LinkedHashSet()) { it.type }
+        }
 
     override fun subscriptions(context: ContextNode): List<Subscription> {
-        val bound = handlers[context.context].orEmpty()
+        val bound = processors[context.context].orEmpty()
         if (bound.isEmpty()) {
             return emptyList()
         }
-        val reader = StateEventReader(
-            context.models,
-            context.kernel,
-            context.codec,
-            context.views,
-            context.backends.snapshots,
-        )
-        val decoder = EntryDecoder.models(context.models, context.codec)
         val derived = DerivedCommands(context.models, context.coordinator)
         return bound.map { handler ->
             val name = handler.name
@@ -81,26 +83,24 @@ class SubscriptionBindings(
                 context.context,
                 read(handler, context.models).mapTo(LinkedHashSet()) { it.type.name },
             )
+            val decoder = EntryDecoder.stateEvents(context.stateReader(name))
             if (handler.kind == FunctionKind.SAGA) {
-                Subscription.saga(name, filter, startFrom(handler), decoder, context.models) { entry ->
-                    val event = reader.read(entry)
-                    val commands = handler.handle(
-                        event,
-                        RuntimeSagaContext(ExecutionId(name, event.ref, event.version), event)
-                    )
+                Subscription.saga(name, filter, handler.startFrom, decoder, context.models) { entry ->
+                    val event = stateEventOf(entry, context)
+                    val commands = call(handler, event, contextOf(handler.kind, name, event))
                     derived.execute(commands, DerivedCommands.waitOf(entry.transport?.wait, context.context, name))
                 }
             } else {
-                Subscription(name, filter, startFrom(handler), decoder, context.models, handler.kind) { entry ->
-                    val event = reader.read(entry)
-                    handler.handle(event, contextOf(handler.kind, ExecutionId(name, event.ref, event.version)))
+                Subscription(name, filter, handler.startFrom, decoder, context.models, handler.kind) { entry ->
+                    val event = stateEventOf(entry, context)
+                    call(handler, event, contextOf(handler.kind, name, event))
                 }
             }
         }
     }
 
     /** The models of [models] whose state [handler] reads. */
-    private fun read(handler: BoundHandler<*>, models: List<AggregateModel<*>>): List<AggregateModel<*>> {
+    private fun read(handler: ProcessorBinding<*>, models: List<AggregateModel<*>>): List<AggregateModel<*>> {
         val type = handler.stateType ?: return models
         return models.filter { type.isAssignableFrom(it.stateType) }.also {
             require(it.isNotEmpty()) {
@@ -110,33 +110,65 @@ class SubscriptionBindings(
         }
     }
 
-    private fun contextOf(kind: FunctionKind, execution: ExecutionId): SubscriptionContext =
-        if (kind == FunctionKind.REACT) RuntimeReactContext(execution) else RuntimeProjectContext(execution)
-
     companion object {
         /** No handlers. */
         @JvmField
         val NONE: SubscriptionBindings = SubscriptionBindings(emptyMap())
 
+        /** Runs the `@Blocking` handlers: a virtual thread per call (decision D29: JDK 21). */
+        private val BLOCKING: CoroutineDispatcher by lazy {
+            Executors.newVirtualThreadPerTaskExecutor().asCoroutineDispatcher()
+        }
+
         /**
-         * The handlers of [providers] (by default those registered on the class path), their processors constructed
-         * with [dependencies]: a [me.ahoo.wow.kernel.MissingDependencyException] when one is missing, so the node is
-         * not built.
+         * The handlers of the processors of [providers] (by default the binding indexes on the class path, decision
+         * D107), their processors constructed with [dependencies]: a [me.ahoo.wow.kernel.MissingDependencyException]
+         * when one is missing, so the node is not built.
          */
         @JvmStatic
         @JvmOverloads
         fun of(
             dependencies: Dependencies,
-            providers: List<SubscriptionProvider> = SubscriptionProvider.load(),
+            providers: List<ModelProvider> = ModelProvider.load(),
         ): SubscriptionBindings = SubscriptionBindings(
-            providers.groupBy { it.context }.mapValues { (_, inContext) ->
-                inContext.flatMap { it.handlers(dependencies) }
-            },
+            providers.groupBy { it.context }
+                .mapValues { (_, inContext) -> inContext.flatMap { it.processors(dependencies) } }
+                .filterValues { it.isNotEmpty() },
         )
 
-        /** A projection starts from the beginning of the log; a reactor or a saga from its end. */
-        @JvmStatic
-        fun defaultStartFrom(handler: BoundHandler<*>): StartFrom =
-            if (handler.kind == FunctionKind.PROJECT) StartFrom.BEGINNING else StartFrom.END
+        /** Calls [handler] with [event] and [context]: on a virtual thread when it is blocking. */
+        internal suspend fun call(
+            handler: ProcessorBinding<*>,
+            event: StateEvent<*>,
+            context: SubscriptionContext,
+        ): List<Command<*>> = if (handler.blocking) {
+            withContext(BLOCKING) { handler.invoke(event, context) }
+        } else {
+            handler.invoke(event, context)
+        }
+
+        /**
+         * The [StateEvent] of [entry] (design 04 §1, design 08 §5): the stream's identity, command, commit time, scope
+         * (the aggregate's after the commit, decision D56), causation and headers, its decoded events, and the state
+         * after the commit decoded afresh from its view, so no handler sees another's changes nor the live instance.
+         */
+        private suspend fun stateEventOf(entry: SubscribedEntry, context: ContextNode): StateEvent<Any> {
+            val stream = entry.stream
+            val model = context.models.first { it.type == stream.ref.type }
+            val view = entry.state()
+            return StateEvent(
+                ref = stream.ref,
+                version = stream.version,
+                commandId = stream.commandId,
+                requestId = stream.requestId,
+                commandType = stream.commandType,
+                commitTime = stream.commitTime,
+                events = entry.events,
+                state = context.codec.decodeState(model, view.state),
+                scope = stream.scope,
+                causation = stream.causation,
+                headers = stream.headers,
+            )
+        }
     }
 }

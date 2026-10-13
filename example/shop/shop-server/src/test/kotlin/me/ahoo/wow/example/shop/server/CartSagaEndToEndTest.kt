@@ -18,7 +18,6 @@ import me.ahoo.wow.http.WowHeaders
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import java.time.Duration
 
 /**
  * The cart saga through the running shop server (memory backend): the host registers the subscription the compiler
@@ -62,12 +61,11 @@ class CartSagaEndToEndTest {
         placed.json["function"]["kind"].asString().assert().isEqualTo("SAGA")
         placed.json["derived"].values().toList().assert().hasSize(1)
 
-        // The saga's hop is answered once its command is committed: the snapshot follows.
-        val deadline = System.nanoTime() + Duration.ofSeconds(10).toNanos()
-        while (cartProducts("grace") != listOf("durian") && System.nanoTime() < deadline) {
-            Thread.sleep(POLL_MILLIS)
-        }
-        cartProducts("grace").assert().containsExactly("durian")
+        // The saga's hop is answered once its command is committed: the cart's fourth version, after the three items,
+        // reads emptied at once from the log; its snapshot follows (the next test waits for it).
+        val removed = shop.get("/example/cart/grace/state?version=4", "grace")
+        removed.status.assert().isEqualTo(200)
+        removed.json["state"]["items"].values().map { it["productId"].asString() }.assert().containsExactly("durian")
     }
 
     @Test
@@ -93,7 +91,6 @@ class CartSagaEndToEndTest {
 
     private companion object {
         const val SAGA = "CartSaga.onOrderCreated"
-        const val POLL_MILLIS = 50L
         const val APPLE_AND_PEAR =
             """[{"productId":"apple","price":2.50,"quantity":1},{"productId":"pear","price":4.00,"quantity":1}]"""
         const val ADDRESS =

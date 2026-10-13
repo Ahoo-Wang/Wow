@@ -19,10 +19,14 @@ import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
+import me.ahoo.wow.kernel.StartFrom
+import me.ahoo.wow.runtime.state.StateView
+import me.ahoo.wow.runtime.state.StateViewReader
 import me.ahoo.wow.runtime.wait.subscriptionFunction
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.snapshot.SnapshotRecord
 
 /**
  * A subscription (design 04 §1): a [name], a [filter] and exactly one handler. The checkpoint belongs to the
@@ -119,12 +123,13 @@ class Subscription private constructor(
             name: String,
             filter: SubscriptionFilter,
             kind: FunctionKind,
+            decoder: EntryDecoder = EntryDecoder.RECORDS,
             handler: suspend (SubscribedEntry) -> Unit,
         ): Subscription = Subscription(
             name,
             filter,
             StartFrom.BEGINNING,
-            EntryDecoder.RECORDS,
+            decoder,
             emptyList(),
             kind,
             EntryHandler { entry ->
@@ -139,15 +144,6 @@ class Subscription private constructor(
 /** What a subscription runs for an entry: it returns the ids of the commands it derived. */
 internal fun interface EntryHandler {
     suspend fun handle(entry: SubscribedEntry): List<String>
-}
-
-/** Where a subscription without a checkpoint starts. */
-enum class StartFrom {
-    /** From the first entry of the partition: a new projection, or a replay under a new name. */
-    BEGINNING,
-
-    /** After the entries already committed when the subscription first starts in the partition (its log head). */
-    END,
 }
 
 /**
@@ -204,23 +200,37 @@ data class SubscriptionFilter(
  * entries by version with [me.ahoo.wow.spi.log.EventLog.readEntries], so the `reservation` subscription confirms the
  * keys of a parked aggregate too (decision D50). [position] is null only for an entry made by hand. A handler that
  * needs an idempotency key uses (`ref`, `version`).
+ *
+ * An entry made by [EntryDecoder.stateEvents] also reads the aggregate's [state] after the stream, when its handler
+ * asks for it: a handler that does not need it (the snapshot subscription, when the store already holds the version)
+ * never rebuilds it.
  */
 data class SubscribedEntry(
     val stream: EventStreamRecord,
     val position: LogPosition?,
     val events: List<Any>,
     val transport: Transport? = null,
+    private val states: StateViewReader? = null,
 ) {
     val ref: AggregateRef get() = stream.ref
     val version: Int get() = stream.version
+
+    /** The state after the stream ([StateViewReader.read]): only an entry decoded by [EntryDecoder.stateEvents]. */
+    suspend fun state(): StateView = reader().read(stream)
+
+    /** The state after the stream, from [snapshot], the aggregate's snapshot the handler already loaded, if any. */
+    internal suspend fun state(snapshot: SnapshotRecord?): StateView = reader().read(stream, snapshot)
+
+    private fun reader(): StateViewReader =
+        checkNotNull(states) { "The entry ${stream.ref}@${stream.version} was not decoded with its state." }
 }
 
 /**
  * Turns a committed stream into the entry a handler receives. It runs inside the handler's retries, so a stream
  * that cannot be decoded is retried and then parks its aggregate like a failing handler.
  *
- * This is the extension point for the post-commit state of design 04 §1 (`StateEvent`): a decoder that also loads
- * the aggregate's state at the stream's version (snapshot plus tail) hands it to the handler with the events.
+ * The post-commit state of design 04 §1 (`StateEvent`) comes with [stateEvents], the decoder every state consumer
+ * of a context shares (decision D133).
  */
 fun interface EntryDecoder {
     suspend fun decode(stream: EventStreamRecord, position: LogPosition?, transport: Transport?): SubscribedEntry
@@ -242,5 +252,23 @@ fun interface EntryDecoder {
                 SubscribedEntry(stream, position, stream.events.map { codec.decode(model, it) }, transport)
             }
         }
+
+        /**
+         * The decoder of the state consumers (design 04 §1, decision D133): each event decoded into its class through
+         * [states]' codec and models, upgraded on the way (unless [decodeEvents] is false: the stored records are
+         * handed over), and the aggregate's state after the stream read through [states] when the handler asks for
+         * it ([SubscribedEntry.state]): the context's shared view, else the nearest view or snapshot evolved with
+         * the log's tail, else the log replayed.
+         */
+        fun stateEvents(states: StateViewReader, decodeEvents: Boolean = true): EntryDecoder =
+            EntryDecoder { stream, position, transport ->
+                val events = if (decodeEvents) {
+                    val model = states.modelOf(stream.ref.type)
+                    stream.events.map { states.codec.decode(model, it) }
+                } else {
+                    stream.events
+                }
+                SubscribedEntry(stream, position, events, transport, states)
+            }
     }
 }

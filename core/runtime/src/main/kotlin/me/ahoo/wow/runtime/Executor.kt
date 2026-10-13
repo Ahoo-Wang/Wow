@@ -23,7 +23,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.Kernel
-import me.ahoo.wow.runtime.snapshot.StateViews
+import me.ahoo.wow.runtime.state.StateViews
 import me.ahoo.wow.spi.wait.WaitContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -40,19 +40,16 @@ import java.util.concurrent.atomic.AtomicInteger
  * returns when the commands already taken have finished.
  *
  * When [views] are given, each commit's state view is recorded in them before the lane moves on to the aggregate's
- * next command, while nothing can change the state (design 01 §2): the snapshot subscription writes from it. A
- * view is only an optimisation, so failing to take one never fails the committed command: the failure is logged,
- * the aggregate's view is dropped, and the subscription rebuilds the state instead. [sharedViews] are recorded the
- * same way, for the subscriptions of annotated processors, which read them without taking them.
+ * next command, while nothing can change the state (design 01 §2): the context's state consumers (the snapshot
+ * subscription, the subscriptions of annotated processors) read it (decision D133). A view is only an optimisation,
+ * so failing to take one never fails the committed command: the failure is logged, and the consumers rebuild the
+ * state instead.
  */
 class Executor(
     private val kernel: Kernel,
     private val laneCapacity: Int = DEFAULT_LANE_CAPACITY,
-    views: StateViews? = null,
-    sharedViews: StateViews? = null,
+    private val views: StateViews? = null,
 ) {
-    private val views: List<StateViews> = listOfNotNull(views, sharedViews)
-
     private val lanes = ConcurrentHashMap<AggregateRef, Lane>()
     private val inFlight = AtomicInteger()
 
@@ -73,8 +70,8 @@ class Executor(
         try {
             return lane.lock.withLock {
                 kernel.execute(model, command, wait).also { outcome ->
-                    if (outcome is CommandOutcome.Committed) {
-                        views.forEach { recordView(it, model, outcome) }
+                    if (outcome is CommandOutcome.Committed && views != null) {
+                        recordView(views, model, outcome)
                     }
                 }
             }
@@ -91,8 +88,7 @@ class Executor(
             throw cancelled
         } catch (failure: Exception) {
             val stream = committed.stream
-            logger.warn(failure) { "Failed to take the state view of ${stream.ref}@${stream.version}; dropping it." }
-            views.drop(stream.ref)
+            logger.warn(failure) { "Failed to take the state view of ${stream.ref}@${stream.version}; skipping it." }
         }
     }
 

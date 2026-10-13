@@ -25,8 +25,9 @@ import me.ahoo.wow.example.shop.api.order.OrderPaid
 import me.ahoo.wow.example.shop.domain.order.OrderFixtures
 import me.ahoo.wow.example.shop.domain.order.OrderState
 import me.ahoo.wow.kernel.Dependencies
-import me.ahoo.wow.runtime.binding.RuntimeSagaContext
-import me.ahoo.wow.runtime.binding.SubscriptionProvider
+import me.ahoo.wow.kernel.ExecutionSagaContext
+import me.ahoo.wow.kernel.ModelProvider
+import me.ahoo.wow.kernel.StartFrom
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 
@@ -54,7 +55,7 @@ class CartSagaTest {
         )
 
     private fun context(event: StateEvent<OrderState>) =
-        RuntimeSagaContext(ExecutionId(SUBSCRIPTION, event.ref, event.version), event)
+        ExecutionSagaContext(ExecutionId(SUBSCRIPTION, event.ref, event.version), event)
 
     @Test
     fun `an order created from the cart should remove its products from the owner's cart`() {
@@ -85,13 +86,18 @@ class CartSagaTest {
     }
 
     @Test
-    fun `the generated binding should register the saga's subscription`() = runTest {
-        val handler = SubscriptionProvider.load().single().handlers(Dependencies.NONE).single()
-        handler.name.assert().isEqualTo(SUBSCRIPTION)
-        handler.kind.assert().isEqualTo(FunctionKind.SAGA)
-        handler.stateType.assert().isEqualTo(OrderState::class.java)
-        val event = event()
-        handler.handle(event, context(event)).single().body.assert().isEqualTo(RemoveCartItem(setOf("apple", "pear")))
+    fun `the binding index should list the saga's handler`() {
+        runTest {
+            val handler = ModelProvider.load().single().processors(Dependencies.NONE).single()
+            handler.name.assert().isEqualTo(SUBSCRIPTION)
+            handler.kind.assert().isEqualTo(FunctionKind.SAGA)
+            handler.stateType.assert().isEqualTo(OrderState::class.java)
+            handler.startFrom.assert().isEqualTo(StartFrom.END)
+            handler.blocking.assert().isFalse()
+            val event = event()
+            handler.invoke(event, context(event)).single().body.assert()
+                .isEqualTo(RemoveCartItem(setOf("apple", "pear")))
+        }
     }
 
     private companion object {

@@ -287,6 +287,33 @@ class Kernel(
     }
 
     /**
+     * The committed state of [ref] at [version], evolved from [base], its state at an earlier version that the caller
+     * hands over to be evolved (it may be mutated: a copy, never a live instance), with the log's streams after it up
+     * to [version] (design 04 §1: a subscription behind the snapshot evolves the state it read for the previous
+     * commit, instead of replaying the log from version 1). The state cache is not touched.
+     *
+     * @return the state at [version] with the metadata the kernel keeps beside it; null when the log does not hold
+     *   every version after [base]'s up to [version].
+     */
+    suspend fun <S : Any> stateAt(
+        model: AggregateModel<S>,
+        ref: AggregateRef,
+        version: Int,
+        base: CachedState,
+    ): CachedState? {
+        require(ref.type == model.type) { "$ref is not a ${model.type}." }
+        require(base.version in 0..version) { "The base at version ${base.version} is past $version." }
+        if (base.version == version) {
+            return base
+        }
+        val streams = log.read(ref, base.version + 1, version).toList()
+        if (streams.firstOrNull()?.version != base.version + 1 || streams.last().version != version) {
+            return null
+        }
+        return replay(model, base, streams)
+    }
+
+    /**
      * The committed state of [ref] as of [at], read-only (decision D40, design 03 §4): the state after the last stream
      * committed at or before [at] by its commit time. Commit times are epoch milliseconds, so [at] counts to its
      * millisecond. The log is read in version order and the first stream committed after [at] ends it: commit times

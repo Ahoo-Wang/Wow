@@ -36,7 +36,6 @@ import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.IdGenerator
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
-import me.ahoo.wow.runtime.binding.SubscriptionProvider
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.manifest.ManifestLoader
 import me.ahoo.wow.runtime.node.AdmissionPlugins
@@ -88,7 +87,7 @@ import me.ahoo.cosid.provider.IdGeneratorProvider as CosIdGeneratorProvider
  *   [CallerResolver] (anonymous otherwise, D97); the cluster channel and the wait signals ([internalRoutes]) on an
  *   [InternalServer] of their own at `wow.internal.port`, never on the public server, the node's address learned once
  *   it is bound when the port is 0; [HttpClusterChannel] and [HttpSignalSender] share one JDK client.
- * - **Subscriptions**: the annotated processors' handlers on the classpath ([SubscriptionProvider.load], built
+ * - **Subscriptions**: the annotated processors' handlers the binding indexes list ([ModelProvider.processors], built
  *   from the application's beans), then the application's own [SubscriptionFactory] bean.
  * - **Lifecycle**: [WowLifecycles].
  */
@@ -383,7 +382,7 @@ class WowAutoConfiguration {
 
         /**
          * The subscriptions of the annotated processors on the class path (their modules' generated
-         * [SubscriptionProvider]s), their processors built from [dependencies], then the application's own
+         * [ModelProvider.processors]), their processors built from [dependencies], then the application's own
          * [SubscriptionFactory] bean, when it has one.
          */
         internal fun bindings(
@@ -391,7 +390,7 @@ class WowAutoConfiguration {
             dependencies: Dependencies,
             application: SubscriptionFactory?,
         ): SubscriptionFactory {
-            val bindings = SubscriptionBindings.of(dependencies, SubscriptionProvider.load(beanFactory.beanClassLoader))
+            val bindings = SubscriptionBindings.of(dependencies, ModelProvider.load(beanFactory.beanClassLoader))
             return if (application == null) bindings else bindings + application
         }
 

@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.spi.log.EventLog
@@ -108,6 +109,28 @@ class KernelStateAtTest {
         val snapshot = history()
         kernel.stateAt(cartModel, ref, 5).assert().isNull()
         kernel.stateAt(cartModel, ref, 5, snapshot).assert().isNull()
+    }
+
+    @Test
+    fun `a base state is evolved with the streams after it only`(): Unit = runBlocking {
+        history()
+        val second = kernel.stateAt(cartModel, ref, 2)!!
+        log.streamsRead = 0
+        val base = CachedState(codec.decodeState(cartModel, codec.stateText(second.state)), 2, owned)
+        val fourth = kernel.stateAt(cartModel, ref, 4, base)
+        fourth.items().assert().isEqualTo(mapOf("apple" to 4, "pear" to 2))
+        fourth!!.version.assert().isEqualTo(4)
+        fourth.scope.assert().isEqualTo(owned)
+        // Versions 3 and 4 only: the log is not replayed from version 1.
+        log.streamsRead.assert().isEqualTo(2)
+        cache.calls.assert().isEqualTo(0)
+        // A base at the version is the state; a version past the log has none.
+        kernel.stateAt(cartModel, ref, 2, second).assert().isSameAs(second)
+        kernel.stateAt(cartModel, ref, 5, second).assert().isNull()
+        runCatching { kernel.stateAt(cartModel, ref, 1, second) }.exceptionOrNull()
+            .assert().isInstanceOf(IllegalArgumentException::class.java)
+        runCatching { kernel.stateAt(cartModel, AggregateType("example", "order").ref("tenant", "o-1"), 2, second) }
+            .exceptionOrNull().assert().isInstanceOf(IllegalArgumentException::class.java)
     }
 
     @Test
