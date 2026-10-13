@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: eshop-inventory-service
+server:
+  port: 8084
+wow:
+  service: eshop-inventory-service
+  # One node, its data in memory: the skeleton's backend (work package E.0).
+  backend: memory
+  internal:
+    port: 9094

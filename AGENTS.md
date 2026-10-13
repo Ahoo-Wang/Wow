@@ -290,7 +290,7 @@ Each kind of document has one home, chosen by its reader; [Documentation Governa
 - User documentation: `documentation/docs/{en,zh}/` (VitePress). Update the owning page in the same change as the behavior, and keep the English and Chinese pages structurally aligned.
 - Entry and module usage: `README.md` and `README.zh-CN.md`, at the root and beside each published module or package. They link to the site instead of copying it.
 - Design records: `documentation/designs/YYYY-MM-DD-<topic>-design.md` for decisions spanning JVM modules; `<package>/docs/design/` for one TypeScript package or application. State the date, source baseline and status, and update the status when the work lands.
-- Ledgers of decided work: `docs/compat-debt.md`, `docs/todo.md`, `typescript/TODO.md`, `typescript/wow-view-engine/docs/design/todo.md`. Delete an entry when it is done; open review findings go here, not into a committed review.
+- Ledgers of decided work: `docs/compat-debt.md`, `docs/todo.md`, `typescript/TODO.md`, `typescript/wow-view-engine/docs/design/todo.md`, `example/eshop/DX-GAPS.md`. Delete an entry when it is done; open review findings go here, not into a committed review.
 - Performance evidence: `wow-benchmarks/results/`, only with the commit, command, environment and raw results that reproduce it.
 - Static assets: `documentation/docs/public/`. Diagram sources Mermaid cannot express: `documentation/diagrams/`.
 - Prefer Mermaid source (`.mmd` or fenced `mermaid`) for every diagram Mermaid supports; do not commit a generated SVG beside it. Use PlantUML only for unsupported diagram kinds such as use case diagrams.

@@ -46,8 +46,13 @@ val exampleLibraries =
 val viewStoreServerProject = includedProjects(":wow-view-store-server")
 val analyticsServerProject = findProject(":wow-analytics-server")
 // The V10 example (decision D111): built and checked with the V10 modules, never published, and named like the 9.x
-// examples, without the `wow-` prefix of a V10 artifact. :example-e2e holds the example's end-to-end tests (D144).
-val v10ExampleProjects = includedProjects(":shop-api", ":shop-domain", ":shop-server", ":example-e2e")
+// examples, without the `wow-` prefix of a V10 artifact. :example-e2e holds the example's end-to-end tests (D144). The
+// eShop (D158, D159) is five contexts of an API, a domain and a server each, and its end-to-end tests, :eshop-e2e.
+val eshopProjects = listOf("catalog", "basket", "ordering", "inventory", "payment").flatMap { context ->
+    listOf("api", "domain", "server").map { "eshop-$context-$it" }
+} + "eshop-e2e"
+val v10ExampleProjects = includedProjects(":shop-api", ":shop-domain", ":shop-server", ":example-e2e") +
+    includedProjects(*eshopProjects.map { ":$it" }.toTypedArray())
 val exampleProjects =
     exampleLibraries + includedProjects(":example-server", ":example-transfer-server", ":wow-compensation-server") +
         viewStoreServerProject + listOfNotNull(analyticsServerProject) + v10ExampleProjects
@@ -56,14 +61,15 @@ val codeCoverageReportProject = project(":code-coverage-report")
 val benchmarksProject = includedProjects(":wow-benchmarks")
 // The V10 modules (documentation/designs/v10/06-modules.md). Every module builds on JDK 21 (decision D29); these stay
 // incubating until their API settles; :architecture (V10's dependency rules), :kernel-benchmarks (spike H3),
-// :routing-spike (spike H2), :lease-spike (spike H6) and the example (:shop-*, :example-e2e) are never published.
+// :routing-spike (spike H2), :lease-spike (spike H6) and the examples (:shop-*, :example-e2e, :eshop-*) are never
+// published.
 val v10Projects = listOf(
     "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query",
     "postgres", "mongo", "kafka", "clickhouse", "http", "cosec", "spring-boot", "migrate-data", "architecture",
     "kernel-benchmarks", "compiler", "gradle-plugin", "manifest-tools",
     "routing-spike", "lease-spike",
     "shop-api", "shop-domain", "shop-server", "example-e2e",
-).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
+).plus(eshopProjects).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
 
 // D87: a V10 project's name and directory carry no `wow-` prefix (`:kernel` in core/kernel); its jar, Kotlin module and
 // Maven artifactId do (`wow-kernel`), so the coordinates users see are unchanged. A project whose name cannot be its
@@ -136,6 +142,7 @@ val v10IntegrationTestProjects = includedProjects(
     ":lease-spike",
     ":shop-server",
     ":example-e2e",
+    ":eshop-e2e",
 )
 val integrationTestProjects = includedProjects(
     ":wow-bi",

@@ -422,6 +422,9 @@ test('V10 modules skip the TypeScript workflow jobs and the mixed-version test',
     'backends/clickhouse/src/main/kotlin/A.kt',
     'example/e2e/src/integrationTest/kotlin/A.kt',
     'example/inventory/inventory-domain/src/main/kotlin/A.kt',
+    'example/eshop/catalog/catalog-domain/src/main/kotlin/A.kt',
+    'example/eshop/e2e/src/integrationTest/kotlin/A.kt',
+    'example/eshop/README.md',
   ]) {
     assert.ok(none([path]), path);
     assert.ok(!scopes([path]).mixedVersion, path);
@@ -495,6 +498,9 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'backends/clickhouse/build.gradle.kts',
     'example/e2e/build.gradle.kts',
     'example/inventory/inventory-server/src/main/kotlin/A.kt',
+    'example/eshop/payment/payment-server/build.gradle.kts',
+    'example/eshop/e2e/build.gradle.kts',
+    'example/eshop/DX-GAPS.md',
     'wow-dependencies/build.gradle.kts',
     'gradle/libs.versions.toml',
     'build-logic/build.gradle.kts',

@@ -332,6 +332,95 @@ class V10ArchitectureTest {
     }
 
     @Test
+    fun `the eShop should be five contexts of an API, a domain and a server each, and its e2e tests`() {
+        V10Rules.ESHOP.map { it.name }.assert().containsExactly(
+            "eshop-catalog-api", "eshop-catalog-domain", "eshop-catalog-server",
+            "eshop-basket-api", "eshop-basket-domain", "eshop-basket-server",
+            "eshop-ordering-api", "eshop-ordering-domain", "eshop-ordering-server",
+            "eshop-inventory-api", "eshop-inventory-domain", "eshop-inventory-server",
+            "eshop-payment-api", "eshop-payment-domain", "eshop-payment-server",
+            "eshop-e2e",
+        )
+        V10Rules.settingsProjects(repositoryRoot).assert()
+            .containsAllEntriesOf(V10Rules.ESHOP.associate { it.name to it.dir })
+        V10Rules.v10SettingsProjects(repositoryRoot).assert().containsAll(V10Rules.ESHOP.map { it.name })
+    }
+
+    @Test
+    fun `eShop domain modules should be its APIs and domains, not its servers or e2e tests`() {
+        listOf("eshop-catalog-api", "eshop-catalog-domain", "eshop-payment-api", "eshop-payment-domain").forEach {
+            V10Rules.isExampleDomain(it).assert().describedAs(it).isTrue()
+        }
+        listOf("eshop-catalog-server", "eshop-payment-server", "eshop-e2e").forEach {
+            V10Rules.isExample(it).assert().describedAs(it).isTrue()
+            V10Rules.isExampleDomain(it).assert().describedAs(it).isFalse()
+        }
+    }
+
+    @Test
+    fun `example rule should keep the eShop and the shop apart and on V10 modules`(@TempDir root: File) {
+        root.writeBuild(
+            mapOf(
+                "api" to "api/api",
+                "kernel" to "core/kernel",
+                "spring-boot" to "host/spring-boot",
+                "wow-core" to "wow-core",
+                "routing-spike" to "test/routing-spike",
+                "shop-api" to "example/shop/shop-api",
+                "eshop-catalog-api" to "example/eshop/catalog/catalog-api",
+                "eshop-catalog-domain" to "example/eshop/catalog/catalog-domain",
+                "eshop-catalog-server" to "example/eshop/catalog/catalog-server",
+                "eshop-basket-domain" to "example/eshop/basket/basket-domain",
+                "eshop-e2e" to "example/eshop/e2e",
+            ),
+            mapOf(
+                "shop-api" to listOf("api", "eshop-catalog-api"),
+                "eshop-catalog-api" to listOf("api"),
+                "eshop-catalog-domain" to listOf("eshop-catalog-api", "kernel"),
+                "eshop-catalog-server" to listOf("eshop-catalog-domain", "spring-boot"),
+                "eshop-basket-domain" to listOf("shop-api", "wow-core"),
+                "eshop-e2e" to listOf("eshop-catalog-server", "routing-spike"),
+            ),
+        )
+        V10Rules.exampleOutsideV10Violations(root).assert().containsExactly(
+            "eshop-basket-domain reaches :shop-api",
+            "eshop-basket-domain reaches :wow-core",
+            "eshop-e2e reaches :routing-spike",
+            "shop-api reaches :eshop-catalog-api",
+        )
+    }
+
+    @Test
+    fun `example domain rule should catch an eShop domain or API module reaching the runtime`(@TempDir root: File) {
+        root.writeBuild(
+            mapOf(
+                "kernel" to "core/kernel",
+                "runtime" to "core/runtime",
+                "spring-boot" to "host/spring-boot",
+                "eshop-catalog-api" to "example/eshop/catalog/catalog-api",
+                "eshop-catalog-domain" to "example/eshop/catalog/catalog-domain",
+                "eshop-catalog-server" to "example/eshop/catalog/catalog-server",
+                "eshop-payment-api" to "example/eshop/payment/payment-api",
+                "eshop-payment-domain" to "example/eshop/payment/payment-domain",
+                "eshop-e2e" to "example/eshop/e2e",
+            ),
+            mapOf(
+                "runtime" to listOf("kernel"),
+                "spring-boot" to listOf("runtime"),
+                "eshop-catalog-domain" to listOf("eshop-catalog-api", "kernel"),
+                "eshop-catalog-server" to listOf("eshop-catalog-domain", "spring-boot"),
+                "eshop-payment-api" to listOf("runtime"),
+                "eshop-payment-domain" to listOf("eshop-payment-api", "kernel"),
+                "eshop-e2e" to listOf("eshop-catalog-server", "runtime"),
+            ),
+        )
+        V10Rules.exampleDomainOnRuntimeViolations(root).assert().containsExactly(
+            "eshop-payment-api reaches :runtime",
+            "eshop-payment-domain reaches :runtime",
+        )
+    }
+
+    @Test
     fun `compatibility check should catch a deprecation and a compat marker`(@TempDir root: File) {
         root.writeSource(
             V10Rules.RUNTIME.dir,

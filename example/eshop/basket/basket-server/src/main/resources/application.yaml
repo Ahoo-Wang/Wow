@@ -1,0 +1,11 @@
+spring:
+  application:
+    name: eshop-basket-service
+server:
+  port: 8082
+wow:
+  service: eshop-basket-service
+  # One node, its data in memory: the skeleton's backend (work package E.0).
+  backend: memory
+  internal:
+    port: 9092
