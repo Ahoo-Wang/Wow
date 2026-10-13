@@ -23,6 +23,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -70,13 +71,15 @@ internal class ClickHouseExecutor(
                 val response = client.query(statement.sql, statement.parameters, querySettings(queryId, timeout)).await()
                 response.use { open ->
                     open.inputStream.bufferedReader().lineSequence().filter(String::isNotBlank).forEach { line ->
-                        emit(WowJson.mapper.readTree(line) as ObjectNode)
+                        emit(row(line))
                     }
                 }
                 finished.set(true)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
+                // A statement killed because this flow was cancelled fails on the server too: that is the cancellation.
+                ensureActive()
                 finished.set(true)
                 throw translate(error, timeout)
             } finally {
@@ -84,6 +87,16 @@ internal class ClickHouseExecutor(
             }
         }
     }.flowOn(dispatcher)
+
+    /**
+     * One `JSONEachRow` line as its row. A failure after the server sent the first rows ends the body with the
+     * error's text (`http_write_exception_in_output_format=0`), which is never a JSON object: it fails the read, so a
+     * cut-off result is never taken for a whole one.
+     */
+    private fun row(line: String): ObjectNode {
+        if (!line.startsWith('{')) throw ClickHouseStreamException(line)
+        return WowJson.mapper.readTree(line) as? ObjectNode ?: throw ClickHouseStreamException(line)
+    }
 
     suspend fun all(statement: ClickHouseStatement, timeout: Duration? = null): List<ObjectNode> =
         rows(statement, timeout).toList()
@@ -135,7 +148,11 @@ internal class ClickHouseExecutor(
             "output_format_json_quote_decimals" to "0",
             "output_format_json_quote_denormals" to "0",
             "date_time_output_format" to "iso",
+            // A Decimal keeps its scale (decision D122): 0.10, not 0.1.
+            "output_format_decimal_trailing_zeros" to "1",
             "cancel_http_readonly_queries_on_client_close" to "1",
+            // A failure while rows stream is written as its text, not as a JSON object a row could be taken for.
+            "http_write_exception_in_output_format" to "0",
         )
 
         /** `max_execution_time` of [timeout] in whole seconds, rounded up and at least 1, since `0` means unlimited. */
@@ -151,8 +168,24 @@ internal class ClickHouseExecutor(
         /** A server's `TIMEOUT_EXCEEDED` under [timeout] as the core's timeout; anything else as it is. */
         fun translate(error: Exception, timeout: Duration?): Exception {
             if (timeout == null) return error
-            val server = generateSequence<Throwable>(error) { it.cause }.filterIsInstance<ServerException>().firstOrNull()
-            return if (server?.code == TIMEOUT_EXCEEDED) QueryTimeoutException(timeout, error) else error
+            val code = generateSequence<Throwable>(error) { it.cause }.firstNotNullOfOrNull {
+                when (it) {
+                    is ServerException -> it.code
+                    is ClickHouseStreamException -> it.code
+                    else -> null
+                }
+            }
+            return if (code == TIMEOUT_EXCEEDED) QueryTimeoutException(timeout, error) else error
         }
+    }
+}
+
+/** A statement that failed on the server after its first rows were sent: the [message] is the server's error text. */
+internal class ClickHouseStreamException(message: String) : RuntimeException(message) {
+    /** The ClickHouse error code the text starts with (`Code: 159. DB::Exception: ...`), when it does. */
+    val code: Int? = CODE.find(message)?.groupValues?.get(1)?.toIntOrNull()
+
+    private companion object {
+        val CODE = Regex("^Code: (\\d+)\\.")
     }
 }
