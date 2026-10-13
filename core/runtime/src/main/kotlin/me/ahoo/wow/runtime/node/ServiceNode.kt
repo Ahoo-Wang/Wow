@@ -364,6 +364,12 @@ class ServiceNode(
                     "${names.sorted()}.",
             )
         }
+        options.subscription.retries.keys.filterNot { it in names }.forEach {
+            throw IllegalArgumentException(
+                "A retry budget is configured for the subscription $it, which node $node does not have: " +
+                    "${names.sorted()}.",
+            )
+        }
     }
 
     private val lifecycle = Mutex()

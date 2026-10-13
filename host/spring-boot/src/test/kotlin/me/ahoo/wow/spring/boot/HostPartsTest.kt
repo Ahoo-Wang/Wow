@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
+import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.MissingDependencyException
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
@@ -40,6 +41,7 @@ import org.springframework.core.env.StandardEnvironment
 import java.time.Duration
 import java.time.Instant
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 class BackendSelectionTest {
@@ -251,6 +253,31 @@ class WowPropertiesTest {
         val invalid = bind("wow.subscriptions.[Mail.send].start" to "soon")
         assertThrows<IllegalArgumentException> { invalid.subscription.options(invalid.subscriptions) }
             .message.assert().contains("soon")
+    }
+
+    @Test
+    fun `a subscription's retry budget should bind by its name, over the global one (P3)`() {
+        val properties = bind(
+            "wow.subscription.retry.max-attempts" to "4",
+            "wow.subscription.retry.timeout" to "30s",
+            "wow.subscriptions.[Mail.send].retry.max-attempts" to "2",
+            "wow.subscriptions.[Mail.send].retry.timeout" to "500ms",
+            "wow.subscriptions.[Audit.onEvent].retry.initial-backoff" to "1s",
+            "wow.subscriptions.[Audit.onEvent].retry.max-backoff" to "1m",
+            "wow.subscriptions.[Audit.onEvent].retry.multiplier" to "3.0",
+            "wow.subscriptions.[View.onEvent].start" to "end",
+        )
+        val options = properties.subscription.options(properties.subscriptions)
+        options.retry.maxAttempts.assert().isEqualTo(4)
+        options.retry.timeout.assert().isEqualTo(30.seconds)
+        options.retries.assert().isEqualTo(
+            mapOf(
+                "Mail.send" to HandlerRetry(maxAttempts = 2, timeout = 500.milliseconds),
+                "Audit.onEvent" to HandlerRetry(initialBackoff = 1.seconds, maxBackoff = 1.minutes, multiplier = 3.0),
+            ),
+        )
+        WowProperties().subscription.retry.timeout.assert().isNull()
+        WowProperties.Retry.of(options.retry).timeout.assert().isEqualTo(Duration.ofSeconds(30))
     }
 
     @Test

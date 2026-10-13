@@ -105,6 +105,8 @@ class SubscriptionRuntime internal constructor(
         require(subscriptions.putIfAbsent(subscription.name, subscription) == null) {
             "Subscription ${subscription.name} is already registered in group $group."
         }
+        // A retry budget that does not add up fails the assembly, not the first partition the node acquires.
+        options.retryOf(subscription)
         directory[subscription.name] = subscription
     }
 

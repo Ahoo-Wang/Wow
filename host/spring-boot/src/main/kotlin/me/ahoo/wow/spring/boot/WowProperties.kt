@@ -18,6 +18,7 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.http.ops.WebhookNotifier
+import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.Routing
@@ -61,6 +62,9 @@ import kotlin.time.toKotlinDuration
  * - `wow.subscription.parked.max-retries` (10), `min-backoff` (3m), `execution-timeout` (2m), `scan-interval` (10s):
  *   the long-horizon retries of parked entries (roadmap P.1), see [Parked]; per subscription,
  *   `wow.subscriptions.[<subscription>].parked.max-retries`, `min-backoff` and `execution-timeout`, see [ParkedSpec].
+ * - `wow.subscription.retry.max-attempts` (5), `initial-backoff` (100ms), `max-backoff` (5s), `multiplier` (2.0),
+ *   `timeout` (none): the in-process retries of a failing handler before its aggregate parks; per subscription,
+ *   `wow.subscriptions.[<subscription>].retry.*` (roadmap P.3), over the handler's `@Retry`, see [RetrySpec].
  * - `wow.ops.enabled` (false): the operator's routes under `/wow/ops/parked`; `wow.ops.webhook.url`, `format`
  *   (`generic` or `wecom`), `events` (`parked`, `exhausted`), `timeout` (5s), `headers`: the webhook told when an
  *   entry parks or spends its retries, see [Ops] and [Webhook].
@@ -220,7 +224,7 @@ class WowProperties {
         /** How the parked entries are retried over the long horizon (roadmap P.1). */
         var parked: Parked = Parked()
 
-        /** These options, with the starts and the parked retry specs [subscriptions] configure. */
+        /** These options, with the starts, the parked retry specs and the retry budgets [subscriptions] configure. */
         fun options(subscriptions: Map<String, SubscriptionSettings> = emptyMap()): SubscriptionOptions {
             val spec = parked.spec()
             return SubscriptionOptions(
@@ -242,6 +246,9 @@ class WowProperties {
                         .toMap(),
                     scanInterval = parked.scanInterval.toKotlinDuration(),
                 ),
+                retries = subscriptions.mapNotNull { (name, settings) ->
+                    settings.retry.handlerRetry()?.let { name to it }
+                }.toMap(),
             )
         }
     }
@@ -288,11 +295,36 @@ class WowProperties {
      * D154): `beginning`, `end`, or an ISO-8601 instant (`2026-10-01T00:00:00Z`), the first entry committed at or
      * after it; unset, its kind's default (a projection from the beginning, a reactor or a saga from the end). A
      * subscription that has a checkpoint goes on from it. [parked] is how its parked entries are retried, over
-     * `wow.subscription.parked` (roadmap P.1). A name the node has no subscription of is refused at startup.
+     * `wow.subscription.parked` (roadmap P.1). [retry] is its in-process retry budget before it parks (roadmap P.3),
+     * over its handler's `@Retry` and `wow.subscription.retry`. A name the node has no subscription of is refused at
+     * startup.
      */
     class SubscriptionSettings {
         var start: String? = null
         var parked: ParkedSpec = ParkedSpec()
+        var retry: RetrySpec = RetrySpec()
+    }
+
+    /**
+     * One subscription's in-process retry budget (roadmap P.3): each setting given replaces its handler's `@Retry`
+     * one, each one not given is the handler's, else `wow.subscription.retry`'s. [timeout] bounds one attempt: one
+     * that runs longer is cancelled and counts as failed.
+     */
+    class RetrySpec {
+        var maxAttempts: Int? = null
+        var initialBackoff: Duration? = null
+        var maxBackoff: Duration? = null
+        var multiplier: Double? = null
+        var timeout: Duration? = null
+
+        /** The budget these settings give, null when none is given. */
+        fun handlerRetry(): HandlerRetry? = HandlerRetry(
+            maxAttempts = maxAttempts,
+            initialBackoff = initialBackoff?.toKotlinDuration(),
+            maxBackoff = maxBackoff?.toKotlinDuration(),
+            multiplier = multiplier,
+            timeout = timeout?.toKotlinDuration(),
+        ).takeUnless { it.isEmpty }
     }
 
     /**
@@ -337,17 +369,23 @@ class WowProperties {
         )
     }
 
+    /**
+     * A retry policy. [timeout], when set, bounds one attempt of a handler (roadmap P.3): one that runs longer is
+     * cancelled and counts as failed; unset, an attempt runs as long as it takes. A read retry does not use it.
+     */
     class Retry {
         var maxAttempts: Int = 1
         var initialBackoff: Duration = Duration.ZERO
         var maxBackoff: Duration = Duration.ZERO
         var multiplier: Double = 1.0
+        var timeout: Duration? = null
 
         fun policy(): RetryPolicy = RetryPolicy(
             maxAttempts = maxAttempts,
             initialBackoff = initialBackoff.toKotlinDuration(),
             maxBackoff = maxBackoff.toKotlinDuration(),
             multiplier = multiplier,
+            timeout = timeout?.toKotlinDuration() ?: kotlin.time.Duration.INFINITE,
         )
 
         companion object {
@@ -356,6 +394,7 @@ class WowProperties {
                 initialBackoff = policy.initialBackoff.toJavaDuration()
                 maxBackoff = policy.maxBackoff.toJavaDuration()
                 multiplier = policy.multiplier
+                timeout = policy.timeout.takeUnless { it.isInfinite() }?.toJavaDuration()
             }
         }
     }

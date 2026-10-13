@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.subscription
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import kotlin.time.Duration
@@ -24,13 +25,15 @@ import kotlin.time.Duration.Companion.seconds
 
 /**
  * How a failing call is retried: at most [maxAttempts] calls in all, waiting [initialBackoff] after the first
- * failure and [multiplier] times longer after each next one, never longer than [maxBackoff].
+ * failure and [multiplier] times longer after each next one, never longer than [maxBackoff]. A handler's attempt
+ * that runs longer than [timeout] is cancelled and counts as failed (roadmap P.3); infinite by default.
  */
 data class RetryPolicy(
     val maxAttempts: Int = 5,
     val initialBackoff: Duration = 100.milliseconds,
     val maxBackoff: Duration = 5.seconds,
     val multiplier: Double = 2.0,
+    val timeout: Duration = Duration.INFINITE,
 ) {
     init {
         require(maxAttempts >= 1) { "A call is attempted at least once." }
@@ -38,6 +41,25 @@ data class RetryPolicy(
             "The initial backoff lies between zero and the maximum backoff."
         }
         require(multiplier >= 1.0) { "A backoff never shrinks." }
+        require(timeout.isPositive()) { "The timeout of an attempt is positive." }
+    }
+
+    /**
+     * This policy with the settings [retry] gives in place of its own. An initial backoff longer than this
+     * policy's maximum raises the maximum to it, unless [retry] gives the maximum too.
+     */
+    fun with(retry: HandlerRetry?): RetryPolicy {
+        if (retry == null || retry.isEmpty) {
+            return this
+        }
+        val initial = retry.initialBackoff ?: initialBackoff
+        return RetryPolicy(
+            maxAttempts = retry.maxAttempts ?: maxAttempts,
+            initialBackoff = initial,
+            maxBackoff = retry.maxBackoff ?: maxBackoff.coerceAtLeast(initial),
+            multiplier = retry.multiplier ?: multiplier,
+            timeout = retry.timeout ?: timeout,
+        )
     }
 
     /** The wait after [failures] failed calls (1 for the first). */
@@ -56,7 +78,8 @@ data class RetryPolicy(
  * - [maxInFlight]: the entries one subscription may hold in one partition between its checkpoint and the last entry
  *   it took (R3-2). It bounds both memory and what a crash replays; a subscription that reaches it stops taking
  *   entries from the shared tail and catches up on its own once it has room.
- * - [retry]: how a failing handler is retried before its aggregate is parked.
+ * - [retry]: how a failing handler is retried before its aggregate is parked, unless its subscription has a budget of
+ *   its own ([retryOf]).
  * - [checkpointInterval]: how often each subscription saves its checkpoint; [SubscriptionRuntime.stop] saves too.
  * - [stopTimeout]: how long a stop waits for the handlers in flight before abandoning them; an abandoned entry is
  *   above the saved checkpoint, so it is handled again after the restart.
@@ -66,6 +89,9 @@ data class RetryPolicy(
  *   its handler says (decision D154: a projection from the beginning, a reactor or a saga from the end), as
  *   `wow.subscriptions."<name>".start` configures it. A subscription with a checkpoint goes on from it.
  * - [parked]: how the parked entries are retried over the long horizon (roadmap P.1).
+ * - [retries]: by subscription name, the in-process retry budget the host gives it (roadmap P.3), as
+ *   `wow.subscriptions.[<name>].retry.*` configures it: each setting given replaces the handler's own (`@Retry`,
+ *   [Subscription.retry]), each one not given is the handler's, else [retry]'s.
  */
 data class SubscriptionOptions(
     val maxInFlight: Int = 1_024,
@@ -79,11 +105,29 @@ data class SubscriptionOptions(
     ),
     val starts: Map<String, SubscriptionStart> = emptyMap(),
     val parked: ParkedRetryOptions = ParkedRetryOptions(),
+    val retries: Map<String, HandlerRetry> = emptyMap(),
 ) {
     init {
         require(maxInFlight >= 1) { "A subscription holds at least one entry in flight." }
         require(checkpointInterval.isPositive()) { "The checkpoint interval is positive." }
         require(!stopTimeout.isNegative()) { "The stop timeout is never negative." }
+    }
+
+    /**
+     * How [subscription]'s failing handler is retried before its aggregate is parked (roadmap P.3): the host's
+     * [retries] for its name, over its handler's own [Subscription.retry], over [retry].
+     */
+    fun retryOf(subscription: Subscription): RetryPolicy {
+        val configured = retries[subscription.name]
+        val own = configured?.over(subscription.retry) ?: subscription.retry
+        return try {
+            retry.with(own)
+        } catch (invalid: IllegalArgumentException) {
+            throw IllegalArgumentException(
+                "The retry budget of subscription ${subscription.name}: ${invalid.message}",
+                invalid
+            )
+        }
     }
 }
 
