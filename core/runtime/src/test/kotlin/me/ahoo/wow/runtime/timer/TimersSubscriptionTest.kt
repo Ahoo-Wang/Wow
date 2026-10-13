@@ -105,8 +105,19 @@ class TimersSubscriptionTest {
 
     @Test
     fun `a saga's timers are written idempotently, by the saga and target`(): Unit = runBlocking {
-        val sagas = SagaTimers(store, ContextCommandTypes(listOf(orderModel()), ContractDirectory(shopManifest())), PARTITIONS)
-        val event = StateEvent(order("o-1"), 1, "c-1", "r-1", "shop.order.PlaceOrder", 1_000, listOf(OrderPlaced(1)), OrderState())
+        val sagas =
+            SagaTimers(store, ContextCommandTypes(listOf(orderModel()), ContractDirectory(shopManifest())), PARTITIONS)
+        val event =
+            StateEvent(
+                order("o-1"),
+                1,
+                "c-1",
+                "r-1",
+                "shop.order.PlaceOrder",
+                1_000,
+                listOf(OrderPlaced(1)),
+                OrderState()
+            )
         val execution = ExecutionId("ReminderSaga.onOrderPlaced", order("o-1"), 1)
         val put = SagaSchedule.Put(Timers.sagaTimerId(execution, 0), "remind", order("o-1"), 1_100, CancelOrder("x"))
         sagas.write(execution.subscription, event, listOf(put))
@@ -121,8 +132,9 @@ class TimersSubscriptionTest {
         val later = event.copy(version = 2, commitTime = 2_000)
         sagas.write(execution.subscription, later, listOf(SagaSchedule.Cancel("$execution#1", "remind", order("o-1"))))
         store.find(sagaOwner, "remind")?.status.assert().isEqualTo(TimerStatus.CANCELLED)
-        val unnamed = SagaSchedule.Put("$execution#2", "other", order("o-1"), 1_100, "not a command")
-        assertThrownBy<IllegalArgumentException> { runBlocking { sagas.write(execution.subscription, event, listOf(unnamed)) } }
+        val unnamed = listOf(SagaSchedule.Put("$execution#2", "other", order("o-1"), 1_100, "not a command"))
+        runCatching { sagas.write(execution.subscription, event, unnamed) }
+            .exceptionOrNull().assert().isInstanceOf(IllegalArgumentException::class.java)
     }
 
     private companion object {

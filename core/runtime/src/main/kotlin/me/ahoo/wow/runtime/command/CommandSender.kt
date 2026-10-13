@@ -54,7 +54,10 @@ class CommandSender(private val contracts: ContractDirectory, private val topics
      */
     suspend fun send(wire: CommandWire, wait: WaitContext? = null) {
         val topic = topics.commandsOf(wire.ref.type.context)
-        producer.send(topic, CommandMessages.command(wire, Partitioner.partitionOf(wire.ref, partitionsOf(topic)), wait))
+        producer.send(
+            topic,
+            CommandMessages.command(wire, Partitioner.partitionOf(wire.ref, partitionsOf(topic)), wait)
+        )
     }
 
     /** The full type name of [command], as the contracts give its class. */

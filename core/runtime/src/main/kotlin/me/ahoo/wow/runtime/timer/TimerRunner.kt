@@ -119,7 +119,10 @@ class TimerRunner(
     suspend fun resume(target: AggregateRef): Int {
         val now = clock.millis()
         val resumed = store.parked(target).count {
-            store.update(it.copy(status = TimerStatus.PENDING, attempts = 0, outcome = null, dueAt = now), TimerStatus.PARKED)
+            store.update(
+                it.copy(status = TimerStatus.PENDING, attempts = 0, outcome = null, dueAt = now),
+                TimerStatus.PARKED
+            )
         }
         ledger.resolve(TimerOptions.PARKED_SUBSCRIPTION, target)
         return resumed
@@ -151,7 +154,7 @@ class TimerRunner(
             logger.warn(failure) { "Failed to read the timer ${timer.id}; it is read again on the next poll." }
             return
         }
-        if (current == null || current.id != timer.id || current.status != TimerStatus.PENDING || current.dueAt > now) {
+        if (current == null || !current.isDue(timer, now)) {
             return
         }
         val expiry = options.expiresAfter
@@ -170,6 +173,10 @@ class TimerRunner(
         }
         record(current.copy(status = TimerStatus.FIRED, attempts = current.attempts + 1, outcome = outcome))
     }
+
+    /** Whether this, the stored timer, is still [loaded], PENDING and due at [now]. */
+    private fun Timer.isDue(loaded: Timer, now: Long): Boolean =
+        id == loaded.id && status == TimerStatus.PENDING && dueAt <= now
 
     /** One more failed attempt of [timer]: due again after the backoff, or parked once its attempts are spent. */
     private suspend fun failed(timer: Timer, failure: Exception, now: Long) {

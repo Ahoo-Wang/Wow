@@ -52,7 +52,7 @@ class ContextCommandTypes(models: Collection<AggregateModel<*>>, private val con
 /**
  * Sends a due timer's command for one bounded context (decision D166), as the context's saga sends its derived
  * commands: to an aggregate of the context's [models] through its [coordinator], on this node, which owns the target's
- * partition; to one of another context through the [sender], to that context's command topic (decisions D33, D137).
+ * partition; to one of another context through the sender, to that context's command topic (decisions D33, D137).
  *
  * The command's id and request id are the timer's id, so a timer sent twice is decided once. Its scope is none, as
  * for any command a system sends; its causation is the commit that scheduled it, and its headers are the scheduling
@@ -105,7 +105,9 @@ class ContextTimerFirer(
 
     private suspend fun send(wire: CommandWire): String {
         val context = wire.ref.type.context
-        check(context !in contexts) { "Context $context has no aggregate ${wire.ref.type}, which the timer ${wire.id} sends to." }
+        check(context !in contexts) {
+            "Context $context has no aggregate ${wire.ref.type}, which the timer ${wire.id} sends to."
+        }
         val sender = checkNotNull(sender) {
             "The timer ${wire.id} sends to ${wire.ref}, of the context $context: a command across contexts goes through " +
                 "the command topic (decision D33), and this node has no Kafka transport."

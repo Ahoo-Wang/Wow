@@ -25,6 +25,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
@@ -552,16 +553,8 @@ class ServiceNode(
         application: SubscriptionFactory,
     ): Parts {
         val log = PartitionAppendQueue(backends.log, options.appendQueue)
-        val states = if (options.stateCacheCapacity > 0) LruStateCache(options.stateCacheCapacity) else StateCache.None
         val names = ContextCommandTypes(models, contracts)
-        val kernel = Kernel(
-            log,
-            codec = codec,
-            reservations = backends.reservations,
-            states = states,
-            snapshots = backends.snapshots,
-            commandTypes = names,
-        )
+        val kernel = kernelOf(log, backends, codec, names)
         val snapshotted = if (backends.snapshots == null) emptyList() else models.filter { snapshotEnabled(it) }
         val views = StateViews(codec, stateReaders(context, models, snapshotted, application), options.stateViews)
         val snapshots = backends.snapshots?.takeIf { snapshotted.isNotEmpty() }?.let {
@@ -569,13 +562,7 @@ class ServiceNode(
         }
         val reservations = backends.reservations?.let { ReservationSubscription(context, it) }
         val firing = LateFirer()
-        val timers = backends.timers?.let { store ->
-            ContextTimers(
-                TimersSubscription(context, store, backends.log.partitions),
-                TimerRunner(context, store, backends.ledger, firing, options.timers),
-                SagaTimers(store, names, backends.log.partitions, codec),
-            )
-        }
+        val timers = timersOf(context, backends, names, firing, codec)
         val group = LeaseGroup(service, context)
         val subscriptions = SubscriptionRuntime(
             group.name,
@@ -618,6 +605,32 @@ class ServiceNode(
             intake,
             timers,
             firing,
+        )
+    }
+
+    /** The kernel of a context over its [log], with its state cache, snapshot and reservation stores. */
+    private fun kernelOf(log: PartitionAppendQueue, backends: ContextBackends, codec: EventCodec, names: CommandTypes) =
+        Kernel(
+            log,
+            codec = codec,
+            reservations = backends.reservations,
+            states = if (options.stateCacheCapacity > 0) LruStateCache(options.stateCacheCapacity) else StateCache.None,
+            snapshots = backends.snapshots,
+            commandTypes = names,
+        )
+
+    /** The scheduled commands of [context] (decision D166), when its [backends] have a timer store. */
+    private fun timersOf(
+        context: String,
+        backends: ContextBackends,
+        names: ContextCommandTypes,
+        firer: TimerFirer,
+        codec: EventCodec,
+    ): ContextTimers? = backends.timers?.let { store ->
+        ContextTimers(
+            TimersSubscription(context, store, backends.log.partitions),
+            TimerRunner(context, store, backends.ledger, firer, options.timers),
+            SagaTimers(store, names, backends.log.partitions, codec),
         )
     }
 

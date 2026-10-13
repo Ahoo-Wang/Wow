@@ -129,7 +129,11 @@ fun shopManifest(): Manifest = Manifest(
                         CancelOrder::class.java to ManifestCreation.NONE,
                         Remind::class.java to ManifestCreation.NONE,
                     ).map { (command, creation) ->
-                        CommandManifest(command.simpleName, schema = Manifest.schemaRef(command.name), creation = creation)
+                        CommandManifest(
+                            command.simpleName,
+                            schema = Manifest.schemaRef(command.name),
+                            creation = creation
+                        )
                     },
                     events = listOf(OrderPlaced::class.java, OrderPaid::class.java, OrderCancelled::class.java).map {
                         EventManifest(it.simpleName, schema = Manifest.schemaRef(it.name))

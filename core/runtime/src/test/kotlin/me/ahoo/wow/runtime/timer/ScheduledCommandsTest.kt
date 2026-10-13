@@ -89,7 +89,10 @@ class ScheduledCommandsTest {
     private suspend fun ServiceNode.send(id: String, body: Any, wait: WaitPlan = WaitPlan.COMMITTED): CommandResult {
         val context = context(SHOP)
         val requestId = "$id-${body.javaClass.simpleName}-${System.nanoTime()}"
-        return context.coordinator.execute(context.models.single(), Command(requestId, requestId, order(id), body, wait = wait))
+        return context.coordinator.execute(
+            context.models.single(),
+            Command(requestId, requestId, order(id), body, wait = wait)
+        )
     }
 
     private suspend fun ServiceNode.streams(id: String): List<EventStreamRecord> =
@@ -161,7 +164,9 @@ class ScheduledCommandsTest {
         val second = node("node-2", backends).also { it.start() }
         eventually { second.timer(order("o-1"), PAY_TIMEOUT)?.status == TimerStatus.FIRED }
         second.timer(order("o-1"), PAY_TIMEOUT)?.outcome.assert().isEqualTo(TimerOutcomes.COMMITTED)
-        second.streams("o-1").eventNames().assert().containsExactly("shop.order.OrderPlaced", "shop.order.OrderCancelled")
+        second.streams(
+            "o-1"
+        ).eventNames().assert().containsExactly("shop.order.OrderPlaced", "shop.order.OrderCancelled")
     }
 
     @Test
