@@ -31,7 +31,13 @@ class BasketCheckoutSagaTest {
     private val handlers = basketCheckoutSagaHandlers(Dependencies.NONE)
 
     private fun event(vararg events: Any) =
-        stateEvent(basket, BasketState("alice"), *events, version = 3, commandType = "eshop-basket.basket.CheckoutBasket")
+        stateEvent(
+            basket,
+            BasketState("alice"),
+            *events,
+            version = 3,
+            commandType = "eshop-basket.basket.CheckoutBasket"
+        )
 
     @Test
     fun `a checked-out basket should submit its order to the ordering context`() = sagaSpec(handlers) {
