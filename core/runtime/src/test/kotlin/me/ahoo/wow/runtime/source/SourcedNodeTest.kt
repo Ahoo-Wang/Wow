@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.InMemoryTopics
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.StartFrom
@@ -164,6 +165,35 @@ class SourcedNodeTest {
             node.stop()
             subscriptions.runtime.assert().isNull()
         }
+
+    @Test
+    fun `a sourced handler's subscription carries its own retry budget (P3)`() {
+        val retry = HandlerRetry(maxAttempts = 2)
+        val bindings = SubscriptionBindings(
+            mapOf(
+                BANK to listOf(
+                    ProcessorBinding.project<OrderTotal?>(
+                        "Board",
+                        "onOrder",
+                        OrderTotal::class.java,
+                        aggregates = listOf("sales.order"),
+                        nullableState = true,
+                        retry = retry,
+                    ) { _, _ -> },
+                    ProcessorBinding.saga<OrderTotal?>(
+                        "Payout",
+                        "onOrder",
+                        OrderTotal::class.java,
+                        aggregates = listOf("sales.order"),
+                        nullableState = true,
+                        retry = retry,
+                    ) { _, _ -> emptyList() },
+                ),
+            ),
+        )
+        val node = node(bindings = bindings)
+        bindings.sourced(node.context(BANK)).map { it.subscription.retry }.assert().containsExactly(retry, retry)
+    }
 
     @Test
     fun `a record without its state should fail a handler of a state that is not nullable`(): Unit = runBlocking {

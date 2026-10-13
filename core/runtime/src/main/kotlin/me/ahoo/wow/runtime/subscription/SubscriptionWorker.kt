@@ -25,6 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
@@ -88,6 +89,9 @@ internal class SubscriptionWorker(
     private val notifier: ParkedNotifier = ParkedNotifier.NONE,
 ) {
     private val permits = Semaphore(options.maxInFlight)
+
+    /** How the handler is retried before its aggregate is parked: its subscription's budget (roadmap P.3). */
+    private val retry: RetryPolicy = options.retryOf(subscription)
     private val pending = ArrayDeque<Slot>()
     private val outstanding = MutableStateFlow(0)
     private val active = HashMap<AggregateRef, Lane>()
@@ -344,33 +348,47 @@ internal class SubscriptionWorker(
     }
 
     /**
-     * Runs the handler with retries; returns what it did, or the last failure once the retries are spent. A
-     * [HandlingRejectedException] is not retried: a business outcome does not change.
+     * Runs the handler with its subscription's retries ([retry]); returns what it did, or the last failure once the
+     * retries are spent. An attempt that outlasts the budget's timeout is cancelled and fails with a
+     * [HandlerTimeoutException]. A [HandlingRejectedException] is not retried: a business outcome does not change.
      */
     @Suppress("TooGenericExceptionCaught") // A handler may fail with anything; only cancellation stops the retries.
     private suspend fun handle(sourced: SourcedEntry): Result<HandledEntry> {
         var failures = 0
         while (true) {
             try {
-                val decoded = subscription.decoder.decode(sourced.stream, sourced.position, sourced.transport)
-                val entry = if (sourced.published == null && sourced.message == null) {
-                    decoded
-                } else {
-                    decoded.copy(published = sourced.published, message = sourced.message)
-                }
-                return Result.success(subscription.handle(entry))
+                return Result.success(attempt(sourced))
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (rejected: HandlingRejectedException) {
                 return Result.failure(rejected)
             } catch (failure: Exception) {
                 failures++
-                if (failures >= options.retry.maxAttempts) {
+                if (failures >= retry.maxAttempts) {
                     return Result.failure(failure)
                 }
-                delay(options.retry.backoff(failures))
+                delay(retry.backoff(failures))
             }
         }
+    }
+
+    /** One attempt of the handler, within the budget's timeout when it has one. */
+    private suspend fun attempt(sourced: SourcedEntry): HandledEntry {
+        if (retry.timeout.isInfinite()) {
+            return decodeAndHandle(sourced)
+        }
+        return withTimeoutOrNull(retry.timeout) { decodeAndHandle(sourced) }
+            ?: throw HandlerTimeoutException(subscription.name, sourced.stream.ref, sourced.stream.version, retry.timeout)
+    }
+
+    private suspend fun decodeAndHandle(sourced: SourcedEntry): HandledEntry {
+        val decoded = subscription.decoder.decode(sourced.stream, sourced.position, sourced.transport)
+        val entry = if (sourced.published == null && sourced.message == null) {
+            decoded
+        } else {
+            decoded.copy(published = sourced.published, message = sourced.message)
+        }
+        return subscription.handle(entry)
     }
 
     /**
@@ -388,7 +406,7 @@ internal class SubscriptionWorker(
             source.sourcePosition(sourced),
         )
         logger.warn(failure) {
-            val after = if (failure is HandlingRejectedException) "a rejection" else "${options.retry.maxAttempts} attempts"
+            val after = if (failure is HandlingRejectedException) "a rejection" else "${retry.maxAttempts} attempts"
             "Subscription ${subscription.name} parks ${stream.ref} from version ${stream.version} after $after."
         }
         val changed = retryForever(options.readRetry, { "park ${stream.ref} for ${subscription.name}" }) {

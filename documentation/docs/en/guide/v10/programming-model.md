@@ -270,6 +270,23 @@ The setting applies only while the subscription has no checkpoint; after that it
 
 A handler that throws is retried (`wow.subscription.retry`: 5 attempts, from 100 ms up to 5 s by default). After the last attempt the aggregate is parked for that subscription in the failure ledger: the subscription goes on with other aggregates, and the parked one waits until it is resumed or skipped. The runtime offers both operations; no route or console exposes them yet.
 
+A subscription can have a budget of its own, for a handler that calls a slow external system. `timeout` bounds one attempt: an attempt that runs longer is cancelled and counts as a failed attempt. Each setting given replaces the global one; the others stay the global ones:
+
+```yaml
+wow:
+  subscription:
+    retry:
+      max-attempts: 5 # the global budget
+  subscriptions:
+    "[ShippingNotifier.onShipped]":
+      retry:
+        max-attempts: 3
+        initial-backoff: 1s
+        timeout: 2s
+```
+
+A `@Blocking` handler runs on a virtual thread that a timeout cannot stop: its attempt counts as failed when the call returns. The budget only decides when the aggregate is parked; how parked entries are retried afterwards (`wow.subscription.parked.*`) does not change.
+
 ## Scheduled commands
 
 A decide function or a saga can schedule a command for later: an order that cancels itself when unpaid, a reminder. The schedule is part of the commit: it is written with the events, or not at all.

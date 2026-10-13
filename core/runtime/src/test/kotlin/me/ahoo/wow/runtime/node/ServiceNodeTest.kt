@@ -28,6 +28,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.InMemoryLeaseStore
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.runtime.FrameworkCodes
@@ -383,6 +384,20 @@ class ServiceNodeTest {
         assertThrows<IllegalArgumentException> {
             node("node-2", options = specs("Plain.typo"), subscriptions = plain)
         }.message.assert().contains("parked retry spec", "subscription Plain.typo", "plain")
+    }
+
+    @Test
+    fun `a retry budget configured for a subscription the node does not have is refused (P3)`() {
+        val plain = SubscriptionFactory { listOf(Subscription("plain", SubscriptionFilter(BANK)) {}) }
+        fun retries(vararg names: String) = fastNodeOptions().let {
+            it.copy(
+                subscription = it.subscription.copy(retries = names.associateWith { HandlerRetry(maxAttempts = 1) })
+            )
+        }
+        node("node-1", options = retries("plain", "snapshot"), subscriptions = plain)
+        assertThrows<IllegalArgumentException> {
+            node("node-2", options = retries("Plain.typo"), subscriptions = plain)
+        }.message.assert().contains("retry budget", "subscription Plain.typo", "plain")
     }
 
     @Test

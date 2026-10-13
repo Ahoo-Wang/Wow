@@ -68,7 +68,8 @@ import java.util.concurrent.Executors
  *   to the context's timer store ([me.ahoo.wow.runtime.timer.SagaTimers]) before the commands it derived execute, so
  *   before its checkpoint passes the commit; handling it again writes the same timers.
  * - **Failures**: a handler that throws, or a state that cannot be read, is retried, then parks its aggregate, as any
- *   subscription ([me.ahoo.wow.runtime.subscription.SubscriptionOptions.retry]).
+ *   subscription ([me.ahoo.wow.runtime.subscription.SubscriptionOptions.retry]); a handler's `@Retry`
+ *   ([ProcessorBinding.retry], roadmap P.3) is its subscription's own budget ([Subscription.retry]).
  * - **Other contexts' streams** (decisions D134, D138): a handler whose `@OnEvent(aggregates)` names another context's
  *   ([ProcessorBinding.isSourced]) is [sourced]: its subscription reads the published streams of those aggregates
  *   from their topics. It gets the record's facts and published events ([me.ahoo.wow.spi.state.StateEventPayload], each
@@ -111,7 +112,14 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             )
             val decoder = EntryDecoder.stateEvents(context.stateReader(name))
             if (handler.kind == FunctionKind.SAGA) {
-                Subscription.saga(name, filter, handler.startFrom, decoder, context.models) { entry ->
+                Subscription.saga(
+                    name,
+                    filter,
+                    handler.startFrom,
+                    decoder,
+                    context.models,
+                    retry = handler.retry
+                ) { entry ->
                     val event = stateEventOf(entry, context)
                     val execution = contextOf(handler.kind, name, event, context.ids)
                     val commands = call(handler, event, execution)
@@ -121,7 +129,15 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                     sagaHandled(derived.execute(commands, wait, replyTo), execution.executionId, rejections)
                 }
             } else {
-                Subscription(name, filter, handler.startFrom, decoder, context.models, handler.kind) { entry ->
+                Subscription(
+                    name,
+                    filter,
+                    handler.startFrom,
+                    decoder,
+                    context.models,
+                    handler.kind,
+                    retry = handler.retry,
+                ) { entry ->
                     val event = stateEventOf(entry, context)
                     call(handler, event, contextOf(handler.kind, name, event, context.ids))
                 }
@@ -144,7 +160,13 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             }
             val filter = SubscriptionFilter(handler.sourceContext!!, types.mapTo(LinkedHashSet()) { it.name })
             val subscription = if (handler.kind == FunctionKind.SAGA) {
-                Subscription.saga(name, filter, handler.startFrom, context = context.context) { entry ->
+                Subscription.saga(
+                    name,
+                    filter,
+                    handler.startFrom,
+                    context = context.context,
+                    retry = handler.retry
+                ) { entry ->
                     val event = publishedStateEventOf(entry, handler, context)
                     val execution = contextOf(handler.kind, name, event, context.ids)
                     val commands = call(handler, event, execution)
@@ -154,7 +176,14 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                     sagaHandled(derived.execute(commands, wait, replyTo), execution.executionId, rejections)
                 }
             } else {
-                Subscription(name, filter, handler.startFrom, kind = handler.kind, context = context.context) { entry ->
+                Subscription(
+                    name,
+                    filter,
+                    handler.startFrom,
+                    kind = handler.kind,
+                    context = context.context,
+                    retry = handler.retry,
+                ) { entry ->
                     val event = publishedStateEventOf(entry, handler, context)
                     call(handler, event, contextOf(handler.kind, name, event, context.ids))
                 }

@@ -40,6 +40,8 @@ import me.ahoo.wow.api.subscribe.SubscriptionContext
  *   saga from its end (04 §3: a new subscription chooses), so deploying one does not replay side effects or derive
  *   commands for the history.
  * - [blocking] (`@Blocking`, design 01 §4) asks the runtime to run the call on virtual threads instead of inline.
+ * - [retry] (`@Retry` on the handler or its processor, roadmap P.3) is the handler's own in-process retry budget,
+ *   under what the host configures for its subscription and over the host's global one.
  * - [invoke] calls the handler directly and returns the commands a saga derives; a projection's or a reactor's none.
  * - [rejections] are a saga's `@OnRejected` handlers (decisions D136, D153), the same for each handler of the saga:
  *   the runtime hands the rejection of a command this handler derived to the one [rejectionHandlerOf] its class.
@@ -58,6 +60,8 @@ class ProcessorBinding<S> private constructor(
     val rejections: List<RejectionBinding<*>>,
     val aggregates: List<String>,
     val nullableState: Boolean,
+    /** The handler's own in-process retry budget (`@Retry`, roadmap P.3); null when it gives none. */
+    val retry: HandlerRetry?,
     private val call: suspend (StateEvent<S>, SubscriptionContext) -> List<Command<*>>,
 ) {
     init {
@@ -123,6 +127,7 @@ class ProcessorBinding<S> private constructor(
             startFrom: StartFrom = defaultStartFrom(FunctionKind.PROJECT),
             aggregates: List<String> = emptyList(),
             nullableState: Boolean = stateType == null,
+            retry: HandlerRetry? = null,
             handle: suspend (StateEvent<S>, ProjectContext) -> Unit,
         ): ProcessorBinding<S> =
             ProcessorBinding(
@@ -135,6 +140,7 @@ class ProcessorBinding<S> private constructor(
                 emptyList(),
                 aggregates,
                 nullableState,
+                retry,
             ) { e, c ->
                 handle(e, c as ProjectContext)
                 emptyList()
@@ -151,6 +157,7 @@ class ProcessorBinding<S> private constructor(
             startFrom: StartFrom = defaultStartFrom(FunctionKind.REACT),
             aggregates: List<String> = emptyList(),
             nullableState: Boolean = stateType == null,
+            retry: HandlerRetry? = null,
             handle: suspend (StateEvent<S>, ReactContext) -> Unit,
         ): ProcessorBinding<S> =
             ProcessorBinding(
@@ -163,6 +170,7 @@ class ProcessorBinding<S> private constructor(
                 emptyList(),
                 aggregates,
                 nullableState,
+                retry,
             ) { e, c ->
                 handle(e, c as ReactContext)
                 emptyList()
@@ -183,6 +191,7 @@ class ProcessorBinding<S> private constructor(
             rejections: List<RejectionBinding<*>> = emptyList(),
             aggregates: List<String> = emptyList(),
             nullableState: Boolean = stateType == null,
+            retry: HandlerRetry? = null,
             handle: suspend (StateEvent<S>, SagaContext) -> List<Command<*>>,
         ): ProcessorBinding<S> =
             ProcessorBinding(
@@ -195,6 +204,7 @@ class ProcessorBinding<S> private constructor(
                 rejections,
                 aggregates,
                 nullableState,
+                retry,
             ) { e, c ->
                 handle(e, c as SagaContext)
             }

@@ -28,6 +28,7 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.ExecutionSagaContext
+import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.runtime.admission.CommandBody
@@ -75,7 +76,12 @@ class SubscriptionBindingsTest {
     }
 
     /** Removes the ordered items from the cart of the order's owner; derives nothing for an order without one. */
-    private val saga = ProcessorBinding.saga("CartSaga", "onOrderPlaced", OrderState::class.java) { event, context ->
+    private val saga = ProcessorBinding.saga(
+        "CartSaga",
+        "onOrderPlaced",
+        OrderState::class.java,
+        retry = HandlerRetry(maxAttempts = 2),
+    ) { event, context ->
         val owner = event.scope.ownerId ?: return@saga emptyList()
         event.events.filterIsInstance<Placed>().map {
             context.command(CART.ref(event.ref.tenantId, owner), RemoveItems(it.items))
@@ -274,6 +280,9 @@ class SubscriptionBindingsTest {
             .isEqualTo(StartFrom.BEGINNING)
         subscriptions.getValue("CartSaga.onOrderPlaced").startFrom.assert()
             .isEqualTo(StartFrom.END)
+        // Roadmap P.3: a handler's @Retry is its subscription's own budget.
+        subscriptions.getValue("CartSaga.onOrderPlaced").retry.assert().isEqualTo(HandlerRetry(maxAttempts = 2))
+        subscriptions.getValue("OrderView.onEvent").retry.assert().isNull()
         SubscriptionBindings(emptyMap()).subscriptions(node.context(SHOP)).assert().isEmpty()
     }
 

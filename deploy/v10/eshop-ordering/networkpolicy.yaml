@@ -1,0 +1,26 @@
+# Decision D173: only the eShop's own pods reach the internal port (this service's nodes, and the services whose waits
+# cross into it); anyone the cluster lets in reaches the HTTP port. Enforced where the cluster's network plugin
+# enforces NetworkPolicy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: eshop-ordering
+  labels:
+    app.kubernetes.io/name: eshop-ordering
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: eshop-ordering
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - port: http
+          protocol: TCP
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: eshop
+      ports:
+        - port: internal
+          protocol: TCP

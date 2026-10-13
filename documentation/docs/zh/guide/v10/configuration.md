@@ -87,8 +87,10 @@ wow:
 | `wow.subscription.retry.initial-backoff` | `100ms` | 第一次失败后的等待 |
 | `wow.subscription.retry.max-backoff` | `5s` | 两次尝试之间最长的等待 |
 | `wow.subscription.retry.multiplier` | `2.0` | 每次等待比上一次长多少倍 |
+| `wow.subscription.retry.timeout` | 无 | 处理函数一次尝试最长运行多久；超过的被取消，算一次失败的尝试 |
 | `wow.subscription.read-retry.*` | `100ms` 至 `5s`，`2.0` | 日志读取或存储写入失败的退避，重试直到节点停止（不使用 `max-attempts`） |
 | `wow.subscriptions.[<subscription>].start` | 按种类的默认值 | `beginning`、`end` 或 ISO-8601 时刻：订阅在没有检查点的分区中从哪里开始。节点没有该名字的订阅时启动被拒绝 |
+| `wow.subscriptions.[<subscription>].retry.*` | `wow.subscription.retry` | 该订阅停放前自己的进程内预算：`max-attempts`、`initial-backoff`、`max-backoff`、`multiplier`、`timeout`。没给出的项取全局的。节点没有该名字的订阅时启动被拒绝 |
 | `wow.timers.poll-interval` | `1s` | 每个持有的分区读取即将到期定时器的间隔 |
 | `wow.timers.lookahead` | `30s` | 提前读取定时器的时长 |
 | `wow.timers.max-attempts` | `10` | 发送定时命令的技术故障最多尝试的次数，之后停放在 `wow.timers` 下 |

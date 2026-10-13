@@ -1,6 +1,6 @@
 ---
 title: Deploying a V10 Service
-description: Backends, the internal port, several nodes, Kafka topics, ClickHouse, shutdown, personal data in events and the shared tenant space of a Wow V10 service.
+description: Backends, the internal port, several nodes, Kafka topics, ClickHouse, shutdown, Kubernetes manifests, personal data in events and the shared tenant space of a Wow V10 service.
 outline: deep
 ---
 
@@ -84,6 +84,22 @@ With `wow-clickhouse` and `wow.clickhouse.endpoint`, the Sink writes each publis
 ## Shutdown and health
 
 A stopping node stops taking new commands (`wow.node.closing`), hands off its partitions after their commands in flight (`wow.cluster.drain-timeout`), lets running waits finish (`wow.wait.max-timeout`) and saves its checkpoints. The host gives Spring Boot's shutdown phase their sum unless `spring.lifecycle.timeout-per-shutdown-phase` is set; give the platform's termination grace period at least as much.
+
+The host has no health endpoint of its own. Its public port opens only once the node has started (backends, internal port, partitions) and closes first when it stops, so a probe of the public port tells whether the node takes traffic. The internal port stays open until the node has stopped, so a probe of it tells whether the node is alive, even while it drains. With Spring Boot Actuator on the classpath, `/actuator/health/readiness` reports `REFUSING_TRAFFIC` once the node starts to stop.
+
+## Kubernetes
+
+[`deploy/v10/eshop-ordering`](https://github.com/Ahoo-Wang/Wow/tree/v10/deploy/v10/eshop-ordering) deploys the eShop ordering service as two nodes on PostgreSQL and Kafka, in plain manifests applied with `kubectl apply -k`. Use it as a template for a V10 service. Its README covers the image build and the Kafka topics.
+
+| Concern | How the manifests handle it |
+| --- | --- |
+| Node id | `wow.node.id` is the pod's name (`metadata.name`), so a replaced pod joins as a new member |
+| Internal port | `wow.internal.host` is the pod IP, so the internal port is bound to the private interface only. `wow.node.address` is the pod's name under a headless service (`<pod>.eshop-ordering-cluster.<namespace>.svc.cluster.local:9093`). That service publishes nodes that are not ready, so a node that is starting or draining still gets its peers' forwarded commands and signals |
+| Who reaches it | Only the internal port's headless service points at it; no `Service` of type `LoadBalancer` or ingress does. A `NetworkPolicy` lets in only the pods labelled `app.kubernetes.io/part-of: eshop` (decision D173) |
+| HTTP | A plain `Service` on the public port |
+| PostgreSQL and Kafka | A `ConfigMap` of environment variables (`SPRING_DATASOURCE_URL`, `WOW_KAFKA_BOOTSTRAPSERVERS`, `WOW_LOG_PARTITIONS`, the active profiles), and a `Secret` with the database user and password |
+| Probes | Startup and readiness probe the public port, liveness the internal port |
+| Shutdown | `terminationGracePeriodSeconds: 90`: a 5 s `preStop` pause, then `wow.wait.max-timeout` (60 s) and `wow.cluster.drain-timeout` (10 s), with room to spare. Raise it when you raise those settings |
 
 ## Personal data in events
 

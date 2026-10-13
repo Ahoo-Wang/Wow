@@ -270,6 +270,23 @@ wow:
 
 抛出异常的处理函数会被重试（`wow.subscription.retry`：默认 5 次，退避从 100 ms 到 5 s）。最后一次之后，这个聚合在失败台账里为该订阅停放：订阅继续处理其他聚合，被停放的聚合等待恢复（resume）或跳过（skip）。运行时提供这两个操作，目前还没有路由或控制台暴露它们。
 
+调用慢外部系统的处理函数，可以给它的订阅单独的预算。`timeout` 限制一次尝试：运行更久的尝试被取消，算一次失败的尝试。给出的每一项取代全局的，其余仍取全局的：
+
+```yaml
+wow:
+  subscription:
+    retry:
+      max-attempts: 5 # 全局预算
+  subscriptions:
+    "[ShippingNotifier.onShipped]":
+      retry:
+        max-attempts: 3
+        initial-backoff: 1s
+        timeout: 2s
+```
+
+`@Blocking` 处理函数运行在超时无法中止的虚拟线程上：调用返回时这次尝试才算失败。预算只决定聚合何时停放；停放之后的重试（`wow.subscription.parked.*`）不变。
+
 ## 定时命令
 
 命令函数或 Saga 可以定时发送一条命令：未支付的订单自动取消、提醒。定时是提交的一部分：它与事件一起写入，或者都不写入。
