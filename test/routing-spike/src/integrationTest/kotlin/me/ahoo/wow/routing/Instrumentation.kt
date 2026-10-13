@@ -15,6 +15,7 @@ package me.ahoo.wow.routing
 
 import kotlinx.coroutines.flow.Flow
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.EventCodec
@@ -74,9 +75,9 @@ class CountingEventLog(private val delegate: EventLog, private val counters: Cou
         return delegate.read(ref, fromVersion, toVersion)
     }
 
-    override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? {
+    override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? {
         counters.dedupReads.increment()
-        return delegate.findByRequestId(tenantId, requestId)
+        return delegate.findByRequestId(type, tenantId, requestId)
     }
 }
 
