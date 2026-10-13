@@ -18,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.query.AfterNowFilter
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregateIdsFilter
@@ -47,6 +48,7 @@ import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
 import me.ahoo.wow.api.query.HavingExpression
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.InFilter
+import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.NorFilter
@@ -168,6 +170,8 @@ abstract class QueryBackendSpec {
         version: Int = 1,
         lastEventTime: Long = T0,
         tags: Map<String, List<String>> = emptyMap(),
+        operator: Operator? = null,
+        firstOperator: Operator? = operator,
     ) = SnapshotRecord(
         ref = type.ref(tenantId, id),
         version = version,
@@ -178,6 +182,8 @@ abstract class QueryBackendSpec {
         firstEventTime = T0 - DAY,
         lastEventTime = lastEventTime,
         tags = tags,
+        operator = operator,
+        firstOperator = firstOperator,
     )
 
     /** Five orders over two tenants, one deleted, one tagged: the records most tests read. */
@@ -282,6 +288,42 @@ abstract class QueryBackendSpec {
         fixture.ids(EqualFilter(QueryField("version"), 2)).assert().containsExactly("o2")
         fixture.ids(GreaterThanFilter(QueryField("lastEventTime"), T0 + 2 * DAY))
             .assert().containsExactlyInAnyOrder("o4", "o5")
+        Unit
+    }
+
+    @Test
+    fun `operator system fields filter, sort and read back (decision D163)`() = blocking {
+        val alice = Operator("alice", TENANT)
+        val bob = Operator("bob", OTHER_TENANT, crossScope = true)
+        val fixture = given(
+            listOf(
+                snapshot("p1", """{"name":"One"}""", operator = alice),
+                snapshot("p2", """{"name":"Two"}""", operator = bob, firstOperator = alice),
+                snapshot("p3", """{"name":"Three"}""", operator = bob),
+                snapshot("p4", """{"name":"Four"}"""),
+            ),
+        )
+        fixture.ids(EqualFilter(QueryField("operator.id"), "bob")).assert().containsExactlyInAnyOrder("p2", "p3")
+        fixture.ids(EqualFilter(QueryField("firstOperator.id"), "alice")).assert().containsExactlyInAnyOrder("p1", "p2")
+        fixture.ids(EqualFilter(QueryField("operator.tenantId"), OTHER_TENANT))
+            .assert().containsExactlyInAnyOrder("p2", "p3")
+        fixture.ids(EqualFilter(QueryField("operator.crossScope"), true)).assert().containsExactlyInAnyOrder("p2", "p3")
+        fixture.ids(IsNullFilter(QueryField("operator"))).assert().containsExactly("p4")
+        fixture.ids(
+            AggregateIdsFilter(listOf("p1", "p2", "p3")),
+            listOf(Sort(QueryField("operator.id"), Sort.Direction.DESC), Sort(QueryField("aggregateId"), Sort.Direction.ASC)),
+        ).assert().containsExactly("p2", "p3", "p1")
+        val record = checkNotNull(
+            fixture.backend.single(QueryAdmission.Trusted.single(SingleQuery(AggregateIdFilter("p2")), fixture.schema)),
+        )
+        record.path("operator").path("id").stringValue().assert().isEqualTo("bob")
+        record.path("operator").path("tenantId").stringValue().assert().isEqualTo(OTHER_TENANT)
+        record.path("operator").path("crossScope").booleanValue().assert().isTrue()
+        record.path("firstOperator").path("id").stringValue().assert().isEqualTo("alice")
+        val anonymous = checkNotNull(
+            fixture.backend.single(QueryAdmission.Trusted.single(SingleQuery(AggregateIdFilter("p4")), fixture.schema)),
+        )
+        anonymous.path("operator").isNull.assert().isTrue()
         Unit
     }
 
