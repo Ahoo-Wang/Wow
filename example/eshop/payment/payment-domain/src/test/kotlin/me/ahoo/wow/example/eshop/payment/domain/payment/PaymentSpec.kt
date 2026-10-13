@@ -113,6 +113,43 @@ class PaymentSpec {
         }
     }
 
+    @Test
+    fun `a requested payment should end confirmed and refunded, or failed`() = paymentSpec {
+        whenCommand(RequestPayment(ORDER, AMOUNT)) { expectEventTypes(PaymentRequested::class) }
+        ref("requested")
+        fork("confirmed") {
+            whenCommand(ConfirmPayment(TRANSACTION)) { expectEventTypes(PaymentSucceeded::class) }
+            whenCommand(RefundPayment(REFUSED)) { expectEvents(PaymentRefunded(REFUSED)) }
+        }
+        fork("failed") {
+            whenCommand(FailPayment(DECLINED)) { expectEventTypes(PaymentFailed::class) }
+            whenCommand(ConfirmPayment(TRANSACTION)) {
+                expectRejected(PaymentRejections.WRONG_STATUS)
+                expectState { status.assert().isEqualTo(PaymentStatus.FAILED) }
+            }
+        }
+        // The forks left the payment as requested.
+        whenCommand(RefundPayment(REFUSED)) {
+            expectRejected(PaymentRejections.WRONG_STATUS)
+            expectState { status.assert().isEqualTo(PaymentStatus.REQUESTED) }
+        }
+        fork(from = "requested") {
+            whenCommand(FailPayment(DECLINED)) { expectEvents(PaymentFailed(DECLINED)) }
+        }
+    }
+
+    @Test
+    fun `a payment given as succeeded should be refunded`() = paymentSpec {
+        givenState(version = 2) {
+            onSourcing(PaymentRequested(ORDER, AMOUNT))
+            onSourcing(PaymentSucceeded(TRANSACTION))
+        }
+        whenCommand(RefundPayment(REFUSED), expectedVersion = 2) {
+            expectEvents(PaymentRefunded(REFUSED))
+            expectState { transactionId.assert().isEqualTo(TRANSACTION) }
+        }
+    }
+
     private companion object {
         const val ORDER = "alice-1"
         const val TRANSACTION = "transaction-1"

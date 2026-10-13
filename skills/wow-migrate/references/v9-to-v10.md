@@ -461,7 +461,7 @@ Kotlin callers of 9.x `CommandGateway` move to the V10 gateway (`suspend`), or t
 
 ## Tests
 
-Rewrite `AggregateSpec<A, S>({ on { ... } })` to the functional DSL on the generated model: `given` events, `whenCommand` with an optional `scope`, then `expectEvents`, `expectRejected(code)`, `expectState`, `expectScope`. Keep every 9.x scenario; add one for each new rejection code, for the kernel's scope guard where an ownership policy was removed, and for each upgrade function.
+Rewrite `AggregateSpec<A, S>({ on { ... } })` to the functional DSL on the generated model: `given` events, `whenCommand` with an optional `scope`, then `expectEvents`, `expectRejected(code)`, `expectState`, `expectScope`. Keep every 9.x scenario; add one for each new rejection code, for the kernel's scope guard where an ownership policy was removed, and for each upgrade function. 9.x `givenState(state, version)` stays `givenState`; `ref`/`fork` stay `ref(name)` and `fork(name, from)`; `expectError` by exception type is `expectError<T>()`, and an error code is `expectRejected(code)`. 9.x `SagaSpec` becomes `sagaSpec(<saga>Handlers(Dependencies.of(…))) { whenEvent(stateEvent(…)) { expectCommand… } }`.
 
 ```kotlin
 class CartSpec {
