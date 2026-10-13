@@ -32,6 +32,7 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.http.HttpJson
+import me.ahoo.wow.http.WowPaths
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.command.Negotiation
 import me.ahoo.wow.http.command.RequestHeaders
@@ -45,6 +46,7 @@ import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryError
 import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.dataset.DatasetQueryGateway
 import me.ahoo.wow.query.json.QueryJson
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.runtime.FrameworkCodes
@@ -53,6 +55,7 @@ import me.ahoo.wow.runtime.admission.TargetScope
 import me.ahoo.wow.runtime.admission.TenantConflictException
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import org.springframework.http.HttpHeaders
+import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.codec.ServerSentEvent
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -67,14 +70,25 @@ import kotlin.coroutines.cancellation.CancellationException
 /** A query model of an aggregate type: the `{model}` of its route. */
 internal data class QueryTarget(val type: AggregateType, val model: String)
 
+/** One dataset of `GET /wow/dataset`: its name, `{context}.{dataset}`, its title, and its query route's [path]. */
+internal data class DatasetEntry(
+    val name: String,
+    val context: String,
+    val dataset: String,
+    val title: String?,
+    val path: String,
+)
+
 /**
- * Answers the query routes (decisions D127, D129, D130, D131):
+ * Answers the query routes (decisions D127, D129, D130, D131, D145):
  *
  * - `POST /{context}/{aggregate}/{model}/query` runs the body's query on [target]'s model, as the caller the request
  *   authenticates as; with `Accept: text/event-stream`, a `list` streams its records as server-sent events
  *   (`event: row`), and a failure after the first record ends the stream with an `event: error` holding the problem;
  * - `GET` of the same path answers the model's capability descriptor, with its version as the `ETag`, and 304 when
- *   `If-None-Match` names it.
+ *   `If-None-Match` names it;
+ * - `POST` and `GET /wow/dataset/{context}/{dataset}/query` do the same on a dataset (decision D145), and
+ *   `GET /wow/dataset` lists the datasets the caller sees.
  *
  * The caller (decision D129) is the request's [Caller], or the scope `Wow-Scope` names when the caller may act
  * across scopes (403 `wow.auth.forbidden` otherwise): its tenant, decided by [tenants] as for a command (D116), its
@@ -90,38 +104,106 @@ internal class QueryHandler(
     private val tenants: TenantPolicy,
     private val scope: CoroutineScope,
 ) {
-    suspend fun query(request: ServerRequest, target: QueryTarget): ServerResponse = answering(target) {
-        val caller = caller(request, target.type)
-        Negotiation.checkJsonBody(request, "A query")
-        val body = QueryBodies.read(request.awaitBodyOrNull<ByteArray>())
-        val eventStream = body.kind == QueryKind.LIST && Negotiation.wantsEventStream(request)
-        Negotiation.checkAcceptable(request, alsoEventStream = body.kind == QueryKind.LIST)
-        when (target.model) {
-            QueryRoutes.SNAPSHOT -> snapshots(checkNotNull(queries.snapshots(target.type)), body, caller, eventStream)
-            else -> events(checkNotNull(queries.events(target.type)), body, caller, eventStream)
+    suspend fun query(request: ServerRequest, target: QueryTarget): ServerResponse =
+        answering(target.type.context) {
+            val caller = caller(request, target.type)
+            val body = body(request)
+            val eventStream = body.kind == QueryKind.LIST && Negotiation.wantsEventStream(request)
+            when (target.model) {
+                QueryRoutes.SNAPSHOT ->
+                    snapshots(checkNotNull(queries.snapshots(target.type)), body, caller, eventStream)
+                else -> events(checkNotNull(queries.events(target.type)), body, caller, eventStream)
+            }
         }
+
+    suspend fun describe(request: ServerRequest, target: QueryTarget): ServerResponse =
+        answering(target.type.context) {
+            authenticator.authenticate(request)
+            Negotiation.checkAcceptable(request, alsoEventStream = false)
+            val (version, descriptor) = when (target.model) {
+                QueryRoutes.SNAPSHOT -> {
+                    val gateway = checkNotNull(queries.snapshots(target.type))
+                    val described = gateway.describe(QueryEntry.HTTP, gateway.entryPolicy.http.listDefault())
+                    described.version to QueryJson.mapper.writeValueAsBytes(described)
+                }
+                else -> {
+                    val gateway = checkNotNull(queries.events(target.type))
+                    val described = gateway.describe(QueryEntry.HTTP, gateway.entryPolicy.http.listDefault())
+                    described.get("version").asString() to QueryJson.mapper.writeValueAsBytes(described)
+                }
+            }
+            tagged(request, version, descriptor)
+        }
+
+    /**
+     * `POST /wow/dataset/{context}/{dataset}/query` (decision D145): the body's query on the dataset [name], as on a
+     * snapshot model, every `kind` included; a dataset this node does not serve, or the caller does not see, is a 404.
+     */
+    suspend fun queryDataset(request: ServerRequest, name: AggregateType): ServerResponse =
+        answering(name.context) {
+            val caller = caller(request, name)
+            val gateway = dataset(name, caller)
+            val body = body(request)
+            snapshots(gateway, body, caller, body.kind == QueryKind.LIST && Negotiation.wantsEventStream(request))
+        }
+
+    /** `GET /wow/dataset/{context}/{dataset}/query`: the dataset's descriptor, with its version as the `ETag`. */
+    suspend fun describeDataset(request: ServerRequest, name: AggregateType): ServerResponse =
+        answering(name.context) {
+            val gateway = dataset(name, caller(request, name))
+            Negotiation.checkAcceptable(request, alsoEventStream = false)
+            val described = gateway.describe(QueryEntry.HTTP, gateway.entryPolicy.http.listDefault())
+            tagged(request, described.version, QueryJson.mapper.writeValueAsBytes(described))
+        }
+
+    /**
+     * `GET /wow/dataset`: the datasets this node serves that the caller sees ([HttpQueries.datasetVisibility]), by
+     * name, each with its title and the path of its query route.
+     */
+    suspend fun listDatasets(request: ServerRequest): ServerResponse = answering(null) {
+        val caller = authenticator.authenticate(request)
+        val named = headers.target(request, FrameworkErrors.QUERY_MALFORMED)
+        if (named != null && !caller.crossScope) {
+            throw ProblemException(
+                statuses.problemOf(FrameworkCodes.AUTH_FORBIDDEN, "The caller may not query in another scope.", null),
+            )
+        }
+        Negotiation.checkAcceptable(request, alsoEventStream = false)
+        val listed = queries.datasets.all.map { it.dataset }.sortedBy { it.name.toString() }.filter { dataset ->
+            val queryCaller = queryCaller(dataset.name, caller, named, tenants)
+            queryCaller != null && queries.datasetVisibility.visible(dataset, queryCaller)
+        }.map { dataset ->
+            DatasetEntry(
+                name = dataset.name.toString(),
+                context = dataset.name.context,
+                dataset = dataset.name.name,
+                title = dataset.title,
+                path = datasetPath(dataset.name),
+            )
+        }
+        json(listed)
     }
 
-    suspend fun describe(request: ServerRequest, target: QueryTarget): ServerResponse = answering(target) {
-        authenticator.authenticate(request)
-        Negotiation.checkAcceptable(request, alsoEventStream = false)
-        val (version, descriptor) = when (target.model) {
-            QueryRoutes.SNAPSHOT -> {
-                val gateway = checkNotNull(queries.snapshots(target.type))
-                val described = gateway.describe(QueryEntry.HTTP, gateway.entryPolicy.http.listDefault())
-                described.version to QueryJson.mapper.writeValueAsBytes(described)
-            }
-            else -> {
-                val gateway = checkNotNull(queries.events(target.type))
-                val described = gateway.describe(QueryEntry.HTTP, gateway.entryPolicy.http.listDefault())
-                described.get("version").asString() to QueryJson.mapper.writeValueAsBytes(described)
-            }
-        }
+    /** The gateway of the dataset [name] when [caller] sees it; a 404 problem otherwise. */
+    private fun dataset(name: AggregateType, caller: QueryCaller): DatasetQueryGateway =
+        queries.datasets[name]?.takeIf { queries.datasetVisibility.visible(it.dataset, caller) }
+            ?: throw ProblemException(Problem.ofStatus(HttpStatus.NOT_FOUND, "No dataset $name is served."))
+
+    /** The query of [request]'s body, once the body and the response it asks for can be served. */
+    private suspend fun body(request: ServerRequest): QueryBody {
+        Negotiation.checkJsonBody(request, "A query")
+        val body = QueryBodies.read(request.awaitBodyOrNull<ByteArray>())
+        Negotiation.checkAcceptable(request, alsoEventStream = body.kind == QueryKind.LIST)
+        return body
+    }
+
+    /** [descriptor] of [version], with the version as its `ETag`; 304 when `If-None-Match` names it. */
+    private suspend fun tagged(request: ServerRequest, version: String, descriptor: ByteArray): ServerResponse {
         val tag = "\"$version\""
         if (request.headers().header(HttpHeaders.IF_NONE_MATCH).any { matches(it, tag) }) {
-            return@answering ServerResponse.status(NOT_MODIFIED).eTag(tag).buildAndAwait()
+            return ServerResponse.status(NOT_MODIFIED).eTag(tag).buildAndAwait()
         }
-        ServerResponse.ok().eTag(tag).contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(descriptor)
+        return ServerResponse.ok().eTag(tag).contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(descriptor)
     }
 
     /** The query caller of [request] for a query of [type] (decision D129). */
@@ -226,14 +308,14 @@ internal class QueryHandler(
 
     /** [block]'s response, or the problem of what it failed with. */
     @Suppress("TooGenericExceptionCaught") // Every failure of a query is answered as a problem.
-    private suspend inline fun answering(target: QueryTarget, block: () -> ServerResponse): ServerResponse = try {
+    private suspend inline fun answering(context: String?, block: () -> ServerResponse): ServerResponse = try {
         block()
     } catch (problem: ProblemException) {
         problem.problem.respond()
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (failure: Exception) {
-        problemOf(failure, target.type.context).respond()
+        problemOf(failure, context).respond()
     }
 
     /** The problem a query that failed with [failure] answers. */
@@ -263,6 +345,10 @@ internal class QueryHandler(
 
         private const val NOT_MODIFIED = 304
         private val logger = KotlinLogging.logger {}
+
+        /** The path of the query route of the dataset [name]: `/wow/dataset/{context}/{dataset}/query`. */
+        fun datasetPath(name: AggregateType): String =
+            "${WowPaths.DATASETS}/${name.context}/${name.name}/${QueryRoutes.SEGMENT}"
 
         private fun matches(ifNoneMatch: String, tag: String): Boolean =
             ifNoneMatch.split(',').map { it.trim().removePrefix("W/") }.any { it == "*" || it == tag }

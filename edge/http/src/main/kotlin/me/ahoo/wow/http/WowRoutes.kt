@@ -37,12 +37,14 @@ import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.QueryRoutes
+import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.runtime.admission.CommandGateway
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.CoRouterFunctionDsl
 import org.springframework.web.reactive.function.server.RouterFunction
+import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.coRouter
@@ -59,6 +61,9 @@ import org.springframework.web.reactive.function.server.coRouter
  *   (decision D116);
  * - `POST /{context}/{aggregate}/{model}/query` and its `GET` (decisions D127, D131) query the models of
  *   [AggregateManifest.queries] that [queries] serves, the snapshots and the events of each aggregate type;
+ * - `POST /wow/dataset/{context}/{dataset}/query` and its `GET` query the datasets of [queries] (decision D145) as a
+ *   snapshot model is queried, and `GET /wow/dataset` lists those the caller sees; a dataset that joins or leaves
+ *   while the node runs is served or not from then on;
  * - `GET /wow/manifest` answers [manifest], unless [WowHttpOptions.manifestEndpoint] is off;
  * - any other request under a context of the Manifest is a 404 problem.
  *
@@ -98,6 +103,9 @@ fun wowRoutes(
                     ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(manifestBody)
                 }
             }
+        }
+        if (queries.datasets !== DatasetQueryGateways.NONE) {
+            datasetRoutes(queryHandler)
         }
         manifest.contexts.forEach { context ->
             context.aggregates.forEach { aggregate ->
@@ -164,6 +172,27 @@ private fun CoRouterFunctionDsl.queryRoutes(
         }
     }
 }
+
+/** The dataset routes (decision D145): the list, and each dataset's query and descriptor by its path variables. */
+private fun CoRouterFunctionDsl.datasetRoutes(handler: QueryHandler) {
+    GET(WowPaths.DATASETS) { request -> handler.listDatasets(request) }
+    val path = "${WowPaths.DATASETS}/{$DATASET_CONTEXT}/{$DATASET_NAME}/${QueryRoutes.SEGMENT}"
+    POST(path) { request -> datasetOf(request)?.let { handler.queryDataset(request, it) } ?: noDataset(request) }
+    GET(path) { request -> datasetOf(request)?.let { handler.describeDataset(request, it) } ?: noDataset(request) }
+}
+
+private const val DATASET_CONTEXT = "context"
+private const val DATASET_NAME = "dataset"
+
+/** The dataset name of [request]'s path, or null when its segments cannot name one. */
+private fun datasetOf(request: ServerRequest): AggregateType? = try {
+    AggregateType(request.pathVariable(DATASET_CONTEXT), request.pathVariable(DATASET_NAME))
+} catch (_: IllegalArgumentException) {
+    null
+}
+
+private suspend fun noDataset(request: ServerRequest): ServerResponse =
+    Problem.ofStatus(HttpStatus.NOT_FOUND, "No dataset at ${request.path()}.").respond()
 
 /** [block]'s response, or the problem it was answered with. */
 private suspend inline fun answering(block: () -> ServerResponse): ServerResponse = try {

@@ -77,6 +77,13 @@ object WowPaths {
     /** Serves the Manifest the routes were built from. */
     const val MANIFEST: String = "/wow/manifest"
 
+    /**
+     * The datasets the caller sees (decision D145), and the root of each dataset's query route,
+     * `/wow/dataset/{context}/{dataset}/query`: a dataset is not an aggregate of the Manifest, so its routes live
+     * under the framework's context rather than its own.
+     */
+    const val DATASETS: String = "/wow/dataset"
+
     /** The last segment of a state read: `GET /{context}/{aggregate}/{id}/state`. */
     const val STATE: String = "state"
 
