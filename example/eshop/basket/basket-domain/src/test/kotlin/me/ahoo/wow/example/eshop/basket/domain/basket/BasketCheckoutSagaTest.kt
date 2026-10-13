@@ -13,50 +13,40 @@
 
 package me.ahoo.wow.example.eshop.basket.domain.basket
 
-import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.subscribe.ExecutionId
-import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCleared
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketItem
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
-import me.ahoo.wow.kernel.ExecutionSagaContext
+import me.ahoo.wow.kernel.Dependencies
+import me.ahoo.wow.kernel.test.sagaSpec
+import me.ahoo.wow.kernel.test.stateEvent
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 
 /** The checkout saga: a checked-out basket becomes an order in the ordering context. */
 class BasketCheckoutSagaTest {
     private val basket = AggregateType("eshop-basket", "basket").ref("tenant", "alice")
+    private val handlers = basketCheckoutSagaHandlers(Dependencies.NONE)
 
-    private fun event(vararg events: Any) = StateEvent(
-        basket,
-        3,
-        "command-3",
-        "request-3",
-        "eshop-basket.basket.CheckoutBasket",
-        1L,
-        events.toList(),
-        BasketState("alice"),
-    )
-
-    private fun context(event: StateEvent<BasketState>) =
-        ExecutionSagaContext(ExecutionId("BasketCheckoutSaga.onBasketCheckedOut", event.ref, event.version), event)
+    private fun event(vararg events: Any) =
+        stateEvent(basket, BasketState("alice"), *events, version = 3, commandType = "eshop-basket.basket.CheckoutBasket")
 
     @Test
-    fun `a checked-out basket should submit its order to the ordering context`() {
-        val event = event(BasketCheckedOut("alice-1", listOf(BasketItem("mug", BigDecimal("8.50"), 2))))
-        val command = BasketCheckoutSaga().onBasketCheckedOut(event, context(event))!!
-        command.ref.assert().isEqualTo(AggregateType("eshop-ordering", "order").ref("tenant", "alice-1"))
-        command.body.assert().isEqualTo(SubmitOrder("alice", listOf(OrderItem("mug", BigDecimal("8.50"), 2))))
-        // Handling the commit again derives the same request, which the ordering context decides once.
-        BasketCheckoutSaga().onBasketCheckedOut(event, context(event))!!.requestId.assert().isEqualTo(command.requestId)
+    fun `a checked-out basket should submit its order to the ordering context`() = sagaSpec(handlers) {
+        whenEvent(event(BasketCheckedOut("alice-1", listOf(BasketItem("mug", BigDecimal("8.50"), 2))))) {
+            expectCommand(
+                SubmitOrder("alice", listOf(OrderItem("mug", BigDecimal("8.50"), 2))),
+                to = AggregateType("eshop-ordering", "order").ref("tenant", "alice-1"),
+            )
+            // Handling the commit again derives the same request, which the ordering context decides once.
+            expectDeterministic()
+        }
     }
 
     @Test
-    fun `another event of the basket should submit nothing`() {
-        val event = event(BasketCleared)
-        BasketCheckoutSaga().onBasketCheckedOut(event, context(event)).assert().isNull()
+    fun `another event of the basket should submit nothing`() = sagaSpec(handlers) {
+        whenEvent(event(BasketCleared)) { expectNoCommand() }
     }
 }
