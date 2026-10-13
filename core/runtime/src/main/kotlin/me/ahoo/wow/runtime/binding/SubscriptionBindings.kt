@@ -55,7 +55,9 @@ import java.util.concurrent.Executors
  * - **Calls**: in the subscription's coroutine, or on a virtual thread for a `@Blocking` handler
  *   ([ProcessorBinding.blocking]).
  * - **Sagas** execute what they derive through the context's wait coordinator ([DerivedCommands]) and report the
- *   commands' ids, so a wait chain may go on after their hop (decision D62).
+ *   commands' ids, so a wait chain may go on after their hop (decision D62). A command to another context is sent to
+ *   its command topic (decisions D33, D137), asking for a receipt of its rejection when the saga has an `@OnRejected`
+ *   handler for it (decision D136); [rejections] hands those receipts to it.
  * - **Rejections** of what a saga derives are business outcomes (decision D153), neither retried nor, when the saga
  *   handles them, parking: the first rejected command stops the execution, and the wait at the saga's hop ends
  *   REJECTED with its error ([HandledEntry.rejection]). The saga's `@OnRejected` handler for the command, if any, gets it

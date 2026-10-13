@@ -43,11 +43,11 @@ import me.ahoo.wow.spi.wait.WaitContext
  *   commands after it are not executed, and the result says which one it was ([Executed.rejected]), for the saga's
  *   `@OnRejected` handler ([SagaRejections]); nothing is retried for it.
  * - **Other contexts** (decisions D33, D137): a command to an aggregate of a context outside the saga's own is sent
- *   to that context's command topic through [sender], and is done once the broker has acknowledged it, a durable
+ *   to that context's command topic through the sender ([CommandSender]), and is done once the broker has acknowledged it, a durable
  *   ACCEPTED; its outcome is the target's, and a rejection comes back as a receipt to the [ReplyTo] the caller gives
  *   it (decision D136). It carries [wait] on, so the target signals the waiting node as this context would.
  * - **Technical failures** fail the handling: a command whose outcome is contended or unknown, a command the broker
- *   did not acknowledge, one to another context with no [sender] (a node without a Kafka transport), and one to an
+ *   did not acknowledge, one to another context with no sender (a node without a Kafka transport), and one to an
  *   aggregate type its own context does not have. The subscription retries the handling, which derives the same
  *   requests again, then parks the aggregate.
  */

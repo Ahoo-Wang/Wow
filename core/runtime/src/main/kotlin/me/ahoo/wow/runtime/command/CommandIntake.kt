@@ -119,7 +119,12 @@ class CommandIntake internal constructor(
          * the producers pick a command's partition by the log's partitioner over the topic's partitions, so any other
          * count sends commands to partitions whose owner does not own their aggregates.
          */
-        internal suspend fun checkPartitions(topic: String, source: PartitionedSource, context: String, partitions: Int) {
+        internal suspend fun checkPartitions(
+            topic: String,
+            source: PartitionedSource,
+            context: String,
+            partitions: Int
+        ) {
             val count = source.partitions(topic).size
             check(count == partitions) {
                 val found = if (count == 0) "does not exist" else "has $count partitions"

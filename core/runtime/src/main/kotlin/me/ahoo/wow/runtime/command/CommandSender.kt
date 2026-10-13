@@ -47,7 +47,10 @@ class CommandSender(private val contracts: ContractDirectory, private val topics
     suspend fun send(command: Command<*>, wait: WaitContext? = null, replyTo: ReplyTo? = null) {
         val topic = topics.commandsOf(command.ref.type.context)
         val wire = ClusterCodec.wire(typeOf(command), command, replyTo)
-        producer.send(topic, CommandMessages.command(wire, Partitioner.partitionOf(command.ref, partitionsOf(topic)), wait))
+        producer.send(
+            topic,
+            CommandMessages.command(wire, Partitioner.partitionOf(command.ref, partitionsOf(topic)), wait)
+        )
     }
 
     /** The full type name of [command], as the contracts give its class. */

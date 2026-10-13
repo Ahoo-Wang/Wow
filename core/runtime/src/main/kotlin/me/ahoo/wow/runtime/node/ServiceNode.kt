@@ -136,6 +136,14 @@ class ContextNode internal constructor(
  * of the models) that reads it. The topic is the publishing context's ([contracts], [ContractDirectory.publishedOf])
  * in [topics]; a node with such subscriptions and no [topics] is not built.
  *
+ * **Commands across contexts** (decisions D33, D135–D137), when [topics] has a producer: a saga's command to an
+ * aggregate of another context is sent to that context's command topic ([ContextNode.sender]); the receipts of those
+ * rejected come back on the saga's context's receipts topic, read in the lease group of that topic for the contexts
+ * whose sagas have `@OnRejected` handlers ([SubscriptionFactory.rejections]). With [SourceTopics.intake], each context
+ * executes the commands of its own command topic ([ContextNode.intake], [CommandIntake]), driven by its
+ * [PartitionOwnership]: the owner of a log partition reads the same partition of the topic, and [start] fails unless
+ * the topic has as many partitions as the log.
+ *
  * **Startup checks**: the [manifest] (normally [me.ahoo.wow.runtime.manifest.ManifestLoader]'s) names this
  * [service], and it and the [models] agree ([ManifestCheck]); otherwise the node is not built. The [contracts] are
  * those of this [manifest] and its peers (decision D139), checked when they were built; each context's waits name
@@ -492,6 +500,22 @@ class ServiceNode(
         }.toMap()
     }
 
+    /**
+     * The runtime of [context]'s command topic when the node takes commands from topics ([SourceTopics.intake]), in
+     * its lease [group] and stores: the topic's partitions are the log's (decision D135), so the same leases drive both.
+     */
+    private fun intakeOf(context: String, group: LeaseGroup, backends: ContextBackends): SubscriptionRuntime? =
+        topics?.takeIf { it.intake }?.let {
+            SubscriptionRuntime(
+                group.name,
+                MessageEntries.commands(it.commandsOf(context), it.source, backends.log.partitions),
+                backends.checkpoints,
+                backends.ledger,
+                options = options.subscription,
+                signals = signals,
+            )
+        }
+
     private fun assemble(
         context: String,
         models: List<AggregateModel<*>>,
@@ -524,17 +548,7 @@ class ServiceNode(
             options.subscription,
             signals = signals,
         )
-        // The command topic's partitions are the log's (decision D135): the same leases drive both.
-        val intake = topics?.takeIf { it.intake }?.let {
-            SubscriptionRuntime(
-                group.name,
-                MessageEntries.commands(it.commandsOf(context), it.source, backends.log.partitions),
-                backends.checkpoints,
-                backends.ledger,
-                options = options.subscription,
-                signals = signals,
-            )
-        }
+        val intake = intakeOf(context, group, backends)
         val ownership = PartitionOwnership(
             group,
             node,

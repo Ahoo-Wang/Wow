@@ -244,7 +244,15 @@ class CommandIntakeTest {
             Reserve(AVAILABLE + 1),
         )
         CommandSender(ContractDirectory(stockManifest()), SourceTopics(topics, PREFIX, topics))
-            .send(command, replyTo = me.ahoo.wow.runtime.cluster.ReplyTo(SALES, "OrderSaga.onOrderPlaced", ORDER.ref(TENANT, "o"), 1))
+            .send(
+                command,
+                replyTo = me.ahoo.wow.runtime.cluster.ReplyTo(
+                    SALES,
+                    "OrderSaga.onOrderPlaced",
+                    ORDER.ref(TENANT, "o"),
+                    1
+                )
+            )
         eventually { "c-r" in stock.decided }
         delay(100.milliseconds)
         checkpoint(node, command.ref).assert().isEqualTo(0L)

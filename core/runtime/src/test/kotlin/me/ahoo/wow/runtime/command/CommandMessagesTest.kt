@@ -53,7 +53,12 @@ class CommandMessagesTest {
     private val topics = InMemoryTopics(2).also { it.create(COMMANDS, PARTITIONS) }
     private val ref = ITEM.ref(TENANT, "i-1")
     private val execution = ExecutionId("OrderSaga.onOrderPlaced", ORDER.ref(TENANT, "o-1"), 3)
-    private val wait = WaitContext("w-1", Origin("sales-1", "sales-1:9090", SALES_SERVICE), listOf(Hop.committed(STOCK)), 99)
+    private val wait = WaitContext(
+        "w-1",
+        Origin("sales-1", "sales-1:9090", SALES_SERVICE),
+        listOf(Hop.committed(STOCK)),
+        99
+    )
 
     data class Priced(val price: BigDecimal)
 
@@ -124,14 +129,24 @@ class CommandMessagesTest {
                 runBlocking { CommandIntake.checkPartitions(COMMANDS, topics, STOCK, PARTITIONS + 1) }
             }.message.assert().contains("has $PARTITIONS partitions")
             CommandIntake.checkPartitions(COMMANDS, topics, STOCK, PARTITIONS)
-            assertThrows<IllegalArgumentException> { CommandSender(ContractDirectory(stockManifest()), SourceTopics(topics)) }
+            assertThrows<IllegalArgumentException> {
+                CommandSender(
+                    ContractDirectory(stockManifest()),
+                    SourceTopics(topics)
+                )
+            }
         }
 
     @Test
     fun `the entries of a command topic should be ordered, parked and resumed by offset`(): Unit = runBlocking {
         val entries = MessageEntries.commands(COMMANDS, topics, PARTITIONS)
         val partition = Partitioner.partitionOf(ref, PARTITIONS)
-        val wire: (String) -> CommandWire = { id -> ClusterCodec.wire("stock.item.Reserve", Command(id, id, ref, Reserve(1))) }
+        val wire: (String) -> CommandWire = { id ->
+            ClusterCodec.wire(
+                "stock.item.Reserve",
+                Command(id, id, ref, Reserve(1))
+            )
+        }
         topics.send(COMMANDS, listOf("a", "b", "c").map { CommandMessages.command(wire(it), partition) })
         entries.partitionOf(ref).assert().isEqualTo(partition)
         entries.checkpointOf(SubscriptionStart.End, partition).assert().isEqualTo(3L)
@@ -180,21 +195,27 @@ class CommandMessagesTest {
         receipts.handle(rejected.copy(commandId = "c-2"))
         receipts.handle(rejected.copy(commandId = "c-2"))
         handled.size.assert().isEqualTo(2)
-        assertThrows<IllegalStateException> { runBlocking { receipts.handle(rejected.copy(commandId = "c-3", commandType = "stock.item.Gone")) } }
+        assertThrows<IllegalStateException> {
+            runBlocking { receipts.handle(rejected.copy(commandId = "c-3", commandType = "stock.item.Gone")) }
+        }
             .message.assert().contains("stock.item.Gone")
     }
 
     @Test
     fun `combined factories should ask each for the handler of a rejection in turn`(): Unit = runBlocking {
         val first = object : SubscriptionFactory {
-            override fun subscriptions(context: ContextNode) = emptyList<me.ahoo.wow.runtime.subscription.Subscription>()
+            override fun subscriptions(
+                context: ContextNode
+            ) = emptyList<me.ahoo.wow.runtime.subscription.Subscription>()
 
             override fun rejections(context: ContextNode) = RejectionHandler { rejected, _ ->
                 listOf("first").takeIf { rejected.commandId == "mine" }
             }
         }
         val second = object : SubscriptionFactory {
-            override fun subscriptions(context: ContextNode) = emptyList<me.ahoo.wow.runtime.subscription.Subscription>()
+            override fun subscriptions(
+                context: ContextNode
+            ) = emptyList<me.ahoo.wow.runtime.subscription.Subscription>()
 
             override fun rejections(context: ContextNode) = RejectionHandler { _, _ -> listOf("second") }
         }

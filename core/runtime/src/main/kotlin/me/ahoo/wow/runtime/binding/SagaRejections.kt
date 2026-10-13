@@ -27,8 +27,8 @@ import me.ahoo.wow.runtime.command.RejectionHandler
  * the saga's hop has already ended with the rejection.
  *
  * [handle] is the one entry point, whatever brought the rejection: the saga's own execution of a command of its context
- * that the kernel rejected ([SubscriptionBindings]), or, from roadmap 6.3d, the receipt another context wrote for a
- * command it rejected (decision D136), which carries the same [CommandRejected]. The saga is found by the subscription
+ * that the kernel rejected ([SubscriptionBindings]), or the receipt another context wrote for a command it rejected
+ * (decision D136, [me.ahoo.wow.runtime.command.Receipts]), which carries the same [CommandRejected]. The saga is found by the subscription
  * of the rejection's [CommandRejected.executionId], the saga handler that derived the command: its
  * [ProcessorBinding.rejections] are the candidates, chosen by the command's class
  * ([ProcessorBinding.rejectionHandlerOf]).

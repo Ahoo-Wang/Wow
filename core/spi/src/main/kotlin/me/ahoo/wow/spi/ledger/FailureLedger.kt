@@ -87,7 +87,8 @@ interface FailureLedger {
  * [fromPosition] is where that stream lies in the subscription's source when the source cannot be read by aggregate
  * (decision D134): the offset of its record in another context's topic, whose partition the ref's key always maps to.
  * A resume re-scans that partition from it, keeping the records keyed by [ref]. Null for a subscription of the log,
- * which reads an aggregate's streams by version.
+ * which reads an aggregate's streams by version. A topic of commands or receipts (decisions D135–D137) commits
+ * nothing, so its subscription parks at [fromVersion] 1 and goes by [fromPosition] alone.
  *
  * An entry whose source no longer retains [fromPosition] cannot be resumed, only skipped: the runtime marks it
  * [unrecoverable] by its [reason], which then starts with [UNRECOVERABLE].

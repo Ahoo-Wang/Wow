@@ -46,7 +46,13 @@ class KafkaTopicProducer(
         val acknowledgements = withContext(dispatcher) {
             messages.map { message ->
                 val acknowledged = CompletableDeferred<Unit>()
-                val record = ProducerRecord(topic, message.partition, message.key, message.value, KafkaHeaders.of(message.headers))
+                val record = ProducerRecord(
+                    topic,
+                    message.partition,
+                    message.key,
+                    message.value,
+                    KafkaHeaders.of(message.headers)
+                )
                 producer.send(record) { _, failure ->
                     if (failure == null) acknowledged.complete(Unit) else acknowledged.completeExceptionally(failure)
                 }

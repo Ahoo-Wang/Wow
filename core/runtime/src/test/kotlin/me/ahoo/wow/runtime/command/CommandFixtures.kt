@@ -114,7 +114,11 @@ class StockItems {
  * a reservation the stock context rejects cancels the order; each rejection it handles is recorded in [rejections].
  */
 fun orderSaga(rejections: MutableList<CommandRejected<*>> = CopyOnWriteArrayList()): ProcessorBinding<OrderState> {
-    val onReserveRejected = RejectionBinding.of("OrderSaga", "onReserveRejected", Reserve::class.java) { rejected, context ->
+    val onReserveRejected = RejectionBinding.of(
+        "OrderSaga",
+        "onReserveRejected",
+        Reserve::class.java
+    ) { rejected, context ->
         rejections += rejected
         listOf(context.command(rejected.executionId.ref, CancelOrder()))
     }
@@ -150,7 +154,10 @@ fun salesManifest(): Manifest = Manifest(
             aggregates = listOf(
                 aggregateManifest(
                     "order",
-                    listOf(PlaceOrder::class.java to ManifestCreation.REQUIRED, CancelOrder::class.java to ManifestCreation.NONE),
+                    listOf(
+                        PlaceOrder::class.java to ManifestCreation.REQUIRED,
+                        CancelOrder::class.java to ManifestCreation.NONE
+                    ),
                     listOf(OrderPlaced::class.java, OrderCancelled::class.java),
                 ),
             ),
@@ -165,7 +172,11 @@ fun stockManifest(): Manifest = Manifest(
         ContextManifest(
             STOCK,
             aggregates = listOf(
-                aggregateManifest("item", listOf(Reserve::class.java to ManifestCreation.ALLOWED), listOf(Reserved::class.java)),
+                aggregateManifest(
+                    "item",
+                    listOf(Reserve::class.java to ManifestCreation.ALLOWED),
+                    listOf(Reserved::class.java)
+                ),
             ),
         ),
     ),
