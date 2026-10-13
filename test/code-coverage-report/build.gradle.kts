@@ -66,11 +66,14 @@ val classesSharedWithNineX = mapOf(":api" to listOf("me/ahoo/wow/api/annotation/
 // 9.x wow-api, keep them. D126: the V10 query engine (:query) likewise keeps 9.x wow-query's package and many of its
 // class names (`me.ahoo.wow.query.QueryAdmission`, ...), so a report that covers both leaves out :query's. D126 also
 // gives the V10 MongoDB backend (:mongo) the 9.x package of wow-mongo's query backend, `me.ahoo.wow.mongo.query`,
-// where both declare `MongoCursorCodec`, so a report that covers both leaves out :mongo's query classes.
+// where both declare `MongoCursorCodec`, so a report that covers both leaves out :mongo's query classes. The V10
+// ClickHouse dataset backend (:clickhouse, 6.4a) is the port of 9.x wow-clickhouse's, in its package
+// `me.ahoo.wow.clickhouse.query` and under many of its class names, so a report that covers both leaves out its classes.
 val classesSharedWithNineXWhenBoth = mapOf(
     ":query-api" to (":wow-api" to listOf("me/ahoo/wow/api/query/**")),
     ":query" to (":wow-query" to listOf("me/ahoo/wow/query/**")),
     ":mongo" to (":wow-mongo" to listOf("me/ahoo/wow/mongo/query/**")),
+    ":clickhouse" to (":wow-clickhouse" to listOf("me/ahoo/wow/clickhouse/query/**")),
 )
 
 fun JacocoReport.useCoverageData(
