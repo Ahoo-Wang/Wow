@@ -14,8 +14,9 @@
 package me.ahoo.wow.clickhouse
 
 /**
- * The ClickHouse module (wow-clickhouse, decision D142): the Sink (`me.ahoo.wow.clickhouse.sink`), and the dataset
- * backend once it lands (6.4a). The host's `ClickHouseAutoConfiguration` conditions on this class by name.
+ * The ClickHouse module (wow-clickhouse, decision D142): the Sink (`me.ahoo.wow.clickhouse.sink`, 6.4b) and the
+ * dataset query backend (`me.ahoo.wow.clickhouse.query`, 6.4a). The host's `ClickHouseAutoConfiguration` conditions
+ * on this class by name.
  */
 internal object ClickHouseModule {
     override fun toString(): String = "wow-clickhouse"
