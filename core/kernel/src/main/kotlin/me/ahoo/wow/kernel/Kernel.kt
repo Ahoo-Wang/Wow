@@ -117,7 +117,9 @@ class Kernel(
         val decider = model.decider(command.body.javaClass)
             ?: return rejected(KernelRejections.UNHANDLED, "${model.type} does not handle ${command.body.javaClass.name}.")
         val commandType = model.commandType(command.body.javaClass)
-        log.findByRequestId(command.ref.tenantId, command.requestId)?.let { return duplicate(it, command, commandType) }
+        // The request key is unique within an aggregate type (decision D162): one lookup in this type's storage.
+        log.findByRequestId(model.type, command.ref.tenantId, command.requestId)
+            ?.let { return duplicate(it, command, commandType) }
         val waitBeyondCommitted = wait?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
         repeat(maxAttempts) {
             val loaded = load(model, command)

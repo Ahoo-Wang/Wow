@@ -90,8 +90,9 @@ import kotlin.time.Duration.Companion.milliseconds
  * missing sequence.
  *
  * **Request ids.** The request key is `(tenant_id, request_id)` within each aggregate collection: a request id reused
- * by two aggregate types is no longer refused by the key (decision D55 makes the reuse the caller's error), although
- * [findByRequestId], which searches every aggregate collection this log knows, still finds a reuse committed earlier.
+ * by two aggregate types commits twice (decision D55 makes the reuse the caller's error). The kernel's pre-check, the
+ * [findByRequestId] taking the aggregate type, reads that type's collection alone; the context-wide one searches
+ * every aggregate collection this log knows.
  *
  * A stream's facts are fields of its document; the document has no aggregate name, the collection is the aggregate
  * type. The transport is a field of its own, `transport` (decision D25), which only [tail] and [readEntries] read:
@@ -379,6 +380,10 @@ class MongoEventLog(
             .firstOrNull()
             ?.let { LogPosition(it.getInteger(PARTITION), it.getLong(SEQUENCE)) }
     }
+
+    /** The stream committed for [requestId] within [tenantId] in [type]'s collection: one indexed find. */
+    override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
+        withContext(dispatcher) { findByRequestIdIn(collectionOf(type), tenantId, requestId) }
 
     /**
      * The stream committed for [requestId] within [tenantId] in any aggregate collection of the context this log

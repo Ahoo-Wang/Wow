@@ -46,12 +46,6 @@ abstract class EventLogSpec {
     private val type = AggregateType(context, "aggregate")
     private val other = AggregateType(context, "other")
 
-    /**
-     * Whether the backend keeps the request key per aggregate type (decision D162): then a request id reused by
-     * another aggregate type of the context commits, instead of finding the stream committed for it.
-     */
-    protected open val requestKeyPerAggregateType: Boolean = false
-
     private fun createLog(partitions: Int = DEFAULT_PARTITIONS): EventLog = createLog(context, partitions)
 
     protected fun stream(
@@ -267,6 +261,10 @@ abstract class EventLogSpec {
         log.findByRequestId("tenant", "request")?.ref.assert().isEqualTo(first.ref)
         log.findByRequestId("tenant", "missing").assert().isNull()
         log.findByRequestId("nobody", "request").assert().isNull()
+        log.findByRequestId(type, "tenant", "request")?.ref.assert().isEqualTo(first.ref)
+        log.findByRequestId(type, "tenant", "missing").assert().isNull()
+        log.findByRequestId(type, "nobody", "request").assert().isNull()
+        log.findByRequestId(other, "tenant", "request").assert().isNull()
     }
 
     @Test
@@ -427,16 +425,25 @@ abstract class EventLogSpec {
         log.append(first).assert().isInstanceOf(AppendOutcome.Committed::class.java)
         (log.append(stream("b", 1, requestId = "request")) as AppendOutcome.AlreadyCommitted)
             .existing.ref.assert().isEqualTo(first.ref)
-        val reused = log.append(stream("c", 1, requestId = "request", aggregate = other))
-        if (requestKeyPerAggregateType) {
-            reused.assert().isInstanceOf(AppendOutcome.Committed::class.java)
-            (log.append(stream("d", 1, requestId = "request", aggregate = other)) as AppendOutcome.AlreadyCommitted)
-                .existing.ref.assert().isEqualTo(other.ref("tenant", "c"))
-        } else {
-            (reused as AppendOutcome.AlreadyCommitted).existing.ref.assert().isEqualTo(first.ref)
-        }
-        // The stream committed first for the request id, whichever aggregate type holds it.
+        // Decision D162: another aggregate type of the context keeps its own request key.
+        log.append(stream("c", 1, requestId = "request", aggregate = other))
+            .assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        (log.append(stream("d", 1, requestId = "request", aggregate = other)) as AppendOutcome.AlreadyCommitted)
+            .existing.ref.assert().isEqualTo(other.ref("tenant", "c"))
+        // The lookup by aggregate type finds that type's stream only.
+        log.findByRequestId(type, "tenant", "request")?.ref.assert().isEqualTo(first.ref)
+        log.findByRequestId(other, "tenant", "request")?.ref.assert().isEqualTo(other.ref("tenant", "c"))
+        // The context-wide lookup finds the stream committed first, whichever aggregate type holds it.
         log.findByRequestId("tenant", "request")?.ref.assert().isEqualTo(first.ref)
+    }
+
+    @Test
+    fun `the lookup by aggregate type returns facts only, as appended`(): Unit = runBlocking {
+        val log = createLog()
+        val appended = stream("a", 1, causation = Causation("root", "$context.aggregate/tenant/b@3"))
+        log.append(appended, Transport(trace = mapOf("traceparent" to "t")))
+        checkNotNull(log.findByRequestId(type, "tenant", appended.requestId)).assertSameAs(appended)
+        log.findByRequestId(AggregateType(context, "untouched"), "tenant", appended.requestId).assert().isNull()
     }
 
     protected companion object {

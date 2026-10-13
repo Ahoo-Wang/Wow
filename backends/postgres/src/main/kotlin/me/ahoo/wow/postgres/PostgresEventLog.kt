@@ -76,8 +76,9 @@ import kotlin.time.Duration.Companion.milliseconds
  * registry again and retry, and it never steps over a missing sequence.
  *
  * **Request ids.** The request key is `(tenant_id, request_id)` within each aggregate table: a request id reused by
- * two aggregate types is no longer refused by the key (decision D55 makes the reuse the caller's error), although
- * [findByRequestId], which searches every aggregate table this log knows, still finds a reuse committed earlier.
+ * two aggregate types commits twice (decision D55 makes the reuse the caller's error). The kernel's pre-check, the
+ * [findByRequestId] taking the aggregate type, reads that type's table alone; the context-wide one searches every
+ * aggregate table this log knows.
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29).
  */
@@ -289,6 +290,14 @@ class PostgresEventLog(
             }
         }
     }
+
+    /** The stream committed for [requestId] within [tenantId] in [type]'s table: one indexed read of one table. */
+    override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
+        withContext(dispatcher) {
+            dataSource.connection.use { connection ->
+                findByRequestIdIn(connection, tableOf(connection, type), tenantId, requestId)
+            }
+        }
 
     /**
      * The stream committed for [requestId] within [tenantId] in any aggregate table of the context this log knows

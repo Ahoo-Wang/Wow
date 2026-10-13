@@ -16,6 +16,7 @@ package me.ahoo.wow.kernel.benchmark
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.benchmark.fixture.BenchmarkAggregates
@@ -138,6 +139,12 @@ open class KernelComparisonBenchmark {
         override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = emptyFlow()
 
         override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = null
+
+        override suspend fun findByRequestId(
+            type: AggregateType,
+            tenantId: String,
+            requestId: String,
+        ): EventStreamRecord? = null
 
         override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? = null
 

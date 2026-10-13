@@ -30,8 +30,6 @@ import org.junit.jupiter.api.Test
 class PostgresEventLogTest : EventLogSpec() {
     override fun createLog(context: String, partitions: Int): EventLog = PostgresFixture.log(partitions, context)
 
-    override val requestKeyPerAggregateType: Boolean = true
-
     private fun table(context: String, aggregate: String) = "wow_log__${context.replace('-', '_')}__$aggregate"
 
     @Test

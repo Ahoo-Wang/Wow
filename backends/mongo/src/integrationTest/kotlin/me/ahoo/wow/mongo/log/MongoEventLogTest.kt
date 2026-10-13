@@ -33,8 +33,6 @@ import org.junit.jupiter.api.Test
 class MongoEventLogTest : EventLogSpec() {
     override fun createLog(context: String, partitions: Int): EventLog = MongoLogFixture.log(partitions, context)
 
-    override val requestKeyPerAggregateType: Boolean = true
-
     private fun collection(context: String, aggregate: String) = "wow_log__${context.replace('-', '_')}__$aggregate"
 
     @Test
