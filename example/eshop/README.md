@@ -7,7 +7,7 @@ A multi-service shop on Wow V10, modelled on the classic eShop reference applica
 
 The eShop builds on the V10 modules only, and is never published. `example/shop` stays as the minimal example and as the reference for 9.x-to-V10 migration.
 
-> **Status: skeleton (work package E.0).** Each context has one aggregate and one creating command. The server runs on the memory backend. The behaviour described below arrives in work packages E.1 to E.6.
+> **Status: E.1 done (the catalog).** The catalog has its products, brands and categories, and its storefront queries. The other contexts are still the skeleton of work package E.0, with one aggregate and one creating command each, on the memory backend. Their behaviour arrives in work packages E.2 to E.6.
 
 ## Contexts
 
@@ -15,7 +15,7 @@ Five bounded contexts. Each one runs as its own service, and the services will t
 
 | Context | Projects (`example/eshop/<context>/`) | Aggregate today | Planned behaviour | In the classic eShop |
 | --- | --- | --- | --- | --- |
-| `eshop-catalog` | `:eshop-catalog-{api,domain,server}` | `product` (`CreateProduct`) | Products, brands and types; snapshot queries with `@QueryIndex` (E.1) | `Catalog.API` |
+| `eshop-catalog` | `:eshop-catalog-{api,domain,server}` | `product`, `brand`, `category` (see [Catalog](#catalog)) | Done (E.1): products, brands and categories; storefront queries with `@QueryIndex` | `Catalog.API` (brands and types) |
 | `eshop-basket` | `:eshop-basket-{api,domain,server}` | `basket` (`AddBasketItem`), one per buyer | Checkout sends a cross-context command to ordering (E.2) | `Basket.API` |
 | `eshop-ordering` | `:eshop-ordering-{api,domain,server}` | `order` (`PlaceOrder`) | The order state machine, and a placement saga with a grace period (E.3) | `Ordering.API`, `Ordering.Domain`, `OrderProcessor` |
 | `eshop-inventory` | `:eshop-inventory-{api,domain,server}` | `stock` (`ReceiveStock`), one per product | Stock reservation and confirmation. A shortfall is rejected, and ordering's `@OnRejected` cancels the order (E.4) | The `AvailableStock` of `Catalog.API` and its stock-confirmation events, split out into a context of their own |
@@ -43,6 +43,44 @@ Each `-api` depends on `:api`. Each `-domain` depends on its API and on `:kernel
 - The eShop reaches V10 modules and other eShop projects only.
 - No `-api` or `-domain` reaches `:runtime`.
 
+## Catalog
+
+Work package E.1. Three aggregates, the classic eShop's catalog items, brands and types:
+
+| Aggregate | Commands | Rejections |
+| --- | --- | --- |
+| `product` | `CreateProduct` (a draft; brand and category optional), `UpdateProduct` (name, description, brand, category), `ChangeProductPrice`, `PublishProduct`, `DelistProduct` | `blank-name` and `invalid-price` (422); `incomplete` (409): publishing without a brand and a category, or removing one from a published product; `not-published` (409): delisting a product that is not published |
+| `brand` | `CreateBrand`, `RenameBrand` | `blank-name` (422); `name-taken` (409) |
+| `category` | `CreateCategory`, `RenameCategory` | `blank-name` (422); `name-taken` (409) |
+
+- **Codes.** Each code is `eshop-catalog.<aggregate>.<code>`, answered as an RFC 9457 problem.
+- **Product status.** A product is `DRAFT`, `PUBLISHED` or `DELISTED`. A delisted product can be published again. Publishing a published product, or a command that changes nothing, is accepted and writes nothing.
+- **Unique names.** Brand and category names are unique, ignoring case and surrounding blanks. The aggregate reserves the name with `DecideScope.reserve`. A renamed brand or category keeps its old name reserved, because nothing releases a reserved key yet ([G19](DX-GAPS.md)).
+- **References.** A product names its brand and category by id. The catalog does not check that they exist.
+- **Callers.** The catalog declares no `CallerResolver`. Every request is the anonymous caller of the default tenant, so every product belongs to the tenant and every shopper sees it ([G20](DX-GAPS.md)). Protecting the writes is CoSec's work (M7).
+
+The storefront reads the product snapshots through the HTTP query routes: `POST /eshop-catalog/product/snapshot/query`. The product's state declares `@QueryIndex` indexes for what the storefront filters and sorts on:
+
+- `state.categoryId` with `state.status` and `state.price`;
+- `state.brandId` with `state.status` and `state.price`;
+- `state.status` with `state.price`;
+- `state.price`.
+
+The memory backend serves no snapshot queries, so run the catalog on PostgreSQL to query it. For example, the published products of a category, cheapest first, two per page:
+
+```bash
+./gradlew -Pwow.scope=v10 :eshop-catalog-server:run --args='--spring.profiles.active=postgres'   # a database eshop_catalog on localhost:5432
+curl -s -X POST localhost:8081/eshop-catalog/product/snapshot/query -H 'Content-Type: application/json' -d '{
+  "kind": "paged",
+  "filter": {"op": "AND", "operands": [
+    {"op": "EQ", "field": "state.categoryId", "value": "mugs"},
+    {"op": "EQ", "field": "state.status", "value": "PUBLISHED"}]},
+  "sort": [{"field": "state.price", "direction": "ASC"}],
+  "pagination": {"index": 1, "size": 2}}'
+```
+
+`GET` on the same path answers the model's descriptor: its fields and their operators. The guide does not describe the filter language yet ([G15](DX-GAPS.md)).
+
 ## Running
 
 Use JDK 21. Start a service from the repository root. Each one runs on the memory backend, on its own public port and its own internal (cluster) port:
@@ -61,13 +99,25 @@ The servers have no `CallerResolver` yet, so every request is served as the anon
 
 ```bash
 curl -s localhost:8081/wow/manifest
-curl -s -X POST localhost:8081/eshop-catalog/product/create-product \
-  -H 'Content-Type: application/json' -d '{"name":"Wow mug","price":8.50}'
+curl -s -X POST localhost:8081/eshop-catalog/brand/wow/create-brand \
+  -H 'Content-Type: application/json' -d '{"name":"Wow"}'
+curl -s -X POST localhost:8081/eshop-catalog/category/mugs/create-category \
+  -H 'Content-Type: application/json' -d '{"name":"Mugs"}'
+curl -s -X POST localhost:8081/eshop-catalog/product/mug/create-product \
+  -H 'Content-Type: application/json' -d '{"name":"Wow mug","price":8.50,"brandId":"wow","categoryId":"mugs"}'
+curl -s -X POST localhost:8081/eshop-catalog/product/mug/publish-product
+curl -s localhost:8081/eshop-catalog/product/mug/state
 curl -s -X POST localhost:8082/eshop-basket/basket/alice/add-basket-item \
   -H 'Content-Type: application/json' -d '{"productId":"mug","quantity":2}'
 ```
 
 ## Tests
+
+The catalog's tests are in three places:
+
+- **`:eshop-catalog-domain`.** The specs of the three aggregates (`aggregateSpec`), and a test of the binding index and fragment.
+- **`:eshop-catalog-server`.** Its commands and rejections over HTTP (`CatalogEndToEndTest`), and the storefront's query contract on the memory backend (`CatalogQueryContract`).
+- **`:eshop-e2e`.** The storefront queries and the indexes on PostgreSQL, in a container (`CatalogPostgresTest`). The catalog server has no `integrationTest` source set of its own ([G17](DX-GAPS.md)).
 
 ```bash
 ./gradlew -Pwow.scope=v10 :eshop-catalog-domain:check :eshop-catalog-server:check   # one context
