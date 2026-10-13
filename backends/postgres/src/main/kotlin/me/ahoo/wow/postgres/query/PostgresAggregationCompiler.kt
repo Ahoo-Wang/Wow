@@ -102,7 +102,7 @@ internal class PostgresAggregationCompiler(private val table: String, private va
         val outer = StringBuilder("SELECT * FROM (").append(sql).append(") AS h")
         query.having?.let { outer.append(" WHERE ").append(having(parameters, columns, it)) }
         val order = query.effectiveSort().map {
-            PostgresSnapshotSqlCompiler.direction("h." + checkNotNull(columns[it.field.path]), it.direction)
+            PostgresSnapshotSqlCompiler.direction("h." + columns.getValue(it.field.path), it.direction)
         }
         if (order.isNotEmpty()) outer.append(" ORDER BY ").append(order.joinToString(", "))
         if (window is GroupWindow.First) {
@@ -209,7 +209,7 @@ internal class PostgresAggregationCompiler(private val table: String, private va
                 requireExecution(visiting.add(named.alias)) { "Derived metric [${named.alias}] names itself." }
                 derived(parameters, query, columns, named.expression, visiting).also { visiting.remove(named.alias) }
             } else {
-                "a." + (columns[expression.metric] ?: throw QueryExecutionException("Unknown metric [${expression.metric}]."))
+                "a." + columns.getValue(expression.metric)
             }
         }
         is DerivedExpression.Constant -> parameters.bind(SqlParameter.Numeric(BigDecimal.valueOf(expression.value))) + "::numeric"
@@ -244,7 +244,7 @@ internal class PostgresAggregationCompiler(private val table: String, private va
         }
 
     private fun column(columns: Map<String, String>, alias: String): String =
-        columns[alias] ?: throw QueryExecutionException("Unknown metric [$alias].")
+        columns.getValue(alias)
 
     private fun number(parameters: SqlParameters, value: Double): String =
         parameters.bind(SqlParameter.Numeric(BigDecimal.valueOf(value)))

@@ -56,6 +56,10 @@ enum class PostgresQueryType(val sql: String) {
         fun of(storageTypes: Set<QueryStorageType>?): PostgresQueryType? =
             storageTypes?.singleOrNull()?.let { type -> entries.firstOrNull { it.storageType == type } }
 
+        /** The type a binding of [field] states; a binding of this storage always states one. */
+        fun require(storageTypes: Set<QueryStorageType>?, field: QueryField): PostgresQueryType =
+            of(storageTypes) ?: throw QueryExecutionException("Field [$field] has no PostgreSQL type.")
+
         /**
          * The type a `state.*` value is compared as, derived from its declared [QueryValueType]s: STRING is
          * [TEXT], INTEGER and DECIMAL are [NUMERIC], BOOLEAN is [BOOLEAN], and anything else (an object, an array

@@ -37,8 +37,6 @@ import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.IdsFilter
 import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.IsEmptyFilter
-import me.ahoo.wow.api.query.IsEmptyStringFilter
-import me.ahoo.wow.api.query.IsNotEmptyStringFilter
 import me.ahoo.wow.api.query.IsNotNullFilter
 import me.ahoo.wow.api.query.IsNullFilter
 import me.ahoo.wow.api.query.LessThanFilter
@@ -95,13 +93,16 @@ internal class PostgresFilterCompiler(
     /** A fresh alias for an element row. */
     fun nextAlias(): String = "e${++aliases}"
 
-    /** Reads the fields inside [container] from [element], a `jsonb` element expression, while [block] runs. */
+    /**
+     * Reads the fields inside [container] from [element], a `jsonb` element expression, while [block] runs. Element
+     * scopes nest by path, so a container is never its own descendant and no outer scope of it is hidden.
+     */
     fun <T> within(container: QueryField, element: String, block: () -> T): T {
-        val outer = scopes.put(container, element)
+        scopes[container] = element
         return try {
             block()
         } finally {
-            if (outer == null) scopes.remove(container) else scopes[container] = outer
+            scopes.remove(container)
         }
     }
 
@@ -188,17 +189,15 @@ internal class PostgresFilterCompiler(
             is ExistsFilter -> "(${node(field)} IS NOT NULL)"
             is NotExistsFilter -> "(${node(field)} IS NULL)"
             is IsEmptyFilter -> "(${node(field)} = '[]'::jsonb)"
-            is IsEmptyStringFilter -> equal(field, nodes.stringNode(""))
-            is IsNotEmptyStringFilter -> "(coalesce(jsonb_typeof(${node(field)}), 'null') <> 'null' AND " +
-                notEqual(field, nodes.stringNode("")) + ")"
+            // Admission lowers IS_EMPTY_STRING, IS_NOT_EMPTY_STRING and relative time; SEARCH is never granted.
             else -> throw QueryExecutionException("Filter [${filter.operator}] does not reach a PostgreSQL backend.")
         }
     }
 
     private fun isNull(field: ResolvedField): String = "coalesce(jsonb_typeof(${node(field)}), 'null') = 'null'"
 
+    /** Admission lowers an `EQ` or `NE` of `null` to `IS_NULL` / `IS_NOT_NULL`, so [operand] is never null here. */
     private fun equal(field: ResolvedField, operand: JsonNode): String = when {
-        operand.isNull -> isNull(field)
         operand.isArray -> "(${node(field)} = ${json(operand)})"
         field.multiValued -> "(${node(field)} @> ${json(operand)})"
         else -> {
@@ -208,7 +207,6 @@ internal class PostgresFilterCompiler(
     }
 
     private fun notEqual(field: ResolvedField, operand: JsonNode): String = when {
-        operand.isNull -> "coalesce(jsonb_typeof(${node(field)}), 'null') <> 'null'"
         operand.isArray -> "(${node(field)} IS DISTINCT FROM ${json(operand)})"
         else -> "(${equal(field, operand)}) IS NOT TRUE"
     }
@@ -272,13 +270,14 @@ internal class PostgresFilterCompiler(
 
     private fun <T> locate(field: ResolvedField, read: (String?, List<String>) -> T): T {
         val parent = field.physicalParent ?: return read(null, emptyList())
-        val element = scopes[parent]
-            ?: throw QueryExecutionException("Field [${field.logicalField}] is read outside its element scope.")
-        return read(element, field.relativePhysicalField.path.split('.'))
+        // Admission resolves a field inside an element scope only within that scope, which the caller entered.
+        return read(scopes.getValue(parent), field.relativePhysicalField.path.split('.'))
     }
 
-    fun type(field: ResolvedField): PostgresQueryType = PostgresQueryType.of(field.storageTypes)
-        ?: throw QueryExecutionException("Field [${field.logicalField}] has no PostgreSQL type.")
+    fun type(field: ResolvedField): PostgresQueryType = PostgresQueryType.require(
+        field.storageTypes,
+        field.logicalField
+    )
 
     /** The numeric SQL value of an aggregation [expression]; `NULL` where a field holds no number or a divisor is 0. */
     fun numeric(expression: AggregationExpression): String = when (expression) {
@@ -312,8 +311,8 @@ internal class PostgresFilterCompiler(
     fun epochMillis(reference: QueryField): String {
         val field = query.field(reference)
         val value = typed(field).first
-        val unit = (field.temporal as? Temporal.Epoch)?.timeUnit
-            ?: throw QueryExecutionException("Field [${field.logicalField}] does not store an epoch.")
+        // Admission grants temporal operations only to an epoch: this storage does not support date strings.
+        val unit = (field.temporal as Temporal.Epoch).timeUnit
         val perUnit = unit.toNanos(1)
         return when {
             unit == TimeUnit.MILLISECONDS -> value

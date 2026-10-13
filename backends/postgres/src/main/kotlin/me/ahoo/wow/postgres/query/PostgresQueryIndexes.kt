@@ -116,9 +116,7 @@ object PostgresQueryIndexes {
         require(field.value.cardinality == QueryCardinality.SINGLE) {
             "Index [${declaration.name}] has the key [$key], which holds many values: a B-tree indexes one."
         }
-        val type = requireNotNull(PostgresQueryType.of(binding.storageTypes)) {
-            "Index [${declaration.name}] has the key [$key], which has no PostgreSQL type."
-        }
+        val type = PostgresQueryType.require(binding.storageTypes, field.logicalField)
         val expression = PostgresSnapshotQueryExpressions.value(binding.physicalField, type)
         val column = if (expression in PostgresSnapshotQueryExpressions.COLUMNS.values) expression else "($expression)"
         return "$column NULLS FIRST"

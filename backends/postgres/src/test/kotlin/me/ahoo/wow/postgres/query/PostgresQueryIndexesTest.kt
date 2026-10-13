@@ -96,6 +96,7 @@ class PostgresQueryIndexesTest {
             listOf("ix"),
             listOf(mapOf("name" to "ix")),
             listOf(mapOf("name" to "ix", "keys" to listOf(1))),
+            listOf(mapOf("name" to 1, "keys" to listOf("state.name"))),
         ).forEach { malformed ->
             assertThrownBy<IllegalArgumentException> {
                 QueryIndexDeclaration.of(manifest(mapOf(QueryIndexDeclaration.KEYWORD to malformed)), "shop", "order")

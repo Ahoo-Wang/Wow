@@ -282,7 +282,7 @@ class PostgresSnapshotQueryBackend internal constructor(
             return projected
         }
 
-        private fun include(source: JsonNode, target: ObjectNode, path: List<String>) {
+        fun include(source: JsonNode, target: ObjectNode, path: List<String>) {
             val name = path.first()
             val value = source.get(name) ?: return
             if (path.size == 1) {
@@ -306,7 +306,7 @@ class PostgresSnapshotQueryBackend internal constructor(
             }
         }
 
-        private fun exclude(node: JsonNode, path: List<String>) {
+        fun exclude(node: JsonNode, path: List<String>) {
             when {
                 node is ObjectNode && path.size == 1 -> node.remove(path.first())
                 node is ObjectNode -> node.get(path.first())?.let { exclude(it, path.drop(1)) }
