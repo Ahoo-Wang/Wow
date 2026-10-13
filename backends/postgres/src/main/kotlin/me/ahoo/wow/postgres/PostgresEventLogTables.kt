@@ -116,8 +116,10 @@ internal class PostgresEventLogTables(val context: String) {
 
 /**
  * The log table of one aggregate type. A stream's facts take one column each, so the log can be queried in place;
- * the scope is two nullable columns and the causation two more, both null or both set. The transport is its own
- * nullable `jsonb` column (decision D25): only the tail reads it. The table has no aggregate name column: the table is
+ * the scope is two nullable columns and the causation two more, both null or both set. The schedules (decision D166)
+ * are a nullable `jsonb` array, null when the stream changes none: a column added within format 1, so a table created
+ * before it gets it on its next ensure ([addSchedules]). The transport is its own nullable `jsonb` column (decision
+ * D25): only the tail reads it. The table has no aggregate name column: the table is
  * the aggregate type. Its keys are the position `(partition, sequence)`, the version `(aggregate_id, tenant_id,
  * version)` and the request `(tenant_id, request_id)`, all within the type.
  */
@@ -144,11 +146,15 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
             causation_id text,
             headers jsonb NOT NULL,
             transport jsonb,
+            schedules jsonb,
             PRIMARY KEY (partition, sequence),
             CONSTRAINT "$versionKey" UNIQUE (aggregate_id, tenant_id, version),
             CONSTRAINT "$requestKey" UNIQUE (tenant_id, request_id)
         )
     """.trimIndent()
+
+    /** Adds the schedules column (decision D166) to a table created before it, within format 1. */
+    val addSchedules = "ALTER TABLE $log ADD COLUMN IF NOT EXISTS schedules jsonb"
 
     /**
      * The whole append as one autocommitted statement, so it costs one round trip and holds the partition row's lock
@@ -172,8 +178,9 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
             RETURNING sequence
         )
         INSERT INTO $log (partition, sequence, tenant_id, aggregate_id, version, command_id, request_id,
-            command_type, commit_time, events, owner_id, space_id, correlation_id, causation_id, headers, transport)
-        SELECT ?, bump.sequence, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?::jsonb FROM bump
+            command_type, commit_time, events, owner_id, space_id, correlation_id, causation_id, headers, transport,
+            schedules)
+        SELECT ?, bump.sequence, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb FROM bump
         RETURNING sequence
     """.trimIndent()
 
@@ -192,6 +199,6 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
     companion object {
         /** The facts of a stream: every column but the position and the transport. */
         const val FACTS = "tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, " +
-            "events, owner_id, space_id, correlation_id, causation_id, headers"
+            "events, owner_id, space_id, correlation_id, causation_id, headers, schedules"
     }
 }
