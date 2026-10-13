@@ -198,6 +198,7 @@
 | D178 | 跨上下文订阅的事件带类型：对端 Manifest `$defs` 的二进制名在类路径上能解析到类（对方 `-api` 模块）时，事件解码成该类，处理函数可按类型分派；解析不到时退回 `StateEventPayload`（JSON）。服务之间仍只依赖契约，不强制共享代码（eShop DX-GAPS） | 2026-10-13，用户确认（按推荐） | [04](04-subscriptions.md) |
 | D179 | 订阅起点可写在注解上（修订 D154）：`@OnEvent(start = BEGINNING\|END)`，默认仍按种类（投影从头、反应器与 Saga 从末尾）；配置 `wow.subscriptions."<名>".start` 覆盖注解；只对没有检查点的订阅生效 | 2026-10-13，用户确认（按推荐） | [04](04-subscriptions.md) |
 | D180 | 跨上下文的租户约定：同一系统内所有上下文共用一个租户空间，租户 ID 随聚合引用原样跨服务传递（命令、发布流、回执、定时器）；不做租户映射，有真实需求再加。开发指南写明 | 2026-10-13，用户确认（按推荐） | [04](04-subscriptions.md)、[08](08-data-protocols.md) |
+| D181 | M6e 期间冻结范围：新的设计议题只登记（决策台账「待决」或 `DX-GAPS.md`），不立即实现，除非它阻塞 eShop 的 E.1～E.6；E.7（Web UI）移出 M6e 的出口，改到 M7 与控制台（7.3）一起做，M6e 只验证后端。理由：D158 之后范围扩大约四成，按当前吞吐把 M6e 完成从约 10 月 17～19 日提前到约 10 月 15～16 日 | 2026-10-13，用户拍板 | [roadmap](roadmap.md) |
 | D86 | 保留 `v10` 长期分支（维持 D2），不回主干：第一次前向合并只有 4 个冲突（都在工作流路径过滤），按目录分范围的 CI 与 D85 拆分已把分支成本降到每周一次合并；回主干则 main 须同时承载 9.x 与 10.0 的版本线，且工具链为 JDK 17 对 21（D29）。前向合并的提交由用户推送（自动权限分类器拦截直接推送）。M9 合入 main 前再评估 | 2026-10-12，用户 | [roadmap](roadmap.md) §1 |
 | D69 | 默认等待 `SNAPSHOT`（即 `HANDLED(snapshot)`）而不是 `COMMITTED`：快照是默认读模型，写后即可查；代价是多一段快照订阅延迟、每条条目写 `WaitContext`；聚合关闭快照时默认退回 `COMMITTED`；修订 D15 的默认值 | 2026-10-12，用户 | [04](04-subscriptions.md) |
 | D66 | `wow-api` 重新设计：只放领域代码会 import 的东西与对外线上契约的值类型，无依赖；包为 aggregate、decide、subscribe、result、lifecycle、annotation；9.x 的 modeling、naming、messaging、command、event 删除，query 搬入 `wow-query-api`；V10 包现在补齐，9.x 包随 `wow-core` 的替换删除 | 2026-10-12，用户 | [06](06-modules.md) |
