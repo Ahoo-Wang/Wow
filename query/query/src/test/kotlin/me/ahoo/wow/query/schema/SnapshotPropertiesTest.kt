@@ -53,7 +53,7 @@ class SnapshotPropertiesTest {
         val context = QuerySchemaContext(type, QueryModel.SNAPSHOT)
         val schema = runBlocking {
             DefaultQueryModelSchemaProvider(
-            context,
+                context,
                 listOf(BeanQuerySchemaSource(listOf(QuerySchemaRegistration(context, QueryBackendSpec.DECLARATION)))),
                 InMemoryQueryStorage().create(type).storage,
             ).schema()

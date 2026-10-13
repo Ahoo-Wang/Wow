@@ -20,8 +20,9 @@ package me.ahoo.wow.api.query
  *
  * The compiler generates a `<State>Properties` object for the state of each aggregate whose module has
  * `wow-query-api` on its class path. It extends this class, so it carries these fields beside the state's own, which
- * it names after their full path: `OrderStateProperties.STATE__STATUS` is `state.status`. Without a state at hand,
- * the system fields are on the companion: `SnapshotProperties.LAST_EVENT_TIME`.
+ * it names after the Kotlin properties of their full path: `OrderStateProperties.STATE__STATUS` is `state.status`,
+ * and `STATE__ITEMS__PRODUCT_ID` is `state.items.productId`, named inside `STATE__ITEMS.elementMatch { }`. Without a
+ * state at hand, the system fields are on the companion: `SnapshotProperties.LAST_EVENT_TIME`.
  *
  * ```kotlin
  * val query = listQuery {

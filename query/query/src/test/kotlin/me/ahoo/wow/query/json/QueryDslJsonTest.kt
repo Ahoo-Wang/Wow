@@ -240,7 +240,12 @@ class QueryDslJsonTest {
         }
 
         fun orders(): List<SnapshotRecord> = listOf(
-            order("o1", 1, """{"name":"Alpha","status":"PAID","amount":10.5,"lines":[{"sku":"B","quantity":2}]}""", "user-1"),
+            order(
+                "o1",
+                1,
+                """{"name":"Alpha","status":"PAID","amount":10.5,"lines":[{"sku":"B","quantity":2}]}""",
+                "user-1"
+            ),
             order("o2", 2, """{"name":"Beta","status":"PAID","amount":20,"lines":[{"sku":"A","quantity":1}]}"""),
             order("o3", 3, """{"name":"Gamma","status":"NEW","amount":30,"lines":[{"sku":"B","quantity":3}]}"""),
             order("o4", 4, """{"name":"Delta","status":"CANCELLED","amount":40,"lines":[]}"""),
