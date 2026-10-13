@@ -23,6 +23,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventLogSpec
@@ -81,6 +82,22 @@ class MongoEventLogTest : EventLogSpec() {
         val context = MongoLogFixture.newContext()
         MongoLogFixture.log(4, context, listOf("order-item"))
         assertThrownBy<IllegalStateException> { MongoLogFixture.log(4, context, listOf("order_item")) }
+    }
+
+    @Test
+    fun `a long aggregate name is cut and hashed as PostgreSQL's identifiers are`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        val long = AggregateType(context, "A".repeat(80))
+        val log = MongoLogFixture.log(1, context)
+        log.append(stream("a", 1, aggregate = long)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        log.append(stream("a", 1, aggregate = long)).assert().isEqualTo(AppendOutcome.Conflict(1))
+        val name = MongoNames.of("wow_log", context, long.name)
+        name.length.assert().isEqualTo(MongoNames.MAX_LENGTH)
+        name.assert().startsWith(collection(context, "a").take(MongoNames.MAX_LENGTH - 9))
+        MongoNames.limited(collection(context, "a".repeat(80)) + "x")
+            .assert().isNotEqualTo(MongoNames.limited(collection(context, "a".repeat(80)) + "y"))
+        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).listCollectionNames().toList()
+            .assert().contains(name)
     }
 
     @Test
