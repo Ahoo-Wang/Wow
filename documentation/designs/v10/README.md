@@ -99,3 +99,4 @@ V10 是 Wow 的一次整体重新设计：从第一性原理推出理想的目�
 | 2026-10-12 | 06 修订（落实 D149，#4328）：`wow-reactor` 只依赖 `wow-kernel`；`ReactiveCommandGateway` 与 `ReactiveQueryGateway` 需要运行时，有需求时另设 `wow-runtime-reactor` |
 | 2026-10-12 | 6.0a（#4330）合入；按推荐登记 D156（`@AggregateRoot` 的 `published`、`publishState`、`topic`，编译期声明发布流）与 D157（6.0a 的 Manifest 形状：`published`、`derives`、外部命令引用、`CommandRejected`），D156 并入 6.0c |
 | 2026-10-12 | 用户要求在 M7 前插入经典 eShop 示例验证 V10；拍板 D158～D160（标准版 5 个上下文；新建 `example/eshop`，`shop` 保留；先做后端，Web UI 等 5a.3）；路线图新增 M6e 与 E.0～E.7 |
+| 2026-10-12 | 用户拍板 D161：快照存储一律按（上下文，聚合）划分（理由：类型转换安全、按表授权与 CDC、统计与 vacuum 隔离、按聚合重建）；修订 D151 的索引形状；并入 6.2a（PostgreSQL）与 6.2b（MongoDB） |
