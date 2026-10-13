@@ -97,3 +97,4 @@ V10 是 Wow 的一次整体重新设计：从第一性原理推出理想的目�
 | 2026-10-12 | 用户确认计数性能的推荐，登记 D150～D152（有界计数与分页总数、执行超时；部分索引与 `@QueryIndex`；计数缓存与定位），并入 6.0a、6.1a、6.1b、6.1e、6.2a、6.2b，新增 6.2d；修复 D99 一行表格里未转义的 `\|` |
 | 2026-10-12 | 用户确认按推荐登记 D153～D155：本上下文 Saga 派生命令的拒绝交给 `@OnRejected`、等待立即失败；订阅起点默认与配置；H2 阶段 2 的时机。新增 6.0c |
 | 2026-10-12 | 06 修订（落实 D149，#4328）：`wow-reactor` 只依赖 `wow-kernel`；`ReactiveCommandGateway` 与 `ReactiveQueryGateway` 需要运行时，有需求时另设 `wow-runtime-reactor` |
+| 2026-10-12 | 6.0a（#4330）合入；按推荐登记 D156（`@AggregateRoot` 的 `published`、`publishState`、`topic`，编译期声明发布流）与 D157（6.0a 的 Manifest 形状：`published`、`derives`、外部命令引用、`CommandRejected`），D156 并入 6.0c |
