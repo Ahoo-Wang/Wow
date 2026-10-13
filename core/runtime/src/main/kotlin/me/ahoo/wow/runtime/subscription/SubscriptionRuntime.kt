@@ -165,7 +165,7 @@ class SubscriptionRuntime internal constructor(
 
     private fun requirePartition(partition: Int) = source.requirePartition(partition)
 
-    private suspend fun open(run: Running, partition: Int, parked: Map<String, Map<Int, Map<AggregateRef, Int>>>) {
+    private suspend fun open(run: Running, partition: Int, parked: Map<String, Map<Int, Map<AggregateRef, Long>>>) {
         val part = PartitionRun(partition, run)
         run.partitions[partition] = part
         val workers = subscriptions.values.map { worker(run, part, it, parked.getValue(it.name)) }
@@ -273,7 +273,7 @@ class SubscriptionRuntime internal constructor(
         run: Running,
         part: PartitionRun,
         subscription: Subscription,
-        parked: Map<Int, Map<AggregateRef, Int>>,
+        parked: Map<Int, Map<AggregateRef, Long>>,
     ): SubscriptionWorker {
         val partition = part.partition
         val checkpoint = checkpoints.load(group, subscription.name, partition) ?: source
@@ -303,13 +303,13 @@ class SubscriptionRuntime internal constructor(
     }
 
     /** [subscription]'s parked aggregates by partition, with the version each is parked from. */
-    private suspend fun parkedByPartition(subscription: Subscription): Map<Int, Map<AggregateRef, Int>> {
-        val parked = HashMap<Int, HashMap<AggregateRef, Int>>()
+    private suspend fun parkedByPartition(subscription: Subscription): Map<Int, Map<AggregateRef, Long>> {
+        val parked = HashMap<Int, HashMap<AggregateRef, Long>>()
         var after: AggregateRef? = null
         do {
             val page = ledger.list(subscription.name, after)
             page.forEach {
-                parked.getOrPut(source.partitionOf(it.ref)) { HashMap() }[it.ref] = it.fromVersion
+                parked.getOrPut(source.partitionOf(it.ref)) { HashMap() }[it.ref] = source.ordinalOf(it)
             }
             after = page.lastOrNull()?.ref
         } while (page.size == FailureLedger.DEFAULT_PAGE)

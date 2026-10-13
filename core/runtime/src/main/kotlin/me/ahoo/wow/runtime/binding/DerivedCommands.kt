@@ -22,6 +22,8 @@ import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
+import me.ahoo.wow.runtime.cluster.ReplyTo
+import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.subscription.HandlingRejectedException
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.spi.wait.WaitContext
@@ -40,23 +42,40 @@ import me.ahoo.wow.spi.wait.WaitContext
  * - **Rejections** are business outcomes (decision D153): the first command that is rejected stops the execution, the
  *   commands after it are not executed, and the result says which one it was ([Executed.rejected]), for the saga's
  *   `@OnRejected` handler ([SagaRejections]); nothing is retried for it.
- * - **Technical failures** fail the handling: a command whose outcome is contended or unknown, and a command to an
- *   aggregate of another context, which goes through the context's command topic (decision D33) the runtime does not
- *   have yet. The subscription retries the handling, which derives the same requests again, then parks the aggregate.
+ * - **Other contexts** (decisions D33, D137): a command to an aggregate of a context outside the saga's own is sent
+ *   to that context's command topic through the sender ([CommandSender]), and is done once the broker has acknowledged it, a durable
+ *   ACCEPTED; its outcome is the target's, and a rejection comes back as a receipt to the [ReplyTo] the caller gives
+ *   it (decision D136). It carries [wait] on, so the target signals the waiting node as this context would.
+ * - **Technical failures** fail the handling: a command whose outcome is contended or unknown, a command the broker
+ *   did not acknowledge, one to another context with no sender (a node without a Kafka transport), and one to an
+ *   aggregate type its own context does not have. The subscription retries the handling, which derives the same
+ *   requests again, then parks the aggregate.
  */
-class DerivedCommands(models: Collection<AggregateModel<*>>, private val coordinator: WaitCoordinator) {
+class DerivedCommands(
+    models: Collection<AggregateModel<*>>,
+    private val coordinator: WaitCoordinator,
+    private val sender: CommandSender? = null,
+) {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
+    private val contexts: Set<String> = models.mapTo(HashSet()) { it.type.context }
 
     /**
      * Executes [commands], with [wait] when the saga's hop is waited for, until the first one that is rejected; returns
-     * the ids of those it executed (D62) and that rejection.
+     * the ids of those it executed (D62) and that rejection. A command to another context is sent with the [replyTo]
+     * its receipt goes to, if any.
      */
-    suspend fun execute(commands: List<Command<*>>, wait: WaitContext?): Executed {
+    suspend fun execute(
+        commands: List<Command<*>>,
+        wait: WaitContext?,
+        replyTo: (Command<*>) -> ReplyTo? = { null },
+    ): Executed {
         val executed = ArrayList<String>(commands.size)
         for (command in commands) {
-            val model = checkNotNull(models[command.ref.type]) {
-                "A saga derived ${command.id} for ${command.ref}, an aggregate type its context does not have: " +
-                    "commands across contexts go through the command topic (decision D33), not supported yet."
+            val model = models[command.ref.type]
+            if (model == null) {
+                send(command, wait, replyTo(command))
+                executed += command.id
+                continue
             }
             val outcome = coordinator.forward(model, command, wait)
             failureOf(command, outcome)?.let { throw it }
@@ -69,6 +88,20 @@ class DerivedCommands(models: Collection<AggregateModel<*>>, private val coordin
             }
         }
         return Executed(executed)
+    }
+
+    /** Sends [command], to an aggregate of another context, to its command topic and waits for the broker. */
+    private suspend fun send(command: Command<*>, wait: WaitContext?, replyTo: ReplyTo?) {
+        val context = command.ref.type.context
+        check(context !in contexts) {
+            "A saga derived ${command.id} for ${command.ref}, an aggregate type its context does not have."
+        }
+        val sender = checkNotNull(sender) {
+            "A saga derived ${command.id} for ${command.ref}, of the context $context: a command across contexts " +
+                "goes through the command topic (decision D33), and this node has no Kafka transport (with Spring " +
+                "Boot, set wow.kafka.bootstrap-servers)."
+        }
+        sender.send(command, wait, replyTo)
     }
 
     /** Why [outcome] fails the saga, or null when [command] is settled: committed, unchanged, already committed or rejected. */

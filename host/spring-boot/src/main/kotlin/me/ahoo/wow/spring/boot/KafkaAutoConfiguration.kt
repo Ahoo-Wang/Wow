@@ -45,6 +45,11 @@ import kotlin.time.toKotlinDuration
  *   node's [SourceTopics] after the same prefix: the subscriptions of other contexts' published streams read their
  *   topics through it, partitions assigned by the node's leases and offsets kept in its checkpoint store, with no
  *   consumer group. Closed with the context, after the node has stopped.
+ * - **Commands across contexts** (decisions D33, D135–D137): the same [SourceTopics] carry the producer, so a saga's
+ *   command to another context is sent to its command topic, `wow.<context>.commands`, and the rejections that come
+ *   back are read from `wow.<context>.receipts` for the sagas with `@OnRejected` handlers. With
+ *   `wow.kafka.command-intake=true`, each context the node hosts also executes the commands of its own command topic,
+ *   which must have as many partitions as the context's log (`wow.log.partitions`): the node does not start otherwise.
  */
 @AutoConfiguration
 @ConditionalOnClass(name = [KAFKA_MODULE])
@@ -69,8 +74,11 @@ class KafkaAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean
-        fun wowKafkaSourceTopics(source: PartitionedSource, properties: KafkaProperties): SourceTopics =
-            SourceTopics(source, properties.topicPrefix)
+        fun wowKafkaSourceTopics(
+            source: PartitionedSource,
+            producer: TopicProducer,
+            properties: KafkaProperties,
+        ): SourceTopics = SourceTopics(source, properties.topicPrefix, producer, properties.commandIntake)
     }
 
     companion object {

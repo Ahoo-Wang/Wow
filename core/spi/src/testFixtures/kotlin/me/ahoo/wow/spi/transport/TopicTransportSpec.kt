@@ -92,6 +92,15 @@ abstract class TopicTransportSpec {
     }
 
     @Test
+    fun `a message naming its partition should land in it whatever its key`(): Unit = runBlocking {
+        val topic = newTopic(3)
+        producer.send(topic, (0 until 3).map { TopicMessage("same-key", "p-$it".toByteArray(), partition = it) })
+        (0 until 3).forEach { partition ->
+            read(topic, partition, 0, 1).single().text.assert().isEqualTo("p-$partition")
+        }
+    }
+
+    @Test
     fun `a bounded read should complete after the messages before its bound`(): Unit = runBlocking {
         val topic = newTopic(1)
         producer.send(topic, (0 until 5).map { message("k", "v-$it") })

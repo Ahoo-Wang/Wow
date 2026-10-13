@@ -109,6 +109,11 @@ class HostKafkaSinkTest {
                 val topics = context.getBean(SourceTopics::class.java)
                 topics.source.assert().isInstanceOf(KafkaPartitionedSource::class.java)
                 topics.topicOf("wow.order.order.state").assert().isEqualTo("test.wow.order.order.state")
+                // Commands across contexts go through the same producer; the intake is off unless asked for.
+                topics.producer.assert().isSameAs(context.getBean(TopicProducer::class.java))
+                topics.commandsOf("bank").assert().isEqualTo("test.wow.bank.commands")
+                topics.receiptsOf("bank").assert().isEqualTo("test.wow.bank.receipts")
+                topics.intake.assert().isFalse()
                 KafkaAutoConfiguration.options(context.getBean(KafkaProperties::class.java))
                     .pollTimeout.assert().isEqualTo(50.milliseconds)
                 // The Manifest publishes nothing: no sink reads any state.
@@ -117,6 +122,17 @@ class HostKafkaSinkTest {
             }
         KafkaAutoConfiguration.options(KafkaProperties().apply { bootstrapServers = "b:9092" })
             .bootstrapServers.assert().isEqualTo("b:9092")
+    }
+
+    @Test
+    fun `the command intake should be switched on by its property`() {
+        ApplicationContextRunner()
+            .withConfiguration(AutoConfigurations.of(KafkaAutoConfiguration::class.java))
+            .withPropertyValues("wow.kafka.bootstrap-servers=127.0.0.1:1", "wow.kafka.command-intake=true")
+            .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
+            .run { context ->
+                context.getBean(SourceTopics::class.java).intake.assert().isTrue()
+            }
     }
 
     /** A recording producer, the Manifest publishing every aggregate, and a subscription of the application's own. */

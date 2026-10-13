@@ -29,8 +29,9 @@ import org.apache.kafka.clients.producer.ProducerRecord
  *
  * [send] hands every message to the producer in order, on a virtual thread since a send may block while the producer
  * fetches metadata or its buffer is full, then suspends until the broker acknowledged each one; it throws the first
- * failure. A message's partition is its key's (the producer's default partitioner), so the messages of an aggregate
- * keep their order in one partition; the idempotent producer keeps that order through its own retries.
+ * failure. A message's partition is the one it names ([TopicMessage.partition]), else its key's (the producer's
+ * default partitioner), so the messages of an aggregate keep their order in one partition; the idempotent producer
+ * keeps that order through its own retries.
  *
  * [close] flushes what is in flight and closes the producer.
  */
@@ -45,7 +46,13 @@ class KafkaTopicProducer(
         val acknowledgements = withContext(dispatcher) {
             messages.map { message ->
                 val acknowledged = CompletableDeferred<Unit>()
-                val record = ProducerRecord(topic, null, message.key, message.value, KafkaHeaders.of(message.headers))
+                val record = ProducerRecord(
+                    topic,
+                    message.partition,
+                    message.key,
+                    message.value,
+                    KafkaHeaders.of(message.headers)
+                )
                 producer.send(record) { _, failure ->
                     if (failure == null) acknowledged.complete(Unit) else acknowledged.completeExceptionally(failure)
                 }

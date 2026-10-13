@@ -16,9 +16,22 @@ package me.ahoo.wow.spi.transport
 /**
  * A message to write to a topic: its [key], which picks its partition (the same key always lands in the same
  * partition, so the messages of one key keep their order), its [headers] and its [value] bytes.
+ *
+ * [partition], when set, is the partition the message goes to instead of the one its key picks: a command topic's
+ * partitions are the context's log partitions, chosen by the log's own partitioner (decision D135).
  */
-class TopicMessage(val key: String, val value: ByteArray, val headers: Map<String, String> = emptyMap()) {
-    override fun toString(): String = "TopicMessage(key=$key, headers=$headers, ${value.size} bytes)"
+class TopicMessage(
+    val key: String,
+    val value: ByteArray,
+    val headers: Map<String, String> = emptyMap(),
+    val partition: Int? = null,
+) {
+    init {
+        require(partition == null || partition >= 0) { "A partition is never negative." }
+    }
+
+    override fun toString(): String =
+        "TopicMessage(key=$key, ${partition?.let { "partition=$it, " }.orEmpty()}headers=$headers, ${value.size} bytes)"
 }
 
 /**
@@ -30,8 +43,8 @@ class TopicMessage(val key: String, val value: ByteArray, val headers: Map<Strin
  *   after [send] returns.
  * - **Order**: the messages of one key in one call reach their partition in the order given, and a later call's
  *   after an earlier call's. A retried call may write some messages again: delivery is at least once (decision D45).
- * - **Partitions**: the producer chooses the partition of a message by its key; the topic must exist (or the broker
- *   creates it).
+ * - **Partitions**: the producer chooses the partition of a message by its key, unless the message names its own
+ *   ([TopicMessage.partition]); the topic must exist (or the broker creates it).
  */
 interface TopicProducer {
     suspend fun send(topic: String, messages: List<TopicMessage>)

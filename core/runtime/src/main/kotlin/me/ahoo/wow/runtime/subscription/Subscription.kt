@@ -61,6 +61,8 @@ class Subscription private constructor(
     val kind: FunctionKind,
     private val handler: EntryHandler,
     internal val coalesces: Boolean = false,
+    /** Whether every entry is the subscription's, whatever its filter: one of a topic of commands or receipts. */
+    private val takesAll: Boolean = false,
 ) {
     constructor(
         name: String,
@@ -95,6 +97,9 @@ class Subscription private constructor(
 
     /** Handles [entry]; returns what it did: a saga's derived commands and the rejection that ended its hop. */
     internal suspend fun handle(entry: SubscribedEntry): HandledEntry = handler.handle(entry)
+
+    /** Whether [stream] is this subscription's to handle: its [filter] matches it, or it takes every entry. */
+    internal fun takes(stream: EventStreamRecord): Boolean = takesAll || filter.matches(stream)
 
     override fun toString(): String = "Subscription($name)"
 
@@ -142,6 +147,29 @@ class Subscription private constructor(
                 HandledEntry.NOTHING
             },
             coalesces = true,
+        )
+
+        /**
+         * A subscription of the messages of a topic of commands or receipts (decisions D135–D137): it takes every
+         * entry its source reads, whatever aggregate it names, and [handler] gets the message as
+         * [SubscribedEntry.message]. It starts from the beginning of the topic: every message is taken.
+         */
+        internal fun messages(
+            name: String,
+            context: String,
+            handler: suspend (SubscribedEntry) -> Unit,
+        ): Subscription = Subscription(
+            name,
+            SubscriptionFilter(context),
+            StartFrom.BEGINNING,
+            EntryDecoder.RECORDS,
+            emptyList(),
+            FunctionKind.REACT,
+            EntryHandler { entry ->
+                handler(entry)
+                HandledEntry.NOTHING
+            },
+            takesAll = true,
         )
     }
 }
@@ -233,6 +261,10 @@ data class SubscriptionFilter(
  * [published]: the state after the stream (null when the upstream publishes without it, decision D140) and the
  * events as published. [stream] holds the same facts; [position] is then the record's partition and its offset plus
  * one.
+ *
+ * An entry of a topic of commands or receipts (decisions D135–D137) carries the [message] it was read as: the command
+ * the context's intake executes, or the receipt of a command another context rejected. Its [stream] only names the
+ * aggregate whose lane it runs in; nothing was committed.
  */
 data class SubscribedEntry(
     val stream: EventStreamRecord,
@@ -241,6 +273,7 @@ data class SubscribedEntry(
     val transport: Transport? = null,
     private val states: StateViewReader? = null,
     val published: StateEventRecord? = null,
+    val message: Any? = null,
 ) {
     val ref: AggregateRef get() = stream.ref
     val version: Int get() = stream.version

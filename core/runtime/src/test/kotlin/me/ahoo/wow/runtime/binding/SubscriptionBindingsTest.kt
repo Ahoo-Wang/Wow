@@ -299,10 +299,13 @@ class SubscriptionBindingsTest {
     }
 
     @Test
-    fun `a command derived for another context should fail the saga`(): Unit = runBlocking {
+    fun `a command derived for another context should fail the saga without a Kafka transport`(): Unit = runBlocking {
         val derived = DerivedCommands(listOf(orderModel()), node.context(SHOP).coordinator)
         val elsewhere = Command("c", "r", me.ahoo.wow.api.aggregate.AggregateType("mail", "box").ref(TENANT, "m"), "x")
         runCatching { derived.execute(listOf(elsewhere), null) }.exceptionOrNull()!!.message.assert()
+            .contains("no Kafka transport")
+        val unknown = Command("c", "r", me.ahoo.wow.api.aggregate.AggregateType(SHOP, "box").ref(TENANT, "m"), "x")
+        runCatching { derived.execute(listOf(unknown), null) }.exceptionOrNull()!!.message.assert()
             .contains("an aggregate type its context does not have")
         derived.execute(emptyList(), null).executed.assert().isEmpty()
     }
