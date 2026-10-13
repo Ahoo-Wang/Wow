@@ -18,20 +18,17 @@ import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 
-/** The stub services over the catalog. */
+/** The stub pricing service over the catalog. */
 class ShopServicesTest {
-    private val inventory = CatalogInventoryService(Catalog.DEFAULT)
     private val pricing = CatalogPricingService(Catalog.DEFAULT)
 
     @Test
-    fun `a product of the catalog should have its stock and price`(): Unit = runTest {
-        inventory.getInventory("durian").assert().isEqualTo(1)
+    fun `a product of the catalog should have its price`(): Unit = runTest {
         pricing.getProductPrice("pear").assert().isEqualByComparingTo(BigDecimal("4.00"))
     }
 
     @Test
-    fun `a product outside the catalog should have no stock and no price`(): Unit = runTest {
-        inventory.getInventory("kiwi").assert().isEqualTo(0)
+    fun `a product outside the catalog should have no price`(): Unit = runTest {
         val failure = runCatching { pricing.getProductPrice("kiwi") }.exceptionOrNull()
         failure.assert().isInstanceOf(IllegalArgumentException::class.java).hasMessageContaining("kiwi")
     }

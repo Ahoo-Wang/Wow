@@ -16,12 +16,12 @@ package me.ahoo.wow.example.shop.domain
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.example.shop.domain.cart.CartRejections
-import me.ahoo.wow.example.shop.domain.order.InventoryService
 import me.ahoo.wow.example.shop.domain.order.OrderFixtures
 import me.ahoo.wow.example.shop.domain.order.OrderFixtures.createOrder
 import me.ahoo.wow.example.shop.domain.order.OrderFixtures.orderCreated
 import me.ahoo.wow.example.shop.domain.order.OrderRejections
 import me.ahoo.wow.example.shop.domain.order.OrderState
+import me.ahoo.wow.example.shop.domain.order.PricingService
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.MissingDependencyException
@@ -66,7 +66,7 @@ class ShopDomainModelProviderTest {
 
     @Test
     fun `the binding index should build both models with the host's services`() {
-        val models = provider.models(Dependencies.of(OrderFixtures.inventory, OrderFixtures.pricing))
+        val models = provider.models(Dependencies.of(OrderFixtures.pricing))
         models.map { it.type.toString() }.assert().containsExactly("example.cart", "example.order")
 
         // The order model runs with the services it was given.
@@ -80,8 +80,8 @@ class ShopDomainModelProviderTest {
     @Test
     fun `a missing service should fail building the models, naming it`() {
         assertThrownBy<MissingDependencyException> {
-            provider.models(Dependencies.of(OrderFixtures.pricing))
-        }.hasMessageContaining(InventoryService::class.java.name)
+            provider.models(Dependencies.NONE)
+        }.hasMessageContaining(PricingService::class.java.name)
     }
 
     @Test
@@ -116,6 +116,7 @@ class ShopDomainModelProviderTest {
         )
         routes.getValue("order").assert().isEqualTo(
             mapOf(
+                "CancelOrder" to listOf("/example/order/{id}/cancel-order"),
                 "ChangeAddress" to listOf("/example/order/{id}/change-address"),
                 "CreateOrder" to listOf("/example/order/{id}/create-order", "/example/order/create-order"),
                 "PayOrder" to listOf("/example/order/{id}/pay-order"),
@@ -135,6 +136,7 @@ class ShopDomainModelProviderTest {
         order.events.associate { it.name to it.revision }.assert().isEqualTo(
             mapOf(
                 "AddressChanged" to 1,
+                "OrderCancelled" to 1,
                 "OrderCreated" to 2,
                 "OrderOverPaid" to 1,
                 "OrderPaid" to 1,
@@ -161,6 +163,7 @@ class ShopDomainModelProviderTest {
                     "RemoveCartItem" to listOf("CartItemRemoved"),
                 ),
                 "order" to mapOf(
+                    "CancelOrder" to listOf("OrderCancelled"),
                     "ChangeAddress" to listOf("AddressChanged"),
                     "CreateOrder" to listOf("OrderCreated"),
                     "PayOrder" to listOf("OrderOverPaid", "OrderPaid", "OrderPayDuplicated"),
@@ -189,7 +192,7 @@ class ShopDomainModelProviderTest {
     }
 
     @Test
-    fun `the fragment should list the cart saga with the command it derives, where it starts and its rejections`() {
+    fun `the fragment should list the sagas with the commands they derive, where they start and their rejections`() {
         fragment().contexts.single().subscriptions.assert().containsExactly(
             SubscriptionManifest(
                 name = "CartSaga.onOrderCreated",
@@ -207,6 +210,23 @@ class ShopDomainModelProviderTest {
                 function = FunctionManifest(FunctionKind.SAGA, "example", "CartSaga", "onRemoveRejected"),
                 rejected = listOf("example.cart.RemoveCartItem"),
             ),
+            // Decision D144: the inventory's command, another context's, is referred to by its schema.
+            SubscriptionManifest(
+                name = "OrderSaga.onOrderCreated",
+                kind = SubscriptionKind.SAGA,
+                source = SubscriptionSource(context = "example", aggregates = listOf("order")),
+                function = FunctionManifest(FunctionKind.SAGA, "example", "OrderSaga", "onOrderCreated"),
+                derives = listOf(RESERVE_STOCK),
+                start = SubscriptionStart.END,
+            ),
+            SubscriptionManifest(
+                name = "OrderSaga.onReserveRejected",
+                kind = SubscriptionKind.SAGA,
+                source = SubscriptionSource(),
+                function = FunctionManifest(FunctionKind.SAGA, "example", "OrderSaga", "onReserveRejected"),
+                derives = listOf("example.order.CancelOrder"),
+                rejected = listOf(RESERVE_STOCK),
+            ),
         )
     }
 
@@ -220,7 +240,6 @@ class ShopDomainModelProviderTest {
                 403,
                 "The caller is not the customer whose cart this is: a cart's id is its customer's user id.",
             ),
-            Triple(OrderRejections.INSUFFICIENT_INVENTORY, 422, "A product has less stock than the quantity ordered."),
             Triple(OrderRejections.NO_ITEMS, 422, "The order has no item."),
             Triple(OrderRejections.PRICE_CHANGED, 422, "A product's price is no longer the one the customer saw."),
             Triple(
@@ -229,5 +248,9 @@ class ShopDomainModelProviderTest {
                 "The order's status does not allow the command, such as shipping an order that is not paid.",
             ),
         )
+    }
+
+    private companion object {
+        const val RESERVE_STOCK = "#/\$defs/me.ahoo.wow.example.inventory.api.ReserveStock"
     }
 }

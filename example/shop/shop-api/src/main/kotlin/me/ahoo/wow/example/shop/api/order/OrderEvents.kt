@@ -60,3 +60,7 @@ data object OrderShipped
 
 @Summary("The order was received")
 data object OrderReceived
+
+/** The order was cancelled for [reason]; the inventory releases what it reserved for it. */
+@Summary("The order was cancelled")
+data class OrderCancelled(val reason: String)

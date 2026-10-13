@@ -183,6 +183,13 @@ include(":shop-domain")
 project(":shop-domain").projectDir = file("example/shop/shop-domain")
 include(":shop-server")
 project(":shop-server").projectDir = file("example/shop/shop-server")
+// The example's second context, inventory (decision D144): a service of its own beside the shop.
+include(":inventory-api")
+project(":inventory-api").projectDir = file("example/inventory/inventory-api")
+include(":inventory-domain")
+project(":inventory-domain").projectDir = file("example/inventory/inventory-domain")
+include(":inventory-server")
+project(":inventory-server").projectDir = file("example/inventory/inventory-server")
 // The example's end-to-end tests across its services (decision D144): test-only, never published.
 include(":example-e2e")
 project(":example-e2e").projectDir = file("example/e2e")

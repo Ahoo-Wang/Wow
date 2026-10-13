@@ -66,6 +66,7 @@ class ShopServerTest {
             "POST /example/order/{id}/pay-order",
             "POST /example/order/{id}/ship-order",
             "POST /example/order/{id}/receipt-order",
+            "POST /example/order/{id}/cancel-order",
         )
         aggregates.values.forEach { aggregate ->
             aggregate["lifecycle"].values().map { it.asString() }.assert().containsExactly(
@@ -81,7 +82,7 @@ class ShopServerTest {
             mapOf(
                 CartRejections.FULL to 422,
                 CartRejections.NOT_OWNER to 403,
-                OrderRejections.INSUFFICIENT_INVENTORY to 422,
+                OrderRejections.PRICE_CHANGED to 422,
                 OrderRejections.WRONG_STATUS to 409,
             ),
         )
@@ -107,6 +108,12 @@ class ShopServerTest {
             .assert().containsExactly("POST /example/order/snapshot/query", "GET /example/order/snapshot/query")
         context["published"].values().map { "${it["aggregate"].asString()} ${it["topic"].asString()}" }
             .assert().containsExactly("cart wow.example.cart.state", "order wow.example.order.state")
+        context["subscriptions"].values().map { it["name"].asString() }.assert().containsExactly(
+            "CartSaga.onOrderCreated",
+            "CartSaga.onRemoveRejected",
+            "OrderSaga.onOrderCreated",
+            "OrderSaga.onReserveRejected",
+        )
         val (saga, rejections) = context["subscriptions"].values().toList()
         saga["name"].asString().assert().isEqualTo("CartSaga.onOrderCreated")
         rejections["name"].asString().assert().isEqualTo("CartSaga.onRemoveRejected")

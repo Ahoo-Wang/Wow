@@ -20,8 +20,10 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.example.shop.api.order.AddressChanged
+import me.ahoo.wow.example.shop.api.order.CancelOrder
 import me.ahoo.wow.example.shop.api.order.ChangeAddress
 import me.ahoo.wow.example.shop.api.order.CreateOrder
+import me.ahoo.wow.example.shop.api.order.OrderCancelled
 import me.ahoo.wow.example.shop.api.order.OrderCreated
 import me.ahoo.wow.example.shop.api.order.OrderItem
 import me.ahoo.wow.example.shop.api.order.OrderOverPaid
@@ -40,9 +42,10 @@ import me.ahoo.wow.example.shop.api.order.ShipOrder
 @Description("A customer's order, from placing it to receiving it")
 class Order(private val state: OrderState) {
     /**
-     * Places the order once every item's price is still the product's and its stock covers the quantity. The
-     * services are parameters of the generated factory, bound once when the host builds the model (decision D49); the
-     * function suspends on them. The order's total goes back to the caller as the result `totalAmount`
+     * Places the order once every item's price is still the product's. The pricing service is a parameter of the
+     * generated factory, bound once when the host builds the model (decision D49); the function suspends on it. The
+     * stock is not consulted here: the inventory reserves it once the order is placed ([OrderSaga]), and the order is
+     * cancelled when it cannot (decision D144). The order's total goes back to the caller as the result `totalAmount`
      * ([DecideScope.putResult]); it is not persisted, and a repeated request is not answered it again (decision D51).
      *
      * A [Decision] does not say which events it holds, so `@OnCommand(produces)` declares them for the Manifest
@@ -51,7 +54,6 @@ class Order(private val state: OrderState) {
     @OnCommand(produces = [OrderCreated::class])
     suspend fun onCommand(
         command: Command<CreateOrder>,
-        inventoryService: InventoryService,
         pricingService: PricingService,
         scope: DecideScope,
     ): Decision {
@@ -65,13 +67,6 @@ class Order(private val state: OrderState) {
                 return Decision.reject(
                     OrderRejections.PRICE_CHANGED,
                     "The price of ${item.productId} is now $price, not ${item.price}.",
-                )
-            }
-            val inventory = inventoryService.getInventory(item.productId)
-            if (item.quantity > inventory) {
-                return Decision.reject(
-                    OrderRejections.INSUFFICIENT_INVENTORY,
-                    "Only $inventory of ${item.productId} are in stock, not ${item.quantity}.",
                 )
             }
         }
@@ -120,6 +115,20 @@ class Order(private val state: OrderState) {
     @OnCommand(produces = [OrderReceived::class])
     fun onCommand(command: ReceiptOrder): Decision = whenStatus(OrderStatus.SHIPPED, "receive it") {
         Decision.events(OrderReceived)
+    }
+
+    /**
+     * Cancels an order that is not shipped yet. Cancelling it again changes nothing: the saga cancels once for each
+     * product the inventory could not reserve.
+     */
+    @OnCommand(produces = [OrderCancelled::class])
+    fun onCommand(command: CancelOrder): Decision = when (state.status) {
+        OrderStatus.CANCELLED -> Decision.NoOp
+        OrderStatus.CREATED, OrderStatus.PAID -> Decision.events(OrderCancelled(command.reason))
+        else -> Decision.reject(
+            OrderRejections.WRONG_STATUS,
+            "The order ${state.id} is ${state.status}: only an order not shipped yet can be cancelled.",
+        )
     }
 
     private inline fun whenStatus(required: OrderStatus, action: String, decide: () -> Decision): Decision =

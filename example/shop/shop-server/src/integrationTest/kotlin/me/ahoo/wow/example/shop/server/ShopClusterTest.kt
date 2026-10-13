@@ -16,8 +16,8 @@ package me.ahoo.wow.example.shop.server
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.example.shop.api.ExampleContext
-import me.ahoo.wow.example.shop.domain.order.InventoryService
 import me.ahoo.wow.example.shop.domain.order.Order
+import me.ahoo.wow.example.shop.domain.order.PricingService
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.runtime.admission.Caller
 import me.ahoo.wow.runtime.node.Routing
@@ -29,28 +29,28 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
 import org.testcontainers.postgresql.PostgreSQLContainer
+import java.math.BigDecimal
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
-/** The server's inventory, counting the orders this node decided: the node a command ran on consults it. */
-class CountingInventoryService(private val delegate: InventoryService) : InventoryService {
+/** The server's pricing, counting the orders this node decided: the node a command ran on consults it. */
+class CountingPricingService(private val delegate: PricingService) : PricingService {
     val calls = AtomicInteger()
 
-    override suspend fun getInventory(productId: String): Int {
+    override suspend fun getProductPrice(productId: String): BigDecimal {
         calls.incrementAndGet()
-        return delegate.getInventory(productId)
+        return delegate.getProductPrice(productId)
     }
 }
 
 @Configuration(proxyBeanMethods = false)
-class CountingInventory {
+class CountingPricing {
     @Bean
     @Primary
-    fun countingInventoryService(): CountingInventoryService =
-        CountingInventoryService(CatalogInventoryService(Catalog.DEFAULT))
+    fun countingPricingService(): CountingPricingService = CountingPricingService(CatalogPricingService(Catalog.DEFAULT))
 }
 
 /**
@@ -77,7 +77,7 @@ class ShopClusterTest {
             "spring.datasource.username" to postgres.username,
             "spring.datasource.password" to postgres.password,
             profiles = listOf(PostgresDataSource.PROFILE),
-            sources = listOf(CountingInventory::class.java),
+            sources = listOf(CountingPricing::class.java),
         )
     }
     private val first = nodes[0]
@@ -89,8 +89,8 @@ class ShopClusterTest {
         postgres.stop()
     }
 
-    private val ShopNode.inventory: CountingInventoryService
-        get() = context.getBean(CountingInventoryService::class.java)
+    private val ShopNode.pricing: CountingPricingService
+        get() = context.getBean(CountingPricingService::class.java)
 
     @Test
     fun `the servers should run on PostgreSQL with partitioned routing`() {
@@ -111,8 +111,8 @@ class ShopClusterTest {
             """{"items":[{"productId":"apple","price":2.50,"quantity":1}],"address":$ADDRESS}""",
             ALICE,
         ).status.assert().isEqualTo(200)
-        val before = first.inventory.calls.get()
-        val ownerBefore = second.inventory.calls.get()
+        val before = first.pricing.calls.get()
+        val ownerBefore = second.pricing.calls.get()
 
         val created = first.post(
             "/example/order/$id/create-order",
@@ -126,15 +126,15 @@ class ShopClusterTest {
         // The total the owner's decide function put (D49) came back with the forward's reply: the snapshot's hop,
         // signalled from the owner, answers it.
         created.json["results"][Order.TOTAL_AMOUNT_RESULT].decimalValue().assert().isEqualByComparingTo("5.00")
-        val decided = "first ${first.inventory.calls.get() - before}, second ${second.inventory.calls.get() - ownerBefore}"
+        val decided = "first ${first.pricing.calls.get() - before}, second ${second.pricing.calls.get() - ownerBefore}"
         val split = nodes.map { it.node.context(ExampleContext.NAME).ownership.owned }
         val partition = Partitioner.partitionOf(
             AggregateType(ExampleContext.NAME, ExampleContext.ORDER).ref(Caller.DEFAULT_TENANT, id),
             PARTITIONS,
         )
         val where = "Decided by $decided; partition $partition; owned $split; result ${created.body}"
-        second.inventory.calls.get().assert().describedAs(where).isGreaterThan(ownerBefore)
-        first.inventory.calls.get().assert().describedAs(where).isEqualTo(before)
+        second.pricing.calls.get().assert().describedAs(where).isGreaterThan(ownerBefore)
+        first.pricing.calls.get().assert().describedAs(where).isEqualTo(before)
 
         // The node the order was sent to reads its own write from the shared snapshots.
         val state = first.get("/example/order/$id/state", ALICE)

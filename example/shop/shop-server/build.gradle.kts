@@ -11,6 +11,11 @@ application {
     mainClass.set("me.ahoo.wow.example.shop.server.ShopServerKt")
 }
 
+// The service's Manifest for its peers, and the inventory's as its peer (decision D139): the order saga sends the
+// inventory's commands by the type names its Manifest gives them.
+extra["wowService"] = "shop-service"
+apply(from = rootProject.file("example/wow-peers.gradle.kts"))
+
 dependencies {
     implementation(project(":shop-domain"))
     implementation(project(":spring-boot"))
@@ -19,11 +24,13 @@ dependencies {
     // The `postgres` profile: the host runs on PostgreSQL when the application gives it a DataSource (decision D110).
     implementation(project(":postgres"))
     implementation("com.zaxxer:HikariCP")
+    // The `kafka` profile: the order stream is published, and the order saga's commands reach the inventory, over
+    // Kafka (decisions D58, D137).
+    implementation(project(":kafka"))
+    "wowPeers"(project(":inventory-server"))
     testImplementation("org.springframework:spring-test")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     integrationTestImplementation(sourceSets["test"].output)
     integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
-    // The Kafka Sink publishing the shop's state events (decision D58).
-    integrationTestImplementation(project(":kafka"))
     integrationTestImplementation("org.testcontainers:testcontainers-kafka")
 }

@@ -21,9 +21,6 @@ import me.ahoo.wow.api.annotation.ErrorCode
  * them there.
  */
 object OrderRejections {
-    @ErrorCode(description = "A product has less stock than the quantity ordered.")
-    const val INSUFFICIENT_INVENTORY = "example.order.insufficient-inventory"
-
     @ErrorCode(description = "A product's price is no longer the one the customer saw.")
     const val PRICE_CHANGED = "example.order.price-changed"
 

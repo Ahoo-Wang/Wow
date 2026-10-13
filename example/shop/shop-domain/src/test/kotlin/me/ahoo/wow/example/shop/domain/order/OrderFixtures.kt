@@ -20,11 +20,6 @@ import me.ahoo.wow.example.shop.api.order.OrderItem
 import me.ahoo.wow.example.shop.api.order.ShippingAddress
 import java.math.BigDecimal
 
-/** The stock of each product; a product it does not list has none. */
-class StubInventoryService(private val stock: Map<String, Int>) : InventoryService {
-    override suspend fun getInventory(productId: String): Int = stock[productId] ?: 0
-}
-
 /** The price of each product it lists. */
 class StubPricingService(private val prices: Map<String, BigDecimal>) : PricingService {
     override suspend fun getProductPrice(productId: String): BigDecimal =
@@ -38,11 +33,10 @@ object OrderFixtures {
     val HOME = ShippingAddress("China", "Shanghai", "Shanghai", "Pudong", "1 Century Avenue")
     val OFFICE = ShippingAddress("China", "Beijing", "Beijing", "Haidian", "2 Zhongguancun Street")
 
-    val inventory = StubInventoryService(mapOf("apple" to 10, "pear" to 1))
     val pricing = StubPricingService(mapOf("apple" to APPLE_PRICE, "pear" to PEAR_PRICE))
 
-    /** The order model with the stub services, as the host builds it. */
-    val model = orderModel(ExampleContext.NAME, inventory, pricing)
+    /** The order model with the stub service, as the host builds it. */
+    val model = orderModel(ExampleContext.NAME, pricing)
 
     /** Two apples and a pear: 9.00 in all. */
     val createOrder = CreateOrder(

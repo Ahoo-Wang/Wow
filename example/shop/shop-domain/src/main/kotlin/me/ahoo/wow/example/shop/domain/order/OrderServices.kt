@@ -15,18 +15,12 @@ package me.ahoo.wow.example.shop.domain.order
 
 import java.math.BigDecimal
 
-/*
- * The services placing an order consults. Products live outside this service; the host provides implementations,
- * which the generated model factory takes as parameters (decision D49) and the binding index finds by type in the
- * host's dependencies (decision D107).
+/**
+ * A product's current unit price, which placing an order checks. Products live outside this service; the host provides
+ * an implementation, which the generated model factory takes as a parameter (decision D49) and the binding index finds
+ * by type in the host's dependencies (decision D107). The stock is the inventory context's: the order saga reserves it
+ * there ([OrderSaga], decision D144).
  */
-
-/** How many units of a product are in stock. */
-interface InventoryService {
-    suspend fun getInventory(productId: String): Int
-}
-
-/** A product's current unit price. */
 interface PricingService {
     suspend fun getProductPrice(productId: String): BigDecimal
 }
