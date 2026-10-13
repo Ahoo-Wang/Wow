@@ -43,12 +43,14 @@ import me.ahoo.wow.runtime.cluster.Refusal
 import me.ahoo.wow.runtime.cluster.fastOptions
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.contract.ContractFixtures
+import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.runtime.wait.ResultCodes
+import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
@@ -367,6 +369,20 @@ class ServiceNodeTest {
         assertThrows<IllegalArgumentException> {
             node("node-2", options = starts("Plain.typo"), subscriptions = plain)
         }.message.assert().contains("subscription Plain.typo", "plain")
+    }
+
+    @Test
+    fun `a parked retry spec configured for a subscription the node does not have is refused`() {
+        val plain = SubscriptionFactory { listOf(Subscription("plain", SubscriptionFilter(BANK)) {}) }
+        fun specs(vararg names: String) = fastNodeOptions().let {
+            val parked = ParkedRetryOptions(specs = names.associateWith { ParkedRetrySpec(maxRetries = 1) })
+            it.copy(subscription = it.subscription.copy(parked = parked))
+        }
+        val node = node("node-1", options = specs("plain", "snapshot"), subscriptions = plain)
+        node.parked.subscriptions.assert().contains("snapshot")
+        assertThrows<IllegalArgumentException> {
+            node("node-2", options = specs("Plain.typo"), subscriptions = plain)
+        }.message.assert().contains("parked retry spec", "subscription Plain.typo", "plain")
     }
 
     @Test

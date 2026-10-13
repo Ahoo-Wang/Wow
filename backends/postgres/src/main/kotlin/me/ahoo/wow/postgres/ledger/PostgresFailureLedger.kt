@@ -19,22 +19,29 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.spi.ledger.FailureLedger
+import me.ahoo.wow.spi.ledger.LedgerRequest
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.ledger.ParkedAmendment
+import me.ahoo.wow.spi.ledger.ParkedRetrySpec
+import me.ahoo.wow.spi.ledger.Recoverable
 import java.sql.Connection
 import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.Types
 import javax.sql.DataSource
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The [FailureLedger] of one service on PostgreSQL (documentation/designs/v10/04-subscriptions.md §2), in the
  * service's own database: one row per parked (subscription, aggregate).
  *
- * Every write is one autocommitted statement. A park is an upsert that replaces the row only with an earlier from
- * version, so concurrent or replayed parks converge on the earliest (decision D45) without a transaction; a repark is
- * one update of an existing row; a resolve is one delete returning the removed row. The source position of a
- * Kafka-sourced subscription's entry (decision D134) is a nullable column, added to a table created before it. Key columns use the "C" collation, so [list] orders by code point on every
- * database, whatever its default collation.
+ * Every write is one autocommitted statement. A park is an upsert that replaces the row's where and why only with an
+ * earlier from version, so concurrent or replayed parks converge on the earliest (decision D45) without a
+ * transaction; a repark is one update of an existing row; a resolve is one delete returning the removed row; an
+ * amendment is one update returning the amended row, conditional on the retries or the request read when it claims or
+ * takes one. The source position of a Kafka-sourced subscription's entry (decision D134) and the retry state (roadmap
+ * P.1) are columns added to a table created before them. Key columns use the "C" collation, so [list] orders by code
+ * point on every database, whatever its default collation.
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29).
  */
@@ -45,12 +52,12 @@ class PostgresFailureLedger(
 ) : FailureLedger {
     private val tables = PostgresFailureLedgerTables(table)
 
-    /** Creates the ledger's table when missing. */
+    /** Creates the ledger's table when missing, and the columns of later formats when it lacks them. */
     fun createSchema() {
         dataSource.connection.use { connection ->
             connection.createStatement().use { statement ->
                 statement.execute(tables.ddl)
-                statement.execute(tables.addFromPosition)
+                tables.migrations.forEach { statement.execute(it) }
             }
         }
     }
@@ -61,7 +68,12 @@ class PostgresFailureLedger(
             park.setInt(KEY_COLUMNS + 1, entry.fromVersion)
             park.setString(KEY_COLUMNS + 2, entry.reason)
             park.setLong(KEY_COLUMNS + 3, entry.failedAt)
-            park.setPosition(KEY_COLUMNS + 4, entry.fromPosition)
+            park.setNullableLong(KEY_COLUMNS + 4, entry.fromPosition)
+            park.setInt(KEY_COLUMNS + 5, entry.retries)
+            park.setNullableLong(KEY_COLUMNS + 6, entry.retryAt)
+            park.setSpec(KEY_COLUMNS + 7, entry.retrySpec)
+            park.setString(KEY_COLUMNS + 10, entry.recoverable.name)
+            park.setString(KEY_COLUMNS + 11, entry.request?.name)
             park.executeQuery().use { rows -> rows.next() }
         }
     }
@@ -71,7 +83,7 @@ class PostgresFailureLedger(
             repark.setInt(1, entry.fromVersion)
             repark.setString(2, entry.reason)
             repark.setLong(3, entry.failedAt)
-            repark.setPosition(4, entry.fromPosition)
+            repark.setNullableLong(4, entry.fromPosition)
             repark.setKey(entry.subscription, entry.ref, first = REPARK_VALUES + 1)
             repark.executeUpdate() > 0
         }
@@ -114,6 +126,50 @@ class PostgresFailureLedger(
         }
     }
 
+    override suspend fun amend(
+        subscription: String,
+        ref: AggregateRef,
+        amendment: ParkedAmendment,
+    ): ParkedAggregate? = jdbc { connection ->
+        val sql = when (amendment) {
+            is ParkedAmendment.ClaimRetry -> tables.claimRetry
+            is ParkedAmendment.MarkRecoverable -> tables.markRecoverable
+            is ParkedAmendment.ApplyRetrySpec -> tables.applyRetrySpec
+            is ParkedAmendment.Request -> tables.request
+            is ParkedAmendment.TakeRequest -> tables.takeRequest
+        }
+        connection.prepareStatement(sql).use { update ->
+            when (amendment) {
+                is ParkedAmendment.ClaimRetry -> {
+                    update.setLong(1, amendment.at)
+                    update.setKey(subscription, ref, first = 2)
+                    update.setInt(KEY_COLUMNS + 2, amendment.retries)
+                }
+
+                is ParkedAmendment.MarkRecoverable -> {
+                    update.setString(1, amendment.recoverable.name)
+                    update.setKey(subscription, ref, first = 2)
+                }
+
+                is ParkedAmendment.ApplyRetrySpec -> {
+                    update.setSpec(1, amendment.spec)
+                    update.setKey(subscription, ref, first = SPEC_COLUMNS + 1)
+                }
+
+                is ParkedAmendment.Request -> {
+                    update.setString(1, amendment.request.name)
+                    update.setKey(subscription, ref, first = 2)
+                }
+
+                is ParkedAmendment.TakeRequest -> {
+                    update.setKey(subscription, ref)
+                    update.setString(KEY_COLUMNS + 1, amendment.request.name)
+                }
+            }
+            update.executeQuery().use { rows -> if (rows.next()) entryOf(rows) else null }
+        }
+    }
+
     private suspend fun <T> jdbc(block: (Connection) -> T): T =
         withContext(dispatcher) { dataSource.connection.use(block) }
 
@@ -121,6 +177,7 @@ class PostgresFailureLedger(
         const val DEFAULT_TABLE = "wow_failure_ledger"
         const val KEY_COLUMNS = 5
         const val REPARK_VALUES = 4
+        const val SPEC_COLUMNS = 3
 
         /**
          * Binds the key (subscription, context, aggregate name, tenant, id) to the [KEY_COLUMNS] parameters from
@@ -134,9 +191,18 @@ class PostgresFailureLedger(
             setString(first + 4, ref.id)
         }
 
-        fun PreparedStatement.setPosition(index: Int, position: Long?) {
-            if (position == null) setNull(index, Types.BIGINT) else setLong(index, position)
+        fun PreparedStatement.setNullableLong(index: Int, value: Long?) {
+            if (value == null) setNull(index, Types.BIGINT) else setLong(index, value)
         }
+
+        /** Binds [spec] to the [SPEC_COLUMNS] parameters from [first]: its retries and its durations in ms. */
+        fun PreparedStatement.setSpec(first: Int, spec: ParkedRetrySpec?) {
+            if (spec == null) setNull(first, Types.INTEGER) else setInt(first, spec.maxRetries)
+            setNullableLong(first + 1, spec?.minBackoff?.inWholeMilliseconds)
+            setNullableLong(first + 2, spec?.executionTimeout?.inWholeMilliseconds)
+        }
+
+        fun ResultSet.nullableLong(column: String): Long? = getLong(column).takeUnless { wasNull() }
 
         fun entryOf(row: ResultSet) = ParkedAggregate(
             subscription = row.getString("subscription"),
@@ -145,7 +211,18 @@ class PostgresFailureLedger(
             fromVersion = row.getInt("from_version"),
             reason = row.getString("reason"),
             failedAt = row.getLong("failed_at"),
-            fromPosition = row.getLong("from_position").takeUnless { row.wasNull() },
+            fromPosition = row.nullableLong("from_position"),
+            retries = row.getInt("retries"),
+            retryAt = row.nullableLong("retry_at"),
+            retrySpec = row.getInt("retry_max_retries").takeUnless { row.wasNull() }?.let { maxRetries ->
+                ParkedRetrySpec(
+                    maxRetries = maxRetries,
+                    minBackoff = row.getLong("retry_min_backoff_millis").milliseconds,
+                    executionTimeout = row.getLong("retry_execution_timeout_millis").milliseconds,
+                )
+            },
+            recoverable = Recoverable.valueOf(row.getString("recoverable")),
+            request = row.getString("request")?.let { LedgerRequest.valueOf(it) },
         )
     }
 }

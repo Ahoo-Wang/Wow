@@ -64,12 +64,13 @@ class SubscriptionRuntime internal constructor(
     val group: String,
     private val source: EntrySource,
     private val checkpoints: CheckpointStore,
-    private val ledger: FailureLedger,
+    internal val ledger: FailureLedger,
     subscriptions: Collection<Subscription> = emptyList(),
-    private val options: SubscriptionOptions = SubscriptionOptions(),
+    internal val options: SubscriptionOptions = SubscriptionOptions(),
     private val clock: Clock = Clock.systemUTC(),
     private val context: CoroutineContext = Dispatchers.Default,
     private val signals: SignalSender = SignalSender.NONE,
+    private val notifier: ParkedNotifier = ParkedNotifier.NONE,
 ) : SubscriptionDirectory {
     @Suppress("LongParameterList") // The parts of a runtime, as the primary constructor takes them.
     constructor(
@@ -82,9 +83,11 @@ class SubscriptionRuntime internal constructor(
         clock: Clock = Clock.systemUTC(),
         context: CoroutineContext = Dispatchers.Default,
         signals: SignalSender = SignalSender.NONE,
-    ) : this(group, LogSource(log), checkpoints, ledger, subscriptions, options, clock, context, signals)
+        notifier: ParkedNotifier = ParkedNotifier.NONE,
+    ) : this(group, LogSource(log), checkpoints, ledger, subscriptions, options, clock, context, signals, notifier)
 
     private val lifecycle = Mutex()
+    private val retries = ParkedRetries(group, ledger, options.parked, clock, notifier)
     private val subscriptions = LinkedHashMap<String, Subscription>()
 
     /** The registered subscriptions by name, read by waits from any thread. */
@@ -133,7 +136,27 @@ class SubscriptionRuntime internal constructor(
                 run.workers.values.forEach { flushQuietly(it) }
             }
         }
+        run.scope.launch {
+            while (true) {
+                delay(options.parked.scanInterval)
+                scanQuietly(run)
+            }
+        }
         running = run
+    }
+
+    /** Runs the parked entries due in the partitions [run] reads ([ParkedRetries]); a failed scan waits for the next. */
+    @Suppress("TooGenericExceptionCaught") // A failed read of the ledger is retried on the next scan.
+    private suspend fun scanQuietly(run: Running) {
+        try {
+            retries.scan(run.scope, directory.keys.sorted()) { subscription, ref ->
+                run.workers[subscription to source.partitionOf(ref)]
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            logger.warn(failure) { "Failed to scan the parked entries of group $group; retrying on the next scan." }
+        }
     }
 
     /**
@@ -235,6 +258,15 @@ class SubscriptionRuntime internal constructor(
         return worker.skip(ref)
     }
 
+    /** The names of the subscriptions registered, read from any thread. */
+    val subscriptionNames: Set<String> get() = directory.keys.toSet()
+
+    /**
+     * Whether the runtime runs [subscription] in [ref]'s partition here now: [resume] and [skip] act on the aggregate
+     * at once. Otherwise its owner is another node, which takes an operator's request from the ledger (decision D141).
+     */
+    suspend fun runsPartitionOf(subscription: String, ref: AggregateRef): Boolean = workerOf(subscription, ref) != null
+
     override fun kindOf(context: String, subscription: String): FunctionKind? =
         directory[subscription]?.takeIf { it.filter.context == context }?.kind
 
@@ -294,6 +326,7 @@ class SubscriptionRuntime internal constructor(
             clock = clock,
             lanes = part.lanes,
             signals = signals,
+            notifier = notifier,
             checkpoint = checkpoint,
             parked = parked[partition].orEmpty(),
         ).also {

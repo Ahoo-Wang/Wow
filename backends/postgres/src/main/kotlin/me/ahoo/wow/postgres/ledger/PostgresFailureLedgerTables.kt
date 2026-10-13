@@ -32,21 +32,26 @@ internal class PostgresFailureLedgerTables(name: String) {
             reason text NOT NULL,
             failed_at bigint NOT NULL,
             from_position bigint,
+            $RETRY_COLUMNS,
             PRIMARY KEY ($KEY)
         )
     """.trimIndent()
 
-    /** Adds the source position (decision D134) to a table created before it. */
-    val addFromPosition = "ALTER TABLE $table ADD COLUMN IF NOT EXISTS from_position bigint"
+    /**
+     * Adds the columns of later formats to a table created before them: the source position (decision D134), then
+     * the retry state (roadmap P.1), with which an entry parked before reads as never retried.
+     */
+    val migrations = listOf("from_position bigint", *RETRY_COLUMNS.split(",\n").map { it.trim() }.toTypedArray())
+        .map { "ALTER TABLE $table ADD COLUMN IF NOT EXISTS $it" }
 
     /**
-     * Inserts the entry, or replaces the parked one only when this entry's from version is earlier. The conflict
-     * update locks the row and re-checks its condition against the latest committed row, so concurrent parks keep
-     * the earliest. Returns a row only when the ledger changed.
+     * Inserts the entry, or replaces where the parked one is parked and why only when this entry's from version is
+     * earlier. The conflict update locks the row and re-checks its condition against the latest committed row, so
+     * concurrent parks keep the earliest. Returns a row only when the ledger changed.
      */
     val park = """
-        INSERT INTO $table AS parked ($KEY, from_version, reason, failed_at, from_position)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO $table AS parked ($KEY, from_version, reason, failed_at, from_position, $RETRY_STATE)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT ($KEY) DO UPDATE
         SET from_version = excluded.from_version, reason = excluded.reason, failed_at = excluded.failed_at,
             from_position = excluded.from_position
@@ -65,7 +70,38 @@ internal class PostgresFailureLedgerTables(name: String) {
 
     val resolve = "DELETE FROM $table WHERE $MATCH RETURNING *"
 
+    /** Claims a retry: the value is the start, then the key, then the retries read. */
+    val claimRetry = "UPDATE $table SET retries = retries + 1, retry_at = ? WHERE $MATCH AND retries = ? RETURNING *"
+
+    val markRecoverable = "UPDATE $table SET recoverable = ? WHERE $MATCH RETURNING *"
+
+    val applyRetrySpec = """
+        UPDATE $table SET retry_max_retries = ?, retry_min_backoff_millis = ?, retry_execution_timeout_millis = ?
+        WHERE $MATCH RETURNING *
+    """.trimIndent()
+
+    val request = "UPDATE $table SET request = ? WHERE $MATCH RETURNING *"
+
+    /** Takes a request: the key, then the request read. */
+    val takeRequest = "UPDATE $table SET request = NULL WHERE $MATCH AND request = ? RETURNING *"
+
     private companion object {
+        /**
+         * The retry state (roadmap P.1): the automatic retries made and the start of the last one; the retry spec an
+         * operator applied (null for the subscription's), its durations in milliseconds; what an operator marked it
+         * and the request left for the owner of its partition (decision D141), by their names.
+         */
+        val RETRY_COLUMNS = """
+            retries integer NOT NULL DEFAULT 0,
+            retry_at bigint,
+            retry_max_retries integer,
+            retry_min_backoff_millis bigint,
+            retry_execution_timeout_millis bigint,
+            recoverable text NOT NULL DEFAULT 'UNKNOWN',
+            request text
+        """.trimIndent()
+        const val RETRY_STATE = "retries, retry_at, retry_max_retries, retry_min_backoff_millis, " +
+            "retry_execution_timeout_millis, recoverable, request"
         val IDENTIFIER = Regex("[a-z_][a-z0-9_]{0,62}")
         const val ORDER = "context, aggregate_name, tenant_id, aggregate_id"
         const val KEY = "subscription, $ORDER"

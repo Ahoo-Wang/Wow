@@ -18,6 +18,8 @@ import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.ledger.ParkedAmendment
+import me.ahoo.wow.spi.ledger.amended
 import java.util.TreeMap
 
 /** A [FailureLedger] in memory, for tests and samples. Every operation is serialized by one lock. */
@@ -31,18 +33,35 @@ class InMemoryFailureLedger : FailureLedger {
         if (existing != null && existing.fromVersion <= entry.fromVersion) {
             return false
         }
-        parked[entry.ref] = entry
+        parked[entry.ref] = existing?.placedAs(entry) ?: entry
         true
     }
 
     override suspend fun repark(entry: ParkedAggregate): Boolean = lock.withLock {
         val parked = subscriptions[entry.subscription] ?: return false
-        if (entry.ref !in parked) {
-            return false
-        }
-        parked[entry.ref] = entry
+        val existing = parked[entry.ref] ?: return false
+        parked[entry.ref] = existing.placedAs(entry)
         true
     }
+
+    override suspend fun amend(
+        subscription: String,
+        ref: AggregateRef,
+        amendment: ParkedAmendment,
+    ): ParkedAggregate? = lock.withLock {
+        val parked = subscriptions[subscription] ?: return null
+        val amended = parked[ref]?.amended(amendment) ?: return null
+        parked[ref] = amended
+        amended
+    }
+
+    /** This entry where [entry] parks the aggregate and why, with this entry's retry state. */
+    private fun ParkedAggregate.placedAs(entry: ParkedAggregate): ParkedAggregate = copy(
+        fromVersion = entry.fromVersion,
+        reason = entry.reason,
+        failedAt = entry.failedAt,
+        fromPosition = entry.fromPosition,
+    )
 
     override suspend fun parked(subscription: String, ref: AggregateRef): ParkedAggregate? =
         lock.withLock { subscriptions[subscription]?.get(ref) }

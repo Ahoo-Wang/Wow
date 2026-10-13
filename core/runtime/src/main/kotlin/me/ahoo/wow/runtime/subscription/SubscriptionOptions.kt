@@ -16,6 +16,8 @@ package me.ahoo.wow.runtime.subscription
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -63,6 +65,7 @@ data class RetryPolicy(
  * - [starts]: by subscription name, where a subscription without a checkpoint in a partition starts instead of where
  *   its handler says (decision D154: a projection from the beginning, a reactor or a saga from the end), as
  *   `wow.subscriptions."<name>".start` configures it. A subscription with a checkpoint goes on from it.
+ * - [parked]: how the parked entries are retried over the long horizon (roadmap P.1).
  */
 data class SubscriptionOptions(
     val maxInFlight: Int = 1_024,
@@ -75,12 +78,38 @@ data class SubscriptionOptions(
         maxBackoff = 5.seconds
     ),
     val starts: Map<String, SubscriptionStart> = emptyMap(),
+    val parked: ParkedRetryOptions = ParkedRetryOptions(),
 ) {
     init {
         require(maxInFlight >= 1) { "A subscription holds at least one entry in flight." }
         require(checkpointInterval.isPositive()) { "The checkpoint interval is positive." }
         require(!stopTimeout.isNegative()) { "The stop timeout is never negative." }
     }
+}
+
+/**
+ * How a [SubscriptionRuntime] retries its parked entries over the long horizon (roadmap P.1, 9.x
+ * `CompensationScheduler`): every [scanInterval] it reads its subscriptions' ledger entries and, in each partition it
+ * runs, resumes those whose next retry is due ([me.ahoo.wow.spi.ledger.ParkedAggregate.nextRetryAt]) and runs the
+ * requests an operator left on them (decision D141).
+ *
+ * An entry's retry spec is the one an operator applied to it, else its subscription's in [specs] (by name, as
+ * `wow.subscriptions.[<name>].parked.*` configures it), else [spec] (`wow.subscription.parked.*`).
+ */
+data class ParkedRetryOptions(
+    val spec: ParkedRetrySpec = ParkedRetrySpec(),
+    val specs: Map<String, ParkedRetrySpec> = emptyMap(),
+    val scanInterval: Duration = 10.seconds,
+) {
+    init {
+        require(scanInterval.isPositive()) { "The scan interval of the parked entries is positive." }
+    }
+
+    /** The retry spec of [subscription]'s entries that no operator applied one to. */
+    fun specOf(subscription: String): ParkedRetrySpec = specs[subscription] ?: spec
+
+    /** The retry spec [entry] is retried by: its own, else its subscription's. */
+    fun specOf(entry: ParkedAggregate): ParkedRetrySpec = entry.retrySpec ?: specOf(entry.subscription)
 }
 
 /**

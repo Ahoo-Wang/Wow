@@ -20,6 +20,8 @@ import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.FailureLedgerSpec
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.ledger.ParkedAmendment
+import org.bson.Document
 import org.junit.jupiter.api.Test
 
 class MongoFailureLedgerTest : FailureLedgerSpec() {
@@ -32,6 +34,28 @@ class MongoFailureLedgerTest : FailureLedgerSpec() {
     fun `creating the schema twice is harmless`() {
         ledger("ledger_twice")
         ledger("ledger_twice")
+    }
+
+    @Test
+    fun `a document written before the retry state reads as never retried, and is amended`(): Unit = runBlocking {
+        val collection = "ledger_before_retries"
+        val ledger = ledger(collection)
+        val subscription = "old-" + System.nanoTime()
+        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection).insertOne(
+            Document("subscription", subscription)
+                .append("context", "ledger")
+                .append("aggregate_name", "order")
+                .append("tenant_id", "t")
+                .append("aggregate_id", "a")
+                .append("from_version", 3)
+                .append("reason", "boom")
+                .append("failed_at", 7L),
+        )
+        val ref = AggregateType("ledger", "order").ref("t", "a")
+        ledger.parked(subscription, ref).assert().isEqualTo(ParkedAggregate(subscription, ref, 3, "boom", 7))
+        ledger.amend(subscription, ref, ParkedAmendment.ClaimRetry(1, 9)).assert().isNull()
+        ledger.amend(subscription, ref, ParkedAmendment.ClaimRetry(0, 9))!!.retries.assert().isEqualTo(1)
+        ledger.amend(subscription, ref, ParkedAmendment.ClaimRetry(1, 10))!!.retries.assert().isEqualTo(2)
     }
 
     /** "￿" sorts before "😀" (U+1F600) by code point but after it by UTF-16 unit, as Java orders strings. */
