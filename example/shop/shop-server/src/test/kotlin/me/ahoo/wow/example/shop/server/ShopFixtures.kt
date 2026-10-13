@@ -34,18 +34,29 @@ import java.util.concurrent.TimeoutException
 
 /**
  * The callers of the tests: the user the `X-User` header names owns what it creates, the scope of its commands
- * (decision D93). A request without the header carries no credentials. CoSec's resolver replaces this in a real
+ * (decision D93), in the tenant `X-Tenant` names (the default tenant without it); `X-Admin` may act across scopes
+ * (`Wow-Scope`). A request without `X-User` carries no credentials. CoSec's resolver replaces this in a real
  * deployment.
  */
 @Configuration(proxyBeanMethods = false)
 class HeaderCallers {
     @Bean
     fun callerResolver(): CallerResolver = CallerResolver { request ->
-        request.headers().firstHeader(USER)?.let { user -> Caller(scope = Scope(ownerId = user), subject = user) }
+        val headers = request.headers()
+        headers.firstHeader(USER)?.let { user ->
+            Caller(
+                tenantId = headers.firstHeader(TENANT) ?: Caller.DEFAULT_TENANT,
+                scope = Scope(ownerId = user),
+                subject = user,
+                crossScope = headers.firstHeader(ADMIN) != null,
+            )
+        }
     }
 
     companion object {
         const val USER: String = "X-User"
+        const val TENANT: String = "X-Tenant"
+        const val ADMIN: String = "X-Admin"
     }
 }
 

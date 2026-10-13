@@ -31,3 +31,13 @@ wow:
     # The order stream is published to wow.example.order.state; the order saga sends the inventory's commands to
     # wow.inventory.commands and reads the receipts of those it rejects from wow.example.receipts.
     bootstrap-servers: localhost:9092
+---
+spring:
+  config:
+    activate:
+      on-profile: clickhouse
+wow:
+  clickhouse:
+    # The order stream is written to ClickHouse by the Sink (example_order_state_flat, ...), and the datasets of the
+    # dataset files, META-INF/wow/dataset/example.orders.json, are queried there: /wow/dataset/example/orders/query.
+    endpoint: http://localhost:8123
