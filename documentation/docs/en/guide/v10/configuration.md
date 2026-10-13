@@ -147,6 +147,10 @@ Read when `wow-kafka` is on the class path; nothing is wired until `wow.kafka.bo
 | `wow.kafka.topic-prefix` | Empty | Put before every topic name, such as `staging.` for `staging.wow.shop.order.state` |
 | `wow.kafka.poll-timeout` | `200ms` | The longest a consumer's poll waits |
 | `wow.kafka.command-intake` | `false` | Whether each context the node hosts executes the commands of its topic `wow.<context>.commands`, which must exist with `wow.log.partitions` partitions |
+| `wow.kafka.topics.ddl` | `validate` | How the node manages the topics its contexts own at startup (decision D168): `validate` refuses to start when one is missing or a command topic does not have exactly `wow.log.partitions` partitions; `auto` creates the missing ones first, with the log's partitions; `none` checks only the partitions of the command topics the node reads. See [Deployment](./deployment.md#kafka) |
+| `wow.kafka.topics.replication-factor` | The broker's default | The replication factor of the topics `auto` creates |
+| `wow.kafka.topics.configs.*` | Empty | The topic settings of the topics `auto` creates (`retention.ms`, `min.insync.replicas`, …) |
+| `wow.kafka.topics.partition-refresh` | `30s` | How often the node looks for partitions added to the topics it reads (other contexts' streams, its receipts), and its consumers' `metadata.max.age.ms`. New partitions are read within about twice this, without a restart |
 
 ## ClickHouse
 

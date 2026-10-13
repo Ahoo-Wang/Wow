@@ -182,16 +182,14 @@ Use JDK 21. Start a service from the repository root. Each one runs on the memor
 
 The basket, ordering, inventory and payment services talk over Kafka. The basket, ordering and payment services do not start without it, because their sagas send other contexts' commands. Each of the four has two profiles:
 
-- **`kafka`** sets Kafka on `localhost:9092`. On ordering and inventory it also turns on the command intake. On ordering it starts `StockConfirmationSaga.onStockReserved` at the beginning of the stock stream, and on payment `OrderPaymentSaga.onOrderStockConfirmed` at the beginning of the order stream.
+- **`kafka`** sets Kafka on `localhost:9092`, and `wow.kafka.topics.ddl: auto`: each service creates the topics it owns at startup. On ordering and inventory it also turns on the command intake. On ordering it starts `StockConfirmationSaga.onStockReserved` at the beginning of the stock stream, and on payment `OrderPaymentSaga.onOrderStockConfirmed` at the beginning of the order stream.
 - **`postgres`** puts the service on PostgreSQL. Its database is `eshop_basket`, `eshop_ordering`, `eshop_inventory` or `eshop_payment` on `localhost:5432`.
 
 The ordering has a third profile, **`clickhouse`**: the Sink writes its order stream to ClickHouse on `localhost:8123`, and it serves the sales dataset (see [Sales](#sales)).
 
-The nodes do not create topics. Create the command topics with exactly as many partitions as the log (`wow.log.partitions`, 64 by default) before the first start:
+With the `kafka` profile, each service creates the topics it owns when they are missing (decision D168): its command topic with exactly as many partitions as its log (`wow.log.partitions`, 64 by default), its receipts topic and its state topics. A service that reads another's topic waits until that service has created it. In production, leave `wow.kafka.topics.ddl` at its default, `validate`, and create the topics beforehand ([Deployment](https://wow.ahoo.me/guide/v10/deployment#kafka)):
 
 ```bash
-kafka-topics --bootstrap-server localhost:9092 --create --topic wow.eshop-ordering.commands --partitions 64
-kafka-topics --bootstrap-server localhost:9092 --create --topic wow.eshop-inventory.commands --partitions 64
 ./gradlew -Pwow.scope=v10 :eshop-inventory-server:run --args='--spring.profiles.active=kafka'
 ./gradlew -Pwow.scope=v10 :eshop-ordering-server:run --args='--spring.profiles.active=kafka'
 ./gradlew -Pwow.scope=v10 :eshop-basket-server:run --args='--spring.profiles.active=kafka'

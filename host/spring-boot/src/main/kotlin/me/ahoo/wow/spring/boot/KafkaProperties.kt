@@ -13,8 +13,11 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.runtime.node.SourceTopics
+import me.ahoo.wow.runtime.node.TopicDdl
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
+import kotlin.time.toJavaDuration
 
 /**
  * The Kafka transport's configuration, `wow.kafka.*` (decision D110), read when wow-kafka is on the classpath
@@ -32,7 +35,17 @@ import java.time.Duration
  * - `wow.kafka.command-intake`: whether each context the node hosts executes the commands other contexts send to its
  *   command topic, `wow.<context>.commands` (decisions D135, D137); off by default. The topic must exist with as
  *   many partitions as the context's log, and the node checks it at start. Sending commands to other contexts and
- *   reading their receipts need no switch.
+ *   reading their receipts need no switch. A context with an aggregate type routed through Kafka
+ *   (`wow.aggregates.[<context>.<aggregate>].routing=kafka`, decision D143) takes them whatever this says.
+ * - `wow.kafka.topics.ddl` (decision D168): how the node manages the topics its contexts own at its start, see
+ *   [Topics]: `validate` (the default) fails the start when one is missing or a command topic does not have exactly
+ *   `wow.log.partitions` partitions; `auto` creates the missing ones first; `none` checks only the command topics the
+ *   node reads, whose partitions must still be the log's.
+ * - `wow.kafka.topics.replication-factor` (the broker's default) and `wow.kafka.topics.configs.*` (`retention.ms`,
+ *   `min.insync.replicas`, ...): what `auto` creates a topic with.
+ * - `wow.kafka.topics.partition-refresh` (30s): how often the node looks for partitions added to the topics it reads
+ *   (other contexts' streams, its receipts), and its consumers' `metadata.max.age.ms`; the new partitions are read
+ *   within about twice this.
  */
 @ConfigurationProperties(prefix = KafkaProperties.PREFIX)
 class KafkaProperties {
@@ -41,6 +54,15 @@ class KafkaProperties {
     var topicPrefix: String = ""
     var pollTimeout: Duration = Duration.ofMillis(DEFAULT_POLL_TIMEOUT_MILLIS)
     var commandIntake: Boolean = false
+    var topics: Topics = Topics()
+
+    /** The topics the node's contexts own (decision D168): their DDL, and how `auto` creates them. */
+    class Topics {
+        var ddl: TopicDdl = TopicDdl.VALIDATE
+        var replicationFactor: Short? = null
+        var configs: MutableMap<String, String> = LinkedHashMap()
+        var partitionRefresh: Duration = SourceTopics.DEFAULT_PARTITION_REFRESH.toJavaDuration()
+    }
 
     companion object {
         const val PREFIX: String = "wow.kafka"

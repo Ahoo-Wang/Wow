@@ -36,7 +36,7 @@ import kotlin.time.Duration.Companion.seconds
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ShopKafkaSinkTest {
     private val kafka = ConfluentKafkaContainer("confluentinc/cp-kafka:7.4.0").also { it.start() }
-    private val shop = startShop("wow.kafka.bootstrap-servers" to kafka.bootstrapServers)
+    private val shop = startShop("wow.kafka.bootstrap-servers" to kafka.bootstrapServers, "wow.kafka.topics.ddl" to "auto")
     private val source = KafkaPartitionedSource.create(KafkaOptions(kafka.bootstrapServers))
 
     @AfterAll

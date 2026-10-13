@@ -172,6 +172,9 @@ class ContextTimers internal constructor(
  * [PartitionOwnership]: the owner of a log partition reads the same partition of the topic, and [start] fails unless
  * the topic has as many partitions as the log.
  *
+ * **Topics** (decision D168): [start] first validates or creates the topics the node's contexts own
+ * ([topicRequirements]) as [SourceTopics.ddl] says, and fails when one is not as they need it.
+ *
  * **Startup checks**: the [manifest] (normally [me.ahoo.wow.runtime.manifest.ManifestLoader]'s) names this
  * [service], and it and the [models] agree ([ManifestCheck]); otherwise the node is not built. Nor is it built
  * without a producer in [topics] when a saga of the [manifest] derives, schedules or handles the rejections of
@@ -372,6 +375,50 @@ class ServiceNode(
         }
     }
 
+    /**
+     * The topics the node's contexts own and use (decision D168), which [start] validates or creates as
+     * [SourceTopics.ddl] says: the command topic of each context that takes commands from it, with exactly its log's
+     * partitions; the receipts topic of each context that reads its rejections; with a producer, the topic of each
+     * stream its contexts publish. None without [topics].
+     */
+    val topicRequirements: List<TopicRequirement> = topicRequirements()
+
+    private fun topicRequirements(): List<TopicRequirement> {
+        val sources = topics ?: return emptyList()
+        val requirements = ArrayList<TopicRequirement>()
+        contexts.values.forEach { context ->
+            val partitions = context.backends.log.partitions
+            if (context.intake != null) {
+                requirements += TopicRequirement(
+                    sources.commandsOf(context.context),
+                    partitions,
+                    exact = true,
+                    "the command topic of context ${context.context}, with as many partitions as its log",
+                )
+            }
+            val receipts = sources.receiptsOf(context.context)
+            if (receipts in topicSubscriptions) {
+                requirements += TopicRequirement(
+                    receipts,
+                    partitions,
+                    exact = false,
+                    "the receipts topic of context ${context.context}",
+                )
+            }
+            if (sources.producer != null) {
+                manifest.contexts.firstOrNull { it.name == context.context }?.published.orEmpty().forEach {
+                    requirements += TopicRequirement(
+                        sources.topicOf(it.topic),
+                        partitions,
+                        exact = false,
+                        "the published stream of ${context.context}.${it.aggregate}",
+                    )
+                }
+            }
+        }
+        return requirements.distinctBy { it.topic }
+    }
+
     private val lifecycle = Mutex()
 
     /** Where the node is in its lifecycle. */
@@ -409,6 +456,7 @@ class ServiceNode(
         check(hasAddress) { "Node $node has no internal address: bind it before it starts." }
         state = State.STARTING
         try {
+            topics?.let { NodeTopics.prepare(node, it, topicRequirements) }
             intakes.keys.forEach { context ->
                 CommandIntake.checkPartitions(
                     topics!!.commandsOf(context.context),
@@ -542,6 +590,7 @@ class ServiceNode(
                 cluster = options.cluster,
                 signals = signals,
                 notifier = parkedNotifier,
+                partitionRefresh = topics!!.partitionRefresh,
             )
         }
     }
@@ -574,6 +623,7 @@ class ServiceNode(
                 signals = signals,
                 notifier = parkedNotifier,
                 entries = { partitions -> MessageEntries.receipts(topic, sources.source, partitions) },
+                partitionRefresh = sources.partitionRefresh,
             )
         }.toMap()
     }

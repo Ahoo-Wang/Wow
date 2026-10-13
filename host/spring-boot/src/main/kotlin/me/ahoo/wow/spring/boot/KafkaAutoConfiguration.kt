@@ -15,12 +15,14 @@ package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.kafka.KafkaOptions
 import me.ahoo.wow.kafka.KafkaPartitionedSource
+import me.ahoo.wow.kafka.KafkaTopicAdmin
 import me.ahoo.wow.kafka.KafkaTopicProducer
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.spi.transport.PartitionedSource
+import me.ahoo.wow.spi.transport.TopicAdmin
 import me.ahoo.wow.spi.transport.TopicProducer
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -50,6 +52,10 @@ import kotlin.time.toKotlinDuration
  *   back are read from `wow.<context>.receipts` for the sagas with `@OnRejected` handlers. With
  *   `wow.kafka.command-intake=true`, each context the node hosts also executes the commands of its own command topic,
  *   which must have as many partitions as the context's log (`wow.log.partitions`): the node does not start otherwise.
+ *   So does each context with an aggregate type routed through Kafka (decision D143).
+ * - **Topics** (decision D168): a [KafkaTopicAdmin], unless the application has a [TopicAdmin] bean of its own,
+ *   through which the node validates or creates the topics its contexts own at its start, as `wow.kafka.topics.ddl`
+ *   says. Closed with the context.
  */
 @AutoConfiguration
 @ConditionalOnClass(name = [KAFKA_MODULE])
@@ -72,13 +78,30 @@ class KafkaAutoConfiguration {
         fun wowKafkaPartitionedSource(properties: KafkaProperties): KafkaPartitionedSource =
             KafkaPartitionedSource.create(options(properties))
 
+        @Bean(destroyMethod = "close")
+        @ConditionalOnMissingBean(TopicAdmin::class)
+        fun wowKafkaTopicAdmin(properties: KafkaProperties): KafkaTopicAdmin = KafkaTopicAdmin.create(
+            options(properties),
+            properties.topics.replicationFactor,
+            properties.topics.configs.toMap(),
+        )
+
         @Bean
         @ConditionalOnMissingBean
         fun wowKafkaSourceTopics(
             source: PartitionedSource,
             producer: TopicProducer,
+            admin: TopicAdmin,
             properties: KafkaProperties,
-        ): SourceTopics = SourceTopics(source, properties.topicPrefix, producer, properties.commandIntake)
+        ): SourceTopics = SourceTopics(
+            source,
+            properties.topicPrefix,
+            producer,
+            properties.commandIntake,
+            admin,
+            properties.topics.ddl,
+            properties.topics.partitionRefresh.toKotlinDuration(),
+        )
     }
 
     companion object {
@@ -90,6 +113,7 @@ class KafkaAutoConfiguration {
             bootstrapServers = checkNotNull(properties.bootstrapServers) { "wow.kafka.bootstrap-servers is not set." },
             properties = properties.properties.toMap(),
             pollTimeout = properties.pollTimeout.toKotlinDuration(),
+            metadataMaxAge = properties.topics.partitionRefresh.toKotlinDuration(),
         )
     }
 }

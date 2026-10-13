@@ -69,11 +69,29 @@ wow:
 | `wow.<context>.commands` | 其他上下文的 Saga 与定时器 | 本上下文，需设置 `wow.kafka.command-intake: true` |
 | `wow.<context>.receipts` | 其他上下文，针对它们拒绝的本上下文命令 | 本上下文的 `@OnRejected` 处理函数 |
 
-Saga 向其他上下文发送命令的节点，没有 Kafka（或其他命令传输）就无法启动。节点不创建主题。首次启动之前创建它们；命令主题的分区数必须恰好等于 `wow.log.partitions`（默认 64），否则开启 `command-intake` 的节点无法启动：
+Saga 向其他上下文发送命令的节点，没有 Kafka（或其他命令传输）就无法启动。
+
+### 主题管理
+
+每个上下文拥有三类主题：命令主题（接收命令时）、回执主题（其 Saga 有 `@OnRejected` 处理函数时），以及它发布的每个聚合的状态主题。其他上下文的主题归它们自己。节点启动时按 `wow.kafka.topics.ddl` 检查自己拥有的主题（决定 D168）：
+
+| `wow.kafka.topics.ddl` | 启动时 |
+| --- | --- |
+| `validate`（默认） | 有主题缺失，或命令主题的分区数不恰好等于 `wow.log.partitions` 时，节点不启动。错误信息列出每个这样的主题 |
+| `auto` | 节点先按 `wow.log.partitions` 个分区、`wow.kafka.topics.replication-factor` 与 `wow.kafka.topics.configs.*` 创建缺失的主题，再校验。已有的主题从不修改 |
+| `none` | 节点什么也不检查，只检查它读取的命令主题的分区数仍恰好等于 `wow.log.partitions` |
+
+命令主题的分区数总会检查：命令在其中的分区就是其聚合的日志分区，分区数不同，命令就会到达不拥有其聚合的节点。开发和测试用 `auto`。生产环境由运维创建主题，默认的 `validate` 会在首次启动时发现缺失的主题：
 
 ```bash
 kafka-topics --bootstrap-server localhost:9092 --create --topic wow.inventory.commands --partitions 64
+kafka-topics --bootstrap-server localhost:9092 --create --topic wow.inventory.receipts --partitions 64
+kafka-topics --bootstrap-server localhost:9092 --create --topic wow.inventory.stock.state --partitions 64
 ```
+
+节点读取主题时从不让 Kafka 顺带创建它（`allow.auto.create.topics=false`），所以尚不存在的流会被等待，而不是按 broker 的默认分区数创建。
+
+服务运行期间可以给状态主题或回执主题增加分区：节点每隔 `wow.kafka.topics.partition-refresh`（30 秒）检查一次，从头读取新分区，无需重启。不要给命令主题增加分区。
 
 读取其他上下文流的订阅把偏移量记在本服务的检查点里，分区由本服务的租约分配：没有需要管理的消费组。`wow.kafka.properties.*` 把 `security.protocol` 等客户端设置传给每个生产者与消费者。
 

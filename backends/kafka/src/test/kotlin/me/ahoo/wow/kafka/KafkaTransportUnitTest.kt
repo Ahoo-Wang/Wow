@@ -62,6 +62,11 @@ class KafkaTransportUnitTest {
         consumer.containsKey(ConsumerConfig.GROUP_ID_CONFIG).assert().isFalse()
         consumer[ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG].assert().isEqualTo(false)
         consumer[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG].assert().isEqualTo("earliest")
+        consumer[ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG].assert().isEqualTo(false)
+        consumer[ConsumerConfig.METADATA_MAX_AGE_CONFIG].assert().isEqualTo(30_000L)
+        KafkaOptions("broker:9092", mapOf("metadata.max.age.ms" to "1000")).consumerConfig()["metadata.max.age.ms"]
+            .assert().isEqualTo("1000")
+        assertThrows<IllegalArgumentException> { KafkaOptions("broker:9092", metadataMaxAge = 0.seconds) }
         consumer["client.id"].assert().isEqualTo("shop")
         assertThrows<IllegalArgumentException> { KafkaOptions(" ") }
         assertThrows<IllegalArgumentException> { KafkaOptions("broker:9092", pollTimeout = 0.milliseconds) }

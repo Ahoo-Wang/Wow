@@ -29,5 +29,9 @@ spring:
       on-profile: kafka
 wow:
   kafka:
+    # Creates the topics the service owns when they are missing, for trying it out; production validates them, the
+    # default (decision D168).
+    topics:
+      ddl: auto
     # The checkout saga sends SubmitOrder to wow.eshop-ordering.commands.
     bootstrap-servers: localhost:9092

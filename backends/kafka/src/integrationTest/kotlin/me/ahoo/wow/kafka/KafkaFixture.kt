@@ -27,7 +27,7 @@ object KafkaFixture {
 
     val options: KafkaOptions by lazy { KafkaOptions(container.bootstrapServers) }
 
-    private val admin: Admin by lazy {
+    val admin: Admin by lazy {
         Admin.create(mapOf<String, Any>(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to container.bootstrapServers))
     }
 

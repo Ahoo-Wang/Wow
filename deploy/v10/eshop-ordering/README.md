@@ -26,17 +26,15 @@ These are plain manifests for one V10 service: the eShop ordering service (`exam
 
 2. Provide PostgreSQL and Kafka. `configmap.yaml` expects them at `postgres:5432` (database `eshop_ordering`) and `kafka:9092`. The host creates its tables at startup.
 
-3. Create the Kafka topics. The node does not create them:
+3. Create the Kafka topics the ordering service owns. `configmap.yaml` sets `WOW_KAFKA_TOPICS_DDL=validate` (decision D168): a node does not start while one of them is missing, or while its command topic does not have exactly `WOW_LOG_PARTITIONS` partitions, and its log names each such topic:
 
    ```bash
    kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.commands --partitions 64
-   kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-inventory.commands --partitions 64
-   kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.receipts --partitions 1
-   kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.order.state --partitions 2
-   kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-inventory.stock.state --partitions 2
+   kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.receipts --partitions 64
+   kafka-topics --bootstrap-server kafka:9092 --create --topic wow.eshop-ordering.order.state --partitions 64
    ```
 
-   The command topics must have exactly `WOW_LOG_PARTITIONS` partitions. Otherwise a node with the command intake does not start.
+   The topics it reads belong to the services that write them: the inventory service owns `wow.eshop-inventory.commands` (64 partitions, its log's) and `wow.eshop-inventory.stock.state`. On a cluster for trying it out, set `WOW_KAFKA_TOPICS_DDL=auto` instead, and each service creates the topics it owns.
 
 ## Apply and check
 

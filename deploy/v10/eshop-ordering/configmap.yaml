@@ -12,6 +12,9 @@ data:
   SPRING_PROFILES_ACTIVE: postgres,kafka
   SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/eshop_ordering
   WOW_KAFKA_BOOTSTRAPSERVERS: kafka:9092
+  # The topics the service owns are created by the operator; the node only validates them (decision D168). The kafka
+  # profile's auto is for trying the service out.
+  WOW_KAFKA_TOPICS_DDL: validate
   # Fixed once the context's log holds entries; the command topic wow.eshop-ordering.commands has as many partitions.
   WOW_LOG_PARTITIONS: "64"
   JAVA_OPTS: -XX:MaxRAMPercentage=75.0

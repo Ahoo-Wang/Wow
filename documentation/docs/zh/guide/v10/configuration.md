@@ -147,6 +147,10 @@ wow:
 | `wow.kafka.topic-prefix` | 空 | 加在每个主题名前，例如 `staging.` 得到 `staging.wow.shop.order.state` |
 | `wow.kafka.poll-timeout` | `200ms` | 消费者一次 poll 最长等待的时间 |
 | `wow.kafka.command-intake` | `false` | 节点承载的每个上下文是否执行其主题 `wow.<context>.commands` 中的命令；该主题必须存在且分区数为 `wow.log.partitions` |
+| `wow.kafka.topics.ddl` | `validate` | 节点启动时如何管理本节点各上下文拥有的主题（决定 D168）：`validate` 在主题缺失、或命令主题的分区数不恰好等于 `wow.log.partitions` 时拒绝启动；`auto` 先按日志的分区数创建缺失的主题；`none` 只检查节点读取的命令主题的分区数。见[部署](./deployment.md#kafka) |
+| `wow.kafka.topics.replication-factor` | broker 的默认值 | `auto` 创建主题时的副本数 |
+| `wow.kafka.topics.configs.*` | 空 | `auto` 创建主题时的主题设置（`retention.ms`、`min.insync.replicas` 等） |
+| `wow.kafka.topics.partition-refresh` | `30s` | 节点多久检查一次所读主题（其他上下文的流、本上下文的回执）新增的分区，也是其消费者的 `metadata.max.age.ms`。新分区在大约两倍于此的时间内开始被读取，无需重启 |
 
 ## ClickHouse
 

@@ -37,8 +37,10 @@ import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
 import me.ahoo.wow.spi.transport.PartitionedSource
+import me.ahoo.wow.spi.transport.TopicAdmin
 import me.ahoo.wow.spi.transport.TopicProducer
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The stores of one bounded context on a node (decision D72: a log, its partitions and leases are per context). The
@@ -228,10 +230,32 @@ data class SourcedSubscription(val subscription: Subscription, val types: Set<Ag
 }
 
 /**
+ * How a node manages the topics its contexts own at its start (decision D168), as DDL is managed for the stores:
+ * the command topic of each context that takes commands from it, `wow.<context>.commands`, with exactly its log's
+ * partitions; the receipts topic of each context whose sagas handle rejections, `wow.<context>.receipts`; and the
+ * topic of each stream its contexts publish, `wow.<context>.<aggregate>.state`. Those two have the log's partitions
+ * when created, and any number otherwise.
+ */
+enum class TopicDdl {
+    /** Creates the topics that are missing, with their partitions, then validates them as [VALIDATE] does. */
+    AUTO,
+
+    /** Fails the start when a topic is missing, or a command topic does not have exactly its log's partitions. */
+    VALIDATE,
+
+    /**
+     * Checks nothing but the command topics a node reads, whose partitions must still be its log's: a command's
+     * partition among them is its log partition, so any other count reaches owners that do not own its aggregate.
+     */
+    NONE,
+}
+
+/**
  * The topics of a node's broker, each named after [prefix], the prefix every service on the broker writes under:
  *
  * - **Published streams** (decision D134): the node reads other contexts' streams from [source], each topic named as
- *   the publishing context's Manifest names it (`PublishedManifest.topic`, [topicOf]).
+ *   the publishing context's Manifest names it (`PublishedManifest.topic`, [topicOf]). Partitions added to a topic
+ *   it reads are read too, within [partitionRefresh] of the source seeing them (decision D168).
  * - **Commands across contexts** (decisions D33, D135, D137), with a [producer]: a saga's command to an aggregate of
  *   a context outside its own is sent to that context's command topic, `wow.<context>.commands` ([commandsOf]), and
  *   the receipts of those another context rejects are read from the saga's context's receipts topic,
@@ -239,15 +263,22 @@ data class SourcedSubscription(val subscription: Subscription, val types: Set<Ag
  * - **Command intake** (decision D137), when [intake] is set: each context the node hosts executes the commands of its
  *   command topic, whose partitions must be its log's, and sends the receipts of those it rejects through
  *   [producer].
+ * - **Topic management** (decision D168): at its start, the node validates or creates the topics its contexts own as
+ *   [ddl] says, through [admin], which any [ddl] but [TopicDdl.NONE] needs.
  */
 data class SourceTopics(
     val source: PartitionedSource,
     val prefix: String = "",
     val producer: TopicProducer? = null,
     val intake: Boolean = false,
+    val admin: TopicAdmin? = null,
+    val ddl: TopicDdl = TopicDdl.NONE,
+    val partitionRefresh: Duration = DEFAULT_PARTITION_REFRESH,
 ) {
     init {
         require(!intake || producer != null) { "A command intake sends receipts: it needs a producer." }
+        require(ddl == TopicDdl.NONE || admin != null) { "Topics are validated or created through an admin: $ddl." }
+        require(partitionRefresh.isPositive()) { "The partitions of a topic are refreshed at a positive interval." }
     }
 
     /** The topic of a stream the Manifest publishes on [topic]. */
@@ -258,4 +289,8 @@ data class SourceTopics(
 
     /** The receipts topic of [context] (decision D136). */
     fun receiptsOf(context: String): String = "${prefix}wow.$context.receipts"
+
+    companion object {
+        val DEFAULT_PARTITION_REFRESH: Duration = 30.seconds
+    }
 }

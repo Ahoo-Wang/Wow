@@ -300,6 +300,41 @@ class TopicSubscriptionsTest {
         }
     }
 
+    @Test
+    fun `partitions added while reading should be read too, the others going on from their checkpoints`(): Unit =
+        runBlocking {
+            val topic = "wow.sales.growing.state"
+            topics.create(topic, 2)
+            val growing = TopicSubscriptions(
+                service = SERVICE,
+                topic = topic,
+                node = "node-1",
+                addressOf = { "node-1.internal:9090" },
+                source = topics,
+                checkpoints = checkpoints,
+                leases = leases,
+                ledger = ledger,
+                subscriptions = listOf(board),
+                options = testOptions(),
+                cluster = fastOptions(),
+                partitionRefresh = 20.milliseconds,
+            ).also {
+                started += it
+                it.start()
+                it.awaitStarted()
+            }
+            topics.publish(orderRecord("o-1", 1), orderRecord("o-2", 1), topic = topic)
+            eventually { handled.size == 2 }
+            topics.grow(topic, PARTITIONS)
+            eventually { growing.ownership?.owned == (0 until PARTITIONS).toSet() }
+            val record = EnvelopeCodec.message(orderRecord("o-3", 1))
+            topics.send(topic, TopicMessage(record.key, record.value, record.headers, PARTITIONS - 1))
+            eventually { handled.versionsOf("o-3") == listOf(1) }
+            delay(50.milliseconds)
+            // Nothing read before the partitions were added was handled again.
+            handled.size.assert().isEqualTo(3)
+        }
+
     private companion object {
         const val SERVICE = "board-service"
         const val BOARD = "Board.onOrder"
