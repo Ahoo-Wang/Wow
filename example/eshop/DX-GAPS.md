@@ -85,3 +85,85 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
   - Document what the compiler generates: factories, binding index, fragment and routes.
   - Let the generated factory default to the module's single context.
 - **Blocks M7**: yes, for the documentation. The default context is not blocking.
+
+### G6. `wowPeers` cannot be used in the build that produces the Gradle plugin
+
+- **Work package**: 6.3e (the shop's inventory, found while wiring the example's two services)
+- **Area**: build
+- **What happened**: The shop and the inventory are each other's peers (decision D139): the shop sends the inventory's commands, and the inventory reads the shop's order stream. The Gradle plugin's `wowPeers(project(":inventory-server"))` is the documented way to put a peer's Manifest on the class path. The plugin cannot be applied to a project of the build that produces it, so neither server could call `wowPeers`. Without the peer Manifest, the shop's saga fails on the inventory's command type, and the inventory does not start.
+- **Where they looked**: `v9-to-v10.md`; the plugin's sources (`CollectPeerManifests`).
+- **Workaround**: `example/wow-peers.gradle.kts` does what the plugin does for both servers:
+  - merges the server's fragments into its Manifest and offers it as `wowManifestElements`;
+  - collects peers into `META-INF/wow/peers`.
+- **Proposed fix**: Share that script, or a `build-logic` convention, with the eShop. The eShop's ordering and inventory services hit the same wall. Alternatively, build the plugin as an included build so the repository's own examples can apply it.
+- **Blocks M7**: no. Users apply the published plugin. It blocks the eShop's cross-context work packages until a shared workaround exists.
+
+### G7. Events from another context's stream are untyped payloads
+
+- **Work package**: 6.3e
+- **Area**: kernel, docs
+- **What happened**: A handler of another context's stream (`@OnEvent(aggregates = ["example.order"])`) gets `StateEventPayload`s in `event.events`: a name, a revision and a JSON payload. It gets these even when the producer's API classes are on the class path. The inventory's saga matches `"example.order.OrderShipped"` by string. The state is decoded into the handler's type, but the events are not.
+- **Where they looked**: `v9-to-v10.md` (event processors); the KDoc of `StateEvent` and `@OnEvent`.
+- **Workaround**: Match by event name constants; read what the handler needs from the published state.
+- **Proposed fix**: Decode a published event into its class when the peer Manifest's schema reference resolves on the class path, or offer a typed helper (`event.payload<OrderShipped>()`). Document the shape in either case.
+- **Blocks M7**: no, but it should be settled before users write cross-context handlers.
+
+### G8. D144 calls the inventory's handler a reactor, but only a saga can send a command
+
+- **Work package**: 6.3e
+- **Area**: docs
+- **What happened**: The decision describes the inventory's handler as a reactor on the order stream that sends `CommitReservation`. In V10 a `@Reactor` handler returns nothing. Only a `@Saga` derives commands, through `SagaContext.command`.
+- **Where they looked**: decisions D144 and D67; the KDoc of `@Reactor` and `@Saga`.
+- **Workaround**: `OrderStockSaga` is a `@Saga`.
+- **Proposed fix**: Word the decision and the guide as "a saga". State plainly in the programming model page that sending a command makes the processor a saga.
+- **Blocks M7**: no.
+
+### G9. A saga's command to another context fails only at run time without Kafka
+
+- **Work package**: 6.3e
+- **Area**: host
+- **What happened**: The shop runs without `wow.kafka.bootstrap-servers` by default. Its `OrderSaga` sends to another context, so every order placed then retries and parks `OrderSaga.onOrderCreated` in the failure ledger. The node starts without a warning.
+- **Where they looked**: the host's configuration keys; `KafkaProperties`.
+- **Workaround**: The shop's README says so. The `kafka` profile turns Kafka on.
+- **Proposed fix**: At startup, check sagas whose Manifest `derives` or `rejected` name a context the node does not host. When the node has no `SourceTopics` producer, fail, or at least warn, naming the saga and the context.
+- **Blocks M7**: yes. A misconfigured service otherwise looks healthy while it parks every saga execution.
+
+### G10. Where a subscription of another context's stream starts is host configuration only
+
+- **Work package**: 6.3e
+- **Area**: compiler, host
+- **What happened**: A saga starts at `END` by default. A subscription of another context's stream that joins the topic's partitions after records were published silently skips them. For the inventory that means losing shipped orders. The only fix is `wow.subscriptions.[OrderStockSaga.onOrderShipped].start: beginning` in `application.yaml`, once per handler. The annotation cannot say it.
+- **Where they looked**: the KDoc of `@OnEvent`; the host's `wow.subscriptions.*` keys.
+- **Workaround**: The inventory's `application.yaml` sets `beginning` for both handlers.
+- **Proposed fix**: Let the annotation declare the start (`@OnEvent(start = ...)`), with host configuration overriding it. Or default subscriptions of another context's stream to `beginning`.
+- **Blocks M7**: yes. The default loses data silently for a new service.
+
+### G11. The command topic must be created by hand with exactly the log's partitions
+
+- **Work package**: 6.3e
+- **Area**: host, backends, docs
+- **What happened**: With `wow.kafka.command-intake`, the node refuses to start unless `wow.<context>.commands` exists with exactly `wow.log.partitions` partitions, 64 by default. Running the inventory locally takes a `kafka-topics --create ... --partitions 64` first, and each test creates the topic itself.
+- **Where they looked**: `KafkaProperties`; decision D135.
+- **Workaround**: The README gives the command; the tests create the topic with the Kafka admin client.
+- **Proposed fix**: An opt-in `wow.kafka.create-topics` for development that creates the command topic with the right count. Document the topic DDL (decision D168).
+- **Blocks M7**: no, once the DDL is documented.
+
+### G12. The test DSL's `expectState` cannot follow `expectUnchanged`
+
+- **Work package**: 6.3e
+- **Area**: testing
+- **What happened**: A spec that checks a `NoOp` command left the state as it was fails in `expectState` with "Expected committed events but got Unchanged". There is no way to check the state after a command that changed nothing.
+- **Where they looked**: the kernel's test fixtures (`AggregateSpec`).
+- **Workaround**: Assert `expectUnchanged()` only.
+- **Proposed fix**: Let `expectState` read the current state after an `Unchanged` outcome.
+- **Blocks M7**: no.
+
+### G13. Tenants across services match only by convention
+
+- **Work package**: 6.3e
+- **Area**: host, docs
+- **What happened**: The shop's saga addresses the inventory's stock as `stock.ref(order's tenant, productId)`. It works because both services serve anonymous callers in the default tenant `(0)`. Nothing documents that a cross-context reference carries the sender's tenant into the target, or what happens when the target has a fixed tenant policy for the aggregate.
+- **Where they looked**: the host's `wow.aggregates.*.tenant` keys; decision D116.
+- **Workaround**: Both services run with the default tenant.
+- **Proposed fix**: Document how a tenant crosses contexts. Have the target's admission check a cross-context command's tenant against its tenant policy, with a clear rejection.
+- **Blocks M7**: no, but it needs settling before multi-tenant users go cross-context.

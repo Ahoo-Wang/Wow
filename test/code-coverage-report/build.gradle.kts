@@ -64,10 +64,13 @@ val classesSharedWithNineX = mapOf(":api" to listOf("me/ahoo/wow/api/annotation/
 // D125: the V10 query protocol (:query-api) keeps the package and class names of 9.x wow-api's `query`, code included.
 // A report that covers both (the full build's 9.x reports) leaves out :query-api's; the V10 reports, which have no
 // 9.x wow-api, keep them. D126: the V10 query engine (:query) likewise keeps 9.x wow-query's package and many of its
-// class names (`me.ahoo.wow.query.QueryAdmission`, ...), so a report that covers both leaves out :query's.
+// class names (`me.ahoo.wow.query.QueryAdmission`, ...), so a report that covers both leaves out :query's. D126 also
+// gives the V10 MongoDB backend (:mongo) the 9.x package of wow-mongo's query backend, `me.ahoo.wow.mongo.query`,
+// where both declare `MongoCursorCodec`, so a report that covers both leaves out :mongo's query classes.
 val classesSharedWithNineXWhenBoth = mapOf(
     ":query-api" to (":wow-api" to listOf("me/ahoo/wow/api/query/**")),
     ":query" to (":wow-query" to listOf("me/ahoo/wow/query/**")),
+    ":mongo" to (":wow-mongo" to listOf("me/ahoo/wow/mongo/query/**")),
 )
 
 fun JacocoReport.useCoverageData(
