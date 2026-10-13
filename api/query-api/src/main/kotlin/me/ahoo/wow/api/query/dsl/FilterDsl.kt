@@ -470,11 +470,9 @@ class FilterDsl internal constructor(
 
     private fun resolvePath(value: String): String =
         if (prefix == "" || value.startsWith(prefix = "$prefix.")) value else "$prefix.$value"
-
-    private companion object {
-        val MILLIS: TimeUnit = TimeUnit.MILLISECONDS
-    }
 }
+
+private val MILLIS: TimeUnit = TimeUnit.MILLISECONDS
 
 /** Builds a [FilterExpression]; see [FilterDsl]. */
 fun filter(block: FilterDsl.() -> Unit): FilterExpression = FilterDsl().apply(block).build()

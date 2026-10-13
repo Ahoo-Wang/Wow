@@ -31,8 +31,13 @@ import me.ahoo.wow.api.query.TotalMode
  */
 @QueryDslMarker
 abstract class QueryableDsl<Q> {
+    @JvmField
     protected var projection: Projection = Projection.ALL
+
+    @JvmField
     protected var filter: FilterExpression = MatchAllFilter
+
+    @JvmField
     protected var sort: List<Sort> = emptyList()
 
     fun projection(projection: Projection) {

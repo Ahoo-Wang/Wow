@@ -37,45 +37,69 @@ package me.ahoo.wow.api.query
 @Suppress("PropertyName", "VariableNaming")
 open class SnapshotProperties protected constructor() {
     /** The aggregate's tenant. */
+    @JvmField
     val TENANT_ID: QueryField = QueryField("tenantId")
 
     /** The aggregate's id, unique within its tenant. */
+    @JvmField
     val AGGREGATE_ID: QueryField = QueryField("aggregateId")
 
     /** The aggregate's version: the number of its events. */
+    @JvmField
     val VERSION: QueryField = QueryField("version")
 
     /** The aggregate's owner, `null` when it has none. */
+    @JvmField
     val OWNER_ID: QueryField = QueryField("ownerId")
 
     /** The aggregate's space, `null` when it has none. */
+    @JvmField
     val SPACE_ID: QueryField = QueryField("spaceId")
 
     /** Whether the aggregate is deleted; a query sees only the others unless it filters on the deletion state. */
+    @JvmField
     val DELETED: QueryField = QueryField("deleted")
 
     /** The aggregate's tags, a map of string lists; [tag] names one of them. */
+    @JvmField
     val TAGS: QueryField = QueryField("tags")
 
     /** When the aggregate got its first event, in epoch milliseconds. */
+    @JvmField
     val FIRST_EVENT_TIME: QueryField = QueryField("firstEventTime")
 
     /** When the aggregate got its last event, in epoch milliseconds. */
+    @JvmField
     val LAST_EVENT_TIME: QueryField = QueryField("lastEventTime")
 
     /** Who sent the last command: `{id, tenantId, crossScope}`, or `null` for an anonymous caller. */
+    @JvmField
     val OPERATOR: QueryField = QueryField("operator")
+
+    @JvmField
     val OPERATOR__ID: QueryField = QueryField("operator.id")
+
+    @JvmField
     val OPERATOR__TENANT_ID: QueryField = QueryField("operator.tenantId")
+
+    @JvmField
     val OPERATOR__CROSS_SCOPE: QueryField = QueryField("operator.crossScope")
 
     /** Who sent the command that created the aggregate, as [OPERATOR]. */
+    @JvmField
     val FIRST_OPERATOR: QueryField = QueryField("firstOperator")
+
+    @JvmField
     val FIRST_OPERATOR__ID: QueryField = QueryField("firstOperator.id")
+
+    @JvmField
     val FIRST_OPERATOR__TENANT_ID: QueryField = QueryField("firstOperator.tenantId")
+
+    @JvmField
     val FIRST_OPERATOR__CROSS_SCOPE: QueryField = QueryField("firstOperator.crossScope")
 
     /** The aggregate's state. */
+    @JvmField
     val STATE: QueryField = QueryField("state")
 
     /** The tag [name] of [TAGS]: `tags.<name>`. */

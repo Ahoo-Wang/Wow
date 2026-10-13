@@ -20,6 +20,7 @@ import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationExpressionOperator
 import me.ahoo.wow.api.query.AggregationFunction
 import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationGroupScope
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.DateDiffUnit
@@ -485,5 +486,64 @@ class AggregationQueryDslTest {
             AggregationMetric.Numeric(AggregationFunction.MAX, lead, "lead"),
             AggregationMetric.Numeric(AggregationFunction.MIN, lead, "minLead"),
         )
+    }
+
+    @Suppress("LongMethod")
+    @Test
+    fun `each optional argument of a group or metric may be left out or given`() {
+        val day = QueryField("day")
+        val shanghai = ZoneId.of("Asia/Shanghai")
+        val query = aggregation {
+            terms("a", "a")
+            terms("b", "b", "none", AggregationGroupScope.ROOT)
+            terms(QueryField("c"), "c")
+            terms(field("d"), "d")
+            terms(field("e"), "e", AggregationGroupScope.ELEMENT)
+            histogram("f", 1.0, "f")
+            histogram("g", 1.0, "g", AggregationGroupScope.ROOT)
+            histogram(QueryField("h"), 1.0, "h")
+            histogram(field("i"), 1.0, "i")
+            histogram(field("j"), 1.0, "j", AggregationGroupScope.ELEMENT)
+            dateHistogram("k", AggregationDateUnit.DAY, "k")
+            dateHistogram("l", AggregationDateUnit.DAY, "l", shanghai)
+            dateHistogram("m", AggregationDateUnit.DAY, "m", shanghai, scope = AggregationGroupScope.ROOT)
+            dateHistogram(day, AggregationDateUnit.DAY, "n")
+            dateHistogram(day, AggregationDateUnit.DAY, "o", shanghai, false, AggregationGroupScope.ROOT)
+            datePart("p", AggregationDatePart.HOUR_OF_DAY, "p")
+            datePart("q", AggregationDatePart.HOUR_OF_DAY, "q", shanghai)
+            datePart("r", AggregationDatePart.HOUR_OF_DAY, "r", shanghai, scope = AggregationGroupScope.ROOT)
+            datePart(day, AggregationDatePart.HOUR_OF_DAY, "s")
+            datePart(day, AggregationDatePart.HOUR_OF_DAY, "t", shanghai, false, AggregationGroupScope.ROOT)
+            count("count")
+            first("status", "first1")
+            first("status", "first2", "version")
+            first("status", "first3") { "status" eq "PAID" }
+            first("status", "first4", "version") { "status" eq "PAID" }
+            first(QueryField("status"), "first5")
+            first(QueryField("status"), "first6", QueryField("version")) { "status" eq "PAID" }
+            last("status", "last1")
+            last("status", "last2", "version")
+            last("status", "last3") { "status" eq "PAID" }
+            last("status", "last4", "version") { "status" eq "PAID" }
+            last(QueryField("status"), "last5", QueryField("version"))
+            last(QueryField("status"), "last6") { "status" eq "PAID" }
+            avg("amount", "avg")
+            min("amount", "min")
+            max("amount", "max")
+            derived("previous1") { previous("count", "k") }
+            derived("previous2") { previous("count", "k", 2) }
+            derived("previous3") { previous("count", "k", period = AggregationDateUnit.YEAR) }
+            derived("rank1") { rank("count") }
+            derived("rank2") { rank("count", "a", direction = Sort.Direction.ASC) }
+            derived("running1") { running("count", Sort(QueryField("k"), Sort.Direction.ASC)) }
+            derived("running2") {
+                running("count", Sort(QueryField("k"), Sort.Direction.ASC), frame = 2, function = RunningFunction.AVG)
+            }
+            limit(1)
+        }
+        query.groupBy.assert().hasSize(20)
+        query.metrics.assert().hasSize(23)
+        (query.groupBy[0] as AggregationGroup.Terms).assert().isEqualTo(AggregationGroup.Terms(QueryField("a"), "a"))
+        (query.groupBy[10] as AggregationGroup.DateHistogram).timeZone.assert().isEqualTo("UTC")
     }
 }

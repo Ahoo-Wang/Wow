@@ -21,8 +21,7 @@ import me.ahoo.wow.api.query.QueryField
  */
 @QueryDslMarker
 abstract class NestedFieldDsl {
-    protected var nestedField: String = ""
-        private set
+    private var nestedField: String = ""
 
     fun nested(nestedField: String) {
         this.nestedField = nestedField

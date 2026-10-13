@@ -355,9 +355,6 @@ class AggregationQueryDsl {
 
     private companion object {
         const val MEDIAN = 50.0
-
-        /** The model's default zone, so a group naming none is the group its JSON without `timeZone` reads as. */
-        val UTC: ZoneId = ZoneId.of("UTC")
     }
 }
 
@@ -453,3 +450,6 @@ class HavingDsl {
     private fun String.condition(operator: ComparisonOperator, value: Double) =
         HavingExpression.Condition(this, operator, value)
 }
+
+/** The model's default zone, so a group naming none is the group its JSON without `timeZone` reads as. */
+private val UTC: ZoneId = ZoneId.of("UTC")
