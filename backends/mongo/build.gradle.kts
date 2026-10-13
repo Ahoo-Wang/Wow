@@ -1,10 +1,15 @@
-description = "Wow MongoDB: log, snapshots, checkpoints, leases, failure ledger and reservations on MongoDB"
+description = "Wow MongoDB: log, snapshots, query, checkpoints, leases, failure ledger and reservations on MongoDB"
 
 dependencies {
     api(project(":spi"))
+    // The snapshot query backend (decision D131).
+    api(project(":query"))
     // The log and the stores run on the sync driver and virtual threads, like wow-postgres (D27).
     api("org.mongodb:mongodb-driver-sync")
+    implementation("tools.jackson.core:jackson-databind")
+    testImplementation(testFixtures(project(":query")))
     integrationTestImplementation(testFixtures(project(":spi")))
+    integrationTestImplementation(testFixtures(project(":query")))
     integrationTestImplementation("org.testcontainers:testcontainers-mongodb")
 }
 

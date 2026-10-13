@@ -1,0 +1,284 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.mongo.query.pipeline
+
+import com.mongodb.client.model.Accumulators
+import com.mongodb.client.model.Aggregates
+import com.mongodb.client.model.BsonField
+import com.mongodb.client.model.Field
+import com.mongodb.client.model.Filters
+import com.mongodb.client.model.densify.DensifyOptions
+import com.mongodb.client.model.densify.DensifyRange
+import me.ahoo.wow.api.query.AggregationFunction
+import me.ahoo.wow.api.query.AggregationGroup
+import me.ahoo.wow.api.query.AggregationMetric
+import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.QueryField
+import me.ahoo.wow.mongo.query.MongoMatchCompiler
+import me.ahoo.wow.mongo.query.MongoSnapshotDocuments
+import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.aggregation.DenseDateGrid
+import me.ahoo.wow.query.aggregation.denseGroup
+import org.bson.Document
+import org.bson.conversions.Bson
+import java.time.ZoneId
+
+/** The physical path of [field], [checked][MongoSnapshotDocuments.checked] before it enters a pipeline. */
+internal fun AdmittedQuery<*>.path(field: QueryField): String = MongoSnapshotDocuments.checked(physicalPath(field))
+
+/**
+ * Compiles an admitted aggregation to a MongoDB pipeline over the aggregate's snapshot collection (the 9.x compiler
+ * of `query.aggregation`, in a package of its own so that its source paths differ from the 9.x module's; decision
+ * D131): `$match`, one `$unwind` per element scope, `$group`, the fill and metric projection, the native windows,
+ * HAVING, the sort and the limit. Every path is a physical path admission resolved; every value is a literal.
+ */
+internal object MongoAggregationCompiler {
+    /** Compiles [admitted] to a pipeline that ends with `$limit` [limit], or returns every group when it is `null`. */
+    fun compile(admitted: AdmittedQuery<AggregationQuery>, limit: Int? = admitted.query.limit): List<Bson> = buildList {
+        val query = admitted.query
+        add(Aggregates.match(MongoMatchCompiler.compile(query.filter, admitted)))
+
+        query.elements.forEach { element ->
+            add(Aggregates.unwind("\$${admitted.path(element.path)}"))
+            if (element.filter !== MatchAllFilter) {
+                add(Aggregates.match(MongoMatchCompiler.compileScoped(element.filter, admitted)))
+            }
+        }
+
+        val dense = query.denseGroup
+            ?.let { DenseHistogramFill(it, DenseDateGrid(it.unit, ZoneId.of(it.timeZone))) }
+
+        val groupId = query.groupBy.takeIf { it.isNotEmpty() }?.let { groups ->
+            val id = Document()
+            val filters = groups.mapNotNull { group ->
+                val (filter, expression) = group.compile(admitted, dense?.grid)
+                id[group.alias] = expression
+                filter
+            }
+            if (filters.isNotEmpty()) {
+                add(Aggregates.match(Filters.and(filters)))
+            }
+            id
+        }
+
+        edgeCandidates(query, admitted)?.let(::add)
+        add(group(query, groupId, admitted))
+        if (dense != null) {
+            addAll(denseStages(dense))
+        }
+        add(project(query, dense))
+        val windows = MongoWindows(query)
+        addAll(windows.stages())
+        query.metrics.forEach { metric ->
+            if (metric is AggregationMetric.Derived) {
+                add(derivedProject(query, metric, windows))
+            }
+        }
+        if (windows.windows.isNotEmpty()) add(windows.unset())
+        query.having?.let { add(Aggregates.match(it.toHavingDocument())) }
+        query.effectiveSort().takeIf { it.isNotEmpty() }?.let { add(Aggregates.sort(it.toBson())) }
+        limit?.let { add(Aggregates.limit(it)) }
+    }
+
+    @Suppress("LongMethod")
+    private fun group(
+        query: AggregationQuery,
+        id: Document?,
+        admitted: AdmittedQuery<AggregationQuery>,
+    ): Bson {
+        val accumulators = buildList {
+            query.metrics.forEach { metric ->
+                val guard = metricFilter(metric, admitted)?.toGuardCondition()
+                when (metric) {
+                    is AggregationMetric.Count -> add(
+                        if (guard == null) {
+                            Accumulators.sum(metric.alias, 1)
+                        } else {
+                            Accumulators.sum(metric.alias, Document("\$cond", listOf(guard, 1, 0)))
+                        },
+                    )
+                    is AggregationMetric.Any -> {
+                        val field = admitted.path(metric.field)
+                        add(
+                            if (guard == null) {
+                                Accumulators.max(metric.alias, "\$$field")
+                            } else {
+                                Accumulators.max(metric.alias, Document("\$cond", listOf(guard, "\$$field", null)))
+                            },
+                        )
+                    }
+                    is AggregationMetric.Numeric -> {
+                        val nullGuarded = metric.function == AggregationFunction.MIN ||
+                            metric.function == AggregationFunction.MAX
+                        val (input, contributes) = numericParticipation(metric.expression, nullGuarded, admitted)
+                        add(metric.function.accumulate(metric.alias, guard.wrapParticipation(input)))
+                        add(
+                            Accumulators.sum(
+                                metric.countAlias,
+                                Document("\$cond", listOf(guard.wrapContribution(contributes), 1, 0)),
+                            ),
+                        )
+                    }
+                    is AggregationMetric.Percentile -> {
+                        val (input, contributes) = numericParticipation(
+                            metric.expression,
+                            nullGuarded = true,
+                            admitted,
+                        )
+                        add(
+                            BsonField(
+                                metric.alias,
+                                Document(
+                                    "\$percentile",
+                                    Document("input", guard.wrapParticipation(input))
+                                        .append("p", listOf(metric.percentile / PERCENT))
+                                        .append("method", "approximate"),
+                                ),
+                            ),
+                        )
+                        add(
+                            Accumulators.sum(
+                                metric.countAlias,
+                                Document("\$cond", listOf(guard.wrapContribution(contributes), 1, 0)),
+                            ),
+                        )
+                    }
+                    is AggregationMetric.DistinctCount -> add(
+                        Accumulators.addToSet(
+                            metric.alias,
+                            guard.wrapParticipation(distinctCountInput(metric.expression, admitted)),
+                        ),
+                    )
+                    is AggregationMetric.Derived -> Unit
+                    is AggregationMetric.Edge -> add(edgeAccumulator(query.metrics.indexOf(metric), metric, admitted))
+                }
+            }
+        }
+        return Aggregates.group(id, accumulators)
+    }
+
+    /**
+     * Marks, for every FIRST / LAST metric, whether each record takes part: it has the value and the ordering
+     * field, and passes the metric filter. `$top` / `$bottom` sort by that mark first, so a qualifying record wins
+     * whenever the group has one.
+     */
+    private fun edgeCandidates(query: AggregationQuery, admitted: AdmittedQuery<AggregationQuery>): Bson? {
+        val marks = query.metrics.withIndex().filter { it.value is AggregationMetric.Edge }.map { (index, metric) ->
+            metric as AggregationMetric.Edge
+            val conditions = buildList {
+                add(present(admitted.path(metric.field)))
+                add(present(admitted.path(checkNotNull(metric.orderBy))))
+                metricFilter(metric, admitted)?.toGuardCondition()?.let(::add)
+            }
+            Field(edgeMark(index), Document("\$cond", listOf(Document("\$and", conditions), 1, 0)))
+        }
+        return marks.takeIf { it.isNotEmpty() }?.let { Aggregates.set(it) }
+    }
+
+    private fun present(path: String): Document =
+        Document("\$ne", listOf(Document("\$ifNull", listOf("\$$path", null)), null))
+
+    /**
+     * FIRST is the top record by (mark desc, orderBy asc); LAST the bottom by (mark asc, orderBy asc). Records tied
+     * on the ordering field are ordered by their aggregate ID and tenant, so the choice is stable.
+     */
+    private fun edgeAccumulator(
+        index: Int,
+        metric: AggregationMetric.Edge,
+        admitted: AdmittedQuery<AggregationQuery>,
+    ): BsonField {
+        val mark = edgeMark(index)
+        val orderBy = admitted.path(checkNotNull(metric.orderBy) { "Admission names every FIRST / LAST orderBy." })
+        val first = metric is AggregationMetric.First
+        val output = Document(
+            "\$cond",
+            listOf(
+                Document("\$eq", listOf("\$$mark", 1)),
+                "\$${admitted.path(metric.field)}",
+                null,
+            ),
+        )
+        val sortBy = Document(mark, if (first) -1 else 1).append(orderBy, 1)
+        listOf(MongoSnapshotDocuments.AGGREGATE_ID, MongoSnapshotDocuments.TENANT_ID)
+            .filterNot(sortBy::containsKey)
+            .forEach { sortBy.append(it, 1) }
+        val accumulator = Document("sortBy", sortBy).append("output", output)
+        return BsonField(metric.alias, Document(if (first) "\$top" else "\$bottom", accumulator))
+    }
+
+    private fun edgeMark(index: Int): String = "__wow_edge_$index"
+
+    /**
+     * Compiles the record-level filter of [metric] against its enclosing scope,
+     * or returns `null` for [MatchAllFilter] so unfiltered metrics keep their unwrapped accumulators.
+     */
+    private fun metricFilter(metric: AggregationMetric, admitted: AdmittedQuery<AggregationQuery>): Bson? {
+        val filter = metric.filter
+        if (filter === MatchAllFilter) {
+            return null
+        }
+        if (admitted.query.elements.isEmpty()) {
+            return MongoMatchCompiler.compile(filter, admitted)
+        }
+        return MongoMatchCompiler.compileScoped(filter, admitted)
+    }
+
+    /** Wraps a participating value so records rejected by the filter contribute `null` instead. */
+    private fun Any?.wrapParticipation(input: Any): Any = if (this == null) {
+        input
+    } else {
+        Document("\$cond", listOf(this, input, null))
+    }
+
+    /** Extends a contribution predicate with the filter so rejected records add zero to the value count. */
+    private fun Any?.wrapContribution(contributes: Any): Any = if (this == null) {
+        contributes
+    } else {
+        Document("\$and", listOf(this, contributes))
+    }
+
+    /**
+     * The single dense date histogram of [AggregationQuery.groupBy] together with its grid: the pair exists exactly
+     * when groupBy is that one dense histogram.
+     */
+    internal class DenseHistogramFill(val group: AggregationGroup.DateHistogram, val grid: DenseDateGrid)
+
+    /**
+     * Stages that carry the grouped bucket index through numeric densification: the index moves out of `_id` onto
+     * the alias, then `$densify` fills every missing integer between the data min and max. The closing `$match`
+     * drops densify-synthetic documents whose index does not round-trip ([denseRoundTripMatch]).
+     */
+    private fun denseStages(dense: DenseHistogramFill): List<Bson> = listOf(
+        Aggregates.set(Field(dense.group.alias, "\$_id.${dense.group.alias}")),
+        Aggregates.densify(
+            dense.group.alias,
+            DensifyRange.fullRangeWithStep(1L),
+            DensifyOptions.densifyOptions(),
+        ),
+        Aggregates.match(denseRoundTripMatch(dense.group, dense.grid)),
+    )
+
+    private fun AggregationFunction.accumulate(field: String, input: Any): BsonField = when (this) {
+        AggregationFunction.SUM -> Accumulators.sum(field, input)
+        AggregationFunction.AVG -> Accumulators.avg(field, input)
+        AggregationFunction.MIN -> Accumulators.min(field, input)
+        AggregationFunction.MAX -> Accumulators.max(field, input)
+        AggregationFunction.STDDEV,
+        AggregationFunction.VARIANCE,
+        -> BsonField(field, Document("\$stdDevPop", input))
+    }
+
+    private const val PERCENT = 100.0
+}

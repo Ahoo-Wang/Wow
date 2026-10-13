@@ -103,3 +103,6 @@ V10 是 Wow 的一次整体重新设计：从第一性原理推出理想的目�
 | 2026-10-12 | 用户要求事件流也按（上下文，聚合）拆分：登记 D162（物理表按聚合，分区与租约仍按上下文，尾部归并）；D161 补上首要理由（存储事实按物理容器推断）；路线图新增 6.0d |
 | 2026-10-13 | 用户拍板 D163（记录操作人 `Operator`，区别于运行时的 `Caller`；快照恢复 `operator`、`firstOperator`）与 D164（ClickHouse 改为基表 `_state_events` 加物化视图）；修订 D128、D136（`replyTo` 带 `ref`、`version`）、D142；路线图新增 6.0e |
 | 2026-10-13 | 用户拍板 D165：命令与查询共用调用方抽象 `Caller`（移到 `:api`，不叫 `Identity`），一个 `CallerResolver`；操作人显示名由前端展示层处理，不设目录 SPI；并入 6.0e |
+| 2026-10-13 | 用户拍板 D166：框架内置持久化定时命令（定时意图随提交写进事实，`TimerStore` 派生可重建，按目标分区属主触发，请求 ID 去重，触发时拒绝视为正常守卫）；路线图新增 6.8，eShop E.3 依赖它 |
+| 2026-10-13 | 用户拍板 D167（Elasticsearch 在发版前完成）；按推荐登记 D168（Kafka 主题 DDL，默认 `validate`）、D169（上下文名规则与 `wow.contexts.include`/`exclude`）、D170（M6e 期间写 V10 开发指南与 Skill）；路线图新增 6.3g、E.D、E.R |
+| 2026-10-13 | 用户拍板 D171：ID 生成分 `GlobalIdGenerator` 与 `AggregateIdGenerator` 两个抽象，默认 UUID v7，可选 `:cosid` 适配（按聚合配置生成器名）；领域经 `ids` 取 ID；路线图新增 6.0f |

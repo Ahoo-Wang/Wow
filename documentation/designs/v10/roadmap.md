@@ -142,6 +142,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 |---|---|---|---|
 | 6.00 | `:query`（`query/query`）、`:kafka`、`:clickhouse`、`:example-e2e` 的骨架；settings；`V10Rules`（允许的依赖、`REPLACED_9X`）；`build.gradle.kts` 的 `v10Projects` 与 `v10IntegrationTestProjects`；`ci-scope.mjs`；三个空的自动配置类（Query、Kafka、ClickHouse），已列入 `AutoConfiguration.imports` | S | `v10Check` 与架构测试通过 |
 | 6.0e | 调用方与操作人（D163、D165）：`Caller` 移到 `:api` 并由命令与查询共用，`QueryCaller(caller, entry, selection)`，查询策略读 `caller`；`wow-api` 的 `Operator`；`Command`、线上形式、`EventStreamRecord`、`StateEventRecord`、`SnapshotRecord`（`operator`、`firstOperator`）；准入由 `Caller` 转换，派生命令继承；三个后端的日志与快照列；查询系统字段；迁移映射 `command_operator` | M | 审计端到端：HTTP 命令 → 事件流 → 快照查询按操作人过滤；Saga 派生命令继承根操作人 |
+| 6.0f | ID 生成器（D171）：`:spi` 的 `GlobalIdGenerator`、`AggregateIdGenerator`，准入改用两者，`DecideScope`/`SagaContext` 的 `ids`；可选模块 `:cosid`（`extensions/cosid`）；宿主配置 `wow.aggregates."ctx.agg".id-generator`；架构规则 | S～M | 默认实现、按聚合配置、CosId 适配、领域内取 ID 的测试；依赖 6.0e |
 | 6.0d | 存储按（上下文，聚合）拆分：PostgreSQL 与 MongoDB 的日志表/集合（D162）；MongoDB 的快照集合（D161，PostgreSQL 的快照表在 6.2a） | M | `EventLogSpec` 与快照 TCK 全绿；分区尾部归并与去重测试 |
 | 6.0a | M6 的全部 Manifest 字段与编译器写入：`queries`（D128）、`published`、`derives`、跨上下文的 `SubscriptionSource`（D138）、`@OnRejected` 订阅（D136）；`FrameworkErrors` 的查询错误码（D130，含 D150 的 `wow.query.timeout`） | M | Manifest 快照测试；依赖 6.00 |
 
@@ -182,7 +183,14 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | 6.4b | ClickHouse Sink：基表 `_state_events` 加物化视图 `_state`、`_events` 与展平视图（D142、D164） | M | 6.0b、6.3a | Sink 的集成测试 |
 | 6.4c | 全 V10 的分析端到端（D145）：shop → Sink → 展平表 → 文件里声明的数据集 → V10 数据集查询路由；analytics 服务的端到端移到 7.2 | S | 6.4a、6.4b | `:example-e2e` 通过 |
 
-**之后**：6.7 Elasticsearch（快照存储、查询、事件检索 Sink；3.4 的 ES 快照存储并入），L，M6 之后、M8c 之前（D131）。
+**定时命令**（D166）：
+
+| WP | 内容 | 规模 | 依赖 | 出口 |
+|---|---|---|---|---|
+| 6.3g | Kafka 主题管理（D168）：`wow.kafka.topics.ddl` 三态与分区数校验；消费中扩分区的元数据刷新 | S | 6.3d | 主题自动创建与校验测试；扩分区后新分区被消费 |
+| 6.8 | 持久化定时命令：`:api` 的 `schedule`/`cancelSchedule`（`DecideScope`、`SagaContext`）；事件流 `schedules`；`TimerStore` 与契约测试（内存、PostgreSQL、MongoDB）；`timers` 订阅与按分区的 `TimerRunner`；停放与重试；Manifest；配置；shop「30 分钟未支付取消」 | M | 6.3d | 交接、提交后标记前崩溃、取消竞态、晚触发、跨上下文的测试；eShop E.3 的宽限期用它 |
+
+**发版前必做**（D167）：6.7 Elasticsearch（快照存储、查询、事件检索 Sink；3.4 的 ES 快照存储并入），L，M6 之后、M8c 之前（D131）。
 
 ### M6e eShop 验证
 
@@ -190,10 +198,12 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 
 | WP | 内容 | 依赖 | 出口 |
 |---|---|---|---|
+| E.D | V10 开发指南与 `wow-develop` Skill 的 V10 版（D170）：「V10 快速开始」、生成代码与测试 DSL、配置项清单 | E.0 | 之后的 E.1～E.5 只凭它们编写 |
+| E.R | 约束与选择（D169）：上下文名规则的编译期校验；`wow.contexts.include` / `exclude` | E.0 | eShop 两个服务可共用一个 JVM |
 | E.0 | 骨架：5 个上下文的 `-api`、`-domain`、`-server` 与 `:eshop-e2e`；settings、`v10Projects`、V10Rules（D118 扩展到 `eshop-*`）、`ci-scope.mjs`、9.x workflow 的排除项 | 6.00 | `v10Check` 与架构测试通过 |
 | E.1 | `catalog`：商品、品牌、类目；`@QueryIndex`；快照查询 | E.0、6.2c | 目录查询的契约测试 |
 | E.2 | `basket`：按所有者的购物篮；结账发跨上下文命令到 `ordering` | E.0、6.3d | 结账端到端 |
-| E.3 | `ordering`：订单状态机（已提交 → 待校验 → 库存已确认 → 已支付 → 已发货 / 已取消）；下单流程 Saga 与宽限期 | E.2、6.3d、6.6 | 状态机与 Saga 测试；宽限期的实现方式记进 `DX-GAPS.md`（V10 尚无定时命令） |
+| E.3 | `ordering`：订单状态机（已提交 → 待校验 → 库存已确认 → 已支付 → 已发货 / 已取消）；下单流程 Saga 与宽限期 | E.2、6.3d、6.6、6.8 | 状态机与 Saga 测试；宽限期用定时命令（D166） |
 | E.4 | `inventory`：库存预留与确认；库存不足的拒绝经回执交给 `ordering` 的 `@OnRejected` 取消订单 | E.0、6.3d | 拒绝补偿的端到端 |
 | E.5 | `payment`：模拟支付网关的反应器，成功与失败两路 | E.3 | 支付成功与失败的端到端 |
 | E.6 | `:eshop-e2e`：5 个服务加 PostgreSQL、Kafka、ClickHouse；下单全链路的 `Wow-Wait` 等待链、跨上下文拒绝、节点被杀、销售数据集查询；压测脚本 | E.1～E.5、6.4b、6.6 | 全链路与故障场景通过；压测基线入库 |
