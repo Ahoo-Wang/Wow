@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.cluster
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
@@ -72,6 +73,7 @@ class ClusterCodecTest {
         scope = Scope("owner-1", "space-1"),
         headers = mapOf("app" to "web"),
         causation = Causation("root", "bank.account/t1/acc-0@2"),
+        operator = Operator("alice", "t0", crossScope = true),
     )
     private val wait = WaitContext(
         "w-1",

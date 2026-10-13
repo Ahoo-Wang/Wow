@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.ErrorInfo
@@ -67,7 +68,14 @@ class CommandMessagesTest {
         val replyTo = ReplyTo.of(SALES, execution)
         val wire = ClusterCodec.wire(
             "stock.item.Reserve",
-            Command("c-1", "r-1", ref, Priced(BigDecimal("2.50")), causation = Causation("root", "o-1@3")),
+            Command(
+                "c-1",
+                "r-1",
+                ref,
+                Priced(BigDecimal("2.50")),
+                causation = Causation("root", "o-1@3"),
+                operator = Operator("alice", "t0", crossScope = true),
+            ),
             replyTo,
         )
         val message = CommandMessages.command(wire, 3, wait)
@@ -80,6 +88,7 @@ class CommandMessagesTest {
         envelope.transport!!.wait.assert().isEqualTo(wait)
         val read = CommandMessages.commandOf(envelope)
         read.assert().isEqualTo(wire)
+        read.operator.assert().isEqualTo(Operator("alice", "t0", crossScope = true))
         read.body.toString().assert().isEqualTo("""{"price":2.50}""")
         read.replyTo!!.executionId().assert().isEqualTo(execution)
         assertThrows<IllegalArgumentException> { CommandMessages.rejectedOf(envelope) }
@@ -97,6 +106,7 @@ class CommandMessagesTest {
             ErrorInfo(INSUFFICIENT, "Only 5 left."),
             Causation("root", "o-1@3"),
             execution,
+            Operator("alice", "t0"),
         )
         val message = CommandMessages.receipt(rejected)
         message.key.assert().isEqualTo(execution.ref.toString())

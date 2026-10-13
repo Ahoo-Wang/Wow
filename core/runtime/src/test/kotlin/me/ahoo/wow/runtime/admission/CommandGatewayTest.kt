@@ -24,6 +24,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
@@ -68,6 +69,9 @@ class CommandGatewayTest {
     /** The commands the decide functions ran, by command id. */
     private val decided = CopyOnWriteArrayList<String>()
 
+    /** The operators of the [AddItem] commands decided, in order. */
+    private val operators = CopyOnWriteArrayList<Operator?>()
+
     /** While not null, deciding [AddItem] waits for it. */
     @Volatile
     private var hold: CompletableDeferred<Unit>? = null
@@ -80,6 +84,7 @@ class CommandGatewayTest {
         }
         decideSuspending<AddItem>(Creation.ALLOWED) { _, body ->
             decided += command.id
+            operators += command.operator
             hold?.await()
             Decision.events(ItemAdded(body.sku, body.quantity))
         }
@@ -164,6 +169,24 @@ class CommandGatewayTest {
         result.correlationId.assert().isEqualTo(result.commandId)
         decided.assert().containsExactly(result.commandId)
     }
+
+    @Test
+    fun `the operator is the caller's subject in its own tenant, marked when acting elsewhere (D163)`(): Unit =
+        runBlocking {
+            gateway().execute(request(caller = alice)).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            gateway().execute(request(caller = admin, target = TargetScope(TENANT, Scope("alice"))))
+                .status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            gateway().execute(request(caller = admin, aggregateId = "cart-2"))
+                .status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            gateway().execute(request(caller = Caller.ANONYMOUS, aggregateId = "cart-3"))
+                .status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            operators.assert().containsExactly(
+                Operator("alice", TENANT),
+                Operator("admin", "ops", crossScope = true),
+                Operator("admin", "ops"),
+                null,
+            )
+        }
 
     @Test
     fun `a given request id is kept, and the command id is still the server's`(): Unit = runBlocking {
@@ -375,7 +398,7 @@ class CommandGatewayTest {
     }
 
     @Test
-    fun `a rewriter may not change the identity, the ids or the wait`(): Unit = runBlocking {
+    fun `a rewriter may not change the identity, the ids, the operator or the wait`(): Unit = runBlocking {
         val rewrites = listOf<Command<Any>.() -> Command<Any>>(
             { copy(ref = ref.copy(tenantId = "other")) },
             { copy(scope = Scope("bob")) },
@@ -384,6 +407,7 @@ class CommandGatewayTest {
             { copy(wait = WaitPlan.ACCEPTED) },
             { copy(expectedVersion = 3) },
             { copy(causation = Causation("root", "upstream")) },
+            { copy(operator = Operator("forged", TENANT)) },
             { copy(body = Checkout()) },
             { copy(headers = mapOf("Wow-Scope" to "owner=\"bob\"")) },
         )
