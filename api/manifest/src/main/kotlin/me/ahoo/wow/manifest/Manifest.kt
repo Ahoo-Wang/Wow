@@ -227,11 +227,15 @@ enum class SubscriptionStart {
  *
  * [context] may be another context than the subscription's (`@OnEvent(aggregates = ["ctx.agg"])`, decision D138):
  * the subscription then reads that context's published state events ([PublishedManifest]) instead of the log.
+ *
+ * [nullableState] says the handler takes a null state, `StateEvent<S?>` or `StateEvent<*>` (decision D140): only such
+ * a handler may read a stream published without the state (`PublishedManifest.includeState = false`).
  */
 data class SubscriptionSource(
     val context: String? = null,
     val aggregates: List<String> = emptyList(),
     val events: List<String> = emptyList(),
+    val nullableState: Boolean = false,
 )
 
 /**

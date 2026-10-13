@@ -18,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.kafka.KafkaPartitionedSource
 import me.ahoo.wow.kafka.KafkaTopicProducer
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.manifest.Manifest
@@ -25,7 +26,9 @@ import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.runtime.manifest.ManifestLoader
 import me.ahoo.wow.runtime.node.ContextNode
+import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.SubscriptionFactory
+import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.spi.transport.EnvelopeCodec
@@ -39,6 +42,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -91,12 +95,22 @@ class HostKafkaSinkTest {
     fun `with bootstrap servers the producer should be Kafka's, closed with the context`() {
         ApplicationContextRunner()
             .withConfiguration(AutoConfigurations.of(KafkaAutoConfiguration::class.java))
-            .withPropertyValues("wow.kafka.bootstrap-servers=127.0.0.1:1", "wow.kafka.properties.client.id=bank")
+            .withPropertyValues(
+                "wow.kafka.bootstrap-servers=127.0.0.1:1",
+                "wow.kafka.properties.client.id=bank",
+                "wow.kafka.topic-prefix=test.",
+                "wow.kafka.poll-timeout=50ms",
+            )
             .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
             .run { context ->
                 context.getBean(TopicProducer::class.java).assert().isInstanceOf(KafkaTopicProducer::class.java)
                 val factory = context.getBean(SubscriptionFactory::class.java)
-                factory.assert().isInstanceOf(KafkaAutoConfiguration.SinksAndApplication::class.java)
+                factory.assert().isInstanceOf(PublishedSinks::class.java)
+                val topics = context.getBean(SourceTopics::class.java)
+                topics.source.assert().isInstanceOf(KafkaPartitionedSource::class.java)
+                topics.topicOf("wow.order.order.state").assert().isEqualTo("test.wow.order.order.state")
+                KafkaAutoConfiguration.options(context.getBean(KafkaProperties::class.java))
+                    .pollTimeout.assert().isEqualTo(50.milliseconds)
                 // The Manifest publishes nothing: no sink reads any state.
                 factory.viewTypes(BANK, emptyList()).assert().isEmpty()
                 context.getBean(KafkaProperties::class.java).properties.assert().isEqualTo(mapOf("client.id" to "bank"))

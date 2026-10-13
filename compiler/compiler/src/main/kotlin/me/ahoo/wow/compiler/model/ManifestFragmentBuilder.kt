@@ -210,18 +210,25 @@ internal object ManifestFragmentBuilder {
 
     /**
      * What [handler] reads: the aggregates `@OnEvent(aggregates)` names, of this context or another, else the module's
-     * aggregate whose state it takes; nothing it can name for another state type.
+     * aggregate whose state it takes; nothing it can name for another state type. And whether its state is nullable
+     * (decision D140).
      */
     private fun source(
         context: String,
         handler: HandlerBinding,
         aggregates: List<AggregateBinding>,
     ): SubscriptionSource {
+        val nullable = handler.nullableState
         if (handler.aggregates.isNotEmpty()) {
-            return SubscriptionSource(handler.sourceContext, handler.aggregates.map { it.substringAfter('.') })
+            return SubscriptionSource(
+                handler.sourceContext,
+                handler.aggregates.map { it.substringAfter('.') },
+                nullableState = nullable,
+            )
         }
-        val aggregate = aggregates.firstOrNull { it.state == handler.state } ?: return SubscriptionSource()
-        return SubscriptionSource(context = context, aggregates = listOf(aggregate.aggregateName))
+        val aggregate = aggregates.firstOrNull { it.state == handler.state }
+            ?: return SubscriptionSource(nullableState = nullable)
+        return SubscriptionSource(context, listOf(aggregate.aggregateName), nullableState = nullable)
     }
 
     /** The declared [derives], else the [derived] classes by [commands]' references; null when neither says. */

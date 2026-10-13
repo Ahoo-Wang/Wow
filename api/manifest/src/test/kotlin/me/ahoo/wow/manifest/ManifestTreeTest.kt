@@ -99,8 +99,15 @@ class ManifestTreeTest {
         subscriptions[0]["start"].assert().isEqualTo("BEGINNING")
         subscriptions[1]["derives"].assert().isEqualTo(listOf("shop.cart.PutItem", "#/\$defs/sales.Refund"))
         subscriptions[1]["source"].assert().isEqualTo(
-            mapOf("context" to "sales", "aggregates" to listOf("order"), "events" to emptyList<String>()),
+            mapOf(
+                "context" to "sales",
+                "aggregates" to listOf("order"),
+                "events" to emptyList<String>(),
+                "nullableState" to true,
+            ),
         )
+        // A state that is not nullable is left out.
+        (subscriptions[0]["source"] as Map<*, *>).keys.assert().containsExactly("context", "aggregates", "events")
         subscriptions[2].keys.assert().containsExactly("name", "kind", "source", "function", "derives", "rejected")
         subscriptions[2]["rejected"].assert().isEqualTo(listOf("#/\$defs/sales.Refund"))
     }
@@ -196,6 +203,7 @@ class ManifestTreeTest {
             it.context.assert().isNull()
             it.aggregates.assert().isEmpty()
             it.events.assert().isEmpty()
+            it.nullableState.assert().isFalse()
         }
     }
 

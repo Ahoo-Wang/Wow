@@ -188,6 +188,23 @@ class ContractDirectoryTest {
     }
 
     @Test
+    fun `a handler the Manifest marks as taking a nullable state should read a stream without its state`() {
+        val nullable = SubscriptionSource("inventory", listOf("bin"), nullableState = true)
+        val manifest = shop(
+            subscriptions = listOf(
+                subscription("Bins.onBin", SubscriptionKind.PROJECTION, nullable),
+                subscription("Strict.onBin", SubscriptionKind.PROJECTION, nullable.copy(nullableState = false)),
+            ),
+        )
+        problems(manifest).assert().containsExactly(
+            "subscription shop.Strict.onBin reads inventory.bin, published without its state (inventory-bins), so " +
+                "its handler takes a nullable state: StateEvent<S?>",
+        )
+        ContractDirectory(manifest, ContractFixtures.peers, setOf("Strict.onBin"))
+            .nullableStates.assert().containsExactlyInAnyOrder("Bins.onBin", "Strict.onBin")
+    }
+
+    @Test
     fun `a source in another context of the service itself should be checked against its Manifest`() {
         val billing = ContextManifest("billing")
         problems(

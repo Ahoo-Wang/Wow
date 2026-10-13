@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import me.ahoo.wow.spi.log.EventLog
 
 /**
  * Reads one partition once for every subscription of the group (design 04 §1, shared tail).
@@ -37,7 +36,7 @@ import me.ahoo.wow.spi.log.EventLog
  */
 internal class PartitionRunner(
     private val partition: Int,
-    private val log: EventLog,
+    private val source: EntrySource,
     private val readers: CoroutineScope,
     private val options: SubscriptionOptions,
 ) {
@@ -55,7 +54,7 @@ internal class PartitionRunner(
         behind.forEach(::catchUp)
         readers.launch {
             retryForever(options.readRetry, { "read the shared tail of partition $partition" }) {
-                log.tail(partition, head.takeIf { it > 0 }).collect { entry ->
+                source.tail(partition, head.takeIf { it > 0 }).collect { entry ->
                     lock.withLock {
                         if (entry.position.sequence > head) {
                             val iterator = joined.iterator()
@@ -85,7 +84,7 @@ internal class PartitionRunner(
                 { "read partition $partition for ${worker.subscription.name} to catch up" },
             ) {
                 if (!tryJoin(worker)) {
-                    log.tail(partition, worker.cursor.takeIf { it > 0 })
+                    source.tail(partition, worker.cursor.takeIf { it > 0 })
                         .takeWhile { entry ->
                             worker.accept(entry)
                             !tryJoin(worker)

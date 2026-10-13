@@ -69,6 +69,34 @@ class ProcessorBindingTest {
     }
 
     @Test
+    fun `a binding should name the aggregates it reads, of one context, and whether its state is nullable`() {
+        val local = ProcessorBinding.project("View", "onEvent", CartState::class.java) { _, _ -> }
+        local.aggregates.assert().isEmpty()
+        local.sourceContext.assert().isNull()
+        local.isSourced("shop").assert().isFalse()
+        local.nullableState.assert().isFalse()
+        // StateEvent<*> takes any state, null included (decision D140).
+        ProcessorBinding.react<Any>("Mail", "send", null) { _, _ -> }.nullableState.assert().isTrue()
+        val sourced = ProcessorBinding.saga<CartState?>(
+            "Saga",
+            "onCart",
+            CartState::class.java,
+            aggregates = listOf("shop.cart"),
+            nullableState = true,
+        ) { _, _ -> emptyList() }
+        sourced.sourceContext.assert().isEqualTo("shop")
+        sourced.isSourced("shop").assert().isFalse()
+        sourced.isSourced("ordering").assert().isTrue()
+        sourced.nullableState.assert().isTrue()
+        assertThrownBy<IllegalArgumentException> {
+            ProcessorBinding.project<Any>("p", "f", null, aggregates = listOf("cart")) { _, _ -> }
+        }
+        assertThrownBy<IllegalArgumentException> {
+            ProcessorBinding.project<Any>("p", "f", null, aggregates = listOf("shop.cart", "sales.order")) { _, _ -> }
+        }
+    }
+
+    @Test
     fun `invoking a binding should call its handler with the context of its kind`(): Unit = runBlocking {
         val seen = mutableListOf<Any>()
         val derived = Command("d", "d", cart.ref("t", "alice"), "x")

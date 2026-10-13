@@ -273,7 +273,8 @@ class ManifestFragmentTest {
                         SubscriptionManifest(
                             name = "checkout.onEvent",
                             kind = SubscriptionKind.SAGA,
-                            source = SubscriptionSource(),
+                            // StateEvent<*> takes any state, null included (decision D140).
+                            source = SubscriptionSource(nullableState = true),
                             function = FunctionManifest(FunctionKind.SAGA, "shop", "checkout", "onEvent"),
                             // List<Command<*>> does not say which commands.
                             derives = null,

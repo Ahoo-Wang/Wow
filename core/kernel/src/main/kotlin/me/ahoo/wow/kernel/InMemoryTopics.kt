@@ -29,7 +29,8 @@ import kotlin.concurrent.withLock
 /**
  * Topics in memory, a [TopicProducer] and a [PartitionedSource] at once, for tests and samples, as the other
  * in-memory backends: a topic is [create]d, or created with [partitions] partitions when it is first written or read;
- * a message goes to the partition its key's hash picks, and every partition keeps all it was sent, from offset 0.
+ * a message goes to the partition its key's hash picks ([partitionOf]), and every partition keeps all it was sent,
+ * from offset 0, until [retain] drops its oldest messages as a broker's retention would.
  *
  * [failure], when set, makes every [send] throw it without writing anything, as a broker that does not acknowledge.
  */
@@ -51,8 +52,10 @@ class InMemoryTopics(private val partitions: Int = DEFAULT_PARTITIONS) : TopicPr
 
     override suspend fun partitions(topic: String): List<Int> = (0 until topicOf(topic).partitions.size).toList()
 
-    override suspend fun offsets(topic: String, partition: Int): PartitionOffsets =
-        PartitionOffsets(0, topicOf(topic).messages(partition, 0).size.toLong())
+    override suspend fun partitionOf(topic: String, key: String): Int =
+        Math.floorMod(key.hashCode(), topicOf(topic).partitions.size)
+
+    override suspend fun offsets(topic: String, partition: Int): PartitionOffsets = topicOf(topic).offsets(partition)
 
     override fun read(topic: String, partition: Int, from: Long): Flow<SourceMessage> = flow {
         val target = topicOf(topic)
@@ -81,30 +84,56 @@ class InMemoryTopics(private val partitions: Int = DEFAULT_PARTITIONS) : TopicPr
         target.partitions.indices.flatMap { target.messages(it, 0) }
     }
 
-    /** The partition a message keyed [key] goes to in [topic]. */
-    fun partitionOf(topic: String, key: String): Int = Math.floorMod(key.hashCode(), topicOf(topic).partitions.size)
+    /**
+     * Drops the messages of [partition] of [topic] before [from], as a broker's retention does: they are no longer
+     * read, and the partition's offsets start at [from]. Offsets do not move.
+     */
+    fun retain(topic: String, partition: Int, from: Long) {
+        topicOf(topic).retain(partition, from)
+    }
 
     private fun topicOf(topic: String): Topic = topics.computeIfAbsent(topic) { Topic(partitions) }
 
     private class Topic(partitions: Int) {
         val lock = ReentrantLock()
         val partitions: List<MutableList<SourceMessage>> = List(partitions) { ArrayList() }
+
+        /** By partition, the first offset retained. */
+        private val starts = LongArray(partitions)
         val appended = MutableStateFlow(0L)
 
         fun append(messages: List<TopicMessage>) {
             lock.withLock {
                 messages.forEach { message ->
-                    val partition = partitions[Math.floorMod(message.key.hashCode(), partitions.size)]
-                    partition += SourceMessage(partition.size.toLong(), message.key, message.headers, message.value)
+                    val index = Math.floorMod(message.key.hashCode(), partitions.size)
+                    val partition = partitions[index]
+                    val offset = starts[index] + partition.size
+                    partition += SourceMessage(offset, message.key, message.headers, message.value)
                 }
                 appended.value += 1
             }
         }
 
         fun messages(partition: Int, from: Long): List<SourceMessage> = lock.withLock {
-            require(partition in partitions.indices) { "No partition $partition among ${partitions.size}." }
-            partitions[partition].drop(from.coerceAtMost(Int.MAX_VALUE.toLong()).toInt())
+            requirePartition(partition)
+            val skipped = (from - starts[partition]).coerceIn(0, Int.MAX_VALUE.toLong()).toInt()
+            partitions[partition].drop(skipped)
         }
+
+        fun offsets(partition: Int): PartitionOffsets = lock.withLock {
+            requirePartition(partition)
+            PartitionOffsets(starts[partition], starts[partition] + partitions[partition].size)
+        }
+
+        fun retain(partition: Int, from: Long) = lock.withLock {
+            requirePartition(partition)
+            val dropped = (from - starts[partition]).coerceIn(0, partitions[partition].size.toLong()).toInt()
+            repeat(dropped) { partitions[partition].removeAt(0) }
+            starts[partition] += dropped
+        }
+
+        private fun requirePartition(partition: Int) =
+            require(partition in partitions.indices) { "No partition $partition among ${partitions.size}." }
     }
 
     private companion object {

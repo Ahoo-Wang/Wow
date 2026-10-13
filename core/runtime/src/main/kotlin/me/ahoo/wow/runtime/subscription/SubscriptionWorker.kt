@@ -34,11 +34,10 @@ import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.handledResult
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
-import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
-import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.time.Clock
 
@@ -65,12 +64,19 @@ import java.time.Clock
  *
  * A handler that fails is retried, then parks its aggregate; one that fails with a [HandlingRejectedException], a
  * business outcome, parks it at once.
+ *
+ * The [source] is the context's log or another context's topic (decision D134). A park records where the entry lies
+ * in a topic ([EntrySource.sourcePosition]), since a topic is not read by aggregate: a resume re-scans from there,
+ * and one whose position the topic no longer retains marks the entry unrecoverable ([ParkedAggregate.UNRECOVERABLE]),
+ * so it can only be skipped. A topic may deliver a record twice ([EntrySource.repeats]): the worker drops a copy of
+ * an aggregate's version it handled already, as long as it remembers the aggregate ([REMEMBERED] of them, the most
+ * recently handled).
  */
 internal class SubscriptionWorker(
     private val group: String,
     val subscription: Subscription,
     val partition: Int,
-    private val log: EventLog,
+    private val source: EntrySource,
     private val checkpoints: CheckpointStore,
     private val ledger: FailureLedger,
     private val options: SubscriptionOptions,
@@ -88,6 +94,16 @@ internal class SubscriptionWorker(
 
     /** Per aggregate, the last version [resume] handled: a later copy of one of those streams is skipped. */
     private val resumedThrough = HashMap<AggregateRef, Int>()
+
+    /** Of a source that [EntrySource.repeats], the last version handled of the aggregates handled most recently. */
+    private val handledThrough: LinkedHashMap<AggregateRef, Int>? = if (source.repeats) {
+        object : LinkedHashMap<AggregateRef, Int>(REMEMBERED, LOAD_FACTOR, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<AggregateRef, Int>?): Boolean =
+                size > REMEMBERED
+        }
+    } else {
+        null
+    }
     private val flushLock = Mutex()
     private var saved = checkpoint
 
@@ -105,7 +121,7 @@ internal class SubscriptionWorker(
         private set
 
     /** Takes [entry] if there is room, without waiting; false when the in-flight bound is reached. */
-    fun tryAccept(entry: LogEntry): Boolean {
+    fun tryAccept(entry: SourcedEntry): Boolean {
         if (entry.position.sequence <= cursor) {
             return true
         }
@@ -117,7 +133,7 @@ internal class SubscriptionWorker(
     }
 
     /** Takes [entry], waiting for room. */
-    suspend fun accept(entry: LogEntry) {
+    suspend fun accept(entry: SourcedEntry) {
         if (entry.position.sequence <= cursor) {
             return
         }
@@ -125,7 +141,7 @@ internal class SubscriptionWorker(
         admit(entry)
     }
 
-    private fun admit(entry: LogEntry) = synchronized(this) {
+    private fun admit(entry: SourcedEntry) = synchronized(this) {
         val stream = entry.stream
         cursor = entry.position.sequence
         val slot = Slot(entry.position.sequence)
@@ -159,7 +175,7 @@ internal class SubscriptionWorker(
     }
 
     /** Whether a wait on [entry] waits for this subscription next. */
-    private fun waitsHere(entry: LogEntry): Boolean {
+    private fun waitsHere(entry: SourcedEntry): Boolean {
         val hop = entry.transport?.wait?.nextHandled ?: return false
         return hop.subscription == subscription.name && (hop.context ?: subscription.filter.context) ==
             subscription.filter.context
@@ -171,7 +187,7 @@ internal class SubscriptionWorker(
      * [parked].
      */
     @Suppress("TooGenericExceptionCaught") // A signal is best effort: whatever fails, the entry is done with.
-    private suspend fun signal(entry: LogEntry, handled: Result<HandledEntry>, parked: Boolean = false) {
+    private suspend fun signal(entry: SourcedEntry, handled: Result<HandledEntry>, parked: Boolean = false) {
         if (!waitsHere(entry)) {
             return
         }
@@ -250,10 +266,15 @@ internal class SubscriptionWorker(
         val handled = if (skipped) {
             Result.success(HandledEntry.NOTHING)
         } else {
-            handle(stream, entry.position, entry.transport)
+            handle(entry)
         }
-        handled.exceptionOrNull()?.let { park(stream, it as Exception) }
-        synchronized(this) { complete(item.slot) }
+        handled.exceptionOrNull()?.let { park(entry, it as Exception) }
+        synchronized(this) {
+            if (!skipped && handled.isSuccess) {
+                remember(stream)
+            }
+            complete(item.slot)
+        }
         signal(entry, handled, skipped && parked)
     }
 
@@ -273,12 +294,14 @@ internal class SubscriptionWorker(
             items.map { Batched(it, skippedInLane(it.entry.stream), parkedAt(it.entry.stream)) }
         }
         val handled = batch.filterNot { it.skipped }
-        val result = handled.lastOrNull()?.let { latest ->
-            val entry = latest.item.entry
-            handle(entry.stream, entry.position, entry.transport)
-        } ?: Result.success(HandledEntry.NOTHING)
-        result.exceptionOrNull()?.let { park(handled.first().item.entry.stream, it as Exception) }
-        synchronized(this) { batch.forEach { complete(it.item.slot) } }
+        val result = handled.lastOrNull()?.let { latest -> handle(latest.item.entry) } ?: Result.success(HandledEntry.NOTHING)
+        result.exceptionOrNull()?.let { park(handled.first().item.entry, it as Exception) }
+        synchronized(this) {
+            if (result.isSuccess) {
+                handled.forEach { remember(it.item.entry.stream) }
+            }
+            batch.forEach { complete(it.item.slot) }
+        }
         batch.forEach {
             if (it.skipped) {
                 signal(it.item.entry, Result.success(HandledEntry.NOTHING), it.parked)
@@ -290,10 +313,17 @@ internal class SubscriptionWorker(
 
     private class Batched(val item: Item.Live, val skipped: Boolean, val parked: Boolean)
 
-    /** Called under the monitor. Within a lane, entries arrive in version order. */
+    /**
+     * Called under the monitor. Within a lane, entries arrive in version order, except a copy a source that
+     * [EntrySource.repeats] delivers again: a version at or below the last one handled of the aggregate.
+     */
     private fun skippedInLane(stream: EventStreamRecord): Boolean {
         val state = parkStates[stream.ref]
         if (state is ParkState.Parked && stream.version >= state.fromVersion) {
+            return true
+        }
+        val handled = handledThrough?.get(stream.ref)
+        if (handled != null && stream.version <= handled) {
             return true
         }
         val resumed = resumedThrough[stream.ref] ?: return false
@@ -305,20 +335,31 @@ internal class SubscriptionWorker(
         return false
     }
 
+    /** Called under the monitor: [stream] is handled, so a copy of it, or of an earlier version, is dropped. */
+    private fun remember(stream: EventStreamRecord) {
+        handledThrough?.merge(stream.ref, stream.version, ::maxOf)
+    }
+
     /**
      * Runs the handler with retries; returns what it did, or the last failure once the retries are spent. A
      * [HandlingRejectedException] is not retried: a business outcome does not change.
      */
+    private suspend fun handle(entry: SourcedEntry): Result<HandledEntry> =
+        handle(entry.stream, entry.position, entry.transport, entry.published)
+
     @Suppress("TooGenericExceptionCaught") // A handler may fail with anything; only cancellation stops the retries.
     private suspend fun handle(
         stream: EventStreamRecord,
         position: LogPosition?,
         transport: Transport?,
+        published: StateEventRecord?,
     ): Result<HandledEntry> {
         var failures = 0
         while (true) {
             try {
-                return Result.success(subscription.handle(subscription.decoder.decode(stream, position, transport)))
+                val decoded = subscription.decoder.decode(stream, position, transport)
+                val entry = if (published == null) decoded else decoded.copy(published = published)
+                return Result.success(subscription.handle(entry))
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (rejected: HandlingRejectedException) {
@@ -333,9 +374,20 @@ internal class SubscriptionWorker(
         }
     }
 
-    /** Parks the aggregate at [stream]'s version; its later entries are skipped until the ledger entry is resolved. */
-    private suspend fun park(stream: EventStreamRecord, failure: Exception) {
-        val entry = ParkedAggregate(subscription.name, stream.ref, stream.version, reason(failure), clock.millis())
+    /**
+     * Parks the aggregate at [sourced]'s version, and at its position in a topic; its later entries are skipped until
+     * the ledger entry is resolved.
+     */
+    private suspend fun park(sourced: SourcedEntry, failure: Exception) {
+        val stream = sourced.stream
+        val entry = ParkedAggregate(
+            subscription.name,
+            stream.ref,
+            stream.version,
+            reason(failure),
+            clock.millis(),
+            source.sourcePosition(sourced),
+        )
         logger.warn(failure) {
             val after = if (failure is HandlingRejectedException) "a rejection" else "${options.retry.maxAttempts} attempts"
             "Subscription ${subscription.name} parks ${stream.ref} from version ${stream.version} after $after."
@@ -372,9 +424,10 @@ internal class SubscriptionWorker(
                         parkStates.remove(ref)
                         return false
                     }
-                    val from = (state as? ParkState.Parked)?.fromVersion?.coerceAtMost(entry.fromVersion)
-                        ?: entry.fromVersion
-                    val item = Item.Resume(from, CompletableDeferred())
+                    if (entry.unrecoverable) {
+                        return false
+                    }
+                    val item = Item.Resume(entry.fromVersion, entry.fromPosition, CompletableDeferred())
                     parkStates[ref] = ParkState.Resuming(item.result)
                     enqueue(ref, item, first = true)
                     item.result
@@ -387,13 +440,30 @@ internal class SubscriptionWorker(
     @Suppress("TooGenericExceptionCaught") // The failure goes to the caller of resume; the aggregate stays parked.
     private suspend fun runResume(ref: AggregateRef, item: Item.Resume) {
         var from = item.fromVersion
+        var position = item.fromPosition
         try {
             // A lower entry may have failed and been parked while this resume waited in the lane.
-            ledger.parked(subscription.name, ref)?.let { from = minOf(from, it.fromVersion) }
+            ledger.parked(subscription.name, ref)?.takeIf { it.fromVersion < from }?.let {
+                from = it.fromVersion
+                position = it.fromPosition
+            }
+            val entries = try {
+                source.resume(ref, from, position).toList()
+            } catch (gone: UnrecoverableException) {
+                unrecoverable(ref, from, position, gone)
+                restoreParked(ref, item, from)
+                item.result.complete(false)
+                return
+            }
             var last: Int? = null
-            for ((position, stream, transport) in log.readEntries(ref, from).toList()) {
+            for (entry in entries) {
+                val stream = entry.stream
+                if (last != null && stream.version <= last) {
+                    // A copy the topic holds twice.
+                    continue
+                }
                 val failure = if (subscription.filter.matches(stream)) {
-                    handle(stream, position, transport).exceptionOrNull() as Exception?
+                    handle(entry).exceptionOrNull() as Exception?
                 } else {
                     null
                 }
@@ -401,7 +471,7 @@ internal class SubscriptionWorker(
                     // Still failing: the streams before this one are handled, so the aggregate stays parked from
                     // this one, with the new reason; a resolve that raced it leaves nothing to update.
                     from = stream.version
-                    repark(stream, failure)
+                    repark(entry, failure)
                     if (last != null) {
                         // Copies of the streams handled here that the tail delivers later are skipped.
                         synchronized(this) { resumedThrough[ref] = last }
@@ -430,13 +500,36 @@ internal class SubscriptionWorker(
         }
     }
 
-    /** Records in the ledger that a resume failed again at [stream], from where the aggregate is now parked. */
-    private suspend fun repark(stream: EventStreamRecord, failure: Exception) {
-        val entry = ParkedAggregate(subscription.name, stream.ref, stream.version, reason(failure), clock.millis())
+    /** Records in the ledger that a resume failed again at [sourced], from where the aggregate is now parked. */
+    private suspend fun repark(sourced: SourcedEntry, failure: Exception) {
+        val stream = sourced.stream
         logger.warn(failure) {
             "Subscription ${subscription.name} keeps ${stream.ref} parked, now from version ${stream.version}."
         }
-        retryForever(options.readRetry, { "repark ${stream.ref} for ${subscription.name}" }) { ledger.repark(entry) }
+        repark(
+            ParkedAggregate(
+                subscription.name,
+                stream.ref,
+                stream.version,
+                reason(failure),
+                clock.millis(),
+                source.sourcePosition(sourced),
+            ),
+        )
+    }
+
+    /**
+     * Records in the ledger that [ref] can no longer be resumed, only skipped: the source does not hold what it is
+     * parked from any more ([gone]).
+     */
+    private suspend fun unrecoverable(ref: AggregateRef, from: Int, position: Long?, gone: UnrecoverableException) {
+        logger.error { "Subscription ${subscription.name} cannot resume $ref: ${gone.message} It can only be skipped." }
+        val reason = "${ParkedAggregate.UNRECOVERABLE}: ${gone.message}"
+        repark(ParkedAggregate(subscription.name, ref, from, reason, clock.millis(), position))
+    }
+
+    private suspend fun repark(entry: ParkedAggregate) {
+        retryForever(options.readRetry, { "repark ${entry.ref} for ${subscription.name}" }) { ledger.repark(entry) }
     }
 
     private fun restoreParked(ref: AggregateRef, item: Item.Resume, from: Int) = synchronized(this) {
@@ -497,8 +590,8 @@ internal class SubscriptionWorker(
     }
 
     private sealed interface Item {
-        class Live(val entry: LogEntry, val slot: Slot) : Item
-        class Resume(val fromVersion: Int, val result: CompletableDeferred<Boolean>) : Item
+        class Live(val entry: SourcedEntry, val slot: Slot) : Item
+        class Resume(val fromVersion: Int, val fromPosition: Long?, val result: CompletableDeferred<Boolean>) : Item
     }
 
     private sealed interface ParkState {
@@ -508,3 +601,7 @@ internal class SubscriptionWorker(
 }
 
 private val logger = KotlinLogging.logger {}
+
+/** How many aggregates a worker of a source that repeats remembers the last version handled of. */
+private const val REMEMBERED = 4_096
+private const val LOAD_FACTOR = 0.75f

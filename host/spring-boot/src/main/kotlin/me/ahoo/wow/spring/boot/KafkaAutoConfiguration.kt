@@ -13,17 +13,15 @@
 
 package me.ahoo.wow.spring.boot
 
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kafka.KafkaOptions
+import me.ahoo.wow.kafka.KafkaPartitionedSource
 import me.ahoo.wow.kafka.KafkaTopicProducer
-import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.runtime.node.ContextNode
+import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.sink.PublishedSinks
-import me.ahoo.wow.runtime.subscription.Subscription
+import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicProducer
-import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -31,19 +29,22 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Primary
+import kotlin.time.toKotlinDuration
 
 /**
- * The Kafka transport and the Kafka Sink (wow-kafka; decisions D31, D58, D132, D135), active when the application has
- * wow-kafka on its classpath and sets `wow.kafka.bootstrap-servers` ([KafkaProperties]):
+ * The Kafka transport, the Kafka Sink and the Kafka-sourced subscriptions (wow-kafka; decisions D31, D58, D132, D134,
+ * D135), active when the application has wow-kafka on its classpath and sets `wow.kafka.bootstrap-servers`
+ * ([KafkaProperties]):
  *
  * - **Producer**: a [KafkaTopicProducer], idempotent with `acks=all`, unless the application has a [TopicProducer]
  *   bean of its own; closed with the context, after the node has stopped.
  * - **Sink**: [PublishedSinks.topics] over it, one subscription per stream the Manifest publishes
- *   (`ContextManifest.published`), each written to its topic after `wow.kafka.topic-prefix`.
- * - **Subscriptions**: the node takes one [SubscriptionFactory] besides the annotated processors' bindings, so the
- *   sinks are given to it as the primary one, followed by the application's own [SubscriptionFactory] beans, if any
- *   ([SinksAndApplication]).
+ *   (`ContextManifest.published`), each written to its topic after `wow.kafka.topic-prefix`: a [SubscriptionFactory]
+ *   bean, which the node takes with every other one.
+ * - **Source**: a [KafkaPartitionedSource], unless the application has a [PartitionedSource] bean of its own, as the
+ *   node's [SourceTopics] after the same prefix: the subscriptions of other contexts' published streams read their
+ *   topics through it, partitions assigned by the node's leases and offsets kept in its checkpoint store, with no
+ *   consumer group. Closed with the context, after the node has stopped.
  */
 @AutoConfiguration
 @ConditionalOnClass(name = [KAFKA_MODULE])
@@ -51,44 +52,25 @@ import org.springframework.context.annotation.Primary
 class KafkaAutoConfiguration {
     @Configuration(proxyBeanMethods = false)
     @ConditionalOnProperty(prefix = KafkaProperties.PREFIX, name = ["bootstrap-servers"])
-    class KafkaSink {
+    class KafkaTransport {
         @Bean(destroyMethod = "close")
         @ConditionalOnMissingBean(TopicProducer::class)
         fun wowKafkaTopicProducer(properties: KafkaProperties): KafkaTopicProducer =
             KafkaTopicProducer.create(options(properties))
 
         @Bean(KAFKA_SINKS)
-        @Primary
-        fun wowKafkaSinks(
-            manifest: Manifest,
-            producer: TopicProducer,
-            properties: KafkaProperties,
-            factories: ObjectProvider<SubscriptionFactory>,
-        ): SubscriptionFactory =
-            SinksAndApplication(PublishedSinks.topics(manifest, producer, properties.topicPrefix), factories)
-    }
+        fun wowKafkaSinks(manifest: Manifest, producer: TopicProducer, properties: KafkaProperties): PublishedSinks =
+            PublishedSinks.topics(manifest, producer, properties.topicPrefix)
 
-    /**
-     * [sinks], then every other [SubscriptionFactory] bean of the application in its order, resolved when the node is
-     * assembled.
-     */
-    internal class SinksAndApplication(
-        private val sinks: PublishedSinks,
-        private val factories: ObjectProvider<SubscriptionFactory>,
-    ) : SubscriptionFactory {
-        private val combined: SubscriptionFactory by lazy {
-            factories.orderedStream().toList().filter { it !== this }.fold<SubscriptionFactory, SubscriptionFactory>(
-                sinks,
-            ) { all, factory -> all + factory }
-        }
+        @Bean(destroyMethod = "close")
+        @ConditionalOnMissingBean(PartitionedSource::class)
+        fun wowKafkaPartitionedSource(properties: KafkaProperties): KafkaPartitionedSource =
+            KafkaPartitionedSource.create(options(properties))
 
-        override fun subscriptions(context: ContextNode): List<Subscription> = combined.subscriptions(context)
-
-        override fun viewTypes(context: String, models: List<AggregateModel<*>>): Set<AggregateType> =
-            combined.viewTypes(context, models)
-
-        override fun stateReaders(context: String, models: List<AggregateModel<*>>): Map<String, Set<AggregateType>> =
-            combined.stateReaders(context, models)
+        @Bean
+        @ConditionalOnMissingBean
+        fun wowKafkaSourceTopics(source: PartitionedSource, properties: KafkaProperties): SourceTopics =
+            SourceTopics(source, properties.topicPrefix)
     }
 
     companion object {
@@ -99,6 +81,7 @@ class KafkaAutoConfiguration {
         fun options(properties: KafkaProperties): KafkaOptions = KafkaOptions(
             bootstrapServers = checkNotNull(properties.bootstrapServers) { "wow.kafka.bootstrap-servers is not set." },
             properties = properties.properties.toMap(),
+            pollTimeout = properties.pollTimeout.toKotlinDuration(),
         )
     }
 }
