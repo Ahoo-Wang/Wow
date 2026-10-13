@@ -16,7 +16,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 
 ## Entries
 
-### G1. No V10 guide for writing a new service
+### G1. No V10 guide for writing a new service (resolved)
 
 - **Work package**: E.0
 - **Area**: docs, Skills
@@ -35,6 +35,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 
   Then teach `wow-develop` (or a V10 Skill) the V10 surface.
 - **Blocks M7**: yes. M7 puts V10 in front of users, and a new user cannot start without this page.
+- **Resolved**: by #4379 (decision D170). The docs site has a V10 section in English and Chinese (`guide/v10/`): a quick start for a new service (the module split and its dependencies, the Gradle plugin or KSP by hand, the context name rules), the programming model, the generated code, testing, the HTTP API, every `wow.*` key with its default, and deployment. `wow-develop` loads `references/v10-service.md` for a V10 target.
 
 ### G2. `application.yaml` fails on the host alone: SnakeYAML is missing (resolved)
 
@@ -69,7 +70,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Proposed fix**: Add a host property that names the contexts a node serves, defaulting to all. At minimum, document that a service's class path defines its contexts.
 - **Blocks M7**: no, for the eShop. It is worth deciding before users build multi-service test harnesses.
 
-### G5. Where the test DSL lives, and what the compiler generates, is not documented
+### G5. Where the test DSL lives, and what the compiler generates, is not documented (resolved)
 
 - **Work package**: E.0
 - **Area**: testing, compiler, docs
@@ -85,6 +86,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
   - Document what the compiler generates: factories, binding index, fragment and routes.
   - Let the generated factory default to the module's single context.
 - **Blocks M7**: yes, for the documentation. The default context is not blocking.
+- **Resolved**: by #4379, for the documentation. `guide/v10/testing` says where `aggregateSpec` lives (the kernel's test fixtures, `me.ahoo.wow.kernel.test`) and lists its expectations; `guide/v10/generated-code` describes the model factories (the context a parameter), the processor bindings, the binding index's name and package, the fragment and the routes. The test DSL still has no artifact of its own, and the factory still takes the context: neither blocks M7.
 
 ### G6. `wowPeers` cannot be used in the build that produces the Gradle plugin
 
