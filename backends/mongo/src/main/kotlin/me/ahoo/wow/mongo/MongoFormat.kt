@@ -41,8 +41,11 @@ object MongoFormat {
     fun claim(database: MongoDatabase, structure: String, version: Int) {
         val formats = database.getCollection(COLLECTION)
         if (formats.find(Filters.eq(ID, structure)).first() == null) {
-            // The record is written before the collection is created, so one without a record predates them.
-            check(structure !in database.listCollectionNames()) {
+            // The record is written before the collection is created, so one without a record predates them; a
+            // collection that appeared since the first read was created by a concurrent claim, whose record now exists.
+            check(
+                structure !in database.listCollectionNames() || formats.find(Filters.eq(ID, structure)).first() != null,
+            ) {
                 "$structure exists without a format record: an earlier, incompatible build created it. Drop it."
             }
         }

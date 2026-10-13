@@ -40,8 +40,14 @@ object PostgresFixture {
 
     fun newContext(prefix: String = "tck"): String = "$prefix-${contexts.incrementAndGet()}"
 
-    fun log(partitions: Int, context: String = newContext()): PostgresEventLog =
-        PostgresEventLog(dataSource, context, partitions).also { it.createSchema() }
+    fun log(
+        partitions: Int,
+        context: String = newContext(),
+        aggregates: Collection<String> = emptyList(),
+    ): PostgresEventLog = PostgresEventLog(dataSource, context, partitions).also { log ->
+        log.createSchema()
+        aggregates.forEach { log.createTable(it) }
+    }
 
     fun snapshotStore(context: String = newContext()): PostgresSnapshotStore =
         PostgresSnapshotStore(dataSource, context).also { it.createSchema() }

@@ -44,6 +44,13 @@ abstract class EventLogSpec {
     /** Each test gets its own context, so a backend that keeps a log per context isolates the tests. */
     private val context = "tck_" + UUID.randomUUID().toString().replace("-", "").take(CONTEXT_SUFFIX)
     private val type = AggregateType(context, "aggregate")
+    private val other = AggregateType(context, "other")
+
+    /**
+     * Whether the backend keeps the request key per aggregate type (decision D162): then a request id reused by
+     * another aggregate type of the context commits, instead of finding the stream committed for it.
+     */
+    protected open val requestKeyPerAggregateType: Boolean = false
 
     private fun createLog(partitions: Int = DEFAULT_PARTITIONS): EventLog = createLog(context, partitions)
 
@@ -56,8 +63,9 @@ abstract class EventLogSpec {
         scope: Scope = Scope("owner", "space"),
         causation: Causation? = null,
         headers: Map<String, String> = emptyMap(),
+        aggregate: AggregateType = type,
     ) = EventStreamRecord(
-        ref = type.ref(tenant, id),
+        ref = aggregate.ref(tenant, id),
         version = version,
         commandId = "command-$requestId",
         requestId = requestId,
@@ -302,9 +310,9 @@ abstract class EventLogSpec {
     }
 
     /** Distinct aggregate ids that land in partition 0 of [partitions]. */
-    private fun idsInPartitionZero(count: Int, partitions: Int): List<String> =
+    private fun idsInPartitionZero(count: Int, partitions: Int, aggregate: AggregateType = type): List<String> =
         generateSequence(1) { it + 1 }.map { "g-$it" }
-            .filter { Partitioner.partitionOf(type.ref("tenant", it), partitions) == 0 }
+            .filter { Partitioner.partitionOf(aggregate.ref("tenant", it), partitions) == 0 }
             .take(count)
             .toList()
 
@@ -350,6 +358,85 @@ abstract class EventLogSpec {
         val first = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(10).toList() }
         val resumed = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0, after = 4).take(6).toList() }
         resumed.assert().isEqualTo(first.drop(4))
+    }
+
+    @Test
+    fun `appends of two aggregate types interleaved in one partition tail back in sequence order`(): Unit =
+        runBlocking {
+            val log = createLog(partitions = 1)
+            val perWriter = 10
+            val writers = (1..4).flatMap { listOf(type to "w$it", other to "w$it") }
+            val total = writers.size * perWriter
+            val tailed = async { withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(total).toList() } }
+            coroutineScope {
+                writers.forEach { (aggregate, id) ->
+                    launch {
+                        (1..perWriter).forEach {
+                            log.append(stream(id, it, aggregate = aggregate))
+                                .assert().isInstanceOf(AppendOutcome.Committed::class.java)
+                        }
+                    }
+                }
+            }
+            val entries = tailed.await()
+            entries.map { it.position.sequence }.assert().isEqualTo((1L..total).toList())
+            writers.forEach { (aggregate, id) ->
+                entries.filter { it.stream.ref == aggregate.ref("tenant", id) }.map { it.stream.version }
+                    .assert().isEqualTo((1..perWriter).toList())
+            }
+            log.head(0).assert().isEqualTo(total.toLong())
+            val resumed = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0, after = 7).take(total - 7).toList() }
+            resumed.assert().isEqualTo(entries.drop(7))
+            log.read(other.ref("tenant", "w1")).toList().map { it.ref.type }.distinct().assert().containsExactly(other)
+            log.readEntries(type.ref("tenant", "w1")).toList().map { it.position }
+                .assert().isEqualTo(entries.filter { it.stream.ref == type.ref("tenant", "w1") }.map { it.position })
+        }
+
+    @Test
+    fun `appendAll sequences a group of two aggregate types without gaps`(): Unit = runBlocking {
+        val log = createLog(partitions = 4)
+        val ids = idsInPartitionZero(3, 4).zip(idsInPartitionZero(3, 4, other))
+        val group = ids.flatMap { (first, second) ->
+            listOf(stream(first, 1) to null, stream(second, 1, aggregate = other) to null)
+        }
+        log.appendAll(group).map { (it as AppendOutcome.Committed).position.sequence }
+            .assert().isEqualTo((1L..6L).toList())
+        val entries = withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(6).toList() }
+        entries.map { it.stream.ref }.assert().isEqualTo(group.map { it.first.ref })
+    }
+
+    @Test
+    fun `one aggregate id under two aggregate types is two streams`(): Unit = runBlocking {
+        val log = createLog(partitions = 4)
+        val first = (log.append(stream("same", 1)) as AppendOutcome.Committed).position
+        val second = (log.append(stream("same", 1, aggregate = other)) as AppendOutcome.Committed).position
+        log.append(stream("same", 1)).assert().isEqualTo(AppendOutcome.Conflict(1))
+        log.append(stream("same", 3, aggregate = other)).assert().isEqualTo(AppendOutcome.Conflict(1))
+        log.append(stream("same", 2, aggregate = other)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        log.read(type.ref("tenant", "same")).toList().map { it.version }.assert().containsExactly(1)
+        log.read(other.ref("tenant", "same")).toList().map { it.version }.assert().containsExactly(1, 2)
+        log.positionOf(type.ref("tenant", "same"), 1).assert().isEqualTo(first)
+        log.positionOf(other.ref("tenant", "same"), 1).assert().isEqualTo(second)
+        log.positionOf(type.ref("tenant", "same"), 2).assert().isNull()
+    }
+
+    @Test
+    fun `a request id is unique within its tenant and aggregate type`(): Unit = runBlocking {
+        val log = createLog()
+        val first = stream("a", 1, requestId = "request")
+        log.append(first).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        (log.append(stream("b", 1, requestId = "request")) as AppendOutcome.AlreadyCommitted)
+            .existing.ref.assert().isEqualTo(first.ref)
+        val reused = log.append(stream("c", 1, requestId = "request", aggregate = other))
+        if (requestKeyPerAggregateType) {
+            reused.assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            (log.append(stream("d", 1, requestId = "request", aggregate = other)) as AppendOutcome.AlreadyCommitted)
+                .existing.ref.assert().isEqualTo(other.ref("tenant", "c"))
+        } else {
+            (reused as AppendOutcome.AlreadyCommitted).existing.ref.assert().isEqualTo(first.ref)
+        }
+        // The stream committed first for the request id, whichever aggregate type holds it.
+        log.findByRequestId("tenant", "request")?.ref.assert().isEqualTo(first.ref)
     }
 
     protected companion object {

@@ -272,9 +272,12 @@ class AffinityRoutingSpike {
     private fun drop(admin: HikariDataSource, context: String) {
         admin.connection.use { connection ->
             connection.createStatement().use { statement ->
-                listOf("wow_log_$context", "wow_log_${context}_partition", "wow_snapshot_$context").forEach {
-                    statement.execute("DROP TABLE IF EXISTS \"$it\"")
-                }
+                val tables = statement.executeQuery(
+                    "SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() " +
+                        "AND table_name LIKE 'wow\\_%' AND table_name LIKE '%$context%'",
+                ).use { rows -> buildList { while (rows.next()) add(rows.getString(1)) } }
+                tables.forEach { statement.execute("DROP TABLE IF EXISTS \"$it\"") }
+                statement.execute("DELETE FROM wow_log_aggregate WHERE context = '$context'")
                 statement.execute("DELETE FROM wow_format WHERE structure LIKE '%$context%'")
             }
         }
