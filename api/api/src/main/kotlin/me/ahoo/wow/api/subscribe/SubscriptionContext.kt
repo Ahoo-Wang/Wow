@@ -15,6 +15,7 @@ package me.ahoo.wow.api.subscribe
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.id.Ids
 import java.time.Instant
 import kotlin.time.Duration
 
@@ -48,6 +49,13 @@ interface ReactContext : SubscriptionContext
 
 /** The context of a [me.ahoo.wow.api.annotation.Saga]'s handler: it derives commands from the commit. */
 interface SagaContext : SubscriptionContext {
+    /**
+     * The ids this execution takes (decision D171), such as the id of an aggregate a derived command creates: the
+     * node's generators, fixed ids in the test DSL. Handling the commit again takes new ones, but the derived
+     * commands keep their request ids, so the targets still decide them once (decision D162).
+     */
+    val ids: Ids
+
     /**
      * A command to the aggregate [ref] asking [body], derived from this execution. Its id and request id are
      * deterministic (from [executionId] and the order of the calls), so handling the commit again derives the same

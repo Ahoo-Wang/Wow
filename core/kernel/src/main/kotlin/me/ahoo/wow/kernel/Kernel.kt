@@ -27,8 +27,10 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
+import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -96,6 +98,9 @@ import kotlin.time.Duration.Companion.seconds
  * at all, and a decision that only schedules commits a stream with no event (on an aggregate that exists). The
  * command a schedule sends is stored by its type name and JSON: [commandTypes] names a command of an aggregate type
  * other than the deciding one; `after` counts from the stream's commit time.
+ *
+ * A decide function takes its ids from [ids] ([DecideScope.ids], decision D171): the node's generators, fixed ids in
+ * the test DSL.
  */
 class Kernel(
     private val log: EventLog,
@@ -108,6 +113,7 @@ class Kernel(
     private val states: StateCache = StateCache.None,
     private val snapshots: SnapshotStore? = null,
     private val commandTypes: CommandTypes = CommandTypes.NONE,
+    private val ids: Ids = IdGenerators.DEFAULT,
 ) {
     init {
         require(maxAttempts >= 1) { "At least one attempt." }
@@ -139,7 +145,7 @@ class Kernel(
         while (attempts < maxAttempts) {
             val (loaded, cached) = load(model, command)
             admissible(decider, command, loaded)?.let { return standing(command.ref, loaded, cached, it) ?: continue }
-            val attempt = AttemptScope(command, loaded, reservations, reservationTtl, waitBeyondCommitted, encode)
+            val attempt = AttemptScope(command, ids, loaded, reservations, reservationTtl, waitBeyondCommitted, encode)
             val prepared = try {
                 prepare(model, decider, attempt, loaded, command, commandType.name)
             } catch (
@@ -659,6 +665,7 @@ class Kernel(
     @Suppress("LongParameterList")
     private class AttemptScope(
         override val command: Command<*>,
+        override val ids: Ids,
         override val loaded: CachedState,
         private val reservations: ReservationStore?,
         private val reservationTtl: Duration,

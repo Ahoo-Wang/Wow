@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.id.Ids
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import kotlin.time.Duration
@@ -81,6 +82,11 @@ class StateEventTest {
         }
         val saga = object : SagaContext {
             override val executionId = execution
+            override val ids = object : Ids {
+                override fun next() = "id"
+
+                override fun next(type: AggregateType) = "$type-id"
+            }
             private var index = 0
 
             override fun <C : Any> command(ref: AggregateRef, body: C): Command<C> {

@@ -16,6 +16,7 @@ package me.ahoo.wow.kernel
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.ProjectContext
@@ -23,6 +24,7 @@ import me.ahoo.wow.api.subscribe.ReactContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
+import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.timer.Timers
 import java.time.Instant
 import java.util.UUID
@@ -44,8 +46,14 @@ data class ExecutionReactContext(override val executionId: ExecutionId) : ReactC
  * Its schedules (decision D166) are recorded in [schedules], the last change of each target and key, each with the id
  * [Timers.sagaTimerId] gives the call, so handling the commit again records the same: the runtime writes them to the
  * timer store before the saga's checkpoint passes the commit. `after` counts from the commit's time.
+ *
+ * Its [ids] are the node's generators (decision D171); a domain module's test gives fixed ones.
  */
-class ExecutionSagaContext(override val executionId: ExecutionId, private val event: StateEvent<*>) : SagaContext {
+class ExecutionSagaContext(
+    override val executionId: ExecutionId,
+    private val event: StateEvent<*>,
+    override val ids: Ids = IdGenerators.DEFAULT,
+) : SagaContext {
     private val calls = AtomicInteger()
     private val scheduleCalls = AtomicInteger()
     private val scheduled = LinkedHashMap<Pair<AggregateRef, String>, SagaSchedule>()
@@ -136,14 +144,19 @@ sealed interface SagaSchedule {
 
 /**
  * The context a handler of [kind] gets for the execution of [event] by the subscription [subscription]: its
- * [ExecutionId] is (subscription, aggregate, version).
+ * [ExecutionId] is (subscription, aggregate, version); a saga's takes its ids from [ids].
  */
-fun contextOf(kind: FunctionKind, subscription: String, event: StateEvent<*>): SubscriptionContext {
+fun contextOf(
+    kind: FunctionKind,
+    subscription: String,
+    event: StateEvent<*>,
+    ids: Ids = IdGenerators.DEFAULT,
+): SubscriptionContext {
     val execution = ExecutionId(subscription, event.ref, event.version)
     return when (kind) {
         FunctionKind.PROJECT -> ExecutionProjectContext(execution)
         FunctionKind.REACT -> ExecutionReactContext(execution)
-        FunctionKind.SAGA -> ExecutionSagaContext(execution, event)
+        FunctionKind.SAGA -> ExecutionSagaContext(execution, event, ids)
         else -> throw IllegalArgumentException("A $kind handler is not a processor's.")
     }
 }
