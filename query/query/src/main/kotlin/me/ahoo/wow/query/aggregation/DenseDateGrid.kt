@@ -1,0 +1,106 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.query.aggregation
+
+import me.ahoo.wow.api.query.AggregationDateUnit
+import java.time.DayOfWeek
+import java.time.Instant
+import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
+import java.time.temporal.IsoFields
+import java.time.temporal.TemporalAdjusters
+import java.time.temporal.TemporalUnit
+import java.util.stream.LongStream
+
+/**
+ * Timezone-safe bucket-index arithmetic for dense date histograms.
+ *
+ * MongoDB `$densify` has no timezone option: month/quarter/year stepping over raw dates drifts off
+ * the `$dateTrunc(timezone)` grid even for fixed offsets. Both backends therefore work in a
+ * integer bucket-index space anchored at a grid-aligned local midnight (Monday for WEEK); Mongo
+ * inverts indices with `$dateAdd(timezone)` and this class mirrors it with `java.time`, so the
+ * grids are identical by construction.
+ *
+ * All index/key arithmetic runs on the LOCAL wall-clock timeline (`LocalDateTime`). Elapsed-instant
+ * arithmetic (`ZonedDateTime` with time-based units) would truncate half-hour zone-offset shifts —
+ * e.g. Australia/Lord_Howe (+10:00 at the 1970 anchor, +10:30 later) truncates 495264.5 elapsed
+ * hours to 495264 and lands on local :30, off the wall-clock hour grid.
+ */
+class DenseDateGrid(unit: AggregationDateUnit, private val timeZone: ZoneId) {
+    private val stepUnit: TemporalUnit = when (unit) {
+        AggregationDateUnit.YEAR -> ChronoUnit.YEARS
+        AggregationDateUnit.QUARTER -> IsoFields.QUARTER_YEARS
+        AggregationDateUnit.MONTH -> ChronoUnit.MONTHS
+        AggregationDateUnit.WEEK -> ChronoUnit.WEEKS
+        AggregationDateUnit.DAY -> ChronoUnit.DAYS
+        AggregationDateUnit.HOUR -> ChronoUnit.HOURS
+        AggregationDateUnit.MINUTE -> ChronoUnit.MINUTES
+        AggregationDateUnit.SECOND -> ChronoUnit.SECONDS
+    }
+
+    val anchor: ZonedDateTime = ZonedDateTime.of(1970, 1, 1, 0, 0, 0, 0, timeZone).let {
+        if (unit == AggregationDateUnit.WEEK) it.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)) else it
+    }
+    private val anchorLocal: LocalDateTime = anchor.toLocalDateTime()
+
+    /**
+     * Index of the bucket containing [epochMillis], floored: the result `n` always satisfies
+     * `keyOf(n) <= epochMillis < keyOf(n + 1)`.
+     *
+     * [Temporal.until][java.time.temporal.Temporal.until] truncates toward zero for date-based
+     * units, so non-aligned instants before the anchor land one bucket ahead — including
+     * differences within `(-1, 0)` units, which truncate to `0`; the overshoot check restores
+     * floor semantics on the negative side. Non-negative truncation is already floor.
+     */
+    fun indexOf(epochMillis: Long): Long {
+        val local = Instant.ofEpochMilli(epochMillis).atZone(timeZone).toLocalDateTime()
+        val index = anchorLocal.until(local, stepUnit)
+        if (anchorLocal.plus(index, stepUnit) > local) {
+            return index - 1
+        }
+        return index
+    }
+
+    fun keyOf(index: Long): Long = anchorLocal.plus(index, stepUnit).atZone(timeZone).toInstant().toEpochMilli()
+
+    /** Grid keys strictly between the two bucket keys, emitted in stream direction. */
+    fun keysBetween(fromMillis: Long, toMillis: Long): List<Long> =
+        gapIndices(fromMillis, toMillis).mapToObj(::keyOf).toList()
+
+    /**
+     * Gap bucket indices strictly between the two instants' buckets, emitted in stream direction.
+     * The stream is lazy: callers facing a potentially huge gap (e.g. two SECOND buckets a year
+     * apart) consume it demand-driven instead of materializing every index.
+     *
+     * A grid point must be an EXISTING local time. An index whose key does not round-trip
+     * (`indexOf(keyOf(index)) != index`) is not a grid point and is skipped: whole-day zone
+     * gaps — e.g. Pacific/Apia skipped local 2011-12-30 entirely, so the nonexistent midnight
+     * resolves FORWARD onto the next real bucket's instant and the key collapses onto it —
+     * yield no bucket. The round-trip filter stays inside the lazy stream.
+     */
+    fun gapIndices(fromMillis: Long, toMillis: Long): LongStream = when {
+        fromMillis < toMillis -> LongStream.range(indexOf(fromMillis) + 1, indexOf(toMillis))
+            .filter { index -> indexOf(keyOf(index)) == index }
+
+        fromMillis > toMillis -> {
+            val toIndex = indexOf(toMillis)
+            LongStream.iterate(indexOf(fromMillis) - 1, { index -> index > toIndex }, { index -> index - 1 })
+                .filter { index -> indexOf(keyOf(index)) == index }
+        }
+
+        else -> LongStream.empty()
+    }
+}

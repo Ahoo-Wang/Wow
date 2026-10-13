@@ -1,0 +1,52 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.query
+
+import java.time.Duration
+
+/**
+ * A query the caller got right that the server failed to run: a cursor position that does not encode, a stored record
+ * or backend row that breaks integrity (a non-finite number), a storage that failed. [QueryErrors.FAILED] (HTTP 500),
+ * never a [me.ahoo.wow.query.schema.QueryViolation]: the caller cannot fix it by changing the request.
+ *
+ * [message] is returned to clients, so it names what failed without internal detail; [cause] stays server-side.
+ */
+open class QueryExecutionException(
+    message: String,
+    cause: Throwable? = null,
+) : RuntimeException(message, cause), QueryError {
+    override val errorCode: String
+        get() = QueryErrors.FAILED
+
+    override val errorMsg: String
+        get() = checkNotNull(message)
+}
+
+/** Throws a [QueryExecutionException] with [message] unless [value] holds. */
+inline fun checkExecution(value: Boolean, message: () -> String) {
+    if (!value) throw QueryExecutionException(message())
+}
+
+/**
+ * A query that ran out of the execution time its budget gives it (decision D150): [QueryErrors.TIMEOUT] (HTTP 503).
+ * The backend received the same [timeout] to bound the statement natively (`statement_timeout`, `maxTimeMS`); the core
+ * enforces it as well, so a backend that ignores it still fails here.
+ */
+class QueryTimeoutException(
+    val timeout: Duration,
+    cause: Throwable? = null,
+) : QueryExecutionException("Query exceeded its execution timeout of ${timeout.toMillis()} ms.", cause) {
+    override val errorCode: String
+        get() = QueryErrors.TIMEOUT
+}
