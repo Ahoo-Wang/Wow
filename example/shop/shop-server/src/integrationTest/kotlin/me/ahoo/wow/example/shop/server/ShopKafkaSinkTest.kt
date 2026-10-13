@@ -15,6 +15,7 @@ package me.ahoo.wow.example.shop.server
 
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
@@ -56,7 +57,9 @@ class ShopKafkaSinkTest {
 
         val topic = PublishedManifest.defaultTopic("example", "order")
         val record = withTimeout(60.seconds) {
-            source.read(topic, 0, 0).map { EnvelopeCodec.stateEventOf(it.value) }.first { it.ref.id == id }
+            // The node created the topic with the log's partitions (decision D168): the order is in one of them.
+            source.partitions(topic).map { source.read(topic, it, 0) }.merge()
+                .map { EnvelopeCodec.stateEventOf(it.value) }.first { it.ref.id == id }
         }
         record.version.assert().isEqualTo(1)
         record.events.single().name.assert().isEqualTo("example.order.OrderCreated")
