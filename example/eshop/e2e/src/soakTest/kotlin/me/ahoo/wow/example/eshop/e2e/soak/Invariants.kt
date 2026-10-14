@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 /**
  * One invariant: its [name], what it holds ([description]), how many things were [checked] and the violations found,
- * each with its evidence. Only the first [MAX_KEPT] violations are kept; [violationCount] counts them all.
+ * each with its evidence. Only the first [MAX_KEPT] violations are kept; [violated] counts them all.
  */
 class Invariant(val name: String, val description: String) {
     val checked = AtomicLong()

@@ -133,7 +133,11 @@ class SoakChecks(
             invariants.partitionsOwned.check()
             val since = unowned.getOrPut(id) { now }
             if (now - since > OWNERLESS_LIMIT.toMillis() && stalled.add(id)) {
-                val dumps = stack.threadDumps(database.context, evidence, "${id.replace('|', '_').replace('/', '_').replace(':', '_')}-$now")
+                val dumps = stack.threadDumps(
+                    database.context,
+                    evidence,
+                    "${id.replace('|', '_').replace('/', '_').replace(':', '_')}-$now"
+                )
                 val stall = linkedMapOf<String, Any?>(
                     "lease" to id,
                     "lastOwner" to owner,
@@ -221,7 +225,10 @@ class SoakChecks(
     }
 
     private fun checkedOutOrders(): List<String> = stack.connect(SoakStack.DATABASES.getValue("basket")).use {
-        SoakDatabase(it, "basket").requestIds(BASKET_TABLE, "%:checkout").keys.map { id -> id.removeSuffix(":checkout") + "-1" }
+        SoakDatabase(
+            it,
+            "basket"
+        ).requestIds(BASKET_TABLE, "%:checkout").keys.map { id -> id.removeSuffix(":checkout") + "-1" }
     }
 
     private fun awaitSnapshots() {
@@ -318,7 +325,9 @@ class SoakChecks(
         }
         logged.forEach { (context, counts) ->
             counts.keys.filter { it.startsWith("c") && ':' in it && it !in sent }.forEach { requestId ->
-                invariants.exactlyOnce.violate(linkedMapOf("requestId" to requestId, "context" to context, "sent" to false))
+                invariants.exactlyOnce.violate(
+                    linkedMapOf("requestId" to requestId, "context" to context, "sent" to false)
+                )
             }
         }
     }
@@ -452,7 +461,13 @@ class SoakChecks(
         data.forEach { (context, contextData) ->
             contextData.snapshots.forEach { (aggregate, snapshots) ->
                 val ids = snapshots.keys.sorted().let { ids ->
-                    if (aggregate == "stock" || ids.size <= config.replaySample) ids else ids.shuffled(random).take(config.replaySample)
+                    if (aggregate == "stock" || ids.size <= config.replaySample) {
+                        ids
+                    } else {
+                        ids.shuffled(
+                            random
+                        ).take(config.replaySample)
+                    }
                 }
                 ids.forEach { id -> compareReplay(context, aggregate, id, snapshots.getValue(id)) }
             }
@@ -469,7 +484,11 @@ class SoakChecks(
             val answer = runCatching { node.service.get("$path?from=$from&limit=$TRACE_PAGE") }.getOrNull()
             if (answer == null || answer.status != OK) {
                 invariants.readModelsConverge.violate(
-                    linkedMapOf("aggregate" to "$context.$aggregate", "id" to id, "trace" to "${answer?.status} ${answer?.body?.take(MAX_TEXT)}"),
+                    linkedMapOf(
+                        "aggregate" to "$context.$aggregate",
+                        "id" to id,
+                        "trace" to "${answer?.status} ${answer?.body?.take(MAX_TEXT)}"
+                    ),
                 )
                 return
             }
@@ -492,7 +511,11 @@ class SoakChecks(
         }
     }
 
-    private fun names(commits: List<SoakDatabase.Commit>): List<String> = commits.flatMap { commit -> commit.events.map { it.name } }
+    private fun names(commits: List<SoakDatabase.Commit>): List<String> = commits.flatMap { commit ->
+        commit.events.map {
+            it.name
+        }
+    }
 
     /** The fault whose window holds [at] (from its start to a minute after its recovery), if any. */
     fun faultAround(at: Long): String? = faults.timeline.lastOrNull { event ->

@@ -36,6 +36,7 @@ import java.time.format.DateTimeFormatter
  */
 class EshopSoakTest {
     @Test
+    @Suppress("FunctionNaming") // detekt names test functions so only under src/test; this is src/soakTest.
     fun `the eShop should keep its invariants through node kills and backend restarts`() {
         val config = SoakConfig.fromSystemProperties()
         val stamp = STAMP.format(Instant.now())
@@ -70,28 +71,47 @@ class EshopSoakTest {
             checks.settle(load)
             checks.stopSampling()
             checks.finalChecks(load)
-            val orders = load.orders.toList()
             report["load"] = mapOf("began" to loadBegan, "ended" to loadEnded, "millis" to loadEnded - loadBegan)
-            report["settlement"] = checks.settlement
-            report["counts"] = SoakSummary.counts(orders)
-            report["faults"] = faults.timeline.map(SoakSummary::fault)
-            report["samples"] = mapOf("taken" to checks.samples, "failed" to checks.failedSamples)
-            report["parkedSeen"] = checks.parkedSeen.values.toList()
-            report["stalls"] = checks.stalls.toList()
-            report["invariants"] = checks.invariants.all.map { it.describe() }
-            violations = checks.invariants.all.sumOf { it.violated }
-            report["violations"] = violations
-            report["ended"] = System.currentTimeMillis()
-            File(config.dir, "requests-$stamp.jsonl").printWriter().use { out ->
-                orders.forEach { order -> order.requests.toList().forEach { out.println(json.writeValueAsString(SoakSummary.request(order, it))) } }
-            }
+            violations = record(report, load, faults, checks)
+            writeRequests(File(config.dir, "requests-$stamp.jsonl"), load.orders.toList())
         }
         val file = File(config.dir, "report-$stamp.json")
         file.writeText(json.writerWithDefaultPrettyPrinter().writeValueAsString(report))
         log("report: ${file.absolutePath}")
         @Suppress("UNCHECKED_CAST")
-        (report["invariants"] as List<Map<String, Any?>>).forEach { log("invariant ${it["name"]}: ok=${it["ok"]} checked=${it["checked"]} violations=${it["violations"]}") }
+        (report["invariants"] as List<Map<String, Any?>>).forEach {
+            log("invariant ${it["name"]}: ok=${it["ok"]} checked=${it["checked"]} violations=${it["violations"]}")
+        }
         violations.assert().describedAs("violations, see ${file.absolutePath}").isZero()
+    }
+
+    /** Puts what the run found into [report]; the violations found. */
+    private fun record(
+        report: MutableMap<String, Any?>,
+        load: SoakLoad,
+        faults: FaultInjector,
+        checks: SoakChecks
+    ): Long {
+        val violations = checks.invariants.all.sumOf { it.violated }
+        report["settlement"] = checks.settlement
+        report["counts"] = SoakSummary.counts(load.orders.toList())
+        report["faults"] = faults.timeline.map(SoakSummary::fault)
+        report["samples"] = mapOf("taken" to checks.samples, "failed" to checks.failedSamples)
+        report["parkedSeen"] = checks.parkedSeen.values.toList()
+        report["stalls"] = checks.stalls.toList()
+        report["invariants"] = checks.invariants.all.map { it.describe() }
+        report["violations"] = violations
+        report["ended"] = System.currentTimeMillis()
+        return violations
+    }
+
+    /** Every request of [orders], one JSON line each with its attempts: the evidence behind the counts. */
+    private fun writeRequests(file: File, orders: List<SoakOrder>) {
+        file.printWriter().use { out ->
+            orders.forEach { order ->
+                order.requests.toList().forEach { out.println(json.writeValueAsString(SoakSummary.request(order, it))) }
+            }
+        }
     }
 
     /** The stock every order draws on, received once each with a request id of its own. */

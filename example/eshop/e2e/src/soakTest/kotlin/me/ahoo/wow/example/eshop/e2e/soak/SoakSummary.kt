@@ -53,7 +53,9 @@ object SoakSummary {
             "unresolved" to requests.count { !it.committed && it.final?.outcome?.retried != false },
             "attemptOutcomes" to attempts.groupingBy { it.outcome.name }.eachCount().toSortedMap(),
             "finalOutcomes" to requests.groupingBy { it.final?.outcome?.name ?: "NONE" }.eachCount().toSortedMap(),
-            "finalHops" to requests.groupingBy { it.final?.let { a -> "${a.outcome} ${a.function ?: ""} ${a.hop ?: ""}".trim() } ?: "NONE" }
+            "finalHops" to requests.groupingBy {
+                it.final?.let { a -> "${a.outcome} ${a.function ?: ""} ${a.hop ?: ""}".trim() } ?: "NONE"
+            }
                 .eachCount().toSortedMap(),
         )
     }
@@ -61,7 +63,9 @@ object SoakSummary {
     private fun latency(millis: List<Long>): Map<String, Any?> {
         if (millis.isEmpty()) return emptyMap()
         val sorted = millis.sorted()
-        fun percentile(p: Double): Long = sorted[(ceil(p / PERCENT * sorted.size).toInt() - 1).coerceIn(0, sorted.lastIndex)]
+        fun percentile(
+            p: Double
+        ): Long = sorted[(ceil(p / PERCENT * sorted.size).toInt() - 1).coerceIn(0, sorted.lastIndex)]
         return linkedMapOf(
             "count" to sorted.size,
             "p50" to percentile(P50),

@@ -76,25 +76,13 @@ data class SoakConfig(
             val duration = property("duration")?.let(Duration::parse) ?: if (short) SHORT else FULL
             val interval = property("fault-interval")?.let(Duration::parse)
                 ?: if (short) SHORT_INTERVAL else duration.dividedBy(FAULTS_PER_RUN).coerceIn(MIN_INTERVAL, MAX_INTERVAL)
-            val faults = when (val kinds = property("faults")) {
-                null -> FaultKind.entries.toList()
-                "none" -> emptyList()
-                else -> kinds.split(',').map { FaultKind.valueOf(it.trim().uppercase().replace('-', '_')) }
-            }
-            val nodes = DEFAULT_NODES + (
-                property("nodes")?.split(',')?.associate { entry ->
-                    val (context, count) = entry.split('=').map(String::trim)
-                    require(context in CONTEXTS) { "No service $context; the services are $CONTEXTS." }
-                    context to count.toInt()
-                } ?: emptyMap()
-                )
             return SoakConfig(
                 duration = duration,
                 clients = property("clients")?.toInt() ?: DEFAULT_CLIENTS,
                 rate = property("rate")?.toDouble() ?: DEFAULT_RATE,
-                faults = faults,
+                faults = faults(),
                 faultInterval = interval,
-                nodes = nodes,
+                nodes = DEFAULT_NODES + nodes(),
                 waitTimeout = property("wait-timeout")?.let(Duration::parse) ?: Duration.ofSeconds(20),
                 quiescence = property("quiescence")?.let(Duration::parse) ?: Duration.ofMinutes(5),
                 sampleInterval = property("sample-interval")?.let(Duration::parse) ?: Duration.ofSeconds(10),
@@ -105,6 +93,20 @@ data class SoakConfig(
                 dir = File(System.getProperty("eshop.soak.dir") ?: "build/eshop-soak"),
             )
         }
+
+        /** `wow.soak.faults`: every kind by default, none for `none`, else the kinds listed (`kill-ordering`, ...). */
+        private fun faults(): List<FaultKind> = when (val kinds = property("faults")) {
+            null -> FaultKind.entries.toList()
+            "none" -> emptyList()
+            else -> kinds.split(',').map { FaultKind.valueOf(it.trim().uppercase().replace('-', '_')) }
+        }
+
+        /** `wow.soak.nodes`: `<service>=<count>`, comma separated, over the defaults. */
+        private fun nodes(): Map<String, Int> = property("nodes")?.split(',')?.associate { entry ->
+            val (context, count) = entry.split('=').map(String::trim)
+            require(context in CONTEXTS) { "No service $context; the services are $CONTEXTS." }
+            context to count.toInt()
+        } ?: emptyMap()
 
         private fun property(name: String): String? = System.getProperty("wow.soak.$name")?.takeIf { it.isNotBlank() }
 

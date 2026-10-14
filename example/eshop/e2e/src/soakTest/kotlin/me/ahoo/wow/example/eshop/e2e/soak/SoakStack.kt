@@ -52,7 +52,15 @@ class SoakStack(private val config: SoakConfig, private val log: (String) -> Uni
         postgres.start()
         kafka.start()
         DATABASES.values.forEach { database ->
-            val created = postgres.execInContainer("psql", "-U", postgres.username, "-d", ADMIN_DATABASE, "-c", "CREATE DATABASE $database")
+            val created = postgres.execInContainer(
+                "psql",
+                "-U",
+                postgres.username,
+                "-d",
+                ADMIN_DATABASE,
+                "-c",
+                "CREATE DATABASE $database"
+            )
             check(created.exitCode == 0) { "CREATE DATABASE $database failed: ${created.stderr}" }
         }
         admin().use { admin ->

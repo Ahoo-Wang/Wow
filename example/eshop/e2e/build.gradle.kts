@@ -106,6 +106,11 @@ dependencies {
     "soakTestImplementation"(project(":tck-containers"))
 }
 
+// detekt (and so v10Check) covers the harness, which no check compiles otherwise.
+tasks.named<io.gitlab.arturbosch.detekt.Detekt>("detekt") {
+    source(files("src/soakTest/kotlin"))
+}
+
 tasks.register<Test>("soakTest") {
     description = "Runs the eShop's fault-injection soak (C.1): checkouts under node kills and backend restarts, " +
         "then its invariants."

@@ -37,7 +37,7 @@ enum class Scenario(val product: String, val unitPrice: String, val wait: String
     SHORT_STOCK(SoakLoad.PRODUCT_SHORT, "5.00", EshopStack.CHECKOUT_TO_PAID),
 
     /** The wait ends where the gateway's answer is committed in the payment: a failed payment takes another saga. */
-    DECLINED(SoakLoad.PRODUCT_B, "1200.00",EshopStack.CHECKOUT_TO_ORDER + DECLINED_TAIL),
+    DECLINED(SoakLoad.PRODUCT_B, "1200.00", EshopStack.CHECKOUT_TO_ORDER + DECLINED_TAIL),
     ;
 
     companion object {
@@ -269,7 +269,16 @@ class SoakLoad(private val stack: SoakStack, private val config: SoakConfig, pri
             val function = result?.get("function")?.get("name")?.asString()
             if (status in OK_RANGE) {
                 val duplicate = tree["duplicate"]?.asBoolean() == true
-                return Attempt(at, millis, if (duplicate) Outcome.DUPLICATE else Outcome.SUCCEEDED, status, null, hop, function, node)
+                return Attempt(
+                    at,
+                    millis,
+                    if (duplicate) Outcome.DUPLICATE else Outcome.SUCCEEDED,
+                    status,
+                    null,
+                    hop,
+                    function,
+                    node
+                )
             }
             val code = tree["code"]?.asString()
             val outcome = when {
@@ -278,7 +287,12 @@ class SoakLoad(private val stack: SoakStack, private val config: SoakConfig, pri
                 code != null && !code.startsWith("wow.") && status < SERVER_ERROR -> Outcome.REJECTED
                 else -> Outcome.FAILED
             }
-            return Attempt(at, millis, outcome, status, code, hop, function, node, tree["detail"]?.asString()?.take(DETAIL))
+            return Attempt(
+                at, millis, outcome, status, code, hop, function, node,
+                tree["detail"]?.asString()?.take(
+                    DETAIL
+                )
+            )
         }
 
         /** A hop as the `Wow-Wait` header spells it: `stage(context/subscription)`. */
