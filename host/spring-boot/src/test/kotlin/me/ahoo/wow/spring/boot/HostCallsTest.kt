@@ -39,22 +39,22 @@ import java.net.URI
 /**
  * The host's synchronous calls (decision D193): `wow.calls.*` gives the node its client of the other contexts'
  * gateways, at their internal ports, and its service token; `wow.http.services.*` the service identities its internal
- * port trusts. The host here calls its own internal port, as another service would; its public port refuses calls.
+ * port trusts. The [host] here calls the internal port of a [target] that trusts its token, as another service
+ * would, at the port the target bound; the target's public port refuses calls.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HostCallsTest {
-    private val internalPort = freePort()
+    private val target = startHost("wow.http.services.ledger-service.tokens[0]" to TOKEN)
     private val host = startHost(
-        "wow.calls.contexts.bank.url" to "http://127.0.0.1:$internalPort",
+        "wow.calls.contexts.bank.url" to "http://127.0.0.1:${target.internalPort}",
         "wow.calls.token" to TOKEN,
         "wow.calls.timeout" to "5s",
-        "wow.http.services.ledger-service.tokens[0]" to TOKEN,
-        internalPort = internalPort,
     )
 
     @AfterAll
     fun close() {
         host.close()
+        target.close()
     }
 
     private val root = Causation("root-1", "ledger/(0)/l-1@1")
@@ -84,9 +84,9 @@ class HostCallsTest {
     @Test
     fun `the public port should refuse Wow-Call, even with the service's token`() {
         val call = CallHeader.format(CallContext("call-2", Caller.DEFAULT_TENANT, Scope("dave"), root))
-        host.post("/bank/account/open-account", """{"owner":"mallory"}""", mapOf(WowHeaders.CALL to call))
+        target.post("/bank/account/open-account", """{"owner":"mallory"}""", mapOf(WowHeaders.CALL to call))
             .status.assert().isEqualTo(403)
-        host.post(
+        target.post(
             "/bank/account/open-account",
             """{"owner":"mallory"}""",
             mapOf(WowHeaders.CALL to call, "Authorization" to "Bearer $TOKEN"),
@@ -96,7 +96,7 @@ class HostCallsTest {
     @Test
     fun `the internal port should refuse a call without the service's token`(): Unit = runBlocking {
         val forged = HttpCommandCaller(
-            mapOf(BANK to URI.create("http://127.0.0.1:$internalPort")),
+            mapOf(BANK to URI.create("http://127.0.0.1:${target.internalPort}")),
             ServiceCredential.bearer("a-forged-token-of-at-least-32-characters"),
         )
         val command = Command(

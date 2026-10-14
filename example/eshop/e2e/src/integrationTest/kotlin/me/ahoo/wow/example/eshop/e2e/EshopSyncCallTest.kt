@@ -27,8 +27,10 @@ import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.command.CallHeader
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.runtime.admission.CallContext
+import me.ahoo.wow.spring.boot.InternalServer
 import org.junit.jupiter.api.Test
 import org.springframework.boot.builder.SpringApplicationBuilder
+import org.springframework.context.ApplicationContextException
 import org.springframework.context.ConfigurableApplicationContext
 import tools.jackson.databind.JsonNode
 import java.net.InetSocketAddress
@@ -173,9 +175,10 @@ class EshopSyncCallTest {
         }
     }
 
-    /** A service of this JVM, its public and [internalPort] on the loopback interface. */
-    private class Service(private val context: ConfigurableApplicationContext, val internalPort: Int) : AutoCloseable {
+    /** A service of this JVM, its public [port] and its [internalPort] on the loopback interface, as bound. */
+    private class Service(private val context: ConfigurableApplicationContext) : AutoCloseable {
         val port: Int = context.environment.getRequiredProperty("local.server.port", Int::class.java)
+        val internalPort: Int = context.getBean(InternalServer::class.java).boundPort
         private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
 
         fun get(path: String, headers: Map<String, String> = emptyMap()): Answer =
@@ -308,10 +311,10 @@ class EshopSyncCallTest {
         fun encode(segment: String): String = URLEncoder.encode(segment, Charsets.UTF_8)
 
         /**
-         * The ordering service, trusting the basket service's [TOKEN] on its [internalPort] (a free one by default),
-         * where the basket calls it.
+         * The ordering service, trusting the basket service's [TOKEN] on its [internalPort] (one the system chooses by
+         * default), where the basket calls it.
          */
-        fun ordering(internalPort: Int = freePort()): Service = start(
+        fun ordering(internalPort: Int = 0): Service = start(
             OrderingServer::class.java,
             "ordering",
             internalPort,
@@ -326,7 +329,7 @@ class EshopSyncCallTest {
         fun basket(orderingPort: Int, retries: Int = 5): Service = start(
             BasketServer::class.java,
             "basket",
-            freePort(),
+            0,
             "--wow.calls.contexts.eshop-ordering.url=http://127.0.0.1:$orderingPort",
             "--wow.calls.token=$TOKEN",
             "--wow.calls.timeout=5s",
@@ -338,28 +341,43 @@ class EshopSyncCallTest {
         )
 
         /**
-         * Starts [application] as the eShop service of [context] with its internal port [internalPort], serving
-         * `eshop-<context>` alone on the memory backend, its commands to other contexts in memory
-         * ([InMemoryTopicsBeans]), with the further [arguments]: the services share one class path, so Spring Boot reads
-         * one `application.yaml` for both.
+         * Starts [application] as the eShop service of [context] with its internal port [internalPort] (0: one the
+         * system chooses), serving `eshop-<context>` alone on the memory backend, its commands to other contexts in
+         * memory ([InMemoryTopicsBeans]), with the further [arguments]: the services share one class path, so Spring
+         * Boot reads one `application.yaml` for both. A service given the port another one released is started again,
+         * at most [BIND_ATTEMPTS] times, while another process holds it.
          */
-        fun start(application: Class<*>, context: String, internalPort: Int, vararg arguments: String) = Service(
-            SpringApplicationBuilder(application, InMemoryTopicsBeans::class.java).run(
-                *arguments,
-                "--spring.main.banner-mode=off",
-                "--spring.application.name=eshop-$context-service",
-                "--server.address=127.0.0.1",
-                "--server.port=0",
-                "--wow.service=eshop-$context-service",
-                "--wow.backend=memory",
-                "--wow.internal.host=127.0.0.1",
-                "--wow.internal.port=$internalPort",
-                "--wow.contexts.include=eshop-$context",
-            ),
-            internalPort,
-        )
+        fun start(application: Class<*>, context: String, internalPort: Int, vararg arguments: String): Service {
+            var attempt = 1
+            while (true) {
+                try {
+                    return startOnce(application, context, internalPort, *arguments)
+                } catch (failure: ApplicationContextException) {
+                    val taken = generateSequence<Throwable>(failure) { it.cause }
+                        .any { it.message.orEmpty().contains("already in use", ignoreCase = true) }
+                    if (internalPort == 0 || !taken || attempt == BIND_ATTEMPTS) throw failure
+                    attempt++
+                }
+            }
+        }
 
-        fun freePort(): Int = EshopService.freePort()
+        private fun startOnce(application: Class<*>, context: String, internalPort: Int, vararg arguments: String) =
+            Service(
+                SpringApplicationBuilder(application, InMemoryTopicsBeans::class.java).run(
+                    *arguments,
+                    "--spring.main.banner-mode=off",
+                    "--spring.application.name=eshop-$context-service",
+                    "--server.address=127.0.0.1",
+                    "--server.port=0",
+                    "--wow.service=eshop-$context-service",
+                    "--wow.backend=memory",
+                    "--wow.internal.host=127.0.0.1",
+                    "--wow.internal.port=$internalPort",
+                    "--wow.contexts.include=eshop-$context",
+                ),
+            )
+
+        const val BIND_ATTEMPTS = 5
 
         fun eventually(what: String, condition: () -> Boolean) {
             val until = System.nanoTime() + DEADLINE.toNanos()
