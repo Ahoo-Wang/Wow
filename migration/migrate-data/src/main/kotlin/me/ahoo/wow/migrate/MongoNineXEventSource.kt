@@ -36,9 +36,10 @@ import java.util.Date
  *
  * The full import walks an aggregate's version-1 documents by `(aggregateId, tenantId)`, and reads an instance's
  * streams through 9.x's unique `(aggregateId, version)` index. The tail reads by `(createTime, _id)`, which 9.x does
- * not index: [ensureCommitTimeIndex] adds that index, the only write the tool makes to a 9.x store.
+ * not index. The tail needs that index; [ensureCommitTimeIndex] creates it only when the operator opts in
+ * (`source.createCommitTimeIndex`), the only write the tool can make to a 9.x store.
  */
-class MongoNineXEventSource(private val database: MongoDatabase) : NineXEventSource {
+class MongoNineXEventSource(private val database: MongoDatabase) : NineXEventSource, CommitTimeIndexed {
     override fun inventory(): List<NineXInventory> =
         database.listCollectionNames().filter { it.endsWith(SUFFIX) }.sorted().flatMap(::inventoryOf)
 
@@ -144,8 +145,15 @@ class MongoNineXEventSource(private val database: MongoDatabase) : NineXEventSou
         )
     }
 
+    override fun missingCommitTimeIndexes(aggregates: Collection<NineXAggregate>): Map<String, String> =
+        aggregates.map { it.name + SUFFIX }.distinct().filterNot { name ->
+            database.getCollection(name).listIndexes().any { isCommitTimeKey(it.get("key", Document::class.java)) }
+        }.associateWith { name ->
+            "db.getCollection(\"$name\").createIndex({ $CREATE_TIME: 1, $ID: 1 })"
+        }
+
     /** Adds the `(createTime, _id)` index the tail reads [aggregate]'s collection by, when it is missing. */
-    fun ensureCommitTimeIndex(aggregate: NineXAggregate) {
+    override fun ensureCommitTimeIndex(aggregate: NineXAggregate) {
         collectionOf(aggregate).createIndex(Indexes.ascending(CREATE_TIME, ID))
     }
 
@@ -168,6 +176,14 @@ class MongoNineXEventSource(private val database: MongoDatabase) : NineXEventSou
         private const val TENANT_ID = "tenantId"
         private const val VERSION = "version"
         private const val CREATE_TIME = "createTime"
+
+        /**
+         * Whether an index [key] is `{createTime: 1, _id: 1}`, however its numbers were written (the shell writes
+         * doubles, the driver integers).
+         */
+        fun isCommitTimeKey(key: Document?): Boolean =
+            key != null && key.keys.toList() == listOf(CREATE_TIME, ID) &&
+                key.values.all { (it as? Number)?.toDouble() == 1.0 }
         private val NODES: JsonNodeFactory = WowJson.mapper.nodeFactory
 
         /** [value], a BSON value the driver read, as JSON; a `Decimal128` stays an exact decimal. */

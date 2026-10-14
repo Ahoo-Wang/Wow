@@ -37,8 +37,10 @@ class MigrateDataTest {
     private var closed = false
     private var passes = 0
 
+    private var nineX: NineXEventSource = source
+
     private val connections = object : MigrationConnections {
-        override val source: NineXEventSource = this@MigrateDataTest.source
+        override val source: NineXEventSource get() = nineX
 
         override fun logOf(context: String): EventLog = log
 
@@ -47,7 +49,19 @@ class MigrateDataTest {
         }
     }
 
-    private fun config(map: String = NineXExample.MAP_TEXT): Path {
+    /** A 9.x store whose scan by commit time needs an index, as the MongoDB one does. */
+    private class IndexedSource(delegate: NineXEventSource, val indexed: MutableSet<String> = mutableSetOf()) :
+        NineXEventSource by delegate,
+        CommitTimeIndexed {
+        override fun missingCommitTimeIndexes(aggregates: Collection<NineXAggregate>): Map<String, String> =
+            aggregates.map { "${it.name}_event_stream" }.filterNot { it in indexed }.associateWith { "create $it" }
+
+        override fun ensureCommitTimeIndex(aggregate: NineXAggregate) {
+            indexed += "${aggregate.name}_event_stream"
+        }
+    }
+
+    private fun config(map: String = NineXExample.MAP_TEXT, createIndex: Boolean = false): Path {
         Files.writeString(directory.resolve("migration-map.json"), map)
         Files.writeString(directory.resolve("manifest.json"), NineXExample.MANIFEST_TEXT)
         return directory.resolve("migrate-data.json").also {
@@ -57,7 +71,8 @@ class MigrateDataTest {
                 {
                   "map": "migration-map.json",
                   "manifests": ["manifest.json"],
-                  "source": { "uri": "mongodb://localhost:27017", "database": "example_db" },
+                  "source": { "uri": "mongodb://localhost:27017", "database": "example_db",
+                              "createCommitTimeIndex": $createIndex },
                   "target": { "type": "postgres", "jdbcUrl": "jdbc:postgresql://localhost:5432/wow" },
                   "partitions": { "example": 4 },
                   "pollIntervalMillis": 1
@@ -93,6 +108,28 @@ class MigrateDataTest {
         passes.assert().isEqualTo(2)
         run("import", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
         printed.assert().contains("4 skipped")
+    }
+
+    @Test
+    fun `the tail refuses a 9x store without its index, and creates it only when told to`() {
+        val indexed = IndexedSource(source)
+        nineX = indexed
+        run("import", "--config", config().toString()).assert().isEqualTo(MigrateData.OK)
+        run("tail", "--config", config().toString(), "--once").assert().isEqualTo(MigrateData.FAILED)
+        printed.assert().contains("[order_event_stream, cart_event_stream]")
+            .contains("  create order_event_stream")
+            .contains("\"createCommitTimeIndex\": true")
+            .doesNotContain("Tail stopped.")
+        indexed.indexed.assert().isEmpty()
+
+        run("tail", "--config", config(createIndex = true).toString(), "--once").assert().isEqualTo(MigrateData.OK)
+        indexed.indexed.assert().containsExactlyInAnyOrder("order_event_stream", "cart_event_stream")
+
+        // With the index in place, the tail runs without the flag, and writes nothing to the 9.x store.
+        val existing = IndexedSource(source, mutableSetOf("order_event_stream", "cart_event_stream"))
+        nineX = existing
+        run("tail", "--config", config().toString(), "--once").assert().isEqualTo(MigrateData.OK)
+        printed.assert().contains("Tail stopped.")
     }
 
     @Test

@@ -72,10 +72,18 @@ class MongoNineXEventSourceTest {
     }
 
     @Test
-    fun `the tail's index is added once`() {
+    fun `the tail's index is missing until created, once`() {
+        source.missingCommitTimeIndexes(listOf(order, cart)).assert().isEqualTo(
+            mapOf(
+                "order_event_stream" to "db.getCollection(\"order_event_stream\").createIndex({ createTime: 1, _id: 1 })",
+                "cart_event_stream" to "db.getCollection(\"cart_event_stream\").createIndex({ createTime: 1, _id: 1 })",
+            ),
+        )
         source.ensureCommitTimeIndex(order)
         source.ensureCommitTimeIndex(order)
-        database.getCollection("order_event_stream").listIndexes().map { it.get("key").toString() }.toList()
-            .assert().contains("Document{{createTime=1, _id=1}}")
+        source.missingCommitTimeIndexes(listOf(order, cart)).keys.assert().containsExactly("cart_event_stream")
+        database.getCollection("order_event_stream").listIndexes()
+            .count { MongoNineXEventSource.isCommitTimeKey(it.get("key", org.bson.Document::class.java)) }
+            .assert().isEqualTo(1)
     }
 }

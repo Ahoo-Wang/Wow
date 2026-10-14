@@ -105,8 +105,13 @@ data class MigrationConfig(
     }
 }
 
-/** The 9.x MongoDB event store: its connection [uri] and [database]; [commitTimeIndex] lets the tail add its index. */
-data class SourceConfig(val uri: String, val database: String, val commitTimeIndex: Boolean = true)
+/**
+ * The 9.x MongoDB event store: its connection [uri] and [database]. The tool does not write to it unless
+ * [createCommitTimeIndex] is set: then the tail creates the `(createTime, _id)` index it reads by where it is missing;
+ * otherwise the tail refuses to start without it, naming the collections and the command that creates it, so the
+ * operator decides when to build it on a large collection.
+ */
+data class SourceConfig(val uri: String, val database: String, val createCommitTimeIndex: Boolean = false)
 
 /**
  * The V10 log: [type] `postgres` (with [jdbcUrl], [username] and [password]) or `mongo` (with [uri] and [database],

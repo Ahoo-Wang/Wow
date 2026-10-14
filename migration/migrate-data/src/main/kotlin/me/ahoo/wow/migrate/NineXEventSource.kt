@@ -39,3 +39,15 @@ interface NineXEventSource {
      */
     fun committedSince(aggregate: NineXAggregate, from: Long, after: NineXPosition?, limit: Int): List<NineXStream>
 }
+
+/**
+ * A 9.x store whose scan by commit time needs an index 9.x did not create. The tool never writes to a 9.x store unless
+ * the operator opts in: without the index, the tail refuses to start and says how to create it.
+ */
+interface CommitTimeIndexed {
+    /** The collections of [aggregates] that lack the index, each with the command that creates it. */
+    fun missingCommitTimeIndexes(aggregates: Collection<NineXAggregate>): Map<String, String>
+
+    /** Creates the index on [aggregate]'s collection when it is missing: a write to the 9.x store. */
+    fun ensureCommitTimeIndex(aggregate: NineXAggregate)
+}

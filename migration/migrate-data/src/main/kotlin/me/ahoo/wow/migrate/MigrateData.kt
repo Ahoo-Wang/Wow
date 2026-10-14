@@ -36,7 +36,9 @@ import kotlin.system.exitProcess
  *   its checkpoint. `--dry-run` converts every stream and appends none; `--restart` walks every instance again, the
  *   final complete pass once 9.x has stopped writing.
  * - `tail` follows what 9.x commits after the full import until it is stopped (or after one pass with `--once`), the
- *   increment until cut-over.
+ *   increment until cut-over. It reads the 9.x store by commit time, which needs an index 9.x did not create: without
+ *   it the tail refuses to start and prints the command that creates it, unless `source.createCommitTimeIndex` lets
+ *   it create the index itself, the tool's only write to a 9.x store.
  *
  * From the repository: `./gradlew :migrate-data:run --args="check --config /path/to/migrate-data.json"`.
  */
@@ -109,8 +111,15 @@ class MigrateData(
 
     private suspend fun tail(plan: MigrationPlan, config: MigrationConfig, connections: MigrationConnections, once: Boolean): Int {
         val source = connections.source
-        if (source is MongoNineXEventSource && config.source.commitTimeIndex) {
-            plan.aggregates.keys.forEach(source::ensureCommitTimeIndex)
+        if (source is CommitTimeIndexed) {
+            if (config.source.createCommitTimeIndex) {
+                plan.aggregates.keys.forEach(source::ensureCommitTimeIndex)
+            }
+            val missing = source.missingCommitTimeIndexes(plan.aggregates.keys)
+            if (missing.isNotEmpty()) {
+                out.println(missingIndexes(missing))
+                return FAILED
+            }
         }
         val importer = importer(
             plan,
@@ -126,6 +135,15 @@ class MigrateData(
         } while (!once && running())
         out.println("Tail stopped.")
         return OK
+    }
+
+    private fun missingIndexes(missing: Map<String, String>): String = buildString {
+        appendLine(
+            "The tail reads the 9.x collections ${missing.keys} by (createTime, _id), which they do not index, and " +
+                "this tool does not write to the 9.x store unless told to. Create the index when convenient:",
+        )
+        missing.values.forEach { appendLine("  $it") }
+        append("or set \"source\": { \"createCommitTimeIndex\": true } to let the tail create it.")
     }
 
     private fun importer(

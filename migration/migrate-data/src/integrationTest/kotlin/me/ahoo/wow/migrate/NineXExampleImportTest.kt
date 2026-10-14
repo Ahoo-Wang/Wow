@@ -45,7 +45,7 @@ class NineXExampleImportTest {
     private val output = ByteArrayOutputStream()
     private val nineX: MongoDatabase = NineXMongoStore.example()
 
-    private fun config(target: String): Path {
+    private fun config(target: String, createIndex: Boolean = false): Path {
         Files.writeString(directory.resolve("migration-map.json"), NineXExample.MAP_TEXT)
         Files.writeString(directory.resolve("manifest.json"), NineXExample.MANIFEST_TEXT)
         return directory.resolve("migrate-data.json").also {
@@ -55,7 +55,8 @@ class NineXExampleImportTest {
                 {
                   "map": "migration-map.json",
                   "manifests": ["manifest.json"],
-                  "source": { "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "${nineX.name}" },
+                  "source": { "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "${nineX.name}",
+                              "createCommitTimeIndex": $createIndex },
                   "target": $target,
                   "partitions": { "${NineXExample.CONTEXT}": $PARTITIONS },
                   "pageSize": 1,
@@ -68,7 +69,8 @@ class NineXExampleImportTest {
 
     private fun run(vararg args: String): Int = MigrateData(PrintStream(output, true)).run(args.toList())
 
-    private fun migrate(config: Path, log: EventLog) = runBlocking {
+    private fun migrate(target: String, log: EventLog) = runBlocking {
+        val config = config(target)
         run("check", "--config", config.toString()).assert().describedAs(output.toString()).isEqualTo(MigrateData.OK)
         run("import", "--config", config.toString(), "--dry-run").assert().isEqualTo(MigrateData.OK)
         run("import", "--config", config.toString()).assert().describedAs(output.toString()).isEqualTo(MigrateData.OK)
@@ -96,33 +98,41 @@ class NineXExampleImportTest {
         // The tail follows what 9.x commits after the import.
         val received = NineXMongoStore.received(NineXExample.resource("order-stream-v4.json"), System.currentTimeMillis())
         NineXMongoStore.insert(nineX, received)
-        run("tail", "--config", config.toString(), "--once").assert().describedAs(output.toString())
-            .isEqualTo(MigrateData.OK)
+        // The tool does not write to the 9.x store unless told to: without the tail's index, the tail refuses.
+        run("tail", "--config", config.toString(), "--once").assert().isEqualTo(MigrateData.FAILED)
+        output.toString().assert()
+            .contains("db.getCollection(\"order_event_stream\").createIndex({ createTime: 1, _id: 1 })")
+            .contains("\"createCommitTimeIndex\": true")
+        MongoNineXEventSource(nineX).missingCommitTimeIndexes(NineXExample.plan.aggregates.keys).size
+            .assert().isEqualTo(2)
+        // Opted in, it creates the index and follows.
+        run("tail", "--config", config(target, createIndex = true).toString(), "--once").assert()
+            .describedAs(output.toString()).isEqualTo(MigrateData.OK)
+        MongoNineXEventSource(nineX).missingCommitTimeIndexes(NineXExample.plan.aggregates.keys).assert().isEmpty()
         val receivedState = kernel.stateAt(NineXExample.orderModel, orderRef, 5)!!.state as OrderState
         receivedState.status.assert().isEqualTo(OrderStatus.RECEIVED)
+        // With the index in place, the tail runs without the flag.
+        run("tail", "--config", config(target).toString(), "--once").assert().isEqualTo(MigrateData.OK)
     }
 
     @Test
     fun `the 9x example's data imports into the V10 log on PostgreSQL`() {
         val postgres = WowContainers.postgres
-        val config = config(
-            """{ "type": "postgres", "jdbcUrl": "${postgres.jdbcUrl}", "username": "${postgres.username}", """ +
-                """"password": "${postgres.password}" }""",
-        )
+        val target = """{ "type": "postgres", "jdbcUrl": "${postgres.jdbcUrl}", "username": "${postgres.username}", """ +
+            """"password": "${postgres.password}" }"""
         val dataSource = PGSimpleDataSource().apply {
             setURL(postgres.jdbcUrl)
             user = postgres.username
             password = postgres.password
         }
-        migrate(config, PostgresEventLog(dataSource, NineXExample.CONTEXT, PARTITIONS))
+        migrate(target, PostgresEventLog(dataSource, NineXExample.CONTEXT, PARTITIONS))
     }
 
     @Test
     fun `the 9x example's data imports into the V10 log on MongoDB`() {
-        val config = config(
-            """{ "type": "mongo", "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "$TARGET_DATABASE" }""",
-        )
-        migrate(config, MongoEventLog(NineXMongoStore.client, TARGET_DATABASE, NineXExample.CONTEXT, PARTITIONS))
+        val target =
+            """{ "type": "mongo", "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "$TARGET_DATABASE" }"""
+        migrate(target, MongoEventLog(NineXMongoStore.client, TARGET_DATABASE, NineXExample.CONTEXT, PARTITIONS))
     }
 
     private companion object {

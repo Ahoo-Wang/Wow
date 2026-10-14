@@ -100,6 +100,17 @@ class NineXStreamTest {
     }
 
     @Test
+    fun `the tail's index is told by its key, however its numbers were written`() {
+        MongoNineXEventSource.isCommitTimeKey(Document("createTime", 1).append("_id", 1)).assert().isTrue()
+        MongoNineXEventSource.isCommitTimeKey(Document("createTime", 1.0).append("_id", 1L)).assert().isTrue()
+        MongoNineXEventSource.isCommitTimeKey(Document("_id", 1).append("createTime", 1)).assert().isFalse()
+        MongoNineXEventSource.isCommitTimeKey(Document("createTime", -1).append("_id", 1)).assert().isFalse()
+        MongoNineXEventSource.isCommitTimeKey(Document("createTime", "hashed").append("_id", 1)).assert().isFalse()
+        MongoNineXEventSource.isCommitTimeKey(Document("createTime", 1)).assert().isFalse()
+        MongoNineXEventSource.isCommitTimeKey(null).assert().isFalse()
+    }
+
+    @Test
     fun `BSON values read as exact JSON`() {
         val id = ObjectId()
         val node = MongoNineXEventSource.toNode(
