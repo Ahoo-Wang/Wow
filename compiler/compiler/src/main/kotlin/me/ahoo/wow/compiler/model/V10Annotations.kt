@@ -47,6 +47,7 @@ internal object V10Annotations {
         "Saga",
         "OnEvent",
         "OnRejected",
+        "OnCommitted",
         "OnSchedule",
         "Upgrade",
         "Blocking",

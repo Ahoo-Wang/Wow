@@ -16,14 +16,20 @@ package me.ahoo.wow.kernel.test
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionBinding
+import me.ahoo.wow.kernel.committedContextOf
 import me.ahoo.wow.kernel.contextOf
 import me.ahoo.wow.kernel.rejectionContextOf
 import me.ahoo.wow.kernel.schedule.JobState
@@ -31,8 +37,8 @@ import kotlin.reflect.KClass
 
 /**
  * Specifies a saga's behaviour: given a commit of a stream, its own context's or one it reads from another context
- * (a [StateEvent], built with [stateEvent]), or the rejection of a command it derived, the commands it derives and
- * the commands it schedules. [handlers] are the handlers of the saga under test, from the function the compiler
+ * (a [StateEvent], built with [stateEvent]), or the rejection or the commit of a command it derived, the commands it
+ * derives and the commands it schedules. [handlers] are the handlers of the saga under test, from the function the compiler
  * generated for it (`<processor>Handlers`, `orderSagaHandlers` for `OrderSaga`), which constructs that saga only,
  * with its own services:
  *
@@ -43,6 +49,9 @@ import kotlin.reflect.KClass
  *         expectDeterministic()
  *         whenRejected(commands.single(), code = "inventory.stock.insufficient") {
  *             expectCommand(CancelOrder("..."), to = order)
+ *         }
+ *         whenCommitted(commands.single(), version = 3) {
+ *             expectCommand(ConfirmStock("product-1"), to = order)
  *         }
  *     }
  * }
@@ -80,7 +89,7 @@ fun reactorSpec(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() -> 
     ProcessorSpec(handlers, FunctionKind.REACT).block()
 }
 
-/** Calls the [handlers] of one processor of [kind] as the runtime would, one commit or rejection at a time. */
+/** Calls the [handlers] of one processor of [kind] as the runtime would, one commit or receipt at a time. */
 class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: FunctionKind) {
     /** The executions that derived each command, by command id: a rejection of one goes back to its saga. */
     private val derivedBy = HashMap<String, ExecutionId>()
@@ -167,6 +176,74 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
     }
 
     /**
+     * Hands the success receipt of [command] to the saga's `@OnCommitted` handler of it, as the runtime does once a
+     * command a handler derived is committed, in the saga's context or another (decision D192). [command] is one this
+     * specification derived ([ProcessorExpectations.commands]), so the receipt goes back to the execution that derived
+     * it. It was committed on the aggregate [aggregateId] (the target's, for a creation that named none, decision
+     * D191) at [version], [duplicate] when the target had already committed its request; [commandType] is its full
+     * type name, `<context>.<aggregate>.<simple name>` by default. [expect] checks the commands the handler derives;
+     * it fails when the saga has no handler of that receipt.
+     */
+    @Suppress("LongParameterList")
+    fun whenCommitted(
+        command: Command<*>,
+        version: Int = 1,
+        aggregateId: String = command.ref.id,
+        duplicate: Boolean = false,
+        commandType: String = "${command.ref.type}.${command.body.javaClass.simpleName}",
+        expect: ProcessorExpectations.() -> Unit,
+    ) {
+        val execution = derivedBy[command.id] ?: throw IllegalArgumentException(
+            "${command.id} is not a command this specification derived: hand its CommandCommitted over instead.",
+        )
+        val ref = command.ref.copy(id = aggregateId)
+        val causation = command.causation ?: Causation(command.id, command.id)
+        val type = command.ref.type
+        val result = CommandResult(
+            commandId = command.id,
+            requestId = command.requestId,
+            correlationId = causation.correlationId,
+            ref = ref,
+            hop = Hop.committed(type.context),
+            function = FunctionInfo(FunctionKind.COMMAND, type.context, type.name, commandType.substringAfterLast('.')),
+            status = CommandResult.Status.SUCCEEDED,
+            version = version,
+            duplicate = duplicate,
+            signalTime = 0L,
+        )
+        val committed = CommandCommitted<Any>(
+            commandId = command.id,
+            commandType = commandType,
+            ref = ref,
+            version = version,
+            result = result,
+            causation = causation,
+            executionId = execution,
+            operator = command.operator,
+            scope = command.scope,
+        )
+        whenCommitted(committed, command.body.javaClass.kotlin, expect)
+    }
+
+    /**
+     * Hands [committed], the success receipt of a command of [command] that the saga's handler named by its
+     * [CommandCommitted.executionId] derived, to the saga's `@OnCommitted` handler of it, as the runtime does.
+     * [expect] checks the commands the handler derives; it fails when the saga has no handler of that receipt.
+     */
+    fun whenCommitted(committed: CommandCommitted<*>, command: KClass<*>, expect: ProcessorExpectations.() -> Unit) {
+        require(kind == FunctionKind.SAGA) { "Only a saga takes the receipts of the commands it derived." }
+        val subscription = committed.executionId.subscription
+        val saga = handlers.firstOrNull { it.name == subscription } ?: throw IllegalArgumentException(
+            "$subscription, which derived ${committed.commandId}, is not a handler of $processor.",
+        )
+        val onCommitted = saga.committedHandlerOf(command.java) ?: throw AssertionError(
+            "$processor has no @OnCommitted handler of the receipts of ${command.qualifiedName}.",
+        )
+        val call = { commit(onCommitted, committed) }
+        verify(ProcessorExpectations(listOf(onCommitted.name), call(), call), expect)
+    }
+
+    /**
      * Hands each of [events] to the handlers that read it, in order, as [whenEvent] does, and checks what they did
      * together in [expect]: the commands of every handling, in order. [ScheduleSpec] hands the ticks of a time step so.
      */
@@ -206,6 +283,14 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
         runCatchingAll {
             val context = rejectionContextOf(handler, rejected, SequentialIds())
             val derived = runBlocking { handler.invoke(rejected, context) }
+            derived.forEach { derivedBy[it.id] = context.executionId }
+            Handled(derived)
+        }
+
+    private fun commit(handler: CommittedBinding<*>, committed: CommandCommitted<*>): Result<Handled> =
+        runCatchingAll {
+            val context = committedContextOf(handler, committed, SequentialIds())
+            val derived = runBlocking { handler.invoke(committed, context) }
             derived.forEach { derivedBy[it.id] = context.executionId }
             Handled(derived)
         }

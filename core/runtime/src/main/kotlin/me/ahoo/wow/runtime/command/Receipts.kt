@@ -14,42 +14,54 @@
 package me.ahoo.wow.runtime.command
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.subscription.Subscription
+import me.ahoo.wow.spi.wait.WaitContext
 
 /**
- * Hands the rejection of a command a context's saga derived to the saga's `@OnRejected` handler for the command's
- * class (decisions D136, D153), executes what it derives to compensate and returns their ids; null when no handler
- * takes it. [me.ahoo.wow.runtime.binding.SagaRejections] is the annotated sagas'.
+ * Hands the receipts of the commands a context's sagas derived to the sagas' handlers (decisions D136, D153, D192),
+ * executes what they derive and returns their ids; null when no handler takes the receipt.
+ * [me.ahoo.wow.runtime.binding.SagaReceipts] is the annotated sagas'.
  */
-fun interface RejectionHandler {
-    suspend fun handle(rejected: CommandRejected<*>, command: Class<*>): List<String>?
+interface ReceiptHandler {
+    /** Hands [rejected], of a command of the class [command], to the saga's `@OnRejected` handler of it. */
+    suspend fun rejected(rejected: CommandRejected<*>, command: Class<*>): List<String>?
+
+    /**
+     * Hands [committed], of a command of the class [command], to the saga's `@OnCommitted` handler of it. [wait] is
+     * the rest of the command's wait chain past its commit, if any: when its next hop is that handler, the handler's
+     * commands carry it on and the hop is signalled, as a saga's hop is (decision D192).
+     */
+    suspend fun committed(committed: CommandCommitted<*>, command: Class<*>, wait: WaitContext? = null): List<String>?
 }
 
 /**
- * The receipts of one bounded [context] (decisions D47, D136): the subscription of its receipts topic,
- * `wow.<context>.receipts`, where the contexts that rejected a command one of its sagas sent wrote why.
+ * The receipts of one bounded [context] (decisions D47, D136, D192): the subscription of its receipts topic,
+ * `wow.<context>.receipts`, where the contexts its sagas sent commands to wrote why they rejected one, or, when the
+ * saga asked for it, that they committed one.
  *
  * Each receipt runs in the lane of the saga's aggregate (the commit its execution handled) and goes to [handler] with
- * the rejected command's class, which the [contracts] give its type name (the schema `#/$defs/<binary name>` of the
- * command, decision D157) and the [classLoader] loads: the saga's `@OnRejected` handler for it compensates, and what it
- * derives is executed with ids derived from the rejected command's, so a second execution derives the same requests.
+ * the command's class, which the [contracts] give its type name (the schema `#/$defs/<binary name>` of the command,
+ * decision D157) and the [classLoader] loads: the saga's `@OnRejected` handler for it compensates, its `@OnCommitted`
+ * handler goes on, and what either derives is executed with ids derived from the command's, so a second execution
+ * derives the same requests.
  *
- * - **Deduplicated by command id** (decision D136): the target may send a receipt more than once (a crash between the
- *   receipt and its checkpoint), so a receipt whose command was handled here recently ([REMEMBERED] of them) is
- *   dropped; an older copy, after a restart, reaches the handler again, whose compensations the kernel does not decide
- *   twice.
+ * - **Deduplicated by command id** (decisions D136, D192): the target may send a receipt more than once (a crash
+ *   between the receipt and its checkpoint, or a duplicate request answered again), so a receipt whose command was
+ *   handled here recently ([REMEMBERED] of them) is dropped; an older copy, after a restart, reaches the handler again,
+ *   whose commands the kernel does not decide twice.
  * - A receipt no handler takes is logged and passed over: the saga's hop was complete when the command was accepted.
- * - A command type the contracts do not know, a class that cannot be loaded, a handler that throws, or a compensation
- *   that fails or is rejected in turn, fails the receipt: retried, then the saga's aggregate parks under the
+ * - A command type the contracts do not know, a class that cannot be loaded, a handler that throws, or a command it
+ *   derives that fails or is rejected, fails the receipt: retried, then the saga's aggregate parks under the
  *   subscription's name, at the receipt's offset.
  */
 class Receipts internal constructor(
     private val context: String,
     private val contracts: ContractDirectory,
-    private val handler: RejectionHandler,
+    private val handler: ReceiptHandler,
     private val classLoader: ClassLoader =
         Thread.currentThread().contextClassLoader ?: Receipts::class.java.classLoader,
 ) {
@@ -59,23 +71,40 @@ class Receipts internal constructor(
 
     /** The subscription of every receipt of the context's receipts topic. */
     val subscription: Subscription = Subscription.messages(nameOf(context), context) { entry ->
-        handle(entry.message as CommandRejected<*>)
+        when (val receipt = entry.message) {
+            is CommandCommitted<*> -> handle(receipt, entry.transport?.wait)
+            else -> handle(receipt as CommandRejected<*>)
+        }
     }
 
     /** Hands [rejected] to the handler once per command id. */
-    internal suspend fun handle(rejected: CommandRejected<*>) {
-        if (synchronized(handled) { rejected.commandId in handled }) {
-            logger.debug { "Dropping a copy of the receipt of ${rejected.commandId}." }
-            return
-        }
-        val derived = handler.handle(rejected, commandClassOf(rejected.commandType))
-        if (derived == null) {
+    internal suspend fun handle(rejected: CommandRejected<*>) = once(rejected.commandId) {
+        if (handler.rejected(rejected, commandClassOf(rejected.commandType)) == null) {
             logger.warn {
                 "No @OnRejected handler of ${rejected.executionId.subscription} in $context takes the rejection of " +
                     "${rejected.commandType} ${rejected.commandId} on ${rejected.ref}: ${rejected.error.code}."
             }
         }
-        synchronized(handled) { handled[rejected.commandId] = true }
+    }
+
+    /** Hands [committed], with the [wait] its receipt carries, to the handler once per command id. */
+    internal suspend fun handle(committed: CommandCommitted<*>, wait: WaitContext? = null) = once(committed.commandId) {
+        if (handler.committed(committed, commandClassOf(committed.commandType), wait) == null) {
+            logger.warn {
+                "No @OnCommitted handler of ${committed.executionId.subscription} in $context takes the receipt of " +
+                    "${committed.commandType} ${committed.commandId} on ${committed.ref}."
+            }
+        }
+    }
+
+    /** Runs [handle] unless the receipt of [commandId] was handled recently, and remembers it once it was. */
+    private suspend fun once(commandId: String, handle: suspend () -> Unit) {
+        if (synchronized(handled) { commandId in handled }) {
+            logger.debug { "Dropping a copy of the receipt of $commandId." }
+            return
+        }
+        handle()
+        synchronized(handled) { handled[commandId] = true }
     }
 
     /** The class of the command type [commandType] (`ctx.agg.Command`), by its schema in the contracts. */

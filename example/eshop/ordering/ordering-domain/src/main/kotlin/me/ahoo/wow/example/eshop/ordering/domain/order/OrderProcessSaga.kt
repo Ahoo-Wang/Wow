@@ -14,10 +14,12 @@
 package me.ahoo.wow.example.eshop.ordering.domain.order
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.OnCommitted
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
@@ -27,6 +29,7 @@ import me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock
 import me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
+import me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderAwaitingValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderCancelled
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderShipped
@@ -39,14 +42,16 @@ import me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted
  * - [onOrderSubmitted]: a submitted order moves on to await its stock validation.
  * - [onOrderAwaitingValidation]: the order reserves each product's stock in the inventory, its lines of one product
  *   added up. The inventory is another context: the commands go to its command topic, `wow.eshop-inventory.commands`.
+ * - [onReserveCommitted]: a reservation the inventory commits comes back as a receipt on `wow.eshop-ordering.receipts`
+ *   (decision D192) and confirms the order's product: the receipt names the stock, whose id is the product's.
  * - [onReserveRejected]: a reservation the inventory rejects (a short stock, a product it has no stock of) comes back
- *   as a receipt on `wow.eshop-ordering.receipts` and cancels the order.
+ *   as a receipt on the same topic and cancels the order.
  * - [onOrderCancelled]: a cancelled order releases what the inventory reserved for it; a product reserved for nothing
  *   releases nothing.
  * - [onOrderShipped]: a shipped order commits its reservations.
  *
- * The confirmations of the reservations come back on another path: [StockConfirmationSaga] reads them from the
- * inventory's stock stream.
+ * [onReserveCommitted] is a hop of a wait chain: a checkout's `Wow-Wait` follows the reservations to their commit in
+ * the inventory, then their receipts back to it, and on into the confirmations it derives.
  */
 @Saga
 class OrderProcessSaga {
@@ -63,6 +68,14 @@ class OrderProcessSaga {
         } else {
             emptyList()
         }
+
+    /** A product the inventory reserved confirms it on the order that asked for it. */
+    @OnCommitted
+    fun onReserveCommitted(
+        committed: CommandCommitted<ReserveStock>,
+        context: SagaContext
+    ): Command<ConfirmOrderStock> =
+        context.command(committed.executionId.ref, ConfirmOrderStock(committed.aggregateId))
 
     /** A product the inventory cannot reserve cancels the order that asked for it. */
     @OnRejected

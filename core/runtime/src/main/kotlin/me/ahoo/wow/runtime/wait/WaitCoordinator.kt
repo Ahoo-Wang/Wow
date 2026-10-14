@@ -570,8 +570,12 @@ class WaitCoordinator(
             .copy(commandId = command.id, duplicate = true)
     }
 
+    /**
+     * Signals [result] to the node that waits on [wait], best effort: a failure is logged and the waiter times out.
+     * Besides the commands it executes, the receipts of a context's sagas signal their hops through it (decision D192).
+     */
     @Suppress("TooGenericExceptionCaught") // A signal is best effort: whatever fails, the command's result stands.
-    private suspend fun signal(wait: WaitContext, result: CommandResult) {
+    suspend fun signal(wait: WaitContext, result: CommandResult) {
         try {
             signals.send(wait.origin, WaitSignal(waitId = wait.waitId, result = result))
         } catch (cancelled: CancellationException) {

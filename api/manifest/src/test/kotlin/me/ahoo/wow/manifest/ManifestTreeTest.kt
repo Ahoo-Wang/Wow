@@ -157,6 +157,7 @@ class ManifestTreeTest {
         ).let {
             it.derives.assert().isNull()
             it.rejected.assert().isNull()
+            it.committed.assert().isNull()
             it.start.assert().isNull()
         }
     }
@@ -246,6 +247,28 @@ class ManifestTreeTest {
             ),
         )
         read.contexts.single().subscriptions.single().job.assert().isEqualTo(JobManifest("nightly", "0 0 3 * * *"))
+    }
+
+    @Test
+    fun `an @OnCommitted handler should come back with the commands it takes, which count as schema references`() {
+        val committed = SubscriptionManifest(
+            "CheckoutSaga.onRefundCommitted",
+            SubscriptionKind.SAGA,
+            SubscriptionSource(),
+            FunctionManifest(FunctionKind.SAGA, "shop", "CheckoutSaga", "onRefundCommitted"),
+            derives = emptyList(),
+            committed = listOf(Manifest.schemaRef("sales.Refund")),
+        )
+        committed.isReceiptHandler.assert().isTrue()
+        committed.copy(committed = null).isReceiptHandler.assert().isFalse()
+        committed.copy(committed = null, rejected = emptyList()).isReceiptHandler.assert().isTrue()
+        val manifest = Manifest(contexts = listOf(ContextManifest("shop", subscriptions = listOf(committed))))
+        manifest.schemaRefs.assert().containsExactly("#/\$defs/sales.Refund")
+        val tree = ManifestTree.write(manifest)
+        val subscription = ((tree["contexts"] as List<*>).single() as Map<*, *>)["subscriptions"] as List<*>
+        (subscription.single() as Map<*, *>)["committed"].assert().isEqualTo(listOf("#/\$defs/sales.Refund"))
+        val json = mapper.writeValueAsString(tree)
+        ManifestTree.read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(manifest)
     }
 
     @Test

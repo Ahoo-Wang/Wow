@@ -28,13 +28,11 @@ import com.google.devtools.ksp.symbol.Modifier
 import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnEvent
-import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Projection
 import me.ahoo.wow.api.annotation.Reactor
 import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.decide.Command
-import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ProjectContext
 import me.ahoo.wow.api.subscribe.ReactContext
 import me.ahoo.wow.api.subscribe.SagaContext
@@ -55,6 +53,8 @@ import me.ahoo.wow.api.subscribe.StateEvent
  * - an `@OnRejected` handler (decisions D136, D153) is a saga's, takes a `CommandRejected` and, optionally, the
  *   `SagaContext`, returns what a saga's handler returns, and is not an `@OnEvent` handler too; no two of a saga take
  *   the rejections of the same command class, or both of every command (`CommandRejected<*>`);
+ * - an `@OnCommitted` handler (decision D192) likewise, taking a `CommandCommitted` instead: no handler is both, nor
+ *   two of a saga the receipts of the same command class;
  * - no annotation outside the V10 set ([V10Annotations]);
  * - the generated binding can reach it: the class is concrete, not private, not generic, an `object` or constructed
  *   by a constructor that is not private, whose parameters are domain services, each qualified by its `@Name`
@@ -75,13 +75,13 @@ internal object SubscriptionResolver {
         .map { "${V10Annotations.PACKAGE}.$it" }
 
     val ON_EVENT: String = OnEvent::class.java.name
-    val ON_REJECTED: String = OnRejected::class.java.name
+    val ON_REJECTED: String = Receipt.REJECTED.annotation
+    val ON_COMMITTED: String = Receipt.COMMITTED.annotation
     private const val ON_EVENT_NAME = "onEvent"
     private const val AGGREGATES = "aggregates"
     private const val DERIVES = "derives"
     private const val SCHEDULES = "schedules"
     private val STATE_EVENT = StateEvent::class.java.name
-    private val COMMAND_REJECTED = CommandRejected::class.java.name
     private const val ANY = "kotlin.Any"
     private val AGGREGATE_NAME = Regex("[^.\\s]+\\.[^.\\s]+")
     private val COMMAND_NAME = Regex("[^.\\s]+\\.[^.\\s]+\\.[^.\\s]+")
@@ -108,22 +108,23 @@ internal object SubscriptionResolver {
         val kinds = Kind.entries.filter { kind -> processor.hasAnnotation(kind.annotation) }
         val kind = kinds.singleOrNull()
         problems += kindProblems(className, kinds)
-        val rejectionFunctions = processor.getAllFunctions().filter { it.hasAnnotation(ON_REJECTED) }.toList()
+        val receiptFunctions = Receipt.entries.associateWith { receipt ->
+            processor.getAllFunctions().filter { it.hasAnnotation(receipt.annotation) }.toList()
+        }
+        val functions = processor.getAllFunctions().filter { isEventHandler(it) }.toList()
         // A saga's @OnSchedule jobs (decision D198) are handlers of their own.
         val jobFunctions = processor.getAllFunctions().filter { it.hasAnnotation(ScheduleJobResolver.ON_SCHEDULE) }
             .toList()
-        val functions = processor.getAllFunctions().filter {
-            !it.hasAnnotation(ON_REJECTED) && !it.hasAnnotation(ScheduleJobResolver.ON_SCHEDULE) &&
-                (it.hasAnnotation(ON_EVENT) || (it.simpleName.asString() == ON_EVENT_NAME && !it.isPrivate()))
-        }.toList()
         if (functions.isEmpty() && jobFunctions.isEmpty()) {
             problems += "processor $className declares no @OnEvent function"
         }
-        problems += rejectionProblems(className, name, kind, rejectionFunctions)
+        receiptFunctions.forEach { (receipt, receiptHandlers) ->
+            problems += receiptProblems(className, name, kind, receipt, receiptHandlers)
+        }
         processor.getDeclaredFunctions().forEach {
             problems += V10Annotations.problemsOfFunction(it, "processor $className", processor = true)
         }
-        (functions + rejectionFunctions + jobFunctions).groupBy { it.simpleName.asString() }
+        (functions + receiptFunctions.values.flatten() + jobFunctions).distinct().groupBy { it.simpleName.asString() }
             .filterValues { it.size > 1 }.keys.forEach {
                 problems += "processor $className has two handlers named $it: each is the subscription $name.$it"
             }
@@ -132,10 +133,8 @@ internal object SubscriptionResolver {
         }
         val handlers = (functions.mapNotNull { handler(it, name, kind, reactorTypes, problems) } + jobs)
             .map { it.copy(retry = it.retry?.over(processorRetry) ?: processorRetry) }
-        val rejections = rejectionFunctions.mapNotNull { rejection(it, name, reactorTypes, problems) }
-        rejections.groupBy { it.command }.filterValues { it.size > 1 }.forEach { (command, same) ->
-            problems += "processor $className has two @OnRejected handlers of the rejections of " +
-                "${command ?: "every command (CommandRejected<*>)"}: ${same.joinToString { it.function }}"
+        val (rejections, commits) = Receipt.entries.map { receipt ->
+            receiptHandlers(className, name, receipt, receiptFunctions.getValue(receipt), reactorTypes, problems)
         }
         val isObject = processor.classKind == ClassKind.OBJECT
         problems += constructionProblems(processor, className, isObject)
@@ -152,6 +151,7 @@ internal object SubscriptionResolver {
             isObject = isObject,
             dependencies = dependencies,
             rejections = rejections,
+            commits = commits,
         )
     }
 
@@ -168,32 +168,79 @@ internal object SubscriptionResolver {
         else -> emptyList()
     }
 
-    /** `@OnRejected` handlers that are `@OnEvent` handlers too, or of a processor that is not a saga. */
-    private fun rejectionProblems(
+    /**
+     * The [receipt] handlers [functions] of the processor [name], each a function of one receipt kind only (one of
+     * both is reported once, as an `@OnRejected` handler), no two of the same command class.
+     */
+    @Suppress("LongParameterList")
+    private fun receiptHandlers(
+        className: String,
+        name: String,
+        receipt: Receipt,
+        functions: List<KSFunctionDeclaration>,
+        reactorTypes: Set<String>,
+        problems: MutableList<String>,
+    ): List<ReceiptBinding> {
+        val bound = functions.filterNot { receipt == Receipt.COMMITTED && it.hasAnnotation(ON_REJECTED) }
+            .mapNotNull { receiptHandler(it, name, receipt, reactorTypes, problems) }
+        bound.groupBy { it.command }.filterValues { it.size > 1 }.forEach { (command, same) ->
+            problems += "processor $className has two ${receipt.label} handlers of the ${receipt.nouns} of " +
+                "${command ?: "every command (${receipt.parameterName}<*>)"}: ${same.joinToString { it.function }}"
+        }
+        return bound
+    }
+
+    /**
+     * [receipt] handlers that are `@OnEvent` handlers too, or of both receipt kinds, or annotated `@Retry`, or of a
+     * processor that is not a saga.
+     */
+    private fun receiptProblems(
         className: String,
         name: String,
         kind: Kind?,
+        receipt: Receipt,
         functions: List<KSFunctionDeclaration>,
     ): List<String> = buildList {
         functions.filter { it.hasAnnotation(ON_EVENT) }.forEach {
             add(
-                "handler $name.${it.simpleName.asString()} is both @OnEvent and @OnRejected: a handler takes " +
-                    "either a state event or a rejection",
+                "handler $name.${it.simpleName.asString()} is both @OnEvent and ${receipt.label}: a handler takes " +
+                    "either a state event or a ${receipt.noun}",
             )
+        }
+        if (receipt == Receipt.COMMITTED) {
+            functions.filter { it.hasAnnotation(ON_REJECTED) }.forEach {
+                add(
+                    "handler $name.${it.simpleName.asString()} is both @OnRejected and @OnCommitted: a handler takes " +
+                        "either the rejection of a command or the receipt of its commit",
+                )
+            }
         }
         functions.filter { it.hasAnnotation(RETRY) }.forEach {
             add(
-                "handler $name.${it.simpleName.asString()} is annotated @Retry: an @OnRejected handler compensates a " +
-                    "business outcome, which is not retried; @Retry goes on an @OnEvent handler or its processor",
+                "handler $name.${it.simpleName.asString()} is annotated @Retry: ${receipt.retryReason}; @Retry goes " +
+                    "on an @OnEvent handler or its processor",
             )
         }
         if (functions.isNotEmpty() && kind != null && kind != Kind.SAGA) {
             add(
-                "processor $className is a ${kind.label} with @OnRejected handlers: only a @Saga derives commands, " +
-                    "whose rejections it handles",
+                "processor $className is a ${kind.label} with ${receipt.label} handlers: only a @Saga derives " +
+                    "commands, whose ${receipt.nouns} it handles",
             )
         }
     }
+
+    /** Why a handler of this kind takes no `@Retry`. */
+    private val Receipt.retryReason: String
+        get() = when (this) {
+            Receipt.REJECTED -> "an @OnRejected handler compensates a business outcome, which is not retried"
+            Receipt.COMMITTED -> "an @OnCommitted handler runs in its context's receipts subscription, retried by the host"
+        }
+
+    /** Whether [function] is an `@OnEvent` handler, or a public one named `onEvent`, and no receipt handler. */
+    private fun isEventHandler(function: KSFunctionDeclaration): Boolean =
+        Receipt.entries.none { function.hasAnnotation(it.annotation) } &&
+            !function.hasAnnotation(ScheduleJobResolver.ON_SCHEDULE) &&
+            (function.hasAnnotation(ON_EVENT) || (function.simpleName.asString() == ON_EVENT_NAME && !function.isPrivate()))
 
     /** Whether the generated binding can construct [processor], or use it when it [isObject]. */
     private fun constructionProblems(
@@ -347,20 +394,24 @@ internal object SubscriptionResolver {
         return commandClass(command)?.let(::listOf)
     }
 
-    /** The binary name of the class [type], a `Command<X>` or a `CommandRejected<X>`, takes; null for `*` or `Any`. */
+    /**
+     * The binary name of the class [type], a `Command<X>`, a `CommandRejected<X>` or a `CommandCommitted<X>`, takes;
+     * null for `*` or `Any`.
+     */
     private fun commandClass(type: KSType): String? {
         val argument = type.arguments.firstOrNull()?.type?.resolve() ?: return null
         val declaration = argument.declaration as? KSClassDeclaration ?: return null
         return declaration.takeUnless { it.qualifiedName?.asString() == ANY }?.binaryName()
     }
 
-    /** An `@OnRejected` handler [function] of the saga [processor] (decisions D136, D153). */
-    private fun rejection(
+    /** A [receipt] handler [function] of the saga [processor] (decisions D136, D153, D192). */
+    private fun receiptHandler(
         function: KSFunctionDeclaration,
         processor: String,
+        receipt: Receipt,
         reactorTypes: Set<String>,
         problems: MutableList<String>,
-    ): RejectionBinding? {
+    ): ReceiptBinding? {
         val name = function.simpleName.asString()
         val where = "handler $processor.$name"
         val count = problems.size
@@ -369,18 +420,18 @@ internal object SubscriptionResolver {
         }
         val parameters = function.parameters.map { it.type.resolve() }
         val first = parameters.firstOrNull()
-        if (first == null || first.qualifiedName() != COMMAND_REJECTED) {
-            problems += "$where must take a $COMMAND_REJECTED first, not ${first?.qualifiedName() ?: "nothing"}: an " +
-                "@OnRejected handler receives the rejection of a command the saga derived"
+        if (first == null || first.qualifiedName() != receipt.parameter) {
+            problems += "$where must take a ${receipt.parameter} first, not ${first?.qualifiedName() ?: "nothing"}: " +
+                "an ${receipt.label} handler receives the ${receipt.noun} of a command the saga derived"
         }
         val context = parameters.getOrNull(1)?.qualifiedName()
         if (context != null && context != Kind.SAGA.context) {
-            problems += "$where takes $context: an @OnRejected handler takes a ${Kind.SAGA.context} after the " +
-                "rejection, if anything"
+            problems += "$where takes $context: an ${receipt.label} handler takes a ${Kind.SAGA.context} after the " +
+                "${receipt.noun}, if anything"
         }
         if (parameters.size > 2) {
-            problems += "$where takes ${parameters.size} parameters: an @OnRejected handler takes " +
-                "(CommandRejected[, SagaContext])"
+            problems += "$where takes ${parameters.size} parameters: an ${receipt.label} handler takes " +
+                "(${receipt.parameterName}[, SagaContext])"
         }
         val returned = function.returnType?.resolve()
         val reactor = returned?.qualifiedName() in reactorTypes
@@ -391,7 +442,7 @@ internal object SubscriptionResolver {
             return null
         }
         val command = commandClass(first!!)
-        return RejectionBinding(
+        return ReceiptBinding(
             function = name,
             subscription = "$processor.$name",
             command = command,
@@ -401,6 +452,7 @@ internal object SubscriptionResolver {
             reactor = reactor,
             blocking = function.hasAnnotation(BLOCKING),
             derived = returned?.let { derivedClasses(it, reactor) },
+            receipt = receipt,
         )
     }
 

@@ -28,8 +28,9 @@ package me.ahoo.wow.manifest
  * [errors] lists the framework's `wow.*` error codes with their HTTP statuses ([FrameworkErrors], decision D102): a
  * fragment leaves it empty and [ManifestMerger] writes the table.
  *
- * A command another part of the Manifest refers to ([SubscriptionManifest.derives], [SubscriptionManifest.rejected])
- * is named by its full type name (`shop.cart.RemoveCartItem`) when the module that wrote it decides the command; else
+ * A command another part of the Manifest refers to ([SubscriptionManifest.derives], [SubscriptionManifest.rejected],
+ * [SubscriptionManifest.committed]) is named by its full type name (`shop.cart.RemoveCartItem`) when the module that
+ * wrote it decides the command; else
  * by the schema reference of its class (`#/$defs/<binary name>`, [schemaRef]): [defs] holds its schema like any other,
  * and the Manifest of the context that decides it (a peer Manifest, decision D139) names it by the same schema.
  */
@@ -50,7 +51,9 @@ data class Manifest(
             context.aggregates.flatMap { aggregate ->
                 listOf(aggregate.state.schema) + aggregate.commands.map { it.schema } + aggregate.events.map { it.schema }
             } + context.subscriptions.flatMap { subscription ->
-                (subscription.derives.orEmpty() + subscription.rejected.orEmpty()).filter { it.startsWith(DEFS_PREFIX) }
+                val commands = subscription.derives.orEmpty() + subscription.rejected.orEmpty() +
+                    subscription.committed.orEmpty()
+                commands.filter { it.startsWith(DEFS_PREFIX) }
             }
         }
 
@@ -214,9 +217,12 @@ data class EventManifest(
  * - [rejected] is set on an `@OnRejected` handler of a saga (decisions D136, D153) and on no other: the commands whose
  *   rejections it handles, the one its `CommandRejected<C>` names, or empty for any command the saga derives. Such a
  *   handler reads rejections, not state events: its [source] is empty and not read.
+ * - [committed] is set on an `@OnCommitted` handler of a saga (decision D192) and on no other: the commands whose
+ *   success receipts it handles, the one its `CommandCommitted<C>` names, or empty for any command the saga derives.
+ *   Like an `@OnRejected` handler, it reads receipts ([isReceiptHandler]), not state events.
  * - [start] is where a new subscription starts in the log (decisions D154, D194): what `@OnEvent(start)` declares,
  *   else [SubscriptionStart.defaultFor] its kind, or [SubscriptionStart.BEGINNING] for a handler of another context's
- *   stream; the host may configure another. Null on an `@OnRejected` handler, which reads no log.
+ *   stream; the host may configure another. Null on an `@OnRejected` or `@OnCommitted` handler, which reads no log.
  * - [schedules] names the commands a saga's handler may schedule (decision D166), each by its full type name, as its
  *   `@OnEvent(schedules)` declares; null when it declares none, and always for a projection or a reactor.
  * - [retry] is the handler's own in-process retry budget, as its `@Retry` and its processor's declare it (roadmap
@@ -235,8 +241,12 @@ data class SubscriptionManifest(
     val start: SubscriptionStart? = null,
     val schedules: List<String>? = null,
     val retry: RetryManifest? = null,
+    val committed: List<String>? = null,
     val job: JobManifest? = null,
-)
+) {
+    /** Whether it is a saga's `@OnRejected` or `@OnCommitted` handler: it reads receipts, not the log (D136, D192). */
+    val isReceiptHandler: Boolean get() = rejected != null || committed != null
+}
 
 /**
  * A job of an `@OnSchedule` handler (decision D198): its [name], its default rule ([cron] read in [zone], missed slots
