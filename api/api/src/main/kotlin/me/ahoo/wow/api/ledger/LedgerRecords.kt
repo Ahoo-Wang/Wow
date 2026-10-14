@@ -1,0 +1,98 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.api.ledger
+
+import me.ahoo.wow.api.annotation.AllowCreate
+import me.ahoo.wow.api.annotation.Summary
+
+/*
+ * The records a service publishes of its failure ledger (decision D141): the commands of the ops context's `parked`
+ * aggregate, in the wire format of a command body (design 08 §3). Fields are only ever added; a reader ignores the
+ * ones it does not know. Enumerated values travel as their names, so a reader of an older version reads a value a newer
+ * writer added.
+ */
+
+/**
+ * [subscription] of [service] has parked [aggregate], as its ledger holds it now (`FailureLedger`'s entry with the
+ * retry spec it is retried by): the entry's command topic is [context]'s, the context of the subscription.
+ *
+ * - [fromVersion] and [fromPosition]: where the aggregate is parked; [reason] and [failedAt] (epoch milliseconds): why
+ *   and when it last failed, which also tells one parking of the aggregate from the next.
+ * - [retries] made so far, the last started at [retryAt]; [retrySpec], the spec it is retried by; [nextRetryAt] the next
+ *   automatic retry, null when there is none.
+ * - [recoverable]: `UNKNOWN`, `RECOVERABLE` or `UNRECOVERABLE`, what an operator marked it; [request]: `RESUME` or
+ *   `SKIP` while an operator's request waits for the owner of its partition, else null.
+ * - [status]: `SCHEDULED` (retried automatically), `EXHAUSTED` (its retries spent) or `UNRECOVERABLE`.
+ * - [recordedAt]: when the service published it (epoch milliseconds).
+ */
+@AllowCreate
+@Summary("Record a parked entry")
+data class RecordParked(
+    val service: String,
+    val context: String,
+    val subscription: String,
+    val aggregate: LedgerAggregate,
+    val fromVersion: Int,
+    val fromPosition: Long? = null,
+    val reason: String,
+    val failedAt: Long,
+    val retries: Int = 0,
+    val retryAt: Long? = null,
+    val retrySpec: LedgerRetrySpec,
+    val recoverable: String = UNKNOWN,
+    val request: String? = null,
+    val status: String,
+    val nextRetryAt: Long? = null,
+    val recordedAt: Long,
+) {
+    companion object {
+        const val UNKNOWN: String = "UNKNOWN"
+    }
+}
+
+/**
+ * The retry spec a parked entry is retried by: at most [maxRetries] automatic retries, the first [minBackoff] after the
+ * failure, each allowed [executionTimeout] (ISO-8601 durations); [applied] when an operator applied it, rather than
+ * the subscription's.
+ */
+data class LedgerRetrySpec(
+    val maxRetries: Int,
+    val minBackoff: String,
+    val executionTimeout: String,
+    val applied: Boolean = false,
+)
+
+/**
+ * [subscription] of [service] no longer parks [aggregate], as of [resolvedAt] (epoch milliseconds): the parking that
+ * failed at [failedAt] (null when the service did not know it) came to [outcome]: [RESUMED] (handled again),
+ * [SKIPPED], [RESOLVED] (gone from the ledger, by an automatic retry or another node's action) or [NOT_PARKED] (an
+ * operator's action found nothing parked).
+ */
+@Summary("Record a resolved entry")
+data class RecordResolved(
+    val service: String,
+    val context: String,
+    val subscription: String,
+    val aggregate: LedgerAggregate,
+    val failedAt: Long? = null,
+    val outcome: String,
+    val resolvedAt: Long,
+) {
+    companion object {
+        const val RESUMED: String = "RESUMED"
+        const val SKIPPED: String = "SKIPPED"
+        const val RESOLVED: String = "RESOLVED"
+        const val NOT_PARKED: String = "NOT_PARKED"
+    }
+}

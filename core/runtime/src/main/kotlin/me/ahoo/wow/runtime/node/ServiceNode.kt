@@ -53,6 +53,8 @@ import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.command.MessageEntries
 import me.ahoo.wow.runtime.command.Receipts
 import me.ahoo.wow.runtime.contract.ContractDirectory
+import me.ahoo.wow.runtime.ledger.LedgerCommands
+import me.ahoo.wow.runtime.ledger.LedgerPublisher
 import me.ahoo.wow.runtime.log.LogGroupRouter
 import me.ahoo.wow.runtime.log.PartitionAppendQueue
 import me.ahoo.wow.runtime.manifest.ManifestCheck
@@ -210,6 +212,10 @@ class LogGroupNode internal constructor(
  * [PartitionOwnership]: the owner of a log partition reads the same partition of the topic, and [start] fails unless
  * the topic has as many partitions as the log.
  *
+ * **The failure ledger across services** (decision D141): with [ServiceNodeOptions.ledger], the node publishes the
+ * entries whose partitions it runs to the ops context ([ledgerPublisher]), from [start] until [stop] hands off; each
+ * intake runs the ledger's system commands the ops context sends back on the node's [parked] entries.
+ *
  * **The `Kafka` router** (design 02 §2, decision D143): the commands admitted for the aggregate types of
  * [ServiceNodeOptions.kafkaRouted] are written to their context's command topic ([TopicRouter]) and executed by the
  * owner of their log partition through the context's intake, which every such context runs; the node is not built
@@ -276,7 +282,7 @@ class ServiceNode(
     /** Where the subscriptions of other contexts' published streams read them (decision D134); none by default. */
     private val topics: SourceTopics? = null,
     /** Hears when an entry parks and when its automatic retries are spent (roadmap P.1); nobody by default. */
-    private val parkedNotifier: ParkedNotifier = ParkedNotifier.NONE,
+    parkedNotifier: ParkedNotifier = ParkedNotifier.NONE,
     /** The clock the node's timers fire by (decision D198): the system's, unless a test moves it. */
     clock: Clock = Clock.systemUTC(),
 ) {
@@ -319,6 +325,20 @@ class ServiceNode(
 
     /** Sends the commands of every context's sagas to the command topics of other contexts; null without a producer. */
     private val sender: CommandSender? = topics?.takeIf { it.producer != null }?.let { CommandSender(contracts, it) }
+
+    init {
+        require(options.ledger == null || sender != null) {
+            "Node $node publishes its failure ledger to ${options.ledger?.context}, through that context's command " +
+                "topic, but has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers; decision D141)."
+        }
+    }
+
+    /** The application's notifier of parked entries, and the [ledgerPublisher] when the node publishes its ledger. */
+    private val notifiers: ParkedNotifier = if (options.ledger == null) {
+        parkedNotifier
+    } else {
+        ParkedNotifier.of(listOf(parkedNotifier, ParkedNotifier { ledgerPublisher?.notifier?.notify(it) }))
+    }
 
     init {
         // A saga that sends to another context needs a producer: without one, each of its executions would retry and
@@ -406,9 +426,22 @@ class ServiceNode(
         } + topicSubscriptions.values.map { ParkedOps.Scope.of(it, options.subscription.parked) }
     }
 
-    /** The command intake of each context that takes commands from its topic (decision D137). */
+    /**
+     * Publishes the node's failure ledger to the ops context (decision D141) when [ServiceNodeOptions.ledger] says
+     * where: the entries whose partitions the node runs, through that context's command topic.
+     */
+    val ledgerPublisher: LedgerPublisher? = options.ledger?.let { publishing ->
+        val sender = checkNotNull(sender)
+        LedgerPublisher(service, publishing, parked, { wire -> sender.send(wire) }, ids = admission.ids.global)
+    }
+
+    /**
+     * The command intake of each context that takes commands from its topic (decision D137), running the ledger's
+     * system commands on the node's [parked] entries (decision D141).
+     */
     private val intakes: Map<ContextNode, CommandIntake> = contexts.values.filter { it.intake != null }.associateWith {
-        CommandIntake(it.context, it.models, it.coordinator, topics!!, it.creations)
+        val ledger = LedgerCommands(parked, admission.authorizer) { ledgerPublisher }
+        CommandIntake(it.context, it.models, it.coordinator, topics!!, it.creations, ledger)
     }
 
     init {
@@ -540,6 +573,7 @@ class ServiceNode(
                 context.ownership.start()
             }
             topicSubscriptions.values.forEach { it.start() }
+            ledgerPublisher?.start()
         } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
             // Whatever failed, what started is stopped; the failure is the start's.
             try {
@@ -614,6 +648,7 @@ class ServiceNode(
 
     /** Hands off every context's partitions and every topic's, concurrently. */
     private suspend fun handOff() = coroutineScope {
+        ledgerPublisher?.stop()
         contexts.values.forEach { launch { it.ownership.stop() } }
         topicSubscriptions.values.forEach { launch { it.stop() } }
     }
@@ -661,7 +696,7 @@ class ServiceNode(
                 options = options.subscription,
                 cluster = options.cluster,
                 signals = signals,
-                notifier = parkedNotifier,
+                notifier = notifiers,
                 partitionRefresh = topics!!.partitionRefresh,
             )
         }
@@ -693,7 +728,7 @@ class ServiceNode(
                 clock = Clock.systemUTC(),
                 context = Dispatchers.Default,
                 signals = signals,
-                notifier = parkedNotifier,
+                notifier = notifiers,
                 entries = { partitions -> MessageEntries.receipts(topic, sources.source, partitions) },
                 partitionRefresh = sources.partitionRefresh,
             )
@@ -713,7 +748,7 @@ class ServiceNode(
                 backends.ledger,
                 options = options.subscription,
                 signals = signals,
-                notifier = parkedNotifier,
+                notifier = notifiers,
             )
         }
 
@@ -803,7 +838,7 @@ class ServiceNode(
             builtIns + listOfNotNull(timers?.subscription?.subscription),
             options.subscription,
             signals = signals,
-            notifier = parkedNotifier,
+            notifier = notifiers,
         )
         return LogGroupNode(part.store, part.types, part.log, runtime, timers)
     }

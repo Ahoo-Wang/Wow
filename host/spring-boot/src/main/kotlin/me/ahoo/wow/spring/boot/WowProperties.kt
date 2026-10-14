@@ -14,12 +14,14 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.http.ops.WebhookNotifier
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.runtime.cluster.ClusterOptions
+import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
@@ -75,7 +77,8 @@ import kotlin.time.toKotlinDuration
  *   `wow.subscriptions.[<subscription>].retry.*` (roadmap P.3), over the handler's `@Retry`, see [RetrySpec].
  * - `wow.ops.enabled` (false): the operator's routes under `/wow/ops/parked`; `wow.ops.webhook.url`, `format`
  *   (`generic` or `wecom`), `events` (`parked`, `exhausted`), `timeout` (5s), `headers`: the webhook told when an
- *   entry parks or spends its retries, see [Ops] and [Webhook].
+ *   entry parks or spends its retries, see [Ops] and [Webhook]; `wow.ops.publish.enabled` (false), `context` (`ops`),
+ *   `interval` (30s): the failure ledger published to the ops context (decision D141), see [Publish].
  * - `wow.timers.poll-interval` (1s), `lookahead` (30s), `max-attempts` (10), `expires-after` (none), `parallelism`
  *   (64), `max-fire-rate` (none, per partition and second), `claim-timeout` (30s), `max-early-wait` (5s): the
  *   node's firing loop of the scheduled commands (decision D166), see [Timers].
@@ -396,6 +399,22 @@ class WowProperties {
     class Ops {
         var enabled: Boolean = false
         var webhook: Webhook = Webhook()
+        var publish: Publish = Publish()
+    }
+
+    /**
+     * Publishing the failure ledger to the ops context (decision D141): when [enabled], each entry goes to the `parked`
+     * aggregate of [context] (`ops`) through its command topic, at once when it parks and on a scan every [interval]
+     * (30s); the node needs the Kafka transport.
+     */
+    class Publish {
+        var enabled: Boolean = false
+        var context: String = Ledger.OPS_CONTEXT
+        var interval: Duration = LedgerPublishing.DEFAULT_INTERVAL.toJavaDuration()
+
+        /** Where the node publishes its ledger, null when it does not. */
+        fun options(): LedgerPublishing? =
+            if (enabled) LedgerPublishing(context, interval.toKotlinDuration()) else null
     }
 
     /**

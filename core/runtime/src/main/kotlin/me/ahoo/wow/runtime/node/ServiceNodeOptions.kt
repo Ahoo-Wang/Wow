@@ -22,6 +22,7 @@ import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.command.RejectionHandler
+import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.state.StateViewOptions
 import me.ahoo.wow.runtime.subscription.Subscription
@@ -147,6 +148,9 @@ enum class Routing {
  *   it, and executed by the owner of its log partition from there. Each must be a type the node serves, the node
  *   needs a producer ([SourceTopics.producer]), and each of their contexts takes the commands of its command topic
  *   whether or not [SourceTopics.intake] is set. None by default.
+ * - [ledger]: where the node publishes its failure ledger (decision D141): the ops context whose `parked` aggregate
+ *   records each entry, through its command topic, which needs a producer ([SourceTopics.producer]). Not published by
+ *   default.
  */
 data class ServiceNodeOptions(
     val cluster: ClusterOptions = ClusterOptions(),
@@ -162,6 +166,7 @@ data class ServiceNodeOptions(
     val timers: TimerOptions = TimerOptions(),
     val kafkaRouted: Set<AggregateType> = emptySet(),
     val unknownWaitContexts: UnknownContexts = UnknownContexts.ALLOW,
+    val ledger: LedgerPublishing? = null,
 ) {
     init {
         require(defaultWaitTimeout.isPositive()) { "The default wait timeout is positive." }

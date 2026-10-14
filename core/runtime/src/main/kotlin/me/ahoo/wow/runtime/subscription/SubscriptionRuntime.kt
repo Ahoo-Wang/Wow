@@ -263,6 +263,9 @@ class SubscriptionRuntime internal constructor(
     /** The names of the subscriptions registered, read from any thread. */
     val subscriptionNames: Set<String> get() = directory.keys.toSet()
 
+    /** The bounded context [subscription] belongs to ([Subscription.context]), null when it is not registered. */
+    fun contextOf(subscription: String): String? = directory[subscription]?.context
+
     /**
      * Whether the runtime runs [subscription] in [ref]'s partition here now: [resume] and [skip] act on the aggregate
      * at once. Otherwise its owner is another node, which takes an operator's request from the ledger (decision D141).
