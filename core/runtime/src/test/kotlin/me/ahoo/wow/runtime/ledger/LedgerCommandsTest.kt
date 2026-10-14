@@ -46,7 +46,9 @@ import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.subscription.cart
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
+import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.LedgerRequest
+import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
 import org.junit.jupiter.api.Test
@@ -61,7 +63,16 @@ import kotlin.time.Duration.Companion.seconds
 class LedgerCommandsTest {
     private val log = InMemoryEventLog(partitions = 2)
     private val appender = Appender(log)
-    private val ledger = InMemoryFailureLedger()
+    private val scanOnResolve = AtomicBoolean(false)
+
+    /** The ledger, which scans the publisher right after it resolves an entry while [scanOnResolve] is set. */
+    private val ledger: FailureLedger = ScanningLedger(InMemoryFailureLedger())
+
+    private inner class ScanningLedger(private val inner: FailureLedger) : FailureLedger by inner {
+        override suspend fun resolve(subscription: String, ref: AggregateRef): ParkedAggregate? =
+            inner.resolve(subscription, ref).also { if (scanOnResolve.get()) publisher.scan() }
+    }
+
     private val failing = AtomicBoolean(true)
     private val handled = CopyOnWriteArrayList<String>()
     private val subscription = Subscription(NAME, SubscriptionFilter("shop")) { entry ->
@@ -105,6 +116,28 @@ class LedgerCommandsTest {
         CommandWire(type, "c-1", "r-1", ref, body, scope = Scope.NONE, operator = operator)
 
     private fun lastRecord(): JsonNode = sent.last().record
+
+    /**
+     * The flake of LedgerNodeTest and EshopLedgerOpsTest: the reconciliation scan ran after the resume resolved the
+     * entry and before the resume published its outcome, so it published the entry as RESOLVED first, and ops kept
+     * that. Here the scan runs exactly there, every time.
+     */
+    @Test
+    fun `a scan between an action's resolution and its publication leaves the outcome to the action`(): Unit =
+        runBlocking {
+            parkAll("x1", "x2")
+            publisher.scan()
+            failing.set(false)
+            scanOnResolve.set(true)
+            commands.execute(wire(ResumeParked(NAME, X1))).assert().isNull()
+            commands.execute(wire(SkipParked(NAME, LedgerAggregate.of(cart("x2"))))).assert().isNull()
+            scanOnResolve.set(false)
+            publisher.scan()
+            sent.filter { it.type.endsWith(Ledger.RECORD_RESOLVED) }
+                .map { it.record["aggregate"]["id"].asString() to it.record["outcome"].asString() }
+                .assert().containsExactly("x1" to LedgerResolution.RESUMED, "x2" to LedgerResolution.SKIPPED)
+            runtime.stop()
+        }
 
     @Test
     fun `a resume of an entry this node runs handles it again and publishes it resolved`(): Unit = runBlocking {

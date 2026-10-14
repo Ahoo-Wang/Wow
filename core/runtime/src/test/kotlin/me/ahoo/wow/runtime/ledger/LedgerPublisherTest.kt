@@ -149,6 +149,22 @@ class LedgerPublisherTest {
     }
 
     @Test
+    fun `an entry two actions act on at once is theirs to publish until both are done`(): Unit = runBlocking {
+        parkAll("x1")
+        publisher.scan()
+        sent.clear()
+        ops.skip(NAME, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
+        publisher.acting(NAME, cart("x1")) {
+            publisher.acting(NAME, cart("x1")) { publisher.scan() }
+            publisher.scan()
+        }.assert().isEqualTo(Unit)
+        sent.assert().isEmpty()
+        publisher.scan()
+        sent.single().record["outcome"].asString().assert().isEqualTo(LedgerResolution.RESOLVED)
+        runtime.stop()
+    }
+
+    @Test
     fun `a notice and an action publish at once`(): Unit = runBlocking {
         parkAll("x1")
         val entry = ledger.parked(NAME, cart("x1"))!!
