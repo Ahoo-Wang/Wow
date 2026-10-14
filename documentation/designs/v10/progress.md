@@ -2,7 +2,7 @@
 
 日期：2026-10-14。状态：持续维护（每次合并或定下决定后更新）。上位文档：[路线图](roadmap.md)。
 
-本文记录 V10 现在在哪、正在做什么、接下来做什么，以及推进的工作方式。决定在[决策台账](decisions.md)（D1～D205 已定；D123 由 D124 取代），工作包定义在[路线图](roadmap.md)；已合并的明细以 `git log origin/v10` 为准。
+本文记录 V10 现在在哪、正在做什么、接下来做什么，以及推进的工作方式。决定在[决策台账](decisions.md)（D1～D206 已定；D123 由 D124 取代），工作包定义在[路线图](roadmap.md)；已合并的明细以 `git log origin/v10` 为准。
 
 ## 1. 位置
 
@@ -31,18 +31,19 @@
 
 | 工作包 | 状态 |
 |---|---|
-| H2 阶段 2（D155） | 机器空闲时跑：3 个 JVM、持久化 PostgreSQL、属主被杀的不可用窗口 |
 | C.1 核心加固 | 测试工具已合并（#4440，`:eshop-e2e:soakTest`）；两轮 1 小时浸泡中安全性不变量全部成立，发现 F1、F2，修复后再跑最终两轮（须连续两轮干净） |
 | C.1 F1：PostgreSQL 停顿使租约丢失后，分区在该日志组里无人接管（活性） | 修复中（`v10-f1-lease-recovery`），可稳定复现 |
-| C.1 F2：请求 ID 查重遇到数据库异常时返回裸 500 | 修复中（`v10-f2-storage-errors`）：改为可重试的 Wow 错误 |
+| C.1 F2：请求 ID 查重遇到数据库异常时返回裸 500 | 已修（#4442）：`wow.storage.unavailable`，HTTP 503，可重试 |
+| 定时命令等到期的上限（D206） | 进行中（`v10-timer-wait-cap`） |
+| H2 阶段 2（D206：改在 CI 上测） | 进行中（`v10-h2-stage2`：三个 JVM 的测量与手动触发的工作流） |
 
-**全能力阶段**（核心阶段完成后）：P.11（D192 `@OnCommitted`）、P.12（D193 同步调用客户端，审查时核对服务身份的信任边界）、6.8c（D198：cron、`@OnSchedule` 与租户作业）、6.3f、6.7、6.9、6.2d～f、5a.2～5a.4；M8 前：P.6～P.8。
+**全能力阶段**（D206 定序，可与核心阶段剩余修复并行）：6.9 可观测性进行中（`v10-6.9-observability`）；其后 P.11（D192 `@OnCommitted`）、P.12（D193 同步调用客户端，审查时核对服务身份的信任边界）、6.8c（D198：cron、`@OnSchedule` 与租户作业）、6.3f、6.7、6.9、6.2d～f、5a.2～5a.4；M8 前：P.6～P.8。
 
 **延期到发版之前**（D201）：7.2b dataset-registry 与 7.2c analytics（M9 的 9.3b），开工前先与用户讨论设计。
 
 ## 4. 已知问题
 
-- 已获批准（D205）：夜间浸泡工作流（`v10-soak-nightly` 进行中）、F1 定位用的测试依赖 `kotlinx-coroutines-debug`、发布配置（R.1，第一个预发布之前做）。
+- 已获批准（D205）：夜间浸泡工作流（已合并：`v10` #4444、`main` #4445）、F1 定位用的测试依赖 `kotlinx-coroutines-debug`、发布配置（R.1，第一个预发布之前做）。
 - `HostKafkaRoutingTest` 端口冲突（Address already in use）偶发失败，并入 C.1 清理。
 - `KafkaCommandIntakeTest`（`:spring-boot` 集成测试）的 Kafka 容器启动偶发超时（E.8 的门禁上见到一次），并入 C.1 清理。
 - P.13 之后用户文档有三处过时（读重试、内部端口的默认绑定、eShop README 的 `start: beginning`），留给 9.1 重写。
