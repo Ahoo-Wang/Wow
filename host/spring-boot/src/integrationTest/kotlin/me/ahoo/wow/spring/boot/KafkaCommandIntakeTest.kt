@@ -59,6 +59,7 @@ import me.ahoo.wow.runtime.node.TopicDdl
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.tck.containers.WowContainers
 import org.apache.kafka.clients.admin.Admin
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.admin.NewTopic
@@ -67,7 +68,6 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
-import org.testcontainers.kafka.ConfluentKafkaContainer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration
@@ -83,7 +83,7 @@ import me.ahoo.wow.manifest.Creation as ManifestCreation
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class KafkaCommandIntakeTest {
-    private val kafka = ConfluentKafkaContainer("confluentinc/cp-kafka:7.4.0").also { it.start() }
+    private val kafka = WowContainers.newKafka().also { it.start() }
     private val options = KafkaOptions(kafka.bootstrapServers)
     private val admin = Admin.create(mapOf<String, Any>(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to kafka.bootstrapServers))
     private val producer = KafkaTopicProducer.create(options)

@@ -8,9 +8,9 @@ dependencies {
     api("org.mongodb:mongodb-driver-sync")
     implementation("tools.jackson.core:jackson-databind")
     testImplementation(testFixtures(project(":query")))
-    integrationTestImplementation(testFixtures(project(":spi")))
+    integrationTestImplementation(project(":tck"))
+    integrationTestImplementation(project(":tck-containers"))
     integrationTestImplementation(testFixtures(project(":query")))
-    integrationTestImplementation("org.testcontainers:testcontainers-mongodb")
 }
 
 // Spike H1 (MongoDB) measures throughput only on demand: ./gradlew :mongo:integrationTest -Dwow.spike.h1=true

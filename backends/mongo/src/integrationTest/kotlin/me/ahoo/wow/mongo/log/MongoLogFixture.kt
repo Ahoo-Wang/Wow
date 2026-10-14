@@ -18,17 +18,12 @@ import com.mongodb.client.MongoClients
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Updates
 import me.ahoo.wow.mongo.MongoFormat
-import org.testcontainers.containers.MongoDBContainer
-import org.testcontainers.utility.DockerImageName
+import me.ahoo.wow.tck.containers.WowContainers
 import java.util.concurrent.atomic.AtomicInteger
 
 /** One MongoDB replica set for the test JVM, and a fresh context (so fresh collections) per log. */
 object MongoLogFixture {
-    private val container: MongoDBContainer by lazy {
-        MongoDBContainer(DockerImageName.parse(IMAGE)).also { it.start() }
-    }
-
-    val client: MongoClient by lazy { MongoClients.create(container.replicaSetUrl) }
+    val client: MongoClient by lazy { MongoClients.create(WowContainers.mongo.replicaSetUrl) }
 
     private val contexts = AtomicInteger()
 
@@ -56,7 +51,4 @@ object MongoLogFixture {
     }
 
     const val DATABASE = "wow_v10_log"
-
-    /** The MongoDB image, the one 9.x's wow-tck tests against (`ContainerImages.MONGO`). */
-    const val IMAGE = "mongo:7.0"
 }

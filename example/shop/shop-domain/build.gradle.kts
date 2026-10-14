@@ -29,6 +29,6 @@ dependencies {
     api(project(":query-api"))
     ksp(project(":compiler"))
     // The aggregate tests run the domain on the kernel, with its test DSL.
-    testImplementation(testFixtures(project(":kernel")))
+    testImplementation(project(":test-dsl"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
 }

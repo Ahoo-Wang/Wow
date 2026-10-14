@@ -38,6 +38,7 @@ import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.state.StateView
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.TopicMessage
+import me.ahoo.wow.tck.containers.WowContainers
 import org.apache.kafka.clients.admin.Admin
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.admin.NewPartitions
@@ -46,7 +47,6 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.testcontainers.kafka.ConfluentKafkaContainer
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
@@ -61,7 +61,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class KafkaSourcedSubscriptionTest {
-    private val kafka = ConfluentKafkaContainer("confluentinc/cp-kafka:7.4.0").also { it.start() }
+    private val kafka = WowContainers.newKafka().also { it.start() }
     private val options = KafkaOptions(kafka.bootstrapServers)
     private val admin = Admin.create(mapOf<String, Any>(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to kafka.bootstrapServers))
     private val producer = KafkaTopicProducer.create(options)

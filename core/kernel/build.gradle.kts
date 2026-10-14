@@ -1,7 +1,3 @@
-plugins {
-    `java-test-fixtures`
-}
-
 description = "Wow Kernel: the aggregate model and the decide, evolve, append loop"
 
 dependencies {
@@ -11,5 +7,7 @@ dependencies {
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
-    testImplementation(testFixtures(project(":spi")))
+    // The in-memory backend runs every TCK spec; the kernel's own tests use the test DSL (decision D196).
+    testImplementation(project(":tck"))
+    testImplementation(project(":test-dsl"))
 }

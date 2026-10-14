@@ -60,10 +60,10 @@ import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
+import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.testcontainers.kafka.ConfluentKafkaContainer
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Proxy
 import java.util.concurrent.ConcurrentHashMap
@@ -81,7 +81,7 @@ import me.ahoo.wow.manifest.Creation as ManifestCreation
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class KafkaRouterTest {
-    private val kafka = ConfluentKafkaContainer("confluentinc/cp-kafka:7.4.0").also { it.start() }
+    private val kafka = WowContainers.newKafka().also { it.start() }
     private val options = KafkaOptions(kafka.bootstrapServers)
     private val producer = KafkaTopicProducer.create(options)
     private val admin = KafkaTopicAdmin.create(options)

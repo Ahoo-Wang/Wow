@@ -23,7 +23,7 @@ dependencies {
     // The generated models and the binding index build on the kernel only (decision D149).
     api(project(":kernel"))
     ksp(project(":compiler"))
-    testImplementation(testFixtures(project(":kernel")))
+    testImplementation(project(":test-dsl"))
     // The sagas' suspending handler and an `@OnRejected` handler's binding are invoked from a coroutine.
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
 }

@@ -36,8 +36,6 @@ dependencies {
     testImplementation(project(":clickhouse"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     integrationTestImplementation(sourceSets["test"].output)
-    integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
-    integrationTestImplementation("org.testcontainers:testcontainers-mongodb")
-    integrationTestImplementation("org.testcontainers:testcontainers-kafka")
+    integrationTestImplementation(project(":tck-containers"))
     integrationTestImplementation("com.zaxxer:HikariCP")
 }

@@ -16,14 +16,12 @@ package me.ahoo.wow.postgres
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
-import org.testcontainers.postgresql.PostgreSQLContainer
+import me.ahoo.wow.tck.containers.WowContainers
 import java.util.concurrent.atomic.AtomicInteger
 
 /** One PostgreSQL container for the test JVM, and a fresh context (so fresh tables) per log or snapshot store. */
 object PostgresFixture {
-    private val container: PostgreSQLContainer by lazy {
-        PostgreSQLContainer("postgres:17-alpine").also { it.start() }
-    }
+    private val container get() = WowContainers.postgres
 
     val dataSource: HikariDataSource by lazy {
         HikariDataSource(

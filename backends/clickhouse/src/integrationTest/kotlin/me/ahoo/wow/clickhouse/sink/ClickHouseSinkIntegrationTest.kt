@@ -18,9 +18,8 @@ import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.clickhouse.sink.SinkFixtures.ORDER
 import me.ahoo.wow.clickhouse.sink.SinkFixtures.recordOf
+import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.Test
-import org.testcontainers.clickhouse.ClickHouseContainer
-import org.testcontainers.utility.DockerImageName
 import java.math.BigDecimal
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -152,12 +151,9 @@ class ClickHouseSinkIntegrationTest {
     private fun row(sql: String) = client.queryAll(sql).single()
 
     companion object {
-        private const val IMAGE = "clickhouse/clickhouse-server:24.8.14.39-alpine"
         private val databases = AtomicInteger()
 
-        private val container: ClickHouseContainer by lazy {
-            ClickHouseContainer(DockerImageName.parse(IMAGE)).also { it.start() }
-        }
+        private val container get() = WowContainers.clickHouse
 
         val client: Client by lazy {
             Client.Builder()

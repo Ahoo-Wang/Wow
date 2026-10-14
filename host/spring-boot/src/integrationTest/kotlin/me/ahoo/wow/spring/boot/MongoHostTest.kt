@@ -18,14 +18,13 @@ import com.mongodb.client.MongoClients
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.runtime.node.Routing
+import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
-import org.testcontainers.containers.MongoDBContainer
-import org.testcontainers.utility.DockerImageName
 
 /** The application's `MongoClient`, on the server the test names. */
 @Configuration(proxyBeanMethods = false)
@@ -38,7 +37,7 @@ class MongoClientConfiguration {
 /** A host on MongoDB, selected by the application's `MongoClient` bean (decision D110). */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class MongoHostTest {
-    private val mongo = MongoDBContainer(DockerImageName.parse("mongo:7.0")).also { it.start() }
+    private val mongo = WowContainers.newMongo().also { it.start() }
     private val host = startHost(
         "wow.mongo.database" to "host_test",
         "wow.log.partitions" to 4,

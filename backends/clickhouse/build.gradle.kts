@@ -11,6 +11,6 @@ dependencies {
     // DatasetQueryBackendSpec, the dataset backend contract.
     integrationTestImplementation(testFixtures(project(":query")))
     integrationTestImplementation(sourceSets["test"].output)
-    // Managed by the Testcontainers BOM that wow-dependencies imports; the 9.x wow-clickhouse tests use it too.
-    integrationTestImplementation("org.testcontainers:testcontainers-clickhouse")
+    // The shared ClickHouse container (decision D196).
+    integrationTestImplementation(project(":tck-containers"))
 }
