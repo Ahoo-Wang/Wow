@@ -25,7 +25,7 @@ export default mergeConfig(
       coverage: {
         provider: "v8",
         include: ["src/**"],
-        exclude: ["src/generated/**", "src/components/ui/**"],
+        exclude: ["src/generated/**", "src/components/ui/**", "src/test/**"],
       },
     },
   }),
