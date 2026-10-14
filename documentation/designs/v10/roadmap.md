@@ -186,7 +186,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | 6.2b | MongoDB 快照查询（D131）；固定复合索引与 `x-wow-index` 索引（D151）；快照集合改为按上下文与聚合（D161） | L | 6.1b | `QueryBackendSpec` 全绿 |
 | 6.4a | ClickHouse 数据集后端（从 9.x 移植） | M | 6.1d | 数据集查询的集成测试 |
 | 6.4b | ClickHouse Sink：基表 `_state_events` 加物化视图 `_state`、`_events` 与展平视图（D142、D164） | M | 6.0b、6.3a | Sink 的集成测试 |
-| 6.4c | 全 V10 的分析端到端（D145）：shop → Sink → 展平表 → 文件里声明的数据集 → V10 数据集查询路由；analytics 服务的端到端移到 7.2 | S | 6.4a、6.4b | `:example-e2e` 通过 |
+| 6.4c | 全 V10 的分析端到端（D145）：shop → Sink → 展平表 → 文件里声明的数据集 → V10 数据集查询路由；analytics 服务的端到端移到 7.2c（D201 延期到 M9） | S | 6.4a、6.4b | `:example-e2e` 通过 |
 
 **定时命令**（D166）：
 
@@ -247,12 +247,12 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | WP | 内容 | 出口 |
 |---|---|---|
 | 7.1 | wow-ops 取代 compensation：7.1a `platform/ops/{ops-api, ops-domain, ops-server}`，6.3f 的 `parked` 聚合，快照即读模型、经 V10 查询路由查询；7.1b 控制台（TypeScript，在 7.3a 之后） | 控制台端到端 |
-| 7.2 | 7.2a view-store（需 6.2b）、7.2b dataset-registry（需 6.1d、6.4a）、7.2c analytics（需两者与 ABAC，D129）跑在 V10 上 | 各自端到端；analytics 服务的端到端（D145） |
+| 7.2 | 7.2a view-store（需 6.2b）跑在 V10 上；7.2b dataset-registry 与 7.2c analytics 延期到发版之前（M9 的 9.3b，D201） | view-store 端到端 |
 | 7.3 | 控制台与 view-engine 接 V10 客户端；需 5a.3 与 6.2c 的路由形状 | Storybook 与 dashboard 对 V10 服务的测试（M7 出口：API 冻结，D147） |
 
-顺序：5a.3 尽早并行 → 7.2a view-store → 7.1a ops 服务 → 7.2b dataset-registry → 7.2c analytics → 7.3 → 7.1b ops 控制台。
+顺序：5a.3 尽早并行 → 7.2a view-store → 7.1a ops 服务 → 7.3 → 7.1b ops 控制台。7.2b、7.2c 延期到 M9（D201）。
 
-**7.2b dataset-registry 与 7.2c analytics 须先与用户讨论确认设计再开工**（用户要求，2026-10-13），不按默认推荐派工。
+**7.2b dataset-registry 与 7.2c analytics 延期到发版之前**（D201，用户 2026-10-14），开工前仍须先与用户讨论确认设计。
 
 ### M8 迁移层
 
@@ -272,6 +272,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | 9.2 | 基准报告：与 9.x 的同场景对比 | `wow-benchmarks/results/` 入库 |
 | 9.3 | 试用反馈收敛（不发 rc，D124） | 无阻塞问题 |
 | 9.3a | 平台目录搬迁到 `platform/`：取消 | 由 D146 取消：平台在 M7 新建于 `platform/<名字>/`，9.x 目录随 M9 删除 |
+| 9.3b | 7.2b dataset-registry（需 6.1d、6.4a）与 7.2c analytics（需两者与 ABAC，D129）跑在 V10 上（D201，由 M7 延期）；开工前先与用户讨论设计 | 各自端到端；analytics 服务的端到端（D145） |
 | 9.4 | 切 `release-9.x`；`v10` 合入 main；发 `10.0.0` | GA |
 
 ## 4. 并行与关键路径
