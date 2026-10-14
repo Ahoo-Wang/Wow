@@ -462,7 +462,7 @@ A 9.x starter's own `RouterFunction` routes have no V10 counterpart: a V10 servi
 | 9.x starter route | V10 |
 |---|---|
 | A write to an aggregate whose id the handler derived (from the owner, the application, a key) and dispatched with `CommandHandler` | A `CommandTransformer` of the command (decision D182) that derives the id; the route without an id (`POST /{context}/{aggregate}/{command}`) is served for it. Derive the id from what the caller cannot choose, and send a request that names an id to the derived one all the same. |
-| A read of that aggregate (`GET …/preferences`) | A snapshot query (`POST /{context}/{aggregate}/snapshot/query`) filtered by what the id was derived from; nothing found means never written (version 0). |
+| A lookup of that aggregate (`GET …/preferences`) | A snapshot query (`POST /{context}/{aggregate}/snapshot/query`) filtered by what the id was derived from; nothing found means never written (version 0). |
 | A route that answered "already so" without a command, so the version did not move | `Decision.NoOp` in the aggregate: the command is answered at the unchanged version. |
 | A replay route that found a write by its request id (`…/requests/{requestId}`) | Not needed: a retry with the same `Wow-Request-Id` is answered as a duplicate with the version it committed (`GET …/{id}/state?version=` reads it), and a creation without an id keeps the id of its first attempt (decision D191). |
 | `Command-Aggregate-Version: 0` for "never written" | `If-Match: "0"`; a stale version is 412 `wow.aggregate.version-mismatch`. |
