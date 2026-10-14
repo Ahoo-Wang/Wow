@@ -41,6 +41,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.UnrecoverableException
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.EnvelopeHeaders
 import me.ahoo.wow.spi.transport.EnvelopeKind
@@ -100,6 +101,13 @@ class CommandMessagesTest {
         // Without a reply, the field is absent from what older readers see as an unknown field.
         CommandMessages.commandOf(EnvelopeCodec.decode(CommandMessages.command(wire.copy(replyTo = null), 0).value))
             .replyTo.assert().isNull()
+        // The trace it is sent in goes with it (decision D174), without a wait context or with one; neither, nothing.
+        val trace = mapOf("traceparent" to "00-1-2-01")
+        EnvelopeCodec.decode(CommandMessages.command(wire, 0, trace = trace).value).transport.assert()
+            .isEqualTo(Transport(trace = trace))
+        EnvelopeCodec.decode(CommandMessages.command(wire, 0, wait, trace).value).transport.assert()
+            .isEqualTo(Transport(wait, trace = trace))
+        EnvelopeCodec.decode(CommandMessages.command(wire, 0).value).transport.assert().isNull()
     }
 
     @Test
@@ -122,6 +130,11 @@ class CommandMessagesTest {
         envelope.id.assert().isEqualTo("c-1")
         CommandMessages.rejectedOf(envelope).assert().isEqualTo(rejected)
         assertThrows<IllegalArgumentException> { CommandMessages.commandOf(envelope) }
+        envelope.transport.assert().isNull()
+        // The trace of the rejected command's execution goes back with its receipt (decision D174).
+        val trace = mapOf("traceparent" to "00-1-2-01")
+        EnvelopeCodec.decode(CommandMessages.receipt(rejected, trace).value).transport.assert()
+            .isEqualTo(Transport(trace = trace))
     }
 
     @Test
