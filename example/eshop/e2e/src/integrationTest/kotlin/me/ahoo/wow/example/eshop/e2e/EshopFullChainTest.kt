@@ -90,7 +90,9 @@ class EshopFullChainTest {
             "OrderStockItemConfirmed",
             "OrderStockItemConfirmed",
             "OrderStockConfirmed",
+            "ScheduleSet",
             "OrderPaid",
+            "ScheduleCancelled",
             "OrderShipped",
         )
     }
@@ -194,7 +196,9 @@ class EshopFullChainTest {
             "OrderAwaitingValidation",
             "OrderStockItemConfirmed",
             "OrderStockConfirmed",
+            "ScheduleSet",
             "OrderPaid",
+            "ScheduleCancelled",
             "OrderShipped",
         )
         stack.events(stack.payment, "/eshop-payment/payment/carol-1").map(::simpleName)

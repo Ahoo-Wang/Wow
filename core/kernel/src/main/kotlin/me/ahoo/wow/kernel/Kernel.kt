@@ -720,9 +720,9 @@ class Kernel(
         override fun cancelSchedule(key: String) {
             require(key.isNotBlank()) { "A schedule needs a key." }
             changes().apply {
-                remove(key)
-                // A key the aggregate does not keep: setting it earlier in this decision is undone, nothing to cancel.
-                if (key in loaded.schedules) {
+                // A key set earlier in this decision and not kept before: the set is undone, nothing to cancel.
+                val undone = remove(key) is ScheduleSet && key !in loaded.schedules
+                if (!undone) {
                     put(key, ScheduleCancelled(key))
                 }
             }
