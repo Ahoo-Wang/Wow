@@ -17,7 +17,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
@@ -195,7 +194,7 @@ class PostgresEventLog(
     }
 
     override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
-        withContext(dispatcher) {
+        dispatcher.jdbc {
             require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
             val partition = Partitioner.partitionOf(stream.ref, partitions)
             try {
@@ -259,7 +258,7 @@ class PostgresEventLog(
     }
 
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = flow {
-        val streams = withContext(dispatcher) {
+        val streams = dispatcher.jdbc {
             dataSource.connection.use { connection ->
                 val table = tableOf(connection, ref.type)
                 connection.prepareStatement(table.read).use { query ->
@@ -275,7 +274,7 @@ class PostgresEventLog(
     }
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = flow {
-        val entries = withContext(dispatcher) {
+        val entries = dispatcher.jdbc {
             dataSource.connection.use { connection ->
                 val table = tableOf(connection, ref.type)
                 connection.prepareStatement(table.entries).use { query ->
@@ -292,7 +291,7 @@ class PostgresEventLog(
         entries.forEach { emit(it) }
     }
 
-    override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = withContext(dispatcher) {
+    override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = dispatcher.jdbc {
         dataSource.connection.use { connection ->
             connection.prepareStatement(tableOf(connection, ref.type).position).use { query ->
                 query.setString(1, ref.id)
@@ -307,7 +306,7 @@ class PostgresEventLog(
 
     /** The stream committed for [requestId] within [tenantId] in [type]'s table: one indexed read of one table. */
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
-        withContext(dispatcher) {
+        dispatcher.jdbc {
             dataSource.connection.use { connection ->
                 findByRequestIdIn(connection, tableOf(connection, type), tenantId, requestId)
             }
@@ -319,7 +318,7 @@ class PostgresEventLog(
      * hold it: one statement over every table.
      */
     override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
-        withContext(dispatcher) {
+        dispatcher.jdbc {
             dataSource.connection.use { connection ->
                 val known = ((registered ?: register(connection)) + ensured.values).distinctBy { it.base }
                 if (known.isEmpty()) return@use null
@@ -339,7 +338,7 @@ class PostgresEventLog(
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         var last = after ?: 0L
         while (true) {
-            val batch = withContext(dispatcher) { dataSource.connection.use { readTail(it, partition, last) } }
+            val batch = dispatcher.jdbc { dataSource.connection.use { readTail(it, partition, last) } }
             batch.entries.forEach {
                 emit(it)
                 last = it.position.sequence
@@ -394,7 +393,7 @@ class PostgresEventLog(
 
     override suspend fun head(partition: Int): Long? {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
-        return withContext(dispatcher) {
+        return dispatcher.jdbc {
             dataSource.connection.use { connection ->
                 connection.prepareStatement(tables.head).use { query ->
                     query.setInt(1, partition)

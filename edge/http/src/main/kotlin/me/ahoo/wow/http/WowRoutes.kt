@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.http
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -34,12 +35,14 @@ import me.ahoo.wow.http.read.StateHandler
 import me.ahoo.wow.http.read.StateReads
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandRoutes
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryOwnership
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.runtime.admission.CommandGateway
+import me.ahoo.wow.spi.StorageUnavailableException
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -105,7 +108,7 @@ fun wowRoutes(
     return coRouter {
         if (options.manifestEndpoint) {
             GET(WowPaths.MANIFEST) { request ->
-                answering {
+                statuses.answering {
                     authenticator.authenticate(request)
                     Negotiation.checkAcceptable(request, alsoEventStream = false)
                     ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(manifestBody)
@@ -113,7 +116,7 @@ fun wowRoutes(
             }
         }
         GET(WowPaths.GLOBAL_ID) { request ->
-            answering {
+            statuses.answering {
                 authenticator.authenticate(request)
                 ServerResponse.ok().contentType(MediaType.TEXT_PLAIN).bodyValueAndAwait(gateway.ids.global.next())
             }
@@ -123,11 +126,11 @@ fun wowRoutes(
         }
         served.contexts.forEach { context ->
             context.aggregates.forEach { aggregate ->
-                commandRoutes(context.name, aggregate, commands)
+                commandRoutes(context.name, aggregate, commands, statuses)
                 val type = AggregateType(context.name, aggregate.name)
                 val state = "/${context.name}/${aggregate.name}/${CommandRoutes.ID}/${WowPaths.STATE}"
-                GET(state) { request -> answering { states.handle(request, type) } }
-                GET("$state/${WowPaths.TRACE}") { request -> answering { states.trace(request, type) } }
+                GET(state) { request -> statuses.answering { states.handle(request, type) } }
+                GET("$state/${WowPaths.TRACE}") { request -> statuses.answering { states.trace(request, type) } }
                 queryRoutes(type, aggregate, queries, queryHandler)
             }
         }
@@ -164,12 +167,17 @@ internal fun withTransformedRoutes(manifest: Manifest, gateway: CommandGateway):
 )
 
 /** The routes of [aggregate]'s commands and of the lifecycle commands it lists. */
-private fun CoRouterFunctionDsl.commandRoutes(context: String, aggregate: AggregateManifest, handler: CommandHandler) {
+private fun CoRouterFunctionDsl.commandRoutes(
+    context: String,
+    aggregate: AggregateManifest,
+    handler: CommandHandler,
+    statuses: ErrorStatuses,
+) {
     aggregate.commands.forEach { command ->
         command.routes.forEach { route ->
             val target = CommandTarget(context, aggregate.name, command.name, route.path.contains(CommandRoutes.ID))
             (method(HttpMethod.valueOf(route.method)) and path(route.path)).invoke { request ->
-                answering { handler.handle(request, target) }
+                statuses.answering { handler.handle(request, target) }
             }
         }
     }
@@ -177,9 +185,11 @@ private fun CoRouterFunctionDsl.commandRoutes(context: String, aggregate: Aggreg
     aggregate.lifecycle.forEach { name ->
         val target = CommandTarget(context, aggregate.name, name, byId = true)
         if (name == Lifecycle.DELETE_AGGREGATE) {
-            DELETE(base) { request -> answering { handler.handle(request, target) } }
+            DELETE(base) { request -> statuses.answering { handler.handle(request, target) } }
         } else {
-            POST("$base/${CommandRoutes.segment(name)}") { request -> answering { handler.handle(request, target) } }
+            POST("$base/${CommandRoutes.segment(name)}") { request ->
+                statuses.answering { handler.handle(request, target) }
+            }
         }
     }
 }
@@ -232,9 +242,17 @@ private fun datasetOf(request: ServerRequest): AggregateType? = try {
 private suspend fun noDataset(request: ServerRequest): ServerResponse =
     Problem.ofStatus(HttpStatus.NOT_FOUND, "No dataset at ${request.path()}.").respond()
 
-/** [block]'s response, or the problem it was answered with. */
-private suspend inline fun answering(block: () -> ServerResponse): ServerResponse = try {
+/**
+ * [block]'s response, or the problem it was answered with: a store that is unavailable where no result carries it
+ * (a state read, say) is `wow.storage.unavailable`, as a command's result would be.
+ */
+private suspend inline fun ErrorStatuses.answering(block: () -> ServerResponse): ServerResponse = try {
     block()
 } catch (problem: ProblemException) {
     problem.problem.respond()
+} catch (unavailable: StorageUnavailableException) {
+    logger.warn(unavailable) { "A request failed: a store is unavailable." }
+    problemOf(FrameworkErrors.STORAGE_UNAVAILABLE, unavailable.message!!).respond()
 }
+
+private val logger = KotlinLogging.logger {}

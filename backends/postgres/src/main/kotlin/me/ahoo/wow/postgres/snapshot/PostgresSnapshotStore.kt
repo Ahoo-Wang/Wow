@@ -14,7 +14,6 @@
 package me.ahoo.wow.postgres.snapshot
 
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
@@ -22,6 +21,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
+import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -81,7 +81,7 @@ class PostgresSnapshotStore(
             created[aggregateName] = tables
         }
 
-    override suspend fun save(snapshot: SnapshotRecord): Boolean = withContext(dispatcher) {
+    override suspend fun save(snapshot: SnapshotRecord): Boolean = dispatcher.jdbc {
         require(snapshot.ref.type.context == context) { "${snapshot.ref} is not in context $context." }
         dataSource.connection.use { connection ->
             connection.prepareStatement(tables(snapshot.ref.type.name).save).use { save ->
@@ -104,7 +104,7 @@ class PostgresSnapshotStore(
         }
     }
 
-    override suspend fun load(ref: AggregateRef): SnapshotRecord? = withContext(dispatcher) {
+    override suspend fun load(ref: AggregateRef): SnapshotRecord? = dispatcher.jdbc {
         require(ref.type.context == context) { "$ref is not in context $context." }
         dataSource.connection.use { connection ->
             connection.prepareStatement(tables(ref.type.name).load).use { query ->

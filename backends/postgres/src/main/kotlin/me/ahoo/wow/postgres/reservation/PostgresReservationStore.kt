@@ -14,8 +14,8 @@
 package me.ahoo.wow.postgres.reservation
 
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.postgres.VirtualThreads
+import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.reservation.Reservation
 import me.ahoo.wow.spi.reservation.ReservationStore
 import java.sql.Connection
@@ -90,7 +90,7 @@ class PostgresReservationStore(
         }
 
     private suspend fun <T> jdbc(block: (Connection) -> T): T =
-        withContext(dispatcher) { dataSource.connection.use(block) }
+        dispatcher.jdbc { dataSource.connection.use(block) }
 
     private companion object {
         const val DEFAULT_TABLE = "wow_reservation"

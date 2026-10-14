@@ -28,7 +28,8 @@ import org.springframework.http.HttpStatus
  * 4. else a domain rejection is 422 ([FrameworkErrors.DOMAIN_REJECTION_STATUS]) and an unknown framework code
  *    (`wow.*`) 500.
  *
- * `wow.aggregate.version-mismatch` is 412 instead of its table status when the request carried `If-Match`.
+ * `wow.aggregate.version-mismatch` is 412 instead of its table status when the request carried `If-Match`, and a
+ * problem of `wow.storage.unavailable` carries `Retry-After` ([retryAfter]).
  */
 class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> = emptyMap()) {
     private val framework: Map<String, ErrorManifest> =
@@ -66,15 +67,28 @@ class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> 
             code = error.code,
             violations = error.violations,
             result = result,
+            retryAfter = retryAfter(error.code),
         )
     }
 
     /** A problem with [code] before the command has a ref. */
     fun problemOf(code: String, detail: String, context: String? = null): Problem {
         val status = status(code, context)
-        return Problem(status, title(code, context, status), detail, code)
+        return Problem(status, title(code, context, status), detail, code, retryAfter = retryAfter(code))
     }
+
+    /** The `Retry-After` seconds of [code]: [STORAGE_RETRY_AFTER_SECONDS] for an unavailable store, else none. */
+    fun retryAfter(code: String): Long? =
+        STORAGE_RETRY_AFTER_SECONDS.takeIf { code == FrameworkErrors.STORAGE_UNAVAILABLE }
 
     private fun find(code: String, context: String?): ErrorManifest? =
         context?.let { byContext[it]?.get(code) } ?: framework[code]
+
+    companion object {
+        /**
+         * The `Retry-After` of `wow.storage.unavailable`: a store restarting or failing over is back within seconds,
+         * and a client that waits a second spreads its retries rather than repeating at once.
+         */
+        const val STORAGE_RETRY_AFTER_SECONDS: Long = 1
+    }
 }

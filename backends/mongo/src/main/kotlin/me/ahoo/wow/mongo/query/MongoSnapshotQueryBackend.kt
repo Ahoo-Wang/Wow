@@ -34,6 +34,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.mongo.ExactBson
+import me.ahoo.wow.mongo.MongoFailures
 import me.ahoo.wow.mongo.query.pipeline.MongoAggregationCompiler
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.BackendPage
@@ -231,7 +232,7 @@ class MongoSnapshotQueryBackend internal constructor(
         } catch (error: MongoExecutionTimeoutException) {
             throw expired(timeout, error)
         } catch (error: MongoException) {
-            throw if (error.code == MAX_TIME_MS_EXPIRED) expired(timeout, error) else error
+            throw if (error.code == MAX_TIME_MS_EXPIRED) expired(timeout, error) else MongoFailures.translate(error)
         }
 
         /** [error] as the core's [QueryTimeoutException] of [timeout]; as it is when the query had no timeout. */

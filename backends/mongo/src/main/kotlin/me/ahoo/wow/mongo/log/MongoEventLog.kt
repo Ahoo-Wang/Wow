@@ -36,7 +36,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
@@ -49,6 +48,7 @@ import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.isDuplicateKey
+import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -216,7 +216,7 @@ class MongoEventLog(
             .also { registered = it }
 
     override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
-        withContext(dispatcher) { appendNow(stream, transport) }
+        dispatcher.mongo { appendNow(stream, transport) }
 
     private fun appendNow(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
         require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
@@ -278,7 +278,7 @@ class MongoEventLog(
         require(streams.map { it.first.ref }.toSet().size == streams.size) {
             "A group commit appends distinct aggregates."
         }
-        val grouped = withContext(dispatcher) {
+        val grouped = dispatcher.mongo {
             val collections = streams.map { it.first.ref.type }.distinct().associateWith { collectionOf(it) }
             try {
                 client.startSession().use { session ->
@@ -349,7 +349,7 @@ class MongoEventLog(
         }.toList()
 
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = flow {
-        val streams = withContext(dispatcher) {
+        val streams = dispatcher.mongo {
             val collection = collectionOf(ref.type)
             collection.log.find(
                 Filters.and(refFilter(ref), Filters.gte(VERSION, fromVersion), Filters.lte(VERSION, toVersion)),
@@ -363,7 +363,7 @@ class MongoEventLog(
     }
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = flow {
-        val entries = withContext(dispatcher) {
+        val entries = dispatcher.mongo {
             val collection = collectionOf(ref.type)
             collection.log.find(
                 Filters.and(refFilter(ref), Filters.gte(VERSION, fromVersion), Filters.lte(VERSION, toVersion)),
@@ -375,7 +375,7 @@ class MongoEventLog(
         entries.forEach { emit(it) }
     }
 
-    override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = withContext(dispatcher) {
+    override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = dispatcher.mongo {
         collectionOf(ref.type).log.find(Filters.and(refFilter(ref), Filters.eq(VERSION, version)))
             .projection(Projections.include(PARTITION, SEQUENCE))
             .firstOrNull()
@@ -384,7 +384,7 @@ class MongoEventLog(
 
     /** The stream committed for [requestId] within [tenantId] in [type]'s collection: one indexed find. */
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
-        withContext(dispatcher) { findByRequestIdIn(collectionOf(type), tenantId, requestId) }
+        dispatcher.mongo { findByRequestIdIn(collectionOf(type), tenantId, requestId) }
 
     /**
      * The stream committed for [requestId] within [tenantId] in any aggregate collection of the context this log
@@ -392,9 +392,9 @@ class MongoEventLog(
      * aggregate types hold it: one aggregation over every collection, through `$unionWith`.
      */
     override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
-        withContext(dispatcher) {
+        dispatcher.mongo {
             val known = ((registered ?: register()) + ensured.values).distinctBy { it.name }
-            if (known.isEmpty()) return@withContext null
+            if (known.isEmpty()) return@mongo null
             fun branch(index: Int) = listOf(
                 Aggregates.match(Filters.and(Filters.eq(TENANT_ID, tenantId), Filters.eq(REQUEST_ID, requestId))),
                 Aggregates.limit(1),
@@ -415,7 +415,7 @@ class MongoEventLog(
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         var last = after ?: 0L
         while (true) {
-            val batch = withContext(dispatcher) { readTail(partition, last) }
+            val batch = dispatcher.mongo { readTail(partition, last) }
             batch.entries.forEach {
                 emit(it)
                 last = it.position.sequence
@@ -472,7 +472,7 @@ class MongoEventLog(
 
     override suspend fun head(partition: Int): Long? {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
-        return withContext(dispatcher) {
+        return dispatcher.mongo {
             // The counter is bumped in the transaction that inserts the entry, so it is the last committed sequence.
             counters.find(Filters.eq(ID, partition)).firstOrNull()?.getLong(SEQUENCE)?.takeIf { it > 0 }
         }

@@ -46,6 +46,12 @@ object ResultCodes {
 
     /** The node is shutting down, so the command was not taken; another node may take it (D115). */
     const val NODE_CLOSING = "wow.node.closing"
+
+    /**
+     * A store the command needed could not be reached or did not answer in time
+     * ([me.ahoo.wow.spi.StorageUnavailableException]); retrying with the same request id is safe.
+     */
+    const val STORAGE_UNAVAILABLE = "wow.storage.unavailable"
 }
 
 /** The function of [command]'s decide function on [model]: the aggregate and the command's model name. */
