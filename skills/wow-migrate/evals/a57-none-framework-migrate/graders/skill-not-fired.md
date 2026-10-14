@@ -7,4 +7,4 @@ max: 0
 arm: both
 ---
 
-The request is outside every Wow skill, so $wow-migrate must not load. Scored in both arms (`arm: both`): the without-skill arm passes trivially, so a negative case measures trigger precision, not a with/without delta.
+A breaking release of the Wow framework itself is outside every Wow skill (only porting a 9.x platform module to `platform/` is in $wow-migrate's scope, a121), so $wow-migrate must not load. Scored in both arms (`arm: both`): the without-skill arm passes trivially, so a negative case measures trigger precision, not a with/without delta.

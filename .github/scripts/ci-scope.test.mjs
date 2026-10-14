@@ -484,6 +484,7 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'host/spring-boot/src/main/kotlin/A.kt',
     'migration/migrate-data/build.gradle.kts',
     'platform/ops/ops-domain/src/main/kotlin/A.kt',
+    'platform/view-store/view-store-server/manifest/baseline.json',
     'test/architecture/src/test/kotlin/A.kt',
     'test/kernel-benchmarks/build.gradle.kts',
     'test/routing-spike/src/integrationTest/kotlin/A.kt',

@@ -11,15 +11,13 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.example.eshop.e2e.ops
+package me.ahoo.wow.platform.viewstore.domain
 
-import org.springframework.boot.autoconfigure.SpringBootApplication
+import me.ahoo.wow.api.annotation.BoundedContext
+import me.ahoo.wow.platform.viewstore.api.ViewStoreContext
 
-/**
- * A minimal ops service for the failure ledger's end-to-end test (work package 6.3f, decision D141): the Wow host over
- * `:ops-domain`'s binding index, serving the context `ops` alone (`wow.contexts.include`), since the test's class
- * path holds the eShop's servers too. The ops service proper is roadmap 7.1a's `platform/ops/ops-server`. Its package
- * is apart from the e2e tests', so its component scan finds none of their configurations.
- */
-@SpringBootApplication(proxyBeanMethods = false)
-class OpsTestServer
+@BoundedContext(
+    name = ViewStoreContext.NAME,
+    description = "The view engine's saved views, view preferences and dataset wording",
+)
+object ViewStoreBoundedContext

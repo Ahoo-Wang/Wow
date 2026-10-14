@@ -103,12 +103,12 @@ class EshopService private constructor(
         return Answer(response.statusCode(), response.body())
     }
 
-    private fun awaitReady() {
+    private fun awaitReady(headers: Map<String, String>) {
         val deadline = System.nanoTime() + START_TIMEOUT.toNanos()
         while (System.nanoTime() < deadline) {
             check(process.isAlive) { "The $name service exited with ${process.exitValue()}:\n${log.readText()}" }
             val ready = try {
-                get("/wow/manifest").status == OK
+                get("/wow/manifest", headers).status == OK
             } catch (_: IOException) {
                 false
             }
@@ -149,10 +149,11 @@ class EshopService private constructor(
 
         /**
          * Starts the service of [context] by its [mainClass], with the further command-line [arguments] and the JVM's
-         * own [jvmArguments] (a heap bound, say), and waits until it serves its Manifest. Its [publicPort] and
-         * [internalPort] are ones the system chooses by default, so no other process can take a port picked before the
-         * service binds it; a replacement takes the ports of the node it replaces, the address the other services call
-         * it at (decision D193), and is started again, at most [BIND_ATTEMPTS] times, while another process holds one.
+         * own [jvmArguments] (a heap bound, say), and waits until it serves its Manifest, asked with [readyHeaders] (the
+         * credentials of a service that answers no anonymous request). Its [publicPort] and [internalPort] are ones the
+         * system chooses by default, so no other process can take a port picked before the service binds it; a
+         * replacement takes the ports of the node it replaces, the address the other services call it at (decision
+         * D193), and is started again, at most [BIND_ATTEMPTS] times, while another process holds one.
          */
         fun start(
             context: String,
@@ -161,11 +162,12 @@ class EshopService private constructor(
             jvmArguments: List<String> = emptyList(),
             publicPort: Int = 0,
             internalPort: Int = 0,
+            readyHeaders: Map<String, String> = emptyMap(),
         ): EshopService {
             var attempt = 1
             while (true) {
                 try {
-                    return startOnce(context, mainClass, arguments, jvmArguments, publicPort, internalPort)
+                    return startOnce(context, mainClass, arguments, jvmArguments, publicPort, internalPort, readyHeaders)
                 } catch (taken: PortTakenException) {
                     if (attempt == BIND_ATTEMPTS) throw taken
                     attempt++
@@ -180,6 +182,7 @@ class EshopService private constructor(
             jvmArguments: List<String>,
             publicPort: Int,
             internalPort: Int,
+            readyHeaders: Map<String, String>,
         ): EshopService {
             val property = "eshop.$context.classpath"
             val classpath = requireNotNull(System.getProperty(property)) { "System property $property is not set." }
@@ -210,7 +213,7 @@ class EshopService private constructor(
                 throw failure
             }
             try {
-                service.awaitReady()
+                service.awaitReady(readyHeaders)
             } catch (failure: Throwable) {
                 service.close()
                 throw failure

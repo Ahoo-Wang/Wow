@@ -17,7 +17,6 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerResolution
-import me.ahoo.wow.example.eshop.e2e.ops.OpsTestServer
 import me.ahoo.wow.ops.api.parked.ParkedStatus
 import org.apache.kafka.clients.admin.Admin
 import org.apache.kafka.clients.admin.AdminClientConfig
@@ -25,30 +24,26 @@ import org.apache.kafka.clients.admin.NewTopic
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.springframework.boot.builder.SpringApplicationBuilder
-import org.springframework.context.ConfigurableApplicationContext
 import org.testcontainers.kafka.ConfluentKafkaContainer
 import org.testcontainers.postgresql.PostgreSQLContainer
 import tools.jackson.databind.JsonNode
 import java.io.File
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.time.Duration
 
 /**
- * The failure ledger across services end to end (work package 6.3f, decision D141): the ordering, inventory and
- * payment services each in a JVM of its own on PostgreSQL and Kafka, and a minimal ops service ([OpsTestServer]) in
- * this JVM on the memory backend, all over one Kafka.
+ * The failure ledger across services end to end (work packages 6.3f and 7.1a, decision D141): the ordering,
+ * inventory and payment services and the ops service (`:ops-server`) each in a JVM of its own, on PostgreSQL and
+ * Kafka, as a deployment runs them.
  *
  * 1. The payment gateway is down (its outage file exists): the payment's gateway saga fails, retries and parks the
  *    payment; its automatic retries are off, so it waits for an operator.
- * 2. The payment service publishes its ledger (`wow.ops.publish.enabled`) to `wow.ops.commands`: the ops view, the
- *    `parked` aggregate whose id is the entry's, shows it parked.
- * 3. The gateway is back; an operator resumes the entry on the ops service. Its saga sends `wow.ledger.Resume` to
- *    `wow.eshop-payment.commands`, the payment service resumes the saga, the payment succeeds and pays the order, and
- *    the entry, published resolved, shows `RESOLVED` with the outcome `RESUMED` in the ops view.
+ * 2. The payment service publishes its ledger (`wow.ops.publish.enabled`) to `wow.ops.commands`: the ops service
+ *    records it on the `parked` aggregate whose id is the entry's, and an operator finds it through the snapshot query
+ *    route, filtered by context, status and failure time, and reads its detail.
+ * 3. The gateway is back; an operator resumes the entry on the ops service, which authorizes it as `wow.ledger.Resume`.
+ *    Its saga sends `wow.ledger.Resume` to `wow.eshop-payment.commands`, the payment service resumes the saga, the
+ *    payment succeeds and pays the order, and the entry, published resolved, shows `RESOLVED` with the outcome
+ *    `RESUMED` in the ops view.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class EshopLedgerOpsTest {
@@ -58,7 +53,7 @@ class EshopLedgerOpsTest {
     private val outage = File.createTempFile("eshop-gateway-", ".down").apply { deleteOnExit() }
 
     init {
-        listOf(INVENTORY_DATABASE, PAYMENT_DATABASE).forEach { database ->
+        listOf(INVENTORY_DATABASE, PAYMENT_DATABASE, OPS_DATABASE).forEach { database ->
             postgres.execInContainer("psql", "-U", postgres.username, "-d", ORDERING_DATABASE, "-c", "CREATE DATABASE $database")
                 .exitCode.assert().isEqualTo(0)
         }
@@ -80,24 +75,13 @@ class EshopLedgerOpsTest {
         }
     }
 
-    private val ops: ConfigurableApplicationContext = SpringApplicationBuilder(OpsTestServer::class.java).run(
-        "--spring.main.banner-mode=off",
-        "--spring.application.name=ops-service",
-        "--server.address=127.0.0.1",
-        "--server.port=0",
-        "--wow.service=ops-service",
-        "--wow.backend=memory",
-        "--wow.internal.host=127.0.0.1",
-        "--wow.internal.port=0",
-        "--wow.contexts.include=ops",
-        "--wow.log.partitions=$OPS_PARTITIONS",
-        "--wow.kafka.bootstrap-servers=${kafka.bootstrapServers}",
-        "--wow.kafka.command-intake=true",
-        "--wow.subscription.checkpoint-interval=100ms",
+    // The ops service as it is deployed: its own application.yaml, on PostgreSQL, its intake on wow.ops.commands.
+    private val ops = EshopService.start(
+        "ops",
+        OPS_MAIN,
+        backendArguments(postgres, kafka, OPS_DATABASE, OPS_PARTITIONS),
+        readyHeaders = VIEWER,
     )
-    private val opsPort = ops.environment.getRequiredProperty("local.server.port", Int::class.java)
-    private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
-
     private val inventory = EshopService.start("inventory", INVENTORY_MAIN, arguments(INVENTORY_DATABASE))
     private val ordering = EshopService.start("ordering", ORDERING_MAIN, arguments(ORDERING_DATABASE))
     private val payment = EshopService.start(
@@ -117,9 +101,7 @@ class EshopLedgerOpsTest {
 
     @AfterAll
     fun close() {
-        listOf(payment, ordering, inventory).forEach { it.close() }
-        ops.close()
-        http.shutdownNow()
+        listOf(payment, ordering, inventory, ops).forEach { it.close() }
         postgres.stop()
         kafka.stop()
         outage.delete()
@@ -129,6 +111,7 @@ class EshopLedgerOpsTest {
 
     @Test
     fun `a payment the gateway failed is parked, shown in ops, and resumed from there`() {
+        val startedAt = System.currentTimeMillis()
         inventory.post("/eshop-inventory/stock/mug/receive-stock", """{"quantity":10}""").status.assert().isEqualTo(OK)
         val submitted = ordering.post(
             "/eshop-ordering/order/carol-1/submit-order",
@@ -139,47 +122,47 @@ class EshopLedgerOpsTest {
         val parked = AggregateType("eshop-payment", "payment").ref(tenant, "carol-1")
         val id = Ledger.parkedId("eshop-payment-service", GATEWAY_SAGA, parked)
 
-        // The ops view shows the entry the payment service parked and published.
-        eventually("the parked payment in the ops view") { opsState(id) != null }
+        // The ops service lists the entry the payment service parked and published, as an operator queries it.
+        val exhausted = """{"op":"AND","operands":[
+            {"op":"EQ","field":"state.context","value":"eshop-payment"},
+            {"op":"EQ","field":"state.status","value":"${ParkedStatus.EXHAUSTED}"},
+            {"op":"GTE","field":"state.failedAt","value":$startedAt}]}"""
+        eventually("the parked payment listed by ops") { listed(exhausted) == listOf(id) }
         val entry = opsState(id)!!
         entry["service"].asString().assert().isEqualTo("eshop-payment-service")
-        entry["context"].asString().assert().isEqualTo("eshop-payment")
         entry["subscription"].asString().assert().isEqualTo(GATEWAY_SAGA)
         entry["aggregate"]["id"].asString().assert().isEqualTo("carol-1")
         entry["reason"].asString().assert().contains("unreachable")
-        entry["status"].asString().assert().isEqualTo(ParkedStatus.EXHAUSTED)
         orderStatus("carol-1").assert().isEqualTo("STOCK_CONFIRMED")
+
+        // Only an operator acts on it.
+        ops.post("/ops/parked/$id/resume", "{}", VIEWER).status.assert().isEqualTo(FORBIDDEN)
 
         // The gateway is back: an operator resumes the entry from ops, and the owning service resumes it.
         outage.delete()
-        val resumed = opsPost("/ops/parked/$id/resume", """{"reason":"The gateway is back."}""")
+        val resumed = ops.post("/ops/parked/$id/resume", """{"reason":"The gateway is back."}""", OPERATOR)
         resumed.status.assert().describedAs(resumed.body).isEqualTo(OK)
         eventually("the entry resolved in the ops view") { opsState(id)?.get("status")?.asString() == ParkedStatus.RESOLVED }
         opsState(id)!!["outcome"].asString().assert().isEqualTo(LedgerResolution.RESUMED)
+        listed(exhausted).assert().isEmpty()
         eventually("carol-1 paid") { orderStatus("carol-1") == "PAID" }
         val paid = payment.get("/eshop-payment/payment/carol-1/state")
         json.readTree(paid.body)["state"]["status"].asString().assert().isEqualTo("SUCCEEDED")
     }
 
+    /** The ids of the entries [filter] selects, as an operator lists them through the ops service's query route. */
+    private fun listed(filter: String): List<String> {
+        val answer = ops.post("/ops/parked/snapshot/query", """{"kind":"list","filter":$filter}""", OPERATOR)
+        check(answer.status == OK) { "The ops query answered ${answer.status}: ${answer.body}" }
+        return json.readTree(answer.body).values().map { it["aggregateId"].asString() }
+    }
+
     /** The ops view of the entry [id], or null while ops has none. */
     private fun opsState(id: String): JsonNode? {
-        val answer = send(HttpRequest.newBuilder(opsUri("/ops/parked/$id/state")).GET())
+        val answer = ops.get("/ops/parked/$id/state", OPERATOR)
         if (answer.status == NOT_FOUND) return null
         check(answer.status == OK) { "GET the ops view of $id answered ${answer.status}: ${answer.body}" }
         return json.readTree(answer.body)["state"]
-    }
-
-    private fun opsPost(path: String, body: String): Answer = send(
-        HttpRequest.newBuilder(opsUri(path))
-            .header("Content-Type", "application/json")
-            .POST(HttpRequest.BodyPublishers.ofString(body)),
-    )
-
-    private fun opsUri(path: String): URI = URI.create("http://127.0.0.1:$opsPort$path")
-
-    private fun send(request: HttpRequest.Builder): Answer {
-        val response = http.send(request.timeout(TIMEOUT).build(), HttpResponse.BodyHandlers.ofString())
-        return Answer(response.statusCode(), response.body())
     }
 
     private fun orderStatus(id: String): String? {
@@ -194,7 +177,7 @@ class EshopLedgerOpsTest {
             if (System.nanoTime() > deadline) {
                 throw AssertionError(
                     "Not reached in $DEADLINE: $what.\n--- payment ---\n${payment.output().takeLast(TAIL)}" +
-                        "\n--- ordering ---\n${ordering.output().takeLast(TAIL)}",
+                        "\n--- ops ---\n${ops.output().takeLast(TAIL)}",
                 )
             }
             Thread.sleep(POLL.toMillis())
@@ -203,19 +186,25 @@ class EshopLedgerOpsTest {
 
     private companion object {
         const val OK = 200
+        const val FORBIDDEN = 403
         const val NOT_FOUND = 404
         const val TAIL = 6_000
         const val ORDERING_MAIN = "me.ahoo.wow.example.eshop.ordering.server.OrderingServerKt"
         const val INVENTORY_MAIN = "me.ahoo.wow.example.eshop.inventory.server.InventoryServerKt"
         const val PAYMENT_MAIN = "me.ahoo.wow.example.eshop.payment.server.PaymentServerKt"
+        const val OPS_MAIN = "me.ahoo.wow.ops.server.OpsServerKt"
         const val GATEWAY_SAGA = "PaymentGatewaySaga.onPaymentRequested"
         const val PARTITIONS = 4
         const val OPS_PARTITIONS = 2
         const val ORDERING_DATABASE = "eshop_ordering"
         const val INVENTORY_DATABASE = "eshop_inventory"
         const val PAYMENT_DATABASE = "eshop_payment"
+        const val OPS_DATABASE = "wow_ops"
+
+        /** The ops service's callers, as its header resolver reads them (a deployment's are CoSec's). */
+        val OPERATOR = mapOf("X-User" to "olivia", "X-Role" to "ops.operator")
+        val VIEWER = mapOf("X-User" to "victor")
         val DEADLINE: Duration = Duration.ofSeconds(90)
         val POLL: Duration = Duration.ofMillis(200)
-        val TIMEOUT: Duration = Duration.ofSeconds(30)
     }
 }

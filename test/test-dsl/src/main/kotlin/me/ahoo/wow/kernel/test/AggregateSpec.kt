@@ -267,9 +267,9 @@ class AggregateSpec<S : Any>(
 
     /**
      * Sends [command], from a caller in [scope], with the request facts [headers] (a scheduled command's
-     * [me.ahoo.wow.api.schedule.ScheduleContext.headers], say), through the kernel and checks its outcome in [expect].
-     * An exception the decide function throws fails the specification, unless [expect] checks it with
-     * [Expectations.expectError].
+     * [me.ahoo.wow.api.schedule.ScheduleContext.headers], say), in the name of [operator] (decision D163; none, as an
+     * anonymous caller's), through the kernel and checks its outcome in [expect]. An exception the decide function
+     * throws fails the specification, unless [expect] checks it with [Expectations.expectError].
      */
     fun whenCommand(
         command: Any,
@@ -277,10 +277,20 @@ class AggregateSpec<S : Any>(
         expectedVersion: Int? = null,
         scope: Scope = Scope.NONE,
         headers: Map<String, String> = emptyMap(),
+        operator: Operator? = null,
         expect: Expectations<S>.() -> Unit,
     ) {
         val result = send(
-            Command("command-${++sequence}", requestId, ref, command, expectedVersion, scope, headers = headers),
+            Command(
+                "command-${++sequence}",
+                requestId,
+                ref,
+                command,
+                expectedVersion,
+                scope,
+                headers = headers,
+                operator = operator,
+            ),
         )
         verify(result, expect)
     }

@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: view-store-service
+server:
+  port: 8080
+wow:
+  service: view-store-service
+  # One node, its data in memory: the default, for trying the view store out. The `postgres` profile below keeps the
+  # views on PostgreSQL and serves their snapshot queries.
+  backend: memory
+  internal:
+    port: 9090
+  http:
+    # The calling application, which every view, preference and wording is kept in.
+    request-facts: CoSec-App-Id
+---
+spring:
+  config:
+    activate:
+      on-profile: postgres
+  datasource:
+    url: jdbc:postgresql://localhost:5432/view_store
+    username: postgres
+    password: postgres
+wow:
+  backend: postgres

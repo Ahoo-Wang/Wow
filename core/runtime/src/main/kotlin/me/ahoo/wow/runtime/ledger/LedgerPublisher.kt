@@ -43,6 +43,7 @@ import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import java.security.MessageDigest
 import java.time.Clock
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -99,6 +100,12 @@ class LedgerPublisher internal constructor(
     /** The entries this node published as parked, by key: what it published and when it first saw that content. */
     private val published = HashMap<ParkedKey, Observed>()
 
+    /**
+     * The entries an operator's action is acting on ([acting]), with how many actions: a scan leaves them to the
+     * action, which publishes what came of it.
+     */
+    private val acting = ConcurrentHashMap<ParkedKey, Int>()
+
     @Volatile
     private var loop: Job? = null
 
@@ -126,8 +133,23 @@ class LedgerPublisher internal constructor(
     }
 
     /**
+     * Runs [action], an operator's action on [subscription]'s entry of [ref] that publishes what came of it, while
+     * the scans leave the entry alone: a scan between the action resolving the entry and publishing its outcome would
+     * otherwise publish it as [LedgerResolution.RESOLVED] first, and the ops view keeps the first resolution.
+     */
+    suspend fun <T> acting(subscription: String, ref: AggregateRef, action: suspend () -> T): T {
+        val key = ParkedKey(subscription, ref)
+        acting.merge(key, 1, Int::plus)
+        try {
+            return action()
+        } finally {
+            acting.computeIfPresent(key) { _, count -> (count - 1).takeIf { it > 0 } }
+        }
+    }
+
+    /**
      * Publishes every entry whose partition this node runs, and as resolved each one it published before that has
-     * left the ledger since.
+     * left the ledger since; an entry an operator's action is acting on is the action's to publish.
      */
     suspend fun scan(): Unit = lock.withLock {
         val seen = HashSet<ParkedKey>()
@@ -138,12 +160,14 @@ class LedgerPublisher internal constructor(
                 val key = ParkedKey(view.entry.subscription, view.entry.ref)
                 if (parked.owns(key.subscription, key.ref)) {
                     seen += key
-                    publishParked(view)
+                    if (!acting.containsKey(key)) {
+                        publishParked(view)
+                    }
                 }
             }
             after = page.next
         } while (after != null)
-        (published.keys - seen).forEach { key ->
+        (published.keys - seen - acting.keys).forEach { key ->
             val gone = published.getValue(key).record
             // An entry whose partition moved to another node is that node's to publish now.
             if (parked.get(key.subscription, key.ref) == null) {

@@ -16,10 +16,12 @@ description = "Wow V10 eShop: end-to-end tests across the eShop's services"
 // - EshopFullChainTest runs all five services the same way through EshopStack, with ClickHouse for the ordering's
 //   sales dataset (work package E.6): the full chain with one Wow-Wait from the checkout to the paid order, the short
 //   stock's cancellation, the sales dataset, and an ordering node killed mid-flow and replaced.
-// - EshopLedgerOpsTest runs the ordering, inventory and payment services the same way and a minimal ops service in
-//   the test's JVM: a payment the gateway fails parks, the ops view shows it, and a resume from ops resolves it (6.3f).
+// - EshopLedgerOpsTest runs the ordering, inventory and payment services the same way, and the ops service
+//   (`:ops-server`, roadmap 7.1a) in a JVM of its own beside them: a payment the gateway fails parks, the ops service
+//   shows it through its query routes, and an operator's resume there resolves it (6.3f).
 // - EshopLoad, the load script, starts the same EshopStack (the task eshopLoad below; README.md holds its baseline).
-val servers = listOf("catalog", "basket", "ordering", "inventory", "payment").associateWith { context ->
+// The platform's ops service (`ops`) runs beside them as one more server.
+val servers = listOf("catalog", "basket", "ordering", "inventory", "payment", "ops").associateWith { context ->
     configurations.create("eshop${context.replaceFirstChar { it.uppercase() }}Server") {
         isCanBeConsumed = false
         isCanBeResolved = true
@@ -42,6 +44,7 @@ dependencies {
     "eshopOrderingServer"(project(":eshop-ordering-server"))
     "eshopInventoryServer"(project(":eshop-inventory-server"))
     "eshopPaymentServer"(project(":eshop-payment-server"))
+    "eshopOpsServer"(project(":ops-server"))
     integrationTestImplementation("tools.jackson.core:jackson-databind")
     integrationTestImplementation(project(":eshop-catalog-server"))
     integrationTestImplementation(project(":eshop-basket-server"))
@@ -63,8 +66,8 @@ dependencies {
     // EshopSharedJvmTest: a request's trace through a service (decision D174), its spans exported to memory.
     integrationTestImplementation(project(":opentelemetry"))
     integrationTestImplementation("io.opentelemetry:opentelemetry-sdk-testing")
-    // EshopLedgerOpsTest: a minimal ops service in the test's JVM, over the ops domain (work package 6.3f, D141).
-    integrationTestImplementation(project(":ops-domain"))
+    // EshopLedgerOpsTest: the statuses of the ops view (work package 6.3f, D141).
+    integrationTestImplementation(project(":ops-api"))
 }
 
 /** The class paths of the servers, and the directory of their output, as the services' JVMs take them. */

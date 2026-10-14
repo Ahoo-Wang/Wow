@@ -389,6 +389,30 @@ component_management:
         - platform/ops/ops-domain/src/main/**
       flag_regexes:
         - "^v10$"
+    - component_id: v10-ops-server
+      name: v10-ops-server
+      paths:
+        - platform/ops/ops-server/src/main/**
+      flag_regexes:
+        - "^v10$"
+    - component_id: v10-view-store-api
+      name: v10-view-store-api
+      paths:
+        - platform/view-store/view-store-api/src/main/**
+      flag_regexes:
+        - "^v10$"
+    - component_id: v10-view-store-domain
+      name: v10-view-store-domain
+      paths:
+        - platform/view-store/view-store-domain/src/main/**
+      flag_regexes:
+        - "^v10$"
+    - component_id: v10-view-store-server
+      name: v10-view-store-server
+      paths:
+        - platform/view-store/view-store-server/src/main/**
+      flag_regexes:
+        - "^v10$"
     - component_id: wow-client
       name: wow-client
       paths:
