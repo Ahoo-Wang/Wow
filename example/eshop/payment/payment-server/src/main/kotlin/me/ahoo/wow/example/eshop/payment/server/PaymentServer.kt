@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
+import java.io.File
 import java.math.BigDecimal
 
 /**
@@ -31,10 +32,18 @@ import java.math.BigDecimal
  */
 @SpringBootApplication(proxyBeanMethods = false)
 class PaymentServer {
-    /** The simulated gateway, which approves up to `eshop.payment.gateway.limit` (1000.00 by default). */
+    /**
+     * The simulated gateway, which approves up to `eshop.payment.gateway.limit` (1000.00 by default), and is down while
+     * the file `eshop.payment.gateway.outage-file` exists (none by default).
+     */
     @Bean
-    fun paymentGateway(@Value("\${eshop.payment.gateway.limit:1000.00}") limit: BigDecimal): PaymentGateway =
-        SimulatedPaymentGateway(limit)
+    fun paymentGateway(
+        @Value("\${eshop.payment.gateway.limit:1000.00}") limit: BigDecimal,
+        @Value("\${eshop.payment.gateway.outage-file:}") outageFile: String,
+    ): PaymentGateway {
+        val outage = outageFile.takeIf { it.isNotBlank() }?.let(::File)
+        return SimulatedPaymentGateway(limit) { outage?.exists() == true }
+    }
 }
 
 fun main(args: Array<String>) {
