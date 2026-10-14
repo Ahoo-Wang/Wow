@@ -68,7 +68,7 @@ catalog:
   eslint-plugin-react-compiler: 19.1.0-rc.2
   eslint-plugin-react-hooks: ^7.1.1
   eslint-plugin-react-refresh: ^0.5.7
-  eslint-plugin-storybook: ^10.6.1
+  eslint-plugin-storybook: ^10.6.2
   '@eslint/js': ^10.0.1
   '@faker-js/faker': ^10.6.0
   globals: ^17.13.0
@@ -94,13 +94,13 @@ catalog:
   react-syntax-highlighter: ^16.1.2
   '@rolldown/plugin-babel': ^0.2.4
   shadcn: ^4.21.4
-  storybook: ^10.6.1
-  '@storybook/addon-a11y': ^10.6.1
-  '@storybook/addon-docs': ^10.6.1
-  '@storybook/addon-themes': ^10.6.1
-  '@storybook/addon-vitest': ^10.6.1
-  '@storybook/react': ^10.6.1
-  '@storybook/react-vite': ^10.6.1
+  storybook: ^10.6.2
+  '@storybook/addon-a11y': ^10.6.2
+  '@storybook/addon-docs': ^10.6.2
+  '@storybook/addon-themes': ^10.6.2
+  '@storybook/addon-vitest': ^10.6.2
+  '@storybook/react': ^10.6.2
+  '@storybook/react-vite': ^10.6.2
   svg-pan-zoom: ^3.6.2
   tailwind-merge: ^3.7.0
   tailwindcss: ^4.3.3
