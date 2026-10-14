@@ -96,6 +96,8 @@ internal data class CommandBinding(
     val reactor: Boolean,
     /** `NONE`, `REQUIRED` (`@CreateAggregate`) or `ALLOWED` (`@AllowCreate`). */
     val creation: String,
+    /** Whether the command is `@Unaddressed`: its request may name no aggregate, which a transformer finds (D182). */
+    val unaddressed: Boolean = false,
     /** The command's JVM binary name, which keys its schema in the Manifest fragment. */
     val type: String,
     /**

@@ -18,7 +18,8 @@ package me.ahoo.wow.manifest
  *
  * Every command is `POST /{context}/{aggregate}/{id}/{segment}`; a creation command ([Creation.REQUIRED] or
  * [Creation.ALLOWED]) is also `POST /{context}/{aggregate}/{segment}`, where the server generates the id, and so is a
- * mounted command (decision D182), whose transformer finds the aggregate it acts on when the request names none. The
+ * mounted or `@Unaddressed` command (decision D182), whose transformer finds the aggregate it acts on when the request
+ * names none. The
  * segment is the command's name in kebab case ([segment]); `{id}` is written literally, as a template variable.
  *
  * The lifecycle commands an aggregate lists ([AggregateManifest.lifecycle]) get no routes here: the edge derives
@@ -64,18 +65,19 @@ object CommandRoutes {
             .lowercase()
 
     /**
-     * The routes of the command [name] of [aggregate] in [context], which creates its aggregate as [creation] says, or
-     * is [mounted] under it.
+     * The routes of the command [name] of [aggregate] in [context], which creates its aggregate as [creation] says;
+     * [unaddressed] when a request may name no aggregate, which a transformer finds (a mounted or `@Unaddressed`
+     * command).
      */
     fun of(
         context: String,
         aggregate: String,
         name: String,
         creation: Creation,
-        mounted: Boolean = false,
+        unaddressed: Boolean = false,
     ): List<RouteManifest> {
         val byId = RouteManifest(POST, byIdPath(context, aggregate, name))
-        return if (creation == Creation.NONE && !mounted) {
+        return if (creation == Creation.NONE && !unaddressed) {
             listOf(byId)
         } else {
             listOf(byId, unaddressed(context, aggregate, name))

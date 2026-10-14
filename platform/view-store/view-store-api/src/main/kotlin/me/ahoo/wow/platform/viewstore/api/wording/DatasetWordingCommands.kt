@@ -15,6 +15,7 @@ package me.ahoo.wow.platform.viewstore.api.wording
 
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.Summary
+import me.ahoo.wow.api.annotation.Unaddressed
 
 /**
  * Sets the wording a tenant's readers see over one dataset in one application: its title, its record noun and its
@@ -34,8 +35,9 @@ data class SetDatasetWording(
 
 /**
  * Clears a dataset's wording, which then reads as none: `POST /view-store/dataset_wording/clear-dataset-wording`.
- * Its id is derived as [SetDatasetWording]'s.
+ * Its id is derived as [SetDatasetWording]'s, so the request names none ([Unaddressed]).
  */
+@Unaddressed
 @Summary("Clear the wording of a dataset")
 data class ClearDatasetWording(val dataset: String)
 

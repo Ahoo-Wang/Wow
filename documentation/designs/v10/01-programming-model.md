@@ -79,6 +79,7 @@ class CartState(val id: String) {
 | `@AggregateRoot` | 聚合根；状态类可分离，其构造函数可为 `()`、`(id)` 或 `(id, tenantId)`（D203） | 同名 |
 | `@OnCommand`、`@OnSourcing` | 非约定命名的命令函数、溯源函数（约定名 `onCommand`、`onSourcing` 不需要注解） | 同名 |
 | `@CreateAggregate`、`@AllowCreate` | 创建语义三态（`Creation`） | 同名 |
+| `@Unaddressed` | 请求可不指明聚合、由转换器找到目标的命令；Manifest 同时列出不带 ID 的路由（D182、D210） | — |
 | `@AfterCommand` | after 钩子（D39） | 同名 |
 | `@Name`、`@Revision`、`@Alias` | 命令与事件的名字、事件的 revision 与旧名（D22、D55） | `@Name`、`Revision` |
 | `@Projection`、`@Reactor`、`@Saga` | 订阅处理器的种类 | `@ProjectionProcessor`、`@EventProcessor`、`@StatelessSaga` |
