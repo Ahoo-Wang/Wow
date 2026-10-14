@@ -216,6 +216,22 @@ class SagaReceiptsTest {
         }
 
     @Test
+    fun `a wait naming the @OnCommitted handler's hop should go on into the commands it derives`(): Unit = runBlocking {
+        val node = start(saga(onRemoveRejected, commits = listOf(onRemoved)))
+        node.fill()
+        val chain = WaitPlan.of(Hop.committed(), Hop.handled(SAGA), Hop.committed(), Hop.handled(ON_REMOVED), Hop.committed())
+        val all = node.gateway.send(request("order", "Place", listOf("apple"), "o-h", chain)).toList()
+        val thanks = compensationId("o-h", ON_REMOVED)
+        val handled = all.single { it.hop == Hop.handled(ON_REMOVED, SHOP) }
+        handled.commandId.assert().isEqualTo(rejectedId("o-h"))
+        handled.derived.assert().containsExactly(thanks)
+        val last = all.last()
+        last.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        last.hop.assert().isEqualTo(Hop.committed(SHOP))
+        last.commandId.assert().isEqualTo(thanks)
+    }
+
+    @Test
     fun `handling the same rejection again should derive the same compensation, which is not decided twice`(): Unit =
         runBlocking {
             val node = start(saga(onRemoveRejected))
@@ -300,6 +316,7 @@ class SagaReceiptsTest {
 
     private companion object {
         const val SAGA = "CartSaga.onOrderPlaced"
+        const val ON_REMOVED = "CartSaga.onRemoved"
         val CHAIN: WaitPlan = WaitPlan.of(Hop.committed(), Hop.handled(SAGA), Hop.committed())
     }
 }

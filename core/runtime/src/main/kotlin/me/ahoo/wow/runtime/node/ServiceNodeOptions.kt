@@ -44,6 +44,7 @@ import me.ahoo.wow.spi.transport.TopicAdmin
 import me.ahoo.wow.spi.transport.TopicProducer
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import me.ahoo.wow.spi.wait.WaitContext
 
 /**
  * The stores of one bounded context on a node (decision D72: a log, its partitions and leases are per context). The
@@ -218,6 +219,12 @@ fun interface SubscriptionFactory {
     fun receipts(context: ContextNode): ReceiptHandler? = null
 
     /**
+     * The `@OnCommitted` handlers of [context]'s sagas, by name (`processor.function`): each is a saga's hop a wait
+     * chain may name (decision D192), though no subscription of the context's log runs it. None by default.
+     */
+    fun committedHandlers(context: String): Set<String> = emptySet()
+
+    /**
      * The aggregate types among [context]'s [models] whose state after each commit the subscriptions read (design 04
      * §1): the context's executor keeps their state views ([ContextNode.views]), asked before the context is
      * assembled. None by default.
@@ -246,6 +253,9 @@ fun interface SubscriptionFactory {
             override fun sourced(context: ContextNode): List<SourcedSubscription> =
                 first.sourced(context) + other.sourced(context)
 
+            override fun committedHandlers(context: String): Set<String> =
+                first.committedHandlers(context) + other.committedHandlers(context)
+
             override fun receipts(context: ContextNode): ReceiptHandler? {
                 val mine = first.receipts(context) ?: return other.receipts(context)
                 val theirs = other.receipts(context) ?: return mine
@@ -253,8 +263,12 @@ fun interface SubscriptionFactory {
                     override suspend fun rejected(rejected: CommandRejected<*>, command: Class<*>): List<String>? =
                         mine.rejected(rejected, command) ?: theirs.rejected(rejected, command)
 
-                    override suspend fun committed(committed: CommandCommitted<*>, command: Class<*>): List<String>? =
-                        mine.committed(committed, command) ?: theirs.committed(committed, command)
+                    override suspend fun committed(
+                        committed: CommandCommitted<*>,
+                        command: Class<*>,
+                        wait: WaitContext?,
+                    ): List<String>? =
+                        mine.committed(committed, command, wait) ?: theirs.committed(committed, command, wait)
                 }
             }
 

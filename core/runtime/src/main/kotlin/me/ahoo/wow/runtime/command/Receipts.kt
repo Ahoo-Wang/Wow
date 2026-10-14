@@ -19,6 +19,7 @@ import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.subscription.Subscription
+import me.ahoo.wow.spi.wait.WaitContext
 
 /**
  * Hands the receipts of the commands a context's sagas derived to the sagas' handlers (decisions D136, D153, D192),
@@ -29,8 +30,12 @@ interface ReceiptHandler {
     /** Hands [rejected], of a command of the class [command], to the saga's `@OnRejected` handler of it. */
     suspend fun rejected(rejected: CommandRejected<*>, command: Class<*>): List<String>?
 
-    /** Hands [committed], of a command of the class [command], to the saga's `@OnCommitted` handler of it. */
-    suspend fun committed(committed: CommandCommitted<*>, command: Class<*>): List<String>?
+    /**
+     * Hands [committed], of a command of the class [command], to the saga's `@OnCommitted` handler of it. [wait] is
+     * the rest of the command's wait chain past its commit, if any: when its next hop is that handler, the handler's
+     * commands carry it on and the hop is signalled, as a saga's hop is (decision D192).
+     */
+    suspend fun committed(committed: CommandCommitted<*>, command: Class<*>, wait: WaitContext? = null): List<String>?
 }
 
 /**
@@ -67,7 +72,7 @@ class Receipts internal constructor(
     /** The subscription of every receipt of the context's receipts topic. */
     val subscription: Subscription = Subscription.messages(nameOf(context), context) { entry ->
         when (val receipt = entry.message) {
-            is CommandCommitted<*> -> handle(receipt)
+            is CommandCommitted<*> -> handle(receipt, entry.transport?.wait)
             else -> handle(receipt as CommandRejected<*>)
         }
     }
@@ -82,9 +87,9 @@ class Receipts internal constructor(
         }
     }
 
-    /** Hands [committed] to the handler once per command id. */
-    internal suspend fun handle(committed: CommandCommitted<*>) = once(committed.commandId) {
-        if (handler.committed(committed, commandClassOf(committed.commandType)) == null) {
+    /** Hands [committed], with the [wait] its receipt carries, to the handler once per command id. */
+    internal suspend fun handle(committed: CommandCommitted<*>, wait: WaitContext? = null) = once(committed.commandId) {
+        if (handler.committed(committed, commandClassOf(committed.commandType), wait) == null) {
             logger.warn {
                 "No @OnCommitted handler of ${committed.executionId.subscription} in $context takes the receipt of " +
                     "${committed.commandType} ${committed.commandId} on ${committed.ref}."

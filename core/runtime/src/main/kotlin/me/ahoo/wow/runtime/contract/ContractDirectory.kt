@@ -155,14 +155,15 @@ class ContractDirectory(
     /**
      * The kind of [subscription] of [context], as the context's Manifest lists it, or the built-in snapshot
      * subscription ([Hop.SNAPSHOT_SUBSCRIPTION]) of a context with an aggregate that keeps snapshots. A saga's
-     * `@OnRejected` or `@OnCommitted` handler is not a wait's hop: it handles receipts, not commits.
+     * `@OnRejected` handler is not a wait's hop: its rejection ended the wait; an `@OnCommitted` handler is a saga's
+     * hop (decision D192), which the receipts of the commands it answers signal.
      */
     override fun kindOf(context: String, subscription: String): FunctionKind? {
         val owned = contextOf(context) ?: return null
         if (subscription == Hop.SNAPSHOT_SUBSCRIPTION) {
             return FunctionKind.SNAPSHOT.takeIf { owned.aggregates.any { it.snapshot.enabled } }
         }
-        val declared = subscriptionOf(context, subscription)?.takeUnless { it.isReceiptHandler } ?: return null
+        val declared = subscriptionOf(context, subscription)?.takeIf { it.rejected == null } ?: return null
         return when (declared.kind) {
             SubscriptionKind.PROJECTION -> FunctionKind.PROJECT
             SubscriptionKind.REACTOR -> FunctionKind.REACT
@@ -196,7 +197,7 @@ class ContractDirectory(
      * none, or when one of them cannot be resolved: a wait chain after its hop is then not checked.
      */
     override fun derivedContextsOf(context: String, subscription: String): Set<String>? {
-        val derives = subscriptionOf(context, subscription)?.takeUnless { it.isReceiptHandler }?.derives ?: return null
+        val derives = subscriptionOf(context, subscription)?.takeIf { it.rejected == null }?.derives ?: return null
         return derives.mapTo(LinkedHashSet()) { reference ->
             val type = commandTypeOf(reference) ?: reference.takeUnless { it.startsWith(DEFS_PREFIX) } ?: return null
             type.substringBefore('.')

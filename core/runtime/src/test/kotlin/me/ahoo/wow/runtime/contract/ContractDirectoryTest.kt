@@ -198,7 +198,7 @@ class ContractDirectoryTest {
     }
 
     @Test
-    fun `an @OnCommitted handler should be no hop, and the commands it takes should count as sent outside`() {
+    fun `an @OnCommitted handler should be a saga's hop, and the commands it takes should count as sent outside`() {
         val committed = subscription(
             "OrderSaga.onReserved",
             source = SubscriptionSource(),
@@ -206,8 +206,9 @@ class ContractDirectoryTest {
             committed = listOf("inventory.stock.ReserveStock"),
         )
         val directory = ContractDirectory(shop(subscriptions = listOf(committed)), ContractFixtures.peers)
-        directory.kindOf("shop", "OrderSaga.onReserved").assert().isNull()
-        directory.derivedContextsOf("shop", "OrderSaga.onReserved").assert().isNull()
+        // Decision D192: the receipts of the commands it answers signal its hop, and its commands go on with the chain.
+        directory.kindOf("shop", "OrderSaga.onReserved").assert().isEqualTo(FunctionKind.SAGA)
+        directory.derivedContextsOf("shop", "OrderSaga.onReserved").assert().containsExactly("shop")
         directory.commandsOutside(setOf("shop"))
             .assert().isEqualTo(mapOf("shop/OrderSaga.onReserved" to sortedSetOf("inventory")))
     }

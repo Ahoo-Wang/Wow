@@ -38,6 +38,7 @@ import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import java.util.concurrent.Executors
+import me.ahoo.wow.spi.wait.WaitContext
 
 /**
  * Adapts the handlers of annotated processors ([ProcessorBinding], decision D149) into the subscriptions of a
@@ -107,8 +108,8 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         if (local.isEmpty()) {
             return emptyList()
         }
+        val receipts = receiptsOf(context, bound)
         val derived = DerivedCommands(context.models, context.coordinator, context.sender, context.creations)
-        val receipts = SagaReceipts(bound, derived, context.ids)
         return local.map { handler ->
             val name = handler.name
             val filter = SubscriptionFilter(
@@ -130,7 +131,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                     val commands = call(handler, event, execution)
                     val wait = DerivedCommands.waitOf(entry.transport?.wait, context.context, name)
                     val replyTo = replyTo(handler, context.context, execution.executionId)
-                    sagaHandled(derived.execute(commands, wait, replyTo), execution.executionId, receipts)
+                    sagaHandled(derived.execute(commands, wait, replyTo), execution.executionId, receipts, wait)
                 }
             } else {
                 Subscription(
@@ -155,8 +156,8 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         if (sourced.isEmpty()) {
             return emptyList()
         }
+        val receipts = receiptsOf(context, bound)
         val derived = DerivedCommands(context.models, context.coordinator, context.sender, context.creations)
-        val receipts = SagaReceipts(bound, derived, context.ids)
         return sourced.map { handler ->
             val name = handler.name
             val types = handler.aggregates.mapTo(LinkedHashSet()) {
@@ -176,7 +177,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                     val commands = call(handler, event, execution)
                     val wait = DerivedCommands.waitOf(entry.transport?.wait, context.context, name)
                     val replyTo = replyTo(handler, context.context, execution.executionId)
-                    sagaHandled(derived.execute(commands, wait, replyTo), execution.executionId, receipts)
+                    sagaHandled(derived.execute(commands, wait, replyTo), execution.executionId, receipts, wait)
                 }
             } else {
                 Subscription(
@@ -199,11 +200,21 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
      * The `@OnRejected` and `@OnCommitted` handlers of [context]'s sagas, for the receipts of the commands they sent to
      * other contexts (decisions D136, D192); null when none of its sagas has one.
      */
-    override fun receipts(context: ContextNode): ReceiptHandler? {
-        val bound = processors[context.context].orEmpty()
-        val derived = DerivedCommands(context.models, context.coordinator, context.sender, context.creations)
-        return SagaReceipts(bound, derived, context.ids).takeUnless { it.isEmpty }
-    }
+    override fun receipts(context: ContextNode): ReceiptHandler? =
+        receiptsOf(context, processors[context.context].orEmpty()).takeUnless { it.isEmpty }
+
+    /** The names of the `@OnCommitted` handlers of [context]'s sagas, each a hop of its waits (decision D192). */
+    override fun committedHandlers(context: String): Set<String> =
+        processors[context].orEmpty().flatMapTo(LinkedHashSet()) { saga -> saga.commits.map { it.name } }
+
+    /** The receipt handlers of the sagas of [bound], of [context], signalling their hops through its coordinator. */
+    private fun receiptsOf(context: ContextNode, bound: List<ProcessorBinding<*>>): SagaReceipts = SagaReceipts(
+        bound,
+        DerivedCommands(context.models, context.coordinator, context.sender, context.creations),
+        context.ids,
+        context.context,
+        context.coordinator::signal,
+    )
 
     /** The models of [models] whose state [handler] reads. */
     private fun read(handler: ProcessorBinding<*>, models: List<AggregateModel<*>>): List<AggregateModel<*>> {
@@ -246,16 +257,19 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
          * What a saga's execution [executed] reports (decision D153): the commands it executed, or, when one was
          * rejected, those and what the saga's `@OnRejected` handler derived for it, with the rejection; a rejection
          * no handler takes parks the aggregate ([DerivedCommandRejectedException]). First, each command of its own
-         * context it committed goes to the saga's `@OnCommitted` handler of it, if any (decision D192); what that
-         * derives is not reported, since the wait does not follow it.
+         * context it committed goes to the saga's `@OnCommitted` handler of it, if any (decision D192), with the
+         * [wait] those commands carry: the handler's hop and its commands go on with that chain as a saga's do.
          */
         internal suspend fun sagaHandled(
             executed: DerivedCommands.Executed,
             execution: ExecutionId,
             receipts: SagaReceipts,
+            wait: WaitContext? = null,
         ): HandledEntry {
+            // The receipts carry the commands' chain on past their commit, through the @OnCommitted handler's hop.
+            val next = wait?.afterCommitted()
             executed.committed.forEach { committed ->
-                receipts.committed(committed.toCommandCommitted(execution), committed.command.body.javaClass)
+                receipts.committed(committed.toCommandCommitted(execution), committed.command.body.javaClass, next)
             }
             val rejected = executed.rejected ?: return HandledEntry(executed.executed)
             val compensations = receipts.rejected(rejected.toCommandRejected(execution), rejected.command.body.javaClass)

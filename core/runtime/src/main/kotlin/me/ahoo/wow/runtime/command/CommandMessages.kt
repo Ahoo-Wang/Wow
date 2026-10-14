@@ -76,8 +76,15 @@ object CommandMessages {
         return mapper.treeToValue(envelope.payload, CommandWire::class.java)
     }
 
-    /** The receipt of [rejected], carrying the propagation fields of its [trace] (decision D174). */
-    fun receipt(rejected: CommandRejected<*>, trace: Map<String, String> = emptyMap()): TopicMessage {
+    /**
+     * The receipt of [rejected], carrying the propagation fields of its [trace] (decision D174) and the [wait] of the
+     * command it answers past its commit, if any (decision D192).
+     */
+    fun receipt(
+        rejected: CommandRejected<*>,
+        trace: Map<String, String> = emptyMap(),
+        wait: WaitContext? = null,
+    ): TopicMessage {
         val envelope = Envelope(
             kind = EnvelopeKind.COMMAND_RECEIPT,
             id = rejected.commandId,
@@ -94,7 +101,7 @@ object CommandMessages {
                     rejected.scope,
                 ),
             ),
-            transport = transportOf(null, trace),
+            transport = transportOf(wait, trace),
         )
         return EnvelopeCodec.message(rejected.executionId.ref.toString(), envelope)
     }
@@ -102,9 +109,14 @@ object CommandMessages {
     /**
      * The success receipt of [committed] (decision D192): `id` is the command's id, as a rejection's, and `payload`
      * `{commandId, commandType, ref, version, result, causation, executionId, operator, scope}`, without the state,
-     * carrying the propagation fields of its [trace] (decision D174).
+     * carrying the propagation fields of its [trace] (decision D174) and, in its transport, the [wait] of the command
+     * it answers past its commit: the rest of the chain, whose next hop is the saga's `@OnCommitted` handler.
      */
-    fun receipt(committed: CommandCommitted<*>, trace: Map<String, String> = emptyMap()): TopicMessage {
+    fun receipt(
+        committed: CommandCommitted<*>,
+        trace: Map<String, String> = emptyMap(),
+        wait: WaitContext? = null,
+    ): TopicMessage {
         val envelope = Envelope(
             kind = EnvelopeKind.COMMAND_RECEIPT,
             id = committed.commandId,
@@ -122,7 +134,7 @@ object CommandMessages {
                     committed.scope,
                 ),
             ),
-            transport = transportOf(null, trace),
+            transport = transportOf(wait, trace),
         )
         return EnvelopeCodec.message(committed.executionId.ref.toString(), envelope)
     }

@@ -20,6 +20,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
@@ -39,7 +41,9 @@ import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.TopicMessage
+import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.transport.TopicProducer
+import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
@@ -64,6 +68,14 @@ class CommittedReceiptsTest {
     private val commits = CopyOnWriteArrayList<CommandCommitted<*>>()
     private val rejections = CopyOnWriteArrayList<CommandRejected<*>>()
 
+    @Volatile
+    private var refuseConfirmation = false
+
+    /** Each node's signals to another node go straight to that node's waits, as the internal signal entry would. */
+    private val signals = SignalSender { origin: Origin, signal: WaitSignal ->
+        nodes.firstOrNull { it.node == origin.node }?.waits?.signal(signal)
+    }
+
     @AfterEach
     fun stop(): Unit = runBlocking {
         nodes.forEach { it.stop() }
@@ -84,6 +96,7 @@ class CommittedReceiptsTest {
         options = fastNodeOptions(),
         contracts = ContractDirectory(stockManifest()),
         topics = SourceTopics(topics, PREFIX, producer, intake = true),
+        remoteSignals = signals,
     ).also {
         nodes += it
         channel.bind(it.address, it.forwardHandler)
@@ -93,7 +106,7 @@ class CommittedReceiptsTest {
         SALES_SERVICE,
         "sales-1",
         "sales-1.internal:9090",
-        listOf(orderModel(cancelled, confirmed)),
+        listOf(orderModel(cancelled, confirmed) { !refuseConfirmation }),
         salesManifest(),
         salesBackends,
         channel,
@@ -101,16 +114,17 @@ class CommittedReceiptsTest {
         subscriptions = SubscriptionBindings(mapOf(SALES to listOf(committingOrderSaga(commits, rejections)))),
         contracts = ContractDirectory(salesManifest(), listOf(peer(stockManifest()))),
         topics = SourceTopics(topics, PREFIX, topics),
+        remoteSignals = signals,
     ).also {
         nodes += it
         channel.bind(it.address, it.forwardHandler)
     }
 
-    private suspend fun ServiceNode.place(id: String, quantity: Int): CommandResult {
+    private suspend fun ServiceNode.place(id: String, quantity: Int, wait: WaitPlan = WaitPlan.COMMITTED): CommandResult {
         val context = context(SALES)
         return context.coordinator.execute(
             context.models.single(),
-            Command("place-$id", "place-$id", ORDER.ref(TENANT, id), PlaceOrder(quantity), wait = WaitPlan.COMMITTED),
+            Command("place-$id", "place-$id", ORDER.ref(TENANT, id), PlaceOrder(quantity), wait = wait),
         )
     }
 
@@ -165,6 +179,49 @@ class CommittedReceiptsTest {
             }
             commits.size.assert().isEqualTo(1)
             confirmed.size.assert().isEqualTo(1)
+        }
+
+    @Test
+    fun `a wait should go on through the @OnCommitted handler's hop into the commands it derives`(): Unit = runBlocking {
+        stockNode = stockNode().also { it.start() }
+        val sales = salesNode().also { it.start() }
+        val chain = WaitPlan.of(
+            Hop.committed(),
+            Hop.handled(SAGA),
+            Hop.committed(STOCK),
+            Hop.handled(ON_RESERVED, SALES),
+            Hop.committed(SALES),
+        )
+        val result = sales.place("o-w", 1, chain)
+        // The wait ends where the order's confirmation, which the receipt's handler derived, is committed.
+        result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        result.hop.assert().isEqualTo(Hop.committed(SALES))
+        result.function.name.assert().isEqualTo("ConfirmOrder")
+        result.ref.assert().isEqualTo(ORDER.ref(TENANT, "o-w"))
+        confirmed.single().assert().isEqualTo(result.commandId)
+        // The receipt carried the rest of the chain, past the reservation's commit.
+        val receipt = EnvelopeCodec.decode(topics.messages(RECEIPTS).single().value)
+        receipt.transport!!.wait!!.remaining.assert().containsExactly(Hop.handled(ON_RESERVED, SALES), Hop.committed(SALES))
+    }
+
+    @Test
+    fun `a wait through the @OnCommitted handler's hop should end REJECTED when what it derives is rejected`(): Unit =
+        runBlocking {
+            stockNode = stockNode().also { it.start() }
+            val sales = salesNode().also { it.start() }
+            // The order is cancelled before its reservation's receipt confirms it: the confirmation is rejected.
+            refuseConfirmation = true
+            val chain = WaitPlan.of(
+                Hop.committed(),
+                Hop.handled(SAGA),
+                Hop.committed(STOCK),
+                Hop.handled(ON_RESERVED, SALES),
+                Hop.committed(SALES),
+            )
+            val result = sales.place("o-x", 1, chain)
+            result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            result.hop.assert().isEqualTo(Hop.handled(ON_RESERVED, SALES))
+            result.error!!.code.assert().isEqualTo(REFUSED)
         }
 
     @Test
@@ -273,5 +330,7 @@ class CommittedReceiptsTest {
         const val PARTITIONS = 4
         const val COMMANDS = PREFIX + "wow.stock.commands"
         const val RECEIPTS = PREFIX + "wow.sales.receipts"
+        const val SAGA = "OrderSaga.onOrderPlaced"
+        const val ON_RESERVED = "OrderSaga.onReserved"
     }
 }

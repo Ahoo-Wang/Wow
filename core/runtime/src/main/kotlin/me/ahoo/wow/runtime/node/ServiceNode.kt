@@ -62,6 +62,7 @@ import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.state.StateViewReader
 import me.ahoo.wow.runtime.state.StateViews
 import me.ahoo.wow.runtime.subscription.LogGroupDirectory
+import me.ahoo.wow.runtime.wait.ReceiptHops
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
@@ -326,6 +327,9 @@ class ServiceNode(
 
     /** Sends the commands of every context's sagas to the command topics of other contexts; null without a producer. */
     private val sender: CommandSender? = topics?.takeIf { it.producer != null }?.let { CommandSender(contracts, it) }
+
+    /** The `@OnCommitted` handlers of each context's sagas: hops of its waits (decision D192). */
+    private val committedHandlers: (String) -> Set<String> = subscriptions::committedHandlers
 
     init {
         // A saga that sends to another context needs a producer: without one, each of its executions would retry and
@@ -935,7 +939,11 @@ class ServiceNode(
         fun complete(): ContextNode {
             val runtimes = logGroups.drop(1).flatMap { group -> group.types.map { it to group.subscriptions } }.toMap()
             val directory = contracts.over(
-                if (runtimes.isEmpty()) subscriptions else LogGroupDirectory(subscriptions, runtimes),
+                ReceiptHops(
+                    if (runtimes.isEmpty()) subscriptions else LogGroupDirectory(subscriptions, runtimes),
+                    context,
+                    committedHandlers(context),
+                ),
                 context,
             )
             val coordinator = WaitCoordinator(

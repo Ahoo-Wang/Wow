@@ -33,6 +33,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.spi.wait.WaitContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import me.ahoo.wow.manifest.Creation as ManifestCreation
@@ -44,6 +45,7 @@ const val STOCK_SERVICE = "stock-service"
 const val TENANT = "t"
 const val PREFIX = "test."
 const val INSUFFICIENT = "stock.insufficient"
+const val REFUSED = "sales.order.refused"
 
 /** How many items one stock item holds: a reservation of more is rejected. */
 const val AVAILABLE = 5
@@ -75,11 +77,12 @@ class ItemState {
 
 /**
  * The order of the sales context; every cancellation it decides is recorded in [decided], and every confirmation in
- * [confirmed], by id.
+ * [confirmed], by id; a confirmation is rejected unless [confirmable].
  */
 fun orderModel(
     decided: MutableList<String> = CopyOnWriteArrayList(),
     confirmed: MutableList<String> = CopyOnWriteArrayList(),
+    confirmable: () -> Boolean = { true },
 ): AggregateModel<OrderState> =
     aggregate<OrderState>(SALES, "order") {
         initial { OrderState() }
@@ -89,6 +92,9 @@ fun orderModel(
             Decision.events(OrderCancelled())
         }
         decide<ConfirmOrder> { _, _ ->
+            if (!confirmable()) {
+                return@decide Decision.reject(REFUSED, "The order cannot be confirmed.")
+            }
             confirmed += command.id
             Decision.events(OrderConfirmed())
         }
@@ -235,7 +241,10 @@ fun receiptHandler(
         override suspend fun rejected(rejected: CommandRejected<*>, command: Class<*>): List<String>? =
             onRejected(rejected, command)
 
-        override suspend fun committed(committed: CommandCommitted<*>, command: Class<*>): List<String>? =
-            onCommitted(committed, command)
+        override suspend fun committed(
+            committed: CommandCommitted<*>,
+            command: Class<*>,
+            wait: WaitContext?,
+        ): List<String>? = onCommitted(committed, command)
     }
 }
