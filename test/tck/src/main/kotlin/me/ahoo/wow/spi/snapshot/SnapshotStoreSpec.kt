@@ -304,6 +304,8 @@ abstract class SnapshotStoreSpec {
         store.claim(type, 2).assert().isEqualTo(SnapshotTable(2, rebuilding = true))
         store.mark(type, 1, rebuilding = false).assert().isNull()
         store.mark(type, 2, rebuilding = false).assert().isEqualTo(SnapshotTable(2))
+        store.mark(type, 2).assert().isEqualTo(SnapshotTable(2))
+        store.mark(type, 1).assert().isNull()
         store.claim(type, 1).assert().isEqualTo(SnapshotTable(2))
         store.claim(type, 2, lower = true).assert().isEqualTo(SnapshotTable(2))
         store.claim(type, 1, lower = true).assert().isEqualTo(SnapshotTable(1, rebuilding = true))
