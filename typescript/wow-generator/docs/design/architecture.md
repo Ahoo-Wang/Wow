@@ -189,7 +189,7 @@ V10 的服务契约是 Manifest（D17、D73～D76），不是 OpenAPI。生成�
 - **布局。** 每个上下文一个目录：`types.ts`（它的聚合能达到的 `$defs`；两个上下文都达到的 schema 声明在第一个，另一个导入）、`boundedContext.ts`（上下文常量、领域错误码与状态、订阅名、`<ctx>Wait` 跳构建器）；每个聚合一个子目录：`aggregate.ts`（聚合常量、`state.*` 字段路径、事件联合）、`commandClient.ts`（路由常量、每个命令一个方法与它的 `…Stream`、聚合列出的生命周期命令）、`queryClient.ts`（列出快照模型时的快照查询客户端、事件查询客户端、状态客户端）。
 - **类型。** `$defs` 的键是类的二进制名，类型名取简单类名（`Outer$Inner` → `OuterInner`），冲突时逐级加包名限定（`one.Item`、`two.Item` → `OneItem`、`TwoItem`），包名用尽仍冲突才加序号。schema 到类型：`$ref`、`const`、`enum`、`oneOf`/`anyOf`（联合）、`allOf`（交叉）、`type` 数组（可空）、`items`、`properties`（不在 `required` 里的可选）、`additionalProperties`（只有它时是 `Record`；与属性并存时索引签名是 `unknown`，类型化的索引签名必须容下每个属性的类型）。`$defs` 里找不到的引用是 `unknown` 并给一条警告。
 - **命令方法的形状。** 只有带 `{id}` 路由的命令收 `id` 作第一个参数；两条路由都有的（创建、挂载命令）把 `id` 放进可选的选项，给了走带 `{id}` 的路由；只有不带 `{id}` 路由的不收 `id`。命令 schema 不要求任何属性时正文可省（`= {}`）。与生命周期方法同名的领域命令加 `Command` 后缀。
-- **Manifest 尚缺的。** 状态 schema 没有 `required`，所以生成的状态属性全是可选；命令与事件没有描述；生命周期命令的正文不在 `$defs`，由 `wow-client/v10` 手写类型。这些由 Manifest（JVM 侧）补上后，产物自然收紧。
+- **描述与生命周期正文（roadmap 5a.1c）。** Manifest 的 schema 带 `required`（Kotlin 非空且无默认值的属性，以及类体里非空的状态属性），所以生成的状态属性按实际可空性生成。命令的 `description` 写在方法 JSDoc 的第一行，schema 的 `description` 写在类型注释里。生命周期命令的正文在 `$defs` 里以命令全名为键（`wow.lifecycle.TransferOwner`）：有正文的生命周期命令（`TransferOwner`、`TransferSpace`、`ApplyTags`）在 `$defs` 有该键时从它生成类型、声明在 `types.ts`，没有时仍用 `wow-client/v10` 手写的类型；任何生命周期命令的 schema 有 `description` 时写在它方法的注释里。
 - **把关。** `test/manifests/` 提交了 eShop 五个服务 `GET /wow/manifest` 的应答；`test/goldens/manifestDocuments.test.ts` 把它们生成到 `expected/eshop-manifest/` 逐字节比对、在 `bundler` 与 `NodeNext` 下类型检查，并对桩 `fetch` 运行产物核对线协议；`test/probes/manifestClients.test.ts` 覆盖 eShop 没有的形状（各种 schema、名字冲突、跨上下文共用、缺失引用、拒绝的输入）。
 
 ---

@@ -49,6 +49,7 @@ internal object MountedCommandResolver {
             type = declaration.binaryName(),
             transformsTo = transformsTo,
             problems = problems,
+            description = Descriptions.of(declaration),
         )
     }
 

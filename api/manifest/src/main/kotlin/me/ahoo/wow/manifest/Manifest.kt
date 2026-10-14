@@ -102,6 +102,8 @@ data class ContextManifest(
  * An aggregate of a context. [lifecycle] lists the system commands (design 01 §6) the aggregate's model handles, by
  * their full names in the system namespace (`wow.lifecycle.DeleteAggregate`): they are the same types for every
  * aggregate, so unlike [commands] they are not names within the aggregate and never conflict between aggregates.
+ * The body of each is the schema of [Manifest.defs] keyed by that full name ([Manifest.schemaRef] of it), so a client
+ * types it like a command's.
  * [queries] are the read models of the aggregate a client queries ([QueryManifest], decision D128).
  *
  * [schedules] names the commands the aggregate's decide functions may schedule (decision D166), each by its full type
@@ -171,6 +173,9 @@ data class QueryManifest(val model: String, val routes: List<RouteManifest> = em
  * it into a command that is, at admission. It creates nothing itself ([creation] is [Creation.NONE]) and produces
  * nothing ([produces] is null); [transformsTo] lists, by full type name, the commands it becomes, as
  * `@MountedCommand(transformsTo)` declares them; null when it declares none.
+ *
+ * [description] is what the command's class says it does: its `@Description`, else the summary of its KDoc; null when
+ * it says nothing. It documents the command for a client, and is no part of the contract.
  */
 data class CommandManifest(
     val name: String,
@@ -181,6 +186,7 @@ data class CommandManifest(
     val routes: List<RouteManifest> = emptyList(),
     val mounted: Boolean = false,
     val transformsTo: List<String>? = null,
+    val description: String? = null,
 )
 
 /**
@@ -208,12 +214,16 @@ enum class Creation {
     ALLOWED,
 }
 
-/** An event of the aggregate: its name in the log, its [revision] and former names (design 01 §8). */
+/**
+ * An event of the aggregate: its name in the log, its [revision] and former names (design 01 §8), and its
+ * [description], as for a [CommandManifest].
+ */
 data class EventManifest(
     val name: String,
     val aliases: List<String> = emptyList(),
     val revision: Int = 1,
     val schema: String,
+    val description: String? = null,
 )
 
 /**

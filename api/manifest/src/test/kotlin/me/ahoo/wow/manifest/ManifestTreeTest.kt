@@ -33,6 +33,32 @@ class ManifestTreeTest {
     }
 
     @Test
+    fun `command and event descriptions should come back through the JSON text, and absent ones be left out`() {
+        val aggregate = AggregateManifest(
+            "cart",
+            state = StateManifest(Manifest.schemaRef("sample.Cart")),
+            commands = listOf(
+                CommandManifest("AddItem", schema = Manifest.schemaRef("sample.AddItem"), description = "Adds."),
+                CommandManifest("Clear", schema = Manifest.schemaRef("sample.Clear")),
+            ),
+            events = listOf(
+                EventManifest("ItemAdded", schema = Manifest.schemaRef("sample.ItemAdded"), description = "Added."),
+                EventManifest("Cleared", schema = Manifest.schemaRef("sample.Cleared")),
+            ),
+        )
+        val fragment = Manifest(contexts = listOf(ContextManifest("shop", aggregates = listOf(aggregate))))
+        val json = mapper.writeValueAsString(ManifestTree.write(fragment))
+        json.assert().contains("\"description\":\"Adds.\"").contains("\"description\":\"Added.\"")
+        ManifestTree.read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(fragment)
+        val tree = ManifestTree.write(fragment)
+        val written = ((tree["contexts"] as List<*>).single() as Map<*, *>)["aggregates"] as List<*>
+        val commands = (written.single() as Map<*, *>)["commands"] as List<*>
+        val events = (written.single() as Map<*, *>)["events"] as List<*>
+        (commands[1] as Map<*, *>).containsKey("description").assert().isFalse()
+        (events[1] as Map<*, *>).containsKey("description").assert().isFalse()
+    }
+
+    @Test
     fun `a mounted command should come back through its JSON text, and a decided one leave mounted out`() {
         val mounted = CommandManifest(
             name = "ImportCustomer",

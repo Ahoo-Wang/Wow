@@ -189,6 +189,42 @@ class ManifestOpenApiTest {
     }
 
     @Test
+    fun `a lifecycle body and a command description the Manifest holds should be the document's`() {
+        val body = mapOf(
+            "type" to "object",
+            "properties" to mapOf("tags" to mapOf("type" to "object")),
+            "required" to listOf("tags"),
+        )
+        val described = MANIFEST.copy(
+            contexts = MANIFEST.contexts.map { context ->
+                context.copy(
+                    aggregates = context.aggregates.map { aggregate ->
+                        aggregate.copy(
+                            commands = aggregate.commands.map {
+                                if (it.name == "PutItem") it.copy(description = "Puts an item into the cart.") else it
+                            },
+                        )
+                    },
+                )
+            },
+            defs = MANIFEST.defs + ("wow.lifecycle.ApplyTags" to body),
+        )
+        val written = ManifestOpenApi.write(described)
+        OpenApiChecks.check(written)
+        @Suppress("UNCHECKED_CAST")
+        val schemas = (written["components"] as Map<String, Any?>)["schemas"] as Map<String, Any?>
+        schemas["wow.lifecycle.ApplyTags"].assert().isEqualTo(body)
+        val applyTags = schemas.keys.filter { it.startsWith("wow.lifecycle.ApplyTags") }
+        applyTags.assert().containsExactly("wow.lifecycle.ApplyTags")
+        val delete = schemas["wow.lifecycle.DeleteAggregate"]
+        delete.assert().isEqualTo(WowSchemas.LIFECYCLE["wow.lifecycle.DeleteAggregate"])
+        @Suppress("UNCHECKED_CAST")
+        val put = ((written["paths"] as Map<String, Any?>)["/shop/cart/{id}/put-item"] as Map<String, Any?>)["post"]
+            as Map<String, Any?>
+        put["description"].toString().assert().startsWith("Puts an item into the cart. Sends `shop.cart.PutItem`.")
+    }
+
+    @Test
     fun `a context with jobs should have the job routes, and the job codes among the errors`() {
         val document = ManifestOpenApi.write(
             MANIFEST.copy(
