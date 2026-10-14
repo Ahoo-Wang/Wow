@@ -17,7 +17,12 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.WowHttpOptions
+import me.ahoo.wow.http.call.HttpCommandCaller
+import me.ahoo.wow.http.call.ServiceCredential
+import me.ahoo.wow.http.callRoutes
 import me.ahoo.wow.http.caller.CallerResolver
+import me.ahoo.wow.http.caller.InternalCallerResolver
+import me.ahoo.wow.http.caller.ServiceTokens
 import me.ahoo.wow.http.command.JakartaCommandValidator
 import me.ahoo.wow.http.internal.HttpClusterChannel
 import me.ahoo.wow.http.internal.HttpSignalSender
@@ -39,6 +44,7 @@ import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
+import me.ahoo.wow.runtime.call.CommandCaller
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.manifest.ManifestLoader
@@ -105,6 +111,11 @@ import jakarta.validation.Validator as JakartaValidator
  *   [CallerResolver] (anonymous otherwise, D97); the cluster channel and the wait signals ([internalRoutes]) on an
  *   [InternalServer] of their own at `wow.internal.port`, never on the public server, the node's address learned once
  *   it is bound when the port is 0; [HttpClusterChannel] and [HttpSignalSender] share one JDK client.
+ * - **Synchronous calls** (decision D193): the sagas call other contexts' gateways through the [CommandCaller] bean,
+ *   by default an [HttpCommandCaller] at `wow.calls.contexts.<context>.url`, the target's internal port, presenting
+ *   the [ServiceCredential] bean (`wow.calls.token` as a bearer). The internal port serves the command routes of the
+ *   calls ([callRoutes]) to the service identities of `wow.http.services`, by their tokens ([ServiceTokens]), or of
+ *   the [InternalCallerResolver] bean (CoSec's service principals); the public port refuses `Wow-Call`.
  * - **Subscriptions**: the annotated processors' handlers the binding indexes list ([ModelProvider.processors], built
  *   from the application's beans), then every [SubscriptionFactory] bean, the application's and the modules' (such
  *   as the Kafka Sink), in their order. Those that read other contexts' published streams read them from the
@@ -218,6 +229,27 @@ class WowAutoConfiguration {
         properties: WowProperties,
     ): SignalSender = HttpSignalSender(client, queueCapacity = properties.internal.signalQueueCapacity)
 
+    /** The credential of the node's synchronous calls (decision D193): `wow.calls.token` as a bearer, else none. */
+    @Bean
+    @ConditionalOnMissingBean
+    fun wowServiceCredential(properties: WowProperties): ServiceCredential =
+        properties.calls.token?.takeIf { it.isNotBlank() }?.let(ServiceCredential::bearer) ?: ServiceCredential.NONE
+
+    /** The client of the other contexts' command gateways the sagas call (decision D193), at `wow.calls.contexts`. */
+    @Bean
+    @ConditionalOnMissingBean
+    fun wowCommandCaller(properties: WowProperties, credential: ServiceCredential): CommandCaller {
+        val calls = properties.calls
+        return HttpCommandCaller(
+            endpoints = calls.contexts.mapValues { (context, target) ->
+                checkNotNull(target.url) { "wow.calls.contexts.$context.url is not set." }
+            },
+            credential = credential,
+            client = HttpCommandCaller.client(calls.connectTimeout.toKotlinDuration()),
+            timeout = calls.timeout.toKotlinDuration(),
+        )
+    }
+
     @Bean
     @ConditionalOnMissingBean
     @Suppress("LongParameterList") // One parameter per part of the node, each a bean the application may replace.
@@ -244,6 +276,7 @@ class WowAutoConfiguration {
         topics: ObjectProvider<SourceTopics>,
         notifiers: ObjectProvider<ParkedNotifier>,
         observers: ObjectProvider<Observer>,
+        callers: ObjectProvider<CommandCaller>,
     ): ServiceNode {
         checkShutdownTimeout(environment)
         val routing = routing(properties, backends.kind)
@@ -295,6 +328,7 @@ class WowAutoConfiguration {
             topics = topics.ifAvailable,
             parkedNotifier = ParkedNotifier.of(notifiers.orderedStream().toList()),
             observer = observers.getIfUnique { Observer.NONE },
+            caller = callers.ifAvailable,
         )
     }
 
@@ -303,12 +337,26 @@ class WowAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun wowInternalServer(properties: WowProperties, node: ServiceNode, identity: NodeIdentity): InternalServer =
-        InternalServer(
-            properties.internal.port,
-            identity.bindHost,
-            internalRoutes(node.forwardHandler, node.waits)
-        )
+    fun wowInternalServer(
+        properties: WowProperties,
+        node: ServiceNode,
+        identity: NodeIdentity,
+        manifest: Manifest,
+        callers: CallerResolver,
+        internalCallers: ObjectProvider<InternalCallerResolver>,
+        options: WowHttpOptions,
+    ): InternalServer = InternalServer(
+        properties.internal.port,
+        identity.bindHost,
+        internalRoutes(node.forwardHandler, node.waits).and(
+            callRoutes(
+                manifest,
+                node.gateway,
+                serviceTokens(properties).resolver(internalCallers.ifAvailable ?: callers),
+                options,
+            ),
+        ),
+    )
 
     /** Binds the internal port, then gives a node without a configured address the one it is bound at. */
     @Bean
@@ -378,8 +426,14 @@ class WowAutoConfiguration {
         callers: CallerResolver,
         options: WowHttpOptions,
         queries: ObjectProvider<HttpQueries>,
-    ): RouterFunction<ServerResponse> =
-        wowRoutes(manifest, node.gateway, reads, callers, options, queries.getIfAvailable { HttpQueries.NONE })
+    ): RouterFunction<ServerResponse> = wowRoutes(
+        manifest,
+        node.gateway,
+        reads,
+        callers,
+        options,
+        queries.getIfAvailable { HttpQueries.NONE },
+    )
 
     /**
      * The operator's routes over the parked entries (roadmap P.1), when `wow.ops.enabled`: authenticated by the
@@ -435,6 +489,15 @@ class WowAutoConfiguration {
         const val WOW_AGGREGATE_ID_GENERATOR: String = "wowAggregateIdGenerator"
         private const val JAKARTA_VALIDATOR = "jakarta.validation.Validator"
         private val logger = KotlinLogging.logger {}
+
+        /**
+         * The service identities the internal port trusts by their static tokens (`wow.http.services`, decision D193), in
+         * the default tenant.
+         */
+        internal fun serviceTokens(properties: WowProperties): ServiceTokens = ServiceTokens(
+            properties.http.services.mapValues { it.value.tokens.toList() },
+            properties.tenant.default,
+        )
 
         /**
          * Where commands run: `wow.cluster.router`, by default local on the memory backend, whose stores no other

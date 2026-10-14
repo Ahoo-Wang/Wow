@@ -17,10 +17,13 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.id.Ids
+import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.SetSchedule
+import me.ahoo.wow.api.subscribe.CallFailedException
+import me.ahoo.wow.api.subscribe.CallRejectedException
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.ProjectContext
 import me.ahoo.wow.api.subscribe.ReactContext
@@ -48,6 +51,9 @@ data class ExecutionReactContext(override val executionId: ExecutionId) : ReactC
  * schedule named by [commandTypes] and written by [codec].
  *
  * Its [ids] are the node's generators (decision D171); a domain module's test gives fixed ones.
+ *
+ * Its synchronous [call]s (decision D193) go through [calls]: the node's client of the other contexts' command
+ * gateways, an answer in a domain module's test.
  */
 class ExecutionSagaContext(
     override val executionId: ExecutionId,
@@ -55,8 +61,9 @@ class ExecutionSagaContext(
     override val ids: Ids = IdGenerators.DEFAULT,
     private val commandTypes: CommandTypes = CommandTypes.SIMPLE_NAMES,
     private val codec: EventCodec = EventCodec(),
+    private val calls: CommandCalls = CommandCalls.NONE,
 ) : SagaContext {
-    private val calls = AtomicInteger()
+    private val derived = AtomicInteger()
 
     init {
         require(event.ref == executionId.ref && event.version == executionId.version) {
@@ -72,7 +79,7 @@ class ExecutionSagaContext(
      * them (decision D199), and they are recorded for the audit.
      */
     override fun <C : Any> command(ref: AggregateRef, body: C): Command<C> {
-        val id = derivedId(executionId, calls.getAndIncrement())
+        val id = derivedId(executionId, derived.getAndIncrement())
         return Command(
             id = id,
             requestId = id,
@@ -95,6 +102,22 @@ class ExecutionSagaContext(
     override fun cancel(key: String, target: AggregateRef): Command<CancelSchedule> =
         command(target, CancelSchedule(key))
 
+    /**
+     * Calls [command] through [calls] (decision D193): its result when it succeeded; a [CallRejectedException] when
+     * the target refused it, a [CallFailedException] when it failed there or reached no result.
+     */
+    override suspend fun call(command: Command<*>): CommandResult {
+        val result = calls.call(command)
+        return when (result.status) {
+            CommandResult.Status.SUCCEEDED -> result
+            CommandResult.Status.REJECTED -> throw CallRejectedException(command, result)
+            CommandResult.Status.FAILED -> throw CallFailedException(
+                "The call of ${command.id} on ${command.ref} failed: ${result.error?.code} ${result.error?.message}",
+                result = result,
+            )
+        }
+    }
+
     companion object {
         /**
          * The id, and request id, of the [index]-th command (from 0) derived by [execution]: a name-based UUID of
@@ -110,8 +133,8 @@ class ExecutionSagaContext(
 
 /**
  * The context a handler of [kind] gets for the execution of [event] by the subscription [subscription]: its
- * [ExecutionId] is (subscription, aggregate, version); a saga's takes its ids from [ids] and names the commands it
- * schedules by [commandTypes].
+ * [ExecutionId] is (subscription, aggregate, version); a saga's takes its ids from [ids], names the commands it
+ * schedules by [commandTypes] and makes its synchronous calls through [calls] (decision D193).
  */
 fun contextOf(
     kind: FunctionKind,
@@ -119,12 +142,13 @@ fun contextOf(
     event: StateEvent<*>,
     ids: Ids = IdGenerators.DEFAULT,
     commandTypes: CommandTypes = CommandTypes.SIMPLE_NAMES,
+    calls: CommandCalls = CommandCalls.NONE,
 ): SubscriptionContext {
     val execution = ExecutionId(subscription, event.ref, event.version)
     return when (kind) {
         FunctionKind.PROJECT -> ExecutionProjectContext(execution)
         FunctionKind.REACT -> ExecutionReactContext(execution)
-        FunctionKind.SAGA -> ExecutionSagaContext(execution, event, ids, commandTypes)
+        FunctionKind.SAGA -> ExecutionSagaContext(execution, event, ids, commandTypes, calls = calls)
         else -> throw IllegalArgumentException("A $kind handler is not a processor's.")
     }
 }

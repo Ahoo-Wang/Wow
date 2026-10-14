@@ -18,6 +18,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.snapshot.SnapshotRebuilds
@@ -86,7 +87,9 @@ import org.springframework.web.reactive.function.server.coRouter
  *   `text/plain`;
  * - any other request under a context of the Manifest is a 404 problem.
  *
- * Every route is authenticated by [callerResolver] (401 `wow.auth.unauthenticated` when it returns null). Errors are
+ * Every route is authenticated by [callerResolver] (401 `wow.auth.unauthenticated` when it returns null). A command
+ * request that carries `Wow-Call` is refused (403 `wow.auth.forbidden`) whatever its credential: the services'
+ * synchronous calls are taken on the internal port alone ([callRoutes], decision D193). Errors are
  * RFC 9457 problems whose statuses come from the Manifest's error tables ([ErrorStatuses]). The host serves other
  * routes under a context's path only by composing them before these.
  */
@@ -219,6 +222,44 @@ private fun CoRouterFunctionDsl.document(
             authenticator.authenticate(request)
             Negotiation.checkAcceptable(request, alsoEventStream = false)
             ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(body)
+        }
+    }
+}
+
+/**
+ * The routes of the services' synchronous calls (decision D193), served on the internal port (decision D173) beside
+ * the cluster channel and the wait signals: every command route of [manifest], the same paths and answers as on the
+ * public port, sending the command through [gateway]. Each request must come from a
+ * [service][me.ahoo.wow.api.caller.Caller.service] identity, which [callerResolver] resolves (a service token, or a
+ * CoSec service principal), and carry `Wow-Call`; any other, one without credentials too, is answered 403
+ * `wow.auth.forbidden`. The public port
+ * refuses `Wow-Call` ([wowRoutes]), so the root command a call asserts reaches a node only through its internal
+ * network, from a service it trusts.
+ */
+fun callRoutes(
+    manifest: Manifest,
+    gateway: CommandGateway,
+    callerResolver: CallerResolver,
+    options: WowHttpOptions = WowHttpOptions(),
+): RouterFunction<ServerResponse> {
+    val statuses = ErrorStatuses(manifest, options.errorStatuses)
+    val commands = CommandHandler(
+        gateway = gateway,
+        // A request without credentials is no service either: 403, as for any other caller.
+        authenticator = Authenticator(
+            CallerResolver { request -> callerResolver.resolve(request) ?: Caller.ANONYMOUS },
+            statuses,
+        ),
+        headers = RequestHeaders(statuses),
+        statuses = statuses,
+        options = options,
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+        internal = true,
+    )
+    val served = withTransformedRoutes(manifest, gateway)
+    return coRouter {
+        served.contexts.forEach { context ->
+            context.aggregates.forEach { aggregate -> commandRoutes(context.name, aggregate, commands, statuses) }
         }
     }
 }

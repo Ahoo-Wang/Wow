@@ -45,6 +45,7 @@ import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.admission.ModelRegistry
+import me.ahoo.wow.runtime.call.CommandCaller
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
 import me.ahoo.wow.runtime.cluster.CommandRouter
@@ -157,6 +158,13 @@ class ContextNode internal constructor(
     val snapshotSubscriptions: List<SnapshotSubscription> = listOfNotNull(snapshots),
     /** The context's snapshot maintenance (decision D172), when it keeps snapshots. */
     val snapshotMaintenance: SnapshotMaintenance? = null,
+    /**
+     * The client of the other contexts' command gateways the context's sagas call synchronously (decision D193); null
+     * when the host gives none, and a call then fails.
+     */
+    val caller: CommandCaller? = null,
+    /** The contexts of the node: a saga derives the commands of these, and calls only the others (decision D193). */
+    val served: Set<String> = setOf(context),
 ) {
     /**
      * The ids of the context's creation commands that name no aggregate (decision D191): a saga's derived command, one
@@ -326,6 +334,11 @@ class ServiceNode(
      * subscription and the firing of timers; nothing by default.
      */
     private val observer: Observer = Observer.NONE,
+    /**
+     * The client of the other contexts' command gateways (decision D193), through which the sagas call them
+     * synchronously; none by default, and a call then fails.
+     */
+    private val caller: CommandCaller? = null,
 ) {
     init {
         require(service.isNotBlank()) { "A node names its service." }
@@ -1124,6 +1137,8 @@ class ServiceNode(
                 commandTypes,
                 snapshots,
                 maintenance,
+                caller,
+                registry.contexts,
             )
         }
     }

@@ -17,6 +17,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.Misfire
+import me.ahoo.wow.http.call.HttpCommandCaller
 import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.http.ops.WebhookNotifier
@@ -93,7 +94,11 @@ import kotlin.time.toKotlinDuration
  *   its start.
  * - `wow.tenant.default`: the tenant of a caller that has none (D97).
  * - `wow.http.request-facts`, `wow.http.errors.[<code>].status`, `wow.http.manifest.enabled`,
- *   `wow.http.openapi.enabled` (`GET /wow/openapi`, the OpenAPI document of the routes).
+ *   `wow.http.openapi.enabled` (`GET /wow/openapi`, the OpenAPI document of the routes);
+ *   `wow.http.services.<service>.tokens`: the service identities the internal port trusts without CoSec (decision
+ *   D193), see [Http.Service].
+ * - `wow.calls.contexts.<context>.url`, `wow.calls.token`, `wow.calls.timeout` (10s), `wow.calls.connect-timeout`
+ *   (2s): the synchronous calls of the sagas to other contexts' command gateways (decision D193), see [Calls].
  * - `wow.aggregates.[<context>.<aggregate>].tenant`: a fixed tenant per aggregate type (decision D116);
  *   `wow.aggregates.[<context>.<aggregate>].id-generator`: the generator of its new ids (decision D171);
  *   `wow.aggregates.[<context>.<aggregate>].routing`: `cluster` (the default, the node's `wow.cluster.router`)
@@ -123,6 +128,7 @@ class WowProperties {
     var schedules: MutableMap<String, Schedule> = LinkedHashMap()
     var tenant: Tenant = Tenant()
     var http: Http = Http()
+    var calls: Calls = Calls()
     var ops: Ops = Ops()
 
     /** Per aggregate type, by `<context>.<aggregate>` (bracketed in a property name: `wow.aggregates.[shop.cart]`). */
@@ -566,6 +572,22 @@ class WowProperties {
         var manifest: Manifest = Manifest()
         var openapi: OpenApi = OpenApi()
 
+        /**
+         * The service identities the internal port trusts by their static tokens, by service name (decision D193): a
+         * call whose `Authorization: Bearer` token is one of them is that service's, which alone may send `Wow-Call`,
+         * and only to the internal port. For a deployment without CoSec; with CoSec, `wow.cosec.service.roles` names its
+         * service principals.
+         */
+        var services: MutableMap<String, Service> = LinkedHashMap()
+
+        /**
+         * One trusted service: the [tokens] it may present, at least 32 characters each, several while one is rotated
+         * (add the new one here, switch the caller's `wow.calls.token`, then remove the old one).
+         */
+        class Service {
+            var tokens: MutableList<String> = ArrayList()
+        }
+
         class Error {
             var status: Int = 0
         }
@@ -578,6 +600,27 @@ class WowProperties {
         class OpenApi {
             /** Serves `GET /wow/openapi`, the OpenAPI 3.1 document of the routes (roadmap 5a.2). */
             var enabled: Boolean = true
+        }
+    }
+
+    /**
+     * The synchronous calls of the node's sagas to the command gateways of other contexts (decision D193): each
+     * context's base URL ([contexts], `wow.calls.contexts.<context>.url`: the target's internal port, `http://host:port`
+     * of an address in its internal network, never its public port, which refuses calls), the service token the node
+     * presents as `Authorization: Bearer` ([token]; an application's
+     * [me.ahoo.wow.http.call.ServiceCredential] bean, such as one that renews a CoSec token, replaces it), how long one
+     * call may take ([timeout]) and connect ([connectTimeout]). A saga that calls a context without a URL fails, then
+     * parks.
+     */
+    class Calls {
+        var contexts: MutableMap<String, CallTarget> = LinkedHashMap()
+        var token: String? = null
+        var timeout: Duration = HttpCommandCaller.DEFAULT_TIMEOUT.toJavaDuration()
+        var connectTimeout: Duration = HttpCommandCaller.DEFAULT_CONNECT_TIMEOUT.toJavaDuration()
+
+        /** Where one context's command gateway is: its public port's base [url]. */
+        class CallTarget {
+            var url: URI? = null
         }
     }
 

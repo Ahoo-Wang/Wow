@@ -17,11 +17,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.runtime.cluster.CommandWire
-import me.ahoo.wow.runtime.command.CommandMessages
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
-import me.ahoo.wow.spi.transport.EnvelopeCodec
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -49,9 +46,13 @@ class BasketTestBeans {
     fun sourceTopics(topics: InMemoryTopics): SourceTopics = SourceTopics(topics, producer = topics)
 }
 
-/** The basket service as its `application.yaml` configures it, on random ports, with its topics in memory. */
+/**
+ * The basket service as its `application.yaml` configures it, on random ports, with its topics in memory, and the
+ * ordering service's command gateway a fake that records the checkout saga's calls (decision D193).
+ */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class BasketServerTest {
+    private val ordering = FakeOrdering()
     private val context = SpringApplicationBuilder(BasketServer::class.java, BasketTestBeans::class.java).run(
         "--spring.main.banner-mode=off",
         "--server.port=0",
@@ -61,6 +62,8 @@ class BasketServerTest {
         "--wow.cluster.drain-timeout=1s",
         "--wow.subscription.stop-timeout=2s",
         "--wow.wait.max-timeout=15s",
+        "--wow.calls.contexts.eshop-ordering.url=${ordering.url}",
+        "--wow.calls.token=$TOKEN",
     )
     private val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
     private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
@@ -70,6 +73,7 @@ class BasketServerTest {
     fun close() {
         context.close()
         http.shutdownNow()
+        ordering.close()
     }
 
     @Test
@@ -108,8 +112,13 @@ class BasketServerTest {
         checkedOut.first.assert().describedAs(checkedOut.second.toString()).isEqualTo(OK)
         checkedOut.second["results"]["orderId"].asString().assert().isEqualTo("alice-1")
         state("alice")["items"].isEmpty.assert().isTrue()
-        // The order belongs to the buyer: the saga's SubmitOrder carries the basket's scope (decision D189).
-        submitted("alice-1").scope.assert().isEqualTo(Scope(ownerId = "alice"))
+        // The saga calls the ordering service with its service credential, for the buyer: the order belongs to the
+        // buyer, the call carrying the basket's scope and the buyer as its operator (decisions D163, D189, D193).
+        val call = ordering.called("/eshop-ordering/order/alice-1/submit-order")
+        call.authorization.assert().isEqualTo("Bearer $TOKEN")
+        call.call.scope.assert().isEqualTo(Scope(ownerId = "alice"))
+        call.call.operator?.id.assert().isEqualTo("alice")
+        json.readTree(call.body)["items"].single()["productId"].asString().assert().isEqualTo("mug")
 
         val empty = post("/eshop-basket/basket/alice/checkout-basket", "{}", "alice")
         empty.first.assert().isEqualTo(UNPROCESSABLE)
@@ -173,28 +182,11 @@ class BasketServerTest {
 
     private fun uri(path: String): URI = URI.create("http://127.0.0.1:$port$path")
 
-    /** The SubmitOrder of the order [id] the checkout saga sent to the ordering context's command topic. */
-    private fun submitted(id: String): CommandWire {
-        val topics = context.getBean(InMemoryTopics::class.java)
-        val until = System.nanoTime() + TIMEOUT.toNanos()
-        while (true) {
-            val wire = runCatching { topics.messages(ORDERING_COMMANDS) }.getOrDefault(emptyList())
-                .map { CommandMessages.commandOf(EnvelopeCodec.decode(it.value)) }
-                .firstOrNull { it.ref.id == id }
-            if (wire != null) {
-                return wire
-            }
-            check(System.nanoTime() < until) { "No SubmitOrder of $id was sent." }
-            Thread.sleep(POLL)
-        }
-    }
-
     private companion object {
         const val OK = 200
         const val FORBIDDEN = 403
         const val UNPROCESSABLE = 422
-        const val ORDERING_COMMANDS = "wow.eshop-ordering.commands"
-        const val POLL = 50L
+        const val TOKEN = "basket-test-service-token-0123456789abcdef"
         val TIMEOUT: Duration = Duration.ofSeconds(30)
     }
 }

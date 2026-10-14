@@ -67,6 +67,8 @@ class CoSecAutoConfigurationTest {
             "wow.cosec.cross-scope.policies=p1, p2,",
             "wow.cosec.tenant-level.roles=employee",
             "wow.cosec.tenant-level.policies[0]=p3",
+            "wow.cosec.service.roles=service",
+            "wow.cosec.service.policies[0]=p4",
         ).run { context ->
             context.getBeansOfType(CallerResolver::class.java).values.single().assert()
                 .isInstanceOf(CoSecCallerResolver::class.java)
@@ -77,6 +79,8 @@ class CoSecAutoConfigurationTest {
                     setOf("p1", "p2"),
                     tenantRoles = setOf("employee"),
                     tenantPolicies = setOf("p3"),
+                    serviceRoles = setOf("service"),
+                    servicePolicies = setOf("p4"),
                 ),
             )
             context.getBeansOfType(CommandAuthorizer::class.java).assert().isEmpty()

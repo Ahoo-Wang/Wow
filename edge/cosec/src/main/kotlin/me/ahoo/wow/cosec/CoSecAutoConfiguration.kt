@@ -13,9 +13,12 @@
 
 package me.ahoo.wow.cosec
 
+import me.ahoo.cosec.context.SecurityContextParser
+import me.ahoo.cosec.context.request.RequestParser
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallerResolver
+import me.ahoo.wow.http.caller.InternalCallerResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.context.annotation.Bean
@@ -25,6 +28,7 @@ import org.springframework.context.annotation.Conditional
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
 import org.springframework.core.type.AnnotatedTypeMetadata
+import org.springframework.web.server.ServerWebExchange
 import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
 
 /**
@@ -36,7 +40,8 @@ import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
  * - [CoSecCallerResolver] is the host's [CallerResolver] unless the application has one: the host's anonymous
  *   default steps aside. Its options are `wow.tenant.default`, `wow.cosec.cross-scope.roles` /
  *   `wow.cosec.cross-scope.policies` and `wow.cosec.tenant-level.roles` / `wow.cosec.tenant-level.policies` (the
- *   tenant-level callers, decision D189), comma-separated or indexed lists.
+ *   tenant-level callers, decision D189), `wow.cosec.service.roles` / `wow.cosec.service.policies` (the service
+ *   identities, decision D193), comma-separated or indexed lists.
  * - The CoSec request facts ([CoSecRequestFacts]) join the edge's request-fact list (`wow.http.request-facts`).
  * - [CoSecCommandAuthorizer] is the host's [CommandAuthorizer] when `wow.cosec.authorizer.enabled` is true, the
  *   application has CoSec's `Authorization` and no authorizer of its own. On the public port CoSec's WebFilter
@@ -49,6 +54,19 @@ class CoSecAutoConfiguration {
     fun wowCoSecCallerResolver(environment: Environment): CoSecCallerResolver =
         CoSecCallerResolver(callerOptions(environment))
 
+    /**
+     * The callers of the internal port's call routes (decision D193): CoSec's service principals, parsed from their
+     * tokens by CoSec's own parsers, since the internal port runs no CoSec filter.
+     */
+    @Bean
+    @Conditional(InternalCallersAvailable::class)
+    fun wowCoSecInternalCallerResolver(
+        requests: RequestParser<ServerWebExchange>,
+        contexts: SecurityContextParser,
+        environment: Environment,
+    ): CoSecInternalCallerResolver =
+        CoSecInternalCallerResolver(requests, contexts, CoSecCallerResolver(callerOptions(environment)))
+
     @Bean
     @Conditional(AuthorizerEnabled::class)
     fun wowCoSecCommandAuthorizer(authorization: CoSecAuthorization, environment: Environment): CoSecCommandAuthorizer =
@@ -58,6 +76,19 @@ class CoSecAutoConfiguration {
     internal class NoCallerResolver : Condition {
         override fun matches(context: ConditionContext, metadata: AnnotatedTypeMetadata): Boolean =
             context.beanFactory?.getBeanNamesForType(CallerResolver::class.java, true, false).isNullOrEmpty()
+    }
+
+    /**
+     * The application has CoSec's request and security-context parsers, and no
+     * [me.ahoo.wow.http.caller.InternalCallerResolver] of its own.
+     */
+    internal class InternalCallersAvailable : Condition {
+        override fun matches(context: ConditionContext, metadata: AnnotatedTypeMetadata): Boolean {
+            val beans = context.beanFactory ?: return false
+            return beans.getBeanNamesForType(RequestParser::class.java, true, false).isNotEmpty() &&
+                beans.getBeanNamesForType(SecurityContextParser::class.java, true, false).isNotEmpty() &&
+                beans.getBeanNamesForType(InternalCallerResolver::class.java, true, false).isEmpty()
+        }
     }
 
     /** `wow.cosec.authorizer.enabled` is true, the application has CoSec's `Authorization` and no authorizer. */
@@ -76,6 +107,8 @@ class CoSecAutoConfiguration {
         const val CROSS_SCOPE_POLICIES: String = "$PREFIX.cross-scope.policies"
         const val TENANT_ROLES: String = "$PREFIX.tenant-level.roles"
         const val TENANT_POLICIES: String = "$PREFIX.tenant-level.policies"
+        const val SERVICE_ROLES: String = "$PREFIX.service.roles"
+        const val SERVICE_POLICIES: String = "$PREFIX.service.policies"
         const val AUTHORIZER_ENABLED: String = "$PREFIX.authorizer.enabled"
         const val DEFAULT_TENANT: String = "wow.tenant.default"
 
@@ -93,6 +126,8 @@ class CoSecAutoConfiguration {
             crossScopePolicies = environment.list(CROSS_SCOPE_POLICIES),
             tenantRoles = environment.list(TENANT_ROLES),
             tenantPolicies = environment.list(TENANT_POLICIES),
+            serviceRoles = environment.list(SERVICE_ROLES),
+            servicePolicies = environment.list(SERVICE_POLICIES),
         )
 
         private fun defaultTenant(environment: Environment): String =
