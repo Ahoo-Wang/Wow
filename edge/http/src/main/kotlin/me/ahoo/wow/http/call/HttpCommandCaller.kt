@@ -28,7 +28,6 @@ import me.ahoo.wow.runtime.call.OutgoingCall
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.observation.trace
 import tools.jackson.core.JacksonException
-import java.io.IOException
 import java.net.URI
 import java.net.URLEncoder
 import java.net.http.HttpClient
@@ -138,8 +137,6 @@ class HttpCommandCaller @JvmOverloads constructor(
                 HttpJson.mapper.readValue(body, ProblemBody::class.java).result
             }
         } catch (_: JacksonException) {
-            null
-        } catch (_: IOException) {
             null
         }
         return result ?: throw CallFailedException(
