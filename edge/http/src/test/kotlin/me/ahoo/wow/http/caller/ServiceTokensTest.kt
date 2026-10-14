@@ -32,7 +32,10 @@ class ServiceTokensTest {
     private fun request(authorization: String?): ServerRequest {
         val builder = MockServerHttpRequest.post("/shop/cart/c-1/add-item")
         authorization?.let { builder.header("Authorization", it) }
-        return ServerRequest.create(MockServerWebExchange.from(builder), HandlerStrategies.withDefaults().messageReaders())
+        return ServerRequest.create(
+            MockServerWebExchange.from(builder),
+            HandlerStrategies.withDefaults().messageReaders()
+        )
     }
 
     @Test

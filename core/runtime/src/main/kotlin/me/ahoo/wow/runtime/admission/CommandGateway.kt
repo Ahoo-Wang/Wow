@@ -363,8 +363,9 @@ class CommandGateway(
      */
     private fun callProblem(request: CommandRequest): Pair<String, String>? = when {
         request.call == null -> null
-        !request.caller.service -> FrameworkCodes.AUTH_FORBIDDEN to
-            "Only a service identity calls on behalf of a root command (decision D193)."
+        !request.caller.service ->
+            FrameworkCodes.AUTH_FORBIDDEN to
+                "Only a service identity calls on behalf of a root command (decision D193)."
 
         request.target != null -> FrameworkCodes.MALFORMED to "A call names its scope in the call, not in Wow-Scope."
         else -> null

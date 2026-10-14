@@ -93,7 +93,9 @@ class SagaCallSpecTest {
         val counter = AtomicInteger()
         val changing = listOf(
             ProcessorBinding.saga("CheckoutSaga", "onPlaced", Basket::class.java) { event, context ->
-                context.call(context.command(order.ref(event.ref.tenantId, "o-${counter.incrementAndGet()}"), Submit(1)))
+                context.call(
+                    context.command(order.ref(event.ref.tenantId, "o-${counter.incrementAndGet()}"), Submit(1))
+                )
                 emptyList()
             },
         )

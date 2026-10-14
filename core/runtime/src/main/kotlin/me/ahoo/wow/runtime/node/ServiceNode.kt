@@ -45,6 +45,7 @@ import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.admission.ModelRegistry
+import me.ahoo.wow.runtime.call.CommandCaller
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
 import me.ahoo.wow.runtime.cluster.CommandRouter
@@ -56,7 +57,6 @@ import me.ahoo.wow.runtime.cluster.PartitionedRouter
 import me.ahoo.wow.runtime.cluster.Refusal
 import me.ahoo.wow.runtime.cluster.TopicRouter
 import me.ahoo.wow.runtime.command.CommandIntake
-import me.ahoo.wow.runtime.call.CommandCaller
 import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.command.MessageEntries
 import me.ahoo.wow.runtime.command.Receipts

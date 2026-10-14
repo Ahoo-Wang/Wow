@@ -78,7 +78,10 @@ class SagaCallTest {
             FunctionKind.SAGA,
             execution.subscription,
             event,
-            calls = CommandCalls { called += it; result(it, CommandResult.Status.SUCCEEDED) },
+            calls = CommandCalls {
+                called += it
+                result(it, CommandResult.Status.SUCCEEDED)
+            },
         ) as SagaContext
         val command = context.command(stock.ref("t", "mug"), "reserve")
         val answer = context.call(command)

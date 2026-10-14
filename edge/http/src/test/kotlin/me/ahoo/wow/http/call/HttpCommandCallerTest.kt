@@ -85,7 +85,15 @@ class HttpCommandCallerTest {
         val ref = if (id.isEmpty()) box.unassigned("t") else box.ref("t", id)
         return OutgoingCall(
             "mail.box.DeliverItems",
-            Command("c-1", "r-1", ref, mapOf("items" to listOf("mug")), expectedVersion, Scope("alice"), causation = ROOT),
+            Command(
+                "c-1",
+                "r-1",
+                ref,
+                mapOf("items" to listOf("mug")),
+                expectedVersion,
+                Scope("alice"),
+                causation = ROOT
+            ),
         )
     }
 
@@ -164,7 +172,10 @@ class HttpCommandCallerTest {
     @Test
     fun `a target that is down or unknown should fail the call`() {
         val closed = ServerSocket(0).use { it.localPort }
-        val down = HttpCommandCaller(mapOf("mail" to URI.create("http://127.0.0.1:$closed")), timeout = 500.milliseconds)
+        val down = HttpCommandCaller(
+            mapOf("mail" to URI.create("http://127.0.0.1:$closed")),
+            timeout = 500.milliseconds
+        )
         assertThrownBy<CallFailedException> { runBlocking { down.call(call()) } }
         val unknown = HttpCommandCaller(emptyMap())
         assertThrownBy<CallFailedException> { runBlocking { unknown.call(call()) } }

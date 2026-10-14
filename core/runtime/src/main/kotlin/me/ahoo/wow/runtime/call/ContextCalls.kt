@@ -74,13 +74,13 @@ class SagaCalls(
         require(context !in contexts) {
             "A saga calls ${command.ref}, of its own node's context $context: derive the command instead (return it)."
         }
-        val caller = caller ?: return CommandCalls.NONE.call(command)
+        val client = caller ?: return CommandCalls.NONE.call(command)
         val type = requireNotNull(commandTypes.nameOf(command.ref.type, command.body.javaClass)) {
             "No Manifest of the service or its peers declares the command ${command.body.javaClass.name} called on " +
                 "${command.ref}: add the service of $context to wowPeers (decision D139)."
         }
         val derived = command.causation?.let { command } ?: command.copy(causation = Causation(command.id, command.id))
-        val result = caller.call(OutgoingCall(type, derived, wait))
+        val result = client.call(OutgoingCall(type, derived, wait))
         if (result.status != CommandResult.Status.FAILED) {
             answered += derived.id
         }

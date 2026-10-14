@@ -125,7 +125,12 @@ class ServiceCallRoutesTest {
 
     @Test
     fun `a caller that is not a service identity should be refused Wow-Call`() {
-        val answer = node.post("/shop/cart/cart-1/add-item", """{"sku":"mug"}""", "mallory", mapOf(WowHeaders.CALL to callHeader()))
+        val answer = node.post(
+            "/shop/cart/cart-1/add-item",
+            """{"sku":"mug"}""",
+            "mallory",
+            mapOf(WowHeaders.CALL to callHeader())
+        )
         answer.status.assert().isEqualTo(403)
         answer.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
         node.commands.assert().isEmpty()
@@ -185,7 +190,9 @@ class ServiceCallRoutesTest {
         assertThrownBy<IllegalArgumentException> { CallHeader.parse("bm90LWpzb24") }
         // A call of a blank command id does not parse.
         val blank = java.util.Base64.getUrlEncoder().withoutPadding()
-            .encodeToString("""{"commandId":" ","tenantId":"t","causation":{"correlationId":"a","causationId":"b"}}""".toByteArray())
+            .encodeToString(
+                """{"commandId":" ","tenantId":"t","causation":{"correlationId":"a","causationId":"b"}}""".toByteArray()
+            )
         assertThrownBy<IllegalArgumentException> { CallHeader.parse(blank) }
     }
 

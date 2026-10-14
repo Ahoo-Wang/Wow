@@ -177,7 +177,10 @@ class SagaCallBindingTest {
         val recorded = CopyOnWriteArrayList<OutgoingCall>()
         val names = CommandTypes { target, command -> "$target.${command.simpleName}".takeIf { target == BOX } }
         val calls = SagaCalls(
-            { call -> recorded += call; resultOf(call, CommandResult.Status.FAILED) },
+            { call ->
+                recorded += call
+                resultOf(call, CommandResult.Status.FAILED)
+            },
             setOf(SHOP),
             names,
             null,

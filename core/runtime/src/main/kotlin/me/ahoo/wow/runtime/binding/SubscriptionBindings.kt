@@ -175,7 +175,14 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                     context = context.context,
                     retry = handler.retry
                 ) { entry ->
-                    handleSaga(handler, publishedStateEventOf(entry, handler, context), entry, context, derived, receipts)
+                    handleSaga(
+                        handler,
+                        publishedStateEventOf(entry, handler, context),
+                        entry,
+                        context,
+                        derived,
+                        receipts
+                    )
                 }
             } else {
                 Subscription(

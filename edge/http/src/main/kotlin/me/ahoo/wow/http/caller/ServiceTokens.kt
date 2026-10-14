@@ -67,8 +67,8 @@ class ServiceTokens(tokens: Map<String, Collection<String>>, private val tenantI
         if (!authorization.startsWith(BEARER, ignoreCase = true)) {
             return null
         }
-        val service = serviceOf(authorization.substring(BEARER.length).trim()) ?: return null
-        return Caller(tenantId = tenantId, subject = SUBJECT_PREFIX + service, service = true)
+        val name = serviceOf(authorization.substring(BEARER.length).trim()) ?: return null
+        return Caller(tenantId = tenantId, subject = SUBJECT_PREFIX + name, service = true)
     }
 
     /** The service identities of these tokens, and [delegate]'s callers for every other request. */
