@@ -47,7 +47,8 @@ import kotlin.time.toKotlinDuration
  * - `wow.node.id`, `wow.node.address`: this node's id (by default the host name and a random suffix) and the
  *   `host:port` the other nodes reach its internal port at (by default this host's address and `wow.internal.port`).
  * - `wow.internal.port` (9090; 0 for a port the system chooses, which the node learns once bound) and
- *   `wow.internal.host` (every interface): the internal port (D89).
+ *   `wow.internal.host` (the host of the node's member address; `0.0.0.0` for every interface, D195): the internal
+ *   port (D89).
  * - `wow.contexts.include`, `wow.contexts.exclude`: the bounded contexts the node serves among the domain modules on
  *   the class path, by default all of them (decision D169), see [Contexts].
  * - `wow.backend`: `auto` (the default), `memory`, `postgres` or `mongo` ([BackendKind]); `wow.mongo.database`.
@@ -120,7 +121,10 @@ class WowProperties {
          */
         var port: Int = DEFAULT_INTERNAL_PORT
 
-        /** The address the internal server binds; every interface when not set. */
+        /**
+         * The address the internal server binds (decisions D173, D195), `0.0.0.0` for every interface; when not set,
+         * the host of the member address the node advertises (`wow.node.address`, else this host's address).
+         */
         var host: String? = null
 
         /** How long a peer has to accept a connection of the cluster channel or the signal sender. */
