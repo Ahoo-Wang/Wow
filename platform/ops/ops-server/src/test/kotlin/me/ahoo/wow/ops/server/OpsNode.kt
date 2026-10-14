@@ -15,23 +15,13 @@ package me.ahoo.wow.ops.server
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerEntry
 import me.ahoo.wow.api.ledger.LedgerResolution
 import me.ahoo.wow.kernel.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.ops.api.OpsContext
 import me.ahoo.wow.ops.testing.InMemoryOpsTopics
+import me.ahoo.wow.ops.testing.LedgerSimulator
 import me.ahoo.wow.runtime.cluster.CommandWire
-import me.ahoo.wow.runtime.command.CommandMessages
-import me.ahoo.wow.runtime.command.CommandSender
-import me.ahoo.wow.runtime.contract.ContractDirectory
-import me.ahoo.wow.runtime.ledger.LedgerPublisher
-import me.ahoo.wow.runtime.node.SourceTopics
-import me.ahoo.wow.spi.json.WowJson
-import me.ahoo.wow.spi.transport.EnvelopeCodec
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ConfigurableApplicationContext
 import org.springframework.http.HttpHeaders
@@ -41,7 +31,6 @@ import org.springframework.test.web.reactive.server.WebTestClient
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
-import java.util.UUID
 
 val json: JsonMapper = JsonMapper.builder().build()
 
@@ -93,15 +82,12 @@ data class Who(val headers: Map<String, String>) {
 /**
  * The ops server started in this JVM, called over HTTP on its public port, its topics in memory ([InMemoryOpsTopics]):
  * [publish] and [resolve] stand in for an owning service's ledger, and [ledgerCommands] read what the ops saga sends
- * to an owning context.
+ * to an owning context ([LedgerSimulator]).
  */
 class OpsNode(val context: ConfigurableApplicationContext) : AutoCloseable {
     private val port: Int = context.environment.getRequiredProperty("local.server.port", Int::class.java)
     val topics: InMemoryTopics = context.getBean(InMemoryTopics::class.java)
-    private val sender = CommandSender(
-        ContractDirectory(context.getBean(Manifest::class.java)),
-        SourceTopics(topics, producer = topics),
-    )
+    private val ledger = LedgerSimulator(context.getBean(Manifest::class.java), topics)
 
     private val client: WebTestClient = WebTestClient.bindToServer()
         .baseUrl("http://127.0.0.1:$port")
@@ -125,35 +111,15 @@ class OpsNode(val context: ConfigurableApplicationContext) : AutoCloseable {
     }
 
     /** Publishes [entry] to `wow.ops.commands` as an owning service's ledger does; the id of its ops aggregate. */
-    fun publish(entry: LedgerEntry): String {
-        val id = Ledger.parkedId(entry.service, entry.subscription, entry.aggregate.toRef())
-        record(id, Ledger.RECORD_PARKED, mapOf(Ledger.ENTRY to entry))
-        return id
-    }
+    fun publish(entry: LedgerEntry): String = runBlocking { ledger.publish(entry) }
 
     /** Publishes that [resolution]'s entry is resolved, as the owning service's ledger does. */
     fun resolve(resolution: LedgerResolution) {
-        val id = Ledger.parkedId(resolution.service, resolution.subscription, resolution.aggregate.toRef())
-        record(id, Ledger.RECORD_RESOLVED, mapOf(Ledger.RESOLUTION to resolution))
-    }
-
-    private fun record(id: String, command: String, body: Any) {
-        val ref = AggregateType(OpsContext.NAME, OpsContext.PARKED).ref(Caller.DEFAULT_TENANT, id)
-        val wire = CommandWire(
-            type = "${ref.type}.$command",
-            id = UUID.randomUUID().toString(),
-            requestId = UUID.randomUUID().toString(),
-            ref = ref,
-            body = WowJson.mapper.valueToTree(body),
-            operator = LedgerPublisher.OPERATOR,
-        )
-        runBlocking { sender.send(wire) }
+        runBlocking { ledger.resolve(resolution) }
     }
 
     /** The ledger's system commands the ops saga sent to [context]'s command topic, in their order per partition. */
-    fun ledgerCommands(context: String): List<CommandWire> = topics.messages("wow.$context.commands")
-        .map { CommandMessages.commandOf(EnvelopeCodec.decode(it.value)) }
-        .filter { it.type.startsWith(Ledger.NAMESPACE) }
+    fun ledgerCommands(context: String): List<CommandWire> = ledger.ledgerCommands(context)
 
     override fun close() {
         context.close()

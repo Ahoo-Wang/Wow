@@ -17,6 +17,18 @@ application {
 extra["wowService"] = "ops-service"
 apply(from = rootProject.file("example/eshop/wow-manifest-compatibility.gradle.kts"))
 
+// The console (roadmap 7.1b), served by the server as static resources from the distribution's ui/ folder
+// (`spring.web.resources.static-locations`): `pnpm --filter wow-ops-console... build` first, or the folder is empty.
+distributions {
+    main {
+        contents {
+            from(rootProject.file("platform/ops/console/dist")) {
+                into("ui")
+            }
+        }
+    }
+}
+
 dependencies {
     implementation(project(":ops-domain"))
     implementation(project(":spring-boot"))
