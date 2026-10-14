@@ -34,7 +34,7 @@ class PostgresQueryHostTest {
         "test.postgres.url" to postgres.jdbcUrl,
         "test.postgres.username" to postgres.username,
         "test.postgres.password" to postgres.password,
-        sources = listOf(HostTestApp::class.java, PostgresDataSource::class.java),
+        sources = listOf(HostTestApp::class.java, PostgresDataSource::class.java, QueryOutcomes::class.java),
     )
     private val account = AggregateType(BANK, "account")
 
@@ -63,6 +63,11 @@ class PostgresQueryHostTest {
             val validated = validating.context.getBean(QueryIndexesLifecycle::class.java).reports.getValue(account)
             validated.assert().isEqualTo(QueryIndexReport())
         }
+    }
+
+    @Test
+    fun `counts should be cached on PostgreSQL until a snapshot is written`() {
+        host.assertCountCache()
     }
 
     @Test

@@ -23,6 +23,7 @@ import me.ahoo.wow.query.AbacQueryPolicy
 import me.ahoo.wow.query.DefaultQueryGateway
 import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.QueryBackendStorages
+import me.ahoo.wow.query.QueryCountCache
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryLogObserver
 import me.ahoo.wow.query.QueryObserver
@@ -65,8 +66,9 @@ import java.nio.file.Path
  *   `wow.query.sensitivity`;
  * - a gateway per aggregate type the node hosts: [DefaultQueryGateway] for its snapshots, under the
  *   [ScopeQueryPolicy] (tenant by [HostQueryTenants], D116), the [AbacQueryPolicy] (`wow.query.abac`) and the
- *   application's [QueryPolicy] and [QueryFilter] beans, observed by [QueryLogObserver] and the [QueryObserver] beans;
- *   and [EventQueryGateway] for its events, over the context's log;
+ *   application's [QueryPolicy] and [QueryFilter] beans, observed by [QueryLogObserver] and the [QueryObserver] beans,
+ *   its counts and paged totals cached in the [QueryCountCache] (`wow.query.count-cache`, D152); and
+ *   [EventQueryGateway] for its events, over the context's log;
  * - the [QueryDatasets] of the dataset files (decisions D75, D145; [HostDatasets]), compiled by the same Catalog
  *   against the storage of the application's [DatasetQueryBackendFactory] bean (ClickHouse's, when wow-clickhouse
  *   is wired), and their [DatasetQueryGateways] under the same policies, filters and observers;
@@ -206,6 +208,19 @@ class QueryAutoConfiguration {
             return gateways
         }
 
+        /**
+         * The count cache of the snapshot gateways (decision D152), unless `wow.query.count-cache.enabled` is off: each
+         * count valid while the snapshot write checkpoint of its type on this node
+         * ([me.ahoo.wow.runtime.node.ContextNode.snapshotCheckpoint]) holds.
+         */
+        @Bean
+        @ConditionalOnMissingBean
+        @ConditionalOnProperty(prefix = QueryProperties.PREFIX, name = ["count-cache.enabled"], matchIfMissing = true)
+        fun wowQueryCountCache(node: ServiceNode, properties: QueryProperties): QueryCountCache = QueryCountCache(
+            { type -> node.contexts[type.context]?.snapshotCheckpoint(type) },
+            properties.countCache.options(),
+        )
+
         @Bean
         @ConditionalOnMissingBean
         @Suppress("LongParameterList") // One parameter per part of a gateway, each a bean the application may give.
@@ -222,6 +237,7 @@ class QueryAutoConfiguration {
             observers: ObjectProvider<QueryObserver>,
             datasets: DatasetQueryGateways,
             visibility: ObjectProvider<DatasetVisibility>,
+            counts: ObjectProvider<QueryCountCache>,
         ): HttpQueries {
             val contexts = node.contexts.keys
             val observer = observerOf(observers)
@@ -239,6 +255,7 @@ class QueryAutoConfiguration {
                         policies = scope + policies.orderedStream().toList(),
                         observer = observer,
                         entryPolicy = entryPolicy,
+                        counts = counts.ifAvailable,
                     )
                 }
             }

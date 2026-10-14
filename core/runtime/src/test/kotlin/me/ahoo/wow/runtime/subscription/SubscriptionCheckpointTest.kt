@@ -93,6 +93,28 @@ class SubscriptionCheckpointTest {
         }
 
     @Test
+    fun `the progress counts the entries complete above one still running`(): Unit = runBlocking {
+        val gate = CompletableDeferred<Unit>()
+        val handled = Handled()
+        val runtime = runtime(
+            Subscription("ahead", SubscriptionFilter("shop")) { entry ->
+                if (entry.ref.id == "slow") gate.await()
+                handled.record(entry)
+            },
+            testOptions(checkpointInterval = 1.hours),
+        )
+        appender.append("slow") // 1: blocks
+        repeat(3) { appender.append("fast") } // 2..4
+        runtime.start(setOf(0))
+        eventually { runtime.progress("ahead", 1) == 3L }
+        runtime.positions().single().watermark.assert().isEqualTo(0L)
+        gate.complete(Unit)
+        eventually { runtime.progress("ahead", 1) == 4L }
+        runtime.stop()
+        handled.size.assert().isEqualTo(4)
+    }
+
+    @Test
     fun `stop waits for the entries in flight and saves the checkpoint`(): Unit = runBlocking {
         val handled = Handled()
         val runtime = runtime(
