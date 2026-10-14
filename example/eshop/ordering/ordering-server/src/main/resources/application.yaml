@@ -41,11 +41,6 @@ wow:
     # Execute the orders the basket context sends to wow.eshop-ordering.commands, which has as many partitions as the
     # context's log (wow.log.partitions, 64 by default).
     command-intake: true
-  subscriptions:
-    # The saga on the inventory's stock stream starts at the beginning of the stream the first time it reads a
-    # partition, so no reservation published before the ordering service first started is missed.
-    "[StockConfirmationSaga.onStockReserved]":
-      start: beginning
 ---
 spring:
   config:

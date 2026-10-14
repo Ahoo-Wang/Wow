@@ -18,6 +18,7 @@ import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
@@ -222,6 +223,28 @@ class KernelScopeTest {
             .assert().isInstanceOf(CommandOutcome.AlreadyCommitted::class.java)
         (send(TransferOwner("carol"), Scope.NONE, "transfer") as CommandOutcome.Rejected)
             .rejection.code.assert().isEqualTo(KernelRejections.UNHANDLED)
+    }
+
+    @Test
+    fun `a derived command is not checked against the scope of the aggregate it changes`(): Unit = runTest {
+        created()
+        // Decision D199: a saga of bob's (a derived command, with a causation) acts on alice's cart.
+        val root = Causation("bob-order", "example.order/tenant/o-1@1")
+        suspend fun derived(body: Any, scope: Scope, requestId: String): CommandOutcome = kernel.execute(
+            cartModel,
+            Command("d-$requestId", requestId, ref, body, scope = scope, causation = root),
+        )
+        val added = derived(AddItem("apple", 1), Scope("bob", "space-b"), "derived-add") as CommandOutcome.Committed
+        // The cart keeps its own scope: the derived command's is only a new aggregate's ownership and the audit.
+        added.stream.scope.assert().isEqualTo(owned)
+        // Handling bob's commit again is answered, though bob is outside the cart's scope.
+        derived(AddItem("apple", 1), Scope("bob", "space-b"), "derived-add").assert()
+            .isEqualTo(CommandOutcome.AlreadyCommitted(added.stream))
+        // The same command from a caller (no causation) is refused, its retry too.
+        send(AddItem("apple", 1), Scope("bob", "space-b")).rejection().assert().isEqualTo(KernelRejections.FORBIDDEN)
+        send(AddItem("apple", 1), Scope("bob", "space-b"), requestId = "derived-add")
+            .rejection().assert().isEqualTo(KernelRejections.FORBIDDEN)
+        versions().assert().containsExactly(1, 2)
     }
 
     @Test

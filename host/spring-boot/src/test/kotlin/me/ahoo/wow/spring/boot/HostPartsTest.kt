@@ -360,6 +360,31 @@ class WowPropertiesTest {
     }
 
     @Test
+    fun `the internal port should bind the node's member host unless wow internal host says otherwise`() {
+        val environment = StandardEnvironment()
+        environment.propertySources.addFirst(MapPropertySource("test", mapOf("spring.application.name" to "app")))
+        // Decision D195: by default, the host the node advertises, never every interface.
+        val properties = WowProperties()
+        val identity = NodeIdentity.of(properties, environment)
+        identity.bindHost.assert().isEqualTo(identity.host).isNotEqualTo("0.0.0.0")
+        properties.node.address = "10.0.0.1:9191"
+        NodeIdentity.of(properties, environment).bindHost.assert().isEqualTo("10.0.0.1")
+        properties.node.address = "[fd00::1]:9191"
+        NodeIdentity.of(properties, environment).bindHost.assert().isEqualTo("fd00::1")
+        properties.node.address = "node-1.shop"
+        NodeIdentity.of(properties, environment).bindHost.assert().isEqualTo("node-1.shop")
+        // A blank wow.internal.host is not set.
+        properties.internal.host = " "
+        NodeIdentity.of(properties, environment).bindHost.assert().isEqualTo("node-1.shop")
+        properties.node.address = " "
+        NodeIdentity.of(properties, environment).let { it.bindHost.assert().isEqualTo(it.host) }
+        properties.internal.host = "0.0.0.0"
+        NodeIdentity.of(properties, environment).bindHost.assert().isEqualTo("0.0.0.0")
+        properties.internal.host = "127.0.0.1"
+        NodeIdentity.of(properties, environment).bindHost.assert().isEqualTo("127.0.0.1")
+    }
+
+    @Test
     fun `a node on a port the system chooses should learn its address once bound`() {
         val environment = StandardEnvironment()
         environment.propertySources.addFirst(MapPropertySource("test", mapOf("spring.application.name" to "app")))

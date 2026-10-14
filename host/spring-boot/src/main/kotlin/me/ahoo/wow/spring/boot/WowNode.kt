@@ -24,8 +24,18 @@ import java.util.UUID
  * Who this node is (decisions D72, D110): the [service] it belongs to, its [node] id and the [address] of its
  * internal port, null while the port is not bound yet when the system chooses it (`wow.internal.port=0`): the node
  * then learns it as [host] and the bound port ([ServiceNode.bind]).
+ *
+ * [bindHost] is the interface the internal server binds (decisions D173, D195): `wow.internal.host` when set
+ * (`0.0.0.0` or `::` for every interface), else the host the node advertises to its members, that of
+ * `wow.node.address` or [host], so the unauthenticated internal port is not open on every interface by default.
  */
-data class NodeIdentity(val service: String, val node: String, val address: String?, val host: String) {
+data class NodeIdentity(
+    val service: String,
+    val node: String,
+    val address: String?,
+    val host: String,
+    val bindHost: String,
+) {
     /** The address of the internal port bound at [port]: [address] when configured, else [host] and [port]. */
     fun addressAt(port: Int): String = address ?: "$host:$port"
 
@@ -36,7 +46,8 @@ data class NodeIdentity(val service: String, val node: String, val address: Stri
          * The identity [properties] configure: `wow.service`, else `spring.application.name`; `wow.node.id`, else
          * the host name with a random suffix, so a restarted node is a new member; `wow.node.address`, else the
          * internal server's bind address (this host's when it binds every interface) and `wow.internal.port`, or,
-         * when that port is 0, the port the internal server is bound at, known once it is.
+         * when that port is 0, the port the internal server is bound at, known once it is; the [bindHost],
+         * `wow.internal.host`, else the host of that member address.
          */
         fun of(properties: WowProperties, environment: Environment): NodeIdentity {
             val service = properties.service?.takeIf { it.isNotBlank() }
@@ -48,9 +59,19 @@ data class NodeIdentity(val service: String, val node: String, val address: Stri
             val host = properties.internal.host?.takeUnless { it.isBlank() || it == "0.0.0.0" || it == "::" }
                 ?: local.hostAddress
             val port = properties.internal.port
-            val address = properties.node.address?.takeIf { it.isNotBlank() } ?: "$host:$port".takeIf { port != 0 }
-            return NodeIdentity(service, node, address, host)
+            val configured = properties.node.address?.takeIf { it.isNotBlank() }
+            val address = configured ?: "$host:$port".takeIf { port != 0 }
+            val bindHost = properties.internal.host?.takeIf { it.isNotBlank() } ?: configured?.let(::hostOf) ?: host
+            return NodeIdentity(service, node, address, host, bindHost)
         }
+
+        /** The host of [address], `host:port` or `[ipv6]:port`, without the brackets of an IPv6 literal. */
+        internal fun hostOf(address: String): String =
+            if (address.startsWith("[")) {
+                address.substringAfter('[').substringBefore(']')
+            } else {
+                address.substringBeforeLast(':')
+            }
     }
 }
 

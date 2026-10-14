@@ -473,6 +473,7 @@ internal class ModelSymbolProcessor(
             publication = AggregateRootArguments.publication(root, problems),
             ownership = ownership,
             mounted = mounted,
+            snapshot = AggregateRootArguments.snapshot(root),
         )
     }
 

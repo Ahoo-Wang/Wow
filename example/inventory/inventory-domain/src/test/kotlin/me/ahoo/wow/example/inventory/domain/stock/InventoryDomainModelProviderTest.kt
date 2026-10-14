@@ -99,6 +99,7 @@ class InventoryDomainModelProviderTest {
         source = SubscriptionSource(context = "example", aggregates = listOf("order")),
         function = FunctionManifest(ManifestFunctionKind.SAGA, "inventory", "OrderStockSaga", function),
         derives = listOf(derives),
-        start = SubscriptionStart.END,
+        // Decision D194: another context's stream is read from its beginning, without any configuration.
+        start = SubscriptionStart.BEGINNING,
     )
 }

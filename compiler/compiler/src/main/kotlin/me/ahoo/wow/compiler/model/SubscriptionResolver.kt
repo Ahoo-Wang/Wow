@@ -279,6 +279,7 @@ internal object SubscriptionResolver {
             aggregates = aggregates,
             derives = derives,
             schedules = schedules,
+            start = startOf(function),
             derived = if (kind == Kind.SAGA) returned?.let { derivedClasses(it, reactor) } else null,
             retry = retry,
         )
@@ -394,6 +395,15 @@ internal object SubscriptionResolver {
     private fun KSAnnotation?.strings(name: String): List<String> =
         (this?.arguments?.firstOrNull { it.name?.asString() == name }?.value as? List<*>).orEmpty()
             .filterIsInstance<String>()
+
+    /**
+     * `@OnEvent(start)` (decision D194): `BEGINNING` or `END` when the handler declares it, null for `DEFAULT` or
+     * without the annotation.
+     */
+    @OptIn(KspExperimental::class)
+    private fun startOf(function: KSFunctionDeclaration): String? =
+        function.getAnnotationsByType(OnEvent::class).map { it.start }
+            .firstOrNull { it != OnEvent.Start.DEFAULT }?.name
 
     private fun KSAnnotation.isOf(qualifiedName: String): Boolean =
         annotationType.resolve().declaration.qualifiedName?.asString() == qualifiedName

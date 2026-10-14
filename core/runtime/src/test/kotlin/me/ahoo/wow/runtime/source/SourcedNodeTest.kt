@@ -193,6 +193,9 @@ class SourcedNodeTest {
         )
         val node = node(bindings = bindings)
         bindings.sourced(node.context(BANK)).map { it.subscription.retry }.assert().containsExactly(retry, retry)
+        // Decision D194: a handler of another context's stream, the saga too, starts from the beginning by default.
+        bindings.sourced(node.context(BANK)).map { it.subscription.startFrom }.assert()
+            .containsExactly(StartFrom.BEGINNING, StartFrom.BEGINNING)
     }
 
     @Test

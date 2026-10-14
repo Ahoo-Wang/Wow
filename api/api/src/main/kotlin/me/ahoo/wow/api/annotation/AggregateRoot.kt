@@ -41,6 +41,11 @@ import kotlin.reflect.KClass
  * owner of the command that creates it; [Ownership.TENANT] for a resource every caller of the tenant reads, such as a
  * product, whose owner is not recorded and whose reads are not restricted by owner. The compiler passes it to the
  * model and writes it into the Manifest, where query admission reads it.
+ *
+ * [snapshot] false turns the aggregate's snapshots off (decisions D4, D195): no snapshot subscription writes them, the
+ * Manifest marks them disabled and lists no snapshot query, and a wait has no snapshot stage for it: a caller that asks
+ * for none waits until its command is committed, and a wait that asks for the snapshot is rejected at admission. Its
+ * state is rebuilt from the log; keep its streams short.
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
@@ -57,4 +62,5 @@ annotation class AggregateRoot(
     val publishState: Boolean = true,
     val topic: String = "",
     val ownership: Ownership = Ownership.OWNER,
+    val snapshot: Boolean = true,
 )
