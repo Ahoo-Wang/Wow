@@ -31,13 +31,14 @@ export default mergeConfig(
           "src/generated/**",
           "src/components/ui/**",
         ],
-        // A point under what the suite reaches (2026-10-14: 89.3 / 84.2 /
-        // 87.6 / 89.9), so coverage only moves up; raise them as it does.
+        // A point under what the suite reaches (2026-10-14, 7.1c: 91.8 /
+        // 86.4 / 90.1 / 92.4), so coverage only moves up; raise them as it
+        // does.
         thresholds: {
-          statements: 88,
-          branches: 83,
-          functions: 86,
-          lines: 88,
+          statements: 90,
+          branches: 85,
+          functions: 89,
+          lines: 91,
         },
       },
     },

@@ -40,6 +40,7 @@ const ENTRIES = [
       },
       fromVersion: 2,
       reason: "The gateway is unreachable.",
+      errorType: "The gateway is unreachable.",
       failedAt: Date.parse("2026-10-01T08:00:00Z"),
       recordedAt: Date.parse("2026-10-01T08:00:01Z"),
       retries: 3,
@@ -65,6 +66,7 @@ const ENTRIES = [
         id: "p-2",
       },
       reason: "Retrying.",
+      errorType: "Retrying.",
       failedAt: Date.parse("2026-10-01T09:00:00Z"),
       status: "SCHEDULED",
     },
@@ -83,6 +85,24 @@ function console_(
     markRecoverable: vi.fn(async () => ({})),
     applyRetrySpec: vi.fn(async () => ({})),
   };
+  const history = vi.fn(async (id: string) => [
+    {
+      aggregateId: id,
+      tenantId: "(0)",
+      version: 1,
+      commitTime: Date.parse("2026-10-01T08:00:02Z"),
+      commandId: "c-1",
+      requestId: "r-1",
+      commandType: "ops.parked.RecordParked",
+      events: [
+        {
+          name: "ops.parked.ParkedRecorded",
+          revision: 1,
+          body: { entry: ENTRIES[0].state },
+        },
+      ],
+    },
+  ]);
   const services: OpsServices = {
     callers,
     fetcher: new Fetcher({ baseURL: "" }),
@@ -91,6 +111,7 @@ function console_(
       source: memorySource(ENTRIES),
       store: new MemoryViewStore(),
     }),
+    history,
   };
   const router = createMemoryRouter(ROUTES, { initialEntries: [path] });
   render(
@@ -100,7 +121,7 @@ function console_(
       </ServicesProvider>
     </I18nProvider>,
   );
-  return { callers, commands, router };
+  return { callers, commands, history, router };
 }
 
 const OPERATOR: OpsCaller = {
@@ -159,9 +180,48 @@ describe("the console", () => {
     expect(callers.get()).toBeNull();
   });
 
-  it("sends an unknown page to the parked entries", async () => {
+  it("sends an unknown page to the overview", async () => {
     const { router } = console_(OPERATOR, { path: "/nowhere" });
-    await screen.findByRole("table", { name: "Needs attention" });
-    expect(router.state.location.pathname).toBe("/parked");
+    expect(
+      await screen.findByRole("heading", { name: "Overview", level: 1 }),
+    ).toBeVisible();
+    expect(router.state.location.pathname).toBe("/overview");
+  });
+
+  it("opens on the overview board, which asks for a caller first", async () => {
+    console_(null, { path: "/" });
+    expect(
+      screen.getByText(/Name a caller to read the parked entries/),
+    ).toBeVisible();
+  });
+
+  it("draws the overview's panels over the entries", async () => {
+    console_(OPERATOR, { path: "/overview" });
+    expect(
+      await screen.findByRole("heading", { name: "Overview", level: 1 }),
+    ).toBeVisible();
+    for (const panel of [
+      "All parked",
+      "Failure clusters — top 10",
+      "Top failing subscriptions",
+      "Needing attention",
+    ])
+      expect((await screen.findAllByText(panel))[0]).toBeVisible();
+    expect(screen.getByRole("link", { name: "Overview" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
+  it("reads an entry's cause and its history in its detail", async () => {
+    const { history } = console_(OPERATOR, {
+      path: `/parked?id=${encodeURIComponent(ENTRIES[0].aggregateId)}`,
+    });
+    const timeline = await screen.findByTestId("parked-history");
+    expect(await within(timeline).findByText("Parked")).toBeVisible();
+    expect(history).toHaveBeenCalledWith(ENTRIES[0].aggregateId);
+    expect(screen.getByTestId("parked-failure")).toHaveTextContent(
+      "The gateway is unreachable.",
+    );
   });
 });

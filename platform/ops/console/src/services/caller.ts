@@ -137,3 +137,8 @@ export class CallerHeaders implements RequestInterceptor {
     if (caller.roles.length) headers[ROLES_HEADER] = caller.roles.join(",");
   }
 }
+
+/** What a caller is known by: another one reads other entries. */
+export function callerKey(caller: OpsCaller): string {
+  return `${caller.tenant}/${caller.user}/${caller.roles.join(",")}`;
+}
