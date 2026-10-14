@@ -4,7 +4,7 @@
     "index.ts": "2c05d9d9d9b5b1c837df82b64fb5c87ee5695e2a6fbdd0aca4d4a67331653e06",
     "ops/boundedContext.ts": "3a9cb6f0dbff2a56fe1a79da7f78a8ec1416ef1d7fa7134bc37b95262ab7898c",
     "ops/index.ts": "d07a5b527b6b3f748e503bbe7eafc0d68d102ce3ac42822637a59f5f37820d2c",
-    "ops/parked/aggregate.ts": "a3ebc058f1a535f852037bef588eec7064e4a9c493aecce921bba80895747068",
+    "ops/parked/aggregate.ts": "9f2cadc35177c54eb7ea47a6ce50258753d3c88a844b481e9c6efe57a86f64f7",
     "ops/parked/commandClient.ts": "a213a283e257f988e3444f4a18b6c4c5b434fb5acf66147e688a0f15cc8adbdd",
     "ops/parked/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "ops/parked/queryClient.ts": "fbf13ea03d89b67af4bc98f0b80aae250a76c18f18616d9ee4b52a187377d670",

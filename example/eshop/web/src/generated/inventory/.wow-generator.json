@@ -3,7 +3,7 @@
   "files": {
     "eshop-inventory/boundedContext.ts": "cb2e3c10939b3852104c15ab4764444502659b754e8382977d5b6dd35f6e1c59",
     "eshop-inventory/index.ts": "86daaf1034654bc7ce3eabf9e2ecde802b0880df401b0d4befc727dd6d3def76",
-    "eshop-inventory/stock/aggregate.ts": "d959a970b6e7d6ca9db98f9a8be4183f9981d860ef634fc0882e47dc9791661d",
+    "eshop-inventory/stock/aggregate.ts": "c4b356cbc43e0cb6f34a4fee808d9df48867720f093d0b96e331aa15beddf29a",
     "eshop-inventory/stock/commandClient.ts": "75ce1f3f8ea0e6df74fddf88202c2c1bd05a27648e1b7bd47cb9ef318564617c",
     "eshop-inventory/stock/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "eshop-inventory/stock/queryClient.ts": "a4b29f3dc3d7a898213f64a18a9b181ccfb3d3449c6e6c8c5faa648b7e1aac03",

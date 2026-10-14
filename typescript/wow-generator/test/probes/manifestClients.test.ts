@@ -70,7 +70,7 @@ describe('Manifest clients', () => {
        void [new ThingCommandClient(), new ThingStateClient(), probeWait.committed(), ProbeErrorCodes, events];`,
     );
     expect(read('probe/thing/aggregate.ts')).toContain(
-      'export type ThingEvent = never;',
+      'export type ThingEvent = SystemEvent;',
     );
     expect(read('probe/thing/queryClient.ts')).not.toContain(
       'SnapshotQueryClient',
@@ -348,7 +348,8 @@ describe('Manifest clients', () => {
     // HistoryRoutesTest reads `shop.cart.ItemAdded` from a trace), while the
     // Manifest declares it inside its aggregate by the short name. A name the
     // Manifest already qualifies is kept as it is, as the server's
-    // ManifestCheck does.
+    // ManifestCheck does. The union adds the system events every aggregate
+    // has (wow-client's SystemEvent).
     const { read } = await generateCompiling(
       manifest(
         {
@@ -370,13 +371,16 @@ describe('Manifest clients', () => {
        const reshaped: ThingEvent = { name: 'probe.thing.Reshaped', revision: 2, body: {} };
        // @ts-expect-error the server never sends the short name
        const short: ThingEvent = { name: 'Shaped', revision: 1, body: {} };
+       // The kernel's lifecycle and schedule events come in the same trace.
+       const owner: ThingEvent = { name: 'wow.lifecycle.OwnerTransferred', revision: 1, body: { ownerId: 'bob' } };
        function body(event: ThingEvent): string | undefined {
+         if (event.name === 'wow.ScheduleCancelled') return event.body.key;
          return event.name === 'probe.thing.Shaped' ? event.body.s : undefined;
        }
-       void [traced, reshaped, short, body];`,
+       void [traced, reshaped, short, owner, body];`,
     );
     expect(read('probe/thing/aggregate.ts')).toContain(
-      "export type ThingEvent = EventView<'probe.thing.Shaped', Shape> | EventView<'probe.thing.Reshaped', Shape>;",
+      "export type ThingEvent = EventView<'probe.thing.Shaped', Shape> | EventView<'probe.thing.Reshaped', Shape> | SystemEvent;",
     );
   });
 

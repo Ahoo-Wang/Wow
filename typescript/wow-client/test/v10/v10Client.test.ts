@@ -31,6 +31,7 @@ import {
   retryHintOf,
   SnapshotQueryClient,
   StateClient,
+  type SystemEvent,
   toWowProblemError,
   wait,
   WowProblemError,
@@ -615,6 +616,83 @@ describe('StateClient', () => {
     expect(requests[0].url).toBe(
       `${BASE_URL}/eshop-catalog/product/p1/state/trace?from=2&to=5&limit=3`,
     );
+  });
+  it("types the system events a trace carries beside the aggregate's own", async () => {
+    // The shape edge/http's HistoryRoutesTest reads from a trace after
+    // `wow.lifecycle.transfer-owner`, and an event of the aggregate itself,
+    // named `context.aggregate.EventName`.
+    type ProductEvent =
+      | {
+          readonly name: 'eshop-catalog.product.ProductRenamed';
+          readonly revision: number;
+          readonly body: { readonly title: string };
+        }
+      | SystemEvent;
+    const commit = (version: number, events: unknown[]) => ({
+      version,
+      commitTime: version * 1000,
+      commandId: `c${version}`,
+      requestId: `r${version}`,
+      commandType: 'wow.lifecycle.TransferOwner',
+      events,
+      scope: { ownerId: 'bob' },
+      deleted: false,
+      tags: {},
+      state: {},
+    });
+    stubFetch(() =>
+      jsonResponse({
+        ref: view.ref,
+        commits: [
+          commit(4, [
+            {
+              name: 'wow.lifecycle.OwnerTransferred',
+              revision: 1,
+              body: { ownerId: 'bob' },
+            },
+          ]),
+          commit(5, [
+            {
+              name: 'eshop-catalog.product.ProductRenamed',
+              revision: 1,
+              body: { title: 'Pear' },
+            },
+            { name: 'wow.ScheduleCancelled', revision: 1, body: { key: 'k' } },
+          ]),
+        ],
+      }),
+    );
+    const trace = await new StateClient<unknown, ProductEvent>(
+      PRODUCT,
+      client(),
+    ).trace('p1');
+    const read = trace.commits.flatMap(c =>
+      c.events.map(event => {
+        switch (event.name) {
+          case 'wow.lifecycle.OwnerTransferred':
+            return event.body.ownerId;
+          case 'eshop-catalog.product.ProductRenamed':
+            return event.body.title;
+          case 'wow.ScheduleCancelled':
+            return event.body.key;
+          default:
+            return event.name;
+        }
+      }),
+    );
+    expect(read).toEqual(['bob', 'Pear', 'k']);
+    const deleted: SystemEvent = {
+      name: 'wow.lifecycle.AggregateDeleted',
+      revision: 1,
+      body: {},
+    };
+    const wrong: SystemEvent = {
+      name: 'wow.lifecycle.SpaceTransferred',
+      revision: 1,
+      // @ts-expect-error a lifecycle event's body is the kernel's shape
+      body: { ownerId: 'x' },
+    };
+    void [deleted, wrong];
   });
 });
 
