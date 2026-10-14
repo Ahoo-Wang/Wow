@@ -169,6 +169,7 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
             ref = ref,
             version = version,
             schemaFingerprint = stateSchemaFingerprint(model),
+            stateRevision = model.stateRevision,
             state = stateText,
             scope = scope,
             deleted = deleted,

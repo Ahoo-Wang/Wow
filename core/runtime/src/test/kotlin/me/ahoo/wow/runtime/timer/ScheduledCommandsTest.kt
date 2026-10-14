@@ -114,7 +114,7 @@ class ScheduledCommandsTest {
         val context = context(SHOP)
         val requestId = "$id-${body.javaClass.simpleName}-${System.nanoTime()}"
         return context.coordinator.execute(
-            context.models.single(),
+            context.models.first(),
             Command(requestId, requestId, order(id), body, wait = wait)
         )
     }

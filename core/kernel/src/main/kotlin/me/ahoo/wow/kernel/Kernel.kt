@@ -441,6 +441,26 @@ class Kernel(
     }
 
     /**
+     * The committed state of [ref] after [streams], its streams from version 1 in version order as the log holds them,
+     * replayed without a snapshot (decision D172: a snapshot rebuilt from the log, in place of one that does not fit).
+     * The state cache is not touched.
+     *
+     * @return the state with the metadata the kernel keeps beside it; null when [streams] do not start at version 1
+     *   or skip a version.
+     */
+    fun <S : Any> replayed(
+        model: AggregateModel<S>,
+        ref: AggregateRef,
+        streams: List<EventStreamRecord>
+    ): CachedState? {
+        require(ref.type == model.type) { "$ref is not a ${model.type}." }
+        if (streams.isEmpty() || streams.withIndex().any { (index, stream) -> stream.version != index + 1 }) {
+            return null
+        }
+        return replay(model, CachedState(model.initialState(ref), 0), streams)
+    }
+
+    /**
      * The committed state of [ref] at [version], evolved from [base], its state at an earlier version that the caller
      * hands over to be evolved (it may be mutated: a copy, never a live instance), with the log's streams after it up
      * to [version] (design 04 §1: a subscription behind the snapshot evolves the state it read for the previous
@@ -559,8 +579,9 @@ class Kernel(
 
     /**
      * The state of [snapshot] evolved with the log's tail after it, or null when the snapshot does not fit: written
-     * for another state schema, not decodable, or newer than the log. The tail is read from the snapshot's own
-     * version, so the same read proves the log holds that version; that stream is already folded and is skipped. The
+     * at another state revision (decision D172) or for another state schema, not decodable, or newer than the log.
+     * The tail is read from the snapshot's own version, so the same read proves the log holds that version; that
+     * stream is already folded and is skipped. The
      * tail stops at [until], and before the first stream committed after [committedBy] (epoch milliseconds): a
      * snapshot whose own stream committed after it does not fit either.
      */
@@ -570,6 +591,10 @@ class Kernel(
         until: Int = Int.MAX_VALUE,
         committedBy: Long = Long.MAX_VALUE,
     ): CachedState? {
+        if (snapshot.stateRevision != model.stateRevision) {
+            logger.debug { "The snapshot of ${snapshot.ref} is of state revision ${snapshot.stateRevision}; replaying its log." }
+            return null
+        }
         if (snapshot.schemaFingerprint != codec.stateSchemaFingerprint(model)) {
             logger.debug { "The snapshot of ${snapshot.ref} has another state schema; replaying its log." }
             return null

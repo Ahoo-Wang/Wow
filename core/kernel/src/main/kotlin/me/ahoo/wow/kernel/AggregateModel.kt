@@ -130,6 +130,9 @@ data class CommandType(val name: String, val type: Class<*>, val aliases: Set<St
  * [ownership] is who the aggregate belongs to besides its tenant (decision D189): an [Ownership.TENANT] aggregate
  * records no owner and checks no command's owner (the kernel keeps only [Ownership.scopeOf] of a command's scope), so
  * it has no owner to transfer: it never handles [TransferOwner].
+ *
+ * [stateRevision] is the revision of the state's structure its snapshots are written at (decision D172): a snapshot
+ * of another revision is not read back, and the service rebuilds the stored ones in place when it is raised.
  */
 class AggregateModel<S : Any>(
     val type: AggregateType,
@@ -143,6 +146,7 @@ class AggregateModel<S : Any>(
     lifecycle: Set<Class<*>> = Lifecycle.COMMANDS.values.toSet(),
     mountedCommandTypes: Collection<CommandType> = emptyList(),
     val ownership: Ownership = Ownership.OWNER,
+    val stateRevision: Int = 1,
 ) {
     private val lifecycle: Set<Class<*>> =
         if (ownership == Ownership.TENANT) lifecycle - TransferOwner::class.java else lifecycle
@@ -195,6 +199,7 @@ class AggregateModel<S : Any>(
     val lifecycleCommands: Set<Class<*>> = this.deciders.keys.filter { it in KernelLifecycle.COMMANDS }.toSet()
 
     init {
+        require(stateRevision >= 1) { "The state revision of $type starts at 1, not $stateRevision." }
         require(ownership == Ownership.OWNER || TransferOwner::class.java !in deciders) {
             "$type belongs to its tenant (Ownership.TENANT): it has no owner to transfer, so it decides no TransferOwner."
         }

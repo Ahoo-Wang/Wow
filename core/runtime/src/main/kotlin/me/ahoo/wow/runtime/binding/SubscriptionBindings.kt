@@ -33,6 +33,7 @@ import me.ahoo.wow.runtime.command.ReceiptHandler
 import me.ahoo.wow.runtime.node.ContextNode
 import me.ahoo.wow.runtime.node.SourcedSubscription
 import me.ahoo.wow.runtime.node.SubscriptionFactory
+import me.ahoo.wow.runtime.snapshot.SnapshotRebuildModel
 import me.ahoo.wow.runtime.subscription.EntryDecoder
 import me.ahoo.wow.runtime.subscription.HandledEntry
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
@@ -222,10 +223,14 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         context.coordinator::signal,
     )
 
-    /** The models of [models] whose state [handler] reads. */
+    /**
+     * The models of [models] whose state [handler] reads; never the built-in rebuild aggregate's (decision D172),
+     * whose requests are the runtime's.
+     */
     private fun read(handler: ProcessorBinding<*>, models: List<AggregateModel<*>>): List<AggregateModel<*>> {
-        val type = handler.stateType ?: return models
-        return models.filter { type.isAssignableFrom(it.stateType) }.also {
+        val application = models.filterNot(SnapshotRebuildModel::isRebuild)
+        val type = handler.stateType ?: return application
+        return application.filter { type.isAssignableFrom(it.stateType) }.also {
             require(it.isNotEmpty()) {
                 "${handler.name} reads the state ${type.name}, which no aggregate of its context " +
                     "(${models.joinToString { model -> model.type.toString() }}) has."

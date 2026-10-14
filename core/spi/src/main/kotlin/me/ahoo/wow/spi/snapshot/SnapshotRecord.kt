@@ -24,6 +24,9 @@ import me.ahoo.wow.api.schedule.ScheduleRule
  * - [version] is the version of the last event stream folded into [state];
  * - [schemaFingerprint] identifies the state's schema: a reader whose fingerprint differs discards the snapshot and
  *   rebuilds the state from the log;
+ * - [stateRevision] is the revision of the state's structure the snapshot was written at (decision D172,
+ *   `@AggregateRoot(stateRevision)`): a reader of another revision does not read it back, and a store never lets a
+ *   snapshot of a lower revision replace one of a higher revision;
  * - [state] is the serialized state, a JSON document;
  * - [scope] is the aggregate's owner and space, the scope of the last event stream folded (decision D56), and
  *   [tags] its access tags; the query side filters on the same fields;
@@ -47,9 +50,11 @@ data class SnapshotRecord(
     val operator: Operator? = null,
     val firstOperator: Operator? = null,
     val schedules: Map<String, ScheduleRule> = emptyMap(),
+    val stateRevision: Int = 1,
 ) {
     init {
         require(version >= 1) { "A snapshot's version starts at 1: it folds at least one event stream." }
+        require(stateRevision >= 1) { "A snapshot's state revision starts at 1." }
         require(schemaFingerprint.isNotBlank()) { "A snapshot needs its state's schema fingerprint." }
         require(state.isNotBlank()) { "A snapshot needs a state." }
         require(firstEventTime <= lastEventTime) { "The first event is not committed after the last one." }

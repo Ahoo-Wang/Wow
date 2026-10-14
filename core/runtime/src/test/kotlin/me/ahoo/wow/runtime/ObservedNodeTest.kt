@@ -165,7 +165,7 @@ class ObservedNodeTest {
     @Test
     fun `a forwarded command should execute in the trace it was forwarded with`(): Unit = runBlocking {
         val context = node.context(BANK)
-        val model = context.models.single()
+        val model = context.models.first()
         val endpoint = ForwardEndpoint(context.coordinator, listOf(model), emptyList(), observer = observer)
         val ref = model.type.ref(TENANT, "a-3")
         val forwarded = ClusterCodec.wire(model, Command("c-3", "r-3", ref, Deposit()))

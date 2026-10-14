@@ -67,6 +67,10 @@ import me.ahoo.wow.runtime.log.PartitionAppendQueue
 import me.ahoo.wow.runtime.manifest.ManifestCheck
 import me.ahoo.wow.runtime.reservation.ReservationSubscription
 import me.ahoo.wow.runtime.schedule.ScheduleJobRuntime
+import me.ahoo.wow.runtime.snapshot.LogProgress
+import me.ahoo.wow.runtime.snapshot.SnapshotHops
+import me.ahoo.wow.runtime.snapshot.SnapshotMaintenance
+import me.ahoo.wow.runtime.snapshot.SnapshotStatus
 import me.ahoo.wow.runtime.snapshot.SnapshotSubscription
 import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.state.StateViewReader
@@ -118,6 +122,7 @@ class ContextNode internal constructor(
     val log: PartitionAppendQueue,
     val kernel: Kernel,
     val executor: Executor,
+    /** The subscription of the default snapshot store when it is a target, else the first target's, if any. */
     val snapshots: SnapshotSubscription?,
     val reservations: ReservationSubscription?,
     val subscriptions: SubscriptionRuntime,
@@ -148,6 +153,10 @@ class ContextNode internal constructor(
     val logGroups: List<LogGroupNode> = emptyList(),
     /** Names the commands the context's sagas schedule (decision D198): by its models and the service's Manifests. */
     val commandTypes: CommandTypes = CommandTypes.SIMPLE_NAMES,
+    /** The subscription of each snapshot target store (decision D172), the default store's first. */
+    val snapshotSubscriptions: List<SnapshotSubscription> = listOfNotNull(snapshots),
+    /** The context's snapshot maintenance (decision D172), when it keeps snapshots. */
+    val snapshotMaintenance: SnapshotMaintenance? = null,
 ) {
     /**
      * The ids of the context's creation commands that name no aggregate (decision D191): a saga's derived command, one
@@ -161,16 +170,17 @@ class ContextNode internal constructor(
      * decodes with.
      */
     fun stateReader(reader: String): StateViewReader =
-        StateViewReader(reader, models, kernel, codec, views, backends.snapshots)
+        StateViewReader(reader, models, kernel, codec, views, backends.primarySnapshots)
 
     /**
-     * The snapshot write checkpoint of [type] (decision D152): the [snapshots] subscription's progress over the
-     * partitions of [type]'s log group ([SubscriptionRuntime.progress]). It does not move while no snapshot of the
-     * group's aggregate types is written, so a count of [type]'s snapshots taken at one value is still the count at
-     * that value. Null when [type] has no snapshots here.
+     * The snapshot write checkpoint of [type] (decision D152): the progress of the subscription of [type]'s primary
+     * snapshot target (decision D172) over the partitions of [type]'s log group ([SubscriptionRuntime.progress]). It
+     * does not move while no snapshot of the group's aggregate types is written, so a count of [type]'s snapshots
+     * taken at one value is still the count at that value. Null when [type] has no snapshots here.
      */
     suspend fun snapshotCheckpoint(type: AggregateType): Long? {
-        val subscription = snapshots?.subscription ?: return null
+        val primary = snapshotMaintenance?.targets?.primarySubscriptionOf(type) ?: snapshots?.name
+        val subscription = snapshotSubscriptions.firstOrNull { it.name == primary }?.subscription ?: return null
         if (type.context != context || type.name !in subscription.filter.aggregates) {
             return null
         }
@@ -346,9 +356,19 @@ class ServiceNode(
         options.schedules,
     )
 
-    /** The models the node runs: the [models] of the Manifest, and the built-in job aggregate of each context's [jobs]. */
+    /** The backends of each context the [models] are of, opened once. */
+    private val opened: Map<String, ContextBackends> =
+        models.mapTo(LinkedHashSet()) { it.type.context }.associateWith { backends.backends(it) }
+
+    private val nodeSnapshots = NodeSnapshots(manifest)
+
+    /**
+     * The models the node runs: the [models] of the Manifest, the built-in job aggregate of each context's [jobs], and
+     * the built-in rebuild aggregate of each context that keeps snapshots.
+     */
     private val served: List<AggregateModel<*>> =
-        models.toList() + jobs.map { (context, contextJobs) -> ScheduleJobModel.model(context, contextJobs) }
+        models.toList() + jobs.map { (context, contextJobs) -> ScheduleJobModel.model(context, contextJobs) } +
+            nodeSnapshots.rebuildModels(opened, models)
 
     /** The aggregate models this node serves, the built-in job aggregates among them (decision D198). */
     val registry: ModelRegistry = ModelRegistry(served)
@@ -420,7 +440,7 @@ class ServiceNode(
     val timerLoop: TimerLoop = TimerLoop(options.timers, clock)
 
     private val parts: List<Parts> = served.groupBy { it.type.context }.map { (context, contextModels) ->
-        assemble(context, contextModels, backends.backends(context), codec, subscriptions)
+        assemble(context, contextModels, opened.getValue(context), codec, subscriptions)
     }
 
     /** Where commands run: [Routing.PARTITIONED] over every context's lease group, or [Routing.LOCAL]. */
@@ -431,6 +451,14 @@ class ServiceNode(
 
     /** The parts of each bounded context, by its name. */
     val contexts: Map<String, ContextNode> = parts.associate { it.context to it.complete() }
+
+    /**
+     * Whether the snapshots of an aggregate type are being rebuilt or backfilled on its primary target (decision
+     * D172): its context's [SnapshotMaintenance.rebuilding]; false for a type whose snapshots are not kept here.
+     */
+    val snapshotStatus: SnapshotStatus = SnapshotStatus { type ->
+        contexts[type.context]?.snapshotMaintenance?.rebuilding(type) ?: false
+    }
 
     /** Admits the commands of every context. */
     val gateway: CommandGateway = CommandGateway(
@@ -496,8 +524,9 @@ class ServiceNode(
         // A start configured for a subscription the node does not have is a typo, not a no-op (decision D154).
         val names = contexts.values.flatMapTo(HashSet()) { context ->
             applicationSubscriptions.getValue(context).map { it.name } +
+                context.snapshotSubscriptions.map { it.subscription.name } +
                 listOfNotNull(
-                    context.snapshots?.subscription?.name,
+                    context.snapshotMaintenance?.rebuildSubscription?.name,
                     context.reservations?.subscription?.name,
                     context.timers?.subscription?.subscription?.name,
                 ) +
@@ -617,6 +646,9 @@ class ServiceNode(
                 applicationSubscriptions.getValue(context).forEach { subscription ->
                     context.logGroups.forEach { it.subscriptions.add(subscription) }
                 }
+                context.snapshotMaintenance?.prepare()?.forEach { backfill ->
+                    context.logGroups.forEach { it.subscriptions.add(backfill.subscription) }
+                }
                 intakes[context]?.let { context.intake!!.add(it.subscription) }
                 context.ownership.start()
             }
@@ -633,6 +665,7 @@ class ServiceNode(
         }
         state = State.RUNNING
         startJobs()
+        contexts.values.forEach { it.snapshotMaintenance?.start(background) }
         logger.info { "Node $node of $service started: contexts ${contexts.keys}." }
     }
 
@@ -725,10 +758,18 @@ class ServiceNode(
         failure?.let { throw it }
     }
 
-    /** Hands off every context's partitions and every topic's, concurrently. */
+    /**
+     * Hands off every context's partitions and every topic's, concurrently, and leaves the snapshot state revisions
+     * (decision D172).
+     */
     private suspend fun handOff() = coroutineScope {
         ledgerPublisher?.stop()
-        contexts.values.forEach { launch { it.ownership.stop() } }
+        contexts.values.forEach { context ->
+            launch {
+                context.ownership.stop()
+                context.snapshotMaintenance?.stop()
+            }
+        }
         topicSubscriptions.values.forEach { launch { it.stop() } }
     }
 
@@ -842,26 +883,22 @@ class ServiceNode(
         application: SubscriptionFactory,
     ): Parts {
         val groups = logGroupsOf(context, models, backends)
-        val routed = LogGroupRouter.of(
-            backends.log,
-            groups.drop(1).flatMap { group -> group.types.map { it to group.log } }.toMap(),
-        )
+        val routed = routedLog(backends, groups)
         val log = PartitionAppendQueue(routed, options.appendQueue)
         val names = ContextCommandTypes(models, contracts)
         val kernel = kernelOf(log, backends, codec, names)
-        val snapshotted = if (backends.snapshots == null) emptyList() else models.filter { snapshotEnabled(it) }
-        val views = StateViews(codec, stateReaders(context, models, snapshotted, application), options.stateViews)
-        val snapshots = backends.snapshots?.takeIf { snapshotted.isNotEmpty() }?.let {
-            SnapshotSubscription(context, snapshotted, it, kernel, routed, codec, views)
-        }
+        val snaps = nodeSnapshots.assembly(context, models, backends, kernel, routed, codec)
+        val views = StateViews(codec, stateReaders(context, models, snaps.readers, application), options.stateViews)
+        val snapshots = snaps.subscriptions(views)
         val reservations = backends.reservations?.let { ReservationSubscription(context, it) }
         val firing = LateFirer()
         val group = LeaseGroup(service, context)
-        val builtIns = listOfNotNull(snapshots?.subscription, reservations?.subscription)
+        val progress = progressOf(group, groups)
+        val maintenance = snaps.maintenance(group.name, node, backends.leases, progress, options.snapshots) { address }
+        val builtIns = snapshots.map { it.subscription } +
+            listOfNotNull(maintenance?.rebuildSubscription, reservations?.subscription)
         val logGroups = groups.mapIndexed { index, part ->
-            // The default group's checkpoints are keyed as before log groups (decision D177).
-            val name = if (index == 0) group.name else "${group.name}#${part.store}"
-            logGroupOf(name, part, builtIns, timersOf(context, part, firing))
+            logGroupOf(progress[index].group, part, builtIns, timersOf(context, part, firing))
         }
         val subscriptions = logGroups.first().subscriptions
         val intake = intakeOf(context, group, backends)
@@ -888,6 +925,7 @@ class ServiceNode(
             kernel,
             executor,
             snapshots,
+            maintenance,
             reservations,
             subscriptions,
             ownership,
@@ -956,6 +994,21 @@ class ServiceNode(
         }
     }
 
+    /** The context's log, each aggregate type's streams read from its log group's (decision D177). */
+    private fun routedLog(backends: ContextBackends, groups: List<GroupParts>): EventLog = LogGroupRouter.of(
+        backends.log,
+        groups.drop(1).flatMap { group -> group.types.map { it to group.log } }.toMap(),
+    )
+
+    /**
+     * Where the subscriptions of each of [groups] keep their checkpoints, under its name in [group]: the default
+     * group's checkpoints are keyed as before log groups (decision D177).
+     */
+    private fun progressOf(group: LeaseGroup, groups: List<GroupParts>): List<LogProgress> =
+        groups.mapIndexed { index, part ->
+            LogProgress(if (index == 0) group.name else "${group.name}#${part.store}", part.log, part.checkpoints)
+        }
+
     /** The kernel of a context over its [log], with its state cache, snapshot and reservation stores. */
     private fun kernelOf(log: PartitionAppendQueue, backends: ContextBackends, codec: EventCodec, names: CommandTypes) =
         Kernel(
@@ -963,7 +1016,7 @@ class ServiceNode(
             codec = codec,
             reservations = backends.reservations,
             states = if (options.stateCacheCapacity > 0) LruStateCache(options.stateCacheCapacity) else StateCache.None,
-            snapshots = backends.snapshots,
+            snapshots = backends.primarySnapshots,
             commandTypes = names,
             ids = admission.ids,
             maxEarlyWait = options.timers.maxEarlyWait,
@@ -992,29 +1045,21 @@ class ServiceNode(
     )
 
     /**
-     * The state consumers of [context] (decision D133): the snapshot subscription of the [snapshotted] types, and the
-     * readers the [application]'s subscriptions name.
+     * The state consumers of [context] (decision D133): the subscription of each snapshot target, of the types it
+     * keeps ([snapshots]), and the readers the [application]'s subscriptions name.
      */
     private fun stateReaders(
         context: String,
         models: List<AggregateModel<*>>,
-        snapshotted: List<AggregateModel<*>>,
+        snapshots: Map<String, Set<AggregateType>>,
         application: SubscriptionFactory,
     ): Map<String, Set<AggregateType>> {
-        val readers = LinkedHashMap<String, Set<AggregateType>>()
-        if (snapshotted.isNotEmpty()) {
-            readers[Hop.SNAPSHOT_SUBSCRIPTION] = snapshotted.mapTo(LinkedHashSet()) { it.type }
-        }
+        val readers = LinkedHashMap<String, Set<AggregateType>>(snapshots)
         application.stateReaders(context, models).forEach { (reader, types) ->
             readers.merge(reader, types) { left, right -> left + right }
         }
         return readers
     }
-
-    /** Whether the Manifest enables [model]'s snapshots; a built-in job aggregate, not in it, keeps them. */
-    private fun snapshotEnabled(model: AggregateModel<*>): Boolean = manifest.contexts
-        .firstOrNull { it.name == model.type.context }?.aggregates
-        ?.firstOrNull { it.name == model.type.name }?.snapshot?.enabled ?: true
 
     /** A context's parts before the node's router exists. */
     private inner class Parts(
@@ -1024,7 +1069,8 @@ class ServiceNode(
         val log: PartitionAppendQueue,
         val kernel: Kernel,
         val executor: Executor,
-        val snapshots: SnapshotSubscription?,
+        val snapshots: List<SnapshotSubscription>,
+        val maintenance: SnapshotMaintenance?,
         val reservations: ReservationSubscription?,
         val subscriptions: SubscriptionRuntime,
         val ownership: PartitionOwnership,
@@ -1039,14 +1085,9 @@ class ServiceNode(
     ) {
         fun complete(): ContextNode {
             val runtimes = logGroups.drop(1).flatMap { group -> group.types.map { it to group.subscriptions } }.toMap()
-            val directory = contracts.over(
-                ReceiptHops(
-                    if (runtimes.isEmpty()) subscriptions else LogGroupDirectory(subscriptions, runtimes),
-                    context,
-                    committedHandlers(context),
-                ),
-                context,
-            )
+            val runtime = if (runtimes.isEmpty()) subscriptions else LogGroupDirectory(subscriptions, runtimes)
+            val snapshotHops = maintenance?.let { SnapshotHops(runtime, context, it.targets, it.types) } ?: runtime
+            val directory = contracts.over(ReceiptHops(snapshotHops, context, committedHandlers(context)), context)
             val coordinator = WaitCoordinator(
                 executor,
                 waits,
@@ -1066,7 +1107,7 @@ class ServiceNode(
                 log,
                 kernel,
                 executor,
-                snapshots,
+                snapshots.firstOrNull { it.name == Hop.SNAPSHOT_SUBSCRIPTION } ?: snapshots.firstOrNull(),
                 reservations,
                 subscriptions,
                 ownership,
@@ -1081,6 +1122,8 @@ class ServiceNode(
                 admission.ids,
                 logGroups,
                 commandTypes,
+                snapshots,
+                maintenance,
             )
         }
     }

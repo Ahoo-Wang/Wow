@@ -25,6 +25,7 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.snapshot.SnapshotRebuilds
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.InMemoryCheckpointStore
@@ -125,7 +126,7 @@ class LogGroupsTest {
         eventually { projected.containsAll(listOf("order:o-1@1", "invoice:i-1@1")) }
         val groups = node.context(CONTEXT).logGroups
         groups.map { it.store }.assert().containsExactly(DEFAULT_STORE, INVOICE_STORE)
-        groups.map { it.types }.assert().containsExactly(setOf(ORDER), setOf(INVOICE))
+        groups.map { it.types }.assert().containsExactly(setOf(ORDER, SnapshotRebuilds.typeOf(CONTEXT)), setOf(INVOICE))
         groups.last().subscriptions.group.assert().isEqualTo("$SERVICE/$CONTEXT#$INVOICE_STORE")
         groups.forEach { it.subscriptions.subscriptionNames.assert().contains(PROJECTOR) }
         eventually { invoices.checkpoints.load("$SERVICE/$CONTEXT#$INVOICE_STORE", PROJECTOR, invoicePartition) == 1L }

@@ -27,6 +27,7 @@ import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.schedule.JobOptions
+import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RetryPolicy
@@ -60,7 +61,10 @@ import kotlin.time.toKotlinDuration
  * - `wow.stores.<name>.*`: the named store instances (decision D177, [Store]); `wow.log.store` and
  *   `wow.snapshot.store`, the stores of the aggregates' logs and snapshots by default; per aggregate type,
  *   `wow.aggregates.[<context>.<aggregate>].log.store` and `.snapshot.store`. The aggregates whose logs are on one store
- *   form a log group, with its own partition sequences, checkpoints, parked entries and timers.
+ *   form a log group, with its own partition sequences, checkpoints, parked entries and timers. Snapshots may have
+ *   several targets (decision D172, [Snapshot]): `wow.snapshot.targets` and `wow.snapshot.primary`, per aggregate type
+ *   `.snapshot.store` as a list and `.snapshot.primary`; `wow.snapshot.interval`, `batch` and `pages` tune the
+ *   snapshot maintenance.
  * - `wow.log.partitions` (64) and `wow.log.append-queue.*`, whose defaults are the backend's preset.
  * - `wow.cluster.*` ([ClusterOptions]) and `wow.cluster.router`: `partitioned`, or `local` (the default on the memory
  *   backend, which cannot route across nodes).
@@ -201,11 +205,44 @@ class WowProperties {
     }
 
     /**
-     * Where the snapshots are (decision D177): [store] is the store of every aggregate's snapshots that
-     * `wow.aggregates.[<context>.<aggregate>].snapshot.store` does not name, `wow.log.store` when not set.
+     * Where the snapshots are (decisions D172, D177): [store] is the context's default snapshot store, `wow.log.store`
+     * when not set, whose built-in subscription is `snapshot`; [targets] are the stores every aggregate's snapshots
+     * are written to when `wow.aggregates.[<context>.<aggregate>].snapshot.store` names none, `[store]` when empty;
+     * [primary] is the one of them the write side and the queries read, the first when not set. A store added to the
+     * targets is backfilled from the log; switch the primary to it once it caught up, then drop the old one.
+     *
+     * The snapshot maintenance (state revision claims, in-place rebuilds, backfill checks) runs every [interval]; a
+     * rebuild rewrites [batch] snapshots a page, at most [pages] pages a run.
      */
     class Snapshot {
         var store: String? = null
+        var targets: MutableList<String> = ArrayList()
+        var primary: String? = null
+        var interval: Duration = SnapshotOptions.DEFAULT_INTERVAL.toJavaDuration()
+        var batch: Int = SnapshotOptions.DEFAULT_BATCH
+        var pages: Int = SnapshotOptions.DEFAULT_PAGES
+
+        /** The node's snapshot maintenance options. */
+        fun options(): SnapshotOptions {
+            val every = interval.toKotlinDuration()
+            val ttl = maxOf(SnapshotOptions.DEFAULT_TTL, every * TTL_INTERVALS)
+            return SnapshotOptions(every, batch, pages, ttl, ttl)
+        }
+
+        private companion object {
+            /** A lease or membership outlives this many runs. */
+            const val TTL_INTERVALS = 3
+        }
+    }
+
+    /**
+     * One aggregate type's snapshot targets (decisions D172, D177): [store] lists the stores of `wow.stores` its
+     * snapshots are written to, over `wow.snapshot.targets`; [primary] is the one its write side and queries read, the
+     * first when not set.
+     */
+    class AggregateSnapshot {
+        var store: MutableList<String> = ArrayList()
+        var primary: String? = null
     }
 
     /** One aggregate type's store of its log or of its snapshots (decision D177): one of `wow.stores`. */
@@ -566,8 +603,11 @@ class WowProperties {
         /** The store of the type's log (decision D177), over `wow.log.store`: the type's log group. */
         var log: AggregateStore = AggregateStore()
 
-        /** The store of the type's snapshots (decision D177), over `wow.snapshot.store`; its queries read it. */
-        var snapshot: AggregateStore = AggregateStore()
+        /**
+         * The stores of the type's snapshots (decisions D172, D177), over `wow.snapshot.targets`; its queries read the
+         * primary one.
+         */
+        var snapshot: AggregateSnapshot = AggregateSnapshot()
     }
 
     /** How the commands of an aggregate type are routed (`wow.aggregates.[<context>.<aggregate>].routing`). */

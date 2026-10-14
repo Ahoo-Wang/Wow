@@ -55,6 +55,8 @@ internal data class AggregateBinding(
     val ownership: String = "OWNER",
     /** `@AggregateRoot(snapshot)`: whether it keeps snapshots (decisions D4, D195), true by default. */
     val snapshot: Boolean = true,
+    /** `@AggregateRoot(stateRevision)`: the revision of its state's structure (decision D172), 1 by default. */
+    val stateRevision: Int = 1,
 ) {
     /** Whether `@AggregateRoot(lifecycle)` narrows the lifecycle commands, which the generated model then says. */
     val narrowsLifecycle: Boolean get() = lifecycle != ALL_LIFECYCLE_COMMANDS

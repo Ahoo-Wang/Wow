@@ -22,6 +22,8 @@ import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.InMemorySnapshotStore
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.ContextBackends
+import me.ahoo.wow.runtime.snapshot.SnapshotOptions
+import me.ahoo.wow.runtime.snapshot.SnapshotPlacement
 import me.ahoo.wow.runtime.snapshot.SnapshotStoreRouter
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
@@ -63,7 +65,7 @@ class HostStoresTest {
                 snapshot.store = "b"
                 aggregates["$BANK.account"] = WowProperties.Aggregate().apply {
                     log.store = "c"
-                    snapshot.store = "a"
+                    snapshot.store = mutableListOf("a")
                 }
                 aggregates["$BANK.other"] = WowProperties.Aggregate().apply { tenant = "fixed" }
             },
@@ -75,6 +77,81 @@ class HostStoresTest {
         layout.logStoreOf(AggregateType(BANK, "other")).assert().isEqualTo("a")
         layout.logStores.assert().containsExactlyInAnyOrder("a", "c")
         layout.snapshotStores.assert().containsExactlyInAnyOrder("a", "b")
+    }
+
+    @Test
+    fun `snapshots may have several targets, by default or per type, each with its primary (D172)`() {
+        val layout = StoreLayout.of(
+            properties {
+                log.store = "a"
+                snapshot.targets = mutableListOf("a", "b")
+                snapshot.primary = "b"
+                aggregates["$BANK.account"] = WowProperties.Aggregate().apply {
+                    snapshot.store = mutableListOf("c", "a")
+                }
+            },
+            memory("a", "b", "c"),
+            models,
+        )
+        layout.snapshotDefault.assert().isEqualTo(SnapshotPlacement(listOf("a", "b"), "b"))
+        layout.snapshotPlacementOf(account).assert().isEqualTo(SnapshotPlacement(listOf("c", "a"), "c"))
+        layout.snapshotStoreOf(account).assert().isEqualTo("c")
+        layout.snapshotStores.assert().containsExactlyInAnyOrder("a", "b", "c")
+        val stores = memory("a", "b", "c")
+        val targets = checkNotNull(layout.open(BANK, stores, 4).snapshotTargets)
+        targets.default.assert().isEqualTo("a")
+        targets.stores.keys.assert().containsExactlyInAnyOrder("a", "b", "c")
+        targets.primaryOf(account).assert().isSameAs(stores.getValue("c").snapshots(BANK))
+        // A type that names its primary alone keeps the default targets.
+        StoreLayout.of(
+            properties {
+                log.store = "a"
+                snapshot.targets = mutableListOf("a", "b")
+                aggregates["$BANK.account"] = WowProperties.Aggregate().apply { snapshot.primary = "b" }
+            },
+            memory("a", "b"),
+            models,
+        ).snapshotPlacementOf(account).assert().isEqualTo(SnapshotPlacement(listOf("a", "b"), "b"))
+        assertThrows<IllegalStateException> {
+            StoreLayout.of(properties { snapshot.targets = mutableListOf("z") }, memory("a"), models)
+        }.message.assert().contains("wow.snapshot.targets names the store z")
+        assertThrows<IllegalStateException> {
+            StoreLayout.of(
+                properties {
+                    log.store = "a"
+                    snapshot.primary = "b"
+                },
+                memory("a", "b"),
+                models
+            )
+        }.message.assert().contains("wow.snapshot.primary names b, which is not one of its targets")
+        assertThrows<IllegalStateException> {
+            StoreLayout.of(
+                properties {
+                    log.store = "a"
+                    aggregates["$BANK.account"] = WowProperties.Aggregate().apply {
+                        snapshot.store = mutableListOf("a")
+                        snapshot.primary = "b"
+                    }
+                },
+                memory("a", "b"),
+                models,
+            )
+        }.message.assert().contains("wow.aggregates.[$BANK.account].snapshot.primary names b")
+    }
+
+    @Test
+    fun `the snapshot maintenance options follow the interval`() {
+        val options = WowProperties.Snapshot().apply {
+            interval = java.time.Duration.ofMinutes(1)
+            batch = 7
+            pages = 3
+        }.options()
+        options.interval.inWholeSeconds.assert().isEqualTo(60)
+        options.batch.assert().isEqualTo(7)
+        options.pages.assert().isEqualTo(3)
+        options.leaseTtl.inWholeMinutes.assert().isEqualTo(3)
+        WowProperties.Snapshot().options().leaseTtl.assert().isEqualTo(SnapshotOptions.DEFAULT_TTL)
     }
 
     @Test
@@ -108,7 +185,7 @@ class HostStoresTest {
             StoreLayout.of(
                 properties {
                     log.store = "a"
-                    aggregates["$BANK.account"] = WowProperties.Aggregate().apply { snapshot.store = "z" }
+                    aggregates["$BANK.account"] = WowProperties.Aggregate().apply { snapshot.store = mutableListOf("z") }
                 },
                 two,
                 models,

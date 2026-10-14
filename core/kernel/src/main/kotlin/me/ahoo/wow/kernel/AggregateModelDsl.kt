@@ -52,6 +52,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     private var lifecycle: Set<Class<*>> = Lifecycle.COMMANDS.values.toSet()
     private val mounted = LinkedHashMap<Class<*>, String>()
     private var ownership: Ownership = Ownership.OWNER
+    private var stateRevision: Int = 1
 
     /** The state of an aggregate that has no event yet. */
     fun initial(factory: (AggregateRef) -> S) {
@@ -166,6 +167,14 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     /**
+     * The revision of the state's structure its snapshots are written at (decision D172): 1 unless this is called.
+     * `@AggregateRoot(stateRevision)` calls it in a generated model.
+     */
+    fun stateRevision(revision: Int) {
+        stateRevision = revision
+    }
+
+    /**
      * The name of a command or event type declared without one: `context.aggregate.SimpleName`, or the system name of
      * a lifecycle command or event ([Lifecycle]).
      */
@@ -232,6 +241,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
             CommandType(name, commandClass, aliases[commandClass].orEmpty().toSet())
         },
         ownership = ownership,
+        stateRevision = stateRevision,
     )
 
     private fun applies(include: Set<Class<*>>, exclude: Set<Class<*>>): (Class<*>) -> Boolean =

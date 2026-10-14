@@ -14,6 +14,7 @@
 package me.ahoo.wow.kernel
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.Lifecycle
@@ -21,6 +22,7 @@ import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.api.schedule.SetSchedule
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 /** What a model tells about the commands it decides (decisions D55, D108). */
 class AggregateModelTest {
@@ -53,6 +55,26 @@ class AggregateModelTest {
     }
 
     data class ImportCart(val legacy: String)
+
+    @Test
+    fun `a model's state revision is 1 unless it raises it, and its snapshots carry it (D172)`() {
+        val plain = aggregate<Cart>("shop", "cart") { initial { Cart(it.id) } }
+        plain.stateRevision.assert().isEqualTo(1)
+        val raised = aggregate<Cart>("shop", "cart") {
+            initial { Cart(it.id) }
+            stateRevision(3)
+        }
+        raised.stateRevision.assert().isEqualTo(3)
+        val ref = raised.type.ref("tenant", "c-1")
+        EventCodec().snapshotOf(raised, ref, Cart("c-1"), 1, Scope.NONE, 0, 0)
+            .stateRevision.assert().isEqualTo(3)
+        assertThrows<IllegalArgumentException> {
+            aggregate<Cart>("shop", "cart") {
+                initial { Cart(it.id) }
+                stateRevision(0)
+            }
+        }
+    }
 
     @Test
     fun `a model finds the commands mounted under it apart from those it decides (D182)`() {

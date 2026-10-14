@@ -179,6 +179,153 @@ abstract class SnapshotStoreSpec {
         store.load(type.ref("nobody", "a")).assert().isNull()
     }
 
+    @Test
+    fun `the state revision loads back as saved`(): Unit = runBlocking {
+        val store = createStore()
+        val saved = snapshot("a", 1).copy(stateRevision = 3)
+        store.save(saved).assert().isTrue()
+        store.load(saved.ref).assertSameAs(saved)
+        val legacy = snapshot("b", 1)
+        store.save(legacy).assert().isTrue()
+        checkNotNull(store.load(legacy.ref)).stateRevision.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `a lower state revision never replaces a higher one but marks it stale`(): Unit = runBlocking {
+        val store = createStore()
+        val newer = snapshot("a", 2).copy(stateRevision = 2)
+        store.save(newer).assert().isTrue()
+        store.pending(type, 2, limit = 10).assert().isEmpty()
+        // An old node of revision 1 commits version 3 and cannot write it over the revision 2 snapshot.
+        store.save(snapshot("a", 3)).assert().isFalse()
+        store.load(newer.ref).assertSameAs(newer)
+        store.pending(type, 2, limit = 10).assert().containsExactly(newer.ref)
+        // A save that is not newer marks nothing.
+        val other = snapshot("b", 2).copy(stateRevision = 2)
+        store.save(other).assert().isTrue()
+        store.save(snapshot("b", 1)).assert().isFalse()
+        store.pending(type, 2, limit = 10).assert().containsExactly(newer.ref)
+        // A higher state revision replaces a lower one at a higher version.
+        val upgraded = snapshot("c", 1)
+        store.save(upgraded).assert().isTrue()
+        val third = snapshot("c", 2).copy(stateRevision = 2)
+        store.save(third).assert().isTrue()
+        store.load(third.ref).assertSameAs(third)
+    }
+
+    @Test
+    fun `a rewrite replaces the same version or a lower one whatever the revision`(): Unit = runBlocking {
+        val store = createStore()
+        val stored = snapshot("a", 4).copy(stateRevision = 2)
+        store.save(stored).assert().isTrue()
+        // A rollback rebuilds at revision 1, in place, at the same version.
+        val rebuilt = snapshot("a", 4).copy(state = """{"rebuilt":true}""")
+        store.rewrite(rebuilt).assert().isTrue()
+        store.load(rebuilt.ref).assertSameAs(rebuilt)
+        store.rewrite(snapshot("a", 3).copy(stateRevision = 2)).assert().isFalse()
+        store.load(rebuilt.ref).assertSameAs(rebuilt)
+        val later = snapshot("a", 5).copy(stateRevision = 2)
+        store.rewrite(later).assert().isTrue()
+        store.load(later.ref).assertSameAs(later)
+        val missing = snapshot("b", 2)
+        store.rewrite(missing).assert().isTrue()
+        store.load(missing.ref).assertSameAs(missing)
+    }
+
+    @Test
+    fun `a stale mark keeps a snapshot pending until a rewrite reaches its version`(): Unit = runBlocking {
+        val store = createStore()
+        val stored = snapshot("a", 2)
+        store.save(stored).assert().isTrue()
+        store.pending(type, 1, limit = 10).assert().isEmpty()
+        store.markStale(stored.ref).assert().isTrue()
+        store.load(stored.ref).assertSameAs(stored)
+        store.pending(type, 1, limit = 10).assert().containsExactly(stored.ref)
+        store.rewrite(stored).assert().isTrue()
+        store.pending(type, 1, limit = 10).assert().isEmpty()
+        store.markStale(type.ref("tenant", "missing")).assert().isFalse()
+        // A refused save of version 5 over a higher revision: only a rewrite of version 5 or later clears it.
+        val newer = snapshot("b", 3).copy(stateRevision = 2)
+        store.save(newer).assert().isTrue()
+        store.save(snapshot("b", 5)).assert().isFalse()
+        store.rewrite(snapshot("b", 4)).assert().isTrue()
+        store.pending(type, 1, limit = 10).assert().containsExactly(newer.ref)
+        store.rewrite(snapshot("b", 5)).assert().isTrue()
+        store.pending(type, 1, limit = 10).assert().isEmpty()
+        // A save of a higher version keeps a mark of a version above it.
+        store.save(snapshot("c", 2).copy(stateRevision = 2)).assert().isTrue()
+        store.save(snapshot("c", 6)).assert().isFalse()
+        store.save(snapshot("c", 4).copy(stateRevision = 2)).assert().isTrue()
+        val c = type.ref("tenant", "c")
+        store.pending(type, 2, limit = 10).assert().contains(c)
+        store.save(snapshot("c", 6).copy(stateRevision = 2)).assert().isTrue()
+        store.pending(type, 2, limit = 10).assert().doesNotContain(c)
+    }
+
+    @Test
+    fun `pending snapshots come in key order, page by page, of one type`(): Unit = runBlocking {
+        val store = createStore()
+        val other = AggregateType(context, "other")
+        listOf("t2" to "a", "t1" to "b", "t1" to "a", "t1" to "a~", "t1" to "aé").forEach { (tenant, id) ->
+            store.save(snapshot(id, 1, tenant = tenant)).assert().isTrue()
+        }
+        store.save(snapshot("current", 1, tenant = "t1").copy(stateRevision = 2)).assert().isTrue()
+        store.save(snapshot("a", 1, tenant = "t1", aggregate = other)).assert().isTrue()
+        val expected = listOf("t1" to "a", "t1" to "a~", "t1" to "aé", "t1" to "b", "t2" to "a").map { (tenant, id) ->
+            type.ref(tenant, id)
+        }
+        store.pending(type, 2, limit = 10).assert().isEqualTo(expected)
+        val first = store.pending(type, 2, limit = 2)
+        first.assert().isEqualTo(expected.take(2))
+        val second = store.pending(type, 2, first.last(), limit = 2)
+        second.assert().isEqualTo(expected.subList(2, 4))
+        store.pending(type, 2, second.last(), limit = 2).assert().isEqualTo(expected.subList(4, 5))
+        store.pending(type, 2, expected.last(), limit = 2).assert().isEmpty()
+        store.pending(type, 1, limit = 10).assert().containsExactly(type.ref("t1", "current"))
+        store.pending(AggregateType(context, "none"), 1, limit = 10).assert().isEmpty()
+    }
+
+    @Test
+    fun `a table's first claim records it at the revision, not yet backfilled`(): Unit = runBlocking {
+        val store = createStore()
+        val other = AggregateType(context, "other")
+        store.table(type).assert().isNull()
+        store.claim(type, 1).assert().isEqualTo(SnapshotTable(1, rebuilding = false, backfilled = false))
+        store.table(type).assert().isEqualTo(SnapshotTable(1, rebuilding = false, backfilled = false))
+        store.claim(other, 2).assert().isEqualTo(SnapshotTable(2, rebuilding = true, backfilled = false))
+        store.claim(type, 1).assert().isEqualTo(SnapshotTable(1, rebuilding = false, backfilled = false))
+    }
+
+    @Test
+    fun `a claim raises the revision, and lowers it only for a rollback`(): Unit = runBlocking {
+        val store = createStore()
+        store.claim(type, 1)
+        store.mark(type, 1, backfilled = true).assert().isEqualTo(SnapshotTable(1, rebuilding = false))
+        store.claim(type, 2).assert().isEqualTo(SnapshotTable(2, rebuilding = true))
+        store.mark(type, 1, rebuilding = false).assert().isNull()
+        store.mark(type, 2, rebuilding = false).assert().isEqualTo(SnapshotTable(2))
+        store.mark(type, 2).assert().isEqualTo(SnapshotTable(2))
+        store.mark(type, 1).assert().isNull()
+        store.claim(type, 1).assert().isEqualTo(SnapshotTable(2))
+        store.claim(type, 2, lower = true).assert().isEqualTo(SnapshotTable(2))
+        store.claim(type, 1, lower = true).assert().isEqualTo(SnapshotTable(1, rebuilding = true))
+        store.table(type).assert().isEqualTo(SnapshotTable(1, rebuilding = true))
+        store.mark(AggregateType(context, "unclaimed"), 1, rebuilding = false).assert().isNull()
+    }
+
+    @Test
+    fun `concurrent claims leave one revision`(): Unit = runBlocking {
+        val store = createStore()
+        val claimed = coroutineScope {
+            (1..CONCURRENT_VERSIONS).map { index ->
+                async(Dispatchers.Default) { store.claim(type, index % 3 + 1) }
+            }.awaitAll()
+        }
+        claimed.forEach { it.revision.assert().isBetween(1, 3) }
+        store.table(type)!!.revision.assert().isEqualTo(3)
+        store.claim(type, 3).revision.assert().isEqualTo(3)
+    }
+
     protected companion object {
         const val CONTEXT_SUFFIX = 12
         const val CONCURRENT_VERSIONS = 32

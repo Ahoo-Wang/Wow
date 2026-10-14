@@ -28,6 +28,8 @@ import me.ahoo.wow.runtime.command.ReceiptHandler
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.schedule.JobOptions
+import me.ahoo.wow.runtime.snapshot.SnapshotOptions
+import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.runtime.state.StateViewOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
@@ -74,8 +76,20 @@ data class ContextBackends(
     val store: String = DEFAULT_STORE,
     /** The context's other log groups, each on a store of its own (decision D177). */
     val groups: List<LogGroupBackends> = emptyList(),
+    /**
+     * The context's snapshot targets (decision D172): every store its aggregate types' snapshots are written to, with
+     * each type's primary one. Without them, [snapshots] is every type's only target. With them, [snapshots] is null
+     * or their [primary][SnapshotTargets.primary] snapshots.
+     */
+    val snapshotTargets: SnapshotTargets? = null,
 ) {
+    /** The snapshots the write side and the state readers read: each type's primary target. */
+    val primarySnapshots: SnapshotStore? get() = snapshotTargets?.primary ?: snapshots
+
     init {
+        require(snapshotTargets == null || snapshots == null || snapshots === snapshotTargets.primary) {
+            "The snapshots of a context with snapshot targets are their primary ones."
+        }
         require(store.isNotBlank()) { "A log group names its store." }
         val stores = groups.map { it.store }
         require(store !in stores && stores.toSet().size == stores.size) {
@@ -150,6 +164,8 @@ enum class Routing {
  * - [timers]: the timer runner of each context that has a timer store (decision D166).
  * - [schedules]: the host's override of each job's default rule, by job name (`wow.schedules.<job>.*`, decision D198);
  *   a name no `@OnSchedule` handler of the node runs fails its assembly.
+ * - [snapshots]: the snapshot maintenance of each context (decision D172): how often it claims the state revisions,
+ *   rebuilds in place and checks the backfills, and the bounds of a rebuild.
  * - [kafkaRouted]: the aggregate types whose commands the `Kafka` router takes (design 02 §2, decision D143): an
  *   admitted command of one of them is written to its context's command topic, accepted once the broker acknowledged
  *   it, and executed by the owner of its log partition from there. Each must be a type the node serves, the node
@@ -175,6 +191,8 @@ data class ServiceNodeOptions(
     val kafkaRouted: Set<AggregateType> = emptySet(),
     val unknownWaitContexts: UnknownContexts = UnknownContexts.ALLOW,
     val ledger: LedgerPublishing? = null,
+    /** The snapshot maintenance of each context (decision D172): claims, in-place rebuilds, backfills. */
+    val snapshots: SnapshotOptions = SnapshotOptions(),
 ) {
     init {
         require(defaultWaitTimeout.isPositive()) { "The default wait timeout is positive." }

@@ -52,7 +52,11 @@ object ManifestTree {
         "name" to aggregate.name,
         "description" to aggregate.description,
         "state" to obj("schema" to aggregate.state.schema, "fingerprint" to aggregate.state.fingerprint),
-        "snapshot" to obj("enabled" to aggregate.snapshot.enabled),
+        "snapshot" to obj(
+            "enabled" to aggregate.snapshot.enabled,
+            // Written only when raised, so a Manifest of an aggregate that never raised it reads as before (D172).
+            "stateRevision" to aggregate.snapshot.stateRevision.takeIf { it != 1 },
+        ),
         "commands" to aggregate.commands.map {
             obj(
                 "name" to it.name,
@@ -170,7 +174,12 @@ object ManifestTree {
             name = node.string("name"),
             description = node.stringOrNull("description"),
             state = StateManifest(state.string("schema"), state.stringOrNull("fingerprint")),
-            snapshot = SnapshotManifest(node.objOrNull("snapshot")?.booleanOrNull("enabled") ?: true),
+            snapshot = node.objOrNull("snapshot").let { snapshot ->
+                SnapshotManifest(
+                    snapshot?.booleanOrNull("enabled") ?: true,
+                    snapshot?.intOrNull("stateRevision") ?: 1,
+                )
+            },
             commands = node.objects("commands").map {
                 CommandManifest(
                     name = it.string("name"),

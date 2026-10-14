@@ -17,10 +17,11 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.snapshot.SnapshotTable
 
 /**
- * The snapshots of a context whose aggregate types keep them on different stores (decision D177): each aggregate's
- * snapshot is in the store [stores] names for its type, else in [default].
+ * The snapshots of a context whose aggregate types keep them on different stores (decisions D172, D177): each
+ * aggregate's snapshot is in the store [stores] names for its type, else in [default].
  */
 class SnapshotStoreRouter(
     private val default: SnapshotStore,
@@ -33,10 +34,35 @@ class SnapshotStoreRouter(
 
     override suspend fun load(ref: AggregateRef): SnapshotRecord? = storeOf(ref.type).load(ref)
 
+    override suspend fun rewrite(snapshot: SnapshotRecord): Boolean = storeOf(snapshot.ref.type).rewrite(snapshot)
+
+    override suspend fun markStale(ref: AggregateRef): Boolean = storeOf(ref.type).markStale(ref)
+
+    override suspend fun pending(
+        type: AggregateType,
+        revision: Int,
+        after: AggregateRef?,
+        limit: Int,
+    ): List<AggregateRef> = storeOf(type).pending(type, revision, after, limit)
+
+    override suspend fun table(type: AggregateType): SnapshotTable? = storeOf(type).table(type)
+
+    override suspend fun claim(type: AggregateType, revision: Int, lower: Boolean): SnapshotTable =
+        storeOf(type).claim(type, revision, lower)
+
+    override suspend fun mark(
+        type: AggregateType,
+        revision: Int,
+        rebuilding: Boolean?,
+        backfilled: Boolean?,
+    ): SnapshotTable? = storeOf(type).mark(type, revision, rebuilding, backfilled)
+
     companion object {
         /** [default] alone when no type keeps its snapshots elsewhere, else the router over them. */
         @JvmStatic
-        fun of(default: SnapshotStore, stores: Map<AggregateType, SnapshotStore>): SnapshotStore =
-            if (stores.isEmpty()) default else SnapshotStoreRouter(default, stores)
+        fun of(default: SnapshotStore, stores: Map<AggregateType, SnapshotStore>): SnapshotStore {
+            val elsewhere = stores.filterValues { it !== default }
+            return if (elsewhere.isEmpty()) default else SnapshotStoreRouter(default, elsewhere)
+        }
     }
 }
