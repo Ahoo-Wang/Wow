@@ -36,7 +36,13 @@ class ViewPreferencesSpec {
 
     @Test
     fun `preferences should be created on the first write and replaced on the next`() = aggregateSpec(model) {
-        val first = SetViewPreferences("orders", listOf("v2", "v1"), "v2", autoRun = true, lastTabs = mapOf("v2" to "t"))
+        val first = SetViewPreferences(
+            "orders",
+            listOf("v2", "v1"),
+            "v2",
+            autoRun = true,
+            lastTabs = mapOf("v2" to "t")
+        )
         whenCommand(first, expectedVersion = 0, scope = alice, headers = APP_HEADERS) {
             expectEvents(ViewPreferencesSet("orders", APP, listOf("v2", "v1"), "v2", true, mapOf("v2" to "t")))
             expectState {

@@ -1,6 +1,6 @@
 # Wow 9.x to V10 Domain Source Migration
 
-Use this reference only when a downstream domain module written against Wow 9.x is rewritten for V10. It maps 9.x constructs to their V10 form; the before/after pairs come from the hand port of the 9.x example (`example-api`, `example-domain`) to V10 (the first V10 example, the shop, since folded into the eShop). For a complete V10 application to compare against, read the eShop (`example/eshop` on the `v10` branch): five contexts, each an API, a domain and a server module, with their end-to-end tests.
+Use this reference only when a downstream domain module written against Wow 9.x is rewritten for V10. It maps 9.x constructs to their V10 form; the before/after pairs come from the hand port of the 9.x example (`example-api`, `example-domain`) to V10 (the first V10 example, the shop, since folded into the eShop). For a complete V10 application to compare against, read the eShop (`example/eshop` on the `v10` branch): five contexts, each an API, a domain and a server module, with their end-to-end tests. For a 9.x domain that came with a Spring Boot starter of its own routes, reserved owners and owner moves, read the V10 view store (`platform/view-store`), ported from the 9.x `view-store/` with this reference (roadmap 7.2a).
 
 Status: first draft. V10 is still moving: verify every annotation, signature, route and configuration key against the pinned V10 target, not against this page. V10 has no release yet; a target pinned to a `v10` commit is a source baseline, not a published artifact, so record the artifact, plugin and repository availability as `MISSING EVIDENCE` until the target tag exists.
 
@@ -21,7 +21,7 @@ Status: first draft. V10 is still moving: verify every annotation, signature, ro
 | `wow-core`, `wow-spring`, `wow-webflux`, `wow-rest-contract`, `wow-mock`, `wow-metadata`, `wow-schema` | Replaced: `wow-kernel` and `wow-runtime` (core), `wow-http` (routes, problem+json, SSE), `wow-manifest` (contract) |
 | `wow-redis`, `wow-bi` | Removed (no Redis backend; ClickHouse sink replaces BI sync) |
 | `ksp("me.ahoo.wow:wow-compiler")` by hand | Gradle plugin `id("me.ahoo.wow")`: applies KSP with `wow-compiler` of its own version, excludes the 9.x processors, and adds `generateWowManifestFragment` and `mergeWowManifest` |
-| `wow-test` (`AggregateSpec<A, S>`) | The functional `aggregateSpec` DSL (`me.ahoo.wow.kernel.test`) in the kernel's test fixtures: `testImplementation(testFixtures("me.ahoo.wow:wow-kernel:<version>"))` |
+| `wow-test` (`AggregateSpec<A, S>`) | The functional `aggregateSpec` and `sagaSpec` DSL (`me.ahoo.wow.kernel.test`), still the artifact `wow-test` (the project `:test-dsl` in the Wow repository): `testImplementation("me.ahoo.wow:wow-test:<version>")` |
 | Domain handlers returning `Mono`/`Flux` | `suspend`, or keep Reactor through `wow-reactor` (compile error without it) |
 
 Artifact ids keep the `wow-` prefix (`me.ahoo.wow:wow-kernel`); V10 Gradle project names in the Wow repository do not. No module may depend on both a 9.x and a V10 module.
@@ -84,7 +84,7 @@ V10 annotations keep the package `me.ahoo.wow.api.annotation`, so kept names nee
 | `@StaticTenantId`, `@StaticAggregateId` | Removed | Fixed tenant is host configuration. |
 | `@AggregateName` | `@Name` on the aggregate root | |
 | `@AggregateRoute`, `@CommandRoute` (`PathVariable`, `HeaderVariable`) | Removed | Routes come from the Manifest. |
-| `@AggregateOwner(OwnerPolicy.*)`, `@Spaced` | Removed | Owner and space come from the principal. |
+| `@AggregateOwner(OwnerPolicy.*)`, `@Spaced` | Removed; `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)` | Owner and space come from the principal. `OwnerPolicy.ALWAYS` (and no policy) is `Ownership.OWNER`, the default: an owner-level caller reads and writes only its own. A resource 9.x kept under one reserved owner for the whole tenant (such as `(shared)`) is `Ownership.TENANT`: no owner recorded, every caller of the tenant reads it, writes guarded by the host's `CommandAuthorizer`. See [Ownership and owner moves](#ownership-and-owner-moves). |
 | `@VoidCommand`, `@Order`, `@EntityObject`, `@ValueObject`, `@Generated` | Removed | No counterpart; drop them. |
 | `@QueryReference`, other `api.query.annotation` | Not in V10 yet | Drop and report; the query protocol moves to `wow-query-api`. |
 | `@Tag`, `@Schema(name)` (swagger) | Not read | Schemas come from Jackson introspection at build time. |
@@ -140,6 +140,10 @@ Events lose identity fields the same way: the 9.x `OrderCreated.orderId` is now 
 | Return `Any`, event, list, `Mono` | `Decision` (`events`, `NoOp`, `reject`), an event, a list, a sealed type, or a publisher through `wow-reactor` |
 
 9.x framework types in a V10 signature are compile errors, so these rewrites are mandatory. A function's first parameter is the body `X` or `Command<X>`; later parameters are services or a `DecideScope`. Every non-private function is bound; private functions are ignored.
+
+`Command<X>` is erased on the JVM: two functions `onCommand(command: Command<A>)` and `onCommand(command: Command<B>)` of one aggregate do not compile (platform declaration clash). Name each such function after its command (`onCreate`, `onSave`) and annotate it `@OnCommand`; overloads that take the bodies themselves (`onCommand(command: A)`) keep the one name.
+
+A request fact a 9.x handler read from `CommandMessage.header` (an application id, say) reaches `command.headers` only when the host lists the request header in `wow.http.request-facts`, under the name listed there; a 9.x `CommandMessage.aggregateId.tenantId` is `command.ref.tenantId`, the authenticated user is `command.operator?.id` (null for an anonymous caller).
 
 Before, `Order.onCommand(CreateOrder)` in 9.x:
 
@@ -210,6 +214,8 @@ This is the one-to-one port. The eShop keeps the stock out of the order: the ord
 
 Rejections are values with stable codes. Declare them beside the aggregate so the compiler lists them in the context's Manifest `errors`; codes must not start with `wow.` and must be unique in the module. The HTTP status defaults to 422.
 
+A 9.x domain exception with its own error code (a `WowException` subclass, an error-code object) becomes one `@ErrorCode` per code, its 9.x HTTP status kept with `status` so clients that map statuses keep working; a `NotFoundResourceException` the domain threw (an aggregate of another application read as none, say) is a domain code with `status = 404`, not `wow.aggregate.not-found`. A rejection carries a code and a message only: 9.x `bindingErrors` (a list of the ids that blocked the command) have no place in it, so say them in the message and report the change to the clients that read them.
+
 ```kotlin
 object OrderRejections {
     @ErrorCode(description = "A product has less stock than the quantity ordered.")
@@ -239,7 +245,7 @@ fun onCommand(command: ChangeAddress): Decision =
     if (state.status == OrderStatus.CREATED) {
         Decision.events(AddressChanged(command.shippingAddress))
     } else {
-        Decision.reject(OrderRejections.WRONG_STATUS, "The order ${state.id} is ${state.status}.")
+        Decision.reject(OrderRejections.WRONG_STATUS, "The order is ${state.status}.")
     }
 ```
 
@@ -311,6 +317,8 @@ Cover each upgrade with a test that decodes a real 9.x payload through the gener
 - Every property needs a value before creation: the kernel serializes state for snapshots and the test DSL's purity check, and an uninitialized `lateinit` cannot be read. Make it nullable or give it a default.
 - Mutable state stays the default style; only annotations and signatures change. Decide must not mutate state outside events; the test DSL fails such code.
 - Drop 9.x framework interfaces on state: `StatusCapable`, `StateAggregateTagsExtractor` (tags now change only through the `ApplyTags` lifecycle command), `ReadOnlyStateAggregate`, and swagger `@Schema`.
+- Drop the state's `id` unless the domain reads it: a no-argument constructor is the recommended form (decision D203); the id is the snapshot's `aggregateId` and `command.ref.id` in decide. The compiler also accepts `(id)` and `(id, tenantId)`.
+- Jackson trees in commands, events and state (`ObjectNode`, `JsonNode`, a free-form config) become `Map<String, Any?>` (or a typed class): the API module then needs no Jackson, and the Manifest schema of the field is a plain object. A query can neither filter nor project into such a field (`state.config.kind` is `UNKNOWN_FIELD`), so a value clients filter or list by is kept as a field of its own beside it (`state.kind`), and their queries change.
 
 Before:
 
@@ -328,7 +336,7 @@ class OrderState(val id: String) : StatusCapable<OrderStatus>, StateAggregateTag
 After:
 
 ```kotlin
-class OrderState(val id: String) {
+class OrderState {
     var items: List<OrderItem> = emptyList()
         private set
     var address: ShippingAddress? = null
@@ -438,6 +446,32 @@ Read the 9.x paths from the application's generated 9.x OpenAPI, not from annota
 - `@AggregateOwner(OwnerPolicy.ALWAYS)` and `@Spaced` disappear: the scope is always recorded from the principal. `OwnerPolicy.AGGREGATE_ID` becomes the creating-command check shown above.
 - Ids are unique per tenant only; the data import reports ids that collide across tenants.
 
+## Ownership and owner moves
+
+Read this when the 9.x domain uses the owner segment of its paths as data: an audience (`owner/(shared)` for shared, a user for personal), a reserved owner, or an event that implements `OwnerTransferred` (the 9.x view store, ported in V10 work package 7.2a, is the reference: `platform/view-store`).
+
+- **Who owns what** (decision D189). Choose `Ownership` per aggregate as the annotation mapping says. A creation without an owner (an anonymous or tenant-level caller) records none; when the domain needs one, reject it with a code of its own rather than inventing an owner.
+- **Reserved owners.** A V10 caller acts as another owner only by naming it in `Wow-Scope`, which admission accepts only from a caller with `crossScope`. To keep 9.x paths such as `owner/(shared)` open to everyone while other owners stay closed, the host's `CallerResolver` grants `crossScope` only when `Wow-Scope` names exactly a reserved scope, and returns the caller with that scope already as its own: a `CommandTransformer` sees only `CommandInput.caller`, not the scope `Wow-Scope` names. Who may write under a reserved owner is the `CommandAuthorizer`'s decision (`CommandAction.scope`), which replaces the 9.x gateway's path rules. This is a security decision: record it for the user, never infer it.
+- **Moving an owner.** A domain command cannot change the owner in V10: only `wow.lifecycle.TransferOwner` does, the compiler refuses a decide function that takes it (the kernel would allow overriding it), and a decide function cannot produce `OwnerTransferred`. Rewrite a 9.x command whose event implemented `OwnerTransferred` as a command that records the domain change (`ViewShared`, `ViewClaimed(toOwnerId)`) and a `@Saga` that derives `TransferOwner` from it (derived commands keep the commit's scope and are not checked against the target's, decision D199). Keep `TransferOwner` in `@AggregateRoot(lifecycle)` and deny it to HTTP callers in the `CommandAuthorizer`, which derived commands do not pass through. The move costs a second version, and a caller that must see it waits for it: `Wow-Wait: handled(<Saga>.<function>)>snapshot`.
+- **The user a command is for.** A 9.x route that took the target owner from the caller's own path (a claim sent to `owner/{me}`) reads it from `command.operator?.id` instead; never from the body, which anyone can fill.
+
+## Routes and handlers of a 9.x starter
+
+A 9.x starter's own `RouterFunction` routes have no V10 counterpart: a V10 service serves the Manifest's routes. Rewrite each by what it did, and list every change for the clients (report it as a REST contract difference, never emulate the 9.x path):
+
+| 9.x starter route | V10 |
+|---|---|
+| A write to an aggregate whose id the handler derived (from the owner, the application, a key) and dispatched with `CommandHandler` | A `CommandTransformer` of the command (decision D182) that derives the id; the route without an id (`POST /{context}/{aggregate}/{command}`) is served for it. Derive the id from what the caller cannot choose, and send a request that names an id to the derived one all the same. |
+| A read of that aggregate (`GET …/preferences`) | A snapshot query (`POST /{context}/{aggregate}/snapshot/query`) filtered by what the id was derived from; nothing found means never written (version 0). |
+| A route that answered "already so" without a command, so the version did not move | `Decision.NoOp` in the aggregate: the command is answered at the unchanged version. |
+| A replay route that found a write by its request id (`…/requests/{requestId}`) | Not needed: a retry with the same `Wow-Request-Id` is answered as a duplicate with the version it committed (`GET …/{id}/state?version=` reads it), and a creation without an id keeps the id of its first attempt (decision D191). |
+| `Command-Aggregate-Version: 0` for "never written" | `If-Match: "0"`; a stale version is 412 `wow.aggregate.version-mismatch`. |
+| A query policy reading request headers (an application) | A `QueryPolicy` bean reading `QueryCaller.attributes`, which the `CallerResolver` fills from the header; only snapshot models carry the state fields it filters on. |
+| A custom delete command (an `object` implementing 9.x `DeleteAggregate`) with domain checks | `DELETE /{context}/{aggregate}/{id}`, the lifecycle `DeleteAggregate`, which runs no domain rule: move the checks to the `CommandAuthorizer`, or, when "deleted" is domain state (cleared wording), a domain command and event instead. |
+| Routes closed by a `WebFilter` (event streams, recover, tags) | Narrow `@AggregateRoot(lifecycle)` to the lifecycle commands kept; deny the rest in the `CommandAuthorizer`. |
+
+A domain service a 9.x handler injected (`Flux`-returning port, say) becomes a `suspend` port bound as a Spring bean of its type; one that reads the node's own queries (`HttpQueries`) looks them up lazily (`ObjectProvider`), since the queries are built with the node that binds the service.
+
 ## Host configuration
 
 V10 host keys live under `wow.*` but none of the 9.x keys carry over: `wow.service`, `wow.node.*`, `wow.internal.port` (default 9090), `wow.backend` (chosen from the class path), `wow.log.*`, `wow.cluster.*`, `wow.wait.*`, `wow.tenant.default`, `wow.http.*`, `wow.aggregates.*`. Map each 9.x key to a V10 key or record it as removed; never leave a 9.x key in place expecting it to bind.
@@ -461,7 +495,7 @@ Kotlin callers of 9.x `CommandGateway` move to the V10 gateway (`suspend`), or t
 
 ## Tests
 
-Rewrite `AggregateSpec<A, S>({ on { ... } })` to the functional DSL on the generated model: `given` events, `whenCommand` with an optional `scope`, then `expectEvents`, `expectRejected(code)`, `expectState`, `expectScope`. Keep every 9.x scenario; add one for each new rejection code, for the kernel's scope guard where an ownership policy was removed, and for each upgrade function. 9.x `givenState(state, version)` stays `givenState`; `ref`/`fork` stay `ref(name)` and `fork(name, from)`; `expectError` by exception type is `expectError<T>()`, and an error code is `expectRejected(code)`. 9.x `SagaSpec` becomes `sagaSpec(<saga>Handlers(Dependencies.of(…))) { whenEvent(stateEvent(…)) { expectCommand… } }`.
+Rewrite `AggregateSpec<A, S>({ on { ... } })` to the functional DSL on the generated model: `given` events, `whenCommand` with an optional `scope`, request-fact `headers` (9.x `whenCommand(command, header, ownerId)`) and `operator`, then `expectEvents`, `expectRejected(code)`, `expectState`, `expectScope`. Keep every 9.x scenario; add one for each new rejection code, for the kernel's scope guard where an ownership policy was removed, and for each upgrade function. 9.x `givenState(state, version)` stays `givenState`; `ref`/`fork` stay `ref(name)` and `fork(name, from)`; `expectError` by exception type is `expectError<T>()`, and an error code is `expectRejected(code)`. 9.x `SagaSpec` becomes `sagaSpec(<saga>Handlers(Dependencies.of(…))) { whenEvent(stateEvent(…)) { expectCommand… } }`.
 
 ```kotlin
 class CartSpec {
@@ -482,7 +516,10 @@ class CartSpec {
 |---|---|
 | `@AggregateRoute(resourceName)`, custom `@CommandRoute` actions, methods, path and header variables | No equivalent; routes are fixed. Clients and gateway rules change. |
 | `@AggregateRoot(commands = [...])`, `MountedCommand`, `@VoidCommand` | No equivalent; dropped. |
-| `@AggregateOwner(OwnerPolicy.*)`, `@Spaced` | No per-aggregate policy; scope from the principal plus explicit checks. |
+| `@AggregateOwner(OwnerPolicy.*)`, `@Spaced` | `Ownership.OWNER` or `TENANT` per aggregate; scope from the principal plus explicit checks. |
+| An event implementing `OwnerTransferred`; a decide function for a lifecycle command | Not in a decide function: a saga derives `TransferOwner` ([Ownership and owner moves](#ownership-and-owner-moves)). |
+| A starter's own routes (derived ids, replay, "unchanged" answers, path-scoped reserved owners) | Transformers, snapshot queries, `NoOp`, request-id deduplication and a `CallerResolver` ([Routes and handlers of a 9.x starter](#routes-and-handlers-of-a-9x-starter)). |
+| `bindingErrors` of a domain exception | No place in a rejection; said in its message. |
 | `CommandValidator.validate()` | No V10 counterpart in the domain API; Jakarta at the edge or a decide rejection. The example's China-only address rule was dropped. |
 | `@Order`, swagger `@Tag`/`@Schema` | No equivalent; dropped. |
 | `GlobalIdGenerator` inside decide | Deterministic ids from the ref; check the target's `IdGenerator` port before injecting one. |

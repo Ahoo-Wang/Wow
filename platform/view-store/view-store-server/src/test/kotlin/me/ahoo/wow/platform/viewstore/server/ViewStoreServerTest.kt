@@ -37,7 +37,11 @@ class ViewStoreServerTest {
                 ViewStoreContext.DATASET_WORDING,
             )
             // The memory backend serves no snapshot query: a claim then knows of no shared dashboard.
-            store.post("/view-store/view/snapshot/query", """{"kind":"list","filter":{"op":"MATCH_ALL"}}""", Who.user("a"))
+            store.post(
+                "/view-store/view/snapshot/query",
+                """{"kind":"list","filter":{"op":"MATCH_ALL"}}""",
+                Who.user("a")
+            )
                 .status.assert().isEqualTo(NOT_FOUND)
             val references = QueriedBoardReferences { store.context.getBean(HttpQueries::class.java) }
             runBlocking { references.referencingBoards("(0)", "app", "view-1") }.assert().isEmpty()

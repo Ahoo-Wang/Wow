@@ -45,7 +45,9 @@ class ViewStoreAuthorizer : CommandAuthorizer {
         return if (role in roles) {
             Authorization.Allowed
         } else {
-            Authorization.Denied("${caller.subject ?: "An anonymous caller"} may not ${action.type.name}: it needs $role.")
+            Authorization.Denied(
+                "${caller.subject ?: "An anonymous caller"} may not ${action.type.name}: it needs $role."
+            )
         }
     }
 }

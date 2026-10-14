@@ -66,8 +66,23 @@ object V10Rules {
     /** The ops domain: the `parked` aggregate, the read model of every service's failure ledger (decision D141). */
     val OPS_DOMAIN = V10Module("ops-domain", "platform/ops/ops-domain")
 
+    /** The view store's API: its commands, events and value types (roadmap 7.2a). */
+    val VIEW_STORE_API = V10Module("view-store-api", "platform/view-store/view-store-api")
+
+    /** The view store's domain: the view, view preferences and dataset wording aggregates (roadmap 7.2a). */
+    val VIEW_STORE_DOMAIN = V10Module("view-store-domain", "platform/view-store/view-store-domain")
+
     /** The platform modules (roadmap M7): domains of their own, built on the kernel as an application's domain is. */
-    val PLATFORM_MODULES = listOf(OPS_API, OPS_DOMAIN)
+    val PLATFORM_MODULES = listOf(OPS_API, OPS_DOMAIN, VIEW_STORE_API, VIEW_STORE_DOMAIN)
+
+    /** The view store service (roadmap 7.2a): an application of the V10 modules, on the Spring Boot host. */
+    val VIEW_STORE_SERVER = V10Module("view-store-server", "platform/view-store/view-store-server")
+
+    /**
+     * The platform's services (roadmap M7): applications of the V10 modules, as the eShop's servers are, not modules
+     * of the framework, so the rules of [MODULES] (Spring Boot only in the host, say) do not apply to them.
+     */
+    val PLATFORM_SERVERS = listOf(VIEW_STORE_SERVER)
 
     val MODULES = listOf(
         API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, OPENAPI, HTTP,
@@ -156,7 +171,32 @@ object V10Rules {
         // compiled by the compiler; never the runtime.
         OPS_API to setOf("api"),
         OPS_DOMAIN to setOf("ops-api", "kernel", "compiler"),
+        VIEW_STORE_API to setOf("api"),
+        VIEW_STORE_DOMAIN to setOf("view-store-api", "kernel", "compiler"),
     )
+
+    /**
+     * The project dependencies each platform service may declare: its domain, the host and the backends it runs on
+     * (decision D110), and the query module's test fixtures for its tests.
+     */
+    val ALLOWED_SERVER_DEPENDENCIES: Map<V10Module, Set<String>> = mapOf(
+        VIEW_STORE_SERVER to setOf("view-store-domain", "spring-boot", "postgres", "query"),
+    )
+
+    /**
+     * The platform's services reach the V10 modules and the platform's own projects only (decision D146), directly or
+     * transitively, as the example does: never a 9.x module or a spike. The eShop's projects are reached only through
+     * the snapshot tests of `:openapi` ([ALLOWED_PROJECT_DEPENDENCIES]); a service's own dependencies, which
+     * [ALLOWED_SERVER_DEPENDENCIES] holds, name none of them.
+     */
+    fun platformOutsideV10Violations(repositoryRoot: File): List<String> {
+        val graph = projectGraph(repositoryRoot)
+        val allowed = (MODULES + PLATFORM_SERVERS).map { it.name }.toSet()
+        return PLATFORM_SERVERS.map { it.name }.flatMap { server ->
+            reachable(graph, server).filterNot { it in allowed || isExample(it) }.sorted()
+                .map { "$server reaches :$it" }
+        }
+    }
 
     private val SPRING = listOf("org.springframework")
     private val JSON_LIBRARIES = listOf(

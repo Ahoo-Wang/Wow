@@ -21,13 +21,19 @@ import me.ahoo.wow.api.annotation.ErrorCode
  * principal, and its routes are the Manifest's.
  */
 object ViewStoreRejections {
-    @ErrorCode(description = "The request is not a valid write: its config, title, preferences or wording.", status = 400)
+    @ErrorCode(
+        description = "The request is not a valid write: its config, title, preferences or wording.",
+        status = 400
+    )
     const val INVALID = "view-store.invalid"
 
     @ErrorCode(description = "The request carries no CoSec-App-Id.", status = 400)
     const val APP_REQUIRED = "view-store.app-required"
 
-    @ErrorCode(description = "A view is saved by an owner: a user, (shared), or (system) under (platform).", status = 400)
+    @ErrorCode(
+        description = "A view is saved by an owner: a user, (shared), or (system) under (platform).",
+        status = 400
+    )
     const val OWNER_REQUIRED = "view-store.owner-required"
 
     @ErrorCode(description = "The aggregate belongs to another application, which reads as none.", status = 404)

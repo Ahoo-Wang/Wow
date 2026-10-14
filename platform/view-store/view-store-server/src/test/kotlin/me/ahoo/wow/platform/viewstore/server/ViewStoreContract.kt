@@ -140,10 +140,25 @@ abstract class ViewStoreContract {
         val id = create(ALICE, definition())
         store.post("/view-store/view/$id/wow.lifecycle.transfer-owner", """{"ownerId":"bob"}""", ALICE)
             .assertProblem(FORBIDDEN, "wow.auth.forbidden")
-        // Acting as another user is refused: only the reserved owners are open to Wow-Scope.
-        store.post(VIEW_QUERY, """{"kind":"list","filter":{"op":"MATCH_ALL"}}""", ALICE.with(WowHeaders.SCOPE, "owner=bob"))
+        // Nobody signed in reads the shared views, and writes none.
+        store.post(VIEWS, """{"definitionId":"d","title":"Anyone's","config":$RECORD}""", Who.ANONYMOUS.shared)
             .assertProblem(FORBIDDEN, "wow.auth.forbidden")
-        store.post(VIEW_QUERY, """{"kind":"list","filter":{"op":"MATCH_ALL"}}""", ALICE.with(WowHeaders.SCOPE, "owner="))
+            .json["detail"].asString().assert().startsWith("An anonymous caller")
+        // A view's events carry no application to keep a query in.
+        store.post(VIEW_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$id"}}""", ALICE.withoutApp)
+            .assertOk().json.values().map { it["version"].asInt() }.assert().containsExactly(1)
+        // Acting as another user is refused: only the reserved owners are open to Wow-Scope.
+        store.post(
+            VIEW_QUERY,
+            """{"kind":"list","filter":{"op":"MATCH_ALL"}}""",
+            ALICE.with(WowHeaders.SCOPE, "owner=bob")
+        )
+            .assertProblem(FORBIDDEN, "wow.auth.forbidden")
+        store.post(
+            VIEW_QUERY,
+            """{"kind":"list","filter":{"op":"MATCH_ALL"}}""",
+            ALICE.with(WowHeaders.SCOPE, "owner=")
+        )
             .assertProblem(BAD_REQUEST, "wow.query.malformed")
     }
 
@@ -216,6 +231,7 @@ abstract class ViewStoreContract {
     protected companion object {
         const val VIEWS = "/view-store/view/create-view"
         const val VIEW_QUERY = "/view-store/view/snapshot/query"
+        const val VIEW_EVENTS = "/view-store/view/events/query"
         const val PREFERENCES = "/view-store/view_preferences/set-view-preferences"
         const val PREFERENCES_QUERY = "/view-store/view_preferences/snapshot/query"
         const val WORDING = "/view-store/dataset_wording/set-dataset-wording"
@@ -227,7 +243,9 @@ abstract class ViewStoreContract {
         fun dashboardOf(view: String): String = """{"kind":"dashboard","panels":[{"click":{"instanceId":"$view"}}]}"""
 
         /** The wait of a share or a claim, until the saga moved the owner and the snapshot holds it. */
-        val MOVED: Map<String, String> = mapOf(WowHeaders.WAIT to "handled(ViewAudienceSaga.onAudienceChanged)>snapshot")
+        val MOVED: Map<String, String> = mapOf(
+            WowHeaders.WAIT to "handled(ViewAudienceSaga.onAudienceChanged)>snapshot"
+        )
 
         val ALICE = Who.user("alice")
         val BOB = Who.user("bob")

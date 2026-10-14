@@ -74,7 +74,11 @@ class ViewSpec {
 
     @Test
     fun `a personal view should be created, saved and renamed by its owner in its application`() = viewSpec {
-        whenCommand(CreateView("orders", "  Open orders  ", recordConfig()), scope = owner(ALICE), headers = APP_HEADERS) {
+        whenCommand(
+            CreateView("orders", "  Open orders  ", recordConfig()),
+            scope = owner(ALICE),
+            headers = APP_HEADERS
+        ) {
             expectEvents(
                 ViewCreated("orders", "Open orders", ViewKind.RECORD, ViewAudience.PERSONAL, APP, recordConfig()),
             )
@@ -115,7 +119,11 @@ class ViewSpec {
                 expectRejected(ViewStoreRejections.NOT_FOUND)
             }
             whenCommand(command, scope = owner(ALICE)) { expectRejected(ViewStoreRejections.APP_REQUIRED) }
-            whenCommand(command, scope = owner(BOB), headers = APP_HEADERS) { expectRejected(KernelRejections.FORBIDDEN) }
+            whenCommand(
+                command,
+                scope = owner(BOB),
+                headers = APP_HEADERS
+            ) { expectRejected(KernelRejections.FORBIDDEN) }
         }
         whenCommand(ClaimView, scope = owner(ALICE), headers = app(OTHER_APP), operator = operator(ALICE)) {
             expectRejected(ViewStoreRejections.NOT_FOUND)
@@ -160,7 +168,11 @@ class ViewSpec {
             expectScope(SHARED)
         }
         whenCommand(ShareView, scope = SHARED, headers = APP_HEADERS) { expectUnchanged() }
-        whenCommand(ShareView, scope = owner(ALICE), headers = APP_HEADERS) { expectRejected(KernelRejections.FORBIDDEN) }
+        whenCommand(
+            ShareView,
+            scope = owner(ALICE),
+            headers = APP_HEADERS
+        ) { expectRejected(KernelRejections.FORBIDDEN) }
     }
 
     @Test
@@ -173,7 +185,12 @@ class ViewSpec {
         asked.assert().containsExactly(Triple(TENANT, APP, ID))
         whenCommand(TransferOwner(BOB)) { expectScope(owner(BOB)) }
         // Claimed again by its owner: nothing changes; by anyone else as themselves, the kernel refuses.
-        whenCommand(ClaimView, scope = owner(BOB), headers = APP_HEADERS, operator = operator(BOB)) { expectUnchanged() }
+        whenCommand(
+            ClaimView,
+            scope = owner(BOB),
+            headers = APP_HEADERS,
+            operator = operator(BOB)
+        ) { expectUnchanged() }
         whenCommand(ClaimView, scope = owner(ALICE), headers = APP_HEADERS, operator = operator(ALICE)) {
             expectRejected(KernelRejections.FORBIDDEN)
         }
@@ -211,7 +228,9 @@ class ViewSpec {
     }
 
     @Test
-    fun `a stored system view should be global and never move audience`() = viewSpec(ViewStoreContext.SYSTEM_TENANT_ID) {
+    fun `a stored system view should be global and never move audience`() = viewSpec(
+        ViewStoreContext.SYSTEM_TENANT_ID
+    ) {
         created(ViewStoreContext.SYSTEM_OWNER_ID)
         whenCommand(SaveView(dashboardConfig("v1")), scope = SYSTEM, headers = APP_HEADERS) {
             expectEventTypes(ViewSaved::class)

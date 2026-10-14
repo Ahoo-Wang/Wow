@@ -74,14 +74,17 @@ class DatasetWording(private val state: DatasetWordingState) {
         state.dataset.isNotEmpty() && state.dataset != body.dataset ->
             "The wording belongs to dataset [${state.dataset}]."
 
-        body.title != null && body.title!!.trim().length !in 1..ViewConfigs.MAX_TITLE_LENGTH ->
+        body.title.isOutOf(ViewConfigs.MAX_TITLE_LENGTH) ->
             "The wording's title must be 1 to ${ViewConfigs.MAX_TITLE_LENGTH} characters."
 
-        body.recordNoun != null && body.recordNoun!!.trim().length !in 1..MAX_NOUN_LENGTH ->
+        body.recordNoun.isOutOf(MAX_NOUN_LENGTH) ->
             "The wording's record noun must be 1 to $MAX_NOUN_LENGTH characters."
 
         else -> body.fields?.let(::fieldsProblem)
     }
+
+    /** Whether this is given and, trimmed, empty or longer than [max] characters. */
+    private fun String?.isOutOf(max: Int): Boolean = this != null && trim().length !in 1..max
 
     private fun fieldsProblem(fields: Map<String, Any?>): String? {
         val bytes = WowJson.mapper.writeValueAsBytes(fields).size

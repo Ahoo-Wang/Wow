@@ -71,6 +71,22 @@ class DatasetWordingSpec {
     }
 
     @Test
+    fun `wording of only a noun, or only fields, should say something until it is cleared`() = aggregateSpec(model) {
+        whenCommand(SetDatasetWording("orders", recordNoun = "order"), headers = APP_HEADERS) {
+            expectState { isEmpty.assert().isFalse() }
+        }
+        whenCommand(SetDatasetWording("orders", fields = fields), headers = APP_HEADERS) {
+            expectState { isEmpty.assert().isFalse() }
+        }
+        whenCommand(ClearDatasetWording("orders"), headers = APP_HEADERS) { expectEvents(DatasetWordingCleared) }
+        // A blank application is none.
+        whenCommand(
+            SetDatasetWording("orders"),
+            headers = app("  ")
+        ) { expectRejected(ViewStoreRejections.APP_REQUIRED) }
+    }
+
+    @Test
     fun `wording that was never set should not be cleared`() = aggregateSpec(model) {
         whenCommand(ClearDatasetWording("orders"), headers = APP_HEADERS) { expectRejected(KernelRejections.NOT_FOUND) }
     }
