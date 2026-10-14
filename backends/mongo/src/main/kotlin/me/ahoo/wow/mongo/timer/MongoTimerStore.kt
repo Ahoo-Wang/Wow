@@ -52,7 +52,8 @@ import org.bson.conversions.Bson
  * loaded. A partial index on `(partition, due_at, timer_id)` of the PENDING and FIRING (claimed) timers serves the due read of every
  * partition asked, one on the target of the PARKED timers a resume. The body is kept as the command's JSON text, the
  * rule as a subdocument (`{type, ...}`, as Wow's JSON writes it). Format 2 added the rule and the slot, format 3 the
- * slot's due time (`slot_due_at`), kept apart from `due_at`, which a claim or a retry moves.
+ * slot's due time (`slot_due_at`), kept apart from `due_at`, which a claim or a retry moves, and, within format 3, the
+ * count of the slots a recurring timer coalesced before its current one (`skipped`, absent read as none).
  *
  * Calls run on [dispatcher], virtual threads by default (decision D29).
  */
@@ -99,6 +100,7 @@ class MongoTimerStore(
             Updates.set(SLOT, timer.slot),
             Updates.set(DUE_AT, timer.dueAt),
             Updates.set(SLOT_DUE_AT, timer.slotDueAt),
+            Updates.set(SKIPPED, timer.skipped),
             Updates.set(TARGET_CONTEXT, timer.target.type.context),
             Updates.set(TARGET_AGGREGATE, timer.target.type.name),
             Updates.set(TARGET_TENANT_ID, timer.target.tenantId),
@@ -173,6 +175,7 @@ class MongoTimerStore(
                         Updates.set(STATUS, next.status.name),
                         Updates.set(SLOT, next.slot),
                         Updates.set(SLOT_DUE_AT, next.slotDueAt),
+                        Updates.set(SKIPPED, next.skipped),
                         Updates.set(DUE_AT, next.dueAt),
                         Updates.set(ATTEMPTS, next.attempts),
                         Updates.set(OUTCOME, next.outcome),
@@ -231,6 +234,8 @@ class MongoTimerStore(
         operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
         scope = Scope(document.getString(OWNER_ID), document.getString(SPACE_ID)),
         slotDueAt = document.getLong(SLOT_DUE_AT),
+        // Added within format 3 (decision D198): a document written before it skipped none.
+        skipped = document.getLong(SKIPPED) ?: 0L,
     )
 
     private companion object {
@@ -248,6 +253,7 @@ class MongoTimerStore(
         const val PARTITION = "partition"
         const val DUE_AT = "due_at"
         const val SLOT_DUE_AT = "slot_due_at"
+        const val SKIPPED = "skipped"
         const val RULE = "rule"
         const val SLOT = "slot"
         const val TARGET_CONTEXT = "target_context"
