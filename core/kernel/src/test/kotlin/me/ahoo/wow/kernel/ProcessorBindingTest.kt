@@ -48,6 +48,18 @@ class ProcessorBindingTest {
     )
 
     @Test
+    fun `a handler of another context's stream should start from the beginning unless it declares a start`() {
+        // Decision D194: a service that joins later still gets what the other context published before.
+        val sourced = ProcessorBinding.saga<Any>("Stock", "onOrder", null, aggregates = ORDERS) { _, _ -> emptyList() }
+        sourced.startIn("inventory").assert().isEqualTo(StartFrom.BEGINNING)
+        // Its own context's aggregates, named, are read from the log: a saga starts at its end.
+        sourced.startIn("shop").assert().isEqualTo(StartFrom.END)
+        val end = StartFrom.END
+        val mail = ProcessorBinding.react<Any>("Mail", "on", null, startFrom = end, aggregates = ORDERS) { _, _ -> }
+        mail.startIn("inventory").assert().isEqualTo(StartFrom.END)
+    }
+
+    @Test
     fun `a binding should be named processor dot function, of its kind, starting where its kind starts`() {
         val project = ProcessorBinding.project("View", "onEvent", CartState::class.java) { _, _ -> }
         project.name.assert().isEqualTo("View.onEvent")
@@ -55,19 +67,21 @@ class ProcessorBindingTest {
         project.function.assert().isEqualTo("onEvent")
         project.kind.assert().isEqualTo(FunctionKind.PROJECT)
         project.stateType.assert().isEqualTo(CartState::class.java)
-        project.startFrom.assert().isEqualTo(StartFrom.BEGINNING)
+        project.startFrom.assert().isNull()
+        project.startIn("shop").assert().isEqualTo(StartFrom.BEGINNING)
         project.blocking.assert().isFalse()
         project.toString().assert().isEqualTo("ProcessorBinding(View.onEvent, PROJECT)")
         val react = ProcessorBinding.react<Any>("Mail", "send", null, blocking = true) { _, _ -> }
         react.kind.assert().isEqualTo(FunctionKind.REACT)
-        react.startFrom.assert().isEqualTo(StartFrom.END)
+        react.startFrom.assert().isNull()
+        react.startIn("shop").assert().isEqualTo(StartFrom.END)
         react.blocking.assert().isTrue()
         react.stateType.assert().isNull()
         val saga = ProcessorBinding.saga<Any>("Saga", "derive", null) { _, _ -> emptyList() }
         saga.kind.assert().isEqualTo(FunctionKind.SAGA)
-        saga.startFrom.assert().isEqualTo(StartFrom.END)
+        saga.startIn("shop").assert().isEqualTo(StartFrom.END)
         ProcessorBinding.saga<Any>("Saga", "replay", null, startFrom = StartFrom.BEGINNING) { _, _ -> emptyList() }
-            .startFrom.assert().isEqualTo(StartFrom.BEGINNING)
+            .startIn("shop").assert().isEqualTo(StartFrom.BEGINNING)
         assertThrownBy<IllegalArgumentException> { ProcessorBinding.project<Any>(" ", "f", null) { _, _ -> } }
         assertThrownBy<IllegalArgumentException> { ProcessorBinding.project<Any>("p", " ", null) { _, _ -> } }
     }
@@ -180,3 +194,5 @@ class ProcessorBindingTest {
         provider.processors(Dependencies.NONE).assert().isEmpty()
     }
 }
+
+private val ORDERS = listOf("shop.order")

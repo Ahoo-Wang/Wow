@@ -52,7 +52,8 @@ import me.ahoo.wow.manifest.SubscriptionStart
  * - the context's `published` streams (decisions D58, D135, D156): the state events of every aggregate whose
  *   `@AggregateRoot(published)` is not false, with its state unless `publishState` is false, on its `topic`, else
  *   on `wow.<context>.<aggregate>.state`;
- * - a subscription's `start` (decision D154), its kind's default;
+ * - a subscription's `start` (decisions D154, D194): what `@OnEvent(start)` declares, else the beginning for a
+ *   projection or a handler of another context's stream, the end for a reactor or a saga of its own context's log;
  * - a saga's `derives` (decision D138): what `@OnEvent(derives)` declares, else the commands its return type names, a
  *   command a module's aggregate decides by its full type name and any other by its class's schema reference;
  * - the source `@OnEvent(aggregates)` names, of this context or another (decision D138);
@@ -209,7 +210,7 @@ internal object ManifestFragmentBuilder {
                 source = source(context, handler, aggregates),
                 function = FunctionManifest(functionKind, context, binding.name, handler.function),
                 derives = derives.takeIf { kind == SubscriptionKind.SAGA },
-                start = SubscriptionStart.defaultFor(kind),
+                start = SubscriptionStart.valueOf(handler.startIn(context, binding.kind)),
                 schedules = handler.schedules.distinct().sorted().ifEmpty { null },
                 retry = handler.retry?.manifest(),
             )

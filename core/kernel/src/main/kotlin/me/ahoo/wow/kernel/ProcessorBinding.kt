@@ -35,10 +35,11 @@ import me.ahoo.wow.api.subscribe.SubscriptionContext
  *   they are of another context than the module's ([sourceContext]), the handler reads that context's published
  *   streams instead of the log (decision D134): its state, if any, is decoded from the published state into
  *   [stateType], and its events are the published ones.
- * - [startFrom] is where the subscription starts in a partition it has no checkpoint in yet: by default a
- *   projection from the beginning of the log, so it builds its read model from the whole history, and a reactor or a
- *   saga from its end (04 §3: a new subscription chooses), so deploying one does not replay side effects or derive
- *   commands for the history.
+ * - [startFrom] is where the subscription starts in a partition it has no checkpoint in yet, as `@OnEvent(start)`
+ *   declares it (decision D194); null leaves it to [startIn]: a projection from the beginning, so it builds its read
+ *   model from the whole history, and so does any handler of another context's stream, so a service that joins later
+ *   still gets what that context published before; a reactor or a saga of its own context's log from its end (04 §3:
+ *   a new subscription chooses), so deploying one does not replay side effects or derive commands for the history.
  * - [blocking] (`@Blocking`, design 01 §4) asks the runtime to run the call on virtual threads instead of inline.
  * - [retry] (`@Retry` on the handler or its processor, roadmap P.3) is the handler's own in-process retry budget,
  *   under what the host configures for its subscription and over the host's global one.
@@ -55,7 +56,8 @@ class ProcessorBinding<S> private constructor(
     val function: String,
     val kind: FunctionKind,
     val stateType: Class<S & Any>?,
-    val startFrom: StartFrom,
+    /** Where `@OnEvent(start)` says the subscription starts; null when it leaves that to [startIn]. */
+    val startFrom: StartFrom?,
     val blocking: Boolean,
     val rejections: List<RejectionBinding<*>>,
     val aggregates: List<String>,
@@ -99,6 +101,15 @@ class ProcessorBinding<S> private constructor(
     fun isSourced(context: String): Boolean = sourceContext.let { it != null && it != context }
 
     /**
+     * Where the subscription starts, in a partition it has no checkpoint in yet, when its module's context is
+     * [context] (decision D194): [startFrom] when the handler declares it; otherwise from the beginning for a
+     * projection or a handler of another context's stream ([isSourced]), from the end for a reactor or a saga of its
+     * own context's log.
+     */
+    fun startIn(context: String): StartFrom =
+        startFrom ?: if (kind == FunctionKind.PROJECT || isSourced(context)) StartFrom.BEGINNING else StartFrom.END
+
+    /**
      * Calls the handler with [event], whose state is a [stateType], and the [context] of its kind ([contextOf]), in
      * the caller's coroutine: running a [blocking] one elsewhere is the runtime's.
      */
@@ -111,11 +122,6 @@ class ProcessorBinding<S> private constructor(
     companion object {
         private val AGGREGATE = Regex("[^.\\s]+\\.[^.\\s]+")
 
-        /** A projection starts from the beginning of the log; a reactor or a saga from its end. */
-        @JvmStatic
-        fun defaultStartFrom(kind: FunctionKind): StartFrom =
-            if (kind == FunctionKind.PROJECT) StartFrom.BEGINNING else StartFrom.END
-
         /** A `@Projection`'s handler [function] of [processor]. */
         @JvmStatic
         @Suppress("LongParameterList")
@@ -124,7 +130,7 @@ class ProcessorBinding<S> private constructor(
             function: String,
             stateType: Class<S & Any>?,
             blocking: Boolean = false,
-            startFrom: StartFrom = defaultStartFrom(FunctionKind.PROJECT),
+            startFrom: StartFrom? = null,
             aggregates: List<String> = emptyList(),
             nullableState: Boolean = stateType == null,
             retry: HandlerRetry? = null,
@@ -154,7 +160,7 @@ class ProcessorBinding<S> private constructor(
             function: String,
             stateType: Class<S & Any>?,
             blocking: Boolean = false,
-            startFrom: StartFrom = defaultStartFrom(FunctionKind.REACT),
+            startFrom: StartFrom? = null,
             aggregates: List<String> = emptyList(),
             nullableState: Boolean = stateType == null,
             retry: HandlerRetry? = null,
@@ -187,7 +193,7 @@ class ProcessorBinding<S> private constructor(
             function: String,
             stateType: Class<S & Any>?,
             blocking: Boolean = false,
-            startFrom: StartFrom = defaultStartFrom(FunctionKind.SAGA),
+            startFrom: StartFrom? = null,
             rejections: List<RejectionBinding<*>> = emptyList(),
             aggregates: List<String> = emptyList(),
             nullableState: Boolean = stateType == null,

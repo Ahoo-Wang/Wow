@@ -97,7 +97,7 @@ class CartSagaTest {
             handler.name.assert().isEqualTo(SUBSCRIPTION)
             handler.kind.assert().isEqualTo(FunctionKind.SAGA)
             handler.stateType.assert().isEqualTo(OrderState::class.java)
-            handler.startFrom.assert().isEqualTo(StartFrom.END)
+            handler.startIn("example").assert().isEqualTo(StartFrom.END)
             handler.blocking.assert().isFalse()
             val event = event()
             handler.invoke(event, context(event)).single().body.assert()
