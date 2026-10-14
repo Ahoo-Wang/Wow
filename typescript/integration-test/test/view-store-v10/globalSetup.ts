@@ -17,22 +17,20 @@
  * one is already running, else started here, in this run's own JVM, on the
  * memory backend, every port bound to 0, and stopped when the run ends.
  *
- * The memory backend serves no snapshot query by itself (the eShop's DX gap
- * G14), and the view store lists views by one, so the server starts with
- * the in-memory reference query backend its own tests wire
- * (`MemorySnapshotQueries`, from the server's test classes, and wow-query's
- * test fixtures). Build those first, from the repository root, with JDK 21:
+ * The view store lists views by a snapshot query; on the memory backend the
+ * server's own configuration serves them from memory
+ * (`wow.query.memory.enabled`, decision D209). Build it first, from the
+ * repository root, with JDK 21:
  *
- *   ./gradlew -Pwow.scope=v10 :view-store-server:installDist \
- *     :view-store-server:testClasses :query:testFixturesJar
+ *   ./gradlew -Pwow.scope=v10 :view-store-server:installDist
  *
  * It is started with one configured system view, of `SYSTEM_VIEW_DEFINITION`
  * (`v10ViewStoreServer.ts`), as the 9.x servers are in CI.
  */
 
 import { spawn, type ChildProcess } from 'node:child_process';
-import { existsSync, readdirSync } from 'node:fs';
-import { delimiter, join } from 'node:path';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { TestProject } from 'vitest/node';
 import { SYSTEM_VIEW_DEFINITION } from './v10ViewStoreServer';
@@ -47,30 +45,20 @@ declare module 'vitest' {
 const ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
 const SERVER = join(ROOT, 'platform/view-store/view-store-server/build');
 const MAIN = 'me.ahoo.wow.platform.viewstore.server.ViewStoreServerKt';
-const MEMORY_QUERIES =
-  'me.ahoo.wow.platform.viewstore.testing.MemorySnapshotQueries';
 /** How long the JVM may take to listen. */
 const START_DEADLINE_MS = 2 * 60_000;
 
-const BUILD =
-  './gradlew -Pwow.scope=v10 :view-store-server:installDist :view-store-server:testClasses :query:testFixturesJar';
+const BUILD = './gradlew -Pwow.scope=v10 :view-store-server:installDist';
 
-/** The class path: the distribution's jars, the test configuration, wow-query's fixtures. */
+/** The class path: the distribution's jars. */
 function classPath(): string {
   const lib = join(SERVER, 'install/view-store-server/lib');
-  const testClasses = join(SERVER, 'classes/kotlin/test');
-  const queryLibs = join(ROOT, 'query/query/build/libs');
-  const fixtures = existsSync(queryLibs)
-    ? readdirSync(queryLibs).find(file => file.endsWith('-test-fixtures.jar'))
-    : undefined;
-  if (!existsSync(lib) || !existsSync(testClasses) || !fixtures)
+  if (!existsSync(lib))
     throw new Error(
       `The V10 view store service is not built. From the repository root, with JDK 21: ${BUILD}` +
         ' — or set WOW_V10_VIEW_STORE_URL to a running one.',
     );
-  return [join(lib, '*'), testClasses, join(queryLibs, fixtures)].join(
-    delimiter,
-  );
+  return join(lib, '*');
 }
 
 function java(): string {
@@ -89,7 +77,6 @@ function start(): Promise<{ url: string; child: ChildProcess }> {
       '--server.address=127.0.0.1',
       '--server.port=0',
       '--wow.internal.port=0',
-      `--spring.main.sources=${MEMORY_QUERIES}`,
       '--wow.view-store.system-views[0].id=conformance-system-view',
       `--wow.view-store.system-views[0].definition-id=${SYSTEM_VIEW_DEFINITION}`,
       '--wow.view-store.system-views[0].title=Conformance',
