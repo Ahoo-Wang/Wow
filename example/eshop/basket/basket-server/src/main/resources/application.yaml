@@ -6,11 +6,19 @@ server:
 wow:
   service: eshop-basket-service
   # One node, its data in memory, for trying the service out. The `postgres` profile serves it from PostgreSQL; the
-  # `kafka` profile connects it to the ordering context, which the node needs to start: its checkout saga sends the
-  # ordering context's commands.
+  # `kafka` profile publishes the basket stream.
   backend: memory
   internal:
     port: 9092
+  # The checkout saga submits the order to the ordering service synchronously (decision D193), through its command
+  # gateway on its public port, with this service's credential, which the ordering service trusts
+  # (wow.http.services.eshop-basket-service.tokens there). The token below is for trying the shop out on one machine:
+  # a deployment sets ESHOP_SERVICE_TOKEN, a secret of at least 32 characters, and rotates it there and here.
+  calls:
+    contexts:
+      eshop-ordering:
+        url: http://localhost:8083
+    token: ${ESHOP_SERVICE_TOKEN:eshop-local-service-token-not-a-secret}
 ---
 spring:
   config:
@@ -33,5 +41,4 @@ wow:
     # default (decision D168).
     topics:
       ddl: auto
-    # The checkout saga sends SubmitOrder to wow.eshop-ordering.commands.
     bootstrap-servers: localhost:9092

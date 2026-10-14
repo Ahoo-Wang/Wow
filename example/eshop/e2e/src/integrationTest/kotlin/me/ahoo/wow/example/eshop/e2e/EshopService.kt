@@ -138,18 +138,19 @@ class EshopService private constructor(
 
         /**
          * Starts the service of [context] by its [mainClass], with the further command-line [arguments] and the JVM's
-         * own [jvmArguments] (a heap bound, say), and waits until it serves its Manifest.
+         * own [jvmArguments] (a heap bound, say), on [publicPort] (a free one by default; a replacement takes the one
+         * of the node it replaces, the address the other services call it at), and waits until it serves its Manifest.
          */
         fun start(
             context: String,
             mainClass: String,
             arguments: List<String> = emptyList(),
             jvmArguments: List<String> = emptyList(),
+            publicPort: Int = freePort(),
         ): EshopService {
             val property = "eshop.$context.classpath"
             val classpath = requireNotNull(System.getProperty(property)) { "System property $property is not set." }
             val java = ProcessHandle.current().info().command().orElseThrow()
-            val publicPort = freePort()
             // Kept in `eshop.logs` (the build's `eshop-logs`) when the build names it, so a failed run can be read.
             val logs = System.getProperty("eshop.logs")?.let { File(it).apply { mkdirs() } }
             val log = File.createTempFile("eshop-$context-", ".log", logs).apply { if (logs == null) deleteOnExit() }
@@ -177,6 +178,7 @@ class EshopService private constructor(
             return service
         }
 
-        private fun freePort(): Int = ServerSocket(0).use { it.localPort }
+        /** A port free on this machine now. */
+        fun freePort(): Int = ServerSocket(0).use { it.localPort }
     }
 }

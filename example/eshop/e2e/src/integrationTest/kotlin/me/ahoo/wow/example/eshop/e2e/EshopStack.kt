@@ -95,7 +95,16 @@ class EshopStack(
     val ordering: MutableMap<String, EshopService> = (1..orderingNodes).associateTo(linkedMapOf()) { n ->
         "ordering-$n" to startOrdering("ordering-$n")
     }
-    val basket: EshopService = start("basket", BASKET_MAIN, arguments(BASKET_DATABASE))
+    /**
+     * The basket, whose checkout saga calls the ordering's command gateway synchronously (decision D193) at the first
+     * ordering node's port, which a replacement of that node takes over ([startOrdering]), as a deployment calls a
+     * stable address in front of the ordering's nodes; the service token is the one both `application.yaml` share.
+     */
+    val basket: EshopService = start(
+        "basket",
+        BASKET_MAIN,
+        arguments(BASKET_DATABASE) + callOrdering(ordering.values.first().publicPort),
+    )
     val payment: EshopService = start(
         "payment",
         PAYMENT_MAIN,
@@ -105,8 +114,11 @@ class EshopStack(
     /** An ordering node: the first that is still running. */
     val anyOrdering: EshopService get() = ordering.values.first()
 
-    /** Starts the ordering node [nodeId] on the ordering's database, with the Sink and the sales dataset. */
-    fun startOrdering(nodeId: String): EshopService = start(
+    /**
+     * Starts the ordering node [nodeId] on the ordering's database, with the Sink and the sales dataset, on
+     * [publicPort]: a free one, or the port of the node it replaces, which the basket calls.
+     */
+    fun startOrdering(nodeId: String, publicPort: Int = EshopService.freePort()): EshopService = start(
         "ordering",
         ORDERING_MAIN,
         arguments(ORDERING_DATABASE, listOf("clickhouse")) + listOf(
@@ -115,6 +127,7 @@ class EshopStack(
             "--wow.clickhouse.username=${clickhouse.username}",
             "--wow.clickhouse.password=${clickhouse.password}",
         ),
+        publicPort,
     )
 
     /** The ordering's partition of the order [orderId] in the default tenant. */
@@ -207,8 +220,12 @@ class EshopStack(
         "--- ${service.name} ---\n${lines.joinToString("\n").takeLast(TAIL)}"
     }
 
-    private fun start(context: String, mainClass: String, arguments: List<String>): EshopService =
-        EshopService.start(context, mainClass, arguments).also { started += it }
+    private fun start(
+        context: String,
+        mainClass: String,
+        arguments: List<String>,
+        publicPort: Int = EshopService.freePort(),
+    ): EshopService = EshopService.start(context, mainClass, arguments, publicPort = publicPort).also { started += it }
 
     private fun arguments(database: String, profiles: List<String> = emptyList()): List<String> =
         backendArguments(postgres, kafka, database, partitions, profiles)
@@ -264,6 +281,9 @@ class EshopStack(
 
         /** An employee: a tenant-level caller of the catalog, basket and ordering services (decision D189). */
         val EMPLOYEE: Map<String, String> = mapOf("X-User" to "erin", "X-Role" to "employee")
+
+        /** The basket's argument that has its checkout saga call the ordering's gateway on [port] (decision D193). */
+        fun callOrdering(port: Int): String = "--wow.calls.contexts.eshop-ordering.url=http://127.0.0.1:$port"
 
         /** The headers of the buyer [id]: an owner-level caller whose owner is [id]. */
         fun buyer(id: String): Map<String, String> = mapOf("X-User" to id)

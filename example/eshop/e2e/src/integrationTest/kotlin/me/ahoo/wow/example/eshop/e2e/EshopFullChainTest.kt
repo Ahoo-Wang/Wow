@@ -150,12 +150,14 @@ class EshopFullChainTest {
 
         val checkedOut = checkout("carol", mapOf(WAIT to TO_ORDERING, WAIT_TIMEOUT to "30s"))
         checkedOut["status"].asString().assert().describedAs(checkedOut.toString()).isEqualTo("SUCCEEDED")
-        checkNotNull(stack.ordering.remove(owner)).kill()
+        val killed = checkNotNull(stack.ordering.remove(owner))
+        killed.kill()
         val killedAt = System.nanoTime()
         // Killed before the order's stock was confirmed: no payment was requested.
         stack.payment("carol-1").assert().isNull()
 
-        val replacement = stack.startOrdering(REPLACEMENT)
+        // On the killed node's port: the basket calls the ordering there (decision D193).
+        val replacement = stack.startOrdering(REPLACEMENT, killed.publicPort)
         stack.ordering[REPLACEMENT] = replacement
         val started = since(killedAt)
         // A node that does not hold a partition's lease runs its commands itself (D71), so the partition takes a
