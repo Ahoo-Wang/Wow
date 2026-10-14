@@ -44,6 +44,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
+import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 /**
@@ -76,7 +77,10 @@ data class RenewalRound(
  * context's log, or another context's published topic that the service's subscriptions read (decision D134), whose
  * [subscriptions] runtime then reads the topic instead of the log:
  *
- * - **Membership**: the node heartbeats its [address] every [ClusterOptions.heartbeatInterval].
+ * - **Membership**: the node heartbeats its [address] every [ClusterOptions.heartbeatInterval], as long as it can
+ *   reconcile: a reconcile that runs longer than [ClusterOptions.reconcileTimeout], stuck stopping or starting a
+ *   partition, makes it leave the members until the reconcile ends, so the others take the partitions it cannot run
+ *   instead of handing them back to it (finding C.1 F1).
  * - **Reconciling**: every [ClusterOptions.reconcileInterval], and at once when it notices the members changed, the
  *   node computes its target, the partitions HRW ([Hrw]) gives it among the live members, hands off the partitions it
  *   holds outside it and acquires those inside it. Members that briefly disagree are arbitrated by the leases and
@@ -175,7 +179,7 @@ class PartitionOwnership internal constructor(
     private val lifecycle = Mutex()
     private val renewals = Semaphore(options.leaseParallelism)
     private val acquisitions = Semaphore(options.leaseParallelism)
-    private val reconciling = Mutex()
+    private val reconcileLock = Mutex()
     private val gates = ConcurrentHashMap<Int, Gate>()
     private val wakeReconcile = Channel<Unit>(Channel.CONFLATED)
     private val wakeRefresh = Channel<Unit>(Channel.CONFLATED)
@@ -185,6 +189,14 @@ class PartitionOwnership internal constructor(
 
     @Volatile
     private var lastMembers: Set<String> = emptySet()
+
+    /** When the reconcile running now started; null between reconciles. */
+    @Volatile
+    private var reconciling: TimeMark? = null
+
+    /** Whether the node left the members because a reconcile is stuck. */
+    @Volatile
+    private var stuck = false
 
     /** The other members' addresses handed to [peers] so far, as `node@address`. */
     private val seenPeers = ConcurrentHashMap.newKeySet<String>()
@@ -256,7 +268,7 @@ class PartitionOwnership internal constructor(
         try {
             run.membershipJob.cancelAndJoin()
             quietly("leave $group") { leases.leave(group.name, node) }
-            reconciling.withLock {
+            reconcileLock.withLock {
                 target = emptySet()
                 handOff(gates.keys.toList())
             }
@@ -327,19 +339,24 @@ class PartitionOwnership internal constructor(
     }
 
     /** Compares the partitions held with the HRW target once, handing off and acquiring what differs. */
-    suspend fun reconcile(): Unit = reconciling.withLock {
+    suspend fun reconcile(): Unit = reconcileLock.withLock {
         if (running == null) {
             return@withLock
         }
-        dropLost()
-        val members = leases.members(group.name).map { it.node }.toSet()
-        lastMembers = members
-        val goal = Hrw.partitionsOf(node, members + node, partitions)
-        target = goal
-        handOff(gates.keys.filter { it !in goal })
-        val missing = goal.filter { !gates.containsKey(it) }
-        coroutineScope {
-            missing.forEach { partition -> launch { acquisitions.withPermit { acquire(partition) } } }
+        reconciling = timeSource.markNow()
+        try {
+            dropLost()
+            val members = leases.members(group.name).map { it.node }.toSet()
+            lastMembers = members
+            val goal = Hrw.partitionsOf(node, members + node, partitions)
+            target = goal
+            handOff(gates.keys.filter { it !in goal })
+            val missing = goal.filter { !gates.containsKey(it) }
+            coroutineScope {
+                missing.forEach { partition -> launch { acquisitions.withPermit { acquire(partition) } } }
+            }
+        } finally {
+            reconciling = null
         }
     }
 
@@ -366,8 +383,29 @@ class PartitionOwnership internal constructor(
         }
     }
 
+    /**
+     * Heartbeats, unless the reconcile running now outlasted [ClusterOptions.reconcileTimeout]: the node then cannot
+     * take or stop partitions, so it leaves the members rather than keep claiming its share by HRW, and heartbeats
+     * again once the reconcile ends.
+     */
     private suspend fun heartbeat() {
+        val started = reconciling
+        if (started != null && started.elapsedNow() > options.reconcileTimeout) {
+            if (!stuck) {
+                logger.error {
+                    "$node has been reconciling $group for more than ${options.reconcileTimeout}; it leaves the " +
+                        "members until the reconcile ends, so the others take the partitions it cannot run."
+                }
+                leases.leave(group.name, node)
+                stuck = true
+            }
+            return
+        }
         leases.heartbeat(group.name, node, address, options.memberTtl)
+        if (stuck) {
+            stuck = false
+            logger.warn { "$node reconciles $group again and is back among its members." }
+        }
     }
 
     /** Not cancellable: a lease acquired is either tracked by a gate or released. */
