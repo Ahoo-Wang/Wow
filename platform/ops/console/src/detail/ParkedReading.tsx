@@ -11,40 +11,20 @@
  * limitations under the License.
  */
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { RecordRow } from "@ahoo-wang/wow-view-engine";
+import { Check, Copy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n.tsx";
 import { PARKED_WORDS } from "@/views/parked.ts";
-import { entryOf, formatTime } from "./parkedEntry.ts";
-
-type Field = keyof (typeof PARKED_WORDS)["en"];
-
-const OPTION_WORDS: Record<string, Record<string, Field>> = {
-  status: {
-    SCHEDULED: "statusScheduled",
-    EXHAUSTED: "statusExhausted",
-    UNRECOVERABLE: "statusUnrecoverable",
-    RESOLVED: "statusResolved",
-  },
-  recoverable: {
-    RECOVERABLE: "recoverableYes",
-    UNRECOVERABLE: "recoverableNo",
-    UNKNOWN: "recoverableUnknown",
-  },
-  requested: {
-    RESUME: "requestedResume",
-    SKIP: "requestedSkip",
-    MARK_RECOVERABLE: "requestedMark",
-    APPLY_RETRY_SPEC: "requestedSpec",
-  },
-  outcome: {
-    RESUMED: "outcomeResumed",
-    SKIPPED: "outcomeSkipped",
-    RESOLVED: "outcomeResolved",
-    NOT_PARKED: "outcomeNotParked",
-  },
-};
+import {
+  entryOf,
+  failureOf,
+  formatTime,
+  optionWord,
+  type ParkedField,
+} from "./parkedEntry.ts";
 
 const STATUS_VARIANT: Record<string, "destructive" | "secondary" | "outline"> =
   {
@@ -81,21 +61,82 @@ function Facts({ rows }: { rows: [string, ReactNode][] }) {
   );
 }
 
+/** Copies `value` to the clipboard, and says so for a moment. */
+function CopyButton({ value }: { value: string }) {
+  const { t } = useI18n();
+  const [copied, setCopied] = useState(false);
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      aria-label={t("copyCause")}
+      title={t("copyCause")}
+      onClick={() => {
+        void navigator.clipboard?.writeText(value).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        });
+      }}
+    >
+      {copied ? <Check /> : <Copy />}
+    </Button>
+  );
+}
+
+/**
+ * Why the entry is parked, the 9.x dashboard's error view: the failure's
+ * type and its message, as the owning service recorded them. The service
+ * records the exception's class and message (`<class>: <message>`), not
+ * its stack trace, so there is none to show.
+ */
+function Failure({ reason }: { reason: string | undefined }) {
+  const { locale, t } = useI18n();
+  if (!reason)
+    return <p className="text-sm text-muted-foreground">{t("none")}</p>;
+  const { type, message } = failureOf(reason);
+  return (
+    <div className="flex flex-col gap-2" data-testid="parked-failure">
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">
+          {PARKED_WORDS[locale].errorType}
+        </span>
+        <code className="min-w-0 flex-1 truncate font-mono text-sm font-semibold">
+          {type}
+        </code>
+        <CopyButton value={reason} />
+      </div>
+      {message ? (
+        <pre className="max-h-64 overflow-auto rounded-md bg-muted p-3 font-mono text-xs whitespace-pre-wrap">
+          {message}
+        </pre>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * A parked entry read the way an operator asks of it (the 9.x dashboard's
  * reading of a failed execution): why it is parked, where — the owning
  * service, its subscription and the aggregate it parks — how far its
  * retries went and by which spec, what an operator last asked of it, and
- * how it was resolved. The actions are the engine's, in the same panel.
+ * how it was resolved, then its history (`history`). The actions are the
+ * engine's, in the same panel.
  */
-export function ParkedReading({ row }: { row: RecordRow }) {
+export function ParkedReading({
+  row,
+  history,
+}: {
+  row: RecordRow;
+  history?: ReactNode;
+}) {
   const { locale, t } = useI18n();
   const words = PARKED_WORDS[locale];
   const entry = entryOf(row);
   const option = (kind: string, value: string | null | undefined) =>
-    value ? (words[OPTION_WORDS[kind]?.[value] as Field] ?? value) : undefined;
+    value ? optionWord(locale, kind, value) : undefined;
   const time = (value: number | null | undefined) => formatTime(value, locale);
-  const label = (key: Field) => words[key];
+  const label = (key: ParkedField) => words[key];
   const spec = entry.retrySpec;
   const aggregate = entry.aggregate;
 
@@ -114,9 +155,7 @@ export function ParkedReading({ row }: { row: RecordRow }) {
         ) : null}
       </div>
       <Section title={t("cause")}>
-        <pre className="max-h-64 overflow-auto rounded-md bg-muted p-3 text-xs whitespace-pre-wrap">
-          {entry.reason || t("none")}
-        </pre>
+        <Failure reason={entry.reason} />
       </Section>
       <Section title={t("owner")}>
         <Facts
@@ -188,6 +227,7 @@ export function ParkedReading({ row }: { row: RecordRow }) {
           ]}
         />
       </Section>
+      {history}
     </div>
   );
 }

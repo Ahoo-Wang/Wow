@@ -14,23 +14,25 @@
 import { Navigate, type RouteObject } from "react-router";
 import App from "@/app/App.tsx";
 import CallerPage from "@/pages/CallerPage.tsx";
+import OverviewPage from "@/pages/OverviewPage.tsx";
 import ParkedPage from "@/pages/ParkedPage.tsx";
-import { CALLER_PATH, PARKED_PATH } from "@/views/bindings.ts";
+import { CALLER_PATH, OVERVIEW_PATH, PARKED_PATH } from "@/views/bindings.ts";
 
 /**
  * The console's pages. The router is a hash router (`main.tsx`): the ops
  * server serves the console's files as they are, with no fallback to
- * `index.html` for a page's path, so a page is `/#/parked?view=…`.
+ * `index.html` for a page's path, so a page is `/#/parked?view=…`; the home page is the overview.
  */
 export const ROUTES: RouteObject[] = [
   {
     path: "/",
     element: <App />,
     children: [
-      { index: true, element: <Navigate to={PARKED_PATH} replace /> },
+      { index: true, element: <Navigate to={OVERVIEW_PATH} replace /> },
+      { path: OVERVIEW_PATH.slice(1), element: <OverviewPage /> },
       { path: PARKED_PATH.slice(1), element: <ParkedPage /> },
       { path: CALLER_PATH.slice(1), element: <CallerPage /> },
-      { path: "*", element: <Navigate to={PARKED_PATH} replace /> },
+      { path: "*", element: <Navigate to={OVERVIEW_PATH} replace /> },
     ],
   },
 ];

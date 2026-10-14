@@ -25,6 +25,7 @@ import descriptor from "./fixtures/parked.descriptor.json";
 import { definitionWords } from "./messages.ts";
 import { PARKED, PARKED_SOURCE, PARKED_WORDS, parked } from "./parked.ts";
 import { PARKED_ACTION_WORDS } from "./parkedActions.ts";
+import { overview, OVERVIEW_WORDS } from "./overview.ts";
 import { LOCALES } from "./words.ts";
 
 /**
@@ -46,22 +47,14 @@ describe("the parked entries' definition", () => {
     "is admitted over the service's descriptor in %s",
     (locale) => {
       const words = definitionWords(locale);
-      const findings = admit([parked], DESCRIPTORS, {
+      // The overview's board places the definition's views and its own:
+      // admitted with it, nothing on either is narrowed — the state's times
+      // are declared epoch milliseconds (`@QueryTemporal`), so they compare
+      // with the service's clock and bucket by day.
+      const findings = admit([parked, overview], DESCRIPTORS, {
         text: (key) => words[key],
       });
-      // The one thing narrowed: a time compared with the service's clock
-      // (`BEFORE_NOW`, `AFTER_NOW`), which the memory backend's reference
-      // query engine does not serve; a backend that does keeps it.
-      expect(findings.map(({ code, severity }) => [code, severity])).toEqual(
-        findings.map(() => ["capability.field.operators-narrowed", "warning"]),
-      );
-      expect(findings.map(({ params }) => params?.field)).toEqual([
-        "state.nextRetryAt",
-        "state.retryAt",
-        "state.failedAt",
-        "state.recordedAt",
-        "state.resolvedAt",
-      ]);
+      expect(findings).toEqual([]);
     },
   );
 
@@ -77,7 +70,7 @@ describe("the parked entries' definition", () => {
   });
 
   it("says every word in both languages", () => {
-    for (const words of [PARKED_WORDS, PARKED_ACTION_WORDS])
+    for (const words of [PARKED_WORDS, PARKED_ACTION_WORDS, OVERVIEW_WORDS])
       expect(Object.keys(words["zh-CN"]).sort()).toEqual(
         Object.keys(words.en).sort(),
       );
@@ -112,7 +105,9 @@ describe("the parked entries' definition", () => {
     expect(kept("unrecoverable")).toEqual(["UNRECOVERABLE"]);
     expect(kept("resolved")).toEqual(["RESOLVED"]);
     expect(kept("all")).toHaveLength(4);
-    expect(views["by-context"].kind).toBe("analysis");
+    expect(kept("active")).toEqual(["SCHEDULED", "EXHAUSTED", "UNRECOVERABLE"]);
+    for (const id of ["by-context", "clusters", "by-subscription", "over-time"])
+      expect(views[id].kind).toBe("analysis");
   });
 
   it("reads the entries again on its own, and every view by when it failed", () => {

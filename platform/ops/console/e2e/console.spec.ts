@@ -75,7 +75,14 @@ test.beforeAll(async ({ request }) => {
   context = `e2e-${Date.now().toString(36)}`;
   exhausted = await publish(request, context, "pay-1", "EXHAUSTED");
   scheduled = await publish(request, context, "pay-2", "SCHEDULED", 1);
-  unrecoverable = await publish(request, context, "pay-3", "UNRECOVERABLE", 2);
+  unrecoverable = await publish(
+    request,
+    context,
+    "pay-3",
+    "UNRECOVERABLE",
+    2,
+    "wow.subscription.unrecoverable: offset 7 is no longer retained",
+  );
   for (const entry of [exhausted, scheduled, unrecoverable])
     await listed(request, entry);
 });
@@ -107,6 +114,55 @@ test("the queues list the entries by status", async ({ page }) => {
   await expect(page).toHaveURL(/view=/);
 });
 
+test("the overview counts the entries and clusters them by what failed", async ({
+  page,
+}) => {
+  await open(page, OPERATOR, "/#/overview");
+  await expect(
+    page.getByRole("heading", { name: "Overview", level: 1 }),
+  ).toBeVisible();
+  // The pile in numbers: the three parked, two of them needing a person.
+  await expect(
+    page
+      .getByRole("group", { name: "All parked" })
+      .getByText("3", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("group", { name: "Needs attention" })
+      .getByText("2", { exact: true }),
+  ).toBeVisible();
+  // The clusters: what failed, where, and how many.
+  const clusters = page.getByRole("group", {
+    name: "Failure clusters — top 10",
+  });
+  const refused = clusters
+    .getByRole("row")
+    .filter({ hasText: "java.net.ConnectException" });
+  await expect(refused).toContainText(context);
+  await expect(refused).toContainText("2");
+  await expect(
+    clusters
+      .getByRole("row")
+      .filter({ hasText: "wow.subscription.unrecoverable" }),
+  ).toContainText("1");
+  for (const panel of [
+    "Parked over time, by status",
+    "By status",
+    "Top failing subscriptions",
+  ])
+    await expect(
+      page.getByRole("group", { name: panel, exact: true }),
+    ).toBeVisible();
+
+  // A cluster opens its parked entries in the workbench.
+  await refused.getByText("java.net.ConnectException").click();
+  await expect(page).toHaveURL(/#\/parked\?view=system%3Aops-parked%3Aactive/);
+  await expect(row(page, exhausted)).toBeVisible();
+  await expect(row(page, scheduled)).toBeVisible();
+  await expect(row(page, unrecoverable)).toHaveCount(0);
+});
+
 test("an entry's detail reads its cause, attempts, retry spec and owning aggregate", async ({
   page,
 }) => {
@@ -115,9 +171,16 @@ test("an entry's detail reads its cause, attempts, retry spec and owning aggrega
     .getByText(exhausted.aggregateId, { exact: true })
     .click();
   const detail = page.getByTestId("parked-reading");
-  await expect(detail).toContainText(
+  const failure = detail.getByTestId("parked-failure");
+  await expect(failure).toContainText("java.net.ConnectException");
+  await expect(failure).toContainText(
     `The gateway is unreachable for ${exhausted.aggregateId}.`,
   );
+  // Its history: the owning service parked it.
+  const history = detail.getByTestId("parked-history");
+  await expect(history.getByRole("listitem")).toHaveCount(1);
+  await expect(history).toContainText("Parked");
+  await expect(history).toContainText("Exhausted");
   await expect(detail).toContainText(`${context}-service`);
   await expect(detail).toContainText(`${context}.payment`);
   await expect(detail).toContainText("3 of 3");
@@ -151,6 +214,19 @@ test("an operator resumes an entry, it goes back to the owning service, and the 
   await expect(row(page, exhausted)).toHaveCount(0, { timeout: 30_000 });
   await view(page, "Resolved");
   await expect(row(page, exhausted)).toContainText("Resolved");
+
+  // Its history, newest first: resolved, the operator's resume, parked.
+  await row(page, exhausted)
+    .getByText(exhausted.aggregateId, { exact: true })
+    .click();
+  const steps = page.getByTestId("parked-history").getByRole("listitem");
+  await expect(steps).toHaveCount(3);
+  await expect(steps.nth(0)).toContainText("Resolved");
+  await expect(steps.nth(0)).toContainText("Resumed");
+  await expect(steps.nth(1)).toContainText("Resume requested");
+  await expect(steps.nth(1)).toContainText("The gateway is back.");
+  await expect(steps.nth(1)).toContainText("by alice");
+  await expect(steps.nth(2)).toContainText("Parked");
 });
 
 test("mark recoverable and apply retry spec go back as the ledger's commands", async ({

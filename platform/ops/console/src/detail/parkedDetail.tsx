@@ -12,16 +12,17 @@
  */
 
 import type { RecordDetailOptions } from "@ahoo-wang/wow-view-engine/ui";
-import { ParkedReading } from "./ParkedReading.tsx";
+import { ParkedEntryDetail } from "./ParkedEntryDetail.tsx";
 import { parkedTitle } from "./parkedEntry.ts";
 
 /**
  * The detail the engine opens a parked entry in (D60): the entry read the
- * console's way (`ParkedReading`) under its subscription and aggregate, in
- * the engine's panel, which reads the whole record, keeps the open one in
- * the address (`?id=`) and offers the entry's actions.
+ * console's way (`ParkedReading`) and its history (`ParkedHistory`) under
+ * its subscription and aggregate, in the engine's panel, which reads the
+ * whole record, keeps the open one in the address (`?id=`) and offers the
+ * entry's actions.
  */
 export const parkedDetail: RecordDetailOptions = {
-  render: ({ row }) => <ParkedReading row={row} />,
+  render: ({ row }) => <ParkedEntryDetail row={row} />,
   title: parkedTitle,
 };
