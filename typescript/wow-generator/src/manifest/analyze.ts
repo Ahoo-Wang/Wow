@@ -188,7 +188,7 @@ class SchemaTypes {
 
   /** Names each key after its simple class name, qualified as far as needed to be unique. */
   name(keys: readonly string[]): void {
-    const pending = new Map<string, number>(keys.map(key => [key, 0]));
+    const pending = new Set(keys);
     for (let depth = 0; pending.size > 0; depth++) {
       const byName = new Map<string, string[]>();
       for (const key of pending.keys()) {
@@ -205,19 +205,23 @@ class SchemaTypes {
         );
         byName.set(name, [...(byName.get(name) ?? []), key]);
       }
+      const taken = new Set(this.names.values());
       for (const [name, owners] of byName) {
-        const taken = [...this.names.values()].includes(name);
-        const qualifiable = owners.every(
-          key => key.split('.').length - 1 > depth,
+        // A key whose packages are used up takes the name, numbered when it
+        // is taken; the others take it alone, or qualify one package more.
+        const exhausted = owners.filter(
+          key => key.split('.').length - 1 <= depth,
         );
-        if ((owners.length === 1 && !taken) || !qualifiable) {
-          owners.forEach((key, index) => {
-            this.names.set(
-              key,
-              index === 0 && !taken ? name : `${name}${index + 1}`,
-            );
-            pending.delete(key);
-          });
+        const assigned =
+          owners.length === 1 && !taken.has(name) ? owners : exhausted;
+        for (const key of assigned) {
+          let unique = name;
+          for (let index = 2; taken.has(unique); index++) {
+            unique = `${name}${index}`;
+          }
+          taken.add(unique);
+          this.names.set(key, unique);
+          pending.delete(key);
         }
       }
     }
@@ -356,7 +360,8 @@ class SchemaTypes {
       property =>
         `${property.name}${property.optional ? '?' : ''}: ${property.type}`,
     );
-    if (extra !== undefined) members.push(`[key: string]: ${extra}`);
+    // A typed index signature would have to admit every property's type.
+    if (extra !== undefined) members.push('[key: string]: unknown');
     return `{ ${members.join('; ')} }`;
   }
 
@@ -505,11 +510,12 @@ function typeModel(types: SchemaTypes, key: string, file: string): TypeModel {
     references: [...new Set(references)].sort(compareNames),
   };
   if (types.isInterface(schema)) {
+    // A typed index signature would have to admit every property's type.
     const extra = types.additional(schema, key);
     return {
       ...base,
       properties: types.properties(schema, key),
-      ...(extra === undefined ? {} : { type: extra }),
+      ...(extra === undefined ? {} : { type: 'unknown' }),
     };
   }
   return { ...base, type: types.type(schema, key) };
