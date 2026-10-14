@@ -1,0 +1,179 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.migrate
+
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.migrate.example.NineXExample
+import org.junit.jupiter.api.Test
+
+class MappingCheckTest {
+    private val order = NineXAggregate("example-service", "order")
+    private val example = InMemoryNineXEventSource(NineXExample.streams()).inventory()
+
+    private fun check(
+        map: MigrationMap = NineXExample.map,
+        inventories: List<NineXInventory> = example,
+        manifest: Manifest = NineXExample.manifest,
+    ): MappingReport = MappingCheck(MigrationPlan(map, manifest)).check(inventories)
+
+    private fun MigrationMap.order(change: AggregateMapping.() -> AggregateMapping): MigrationMap =
+        copy(aggregates = aggregates.map { if (it.source() == order) it.change() else it })
+
+    @Test
+    fun `the example's map passes against its store and Manifest`() {
+        val report = check()
+        report.passed.assert().isTrue()
+        report.warnings.assert().containsExactly(
+            "example-service.order: no stream holds the 9.x event order_received@*",
+            "example-service.order: no stream records the 9.x command receipt_order",
+        )
+        report.render().assert().contains("example-service.order: 4 streams, 4 events of 4 types")
+            .contains("Mapping check passed.")
+    }
+
+    @Test
+    fun `an unmapped 9x aggregate, event or command fails it`() {
+        val unmapped = example + NineXInventory(NineXAggregate("example-service", "payment"), 3, emptyMap(), emptyMap())
+        val withEvent = unmapped.map {
+            if (it.aggregate == order) {
+                it.copy(
+                    events = it.events + (NineXEventType("order_archived", "0.0.1") to 2L),
+                    commands = it.commands + ("archive_order" to 2L),
+                    streamsWithoutCommand = 1,
+                )
+            } else {
+                it
+            }
+        }
+        val report = check(inventories = withEvent)
+        report.passed.assert().isFalse()
+        report.problems.assert().containsExactlyInAnyOrder(
+            "the 9.x aggregate example-service.payment (3 streams) is not mapped",
+            "example-service.order: the 9.x event order_archived@0.0.1 (2 events) has no mapping",
+            "example-service.order: the 9.x command archive_order (2 streams) has no mapping",
+            "example-service.order: 1 streams record no command and there is no defaultCommand",
+        )
+        report.render().assert().contains("PROBLEM").contains("Mapping check failed: 4 problems.")
+    }
+
+    @Test
+    fun `a default command covers streams without one, and an empty store warns`() {
+        val inventories = example.map { if (it.aggregate == order) it.copy(streamsWithoutCommand = 1) else it }
+        check(NineXExample.map.order { copy(defaultCommand = "PayOrder") }, inventories).passed.assert().isTrue()
+        val empty = check(inventories = emptyList())
+        empty.warnings.assert().contains("the 9.x store holds no stream of example-service.order")
+        empty.render().assert().contains("no event streams")
+    }
+
+    @Test
+    fun `a revision-specific mapping is found before one of any revision`() {
+        val map = NineXExample.map.order {
+            copy(events = events + EventMapping("order_created", "1.0.0", "OrderCreated", toRevision = 2))
+        }
+        val inventories = example.map {
+            if (it.aggregate == order) it.copy(events = it.events + (NineXEventType("order_created", "1.0.0") to 1L)) else it
+        }
+        check(map, inventories).passed.assert().isTrue()
+        val plan = MigrationPlan(map, NineXExample.manifest).of(order)
+        plan.eventOf("order_created", "1.0.0")!!.toRevision.assert().isEqualTo(2)
+        plan.eventOf("order_created", "0.0.1")!!.toRevision.assert().isEqualTo(1)
+        plan.eventOf("order_paid", "9.9.9")!!.to.assert().isEqualTo("OrderPaid")
+        plan.eventOf("unknown", "0.0.1").assert().isNull()
+    }
+
+    @Test
+    fun `every target must be in the Manifest`() {
+        val map = NineXExample.map.order {
+            copy(
+                commands = commands + CommandMapping("cancel_order", "CancelOrder") +
+                    CommandMapping("delete_order", Lifecycle.DELETE_AGGREGATE) +
+                    CommandMapping("recover_order", Lifecycle.RESTORE_AGGREGATE),
+                events = events + EventMapping("order_cancelled", to = "OrderCancelled") +
+                    EventMapping("order_paid", "2.0.0", "OrderPaid", toRevision = 2) +
+                    EventMapping("order_deleted", to = Lifecycle.AGGREGATE_DELETED) +
+                    EventMapping("order_moved", to = "wow.lifecycle.Moved") +
+                    EventMapping("order_tagged", to = Lifecycle.TAGS_APPLIED, toRevision = 2),
+                defaultCommand = "Missing",
+            )
+        }
+        check(map).problems.assert().containsExactlyInAnyOrder(
+            "example-service.order -> example.order: the V10 command example.order.CancelOrder is not in the Manifest",
+            "example-service.order -> example.order: the lifecycle command wow.lifecycle.RestoreAggregate is not " +
+                "enabled on example.order",
+            "example-service.order -> example.order: the V10 command example.order.Missing is not in the Manifest",
+            "example-service.order -> example.order: order_cancelled: the V10 event example.order.OrderCancelled is " +
+                "not in the Manifest",
+            "example-service.order -> example.order: order_paid: the V10 event example.order.OrderPaid is at " +
+                "revision 1 in the Manifest, below the mapped revision 2",
+            "example-service.order -> example.order: order_moved: the V10 event wow.lifecycle.Moved is not a system " +
+                "event",
+            "example-service.order -> example.order: order_tagged: the system event wow.lifecycle.TagsApplied has " +
+                "revision 1 only, not 2",
+        )
+    }
+
+    @Test
+    fun `aliases in the Manifest resolve`() {
+        val manifest = NineXExample.manifest.let { manifest ->
+            manifest.copy(
+                contexts = manifest.contexts.map { context ->
+                    context.copy(
+                        aggregates = context.aggregates.map { aggregate ->
+                            aggregate.copy(
+                                commands = aggregate.commands.map { it.copy(aliases = listOf("Old${it.name}")) },
+                                events = aggregate.events.map { it.copy(aliases = listOf("example.order.Old${it.name}")) },
+                            )
+                        },
+                    )
+                },
+            )
+        }
+        val map = NineXExample.map.order {
+            copy(
+                commands = commands + CommandMapping("old_pay", "OldPayOrder"),
+                events = events + EventMapping("old_paid", to = "OldOrderPaid"),
+            )
+        }
+        check(map, manifest = manifest).passed.assert().isTrue()
+    }
+
+    @Test
+    fun `a target aggregate missing from the Manifest, duplicates and shared targets fail it`() {
+        val map = NineXExample.map.order {
+            copy(events = events + events.first(), commands = commands + commands.first())
+        }.let { map ->
+            map.copy(
+                aggregates = map.aggregates + AggregateMapping("example-service.legacy-order", "example.order") +
+                    AggregateMapping("example-service.payment", "example.payment"),
+            )
+        }
+        check(map).problems.assert().containsExactlyInAnyOrder(
+            "[example-service.order, example-service.legacy-order] all map to example.order: their ids may collide",
+            "example-service.order -> example.order: the 9.x event order_created@0.0.1 is mapped twice",
+            "example-service.order -> example.order: the 9.x command create_order is mapped twice",
+            "example-service.payment -> example.payment: the V10 aggregate example.payment is not in the Manifest",
+        )
+    }
+
+    @Test
+    fun `the plan names its contexts and refuses an unmapped aggregate`() {
+        NineXExample.plan.contexts.assert().containsExactly("example")
+        org.junit.jupiter.api.assertThrows<MigrationException> {
+            NineXExample.plan.of(NineXAggregate("example-service", "payment"))
+        }
+        NineXExample.plan.of(order).ownership.assert().isEqualTo(me.ahoo.wow.api.aggregate.Ownership.OWNER)
+    }
+}
