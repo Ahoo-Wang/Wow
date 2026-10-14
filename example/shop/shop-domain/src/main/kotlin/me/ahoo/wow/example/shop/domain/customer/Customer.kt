@@ -38,24 +38,30 @@ import java.util.HexFormat
  */
 @AggregateRoot(published = false)
 @Description("A customer of the shop, found by its id or by its user name")
-class Customer(private val state: CustomerState) {
+// Its commands decide on the command and the ref alone: the state is evolved, not read.
+@Suppress("UnusedPrivateProperty")
+class Customer(state: CustomerState) {
     /** Registers the customer once its user name is reserved for it; a name another customer holds is rejected. */
     @OnCommand(produces = [CustomerRegistered::class])
     suspend fun onCommand(command: RegisterCustomer, scope: DecideScope): Decision {
         if (!scope.reserve(CustomerKeys.USERNAME, command.username)) {
             return Decision.reject(CustomerRejections.USERNAME_TAKEN, "The user name ${command.username} is taken.")
         }
-        return Decision.events(CustomerRegistered(command.username, hash(command.password)))
+        return Decision.events(CustomerRegistered(command.username, hash(scope, command.password)))
     }
 
-    fun onCommand(command: ChangePassword): PasswordChanged = PasswordChanged(hash(command.password))
+    fun onCommand(command: ChangePassword, scope: DecideScope): PasswordChanged =
+        PasswordChanged(hash(scope, command.password))
 
-    private fun hash(password: String): String =
-        HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest("${state.id}:$password".toByteArray()))
+    /** The password salted with the customer's id, which is its ref's: the state does not hold it (decision D203). */
+    private fun hash(scope: DecideScope, password: String): String {
+        val salted = "${scope.command.ref.id}:$password"
+        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(salted.toByteArray()))
+    }
 }
 
 /** The customer's state, changed in place by its events. */
-class CustomerState(val id: String) {
+class CustomerState {
     var username: String = ""
         private set
     var passwordHash: String = ""

@@ -16,6 +16,7 @@ package me.ahoo.wow.example.inventory.domain.stock
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.OnCommand
+import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.example.inventory.api.CommitReservation
 import me.ahoo.wow.example.inventory.api.ReceiveStock
@@ -43,12 +44,12 @@ class Stock(private val state: StockState) {
     }
 
     @OnCommand(produces = [StockReserved::class])
-    fun onCommand(command: ReserveStock): Decision = whenPositive(command.quantity) {
+    fun onCommand(command: ReserveStock, scope: DecideScope): Decision = whenPositive(command.quantity) {
         when {
             command.orderId in state.reservations -> Decision.NoOp
             command.quantity > state.available -> Decision.reject(
                 StockRejections.INSUFFICIENT,
-                "Only ${state.available} of ${state.id} are available, not ${command.quantity}.",
+                "Only ${state.available} of ${scope.command.ref.id} are available, not ${command.quantity}.",
             )
 
             else -> Decision.events(StockReserved(command.orderId, command.quantity))
@@ -60,10 +61,10 @@ class Stock(private val state: StockState) {
      * sends it has no handler for it, so its aggregate parks (decision D153) until someone looks.
      */
     @OnCommand(produces = [ReservationCommitted::class])
-    fun onCommand(command: CommitReservation): Decision {
+    fun onCommand(command: CommitReservation, scope: DecideScope): Decision {
         val quantity = state.reservations[command.orderId] ?: return Decision.reject(
             StockRejections.NO_RESERVATION,
-            "Nothing of ${state.id} is reserved for the order ${command.orderId}.",
+            "Nothing of ${scope.command.ref.id} is reserved for the order ${command.orderId}.",
         )
         return Decision.events(ReservationCommitted(command.orderId, quantity))
     }

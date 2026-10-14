@@ -24,7 +24,10 @@ internal data class AggregateBinding(
     val state: String,
     /** How a command function is reached: on a root built from the state, or on the state itself. */
     val rootIsState: Boolean,
-    /** The state's constructor arguments from an `AggregateRef`: `ref.id` and maybe `ref.tenantId`. */
+    /**
+     * The state's constructor arguments from an `AggregateRef` (D203): none for the recommended `()`, or `ref.id`
+     * (and `ref.tenantId`) for a state that takes the id.
+     */
     val stateArguments: List<String>,
     /** What the root's functions take besides the command: parameters of the generated model factory. */
     val dependencies: List<Dependency>,

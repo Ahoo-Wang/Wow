@@ -107,7 +107,7 @@ class Order(private val state: OrderState) {
         if (command.amount.compareTo(state.totalAmount) != 0) {
             Decision.reject(
                 OrderRejections.WRONG_AMOUNT,
-                "The order ${state.id} costs ${state.totalAmount}, not ${command.amount}.",
+                "The order costs ${state.totalAmount}, not ${command.amount}.",
             )
         } else {
             scope.cancelSchedule(PAYMENT_GRACE_PERIOD)
@@ -127,7 +127,7 @@ class Order(private val state: OrderState) {
         OrderStatus.CANCELLED -> Decision.NoOp
         OrderStatus.PAID, OrderStatus.SHIPPED -> Decision.reject(
             OrderRejections.WRONG_STATUS,
-            "The order ${state.id} is ${state.status}: only an order not paid yet can be cancelled.",
+            "The order is ${state.status}: only an order not paid yet can be cancelled.",
         )
 
         else -> {
@@ -142,7 +142,7 @@ class Order(private val state: OrderState) {
         } else {
             Decision.reject(
                 OrderRejections.WRONG_STATUS,
-                "The order ${state.id} is ${state.status}: only a $required order can $action.",
+                "The order is ${state.status}: only a $required order can $action.",
             )
         }
 

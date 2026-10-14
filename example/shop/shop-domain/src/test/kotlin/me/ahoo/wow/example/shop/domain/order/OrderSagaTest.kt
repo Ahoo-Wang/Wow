@@ -34,7 +34,7 @@ class OrderSagaTest {
     private val handlers = orderSagaHandlers(Dependencies.NONE)
 
     private fun event(vararg events: Any) =
-        stateEvent(order, OrderState(OrderFixtures.ORDER_ID), *events, commandType = "example.order.CreateOrder")
+        stateEvent(order, OrderState(), *events, commandType = "example.order.CreateOrder")
 
     @Test
     fun `a placed order should reserve each product's stock in the inventory`() = sagaSpec(handlers) {

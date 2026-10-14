@@ -127,6 +127,37 @@ class QueryPropertiesTest {
     }
 
     @Test
+    fun `a state without an id has only its own fields beside the snapshot's (D203)`() {
+        val tally = SourceFile.kotlin(
+            "Tally.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+
+            data class Count(val by: Int)
+            data class Counted(val by: Int)
+
+            @AggregateRoot
+            class Tally(private val state: TallyState) {
+                fun onCommand(command: Count): Counted = Counted(command.by)
+            }
+
+            class TallyState {
+                var count: Int = 0
+                fun onSourcing(event: Counted) { count += event.by }
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("generate", queryApi, tally)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        // The aggregate's id is a system field of the snapshot record, not of the state.
+        result.properties("sample.TallyStateProperties").assert().isEqualTo(
+            linkedMapOf("STATE__COUNT" to "state.count", "TENANT_ID" to "tenantId"),
+        )
+    }
+
+    @Test
     fun `without wow-query-api nothing is generated`() {
         val (compilation, result) = compileModel("generate", order)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)

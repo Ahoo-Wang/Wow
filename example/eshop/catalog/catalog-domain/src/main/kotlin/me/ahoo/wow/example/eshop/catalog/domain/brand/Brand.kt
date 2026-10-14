@@ -36,7 +36,7 @@ object BrandRejections {
 }
 
 /** The state of a [Brand]. */
-class BrandState(val id: String) {
+class BrandState {
     var name: String = ""
         private set
 

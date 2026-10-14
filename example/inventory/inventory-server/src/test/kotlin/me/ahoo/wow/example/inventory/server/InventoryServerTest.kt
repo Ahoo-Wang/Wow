@@ -171,7 +171,7 @@ class InventoryServerTest {
     }
 
     private fun publish(order: AggregateRef, event: String, quantity: Int) = runBlocking {
-        val view = json.readTree("""{"id":"${order.id}","items":[{"productId":"pear","quantity":$quantity}]}""")
+        val view = json.readTree("""{"items":[{"productId":"pear","quantity":$quantity}]}""")
         val record = StateEventRecord(
             ref = order,
             version = 3,

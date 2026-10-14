@@ -41,7 +41,7 @@ class OrderProcessSagaTest {
     private val handlers = orderProcessSagaHandlers(Dependencies.NONE)
 
     /** The order's state: two lines of the mug and one of the cap. */
-    private val state = OrderState(ORDER).apply {
+    private val state = OrderState().apply {
         onSourcing(
             OrderSubmitted(
                 listOf(

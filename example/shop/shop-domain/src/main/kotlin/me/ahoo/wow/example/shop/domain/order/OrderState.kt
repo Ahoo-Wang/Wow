@@ -32,7 +32,7 @@ import java.math.BigDecimal
  * The order's state, changed in place by its events. Every property has a value before the order is placed, since
  * the kernel serializes the state as it is, for snapshots and for the test DSL's purity check.
  */
-class OrderState(val id: String) {
+class OrderState {
     var items: List<OrderItem> = emptyList()
         private set
     var address: ShippingAddress? = null

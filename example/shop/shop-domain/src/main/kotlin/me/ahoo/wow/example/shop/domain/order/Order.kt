@@ -95,7 +95,7 @@ class Order(private val state: OrderState) {
     fun onCommand(command: PayOrder): List<OrderPayment> {
         if (state.status != OrderStatus.CREATED) {
             return listOf(
-                OrderPayDuplicated(command.paymentId, "The order ${state.id} is ${state.status}, not payable."),
+                OrderPayDuplicated(command.paymentId, "The order is ${state.status}, not payable."),
             )
         }
         val payable = state.totalAmount - state.paidAmount
@@ -127,7 +127,7 @@ class Order(private val state: OrderState) {
         OrderStatus.CREATED, OrderStatus.PAID -> Decision.events(OrderCancelled(command.reason))
         else -> Decision.reject(
             OrderRejections.WRONG_STATUS,
-            "The order ${state.id} is ${state.status}: only an order not shipped yet can be cancelled.",
+            "The order is ${state.status}: only an order not shipped yet can be cancelled.",
         )
     }
 
@@ -137,7 +137,7 @@ class Order(private val state: OrderState) {
         } else {
             Decision.reject(
                 OrderRejections.WRONG_STATUS,
-                "The order ${state.id} is ${state.status}: only a $required order can $action.",
+                "The order is ${state.status}: only a $required order can $action.",
             )
         }
 

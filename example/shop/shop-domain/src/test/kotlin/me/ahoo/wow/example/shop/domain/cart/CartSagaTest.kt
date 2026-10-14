@@ -54,7 +54,7 @@ class CartSagaTest {
             "example.order.CreateOrder",
             1L,
             events,
-            OrderState(OrderFixtures.ORDER_ID),
+            OrderState(),
             scope = Scope(owner, space),
         )
 
