@@ -87,3 +87,44 @@ tasks.register<JavaExec>("eshopLoad") {
         providers.gradleProperty(name).orNull?.let { systemProperty(name, it) }
     }
 }
+
+// The fault-injection and soak harness (work package C.1, decision D196), outside every check and CI workflow:
+// `./gradlew -Pwow.scope=v10 :eshop-e2e:soakTest -Pwow.soak.duration=PT1H`. It has a source set of its own, on the
+// integration tests' classes (EshopService), so integrationTest and v10IntegrationTest neither compile nor run it.
+// The Gradle properties `wow.soak.*` (SoakConfig) reach the test JVM as system properties; the report and the
+// services' output go to build/eshop-soak/.
+val integrationTestSourceSet = sourceSets["integrationTest"]
+val soakTestSourceSet = sourceSets.create("soakTest") {
+    compileClasspath += integrationTestSourceSet.output + integrationTestSourceSet.compileClasspath
+    runtimeClasspath += output + compileClasspath + integrationTestSourceSet.runtimeClasspath
+}
+configurations["soakTestImplementation"].extendsFrom(configurations["integrationTestImplementation"])
+configurations["soakTestRuntimeOnly"].extendsFrom(configurations["integrationTestRuntimeOnly"])
+
+dependencies {
+    // PostgreSQL and Kafka of the TCK's images (WowContainers), bound to fixed host ports so they can be restarted.
+    "soakTestImplementation"(project(":tck-containers"))
+}
+
+tasks.register<Test>("soakTest") {
+    description = "Runs the eShop's fault-injection soak (C.1): checkouts under node kills and backend restarts, " +
+        "then its invariants."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    testClassesDirs = soakTestSourceSet.output.classesDirs
+    classpath = soakTestSourceSet.runtimeClasspath
+    useJUnitPlatform()
+    servers.values.forEach { dependsOn(it) }
+    eshopServers()
+    val soakDir = layout.buildDirectory.dir("eshop-soak")
+    jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Deshop.soak.dir=${soakDir.get().asFile}") })
+    providers.gradlePropertiesPrefixedBy("wow.soak.").get().forEach { (name, value) -> systemProperty(name, value) }
+    // A soak is never up to date, and never retried: a second try would hide the first one's violations.
+    outputs.upToDateWhen { false }
+    // The root build may set retries for CI on every Test task; set last, before the run.
+    doFirst {
+        extensions.getByType<org.gradle.testretry.TestRetryTaskExtension>().maxRetries.set(0)
+    }
+    testLogging {
+        showStandardStreams = true
+    }
+}
