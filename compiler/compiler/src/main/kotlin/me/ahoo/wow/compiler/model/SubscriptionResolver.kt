@@ -107,19 +107,15 @@ internal object SubscriptionResolver {
         val processorRetry = RetryResolver.read(processor, "processor $className", problems)
         val kinds = Kind.entries.filter { kind -> processor.hasAnnotation(kind.annotation) }
         val kind = kinds.singleOrNull()
-        if (kinds.isEmpty()) {
-            problems += "processor $className is none of @Projection, @Reactor, @Saga: its class says which kind " +
-                "its handlers are"
-        }
-        if (kinds.size > 1) {
-            problems += "processor $className is ${kinds.joinToString(" and ") { it.label }}: a processor is of " +
-                "exactly one kind"
-        }
+        problems += kindProblems(className, kinds)
         val receiptFunctions = Receipt.entries.associateWith { receipt ->
             processor.getAllFunctions().filter { it.hasAnnotation(receipt.annotation) }.toList()
         }
         val functions = processor.getAllFunctions().filter { isEventHandler(it) }.toList()
-        if (functions.isEmpty()) {
+        // A saga's @OnSchedule jobs (decision D198) are handlers of their own.
+        val jobFunctions = processor.getAllFunctions().filter { it.hasAnnotation(ScheduleJobResolver.ON_SCHEDULE) }
+            .toList()
+        if (functions.isEmpty() && jobFunctions.isEmpty()) {
             problems += "processor $className declares no @OnEvent function"
         }
         receiptFunctions.forEach { (receipt, receiptHandlers) ->
@@ -128,11 +124,14 @@ internal object SubscriptionResolver {
         processor.getDeclaredFunctions().forEach {
             problems += V10Annotations.problemsOfFunction(it, "processor $className", processor = true)
         }
-        (functions + receiptFunctions.values.flatten()).distinct().groupBy { it.simpleName.asString() }
+        (functions + receiptFunctions.values.flatten() + jobFunctions).distinct().groupBy { it.simpleName.asString() }
             .filterValues { it.size > 1 }.keys.forEach {
                 problems += "processor $className has two handlers named $it: each is the subscription $name.$it"
             }
-        val handlers = functions.mapNotNull { handler(it, name, kind, reactorTypes, problems) }
+        val jobs = ScheduleJobResolver.handlers(jobFunctions, className, name, kind?.name, reactorTypes, problems) {
+            returnProblem(Kind.SAGA, it)
+        }
+        val handlers = (functions.mapNotNull { handler(it, name, kind, reactorTypes, problems) } + jobs)
             .map { it.copy(retry = it.retry?.over(processorRetry) ?: processorRetry) }
         val (rejections, commits) = Receipt.entries.map { receipt ->
             receiptHandlers(className, name, receipt, receiptFunctions.getValue(receipt), reactorTypes, problems)
@@ -154,6 +153,19 @@ internal object SubscriptionResolver {
             rejections = rejections,
             commits = commits,
         )
+    }
+
+    /** A processor of none of the kinds, or of more than one. */
+    private fun kindProblems(className: String, kinds: List<Kind>): List<String> = when {
+        kinds.isEmpty() -> listOf(
+            "processor $className is none of @Projection, @Reactor, @Saga: its class says which kind its handlers are",
+        )
+
+        kinds.size > 1 -> listOf(
+            "processor $className is ${kinds.joinToString(" and ") { it.label }}: a processor is of exactly one kind",
+        )
+
+        else -> emptyList()
     }
 
     /**
@@ -227,6 +239,7 @@ internal object SubscriptionResolver {
     /** Whether [function] is an `@OnEvent` handler, or a public one named `onEvent`, and no receipt handler. */
     private fun isEventHandler(function: KSFunctionDeclaration): Boolean =
         Receipt.entries.none { function.hasAnnotation(it.annotation) } &&
+            !function.hasAnnotation(ScheduleJobResolver.ON_SCHEDULE) &&
             (function.hasAnnotation(ON_EVENT) || (function.simpleName.asString() == ON_EVENT_NAME && !function.isPrivate()))
 
     /** Whether the generated binding can construct [processor], or use it when it [isObject]. */

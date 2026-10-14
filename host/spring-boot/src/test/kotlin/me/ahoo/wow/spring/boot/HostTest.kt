@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.command.JakartaCommandValidator
@@ -25,6 +26,7 @@ import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.spi.id.AggregateIdGenerator
@@ -118,6 +120,19 @@ class HostTest {
         options.timers.maxEarlyWait.assert().isEqualTo(2.seconds)
         host.node.context(BANK).timers!!.runner.partitions.size.assert().isEqualTo(8)
         host.node.context(BANK).log.partitions.assert().isEqualTo(8)
+    }
+
+    @Test
+    fun `a job's schedule properties should override its rule, part by part`() {
+        WowProperties.Schedule().options().assert().isEqualTo(JobOptions())
+        val schedule = WowProperties.Schedule().apply {
+            expression = "0 0 4 * * *"
+            zone = "Asia/Shanghai"
+            misfire = Misfire.CATCH_UP
+            enabled = false
+        }
+        schedule.options().assert().isEqualTo(JobOptions("0 0 4 * * *", "Asia/Shanghai", Misfire.CATCH_UP, false))
+        host.node.options.schedules.assert().isEmpty()
     }
 
     @Test

@@ -156,6 +156,9 @@ object SnapshotFields {
     const val LAST_EVENT_TIME: String = "lastEventTime"
     const val OPERATOR: String = "operator"
     const val FIRST_OPERATOR: String = "firstOperator"
+
+    /** The schedules the aggregate keeps (decision D198): each rule, `{type, ...}`, by its key. */
+    const val SCHEDULES: String = "schedules"
     const val STATE: String = "state"
 }
 
@@ -210,6 +213,8 @@ data object SnapshotQueryModelProfile : BuiltInQueryModelProfile(QueryModel.SNAP
                 // The operators of the last and the first stream; null when that caller was anonymous (D163).
                 SnapshotFields.OPERATOR.operatorField(),
                 SnapshotFields.FIRST_OPERATOR.operatorField(),
+                // The schedules the aggregate keeps, each rule by its key (decision D198).
+                SnapshotFields.SCHEDULES.schedulesField(),
                 SnapshotFields.STATE.payloadField(),
             ),
         ),
@@ -289,6 +294,47 @@ private fun String.operatorField() = QueryField(this) to QueryFieldDeclaration(
             OperatorFields.CROSS_SCOPE to scalarProperty(QueryValueType.BOOLEAN),
         ),
     ),
+)
+
+/**
+ * The schedules system field (decision D198): an object of each rule by its key, `{type, ...}`: `type` (`at`,
+ * `after`, `cron`), and the parts of its kind, `epochMillis`, `millis`, or `expression`, `zone` and `misfire`.
+ */
+private fun String.schedulesField() = field(QueryValueType.OBJECT).let { (field, declaration) ->
+    field to declaration.copy(
+        additionalProperties = DeclarationValue.Set(
+            QueryFieldDeclaration(
+                valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)),
+                nullable = DeclarationValue.Set(false),
+                properties = DeclarationValue.Set(
+                    linkedMapOf(
+                        ScheduleFields.TYPE to scalarProperty(QueryValueType.STRING),
+                        ScheduleFields.EPOCH_MILLIS to optionalProperty(QueryValueType.INTEGER),
+                        ScheduleFields.MILLIS to optionalProperty(QueryValueType.INTEGER),
+                        ScheduleFields.EXPRESSION to optionalProperty(QueryValueType.STRING),
+                        ScheduleFields.ZONE to optionalProperty(QueryValueType.STRING),
+                        ScheduleFields.MISFIRE to optionalProperty(QueryValueType.STRING),
+                    ),
+                ),
+            ),
+        ),
+    )
+}
+
+/** The properties of a rule of the schedules system field ([SnapshotFields.SCHEDULES]), as Wow's JSON writes it. */
+object ScheduleFields {
+    const val TYPE: String = "type"
+    const val EPOCH_MILLIS: String = "epochMillis"
+    const val MILLIS: String = "millis"
+    const val EXPRESSION: String = "expression"
+    const val ZONE: String = "zone"
+    const val MISFIRE: String = "misfire"
+}
+
+private fun optionalProperty(valueType: QueryValueType) = QueryFieldDeclaration(
+    valueTypes = DeclarationValue.Set(setOf(valueType)),
+    nullable = DeclarationValue.Set(false),
+    required = DeclarationValue.Set(false),
 )
 
 private fun scalarProperty(valueType: QueryValueType) = QueryFieldDeclaration(

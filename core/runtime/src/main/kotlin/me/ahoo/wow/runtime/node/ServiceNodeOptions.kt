@@ -18,6 +18,7 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
@@ -25,6 +26,7 @@ import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.command.ReceiptHandler
 import me.ahoo.wow.runtime.log.AppendQueueOptions
+import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.state.StateViewOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
@@ -145,6 +147,8 @@ enum class Routing {
  * - [stateCacheCapacity]: the aggregate states kept per context between commands; 0 keeps none.
  * - [stateViews]: the bounds of each context's state views, shared by its state consumers (decision D133).
  * - [timers]: the timer runner of each context that has a timer store (decision D166).
+ * - [schedules]: the host's override of each job's default rule, by job name (`wow.schedules.<job>.*`, decision D198);
+ *   a name no `@OnSchedule` handler of the node runs fails its assembly.
  * - [kafkaRouted]: the aggregate types whose commands the `Kafka` router takes (design 02 §2, decision D143): an
  *   admitted command of one of them is written to its context's command topic, accepted once the broker acknowledged
  *   it, and executed by the owner of its log partition from there. Each must be a type the node serves, the node
@@ -163,6 +167,7 @@ data class ServiceNodeOptions(
     val defaultWaitTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT,
     val stateViews: StateViewOptions = StateViewOptions(),
     val timers: TimerOptions = TimerOptions(),
+    val schedules: Map<String, JobOptions> = emptyMap(),
     val kafkaRouted: Set<AggregateType> = emptySet(),
     val unknownWaitContexts: UnknownContexts = UnknownContexts.ALLOW,
 ) {
@@ -225,6 +230,12 @@ fun interface SubscriptionFactory {
     fun committedHandlers(context: String): Set<String> = emptySet()
 
     /**
+     * The jobs of [context]'s `@OnSchedule` handlers (decision D198), asked before the context is assembled: the node
+     * adds the built-in job aggregate `<context>.schedule` deciding them, and starts the SYSTEM ones. None by default.
+     */
+    fun jobs(context: String): List<ScheduleJob> = emptyList()
+
+    /**
      * The aggregate types among [context]'s [models] whose state after each commit the subscriptions read (design 04
      * §1): the context's executor keeps their state views ([ContextNode.views]), asked before the context is
      * assembled. None by default.
@@ -274,6 +285,8 @@ fun interface SubscriptionFactory {
 
             override fun viewTypes(context: String, models: List<AggregateModel<*>>): Set<AggregateType> =
                 first.viewTypes(context, models) + other.viewTypes(context, models)
+
+            override fun jobs(context: String): List<ScheduleJob> = first.jobs(context) + other.jobs(context)
 
             override fun stateReaders(
                 context: String,

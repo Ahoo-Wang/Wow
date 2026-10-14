@@ -24,6 +24,7 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.schedule.ScheduleCancelled
 import me.ahoo.wow.api.schedule.ScheduleContext
+import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleSet
 import me.ahoo.wow.api.schedule.Schedules
@@ -120,12 +121,41 @@ class TimersSubscriptionTest {
     }
 
     @Test
-    fun `a cron rule is stored, not due until the runtime evaluates it`(): Unit = runBlocking {
+    fun `a cron rule's first slot is its first time after the commit`(): Unit = runBlocking {
         handle(stream(1, put("report", ScheduleRule.cron("0 0 9 * * *"))))
         val timer = checkNotNull(store.find(owner, "report"))
         timer.rule.assert().isEqualTo(ScheduleRule.Cron("0 0 9 * * *"))
-        timer.dueAt.assert().isEqualTo(Timers.NOT_EVALUATED)
+        // Committed at 1970-01-01T00:00:01Z: due at 09:00 that day.
+        timer.dueAt.assert().isEqualTo(9 * 3_600_000L)
+        timer.slotDueAt.assert().isEqualTo(timer.dueAt)
+        handle(stream(2, put("never", ScheduleRule.cron("0 0 0 30 2 *"))))
+        store.find(owner, "never")?.dueAt.assert().isEqualTo(Timers.NOT_EVALUATED)
     }
+
+    @Test
+    fun `each timer this node writes is handed to its runner, a write that changes nothing is not`(): Unit =
+        runBlocking {
+            val written = ArrayList<String>()
+            val local = TimersSubscription(SHOP, store, PARTITIONS) { written += it.key }
+            val stream = stream(1, put("pay", ScheduleRule.At(5)))
+            local.subscription.handle(SubscribedEntry(stream, null, stream.events))
+            local.subscription.handle(SubscribedEntry(stream, null, stream.events))
+            written.assert().containsExactly("pay")
+        }
+
+    @Test
+    fun `a job instance's tick is sent as system schedule in its tenant, without the setting command's facts`(): Unit =
+        runBlocking {
+            val job = ScheduleJobs.typeOf(SHOP).ref("acme", "invoice")
+            val set = ScheduleSet(ScheduleJobs.TICK_KEY, ScheduleRule.Cron("0 0 0 1 * *"), job, ScheduleJobs.TICK, "{}")
+            val stream = stream(1, event(Schedules.SCHEDULE_SET, set)).copy(ref = job)
+            timers.subscription.handle(SubscribedEntry(stream, null, stream.events))
+            val timer = checkNotNull(store.find(Timers.ownerOf(job), ScheduleJobs.TICK_KEY))
+            timer.operator.assert().isEqualTo(Operator.system(ScheduleJobs.COMPONENT, "acme"))
+            timer.headers.assert().isEmpty()
+            timer.scope.assert().isEqualTo(Scope.NONE)
+            timer.causation.assert().isNotNull()
+        }
 
     @Test
     fun `deleting the aggregate cancels its pending timers before the stream's own changes`(): Unit = runBlocking {

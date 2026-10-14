@@ -30,6 +30,7 @@ import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskProvider
+import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.process.CommandLineArgumentProvider
 import java.util.Properties
@@ -49,12 +50,16 @@ import java.util.Properties
  *   the `java` component;
  * - registers [OPENAPI_TASK] ([GenerateOpenApi]), which writes the OpenAPI document of that Manifest's routes into
  *   `build/wow/openapi.json` (roadmap 5a.2);
+ * - registers [CHECK_COMPATIBILITY_TASK] ([CheckManifestCompatibility]), part of `check`, which compares the merged
+ *   Manifest with the committed baseline (`manifest/baseline.json`, [WowExtension.manifestBaseline]) and fails on a
+ *   breaking change within the major version (decision D76), and [UPDATE_BASELINE_TASK] ([UpdateManifestBaseline]),
+ *   which records the merged Manifest as the baseline;
  * - registers [COLLECT_PEERS_TASK] ([CollectPeerManifests]), which copies the merged Manifests of the services the
  *   [PEERS_CONFIGURATION] names into the module's resources, `META-INF/wow/peers/<service>.json` (decision D139).
  *
- * The fragment and merge tasks run their work in workers with an isolated class loader over [TOOLS_CONFIGURATION]:
- * the plugin itself depends on KSP and `wow-manifest` only, so it brings no Jackson, victools or Kotlin reflection to
- * the build script.
+ * The fragment, merge and compatibility tasks run their work in workers with an isolated class loader over
+ * [TOOLS_CONFIGURATION]: the plugin itself depends on KSP and `wow-manifest` only, so it brings no Jackson, victools
+ * or Kotlin reflection to the build script.
  */
 class WowPlugin : Plugin<Project> {
     override fun apply(project: Project) {
@@ -62,25 +67,12 @@ class WowPlugin : Plugin<Project> {
         extension.addCompilerDependency.convention(true)
         extension.serviceName.convention(project.name)
         extension.serviceVersion.convention(project.provider { project.version.toString() })
+        extension.manifestBaseline.convention(project.layout.projectDirectory.file(BASELINE_FILE))
         project.pluginManager.withPlugin(KOTLIN_JVM) { configure(project, extension) }
     }
 
     private fun configure(project: Project, extension: WowExtension) {
-        project.pluginManager.apply(KSP)
-        project.extensions.configure(KspExtension::class.java) { ksp ->
-            ksp.arg(MODEL_OPTION, "generate")
-            ksp.arg(MODULE_OPTION, project.name)
-            ksp.arg(ContextArgument(extension.context))
-            // A V10 module is built by the model processor alone; the 9.x processors serve wow-core.
-            NINE_X_PROCESSORS.forEach(ksp::excludeProcessor)
-        }
-        project.configurations.named(KSP_CONFIGURATION) { configuration ->
-            configuration.withDependencies { dependencies ->
-                if (extension.addCompilerDependency.get()) {
-                    dependencies.add(project.dependencies.create("$GROUP:wow-compiler:$version"))
-                }
-            }
-        }
+        configureKsp(project, extension)
 
         val tools = toolsConfiguration(project)
         val sourceSets = project.extensions.getByType(SourceSetContainer::class.java)
@@ -117,6 +109,7 @@ class WowPlugin : Plugin<Project> {
             task.outputFile.set(project.layout.buildDirectory.file("wow/manifest.json"))
         }
         mergedOutputs(project, merge)
+        compatibility(project, extension, merge, tools)
 
         val peers = peersConfiguration(project)
         val peersDirectory = project.layout.buildDirectory.dir("wow/peers")
@@ -140,6 +133,54 @@ class WowPlugin : Plugin<Project> {
             task.manifestFile.set(merge.flatMap { it.outputFile })
             task.outputFile.set(project.layout.buildDirectory.file("wow/openapi.json"))
         }
+    }
+
+    /** Applies KSP with the model processor alone, and adds `wow-compiler` unless turned off. */
+    private fun configureKsp(project: Project, extension: WowExtension) {
+        project.pluginManager.apply(KSP)
+        project.extensions.configure(KspExtension::class.java) { ksp ->
+            ksp.arg(MODEL_OPTION, "generate")
+            ksp.arg(MODULE_OPTION, project.name)
+            ksp.arg(ContextArgument(extension.context))
+            // A V10 module is built by the model processor alone; the 9.x processors serve wow-core.
+            NINE_X_PROCESSORS.forEach(ksp::excludeProcessor)
+        }
+        project.configurations.named(KSP_CONFIGURATION) { configuration ->
+            configuration.withDependencies { dependencies ->
+                if (extension.addCompilerDependency.get()) {
+                    dependencies.add(project.dependencies.create("$GROUP:wow-compiler:$version"))
+                }
+            }
+        }
+    }
+
+    /**
+     * The Manifest compatibility gate (decision D76): [CHECK_COMPATIBILITY_TASK] compares the merged Manifest with the
+     * committed [WowExtension.manifestBaseline] and is part of `check`; [UPDATE_BASELINE_TASK] rewrites the baseline.
+     */
+    private fun compatibility(
+        project: Project,
+        extension: WowExtension,
+        merge: TaskProvider<MergeManifest>,
+        tools: Configuration,
+    ) {
+        val update = project.tasks.register(UPDATE_BASELINE_TASK, UpdateManifestBaseline::class.java) { task ->
+            task.group = GROUP_NAME
+            task.description = "Records the merged Manifest as the baseline checkManifestCompatibility compares with."
+            task.manifest.set(merge.flatMap { it.outputFile })
+            task.baseline.set(extension.manifestBaseline)
+        }
+        val check = project.tasks.register(CHECK_COMPATIBILITY_TASK, CheckManifestCompatibility::class.java) { task ->
+            task.group = LifecycleBasePlugin.VERIFICATION_GROUP
+            task.description = "Fails on a change of the merged Manifest that breaks its baseline within the major version."
+            task.baseline.set(extension.manifestBaseline)
+            task.manifest.set(merge.flatMap { it.outputFile })
+            task.tools.from(tools)
+            // Recording the baseline and checking against it in one build checks the new baseline.
+            task.mustRunAfter(update)
+            task.report.set(project.layout.buildDirectory.file("wow/manifest-compatibility.txt"))
+        }
+        project.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) { it.dependsOn(check) }
     }
 
     /**
@@ -242,6 +283,11 @@ class WowPlugin : Plugin<Project> {
         const val COLLECT_PEERS_TASK = "collectWowPeers"
         const val PEERS_CONFIGURATION = "wowPeers"
         const val MANIFEST_ELEMENTS = "wowManifestElements"
+        const val CHECK_COMPATIBILITY_TASK = "checkManifestCompatibility"
+        const val UPDATE_BASELINE_TASK = "updateManifestBaseline"
+
+        /** Where the Manifest baseline lives in the project by default. */
+        const val BASELINE_FILE = "manifest/baseline.json"
 
         /** The docs type of the merged Manifest's variant, and the classifier of its published artifact. */
         const val MANIFEST_DOCS_TYPE = "wow-manifest"

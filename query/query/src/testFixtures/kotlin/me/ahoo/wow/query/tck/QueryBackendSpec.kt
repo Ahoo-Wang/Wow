@@ -19,6 +19,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.query.AfterNowFilter
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregateIdsFilter
@@ -172,6 +173,7 @@ abstract class QueryBackendSpec {
         tags: Map<String, List<String>> = emptyMap(),
         operator: Operator? = null,
         firstOperator: Operator? = operator,
+        schedules: Map<String, ScheduleRule> = emptyMap(),
     ) = SnapshotRecord(
         ref = type.ref(tenantId, id),
         version = version,
@@ -184,6 +186,7 @@ abstract class QueryBackendSpec {
         tags = tags,
         operator = operator,
         firstOperator = firstOperator,
+        schedules = schedules,
     )
 
     /** Five orders over two tenants, one deleted, one tagged: the records most tests read. */
@@ -288,6 +291,34 @@ abstract class QueryBackendSpec {
         fixture.ids(EqualFilter(QueryField("version"), 2)).assert().containsExactly("o2")
         fixture.ids(GreaterThanFilter(QueryField("lastEventTime"), T0 + 2 * DAY))
             .assert().containsExactlyInAnyOrder("o4", "o5")
+        Unit
+    }
+
+    @Test
+    fun `the schedules system field filters by a rule's parts and reads back (decision D198)`() = blocking {
+        val monthly = ScheduleRule.Cron("0 0 0 1 * *", "Asia/Shanghai")
+        val fixture = given(
+            listOf(
+                snapshot("s1", """{"name":"One"}""", schedules = mapOf("tick" to monthly)),
+                snapshot("s2", """{"name":"Two"}""", schedules = mapOf("tick" to ScheduleRule.Cron("0 0 3 * * *"))),
+                snapshot("s3", """{"name":"Three"}""", schedules = mapOf("pay" to ScheduleRule.After(60_000))),
+                snapshot("s4", """{"name":"Four"}"""),
+            ),
+        )
+        fixture.ids(EqualFilter(QueryField("schedules.tick.zone"), "Asia/Shanghai")).assert().containsExactly("s1")
+        fixture.ids(EqualFilter(QueryField("schedules.tick.type"), "cron")).assert()
+            .containsExactlyInAnyOrder("s1", "s2")
+        fixture.ids(EqualFilter(QueryField("schedules.pay.millis"), 60_000)).assert().containsExactly("s3")
+        val record = checkNotNull(
+            fixture.backend.single(QueryAdmission.Trusted.single(SingleQuery(AggregateIdFilter("s1")), fixture.schema)),
+        )
+        record.path("schedules").path("tick").path("expression").stringValue().assert().isEqualTo("0 0 0 1 * *")
+        record.path("schedules").path("tick").path("misfire").stringValue().assert().isEqualTo("COALESCE")
+        val none = checkNotNull(
+            fixture.backend.single(QueryAdmission.Trusted.single(SingleQuery(AggregateIdFilter("s4")), fixture.schema)),
+        )
+        none.path("schedules").isObject.assert().isTrue()
+        none.path("schedules").size().assert().isEqualTo(0)
         Unit
     }
 

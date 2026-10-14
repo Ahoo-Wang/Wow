@@ -101,6 +101,7 @@ object ManifestMerger {
             add("subscription ${it.name} of context ${context.name} in $source handles receipts but is a ${it.kind}")
         }
         addAll(publishedConflicts(source, context))
+        addAll(jobConflicts(source, context))
         context.errors.groupBy { it.code }.filterValues { it.size > 1 }.keys.forEach {
             add("error $it of context ${context.name} is declared twice in $source")
         }
@@ -108,6 +109,26 @@ object ManifestMerger {
             add("error ${it.code} of context ${context.name} in $source takes the framework's prefix")
         }
     }
+
+    /**
+     * Jobs of one name that differ (decision D198), and an aggregate named `schedule` in a context with jobs: the
+     * name of its built-in job aggregate.
+     */
+    private fun jobConflicts(source: String, context: ContextManifest): List<String> = buildList {
+        val jobs = context.subscriptions.mapNotNull { it.job }
+        jobs.groupBy { it.name }.filterValues { it.distinct().size > 1 }.keys.forEach {
+            add("job $it of context ${context.name} is declared twice, differently, in $source")
+        }
+        if (jobs.isNotEmpty() && context.aggregates.any { it.name == JOB_AGGREGATE }) {
+            add(
+                "context ${context.name} in $source has jobs and an aggregate named $JOB_AGGREGATE, the name of its " +
+                    "built-in job aggregate",
+            )
+        }
+    }
+
+    /** The name of a context's built-in job aggregate (decision D198). */
+    private const val JOB_AGGREGATE = "schedule"
 
     /** A published stream of an aggregate the context does not declare, and an aggregate published twice. */
     private fun publishedConflicts(source: String, context: ContextManifest): List<String> = buildList {

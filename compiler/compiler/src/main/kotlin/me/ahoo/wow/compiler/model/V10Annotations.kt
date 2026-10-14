@@ -48,6 +48,7 @@ internal object V10Annotations {
         "OnEvent",
         "OnRejected",
         "OnCommitted",
+        "OnSchedule",
         "Upgrade",
         "Blocking",
         "Description",
@@ -80,8 +81,11 @@ internal object V10Annotations {
         "StaticTenantId" to IDENTITY,
     )
 
-    /** The annotations only a subscription processor or its handler takes: `@Retry` (roadmap P.3). */
-    private val PROCESSOR_NAMES = setOf("Retry")
+    /**
+     * The annotations only a subscription processor or its handler takes: `@Retry` (roadmap P.3) and `@OnSchedule`
+     * (decision D198).
+     */
+    private val PROCESSOR_NAMES = setOf("Retry", "OnSchedule")
 
     /** The identity annotations a command body no longer carries (decision D68). */
     private val IDENTITY_NAMES = setOf("AggregateId", "TenantId", "OwnerId", "AggregateVersion")

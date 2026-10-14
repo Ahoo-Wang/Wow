@@ -269,6 +269,7 @@ class WowAutoConfiguration {
                 stateCacheCapacity = properties.stateCache.capacity,
                 defaultWaitTimeout = properties.wait.defaultTimeout.toKotlinDuration(),
                 timers = properties.timers.options(),
+                schedules = properties.schedules.mapValues { it.value.options() },
                 kafkaRouted = kafkaRouted(properties, models.models),
             ),
             admission = AdmissionPlugins(

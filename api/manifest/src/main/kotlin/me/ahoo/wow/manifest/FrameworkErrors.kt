@@ -42,6 +42,7 @@ object FrameworkErrors {
     const val NODE_CLOSING: String = "wow.node.closing"
     const val STORAGE_UNAVAILABLE: String = "wow.storage.unavailable"
     const val SCHEDULE_NOT_DUE: String = "wow.schedule.not-due"
+    const val SCHEDULE_JOB_INVALID: String = "wow.schedule.job-invalid"
     const val SUBSCRIPTION_PARKED: String = "wow.subscription.parked"
     const val WAIT_TIMEOUT: String = "wow.wait.timeout"
     const val QUERY_MALFORMED: String = "wow.query.malformed"
@@ -94,6 +95,11 @@ object FrameworkErrors {
             SCHEDULE_NOT_DUE,
             503,
             "A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
+        ),
+        ErrorManifest(
+            SCHEDULE_JOB_INVALID,
+            400,
+            "The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.",
         ),
         ErrorManifest(
             SUBSCRIPTION_PARKED,

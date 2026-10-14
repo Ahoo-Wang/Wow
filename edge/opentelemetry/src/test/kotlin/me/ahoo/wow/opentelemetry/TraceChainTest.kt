@@ -135,6 +135,9 @@ class TraceChainTest {
             request.end()
             // The stock context rejects the reservation; its receipt cancels the order.
             eventually { cancelled.size == 1 && rejections.size == 1 }
+            // A span is exported when it ends, and the stages end on their own threads, some after the cancellation
+            // is decided: the receipt's consumption, for one, ends once the cancellation it derived is executed.
+            eventually { ASSERTED.all { telemetry.named(it).isNotEmpty() } }
             eventually { telemetry.named("execute $SALES.order").size == 2 }
 
             val trace = request.spanContext.traceId
@@ -203,5 +206,18 @@ class TraceChainTest {
         const val COMMANDS = PREFIX + "wow.stock.commands"
         const val RECEIPTS = PREFIX + "wow.sales.receipts"
         const val CLIENT_SPAN = "POST /sales/order/{id}/place-order"
+
+        /** The spans of the chain the test asserts, besides the executions it counts. */
+        val ASSERTED = listOf(
+            "admit $SALES.order",
+            "decide $SALES.order",
+            "append $SALES.order",
+            "handle $SAGA",
+            "$COMMANDS publish",
+            "$COMMANDS process",
+            "execute $STOCK.item",
+            "$RECEIPTS publish",
+            "$RECEIPTS process",
+        )
     }
 }

@@ -112,6 +112,7 @@ class MongoQuerySchemaAdapter internal constructor(
             "tags" to OBJECT_TYPES,
             "operator" to OBJECT_TYPES,
             "first_operator" to OBJECT_TYPES,
+            "schedules" to OBJECT_TYPES,
             "state" to OBJECT_TYPES,
         )
 

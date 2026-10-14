@@ -47,6 +47,12 @@ fun SnapshotRecord.toQueryRecord(): ObjectNode = newRecord().apply {
     put(SnapshotFields.LAST_EVENT_TIME, lastEventTime)
     set(SnapshotFields.OPERATOR, operator.toQueryValue())
     set(SnapshotFields.FIRST_OPERATOR, firstOperator.toQueryValue())
+    set(
+        SnapshotFields.SCHEDULES,
+        newRecord().also { rules ->
+            schedules.forEach { (key, rule) -> rules.set(key, WowJson.mapper.valueToTree<JsonNode>(rule)) }
+        },
+    )
     set(SnapshotFields.STATE, WowJson.mapper.readTree(state))
 }
 

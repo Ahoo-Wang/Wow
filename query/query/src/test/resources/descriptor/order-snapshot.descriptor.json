@@ -1,6 +1,6 @@
 {
   "model" : "SNAPSHOT",
-  "version" : "sha256:b3c757813c0a764b40c0981f68738c9fa025b1a1c98335c763bb2c68336f2793",
+  "version" : "sha256:b745167388583c968ad4efa79303f6ff8fa502ba9a4c9cea967d8d5e76873a71",
   "timeZone" : "UTC",
   "record" : {
     "identity" : "aggregateId",
@@ -359,6 +359,20 @@
       "firstLast" : true,
       "expressionInput" : false,
       "inMetricFilter" : true
+    },
+    "aliases" : [ ]
+  }, {
+    "path" : "schedules",
+    "types" : [ "OBJECT" ],
+    "kind" : "OBJECT",
+    "nullable" : false,
+    "project" : true,
+    "filter" : {
+      "operators" : [ "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS" ]
+    },
+    "sort" : {
+      "paged" : false,
+      "cursor" : false
     },
     "aliases" : [ ]
   }, {
@@ -1116,6 +1130,55 @@
     "aggregate" : true
   } ],
   "dynamic" : [ {
+    "pattern" : "schedules.{key}",
+    "types" : [ "OBJECT" ],
+    "kind" : "OBJECT",
+    "filter" : {
+      "operators" : [ "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS" ]
+    }
+  }, {
+    "pattern" : "schedules.{key}.epochMillis",
+    "types" : [ "INTEGER" ],
+    "kind" : "SCALAR",
+    "filter" : {
+      "operators" : [ "EQ", "NE", "GT", "GTE", "LT", "LTE", "IN", "NOT_IN", "BETWEEN", "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS" ]
+    }
+  }, {
+    "pattern" : "schedules.{key}.expression",
+    "types" : [ "STRING" ],
+    "kind" : "SCALAR",
+    "filter" : {
+      "operators" : [ "EQ", "NE", "GT", "GTE", "LT", "LTE", "CONTAINS", "STARTS_WITH", "ENDS_WITH", "IN", "NOT_IN", "BETWEEN", "IS_EMPTY_STRING", "IS_NOT_EMPTY_STRING", "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS" ]
+    }
+  }, {
+    "pattern" : "schedules.{key}.millis",
+    "types" : [ "INTEGER" ],
+    "kind" : "SCALAR",
+    "filter" : {
+      "operators" : [ "EQ", "NE", "GT", "GTE", "LT", "LTE", "IN", "NOT_IN", "BETWEEN", "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS" ]
+    }
+  }, {
+    "pattern" : "schedules.{key}.misfire",
+    "types" : [ "STRING" ],
+    "kind" : "SCALAR",
+    "filter" : {
+      "operators" : [ "EQ", "NE", "GT", "GTE", "LT", "LTE", "CONTAINS", "STARTS_WITH", "ENDS_WITH", "IN", "NOT_IN", "BETWEEN", "IS_EMPTY_STRING", "IS_NOT_EMPTY_STRING", "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS" ]
+    }
+  }, {
+    "pattern" : "schedules.{key}.type",
+    "types" : [ "STRING" ],
+    "kind" : "SCALAR",
+    "filter" : {
+      "operators" : [ "EQ", "NE", "GT", "GTE", "LT", "LTE", "CONTAINS", "STARTS_WITH", "ENDS_WITH", "IN", "NOT_IN", "BETWEEN", "IS_EMPTY_STRING", "IS_NOT_EMPTY_STRING", "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS" ]
+    }
+  }, {
+    "pattern" : "schedules.{key}.zone",
+    "types" : [ "STRING" ],
+    "kind" : "SCALAR",
+    "filter" : {
+      "operators" : [ "EQ", "NE", "GT", "GTE", "LT", "LTE", "CONTAINS", "STARTS_WITH", "ENDS_WITH", "IN", "NOT_IN", "BETWEEN", "IS_EMPTY_STRING", "IS_NOT_EMPTY_STRING", "IS_NULL", "IS_NOT_NULL", "EXISTS", "NOT_EXISTS" ]
+    }
+  }, {
     "pattern" : "tags.{key}",
     "types" : [ "STRING" ],
     "kind" : "ARRAY",

@@ -13,16 +13,22 @@
 
 package me.ahoo.wow.runtime.timer
 
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.schedule.ScheduleCancelled
+import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.ScheduleSet
 import me.ahoo.wow.api.schedule.Schedules
+import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerStore
 import me.ahoo.wow.spi.timer.Timers
 
@@ -36,7 +42,12 @@ import me.ahoo.wow.spi.timer.Timers
  * partition's owner, checkpoints and parks like any subscription, and takes the streams that only change schedules.
  *
  * - **Set**: the timer `ref#key@version`, of the partition of its target among the log's [partitions], its first slot
- *   due as its rule says ([Timers.of]); it replaces what the aggregate scheduled under the key before.
+ *   due as its rule says ([ScheduleSlots.timerOf]: a cron rule's first time after the commit); it replaces what the
+ *   aggregate scheduled under the key before. A job instance's own tick (`<context>.schedule`, decision D198) is sent
+ *   as `system:schedule` in its tenant, without the setting command's headers and scope.
+ * - **Local**: a timer this node writes is handed to [written] (the context's runner, decision D198), which takes it
+ *   into its firing wheel at once when it owns the timer's partition and the timer is due soon, without waiting for
+ *   its next read of the store.
  * - **Cancelled**: cancels the aggregate's PENDING (or parked) timer of the key.
  * - **Delete**: a stream that deletes the aggregate cancels every PENDING timer the aggregate keeps, before its own
  *   changes apply; a restore does not bring them back.
@@ -44,7 +55,12 @@ import me.ahoo.wow.spi.timer.Timers
  *   version or a later one, so a replay or an old partition owner running beside the new one (decision D45) never moves
  *   a timer back nor revives one.
  */
-class TimersSubscription(context: String, private val store: TimerStore, private val partitions: Int) {
+class TimersSubscription(
+    context: String,
+    private val store: TimerStore,
+    private val partitions: Int,
+    private val written: (Timer) -> Unit = {},
+) {
     init {
         require(partitions >= 1) { "A log has at least one partition." }
     }
@@ -66,13 +82,30 @@ class TimersSubscription(context: String, private val store: TimerStore, private
         }
         stream.events.forEach { event ->
             when (event.name) {
-                Schedules.SCHEDULE_SET ->
-                    store.put(Timers.of(stream, json.readValue(event.payload, ScheduleSet::class.java), partitions))
+                Schedules.SCHEDULE_SET -> {
+                    val timer = timerOf(stream, json.readValue(event.payload, ScheduleSet::class.java))
+                    if (store.put(timer)) {
+                        written(timer)
+                    }
+                }
 
                 Schedules.SCHEDULE_CANCELLED ->
                     store.cancel(owner, json.readValue(event.payload, ScheduleCancelled::class.java).key, version)
             }
         }
+    }
+
+    private fun timerOf(stream: EventStreamRecord, set: ScheduleSet): Timer {
+        val timer = ScheduleSlots.timerOf(stream, set, partitions)
+        if (set.commandType != ScheduleJobs.TICK) {
+            return timer
+        }
+        val tenantId = stream.ref.tenantId
+        return timer.copy(
+            operator = Operator.system(ScheduleJobs.COMPONENT, tenantId),
+            headers = emptyMap(),
+            scope = Scope.NONE,
+        )
     }
 
     private companion object {
