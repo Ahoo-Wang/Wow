@@ -226,9 +226,67 @@ abstract class ViewStoreContract {
         }
     }
 
+    @Test
+    fun `the configured system views should be served read-only beside the stored ones`() {
+        val listed = store.get("$SYSTEM_VIEWS_PATH?definitionId=$SYSTEM_DEFINITION", ALICE).assertOk().json.values()
+        listed.map { it["id"].asString() }.assert().containsExactly("all-orders", "open-orders")
+        listed.first().let { view ->
+            view["title"].asString().assert().isEqualTo("All orders")
+            view["kind"].asString().assert().isEqualTo("record")
+            view["source"].asString().assert().isEqualTo("configured")
+            view["scope"].asString().assert().isEqualTo("system")
+            view["version"].isNull.assert().isTrue()
+            view["revision"].asString().assert().hasSize(16)
+            view["config"]["columns"][0].asString().assert().isEqualTo("id")
+        }
+        // Another tenant and another application see their own entries.
+        store.get("$SYSTEM_VIEWS_PATH?definitionId=$SYSTEM_DEFINITION", ALICE_ELSEWHERE).assertOk().json.values()
+            .map { it["id"].asString() }.assert().containsExactly("all-orders", "open-orders", "tenant-2-only")
+        store.get("$SYSTEM_VIEWS_PATH?definitionId=$SYSTEM_DEFINITION", ALICE.inApp("other-console")).assertOk()
+            .json.values().map { it["id"].asString() }.assert().containsExactly("all-orders", "other-console-only")
+        store.get("$SYSTEM_VIEWS_PATH/open-orders", BOB).assertOk().json["title"].asString().assert()
+            .isEqualTo("Open orders")
+        store.get("$SYSTEM_VIEWS_PATH/missing", BOB).assertProblem(NOT_FOUND, ViewStoreRejections.NOT_FOUND)
+        store.get(SYSTEM_VIEWS_PATH, ALICE.withoutApp).assertProblem(BAD_REQUEST, ViewStoreRejections.APP_REQUIRED)
+        // A configured view is not an aggregate: no route writes it.
+        store.post("/view-store/view/all-orders/rename-view", """{"title":"Mine"}""", ADMIN.system)
+            .assertProblem(NOT_FOUND, "wow.aggregate.not-found")
+        // A stored system view of the same id wins, at its version; one of another definition is listed too.
+        store.post(
+            "/view-store/view/open-orders/create-view",
+            """{"definitionId":"$SYSTEM_DEFINITION","title":"Open orders, stored","config":$DASHBOARD}""",
+            ADMIN.system,
+        ).assertOk()
+        val merged = store.get("$SYSTEM_VIEWS_PATH?definitionId=$SYSTEM_DEFINITION", ALICE).assertOk().json.values()
+        merged.map { it["id"].asString() to it["source"].asString() }.assert()
+            .containsExactly("all-orders" to "configured", "open-orders" to "stored")
+        store.get("$SYSTEM_VIEWS_PATH/open-orders", ALICE).assertOk().json.let { stored ->
+            stored["title"].asString().assert().isEqualTo("Open orders, stored")
+            stored["version"].asInt().assert().isEqualTo(1)
+            stored["kind"].asString().assert().isEqualTo("dashboard")
+        }
+        store.get(SYSTEM_VIEWS_PATH, ALICE).assertOk().json.values().map { it["id"].asString() }.assert()
+            .contains("all-orders", "open-orders")
+    }
+
     private fun ifMatch(version: Int): Map<String, String> = mapOf(WowHeaders.IF_MATCH to "\"$version\"")
 
     protected companion object {
+        const val SYSTEM_VIEWS_PATH = "/view-store/system-views"
+        const val SYSTEM_DEFINITION = "system-orders"
+
+        /** The system views the tests' services configure (`wow.view-store.system-views`). */
+        val SYSTEM_VIEWS: Array<Pair<String, Any>> = listOf(
+            mapOf("id" to "all-orders", "title" to "All orders"),
+            mapOf("id" to "open-orders", "title" to "Open orders", "app-id" to Who.APP),
+            mapOf("id" to "tenant-2-only", "title" to "Tenant 2", "tenant-id" to "tenant-2"),
+            mapOf("id" to "other-console-only", "title" to "Other console", "app-id" to "other-console"),
+        ).flatMapIndexed { index, entry ->
+            (entry + mapOf("definition-id" to SYSTEM_DEFINITION, "config" to RECORD)).map { (name, value) ->
+                "wow.view-store.system-views[$index].$name" to value as Any
+            }
+        }.toTypedArray()
+
         const val VIEWS = "/view-store/view/create-view"
         const val VIEW_QUERY = "/view-store/view/snapshot/query"
         const val VIEW_EVENTS = "/view-store/view/events/query"

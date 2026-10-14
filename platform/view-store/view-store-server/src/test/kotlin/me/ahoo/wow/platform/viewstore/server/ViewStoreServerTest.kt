@@ -45,10 +45,33 @@ class ViewStoreServerTest {
                 .status.assert().isEqualTo(NOT_FOUND)
             val references = QueriedBoardReferences { store.context.getBean(HttpQueries::class.java) }
             runBlocking { references.referencingBoards("(0)", "app", "view-1") }.assert().isEmpty()
+            // Without snapshot queries, the configured system views alone.
+            store.get("/view-store/system-views", Who.user("a")).assertOk().json.values().map { it["id"].asString() }
+                .assert().isEmpty()
+        }
+    }
+
+    @Test
+    fun `the configured system views should be served without snapshot queries`() {
+        startViewStore(
+            "wow.view-store.system-views[0].id" to "all",
+            "wow.view-store.system-views[0].definition-id" to "orders",
+            "wow.view-store.system-views[0].title" to "All",
+            "wow.view-store.system-views[0].config" to """{"kind":"analysis"}""",
+        ).use { store ->
+            store.get("/view-store/system-views", Who.user("a")).assertOk().json.values().map { it["id"].asString() }
+                .assert().containsExactly("all")
+            // A blank definition is none; a blank application is none.
+            store.get("/view-store/system-views?definitionId=%20", Who.user("a")).assertOk().json.size().assert()
+                .isEqualTo(1)
+            store.get("/view-store/system-views", Who.user("a").inApp(" ")).status.assert().isEqualTo(BAD_REQUEST)
+            store.get("/view-store/system-views/all", Who.user("a")).assertOk().json["kind"].asString().assert()
+                .isEqualTo("analysis")
         }
     }
 
     private companion object {
         const val NOT_FOUND = 404
+        const val BAD_REQUEST = 400
     }
 }
