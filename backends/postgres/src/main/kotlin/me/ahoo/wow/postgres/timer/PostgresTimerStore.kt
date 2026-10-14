@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.postgres.PostgresFormat
@@ -76,6 +77,7 @@ class PostgresTimerStore(
             put.setNullableString(14, timer.causation?.causationId)
             put.setString(15, json.writeValueAsString(timer.headers))
             put.setNullableString(16, timer.operator?.let(json::writeValueAsString))
+            put.setNullableString(17, timer.scope.takeUnless { it == Scope.NONE }?.let(json::writeValueAsString))
             put.executeUpdate() == 1
         }
     }
@@ -180,6 +182,7 @@ class PostgresTimerStore(
             attempts = row.getInt("attempts"),
             outcome = row.getString("outcome"),
             operator = row.getString("operator")?.let { json.readValue(it, Operator::class.java) },
+            scope = row.getString("scope")?.let { json.readValue(it, Scope::class.java) } ?: Scope.NONE,
         )
     }
 }

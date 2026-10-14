@@ -21,6 +21,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import org.junit.jupiter.api.Test
@@ -64,6 +65,7 @@ abstract class TimerStoreSpec {
         causation = Causation("command-1", "$owner@$version"),
         headers = mapOf("app" to "web"),
         operator = Operator("alice", "tenant", crossScope = true),
+        scope = Scope("alice", "space-a"),
     )
 
     @Test
@@ -77,10 +79,13 @@ abstract class TimerStoreSpec {
     }
 
     @Test
-    fun `a timer without causation, headers or operator is found as put`(): Unit = runBlocking {
-        val timer = timer(key = "bare").copy(causation = null, headers = emptyMap(), operator = null)
+    fun `a timer without causation, headers, operator or scope is found as put`(): Unit = runBlocking {
+        val timer = timer(key = "bare").copy(causation = null, headers = emptyMap(), operator = null, scope = Scope.NONE)
         store.put(timer).assert().isTrue()
         store.find(owner, "bare").assert().isEqualTo(timer)
+        val spaced = timer(key = "spaced").copy(scope = Scope(spaceId = "space-a"))
+        store.put(spaced).assert().isTrue()
+        store.find(owner, "spaced").assert().isEqualTo(spaced)
     }
 
     @Test

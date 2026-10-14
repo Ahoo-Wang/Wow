@@ -105,6 +105,7 @@ class CommandIntake internal constructor(
             causation = wire.causation ?: Causation(wire.id, wire.id),
             executionId = replyTo.executionId(),
             operator = wire.operator,
+            scope = wire.scope,
         )
         producer.send(topics.receiptsOf(replyTo.context), CommandMessages.receipt(rejected))
     }

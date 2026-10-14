@@ -60,6 +60,8 @@ interface SagaContext : SubscriptionContext {
      * A command to the aggregate [ref] asking [body], derived from this execution. Its id and request id are
      * deterministic (from [executionId] and the order of the calls), so handling the commit again derives the same
      * requests and they are not decided twice; its causation links it to the commit and to the root of the chain.
+     * Its operator and its scope (owner and space) are the commit's (decisions D163, D189), so an aggregate it
+     * creates belongs to the owner the chain acts for, and one it changes is guarded as for that owner.
      */
     fun <C : Any> command(ref: AggregateRef, body: C): Command<C>
 

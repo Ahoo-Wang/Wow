@@ -55,10 +55,9 @@ class ContextCommandTypes(models: Collection<AggregateModel<*>>, private val con
  * target's partition (this node, which runs the partition's timers, unless the partition is changing hands; a command
  * another node executed and that changed nothing is reported committed); to one of another context through the sender, to that context's command topic (decisions D33, D137).
  *
- * The command's id and request id are the timer's id, so a timer sent twice is decided once. Its scope is none, as
- * for any command a system sends; its causation is the commit that scheduled it, and its headers are the scheduling
- * command's: the operator travels in them (decision D163) until the command has a field of its own for it. It is not
- * waited for: a scheduled command is in no caller's wait chain.
+ * The command's id and request id are the timer's id, so a timer sent twice is decided once. Its scope is the
+ * scheduling commit's (decision D189), its causation that commit, and its headers and operator the scheduling
+ * command's (decision D163). It is not waited for: a scheduled command is in no caller's wait chain.
  */
 class ContextTimerFirer(
     models: Collection<AggregateModel<*>>,
@@ -76,6 +75,7 @@ class ContextTimerFirer(
             ref = timer.target,
             body = ClusterCodec.mapper.readTree(timer.body),
             headers = timer.headers,
+            scope = timer.scope,
             causation = timer.causation,
             operator = timer.operator,
         )
@@ -166,6 +166,7 @@ class SagaTimers(
             causation = Causation(event.correlationId, event.id),
             headers = event.headers,
             operator = event.operator,
+            scope = event.scope,
         )
     }
 }

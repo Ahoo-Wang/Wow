@@ -53,7 +53,7 @@ class TimersSubscriptionTest {
             commandType = "shop.order.PlaceOrder",
             commitTime = 1_000L * version,
             events = events.map { EventRecord(it, 1, "{}") },
-            scope = Scope.NONE,
+            scope = Scope("alice", "space-a"),
             causation = Causation("root", "c-0"),
             headers = mapOf("app" to "web"),
             operator = Operator("alice", "t"),
@@ -91,6 +91,8 @@ class TimersSubscriptionTest {
         timer.headers.assert().isEqualTo(mapOf("app" to "web"))
         // The scheduled command keeps the operator of the command that scheduled it (decisions D163, D166).
         timer.operator.assert().isEqualTo(Operator("alice", "t"))
+        // And the scope of the commit that scheduled it (decision D189).
+        timer.scope.assert().isEqualTo(Scope("alice", "space-a"))
         handle(stream(2, ScheduleChange.Cancel("pay")))
         store.find(owner, "pay")?.status.assert().isEqualTo(TimerStatus.CANCELLED)
         // A replay of the log from the start writes nothing back.
@@ -120,7 +122,8 @@ class TimersSubscriptionTest {
                 "shop.order.PlaceOrder",
                 1_000,
                 listOf(OrderPlaced(1)),
-                OrderState()
+                OrderState(),
+                scope = Scope("bob", "space-b"),
             )
         val execution = ExecutionId("ReminderSaga.onOrderPlaced", order("o-1"), 1)
         val put = SagaSchedule.Put(Timers.sagaTimerId(execution, 0), "remind", order("o-1"), 1_100, CancelOrder("x"))
@@ -133,6 +136,7 @@ class TimersSubscriptionTest {
         timer.body.assert().isEqualTo("""{"reason":"x"}""")
         timer.version.assert().isEqualTo(1_000)
         timer.causation.assert().isEqualTo(Causation("c-1", "${order("o-1")}@1"))
+        timer.scope.assert().isEqualTo(Scope("bob", "space-b"))
         val later = event.copy(version = 2, commitTime = 2_000)
         sagas.write(execution.subscription, later, listOf(SagaSchedule.Cancel("$execution#1", "remind", order("o-1"))))
         store.find(sagaOwner, "remind")?.status.assert().isEqualTo(TimerStatus.CANCELLED)

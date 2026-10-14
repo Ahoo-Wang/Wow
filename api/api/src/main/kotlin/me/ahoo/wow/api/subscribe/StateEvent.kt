@@ -26,7 +26,8 @@ import me.ahoo.wow.api.decide.Causation
  *   the causation id of the commands a saga derives from it.
  * - [commandId], [requestId] and [commandType] (the model's name of the command, decision D55) say which command
  *   produced it; [commitTime] is when, in epoch milliseconds.
- * - [scope] is the aggregate's owner and space after the commit (decision D56), not the caller's.
+ * - [scope] is the aggregate's owner and space after the commit (decision D56), not the caller's; the commands a saga
+ *   derives from it carry it on (decision D189).
  * - [causation] and [headers] come from the command: the chain it belongs to and the request facts admission kept.
  * - [operator] is whose name the commit is recorded in (decision D163); the commands a saga derives from it keep it.
  *

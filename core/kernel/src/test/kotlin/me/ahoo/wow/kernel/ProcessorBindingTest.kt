@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
@@ -41,6 +42,7 @@ class ProcessorBindingTest {
         1L,
         listOf("placed"),
         CartState("o-1"),
+        scope = Scope("alice", "space-a"),
         causation = Causation("root", "shop.order/t/o-0@1"),
         operator = Operator("alice", "t"),
     )
@@ -134,8 +136,9 @@ class ProcessorBindingTest {
         commands.forEach {
             it.id.assert().isEqualTo(it.requestId)
             it.causation.assert().isEqualTo(Causation("root", "shop.order/t/o-1@3"))
-            // The root command's operator, not the saga's (decision D163).
+            // The root command's operator, not the saga's (decision D163), and the commit's scope (decision D189).
             it.operator.assert().isEqualTo(Operator("alice", "t"))
+            it.scope.assert().isEqualTo(Scope("alice", "space-a"))
         }
         commands[0].id.assert().isEqualTo(ExecutionSagaContext.derivedId(execution, 0))
         ExecutionSagaContext.derivedId(execution.copy(version = 4), 0).assert().isNotEqualTo(commands[0].id)
