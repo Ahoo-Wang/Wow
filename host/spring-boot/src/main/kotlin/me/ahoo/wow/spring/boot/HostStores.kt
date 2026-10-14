@@ -22,6 +22,7 @@ import me.ahoo.wow.kernel.InMemoryLeaseStore
 import me.ahoo.wow.kernel.InMemoryReservationStore
 import me.ahoo.wow.kernel.InMemorySnapshotStore
 import me.ahoo.wow.kernel.InMemoryTimerStore
+import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.LogGroupBackends
 import me.ahoo.wow.runtime.snapshot.SnapshotPlacement
@@ -29,6 +30,7 @@ import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
+import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -98,10 +100,12 @@ abstract class HostStore internal constructor(val name: String, val kind: Backen
 
 /**
  * A store in memory: for one node, whose data does not outlive it. Each context's snapshots come from [snapshotsOf], an
- * [InMemorySnapshotStore] unless a test wraps it.
+ * [InMemorySnapshotStore] unless a test wraps it. With [queries] (`wow.query.memory.enabled`, decision D209), every
+ * snapshot written is also written there, the in-memory reference query backend the snapshot queries read.
  */
 class MemoryStore(
     name: String,
+    val queries: InMemoryQueryStorage? = null,
     private val snapshotsOf: (context: String) -> SnapshotStore = { InMemorySnapshotStore() },
 ) : HostStore(name, BackendKind.MEMORY) {
     override val location: Any get() = this
@@ -116,9 +120,20 @@ class MemoryStore(
 
     override fun openLog(context: String, partitions: Int): EventLog = InMemoryEventLog(partitions)
 
-    override fun openSnapshots(context: String): SnapshotStore = snapshotsOf(context)
+    override fun openSnapshots(context: String): SnapshotStore =
+        snapshotsOf(context).let { store -> queries?.let { QueriedSnapshotStore(store, it) } ?: store }
 
     override fun openTimers(context: String): TimerStore = InMemoryTimerStore()
+}
+
+/** A snapshot store that also writes each snapshot it writes into [queries], the snapshot queries' storage. */
+internal class QueriedSnapshotStore(private val store: SnapshotStore, private val queries: InMemoryQueryStorage) :
+    SnapshotStore by store {
+    override suspend fun save(snapshot: SnapshotRecord): Boolean =
+        store.save(snapshot).also { written -> if (written) queries.save(snapshot) }
+
+    override suspend fun rewrite(snapshot: SnapshotRecord): Boolean =
+        store.rewrite(snapshot).also { written -> if (written) queries.rewrite(snapshot) }
 }
 
 /**
@@ -312,13 +327,16 @@ internal object StoreInstances {
     /**
      * The stores of `wow.stores`, by name; when it names none, the one store `wow.backend` selects ([BackendSelection]),
      * named [ContextBackends.DEFAULT_STORE]. A store on PostgreSQL needs wow-postgres and a `DataSource` bean, one on
-     * MongoDB wow-mongo and a `MongoClient` bean: the one its `data-source` or `client` names, else the only one.
+     * MongoDB wow-mongo and a `MongoClient` bean: the one its `data-source` or `client` names, else the only one. A
+     * store in memory keeps its snapshots queryable when [memoryQueries] (`wow.query.memory.enabled`, decision D209).
      */
     fun open(
         properties: WowProperties,
         beanFactory: ListableBeanFactory,
-        classLoader: ClassLoader?
+        classLoader: ClassLoader?,
+        memoryQueries: Boolean = false,
     ): Map<String, HostStore> {
+        fun memory(name: String) = MemoryStore(name, queries = InMemoryQueryStorage().takeIf { memoryQueries })
         val postgresModule = ClassUtils.isPresent(POSTGRES_LOG, classLoader)
         val mongoClient = MONGO_CLIENT.takeIf { ClassUtils.isPresent(MONGO_LOG, classLoader) }
             ?.takeIf { ClassUtils.isPresent(it, classLoader) }
@@ -332,7 +350,7 @@ internal object StoreInstances {
                 BackendKind.MONGO ->
                     MongoStore.open(name, beanFactory.getBean(mongoClient!!), properties.mongo.database)
 
-                else -> MemoryStore(name)
+                else -> memory(name)
             }
             return mapOf(name to store)
         }
@@ -342,7 +360,7 @@ internal object StoreInstances {
         return properties.stores.mapValues { (name, store) ->
             val key = "wow.stores.$name"
             when (checkNotNull(store.type) { "$key.type is not set: memory, postgres or mongo." }) {
-                BackendKind.MEMORY -> MemoryStore(name)
+                BackendKind.MEMORY -> memory(name)
                 BackendKind.POSTGRES -> {
                     check(postgresModule) { "$key is on PostgreSQL, which needs wow-postgres on the classpath." }
                     PostgresStore.open(

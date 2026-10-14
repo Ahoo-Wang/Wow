@@ -132,7 +132,12 @@ internal object WowSchemas {
         HOP to hop(),
         FUNCTION_INFO to functionInfo(),
         ERROR_INFO to objectSchema(
-            mapOf("code" to STRING, "message" to STRING, "violations" to array(schemaRef(VIOLATION))),
+            mapOf(
+                "code" to STRING,
+                "message" to STRING,
+                "violations" to array(schemaRef(VIOLATION)),
+                "extensions" to type("object", description = "The rejection's structured data (decision D211)."),
+            ),
             listOf("code", "message"),
         ),
         VIOLATION to objectSchema(
@@ -265,7 +270,8 @@ internal object WowSchemas {
             "result" to schemaRef(COMMAND_RESULT),
         ),
         listOf("type", "title", "status"),
-        "An RFC 9457 problem (decision D101); `result` is the command's when it has one.",
+        "An RFC 9457 problem (decision D101); `result` is the command's when it has one, and the rejection's " +
+            "extensions are members of their own names (decision D211).",
     )
 
     private fun stateView(): Map<String, Any?> = objectSchema(

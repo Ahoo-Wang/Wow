@@ -26,6 +26,9 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/view-store/dataset_wording/{id}/clear-dataset-wording"
+        }, {
+          "method" : "POST",
+          "path" : "/view-store/dataset_wording/clear-dataset-wording"
         } ],
         "description" : "Clear the wording of a dataset"
       }, {

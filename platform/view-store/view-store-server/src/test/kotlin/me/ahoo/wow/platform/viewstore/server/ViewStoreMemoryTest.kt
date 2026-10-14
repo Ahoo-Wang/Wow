@@ -13,13 +13,11 @@
 
 package me.ahoo.wow.platform.viewstore.server
 
-import me.ahoo.wow.platform.viewstore.testing.MemorySnapshotQueries
-
 /**
- * The view store's contract on the memory backend, its snapshots queried by the in-memory reference backend. The
- * same contract runs on PostgreSQL in the integration tests (`ViewStorePostgresTest`).
+ * The view store's contract on the memory backend as its `application.yaml` configures it: its snapshots queried by the
+ * in-memory reference backend (`wow.query.memory.enabled`). The same contract runs on PostgreSQL in the integration
+ * tests (`ViewStorePostgresTest`).
  */
 class ViewStoreMemoryTest : ViewStoreContract() {
-    override val store: ViewStoreNode =
-        startViewStore(*SYSTEM_VIEWS, sources = listOf(MemorySnapshotQueries::class.java))
+    override val store: ViewStoreNode = startViewStore(*SYSTEM_VIEWS)
 }

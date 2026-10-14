@@ -25,8 +25,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The in-memory reference dataset storage: tables of rows, each row a record with its fields at the root, and the
- * [InMemoryDatasetQueryBackend] of each dataset bound to one, which passes
- * [DatasetQueryBackendSpec][me.ahoo.wow.query.tck.DatasetQueryBackendSpec]. A dataset names its table in its
+ * [InMemoryDatasetQueryBackend] of each dataset bound to one, which passes `DatasetQueryBackendSpec` (the `:query`
+ * test fixtures). A dataset names its table in its
  * storage binding, `{"table": "<name>"}` ([binding]).
  *
  * [delay] holds every primitive back that long before it answers, as [InMemoryQueryStorage] does.

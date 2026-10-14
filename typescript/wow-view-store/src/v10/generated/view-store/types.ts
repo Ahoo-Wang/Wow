@@ -30,7 +30,7 @@ export interface ClearDatasetWording {
  * - key: `me.ahoo.wow.platform.viewstore.api.view.CreateView`
  */
 export interface CreateView {
-  config: Object;
+  config: Record<string, unknown>;
   definitionId: string;
   title: string;
 }
@@ -49,7 +49,7 @@ export type DatasetWordingCleared = Record<string, unknown>;
 export interface DatasetWordingSet {
   appId: string;
   dataset: string;
-  fields?: ObjectNullable;
+  fields?: null | Record<string, unknown>;
   recordNoun?: string | null;
   title?: string | null;
 }
@@ -59,17 +59,11 @@ export interface DatasetWordingSet {
 export interface DatasetWordingState {
   appId: string;
   dataset: string;
-  fields?: ObjectNullable;
+  fields?: null | Record<string, unknown>;
   recordNoun?: string | null;
   title?: string | null;
 }
 
-
-/** - key: `java.util.Map(java.lang.String,java.lang.Object)` */
-export type Object = Record<string, unknown>;
-
-/** - key: `java.util.Map(java.lang.String,java.lang.Object)-nullable` */
-export type ObjectNullable = null | Object;
 
 /**
  * Rename a view
@@ -85,7 +79,7 @@ export interface RenameView {
  * - key: `me.ahoo.wow.platform.viewstore.api.view.SaveView`
  */
 export interface SaveView {
-  config: Object;
+  config: Record<string, unknown>;
 }
 
 
@@ -95,7 +89,7 @@ export interface SaveView {
  */
 export interface SetDatasetWording {
   dataset: string;
-  fields?: ObjectNullable;
+  fields?: null | Record<string, unknown>;
   recordNoun?: string | null;
   title?: string | null;
 }
@@ -109,7 +103,7 @@ export interface SetViewPreferences {
   autoRun?: boolean | null;
   defaultInstanceId?: string | null;
   definitionId: string;
-  lastTabs?: StringNullable;
+  lastTabs?: Record<string, string> | null;
   order?: string[];
 }
 
@@ -119,9 +113,6 @@ export interface SetViewPreferences {
  * - key: `me.ahoo.wow.platform.viewstore.api.view.ShareView`
  */
 export type ShareView = Record<string, unknown>;
-
-/** - key: `java.util.Map(java.lang.String,java.lang.String)-nullable` */
-export type StringNullable = Record<string, string> | null;
 
 /** - key: `me.ahoo.wow.platform.viewstore.api.ViewAudience` */
 export type ViewAudience = 'personal' | 'shared' | 'system';
@@ -142,7 +133,7 @@ export interface ViewClaimed {
 export interface ViewCreated {
   appId: string;
   audience: ViewAudience;
-  config: Object;
+  config: Record<string, unknown>;
   definitionId: string;
   kind: ViewKind;
   title: string;
@@ -161,7 +152,7 @@ export interface ViewPreferencesSet {
   autoRun?: boolean | null;
   defaultInstanceId?: string | null;
   definitionId: string;
-  lastTabs?: StringNullable;
+  lastTabs?: Record<string, string> | null;
   order: string[];
 }
 
@@ -172,7 +163,7 @@ export interface ViewPreferencesState {
   autoRun?: boolean | null;
   defaultInstanceId?: string | null;
   definitionId: string;
-  lastTabs?: StringNullable;
+  lastTabs?: Record<string, string> | null;
   order: string[];
 }
 
@@ -191,7 +182,7 @@ export interface ViewRenamed {
  * - key: `me.ahoo.wow.platform.viewstore.api.view.ViewSaved`
  */
 export interface ViewSaved {
-  config: Object;
+  config: Record<string, unknown>;
   kind: ViewKind;
 }
 
@@ -206,7 +197,7 @@ export type ViewShared = Record<string, unknown>;
 export interface ViewState {
   appId: string;
   audience: ViewAudience;
-  config: Object;
+  config: Record<string, unknown>;
   definitionId: string;
   kind: ViewKind;
   title: string;

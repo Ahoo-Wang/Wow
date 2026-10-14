@@ -68,8 +68,14 @@ import tools.jackson.databind.node.ObjectNode
  * Where a filter or an aggregation input is read: a record, and the elements an aggregation expanded or an
  * `ELEMENT_MATCH` entered, innermost last, each under the absolute physical path of its container.
  */
-internal class RecordScope(val record: ObjectNode, private val elements: List<Pair<QueryField, JsonNode>> = emptyList()) {
-    fun enter(container: QueryField, element: JsonNode): RecordScope = RecordScope(record, elements + (container to element))
+internal class RecordScope(
+    val record: ObjectNode,
+    private val elements: List<Pair<QueryField, JsonNode>> = emptyList()
+) {
+    fun enter(container: QueryField, element: JsonNode): RecordScope = RecordScope(
+        record,
+        elements + (container to element)
+    )
 
     /** The values [field] reads here: from the element of its physical parent, or from the record at the root. */
     fun values(field: ResolvedField): List<JsonNode> {
@@ -82,6 +88,7 @@ internal class RecordScope(val record: ObjectNode, private val elements: List<Pa
 
 /** Evaluates admitted filters with the canonical semantics, every operator a schema can grant included. */
 internal class InMemoryFilters(private val query: AdmittedQuery<*>) {
+    @Suppress("CyclomaticComplexMethod") // One exhaustive table: a branch per kind of filter.
     fun matches(filter: FilterExpression, scope: RecordScope): Boolean = when (filter) {
         MatchAllFilter -> true
         MatchNoneFilter -> false
@@ -101,14 +108,18 @@ internal class InMemoryFilters(private val query: AdmittedQuery<*>) {
             scope.values(container).flattened().filter { it.isObject }
                 .any { matches(filter.predicate, scope.enter(container.physicalField, it)) }
         }
-        is ExpressionFilter -> expression(filter.expression, scope)?.let { compare(it, filter.comparison, filter.value) } == true
+        is ExpressionFilter -> expression(filter.expression, scope)?.let {
+            compare(it, filter.comparison, filter.value)
+        } == true
         is SearchFilter -> throw QueryExecutionException("The in-memory backend grants no full-text search.")
         is RelativeTimeFilter -> throw QueryExecutionException("Relative time reaches a backend as a range.")
         else -> field(filter, scope)
     }
 
     private fun system(filter: FilterExpression, scope: RecordScope): String? =
-        scope.record.valuesAt(query.systemField(filter).physicalField).firstOrNull()?.takeIf { it.isString }?.stringValue()
+        scope.record.valuesAt(
+            query.systemField(filter).physicalField
+        ).firstOrNull()?.takeIf { it.isString }?.stringValue()
 
     private fun deletion(filter: DeletionFilter, scope: RecordScope): Boolean {
         val deleted = scope.record.valuesAt(query.systemField(filter).physicalField).firstOrNull()?.booleanValue() == true
@@ -141,16 +152,27 @@ internal class InMemoryFilters(private val query: AdmittedQuery<*>) {
             is LessThanOrEqualFilter -> range(values, field, filter.value) { it <= 0 }
             is BetweenFilter -> range(values, field, filter.lowerBound) { it >= 0 } &&
                 range(values, field, filter.upperBound) { it <= 0 }
-            is ContainsFilter -> text(values, filter.stringComparison) { value, operand -> value.contains(operand) }(filter.value)
-            is StartsWithFilter -> text(values, filter.stringComparison) { value, operand -> value.startsWith(operand) }(filter.value)
-            is EndsWithFilter -> text(values, filter.stringComparison) { value, operand -> value.endsWith(operand) }(filter.value)
+            is ContainsFilter -> text(
+                values,
+                filter.stringComparison
+            ) { value, operand -> value.contains(operand) }(filter.value)
+            is StartsWithFilter -> text(
+                values,
+                filter.stringComparison
+            ) { value, operand -> value.startsWith(operand) }(filter.value)
+            is EndsWithFilter -> text(
+                values,
+                filter.stringComparison
+            ) { value, operand -> value.endsWith(operand) }(filter.value)
             is IsNullFilter -> values.isEmpty() || values.any { it.isNull }
             is IsNotNullFilter -> values.isNotEmpty() && values.none { it.isNull }
             is ExistsFilter -> values.isNotEmpty()
             is NotExistsFilter -> values.isEmpty()
             is IsEmptyFilter -> values.any { it.isArray && it.isEmpty }
             is IsEmptyStringFilter -> values.any { it.isString && it.stringValue().isEmpty() }
-            is IsNotEmptyStringFilter -> values.isNotEmpty() && values.none { it.isNull || it.isString && it.stringValue().isEmpty() }
+            is IsNotEmptyStringFilter -> values.isNotEmpty() && values.none {
+                it.isNull || it.isString && it.stringValue().isEmpty()
+            }
             else -> throw QueryExecutionException("Filter [${filter.operator}] is not a field predicate.")
         }
     }

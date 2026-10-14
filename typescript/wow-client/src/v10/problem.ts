@@ -97,6 +97,39 @@ export interface Problem {
   readonly violations?: readonly Violation[];
   /** The whole result of a command that has a ref. */
   readonly result?: CommandResult;
+  /**
+   * The problem's extension members (RFC 9457): every member the server
+   * wrote besides the ones above and `instance`, such as a rejection's
+   * structured data (decision D211). Absent when it wrote none.
+   */
+  readonly extensions?: Readonly<Record<string, unknown>>;
+}
+
+/** The members of a problem that are not extension members. */
+const PROBLEM_MEMBERS: ReadonlySet<string> = new Set([
+  'type',
+  'title',
+  'status',
+  'detail',
+  'instance',
+  'code',
+  'violations',
+  'result',
+  'extensions',
+]);
+
+/**
+ * `problem` with its extension members gathered as `extensions` (internal):
+ * a problem read from the wire carries them as top-level members.
+ */
+function withExtensions(problem: Problem): Problem {
+  if (problem.extensions !== undefined) return problem;
+  const extensions = Object.fromEntries(
+    Object.entries(problem).filter(([name]) => !PROBLEM_MEMBERS.has(name)),
+  );
+  return Object.keys(extensions).length === 0
+    ? problem
+    : { ...problem, extensions };
 }
 
 /**
@@ -188,7 +221,7 @@ export class WowProblemError extends Error {
         ? `[${problem.code}] ${problem.detail ?? problem.title}`
         : `${problem.status} ${problem.detail ?? problem.title}`,
     );
-    this.problem = problem;
+    this.problem = withExtensions(problem);
     this.status = problem.status;
     if (problem.code !== undefined) this.code = problem.code;
     this.violations = problem.violations ?? [];
@@ -252,12 +285,12 @@ export async function readProblem(response: Response): Promise<Problem> {
       (body.type?.startsWith(PROBLEM_TYPE_PREFIX)
         ? body.type.slice(PROBLEM_TYPE_PREFIX.length)
         : undefined);
-    return {
+    return withExtensions({
       ...body,
       type: body.type ?? 'about:blank',
       title: body.title ?? response.statusText,
       ...(code === undefined ? {} : { code }),
-    };
+    });
   }
   return {
     type: 'about:blank',

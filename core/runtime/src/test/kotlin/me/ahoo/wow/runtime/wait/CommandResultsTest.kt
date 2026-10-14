@@ -98,9 +98,10 @@ class CommandResultsTest {
 
     @Test
     fun `a rejection, contention or an unknown outcome do not succeed`() {
-        map(CommandOutcome.Rejected(Rejection("shop.order.closed", "closed"))).let {
+        map(CommandOutcome.Rejected(Rejection("shop.order.closed", "closed", mapOf("closedAt" to 7)))).let {
             it.status.assert().isEqualTo(CommandResult.Status.REJECTED)
             it.error!!.code.assert().isEqualTo("shop.order.closed")
+            it.error!!.extensions.assert().isEqualTo(mapOf("closedAt" to 7))
         }
         map(CommandOutcome.Contended(3)).let {
             it.status.assert().isEqualTo(CommandResult.Status.FAILED)

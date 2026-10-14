@@ -38,6 +38,7 @@ internal object V10Annotations {
         "CreateAggregate",
         "AllowCreate",
         "MountedCommand",
+        "Unaddressed",
         "AfterCommand",
         "Name",
         "Revision",
