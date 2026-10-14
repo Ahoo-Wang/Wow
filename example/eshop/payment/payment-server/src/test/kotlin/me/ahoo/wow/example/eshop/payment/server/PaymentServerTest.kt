@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.eshop.payment.server
 
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
@@ -22,10 +23,13 @@ import me.ahoo.wow.runtime.node.SourceTopics
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.junit.jupiter.api.assertThrows
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.annotation.Bean
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
+import java.io.File
+import java.math.BigDecimal
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -95,6 +99,19 @@ class PaymentServerTest {
         request("order-declined", "150.00")
         eventually("order-declined failed") { state("order-declined")["status"].asString() == "FAILED" }
         state("order-declined")["reason"].asString().assert().contains("over the limit of 100.00")
+    }
+
+    @Test
+    fun `the gateway should be down while its outage file exists`(): Unit = runBlocking {
+        val outage = File.createTempFile("gateway", ".down").apply { deleteOnExit() }
+        val gateway = PaymentServer().paymentGateway(BigDecimal("100.00"), outage.path)
+        assertThrows<IllegalStateException> {
+            runBlocking { gateway.charge("p-1", BigDecimal.ONE, "k-1") }
+        }
+        outage.delete()
+        gateway.charge("p-1", BigDecimal.ONE, "k-1").toString().assert().contains("simulated-k-1")
+        PaymentServer().paymentGateway(BigDecimal.ONE, "").charge("p-2", BigDecimal.ONE, "k-2")
+            .toString().assert().contains("simulated-k-2")
     }
 
     private fun request(order: String, amount: String) {

@@ -1,0 +1,153 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.api.ledger
+
+import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.caller.Caller
+
+/**
+ * The failure ledger across services (design 04 §2, decision D141): each service keeps its own ledger, atomic with its
+ * checkpoints, and publishes its changes to the ops context, which aggregates them; an operator's action goes back to
+ * the owning service.
+ *
+ * - **Publishing**: a service sends each change of an entry as a command to the aggregate [PARKED] of the ops context
+ *   ([OPS_CONTEXT] by default), through that context's command topic: [RECORD_PARKED] with the [LedgerEntry] as its
+ *   member [ENTRY] while the entry is parked, [RECORD_RESOLVED] with the [LedgerResolution] as its member [RESOLUTION]
+ *   once it is not. The aggregate's id is [parkedId]: one per service, subscription and parked aggregate.
+ * - **Acting**: the ops context sends the system commands [RESUME], [SKIP], [MARK_RECOVERABLE] and [APPLY_RETRY_SPEC]
+ *   ([ResumeParked], [SkipParked], [MarkParkedRecoverable], [ApplyParkedRetrySpec]) to the command topic of the
+ *   context that holds the entry ([LedgerEntry.context]), addressed to [targetOf] that context and the entry's ops id.
+ *   The owning service authorizes each as the system command of that name on the parked aggregate, as it does the
+ *   same action on its own operator routes, and runs it.
+ *
+ * Their names sit in the system namespace [NAMESPACE], as the lifecycle commands' do.
+ */
+object Ledger {
+    /** The namespace of the ledger's system commands. */
+    const val NAMESPACE: String = "wow.ledger"
+
+    const val RESUME: String = "$NAMESPACE.Resume"
+    const val SKIP: String = "$NAMESPACE.Skip"
+    const val MARK_RECOVERABLE: String = "$NAMESPACE.MarkRecoverable"
+    const val APPLY_RETRY_SPEC: String = "$NAMESPACE.ApplyRetrySpec"
+
+    /** The context a service publishes its ledger to unless it is configured otherwise. */
+    const val OPS_CONTEXT: String = "ops"
+
+    /** The aggregate of the ops context that records one parked entry of one service. */
+    const val PARKED: String = "parked"
+
+    /** The simple names of the commands a service sends to [PARKED]: their full names are `<ops>.parked.<name>`. */
+    const val RECORD_PARKED: String = "RecordParked"
+    const val RECORD_RESOLVED: String = "RecordResolved"
+
+    /** The member of [RECORD_PARKED]'s body that holds its [LedgerEntry]. */
+    const val ENTRY: String = "entry"
+
+    /** The member of [RECORD_RESOLVED]'s body that holds its [LedgerResolution]. */
+    const val RESOLUTION: String = "resolution"
+
+    /** The ledger's system commands, by their names. */
+    @JvmField
+    val COMMANDS: Map<String, Class<out LedgerCommand>> = mapOf(
+        RESUME to ResumeParked::class.java,
+        SKIP to SkipParked::class.java,
+        MARK_RECOVERABLE to MarkParkedRecoverable::class.java,
+        APPLY_RETRY_SPEC to ApplyParkedRetrySpec::class.java,
+    )
+
+    private val NAMES: Map<Class<*>, String> = COMMANDS.entries.associate { (name, type) -> type to name }
+
+    /** The system name of [type], a ledger command, or null when it is none. */
+    @JvmStatic
+    fun nameOf(type: Class<*>): String? = NAMES[type]
+
+    /**
+     * The id of the ops aggregate recording [subscription]'s entry of [ref] in [service] (decision D141):
+     * `<service>:<subscription>:<context>.<aggregate>:<tenant>:<id>`, so one service's entry of one aggregate is one
+     * ops aggregate, whichever node publishes it.
+     */
+    @JvmStatic
+    fun parkedId(service: String, subscription: String, ref: AggregateRef): String {
+        require(service.isNotBlank()) { "A ledger entry names its service." }
+        require(subscription.isNotBlank()) { "A ledger entry names its subscription." }
+        return "$service:$subscription:${ref.type}:${ref.tenantId}:${ref.id}"
+    }
+
+    /**
+     * Where a system command of the ledger on the entry [parkedId] names ([Ledger.parkedId]) is sent: the command
+     * topic of [context], the context that holds the entry, keyed by the entry rather than by the parked aggregate, so
+     * a command on an entry of the context's own intake is not held behind the very aggregate it parked, and the
+     * commands of one entry keep their order.
+     */
+    @JvmStatic
+    fun targetOf(context: String, parkedId: String): AggregateRef =
+        AggregateType(context, NAMESPACE).ref(Caller.DEFAULT_TENANT, parkedId)
+}
+
+/**
+ * A parked aggregate as the ledger's commands name it: the aggregate [name] of [context], its [tenantId] and [id]
+ * (the shape of an entry on the operator routes, `/wow/ops/parked`).
+ */
+data class LedgerAggregate(val context: String, val name: String, val tenantId: String, val id: String) {
+    /** The aggregate this names. */
+    fun toRef(): AggregateRef = AggregateType(context, name).ref(tenantId, id)
+
+    companion object {
+        /** [ref] as the ledger's commands name it. */
+        @JvmStatic
+        fun of(ref: AggregateRef): LedgerAggregate = LedgerAggregate(
+            ref.type.context,
+            ref.type.name,
+            ref.tenantId,
+            ref.id
+        )
+    }
+}
+
+/** A system command of the ledger: an operator's action on [subscription]'s entry of [aggregate]. */
+sealed interface LedgerCommand {
+    val subscription: String
+    val aggregate: LedgerAggregate
+}
+
+/** Handles the parked aggregate again from where it is parked ([Ledger.RESUME]). */
+data class ResumeParked(override val subscription: String, override val aggregate: LedgerAggregate) : LedgerCommand
+
+/** Resolves the entry without handling what was parked ([Ledger.SKIP]). */
+data class SkipParked(override val subscription: String, override val aggregate: LedgerAggregate) : LedgerCommand
+
+/**
+ * Marks the entry [recoverable] ([Ledger.MARK_RECOVERABLE], 9.x `MarkRecoverable`): `RECOVERABLE`, `UNRECOVERABLE`
+ * or `UNKNOWN`.
+ */
+data class MarkParkedRecoverable(
+    override val subscription: String,
+    override val aggregate: LedgerAggregate,
+    val recoverable: String,
+) : LedgerCommand
+
+/**
+ * Applies a retry spec to the entry ([Ledger.APPLY_RETRY_SPEC], 9.x `ApplyRetrySpec`): at most [maxRetries]
+ * automatic retries, the first [minBackoff] after the failure, each allowed to run [executionTimeout] (ISO-8601
+ * durations). A member left out keeps the value the entry is retried by now.
+ */
+data class ApplyParkedRetrySpec(
+    override val subscription: String,
+    override val aggregate: LedgerAggregate,
+    val maxRetries: Int? = null,
+    val minBackoff: String? = null,
+    val executionTimeout: String? = null,
+) : LedgerCommand

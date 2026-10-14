@@ -40,14 +40,19 @@ sealed interface GatewayOutcome {
  * A gateway for trying the eShop out and for its tests, after the classic eShop's `PaymentProcessor`, which approves
  * or declines by a setting. Its answer is a function of the amount, so a test chooses the outcome by the order's total:
  * it approves an amount up to [limit] and declines one above it. Its transaction id is the charge's idempotency key.
+ *
+ * While [down] says so, the gateway is unreachable: a charge fails with a technical error, which the saga retries and
+ * then parks the payment for (the failure ledger's end-to-end test, work package 6.3f).
  */
-class SimulatedPaymentGateway(val limit: BigDecimal) : PaymentGateway {
+class SimulatedPaymentGateway(val limit: BigDecimal, private val down: () -> Boolean = { false }) : PaymentGateway {
     init {
         require(limit.signum() >= 0) { "A gateway's limit is not negative, not $limit." }
     }
 
     override suspend fun charge(paymentId: String, amount: BigDecimal, idempotencyKey: String): GatewayOutcome =
-        if (amount <= limit) {
+        if (down()) {
+            throw IllegalStateException("The payment gateway is unreachable: $paymentId is not charged.")
+        } else if (amount <= limit) {
             GatewayOutcome.Approved("simulated-$idempotencyKey")
         } else {
             GatewayOutcome.Declined("The gateway declined $amount for $paymentId: it is over the limit of $limit.")

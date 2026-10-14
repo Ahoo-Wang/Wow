@@ -51,7 +51,7 @@ const MIXED_VERSION = 'mixedVersion';
 // import, and the root build and Gradle configuration every module reads.
 const V10 = 'v10';
 const V10_PATH =
-  /^(?:(?:api|compiler|core|query|backends|edge|host|extensions|migration|test\/(?:architecture|kernel-benchmarks|routing-spike|lease-spike|test-dsl|tck|tck-containers)|example\/eshop|wow-dependencies|gradle|build-logic|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/v10\.yml$)/;
+  /^(?:(?:api|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|kernel-benchmarks|routing-spike|lease-spike|test-dsl|tck|tck-containers)|example\/eshop|wow-dependencies|gradle|build-logic|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/v10\.yml$)/;
 // A Kotlin source a removal marker may sit in.
 const KOTLIN_MAIN = /(?:^|\/)src\/main\/kotlin\/.+\.kt$/;
 
@@ -218,7 +218,7 @@ const RULES = [
   // live under test/, below): no example server, client or site builds on
   // them yet.
   [
-    /^(?:api|compiler|core|query|backends|edge|host|extensions|migration)\//,
+    /^(?:api|compiler|core|query|backends|edge|host|extensions|migration|platform)\//,
     [],
   ],
   // Other Gradle modules, the dashboard (dashboard-test.yml), the analytics

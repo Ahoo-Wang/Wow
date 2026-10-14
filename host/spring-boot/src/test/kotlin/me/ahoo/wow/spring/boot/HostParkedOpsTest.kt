@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.ops.OpsPaths
 import me.ahoo.wow.http.ops.WebhookNotifier
+import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
@@ -99,6 +100,15 @@ class HostParkedOpsTest {
         host.context.getBean(WebhookNotifier::class.java).toString().assert().contains("GENERIC")
         WowProperties.ParkedSpec().specOver(ParkedRetrySpec()).assert().isNull()
         WowProperties.Parked().spec().assert().isEqualTo(ParkedRetrySpec(10, 3.minutes, 2.minutes))
+        // The ledger is published to ops only when asked (decision D141).
+        host.node.options.ledger.assert().isNull()
+        host.node.ledgerPublisher.assert().isNull()
+        val publish = WowProperties.Publish().apply {
+            enabled = true
+            context = "platform-ops"
+            interval = java.time.Duration.ofSeconds(5)
+        }
+        publish.options().assert().isEqualTo(LedgerPublishing("platform-ops", 5.seconds))
     }
 
     @Test
