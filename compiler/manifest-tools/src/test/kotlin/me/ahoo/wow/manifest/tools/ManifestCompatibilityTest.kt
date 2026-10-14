@@ -266,6 +266,22 @@ class ManifestCompatibilityTest {
                 "ADDITIVE $CART.events[ItemAdded].schema.quantity: required field added (upgraded from revision 1)",
             ),
             row(
+                "event revised with an optional field",
+                BASELINE.def(
+                    "shop.ItemAdded",
+                    schema("productId" to STRING, "note" to STRING, required = listOf("productId"))
+                )
+                    .itemAdded { it.copy(revision = 2) },
+                "ADDITIVE $CART.events[ItemAdded].revision: revision raised from 1 to 2",
+                "ADDITIVE $CART.events[ItemAdded].schema.note: optional field added",
+            ),
+            row(
+                "subscription source context changed",
+                BASELINE.subscription { it.copy(source = it.source.copy(context = "store")) },
+                "BREAKING $CONTEXT.subscriptions[CartProjector.onItemAdded].source: source stream changed from " +
+                    "shop[cart] to store[cart]: its checkpoint belongs to the old one",
+            ),
+            row(
                 "event field added optional",
                 BASELINE.def(
                     "shop.ItemAdded",
