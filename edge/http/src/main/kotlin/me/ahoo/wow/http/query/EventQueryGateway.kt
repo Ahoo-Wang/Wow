@@ -28,6 +28,7 @@ import kotlinx.coroutines.withTimeout
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.BetweenFilter
@@ -100,6 +101,7 @@ import java.util.Base64
  * stream has one, and `events`, each `{name, revision, body}` as the log stores it (at its own revision, not
  * upgraded).
  */
+@InternalWowApi
 class EventQueryGateway(
     val aggregateType: AggregateType,
     private val log: EventLog,
@@ -260,6 +262,7 @@ class EventQueryGateway(
         }
     }
 
+    @InternalWowApi
     companion object {
         /** The model's name, the `{model}` segment of its route. */
         const val MODEL: String = "events"

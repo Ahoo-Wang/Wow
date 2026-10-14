@@ -17,6 +17,7 @@ import io.micrometer.core.instrument.MeterRegistry
 import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.context.Context
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.spi.observation.Observation
@@ -27,6 +28,7 @@ import java.util.concurrent.TimeUnit
  * child of the span the query is asked in, and its time in the [WowMetrics.QUERY] timer of [meters], tagged with how
  * it ended: `ok`, `error` or `cancelled`.
  */
+@InternalWowApi
 class OtelQueryObserver(openTelemetry: OpenTelemetry, private val meters: MeterRegistry) : QueryObserver {
     private val tracer = openTelemetry.getTracer(WowAttributes.INSTRUMENTATION)
     private val propagator = openTelemetry.propagators.textMapPropagator

@@ -42,7 +42,7 @@ import java.time.format.DateTimeParseException
 /**
  * The state reads of the public port (decisions D40, D112):
  *
- * - `GET /{context}/{aggregate}/{id}/state`, `?version=` and `?at=` ([handle]): the [StateView] of [reads], with
+ * - `GET /{context}/{aggregate}/{id}/state`, `?version=` and `?at=` ([handle]): the [StateReadView] of [reads], with
  *   `ETag: "<version>"`; 304 when `If-None-Match` names that tag. `?at=` takes an ISO-8601 instant (an offset is
  *   read as the instant it names, `+` written `%2B`) and reads the state after the last commit at or before it.
  * - `GET /{context}/{aggregate}/{id}/state/trace?from=&to=&limit=` ([trace]): `{"ref", "commits"}`, the commits from
@@ -120,7 +120,7 @@ internal class StateHandler(
     }
 
     /** The state of [ref] the request asks for: the latest, the one at `?version=` or the one as of `?at=`. */
-    private suspend fun read(request: ServerRequest, ref: AggregateRef): StateView {
+    private suspend fun read(request: ServerRequest, ref: AggregateRef): StateReadView {
         val version = request.number(WowPaths.VERSION, ref.type, min = 1)
         val at = request.instant(WowPaths.AT, ref.type)
         if (version != null && at != null) {

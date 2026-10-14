@@ -11,11 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kernel
+package me.ahoo.wow.kernel.memory
 
-import me.ahoo.wow.spi.ledger.FailureLedger
-import me.ahoo.wow.spi.ledger.FailureLedgerSpec
+import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.snapshot.SnapshotStoreSpec
 
-class InMemoryFailureLedgerTest : FailureLedgerSpec() {
-    override fun createLedger(): FailureLedger = InMemoryFailureLedger()
+class InMemorySnapshotStoreTest : SnapshotStoreSpec() {
+    override fun createStore(context: String): SnapshotStore = InMemorySnapshotStore()
 }

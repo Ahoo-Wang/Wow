@@ -15,7 +15,7 @@ package me.ahoo.wow.leases
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
-import me.ahoo.wow.kernel.InMemoryLeaseStore
+import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.PartitionOwnership

@@ -17,8 +17,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.kernel.InMemoryFailureLedger
-import me.ahoo.wow.kernel.InMemoryTimerStore
+import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
+import me.ahoo.wow.kernel.memory.InMemoryTimerStore
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.timer.Timer

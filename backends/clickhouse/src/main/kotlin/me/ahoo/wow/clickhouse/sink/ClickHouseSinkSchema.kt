@@ -14,12 +14,15 @@
 package me.ahoo.wow.clickhouse.sink
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.clickhouse.sink.ClickHouseSql.identifier
 
 /** A column as `system.columns` reads it: its [name] and its [type]. */
+@InternalWowApi
 data class ClickHouseColumn(val name: String, val type: String)
 
 /** A table or view of the Sink: its [name], and the [columns] it has, or null when only its existence is checked. */
+@InternalWowApi
 data class ClickHouseObject(val name: String, val columns: List<ClickHouseColumn>?)
 
 /**
@@ -43,6 +46,7 @@ data class ClickHouseObject(val name: String, val columns: List<ClickHouseColumn
  * insert retried with the same token is dropped from the base table and, the inserts setting
  * `deduplicate_blocks_in_dependent_materialized_views`, from the views' tables too.
  */
+@InternalWowApi
 class ClickHouseSinkSchema(
     val type: AggregateType,
     val database: String,
@@ -137,6 +141,7 @@ class ClickHouseSinkSchema(
 
     override fun toString(): String = "ClickHouseSinkSchema($database.$prefix)"
 
+    @InternalWowApi
     companion object {
         /** The columns of the base table and of `_state`, one row per commit ([ClickHouseRows]). */
         val BASE_COLUMNS: List<ClickHouseColumn> = listOf(

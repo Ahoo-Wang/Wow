@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.cluster
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
@@ -86,9 +87,11 @@ data class ReplyTo(
 }
 
 /** A wait context (design 04 §6.2) in its wire form. */
+@InternalWowApi
 data class WaitWire(val waitId: String, val origin: Origin, val remaining: List<Hop>, val deadline: Long) {
     fun toContext(): WaitContext = WaitContext(waitId, origin, remaining, deadline)
 
+    @InternalWowApi
     companion object {
         fun of(wait: WaitContext): WaitWire = WaitWire(wait.waitId, wait.origin, wait.remaining, wait.deadline)
     }
@@ -104,6 +107,7 @@ data class WaitWire(val waitId: String, val origin: Origin, val remaining: List<
  * Every cluster message carries its format version [v] (design 08 §9). A reader ignores the fields it does not know,
  * so a node reads the messages of the next minor version (decision D48).
  */
+@InternalWowApi
 data class ForwardCommand(
     val v: Int = VERSION,
     val command: CommandWire,
@@ -111,6 +115,7 @@ data class ForwardCommand(
     val deadline: Long,
     val trace: Map<String, String> = emptyMap(),
 ) {
+    @InternalWowApi
     companion object {
         const val VERSION: Int = 1
     }
@@ -125,6 +130,7 @@ data class ForwardCommand(
  * A node that does not take the command answers [refused] instead, with one of the [Refusal] codes; the sender then
  * executes the command itself (decision D71).
  */
+@InternalWowApi
 data class ForwardReply(
     val v: Int = VERSION,
     val result: CommandResult? = null,
@@ -135,6 +141,7 @@ data class ForwardReply(
         require((result == null) != (refused == null)) { "A forward reply has either a result or a refusal." }
     }
 
+    @InternalWowApi
     companion object {
         const val VERSION: Int = 1
 
@@ -143,6 +150,7 @@ data class ForwardReply(
 }
 
 /** Why a node refused a forwarded command. */
+@InternalWowApi
 object Refusal {
     /** The node neither owns the command's partition nor is about to. */
     const val NOT_OWNER = "not-owner"
@@ -164,6 +172,7 @@ object Refusal {
  * happens to bring; and it keeps every number exact, so a forwarded command's body reaches its owner with `2.50`
  * as `2.50`.
  */
+@InternalWowApi
 object ClusterCodec {
     internal val mapper: JsonMapper = WowJson.builder()
         .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)

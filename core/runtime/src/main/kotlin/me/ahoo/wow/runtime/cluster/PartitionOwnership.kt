@@ -36,6 +36,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.timer.TimerRunner
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -52,7 +53,9 @@ import kotlin.time.TimeSource
  * member with its address, and the live [members]. A lease whose holder is no longer a member is left out: its owner
  * is unknown, so a command for it runs locally (decision D71).
  */
+@InternalWowApi
 data class RouteTable(val owners: Map<Int, Member> = emptyMap(), val members: List<Member> = emptyList()) {
+    @InternalWowApi
     companion object {
         val EMPTY = RouteTable()
     }
@@ -63,6 +66,7 @@ data class RouteTable(val owners: Map<Int, Member> = emptyMap(), val members: Li
  * taken and [failed] threw, and how long the round took. A round longer than `leaseTtl − renewInterval` lets the
  * node's own leases expire between renewals (spike H6).
  */
+@InternalWowApi
 data class RenewalRound(
     val group: LeaseGroup,
     val node: String,
@@ -107,6 +111,7 @@ data class RenewalRound(
  * [stop] is a graceful leave: the node leaves the members at once, so the others take its partitions on their next
  * round, then hands off every partition it holds.
  */
+@InternalWowApi
 class PartitionOwnership internal constructor(
     val group: LeaseGroup,
     val node: String,

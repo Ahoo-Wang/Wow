@@ -19,7 +19,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.kernel.InMemoryLeaseStore
+import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import org.junit.jupiter.api.Test

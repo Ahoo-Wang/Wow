@@ -40,7 +40,7 @@ abstract class AbstractQueryBackendFactory<B : QueryBackend> : QueryBackendFacto
 }
 
 /** Routes each aggregate type to the factory of its route, or to [defaultFactory]. */
-open class RoutingQueryBackendFactory<B : QueryBackend>(
+internal open class RoutingQueryBackendFactory<B : QueryBackend>(
     private val defaultFactory: QueryBackendFactory<B>,
     routes: Map<AggregateType, QueryBackendFactory<B>>,
 ) : QueryBackendFactory<B> {

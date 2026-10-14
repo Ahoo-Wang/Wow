@@ -15,6 +15,7 @@ package me.ahoo.wow.postgres.subscription
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import javax.sql.DataSource
@@ -26,6 +27,7 @@ import javax.sql.DataSource
  * leave the highest and a lower one changes nothing (decision D45). JDBC calls run on [dispatcher], virtual threads by
  * default (decision D29).
  */
+@InternalWowApi
 class PostgresCheckpointStore(
     private val dataSource: DataSource,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,

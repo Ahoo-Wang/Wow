@@ -29,7 +29,7 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.HandlerRetry
-import me.ahoo.wow.kernel.InMemoryLeaseStore
+import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CommandBody

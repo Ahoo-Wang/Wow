@@ -14,6 +14,7 @@
 package me.ahoo.wow.http.internal
 
 import kotlinx.coroutines.future.await
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.cluster.ClusterChannelException
 import me.ahoo.wow.runtime.cluster.ClusterCodec
@@ -49,6 +50,7 @@ import kotlin.time.toJavaDuration
  * is not a reply) is a [ClusterChannelException], which the router degrades to running the command locally (D71,
  * D78).
  */
+@InternalWowApi
 class HttpClusterChannel(
     private val client: HttpClient = InternalHttp.client(),
     private val clock: () -> Long = System::currentTimeMillis,
@@ -102,6 +104,7 @@ class HttpClusterChannel(
         }
     }
 
+    @InternalWowApi
     companion object {
         /**
          * How long [connect] waits for a peer to answer on a new connection: well over the second a forward waits,

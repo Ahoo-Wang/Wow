@@ -15,6 +15,7 @@ package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.json.WowJson
@@ -42,6 +43,7 @@ import java.util.concurrent.ConcurrentHashMap
  * a decimal as a [java.math.BigDecimal]. It also fills a mutable state's read-only collections in place, and reads
  * sets and maps back in the order they were written.
  */
+@InternalWowApi
 class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
     private val stateFingerprints = ConcurrentHashMap<Class<*>, String>()
 

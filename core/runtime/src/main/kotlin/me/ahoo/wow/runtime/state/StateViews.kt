@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.state
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
@@ -37,7 +38,8 @@ import kotlin.time.TimeSource
  * [me.ahoo.wow.spi.state.StateView] of design 08 §5 (decision D132), a JSON tree with its schema's fingerprint, which
  * [me.ahoo.wow.runtime.sink.SinkSubscription] maps this one to.
  */
-class StateView(
+@InternalWowApi
+class SerializedState(
     val version: Int,
     val state: String,
     val scope: Scope = Scope.NONE,
@@ -49,7 +51,7 @@ class StateView(
         require(version >= 1) { "A committed state has a version from 1." }
     }
 
-    override fun toString(): String = "StateView(version=$version)"
+    override fun toString(): String = "SerializedState(version=$version)"
 }
 
 /** The bounds of a context's [StateViews]: at most [capacity] views, none older than [maxAge]. */
@@ -84,6 +86,7 @@ data class StateViewOptions(
  *   [StateViewOptions.capacity], oldest first: a reader that runs elsewhere (another node owns the partition) or is
  *   parked never holds views for long. A view missing for any reason costs its reader a rebuild, never a wrong state.
  */
+@InternalWowApi
 class StateViews(
     private val codec: EventCodec,
     readers: Map<String, Set<AggregateType>>,
@@ -117,7 +120,7 @@ class StateViews(
         val stream = committed.stream
         put(
             stream.ref,
-            StateView(
+            SerializedState(
                 stream.version,
                 codec.stateText(committed.state),
                 stream.scope,
@@ -132,7 +135,7 @@ class StateViews(
      * Holds [view] of [ref], when some reader of its type may still read it: a view every reader already passed a later
      * version of is not kept, and one already held at its version is kept as it is.
      */
-    fun put(ref: AggregateRef, view: StateView) {
+    fun put(ref: AggregateRef, view: SerializedState) {
         val readers = readersOf[ref.type] ?: return
         lock.withLock {
             expire()
@@ -153,13 +156,13 @@ class StateViews(
     }
 
     /** The view of [ref] taken at [version], or null when there is none at that version. */
-    fun get(ref: AggregateRef, version: Int): StateView? = lock.withLock {
+    fun get(ref: AggregateRef, version: Int): SerializedState? = lock.withLock {
         expire()
         slots[ref]?.views?.get(version)?.view
     }
 
     /** The latest view of [ref] before [version], or null when there is none. */
-    fun floor(ref: AggregateRef, version: Int): StateView? = lock.withLock {
+    fun floor(ref: AggregateRef, version: Int): SerializedState? = lock.withLock {
         expire()
         slots[ref]?.views?.lowerEntry(version)?.value?.view
     }
@@ -206,7 +209,7 @@ class StateViews(
 
     private data class Key(val ref: AggregateRef, val version: Int)
 
-    private class Entry(val view: StateView, val recorded: TimeMark)
+    private class Entry(val view: SerializedState, val recorded: TimeMark)
 
     /** The views of one aggregate by version, and the version each reader passed while it had some. */
     private class Slot {

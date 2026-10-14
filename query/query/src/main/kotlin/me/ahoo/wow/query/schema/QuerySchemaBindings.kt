@@ -70,7 +70,7 @@ internal class QueryBindingIndex(bindings: Map<QueryPathTemplate, QueryValueBind
     }
 }
 
-fun absoluteLogicalField(field: QueryField, parent: QueryField?): QueryField = parent?.append(field) ?: field
+internal fun absoluteLogicalField(field: QueryField, parent: QueryField?): QueryField = parent?.append(field) ?: field
 
-fun QueryModelSchema.projectionField(field: QueryField): QueryField =
+internal fun QueryModelSchema.projectionField(field: QueryField): QueryField =
     this.field(field)?.projectionField ?: throw QueryViolation.NotProjectable(field).rejection()

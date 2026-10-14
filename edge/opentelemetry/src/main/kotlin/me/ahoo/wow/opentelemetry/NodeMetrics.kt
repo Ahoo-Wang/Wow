@@ -24,6 +24,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.node.ParkedKey
 import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -46,6 +47,7 @@ import kotlin.time.Duration.Companion.seconds
  *
  * A sample that fails is logged; the next one is taken all the same. [start] starts sampling, [close] stops it.
  */
+@InternalWowApi
 class NodeMetrics(
     private val node: ServiceNode,
     private val meters: MeterRegistry,
@@ -146,6 +148,7 @@ class NodeMetrics(
         scope.cancel()
     }
 
+    @InternalWowApi
     companion object {
         val DEFAULT_INTERVAL: Duration = 15.seconds
         const val DEFAULT_MAX_PARKED: Int = 10_000

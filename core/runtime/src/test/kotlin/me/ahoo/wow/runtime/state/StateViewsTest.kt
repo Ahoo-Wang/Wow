@@ -19,8 +19,8 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
-import me.ahoo.wow.kernel.InMemoryEventLog
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.binding.AddItems
 import me.ahoo.wow.runtime.binding.CART
 import me.ahoo.wow.runtime.binding.ORDER
@@ -46,7 +46,7 @@ class StateViewsTest {
         time,
     )
 
-    private fun view(version: Int) = StateView(version, "{}")
+    private fun view(version: Int) = SerializedState(version, "{}")
 
     @Test
     fun `the executor's commits should be recorded for the types some reader reads`(): Unit = runBlocking {
@@ -136,8 +136,8 @@ class StateViewsTest {
     fun `the options and a view should be valid`() {
         assertThrownBy<IllegalArgumentException> { StateViewOptions(capacity = 0) }
         assertThrownBy<IllegalArgumentException> { StateViewOptions(maxAge = 0.seconds) }
-        assertThrownBy<IllegalArgumentException> { StateView(0, "{}") }
-        view(3).toString().assert().isEqualTo("StateView(version=3)")
+        assertThrownBy<IllegalArgumentException> { SerializedState(0, "{}") }
+        view(3).toString().assert().isEqualTo("SerializedState(version=3)")
     }
 
     private object AggregateTypes {

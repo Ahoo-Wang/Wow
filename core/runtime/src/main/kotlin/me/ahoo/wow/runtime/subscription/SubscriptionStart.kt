@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.subscription
 
 import kotlinx.coroutines.flow.first
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.spi.log.EventLog
 import java.time.Instant
@@ -24,6 +25,7 @@ import java.time.format.DateTimeParseException
  * handler's [StartFrom] (`wow.subscriptions."<name>".start`, [SubscriptionOptions.starts]). A subscription that has a
  * checkpoint goes on from it whatever this says.
  */
+@InternalWowApi
 sealed interface SubscriptionStart {
     /**
      * The checkpoint the subscription starts after in [partition] of [log]: every entry after it is handled. 0 is
@@ -32,6 +34,7 @@ sealed interface SubscriptionStart {
     suspend fun checkpointIn(log: EventLog, partition: Int): Long
 
     /** From the first entry of the partition. */
+    @InternalWowApi
     data object Beginning : SubscriptionStart {
         override suspend fun checkpointIn(log: EventLog, partition: Int): Long = 0L
 
@@ -39,6 +42,7 @@ sealed interface SubscriptionStart {
     }
 
     /** After the entries already committed when the subscription first starts in the partition (its log head). */
+    @InternalWowApi
     data object End : SubscriptionStart {
         override suspend fun checkpointIn(log: EventLog, partition: Int): Long = log.head(partition) ?: 0L
 
@@ -55,6 +59,7 @@ sealed interface SubscriptionStart {
      * partition's sequence, which its single owner at a time keeps (design 02 §2), up to the clock skew between two
      * owners across a lease handover: around one, the start may be off by the entries committed within that skew.
      */
+    @InternalWowApi
     data class At(val instant: Instant) : SubscriptionStart {
         override suspend fun checkpointIn(log: EventLog, partition: Int): Long {
             val head = log.head(partition) ?: return 0L
@@ -83,6 +88,7 @@ sealed interface SubscriptionStart {
         override fun toString(): String = instant.toString()
     }
 
+    @InternalWowApi
     companion object {
         private const val BEGINNING = "beginning"
         private const val END = "end"

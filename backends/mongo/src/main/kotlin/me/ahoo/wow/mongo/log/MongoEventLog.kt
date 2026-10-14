@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
@@ -103,6 +104,7 @@ import kotlin.time.Duration.Companion.milliseconds
  *
  * Calls run on [dispatcher], virtual threads by default.
  */
+@InternalWowApi
 class MongoEventLog(
     private val client: MongoClient,
     databaseName: String,

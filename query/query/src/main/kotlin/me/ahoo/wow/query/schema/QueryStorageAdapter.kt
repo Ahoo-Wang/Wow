@@ -30,7 +30,7 @@ interface QueryStorageAdapter {
  * The storage adapter of an aggregate model that has no query backend: every load fails with [message].
  * [QuerySchemaCatalog] skips it, since there is nothing to load or revalidate.
  */
-class UnavailableQueryStorageAdapter(val message: String) : QueryStorageAdapter {
+internal class UnavailableQueryStorageAdapter(val message: String) : QueryStorageAdapter {
     override suspend fun facts(logicalSchema: LogicalQuerySchema): QueryStorageFacts =
         throw QuerySchemaUnavailableException(message)
 }
@@ -103,7 +103,7 @@ class QueryStorageFacts(
  * Whether this value can be an element scope: every non-null alternative is an array whose non-null items are all
  * objects, so a predicate can match one element as a whole.
  */
-fun QueryValueSchema.isElementScope(): Boolean = alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }
+internal fun QueryValueSchema.isElementScope(): Boolean = alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }
     .let { branches ->
         branches.isNotEmpty() && branches.all { branch ->
             branch.kind == QueryValueKind.ARRAY && checkNotNull(branch.items).alternativesOrSelf()

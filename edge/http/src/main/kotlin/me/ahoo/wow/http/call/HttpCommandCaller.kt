@@ -16,6 +16,7 @@ package me.ahoo.wow.http.call
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.future.await
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.subscribe.CallFailedException
 import me.ahoo.wow.http.HttpJson
@@ -42,9 +43,11 @@ import kotlin.time.toJavaDuration
  * such as `Bearer <token>`, asked for on every call so that one issued for a while (a CoSec service principal's token)
  * can be renewed; null sends none.
  */
+@InternalWowApi
 fun interface ServiceCredential {
     suspend fun authorization(): String?
 
+    @InternalWowApi
     companion object {
         /** Presents no credential: the target serves the call only if it trusts its network. */
         @JvmField
@@ -81,6 +84,7 @@ fun interface ServiceCredential {
  * refuses), a connection that fails or no answer within [timeout], is a [CallFailedException]: the saga's handler fails
  * and its subscription retries it, then parks the aggregate.
  */
+@InternalWowApi
 class HttpCommandCaller @JvmOverloads constructor(
     endpoints: Map<String, URI>,
     private val credential: ServiceCredential = ServiceCredential.NONE,
@@ -151,6 +155,7 @@ class HttpCommandCaller @JvmOverloads constructor(
     /** The part of a problem+json body a call reads: the command's result, when the problem has one. */
     private data class ProblemBody(val result: CommandResult? = null)
 
+    @InternalWowApi
     companion object {
         /** The default bound of one call: as long as a wait's default timeout (decision D64). */
         val DEFAULT_TIMEOUT: Duration = 10.seconds

@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.cluster
 
 import kotlinx.coroutines.currentCoroutineContext
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.runtime.command.CommandMessages
@@ -34,6 +35,7 @@ import me.ahoo.wow.spi.wait.WaitContext
  * and the node that admitted it may stop at once. It throws when the broker did not acknowledge it; the command may
  * still have been written, and a retry with the same request id is not decided twice.
  */
+@InternalWowApi
 class TopicRouter(
     val types: Set<AggregateType>,
     val topic: String,

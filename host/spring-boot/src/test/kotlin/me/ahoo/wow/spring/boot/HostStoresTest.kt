@@ -19,7 +19,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.kernel.Dependencies
-import me.ahoo.wow.kernel.InMemorySnapshotStore
+import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions

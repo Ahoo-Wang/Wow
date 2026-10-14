@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.reservation
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
@@ -42,6 +43,7 @@ import me.ahoo.wow.spi.reservation.ReservationStore
  * - **Expiry**: a pending reservation that no entry carries (the attempt crashed before appending, finding R8) is
  *   never confirmed; it expires in the store, and the next reservation of the key takes it over.
  */
+@InternalWowApi
 class ReservationSubscription(context: String, private val store: ReservationStore) {
     /** The subscription to register: named [Hop.RESERVATION_SUBSCRIPTION], of every aggregate type of the context. */
     val subscription: Subscription = Subscription.builtIn(

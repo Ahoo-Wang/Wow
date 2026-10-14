@@ -29,6 +29,7 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
@@ -114,6 +115,7 @@ import kotlin.time.Duration
  * supervised scope this gateway owns (decision D100); it is not durable: [close] waits for the ones running, and a
  * node that stops before running one loses it.
  */
+@InternalWowApi
 class CommandGateway(
     private val registry: ModelRegistry,
     coordinators: Map<String, WaitCoordinator>,
@@ -469,6 +471,7 @@ class CommandGateway(
         val observedName: String get() = if (this is Refused) "refused" else "admitted"
     }
 
+    @InternalWowApi
     companion object {
         /** The aggregate id a refusal's ref names when admission had decided none. */
         const val UNADDRESSED: String = AggregateRef.UNASSIGNED

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.postgres.query
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.postgres.PostgresIdentifiers
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
@@ -25,9 +26,11 @@ import org.slf4j.LoggerFactory
 import javax.sql.DataSource
 
 /** A planned expression index: its physical name, its table (quoted) and the statement that creates it. */
+@InternalWowApi
 data class PostgresQueryIndex(val name: String, val table: String, val ddl: String)
 
 /** What [PostgresSnapshotQueryStorage.manageIndexes] did: the indexes it created, and the ones it found missing or invalid. */
+@InternalWowApi
 data class PostgresQueryIndexReport(
     val created: List<String> = emptyList(),
     val missing: List<String> = emptyList(),
@@ -49,6 +52,7 @@ data class PostgresQueryIndexReport(
  * query model compiles for it), so the planner matches the two; `NULLS FIRST` is the compiler's ascending order. The
  * name is [PostgresIdentifiers.limited], since PostgreSQL index names are unique per schema, not per table.
  */
+@InternalWowApi
 object PostgresQueryIndexes {
     private val log = LoggerFactory.getLogger(PostgresQueryIndexes::class.java)
 

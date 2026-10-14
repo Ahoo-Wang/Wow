@@ -66,7 +66,7 @@ import java.util.HexFormat
  * @param defaultListSize the list size an entry applies when a list query sends none.
  * @param timeZone the server's default time zone, used when a request names none.
  */
-fun QueryModelSchema.describe(
+internal fun QueryModelSchema.describe(
     budget: QueryBudget?,
     defaultListSize: Int?,
     timeZone: ZoneId = ZoneId.systemDefault(),

@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.command
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.manifest.Manifest
@@ -26,6 +27,7 @@ import me.ahoo.wow.spi.wait.WaitContext
  * executes what they derive and returns their ids; null when no handler takes the receipt.
  * [me.ahoo.wow.runtime.binding.SagaReceipts] is the annotated sagas'.
  */
+@InternalWowApi
 interface ReceiptHandler {
     /** Hands [rejected], of a command of the class [command], to the saga's `@OnRejected` handler of it. */
     suspend fun rejected(rejected: CommandRejected<*>, command: Class<*>): List<String>?
@@ -58,7 +60,7 @@ interface ReceiptHandler {
  *   derives that fails or is rejected, fails the receipt: retried, then the saga's aggregate parks under the
  *   subscription's name, at the receipt's offset.
  */
-class Receipts internal constructor(
+internal class Receipts internal constructor(
     private val context: String,
     private val contracts: ContractDirectory,
     private val handler: ReceiptHandler,

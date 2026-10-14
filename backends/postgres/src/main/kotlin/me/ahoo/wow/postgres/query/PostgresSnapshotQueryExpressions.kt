@@ -26,7 +26,7 @@ import me.ahoo.wow.query.schema.operationValues
  * The SQL type a query field is compared, sorted and aggregated as: the storage type of its bindings
  * ([PostgresSnapshotStorageAdapter]), and the cast of its expression ([PostgresSnapshotQueryExpressions]).
  */
-enum class PostgresQueryType(val sql: String, val catalogType: String) {
+internal enum class PostgresQueryType(val sql: String, val catalogType: String) {
     /** A string, compared by code point (`COLLATE "C"`). */
     TEXT("text", "text"),
 
@@ -100,7 +100,7 @@ enum class PostgresQueryType(val sql: String, val catalogType: String) {
  * | [PostgresQueryType.NUMERIC] | `(CASE WHEN jsonb_typeof(state #> '{a}') = 'number' THEN (state #>> '{a}')::numeric END)` |
  * | [PostgresQueryType.BOOLEAN] | `(CASE WHEN jsonb_typeof(state #> '{a}') = 'boolean' THEN (state #>> '{a}')::boolean END)` |
  */
-object PostgresSnapshotQueryExpressions {
+internal object PostgresSnapshotQueryExpressions {
     /** The characters a path segment may hold, as the query model's path segments do. */
     val SEGMENT: Regex = Regex("[A-Za-z0-9_@-]+")
 

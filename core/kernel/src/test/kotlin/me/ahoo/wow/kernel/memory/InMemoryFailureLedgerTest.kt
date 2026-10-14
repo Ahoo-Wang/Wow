@@ -11,12 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kernel
+package me.ahoo.wow.kernel.memory
 
-import me.ahoo.wow.spi.reservation.ReservationStore
-import me.ahoo.wow.spi.reservation.ReservationStoreSpec
-import java.time.Clock
+import me.ahoo.wow.spi.ledger.FailureLedger
+import me.ahoo.wow.spi.ledger.FailureLedgerSpec
 
-class InMemoryReservationStoreTest : ReservationStoreSpec() {
-    override fun createStore(clock: Clock): ReservationStore = InMemoryReservationStore(clock)
+class InMemoryFailureLedgerTest : FailureLedgerSpec() {
+    override fun createLedger(): FailureLedger = InMemoryFailureLedger()
 }

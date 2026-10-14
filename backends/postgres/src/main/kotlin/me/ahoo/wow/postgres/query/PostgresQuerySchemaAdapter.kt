@@ -30,7 +30,7 @@ import javax.sql.DataSource
  * aggregate type's first snapshot, yields provisional facts of the table it will be created as, so the Catalog asks
  * again on the next load.
  */
-class PostgresQuerySchemaAdapter internal constructor(
+internal class PostgresQuerySchemaAdapter internal constructor(
     private val dataSource: DataSource,
     private val tables: PostgresSnapshotTables,
     private val dispatcher: CoroutineDispatcher,

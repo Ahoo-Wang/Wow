@@ -18,6 +18,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.schedule.ScheduleRule
@@ -44,6 +45,7 @@ import javax.sql.DataSource
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29).
  */
+@InternalWowApi
 class PostgresTimerStore(
     private val dataSource: DataSource,
     context: String,

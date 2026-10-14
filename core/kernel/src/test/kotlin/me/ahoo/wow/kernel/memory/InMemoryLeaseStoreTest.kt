@@ -11,11 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kernel
+package me.ahoo.wow.kernel.memory
 
-import me.ahoo.wow.spi.log.EventLog
-import me.ahoo.wow.spi.log.EventLogSpec
+import me.ahoo.wow.spi.subscription.LeaseStore
+import me.ahoo.wow.spi.subscription.LeaseStoreSpec
+import java.time.Clock
 
-class InMemoryEventLogTest : EventLogSpec() {
-    override fun createLog(context: String, partitions: Int): EventLog = InMemoryEventLog(partitions)
+class InMemoryLeaseStoreTest : LeaseStoreSpec() {
+    override fun createStore(clock: Clock): LeaseStore = InMemoryLeaseStore(clock)
 }

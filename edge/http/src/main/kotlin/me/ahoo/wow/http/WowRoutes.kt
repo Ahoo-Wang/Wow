@@ -18,6 +18,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.schedule.ScheduleJobs
@@ -93,6 +94,7 @@ import org.springframework.web.reactive.function.server.coRouter
  * RFC 9457 problems whose statuses come from the Manifest's error tables ([ErrorStatuses]). The host serves other
  * routes under a context's path only by composing them before these.
  */
+@InternalWowApi
 fun wowRoutes(
     manifest: Manifest,
     gateway: CommandGateway,
@@ -236,6 +238,7 @@ private fun CoRouterFunctionDsl.document(
  * refuses `Wow-Call` ([wowRoutes]), so the root command a call asserts reaches a node only through its internal
  * network, from a service it trusts.
  */
+@InternalWowApi
 fun callRoutes(
     manifest: Manifest,
     gateway: CommandGateway,

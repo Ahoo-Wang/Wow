@@ -28,7 +28,7 @@ class OpsServerTest {
             val node = ops.context.getBean(ServiceNode::class.java)
             node.service.assert().isEqualTo("ops-service")
             node.isReady.assert().isTrue()
-            node.contexts.keys.assert().containsExactly(OpsContext.NAME)
+            node.hostedContexts.assert().containsExactly(OpsContext.NAME)
             val parked = ops.context.getBean(Manifest::class.java).contexts.single().aggregates.single()
             parked.name.assert().isEqualTo(OpsContext.PARKED)
             // A tenant's resource (decision D189), without lifecycle: it mirrors the owning service's ledger.

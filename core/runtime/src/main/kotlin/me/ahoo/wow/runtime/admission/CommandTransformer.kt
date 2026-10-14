@@ -97,7 +97,7 @@ data class CommandTarget(
  *
  * The aggregate's tenant is decided as for any command, so a key held in another tenant finds no aggregate there.
  */
-class ReservationTargetResolver(
+internal class ReservationTargetResolver(
     override val input: CommandType,
     private val aggregate: AggregateType,
     private val namespace: String,

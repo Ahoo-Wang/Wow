@@ -22,6 +22,7 @@ import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.mongo
@@ -45,6 +46,7 @@ import kotlin.time.Duration
  *
  * Calls run on [dispatcher], virtual threads by default (decision D29).
  */
+@InternalWowApi
 class MongoReservationStore(
     client: MongoClient,
     databaseName: String,

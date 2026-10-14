@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.CallRejectedException
@@ -92,6 +93,7 @@ import java.util.concurrent.Executors
  *   its hop there, and it signals that hop to the wait's origin as a subscription of its own context would (design 04
  *   §6.3); a saga's commands carry the rest of the chain on ([DerivedCommands.waitOf]).
  */
+@InternalWowApi
 class SubscriptionBindings(private val processors: Map<String, List<ProcessorBinding<*>>>) : SubscriptionFactory {
     init {
         processors.forEach { (context, bound) ->
@@ -237,6 +239,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         }
     }
 
+    @InternalWowApi
     companion object {
         /** No handlers. */
         @JvmField

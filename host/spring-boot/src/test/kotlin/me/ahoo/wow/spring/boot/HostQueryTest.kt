@@ -22,7 +22,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.kernel.InMemorySnapshotStore
+import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest

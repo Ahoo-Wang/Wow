@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
@@ -72,6 +73,7 @@ import kotlin.time.TimeSource
  * At least once, applied once: a crash after sending and before writing sends the timer again, and its target finds
  * the request id committed already.
  */
+@InternalWowApi
 class TimerRunner(
     val context: String,
     internal val store: TimerStore,
@@ -358,6 +360,7 @@ class TimerRunner(
  * Sends a due timer's command (decision D166) and returns its outcome ([TimerOutcomes]): committed, already
  * committed, unchanged, rejected, or sent to another context. A technical failure throws.
  */
+@InternalWowApi
 fun interface TimerFirer {
     suspend fun fire(timer: Timer): String
 }

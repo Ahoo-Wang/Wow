@@ -67,6 +67,8 @@ class MountedCommandTest {
     private val scenario = SourceFile.kotlin(
         "Scenario.kt",
         """
+        @file:OptIn(me.ahoo.wow.api.annotation.InternalWowApi::class)
+
         package sample
 
         fun mounted(): String = customerModel("shop").mountedCommandTypes.joinToString { it.name + "=" + it.type.simpleName }

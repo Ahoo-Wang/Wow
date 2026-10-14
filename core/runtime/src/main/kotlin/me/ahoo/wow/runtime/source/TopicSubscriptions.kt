@@ -28,6 +28,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
@@ -75,6 +76,7 @@ import kotlin.time.Duration
  * all of them, so the new ones are read too, from their beginning. HRW gives each partition the same owner whatever
  * their number, so the partitions held before are held again. A topic's partitions are never fewer.
  */
+@InternalWowApi
 class TopicSubscriptions internal constructor(
     val service: String,
     val topic: String,

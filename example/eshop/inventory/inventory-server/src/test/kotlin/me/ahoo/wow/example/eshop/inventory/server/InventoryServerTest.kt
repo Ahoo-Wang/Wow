@@ -33,7 +33,7 @@ class InventoryServerTest {
             val node = context.getBean(ServiceNode::class.java)
             node.service.assert().isEqualTo("eshop-inventory-service")
             node.isReady.assert().isTrue()
-            node.contexts.keys.assert().containsExactly("eshop-inventory")
+            node.hostedContexts.assert().containsExactly("eshop-inventory")
             val manifest = context.getBean(Manifest::class.java)
             manifest.contexts.single().aggregates.map { it.name }.assert().containsExactly("stock")
         }

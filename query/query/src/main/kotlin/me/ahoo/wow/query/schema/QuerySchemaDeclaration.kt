@@ -90,7 +90,7 @@ interface QuerySchemaSource {
 }
 
 /** The priorities of the built-in sources; a host's own source picks one between or above them. */
-object QuerySchemaSourcePriority {
+internal object QuerySchemaSourcePriority {
     /** The Manifest's state schema ([ManifestQuerySchemaSource]), in place of 9.x's runtime inference. */
     const val MANIFEST = 100
 

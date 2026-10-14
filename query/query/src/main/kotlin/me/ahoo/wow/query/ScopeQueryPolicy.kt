@@ -15,6 +15,7 @@ package me.ahoo.wow.query
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Ownership
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
@@ -33,10 +34,12 @@ import me.ahoo.wow.manifest.Ownership as ManifestOwnership
  * would act in. The host implements it in 6.2c, typically as the type's fixed tenant when it has one, else
  * [QueryCaller.tenantId].
  */
+@InternalWowApi
 fun interface QueryTenantPolicy {
     /** The tenant [caller]'s queries of [type] are restricted to, or `null` to restrict them to none. */
     fun tenantOf(type: AggregateType, caller: QueryCaller): String?
 
+    @InternalWowApi
     companion object {
         /** Every query is restricted to its caller's tenant; a caller without one is restricted to none. */
         @JvmField
@@ -49,10 +52,12 @@ fun interface QueryTenantPolicy {
  * [AggregateManifest.ownership] says: [ScopeQueryPolicy] restricts a caller's queries by its owner only for an
  * [Ownership.OWNER] aggregate.
  */
+@InternalWowApi
 fun interface QueryOwnership {
     /** The ownership of [type]; [Ownership.OWNER] for a type no Manifest declares. */
     fun ownershipOf(type: AggregateType): Ownership
 
+    @InternalWowApi
     companion object {
         /** Every aggregate belongs to its owner, the default. */
         @JvmField
@@ -87,6 +92,7 @@ fun interface QueryOwnership {
  * A caller without a tenant, owner or space (trusted in-process code) is restricted by none of them. A model that does
  * not carry one of these fields rejects the filter at validation, so the scope fails closed rather than being dropped.
  */
+@InternalWowApi
 class ScopeQueryPolicy(
     private val tenants: QueryTenantPolicy = QueryTenantPolicy.CALLERS,
     override val order: Int = ORDER,

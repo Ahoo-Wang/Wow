@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.opentelemetry
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /** The attributes of Wow's spans (decision D174); the metrics' tags are named the same, without the `wow.` prefix. */
-object WowAttributes {
+internal object WowAttributes {
     /** The instrumentation scope of Wow's spans. */
     const val INSTRUMENTATION: String = "me.ahoo.wow"
 
@@ -38,6 +40,7 @@ object WowAttributes {
 }
 
 /** The names and tags of Wow's Micrometer metrics (decision D174). */
+@InternalWowApi
 object WowMetrics {
     /** Timer: a command's execution by the kernel, from taking it to its outcome; tags context, aggregate, outcome. */
     const val COMMIT: String = "wow.command.commit"

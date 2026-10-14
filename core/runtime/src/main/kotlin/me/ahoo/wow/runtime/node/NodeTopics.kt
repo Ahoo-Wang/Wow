@@ -14,11 +14,13 @@
 package me.ahoo.wow.runtime.node
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
  * A topic one of a node's contexts owns (decision D168): its name, the [partitions] it is created with, whether a
  * topic of another count is refused ([exact], a command topic), and what it is for, as a failed check says.
  */
+@InternalWowApi
 data class TopicRequirement(val topic: String, val partitions: Int, val exact: Boolean, val purpose: String) {
     init {
         require(partitions >= 1) { "A topic has at least one partition." }

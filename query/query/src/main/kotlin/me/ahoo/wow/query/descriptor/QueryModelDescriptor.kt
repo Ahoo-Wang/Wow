@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.descriptor
 
 import com.fasterxml.jackson.annotation.JsonInclude
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregationDatePart
 import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.DateDiffUnit
@@ -39,6 +40,7 @@ import tools.jackson.databind.JsonNode
  * not depend on the caller, so it is cacheable; [version] is a hash of its content and doubles as the ETag.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@InternalWowApi
 data class QueryModelDescriptor(
     val model: QueryModel,
     val version: String,
@@ -55,9 +57,11 @@ data class QueryModelDescriptor(
     val constraints: List<ConstraintDescriptor>,
 )
 
+@InternalWowApi
 enum class PagingMode { LIST, PAGED, CURSOR }
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@InternalWowApi
 data class RecordDescriptor(
     val identity: String,
     val paging: List<PagingMode>,
@@ -78,9 +82,11 @@ data class RecordDescriptor(
  * and must name fields: [fields] are its searchable fields, by full logical path (written relative to the element in
  * the query), and [modes] those every listed field accepts.
  */
+@InternalWowApi
 data class SearchDescriptor(val modes: List<SearchMode>, val fields: List<String>)
 
 /** Effective limits of this entry: protocol limits and the entry's budget, whichever is smaller; `null` is unlimited. */
+@InternalWowApi
 data class LimitsDescriptor(
     val maxListSize: Int?,
     val defaultListSize: Int?,
@@ -92,6 +98,7 @@ data class LimitsDescriptor(
     val aggregation: AggregationLimitsDescriptor,
 )
 
+@InternalWowApi
 data class AggregationLimitsDescriptor(
     val maxGroups: Int,
     val maxMetrics: Int,
@@ -106,6 +113,7 @@ data class AggregationLimitsDescriptor(
     val maxResidualGroups: Int? = null,
 )
 
+@InternalWowApi
 data class AnalysisDescriptor(
     val metrics: List<String>,
     /** The [metrics] whose results this backend estimates rather than computes exactly. */
@@ -141,11 +149,14 @@ data class AnalysisDescriptor(
     val rootGroups: Boolean = false,
 )
 
+@InternalWowApi
 data class HavingDescriptor(val metrics: List<String>)
 
+@InternalWowApi
 data class AnalysisSortDescriptor(val groups: Boolean, val metrics: Boolean)
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@InternalWowApi
 data class FieldDescriptor(
     val path: String,
     /**
@@ -173,6 +184,7 @@ data class FieldDescriptor(
     /** Other paths a query may use for this field; admission replaces them with [path]. */
     val aliases: List<String> = emptyList(),
 ) {
+    @InternalWowApi
     companion object {
         /**
          * When the record's events happened: a snapshot's last event (`lastEventTime`). FIRST and LAST order by it
@@ -186,6 +198,7 @@ data class FieldDescriptor(
 }
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@InternalWowApi
 data class EnumValueDescriptor(val value: JsonNode, val description: String? = null)
 
 /**
@@ -193,8 +206,10 @@ data class EnumValueDescriptor(val value: JsonNode, val description: String? = n
  * [comparable] is `false` for [SensitivityLevel.CONFIDENTIAL], and for [SensitivityLevel.DISPLAY] when the server
  * turned comparison off.
  */
+@InternalWowApi
 data class SensitivityDescriptor(val level: SensitivityLevel, val comparable: Boolean)
 
+@InternalWowApi
 data class FieldFilterDescriptor(val operators: List<FilterOperator>)
 
 /**
@@ -203,8 +218,10 @@ data class FieldFilterDescriptor(val operators: List<FilterOperator>)
  * one, which may be slow on a large model; `null` when the storage does not say.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@InternalWowApi
 data class FieldSortDescriptor(val paged: Boolean, val cursor: Boolean, val indexed: Boolean? = null)
 
+@InternalWowApi
 data class FieldAggregateDescriptor(
     val groups: List<String>,
     val missingKey: Boolean,
@@ -223,6 +240,7 @@ data class FieldAggregateDescriptor(
  * storage can search none of them.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@InternalWowApi
 data class ElementDescriptor(
     val path: String,
     val filter: Boolean,
@@ -231,6 +249,7 @@ data class ElementDescriptor(
 )
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@InternalWowApi
 data class DynamicFieldDescriptor(
     val pattern: String,
     val types: Set<QueryValueType>,
@@ -242,12 +261,14 @@ data class DynamicFieldDescriptor(
 
 /** A combination rule that per-field listings cannot express. */
 @JsonInclude(JsonInclude.Include.NON_NULL)
+@InternalWowApi
 data class ConstraintDescriptor(
     val type: String,
     val appended: String? = null,
     /** The fields the constraint is about, when it names several. */
     val fields: List<String>? = null,
 ) {
+    @InternalWowApi
     companion object {
         /**
          * A cursor's sort always ends with the model's unique key, its [fields] appended when absent: the tenant,

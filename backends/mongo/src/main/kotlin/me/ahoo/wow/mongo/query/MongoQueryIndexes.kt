@@ -15,6 +15,7 @@ package me.ahoo.wow.mongo.query
 
 import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.IndexOptions
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.query.index.QueryIndexDdl
@@ -29,6 +30,7 @@ import org.slf4j.LoggerFactory
  * A planned query index of the snapshot collection of [aggregate] in [context]: its [name], unique within its
  * [collection], and its [keys] in order, each ascending, over the snapshots that are not deleted.
  */
+@InternalWowApi
 data class MongoQueryIndex(val context: String, val aggregate: String, val name: String, val keys: List<String>) {
     /** The snapshot collection the index is on. */
     val collection: String
@@ -46,6 +48,7 @@ data class MongoQueryIndex(val context: String, val aggregate: String, val name:
 }
 
 /** What [MongoSnapshotQueryStorage.manageIndexes] did: the indexes it created, and the ones it found missing or different. */
+@InternalWowApi
 data class MongoQueryIndexReport(
     val created: List<String> = emptyList(),
     val missing: List<String> = emptyList(),
@@ -67,6 +70,7 @@ data class MongoQueryIndexReport(
  * MongoDB names indexes per collection, so a declared index keeps its own name. The store creates the two scope
  * indexes with the collection; planning them here lets `validate` report them too.
  */
+@InternalWowApi
 object MongoQueryIndexes {
     private val log = LoggerFactory.getLogger(MongoQueryIndexes::class.java)
 

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.subscribe.CallFailedException
@@ -23,9 +24,11 @@ import me.ahoo.wow.api.subscribe.CallFailedException
  * REJECTED or FAILED, and throws a [CallFailedException] when it reaches none; [ExecutionSagaContext.call] turns the
  * results that did not succeed into the handler's typed failures.
  */
+@InternalWowApi
 fun interface CommandCalls {
     suspend fun call(command: Command<*>): CommandResult
 
+    @InternalWowApi
     companion object {
         /** No call client: every call fails, naming the configuration it lacks. */
         @JvmField

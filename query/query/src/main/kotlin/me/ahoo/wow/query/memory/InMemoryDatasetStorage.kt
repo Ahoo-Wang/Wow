@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.memory
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.dataset.AbstractDatasetQueryBackendFactory
@@ -31,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * [delay] holds every primitive back that long before it answers, as [InMemoryQueryStorage] does.
  */
+@InternalWowApi
 class InMemoryDatasetStorage(
     private val delay: Duration = Duration.ZERO,
 ) : AbstractDatasetQueryBackendFactory() {
@@ -52,6 +54,7 @@ class InMemoryDatasetStorage(
         return QueryBackendBinding(InMemoryDatasetQueryBackend(backend), InMemoryQueryStorageAdapter)
     }
 
+    @InternalWowApi
     companion object {
         const val TABLE: String = "table"
 
@@ -62,7 +65,7 @@ class InMemoryDatasetStorage(
 }
 
 /** The dataset query backend of one in-memory table: the reference backend over the table's rows. */
-class InMemoryDatasetQueryBackend internal constructor(
+internal class InMemoryDatasetQueryBackend internal constructor(
     private val delegate: InMemoryQueryBackend,
 ) : DatasetQueryBackend,
     QueryBackend by delegate {

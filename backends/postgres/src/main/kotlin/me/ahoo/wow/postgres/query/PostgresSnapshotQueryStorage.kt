@@ -15,6 +15,7 @@ package me.ahoo.wow.postgres.query
 
 import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
 import me.ahoo.wow.query.AbstractQueryBackendFactory
@@ -27,6 +28,7 @@ import javax.sql.DataSource
  * the facts [PostgresQuerySchemaAdapter] reads from the table; and the management of the expression indexes its
  * aggregates declare ([manageIndexes], decision D151).
  */
+@InternalWowApi
 class PostgresSnapshotQueryStorage @JvmOverloads constructor(
     private val dataSource: DataSource,
     val context: String,

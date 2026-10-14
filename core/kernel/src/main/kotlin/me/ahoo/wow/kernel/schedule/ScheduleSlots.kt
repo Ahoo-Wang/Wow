@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel.schedule
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleSet
@@ -37,6 +38,7 @@ import java.util.concurrent.ConcurrentHashMap
  *   [Timer.skipped] and never sent; [Misfire.CATCH_UP] sends each in turn. Beyond [MAX_COUNTED] missed slots the
  *   count is estimated from the period.
  */
+@InternalWowApi
 object ScheduleSlots {
     /** How many missed slots are counted one by one before the rest are estimated. */
     const val MAX_COUNTED: Long = 100_000

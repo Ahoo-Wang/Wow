@@ -27,10 +27,10 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.Creation
-import me.ahoo.wow.kernel.InMemoryEventLog
-import me.ahoo.wow.kernel.InMemoryFailureLedger
-import me.ahoo.wow.kernel.InMemoryLeaseStore
 import me.ahoo.wow.kernel.aggregate
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
+import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
@@ -367,7 +367,7 @@ class RecordingLeases(private val delegate: LeaseStore, private val events: Muta
 /** A [CheckpointStore] that records each save as `checkpoint <partition> <position>`. */
 class EventCheckpoints(
     private val events: MutableList<String>,
-    private val delegate: CheckpointStore = me.ahoo.wow.kernel.InMemoryCheckpointStore(),
+    private val delegate: CheckpointStore = me.ahoo.wow.kernel.memory.InMemoryCheckpointStore(),
 ) : CheckpointStore by delegate {
     override suspend fun save(group: String, subscription: String, partition: Int, position: Long) {
         delegate.save(group, subscription, partition, position)

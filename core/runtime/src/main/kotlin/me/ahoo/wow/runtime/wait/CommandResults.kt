@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.wait
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.result.CommandResult
@@ -26,6 +27,7 @@ import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.spi.log.EventStreamRecord
 
 /** The error codes the runtime answers with (design 08 §7), beside the kernel's rejection codes. */
+@InternalWowApi
 object ResultCodes {
     /** Concurrent writers kept winning the version slot; retrying with the same request id is safe. */
     const val CONTENDED = "wow.command.contended"
@@ -63,7 +65,7 @@ object ResultCodes {
 }
 
 /** The function of [command]'s decide function on [model]: the aggregate and the command's model name. */
-fun commandFunction(model: AggregateModel<*>, command: Command<*>): FunctionInfo {
+internal fun commandFunction(model: AggregateModel<*>, command: Command<*>): FunctionInfo {
     val type = command.ref.type
     val bodyType = command.body.javaClass
     val name = if (model.decider(bodyType) != null) {
@@ -78,7 +80,7 @@ fun commandFunction(model: AggregateModel<*>, command: Command<*>): FunctionInfo
  * The function of a subscription named [subscription] (`processor.function`, design 04 §1) of [kind] in [context]:
  * the processor is the part before the last dot; a name without one is both.
  */
-fun subscriptionFunction(kind: FunctionKind, context: String, subscription: String): FunctionInfo {
+internal fun subscriptionFunction(kind: FunctionKind, context: String, subscription: String): FunctionInfo {
     val dot = subscription.lastIndexOf('.')
     return if (dot in 1 until subscription.lastIndex) {
         FunctionInfo(kind, context, subscription.substring(0, dot), subscription.substring(dot + 1))
@@ -88,10 +90,10 @@ fun subscriptionFunction(kind: FunctionKind, context: String, subscription: Stri
 }
 
 /** The root of the chain [command] belongs to: its causation's correlation id, or itself (design 08 §4). */
-val Command<*>.correlationId: String get() = causation?.correlationId ?: id
+internal val Command<*>.correlationId: String get() = causation?.correlationId ?: id
 
 /** The root of the chain the command of this stream belongs to. */
-val EventStreamRecord.correlationId: String get() = causation?.correlationId ?: commandId
+internal val EventStreamRecord.correlationId: String get() = causation?.correlationId ?: commandId
 
 /**
  * Maps the kernel's [CommandOutcome] of [command] to the outward [CommandResult] at [hop] (design 08 §7):
@@ -105,7 +107,7 @@ val EventStreamRecord.correlationId: String get() = causation?.correlationId ?: 
  * | Contended | FAILED | [ResultCodes.CONTENDED] |
  * | Unknown | FAILED | [ResultCodes.UNKNOWN] |
  */
-fun CommandOutcome.toResult(command: Command<*>, function: FunctionInfo, hop: Hop, now: Long): CommandResult {
+internal fun CommandOutcome.toResult(command: Command<*>, function: FunctionInfo, hop: Hop, now: Long): CommandResult {
     val result = CommandResult(
         commandId = command.id,
         requestId = command.requestId,
@@ -138,7 +140,7 @@ fun CommandOutcome.toResult(command: Command<*>, function: FunctionInfo, hop: Ho
 }
 
 /** The result of a subscription's [function] at [hop] for [stream]: SUCCEEDED with [derived], or FAILED with [error]. */
-fun handledResult(
+internal fun handledResult(
     stream: EventStreamRecord,
     hop: Hop,
     function: FunctionInfo,
@@ -160,10 +162,10 @@ fun handledResult(
 )
 
 /** The error of a command refused for this rejection: its code, message and extensions (decision D211). */
-fun Rejection.toError(): ErrorInfo = ErrorInfo(code, message, extensions = extensions)
+internal fun Rejection.toError(): ErrorInfo = ErrorInfo(code, message, extensions = extensions)
 
 /** This result, failed with [code] and [message]. */
-fun CommandResult.failed(code: String, message: String): CommandResult =
+internal fun CommandResult.failed(code: String, message: String): CommandResult =
     copy(status = CommandResult.Status.FAILED, error = ErrorInfo(code, message))
 
 /** The result of [command] reaching [hop] without an outcome of the kernel to report, such as ACCEPTED. */

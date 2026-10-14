@@ -16,10 +16,10 @@ package me.ahoo.wow.runtime.source
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.kernel.InMemoryFailureLedger
-import me.ahoo.wow.kernel.InMemoryLeaseStore
-import me.ahoo.wow.kernel.InMemoryTopics
 import me.ahoo.wow.kernel.StartFrom
+import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
+import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
+import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.fastOptions
 import me.ahoo.wow.runtime.subscription.Handled

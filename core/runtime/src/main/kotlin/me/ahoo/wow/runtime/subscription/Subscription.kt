@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.subscription
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
@@ -23,7 +24,7 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.StartFrom
-import me.ahoo.wow.runtime.state.StateView
+import me.ahoo.wow.runtime.state.SerializedState
 import me.ahoo.wow.runtime.state.StateViewReader
 import me.ahoo.wow.runtime.wait.subscriptionFunction
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -65,6 +66,7 @@ import kotlin.time.Duration
  * timers are written, the snapshot keeps the aggregate's version and schedules, and the reservations it made are
  * confirmed.
  */
+@InternalWowApi
 class Subscription private constructor(
     val name: String,
     filter: SubscriptionFilter,
@@ -143,6 +145,7 @@ class Subscription private constructor(
 
     override fun toString(): String = "Subscription($name)"
 
+    @InternalWowApi
     companion object {
         /**
          * A saga: [handler] returns what it did with the entry ([HandledEntry]): the ids of the commands it derived
@@ -257,7 +260,9 @@ internal fun interface EntryHandler {
  * saga [derived] (decision D62), and the [rejection] of one of them, a business outcome the saga handled (decision
  * D153): the entry is done with, and the wait at the hop ends REJECTED with it instead of going on.
  */
+@InternalWowApi
 data class HandledEntry(val derived: List<String> = emptyList(), val rejection: ErrorInfo? = null) {
+    @InternalWowApi
     companion object {
         /** Handled, nothing derived. */
         @JvmField
@@ -269,13 +274,13 @@ data class HandledEntry(val derived: List<String> = emptyList(), val rejection: 
  * A handling that failed for a business reason, which no retry changes (decision D153): the subscription does not
  * retry it but parks the aggregate at once, and a wait at the hop ends REJECTED with [error].
  */
-open class HandlingRejectedException(val error: ErrorInfo, message: String) : IllegalStateException(message)
+internal open class HandlingRejectedException(val error: ErrorInfo, message: String) : IllegalStateException(message)
 
 /**
  * An attempt of [subscription]'s handler at [ref]'s [version] that ran longer than its budget's [timeout] (roadmap
  * P.3, [RetryPolicy.timeout]): it was cancelled and counts as a failed attempt, retried like any other failure.
  */
-class HandlerTimeoutException(
+internal class HandlerTimeoutException(
     val subscription: String,
     val ref: AggregateRef,
     val version: Int,
@@ -289,6 +294,7 @@ class HandlerTimeoutException(
  * under its former names too; [resolve] adds them from the models. An entry outside the filter still moves the
  * checkpoint.
  */
+@InternalWowApi
 data class SubscriptionFilter(
     val context: String,
     val aggregates: Set<String> = emptySet(),
@@ -350,6 +356,7 @@ data class SubscriptionFilter(
  * the context's intake executes, or the receipt of a command another context rejected. Its [stream] only names the
  * aggregate whose lane it runs in; nothing was committed.
  */
+@InternalWowApi
 data class SubscribedEntry(
     val stream: EventStreamRecord,
     val position: LogPosition?,
@@ -363,10 +370,10 @@ data class SubscribedEntry(
     val version: Int get() = stream.version
 
     /** The state after the stream ([StateViewReader.read]): only an entry decoded by [EntryDecoder.stateEvents]. */
-    suspend fun state(): StateView = reader().read(stream)
+    suspend fun state(): SerializedState = reader().read(stream)
 
     /** The state after the stream, from [snapshot], the aggregate's snapshot the handler already loaded, if any. */
-    internal suspend fun state(snapshot: SnapshotRecord?): StateView = reader().read(stream, snapshot)
+    internal suspend fun state(snapshot: SnapshotRecord?): SerializedState = reader().read(stream, snapshot)
 
     private fun reader(): StateViewReader =
         checkNotNull(states) { "The entry ${stream.ref}@${stream.version} was not decoded with its state." }
@@ -379,9 +386,11 @@ data class SubscribedEntry(
  * The post-commit state of design 04 §1 (`StateEvent`) comes with [stateEvents], the decoder every state consumer
  * of a context shares (decision D133).
  */
+@InternalWowApi
 fun interface EntryDecoder {
     suspend fun decode(stream: EventStreamRecord, position: LogPosition?, transport: Transport?): SubscribedEntry
 
+    @InternalWowApi
     companion object {
         /** Hands over the stored [me.ahoo.wow.spi.log.EventRecord]s as they are, for sinks and generic handlers. */
         val RECORDS: EntryDecoder = EntryDecoder { stream, position, transport ->

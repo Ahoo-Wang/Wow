@@ -14,7 +14,8 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.kernel.InMemorySnapshotStore
+import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
@@ -33,11 +34,12 @@ import java.util.concurrent.CopyOnWriteArrayList
  * context's stores and adds what creates their schemas. [stores] are the node's store instances by name, and [layout]
  * where each aggregate's log and snapshots are (decision D177), when the host opened them.
  */
-class HostBackends(
+class HostBackends @InternalWowApi constructor(
     val kind: BackendKind?,
     val appendQueue: AppendQueueOptions,
     shared: List<() -> Unit> = emptyList(),
     val stores: Map<String, HostStore> = emptyMap(),
+    @InternalWowApi
     val layout: StoreLayout? = null,
     private val open: (context: String, schemas: MutableList<() -> Unit>) -> ContextBackends,
 ) {
@@ -58,6 +60,7 @@ class HostBackends(
     }
 
     /** The store instance [type]'s snapshots are on, when the host opened its stores. */
+    @InternalWowApi
     fun snapshotStoreOf(type: AggregateType): HostStore? = layout?.let { stores[it.snapshotStoreOf(type)] }
 
     companion object {
@@ -79,6 +82,7 @@ class HostBackends(
          * [partitions] partitions. The append queue is MongoDB's preset when a log is on MongoDB, else PostgreSQL's
          * when one is on PostgreSQL.
          */
+        @InternalWowApi
         fun of(stores: Map<String, HostStore>, layout: StoreLayout, partitions: Int): HostBackends {
             val logs = layout.logStores.map(stores::getValue)
             val kind = if (logs.any { it.kind == BackendKind.MEMORY }) {

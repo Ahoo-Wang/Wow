@@ -14,6 +14,7 @@
 package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.InternalWowApi
 import java.time.Instant
 
 /**
@@ -22,6 +23,7 @@ import java.time.Instant
  * node's clock runs that far ahead of this one. The command is not decided and the aggregate's queue is not held for
  * it; the firing runner sends it again later, under the same request id, as after any technical failure.
  */
+@InternalWowApi
 class ScheduleNotDueException(
     val ref: AggregateRef,
     val requestId: String,

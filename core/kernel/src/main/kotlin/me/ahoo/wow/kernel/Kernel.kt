@@ -24,6 +24,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
@@ -124,6 +125,7 @@ import kotlin.time.Duration.Companion.seconds
  * [observer] sees each execution, decision and append (decision D174); what an append carries for delivery holds the
  * append's trace ([Transport.trace]), so the subscriptions that handle it continue the command's trace.
  */
+@InternalWowApi
 class Kernel(
     private val log: EventLog,
     private val codec: EventCodec = EventCodec(),
@@ -909,9 +911,11 @@ class Kernel(
  * full type name (`context.aggregate.Command`) of the [command] class sent to an aggregate of [target], or null when
  * none is known. The runtime names them from the context's models and the Manifests of the service and its peers.
  */
+@InternalWowApi
 fun interface CommandTypes {
     fun nameOf(target: AggregateType, command: Class<*>): String?
 
+    @InternalWowApi
     companion object {
         /** Names none: a decide function schedules commands of its own aggregate type only. */
         @JvmField
@@ -931,6 +935,7 @@ fun interface CommandTypes {
  * an `@OnRejected` compensation, a timer's, or one another context sent through its command topic. Such a command
  * belongs to a chain, so it carries a [Command.causation]; admission gives a caller's none (it is its own root).
  */
+@InternalWowApi
 val Command<*>.isDerived: Boolean get() = causation != null
 
 /** How an execution ended, as its observation names it (decision D174). */

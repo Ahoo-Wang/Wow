@@ -25,6 +25,7 @@ import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.test.SequentialIds
 import me.ahoo.wow.kernel.test.aggregateSpec
 import me.ahoo.wow.kernel.test.sagaSpec

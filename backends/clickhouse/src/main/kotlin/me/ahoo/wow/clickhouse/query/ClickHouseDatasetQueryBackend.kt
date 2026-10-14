@@ -76,7 +76,7 @@ class ClickHouseDatasetQueryBackendFactory @JvmOverloads constructor(
  * its exact text, anything else as its JSON value.
  */
 @ExperimentalWowApi
-class ClickHouseDatasetQueryBackend internal constructor(
+internal class ClickHouseDatasetQueryBackend internal constructor(
     val dataset: QueryDataset,
     private val storage: ClickHouseDatasetStorage,
     private val executor: ClickHouseExecutor,

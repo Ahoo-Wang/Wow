@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.DeletionFilter
@@ -79,6 +80,7 @@ abstract class QueryModelProfile internal constructor(val model: QueryModel) {
      * The logical field a system-field filter (ID, TENANT_ID, DELETION, ...) targets: [identityField] for the record
      * identity; `null` when the model does not carry [field].
      */
+    @InternalWowApi
     abstract fun systemField(field: SystemField): QueryField?
 
     /** Fields that every record of this model carries, independent of the aggregate. */
@@ -130,6 +132,7 @@ sealed class BuiltInQueryModelProfile(model: QueryModel) : QueryModelProfile(mod
     final override val requiredScope: QueryField
         get() = metadataField(SystemField.TENANT_ID)
 
+    @InternalWowApi
     final override fun systemField(field: SystemField): QueryField = when (field) {
         SystemField.IDENTITY -> identityField
         else -> metadataField(field)
@@ -163,14 +166,14 @@ object SnapshotFields {
 }
 
 /** The properties of an operator system field ([SnapshotFields.OPERATOR], [SnapshotFields.FIRST_OPERATOR]). */
-object OperatorFields {
+internal object OperatorFields {
     const val ID: String = "id"
     const val TENANT_ID: String = "tenantId"
     const val CROSS_SCOPE: String = "crossScope"
 }
 
 /** Aggregate snapshots: one record per aggregate, the payload under `state` (decision D128). */
-data object SnapshotQueryModelProfile : BuiltInQueryModelProfile(QueryModel.SNAPSHOT) {
+internal data object SnapshotQueryModelProfile : BuiltInQueryModelProfile(QueryModel.SNAPSHOT) {
     override val identityField: QueryField = QueryField(SnapshotFields.AGGREGATE_ID)
     override val payloadField: QueryField = QueryField(SnapshotFields.STATE)
     override val eventTimeField: QueryField = QueryField(SnapshotFields.LAST_EVENT_TIME)
@@ -232,7 +235,7 @@ data object SnapshotQueryModelProfile : BuiltInQueryModelProfile(QueryModel.SNAP
  * The ordering field of a FIRST / LAST [metric]: its own `orderBy`, or the model's event time when the metric sits at
  * the record level ([scope] is `null`). Inside an element, and on a custom model, `orderBy` must be named.
  */
-fun QueryModelSchema.firstLastOrderBy(metric: AggregationMetric.Edge, scope: QueryField?): QueryField =
+internal fun QueryModelSchema.firstLastOrderBy(metric: AggregationMetric.Edge, scope: QueryField?): QueryField =
     metric.orderBy ?: profile?.eventTimeField?.takeIf { scope == null }
         ?: throw QueryViolation.FirstLastRequiresOrderBy(QueryField(metric.alias)).rejection()
 
@@ -241,7 +244,7 @@ fun QueryModelSchema.firstLastOrderBy(metric: AggregationMetric.Edge, scope: Que
  * without an identity rejects an identity filter; a profile that does not carry another system field rejects its
  * filter as naming an unknown field. A custom model without a profile shares the record metadata fields.
  */
-fun QueryModelSchema.systemField(field: SystemField): QueryField {
+internal fun QueryModelSchema.systemField(field: SystemField): QueryField {
     if (field == SystemField.IDENTITY) return requireIdentityField()
     val profile = profile ?: return QueryModelProfile.metadataField(field)
     return profile.systemField(field)
@@ -254,14 +257,14 @@ fun QueryModelSchema.systemField(field: SystemField): QueryField {
  * snapshot schema the Catalog compiles carries the tenant (a system field); a schema built without it, as tests and
  * tools may build one, orders by the identity alone.
  */
-fun QueryModelSchema.cursorUniqueKey(): List<QueryField> {
+internal fun QueryModelSchema.cursorUniqueKey(): List<QueryField> {
     val identity = requireIdentityField()
     val key = profile?.cursorUniqueKey ?: return listOf(identity)
     return key.filter { it == identity || field(it) != null }
 }
 
 /** Returns the record identity of this schema's model, rejecting custom models that define none. */
-fun QueryModelSchema.requireIdentityField(): QueryField = profile?.identityField
+internal fun QueryModelSchema.requireIdentityField(): QueryField = profile?.identityField
     ?: throw QueryViolation.IdentityUndefined(model).rejection()
 
 private fun String.payloadField() = QueryField(this) to QueryFieldDeclaration(
@@ -322,7 +325,7 @@ private fun String.schedulesField() = field(QueryValueType.OBJECT).let { (field,
 }
 
 /** The properties of a rule of the schedules system field ([SnapshotFields.SCHEDULES]), as Wow's JSON writes it. */
-object ScheduleFields {
+internal object ScheduleFields {
     const val TYPE: String = "type"
     const val EPOCH_MILLIS: String = "epochMillis"
     const val MILLIS: String = "millis"

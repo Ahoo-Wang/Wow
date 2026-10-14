@@ -181,7 +181,7 @@ fun querySchema(block: QuerySchemaDeclarationBuilder.() -> Unit): QuerySchemaDec
     QuerySchemaDeclarationBuilder().apply(block).build()
 
 /** The declaration [block] builds for [aggregateType]'s [model]. */
-fun querySchemaRegistration(
+internal fun querySchemaRegistration(
     aggregateType: AggregateType,
     model: QueryModel,
     block: QuerySchemaDeclarationBuilder.() -> Unit,

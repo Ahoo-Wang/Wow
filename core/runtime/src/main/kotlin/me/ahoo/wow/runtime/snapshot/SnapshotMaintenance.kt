@@ -23,6 +23,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.snapshot.SnapshotRebuildRequested
 import me.ahoo.wow.api.snapshot.SnapshotRebuilds
@@ -42,6 +43,7 @@ import me.ahoo.wow.spi.subscription.LeaseStore
 import java.util.concurrent.ConcurrentHashMap
 
 /** Where the subscriptions of one log group of a context keep their checkpoints: [group]'s, over [log]. */
+@InternalWowApi
 class LogProgress(val group: String, val log: EventLog, val checkpoints: CheckpointStore)
 
 /**
@@ -70,6 +72,7 @@ class LogProgress(val group: String, val log: EventLog, val checkpoints: Checkpo
  * It answers [rebuilding] for a type while the table of its primary target is rebuilding or not backfilled.
  */
 @Suppress("LongParameterList", "TooManyFunctions")
+@InternalWowApi
 class SnapshotMaintenance(
     val context: String,
     private val group: String,
@@ -372,6 +375,7 @@ class SnapshotMaintenance(
 
     private fun rebuildGroup(store: String, type: AggregateType): String = "$group#snapshot-rebuild/$store/${type.name}"
 
+    @InternalWowApi
     companion object {
         /** The built-in subscription of the rebuild requests (decision D172). */
         const val REBUILD_SUBSCRIPTION: String = "wow.snapshot.rebuild"

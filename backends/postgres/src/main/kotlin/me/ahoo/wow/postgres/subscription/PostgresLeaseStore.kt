@@ -15,6 +15,7 @@ package me.ahoo.wow.postgres.subscription
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -38,6 +39,7 @@ import kotlin.time.Duration
  * Times come from [clock], so they are the calling node's: keep the TTL well above the nodes' clock skew. JDBC calls
  * run on [dispatcher], virtual threads by default (decision D29).
  */
+@InternalWowApi
 class PostgresLeaseStore(
     private val dataSource: DataSource,
     private val clock: Clock = Clock.systemUTC(),

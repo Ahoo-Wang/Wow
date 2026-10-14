@@ -14,7 +14,7 @@
 package me.ahoo.wow.example.eshop.ordering.server
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.kernel.InMemoryTopics
+import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
@@ -76,7 +76,7 @@ class OrderingServerTest {
         val node = context.getBean(ServiceNode::class.java)
         node.service.assert().isEqualTo("eshop-ordering-service")
         node.isReady.assert().isTrue()
-        node.contexts.keys.assert().containsExactly("eshop-ordering")
+        node.hostedContexts.assert().containsExactly("eshop-ordering")
         context.getBean(
             Manifest::class.java
         ).contexts.single().aggregates.map { it.name }.assert().containsExactly("order")

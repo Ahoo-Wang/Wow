@@ -11,17 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kernel
+package me.ahoo.wow.kernel.memory
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.TimerStore
 
 /** A [TimerStore] in memory, for tests and samples. Every operation is serialized by one lock. */
+@InternalWowApi
 class InMemoryTimerStore : TimerStore {
     private val lock = Mutex()
     private val timers = HashMap<Pair<String, String>, Timer>()

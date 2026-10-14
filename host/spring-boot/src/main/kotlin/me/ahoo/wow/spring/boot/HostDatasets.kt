@@ -29,7 +29,7 @@ import java.nio.file.Path
  * directory's `<config>/wow/dataset/` and of the classpath's `META-INF/wow/dataset/`, read by [QueryDatasetFiles], so
  * a working-directory file takes precedence over the classpath's of the same dataset.
  */
-object HostDatasets {
+internal object HostDatasets {
     /** The default working directory of the dataset files, `wow.query.dataset.config-directory`. */
     const val DEFAULT_CONFIG_DIRECTORY: String = "config"
 

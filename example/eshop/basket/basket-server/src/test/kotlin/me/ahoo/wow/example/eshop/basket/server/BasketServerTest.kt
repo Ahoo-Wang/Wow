@@ -15,7 +15,7 @@ package me.ahoo.wow.example.eshop.basket.server
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.kernel.InMemoryTopics
+import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
@@ -81,7 +81,7 @@ class BasketServerTest {
         val node = context.getBean(ServiceNode::class.java)
         node.service.assert().isEqualTo("eshop-basket-service")
         node.isReady.assert().isTrue()
-        node.contexts.keys.assert().containsExactly("eshop-basket")
+        node.hostedContexts.assert().containsExactly("eshop-basket")
         context.getBean(
             Manifest::class.java
         ).contexts.single().aggregates.map { it.name }.assert().containsExactly("basket")

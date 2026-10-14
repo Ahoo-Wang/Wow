@@ -11,10 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kernel
+package me.ahoo.wow.kernel.memory
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
@@ -24,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap
  * A [SnapshotStore] in memory, for tests and samples. The version guard is one atomic compute per ref, and a table's
  * claim one atomic compute per aggregate type.
  */
+@InternalWowApi
 class InMemorySnapshotStore : SnapshotStore {
     private val snapshots = ConcurrentHashMap<AggregateRef, Stored>()
     private val tables = ConcurrentHashMap<AggregateType, SnapshotTable>()

@@ -11,11 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kernel
+package me.ahoo.wow.kernel.memory
 
-import me.ahoo.wow.spi.subscription.CheckpointStore
-import me.ahoo.wow.spi.subscription.CheckpointStoreSpec
+import me.ahoo.wow.spi.timer.TimerStore
+import me.ahoo.wow.spi.timer.TimerStoreSpec
 
-class InMemoryCheckpointStoreTest : CheckpointStoreSpec() {
-    override fun createStore(): CheckpointStore = InMemoryCheckpointStore()
+class InMemoryTimerStoreTest : TimerStoreSpec() {
+    override fun createStore(): TimerStore = InMemoryTimerStore()
 }

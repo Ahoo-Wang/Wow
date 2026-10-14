@@ -34,7 +34,7 @@ import me.ahoo.wow.spi.timer.TimerOutcomes
  * one of another context by the [contracts] (the class's schema in the Manifests of the service and its peers,
  * decision D157), checked to be a command of the target's aggregate type.
  */
-class ContextCommandTypes(models: Collection<AggregateModel<*>>, private val contracts: ContractDirectory) :
+internal class ContextCommandTypes(models: Collection<AggregateModel<*>>, private val contracts: ContractDirectory) :
     CommandTypes {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
 
@@ -59,7 +59,7 @@ class ContextCommandTypes(models: Collection<AggregateModel<*>>, private val con
  * Each firing is observed by [observer] (decision D174), its outcome the [TimerOutcomes] it answers: the command goes
  * on in the firing's trace.
  */
-class ContextTimerFirer(
+internal class ContextTimerFirer(
     models: Collection<AggregateModel<*>>,
     private val coordinator: WaitCoordinator,
     private val sender: CommandSender? = null,

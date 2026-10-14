@@ -11,11 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kernel
+package me.ahoo.wow.kernel.memory
 
-import me.ahoo.wow.spi.snapshot.SnapshotStore
-import me.ahoo.wow.spi.snapshot.SnapshotStoreSpec
+import me.ahoo.wow.spi.subscription.CheckpointStore
+import me.ahoo.wow.spi.subscription.CheckpointStoreSpec
 
-class InMemorySnapshotStoreTest : SnapshotStoreSpec() {
-    override fun createStore(context: String): SnapshotStore = InMemorySnapshotStore()
+class InMemoryCheckpointStoreTest : CheckpointStoreSpec() {
+    override fun createStore(): CheckpointStore = InMemoryCheckpointStore()
 }

@@ -27,6 +27,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.kernel.AggregateModel
@@ -116,6 +117,7 @@ import kotlin.time.TimeSource
  * application's subscriptions name ([SubscriptionFactory.stateReaders]), each reading through its [stateReader]
  * (decision D133).
  */
+@InternalWowApi
 class ContextNode internal constructor(
     val context: String,
     val models: List<AggregateModel<*>>,
@@ -202,6 +204,7 @@ class ContextNode internal constructor(
  * [subscription] writes the timers its aggregates schedule, and the [runner] sends them, through the node's
  * [TimerLoop], from the partitions the node owns.
  */
+@InternalWowApi
 class ContextTimers internal constructor(
     val subscription: TimersSubscription,
     val runner: TimerRunner,
@@ -213,6 +216,7 @@ class ContextTimers internal constructor(
  * group's store; and the group's [timers], when its store has a timer store. Every group runs the same
  * subscriptions, in the partitions the node owns.
  */
+@InternalWowApi
 class LogGroupNode internal constructor(
     val store: String,
     val types: Set<AggregateType>,
@@ -304,7 +308,7 @@ class LogGroupNode internal constructor(
  * forwards and signals of the other nodes until then → close the backends. Its shutdown phase allows at least
  * `maxWaitTimeout + drainTimeout`.
  */
-class ServiceNode(
+class ServiceNode @InternalWowApi constructor(
     val service: String,
     val node: String,
     /** This node's internal address, where the cluster channel and the signals reach it; null to [bind] it later. */
@@ -384,12 +388,15 @@ class ServiceNode(
             nodeSnapshots.rebuildModels(opened, models)
 
     /** The aggregate models this node serves, the built-in job aggregates among them (decision D198). */
+    @InternalWowApi
     val registry: ModelRegistry = ModelRegistry(served)
 
     /** The waits started on this node. */
+    @InternalWowApi
     val waits: WaitRegistry = WaitRegistry()
 
     /** Delivers signals: to [waits] when they are this node's, through the remote sender otherwise. */
+    @InternalWowApi
     val signals: SignalSender = LocalSignalSender(node, waits, remoteSignals)
 
     private val waitOptions = WaitOptions(
@@ -450,6 +457,7 @@ class ServiceNode(
     }
 
     /** The node's one firing loop of every context's timers (decision D198). */
+    @InternalWowApi
     val timerLoop: TimerLoop = TimerLoop(options.timers, clock)
 
     private val parts: List<Parts> = served.groupBy { it.type.context }.map { (context, contextModels) ->
@@ -457,23 +465,30 @@ class ServiceNode(
     }
 
     /** Where commands run: [Routing.PARTITIONED] over every context's lease group, or [Routing.LOCAL]. */
+    @InternalWowApi
     val router: CommandRouter = when (options.routing) {
         Routing.PARTITIONED -> PartitionedRouter(parts.map { it.ownership }, channel, options.cluster)
         Routing.LOCAL -> CommandRouter.LOCAL
     }
 
     /** The parts of each bounded context, by its name. */
+    @InternalWowApi
     val contexts: Map<String, ContextNode> = parts.associate { it.context to it.complete() }
+
+    /** The names of the bounded contexts the node hosts. */
+    val hostedContexts: Set<String> get() = contexts.keys
 
     /**
      * Whether the snapshots of an aggregate type are being rebuilt or backfilled on its primary target (decision
      * D172): its context's [SnapshotMaintenance.rebuilding]; false for a type whose snapshots are not kept here.
      */
+    @InternalWowApi
     val snapshotStatus: SnapshotStatus = SnapshotStatus { type ->
         contexts[type.context]?.snapshotMaintenance?.rebuilding(type) ?: false
     }
 
     /** Admits the commands of every context. */
+    @InternalWowApi
     val gateway: CommandGateway = CommandGateway(
         registry,
         contexts.mapValues { it.value.coordinator },
@@ -492,6 +507,7 @@ class ServiceNode(
      * What the internal port serves to the cluster channel: a forwarded command goes to its context's endpoint; one
      * of a context this node does not host is refused as of an unknown type, so its sender runs it (decision D71).
      */
+    @InternalWowApi
     val forwardHandler: ClusterChannelHandler = ClusterChannelHandler { request ->
         contexts[request.command.ref.type.context]?.endpoint?.forward(request)
             ?: ForwardReply.refused(Refusal.UNKNOWN_TYPE)
@@ -509,6 +525,7 @@ class ServiceNode(
      * The parked entries of every subscription of the node, the built-in ones, the intakes' and those of other
      * contexts' topics included, as an operator lists and acts on them (roadmap P.1, decision D141).
      */
+    @InternalWowApi
     val parked: ParkedOps = ParkedOps {
         contexts.values.flatMap { context ->
             (context.logGroups.map { it.subscriptions } + listOfNotNull(context.intake)).map { ParkedOps.Scope.of(it) }
@@ -620,6 +637,7 @@ class ServiceNode(
     val isReady: Boolean get() = state == State.RUNNING
 
     /** The parts of [context]. */
+    @InternalWowApi
     fun context(context: String): ContextNode =
         requireNotNull(contexts[context]) { "Node $node hosts no context $context." }
 

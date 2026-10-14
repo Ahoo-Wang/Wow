@@ -14,6 +14,7 @@
 package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.log.EventStreamRecord
 import tools.jackson.databind.JsonNode
 
@@ -22,6 +23,7 @@ import tools.jackson.databind.JsonNode
  * model's current schema (upgraded, D82), and the aggregate after it: its [state] as the event codec writes it (a
  * tree, so a mutable state evolving further does not change it), its [deleted] mark and its [tags].
  */
+@InternalWowApi
 class CommitTrace(
     val stream: EventStreamRecord,
     val events: List<Any>,

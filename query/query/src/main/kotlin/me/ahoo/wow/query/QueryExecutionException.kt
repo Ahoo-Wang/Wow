@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import java.time.Duration
 
 /**
@@ -34,7 +35,7 @@ open class QueryExecutionException(
 }
 
 /** Throws a [QueryExecutionException] with [message] unless [value] holds. */
-inline fun checkExecution(value: Boolean, message: () -> String) {
+internal inline fun checkExecution(value: Boolean, message: () -> String) {
     if (!value) throw QueryExecutionException(message())
 }
 
@@ -56,6 +57,7 @@ class QueryTimeoutException(
  * [me.ahoo.wow.spi.StorageUnavailableException] as [cause]: [QueryErrors.STORAGE_UNAVAILABLE] (HTTP 503). The same
  * query may pass once the storage is back.
  */
+@InternalWowApi
 class QueryStorageUnavailableException(cause: Throwable? = null) :
     QueryExecutionException("Query storage is unavailable; retry later.", cause) {
     override val errorCode: String

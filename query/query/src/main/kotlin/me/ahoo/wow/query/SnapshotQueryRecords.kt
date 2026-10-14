@@ -28,7 +28,7 @@ import tools.jackson.databind.node.ObjectNode
  * order, an absent owner, space or operator as `null`, and the state parsed as JSON under [SnapshotFields.STATE]. Every snapshot
  * backend returns records of this shape, whatever its storage keeps.
  */
-fun SnapshotRecord.toQueryRecord(): ObjectNode = newRecord().apply {
+internal fun SnapshotRecord.toQueryRecord(): ObjectNode = newRecord().apply {
     put(SnapshotFields.TENANT_ID, ref.tenantId)
     put(SnapshotFields.AGGREGATE_ID, ref.id)
     put(SnapshotFields.VERSION, version)
@@ -57,7 +57,7 @@ fun SnapshotRecord.toQueryRecord(): ObjectNode = newRecord().apply {
 }
 
 /** This operator as a snapshot record's operator field: `{id, tenantId, crossScope}`, or JSON null when absent. */
-fun Operator?.toQueryValue(): JsonNode = if (this == null) {
+internal fun Operator?.toQueryValue(): JsonNode = if (this == null) {
     jsonNodes.nullNode()
 } else {
     newRecord()

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kernel
+package me.ahoo.wow.kernel.memory
 
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking

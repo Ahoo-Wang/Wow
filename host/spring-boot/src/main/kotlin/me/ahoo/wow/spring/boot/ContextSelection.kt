@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.ModelProvider
 
 /**
@@ -28,6 +29,7 @@ import me.ahoo.wow.kernel.ModelProvider
  * Manifest, its routes and its contract name them alone), and the handlers of their processors. A context left out
  * is to the node as any other service's, reached through its peers.
  */
+@InternalWowApi
 data class ContextSelection(val include: Set<String> = emptySet(), val exclude: Set<String> = emptySet()) {
     /** Whether the selection serves every context on the class path. */
     val isAll: Boolean get() = include.isEmpty() && exclude.isEmpty()

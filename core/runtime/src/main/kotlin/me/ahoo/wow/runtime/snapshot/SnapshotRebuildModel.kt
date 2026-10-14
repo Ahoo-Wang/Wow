@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.snapshot
 
 import me.ahoo.wow.api.aggregate.Ownership
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.snapshot.RebuildSnapshot
 import me.ahoo.wow.api.snapshot.SnapshotRebuildRequested
@@ -24,6 +25,7 @@ import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.runtime.FrameworkCodes
 
 /** The state of one rebuild instance: how many rebuild requests it took. */
+@InternalWowApi
 class RebuildState {
     var requests: Long = 0
 }
@@ -36,6 +38,7 @@ class RebuildState {
  * ([SnapshotMaintenance.REBUILD_SUBSCRIPTION]) carries out. A request to an instance that is no snapshotted aggregate
  * type of the context is rejected with [FrameworkCodes.INVALID].
  */
+@InternalWowApi
 object SnapshotRebuildModel {
     /** Whether [model] is a context's built-in rebuild aggregate. */
     @JvmStatic

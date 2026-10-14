@@ -25,6 +25,7 @@ import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.spi.subscription.Lease
@@ -48,6 +49,7 @@ import kotlin.time.Duration
  * Times come from [clock], so they are the calling node's: keep the TTL well above the nodes' clock skew. Calls run on
  * [dispatcher], virtual threads by default (decision D29).
  */
+@InternalWowApi
 class MongoLeaseStore(
     client: MongoClient,
     databaseName: String,

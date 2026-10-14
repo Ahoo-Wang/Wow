@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.manifest
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
@@ -31,6 +32,7 @@ import tools.jackson.databind.json.JsonMapper
  * read as a Manifest, else the merger's [me.ahoo.wow.manifest.ManifestConflictException] for the conflicts between
  * them.
  */
+@InternalWowApi
 class ManifestLoader(
     private val classLoader: ClassLoader = Thread.currentThread().contextClassLoader,
     private val mapper: JsonMapper = JsonMapper.builder().build(),
@@ -74,5 +76,5 @@ class ManifestLoader(
 }
 
 /** Fragments of a service could not be read; [problems] lists each one. */
-class ManifestLoadException(val problems: List<String>) :
+internal class ManifestLoadException(val problems: List<String>) :
     IllegalStateException("The Manifest fragments could not be read:\n" + problems.joinToString("\n") { "- $it" })

@@ -17,6 +17,7 @@ import io.opentelemetry.api.OpenTelemetry
 import io.opentelemetry.api.trace.SpanKind
 import io.opentelemetry.api.trace.StatusCode
 import io.opentelemetry.context.Context
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.opentelemetry.WowAttributes.MESSAGING_BATCH_COUNT
 import me.ahoo.wow.opentelemetry.WowAttributes.MESSAGING_DESTINATION
 import me.ahoo.wow.opentelemetry.WowAttributes.MESSAGING_OPERATION
@@ -32,6 +33,7 @@ import kotlin.coroutines.cancellation.CancellationException
  * Closing it closes [delegate] when that is [AutoCloseable], as a host that replaced its producer bean by this one
  * closes the bean.
  */
+@InternalWowApi
 class TracingTopicProducer(val delegate: TopicProducer, openTelemetry: OpenTelemetry) :
     TopicProducer,
     AutoCloseable {

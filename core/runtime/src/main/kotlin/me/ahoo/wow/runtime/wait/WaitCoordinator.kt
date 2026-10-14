@@ -31,6 +31,7 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withTimeoutOrNull
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.result.CommandResult
@@ -162,6 +163,7 @@ enum class UnknownContexts {
  * The executions outlive their waits, so a node that stops [join]s them before it closes its executor, then [close]s
  * the coordinator.
  */
+@InternalWowApi
 class WaitCoordinator(
     private val executor: Executor,
     private val registry: WaitRegistry,
@@ -601,7 +603,7 @@ class WaitCoordinator(
 }
 
 /** Whether this plan's only hop is ACCEPTED: the caller is answered at admission (decision D100). */
-val WaitPlan.isAcceptedOnly: Boolean get() = hops.size == 1 && hops.single().stage == Stage.ACCEPTED
+internal val WaitPlan.isAcceptedOnly: Boolean get() = hops.size == 1 && hops.single().stage == Stage.ACCEPTED
 
 /**
  * What executing a command reached at once: its [committed] result (design 08 §7), at its COMMITTED hop, then the
@@ -609,6 +611,7 @@ val WaitPlan.isAcceptedOnly: Boolean get() = hops.size == 1 && hops.single().sta
  * [outcome] is the kernel's when this node executed the command; null when another node did and replied, or when the
  * executor did not take it.
  */
+@InternalWowApi
 data class Settlement(
     val committed: CommandResult,
     val reached: List<CommandResult> = emptyList(),

@@ -11,11 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kernel
+package me.ahoo.wow.kernel.memory
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
@@ -23,6 +24,7 @@ import me.ahoo.wow.spi.ledger.amended
 import java.util.TreeMap
 
 /** A [FailureLedger] in memory, for tests and samples. Every operation is serialized by one lock. */
+@InternalWowApi
 class InMemoryFailureLedger : FailureLedger {
     private val lock = Mutex()
     private val subscriptions = HashMap<String, TreeMap<AggregateRef, ParkedAggregate>>()

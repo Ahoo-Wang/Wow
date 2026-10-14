@@ -263,7 +263,7 @@ class InMemoryQueryBackend internal constructor(
  * the strict storage-family table ([storageFamilies]) allows for its values, full-text search excepted; HAVING, top-N
  * by a metric, dense fill and the windows are RESIDUAL, so the core computes them.
  */
-object InMemoryQueryStorageAdapter : QueryStorageAdapter {
+internal object InMemoryQueryStorageAdapter : QueryStorageAdapter {
     private val VALUE_CAPABILITIES = listOf(
         QueryCapability.EXACT_MATCH,
         QueryCapability.LITERAL_MATCH,

@@ -27,12 +27,12 @@ import me.ahoo.wow.query.spec.spec
 fun FilterExpression.predicateField(): QueryField? = (this as? FieldPredicate)?.field
 
 /** The field capability this node's operator requires, per its [me.ahoo.wow.query.spec.FilterOperatorSpec]. */
-fun FilterExpression.requiredCapability(): QueryCapability =
+internal fun FilterExpression.requiredCapability(): QueryCapability =
     checkNotNull(spec.requiredCapability(this)) { "Filter [$operator] requires no field capability." }
 
 /**
  * This predicate naming [field] instead of its [predicateField]; filters that name no field are returned unchanged.
  * The inverse of [predicateField], used to rewrite a query's field references.
  */
-fun FilterExpression.withPredicateField(field: QueryField): FilterExpression =
+internal fun FilterExpression.withPredicateField(field: QueryField): FilterExpression =
     (this as? FieldPredicate)?.withField(field) ?: this

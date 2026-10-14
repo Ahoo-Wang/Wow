@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.timer
 
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
@@ -55,6 +56,7 @@ import me.ahoo.wow.spi.timer.Timers
  *   version or a later one, so a replay or an old partition owner running beside the new one (decision D45) never moves
  *   a timer back nor revives one.
  */
+@InternalWowApi
 class TimersSubscription(
     context: String,
     private val store: TimerStore,

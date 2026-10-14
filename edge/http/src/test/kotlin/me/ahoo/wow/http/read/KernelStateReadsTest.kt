@@ -21,9 +21,9 @@ import me.ahoo.wow.http.CONTEXT
 import me.ahoo.wow.http.Cart
 import me.ahoo.wow.http.cartModel
 import me.ahoo.wow.kernel.EventCodec
-import me.ahoo.wow.kernel.InMemoryEventLog
-import me.ahoo.wow.kernel.InMemorySnapshotStore
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal

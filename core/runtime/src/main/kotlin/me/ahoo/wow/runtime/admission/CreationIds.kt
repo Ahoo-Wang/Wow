@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.admission
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Creation
@@ -27,10 +28,12 @@ import me.ahoo.wow.spi.log.EventStreamRecord
  * The streams already committed for a request (decision D191): what admission looks up before it gives a creation
  * command without an id a new one.
  */
+@InternalWowApi
 fun interface CommittedRequests {
     /** The stream committed for [requestId] within [tenantId] in aggregate type [type], if any. */
     suspend fun find(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord?
 
+    @InternalWowApi
     companion object {
         /** Nothing is ever committed: every creation without an id takes a new one. */
         @JvmField
@@ -52,6 +55,7 @@ fun interface CommittedRequests {
  * The committed request is reused only within the scope that sent it (decision D94): a caller outside it gets a new id
  * and is refused by the kernel as for any duplicate, so it learns nothing of the aggregate the request created.
  */
+@InternalWowApi
 class CreationIds(
     private val ids: IdGenerators = IdGenerators.DEFAULT,
     private val committed: CommittedRequests = CommittedRequests.NONE,

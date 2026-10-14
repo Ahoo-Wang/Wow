@@ -26,6 +26,7 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -81,6 +82,7 @@ data class AppendQueueOptions(val enabled: Boolean = true, val maxBatch: Int = D
  *
  * [close] stops taking appends and returns once the queued ones are committed.
  */
+@InternalWowApi
 class PartitionAppendQueue(
     private val log: EventLog,
     private val options: AppendQueueOptions = AppendQueueOptions(),

@@ -50,7 +50,7 @@ data class JobOptions(
  * The jobs of a node (decision D198): each context's jobs from its `@OnSchedule` handlers, their default rule the
  * annotation's under the host's [JobOptions]; and the startup of the [JobScope.SYSTEM] ones.
  */
-object ScheduleJobRuntime {
+internal object ScheduleJobRuntime {
     private val logger = KotlinLogging.logger {}
 
     /**

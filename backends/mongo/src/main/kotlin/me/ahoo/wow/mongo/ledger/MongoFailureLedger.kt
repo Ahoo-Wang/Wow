@@ -27,6 +27,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.spi.ledger.FailureLedger
@@ -56,6 +57,7 @@ import kotlin.time.Duration.Companion.milliseconds
  *
  * Calls run on [dispatcher], virtual threads by default (decision D29).
  */
+@InternalWowApi
 class MongoFailureLedger(
     client: MongoClient,
     databaseName: String,

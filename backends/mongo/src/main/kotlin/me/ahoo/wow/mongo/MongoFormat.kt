@@ -27,7 +27,7 @@ import org.bson.Document
  * changes only in a major version, through the migration tool (D22); adding an optional field does not change the
  * version.
  */
-object MongoFormat {
+internal object MongoFormat {
     /** The collection of format versions, shared by every structure in the database. */
     const val COLLECTION = "wow_format"
 

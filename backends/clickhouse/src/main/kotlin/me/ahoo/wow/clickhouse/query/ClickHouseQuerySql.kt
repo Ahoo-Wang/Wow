@@ -23,7 +23,7 @@ import kotlin.math.abs
  * One statement and its server-side parameters. Every caller value is bound as a typed parameter (`{p0:String}`);
  * the SQL text holds only identifiers from the compiled schema, function names and finite numeric constants.
  */
-class ClickHouseStatement(val sql: String, val parameters: Map<String, Any> = emptyMap()) {
+internal class ClickHouseStatement(val sql: String, val parameters: Map<String, Any> = emptyMap()) {
     override fun toString(): String = sql
 }
 

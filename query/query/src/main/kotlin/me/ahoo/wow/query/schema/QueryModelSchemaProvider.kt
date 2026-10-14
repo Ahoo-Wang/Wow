@@ -33,7 +33,7 @@ interface QueryModelSchemaProvider {
 }
 
 /** A provider of one fixed [schema], for a model whose schema is built in code (tests, tools). */
-class FixedQueryModelSchemaProvider(private val schema: QueryModelSchema) : QueryModelSchemaProvider {
+internal class FixedQueryModelSchemaProvider(private val schema: QueryModelSchema) : QueryModelSchemaProvider {
     override suspend fun schema(): QueryModelSchema = schema
 
     override suspend fun refresh(): QueryModelSchema = schema
@@ -157,6 +157,7 @@ class DefaultQueryModelSchemaProvider(
         return facts.compile(context.model, logicalSchema, profile)
     }
 
+    @InternalWowApi
     companion object {
         /** How long a provisional schema is answered before the storage is asked again. */
         @JvmField

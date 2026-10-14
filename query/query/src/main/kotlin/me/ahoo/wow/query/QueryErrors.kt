@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.FrameworkErrors
 
 /**
@@ -29,6 +30,7 @@ import me.ahoo.wow.manifest.FrameworkErrors
  * They are the codes of [FrameworkErrors], whose table gives each its HTTP status; a caller the query scope does not
  * admit is answered with [FORBIDDEN].
  */
+@InternalWowApi
 object QueryErrors {
     const val MALFORMED: String = FrameworkErrors.QUERY_MALFORMED
     const val INVALID: String = FrameworkErrors.QUERY_INVALID

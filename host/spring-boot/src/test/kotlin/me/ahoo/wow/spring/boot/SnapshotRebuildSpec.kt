@@ -26,8 +26,8 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.snapshot.SnapshotRebuilds
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Creation
-import me.ahoo.wow.kernel.InMemorySnapshotStore
 import me.ahoo.wow.kernel.aggregate
+import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest

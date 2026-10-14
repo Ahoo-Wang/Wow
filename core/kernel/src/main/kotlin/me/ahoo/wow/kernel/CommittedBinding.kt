@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.subscribe.CommandCommitted
@@ -89,6 +90,7 @@ class CommittedBinding<C : Any> private constructor(
  * version) of the commit whose saga execution derived the command, and the commands it derives are
  * [ReceiptSagaContext]'s, deterministic per committed command; it takes its ids from [ids].
  */
+@InternalWowApi
 fun committedContextOf(
     handler: CommittedBinding<*>,
     committed: CommandCommitted<*>,

@@ -19,7 +19,7 @@ import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.http.WowHeaders
-import me.ahoo.wow.kernel.InMemoryTopics
+import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.command.CommandMessages
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.spi.transport.EnvelopeCodec

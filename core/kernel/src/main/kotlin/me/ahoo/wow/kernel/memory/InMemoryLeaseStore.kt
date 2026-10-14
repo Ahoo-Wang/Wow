@@ -11,10 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kernel
+package me.ahoo.wow.kernel.memory
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
@@ -25,6 +26,7 @@ import kotlin.time.Duration
  * A [LeaseStore] in memory, for tests and single-process samples; its time comes from [clock]. One lock serializes
  * every operation. A released lease is kept with expiry 0, so the next acquisition continues its epoch.
  */
+@InternalWowApi
 class InMemoryLeaseStore(private val clock: Clock = Clock.systemUTC()) : LeaseStore {
     private val lock = Mutex()
     private val leases = HashMap<Pair<String, Int>, Lease>()

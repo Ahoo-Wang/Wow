@@ -26,6 +26,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.ledger.Ledger
@@ -117,6 +118,7 @@ class LedgerPublisher internal constructor(
     }
 
     /** Publishes [view]'s entry as parked. */
+    @InternalWowApi
     suspend fun parked(view: ParkedView): Unit = lock.withLock { publishParked(view) }
 
     /** Publishes that [subscription] no longer parks [ref], since [outcome]; [failedAt] the parking's, when known. */

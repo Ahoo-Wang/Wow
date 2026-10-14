@@ -14,6 +14,7 @@
 package me.ahoo.wow.http.query
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.runtime.snapshot.SnapshotStatus
@@ -33,12 +34,13 @@ import me.ahoo.wow.runtime.snapshot.SnapshotStatus
  * [snapshotStatus] tells whether an aggregate type's snapshots are being rebuilt or backfilled (decision D172): its
  * snapshot query and descriptor then answer with `Wow-Rebuilding: true`.
  */
-class HttpQueries(
+class HttpQueries @InternalWowApi constructor(
     snapshots: Collection<QueryGateway> = emptyList(),
     events: Collection<EventQueryGateway> = emptyList(),
     val defaultListSize: Int = DEFAULT_LIST_SIZE,
     val datasets: DatasetQueryGateways = DatasetQueryGateways.NONE,
     val datasetVisibility: DatasetVisibility = DatasetVisibility.DEFAULT,
+    @InternalWowApi
     val snapshotStatus: SnapshotStatus = SnapshotStatus.NONE,
 ) {
     private val snapshots: Map<AggregateType, QueryGateway> = snapshots.associateBy { it.aggregateType }
@@ -54,6 +56,7 @@ class HttpQueries(
     fun snapshots(type: AggregateType): QueryGateway? = snapshots[type]
 
     /** The events query gateway of [type], or null when it has none. */
+    @InternalWowApi
     fun events(type: AggregateType): EventQueryGateway? = events[type]
 
     companion object {

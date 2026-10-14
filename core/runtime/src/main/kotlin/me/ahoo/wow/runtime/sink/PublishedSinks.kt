@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.sink
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PublishedManifest
@@ -52,6 +53,7 @@ class PublishedSinks(
     override fun stateReaders(context: String, models: List<AggregateModel<*>>): Map<String, Set<AggregateType>> =
         published[context].orEmpty().associate { stream -> nameOf(stream) to setOf(typeOf(context, stream, models)) }
 
+    @InternalWowApi
     override fun subscriptions(context: ContextNode): List<Subscription> =
         published[context.context].orEmpty().map { stream ->
             val name = nameOf(stream)

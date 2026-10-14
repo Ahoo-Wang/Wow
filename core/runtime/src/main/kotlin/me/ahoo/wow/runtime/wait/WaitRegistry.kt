@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.wait
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitSignal
@@ -25,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap
  * signals of its hops as they arrive, and is removed when its caller has its answer or gives up. A signal for a wait
  * this node does not hold (ended, timed out, or never here) is dropped.
  */
+@InternalWowApi
 class WaitRegistry {
     private val waits = ConcurrentHashMap<String, Waiting>()
 

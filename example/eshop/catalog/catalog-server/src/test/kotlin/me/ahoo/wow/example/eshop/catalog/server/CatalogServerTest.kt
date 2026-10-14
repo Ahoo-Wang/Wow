@@ -33,7 +33,7 @@ class CatalogServerTest {
             val node = context.getBean(ServiceNode::class.java)
             node.service.assert().isEqualTo("eshop-catalog-service")
             node.isReady.assert().isTrue()
-            node.contexts.keys.assert().containsExactly("eshop-catalog")
+            node.hostedContexts.assert().containsExactly("eshop-catalog")
             val manifest = context.getBean(Manifest::class.java)
             manifest.contexts.single().aggregates.map { it.name }.assert()
                 .containsExactlyInAnyOrder("product", "brand", "category")

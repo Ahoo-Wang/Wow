@@ -29,7 +29,7 @@ import java.time.Duration
  * The Sink's `_state_flat` view already reads `_state FINAL`, so a dataset over it needs no `deduplicate`.
  */
 @ExperimentalWowApi
-data class ClickHouseDatasetStorage(
+internal data class ClickHouseDatasetStorage(
     val database: String,
     val table: String,
     val deduplicate: Deduplicate = Deduplicate.NONE,

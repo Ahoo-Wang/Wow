@@ -24,7 +24,7 @@ import me.ahoo.wow.spi.transport.TopicProducer
  * order in one partition, with the `wow-format`, `wow-kind` and `wow-type` headers. [write] returns once the broker
  * acknowledged every record ([TopicProducer.send]).
  */
-class TopicSink(private val producer: TopicProducer, val topic: String) : Sink {
+internal class TopicSink(private val producer: TopicProducer, val topic: String) : Sink {
     init {
         require(topic.isNotBlank()) { "A topic sink names its topic." }
     }

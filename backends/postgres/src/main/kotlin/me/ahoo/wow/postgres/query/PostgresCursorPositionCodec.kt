@@ -25,7 +25,7 @@ import java.math.BigDecimal
  * condition compares a decimal sort key against exactly the value the row held; it decodes as a [BigDecimal] and is
  * bound as its field's type.
  */
-object PostgresCursorPositionCodec : CursorPositionCodec {
+internal object PostgresCursorPositionCodec : CursorPositionCodec {
     override fun encode(position: CursorPosition): ByteArray {
         val values = position.values.map { value ->
             when (value) {

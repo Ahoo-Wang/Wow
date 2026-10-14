@@ -13,7 +13,7 @@
 
 package me.ahoo.wow.ops.testing
 
-import me.ahoo.wow.kernel.InMemoryTopics
+import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.spring.boot.WowProperties
 import org.springframework.context.annotation.Bean
