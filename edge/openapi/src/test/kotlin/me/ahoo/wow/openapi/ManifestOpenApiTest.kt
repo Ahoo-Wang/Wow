@@ -21,11 +21,17 @@ import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Creation
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.manifest.FunctionKind
+import me.ahoo.wow.manifest.FunctionManifest
+import me.ahoo.wow.manifest.JobManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.SubscriptionKind
+import me.ahoo.wow.manifest.SubscriptionManifest
+import me.ahoo.wow.manifest.SubscriptionSource
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -178,6 +184,44 @@ class ManifestOpenApiTest {
                 "application/json" to mapOf("schema" to mapOf("type" to "object", "properties" to emptyMap<String, Any?>()))
             ),
         )
+    }
+
+    @Test
+    fun `a context with jobs should have the job routes, and the job codes among the errors`() {
+        val document = ManifestOpenApi.write(
+            MANIFEST.copy(
+                contexts = MANIFEST.contexts.map {
+                    it.copy(
+                        subscriptions = listOf(
+                            SubscriptionManifest(
+                                name = "Jobs.report",
+                                kind = SubscriptionKind.SAGA,
+                                source = SubscriptionSource("shop", listOf("schedule")),
+                                function = FunctionManifest(FunctionKind.SAGA, "shop", "Jobs", "report"),
+                                job = JobManifest("report", "0 0 9 * * *", scope = "TENANT"),
+                            ),
+                        ),
+                    )
+                },
+            ),
+        )
+        OpenApiChecks.check(document)
+        @Suppress("UNCHECKED_CAST")
+        val paths = document["paths"] as Map<String, Map<String, Map<String, Any?>>>
+        val enable = paths.getValue("/shop/schedule/{id}/wow.schedule.enable").getValue("post")
+        enable["operationId"].assert().isEqualTo("shop.schedule.wow.schedule.Enable")
+        schemaOf(enable["requestBody"]).assert().isEqualTo("#/components/schemas/wow.schedule.Enable")
+        paths.keys.assert().contains(
+            "/shop/schedule/{id}/wow.schedule.reschedule",
+            "/shop/schedule/{id}/wow.schedule.disable"
+        )
+        @Suppress("UNCHECKED_CAST")
+        (document["tags"] as List<Map<String, Any?>>).map { it["name"] }.assert().contains("shop.schedule")
+        OpenApiChecks.validate(document, "wow.schedule.Enable", """{"job":"report","rule":{"misfire":"CATCH_UP"}}""")
+            .assert().isEmpty()
+        val invalid = response("wow.command.400")["x-wow-error-codes"] as List<*>
+        invalid.assert().contains(FrameworkErrors.SCHEDULE_JOB_INVALID)
+        paths().keys.assert().noneMatch { it.contains("/schedule/") }
     }
 
     @Test

@@ -63,6 +63,37 @@ internal object WowSchemas {
         "wow.lifecycle.ApplyTags" to objectSchema(mapOf("tags" to TAGS), listOf("tags")),
     )
 
+    /** The name of the job aggregate of a context (decision D198): `<context>.schedule`. */
+    const val JOB_AGGREGATE: String = "schedule"
+
+    /** The job commands a tenant sends through the gateway (decision D198), by their full names, with their bodies. */
+    val JOB_COMMANDS: Map<String, Map<String, Any?>> = linkedMapOf(
+        "wow.schedule.Enable" to objectSchema(
+            mapOf(
+                "job" to type("string"),
+                "rule" to nullable(schemaRef("wow.schedule.JobRule")),
+                "partition" to obj("type" to listOf("integer", "null"), "minimum" to 0),
+            ),
+            listOf("job"),
+            "Creates, or enables again, the job instance of the path's id, the job's name in the caller's tenant.",
+        ),
+        "wow.schedule.Reschedule" to objectSchema(
+            mapOf("rule" to nullable(schemaRef("wow.schedule.JobRule"))),
+            description = "Overrides the instance's rule; null follows the job's default again.",
+        ),
+        "wow.schedule.Disable" to objectSchema(emptyMap(), description = "Stops the job instance."),
+    )
+
+    private val JOB_RULE: Map<String, Any?>
+        get() = objectSchema(
+            mapOf(
+                "expression" to type("string", nullable = true),
+                "zone" to type("string", nullable = true),
+                "misfire" to obj("type" to listOf("string", "null"), "enum" to listOf("COALESCE", "CATCH_UP", null)),
+            ),
+            description = "An instance's own rule of a job; each part that is null follows the job's default.",
+        )
+
     /** The schema of the lifecycle command [name]'s body. */
     fun lifecycle(name: String): Map<String, Any?> =
         if (name in LIFECYCLE) schemaRef(name) else objectSchema(emptyMap())
@@ -76,7 +107,8 @@ internal object WowSchemas {
     private val BOOLEAN: Map<String, Any?> get() = type("boolean")
 
     /** Every framework schema, by name. */
-    fun all(): Map<String, Any?> = commandSchemas() + readSchemas() + querySchemas() + LIFECYCLE
+    fun all(): Map<String, Any?> = commandSchemas() + readSchemas() + querySchemas() + LIFECYCLE + JOB_COMMANDS +
+        ("wow.schedule.JobRule" to JOB_RULE)
 
     /** The command result and the problem, with what they hold. */
     private fun commandSchemas(): Map<String, Any?> = linkedMapOf(

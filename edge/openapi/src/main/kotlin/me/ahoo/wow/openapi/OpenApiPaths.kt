@@ -43,6 +43,10 @@ internal class OpenApiPaths(
         frameworkRoutes()
         manifest.contexts.forEach { context ->
             context.aggregates.forEach { aggregate -> aggregateRoutes(context.name, aggregate) }
+            val jobs = context.subscriptions.mapNotNull { it.job }
+            if (jobs.isNotEmpty()) {
+                jobRoutes(context.name, jobs.map { it.name })
+            }
         }
         return paths
     }
@@ -144,6 +148,30 @@ internal class OpenApiPaths(
         val state = schemas.ref(aggregate.state.schema)
         stateRoutes(tag, "$base/${Http.STATE_SEGMENT}", state)
         aggregate.queries.forEach { query -> queryRoutes(tag, query, state) }
+    }
+
+    /**
+     * The job commands of [context]'s built-in job aggregate (decision D198), as the edge routes them when its Manifest
+     * has [jobs]: `POST /{context}/schedule/{id}/wow.schedule.<kebab>`, the id being the job's name.
+     */
+    private fun jobRoutes(context: String, jobs: List<String>) {
+        val tag = "$context.${WowSchemas.JOB_AGGREGATE}"
+        WowSchemas.JOB_COMMANDS.keys.forEach { name ->
+            add(
+                POST,
+                CommandRoutes.byIdPath(context, WowSchemas.JOB_AGGREGATE, name),
+                obj(
+                    "tags" to listOf(tag),
+                    "summary" to name.substringAfterLast('.'),
+                    "description" to "Sends the job command `$name` (decision D198) to the job the path's id names, " +
+                        "in the caller's tenant: ${jobs.joinToString { "`$it`" }}.",
+                    "operationId" to "$tag.$name",
+                    "parameters" to commandParameters(byId = true),
+                    "requestBody" to body(schemaRef(name)),
+                    "responses" to commandResponses(context, byId = true, domain = false),
+                ),
+            )
+        }
     }
 
     private fun command(context: String, tag: String, command: CommandManifest, route: RouteManifest): Map<String, Any?> {

@@ -17,10 +17,13 @@ import com.networknt.schema.InputFormat
 import com.networknt.schema.SchemaRegistry
 import com.networknt.schema.SpecificationVersion
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.schedule.JobScope
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.http.command.CommandHandler
 import me.ahoo.wow.http.query.QueryHandler
 import me.ahoo.wow.http.read.StateHandler
 import me.ahoo.wow.kernel.CommandType
+import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.openapi.ManifestOpenApi
@@ -128,6 +131,23 @@ class OpenApiRouteTest {
             val unrouted = answer.status.value() == 404 && answer.responseBody.orEmpty().contains("No route")
             unrouted.assert().describedAs("$method $path is not routed").isFalse()
         }
+    }
+
+    @Test
+    fun `the job routes of a context with jobs should be documented and routed`() {
+        val report = ScheduleJob("report", ScheduleRule.Cron("0 0 9 * * *"), JobScope.TENANT)
+        val node = HttpNode(jobs = listOf(report))
+        val paths = node.get(WowPaths.OPENAPI).body!!["paths"]
+        listOf("enable", "reschedule", "disable").forEach { command ->
+            val operation = paths["/shop/schedule/{id}/wow.schedule.$command"]["post"]
+            operation["tags"][0].asString().assert().isEqualTo("shop.schedule")
+            operation["description"].asString().assert().contains("`report`")
+        }
+        val enabled = node.post("/shop/schedule/report/wow.schedule.enable", """{"job":"report"}""")
+        enabled.status.assert().isEqualTo(200)
+        HttpNode().get(
+            WowPaths.OPENAPI
+        ).body!!["paths"].propertyNames().assert().noneMatch { it.contains("/schedule/") }
     }
 
     @Test

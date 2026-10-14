@@ -77,7 +77,12 @@ object ManifestOpenApi {
                 "name" to "${context.name}.${aggregate.name}",
                 "description" to (aggregate.description ?: context.description),
             )
-        }
+        } + listOfNotNull(
+            Json.obj(
+                "name" to "${context.name}.${WowSchemas.JOB_AGGREGATE}",
+                "description" to "The context's scheduled jobs (decision D198).",
+            ).takeIf { context.subscriptions.any { it.job != null } },
+        )
     } + Json.obj("name" to FRAMEWORK_TAG, "description" to "The framework's own endpoints.")
 
     /** The tag of the framework's own endpoints. */

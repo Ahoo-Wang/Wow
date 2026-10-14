@@ -2183,6 +2183,61 @@
         },
         "required" : [ "tags" ]
       },
+      "wow.schedule.Enable" : {
+        "type" : "object",
+        "description" : "Creates, or enables again, the job instance of the path's id, the job's name in the caller's tenant.",
+        "properties" : {
+          "job" : {
+            "type" : "string"
+          },
+          "rule" : {
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/wow.schedule.JobRule"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "partition" : {
+            "type" : [ "integer", "null" ],
+            "minimum" : 0
+          }
+        },
+        "required" : [ "job" ]
+      },
+      "wow.schedule.Reschedule" : {
+        "type" : "object",
+        "description" : "Overrides the instance's rule; null follows the job's default again.",
+        "properties" : {
+          "rule" : {
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/wow.schedule.JobRule"
+            }, {
+              "type" : "null"
+            } ]
+          }
+        }
+      },
+      "wow.schedule.Disable" : {
+        "type" : "object",
+        "description" : "Stops the job instance.",
+        "properties" : { }
+      },
+      "wow.schedule.JobRule" : {
+        "type" : "object",
+        "description" : "An instance's own rule of a job; each part that is null follows the job's default.",
+        "properties" : {
+          "expression" : {
+            "type" : [ "string", "null" ]
+          },
+          "zone" : {
+            "type" : [ "string", "null" ]
+          },
+          "misfire" : {
+            "type" : [ "string", "null" ],
+            "enum" : [ "COALESCE", "CATCH_UP", null ]
+          }
+        }
+      },
       "me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation" : {
         "type" : "object",
         "properties" : {
@@ -2532,7 +2587,7 @@
         }
       },
       "eshop-inventory.command.400" : {
-        "description" : "`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.",
+        "description" : "`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -2540,7 +2595,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.command.malformed", "wow.command.invalid", "wow.wait.invalid", "wow.command.unhandled" ]
+        "x-wow-error-codes" : [ "wow.command.malformed", "wow.command.invalid", "wow.wait.invalid", "wow.command.unhandled", "wow.schedule.job-invalid" ]
       },
       "eshop-inventory.command.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -2689,7 +2744,7 @@
         "x-wow-error-codes" : [ "wow.wait.timeout" ]
       },
       "wow.command.400" : {
-        "description" : "`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.",
+        "description" : "`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -2697,7 +2752,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.command.malformed", "wow.command.invalid", "wow.wait.invalid", "wow.command.unhandled" ]
+        "x-wow-error-codes" : [ "wow.command.malformed", "wow.command.invalid", "wow.wait.invalid", "wow.command.unhandled", "wow.schedule.job-invalid" ]
       },
       "wow.command.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
