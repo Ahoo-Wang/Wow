@@ -175,8 +175,9 @@ class StateConstructorTest {
         )
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert().contains(
-            "the state CounterState needs a constructor (), (id: String) or (id: String, tenantId: String); one " +
-                "whose parameters all have default values counts as ()",
+            "the state CounterState needs a constructor () (recommended: the aggregate's id is in its ref), or one " +
+                "whose parameters all have default values; (id: String) and (id: String, tenantId: String) are " +
+                "allowed when the domain needs the id",
         )
     }
 

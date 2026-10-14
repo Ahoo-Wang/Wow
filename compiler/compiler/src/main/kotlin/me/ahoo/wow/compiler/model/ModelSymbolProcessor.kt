@@ -557,10 +557,10 @@ internal class ModelSymbolProcessor(
         ).distinct()
 
     /**
-     * The arguments the initial state is built with (decision D203): `ref.id` for a constructor `(id: String)`,
-     * `ref.id, ref.tenantId` for `(id: String, tenantId: String)`, and none for a constructor that takes none or whose
-     * parameters all have default values. The aggregate's identity lives in its ref and stream: a state takes the id
-     * only when its domain needs it.
+     * The arguments the initial state is built with (decision D203). The recommended constructor is `()`, or one whose
+     * parameters all have default values: the aggregate's identity lives in its ref and stream, so the state is built
+     * without arguments. Allowed alternatives, for a domain that cannot work without the id: `(id: String)`, built
+     * with `ref.id`, and `(id: String, tenantId: String)`, built with `ref.id, ref.tenantId`.
      */
     private fun stateArguments(state: KSClassDeclaration, problems: MutableList<String>): List<String> {
         val parameters = (state.primaryConstructor ?: state.getConstructors().firstOrNull())?.parameters
@@ -575,8 +575,9 @@ internal class ModelSymbolProcessor(
     }
 
     private fun stateConstructorProblem(state: KSClassDeclaration, problems: MutableList<String>): List<String> {
-        problems += "the state ${state.simpleName.asString()} needs a constructor (), (id: String) or " +
-            "(id: String, tenantId: String); one whose parameters all have default values counts as ()"
+        problems += "the state ${state.simpleName.asString()} needs a constructor () (recommended: the aggregate's " +
+            "id is in its ref), or one whose parameters all have default values; (id: String) and " +
+            "(id: String, tenantId: String) are allowed when the domain needs the id"
         return emptyList()
     }
 
