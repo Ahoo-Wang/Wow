@@ -110,6 +110,20 @@ describe("the basket", () => {
     expect(screen.getByText(/15 of 15 hops/)).toBeInTheDocument();
   });
 
+  it("says when the chain ends short of the paid order", async () => {
+    // A declined payment: OrderPaymentSaga.onPaymentSucceeded sends nothing.
+    const { transport } = basket(() => ({ events: hops(14) }));
+    renderShop("/basket", ALICE, transport);
+    await userEvent.click(await screen.findByRole("button", { name: "Check out" }));
+    expect(
+      await screen.findByText(/the chain ended after 14 of 15 hops/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "alice-1" })).toBeInTheDocument();
+    expect(screen.getAllByTestId("checkout-hop")[14].dataset.state).toBe(
+      "not-reached",
+    );
+  });
+
   it("marks the hop that was rejected, with its code", async () => {
     const rejected = result({
       context: "eshop-ordering",
