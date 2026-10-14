@@ -118,10 +118,7 @@ internal object SubscriptionResolver {
         val receiptFunctions = Receipt.entries.associateWith { receipt ->
             processor.getAllFunctions().filter { it.hasAnnotation(receipt.annotation) }.toList()
         }
-        val functions = processor.getAllFunctions().filter { function ->
-            Receipt.entries.none { function.hasAnnotation(it.annotation) } &&
-                (function.hasAnnotation(ON_EVENT) || (function.simpleName.asString() == ON_EVENT_NAME && !function.isPrivate()))
-        }.toList()
+        val functions = processor.getAllFunctions().filter { isEventHandler(it) }.toList()
         if (functions.isEmpty()) {
             problems += "processor $className declares no @OnEvent function"
         }
@@ -138,15 +135,7 @@ internal object SubscriptionResolver {
         val handlers = functions.mapNotNull { handler(it, name, kind, reactorTypes, problems) }
             .map { it.copy(retry = it.retry?.over(processorRetry) ?: processorRetry) }
         val (rejections, commits) = Receipt.entries.map { receipt ->
-            val bound = receiptFunctions.getValue(receipt).filterNot { function ->
-                // A function of both kinds is reported once, by the first.
-                receipt == Receipt.COMMITTED && function.hasAnnotation(ON_REJECTED)
-            }.mapNotNull { receiptHandler(it, name, receipt, reactorTypes, problems) }
-            bound.groupBy { it.command }.filterValues { it.size > 1 }.forEach { (command, same) ->
-                problems += "processor $className has two ${receipt.label} handlers of the ${receipt.nouns} of " +
-                    "${command ?: "every command (${receipt.parameterName}<*>)"}: ${same.joinToString { it.function }}"
-            }
-            bound
+            receiptHandlers(className, name, receipt, receiptFunctions.getValue(receipt), reactorTypes, problems)
         }
         val isObject = processor.classKind == ClassKind.OBJECT
         problems += constructionProblems(processor, className, isObject)
@@ -165,6 +154,28 @@ internal object SubscriptionResolver {
             rejections = rejections,
             commits = commits,
         )
+    }
+
+    /**
+     * The [receipt] handlers [functions] of the processor [name], each a function of one receipt kind only (one of
+     * both is reported once, as an `@OnRejected` handler), no two of the same command class.
+     */
+    @Suppress("LongParameterList")
+    private fun receiptHandlers(
+        className: String,
+        name: String,
+        receipt: Receipt,
+        functions: List<KSFunctionDeclaration>,
+        reactorTypes: Set<String>,
+        problems: MutableList<String>,
+    ): List<ReceiptBinding> {
+        val bound = functions.filterNot { receipt == Receipt.COMMITTED && it.hasAnnotation(ON_REJECTED) }
+            .mapNotNull { receiptHandler(it, name, receipt, reactorTypes, problems) }
+        bound.groupBy { it.command }.filterValues { it.size > 1 }.forEach { (command, same) ->
+            problems += "processor $className has two ${receipt.label} handlers of the ${receipt.nouns} of " +
+                "${command ?: "every command (${receipt.parameterName}<*>)"}: ${same.joinToString { it.function }}"
+        }
+        return bound
     }
 
     /**
@@ -210,9 +221,13 @@ internal object SubscriptionResolver {
     private val Receipt.retryReason: String
         get() = when (this) {
             Receipt.REJECTED -> "an @OnRejected handler compensates a business outcome, which is not retried"
-            Receipt.COMMITTED -> "an @OnCommitted handler runs in its context's receipts subscription, whose " +
-                "retry the host configures"
+            Receipt.COMMITTED -> "an @OnCommitted handler runs in its context's receipts subscription, retried by the host"
         }
+
+    /** Whether [function] is an `@OnEvent` handler, or a public one named `onEvent`, and no receipt handler. */
+    private fun isEventHandler(function: KSFunctionDeclaration): Boolean =
+        Receipt.entries.none { function.hasAnnotation(it.annotation) } &&
+            (function.hasAnnotation(ON_EVENT) || (function.simpleName.asString() == ON_EVENT_NAME && !function.isPrivate()))
 
     /** Whether the generated binding can construct [processor], or use it when it [isObject]. */
     private fun constructionProblems(

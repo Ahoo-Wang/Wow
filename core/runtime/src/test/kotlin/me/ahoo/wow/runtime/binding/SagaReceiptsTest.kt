@@ -31,8 +31,8 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.ProcessorBinding
-import me.ahoo.wow.kernel.RejectionBinding
 import me.ahoo.wow.kernel.ReceiptSagaContext
+import me.ahoo.wow.kernel.RejectionBinding
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
@@ -79,7 +79,11 @@ class SagaReceiptsTest {
     private val commits = CopyOnWriteArrayList<CommandCommitted<*>>()
 
     /** Thanks the owner of the cart a removal was committed on (decision D192). */
-    private val onRemoved = CommittedBinding.of("CartSaga", "onRemoved", RemoveItems::class.java) { committed, context ->
+    private val onRemoved = CommittedBinding.of(
+        "CartSaga",
+        "onRemoved",
+        RemoveItems::class.java
+    ) { committed, context ->
         commits += committed
         listOf(context.command(committed.ref, AddItems(listOf("thanks"))))
     }

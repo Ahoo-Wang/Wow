@@ -111,12 +111,12 @@ class CommittedBindingTest {
             ProcessorBinding.saga<Any>("OtherSaga", "f", null, commits = listOf(reserve)) { _, _ -> emptyList() }
         }.hasMessageContaining("is not a handler of OtherSaga")
         assertThrownBy<IllegalArgumentException> {
-            ProcessorBinding.saga<Any>("OrderSaga", "f", null, commits = listOf(handler("a", null), handler("b", null))) {
-                    _,
-                    _,
-                ->
-                emptyList()
-            }
+            ProcessorBinding.saga<Any>(
+                "OrderSaga",
+                "f",
+                null,
+                commits = listOf(handler("a", null), handler("b", null)),
+            ) { _, _ -> emptyList() }
         }.hasMessageContaining("two @OnCommitted handlers of the receipts of every command")
     }
 

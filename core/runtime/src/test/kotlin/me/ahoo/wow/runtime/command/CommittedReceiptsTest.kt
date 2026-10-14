@@ -150,7 +150,9 @@ class CommittedReceiptsTest {
             committed.version.assert().isEqualTo(1)
             committed.result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             committed.result.duplicate.assert().isFalse()
-            committed.executionId.assert().isEqualTo(ExecutionId("OrderSaga.onOrderPlaced", ORDER.ref(TENANT, "o-1"), 1))
+            committed.executionId.assert().isEqualTo(
+                ExecutionId("OrderSaga.onOrderPlaced", ORDER.ref(TENANT, "o-1"), 1)
+            )
             commits.single().assert().isEqualTo(committed)
             rejections.assert().isEmpty()
             // A copy of the receipt is dropped by its command id.

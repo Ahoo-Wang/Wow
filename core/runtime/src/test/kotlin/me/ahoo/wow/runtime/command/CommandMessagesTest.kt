@@ -171,12 +171,22 @@ class CommandMessagesTest {
         CommandMessages.receiptOf(envelope).assert().isEqualTo(committed)
         val rejection = EnvelopeCodec.decode(
             CommandMessages.receipt(
-                CommandRejected<Any>("c-2", "stock.item.Reserve", ref, ErrorInfo("e", "m"), Causation("a", "b"), execution),
+                CommandRejected<Any>(
+                    "c-2",
+                    "stock.item.Reserve",
+                    ref,
+                    ErrorInfo("e", "m"),
+                    Causation("a", "b"),
+                    execution
+                ),
             ).value,
         )
         (CommandMessages.receiptOf(rejection) as CommandRejected<*>).commandId.assert().isEqualTo("c-2")
         val command = EnvelopeCodec.decode(
-            CommandMessages.command(ClusterCodec.wire("stock.item.Reserve", Command("c", "c", ref, Reserve(1))), 0).value,
+            CommandMessages.command(
+                ClusterCodec.wire("stock.item.Reserve", Command("c", "c", ref, Reserve(1))),
+                0
+            ).value,
         )
         assertThrows<IllegalArgumentException> { CommandMessages.committedOf(command) }
         assertThrows<IllegalArgumentException> { CommandMessages.receiptOf(command) }
@@ -202,7 +212,14 @@ class CommandMessagesTest {
     fun `the entries of a receipts topic should hold both kinds of receipts in the saga aggregate's lane`(): Unit =
         runBlocking {
             topics.create(RECEIPTS, 1)
-            val rejected = CommandRejected<Any>("c-2", "stock.item.Reserve", ref, ErrorInfo("e", "m"), Causation("a", "b"), execution)
+            val rejected = CommandRejected<Any>(
+                "c-2",
+                "stock.item.Reserve",
+                ref,
+                ErrorInfo("e", "m"),
+                Causation("a", "b"),
+                execution
+            )
             topics.send(RECEIPTS, listOf(CommandMessages.receipt(committed()), CommandMessages.receipt(rejected)))
             val entries = MessageEntries.receipts(RECEIPTS, topics, 1).tail(0, null).take(2).toList()
             entries.map { it.message }.assert().containsExactly(committed(), rejected)
@@ -232,7 +249,16 @@ class CommandMessagesTest {
             receipts.handle(committed(duplicate = true))
             handled.assert().containsExactly("c-1" to Reserve::class.java)
             // A rejection of the same command is dropped too: one receipt per command id.
-            receipts.handle(CommandRejected<Any>("c-1", "stock.item.Reserve", ref, ErrorInfo("e", "m"), Causation("a", "b"), execution))
+            receipts.handle(
+                CommandRejected<Any>(
+                    "c-1",
+                    "stock.item.Reserve",
+                    ref,
+                    ErrorInfo("e", "m"),
+                    Causation("a", "b"),
+                    execution
+                )
+            )
             handled.size.assert().isEqualTo(1)
             // No handler takes it: logged and passed over, once.
             answer = null

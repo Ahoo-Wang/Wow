@@ -276,7 +276,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         ): (Command<*>) -> ReplyTo? = { command ->
             val type = command.body.javaClass
             val committed = handler.committedHandlerOf(type) != null
-            if (committed || handler.rejectionHandlerOf(type) != null) ReplyTo.of(context, execution, committed) else null
+            ReplyTo.of(context, execution, committed).takeIf { committed || handler.rejectionHandlerOf(type) != null }
         }
 
         /** Calls [handler] with [event] and [context]: on a virtual thread when it is blocking. */

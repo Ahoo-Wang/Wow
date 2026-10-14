@@ -71,7 +71,10 @@ class OrderProcessSaga {
 
     /** A product the inventory reserved confirms it on the order that asked for it. */
     @OnCommitted
-    fun onReserveCommitted(committed: CommandCommitted<ReserveStock>, context: SagaContext): Command<ConfirmOrderStock> =
+    fun onReserveCommitted(
+        committed: CommandCommitted<ReserveStock>,
+        context: SagaContext
+    ): Command<ConfirmOrderStock> =
         context.command(committed.executionId.ref, ConfirmOrderStock(committed.aggregateId))
 
     /** A product the inventory cannot reserve cancels the order that asked for it. */
