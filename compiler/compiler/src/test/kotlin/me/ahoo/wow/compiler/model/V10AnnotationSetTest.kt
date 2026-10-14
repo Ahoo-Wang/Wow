@@ -206,7 +206,9 @@ class V10AnnotationSetTest {
                 "aggregate root Legacy's function onError is annotated @OnError, which V10 removed: reject with a " +
                     "Rejection, and compensate in a @Saga; $skill"
             )
-            .contains("aggregate root Legacy's function onError is annotated @Retry")
+            .contains(
+                "aggregate root Legacy's function onError is annotated @Retry, which only a subscription processor"
+            )
             .contains("aggregate root Legacy's function onStateEvent is annotated @OnStateEvent")
             .contains("state LegacyState is annotated @EntityObject")
             .contains("state LegacyState's field name is annotated @AggregateName")
@@ -411,7 +413,7 @@ class V10AnnotationSetTest {
             fun twice(event: StateEvent<S>, context: ReactContext) = Unit
 
             @OnEvent
-            @Retry
+            @Retry(timeout = "soon")
             fun retried(event: StateEvent<S>) = Unit
         }
 
@@ -446,7 +448,7 @@ class V10AnnotationSetTest {
             .contains("handler Shapes.returns returns kotlin.String: a @Reactor handler returns nothing")
             .contains("handler Shapes.hidden is private")
             .contains("processor Shapes has two handlers named twice")
-            .contains("processor Shapes's function retried is annotated @Retry")
+            .contains("handler Shapes.retried is annotated @Retry(timeout = \"soon\"): it is a duration")
             .contains("handler Deriving.onEvent returns kotlin.String: a @Saga handler returns the commands it derives")
             .contains("processor Legacy is annotated @StatelessSaga, which V10 removed: use @Saga")
     }

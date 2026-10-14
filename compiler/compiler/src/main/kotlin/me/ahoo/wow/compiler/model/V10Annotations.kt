@@ -52,6 +52,7 @@ internal object V10Annotations {
         "Description",
         "Summary",
         "ErrorCode",
+        "Retry",
         "WowSpi",
         // Not a domain annotation: it marks the framework's own internals.
         "InternalWowApi",
@@ -61,7 +62,6 @@ internal object V10Annotations {
     private val REPLACEMENTS = mapOf(
         "OnError" to "reject with a Rejection, and compensate in a @Saga",
         "PreparableKey" to "reserve the key with DecideScope.reserve",
-        "Retry" to "retries are subscription configuration",
         "AggregateRoute" to "routes are materialized from the Manifest",
         "CommandRoute" to "routes are materialized from the Manifest",
         "OnStateEvent" to "use @OnEvent, which receives a StateEvent",
@@ -79,6 +79,9 @@ internal object V10Annotations {
         "StaticTenantId" to IDENTITY,
     )
 
+    /** The annotations only a subscription processor or its handler takes: `@Retry` (roadmap P.3). */
+    private val PROCESSOR_NAMES = setOf("Retry")
+
     /** The identity annotations a command body no longer carries (decision D68). */
     private val IDENTITY_NAMES = setOf("AggregateId", "TenantId", "OwnerId", "AggregateVersion")
 
@@ -90,9 +93,9 @@ internal object V10Annotations {
 
     /**
      * The problems of the annotations on [annotated], described as [where]. A command's identity annotations get the
-     * D68 message.
+     * D68 message. Only a subscription [processor] or its handler takes `@Retry`.
      */
-    fun problems(annotated: KSAnnotated, where: String): List<String> =
+    fun problems(annotated: KSAnnotated, where: String, processor: Boolean = false): List<String> =
         annotated.annotations.mapNotNull { annotation ->
             val declaration = annotation.annotationType.resolve().declaration
             val qualifiedName = declaration.qualifiedName?.asString() ?: return@mapNotNull null
@@ -100,6 +103,10 @@ internal object V10Annotations {
                 return@mapNotNull null
             }
             val simpleName = qualifiedName.removePrefix("$PACKAGE.").substringBefore('.')
+            if (simpleName in PROCESSOR_NAMES && !processor) {
+                return@mapNotNull "$where is annotated @$simpleName, which only a subscription processor " +
+                    "(@Projection, @Reactor, @Saga) or its @OnEvent handler takes"
+            }
             if (simpleName in NAMES) {
                 return@mapNotNull null
             }
@@ -126,10 +133,13 @@ internal object V10Annotations {
         return (problems(type, where) + constructorParameters + properties + functions).distinct()
     }
 
-    /** The problems of the annotations on [function] of the type described as [owner], and on its parameters. */
-    fun problemsOfFunction(function: KSFunctionDeclaration, owner: String): List<String> {
+    /**
+     * The problems of the annotations on [function] of the type described as [owner], and on its parameters; a
+     * [processor]'s function may take `@Retry`.
+     */
+    fun problemsOfFunction(function: KSFunctionDeclaration, owner: String, processor: Boolean = false): List<String> {
         val where = "$owner's function ${function.simpleName.asString()}"
-        return problems(function, where) + function.parameters.flatMap {
+        return problems(function, where, processor) + function.parameters.flatMap {
             problems(it, "$where's parameter ${it.name?.asString()}")
         }
     }

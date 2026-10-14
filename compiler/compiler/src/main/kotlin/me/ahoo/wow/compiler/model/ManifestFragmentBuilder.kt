@@ -211,6 +211,7 @@ internal object ManifestFragmentBuilder {
                 derives = derives.takeIf { kind == SubscriptionKind.SAGA },
                 start = SubscriptionStart.defaultFor(kind),
                 schedules = handler.schedules.distinct().sorted().ifEmpty { null },
+                retry = handler.retry?.manifest(),
             )
         }
         val rejections = binding.rejections.map { rejection ->

@@ -23,7 +23,7 @@ object NineXStubs {
     /** The 9.x annotations V10 removed (decisions D67, D68). */
     val REMOVED_ANNOTATIONS = listOf(
         "AggregateId", "AggregateName", "AggregateRoute", "AggregateVersion", "CommandRoute", "EntityObject", "Event",
-        "Generated", "OnError", "OnStateEvent", "Order", "OwnerId", "Retry", "Spaced", "StatelessSaga", "TenantId",
+        "Generated", "OnError", "OnStateEvent", "Order", "OwnerId", "Spaced", "StatelessSaga", "TenantId",
         "ValueObject", "VoidCommand",
     )
 
