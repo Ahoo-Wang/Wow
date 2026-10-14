@@ -27,9 +27,11 @@ import me.ahoo.wow.api.aggregate.AggregateRef
  *   does nothing, so a replay, or an old partition owner running beside the new one (decision D45), never moves a
  *   timer back nor revives one that fired or was cancelled.
  * - **Conditional writes**: [settle] writes a change only while the store holds the timer as it was loaded (the same
- *   [Timer.id], [Timer.status], [Timer.slot] and [Timer.attempts]); a cancel, a reschedule or another node's write
- *   that won the race leaves it as it is. Firing a slot marks it fired and moves [Timer.dueAt] to the next slot in that
- *   one write.
+ *   [Timer.id], [Timer.status], [Timer.slot], [Timer.attempts] and [Timer.dueAt]); a cancel, a reschedule or another node's write
+ *   that won the race leaves it as it is. The firing loop claims a timer with such a write (PENDING to FIRING, its
+ *   [Timer.dueAt] the claim's deadline) before it sends it, so a timer cancelled after it was loaded is never sent;
+ *   recording the outcome from the claimed row marks the slot fired and moves [Timer.dueAt] to the next slot in one
+ *   write. A claim that lapses, its node dead, is due again and claimed anew.
  */
 interface TimerStore {
     /**
@@ -41,15 +43,16 @@ interface TimerStore {
     suspend fun put(timer: Timer): Boolean
 
     /**
-     * Cancels the timer [owner] keeps under [key] when it is PENDING (or PARKED) and the store holds it at [version] or
-     * earlier; nothing otherwise.
+     * Cancels the timer [owner] keeps under [key] when it is PENDING (or FIRING, or PARKED) and the store holds it at
+     * [version] or earlier; nothing otherwise.
      *
      * @return true when a timer was cancelled.
      */
     suspend fun cancel(owner: String, key: String, version: Long): Boolean
 
     /**
-     * Cancels every PENDING (or PARKED) timer of [owner] held at [version] or earlier: the owner aggregate was deleted.
+     * Cancels every PENDING (or FIRING, or PARKED) timer of [owner] held at [version] or earlier: the owner aggregate
+     * was deleted.
      *
      * @return how many timers were cancelled.
      */
@@ -59,14 +62,15 @@ interface TimerStore {
     suspend fun find(owner: String, key: String): Timer?
 
     /**
-     * Up to [limit] PENDING timers of any of [partitions] due at or before [until] (epoch milliseconds), earliest first;
-     * ties by id. One query for every partition the caller owns.
+     * Up to [limit] PENDING timers of any of [partitions] due at or before [until] (epoch milliseconds), and FIRING ones
+     * whose claim lapses by then (a FIRING timer's [Timer.dueAt] is its claim's deadline), earliest first; ties by id.
+     * One query for every partition the caller owns.
      */
     suspend fun due(partitions: Set<Int>, until: Long, limit: Int): List<Timer>
 
     /**
      * Writes each change's [TimerChange.next] status, slot, due time, attempts and outcome, when the store still holds
-     * its [TimerChange.loaded] timer as loaded (same id, status, slot and attempts); in as few round trips as the
+     * its [TimerChange.loaded] timer as loaded (same id, status, slot, attempts and due time); in as few round trips as the
      * backend allows.
      *
      * @return how many changes were written.

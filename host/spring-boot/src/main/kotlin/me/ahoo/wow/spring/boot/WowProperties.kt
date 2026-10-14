@@ -76,7 +76,7 @@ import kotlin.time.toKotlinDuration
  *   (`generic` or `wecom`), `events` (`parked`, `exhausted`), `timeout` (5s), `headers`: the webhook told when an
  *   entry parks or spends its retries, see [Ops] and [Webhook].
  * - `wow.timers.poll-interval` (1s), `lookahead` (30s), `max-attempts` (10), `expires-after` (none), `parallelism`
- *   (64), `max-fire-rate` (none, per partition and second): the node's firing loop
+ *   (64), `max-fire-rate` (none, per partition and second), `claim-timeout` (30s): the node's firing loop
  *   of the scheduled commands (decision D166), see [Timers].
  * - `wow.tenant.default`: the tenant of a caller that has none (D97).
  * - `wow.http.request-facts`, `wow.http.errors.[<code>].status`, `wow.http.manifest.enabled`.
@@ -408,7 +408,8 @@ class WowProperties {
      * over every partition the node owns, the timers due within [lookahead] ([pollInterval]); how many attempts a
      * technical failure to send one gets before it is parked under `wow.timers` ([maxAttempts]); when set, how late a
      * timer may be sent before it expires instead ([expiresAfter]); how many commands a partition sends at once
-     * ([parallelism]) and, when set, at most a second ([maxFireRate]), the rate a backlog of overdue timers drains at.
+     * ([parallelism]) and, when set, at most a second ([maxFireRate]), the rate a backlog of overdue timers drains at;
+     * how long the claim on a timer being sent holds before another owner may send it ([claimTimeout]).
      */
     class Timers {
         var pollInterval: Duration = DEFAULT_TIMERS.pollInterval.toJavaDuration()
@@ -417,6 +418,7 @@ class WowProperties {
         var expiresAfter: Duration? = null
         var parallelism: Int = DEFAULT_TIMERS.parallelism
         var maxFireRate: Double? = null
+        var claimTimeout: Duration = DEFAULT_TIMERS.claimTimeout.toJavaDuration()
 
         fun options(): TimerOptions = DEFAULT_TIMERS.copy(
             pollInterval = pollInterval.toKotlinDuration(),
@@ -425,6 +427,7 @@ class WowProperties {
             expiresAfter = expiresAfter?.toKotlinDuration(),
             parallelism = parallelism,
             maxFireRate = maxFireRate,
+            claimTimeout = claimTimeout.toKotlinDuration(),
         )
     }
 

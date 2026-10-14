@@ -54,7 +54,7 @@ class InMemoryTimerStore : TimerStore {
         require(limit >= 1) { "A page holds at least one timer." }
         return lock.withLock {
             timers.values
-                .filter { it.partition in partitions && it.status == TimerStatus.PENDING && it.dueAt <= until }
+                .filter { it.partition in partitions && it.status in DUE_STATUSES && it.dueAt <= until }
                 .sortedWith(DUE_ORDER)
                 .take(limit)
         }
@@ -81,14 +81,17 @@ class InMemoryTimerStore : TimerStore {
 
     private companion object {
         val DUE_ORDER: Comparator<Timer> = compareBy<Timer>({ it.dueAt }, { it.id })
+        val DUE_STATUSES = setOf(TimerStatus.PENDING, TimerStatus.FIRING)
+        val CANCELLABLE = setOf(TimerStatus.PENDING, TimerStatus.FIRING, TimerStatus.PARKED)
 
         fun Timer.cancellable(version: Long): Boolean =
-            (status == TimerStatus.PENDING || status == TimerStatus.PARKED) && this.version <= version
+            status in CANCELLABLE && this.version <= version
 
         fun Timer.cancelled(version: Long): Timer = copy(status = TimerStatus.CANCELLED, version = version)
 
         /** Whether this, the timer held, is still [loaded] as it was loaded. */
         fun Timer.isAsLoaded(loaded: Timer): Boolean =
-            id == loaded.id && status == loaded.status && slot == loaded.slot && attempts == loaded.attempts
+            id == loaded.id && status == loaded.status && slot == loaded.slot && attempts == loaded.attempts &&
+                dueAt == loaded.dueAt
     }
 }

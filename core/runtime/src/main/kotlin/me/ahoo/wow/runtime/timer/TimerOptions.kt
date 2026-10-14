@@ -31,6 +31,8 @@ import kotlin.time.Duration.Companion.seconds
  * - [expiresAfter]: a timer found due longer ago than this, after an outage, is not sent but cancelled with the
  *   outcome `EXPIRED`; null, the default, sends every timer however late.
  * - [batch]: the most timers one read of a store loads; [parallelism]: the most commands a partition sends at once.
+ * - [claimTimeout]: how long a claim on a timer being sent holds (decision D198): a claim whose node died lapses after
+ *   it, and the next owner of the partition sends the timer again; longer than a send takes.
  * - [maxFireRate]: the most commands a partition sends a second (`wow.timers.max-fire-rate`), so a backlog of overdue
  *   timers after an outage drains at that rate instead of at once; null, the default, sends them as fast as
  *   [parallelism] allows.
@@ -43,6 +45,7 @@ data class TimerOptions(
     val batch: Int = 1_000,
     val parallelism: Int = 64,
     val maxFireRate: Double? = null,
+    val claimTimeout: Duration = 30.seconds,
 ) {
     init {
         require(pollInterval.isPositive()) { "The poll interval is positive." }
@@ -51,6 +54,7 @@ data class TimerOptions(
         require(batch >= 1) { "A read loads at least one timer." }
         require(parallelism >= 1) { "A partition sends at least one command at once." }
         require(maxFireRate == null || maxFireRate > 0) { "A fire rate is positive." }
+        require(claimTimeout.isPositive()) { "A claim holds for a positive time." }
     }
 
     companion object {

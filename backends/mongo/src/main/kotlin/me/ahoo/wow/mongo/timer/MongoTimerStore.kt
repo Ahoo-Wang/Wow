@@ -49,7 +49,7 @@ import org.bson.conversions.Bson
  * Every write is one single-document operation, but for [cancelAll] and [settle]. A put is a conditional upsert (see
  * [conditionalUpsert]) whose filter admits only another timer at the same or a later version; a cancel is a
  * conditional update; a settle is one unordered bulk write of conditional updates, each on the document as it was
- * loaded. A partial index on `(partition, due_at, timer_id)` of the PENDING timers serves the due read of every
+ * loaded. A partial index on `(partition, due_at, timer_id)` of the PENDING and FIRING (claimed) timers serves the due read of every
  * partition asked, one on the target of the PARKED timers a resume. The body is kept as the command's JSON text, the
  * rule as a subdocument (`{type, ...}`, as Wow's JSON writes it). Format 2 added the rule and the slot.
  *
@@ -76,7 +76,7 @@ class MongoTimerStore(
         timers.createIndex(Indexes.ascending(OWNER, KEY), IndexOptions().unique(true).name(TIMER_KEY))
         timers.createIndex(
             Indexes.ascending(PARTITION, DUE_AT, TIMER_ID),
-            IndexOptions().name(DUE_INDEX).partialFilterExpression(Filters.eq(STATUS, TimerStatus.PENDING.name)),
+            IndexOptions().name(DUE_INDEX).partialFilterExpression(Filters.`in`(STATUS, DUE_STATUSES)),
         )
         timers.createIndex(
             Indexes.ascending(TARGET_CONTEXT, TARGET_AGGREGATE, TARGET_TENANT_ID, TARGET_ID),
@@ -144,7 +144,7 @@ class MongoTimerStore(
             timers.find(
                 Filters.and(
                     Filters.`in`(PARTITION, partitions),
-                    Filters.eq(STATUS, TimerStatus.PENDING.name),
+                    Filters.`in`(STATUS, DUE_STATUSES),
                     Filters.lte(DUE_AT, until),
                 ),
             ).sort(DUE_ORDER).limit(limit).map(::timerOf).toList()
@@ -164,6 +164,7 @@ class MongoTimerStore(
                         Filters.eq(STATUS, loaded.status.name),
                         Filters.eq(SLOT, loaded.slot),
                         Filters.eq(ATTEMPTS, loaded.attempts),
+                        Filters.eq(DUE_AT, loaded.dueAt),
                     ),
                     Updates.combine(
                         Updates.set(STATUS, next.status.name),
@@ -196,7 +197,7 @@ class MongoTimerStore(
     )
 
     private fun cancellable(version: Long): Bson = Filters.and(
-        Filters.`in`(STATUS, TimerStatus.PENDING.name, TimerStatus.PARKED.name),
+        Filters.`in`(STATUS, TimerStatus.PENDING.name, TimerStatus.FIRING.name, TimerStatus.PARKED.name),
         Filters.lte(VERSION, version),
     )
 
@@ -234,6 +235,7 @@ class MongoTimerStore(
         const val TIMER_KEY = "timer_key"
         const val DUE_INDEX = "timer_due"
         const val PARKED_INDEX = "timer_parked"
+        val DUE_STATUSES = listOf(TimerStatus.PENDING.name, TimerStatus.FIRING.name)
         const val OWNER = "owner"
         const val KEY = "key"
         const val TIMER_ID = "timer_id"

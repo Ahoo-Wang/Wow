@@ -147,6 +147,7 @@ class PostgresTimerStore(
                     settle.setString(9, loaded.status.name)
                     settle.setLong(10, loaded.slot)
                     settle.setInt(11, loaded.attempts)
+                    settle.setLong(12, loaded.dueAt)
                     settle.addBatch()
                 }
                 settle.executeBatch().sum()

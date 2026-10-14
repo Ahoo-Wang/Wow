@@ -237,6 +237,66 @@ abstract class TimerStoreSpec {
         store.find(owner, "pay").assert().isEqualTo(next)
     }
 
+    private fun Timer.claimed(deadline: Long = DUE + CLAIM) = copy(status = TimerStatus.FIRING, dueAt = deadline)
+
+    @Test
+    fun `a timer cancelled between the poll and its claim is not claimed`(): Unit = runBlocking {
+        val timer = timer()
+        store.put(timer)
+        val loaded = store.due(partitions, DUE, LIMIT).single()
+        store.cancel(owner, "pay", 1).assert().isTrue()
+        settle(loaded, loaded.claimed()).assert().isFalse()
+        store.find(owner, "pay")?.status.assert().isEqualTo(TimerStatus.CANCELLED)
+        // Rescheduled since it was loaded: the claim of the old timer fails too.
+        store.put(timer(version = 2))
+        settle(loaded, loaded.claimed()).assert().isFalse()
+        store.find(owner, "pay")?.status.assert().isEqualTo(TimerStatus.PENDING)
+    }
+
+    @Test
+    fun `a timer is claimed once, and its outcome is written from the claim`(): Unit = runBlocking {
+        val timer = timer()
+        store.put(timer)
+        val claimed = timer.claimed()
+        coroutineScope {
+            (1..CONTENDERS).map { async(Dispatchers.Default) { store.settle(listOf(TimerChange(timer, claimed))) } }
+                .awaitAll()
+        }.sum().assert().isEqualTo(1)
+        store.find(owner, "pay").assert().isEqualTo(claimed)
+        // Claimed, it is not due before its claim's deadline.
+        store.due(partitions, DUE + CLAIM - 1, LIMIT).assert().isEmpty()
+        settle(claimed, claimed.fired()).assert().isTrue()
+        store.find(owner, "pay")?.status.assert().isEqualTo(TimerStatus.FIRED)
+    }
+
+    @Test
+    fun `a claim that lapses is due again and claimed anew`(): Unit = runBlocking {
+        val timer = timer()
+        store.put(timer)
+        val claimed = timer.claimed()
+        settle(timer, claimed).assert().isTrue()
+        val lapsed = store.due(partitions, DUE + CLAIM, LIMIT).single()
+        lapsed.assert().isEqualTo(claimed)
+        val reclaimed = lapsed.claimed(DUE + 2 * CLAIM)
+        settle(lapsed, reclaimed).assert().isTrue()
+        // The first claimer's late outcome no longer applies.
+        settle(claimed, claimed.fired()).assert().isFalse()
+        store.find(owner, "pay").assert().isEqualTo(reclaimed)
+    }
+
+    @Test
+    fun `a cancel takes a claimed timer`(): Unit = runBlocking {
+        val timer = timer()
+        store.put(timer)
+        settle(timer, timer.claimed())
+        store.cancel(owner, "pay", 1).assert().isTrue()
+        settle(timer.claimed(), timer.claimed().fired()).assert().isFalse()
+        store.find(owner, "pay")?.status.assert().isEqualTo(TimerStatus.CANCELLED)
+        store.put(timer(key = "all"))
+        settle(timer(key = "all"), timer(key = "all").claimed())
+        store.cancelAll(owner, 1).assert().isEqualTo(1)
+    }
+
     @Test
     fun `changes are written together, each on its own condition`(): Unit = runBlocking {
         val first = timer(key = "first")
@@ -311,5 +371,6 @@ abstract class TimerStoreSpec {
         const val CONTENDERS = 8
         const val DUE = 1_700_000_000_000L
         const val HOUR = 3_600_000L
+        const val CLAIM = 30_000L
     }
 }

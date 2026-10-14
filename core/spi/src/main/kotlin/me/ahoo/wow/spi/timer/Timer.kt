@@ -83,6 +83,14 @@ enum class TimerStatus {
     /** Waiting to be sent, or being retried after a technical failure. */
     PENDING,
 
+    /**
+     * Claimed by the owner of its partition, which is sending its slot (decision D198): a conditional write from the
+     * PENDING row as loaded, so a timer cancelled or rescheduled after it was loaded is never sent. [Timer.dueAt] is
+     * then the claim's deadline: a claim left by a node that died is due again once it lapses, and the next owner
+     * claims it anew.
+     */
+    FIRING,
+
     /** Its last slot is sent, and settled by its target: committed, already committed, unchanged or rejected. */
     FIRED,
 

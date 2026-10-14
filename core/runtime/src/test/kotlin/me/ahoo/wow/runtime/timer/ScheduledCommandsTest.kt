@@ -89,7 +89,13 @@ class ScheduledCommandsTest {
         shopManifest(),
         backends,
         channel,
-        options = fastNodeOptions().copy(timers = TimerOptions(pollInterval = 20.milliseconds, lookahead = 1.seconds)),
+        options = fastNodeOptions().copy(
+            timers = TimerOptions(
+                pollInterval = 20.milliseconds,
+                lookahead = 1.seconds,
+                claimTimeout = 300.milliseconds
+            ),
+        ),
         subscriptions = subscriptions,
         contracts = ContractDirectory(shopManifest(), listOf(peer(stockManifest()))),
         topics = topics,

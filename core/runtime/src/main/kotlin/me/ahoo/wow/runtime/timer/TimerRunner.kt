@@ -45,11 +45,13 @@ import kotlin.time.TimeSource
  * [me.ahoo.wow.runtime.cluster.PartitionOwnership]), so a timer is sent by the owner of its target's partition. A new
  * owner reads the store again: nothing is handed over.
  *
- * **Sending one**: from the row as loaded, with no read of it again; a timer cancelled or rescheduled since it was
- * loaded (at most a poll ago) is sent once more, and its target's state guards it. One due longer ago than
- * [TimerOptions.expiresAfter] is cancelled as `EXPIRED`. Otherwise [firer] sends it, its request id `timer#slot`, and
- * its outcome becomes a conditional change of the loaded row ([TimerChange]), written with the others of the round in
- * one batch ([flush]):
+ * **Sending one**: from the row as loaded, with no read of it again. One due longer ago than
+ * [TimerOptions.expiresAfter] is cancelled as `EXPIRED`. Otherwise the runner first claims it with one conditional
+ * write from the loaded row (PENDING to FIRING, due again at the claim's deadline, [TimerOptions.claimTimeout]): a
+ * timer cancelled or rescheduled after it was loaded fails the claim and is not sent. Claimed, [firer] sends it, its
+ * request id `timer#slot`, and its outcome becomes a conditional change of the claimed row ([TimerChange]), written
+ * with the others of the round in one batch ([flush]). A claim left by a node that died lapses at its deadline, and
+ * the next owner of the partition claims and sends the timer again, deduplicated by its request id:
  *
  * - committed, already committed (a duplicate: sent before, whose outcome was not recorded), unchanged or rejected:
  *   its slot fired; a rule due once is then FIRED. A rejection is the target's state guard doing its work, not a
@@ -175,7 +177,10 @@ class TimerRunner(
         batch.forEach { it.part.sending.remove(it.change.loaded.id) }
     }
 
-    /** Sends [timer], due, and queues its outcome for the next [flush]. */
+    /** How many timers of [partition] are loaded and not sent yet. */
+    internal fun loaded(partition: Int): Int = parts[partition]?.let { synchronized(it) { it.wheel.size } } ?: 0
+
+    /** Claims [timer], due, sends it once claimed, and queues its outcome for the next [flush]. */
     @Suppress("TooGenericExceptionCaught") // Whatever fails is a technical failure of this attempt.
     private suspend fun fire(part: Part, timer: Timer) {
         try {
@@ -186,31 +191,46 @@ class TimerRunner(
                 settle(part, timer, timer.copy(status = TimerStatus.CANCELLED, outcome = TimerOutcomes.EXPIRED))
                 return
             }
+            // Claimed before it is sent, from the row as loaded: one cancelled or rescheduled since is not sent.
+            val claimed = timer.copy(
+                status = TimerStatus.FIRING,
+                dueAt = now + options.claimTimeout.inWholeMilliseconds
+            )
+            if (quietly("claim the timer ${timer.id}") { store.settle(listOf(TimerChange(timer, claimed))) } != 1) {
+                part.sending.remove(timer.id)
+                return
+            }
             val outcome = try {
                 firer.fire(timer)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
-                failed(part, timer, failure, now)
+                failed(part, claimed, failure, now)
                 return
             }
-            settle(part, timer, fired(timer, outcome))
+            settle(part, claimed, fired(claimed, outcome, timer.dueAt))
         } catch (cancelled: CancellationException) {
             part.sending.remove(timer.id)
             throw cancelled
         }
     }
 
-    /** [timer] after its slot was sent with [outcome]: a rule due once is done (decision D198). */
-    private fun fired(timer: Timer, outcome: String): Timer =
-        timer.copy(status = TimerStatus.FIRED, attempts = timer.attempts + 1, outcome = outcome)
+    /**
+     * [timer], claimed, after its slot due at [due] was sent with [outcome]: a rule due once is done, due when it was
+     * (decision D198).
+     */
+    private fun fired(timer: Timer, outcome: String, due: Long): Timer =
+        timer.copy(status = TimerStatus.FIRED, attempts = timer.attempts + 1, outcome = outcome, dueAt = due)
 
     private fun settle(part: Part, loaded: Timer, next: Timer) {
         settling += Settling(part, TimerChange(loaded, next))
         loop.wakeUp()
     }
 
-    /** One more failed attempt of [timer]: due again after the backoff, or parked once its attempts are spent. */
+    /**
+     * One more failed attempt of [timer], as claimed: PENDING again, due after the backoff, or parked once its attempts
+     * are spent.
+     */
     private suspend fun failed(part: Part, timer: Timer, failure: Exception, now: Long) {
         val attempts = timer.attempts + 1
         val reason = "${failure.javaClass.name}: ${failure.message}"
@@ -220,7 +240,12 @@ class TimerRunner(
             settle(
                 part,
                 timer,
-                timer.copy(attempts = attempts, outcome = reason, dueAt = now + backoff.inWholeMilliseconds)
+                timer.copy(
+                    status = TimerStatus.PENDING,
+                    attempts = attempts,
+                    outcome = reason,
+                    dueAt = now + backoff.inWholeMilliseconds,
+                ),
             )
             return
         }

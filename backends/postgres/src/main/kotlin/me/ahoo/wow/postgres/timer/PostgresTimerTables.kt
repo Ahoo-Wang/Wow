@@ -25,7 +25,7 @@ import me.ahoo.wow.postgres.PostgresIdentifiers
  * nullable columns, both null or both set; the operator (decision D163) is a nullable `jsonb` object, `{id, tenantId,
  * crossScope}`, a column added within format 1 that a table created before it gets on its next ensure; so is the
  * scope the command is sent in (decision D189), a nullable `jsonb` object `{ownerId, spaceId}`, null for none. A
- * partial index on `(partition, due_at, timer_id)` of the PENDING timers
+ * partial index on `(partition, due_at, timer_id)` of the PENDING and FIRING (claimed) timers
  * serves the runner's due read, and one on the target of the PARKED timers serves a resume.
  */
 internal class PostgresTimerTables(context: String) {
@@ -62,7 +62,8 @@ internal class PostgresTimerTables(context: String) {
             PRIMARY KEY (owner, key)
         )
         """.trimIndent(),
-        "CREATE INDEX IF NOT EXISTS \"$dueIndex\" ON $table (partition, due_at, timer_id) WHERE status = 'PENDING'",
+        "CREATE INDEX IF NOT EXISTS \"$dueIndex\" ON $table (partition, due_at, timer_id) " +
+            "WHERE status IN ('PENDING', 'FIRING')",
         "CREATE INDEX IF NOT EXISTS \"$parkedIndex\" ON $table " +
             "(target_context, target_aggregate, target_tenant_id, target_id) WHERE status = 'PARKED'",
     )
@@ -88,24 +89,25 @@ internal class PostgresTimerTables(context: String) {
 
     /** Parameters: version, owner, key, version. */
     val cancel = "UPDATE $table SET status = 'CANCELLED', version = greatest(version, ?) " +
-        "WHERE owner = ? AND key = ? AND status IN ('PENDING', 'PARKED') AND version <= ?"
+        "WHERE owner = ? AND key = ? AND status IN ('PENDING', 'FIRING', 'PARKED') AND version <= ?"
 
     /** Parameters: version, owner, version. */
     val cancelAll = "UPDATE $table SET status = 'CANCELLED', version = greatest(version, ?) " +
-        "WHERE owner = ? AND status IN ('PENDING', 'PARKED') AND version <= ?"
+        "WHERE owner = ? AND status IN ('PENDING', 'FIRING', 'PARKED') AND version <= ?"
 
     val find = "SELECT $COLUMNS FROM $table WHERE owner = ? AND key = ?"
 
     /** Parameters: the partitions (an `integer[]`), until, limit. */
-    val due = "SELECT $COLUMNS FROM $table WHERE partition = ANY(?) AND status = 'PENDING' AND due_at <= ? " +
+    val due = "SELECT $COLUMNS FROM $table WHERE partition = ANY(?) AND status IN ('PENDING', 'FIRING') " +
+        "AND due_at <= ? " +
         "ORDER BY due_at, timer_id LIMIT ?"
 
     /**
-     * Parameters: the next status, slot, due at, attempts and outcome; then the owner, key, timer id, status, slot and
-     * attempts the row must still hold.
+     * Parameters: the next status, slot, due at, attempts and outcome; then the owner, key, timer id, status, slot,
+     * attempts and due at the row must still hold.
      */
     val settle = "UPDATE $table SET status = ?, slot = ?, due_at = ?, attempts = ?, outcome = ? " +
-        "WHERE owner = ? AND key = ? AND timer_id = ? AND status = ? AND slot = ? AND attempts = ?"
+        "WHERE owner = ? AND key = ? AND timer_id = ? AND status = ? AND slot = ? AND attempts = ? AND due_at = ?"
 
     /** Parameters: the target's context, aggregate, tenant and id. */
     val parked = "SELECT $COLUMNS FROM $table WHERE target_context = ? AND target_aggregate = ? " +

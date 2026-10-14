@@ -77,13 +77,15 @@ class TimerRunnerTest {
         expiresAfter: Duration? = null,
         maxAttempts: Int = 3,
         maxFireRate: Double? = null,
+        pollInterval: Duration = 5.milliseconds,
     ): TimerLoop = TimerLoop(
         TimerOptions(
-            pollInterval = 5.milliseconds,
+            pollInterval = pollInterval,
             lookahead = 1.seconds,
             retry = RetryPolicy(maxAttempts = maxAttempts, initialBackoff = 1.seconds, maxBackoff = 1.minutes),
             expiresAfter = expiresAfter,
             maxFireRate = maxFireRate,
+            claimTimeout = CLAIM,
         ),
         clock,
     ).also { loops += it }
@@ -191,23 +193,43 @@ class TimerRunnerTest {
         }
         store.put(timer("pay"))
         runner(timers = refusing, loop = loop(maxAttempts = 1)).startPartition(0)
-        eventually { fired.size >= 2 }
+        eventually { fired.size == 1 }
+        delay(50)
         ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")).assert().isNull()
-        status("pay").status.assert().isEqualTo(TimerStatus.PENDING)
+        // Still claimed: it is sent again once the claim lapses.
+        status("pay").status.assert().isEqualTo(TimerStatus.FIRING)
     }
 
     @Test
-    fun `a timer cancelled after it was loaded is dropped by the next poll`(): Unit = runBlocking {
+    fun `a timer cancelled after it was loaded is not sent`(): Unit = runBlocking {
         store.put(timer("pay", dueIn = 500.milliseconds))
-        runner().startPartition(0)
-        delay(50)
-        // Loaded into the wheel, then cancelled before it is due: the next poll loads the wheel again without it.
+        // No poll before it is due: the wheel holds the timer as loaded.
+        runner(loop = loop(pollInterval = 1.minutes)).startPartition(0)
+        eventually { runners.single().loaded(0) == 1 }
         store.cancel(order("o-1").toString(), "pay", 2).assert().isTrue()
-        delay(50)
         clock.advance(500.milliseconds)
+        runners.single().partitions.assert().containsExactly(0)
+        loops.single().wakeUp()
         delay(100)
+        // Its claim from the row as loaded failed: it was not sent.
         fired.assert().isEmpty()
         status("pay").status.assert().isEqualTo(TimerStatus.CANCELLED)
+    }
+
+    @Test
+    fun `a claim left by a node that died is sent again once it lapses`(): Unit = runBlocking {
+        val timer = timer("pay")
+        store.put(timer)
+        // The previous owner claimed it and died before it wrote the outcome.
+        store.settle(
+            listOf(TimerChange(timer, timer.copy(status = TimerStatus.FIRING, dueAt = clock.millis() + 1_000)))
+        )
+        runner().startPartition(0)
+        delay(50)
+        fired.assert().isEmpty()
+        clock.advance(1.seconds)
+        eventually { status("pay").status == TimerStatus.FIRED }
+        fired.assert().containsExactly(timer.id)
     }
 
     @Test
@@ -260,6 +282,10 @@ class TimerRunnerTest {
         }
         store.put(timer("pay"))
         runner(timers = failingOnce).startPartition(0)
+        eventually { fired.size == 1 }
+        delay(50)
+        // Its claim lapses, and it is sent again.
+        clock.advance(CLAIM)
         eventually { status("pay").status == TimerStatus.FIRED }
         // Sent twice, with the same request id: a target deduplicates the second (ScheduledCommandsTest).
         fired.assert().containsExactly(timer("pay").id, timer("pay").id)
@@ -328,6 +354,7 @@ class TimerRunnerTest {
         const val BACKLOG = 6
         const val RATE = 20.0
         const val TOLERANCE = 30L
+        val CLAIM = 2.seconds
     }
 }
 
