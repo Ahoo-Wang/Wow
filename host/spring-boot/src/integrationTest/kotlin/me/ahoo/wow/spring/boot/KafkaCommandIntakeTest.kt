@@ -23,12 +23,14 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kafka.KafkaOptions
 import me.ahoo.wow.kafka.KafkaPartitionedSource
 import me.ahoo.wow.kafka.KafkaTopicAdmin
 import me.ahoo.wow.kafka.KafkaTopicProducer
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.InMemoryEventLog
@@ -59,6 +61,7 @@ import me.ahoo.wow.runtime.node.TopicDdl
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.tck.containers.WowContainers
 import org.apache.kafka.clients.admin.Admin
 import org.apache.kafka.clients.admin.AdminClientConfig
@@ -79,7 +82,9 @@ import me.ahoo.wow.manifest.Creation as ManifestCreation
  * Cross-context commands and rejection receipts on a real broker (decisions D33, D47, D135–D137): two nodes of two
  * services in one JVM, a sales service whose saga reserves stock for each order and a stock service that takes
  * commands from its command topic. A reservation the stock accepts is executed by the owner of its log partition; one
- * it rejects comes back as a receipt, and the sales saga's `@OnRejected` handler cancels the order.
+ * it rejects comes back as a receipt, and the sales saga's `@OnRejected` handler cancels the order. When the saga
+ * asks for it (decision D192), one it commits comes back as a success receipt too, to its `@OnCommitted` handler,
+ * once, though a stock node that crashed before its checkpoint sends it again.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class KafkaCommandIntakeTest {
@@ -94,6 +99,8 @@ class KafkaCommandIntakeTest {
     private val reservations = CopyOnWriteArrayList<String>()
     private val cancellations = CopyOnWriteArrayList<String>()
     private val rejections = CopyOnWriteArrayList<CommandRejected<*>>()
+    private val confirmations = CopyOnWriteArrayList<String>()
+    private val commits = CopyOnWriteArrayList<CommandCommitted<*>>()
 
     init {
         admin.createTopics(
@@ -110,6 +117,7 @@ class KafkaCommandIntakeTest {
         nodes.clear()
         sources.forEach { it.close() }
         sources.clear()
+        listOf(reservations, cancellations, rejections, confirmations, commits).forEach { it.clear() }
     }
 
     @AfterAll
@@ -139,13 +147,14 @@ class KafkaCommandIntakeTest {
         topics: SourceTopics,
         contracts: ContractDirectory = ContractDirectory(manifest),
         bindings: SubscriptionBindings = SubscriptionBindings.NONE,
+        backends: BackendFactory = InMemoryContexts(),
     ): ServiceNode = ServiceNode(
         service,
         "$service-1",
         "$service-1.internal:9090",
         listOf(model),
         manifest,
-        InMemoryContexts(),
+        backends,
         channel,
         options = NODE_OPTIONS,
         subscriptions = bindings,
@@ -159,13 +168,13 @@ class KafkaCommandIntakeTest {
     private fun stockNode(topics: SourceTopics = topics(intake = true)) =
         node(STOCK_SERVICE, stockModel(), stockManifest(), topics)
 
-    private fun salesNode() = node(
+    private fun salesNode(topics: SourceTopics = topics(), committed: Boolean = false) = node(
         SALES_SERVICE,
         orderModel(),
         salesManifest(),
-        topics(),
+        topics,
         ContractDirectory(salesManifest(), listOf(ManifestFragment("META-INF/wow/peers/$STOCK_SERVICE.json", stockManifest()))),
-        SubscriptionBindings(mapOf(SALES to listOf(orderSaga()))),
+        SubscriptionBindings(mapOf(SALES to listOf(orderSaga(committed)))),
     )
 
     private suspend fun ServiceNode.place(id: String, quantity: Int): CommandResult {
@@ -203,6 +212,41 @@ class KafkaCommandIntakeTest {
         }
 
     @Test
+    fun `a success receipt should come back once, though a stock node that crashed before its checkpoint sends it again`(): Unit =
+        runBlocking {
+            val prefix = "committed."
+            admin.createTopics(
+                listOf(NewTopic(prefix + "wow.stock.commands", PARTITIONS, 1.toShort()), NewTopic(prefix + "wow.sales.receipts", 2, 1.toShort())),
+            ).all().get()
+            // The first stock node never saves a checkpoint: it crashes after each receipt, before the save.
+            val stockBackends = InMemoryContexts()
+            val crashing = BackendFactory { stockBackends.backends(it).copy(checkpoints = DroppedCheckpoints) }
+            val first = node(STOCK_SERVICE, stockModel(), stockManifest(), topics(prefix, intake = true), backends = crashing)
+            first.start()
+            val sales = salesNode(topics(prefix), committed = true).also { it.start() }
+            sales.topicSubscriptions.getValue(prefix + "wow.sales.receipts").awaitStarted()
+            sales.place("o-3", 1).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            eventually { confirmations.size == 1 }
+            val committed = commits.single()
+            committed.ref.assert().isEqualTo(ITEM.ref(TENANT, "o-3"))
+            committed.version.assert().isEqualTo(1)
+            committed.result.duplicate.assert().isFalse()
+            committed.executionId.ref.assert().isEqualTo(ORDER.ref(TENANT, "o-3"))
+            first.stop()
+            nodes.remove(first)
+            channel.unbind(first.address)
+            // Its successor reads the command again from the last checkpoint: decided once, its receipt sent again.
+            node(STOCK_SERVICE, stockModel(), stockManifest(), topics(prefix, intake = true), backends = stockBackends).start()
+            KafkaPartitionedSource.create(options).use { source ->
+                eventually { (0 until 2).sumOf { source.offsets(prefix + "wow.sales.receipts", it).end } == 2L }
+            }
+            delay(500.milliseconds)
+            reservations.assert().containsExactly("o-3")
+            commits.size.assert().isEqualTo(1)
+            confirmations.assert().containsExactly("o-3")
+        }
+
+    @Test
     fun `the intake should not start when its command topic's partitions are not the log's`(): Unit = runBlocking {
         admin.createTopics(listOf(NewTopic("mismatch.wow.stock.commands", PARTITIONS - 1, 1.toShort()))).all().get()
         val stock = stockNode(topics("mismatch.", intake = true))
@@ -235,6 +279,8 @@ class KafkaCommandIntakeTest {
     data class OrderPlaced(val quantity: Int)
     class CancelOrder
     class OrderCancelled
+    class ConfirmOrder
+    class OrderConfirmed
 
     class OrderState {
         var cancelled = false
@@ -254,8 +300,13 @@ class KafkaCommandIntakeTest {
             cancellations += command.ref.id
             Decision.events(OrderCancelled())
         }
+        decide<ConfirmOrder> { _, _ ->
+            confirmations += command.ref.id
+            Decision.events(OrderConfirmed())
+        }
         evolve<OrderPlaced> { }
         evolve<OrderCancelled> { cancelled = true }
+        evolve<OrderConfirmed> { }
     }
 
     private fun stockModel(): AggregateModel<ItemState> = aggregate<ItemState>(STOCK, "item") {
@@ -271,12 +322,22 @@ class KafkaCommandIntakeTest {
         evolve<Reserved> { reserved += it.quantity }
     }
 
-    private fun orderSaga(): ProcessorBinding<OrderState> {
+    private fun orderSaga(committed: Boolean): ProcessorBinding<OrderState> {
         val onRejected = RejectionBinding.of("OrderSaga", "onReserveRejected", Reserve::class.java) { rejected, context ->
             rejections += rejected
             listOf(context.command(rejected.executionId.ref, CancelOrder()))
         }
-        return ProcessorBinding.saga("OrderSaga", "onOrderPlaced", OrderState::class.java, rejections = listOf(onRejected)) {
+        val onReserved = CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { receipt, context ->
+            commits += receipt
+            listOf(context.command(receipt.executionId.ref, ConfirmOrder()))
+        }
+        return ProcessorBinding.saga(
+            "OrderSaga",
+            "onOrderPlaced",
+            OrderState::class.java,
+            rejections = listOf(onRejected),
+            commits = if (committed) listOf(onReserved) else emptyList(),
+        ) {
                 event,
                 context,
             ->
@@ -284,6 +345,13 @@ class KafkaCommandIntakeTest {
                 context.command(ITEM.ref(event.ref.tenantId, event.ref.id), Reserve(it.quantity))
             }
         }
+    }
+
+    /** A checkpoint store that never saves: the node crashes before each save. */
+    private object DroppedCheckpoints : CheckpointStore {
+        override suspend fun load(group: String, subscription: String, partition: Int): Long? = null
+
+        override suspend fun save(group: String, subscription: String, partition: Int, position: Long) = Unit
     }
 
     /** Each context's stores in memory, opened once. */
@@ -343,8 +411,12 @@ class KafkaCommandIntakeTest {
                     aggregates = listOf(
                         aggregateManifest(
                             "order",
-                            listOf(PlaceOrder::class.java to ManifestCreation.REQUIRED, CancelOrder::class.java to ManifestCreation.NONE),
-                            listOf(OrderPlaced::class.java, OrderCancelled::class.java),
+                            listOf(
+                                PlaceOrder::class.java to ManifestCreation.REQUIRED,
+                                CancelOrder::class.java to ManifestCreation.NONE,
+                                ConfirmOrder::class.java to ManifestCreation.NONE,
+                            ),
+                            listOf(OrderPlaced::class.java, OrderCancelled::class.java, OrderConfirmed::class.java),
                         ),
                     ),
                 ),
