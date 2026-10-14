@@ -25,6 +25,7 @@ import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.migrate.MigrationMap
 import me.ahoo.wow.migrate.MigrationPlan
+import me.ahoo.wow.migrate.NineXSnapshot
 import me.ahoo.wow.migrate.NineXStream
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
@@ -54,6 +55,17 @@ object NineXExample {
 
     /** Every stream of the example. */
     fun streams(): List<NineXStream> = (ORDER_STREAMS + CART_STREAMS).map(::stream)
+
+    /**
+     * The 9.x snapshots of the example after its streams, as the 9.x `SnapshotSerializer` lays them out: the captured
+     * 9.x states (`order-state.json`, `cart-state.json`) with the metadata of the streams they fold.
+     */
+    val SNAPSHOTS = listOf("order-snapshot.json", "cart-snapshot.json")
+
+    fun snapshot(name: String): NineXSnapshot = NineXSnapshot.parse(resource(name))
+
+    /** Every snapshot of the example. */
+    fun snapshots(): List<NineXSnapshot> = SNAPSHOTS.map(::snapshot)
 
     val MAP_TEXT: String get() = resource("migration-map.json")
 

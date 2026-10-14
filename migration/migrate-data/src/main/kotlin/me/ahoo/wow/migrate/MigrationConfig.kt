@@ -19,9 +19,12 @@ import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.mongo.log.MongoEventLog
+import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.postgres.PostgresEventLog
+import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.postgresql.ds.PGSimpleDataSource
 import tools.jackson.databind.DeserializationFeature
 import java.io.Closeable
@@ -41,11 +44,15 @@ import java.util.concurrent.ConcurrentHashMap
  *   "source": { "uri": "mongodb://localhost:27017", "database": "example_db" },
  *   "target": { "type": "postgres", "jdbcUrl": "jdbc:postgresql://localhost:5432/wow", "username": "wow",
  *               "password": "env:WOW_PG_PASSWORD" },
- *   "partitions": { "example": 16 }
+ *   "partitions": { "example": 16 },
+ *   "classpath": ["libs"]
  * }
  * ```
  *
  * - [manifests] are the V10 Manifests of the services the streams go to (each a merged `wow-manifest.json`).
+ * - [classpath] holds the services' domain modules, each a jar or a directory (of classes, of jars, or both):
+ *   `compare` and `snapshot` rebuild states with their V10 models ([MigrationModels]). Empty, the models are those on
+ *   the tool's own class path.
  * - [source] is the 9.x MongoDB event store ([SourceConfig]); [target] the V10 log ([TargetConfig]).
  * - [partitions] gives each V10 context its partition count, which must be the services' own: a log refuses another.
  * - [pageSize], [streamBatch], [concurrency] and [lookbackMillis] are [ImportOptions]; [pollIntervalMillis] is the
@@ -63,6 +70,7 @@ data class MigrationConfig(
     val concurrency: Int = 8,
     val lookbackMillis: Long = 300_000,
     val pollIntervalMillis: Long = 1_000,
+    val classpath: List<String> = emptyList(),
 ) {
     /** The options of an import, a dry run when [dryRun], a final complete pass when [restart]. */
     fun options(dryRun: Boolean = false, restart: Boolean = false): ImportOptions = ImportOptions(
@@ -89,6 +97,7 @@ data class MigrationConfig(
                 map = directory.resolve(config.map).toString(),
                 manifests = config.manifests.map { directory.resolve(it).toString() },
                 checkpoint = directory.resolve(config.checkpoint).toString(),
+                classpath = config.classpath.map { directory.resolve(it).toString() },
             )
         }
 
@@ -147,16 +156,21 @@ fun readManifests(paths: List<String>): Manifest {
     return Manifest(contexts = contexts)
 }
 
-/** What a run connects to: the 9.x store, and the V10 log of each context. */
+/** What a run connects to: the 9.x store (its event streams and snapshots), and the V10 log and snapshots of each context. */
 interface MigrationConnections : Closeable {
     val source: NineXEventSource
 
+    val snapshots: NineXSnapshotSource
+
     fun logOf(context: String): EventLog
+
+    fun snapshotStoreOf(context: String): SnapshotStore
 }
 
 /**
  * The connections [config] names: a 9.x MongoDB store, and a V10 log on PostgreSQL or MongoDB whose schema each
- * context's first use creates (with the configured partition count, which an existing log must already have).
+ * context's first use creates (with the configured partition count, which an existing log must already have), with
+ * the snapshot store of each context on the same backend.
  */
 class ConfiguredConnections(private val config: MigrationConfig) : MigrationConnections {
     private val sourceClient: MongoClient = MongoClients.create(
@@ -164,6 +178,8 @@ class ConfiguredConnections(private val config: MigrationConfig) : MigrationConn
     )
     override val source: MongoNineXEventSource =
         MongoNineXEventSource(sourceClient.getDatabase(config.source.database))
+    override val snapshots: NineXSnapshotSource =
+        MongoNineXSnapshotSource(sourceClient.getDatabase(config.source.database))
     private val targetClient: MongoClient? = config.target.uri?.takeIf { config.target.type == TargetConfig.MONGO }
         ?.let { MongoClients.create(requireNotNull(MigrationConfig.resolve(it))) }
     private val dataSource by lazy {
@@ -182,6 +198,16 @@ class ConfiguredConnections(private val config: MigrationConfig) : MigrationConn
                 .also { it.createSchema() }
         } else {
             PostgresEventLog(dataSource, context, partitions).also { it.createSchema() }
+        }
+    }
+
+    private val snapshotStores = ConcurrentHashMap<String, SnapshotStore>()
+
+    override fun snapshotStoreOf(context: String): SnapshotStore = snapshotStores.computeIfAbsent(context) {
+        if (targetClient != null) {
+            MongoSnapshotStore(targetClient, requireNotNull(config.target.database), context)
+        } else {
+            PostgresSnapshotStore(dataSource, context)
         }
     }
 

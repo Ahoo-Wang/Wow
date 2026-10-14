@@ -17,8 +17,10 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.InMemoryEventLog
+import me.ahoo.wow.kernel.InMemorySnapshotStore
 import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
@@ -38,11 +40,17 @@ class MigrateDataTest {
     private var passes = 0
 
     private var nineX: NineXEventSource = source
+    private var nineXSnapshots = InMemoryNineXSnapshotSource(NineXExample.snapshots(), source)
+    private val store = InMemorySnapshotStore()
 
     private val connections = object : MigrationConnections {
         override val source: NineXEventSource get() = nineX
 
+        override val snapshots: NineXSnapshotSource get() = nineXSnapshots
+
         override fun logOf(context: String): EventLog = log
+
+        override fun snapshotStoreOf(context: String): SnapshotStore = store
 
         override fun close() {
             closed = true
@@ -150,6 +158,47 @@ class MigrateDataTest {
     }
 
     @Test
+    fun `import writes the snapshots when told, and compare finds every state equal`(): Unit = runBlocking {
+        val config = config()
+        run("import", "--config", config.toString(), "--snapshots").assert().describedAs(printed)
+            .isEqualTo(MigrateData.OK)
+        printed.assert().contains("example-service.order snapshots done: 1 instances, 1 V10 snapshots written")
+            .contains("Snapshots done.")
+        val id = NineXExample.snapshot("order-snapshot.json").aggregateId
+        store.load(NineXExample.orderModel.type.ref(id.tenantId, id.id))!!.version.assert().isEqualTo(4)
+
+        run("compare", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
+        printed.assert().contains("example-service.order compared: 1 of 1 instances have a 9.x snapshot (100.0%)")
+            .contains("Comparison done: every state compared equals its 9.x snapshot.")
+        run("snapshot", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
+        printed.assert().contains("0 V10 snapshots written, 1 already there")
+    }
+
+    @Test
+    fun `compare reports a broken mapping and exits with its own code`() {
+        val broken = NineXExample.MAP_TEXT.replace(
+            "\"to\": \"example.cart\",",
+            "\"to\": \"example.cart\", \"state\": { \"ignore\": [\"size\"], \"fields\": { \"items\": \"lines\" } },",
+        )
+        val config = config(broken)
+        run("import", "--config", config.toString()).assert().isEqualTo(MigrateData.OK)
+        run("compare", "--config", config.toString(), "--sample", "100").assert().describedAs(printed)
+            .isEqualTo(MigrateData.DIFFERS)
+        printed.assert().contains("DIFFERS example-service.cart (0)/0VY3GwKq4OmV001 v4: items: 9.x (none), V10 [")
+            .contains("lines: 9.x [")
+            .contains("Comparison done: 1 instances of [example-service.cart] differ.")
+        // A resumed comparison still reports what the first run found.
+        run("compare", "--config", config.toString()).assert().isEqualTo(MigrateData.DIFFERS)
+    }
+
+    @Test
+    fun `compare and snapshot need the import first`() {
+        run("compare", "--config", config().toString()).assert().isEqualTo(MigrateData.FAILED)
+        printed.assert().contains("FAILED The full import of example-service.order has not completed")
+        run("snapshot", "--config", config().toString()).assert().isEqualTo(MigrateData.FAILED)
+    }
+
+    @Test
     fun `a migration failure ends the run with its message`() {
         run("tail", "--config", config().toString(), "--once").assert().isEqualTo(MigrateData.FAILED)
         printed.assert().contains("FAILED The full import of")
@@ -162,6 +211,11 @@ class MigrateDataTest {
         run("check").assert().isEqualTo(MigrateData.USAGE_ERROR)
         run("check", "--config", "x", "--once").assert().isEqualTo(MigrateData.USAGE_ERROR)
         printed.assert().contains("Unknown options [--once]").contains("Usage: migrate-data")
+        run("compare", "--config", "x", "--sample", "0").assert().isEqualTo(MigrateData.USAGE_ERROR)
+        run("compare", "--config", "x", "--sample", "all").assert().isEqualTo(MigrateData.USAGE_ERROR)
+        printed.assert().contains("--sample takes a percentage from 1 to 100.")
+        run("import", "--config", "x", "--dry-run", "--snapshots").assert().isEqualTo(MigrateData.USAGE_ERROR)
+        printed.assert().contains("A dry run writes no snapshots")
     }
 
     @Test
@@ -182,6 +236,13 @@ class MigrateDataTest {
             "env:PASSWORD"
         ) { if (it == "PASSWORD") "secret" else null }.assert().isEqualTo("secret")
         assertThrows<MigrationException> { MigrationConfig.resolve("env:MISSING") { null } }
+    }
+
+    @Test
+    fun `the class path of the models resolves against the configuration`() {
+        val path = config()
+        Files.writeString(path, Files.readString(path).replace("\"pollIntervalMillis\": 1", "\"classpath\": [\"lib\"]"))
+        MigrationConfig.read(path).classpath.assert().containsExactly(directory.resolve("lib").toString())
     }
 
     @Test
