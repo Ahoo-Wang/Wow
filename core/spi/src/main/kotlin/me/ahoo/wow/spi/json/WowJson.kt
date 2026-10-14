@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.spi.json
 
+import com.fasterxml.jackson.annotation.JsonSubTypes
+import com.fasterxml.jackson.annotation.JsonTypeInfo
+import me.ahoo.wow.api.schedule.ScheduleRule
 import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.cfg.JsonNodeFeature
 import tools.jackson.databind.json.JsonMapper
@@ -37,10 +40,24 @@ object WowJson {
     /** A new builder with Wow's configuration, for a reader or writer that adds settings of its own. */
     fun builder(): JsonMapper.Builder = JsonMapper.builder()
         .addModule(KotlinModule.Builder().build())
+        .addMixIn(ScheduleRule::class.java, ScheduleRuleJson::class.java)
         .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
         .enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS)
         .disable(JsonNodeFeature.STRIP_TRAILING_BIGDECIMAL_ZEROES)
 
     /** The mapper of Wow's configuration, as [builder] makes it. */
     val mapper: JsonMapper = builder().build()
+
+    /**
+     * How a [ScheduleRule] is written (decision D198): its kind in `type` (`at`, `after`, `cron`) beside its fields, as
+     * the schedule events, the snapshots and the timers store it. The API has no JSON dependency, so the mapping lives
+     * here.
+     */
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
+    @JsonSubTypes(
+        JsonSubTypes.Type(value = ScheduleRule.At::class, name = "at"),
+        JsonSubTypes.Type(value = ScheduleRule.After::class, name = "after"),
+        JsonSubTypes.Type(value = ScheduleRule.Cron::class, name = "cron"),
+    )
+    private abstract class ScheduleRuleJson
 }

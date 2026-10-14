@@ -16,6 +16,7 @@ package me.ahoo.wow.spi.snapshot
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.schedule.ScheduleRule
 
 /**
  * An aggregate's latest committed state as the snapshot store keeps it: a cache derived from the log, never a fact.
@@ -30,6 +31,8 @@ import me.ahoo.wow.api.caller.Operator
  * - [firstEventTime] and [lastEventTime] are the commit times (epoch milliseconds) of its first and last streams;
  * - [operator] and [firstOperator] are the operators (decision D163) of its last stream and of its first, the one
  *   that created it; each null when that stream's caller was anonymous. Both are queryable system fields.
+ * - [schedules] are the schedules the aggregate keeps (decision D198), each rule by its key: those its streams set
+ *   (`wow.ScheduleSet`) and did not cancel (`wow.ScheduleCancelled`), fired or not; a deleted aggregate keeps none.
  */
 data class SnapshotRecord(
     val ref: AggregateRef,
@@ -43,6 +46,7 @@ data class SnapshotRecord(
     val tags: Map<String, List<String>> = emptyMap(),
     val operator: Operator? = null,
     val firstOperator: Operator? = null,
+    val schedules: Map<String, ScheduleRule> = emptyMap(),
 ) {
     init {
         require(version >= 1) { "A snapshot's version starts at 1: it folds at least one event stream." }

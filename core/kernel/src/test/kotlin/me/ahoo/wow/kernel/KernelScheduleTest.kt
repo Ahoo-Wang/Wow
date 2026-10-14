@@ -13,29 +13,44 @@
 
 package me.ahoo.wow.kernel
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
-import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.lifecycle.DeleteAggregate
+import me.ahoo.wow.api.schedule.CancelSchedule
+import me.ahoo.wow.api.schedule.ScheduleCancelled
+import me.ahoo.wow.api.schedule.ScheduleContext
+import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.schedule.ScheduleSet
+import me.ahoo.wow.api.schedule.Schedules
+import me.ahoo.wow.api.schedule.SetSchedule
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
-import me.ahoo.wow.spi.log.ScheduleChange
 import me.ahoo.wow.spi.log.Transport
 import org.junit.jupiter.api.Test
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration.Companion.minutes
 
-/** Decision D166: a decide function's schedules commit with its events, in the same stream, or not at all. */
+/**
+ * Decision D198: a decide function's schedules are the system events `wow.ScheduleSet` and `wow.ScheduleCancelled`
+ * committed with its events, in the same stream, or not at all; every aggregate decides the system commands
+ * `wow.schedule.Set` and `wow.schedule.Cancel`; the kernel keeps the rules beside the state, and a scheduled command
+ * is not decided before its slot's due time.
+ */
 class KernelScheduleTest {
     data class Place(val refuse: Boolean = false)
     data class Pay(val alsoRemind: Boolean = false)
     data class Remind(val at: Long)
     data class Prepare(val at: Long)
+    data class Report(val expression: String)
     data class CancelOrder(val reason: String)
     data class Notify(val text: String)
     data class Placed(val at: Long)
@@ -45,32 +60,40 @@ class KernelScheduleTest {
         var paid = false
     }
 
+    private val decided = ArrayList<ScheduleContext?>()
     private val shipment = AggregateType("test", "shipment")
     private val model = aggregate<Order>("test", "order") {
         initial { Order(it.id) }
         decide<Place>(Creation.REQUIRED) { _, body ->
-            schedule("pay-timeout", 30.minutes, CancelOrder("unpaid"))
+            schedule("pay-timeout", ScheduleRule.after(30.minutes), CancelOrder("unpaid"))
             if (body.refuse) Decision.reject("refused", "refused") else Decision.events(Placed(0))
         }
         decide<Pay> { _, body ->
             cancelSchedule("pay-timeout")
             if (body.alsoRemind) {
-                schedule("remind", Instant.ofEpochMilli(NOW + 5), Notify("paid"), shipment.ref("t", "s-1"))
+                schedule("remind", ScheduleRule.at(Instant.ofEpochMilli(NOW + 5)), Notify("paid"), shipment.ref("t", "s-1"))
             }
             Decision.events(Paid)
         }
         decide<Remind> { _, body ->
-            schedule("remind", Instant.ofEpochMilli(body.at), CancelOrder("first"))
-            schedule("remind", Instant.ofEpochMilli(body.at + 1), CancelOrder("second"))
-            schedule("gone", Instant.ofEpochMilli(body.at), CancelOrder("gone"))
+            schedule("remind", ScheduleRule.At(body.at), CancelOrder("first"))
+            schedule("remind", ScheduleRule.At(body.at + 1), CancelOrder("second"))
+            schedule("gone", ScheduleRule.At(body.at), CancelOrder("gone"))
             cancelSchedule("gone")
             Decision.NoOp
         }
         decide<Prepare>(Creation.ALLOWED) { _, body ->
-            schedule("prepare", Instant.ofEpochMilli(body.at), CancelOrder("prepared"))
+            schedule("prepare", ScheduleRule.At(body.at), CancelOrder("prepared"))
             Decision.NoOp
         }
-        decide<CancelOrder> { state, _ -> if (state.paid) Decision.reject("order.paid", "paid") else Decision.NoOp }
+        decide<Report> { _, body ->
+            schedule("report", ScheduleRule.cron(body.expression), Notify("report"), shipment.ref("t", "s-1"))
+            Decision.NoOp
+        }
+        decide<CancelOrder> { state, _ ->
+            decided += command.schedule
+            if (state.paid) Decision.reject("order.paid", "paid") else Decision.NoOp
+        }
         evolve<Placed> { }
         evolve<Paid> { paid = true }
     }
@@ -78,27 +101,33 @@ class KernelScheduleTest {
     private val names = CommandTypes { target, command ->
         if (target == shipment && command == Notify::class.java) "test.shipment.Notify" else null
     }
-    private val kernel = Kernel(log, clock = { NOW }, commandTypes = names)
+    private val now = AtomicLong(NOW)
+    private val kernel = Kernel(log, clock = { now.get() }, commandTypes = names)
+    private val codec = EventCodec()
     private val ref = model.type.ref("t", "o-1")
     private var sequence = 0
 
-    private suspend fun send(body: Any, requestId: String = "r-${++sequence}"): CommandOutcome =
-        kernel.execute(model, Command("c-$requestId", requestId, ref, body))
+    private suspend fun send(body: Any, requestId: String = "r-${++sequence}", headers: Map<String, String> = emptyMap()) =
+        kernel.execute(model, Command("c-$requestId", requestId, ref, body, headers = headers))
 
     private suspend fun streams(): List<EventStreamRecord> = log.read(ref).toList()
 
+    private fun EventStreamRecord.decoded(): List<Any> = events.map { codec.decode(model, it) }
+
     @Test
-    fun `a schedule commits in the stream of the command's events`(): Unit = runTest {
+    fun `a schedule commits as a system event after the command's events`(): Unit = runTest {
         val committed = send(Place()) as CommandOutcome.Committed
-        committed.stream.schedules.assert().containsExactly(
-            ScheduleChange.Put(
+        committed.stream.events.map { it.name }.assert().containsExactly("test.order.Placed", Schedules.SCHEDULE_SET)
+        committed.stream.decoded().last().assert().isEqualTo(
+            ScheduleSet(
                 key = "pay-timeout",
-                dueAt = NOW + 30.minutes.inWholeMilliseconds,
+                rule = ScheduleRule.After(30.minutes.inWholeMilliseconds),
                 target = ref,
                 commandType = "test.order.CancelOrder",
-                body = """{"reason":"unpaid"}""",
+                command = """{"reason":"unpaid"}""",
             ),
         )
+        committed.schedules.assert().isEqualTo(mapOf("pay-timeout" to ScheduleRule.After(1_800_000)))
         streams().single().assert().isEqualTo(committed.stream)
     }
 
@@ -123,31 +152,39 @@ class KernelScheduleTest {
     fun `a cancel and a schedule of another aggregate type commit with the events`(): Unit = runTest {
         send(Place())
         val paid = send(Pay(alsoRemind = true)) as CommandOutcome.Committed
-        paid.stream.schedules.assert().containsExactly(
-            ScheduleChange.Cancel("pay-timeout"),
-            ScheduleChange.Put(
+        paid.stream.decoded().assert().containsExactly(
+            Paid,
+            ScheduleCancelled("pay-timeout"),
+            ScheduleSet(
                 "remind",
-                NOW + 5,
+                ScheduleRule.At(NOW + 5),
                 shipment.ref("t", "s-1"),
                 "test.shipment.Notify",
-                """{"text":"paid"}"""
+                """{"text":"paid"}""",
             ),
         )
+        paid.schedules.assert().isEqualTo(mapOf("remind" to ScheduleRule.At(NOW + 5)))
     }
 
     @Test
-    fun `a decision that only schedules commits a stream with no event`(): Unit = runTest {
+    fun `a decision that only schedules commits its schedule events, the last change of each key`(): Unit = runTest {
         send(Place())
         val reminded = send(Remind(at = NOW + 100)) as CommandOutcome.Committed
         reminded.stream.version.assert().isEqualTo(2)
-        reminded.stream.events.assert().isEmpty()
-        reminded.stream.schedules.assert().containsExactly(
-            ScheduleChange.Put("remind", NOW + 101, ref, "test.order.CancelOrder", """{"reason":"second"}"""),
-            ScheduleChange.Cancel("gone"),
+        // `gone` was set and cancelled in the decision, and was not held before: nothing to cancel.
+        reminded.stream.decoded().assert().containsExactly(
+            ScheduleSet("remind", ScheduleRule.At(NOW + 101), ref, "test.order.CancelOrder", """{"reason":"second"}"""),
         )
         // The state is as it was: the next command decides on it.
         (send(Pay()) as CommandOutcome.Committed).stream.version.assert().isEqualTo(3)
         send(CancelOrder("late")).assert().isInstanceOf(CommandOutcome.Rejected::class.java)
+    }
+
+    @Test
+    fun `a cron rule is stored with its schedule`(): Unit = runTest {
+        send(Place())
+        val reported = send(Report("0 0 9 * * MON")) as CommandOutcome.Committed
+        (reported.stream.decoded().single() as ScheduleSet).rule.assert().isEqualTo(ScheduleRule.Cron("0 0 9 * * MON"))
     }
 
     @Test
@@ -160,11 +197,7 @@ class KernelScheduleTest {
     @Test
     fun `a decision that only schedules needs an aggregate that exists`(): Unit = runTest {
         send(Remind(at = NOW)).assert().isInstanceOf(CommandOutcome.Rejected::class.java)
-        runCatching {
-            send(
-                Prepare(at = NOW)
-            )
-        }.exceptionOrNull().assert().isInstanceOf(IllegalStateException::class.java)
+        runCatching { send(Prepare(at = NOW)) }.exceptionOrNull().assert().isInstanceOf(IllegalStateException::class.java)
         streams().assert().isEmpty()
     }
 
@@ -178,23 +211,75 @@ class KernelScheduleTest {
     }
 
     @Test
-    fun `a stream with neither an event nor a schedule is refused`() {
-        assertThrownBy<IllegalArgumentException> {
-            EventStreamRecord(ref, 1, "c", "r", "test.order.Pay", NOW, emptyList(), Scope.NONE)
-        }
-        assertThrownBy<IllegalArgumentException> {
-            EventStreamRecord(
-                ref,
-                1,
-                "c",
-                "r",
-                "test.order.Pay",
-                NOW,
-                emptyList(),
-                Scope.NONE,
-                schedules = listOf(ScheduleChange.Cancel("a"), ScheduleChange.Cancel("a")),
-            )
-        }
+    fun `every aggregate decides the system commands of a saga's schedules`(): Unit = runTest {
+        send(Place())
+        val set = SetSchedule("ping", ScheduleRule.At(NOW + 9), "test.order.CancelOrder", """{"reason":"ping"}""")
+        val committed = send(set) as CommandOutcome.Committed
+        committed.stream.commandType.assert().isEqualTo(Schedules.SET)
+        committed.stream.decoded().assert()
+            .containsExactly(ScheduleSet("ping", set.rule, ref, set.commandType, set.command))
+        val cancelled = send(CancelSchedule("ping")) as CommandOutcome.Committed
+        cancelled.stream.decoded().assert().containsExactly(ScheduleCancelled("ping"))
+        cancelled.schedules.keys.assert().containsExactly("pay-timeout")
+        // A key the aggregate does not keep: nothing to cancel.
+        send(CancelSchedule("ping")).assert().isInstanceOf(CommandOutcome.Unchanged::class.java)
+        model.findCommandType(Schedules.SET)?.type.assert().isEqualTo(SetSchedule::class.java)
+    }
+
+    @Test
+    fun `a schedule's system command to an aggregate that does not exist is rejected`(): Unit = runTest {
+        val outcome = send(SetSchedule("ping", ScheduleRule.At(NOW), "test.order.CancelOrder", "{}"))
+        (outcome as CommandOutcome.Rejected).rejection.code.assert().isEqualTo(KernelRejections.NOT_FOUND)
+    }
+
+    @Test
+    fun `the kernel keeps the rules beside the state, and a deletion drops them`(): Unit = runTest {
+        send(Place())
+        send(Remind(at = NOW + 100))
+        val state = kernel.stateAt(model, ref, Instant.ofEpochMilli(NOW))!!
+        state.schedules.assert().isEqualTo(
+            mapOf("pay-timeout" to ScheduleRule.After(1_800_000), "remind" to ScheduleRule.At(NOW + 101)),
+        )
+        val deleted = send(DeleteAggregate) as CommandOutcome.Committed
+        deleted.schedules.assert().isEmpty()
+        // The rules come back with a snapshot of them.
+        val snapshot = codec.snapshotOf(
+            model,
+            ref,
+            Order("o-1"),
+            deleted.stream.version,
+            deleted.stream.scope,
+            NOW,
+            NOW,
+            schedules = state.schedules,
+        )
+        snapshot.schedules.assert().isEqualTo(state.schedules)
+        Kernel(log, clock = { NOW }, snapshots = InMemorySnapshotStore().also { it.save(snapshot) })
+            .stateAt(model, ref, Instant.ofEpochMilli(NOW), snapshot)!!.schedules.assert().isEqualTo(state.schedules)
+    }
+
+    @Test
+    fun `a scheduled command waits for its due time on this node's clock`(): Unit = runBlocking {
+        send(Place())
+        val due = NOW + 300
+        val headers = ScheduleContext("$ref#remind@2", "remind", 1, due).headers()
+        val started = System.nanoTime()
+        withContext(Dispatchers.Default) { send(CancelOrder("due"), headers = headers) }
+        val waited = (System.nanoTime() - started) / 1_000_000
+        waited.assert().isGreaterThanOrEqualTo(250)
+        decided.single()?.slot.assert().isEqualTo(1L)
+        // Once due, it is decided at once.
+        now.set(due)
+        val again = System.nanoTime()
+        send(CancelOrder("now"), headers = headers.plus(ScheduleContext.SLOT to "2"))
+        ((System.nanoTime() - again) / 1_000_000).assert().isLessThan(250)
+    }
+
+    @Test
+    fun `a stream without an event is refused`() {
+        runCatching {
+            EventStreamRecord(ref, 1, "c", "r", "test.order.Pay", NOW, emptyList(), me.ahoo.wow.api.aggregate.Scope.NONE)
+        }.exceptionOrNull().assert().isInstanceOf(IllegalArgumentException::class.java)
     }
 
     private companion object {

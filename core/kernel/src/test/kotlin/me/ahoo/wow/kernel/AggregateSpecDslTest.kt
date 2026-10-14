@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.Scope
@@ -42,7 +43,7 @@ class AggregateSpecDslTest {
     private val model = aggregate<Account>("bank", "account") {
         initial { Account(it.id) }
         decide<Open>(Creation.REQUIRED) { _, body ->
-            schedule("dormant", 30.minutes, Close("dormant"))
+            schedule("dormant", ScheduleRule.after(30.minutes), Close("dormant"))
             Decision.events(Opened(body.limit))
         }
         decide<Deposit> { state, body ->

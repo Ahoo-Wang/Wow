@@ -17,8 +17,9 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.id.Ids
-import java.time.Instant
-import kotlin.time.Duration
+import me.ahoo.wow.api.schedule.CancelSchedule
+import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.schedule.SetSchedule
 
 /**
  * One execution of a subscription's handler for one commit (design 01 §1): the [subscription] (`processor.function`,
@@ -80,19 +81,15 @@ interface SagaContext : SubscriptionContext {
         command(type.unassigned(executionId.ref.tenantId), body)
 
     /**
-     * Schedules [command] to be sent to [target] at [at] (decision D166). [key] names the schedule among this saga's
-     * schedules of [target]: scheduling it again replaces it, and [cancel] cancels it, from any execution of the saga.
-     *
-     * The schedule is written before the saga's checkpoint passes this commit, with an id deterministic from
-     * [executionId] and the order of the calls, so handling the commit again writes the same schedule. The command is
-     * sent at least once, not before [at], and decided once; a rejection when it is due is a normal guard, not handed
-     * to `@OnRejected`.
+     * The system command `wow.schedule.Set` to [target], asking it to schedule [command] for itself under [key] as
+     * [rule] says (decision D198), derived from this execution as [command] derives one: its id and request id come
+     * from [executionId] and the order of the calls, so handling the commit again derives the same request. Return
+     * it with the commands the handler derives. [target] must exist: otherwise it rejects the command, which the
+     * saga's `@OnRejected` handler for [SetSchedule] gets. [key] names the schedule among [target]'s: setting it
+     * again replaces it, and [cancel] cancels it. An `after` rule counts from the commit that sets it on [target].
      */
-    fun schedule(key: String, at: Instant, target: AggregateRef, command: Any)
+    fun schedule(key: String, rule: ScheduleRule, target: AggregateRef, command: Any): Command<SetSchedule>
 
-    /** Schedules [command] to be sent to [target] [after] the commit this execution handles; see the other [schedule]. */
-    fun schedule(key: String, after: Duration, target: AggregateRef, command: Any)
-
-    /** Cancels this saga's schedule of [target] under [key]; nothing when there is none. */
-    fun cancel(key: String, target: AggregateRef)
+    /** The system command `wow.schedule.Cancel` to [target]: cancels its schedule [key]; see [schedule]. */
+    fun cancel(key: String, target: AggregateRef): Command<CancelSchedule>
 }

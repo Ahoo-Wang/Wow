@@ -24,14 +24,16 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.schedule.Misfire
+import me.ahoo.wow.api.schedule.ScheduleRule
 import org.junit.jupiter.api.Test
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 
 /**
- * The [TimerStore] contract (decision D166) every backend passes. A backend's test extends it and supplies a store
- * from [createStore]. Stores may share storage: each test uses owners, targets and partitions of its own.
+ * The [TimerStore] contract (decisions D166, D198) every backend passes. A backend's test extends it and supplies a
+ * store from [createStore]. Stores may share storage: each test uses owners, targets and partitions of its own.
  */
 abstract class TimerStoreSpec {
     protected abstract fun createStore(): TimerStore
@@ -42,8 +44,9 @@ abstract class TimerStoreSpec {
     private val owner = "shop.order/tenant/o-$run"
     private val target = AggregateType("shop", "order").ref("tenant", "o-$run")
 
-    /** A partition of this test's own, so [TimerStore.due] sees only its timers in a shared store. */
-    private val partition = NEXT_PARTITION.getAndAdd(2)
+    /** Partitions of this test's own, so [TimerStore.due] sees only its timers in a shared store. */
+    private val partition = NEXT_PARTITION.getAndAdd(PARTITIONS_PER_TEST)
+    private val partitions = setOf(partition)
 
     private fun timer(
         key: String = "pay",
@@ -52,12 +55,14 @@ abstract class TimerStoreSpec {
         owner: String = this.owner,
         target: AggregateRef = this.target,
         partition: Int = this.partition,
+        rule: ScheduleRule = ScheduleRule.At(dueAt),
     ) = Timer(
         id = "$owner#$key@$version",
         owner = owner,
         key = key,
         version = version,
         partition = partition,
+        rule = rule,
         dueAt = dueAt,
         target = target,
         commandType = "shop.order.CancelOrder",
@@ -68,14 +73,32 @@ abstract class TimerStoreSpec {
         scope = Scope("alice", "space-a"),
     )
 
+    private suspend fun settle(loaded: Timer, next: Timer): Boolean = store.settle(listOf(TimerChange(loaded, next))) == 1
+
+    private fun Timer.fired(outcome: String = TimerOutcomes.COMMITTED) =
+        copy(status = TimerStatus.FIRED, attempts = attempts + 1, outcome = outcome)
+
     @Test
     fun `a timer put is found and due once its time comes`(): Unit = runBlocking {
         val timer = timer()
         store.put(timer).assert().isTrue()
         store.find(owner, "pay").assert().isEqualTo(timer)
         store.find(owner, "other").assert().isNull()
-        store.due(partition, DUE - 1, LIMIT).assert().isEmpty()
-        store.due(partition, DUE, LIMIT).assert().containsExactly(timer)
+        store.due(partitions, DUE - 1, LIMIT).assert().isEmpty()
+        store.due(partitions, DUE, LIMIT).assert().containsExactly(timer)
+        store.due(emptySet(), DUE, LIMIT).assert().isEmpty()
+    }
+
+    @Test
+    fun `a timer's rule and slot read back as written, whatever the rule`(): Unit = runBlocking {
+        val after = timer(key = "after", rule = ScheduleRule.After(60_000)).copy(slot = 3)
+        val cron = timer(key = "cron", rule = ScheduleRule.Cron("0 0 9 * * MON-FRI", "Asia/Shanghai", Misfire.CATCH_UP))
+        val utc = timer(key = "utc", rule = ScheduleRule.cron("0 */5 * * * *"))
+        listOf(after, cron, utc).forEach { store.put(it).assert().isTrue() }
+        store.find(owner, "after").assert().isEqualTo(after)
+        store.find(owner, "cron").assert().isEqualTo(cron)
+        store.find(owner, "utc").assert().isEqualTo(utc)
+        after.requestId.assert().isEqualTo("${after.id}#3")
     }
 
     @Test
@@ -90,15 +113,27 @@ abstract class TimerStoreSpec {
     }
 
     @Test
-    fun `due timers come earliest first, within their partition and the limit`(): Unit = runBlocking {
-        val late = timer(key = "late", dueAt = DUE + 2)
+    fun `due timers of every partition asked come earliest first, within the limit`(): Unit = runBlocking {
+        val late = timer(key = "late", dueAt = DUE + 3)
         val early = timer(key = "early", dueAt = DUE)
-        val middle = timer(key = "middle", dueAt = DUE + 1)
-        val elsewhere = timer(key = "elsewhere", partition = partition + 1)
-        listOf(late, early, middle, elsewhere).forEach { store.put(it) }
-        store.due(partition, DUE + 10, LIMIT).assert().containsExactly(early, middle, late)
-        store.due(partition, DUE + 10, 2).assert().containsExactly(early, middle)
-        store.due(partition, DUE + 1, LIMIT).assert().containsExactly(early, middle)
+        val middle = timer(key = "middle", dueAt = DUE + 1, partition = partition + 1)
+        val third = timer(key = "third", dueAt = DUE + 2, partition = partition + 2)
+        val elsewhere = timer(key = "elsewhere", partition = partition + 3)
+        listOf(late, early, middle, third, elsewhere).forEach { store.put(it) }
+        val asked = setOf(partition, partition + 1, partition + 2)
+        store.due(asked, DUE + 10, LIMIT).assert().containsExactly(early, middle, third, late)
+        store.due(asked, DUE + 10, 2).assert().containsExactly(early, middle)
+        store.due(asked, DUE + 1, LIMIT).assert().containsExactly(early, middle)
+        store.due(setOf(partition + 1), DUE + 10, LIMIT).assert().containsExactly(middle)
+        store.due(partitions, DUE + 10, LIMIT).assert().containsExactly(early, late)
+    }
+
+    @Test
+    fun `due timers of one time come by id`(): Unit = runBlocking {
+        val b = timer(key = "b")
+        val a = timer(key = "a", partition = partition + 1)
+        listOf(b, a).forEach { store.put(it) }
+        store.due(setOf(partition, partition + 1), DUE, LIMIT).map { it.key }.assert().containsExactly("a", "b")
     }
 
     @Test
@@ -106,11 +141,10 @@ abstract class TimerStoreSpec {
         val timer = timer()
         store.put(timer).assert().isTrue()
         store.put(timer).assert().isFalse()
-        val fired = timer.copy(status = TimerStatus.FIRED, attempts = 1, outcome = TimerOutcomes.COMMITTED)
-        store.update(fired, TimerStatus.PENDING).assert().isTrue()
+        settle(timer, timer.fired()).assert().isTrue()
         store.put(timer).assert().isFalse()
-        store.find(owner, "pay").assert().isEqualTo(fired)
-        store.due(partition, DUE, LIMIT).assert().isEmpty()
+        store.find(owner, "pay").assert().isEqualTo(timer.fired())
+        store.due(partitions, DUE, LIMIT).assert().isEmpty()
     }
 
     @Test
@@ -118,13 +152,13 @@ abstract class TimerStoreSpec {
         val first = timer(version = 1)
         val second = timer(version = 3, dueAt = DUE + 100)
         store.put(first)
-        store.update(first.copy(status = TimerStatus.FIRED, outcome = TimerOutcomes.REJECTED), TimerStatus.PENDING)
+        settle(first, first.fired(TimerOutcomes.REJECTED))
         store.put(second).assert().isTrue()
         store.find(owner, "pay").assert().isEqualTo(second)
         store.put(timer(version = 2)).assert().isFalse()
         store.put(first).assert().isFalse()
         store.find(owner, "pay").assert().isEqualTo(second)
-        store.due(partition, DUE + 100, LIMIT).assert().containsExactly(second)
+        store.due(partitions, DUE + 100, LIMIT).assert().containsExactly(second)
     }
 
     @Test
@@ -136,7 +170,7 @@ abstract class TimerStoreSpec {
         store.find(owner, "pay")?.status.assert().isEqualTo(TimerStatus.CANCELLED)
         store.cancel(owner, "pay", 3).assert().isFalse()
         store.cancel(owner, "missing", 3).assert().isFalse()
-        store.due(partition, DUE, LIMIT).assert().isEmpty()
+        store.due(partitions, DUE, LIMIT).assert().isEmpty()
         // A replay of the cancelled timer's put does not revive it.
         store.put(timer(version = 2)).assert().isFalse()
         store.find(owner, "pay")?.status.assert().isEqualTo(TimerStatus.CANCELLED)
@@ -146,10 +180,9 @@ abstract class TimerStoreSpec {
     fun `a cancel leaves a fired timer as it is`(): Unit = runBlocking {
         val timer = timer()
         store.put(timer)
-        val fired = timer.copy(status = TimerStatus.FIRED, attempts = 1, outcome = TimerOutcomes.COMMITTED)
-        store.update(fired, TimerStatus.PENDING)
+        settle(timer, timer.fired())
         store.cancel(owner, "pay", 2).assert().isFalse()
-        store.find(owner, "pay").assert().isEqualTo(fired)
+        store.find(owner, "pay").assert().isEqualTo(timer.fired())
     }
 
     @Test
@@ -160,7 +193,7 @@ abstract class TimerStoreSpec {
         val later = timer(key = "later", version = 9)
         val others = timer(owner = "$owner-other")
         listOf(pay, remind, fired, later, others).forEach { store.put(it) }
-        store.update(fired.copy(status = TimerStatus.FIRED), TimerStatus.PENDING)
+        settle(fired, fired.fired())
         store.cancelAll(owner, 5).assert().isEqualTo(2)
         store.find(owner, "pay")?.status.assert().isEqualTo(TimerStatus.CANCELLED)
         store.find(owner, "remind")?.status.assert().isEqualTo(TimerStatus.CANCELLED)
@@ -170,20 +203,72 @@ abstract class TimerStoreSpec {
     }
 
     @Test
-    fun `an update applies only to the same timer in the status read`(): Unit = runBlocking {
+    fun `a change is written only while the timer is as it was loaded`(): Unit = runBlocking {
         val timer = timer()
         store.put(timer)
         val retried = timer.copy(attempts = 1, dueAt = DUE + 5, outcome = "java.io.IOException: down")
-        store.update(retried, TimerStatus.FIRED).assert().isFalse()
-        store.update(retried, TimerStatus.PENDING).assert().isTrue()
+        settle(timer.copy(status = TimerStatus.FIRED), retried).assert().isFalse()
+        settle(timer, retried).assert().isTrue()
         store.find(owner, "pay").assert().isEqualTo(retried)
-        store.due(partition, DUE, LIMIT).assert().isEmpty()
-        store.due(partition, DUE + 5, LIMIT).assert().containsExactly(retried)
+        // The row moved on: a change from what was loaded before does nothing.
+        settle(timer, timer.fired()).assert().isFalse()
+        store.due(partitions, DUE, LIMIT).assert().isEmpty()
+        store.due(partitions, DUE + 5, LIMIT).assert().containsExactly(retried)
         val rescheduled = timer(version = 2)
         store.put(rescheduled)
-        store.update(retried.copy(status = TimerStatus.FIRED), TimerStatus.PENDING).assert().isFalse()
+        settle(retried, retried.fired()).assert().isFalse()
         store.find(owner, "pay").assert().isEqualTo(rescheduled)
-        store.update(timer(key = "missing").copy(status = TimerStatus.FIRED), TimerStatus.PENDING).assert().isFalse()
+        settle(timer(key = "missing"), timer(key = "missing").fired()).assert().isFalse()
+        store.settle(emptyList()).assert().isZero()
+    }
+
+    @Test
+    fun `firing a slot moves the timer to its next slot in one write`(): Unit = runBlocking {
+        val timer = timer(rule = ScheduleRule.cron("0 0 * * * *"))
+        store.put(timer)
+        val next = timer.copy(slot = 2, dueAt = DUE + HOUR, attempts = 0, outcome = TimerOutcomes.COMMITTED)
+        settle(timer, next).assert().isTrue()
+        store.find(owner, "pay").assert().isEqualTo(next)
+        next.requestId.assert().isEqualTo("${timer.id}#2")
+        store.due(partitions, DUE, LIMIT).assert().isEmpty()
+        store.due(partitions, DUE + HOUR, LIMIT).assert().containsExactly(next)
+        // The slot fired already cannot be fired again.
+        settle(timer, timer.copy(slot = 2, dueAt = DUE + 2 * HOUR)).assert().isFalse()
+        store.find(owner, "pay").assert().isEqualTo(next)
+    }
+
+    @Test
+    fun `changes are written together, each on its own condition`(): Unit = runBlocking {
+        val first = timer(key = "first")
+        val second = timer(key = "second", partition = partition + 1)
+        val stale = timer(key = "stale")
+        listOf(first, second, stale).forEach { store.put(it) }
+        settle(stale, stale.copy(attempts = 1, dueAt = DUE + 1))
+        val written = store.settle(
+            listOf(
+                TimerChange(first, first.fired()),
+                TimerChange(second, second.fired(TimerOutcomes.REJECTED)),
+                TimerChange(stale, stale.fired()),
+            ),
+        )
+        written.assert().isEqualTo(2)
+        store.find(owner, "first").assert().isEqualTo(first.fired())
+        store.find(owner, "second").assert().isEqualTo(second.fired(TimerOutcomes.REJECTED))
+        store.find(owner, "stale")?.status.assert().isEqualTo(TimerStatus.PENDING)
+    }
+
+    @Test
+    fun `two writers of one loaded timer change it once`(): Unit = runBlocking {
+        val timer = timer()
+        store.put(timer)
+        val written = coroutineScope {
+            (1..CONTENDERS).map { attempt ->
+                async(Dispatchers.Default) {
+                    store.settle(listOf(TimerChange(timer, timer.copy(attempts = attempt, outcome = "try $attempt"))))
+                }
+            }.awaitAll()
+        }
+        written.sum().assert().isEqualTo(1)
     }
 
     @Test
@@ -194,13 +279,13 @@ abstract class TimerStoreSpec {
         listOf(first, second, other).forEach { store.put(it) }
         val parkedFirst = first.copy(status = TimerStatus.PARKED, attempts = 3, outcome = "down")
         val parkedSecond = second.copy(status = TimerStatus.PARKED, attempts = 3, outcome = "down")
-        store.update(parkedFirst, TimerStatus.PENDING).assert().isTrue()
-        store.update(parkedSecond, TimerStatus.PENDING).assert().isTrue()
+        settle(first, parkedFirst).assert().isTrue()
+        settle(second, parkedSecond).assert().isTrue()
         store.parked(target).assert().containsExactly(parkedSecond, parkedFirst)
-        store.due(partition, DUE + 10, LIMIT).assert().containsExactly(other)
+        store.due(partitions, DUE + 10, LIMIT).assert().containsExactly(other)
         // Resuming puts one back.
         val resumed = parkedSecond.copy(status = TimerStatus.PENDING, attempts = 0)
-        store.update(resumed, TimerStatus.PARKED).assert().isTrue()
+        settle(parkedSecond, resumed).assert().isTrue()
         store.parked(target).assert().containsExactly(parkedFirst)
         // A cancel takes a parked timer too.
         store.cancel(owner, "first", 1).assert().isTrue()
@@ -215,14 +300,16 @@ abstract class TimerStoreSpec {
             }.awaitAll()
         }
         store.find(owner, "pay")?.version.assert().isEqualTo(CONTENDERS.toLong())
-        store.due(partition, DUE + CONTENDERS, LIMIT).map { it.id }.assert().containsExactly("$owner#pay@$CONTENDERS")
+        store.due(partitions, DUE + CONTENDERS, LIMIT).map { it.id }.assert().containsExactly("$owner#pay@$CONTENDERS")
     }
 
     private companion object {
-        /** Two partitions per test, from a random start, so runs sharing a database do not meet either. */
+        /** Partitions per test, from a random start, so runs sharing a database do not meet either. */
+        const val PARTITIONS_PER_TEST = 4
         val NEXT_PARTITION = AtomicInteger(Random.nextInt(0, Int.MAX_VALUE / 2))
         const val LIMIT = 100
         const val CONTENDERS = 8
         const val DUE = 1_700_000_000_000L
+        const val HOUR = 3_600_000L
     }
 }

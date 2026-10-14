@@ -17,6 +17,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.spi.timer.Timer
+import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.TimerStore
 
@@ -49,26 +50,29 @@ class InMemoryTimerStore : TimerStore {
 
     override suspend fun find(owner: String, key: String): Timer? = lock.withLock { timers[owner to key] }
 
-    override suspend fun due(partition: Int, until: Long, limit: Int): List<Timer> {
+    override suspend fun due(partitions: Set<Int>, until: Long, limit: Int): List<Timer> {
         require(limit >= 1) { "A page holds at least one timer." }
         return lock.withLock {
             timers.values
-                .filter { it.partition == partition && it.status == TimerStatus.PENDING && it.dueAt <= until }
+                .filter { it.partition in partitions && it.status == TimerStatus.PENDING && it.dueAt <= until }
                 .sortedWith(DUE_ORDER)
                 .take(limit)
         }
     }
 
-    override suspend fun update(timer: Timer, expected: TimerStatus): Boolean = lock.withLock {
-        val key = timer.owner to timer.key
-        val held = timers[key]?.takeIf { it.id == timer.id && it.status == expected } ?: return false
-        timers[key] = held.copy(
-            status = timer.status,
-            attempts = timer.attempts,
-            outcome = timer.outcome,
-            dueAt = timer.dueAt,
-        )
-        true
+    override suspend fun settle(changes: List<TimerChange>): Int = lock.withLock {
+        changes.count { (loaded, next) ->
+            val key = loaded.owner to loaded.key
+            val held = timers[key]?.takeIf { it.isAsLoaded(loaded) } ?: return@count false
+            timers[key] = held.copy(
+                status = next.status,
+                slot = next.slot,
+                dueAt = next.dueAt,
+                attempts = next.attempts,
+                outcome = next.outcome,
+            )
+            true
+        }
     }
 
     override suspend fun parked(target: AggregateRef): List<Timer> = lock.withLock {
@@ -82,5 +86,9 @@ class InMemoryTimerStore : TimerStore {
             (status == TimerStatus.PENDING || status == TimerStatus.PARKED) && this.version <= version
 
         fun Timer.cancelled(version: Long): Timer = copy(status = TimerStatus.CANCELLED, version = version)
+
+        /** Whether this, the timer held, is still [loaded] as it was loaded. */
+        fun Timer.isAsLoaded(loaded: Timer): Boolean =
+            id == loaded.id && status == loaded.status && slot == loaded.slot && attempts == loaded.attempts
     }
 }

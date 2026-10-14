@@ -15,21 +15,22 @@ package me.ahoo.wow.kernel.test
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Command
-import me.ahoo.wow.kernel.SagaSchedule
-import java.time.Instant
+import me.ahoo.wow.api.schedule.CancelSchedule
+import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.schedule.SetSchedule
+import me.ahoo.wow.kernel.EventCodec
+import me.ahoo.wow.spi.json.WowJson
 import kotlin.reflect.KClass
-import kotlin.time.Duration
 
 /**
  * The checks of one handling by a [ProcessorSpec]: the handlers that were called ([handled]), the commands they
- * derived ([commands]) and the schedules they changed ([schedules]), or what one of them threw ([expectError]).
+ * derived ([commands]), among them the schedules they set or cancelled ([schedules]), or what one of them threw
+ * ([expectError]).
  */
 @Suppress("TooManyFunctions") // The DSL's expectations.
 class ProcessorExpectations internal constructor(
     /** The handlers called, by subscription name (`processor.function`), in order. */
     val handled: List<String>,
-    /** The commit time of the commit handled (epoch milliseconds), which a schedule's `after` counts from. */
-    private val commitTime: Long?,
     private val result: Result<ProcessorSpec.Handled>,
     private val again: () -> Result<ProcessorSpec.Handled>,
 ) {
@@ -38,11 +39,16 @@ class ProcessorExpectations internal constructor(
     private val done: ProcessorSpec.Handled
         get() = result.getOrElse { throw AssertionError("Expected the handling to end but it threw $it.", it) }
 
-    /** The commands the handlers derived, in order. */
-    val commands: List<Command<*>> get() = done.commands
+    /** The commands the handlers derived, in order, but the schedules they set or cancelled ([schedules]). */
+    val commands: List<Command<*>> get() = done.commands.filterNot { it.isSchedule() }
 
-    /** The schedules the handlers changed (decision D166), the last change of each target and key. */
-    val schedules: List<SagaSchedule> get() = done.schedules
+    /**
+     * The schedules the handlers set or cancelled (decision D198): their derived system commands `wow.schedule.Set`
+     * and `wow.schedule.Cancel`, in order.
+     */
+    val schedules: List<Command<*>> get() = done.commands.filter { it.isSchedule() }
+
+    private fun Command<*>.isSchedule(): Boolean = body is SetSchedule || body is CancelSchedule
 
     /** What a handler threw; null when they all returned. */
     val error: Throwable? get() = result.exceptionOrNull()
@@ -106,46 +112,34 @@ class ProcessorExpectations internal constructor(
     }
 
     /**
-     * The handlers scheduled [command] under [key] (decision D166), for [target] when given, due [at] or [after] the
-     * commit when either is given.
+     * The handlers scheduled [command] under [key] (decision D198): they derived `wow.schedule.Set` to [target] when
+     * given, which schedules [command] as [rule] says when it is given.
      */
     @Suppress("ThrowsCount")
-    fun expectScheduled(
-        key: String,
-        command: Any,
-        at: Instant? = null,
-        after: Duration? = null,
-        target: AggregateRef? = null,
-    ) {
-        val put = schedules.filterIsInstance<SagaSchedule.Put>()
-            .firstOrNull { it.key == key && (target == null || it.target == target) }
-            ?: throw AssertionError("Expected a schedule $key but got $schedules.")
-        if (put.command != command) {
-            throw AssertionError("Expected $key to send $command but it sends ${put.command}.")
+    fun expectScheduled(key: String, command: Any, rule: ScheduleRule? = null, target: AggregateRef? = null) {
+        val set = schedules.firstOrNull { (it.body as? SetSchedule)?.key == key && (target == null || it.ref == target) }
+            ?: throw AssertionError("Expected a schedule $key but got ${describe(schedules)}.")
+        val body = set.body as SetSchedule
+        val scheduled = CODEC.decodeTree(WowJson.mapper.readTree(body.command), command.javaClass)
+        if (scheduled != command) {
+            throw AssertionError("Expected $key to send $command but it sends $scheduled.")
         }
-        val due = at?.toEpochMilli() ?: after?.let {
-            requireNotNull(commitTime) { "A rejection's handler schedules nothing." } + it.inWholeMilliseconds
-        }
-        if (due != null && put.dueAt != due) {
-            throw AssertionError(
-                "Expected $key due at ${Instant.ofEpochMilli(due)} " +
-                    "but it is due at ${Instant.ofEpochMilli(put.dueAt)}.",
-            )
+        if (rule != null && body.rule != rule) {
+            throw AssertionError("Expected $key due as $rule but it is due as ${body.rule}.")
         }
     }
 
-    /** The handlers cancelled the schedule [key], of [target] when given (decision D166). */
+    /** The handlers cancelled the schedule [key], of [target] when given (decision D198). */
     fun expectScheduleCancelled(key: String, target: AggregateRef? = null) {
-        val cancelled = schedules.filterIsInstance<SagaSchedule.Cancel>()
-            .any { it.key == key && (target == null || it.target == target) }
+        val cancelled = schedules.any { it.body == CancelSchedule(key) && (target == null || it.ref == target) }
         if (!cancelled) {
-            throw AssertionError("Expected the schedule $key cancelled but got $schedules.")
+            throw AssertionError("Expected the schedule $key cancelled but got ${describe(schedules)}.")
         }
     }
 
     /** The handlers changed no schedule. */
     fun expectNoSchedule() {
-        if (schedules.isNotEmpty()) throw AssertionError("Expected no schedule but got $schedules.")
+        if (schedules.isNotEmpty()) throw AssertionError("Expected no schedule but got ${describe(schedules)}.")
     }
 
     /** No handler threw. */
@@ -169,7 +163,7 @@ class ProcessorExpectations internal constructor(
 
     /**
      * Handling the same commit, or rejection, again, with a fresh context as the runtime gives a retry, derives the
-     * same commands (ids and request ids included) and the same schedules: the targets decide them once.
+     * same commands (ids and request ids included), the schedules among them: the targets decide them once.
      */
     @Suppress("ThrowsCount")
     fun expectDeterministic() {
@@ -179,9 +173,6 @@ class ProcessorExpectations internal constructor(
             throw AssertionError(
                 "Handling it again derived ${describe(second.commands)}, not ${describe(first.commands)}.",
             )
-        }
-        if (second.schedules != first.schedules) {
-            throw AssertionError("Handling it again scheduled ${second.schedules}, not ${first.schedules}.")
         }
     }
 
@@ -195,4 +186,8 @@ class ProcessorExpectations internal constructor(
 
     private fun describe(commands: List<Command<*>>): String =
         commands.joinToString(prefix = "[", postfix = "]") { "${it.body} to ${it.ref}" }
+
+    private companion object {
+        val CODEC = EventCodec()
+    }
 }

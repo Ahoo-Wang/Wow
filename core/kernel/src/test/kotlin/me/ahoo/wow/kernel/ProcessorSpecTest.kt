@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -60,14 +61,15 @@ class ProcessorSpecTest {
         fun onOrder(event: StateEvent<Order>, context: SagaContext): List<Command<*>> {
             val placed = event.events.filterIsInstance<OrderPlaced>().firstOrNull() ?: return emptyList()
             require(placed.total >= 0) { "A total is never negative." }
-            context.schedule("remind", 10.minutes, event.ref, Remind(event.ref.id))
-            return listOf(context.command(STOCK, Reserve(event.ref.id, placed.total)))
+            return listOf(
+                context.command(STOCK, Reserve(event.ref.id, placed.total)),
+                context.schedule("remind", ScheduleRule.after(10.minutes), event.ref, Remind(event.ref.id)),
+            )
         }
 
-        fun onCancelled(event: StateEvent<Order>, context: SagaContext): Command<Release>? {
-            if (event.events.none { it is OrderCancelled }) return null
-            context.cancel("remind", event.ref)
-            return context.command(STOCK, Release(event.ref.id))
+        fun onCancelled(event: StateEvent<Order>, context: SagaContext): List<Command<*>> {
+            if (event.events.none { it is OrderCancelled }) return emptyList()
+            return listOf(context.cancel("remind", event.ref), context.command(STOCK, Release(event.ref.id)))
         }
 
         fun onQuote(event: StateEvent<Quote>, context: SagaContext): Command<Cancel>? =
@@ -130,8 +132,10 @@ class ProcessorSpecTest {
                 causation.assert().isEqualTo(Causation("command-3", "shop.order/tenant/order-1@3"))
                 id.assert().isEqualTo(ExecutionSagaContext.derivedId(ExecutionId("OrderSaga.onOrder", order, 3), 0))
             }
-            expectScheduled("remind", Remind("order-1"), after = 10.minutes, target = order)
-            expectScheduled("remind", Remind("order-1"), at = DEFAULT_START.plusSeconds(600))
+            expectScheduled("remind", Remind("order-1"), ScheduleRule.after(10.minutes), target = order)
+            expectScheduled("remind", Remind("order-1"))
+            schedules.single().id.assert()
+                .isEqualTo(ExecutionSagaContext.derivedId(ExecutionId("OrderSaga.onOrder", order, 3), 1))
             expectNoError()
             expectDeterministic()
         }
@@ -216,7 +220,7 @@ class ProcessorSpecTest {
             assertThrownBy<AssertionError> { expectCommand<Release>() }
             assertThrownBy<AssertionError> { expectScheduled("other", Remind("order-1")) }
             assertThrownBy<AssertionError> { expectScheduled("remind", Remind("order-2")) }
-            assertThrownBy<AssertionError> { expectScheduled("remind", Remind("order-1"), after = 1.minutes) }
+            assertThrownBy<AssertionError> { expectScheduled("remind", Remind("order-1"), ScheduleRule.after(1.minutes)) }
             assertThrownBy<AssertionError> { expectScheduleCancelled("remind") }
             assertThrownBy<AssertionError> { expectNoSchedule() }
             assertThrownBy<AssertionError> { expectError<IllegalStateException>() }
@@ -243,8 +247,7 @@ class ProcessorSpecTest {
         }
         val scheduling = listOf(
             ProcessorBinding.saga<Any>("Flaky", "onAny", null) { event, context ->
-                context.schedule("k", (calls++).minutes, event.ref, Remind("r"))
-                emptyList()
+                listOf(context.schedule("k", ScheduleRule.after((calls++).minutes), event.ref, Remind("r")))
             },
         )
         sagaSpec(scheduling) {

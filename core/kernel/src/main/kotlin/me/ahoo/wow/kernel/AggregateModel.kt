@@ -20,6 +20,7 @@ import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.lifecycle.TransferOwner
+import me.ahoo.wow.api.schedule.Schedules
 import tools.jackson.databind.JsonNode
 
 /**
@@ -146,12 +147,15 @@ class AggregateModel<S : Any>(
     private val lifecycle: Set<Class<*>> =
         if (ownership == Ownership.TENANT) lifecycle - TransferOwner::class.java else lifecycle
 
+    /** The system commands the kernel decides for this model: its lifecycle ones and the schedule ones (D198). */
+    private val systemCommands: Set<Class<*>> = this.lifecycle + KernelLifecycle.SCHEDULE_COMMANDS
+
     private val deciders: Map<Class<*>, DecideFunction<S>> =
-        this.lifecycle.filterNot { it in deciders }.associateWith { KernelLifecycle.decider<S>(it) } + deciders
+        systemCommands.filterNot { it in deciders }.associateWith { KernelLifecycle.decider<S>(it) } + deciders
     private val evolvers: Map<Class<*>, (S, Any) -> S> =
-        Lifecycle.EVENTS.values.filterNot { it in evolvers }.associateWith { { state: S, _: Any -> state } } +
+        SYSTEM_EVENTS.values.filterNot { it in evolvers }.associateWith { { state: S, _: Any -> state } } +
             evolvers
-    private val eventTypes: List<EventType> = eventTypes + Lifecycle.EVENTS
+    private val eventTypes: List<EventType> = eventTypes + SYSTEM_EVENTS
         .filterValues { event -> eventTypes.none { it.type == event } }
         .map { (name, event) -> EventType(name, 1, event) }
 
@@ -159,9 +163,9 @@ class AggregateModel<S : Any>(
      * The command types this model decides, each under its name and former names: those of its decide functions,
      * then the lifecycle commands the kernel decides for it ([lifecycleCommands]) under their system names.
      */
-    val commandTypes: List<CommandType> = commandTypes + this.lifecycle
+    val commandTypes: List<CommandType> = commandTypes + systemCommands
         .filter { command -> commandTypes.none { it.type == command } }
-        .map { CommandType(Lifecycle.nameOf(it)!!, it) }
+        .map { CommandType(KernelLifecycle.systemNameOf(it)!!, it) }
     private val eventsByType: Map<Class<*>, EventType> = this.eventTypes.associateBy { it.type }
     private val eventsByName: Map<String, EventType> = this.eventTypes.flatMap { type ->
         (type.aliases + type.name).map { it to type }
@@ -181,6 +185,11 @@ class AggregateModel<S : Any>(
     private val mountedByName: Map<String, CommandType> = this.mountedCommandTypes.flatMap { type ->
         (type.aliases + type.name).map { it to type }
     }.toMap()
+
+    /** The schedule system events (decision D198), which every aggregate may commit, and the lifecycle events. */
+    private companion object {
+        val SYSTEM_EVENTS: Map<String, Class<*>> = Lifecycle.EVENTS + Schedules.EVENTS
+    }
 
     /** The lifecycle commands this model handles, by the kernel or by its own decide functions. */
     val lifecycleCommands: Set<Class<*>> = this.deciders.keys.filter { it in KernelLifecycle.COMMANDS }.toSet()
@@ -202,7 +211,7 @@ class AggregateModel<S : Any>(
         }
         val decidedAndMounted = this.mountedCommandTypes.map { it.type }.filter { it in this.deciders }
         require(decidedAndMounted.isEmpty()) { "Command types of $type both decided and mounted: $decidedAndMounted" }
-        require(this.mountedCommandTypes.none { isSystemName(it.name) || it.aliases.any(::isSystemName) }) {
+        require(this.mountedCommandTypes.none { isSystemName(it.name) || it.aliases.any { name -> isSystemName(name) } }) {
             "A mounted command of $type takes a name in ${Lifecycle.NAMESPACE}."
         }
         val unnamed = this.deciders.keys - commandsByType.keys
@@ -210,13 +219,13 @@ class AggregateModel<S : Any>(
         val named = this.eventTypes.flatMap { event -> (event.aliases + event.name).map { it to event.type } } +
             this.commandTypes.flatMap { command -> (command.aliases + command.name).map { it to command.type } }
         named.forEach { (name, typeClass) ->
-            require(isSystemName(name) == (Lifecycle.nameOf(typeClass) != null)) {
+            require(isSystemName(name) == (KernelLifecycle.systemNameOf(typeClass) != null)) {
                 "$type names ${typeClass.name} $name: only the lifecycle types have names in ${Lifecycle.NAMESPACE}."
             }
         }
     }
 
-    private fun isSystemName(name: String): Boolean = name.startsWith("${Lifecycle.NAMESPACE}.")
+    private fun isSystemName(name: String): Boolean = KernelLifecycle.isSystemName(name)
 
     /** The state of an aggregate that has no event yet. */
     fun initialState(ref: AggregateRef): S = initial(ref)
