@@ -16,6 +16,8 @@ application {
 // produces it, so the server applies the repository's script in its place (DX gap G6).
 extra["wowService"] = "eshop-basket-service"
 apply(from = rootProject.file("example/wow-peers.gradle.kts"))
+// The Manifest compatibility gate (decision D76): `check` compares the service's Manifest with manifest/baseline.json.
+apply(from = rootProject.file("example/eshop/wow-manifest-compatibility.gradle.kts"))
 
 dependencies {
     implementation(project(":eshop-basket-domain"))
