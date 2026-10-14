@@ -20,5 +20,6 @@ import me.ahoo.wow.platform.viewstore.testing.MemorySnapshotQueries
  * same contract runs on PostgreSQL in the integration tests (`ViewStorePostgresTest`).
  */
 class ViewStoreMemoryTest : ViewStoreContract() {
-    override val store: ViewStoreNode = startViewStore(sources = listOf(MemorySnapshotQueries::class.java))
+    override val store: ViewStoreNode =
+        startViewStore(*SYSTEM_VIEWS, sources = listOf(MemorySnapshotQueries::class.java))
 }

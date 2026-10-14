@@ -1,13 +1,13 @@
 ---
 name: "wow-migrate"
-description: "Handle breaking Wow migrations in downstream services with a named Wow version, me.ahoo.wow imports or wow-* dependencies: cross-major upgrades between pinned releases, Wow source/configuration/generated/runtime contract breaks, Wow-managed storage/data history conversion, reconciliation, cutover and incompatible-write rollback, plus reviews and failures of such migrations. Not the Wow framework repository, generic database migrations, first adoption without history, or routine same-major upgrades."
+description: "Handle breaking Wow migrations in downstream services with a named Wow version, me.ahoo.wow imports or wow-* dependencies: pinned cross-major upgrades, Wow source/configuration/generated/runtime contract breaks, Wow-managed storage/data history conversion, reconciliation, cutover and incompatible-write rollback, plus reviews and failures of such migrations. Not the Wow framework repository beyond its platform ports, generic database migrations, first adoption without history, or routine same-major upgrades."
 ---
 
 # Migrate Wow Across Breaking Boundaries
 
 ## Scope gate
 
-Use only for a downstream application; the Wow framework repository and its modules never qualify. Require scoped source/target to use or introduce Wow plus a cross-major upgrade, known source/configuration/generated/runtime break, or Wow-managed storage/data change. Routine same-major non-breaking upgrades and first adoption stay with `wow-develop` unless adoption requires Wow-managed history/compatibility conversion, data reconciliation/cutover, or rollback after incompatible target writes. Checkout-wide markers and unrelated application contracts do not qualify. Otherwise state that this Skill does not apply and stop using it.
+Use only for a downstream application. The Wow framework repository and its modules never qualify, with one exception: porting a 9.x platform module of that repository (a view store, ops, dataset registry or analytics domain) to a V10 project under `platform/`, which uses this Skill as a downstream port would. The framework itself, its releases and its other modules stay excluded. Require scoped source/target to use or introduce Wow plus a cross-major upgrade, known source/configuration/generated/runtime break, or Wow-managed storage/data change. Routine same-major non-breaking upgrades and first adoption stay with `wow-develop` unless adoption requires Wow-managed history/compatibility conversion, data reconciliation/cutover, or rollback after incompatible target writes. Checkout-wide markers and unrelated application contracts do not qualify. Otherwise state that this Skill does not apply and stop using it.
 
 Own the complete migration task. Treat breaking release upgrades—including cross-major and same-major source/config contract changes—and storage/data cutovers as platform, source, generated-contract, data, runtime, and release migrations rather than dependency bumps.
 

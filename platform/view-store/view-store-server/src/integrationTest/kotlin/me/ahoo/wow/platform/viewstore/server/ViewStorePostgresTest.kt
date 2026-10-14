@@ -28,6 +28,7 @@ class ViewStorePostgresTest : ViewStoreContract() {
         "spring.datasource.password" to postgres.password,
         "wow.backend" to "postgres",
         "wow.log.partitions" to 4,
+        *SYSTEM_VIEWS,
         profiles = listOf(PostgresDataSource.PROFILE),
     )
 }
