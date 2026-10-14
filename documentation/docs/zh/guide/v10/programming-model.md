@@ -64,7 +64,7 @@ class Order(private val state: OrderState) {
 | `@AllowCreate` | 聚合存在与否都接受 |
 | 都没有 | 聚合已存在；否则 `wow.aggregate.not-found` |
 
-创建类命令（`@CreateAggregate` 或 `@AllowCreate`）有两条路由：带 `{id}` 的由客户端指定 ID，不带的由服务端生成 ID。
+创建类命令（`@CreateAggregate` 或 `@AllowCreate`）有两条路由：带 `{id}` 的由客户端指定 ID，不带的由服务端分配 ID。不带 ID 时，准入先找该命令的请求 ID 已经创建的聚合，用它的 ID；否则由聚合类型的生成器取新号。Saga 的创建类命令也可以这样把 ID 留给目标：`context.command(type, body)`。已提交的 ID 永不改变，所以用作单据号的 ID（例如 `SO-20261013-001`）始终是给客户的那一个。ID 不保证连号：严格连号要由专门发号的聚合来发。
 
 命令不带身份字段（命令体里没有聚合 ID、租户、所有者或版本）：ID 来自路由或发送命令的 Saga，租户、所有者与空间来自调用方，期望版本来自 `If-Match`。
 
@@ -126,7 +126,21 @@ object OrderRejections {
 
 ### 所有者、空间与租户
 
-聚合的作用域是它的所有者与空间。第一条命令的调用方给出作用域；此后，调用方的所有者或空间与聚合不同的命令会被内核拒绝（`wow.aggregate.forbidden`）。调用方没有值的那一部分不检查。需要把调用方与聚合 ID 比较的命令函数（例如购物车 ID 就是顾客的用户 ID）取 `Command<X>`，读取 `command.scope.ownerId`。为某个聚合类型固定租户属于宿主配置：`wow.aggregates.[<context>.<aggregate>].tenant`。
+聚合的作用域是它的所有者与空间。第一条命令的调用方给出作用域；此后，调用方的所有者或空间与聚合不同的命令会被内核拒绝（`wow.aggregate.forbidden`）。调用方没有值的那一部分不检查：不带所有者的租户级调用方可以触达本租户的全部聚合（[两级调用方](./http-api.md#两级调用方)）。
+
+`@AggregateRoot(ownership = ...)` 说明聚合除租户外还属于谁：
+
+| `Ownership` | 聚合 | 例如 |
+| --- | --- | --- |
+| `OWNER`，默认 | 属于创建它的命令的所有者（命令有所有者时） | 订单、购物车 |
+| `TENANT` | 只属于它的租户：不记所有者，读写都不按调用方的所有者限制。空间照常适用，且它不处理 `TransferOwner` | 每个顾客都要读的商品 |
+
+```kotlin
+@AggregateRoot(ownership = Ownership.TENANT)
+class Product(private val state: ProductState) { /* ... */ }
+```
+
+编译器把归属写进 Manifest，查询准入从那里读取。`TENANT` 聚合的写由动作级授权（`CommandAuthorizer`，例如 CoSec 的）保护，由它决定谁可以修改商品。需要把调用方与聚合 ID 比较的命令函数（例如购物车 ID 就是顾客的用户 ID）取 `Command<X>`，读取 `command.scope.ownerId`。为某个聚合类型固定租户属于宿主配置：`wow.aggregates.[<context>.<aggregate>].tenant`。
 
 ### 发布的流
 
@@ -238,7 +252,8 @@ class CartSaga {
 
 - 派生命令的 ID 与请求 ID 由这次执行和调用顺序确定，所以再次处理同一次提交会派生出相同的请求，它们只被决定一次。
 - 同上下文的命令提交后、跨上下文的命令被 broker 接收后，Saga 的这一跳完成。
-- 派生命令不带调用方作用域，所以目标的作用域守卫不会拒绝它；它的租户取自 Saga 给出的 `ref`。
+- 派生命令带上它所派生自的那次提交的作用域（所有者与空间）与操作人，租户取自 Saga 给出的 `ref`。它创建的聚合属于同一个所有者：购物车结账创建的订单属于购物车的买家。目标的作用域守卫会检查这个作用域，所以发给别的所有者的聚合的命令会被拒绝，除非目标属于租户（`Ownership.TENANT`，例如库存）。补偿（`@OnRejected`）与定时命令同样带上它们所跟随的命令的作用域。
+- `context.command(type, body)` 用 `AggregateType` 代替 ref，派生一条把聚合 ID 留给目标准入的创建类命令：目标取该请求已创建的聚合的 ID，否则取新号，所以再次处理同一提交仍得到第一次的 ID。若在 Saga 里用 `context.ids` 取 ID，再次处理提交时会取到新号，所以只能用于它所命名的那条创建命令，靠请求 ID 防止目标重复创建。
 - 处理函数的返回类型没有说明命令时（例如 `List<Command<*>>`），用 `@OnEvent(derives = ["<context>.<aggregate>.<Command>"])` 声明，等待链才能跟随 Saga 的这一跳进入那些上下文。
 
 ### Saga 预期的拒绝：`@OnRejected`
@@ -270,7 +285,19 @@ wow:
 
 抛出异常的处理函数会被重试（`wow.subscription.retry`：默认 5 次，退避从 100 ms 到 5 s）。最后一次之后，这个聚合在失败台账里为该订阅停放：订阅继续处理其他聚合，被停放的聚合等待恢复（resume）或跳过（skip）。运行时提供这两个操作，目前还没有路由或控制台暴露它们。
 
-调用慢外部系统的处理函数，可以给它的订阅单独的预算。`timeout` 限制一次尝试：运行更久的尝试被取消，算一次失败的尝试。给出的每一项取代全局的，其余仍取全局的：
+调用慢外部系统的处理函数，可以给它的订阅单独的预算。`timeout` 限制一次尝试：运行更久的尝试被取消，算一次失败的尝试。`@Retry` 声明在处理器类上时作用于它的全部处理函数，声明在 `@OnEvent` 处理函数上时只作用于它；处理函数的设置逐项覆盖处理器的，没写的项视为未给出。时长用 Kotlin 写法（`500ms`、`2s`）或 ISO-8601（`PT2S`）：
+
+```kotlin
+@Reactor
+@Retry(maxAttempts = 3, timeout = "2s")
+class ShippingNotifier(private val carrier: CarrierClient) {
+    @OnEvent
+    @Retry(initialBackoff = "1s")
+    suspend fun onShipped(event: StateEvent<OrderState>) = carrier.notify(event.state.id)
+}
+```
+
+编译器校验这些设置，把预算写进生成的绑定与 Manifest 中该订阅的条目（`retry`）。宿主配置可以按订阅覆盖它；给出的每一项取代注解的，两者都没给的仍取全局的：
 
 ```yaml
 wow:

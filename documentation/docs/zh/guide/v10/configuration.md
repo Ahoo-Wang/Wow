@@ -69,7 +69,8 @@ wow:
 | --- | --- | --- |
 | `wow.wait.default-timeout` | `10s` | 请求未指定超时的命令等待多久 |
 | `wow.wait.max-timeout` | `60s` | 最长等待；更长的超时被截到它 |
-| `wow.wait.max-hops` | `4` | 等待计划最多的跳数 |
+| `wow.wait.max-hops` | `16` | 等待计划最多的跳数，上限 32。等待链每经过一个 Saga 加两跳 |
+| `wow.wait.unknown-contexts` | `allow` | 节点没有 Manifest 的上下文的跳：`allow` 在名字合法时放行，到达处再校验；`reject` 使计划无效 |
 | `wow.executor.lane-capacity` | `1024` | 一个聚合可以排队的命令数 |
 | `wow.state-cache.capacity` | `4096` | 每个上下文在命令之间缓存的聚合状态数；`0` 不缓存 |
 | `wow.tenant.default` | `(0)` | 没有租户的调用方（例如匿名调用方）的租户 |
@@ -107,6 +108,16 @@ wow:
 | `wow.http.manifest.enabled` | `true` | 是否提供 `GET /wow/manifest` |
 
 公开端口是 Spring Boot 的 `server.port`。
+
+## CoSec
+
+类路径上有 `wow-cosec` 且应用没有定义 `CallerResolver` 时，由 `CoSecCallerResolver` 解析调用方（[两级调用方](./http-api.md#两级调用方)）：
+
+| 配置项 | 默认值 | 含义 |
+| --- | --- | --- |
+| `wow.cosec.tenant-level.roles`、`wow.cosec.tenant-level.policies` | 空 | 持有这些角色或策略的主体是租户级调用方：没有所有者，可以触达本租户的全部聚合 |
+| `wow.cosec.cross-scope.roles`、`wow.cosec.cross-scope.policies` | 空 | 持有这些角色或策略的主体可以用 `Wow-Scope` 在别的作用域中操作 |
+| `wow.cosec.authorizer.enabled` | `false` | 是否由 CoSec 的授权决定每条命令（动作级授权） |
 
 ## 查询
 
