@@ -63,6 +63,15 @@ const V10_PATH =
 const V10_CONTRACT = 'v10Contract';
 const V10_CONTRACT_PATH =
   /^(?:typescript\/(?:wow-(?:client|view-store)\/(?!(?:test|expected|scripts)\/)|wow-view-engine\/(?!test\/(?!conformance\/))|integration-test\/)|(?:api|compiler|core|query|backends|edge|host|platform\/view-store|test\/(?:tck|test-dsl)|wow-dependencies|gradle|build-logic)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/typescript-contract\.yml$)/;
+// ops-console-test.yml (v10 branch): the ops console's lint, types, tests and
+// build, and its end-to-end suite against the ops server it is served by. Not a
+// TypeScript scope of typescript.yml. Decided apart from RULES, by
+// OPS_CONSOLE_PATH: the console, the ops service (its Manifest the console's
+// client is generated from, its routes the suite runs against), the workspace
+// packages and files the console builds with, and the workflow itself.
+const OPS_CONSOLE = 'opsConsole';
+const OPS_CONSOLE_PATH =
+  /^(?:platform\/ops\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|patches\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ops-console-test\.yml$)/;
 // A Kotlin source a removal marker may sit in.
 const KOTLIN_MAIN = /(?:^|\/)src\/main\/kotlin\/.+\.kt$/;
 
@@ -229,6 +238,11 @@ const RULES = [
     /^skills\/wow-(?:view-definition|view-host|client)\/(?!evals\/).+\.md$/,
     [DOCS],
   ],
+  // The ops console (roadmap 7.1b), a pnpm workspace member under the V10
+  // platform: no package, story or site builds on it; ops-console-test.yml
+  // checks it (OPS_CONSOLE_PATH), and v10.yml runs with the ops server that
+  // serves it (V10_PATH).
+  [/^platform\/ops\/console\//, []],
   // The V10 modules (documentation/designs/v10/06-modules.md §4; their tests
   // live under test/, below): no example server, client or site builds on
   // them yet.
@@ -300,6 +314,7 @@ export function scopes(paths) {
     MIXED_VERSION,
     V10,
     V10_CONTRACT,
+    OPS_CONSOLE,
   ];
   const result = Object.fromEntries(keys.map(key => [key, false]));
   // Light scopes a path asks for alongside their full scope (the workflow
@@ -332,6 +347,8 @@ export function scopes(paths) {
   result[V10_CONTRACT] = paths.some(
     path => V10_CONTRACT_PATH.test(path) && !path.endsWith('.md'),
   );
+  // And the ops console's, the same way.
+  result[OPS_CONSOLE] = paths.some(path => OPS_CONSOLE_PATH.test(path));
   return result;
 }
 
