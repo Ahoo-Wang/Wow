@@ -64,7 +64,6 @@ data class EventStreamRecord(
     val causation: Causation? = null,       // 新增
     val headers: Map<String, String> = emptyMap(), // 新增：来自命令
     val operator: Operator? = null,         // 操作人（D163），审计的主依据
-    val schedules: List<ScheduleChange> = emptyList(), // 定时意图（D166）：随提交原子写入，框架元数据
 )
 
 data class Scope(val ownerId: String?, val spaceId: String?) // wow-api 的值类型：所有者与空间的组合
@@ -79,7 +78,7 @@ data class Operator(val id: String, val tenantId: String, val crossScope: Boolea
   - 内核把它和状态一起维护：`CachedState` 增加 `scope`，快照加载时一并恢复。
   - 这样每条事实都自带作用域：投影、查询授权（ABAC）、快照订阅直接读取，不必回放历史。9.x 的 `DomainEventStream.ownerId` 也是这个语义。
 - **操作人**（D163）：`operator` 记这条事实在谁名下。`Caller` 是一次请求的调用方，只活在准入期间；`Operator` 是它写进事实的子集（`id = subject`、操作人自己的租户、是否代操作）。Saga 派生命令、补偿与台账操作继承根命令的操作人，「谁触发的」看 `causation`。角色、属性与可识别个人身份的信息不进事实。
-- **定时意图**（D166）：`schedules` 记录这次提交新增、改期（`Put(key, dueAt, target, commandType, body)`）或取消（`Cancel(key)`）的定时命令。定时器存储由内置订阅 `timers` 从这里派生，可重建；投影看不到它。
+- **定时意图**（D166，D198 修订）：不再是事实上的字段，而是内置系统事件 `wow.ScheduleSet(key, rule, target, command)` 与 `wow.ScheduleCancelled(key)`，与领域事件同一次提交；定时器存储由内置订阅 `timers` 从它们派生，可重建；快照系统字段 `schedules` 记键与规则。
 - **删除与标签**不放进每条事实。它们是生命周期事件本身，快照订阅按事件演化元数据（`deleted`、`tags`）。
 - **因果链**：
   - `correlationId` 是根命令 ID。用户直接发的命令不带 `causation`，它自己就是根，相当于 `correlationId = commandId`。
