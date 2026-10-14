@@ -16,6 +16,7 @@ package me.ahoo.wow.compiler.model
 import com.google.devtools.ksp.KspExperimental
 import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.isPrivate
+import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
@@ -37,9 +38,9 @@ import java.time.ZoneId
  *
  * - is a `@Saga`'s, not also `@OnEvent` or `@OnRejected`, and not private;
  * - takes a `ScheduleTick` and, optionally, the `SagaContext`, and returns what a saga's handler returns;
- * - names its job with letters, digits, `_` and `-`, gives six cron fields and a time zone Java knows, and is sharded
- *   only as a SYSTEM job; a processor's jobs of one name are declared alike. The cron fields are checked when the
- *   binding is built, by the kernel's parser.
+ * - names its job with letters, digits, `_` and `-`, gives six cron fields (or a macro, `@daily`) and a time zone Java
+ *   knows, and is sharded only as a SYSTEM job; a processor's jobs of one name are declared alike. The cron fields
+ *   themselves are checked when the binding is built, by the kernel's parser.
  */
 internal object ScheduleJobResolver {
     val ON_SCHEDULE: String = OnSchedule::class.java.name
@@ -49,13 +50,34 @@ internal object ScheduleJobResolver {
     private val SAGA_CONTEXT = SagaContext::class.java.name
     private val BLOCKING = Blocking::class.java.name
     private const val CRON_FIELDS = 6
+    private const val SAGA = "SAGA"
+    private val LABELS = mapOf("PROJECT" to "@Projection", "REACT" to "@Reactor")
 
     /**
-     * The binding of the `@OnSchedule` handler [function] of [processor], of [kind] (`SAGA`, or another kind it is a
-     * problem for), or null with its problems added to [problems]. [returnProblem] checks what a saga returns.
+     * The bindings of the `@OnSchedule` handlers [functions] of the processor class [className], named [processor],
+     * of [kind] (`SAGA`, or another kind they are a problem for). A handler with problems is left out, its problems
+     * added to [problems], and so is a job declared twice differently. [returnProblem] checks what a saga returns.
      */
+    @Suppress("LongParameterList")
+    fun handlers(
+        functions: List<KSFunctionDeclaration>,
+        className: String,
+        processor: String,
+        kind: String?,
+        reactorTypes: Set<String>,
+        problems: MutableList<String>,
+        returnProblem: (KSType) -> String?,
+    ): List<HandlerBinding> {
+        val handlers = functions.mapNotNull { handler(it, processor, kind, reactorTypes, problems, returnProblem) }
+        handlers.mapNotNull { it.job }.groupBy { it.name }.filterValues { it.distinct().size > 1 }.keys.forEach {
+            problems += "processor $className declares the job $it twice, differently: a job has one rule"
+        }
+        return handlers
+    }
+
     @OptIn(KspExperimental::class)
-    fun handler(
+    @Suppress("LongParameterList")
+    private fun handler(
         function: KSFunctionDeclaration,
         processor: String,
         kind: String?,
@@ -66,27 +88,7 @@ internal object ScheduleJobResolver {
         val name = function.simpleName.asString()
         val where = "handler $processor.$name"
         val count = problems.size
-        if (kind != null && kind != SAGA) {
-            problems += "$where is an @OnSchedule job of a ${LABELS[kind]}: only a @Saga runs jobs"
-        }
-        if (function.hasAnnotation(ON_EVENT) || function.hasAnnotation(ON_REJECTED)) {
-            problems += "$where is @OnSchedule and @OnEvent or @OnRejected: a job's handler takes its ticks only"
-        }
-        if (function.isPrivate()) {
-            problems += "$where is private: the generated subscription calls it"
-        }
-        val parameters = function.parameters.map { it.type.resolve() }
-        val first = parameters.firstOrNull()?.declaration?.qualifiedName?.asString()
-        if (first != TICK) {
-            problems += "$where must take a $TICK first, not ${first ?: "nothing"}: a job's handler receives its tick"
-        }
-        val context = parameters.getOrNull(1)?.declaration?.qualifiedName?.asString()
-        if (context != null && context != SAGA_CONTEXT) {
-            problems += "$where takes $context: a job's handler takes a $SAGA_CONTEXT after the tick, if anything"
-        }
-        if (parameters.size > 2) {
-            problems += "$where takes ${parameters.size} parameters: a job's handler takes (ScheduleTick[, SagaContext])"
-        }
+        problems += signatureProblems(where, function, kind)
         val returned = function.returnType?.resolve()
         val reactor = returned?.declaration?.qualifiedName?.asString() in reactorTypes
         if (returned != null && !reactor) {
@@ -111,7 +113,7 @@ internal object ScheduleJobResolver {
             subscription = "$processor.$name",
             state = null,
             nullableState = false,
-            context = context != null,
+            context = function.parameters.size > 1,
             suspending = Modifier.SUSPEND in function.modifiers,
             reactor = reactor,
             blocking = function.hasAnnotation(BLOCKING),
@@ -120,12 +122,33 @@ internal object ScheduleJobResolver {
         )
     }
 
-    /** A processor's jobs of one name declared differently. */
-    fun conflicts(processor: String, handlers: List<HandlerBinding>): List<String> =
-        handlers.mapNotNull { it.job }.groupBy { it.name }.filterValues { it.distinct().size > 1 }.keys.map {
-            "processor $processor declares the job $it twice, differently: a job has one rule"
+    /** What is wrong with [function]'s processor kind, annotations, visibility and parameters. */
+    private fun signatureProblems(where: String, function: KSFunctionDeclaration, kind: String?): List<String> =
+        buildList {
+            if (kind != null && kind != SAGA) {
+                add("$where is an @OnSchedule job of a ${LABELS[kind]}: only a @Saga runs jobs")
+            }
+            if (function.hasAnnotation(ON_EVENT) || function.hasAnnotation(ON_REJECTED)) {
+                add("$where is @OnSchedule and @OnEvent or @OnRejected: a job's handler takes its ticks only")
+            }
+            if (function.isPrivate()) {
+                add("$where is private: the generated subscription calls it")
+            }
+            val parameters = function.parameters.map { it.type.resolve().declaration.qualifiedName?.asString() }
+            val first = parameters.firstOrNull()
+            if (first != TICK) {
+                add("$where must take a $TICK first, not ${first ?: "nothing"}: a job's handler receives its tick")
+            }
+            val context = parameters.getOrNull(1)
+            if (context != null && context != SAGA_CONTEXT) {
+                add("$where takes $context: a job's handler takes a $SAGA_CONTEXT after the tick, if anything")
+            }
+            if (parameters.size > 2) {
+                add("$where takes ${parameters.size} parameters: a job's handler takes (ScheduleTick[, SagaContext])")
+            }
         }
 
+    /** What is wrong with [job]: its name, its fields, its time zone, or a sharded job that is not SYSTEM. */
     private fun jobProblems(where: String, job: JobBinding): List<String> = buildList {
         if (!ScheduleJobs.isJobName(job.name)) {
             add("$where names its job \"${job.name}\": a job's name has letters, digits, '_' and '-' only")
@@ -147,10 +170,7 @@ internal object ScheduleJobResolver {
         }
     }
 
-    private const val SAGA = "SAGA"
-    private val LABELS = mapOf("PROJECT" to "@Projection", "REACT" to "@Reactor")
-
-    private fun com.google.devtools.ksp.symbol.KSAnnotated.hasAnnotation(qualifiedName: String): Boolean =
+    private fun KSAnnotated.hasAnnotation(qualifiedName: String): Boolean =
         annotations.any { it.annotationType.resolve().declaration.qualifiedName?.asString() == qualifiedName }
 }
 

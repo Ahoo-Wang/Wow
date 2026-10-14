@@ -149,55 +149,56 @@ class ScheduleJobBindingTest {
             subscriptions.getValue("BillingSaga.onEvent").job.assert().isNull()
         }
 
+    private val broken = SourceFile.kotlin(
+        "Broken.kt",
+        """
+        package sample.billing
+
+        import me.ahoo.wow.api.annotation.OnEvent
+        import me.ahoo.wow.api.annotation.OnSchedule
+        import me.ahoo.wow.api.annotation.Reactor
+        import me.ahoo.wow.api.annotation.Saga
+        import me.ahoo.wow.api.decide.Command
+        import me.ahoo.wow.api.schedule.JobScope
+        import me.ahoo.wow.api.schedule.ScheduleTick
+        import me.ahoo.wow.api.subscribe.ReactContext
+        import me.ahoo.wow.api.subscribe.StateEvent
+
+        @Reactor
+        object Watcher {
+            @OnSchedule(name = "watch", cron = "0 0 * * * *")
+            fun watch(tick: ScheduleTick) = Unit
+        }
+
+        @Saga
+        object Wrong {
+            @OnSchedule(name = "bad name", cron = "0 0 *", zone = "Mars/Olympus", scope = JobScope.TENANT, sharded = true)
+            fun misnamed(tick: ScheduleTick): List<Command<*>> = emptyList()
+
+            @OnSchedule(name = "twice", cron = "0 0 3 * * *")
+            @OnEvent
+            fun both(tick: ScheduleTick): List<Command<*>> = emptyList()
+
+            @OnSchedule(name = "params", cron = "0 0 3 * * *")
+            fun params(event: StateEvent<*>, context: ReactContext, extra: String): List<Command<*>> = emptyList()
+
+            @OnSchedule(name = "returns", cron = "0 0 3 * * *")
+            fun returns(tick: ScheduleTick): String = ""
+
+            @OnSchedule(name = "same", cron = "0 0 3 * * *")
+            fun first(tick: ScheduleTick): List<Command<*>> = emptyList()
+
+            @OnSchedule(name = "same", cron = "0 0 4 * * *")
+            fun second(tick: ScheduleTick): List<Command<*>> = emptyList()
+
+            @OnSchedule(name = "hidden", cron = "0 0 3 * * *")
+            private fun hidden(tick: ScheduleTick): List<Command<*>> = emptyList()
+        }
+        """.trimIndent(),
+    )
+
     @Test
     fun `a job handler or a job that cannot run should fail the compilation`() {
-        val broken = SourceFile.kotlin(
-            "Broken.kt",
-            """
-            package sample.billing
-
-            import me.ahoo.wow.api.annotation.OnEvent
-            import me.ahoo.wow.api.annotation.OnSchedule
-            import me.ahoo.wow.api.annotation.Reactor
-            import me.ahoo.wow.api.annotation.Saga
-            import me.ahoo.wow.api.decide.Command
-            import me.ahoo.wow.api.schedule.JobScope
-            import me.ahoo.wow.api.schedule.ScheduleTick
-            import me.ahoo.wow.api.subscribe.ReactContext
-            import me.ahoo.wow.api.subscribe.StateEvent
-
-            @Reactor
-            object Watcher {
-                @OnSchedule(name = "watch", cron = "0 0 * * * *")
-                fun watch(tick: ScheduleTick) = Unit
-            }
-
-            @Saga
-            object Wrong {
-                @OnSchedule(name = "bad name", cron = "0 0 *", zone = "Mars/Olympus", scope = JobScope.TENANT, sharded = true)
-                fun misnamed(tick: ScheduleTick): List<Command<*>> = emptyList()
-
-                @OnSchedule(name = "twice", cron = "0 0 3 * * *")
-                @OnEvent
-                fun both(tick: ScheduleTick): List<Command<*>> = emptyList()
-
-                @OnSchedule(name = "params", cron = "0 0 3 * * *")
-                fun params(event: StateEvent<*>, context: ReactContext, extra: String): List<Command<*>> = emptyList()
-
-                @OnSchedule(name = "returns", cron = "0 0 3 * * *")
-                fun returns(tick: ScheduleTick): String = ""
-
-                @OnSchedule(name = "same", cron = "0 0 3 * * *")
-                fun first(tick: ScheduleTick): List<Command<*>> = emptyList()
-
-                @OnSchedule(name = "same", cron = "0 0 4 * * *")
-                fun second(tick: ScheduleTick): List<Command<*>> = emptyList()
-
-                @OnSchedule(name = "hidden", cron = "0 0 3 * * *")
-                private fun hidden(tick: ScheduleTick): List<Command<*>> = emptyList()
-            }
-            """.trimIndent(),
-        )
         val (_, result) = compileModel("generate", options, broken)
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
         result.messages.assert()

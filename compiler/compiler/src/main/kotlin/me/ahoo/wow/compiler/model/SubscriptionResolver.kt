@@ -107,19 +107,11 @@ internal object SubscriptionResolver {
         val processorRetry = RetryResolver.read(processor, "processor $className", problems)
         val kinds = Kind.entries.filter { kind -> processor.hasAnnotation(kind.annotation) }
         val kind = kinds.singleOrNull()
-        if (kinds.isEmpty()) {
-            problems += "processor $className is none of @Projection, @Reactor, @Saga: its class says which kind " +
-                "its handlers are"
-        }
-        if (kinds.size > 1) {
-            problems += "processor $className is ${kinds.joinToString(" and ") { it.label }}: a processor is of " +
-                "exactly one kind"
-        }
+        problems += kindProblems(className, kinds)
         val rejectionFunctions = processor.getAllFunctions().filter { it.hasAnnotation(ON_REJECTED) }.toList()
         // A saga's @OnSchedule jobs (decision D198) are handlers of their own.
-        val jobFunctions = processor.getAllFunctions().filter { it.hasAnnotation(
-            ScheduleJobResolver.ON_SCHEDULE
-        ) }.toList()
+        val jobFunctions = processor.getAllFunctions().filter { it.hasAnnotation(ScheduleJobResolver.ON_SCHEDULE) }
+            .toList()
         val functions = processor.getAllFunctions().filter {
             !it.hasAnnotation(ON_REJECTED) && !it.hasAnnotation(ScheduleJobResolver.ON_SCHEDULE) &&
                 (it.hasAnnotation(ON_EVENT) || (it.simpleName.asString() == ON_EVENT_NAME && !it.isPrivate()))
@@ -135,12 +127,9 @@ internal object SubscriptionResolver {
             .filterValues { it.size > 1 }.keys.forEach {
                 problems += "processor $className has two handlers named $it: each is the subscription $name.$it"
             }
-        val jobs = jobFunctions.mapNotNull {
-            ScheduleJobResolver.handler(it, name, kind?.name, reactorTypes, problems) { returned ->
-                returnProblem(Kind.SAGA, returned)
-            }
+        val jobs = ScheduleJobResolver.handlers(jobFunctions, className, name, kind?.name, reactorTypes, problems) {
+            returnProblem(Kind.SAGA, it)
         }
-        problems += ScheduleJobResolver.conflicts(className, jobs)
         val handlers = (functions.mapNotNull { handler(it, name, kind, reactorTypes, problems) } + jobs)
             .map { it.copy(retry = it.retry?.over(processorRetry) ?: processorRetry) }
         val rejections = rejectionFunctions.mapNotNull { rejection(it, name, reactorTypes, problems) }
@@ -164,6 +153,19 @@ internal object SubscriptionResolver {
             dependencies = dependencies,
             rejections = rejections,
         )
+    }
+
+    /** A processor of none of the kinds, or of more than one. */
+    private fun kindProblems(className: String, kinds: List<Kind>): List<String> = when {
+        kinds.isEmpty() -> listOf(
+            "processor $className is none of @Projection, @Reactor, @Saga: its class says which kind its handlers are",
+        )
+
+        kinds.size > 1 -> listOf(
+            "processor $className is ${kinds.joinToString(" and ") { it.label }}: a processor is of exactly one kind",
+        )
+
+        else -> emptyList()
     }
 
     /** `@OnRejected` handlers that are `@OnEvent` handlers too, or of a processor that is not a saga. */
