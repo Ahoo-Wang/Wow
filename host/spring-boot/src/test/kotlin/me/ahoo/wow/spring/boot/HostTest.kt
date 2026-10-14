@@ -61,6 +61,7 @@ class HostTest {
         "wow.timers.lookahead" to "10s",
         "wow.timers.max-attempts" to 4,
         "wow.timers.expires-after" to "1h",
+        "wow.timers.max-early-wait" to "2s",
         "wow.http.errors.[bank.account.frozen].status" to 409,
         "wow.http.request-facts" to "X-Device",
         "spring.lifecycle.timeout-per-shutdown-phase" to "1s",
@@ -114,6 +115,7 @@ class HostTest {
         options.timers.lookahead.assert().isEqualTo(10.seconds)
         options.timers.retry.maxAttempts.assert().isEqualTo(4)
         options.timers.expiresAfter.assert().isEqualTo(1.hours)
+        options.timers.maxEarlyWait.assert().isEqualTo(2.seconds)
         host.node.context(BANK).timers!!.runner.partitions.size.assert().isEqualTo(8)
         host.node.context(BANK).log.partitions.assert().isEqualTo(8)
     }

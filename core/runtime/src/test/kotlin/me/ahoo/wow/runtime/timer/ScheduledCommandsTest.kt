@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.timer
 
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -45,7 +46,9 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.node.fastNodeOptions
+import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
@@ -56,7 +59,11 @@ import me.ahoo.wow.spi.timer.Timers
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.time.Clock
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -81,6 +88,11 @@ class ScheduledCommandsTest {
         subscriptions: SubscriptionFactory = SubscriptionFactory.NONE,
         topics: SourceTopics? = null,
         clock: Clock = Clock.systemUTC(),
+        timers: TimerOptions = TimerOptions(
+            pollInterval = 20.milliseconds,
+            lookahead = 1.seconds,
+            claimTimeout = 300.milliseconds
+        ),
     ): ServiceNode = ServiceNode(
         SHOP_SERVICE,
         name,
@@ -89,13 +101,7 @@ class ScheduledCommandsTest {
         shopManifest(),
         backends,
         channel,
-        options = fastNodeOptions().copy(
-            timers = TimerOptions(
-                pollInterval = 20.milliseconds,
-                lookahead = 1.seconds,
-                claimTimeout = 300.milliseconds
-            ),
-        ),
+        options = fastNodeOptions().copy(timers = timers),
         subscriptions = subscriptions,
         contracts = ContractDirectory(shopManifest(), listOf(peer(stockManifest()))),
         topics = topics,
@@ -259,6 +265,46 @@ class ScheduledCommandsTest {
     }
 
     @Test
+    fun `a node whose clock is far ahead has its timer refused at once, sent again once corrected, decided once`():
+        Unit = runBlocking {
+        val skew = AtomicLong(FAR_AHEAD_MILLIS)
+        val skewed = object : Clock() {
+            override fun getZone(): ZoneId = ZoneOffset.UTC
+            override fun withZone(zone: ZoneId): Clock = this
+            override fun instant(): Instant = Instant.now().plusMillis(skew.get())
+        }
+        val timers = TimerOptions(
+            pollInterval = 20.milliseconds,
+            lookahead = 1.seconds,
+            retry = RetryPolicy(maxAttempts = 100, initialBackoff = 50.milliseconds, maxBackoff = 100.milliseconds),
+            claimTimeout = 1.seconds,
+            maxEarlyWait = 300.milliseconds,
+        )
+        val node = node("node-1", TimedBackends(), clock = skewed, timers = timers).also { it.start() }
+        node.send("o-1", PlaceOrder(payWithinMillis = FAR_AHEAD_MILLIS + 500))
+        val due = node.streams("o-1").single().commitTime + FAR_AHEAD_MILLIS + 500
+        // Sent far too early for the order's node: refused at once as a technical failure, and sent again later.
+        eventually { (node.timer(order("o-1"), PAY_TIMEOUT)?.attempts ?: 0) >= 2 }
+        node.timer(order("o-1"), PAY_TIMEOUT)!!.outcome.assert().contains(ResultCodes.SCHEDULE_NOT_DUE)
+        // The order's queue is not held meanwhile: another command on it commits at once.
+        val started = System.nanoTime()
+        node.send("o-1", Remind(at = System.currentTimeMillis() + 60_000))
+            .status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        ((System.nanoTime() - started) / 1_000_000).assert().isLessThan(FAR_AHEAD_MILLIS / 2)
+        node.streams("o-1").eventNames().assert().doesNotContain("shop.order.OrderCancelled")
+        // The firing node's clock is corrected once the timer is due: the next attempt is decided, once.
+        delay(due - System.currentTimeMillis())
+        skew.set(0)
+        eventually { node.timer(order("o-1"), PAY_TIMEOUT)?.status == TimerStatus.FIRED }
+        val fired = checkNotNull(node.timer(order("o-1"), PAY_TIMEOUT))
+        fired.outcome.assert().isEqualTo(TimerOutcomes.COMMITTED)
+        val streams = node.streams("o-1")
+        val cancelled = streams.filter { stream -> stream.events.any { it.name == "shop.order.OrderCancelled" } }
+        cancelled.single().requestId.assert().isEqualTo(fired.requestId)
+        cancelled.single().commitTime.assert().isGreaterThanOrEqualTo(due)
+    }
+
+    @Test
     fun `a decision that only schedules commits, is waited for, and its timer is sent`(): Unit = runBlocking {
         val node = node("node-1", TimedBackends()).also { it.start() }
         node.send("o-1", PlaceOrder(payWithinMillis = 60_000))
@@ -323,6 +369,7 @@ class ScheduledCommandsTest {
     private companion object {
         const val PREFIX = "test."
         const val AHEAD_MILLIS = 700L
+        const val FAR_AHEAD_MILLIS = 2_000L
         const val STOCK_PARTITIONS = 4
         const val STOCK_COMMANDS = PREFIX + "wow.stock.commands"
     }

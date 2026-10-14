@@ -350,6 +350,12 @@ class TimerRunnerTest {
         assertThrows<IllegalArgumentException> { TimerOptions(maxFireRate = 0.0) }
     }
 
+    @Test
+    fun `the maximum early wait is never negative, and none is allowed`() {
+        assertThrows<IllegalArgumentException> { TimerOptions(maxEarlyWait = (-1).seconds) }
+        TimerOptions(maxEarlyWait = Duration.ZERO).maxEarlyWait.assert().isEqualTo(Duration.ZERO)
+    }
+
     private companion object {
         const val BACKLOG = 6
         const val RATE = 20.0
