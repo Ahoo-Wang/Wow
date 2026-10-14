@@ -13,8 +13,11 @@
 
 package me.ahoo.wow.mongo.timer
 
+import com.mongodb.client.model.Filters
+import com.mongodb.client.model.Updates
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.spi.timer.TimerStore
 import me.ahoo.wow.spi.timer.TimerStoreSpec
@@ -34,6 +37,16 @@ class MongoTimerStoreTest : TimerStoreSpec() {
         val context = MongoLogFixture.newContext("timer")
         val created = store(context).also { it.createSchema() }
         MongoLogFixture.bumpFormat(created.collectionName)
+        assertThrownBy<IllegalStateException> { store(context).createSchema() }
+    }
+
+    @Test
+    fun `a collection of format 2, without the slot's due time, is refused`() {
+        val context = MongoLogFixture.newContext("timer")
+        val created = store(context).also { it.createSchema() }
+        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(MongoFormat.COLLECTION)
+            .updateOne(Filters.eq("_id", created.collectionName), Updates.set("version", 2))
+            .matchedCount.assert().isEqualTo(1L)
         assertThrownBy<IllegalStateException> { store(context).createSchema() }
     }
 

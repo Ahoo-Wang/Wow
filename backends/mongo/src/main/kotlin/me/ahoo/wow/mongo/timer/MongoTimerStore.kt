@@ -51,7 +51,8 @@ import org.bson.conversions.Bson
  * conditional update; a settle is one unordered bulk write of conditional updates, each on the document as it was
  * loaded. A partial index on `(partition, due_at, timer_id)` of the PENDING and FIRING (claimed) timers serves the due read of every
  * partition asked, one on the target of the PARKED timers a resume. The body is kept as the command's JSON text, the
- * rule as a subdocument (`{type, ...}`, as Wow's JSON writes it). Format 2 added the rule and the slot.
+ * rule as a subdocument (`{type, ...}`, as Wow's JSON writes it). Format 2 added the rule and the slot, format 3 the
+ * slot's due time (`slot_due_at`), kept apart from `due_at`, which a claim or a retry moves.
  *
  * Calls run on [dispatcher], virtual threads by default (decision D29).
  */
@@ -97,6 +98,7 @@ class MongoTimerStore(
             Updates.set(RULE, MongoRules.document(timer.rule)),
             Updates.set(SLOT, timer.slot),
             Updates.set(DUE_AT, timer.dueAt),
+            Updates.set(SLOT_DUE_AT, timer.slotDueAt),
             Updates.set(TARGET_CONTEXT, timer.target.type.context),
             Updates.set(TARGET_AGGREGATE, timer.target.type.name),
             Updates.set(TARGET_TENANT_ID, timer.target.tenantId),
@@ -163,12 +165,14 @@ class MongoTimerStore(
                         Filters.eq(TIMER_ID, loaded.id),
                         Filters.eq(STATUS, loaded.status.name),
                         Filters.eq(SLOT, loaded.slot),
+                        Filters.eq(SLOT_DUE_AT, loaded.slotDueAt),
                         Filters.eq(ATTEMPTS, loaded.attempts),
                         Filters.eq(DUE_AT, loaded.dueAt),
                     ),
                     Updates.combine(
                         Updates.set(STATUS, next.status.name),
                         Updates.set(SLOT, next.slot),
+                        Updates.set(SLOT_DUE_AT, next.slotDueAt),
                         Updates.set(DUE_AT, next.dueAt),
                         Updates.set(ATTEMPTS, next.attempts),
                         Updates.set(OUTCOME, next.outcome),
@@ -226,11 +230,12 @@ class MongoTimerStore(
         outcome = document.getString(OUTCOME),
         operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
         scope = Scope(document.getString(OWNER_ID), document.getString(SPACE_ID)),
+        slotDueAt = document.getLong(SLOT_DUE_AT),
     )
 
     private companion object {
         /** The version of this layout (decision D59). */
-        const val FORMAT = 2
+        const val FORMAT = 3
         const val PREFIX = "wow_timer"
         const val TIMER_KEY = "timer_key"
         const val DUE_INDEX = "timer_due"
@@ -242,6 +247,7 @@ class MongoTimerStore(
         const val VERSION = "version"
         const val PARTITION = "partition"
         const val DUE_AT = "due_at"
+        const val SLOT_DUE_AT = "slot_due_at"
         const val RULE = "rule"
         const val SLOT = "slot"
         const val TARGET_CONTEXT = "target_context"

@@ -41,6 +41,7 @@ object FrameworkErrors {
     const val COMMAND_UNKNOWN: String = "wow.command.unknown"
     const val NODE_CLOSING: String = "wow.node.closing"
     const val STORAGE_UNAVAILABLE: String = "wow.storage.unavailable"
+    const val SCHEDULE_NOT_DUE: String = "wow.schedule.not-due"
     const val SUBSCRIPTION_PARKED: String = "wow.subscription.parked"
     const val WAIT_TIMEOUT: String = "wow.wait.timeout"
     const val QUERY_MALFORMED: String = "wow.query.malformed"
@@ -88,6 +89,11 @@ object FrameworkErrors {
             STORAGE_UNAVAILABLE,
             503,
             "A store could not be reached or did not answer in time; retry later, a command with the same request id.",
+        ),
+        ErrorManifest(
+            SCHEDULE_NOT_DUE,
+            503,
+            "A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
         ),
         ErrorManifest(
             SUBSCRIPTION_PARKED,

@@ -36,6 +36,10 @@ import kotlin.time.Duration.Companion.seconds
  * - [maxFireRate]: the most commands a partition sends a second (`wow.timers.max-fire-rate`), so a backlog of overdue
  *   timers after an outage drains at that rate instead of at once; null, the default, sends them as fast as
  *   [parallelism] allows.
+ * - [maxEarlyWait]: the longest a scheduled command waits in its target's kernel for its due time on the target
+ *   node's clock (`wow.timers.max-early-wait`, decision D198), holding the aggregate's queue meanwhile. One that
+ *   arrives earlier than that, its firing node's clock that far ahead, fails at once as a technical failure
+ *   ([me.ahoo.wow.runtime.wait.ResultCodes.SCHEDULE_NOT_DUE]), and the runner sends it again after its backoff.
  */
 data class TimerOptions(
     val pollInterval: Duration = 1.seconds,
@@ -46,6 +50,7 @@ data class TimerOptions(
     val parallelism: Int = 64,
     val maxFireRate: Double? = null,
     val claimTimeout: Duration = 30.seconds,
+    val maxEarlyWait: Duration = 5.seconds,
 ) {
     init {
         require(pollInterval.isPositive()) { "The poll interval is positive." }
@@ -55,6 +60,7 @@ data class TimerOptions(
         require(parallelism >= 1) { "A partition sends at least one command at once." }
         require(maxFireRate == null || maxFireRate > 0) { "A fire rate is positive." }
         require(claimTimeout.isPositive()) { "A claim holds for a positive time." }
+        require(!maxEarlyWait.isNegative()) { "The maximum early wait is never negative." }
     }
 
     companion object {

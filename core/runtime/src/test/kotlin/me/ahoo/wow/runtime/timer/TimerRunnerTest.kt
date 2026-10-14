@@ -56,8 +56,12 @@ class TimerRunnerTest {
 
     /** What the firer answers, by timer key; a throwable is thrown. */
     private val answers = ConcurrentHashMap<String, Any>()
+
+    /** The due time each send carried for its slot, as its target reads it. */
+    private val sentDue = CopyOnWriteArrayList<Long>()
     private val firer = TimerFirer { timer ->
         fired += timer.id
+        sentDue += timer.context.due
         firedAt += System.nanoTime()
         when (val answer = answers[timer.key] ?: TimerOutcomes.COMMITTED) {
             is Throwable -> throw answer
@@ -144,6 +148,7 @@ class TimerRunnerTest {
     @Test
     fun `a technical failure is retried after its backoff, then parked, resumed and skipped`(): Unit = runBlocking {
         answers["pay"] = IllegalStateException("down")
+        val due = timer("pay").dueAt
         store.put(timer("pay"))
         val runner = runner()
         runner.startPartition(0)
@@ -170,6 +175,10 @@ class TimerRunnerTest {
         ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")).assert().isNull()
         eventually { status("pay").status == TimerStatus.FIRED }
         status("pay").outcome.assert().isEqualTo(TimerOutcomes.COMMITTED)
+        // Every attempt, retried or resumed, was sent for the slot's own due time, and the slot fired as due then.
+        sentDue.assert().hasSize(4).allMatch { it == due }
+        status("pay").dueAt.assert().isEqualTo(due)
+        status("pay").slotDueAt.assert().isEqualTo(due)
 
         answers["remind"] = IllegalStateException("down")
         store.put(timer("remind"))
@@ -230,6 +239,9 @@ class TimerRunnerTest {
         clock.advance(1.seconds)
         eventually { status("pay").status == TimerStatus.FIRED }
         fired.assert().containsExactly(timer.id)
+        // Claimed anew, it is still sent for the slot's own due time.
+        sentDue.assert().containsExactly(timer.dueAt)
+        status("pay").dueAt.assert().isEqualTo(timer.dueAt)
     }
 
     @Test
@@ -348,6 +360,12 @@ class TimerRunnerTest {
     @Test
     fun `a rate is positive`() {
         assertThrows<IllegalArgumentException> { TimerOptions(maxFireRate = 0.0) }
+    }
+
+    @Test
+    fun `the maximum early wait is never negative, and none is allowed`() {
+        assertThrows<IllegalArgumentException> { TimerOptions(maxEarlyWait = (-1).seconds) }
+        TimerOptions(maxEarlyWait = Duration.ZERO).maxEarlyWait.assert().isEqualTo(Duration.ZERO)
     }
 
     private companion object {

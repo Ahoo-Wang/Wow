@@ -226,15 +226,52 @@ abstract class TimerStoreSpec {
     fun `firing a slot moves the timer to its next slot in one write`(): Unit = runBlocking {
         val timer = timer(rule = ScheduleRule.cron("0 0 * * * *"))
         store.put(timer)
-        val next = timer.copy(slot = 2, dueAt = DUE + HOUR, attempts = 0, outcome = TimerOutcomes.COMMITTED)
+        val next = timer.copy(
+            slot = 2,
+            dueAt = DUE + HOUR,
+            slotDueAt = DUE + HOUR,
+            attempts = 0,
+            outcome = TimerOutcomes.COMMITTED,
+        )
         settle(timer, next).assert().isTrue()
         store.find(owner, "pay").assert().isEqualTo(next)
+        next.context.due.assert().isEqualTo(DUE + HOUR)
         next.requestId.assert().isEqualTo("${timer.id}#2")
         store.due(partitions, DUE, LIMIT).assert().isEmpty()
         store.due(partitions, DUE + HOUR, LIMIT).assert().containsExactly(next)
         // The slot fired already cannot be fired again.
         settle(timer, timer.copy(slot = 2, dueAt = DUE + 2 * HOUR)).assert().isFalse()
         store.find(owner, "pay").assert().isEqualTo(next)
+    }
+
+    @Test
+    fun `a timer's slot keeps its due time through claims and retries`(): Unit = runBlocking {
+        val timer = timer()
+        store.put(timer)
+        val claimed = timer.claimed()
+        settle(timer, claimed).assert().isTrue()
+        // A technical failure: due again after the backoff, its slot still due when it was.
+        val retried = claimed.copy(
+            status = TimerStatus.PENDING,
+            attempts = 1,
+            dueAt = DUE + CLAIM + 5,
+            outcome = "down"
+        )
+        settle(claimed, retried).assert().isTrue()
+        val loaded = store.due(partitions, DUE + CLAIM + 5, LIMIT).single()
+        loaded.assert().isEqualTo(retried)
+        loaded.slotDueAt.assert().isEqualTo(DUE)
+        loaded.context.due.assert().isEqualTo(DUE)
+        // Claimed again, and that claim lapsing: the next owner reads the slot's due time as it was.
+        val reclaimed = loaded.claimed(DUE + 2 * CLAIM)
+        settle(loaded, reclaimed).assert().isTrue()
+        val lapsed = store.due(partitions, DUE + 2 * CLAIM, LIMIT).single()
+        lapsed.slotDueAt.assert().isEqualTo(DUE)
+        lapsed.dueAt.assert().isEqualTo(DUE + 2 * CLAIM)
+        // A change from another due time of the slot does nothing.
+        settle(lapsed.copy(slotDueAt = DUE + 1), lapsed.fired()).assert().isFalse()
+        settle(lapsed, lapsed.fired()).assert().isTrue()
+        store.find(owner, "pay")?.slotDueAt.assert().isEqualTo(DUE)
     }
 
     private fun Timer.claimed(deadline: Long = DUE + CLAIM) = copy(status = TimerStatus.FIRING, dueAt = deadline)

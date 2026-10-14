@@ -25,7 +25,7 @@ import me.ahoo.wow.spi.log.Partitioner
 
 /**
  * One schedule of an aggregate (decisions D166, D198): send the command of type [commandType], [body] its JSON, to
- * [target] each time [rule] says, the next time [dueAt] (epoch milliseconds), for its [slot].
+ * [target] each time [rule] says, the next time [dueAt] (epoch milliseconds), for its [slot], due at [slotDueAt].
  *
  * - [id] is `ref#key@version`, the schedule as the owner's stream at [version] set it ([Timers.idOf]); the command of
  *   each slot is sent with the request id `id#slot` ([requestId]), so sending it again is deduplicated by its target.
@@ -33,6 +33,10 @@ import me.ahoo.wow.spi.log.Partitioner
  *   changes ([TimerStore]).
  * - [slot] counts the times the schedule is due, from 1: firing a slot marks it fired and moves [dueAt] to the next
  *   one in one write; a rule due once has one slot, after which the timer is FIRED.
+ * - [slotDueAt] is when the current [slot] is due, as its rule said; [dueAt] is when the firing loop next looks at the
+ *   timer: the slot's due time at first, then the claim's deadline while it is sent, or the next attempt after a
+ *   technical failure. Every send of the slot, retried or claimed anew, carries [slotDueAt] ([context]), so its
+ *   target never decides it before then; it moves only with the slot.
  * - [partition] is the partition of the [target] among the scheduling context's log partitions: the owner of that
  *   partition fires the timer, so a target of the same context runs where its aggregate's commands run.
  * - [causation] links the command to the commit that set the schedule; [headers] and [operator] are the setting
@@ -60,6 +64,7 @@ data class Timer(
     val attempts: Int = 0,
     val outcome: String? = null,
     val scope: Scope = Scope.NONE,
+    val slotDueAt: Long = dueAt,
 ) {
     init {
         require(id.isNotBlank()) { "A timer needs an id." }
@@ -74,8 +79,11 @@ data class Timer(
     /** The request id the command of the current [slot] is sent with: `id#slot`. */
     val requestId: String get() = "$id#$slot"
 
-    /** Which time of the schedule the command of the current [slot] is sent for, as its target reads it. */
-    val context: ScheduleContext get() = ScheduleContext(id, key, slot, dueAt)
+    /**
+     * Which time of the schedule the command of the current [slot] is sent for, as its target reads it: due at
+     * [slotDueAt], however many attempts or claims it took.
+     */
+    val context: ScheduleContext get() = ScheduleContext(id, key, slot, slotDueAt)
 }
 
 /** Where a [Timer] is. */

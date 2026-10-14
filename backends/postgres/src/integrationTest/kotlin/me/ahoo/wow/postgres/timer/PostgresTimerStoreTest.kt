@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.postgres.timer
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.PostgresFixture
 import me.ahoo.wow.spi.timer.TimerStore
 import me.ahoo.wow.spi.timer.TimerStoreSpec
@@ -33,6 +35,20 @@ class PostgresTimerStoreTest : TimerStoreSpec() {
         val context = PostgresFixture.newContext("timer")
         PostgresTimerStore(PostgresFixture.dataSource, context).createSchema()
         PostgresFixture.bumpFormat(PostgresTimerTables(context).base)
+        assertThrownBy<IllegalStateException> { PostgresTimerStore(PostgresFixture.dataSource, context).createSchema() }
+    }
+
+    @Test
+    fun `a table of format 2, without the slot's due time, is refused`() {
+        val context = PostgresFixture.newContext("timer")
+        val base = PostgresTimerTables(context).base
+        PostgresTimerStore(PostgresFixture.dataSource, context).createSchema()
+        PostgresFixture.dataSource.connection.use { connection ->
+            connection.prepareStatement("UPDATE ${PostgresFormat.TABLE} SET version = 2 WHERE structure = ?").use {
+                it.setString(1, base)
+                it.executeUpdate().assert().isEqualTo(1)
+            }
+        }
         assertThrownBy<IllegalStateException> { PostgresTimerStore(PostgresFixture.dataSource, context).createSchema() }
     }
 
