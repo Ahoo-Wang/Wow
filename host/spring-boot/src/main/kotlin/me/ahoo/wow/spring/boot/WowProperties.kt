@@ -88,7 +88,8 @@ import kotlin.time.toKotlinDuration
  *   override of an `@OnSchedule` job's rule (decision D198), see [Schedule]; a job no handler of the node runs fails
  *   its start.
  * - `wow.tenant.default`: the tenant of a caller that has none (D97).
- * - `wow.http.request-facts`, `wow.http.errors.[<code>].status`, `wow.http.manifest.enabled`.
+ * - `wow.http.request-facts`, `wow.http.errors.[<code>].status`, `wow.http.manifest.enabled`,
+ *   `wow.http.openapi.enabled` (`GET /wow/openapi`, the OpenAPI document of the routes).
  * - `wow.aggregates.[<context>.<aggregate>].tenant`: a fixed tenant per aggregate type (decision D116);
  *   `wow.aggregates.[<context>.<aggregate>].id-generator`: the generator of its new ids (decision D171);
  *   `wow.aggregates.[<context>.<aggregate>].routing`: `cluster` (the default, the node's `wow.cluster.router`)
@@ -526,6 +527,7 @@ class WowProperties {
         /** The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`). */
         var errors: MutableMap<String, Error> = LinkedHashMap()
         var manifest: Manifest = Manifest()
+        var openapi: OpenApi = OpenApi()
 
         class Error {
             var status: Int = 0
@@ -533,6 +535,11 @@ class WowProperties {
 
         class Manifest {
             /** Serves `GET /wow/manifest`. */
+            var enabled: Boolean = true
+        }
+
+        class OpenApi {
+            /** Serves `GET /wow/openapi`, the OpenAPI 3.1 document of the routes (roadmap 5a.2). */
             var enabled: Boolean = true
         }
     }

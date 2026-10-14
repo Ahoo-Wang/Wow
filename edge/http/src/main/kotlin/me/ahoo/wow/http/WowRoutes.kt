@@ -40,6 +40,8 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.QueryRoutes
+import me.ahoo.wow.openapi.ManifestOpenApi
+import me.ahoo.wow.openapi.OpenApiOptions
 import me.ahoo.wow.query.QueryOwnership
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.runtime.admission.CommandGateway
@@ -74,6 +76,8 @@ import org.springframework.web.reactive.function.server.coRouter
  *   snapshot model is queried, and `GET /wow/dataset` lists those the caller sees; a dataset that joins or leaves
  *   while the node runs is served or not from then on;
  * - `GET /wow/manifest` answers [manifest], unless [WowHttpOptions.manifestEndpoint] is off;
+ * - `GET /wow/openapi` answers the OpenAPI 3.1 document of these routes ([openApiOf], roadmap 5a.2), unless
+ *   [WowHttpOptions.openApiEndpoint] is off;
  * - `GET /wow/id/global` answers a new global id of the gateway's [generator][CommandGateway.ids] (decision D171) as
  *   `text/plain`;
  * - any other request under a context of the Manifest is a 404 problem.
@@ -106,16 +110,12 @@ fun wowRoutes(
     val ownerships = QueryOwnership.of(manifest)
     val states = StateHandler(reads, authenticator, headers, statuses, gateway.tenants, ownerships::ownershipOf)
     val served = withTransformedRoutes(manifest, gateway)
-    val manifestBody = HttpJson.write(ManifestTree.write(served))
     return coRouter {
         if (options.manifestEndpoint) {
-            GET(WowPaths.MANIFEST) { request ->
-                statuses.answering {
-                    authenticator.authenticate(request)
-                    Negotiation.checkAcceptable(request, alsoEventStream = false)
-                    ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(manifestBody)
-                }
-            }
+            document(WowPaths.MANIFEST, HttpJson.write(ManifestTree.write(served)), statuses, authenticator)
+        }
+        if (options.openApiEndpoint) {
+            document(WowPaths.OPENAPI, HttpJson.write(openApiOf(served, options, queries)), statuses, authenticator)
         }
         GET(WowPaths.GLOBAL_ID) { request ->
             statuses.answering {
@@ -171,6 +171,56 @@ internal fun withTransformedRoutes(manifest: Manifest, gateway: CommandGateway):
     },
 )
 
+/**
+ * The OpenAPI document of the routes of [served] (decision D182's transformed routes included) as [options] and
+ * [queries] serve them: the query models [queries] serves, the datasets when it has them, the Manifest endpoint and the
+ * error statuses the host configures.
+ */
+internal fun openApiOf(served: Manifest, options: WowHttpOptions, queries: HttpQueries): Map<String, Any?> {
+    val documented = served.copy(
+        contexts = served.contexts.map { context ->
+            context.copy(
+                aggregates = context.aggregates.map { aggregate ->
+                    val type = AggregateType(context.name, aggregate.name)
+                    aggregate.copy(queries = aggregate.queries.filter { queries.serves(type, it.model) })
+                },
+            )
+        },
+    )
+    return ManifestOpenApi.write(
+        documented,
+        OpenApiOptions(
+            datasets = queries.datasets !== DatasetQueryGateways.NONE,
+            manifestEndpoint = options.manifestEndpoint,
+            openApiEndpoint = options.openApiEndpoint,
+            errorStatuses = options.errorStatuses,
+        ),
+    )
+}
+
+/** Whether [this] serves the query [model] of [type]: the snapshots and the events of the types it has gateways for. */
+private fun HttpQueries.serves(type: AggregateType, model: String): Boolean = when (model) {
+    QueryRoutes.SNAPSHOT -> snapshots(type) != null
+    QueryRoutes.EVENTS -> events(type) != null
+    else -> false
+}
+
+/** `GET [path]`: [body], as JSON, to an authenticated caller that accepts it. */
+private fun CoRouterFunctionDsl.document(
+    path: String,
+    body: ByteArray,
+    statuses: ErrorStatuses,
+    authenticator: Authenticator,
+) {
+    GET(path) { request ->
+        statuses.answering {
+            authenticator.authenticate(request)
+            Negotiation.checkAcceptable(request, alsoEventStream = false)
+            ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(body)
+        }
+    }
+}
+
 /** The routes of [aggregate]'s commands and of the lifecycle commands it lists. */
 private fun CoRouterFunctionDsl.commandRoutes(
     context: String,
@@ -225,12 +275,7 @@ private fun CoRouterFunctionDsl.queryRoutes(
     handler: QueryHandler,
 ) {
     aggregate.queries.forEach { query ->
-        val served = when (query.model) {
-            QueryRoutes.SNAPSHOT -> queries.snapshots(type) != null
-            QueryRoutes.EVENTS -> queries.events(type) != null
-            else -> false
-        }
-        if (!served) return@forEach
+        if (!queries.serves(type, query.model)) return@forEach
         val target = QueryTarget(type, query.model)
         query.routes.forEach { route ->
             when (route.method) {

@@ -41,6 +41,7 @@ class HostCustomizationTest {
         "wow.node.id" to "node-a",
         "wow.service" to "custom-bank",
         "wow.http.manifest.enabled" to false,
+        "wow.http.openapi.enabled" to false,
         "wow.aggregates.[bank.account].id-generator" to "accountIds",
         sources = listOf(HostTestApp::class.java, Customizations::class.java),
     )
@@ -106,6 +107,11 @@ class HostCustomizationTest {
     @Test
     fun `wow-http-manifest-enabled false should not serve the Manifest`() {
         host.get("/wow/manifest").status.assert().isEqualTo(404)
+    }
+
+    @Test
+    fun `wow-http-openapi-enabled false should not serve the OpenAPI document`() {
+        host.get("/wow/openapi").status.assert().isEqualTo(404)
     }
 
     @Test

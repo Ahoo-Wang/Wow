@@ -48,6 +48,8 @@ import java.util.Properties
  * - registers [MERGE_TASK] ([MergeManifest]), which merges every fragment on the runtime class path into
  *   `build/wow/manifest.json`, and exposes that file as the outgoing variant [MANIFEST_ELEMENTS], published with
  *   the `java` component;
+ * - registers [OPENAPI_TASK] ([GenerateOpenApi]), which writes the OpenAPI document of that Manifest's routes into
+ *   `build/wow/openapi.json` (roadmap 5a.2);
  * - registers [CHECK_COMPATIBILITY_TASK] ([CheckManifestCompatibility]), part of `check`, which compares the merged
  *   Manifest with the committed baseline (`manifest/baseline.json`, [WowExtension.manifestBaseline]) and fails on a
  *   breaking change within the major version (decision D76), and [UPDATE_BASELINE_TASK] ([UpdateManifestBaseline]),
@@ -106,7 +108,7 @@ class WowPlugin : Plugin<Project> {
             task.serviceVersion.set(extension.serviceVersion)
             task.outputFile.set(project.layout.buildDirectory.file("wow/manifest.json"))
         }
-        manifestElements(project, merge)
+        mergedOutputs(project, merge)
         compatibility(project, extension, merge, tools)
 
         val peers = peersConfiguration(project)
@@ -120,6 +122,17 @@ class WowPlugin : Plugin<Project> {
             task.outputDirectory.set(peersDirectory)
         }
         main.output.dir(mapOf("builtBy" to collect), peersDirectory)
+    }
+
+    /** What the Manifest [merge] writes gives: the [MANIFEST_ELEMENTS] variant, and [OPENAPI_TASK]'s document. */
+    private fun mergedOutputs(project: Project, merge: TaskProvider<MergeManifest>) {
+        manifestElements(project, merge)
+        project.tasks.register(OPENAPI_TASK, GenerateOpenApi::class.java) { task ->
+            task.group = GROUP_NAME
+            task.description = "Writes the OpenAPI document of the service's routes from its manifest.json."
+            task.manifestFile.set(merge.flatMap { it.outputFile })
+            task.outputFile.set(project.layout.buildDirectory.file("wow/openapi.json"))
+        }
     }
 
     /** Applies KSP with the model processor alone, and adds `wow-compiler` unless turned off. */
@@ -265,6 +278,7 @@ class WowPlugin : Plugin<Project> {
         const val EXTENSION = "wow"
         const val GENERATE_FRAGMENT_TASK = "generateWowManifestFragment"
         const val MERGE_TASK = "mergeWowManifest"
+        const val OPENAPI_TASK = "generateWowOpenApi"
         const val TOOLS_CONFIGURATION = "wowManifestTools"
         const val COLLECT_PEERS_TASK = "collectWowPeers"
         const val PEERS_CONFIGURATION = "wowPeers"

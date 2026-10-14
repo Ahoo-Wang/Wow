@@ -335,6 +335,12 @@ component_management:
         - backends/clickhouse/src/main/**
       flag_regexes:
         - "^v10$"
+    - component_id: v10-openapi
+      name: v10-openapi
+      paths:
+        - edge/openapi/src/main/**
+      flag_regexes:
+        - "^v10$"
     - component_id: v10-http
       name: v10-http
       paths:

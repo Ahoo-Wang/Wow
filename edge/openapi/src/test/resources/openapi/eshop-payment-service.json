@@ -1,0 +1,3578 @@
+{
+  "openapi" : "3.1.0",
+  "jsonSchemaDialect" : "https://json-schema.org/draft/2020-12/schema",
+  "info" : {
+    "title" : "eshop-payment-service",
+    "version" : "unversioned",
+    "description" : "The public routes of the service, generated from its Wow Manifest (format 1)."
+  },
+  "tags" : [ {
+    "name" : "eshop-payment.payment",
+    "description" : "The payment of an order through the payment gateway"
+  }, {
+    "name" : "wow",
+    "description" : "The framework's own endpoints."
+  } ],
+  "paths" : {
+    "/wow/manifest" : {
+      "get" : {
+        "tags" : [ "wow" ],
+        "summary" : "The service's Manifest.",
+        "operationId" : "wow.manifest",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.Manifest"
+                }
+              }
+            }
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.framework.401"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.framework.406"
+          }
+        }
+      }
+    },
+    "/wow/openapi" : {
+      "get" : {
+        "tags" : [ "wow" ],
+        "summary" : "This document.",
+        "operationId" : "wow.openapi",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "object"
+                }
+              }
+            }
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.framework.401"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.framework.406"
+          }
+        }
+      }
+    },
+    "/wow/id/global" : {
+      "get" : {
+        "tags" : [ "wow" ],
+        "summary" : "A new global id (decision D171).",
+        "operationId" : "wow.id.global",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "text/plain" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.framework.401"
+          }
+        }
+      }
+    },
+    "/wow/dataset" : {
+      "get" : {
+        "tags" : [ "wow" ],
+        "summary" : "The datasets the caller sees (decision D145).",
+        "operationId" : "wow.dataset.list",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/wow.DatasetEntry"
+                  }
+                }
+              }
+            }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.datasets.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.datasets.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.datasets.403"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.datasets.406"
+          }
+        }
+      }
+    },
+    "/wow/dataset/{context}/{dataset}/query" : {
+      "post" : {
+        "tags" : [ "wow" ],
+        "summary" : "Queries a dataset (decision D145), as a snapshot model is queried.",
+        "description" : "The body's `kind` is the operation: `list` (an array, or with `Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count` or `aggregate` (an array of groups).",
+        "operationId" : "wow.dataset.query",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/context"
+        }, {
+          "$ref" : "#/components/parameters/dataset"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        } ],
+        "requestBody" : {
+          "required" : true,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/wow.QueryRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "The query's answer, by its kind.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "anyOf" : [ {
+                    "type" : "array",
+                    "items" : {
+                      "type" : "object"
+                    }
+                  }, {
+                    "$ref" : "#/components/schemas/wow.PagedList",
+                    "properties" : {
+                      "list" : {
+                        "type" : "array",
+                        "items" : {
+                          "type" : "object"
+                        }
+                      }
+                    }
+                  }, {
+                    "$ref" : "#/components/schemas/wow.CursorPage",
+                    "properties" : {
+                      "list" : {
+                        "type" : "array",
+                        "items" : {
+                          "type" : "object"
+                        }
+                      }
+                    }
+                  }, {
+                    "type" : "object"
+                  }, {
+                    "$ref" : "#/components/schemas/wow.CountResult"
+                  }, {
+                    "type" : "array",
+                    "items" : {
+                      "type" : "object"
+                    }
+                  } ]
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "type" : "string",
+                  "description" : "Server-sent events."
+                },
+                "x-wow-events" : {
+                  "event" : [ "row", "error" ],
+                  "data" : {
+                    "type" : "object"
+                  }
+                }
+              }
+            }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.dataset-query.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.dataset-query.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.dataset-query.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.dataset-query.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.dataset-query.406"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.dataset-query.415"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.dataset-query.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.dataset-query.503"
+          }
+        }
+      },
+      "get" : {
+        "tags" : [ "wow" ],
+        "summary" : "The model's capability descriptor",
+        "operationId" : "wow.dataset.describe",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/context"
+        }, {
+          "$ref" : "#/components/parameters/dataset"
+        }, {
+          "$ref" : "#/components/parameters/If-None-Match"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "The descriptor, its version as the ETag.",
+            "headers" : {
+              "ETag" : {
+                "$ref" : "#/components/headers/ETag"
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.QueryDescriptor"
+                }
+              }
+            }
+          },
+          "304" : {
+            "description" : "Not Modified: the descriptor is at the version If-None-Match names."
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.dataset-descriptor.401"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.dataset-descriptor.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.dataset-descriptor.406"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.dataset-descriptor.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.dataset-descriptor.503"
+          }
+        }
+      }
+    },
+    "/eshop-payment/payment/{id}/chargeback-notified" : {
+      "post" : {
+        "tags" : [ "eshop-payment.payment" ],
+        "summary" : "ChargebackNotified",
+        "description" : "Sends `eshop-payment.payment.ChargebackNotified`. A mounted command (decision D182): a transformer turns it into the commands it becomes.",
+        "operationId" : "eshop-payment.payment.ChargebackNotified",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.payment.domain.payment.ChargebackNotified"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/eshop-payment.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/eshop-payment.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/eshop-payment.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/eshop-payment.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/eshop-payment.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/eshop-payment.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/eshop-payment.command.410"
+          },
+          "412" : {
+            "$ref" : "#/components/responses/eshop-payment.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/eshop-payment.command.415"
+          },
+          "422" : {
+            "$ref" : "#/components/responses/eshop-payment.command.422"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/eshop-payment.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/eshop-payment.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/eshop-payment.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/eshop-payment.command.504"
+          }
+        },
+        "x-wow-command" : {
+          "type" : "eshop-payment.payment.ChargebackNotified",
+          "creation" : "NONE",
+          "mounted" : true,
+          "transformsTo" : [ "eshop-payment.payment.RefundPayment" ]
+        }
+      }
+    },
+    "/eshop-payment/payment/chargeback-notified" : {
+      "post" : {
+        "tags" : [ "eshop-payment.payment" ],
+        "summary" : "ChargebackNotified",
+        "description" : "Sends `eshop-payment.payment.ChargebackNotified`. A mounted command (decision D182): a transformer turns it into the commands it becomes. The request names no aggregate id: the server chooses it, or the transformer finds the aggregate.",
+        "operationId" : "eshop-payment.payment.ChargebackNotified.withoutId",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.payment.domain.payment.ChargebackNotified"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/eshop-payment.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/eshop-payment.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/eshop-payment.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/eshop-payment.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/eshop-payment.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/eshop-payment.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/eshop-payment.command.410"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/eshop-payment.command.415"
+          },
+          "422" : {
+            "$ref" : "#/components/responses/eshop-payment.command.422"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/eshop-payment.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/eshop-payment.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/eshop-payment.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/eshop-payment.command.504"
+          }
+        },
+        "x-wow-command" : {
+          "type" : "eshop-payment.payment.ChargebackNotified",
+          "creation" : "NONE",
+          "mounted" : true,
+          "transformsTo" : [ "eshop-payment.payment.RefundPayment" ]
+        }
+      }
+    },
+    "/eshop-payment/payment/{id}/confirm-payment" : {
+      "post" : {
+        "tags" : [ "eshop-payment.payment" ],
+        "summary" : "ConfirmPayment",
+        "description" : "Sends `eshop-payment.payment.ConfirmPayment`. Acts on an aggregate that exists. Produces `PaymentSucceeded`.",
+        "operationId" : "eshop-payment.payment.ConfirmPayment",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/eshop-payment.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/eshop-payment.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/eshop-payment.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/eshop-payment.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/eshop-payment.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/eshop-payment.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/eshop-payment.command.410"
+          },
+          "412" : {
+            "$ref" : "#/components/responses/eshop-payment.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/eshop-payment.command.415"
+          },
+          "422" : {
+            "$ref" : "#/components/responses/eshop-payment.command.422"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/eshop-payment.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/eshop-payment.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/eshop-payment.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/eshop-payment.command.504"
+          }
+        },
+        "x-wow-command" : {
+          "type" : "eshop-payment.payment.ConfirmPayment",
+          "creation" : "NONE",
+          "produces" : [ "PaymentSucceeded" ]
+        }
+      }
+    },
+    "/eshop-payment/payment/{id}/fail-payment" : {
+      "post" : {
+        "tags" : [ "eshop-payment.payment" ],
+        "summary" : "FailPayment",
+        "description" : "Sends `eshop-payment.payment.FailPayment`. Acts on an aggregate that exists. Produces `PaymentFailed`.",
+        "operationId" : "eshop-payment.payment.FailPayment",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.payment.api.payment.FailPayment"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/eshop-payment.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/eshop-payment.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/eshop-payment.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/eshop-payment.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/eshop-payment.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/eshop-payment.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/eshop-payment.command.410"
+          },
+          "412" : {
+            "$ref" : "#/components/responses/eshop-payment.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/eshop-payment.command.415"
+          },
+          "422" : {
+            "$ref" : "#/components/responses/eshop-payment.command.422"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/eshop-payment.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/eshop-payment.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/eshop-payment.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/eshop-payment.command.504"
+          }
+        },
+        "x-wow-command" : {
+          "type" : "eshop-payment.payment.FailPayment",
+          "creation" : "NONE",
+          "produces" : [ "PaymentFailed" ]
+        }
+      }
+    },
+    "/eshop-payment/payment/{id}/refund-payment" : {
+      "post" : {
+        "tags" : [ "eshop-payment.payment" ],
+        "summary" : "RefundPayment",
+        "description" : "Sends `eshop-payment.payment.RefundPayment`. Acts on an aggregate that exists. Produces `PaymentRefunded`.",
+        "operationId" : "eshop-payment.payment.RefundPayment",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/eshop-payment.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/eshop-payment.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/eshop-payment.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/eshop-payment.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/eshop-payment.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/eshop-payment.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/eshop-payment.command.410"
+          },
+          "412" : {
+            "$ref" : "#/components/responses/eshop-payment.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/eshop-payment.command.415"
+          },
+          "422" : {
+            "$ref" : "#/components/responses/eshop-payment.command.422"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/eshop-payment.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/eshop-payment.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/eshop-payment.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/eshop-payment.command.504"
+          }
+        },
+        "x-wow-command" : {
+          "type" : "eshop-payment.payment.RefundPayment",
+          "creation" : "NONE",
+          "produces" : [ "PaymentRefunded" ]
+        }
+      }
+    },
+    "/eshop-payment/payment/{id}/request-payment" : {
+      "post" : {
+        "tags" : [ "eshop-payment.payment" ],
+        "summary" : "RequestPayment",
+        "description" : "Sends `eshop-payment.payment.RequestPayment`. Creates the aggregate; one that exists is refused. Produces `PaymentRequested`.",
+        "operationId" : "eshop-payment.payment.RequestPayment",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/eshop-payment.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/eshop-payment.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/eshop-payment.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/eshop-payment.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/eshop-payment.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/eshop-payment.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/eshop-payment.command.410"
+          },
+          "412" : {
+            "$ref" : "#/components/responses/eshop-payment.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/eshop-payment.command.415"
+          },
+          "422" : {
+            "$ref" : "#/components/responses/eshop-payment.command.422"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/eshop-payment.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/eshop-payment.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/eshop-payment.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/eshop-payment.command.504"
+          }
+        },
+        "x-wow-command" : {
+          "type" : "eshop-payment.payment.RequestPayment",
+          "creation" : "REQUIRED",
+          "produces" : [ "PaymentRequested" ]
+        }
+      }
+    },
+    "/eshop-payment/payment/request-payment" : {
+      "post" : {
+        "tags" : [ "eshop-payment.payment" ],
+        "summary" : "RequestPayment",
+        "description" : "Sends `eshop-payment.payment.RequestPayment`. Creates the aggregate; one that exists is refused. The request names no aggregate id: the server chooses it, or the transformer finds the aggregate. Produces `PaymentRequested`.",
+        "operationId" : "eshop-payment.payment.RequestPayment.withoutId",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/eshop-payment.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/eshop-payment.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/eshop-payment.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/eshop-payment.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/eshop-payment.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/eshop-payment.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/eshop-payment.command.410"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/eshop-payment.command.415"
+          },
+          "422" : {
+            "$ref" : "#/components/responses/eshop-payment.command.422"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/eshop-payment.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/eshop-payment.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/eshop-payment.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/eshop-payment.command.504"
+          }
+        },
+        "x-wow-command" : {
+          "type" : "eshop-payment.payment.RequestPayment",
+          "creation" : "REQUIRED",
+          "produces" : [ "PaymentRequested" ]
+        }
+      }
+    },
+    "/eshop-payment/payment/{id}/wow.lifecycle.apply-tags" : {
+      "post" : {
+        "tags" : [ "eshop-payment.payment" ],
+        "summary" : "ApplyTags",
+        "description" : "Sends the lifecycle command `wow.lifecycle.ApplyTags` (decision D113).",
+        "operationId" : "eshop-payment.payment.wow.lifecycle.ApplyTags",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/wow.lifecycle.ApplyTags"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/wow.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/wow.command.410"
+          },
+          "412" : {
+            "$ref" : "#/components/responses/wow.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.command.415"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.command.504"
+          }
+        }
+      }
+    },
+    "/eshop-payment/payment/{id}" : {
+      "delete" : {
+        "tags" : [ "eshop-payment.payment" ],
+        "summary" : "DeleteAggregate",
+        "description" : "Sends the lifecycle command `wow.lifecycle.DeleteAggregate` (decision D113).",
+        "operationId" : "eshop-payment.payment.wow.lifecycle.DeleteAggregate",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/wow.lifecycle.DeleteAggregate"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/wow.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/wow.command.410"
+          },
+          "412" : {
+            "$ref" : "#/components/responses/wow.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.command.415"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.command.504"
+          }
+        }
+      }
+    },
+    "/eshop-payment/payment/{id}/wow.lifecycle.restore-aggregate" : {
+      "post" : {
+        "tags" : [ "eshop-payment.payment" ],
+        "summary" : "RestoreAggregate",
+        "description" : "Sends the lifecycle command `wow.lifecycle.RestoreAggregate` (decision D113).",
+        "operationId" : "eshop-payment.payment.wow.lifecycle.RestoreAggregate",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/wow.lifecycle.RestoreAggregate"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/wow.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/wow.command.410"
+          },
+          "412" : {
+            "$ref" : "#/components/responses/wow.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.command.415"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.command.504"
+          }
+        }
+      }
+    },
+    "/eshop-payment/payment/{id}/wow.lifecycle.transfer-owner" : {
+      "post" : {
+        "tags" : [ "eshop-payment.payment" ],
+        "summary" : "TransferOwner",
+        "description" : "Sends the lifecycle command `wow.lifecycle.TransferOwner` (decision D113).",
+        "operationId" : "eshop-payment.payment.wow.lifecycle.TransferOwner",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/wow.lifecycle.TransferOwner"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/wow.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/wow.command.410"
+          },
+          "412" : {
+            "$ref" : "#/components/responses/wow.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.command.415"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.command.504"
+          }
+        }
+      }
+    },
+    "/eshop-payment/payment/{id}/wow.lifecycle.transfer-space" : {
+      "post" : {
+        "tags" : [ "eshop-payment.payment" ],
+        "summary" : "TransferSpace",
+        "description" : "Sends the lifecycle command `wow.lifecycle.TransferSpace` (decision D113).",
+        "operationId" : "eshop-payment.payment.wow.lifecycle.TransferSpace",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/wow.lifecycle.TransferSpace"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/wow.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/wow.command.410"
+          },
+          "412" : {
+            "$ref" : "#/components/responses/wow.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.command.415"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.command.504"
+          }
+        }
+      }
+    },
+    "/eshop-payment/payment/{id}/state" : {
+      "get" : {
+        "tags" : [ "eshop-payment.payment" ],
+        "summary" : "The aggregate's state",
+        "description" : "The latest state, the state at `version`, or the state as of `at`.",
+        "operationId" : "eshop-payment.payment.state",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/id"
+        }, {
+          "$ref" : "#/components/parameters/version"
+        }, {
+          "$ref" : "#/components/parameters/at"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/If-None-Match"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "The state, its version as the ETag.",
+            "headers" : {
+              "ETag" : {
+                "$ref" : "#/components/headers/ETag"
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.StateView",
+                  "properties" : {
+                    "state" : {
+                      "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.payment.domain.payment.PaymentState"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "304" : {
+            "description" : "Not Modified: the state is at the version If-None-Match names."
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.state.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.state.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.state.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.state.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.state.406"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.state.503"
+          }
+        }
+      }
+    },
+    "/eshop-payment/payment/{id}/state/trace" : {
+      "get" : {
+        "tags" : [ "eshop-payment.payment" ],
+        "summary" : "The aggregate's commits",
+        "description" : "The commits from `from` to `to`, at most `limit`, each with its events and the state after it (decision D40); the next page starts after the last commit's version.",
+        "operationId" : "eshop-payment.payment.state.trace",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/id"
+        }, {
+          "$ref" : "#/components/parameters/from"
+        }, {
+          "$ref" : "#/components/parameters/to"
+        }, {
+          "$ref" : "#/components/parameters/limit"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.StateTrace",
+                  "properties" : {
+                    "commits" : {
+                      "type" : "array",
+                      "items" : {
+                        "properties" : {
+                          "state" : {
+                            "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.payment.domain.payment.PaymentState"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.state.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.state.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.state.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.state.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.state.406"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.state.503"
+          }
+        }
+      }
+    },
+    "/eshop-payment/payment/snapshot/query" : {
+      "post" : {
+        "tags" : [ "eshop-payment.payment" ],
+        "summary" : "Queries the snapshot model (decision D127).",
+        "description" : "The body's `kind` is the operation: `list` (an array, or with `Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count` or `aggregate` (an array of groups).",
+        "operationId" : "eshop-payment.payment.snapshot.query",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        } ],
+        "requestBody" : {
+          "required" : true,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/wow.QueryRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "The query's answer, by its kind.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "anyOf" : [ {
+                    "type" : "array",
+                    "items" : {
+                      "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                      "properties" : {
+                        "state" : {
+                          "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.payment.domain.payment.PaymentState"
+                        }
+                      }
+                    }
+                  }, {
+                    "$ref" : "#/components/schemas/wow.PagedList",
+                    "properties" : {
+                      "list" : {
+                        "type" : "array",
+                        "items" : {
+                          "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                          "properties" : {
+                            "state" : {
+                              "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.payment.domain.payment.PaymentState"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }, {
+                    "$ref" : "#/components/schemas/wow.CursorPage",
+                    "properties" : {
+                      "list" : {
+                        "type" : "array",
+                        "items" : {
+                          "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                          "properties" : {
+                            "state" : {
+                              "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.payment.domain.payment.PaymentState"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }, {
+                    "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                    "properties" : {
+                      "state" : {
+                        "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.payment.domain.payment.PaymentState"
+                      }
+                    }
+                  }, {
+                    "$ref" : "#/components/schemas/wow.CountResult"
+                  }, {
+                    "type" : "array",
+                    "items" : {
+                      "type" : "object"
+                    }
+                  } ]
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "type" : "string",
+                  "description" : "Server-sent events."
+                },
+                "x-wow-events" : {
+                  "event" : [ "row", "error" ],
+                  "data" : {
+                    "$ref" : "#/components/schemas/wow.SnapshotRecord",
+                    "properties" : {
+                      "state" : {
+                        "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.payment.domain.payment.PaymentState"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.query.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.query.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.query.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.query.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.query.406"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.query.415"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.query.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.query.503"
+          }
+        }
+      },
+      "get" : {
+        "tags" : [ "eshop-payment.payment" ],
+        "summary" : "The model's capability descriptor",
+        "operationId" : "eshop-payment.payment.snapshot.describe",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/If-None-Match"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "The descriptor, its version as the ETag.",
+            "headers" : {
+              "ETag" : {
+                "$ref" : "#/components/headers/ETag"
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.QueryDescriptor"
+                }
+              }
+            }
+          },
+          "304" : {
+            "description" : "Not Modified: the descriptor is at the version If-None-Match names."
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.descriptor.401"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.descriptor.406"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.descriptor.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.descriptor.503"
+          }
+        }
+      }
+    },
+    "/eshop-payment/payment/events/query" : {
+      "post" : {
+        "tags" : [ "eshop-payment.payment" ],
+        "summary" : "Queries the events model (decision D127).",
+        "description" : "The body's `kind` is the operation: `list` (an array, or with `Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count`; this model does not aggregate.",
+        "operationId" : "eshop-payment.payment.events.query",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        } ],
+        "requestBody" : {
+          "required" : true,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/wow.QueryRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "description" : "The query's answer, by its kind.",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "anyOf" : [ {
+                    "type" : "array",
+                    "items" : {
+                      "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                    }
+                  }, {
+                    "$ref" : "#/components/schemas/wow.PagedList",
+                    "properties" : {
+                      "list" : {
+                        "type" : "array",
+                        "items" : {
+                          "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                        }
+                      }
+                    }
+                  }, {
+                    "$ref" : "#/components/schemas/wow.CursorPage",
+                    "properties" : {
+                      "list" : {
+                        "type" : "array",
+                        "items" : {
+                          "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                        }
+                      }
+                    }
+                  }, {
+                    "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                  }, {
+                    "$ref" : "#/components/schemas/wow.CountResult"
+                  } ]
+                }
+              },
+              "text/event-stream" : {
+                "schema" : {
+                  "type" : "string",
+                  "description" : "Server-sent events."
+                },
+                "x-wow-events" : {
+                  "event" : [ "row", "error" ],
+                  "data" : {
+                    "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                  }
+                }
+              }
+            }
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.query.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.query.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.query.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.query.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.query.406"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.query.415"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.query.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.query.503"
+          }
+        }
+      },
+      "get" : {
+        "tags" : [ "eshop-payment.payment" ],
+        "summary" : "The model's capability descriptor",
+        "operationId" : "eshop-payment.payment.events.describe",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/If-None-Match"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "The descriptor, its version as the ETag.",
+            "headers" : {
+              "ETag" : {
+                "$ref" : "#/components/headers/ETag"
+              }
+            },
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/wow.QueryDescriptor"
+                }
+              }
+            }
+          },
+          "304" : {
+            "description" : "Not Modified: the descriptor is at the version If-None-Match names."
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.descriptor.401"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.descriptor.406"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.descriptor.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.descriptor.503"
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "wow.CommandResult" : {
+        "type" : "object",
+        "description" : "How a command ended at a hop of its wait (decision D59).",
+        "properties" : {
+          "format" : {
+            "type" : "integer"
+          },
+          "commandId" : {
+            "type" : "string"
+          },
+          "requestId" : {
+            "type" : "string"
+          },
+          "correlationId" : {
+            "type" : "string"
+          },
+          "ref" : {
+            "$ref" : "#/components/schemas/wow.AggregateRef"
+          },
+          "hop" : {
+            "$ref" : "#/components/schemas/wow.Hop"
+          },
+          "function" : {
+            "$ref" : "#/components/schemas/wow.FunctionInfo"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "SUCCEEDED", "REJECTED", "FAILED" ]
+          },
+          "version" : {
+            "type" : [ "integer", "null" ]
+          },
+          "duplicate" : {
+            "type" : "boolean"
+          },
+          "error" : {
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/wow.ErrorInfo"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "results" : {
+            "type" : "object"
+          },
+          "derived" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "signalTime" : {
+            "type" : "integer"
+          },
+          "transformedFrom" : {
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/wow.TransformedFrom"
+            }, {
+              "type" : "null"
+            } ]
+          }
+        },
+        "required" : [ "format", "commandId", "requestId", "correlationId", "ref", "hop", "function", "status", "signalTime" ]
+      },
+      "wow.AggregateRef" : {
+        "type" : "object",
+        "properties" : {
+          "type" : {
+            "$ref" : "#/components/schemas/wow.AggregateType"
+          },
+          "tenantId" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string"
+          },
+          "isAssigned" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "type", "tenantId", "id" ]
+      },
+      "wow.AggregateType" : {
+        "type" : "object",
+        "properties" : {
+          "context" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "context", "name" ]
+      },
+      "wow.Hop" : {
+        "type" : "object",
+        "properties" : {
+          "stage" : {
+            "type" : "string",
+            "enum" : [ "ACCEPTED", "COMMITTED", "HANDLED" ]
+          },
+          "context" : {
+            "type" : [ "string", "null" ]
+          },
+          "subscription" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "stage" ]
+      },
+      "wow.FunctionInfo" : {
+        "type" : "object",
+        "properties" : {
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "COMMAND", "PROJECT", "REACT", "SAGA", "SNAPSHOT", "RESERVATION", "TIMERS" ]
+          },
+          "context" : {
+            "type" : "string"
+          },
+          "processor" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "kind", "context", "processor", "name" ]
+      },
+      "wow.ErrorInfo" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "violations" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Violation"
+            }
+          }
+        },
+        "required" : [ "code", "message" ]
+      },
+      "wow.Violation" : {
+        "type" : "object",
+        "properties" : {
+          "path" : {
+            "type" : "string"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "message" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "path", "code", "message" ]
+      },
+      "wow.TransformedFrom" : {
+        "type" : "object",
+        "description" : "The command a transformer turned into this one (decision D182).",
+        "properties" : {
+          "command" : {
+            "type" : "string"
+          },
+          "aggregateId" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "command" ]
+      },
+      "wow.Problem" : {
+        "type" : "object",
+        "description" : "An RFC 9457 problem (decision D101); `result` is the command's when it has one.",
+        "properties" : {
+          "type" : {
+            "type" : "string",
+            "description" : "`urn:wow:error:<code>`, or `about:blank` without a code."
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "integer"
+          },
+          "detail" : {
+            "type" : "string"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "violations" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Violation"
+            }
+          },
+          "result" : {
+            "$ref" : "#/components/schemas/wow.CommandResult"
+          }
+        },
+        "required" : [ "type", "title", "status" ]
+      },
+      "wow.Scope" : {
+        "type" : "object",
+        "properties" : {
+          "ownerId" : {
+            "type" : [ "string", "null" ]
+          },
+          "spaceId" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      },
+      "wow.Operator" : {
+        "type" : "object",
+        "description" : "Who sent a command (decision D163).",
+        "properties" : {
+          "id" : {
+            "type" : "string"
+          },
+          "tenantId" : {
+            "type" : "string"
+          },
+          "crossScope" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "id", "tenantId" ]
+      },
+      "wow.StateView" : {
+        "type" : "object",
+        "properties" : {
+          "ref" : {
+            "$ref" : "#/components/schemas/wow.AggregateRef"
+          },
+          "version" : {
+            "type" : "integer"
+          },
+          "scope" : {
+            "$ref" : "#/components/schemas/wow.Scope"
+          },
+          "deleted" : {
+            "type" : "boolean"
+          },
+          "tags" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            }
+          },
+          "state" : {
+            "description" : "The aggregate's state."
+          }
+        },
+        "required" : [ "ref", "version", "scope", "deleted", "tags", "state" ]
+      },
+      "wow.StateTrace" : {
+        "type" : "object",
+        "properties" : {
+          "ref" : {
+            "$ref" : "#/components/schemas/wow.AggregateRef"
+          },
+          "commits" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.CommitView"
+            }
+          }
+        },
+        "required" : [ "ref", "commits" ]
+      },
+      "wow.CommitView" : {
+        "type" : "object",
+        "properties" : {
+          "version" : {
+            "type" : "integer"
+          },
+          "commitTime" : {
+            "type" : "integer"
+          },
+          "commandId" : {
+            "type" : "string"
+          },
+          "requestId" : {
+            "type" : "string"
+          },
+          "commandType" : {
+            "type" : "string"
+          },
+          "events" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.EventView"
+            }
+          },
+          "scope" : {
+            "$ref" : "#/components/schemas/wow.Scope"
+          },
+          "deleted" : {
+            "type" : "boolean"
+          },
+          "tags" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            }
+          },
+          "state" : {
+            "description" : "The aggregate's state after the commit."
+          },
+          "operator" : {
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/wow.Operator"
+            }, {
+              "type" : "null"
+            } ]
+          }
+        },
+        "required" : [ "version", "commitTime", "commandId", "requestId", "commandType", "events", "scope", "deleted", "state" ]
+      },
+      "wow.EventView" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "revision" : {
+            "type" : "integer"
+          },
+          "body" : {
+            "description" : "The event as the log stores it."
+          }
+        },
+        "required" : [ "name", "revision", "body" ]
+      },
+      "wow.DatasetEntry" : {
+        "type" : "object",
+        "properties" : {
+          "name" : {
+            "type" : "string"
+          },
+          "context" : {
+            "type" : "string"
+          },
+          "dataset" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : [ "string", "null" ]
+          },
+          "path" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "name", "context", "dataset", "path" ]
+      },
+      "wow.Manifest" : {
+        "type" : "object",
+        "description" : "The service's Manifest (decision D74)."
+      },
+      "wow.SnapshotRecord" : {
+        "type" : "object",
+        "description" : "An aggregate's snapshot as a query returns it (decision D128); a projection leaves fields out.",
+        "properties" : {
+          "tenantId" : {
+            "type" : "string"
+          },
+          "aggregateId" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "integer"
+          },
+          "ownerId" : {
+            "type" : [ "string", "null" ]
+          },
+          "spaceId" : {
+            "type" : [ "string", "null" ]
+          },
+          "deleted" : {
+            "type" : "boolean"
+          },
+          "tags" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            }
+          },
+          "firstEventTime" : {
+            "type" : "integer"
+          },
+          "lastEventTime" : {
+            "type" : "integer"
+          },
+          "operator" : {
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/wow.Operator"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "firstOperator" : {
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/wow.Operator"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "state" : {
+            "description" : "The aggregate's state."
+          }
+        }
+      },
+      "wow.EventStreamRecord" : {
+        "type" : "object",
+        "description" : "An event stream of one aggregate (decision D131); `ownerId`, `spaceId` and `operator` when set.",
+        "properties" : {
+          "aggregateId" : {
+            "type" : "string"
+          },
+          "tenantId" : {
+            "type" : "string"
+          },
+          "version" : {
+            "type" : "integer"
+          },
+          "commitTime" : {
+            "type" : "integer"
+          },
+          "commandId" : {
+            "type" : "string"
+          },
+          "requestId" : {
+            "type" : "string"
+          },
+          "commandType" : {
+            "type" : "string"
+          },
+          "ownerId" : {
+            "type" : "string"
+          },
+          "spaceId" : {
+            "type" : "string"
+          },
+          "operator" : {
+            "$ref" : "#/components/schemas/wow.Operator"
+          },
+          "events" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.EventView"
+            }
+          }
+        }
+      },
+      "wow.QueryRequest" : {
+        "type" : "object",
+        "description" : "A query (decision D127): its `kind`, and the members of that kind's query.",
+        "properties" : {
+          "kind" : {
+            "type" : "string",
+            "enum" : [ "list", "paged", "cursor", "single", "count", "aggregate" ]
+          },
+          "filter" : {
+            "type" : "object",
+            "description" : "A filter expression of the query protocol.",
+            "properties" : {
+              "op" : {
+                "type" : "string"
+              }
+            },
+            "required" : [ "op" ]
+          },
+          "projection" : {
+            "type" : "object",
+            "properties" : {
+              "include" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "string"
+                }
+              },
+              "exclude" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "sort" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object",
+              "properties" : {
+                "field" : {
+                  "type" : "string"
+                },
+                "direction" : {
+                  "type" : "string",
+                  "enum" : [ "ASC", "DESC" ]
+                }
+              },
+              "required" : [ "field", "direction" ]
+            }
+          },
+          "limit" : {
+            "type" : "integer"
+          },
+          "pagination" : {
+            "type" : "object",
+            "properties" : {
+              "index" : {
+                "type" : "integer"
+              },
+              "size" : {
+                "type" : "integer"
+              }
+            }
+          },
+          "total" : {
+            "type" : "string",
+            "enum" : [ "EXACT", "BOUNDED", "NONE" ]
+          },
+          "size" : {
+            "type" : "integer"
+          },
+          "cursor" : {
+            "type" : [ "string", "null" ]
+          },
+          "elements" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object"
+            }
+          },
+          "groupBy" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object"
+            }
+          },
+          "metrics" : {
+            "type" : "array",
+            "items" : {
+              "type" : "object"
+            }
+          },
+          "having" : {
+            "type" : [ "object", "null" ]
+          }
+        },
+        "required" : [ "kind" ]
+      },
+      "wow.PagedList" : {
+        "type" : "object",
+        "description" : "One page; `total` is null when the query asked for no total, and a lower bound when `exact` is false.",
+        "properties" : {
+          "total" : {
+            "type" : [ "integer", "null" ]
+          },
+          "exact" : {
+            "type" : "boolean"
+          },
+          "list" : {
+            "type" : "array",
+            "items" : { }
+          }
+        },
+        "required" : [ "list" ]
+      },
+      "wow.CursorPage" : {
+        "type" : "object",
+        "description" : "One page of a cursor; `nextCursor` is null after the last.",
+        "properties" : {
+          "list" : {
+            "type" : "array",
+            "items" : { }
+          },
+          "nextCursor" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "required" : [ "list" ]
+      },
+      "wow.CountResult" : {
+        "type" : "object",
+        "properties" : {
+          "count" : {
+            "type" : "integer"
+          },
+          "exact" : {
+            "type" : "boolean"
+          }
+        },
+        "required" : [ "count" ]
+      },
+      "wow.QueryDescriptor" : {
+        "type" : "object",
+        "description" : "What the query model can do on the backend the node runs: operations, fields and limits."
+      },
+      "wow.lifecycle.DeleteAggregate" : {
+        "type" : "object",
+        "description" : "Marks the aggregate deleted.",
+        "properties" : { }
+      },
+      "wow.lifecycle.RestoreAggregate" : {
+        "type" : "object",
+        "description" : "Restores a deleted aggregate.",
+        "properties" : { }
+      },
+      "wow.lifecycle.TransferOwner" : {
+        "type" : "object",
+        "properties" : {
+          "ownerId" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "ownerId" ]
+      },
+      "wow.lifecycle.TransferSpace" : {
+        "type" : "object",
+        "properties" : {
+          "spaceId" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "spaceId" ]
+      },
+      "wow.lifecycle.ApplyTags" : {
+        "type" : "object",
+        "properties" : {
+          "tags" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "required" : [ "tags" ]
+      },
+      "wow.schedule.Enable" : {
+        "type" : "object",
+        "description" : "Creates, or enables again, the job instance of the path's id, the job's name in the caller's tenant.",
+        "properties" : {
+          "job" : {
+            "type" : "string"
+          },
+          "rule" : {
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/wow.schedule.JobRule"
+            }, {
+              "type" : "null"
+            } ]
+          },
+          "partition" : {
+            "type" : [ "integer", "null" ],
+            "minimum" : 0
+          }
+        },
+        "required" : [ "job" ]
+      },
+      "wow.schedule.Reschedule" : {
+        "type" : "object",
+        "description" : "Overrides the instance's rule; null follows the job's default again.",
+        "properties" : {
+          "rule" : {
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/wow.schedule.JobRule"
+            }, {
+              "type" : "null"
+            } ]
+          }
+        }
+      },
+      "wow.schedule.Disable" : {
+        "type" : "object",
+        "description" : "Stops the job instance.",
+        "properties" : { }
+      },
+      "wow.schedule.JobRule" : {
+        "type" : "object",
+        "description" : "An instance's own rule of a job; each part that is null follows the job's default.",
+        "properties" : {
+          "expression" : {
+            "type" : [ "string", "null" ]
+          },
+          "zone" : {
+            "type" : [ "string", "null" ]
+          },
+          "misfire" : {
+            "type" : [ "string", "null" ],
+            "enum" : [ "COALESCE", "CATCH_UP", null ]
+          }
+        }
+      },
+      "me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "reason" ]
+      },
+      "me.ahoo.wow.example.eshop.ordering.api.order.PayOrder" : {
+        "type" : "object",
+        "properties" : {
+          "amount" : {
+            "type" : "number"
+          },
+          "paymentId" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "amount", "paymentId" ]
+      },
+      "me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment" : {
+        "type" : "object",
+        "properties" : {
+          "transactionId" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "transactionId" ]
+      },
+      "me.ahoo.wow.example.eshop.payment.api.payment.FailPayment" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "reason" ]
+      },
+      "me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "reason" ]
+      },
+      "me.ahoo.wow.example.eshop.payment.api.payment.PaymentRefunded" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "reason" ]
+      },
+      "me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested" : {
+        "type" : "object",
+        "properties" : {
+          "amount" : {
+            "type" : "number"
+          },
+          "orderId" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "amount", "orderId" ]
+      },
+      "me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded" : {
+        "type" : "object",
+        "properties" : {
+          "transactionId" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "transactionId" ]
+      },
+      "me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment" : {
+        "type" : "object",
+        "properties" : {
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "reason" ]
+      },
+      "me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment" : {
+        "type" : "object",
+        "properties" : {
+          "amount" : {
+            "type" : "number"
+          },
+          "orderId" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "amount", "orderId" ]
+      },
+      "me.ahoo.wow.example.eshop.payment.domain.payment.ChargebackNotified" : {
+        "type" : "object",
+        "properties" : {
+          "disputeId" : {
+            "type" : "string"
+          },
+          "merchantReference" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "disputeId", "merchantReference", "reason" ]
+      },
+      "me.ahoo.wow.example.eshop.payment.domain.payment.PaymentState" : {
+        "type" : "object",
+        "properties" : {
+          "amount" : {
+            "type" : "number"
+          },
+          "orderId" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : [ "string", "null" ]
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "REQUESTED", "SUCCEEDED", "FAILED", "REFUNDED" ]
+          },
+          "transactionId" : {
+            "type" : [ "string", "null" ]
+          }
+        }
+      }
+    },
+    "responses" : {
+      "wow.framework.401" : {
+        "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
+      },
+      "wow.framework.406" : {
+        "description" : "Not Acceptable: the route answers in none of the types Accept names.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.datasets.400" : {
+        "description" : "`wow.query.malformed`: The query body cannot be read as a query.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.malformed" ]
+      },
+      "wow.datasets.401" : {
+        "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
+      },
+      "wow.datasets.403" : {
+        "description" : "`wow.auth.forbidden`: The caller may not send this command.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.forbidden" ]
+      },
+      "wow.datasets.406" : {
+        "description" : "Not Acceptable: the route answers in none of the types Accept names.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.dataset-query.400" : {
+        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...).",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid" ]
+      },
+      "wow.dataset-query.401" : {
+        "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
+      },
+      "wow.dataset-query.403" : {
+        "description" : "`wow.auth.forbidden`: The caller may not send this command.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.forbidden" ]
+      },
+      "wow.dataset-query.404" : {
+        "description" : "`wow.aggregate.not-found`: The aggregate does not exist.\nNot Found: no such dataset is served, or the caller does not see it.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.aggregate.not-found" ]
+      },
+      "wow.dataset-query.406" : {
+        "description" : "Not Acceptable: the route answers in none of the types Accept names.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.dataset-query.415" : {
+        "description" : "Unsupported Media Type: the body is sent as application/json.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.dataset-query.500" : {
+        "description" : "`wow.query.failed`: The query backend failed to run the query.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.failed" ]
+      },
+      "wow.dataset-query.503" : {
+        "description" : "`wow.query.timeout`: The query ran longer than its budget allows; narrow it, or retry later.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.",
+        "headers" : {
+          "Retry-After" : {
+            "$ref" : "#/components/headers/Retry-After"
+          }
+        },
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.timeout", "wow.storage.unavailable" ]
+      },
+      "wow.dataset-descriptor.401" : {
+        "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
+      },
+      "wow.dataset-descriptor.404" : {
+        "description" : "Not Found: no such dataset is served, or the caller does not see it.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.dataset-descriptor.406" : {
+        "description" : "Not Acceptable: the route answers in none of the types Accept names.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.dataset-descriptor.500" : {
+        "description" : "`wow.query.failed`: The query backend failed to run the query.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.failed" ]
+      },
+      "wow.dataset-descriptor.503" : {
+        "description" : "`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.",
+        "headers" : {
+          "Retry-After" : {
+            "$ref" : "#/components/headers/Retry-After"
+          }
+        },
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.storage.unavailable" ]
+      },
+      "wow.command.200" : {
+        "description" : "The result the wait ended with; with `Accept: text/event-stream`, one event per result until the wait ends, its name the hop's stage and its data the result.",
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.CommandResult"
+            }
+          },
+          "text/event-stream" : {
+            "schema" : {
+              "type" : "string",
+              "description" : "Server-sent events."
+            },
+            "x-wow-events" : {
+              "event" : [ "accepted", "committed", "handled" ],
+              "data" : {
+                "$ref" : "#/components/schemas/wow.CommandResult"
+              }
+            }
+          }
+        }
+      },
+      "wow.command.202" : {
+        "description" : "The result of a wait that ends at `accepted`.",
+        "content" : {
+          "application/json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.CommandResult"
+            }
+          }
+        }
+      },
+      "eshop-payment.command.400" : {
+        "description" : "`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.command.malformed", "wow.command.invalid", "wow.wait.invalid", "wow.command.unhandled", "wow.schedule.job-invalid" ]
+      },
+      "eshop-payment.command.401" : {
+        "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
+      },
+      "eshop-payment.command.403" : {
+        "description" : "`wow.auth.forbidden`: The caller may not send this command.\n`wow.aggregate.forbidden`: The aggregate is outside the caller's scope.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.forbidden", "wow.aggregate.forbidden" ]
+      },
+      "eshop-payment.command.404" : {
+        "description" : "`wow.aggregate.not-found`: The aggregate does not exist.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.aggregate.not-found" ]
+      },
+      "eshop-payment.command.406" : {
+        "description" : "Not Acceptable: the route answers in none of the types Accept names.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "eshop-payment.command.409" : {
+        "description" : "`wow.aggregate.exists`: The aggregate already exists.\n`wow.aggregate.version-mismatch`: The aggregate is not at the expected version (412 when the request carried If-Match).\n`wow.command.request-id-reused`: The request id was used by another command.\n`wow.command.contended`: Concurrent writers kept winning the version; retrying with the same request id is safe.\n`eshop-payment.payment.wrong-status`: The payment's status does not allow the command.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.aggregate.exists", "wow.aggregate.version-mismatch", "wow.command.request-id-reused", "wow.command.contended", "eshop-payment.payment.wrong-status" ]
+      },
+      "eshop-payment.command.410" : {
+        "description" : "`wow.aggregate.deleted`: The aggregate is deleted; only RestoreAggregate applies.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.aggregate.deleted" ]
+      },
+      "eshop-payment.command.412" : {
+        "description" : "`wow.aggregate.version-mismatch`: The aggregate is not at the version If-Match names.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.aggregate.version-mismatch" ]
+      },
+      "eshop-payment.command.415" : {
+        "description" : "Unsupported Media Type: the body is sent as application/json.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "eshop-payment.command.422" : {
+        "description" : "`eshop-payment.payment.invalid-amount`: A payment is of a positive amount.\nA rejection by the domain, with the code it chose (decision D121); the problem carries the command's result.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "eshop-payment.payment.invalid-amount" ]
+      },
+      "eshop-payment.command.429" : {
+        "description" : "`wow.command.busy`: The node has too many commands in flight; retry later.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.command.busy" ]
+      },
+      "eshop-payment.command.500" : {
+        "description" : "`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.subscription.parked" ]
+      },
+      "eshop-payment.command.503" : {
+        "description" : "`wow.command.unknown`: Whether the command committed is unknown; retrying with the same request id is safe.\n`wow.node.closing`: The node is shutting down; retry on another node.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.\n`wow.schedule.not-due`: A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
+        "headers" : {
+          "Retry-After" : {
+            "$ref" : "#/components/headers/Retry-After"
+          }
+        },
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.command.unknown", "wow.node.closing", "wow.storage.unavailable", "wow.schedule.not-due" ]
+      },
+      "eshop-payment.command.504" : {
+        "description" : "`wow.wait.timeout`: The wait ran out of time; the command may have committed. The problem carries the last stage reached.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.wait.timeout" ]
+      },
+      "wow.command.400" : {
+        "description" : "`wow.command.malformed`: The command body cannot be read as the command type.\n`wow.command.invalid`: The command failed validation; the problem lists the violations.\n`wow.wait.invalid`: The wait is not a chain the runtime can follow; the command was not run.\n`wow.command.unhandled`: The aggregate does not handle this command.\n`wow.schedule.job-invalid`: The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.command.malformed", "wow.command.invalid", "wow.wait.invalid", "wow.command.unhandled", "wow.schedule.job-invalid" ]
+      },
+      "wow.command.401" : {
+        "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
+      },
+      "wow.command.403" : {
+        "description" : "`wow.auth.forbidden`: The caller may not send this command.\n`wow.aggregate.forbidden`: The aggregate is outside the caller's scope.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.forbidden", "wow.aggregate.forbidden" ]
+      },
+      "wow.command.404" : {
+        "description" : "`wow.aggregate.not-found`: The aggregate does not exist.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.aggregate.not-found" ]
+      },
+      "wow.command.406" : {
+        "description" : "Not Acceptable: the route answers in none of the types Accept names.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.command.409" : {
+        "description" : "`wow.aggregate.exists`: The aggregate already exists.\n`wow.aggregate.version-mismatch`: The aggregate is not at the expected version (412 when the request carried If-Match).\n`wow.command.request-id-reused`: The request id was used by another command.\n`wow.command.contended`: Concurrent writers kept winning the version; retrying with the same request id is safe.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.aggregate.exists", "wow.aggregate.version-mismatch", "wow.command.request-id-reused", "wow.command.contended" ]
+      },
+      "wow.command.410" : {
+        "description" : "`wow.aggregate.deleted`: The aggregate is deleted; only RestoreAggregate applies.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.aggregate.deleted" ]
+      },
+      "wow.command.412" : {
+        "description" : "`wow.aggregate.version-mismatch`: The aggregate is not at the version If-Match names.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.aggregate.version-mismatch" ]
+      },
+      "wow.command.415" : {
+        "description" : "Unsupported Media Type: the body is sent as application/json.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.command.429" : {
+        "description" : "`wow.command.busy`: The node has too many commands in flight; retry later.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.command.busy" ]
+      },
+      "wow.command.500" : {
+        "description" : "`wow.subscription.parked`: A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.subscription.parked" ]
+      },
+      "wow.command.503" : {
+        "description" : "`wow.command.unknown`: Whether the command committed is unknown; retrying with the same request id is safe.\n`wow.node.closing`: The node is shutting down; retry on another node.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.\n`wow.schedule.not-due`: A scheduled command arrived too long before its due time on this node's clock; it is sent again later.",
+        "headers" : {
+          "Retry-After" : {
+            "$ref" : "#/components/headers/Retry-After"
+          }
+        },
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.command.unknown", "wow.node.closing", "wow.storage.unavailable", "wow.schedule.not-due" ]
+      },
+      "wow.command.504" : {
+        "description" : "`wow.wait.timeout`: The wait ran out of time; the command may have committed. The problem carries the last stage reached.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.wait.timeout" ]
+      },
+      "wow.state.400" : {
+        "description" : "`wow.command.malformed`: The command body cannot be read as the command type.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.command.malformed" ]
+      },
+      "wow.state.401" : {
+        "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
+      },
+      "wow.state.403" : {
+        "description" : "`wow.auth.forbidden`: The caller may not send this command.\n`wow.aggregate.forbidden`: The aggregate is outside the caller's scope.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.forbidden", "wow.aggregate.forbidden" ]
+      },
+      "wow.state.404" : {
+        "description" : "`wow.aggregate.not-found`: The aggregate does not exist.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.aggregate.not-found" ]
+      },
+      "wow.state.406" : {
+        "description" : "Not Acceptable: the route answers in none of the types Accept names.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.state.503" : {
+        "description" : "`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.",
+        "headers" : {
+          "Retry-After" : {
+            "$ref" : "#/components/headers/Retry-After"
+          }
+        },
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.storage.unavailable" ]
+      },
+      "wow.query.400" : {
+        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...).",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid" ]
+      },
+      "wow.query.401" : {
+        "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
+      },
+      "wow.query.403" : {
+        "description" : "`wow.auth.forbidden`: The caller may not send this command.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.forbidden" ]
+      },
+      "wow.query.404" : {
+        "description" : "`wow.aggregate.not-found`: The aggregate does not exist.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.aggregate.not-found" ]
+      },
+      "wow.query.406" : {
+        "description" : "Not Acceptable: the route answers in none of the types Accept names.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.query.415" : {
+        "description" : "Unsupported Media Type: the body is sent as application/json.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.query.500" : {
+        "description" : "`wow.query.failed`: The query backend failed to run the query.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.failed" ]
+      },
+      "wow.query.503" : {
+        "description" : "`wow.query.timeout`: The query ran longer than its budget allows; narrow it, or retry later.\n`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.",
+        "headers" : {
+          "Retry-After" : {
+            "$ref" : "#/components/headers/Retry-After"
+          }
+        },
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.timeout", "wow.storage.unavailable" ]
+      },
+      "wow.descriptor.401" : {
+        "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
+      },
+      "wow.descriptor.406" : {
+        "description" : "Not Acceptable: the route answers in none of the types Accept names.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        }
+      },
+      "wow.descriptor.500" : {
+        "description" : "`wow.query.failed`: The query backend failed to run the query.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.failed" ]
+      },
+      "wow.descriptor.503" : {
+        "description" : "`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.",
+        "headers" : {
+          "Retry-After" : {
+            "$ref" : "#/components/headers/Retry-After"
+          }
+        },
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.storage.unavailable" ]
+      }
+    },
+    "parameters" : {
+      "id" : {
+        "name" : "id",
+        "in" : "path",
+        "required" : true,
+        "description" : "The aggregate's id.",
+        "schema" : {
+          "type" : "string"
+        }
+      },
+      "context" : {
+        "name" : "context",
+        "in" : "path",
+        "required" : true,
+        "description" : "The context the dataset belongs to.",
+        "schema" : {
+          "type" : "string"
+        }
+      },
+      "dataset" : {
+        "name" : "dataset",
+        "in" : "path",
+        "required" : true,
+        "description" : "The dataset's name in its context.",
+        "schema" : {
+          "type" : "string"
+        }
+      },
+      "Wow-Request-Id" : {
+        "name" : "Wow-Request-Id",
+        "in" : "header",
+        "description" : "The caller's id of the request, kept as the command's request id: a retry with the same one is deduplicated.",
+        "schema" : {
+          "type" : "string"
+        }
+      },
+      "Wow-Wait" : {
+        "name" : "Wow-Wait",
+        "in" : "header",
+        "description" : "The wait plan (decision D99): hops separated by `>`, each `accepted`, `committed`, `snapshot` or `handled(subscription)`, with an optional `(context)`, such as `handled(order/payment-saga) > committed(inventory)`. Without it the command waits for its snapshot.",
+        "schema" : {
+          "type" : "string"
+        }
+      },
+      "Wow-Wait-Timeout" : {
+        "name" : "Wow-Wait-Timeout",
+        "in" : "header",
+        "description" : "How long to wait: `500ms`, `10s`, `1m` or an ISO-8601 duration (`PT10S`).",
+        "schema" : {
+          "type" : "string"
+        }
+      },
+      "Wow-Scope" : {
+        "name" : "Wow-Scope",
+        "in" : "header",
+        "description" : "The scope to act in, for a caller allowed to act across scopes: an RFC 8941 dictionary (decision D95).",
+        "schema" : {
+          "type" : "string"
+        }
+      },
+      "Wow-Space" : {
+        "name" : "Wow-Space",
+        "in" : "header",
+        "description" : "The space, among the caller's own, to act in (decision D96).",
+        "schema" : {
+          "type" : "string"
+        }
+      },
+      "traceparent" : {
+        "name" : "traceparent",
+        "in" : "header",
+        "description" : "The W3C trace context of the caller's span (decision D174): the command's admission continues the trace.",
+        "schema" : {
+          "type" : "string"
+        }
+      },
+      "tracestate" : {
+        "name" : "tracestate",
+        "in" : "header",
+        "description" : "The W3C trace state that goes with `traceparent`.",
+        "schema" : {
+          "type" : "string"
+        }
+      },
+      "baggage" : {
+        "name" : "baggage",
+        "in" : "header",
+        "description" : "The W3C baggage that goes with `traceparent`.",
+        "schema" : {
+          "type" : "string"
+        }
+      },
+      "If-Match" : {
+        "name" : "If-Match",
+        "in" : "header",
+        "description" : "The version the aggregate is expected at, as an entity tag: `\"3\"`. A mismatch is 412.",
+        "schema" : {
+          "type" : "string"
+        }
+      },
+      "If-None-Match" : {
+        "name" : "If-None-Match",
+        "in" : "header",
+        "description" : "The entity tag the client holds: 304 when it is still the current one.",
+        "schema" : {
+          "type" : "string"
+        }
+      },
+      "version" : {
+        "name" : "version",
+        "in" : "query",
+        "description" : "Reads the state at this version.",
+        "schema" : {
+          "type" : "integer",
+          "minimum" : 1
+        }
+      },
+      "at" : {
+        "name" : "at",
+        "in" : "query",
+        "description" : "Reads the state after the last commit at or before this ISO-8601 instant (decision D40).",
+        "schema" : {
+          "type" : "string",
+          "format" : "date-time"
+        }
+      },
+      "from" : {
+        "name" : "from",
+        "in" : "query",
+        "description" : "The first version of the trace; 1 by default.",
+        "schema" : {
+          "type" : "integer",
+          "minimum" : 1
+        }
+      },
+      "to" : {
+        "name" : "to",
+        "in" : "query",
+        "description" : "The last version of the trace; the last by default.",
+        "schema" : {
+          "type" : "integer",
+          "minimum" : 1
+        }
+      },
+      "limit" : {
+        "name" : "limit",
+        "in" : "query",
+        "description" : "The most commits the trace holds; 100 by default.",
+        "schema" : {
+          "type" : "integer",
+          "minimum" : 1,
+          "maximum" : 1000
+        }
+      }
+    },
+    "headers" : {
+      "ETag" : {
+        "description" : "The version, as an entity tag: `\"3\"`.",
+        "schema" : {
+          "type" : "string"
+        }
+      },
+      "Retry-After" : {
+        "description" : "The seconds after which the request may be retried.",
+        "schema" : {
+          "type" : "integer"
+        }
+      }
+    }
+  }
+}
