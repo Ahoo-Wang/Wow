@@ -128,6 +128,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | 5a.4 | Manifest 兼容性门禁（D76）：与上一个已发布版本比较，主版本内的破坏性差异使 CI 失败 | 加法与破坏的分类测试；在 example 服务上演示 |
 | 5a.2 | `wow-openapi`：Manifest → OpenAPI | 快照测试 |
 | 5a.3 | `wow-generator` 读 Manifest；`wow-client` V10 | 对 Manifest 快照的生成测试（对真实服务的契约测试在 5b.2） |
+| 5a.1c | Manifest 补齐（5a.3 发现）：状态 schema 的 `required`（Kotlin 非空且无默认值）、命令与事件的描述（KDoc 或 `@Description`）、生命周期命令的请求体写进 `$defs`；更新 eShop 的兼容基线 | 生成的 TypeScript 状态类型字段按实际可空性生成；描述出现在客户端注释里 |
 | 5b.1 | 准入：身份、授权（CoSec）、改写与校验扩展点 | 安全测试（冒充、越权、身份冲突） |
 | 5b.2 | `wow-http`：路由物化、problem+json、SSE 等待 | example-server 的 REST 契约测试；TS 客户端对它的契约测试 |
 | 5b.3 | `wow-spring-boot` 宿主 | example-server 启动并通过端到端测试（M5 出口） |
