@@ -244,18 +244,15 @@ class EshopStack(
             "committed > handled(eshop-basket/BasketCheckoutSaga.onBasketCheckedOut) > committed(eshop-ordering)"
 
         /**
-         * A checkout's `Wow-Wait` until the payment's `PayOrder` is committed: 15 hops, through every saga on the way
-         * (each adds its own hop and the next commit), the ordering's on the inventory's stock stream included. The
-         * basket knows only the ordering's Manifest: it lets the hops of the inventory and the payment through, and
-         * each is checked where the chain arrives (decision D190); the default of 16 hops holds it.
+         * A checkout's `Wow-Wait` until the order's reservations are committed in the inventory: 7 hops, through every
+         * saga on the way (each adds its own hop and the next commit). The basket knows only the ordering's Manifest:
+         * it lets the inventory's hop through, and it is checked where the chain arrives (decision D190). The chain
+         * ends there: the reservations' success receipts come back to the ordering's `@OnCommitted` handler, which is
+         * not a hop (decision D192), so the confirmation and the payment after it are awaited by reading the order.
          */
-        const val CHECKOUT_TO_PAID = CHECKOUT_TO_ORDER +
+        const val CHECKOUT_TO_RESERVED = CHECKOUT_TO_ORDER +
             " > handled(eshop-ordering/OrderProcessSaga.onOrderSubmitted) > committed(eshop-ordering)" +
-            " > handled(eshop-ordering/OrderProcessSaga.onOrderAwaitingValidation) > committed(eshop-inventory)" +
-            " > handled(eshop-ordering/StockConfirmationSaga.onStockReserved) > committed(eshop-ordering)" +
-            " > handled(eshop-payment/OrderPaymentSaga.onOrderStockConfirmed) > committed(eshop-payment)" +
-            " > handled(eshop-payment/PaymentGatewaySaga.onPaymentRequested) > committed(eshop-payment)" +
-            " > handled(eshop-payment/OrderPaymentSaga.onPaymentSucceeded) > committed(eshop-ordering)"
+            " > handled(eshop-ordering/OrderProcessSaga.onOrderAwaitingValidation) > committed(eshop-inventory)"
         const val OK = 200
         const val NOT_FOUND = 404
         const val TAIL = 4_000

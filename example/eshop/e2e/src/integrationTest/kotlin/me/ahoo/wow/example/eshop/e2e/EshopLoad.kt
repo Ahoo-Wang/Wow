@@ -21,9 +21,11 @@ import kotlin.math.ceil
 /**
  * The eShop's load script (work package E.6): `./gradlew -Pwow.scope=v10 :eshop-e2e:eshopLoad`. It starts
  * [EshopStack], then drives checkouts through the full chain from [concurrency] buyers at a time: each buyer adds a
- * product to the basket and checks it out with the `Wow-Wait` [EshopStack.CHECKOUT_TO_PAID], which answers once the
- * payment's `PayOrder` is committed. A checkout's latency is that request's, from the checkout to the paid order. It
- * reports the throughput and the latency percentiles of the measured checkouts, after [warmUp] unmeasured ones.
+ * product to the basket, checks it out with the `Wow-Wait` [EshopStack.CHECKOUT_TO_RESERVED], which answers once the
+ * order's reservation is committed in the inventory, and reads the order until it is paid: the reservation's success
+ * receipt confirms the stock, which no wait follows (decision D192). A checkout's latency is from the checkout to the
+ * paid order. It reports the throughput and the latency percentiles of the measured checkouts, after [warmUp]
+ * unmeasured ones.
  *
  * The Gradle properties `eshop.load.checkouts` (200), `eshop.load.concurrency` (8) and `eshop.load.warm-up` (40) set
  * the run. It is not part of any check.
@@ -71,14 +73,24 @@ class EshopLoad(private val stack: EshopStack, private val concurrency: Int) {
         val answer = stack.basket.post(
             "/eshop-basket/basket/$buyer/checkout-basket",
             "{}",
-            mapOf("Wow-Wait" to EshopStack.CHECKOUT_TO_PAID, "Wow-Wait-Timeout" to "60s"),
+            mapOf("Wow-Wait" to EshopStack.CHECKOUT_TO_RESERVED, "Wow-Wait-Timeout" to "60s"),
         )
-        val latency = Duration.ofNanos(System.nanoTime() - begun)
-        val paid = answer.status == OK && json.readTree(answer.body).let { result ->
-            result["status"].asString() == "SUCCEEDED" && result["function"]["name"].asString() == "PayOrder"
+        val reserved = answer.status == OK && json.readTree(answer.body).let { result ->
+            result["status"].asString() == "SUCCEEDED" && result["function"]["name"].asString() == "ReserveStock"
         }
-        if (!paid) report("The checkout of $buyer answered ${answer.status}: ${answer.body.take(MESSAGE)}")
-        return latency.takeIf { paid }
+        if (!reserved) {
+            report("The checkout of $buyer answered ${answer.status}: ${answer.body.take(MESSAGE)}")
+            return null
+        }
+        val deadline = begun + PAID_TIMEOUT.toNanos()
+        while (stack.orderStatus("$buyer-1") != "PAID") {
+            if (System.nanoTime() > deadline) {
+                report("The order of $buyer was not paid within $PAID_TIMEOUT.")
+                return null
+            }
+            Thread.sleep(POLL.toMillis())
+        }
+        return Duration.ofNanos(System.nanoTime() - begun)
     }
 
     /** One phase of a run: its sorted [latencies], its [failures] and how long it took. */
@@ -114,6 +126,8 @@ private const val DEFAULT_CHECKOUTS = 200
 private const val DEFAULT_CONCURRENCY = 8
 private const val DEFAULT_WARM_UP = 40
 private const val MESSAGE = 500
+private val PAID_TIMEOUT: Duration = Duration.ofSeconds(60)
+private val POLL: Duration = Duration.ofMillis(20)
 private const val PERCENT = 100.0
 private const val MILLIS_PER_SECOND = 1000.0
 private const val P50 = 50.0

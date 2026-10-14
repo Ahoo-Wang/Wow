@@ -36,7 +36,6 @@ class OrderingDomainModelProviderTest {
             "OrderProcessSaga.onOrderAwaitingValidation",
             "OrderProcessSaga.onOrderCancelled",
             "OrderProcessSaga.onOrderShipped",
-            "StockConfirmationSaga.onStockReserved",
         )
     }
 
@@ -51,8 +50,11 @@ class OrderingDomainModelProviderTest {
         val subscriptions = context["subscriptions"].values().associateBy { it["name"].asString() }
         subscriptions.getValue("OrderProcessSaga.onOrderAwaitingValidation")["derives"].single().asString()
             .assert().endsWith("ReserveStock")
-        subscriptions.getValue("StockConfirmationSaga.onStockReserved")["source"]["context"].asString()
-            .assert().isEqualTo("eshop-inventory")
+        // Decision D192: the success receipts of the reservations go to the saga's @OnCommitted handler.
+        val committed = subscriptions.getValue("OrderProcessSaga.onReserveCommitted")
+        committed["committed"].single().asString().assert().endsWith("ReserveStock")
+        committed["derives"].single().asString().assert().isEqualTo("eshop-ordering.order.ConfirmOrderStock")
+        subscriptions.keys.assert().noneMatch { it.startsWith("StockConfirmationSaga") }
         context["errors"].values().map { it["code"].asString() }.assert().contains(
             "eshop-ordering.order.invalid-items",
             "eshop-ordering.order.wrong-status",

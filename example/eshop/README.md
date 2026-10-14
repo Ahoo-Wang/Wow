@@ -40,7 +40,7 @@ CheckoutBasket
                                     ▼
                              AWAITING_VALIDATION ──ReserveStock (each product)──▶ StockReserved
                                     │                                             │ (or rejected: short stock)
-                                    │ ◀──ConfirmOrderStock── StockConfirmationSaga ◀┘ reads wow.eshop-inventory.stock.state
+                                    │ ◀──ConfirmOrderStock── @OnCommitted receipt ◀─┘ OrderProcessSaga, on wow.eshop-ordering.receipts
                                     ▼
                              STOCK_CONFIRMED ── schedules CancelOrder after the payment grace period
                                     │
@@ -62,19 +62,16 @@ A declined payment's CancelOrder, and the grace period's scheduled one for an or
 - **Grace period.** `eshop.ordering.payment-grace-period` (30 minutes) is a durable scheduled command (decision D166), written with the commit that confirms the stock. Paying or cancelling the order cancels it. If it fires late on a paid order, the order rejects it, which is a normal guard.
 - **Payment.** See [Payment](#payment). A client may still send `pay-order` itself, with the order's total.
 - **Buyer.** The order belongs to its buyer. The basket's owner is its buyer, and the checkout saga's `SubmitOrder` carries the basket's scope, as every command a saga derives carries the scope of the commit it handles (decision D189). The order takes its owner from that command, and so does the payment the payment context's saga creates for it.
-- **Waiting for the order.** A checkout's `Wow-Wait` can follow the order the whole way to its payment, in 15 hops: every saga on the way, the ordering's `StockConfirmationSaga` on the inventory's stock stream included, until the payment's `PayOrder` is committed in the ordering context. Each hop names its saga and context:
+- **Stock confirmation.** The inventory sends the receipt of each reservation it commits back to `wow.eshop-ordering.receipts`, because `OrderProcessSaga` declares an `@OnCommitted` handler of `ReserveStock` (decision D192); the handler confirms the product on the order. The receipt carries the stock's id, its version and the command's result, not its state, and the saga handles each receipt once.
+- **Waiting for the order.** A checkout's `Wow-Wait` can follow the order into the inventory, in 7 hops, until its reservations are committed there. Each hop names its saga and context:
 
   ```text
   committed > handled(eshop-basket/BasketCheckoutSaga.onBasketCheckedOut) > committed(eshop-ordering)
     > handled(eshop-ordering/OrderProcessSaga.onOrderSubmitted) > committed(eshop-ordering)
     > handled(eshop-ordering/OrderProcessSaga.onOrderAwaitingValidation) > committed(eshop-inventory)
-    > handled(eshop-ordering/StockConfirmationSaga.onStockReserved) > committed(eshop-ordering)
-    > handled(eshop-payment/OrderPaymentSaga.onOrderStockConfirmed) > committed(eshop-payment)
-    > handled(eshop-payment/PaymentGatewaySaga.onPaymentRequested) > committed(eshop-payment)
-    > handled(eshop-payment/OrderPaymentSaga.onPaymentSucceeded) > committed(eshop-ordering)
   ```
 
-  (written on one line in the header). The basket knows only the ordering's Manifest, its one peer. It lets the hops of the inventory and the payment through, and each is checked where the chain arrives (decision D190). Each saga adds two hops, its own and the next commit, and the 15 hops fit in the default of 16 (`wow.wait.max-hops`). Shipping is the client's command, so the wait cannot go past the payment. A client's wait follows the inventory's accepted reservation back into the ordering, the round trip that a saga cannot follow by a receipt (G23).
+  (written on one line in the header). The basket knows only the ordering's Manifest, its one peer. It lets the inventory's hop through, and that hop is checked where the chain arrives (decision D190). Each saga adds two hops, its own and the next commit. The chain ends at the reservations: their receipts are not hops of a wait chain (decision D192), so a client reads the order to see its stock confirmed and its payment.
 
 ### Naming
 
@@ -183,7 +180,7 @@ Use JDK 21. Start a service from the repository root. Each one runs on the memor
 
 The basket, ordering, inventory and payment services talk over Kafka. The basket, ordering and payment services do not start without it, because their sagas send other contexts' commands. Each of the four has two profiles:
 
-- **`kafka`** sets Kafka on `localhost:9092`, and `wow.kafka.topics.ddl: auto`: each service creates the topics it owns at startup. On ordering and inventory it also turns on the command intake. On ordering it starts `StockConfirmationSaga.onStockReserved` at the beginning of the stock stream, and on payment `OrderPaymentSaga.onOrderStockConfirmed` at the beginning of the order stream.
+- **`kafka`** sets Kafka on `localhost:9092`, and `wow.kafka.topics.ddl: auto`: each service creates the topics it owns at startup. On ordering and inventory it also turns on the command intake. On payment it starts `OrderPaymentSaga.onOrderStockConfirmed` at the beginning of the order stream.
 - **`postgres`** puts the service on PostgreSQL. Its database is `eshop_basket`, `eshop_ordering`, `eshop_inventory` or `eshop_payment` on `localhost:5432`.
 
 The ordering has a third profile, **`clickhouse`**: the Sink writes its order stream to ClickHouse on `localhost:8123`, and it serves the sales dataset (see [Sales](#sales)).
@@ -232,7 +229,7 @@ The catalog's tests are in three places:
 The basket, ordering and inventory tests:
 
 - **Aggregates.** Each domain module has `aggregateSpec` specs: `BasketSpec`, `OrderSpec` (the state machine and the grace period, with `advanceTime`), `StockSpec` and `PaymentSpec`.
-- **Sagas.** `BasketCheckoutSagaTest`, `OrderProcessSagaTest` (with the `@OnRejected` handlers), `StockConfirmationSagaTest`, `PaymentGatewaySagaTest` (over the simulated gateway) and `OrderPaymentSagaTest` (with the refund on a rejected `PayOrder`).
+- **Sagas.** `BasketCheckoutSagaTest`, `OrderProcessSagaTest` (with the `@OnRejected` and `@OnCommitted` handlers), `PaymentGatewaySagaTest` (over the simulated gateway) and `OrderPaymentSagaTest` (with the refund on a rejected `PayOrder`).
 - **Servers.** Each server test starts its service on the memory backend. The basket, ordering and payment tests give it in-memory topics and drive it over HTTP: the basket's checkout, the order's flow and grace period without an inventory, and the payment's approval and decline without an ordering. Besides:
   - `OrderLifecycleTest`: the lifecycle routes (decision D113) on an order: deleted, refused with `wow.aggregate.deleted` (410) and restored; moved to another buyer's account, which the former owner then neither reads nor changes; tagged and moved into a fulfilment space by an employee.
   - `PaymentTransformationTest`: the chargeback callback refunds the payment it names through the route without an id, an unknown reference is `wow.aggregate.not-found` naming the callback, and a second transformer of the callback stops the service from starting. `PaymentTransformationAuthorizationTest` gives the service an authorizer that lets only the gateway refund: anyone may call the callback's route, and the refund it becomes is refused to anyone but the gateway (decision D182).

@@ -31,13 +31,13 @@ import kotlin.concurrent.thread
  * What an order of the soak is meant to do, chosen by its number: most are paid and shipped, one in ten asks for more
  * of a product than its stock holds (the inventory rejects the reservation and the order is cancelled), one in ten
  * costs more than the simulated gateway approves (the payment fails and the order is cancelled, its stock released).
+ * Each checkout waits until its reservations are committed, or rejected, in the inventory: the confirmation comes
+ * back as a success receipt, which no wait follows (decision D192).
  */
 enum class Scenario(val product: String, val unitPrice: String, val wait: String) {
-    PAID(SoakLoad.PRODUCT_A, "8.50", EshopStack.CHECKOUT_TO_PAID),
-    SHORT_STOCK(SoakLoad.PRODUCT_SHORT, "5.00", EshopStack.CHECKOUT_TO_PAID),
-
-    /** The wait ends where the gateway's answer is committed in the payment: a failed payment takes another saga. */
-    DECLINED(SoakLoad.PRODUCT_B, "1200.00", EshopStack.CHECKOUT_TO_ORDER + DECLINED_TAIL),
+    PAID(SoakLoad.PRODUCT_A, "8.50", EshopStack.CHECKOUT_TO_RESERVED),
+    SHORT_STOCK(SoakLoad.PRODUCT_SHORT, "5.00", EshopStack.CHECKOUT_TO_RESERVED),
+    DECLINED(SoakLoad.PRODUCT_B, "1200.00", EshopStack.CHECKOUT_TO_RESERVED),
     ;
 
     companion object {
@@ -48,13 +48,6 @@ enum class Scenario(val product: String, val unitPrice: String, val wait: String
         }
     }
 }
-
-private const val DECLINED_TAIL =
-    " > handled(eshop-ordering/OrderProcessSaga.onOrderSubmitted) > committed(eshop-ordering)" +
-        " > handled(eshop-ordering/OrderProcessSaga.onOrderAwaitingValidation) > committed(eshop-inventory)" +
-        " > handled(eshop-ordering/StockConfirmationSaga.onStockReserved) > committed(eshop-ordering)" +
-        " > handled(eshop-payment/OrderPaymentSaga.onOrderStockConfirmed) > committed(eshop-payment)" +
-        " > handled(eshop-payment/PaymentGatewaySaga.onPaymentRequested) > committed(eshop-payment)"
 
 /** One logical order: the buyer `c<client>-<number>`, whose first checkout is the order `<buyer>-1`. */
 class SoakOrder(val client: Int, val number: Int) {
@@ -114,10 +107,10 @@ data class Attempt(
 
 /**
  * The load: [SoakConfig.clients] clients, each sending one order at a time, together [SoakConfig.rate] orders a
- * second. An order adds an item to a new basket (`<buyer>:add`), checks it out with a `Wow-Wait` that follows the
- * order as far as its [Scenario] goes (`<buyer>:checkout`), and ships it once paid (`<order>:ship`). Every request
- * carries its id as `Wow-Request-Id` and is retried with the same id after a failure that may not have reached the
- * log: a transport error, a timeout, a framework failure.
+ * second. An order adds an item to a new basket (`<buyer>:add`) and checks it out with a `Wow-Wait` that follows the
+ * order as far as its reservations (`<buyer>:checkout`); the quiescence ships it once paid (`<order>:ship`). Every
+ * request carries its id as `Wow-Request-Id` and is retried with the same id after a failure that may not have reached
+ * the log: a transport error, a timeout, a framework failure.
  */
 class SoakLoad(private val stack: SoakStack, private val config: SoakConfig, private val log: (String) -> Unit) {
     private val http: HttpClient = HttpClient.newBuilder()
@@ -167,7 +160,7 @@ class SoakLoad(private val stack: SoakStack, private val config: SoakConfig, pri
             buyer + (WAIT to "committed"),
         )
         if (!add.committed) return
-        val checkout = send(
+        send(
             order,
             "${order.buyer}:checkout",
             "checkout",
@@ -176,11 +169,9 @@ class SoakLoad(private val stack: SoakStack, private val config: SoakConfig, pri
             "{}",
             buyer + mapOf(WAIT to order.scenario.wait, WAIT_TIMEOUT to "${config.waitTimeout.toSeconds()}s"),
         )
-        val paid = checkout.attempts.any { it.outcome == Outcome.SUCCEEDED && it.function == "PayOrder" }
-        if (order.scenario == Scenario.PAID && paid) ship(order)
     }
 
-    /** Ships [order], once paid; the quiescence ships those whose checkout did not see the payment. */
+    /** Ships [order], once paid: the quiescence ships each paid order, which no checkout's wait reaches (D192). */
     fun ship(order: SoakOrder): SoakRequest = send(
         order,
         "${order.orderId}:ship",
