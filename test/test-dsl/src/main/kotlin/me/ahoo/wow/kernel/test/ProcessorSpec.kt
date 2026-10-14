@@ -25,6 +25,7 @@ import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.kernel.CommandCalls
 import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.ProcessorBinding
@@ -60,6 +61,9 @@ import kotlin.reflect.KClass
  * Each call of a handler gets a fresh [ExecutionSagaContext], as the runtime gives each handling of a commit, so the
  * ids the saga derives are the same on every call for the same commit. Its [ids][me.ahoo.wow.api.subscribe.SagaContext.ids]
  * (decision D171) are [SequentialIds], counted anew for each call: `id-1`… and `<aggregate>-1`….
+ *
+ * The synchronous calls a saga makes ([me.ahoo.wow.api.subscribe.SagaContext.call], decision D193) are answered by
+ * [answerCalls], committed at version 1 by default ([committedResult]); [ProcessorExpectations.calls] lists them.
  */
 fun sagaSpec(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() -> Unit) {
     ProcessorSpec(handlers, FunctionKind.SAGA).block()
@@ -93,6 +97,19 @@ fun reactorSpec(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() -> 
 class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: FunctionKind) {
     /** The executions that derived each command, by command id: a rejection of one goes back to its saga. */
     private val derivedBy = HashMap<String, ExecutionId>()
+
+    /** How the targets answer the saga's synchronous calls. */
+    private var answer: (Command<*>) -> CommandResult = { committedResult(it) }
+
+    /**
+     * Answers each synchronous call a saga's handler makes (decision D193) with what [answer] returns for its command,
+     * as the target's command gateway would: [committedResult] (the default, at version 1), [rejectedResult], which
+     * the handler gets as a [me.ahoo.wow.api.subscribe.CallRejectedException], or [failedResult], a
+     * [me.ahoo.wow.api.subscribe.CallFailedException]; [answer] may also throw one, as a target that is down does.
+     */
+    fun answerCalls(answer: (Command<*>) -> CommandResult) {
+        this.answer = answer
+    }
 
     init {
         require(handlers.isNotEmpty()) { "A processor specification needs the processor's handlers." }
@@ -251,7 +268,8 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
         val called = events.map { event -> event to handlers.filter { reads(it, event) } }
         val call = {
             runCatchingAll {
-                Handled(called.flatMap { (event, readers) -> handle(readers, event).getOrThrow().commands })
+                val handled = called.map { (event, readers) -> handle(readers, event).getOrThrow() }
+                Handled(handled.flatMap { it.commands }, handled.flatMap { it.calls })
             }
         }
         val names = called.flatMap { (_, readers) -> readers.map { it.name } }.distinct()
@@ -270,13 +288,18 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
 
     private fun handle(called: List<ProcessorBinding<*>>, event: StateEvent<*>): Result<Handled> = runCatchingAll {
         val commands = ArrayList<Command<*>>()
+        val calls = ArrayList<Command<*>>()
+        val answering = CommandCalls { command ->
+            calls += command
+            answer(command)
+        }
         called.forEach { handler ->
-            val context = contextOf(handler.kind, handler.name, event, SequentialIds())
+            val context = contextOf(handler.kind, handler.name, event, SequentialIds(), calls = answering)
             val derived = runBlocking { handler.invoke(event, context) }
             derived.forEach { derivedBy[it.id] = context.executionId }
             commands += derived
         }
-        Handled(commands)
+        Handled(commands, calls)
     }
 
     private fun reject(handler: RejectionBinding<*>, rejected: CommandRejected<*>): Result<Handled> =
@@ -295,8 +318,8 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
             Handled(derived)
         }
 
-    /** The commands of one handling, the schedules it set or cancelled among them. */
-    internal data class Handled(val commands: List<Command<*>>)
+    /** The commands of one handling, the schedules it set or cancelled among them, and the commands it [calls]. */
+    internal data class Handled(val commands: List<Command<*>>, val calls: List<Command<*>> = emptyList())
 
     private companion object {
         /** Whether [handler]'s subscription hands it [event]; a job's handler only its own job's ticks. */

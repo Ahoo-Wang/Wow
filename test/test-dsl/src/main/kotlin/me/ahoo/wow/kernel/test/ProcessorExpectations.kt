@@ -50,6 +50,25 @@ class ProcessorExpectations internal constructor(
 
     private fun Command<*>.isSchedule(): Boolean = body is SetSchedule || body is CancelSchedule
 
+    /**
+     * The commands the handlers called synchronously (decision D193), in order, each answered by
+     * [ProcessorSpec.answerCalls]; those of a handling that threw are not listed.
+     */
+    val calls: List<Command<*>> get() = done.calls
+
+    /** The handlers called commands of exactly these [bodies] synchronously, in order. */
+    fun expectCalls(vararg bodies: Any) {
+        val called = calls.map { it.body }
+        if (called != bodies.toList()) {
+            throw AssertionError("Expected the calls ${bodies.toList()} but got $called.")
+        }
+    }
+
+    /** The handlers called no command synchronously. */
+    fun expectNoCall() {
+        if (calls.isNotEmpty()) throw AssertionError("Expected no call but got ${describe(calls)}.")
+    }
+
     /** What a handler threw; null when they all returned. */
     val error: Throwable? get() = result.exceptionOrNull()
 
@@ -163,7 +182,8 @@ class ProcessorExpectations internal constructor(
 
     /**
      * Handling the same commit, or rejection, again, with a fresh context as the runtime gives a retry, derives the
-     * same commands (ids and request ids included), the schedules among them: the targets decide them once.
+     * same commands (ids and request ids included), the schedules among them, and calls the same ones: the targets
+     * decide them once.
      */
     @Suppress("ThrowsCount")
     fun expectDeterministic() {
@@ -173,6 +193,9 @@ class ProcessorExpectations internal constructor(
             throw AssertionError(
                 "Handling it again derived ${describe(second.commands)}, not ${describe(first.commands)}.",
             )
+        }
+        if (second.calls != first.calls) {
+            throw AssertionError("Handling it again called ${describe(second.calls)}, not ${describe(first.calls)}.")
         }
     }
 

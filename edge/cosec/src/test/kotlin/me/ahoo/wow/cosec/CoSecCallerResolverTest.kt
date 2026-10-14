@@ -86,6 +86,17 @@ class CoSecCallerResolverTest {
     }
 
     @Test
+    fun `only a principal of a configured service role or policy is a service identity`() {
+        val services = CoSecCallerResolver(
+            CoSecCallerOptions(serviceRoles = setOf("service"), servicePolicies = setOf("wow-service")),
+        )
+        services.callerOf(securityContext("basket", roles = setOf("service")))!!.service.assert().isTrue()
+        services.callerOf(securityContext("basket", policies = setOf("wow-service")))!!.service.assert().isTrue()
+        services.callerOf(securityContext("mallory", roles = setOf("service@s1")))!!.service.assert().isFalse()
+        resolver.callerOf(securityContext("basket", roles = setOf("service")))!!.service.assert().isFalse()
+    }
+
+    @Test
     fun `a configured role or policy makes the principal a tenant-level caller, without an owner`() {
         val levels = CoSecCallerResolver(
             CoSecCallerOptions(tenantRoles = setOf("employee"), tenantPolicies = setOf("wow-tenant")),

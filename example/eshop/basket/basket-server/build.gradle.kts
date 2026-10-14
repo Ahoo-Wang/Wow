@@ -11,7 +11,7 @@ application {
     mainClass.set("me.ahoo.wow.example.eshop.basket.server.BasketServerKt")
 }
 
-// The service's Manifest, and the ordering service's as its peer: the checkout saga sends the ordering context's
+// The service's Manifest, and the ordering service's as its peer: the checkout saga calls the ordering context's
 // commands by the type names its Manifest gives them. The plugin `me.ahoo.wow` cannot be applied inside the build that
 // produces it, so the server applies the repository's script in its place (DX gap G6).
 extra["wowService"] = "eshop-basket-service"
@@ -22,8 +22,8 @@ apply(from = rootProject.file("example/eshop/wow-manifest-compatibility.gradle.k
 dependencies {
     implementation(project(":eshop-basket-domain"))
     implementation(project(":spring-boot"))
-    // The `kafka` profile: the checkout saga's orders reach the ordering context on wow.eshop-ordering.commands, and
-    // the basket stream is published.
+    // The `kafka` profile: the basket stream is published (the checkout saga calls the ordering service over HTTP,
+    // decision D193).
     implementation(project(":kafka"))
     "wowPeers"(project(":eshop-ordering-server"))
     // The `postgres` profile: the host runs on PostgreSQL when the application gives it a DataSource.
