@@ -19,9 +19,15 @@ import { scopes, unitPackages } from './ci-scope.mjs';
 
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
 // The TypeScript workflow scopes; `compatDebt` and `package` are derived from
-// them, and `mixedVersion` and `v10` gate Kotlin workflows; each has its own
-// tests.
-const KOTLIN_GATES = new Set(['compatDebt', 'package', 'mixedVersion', 'v10']);
+// them, `mixedVersion` and `v10` gate Kotlin workflows, and `opsConsole` the
+// ops console's own; each has its own tests.
+const KOTLIN_GATES = new Set([
+  'compatDebt',
+  'package',
+  'mixedVersion',
+  'v10',
+  'opsConsole',
+]);
 const gates = paths =>
   Object.entries(scopes(paths)).filter(([key]) => !KOTLIN_GATES.has(key));
 const all = paths => gates(paths).every(([, value]) => value);
@@ -539,6 +545,44 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
   assert.ok(scopes(['.github/workflows/v10.yml']).workflows);
 });
 
+test('the ops console, the ops service and what the console builds with run ops-console-test.yml', () => {
+  for (const path of [
+    'platform/ops/console/src/main.tsx',
+    'platform/ops/console/package.json',
+    'platform/ops/ops-server/src/main/resources/application.yaml',
+    'platform/ops/ops-server/manifest/baseline.json',
+    'platform/ops/ops-domain/src/main/kotlin/A.kt',
+    'typescript/wow-client/src/v10/index.ts',
+    'typescript/wow-generator/src/cli.ts',
+    'typescript/wow-view-engine/src/index.ts',
+    'typescript/wow-view-store/src/v10/source.ts',
+    'package.json',
+    'pnpm-lock.yaml',
+    'pnpm-workspace.yaml',
+    'patches/jsdom@29.1.1.patch',
+    'tsconfig.base.json',
+    '.github/workflows/ops-console-test.yml',
+    // An unknown path or a CI script runs everything.
+    '.github/scripts/ci-scope.mjs',
+    'new-directory/index.ts',
+  ])
+    assert.ok(scopes([path]).opsConsole, path);
+  for (const path of [
+    'platform/view-store/view-store-server/manifest/baseline.json',
+    'analytics/console/src/App.tsx',
+    'compensation/dashboard/src/App.tsx',
+    'typescript/wow-react/src/index.ts',
+    'core/kernel/src/main/kotlin/A.kt',
+    'README.md',
+    '.github/workflows/v10.yml',
+  ])
+    assert.ok(!scopes([path]).opsConsole, path);
+  // The console's own path turns on no typescript.yml scope, and keeps v10.
+  assert.deepEqual(on(['platform/ops/console/src/main.tsx']), []);
+  assert.ok(scopes(['platform/ops/console/src/main.tsx']).v10);
+  assert.ok(scopes(['.github/workflows/ops-console-test.yml']).workflows);
+});
+
 test('isolated changes retain their relevant validation', () => {
   assert.deepEqual(on(['documentation/docs/index.md']), ['docs']);
   assert.deepEqual(
@@ -602,6 +646,7 @@ test('the command reads the diff and runs everything without a base', () => {
       `package=${value}\n` +
       `mixedVersion=${value}\n` +
       `v10=${value}\n` +
+      `opsConsole=${value}\n` +
       `unitPackages=${value ? '["wow-client","wow-react","wow-generator","wow-view-store"]' : '[]'}\n`;
     assert.equal(run({ BASE_SHA: base, HEAD_SHA: head }), output(false));
     assert.equal(

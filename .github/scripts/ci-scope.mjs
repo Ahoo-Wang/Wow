@@ -52,6 +52,15 @@ const MIXED_VERSION = 'mixedVersion';
 const V10 = 'v10';
 const V10_PATH =
   /^(?:(?:api|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|kernel-benchmarks|routing-spike|lease-spike|test-dsl|tck|tck-containers)|example\/eshop|wow-dependencies|gradle|build-logic|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/v10\.yml$)/;
+// ops-console-test.yml (v10 branch): the ops console's lint, types, tests and
+// build, and its end-to-end suite against the ops server it is served by. Not a
+// TypeScript scope of typescript.yml. Decided apart from RULES, by
+// OPS_CONSOLE_PATH: the console, the ops service (its Manifest the console's
+// client is generated from, its routes the suite runs against), the workspace
+// packages and files the console builds with, and the workflow itself.
+const OPS_CONSOLE = 'opsConsole';
+const OPS_CONSOLE_PATH =
+  /^(?:platform\/ops\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|patches\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ops-console-test\.yml$)/;
 // A Kotlin source a removal marker may sit in.
 const KOTLIN_MAIN = /(?:^|\/)src\/main\/kotlin\/.+\.kt$/;
 
@@ -215,9 +224,9 @@ const RULES = [
     [DOCS],
   ],
   // The ops console (roadmap 7.1b), a pnpm workspace member under the V10
-  // platform: no package, story or site builds on it; it is checked on its
-  // own, as the analytics console is, and rides v10.yml with the ops server
-  // that serves it (V10_PATH).
+  // platform: no package, story or site builds on it; ops-console-test.yml
+  // checks it (OPS_CONSOLE_PATH), and v10.yml runs with the ops server that
+  // serves it (V10_PATH).
   [/^platform\/ops\/console\//, []],
   // The V10 modules (documentation/designs/v10/06-modules.md §4; their tests
   // live under test/, below): no example server, client or site builds on
@@ -289,6 +298,7 @@ export function scopes(paths) {
     PACKAGE,
     MIXED_VERSION,
     V10,
+    OPS_CONSOLE,
   ];
   const result = Object.fromEntries(keys.map(key => [key, false]));
   // Light scopes a path asks for alongside their full scope (the workflow
@@ -317,6 +327,8 @@ export function scopes(paths) {
   // Also apart from RULES: a V10 path keeps its scopes, and an unknown path
   // has already returned every scope above.
   result[V10] = paths.some(path => V10_PATH.test(path));
+  // Also apart from RULES, and the same way.
+  result[OPS_CONSOLE] = paths.some(path => OPS_CONSOLE_PATH.test(path));
   return result;
 }
 
