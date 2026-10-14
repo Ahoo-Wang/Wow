@@ -79,4 +79,23 @@ internal object ManifestToolsWork {
             )
         }
     }
+
+    /** Compares the service's Manifest with its baseline, and fails on a breaking change within the major version. */
+    abstract class CheckCompatibility : WorkAction<CheckCompatibility.Parameters> {
+        interface Parameters : WorkParameters {
+            val baseline: RegularFileProperty
+            val manifest: RegularFileProperty
+            val report: RegularFileProperty
+        }
+
+        override fun execute() {
+            call(
+                javaClass.classLoader,
+                "checkCompatibility",
+                parameters.baseline.get().asFile,
+                parameters.manifest.get().asFile,
+                parameters.report.get().asFile,
+            )
+        }
+    }
 }

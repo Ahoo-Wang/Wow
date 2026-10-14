@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.gradle
 
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 
@@ -23,6 +24,7 @@ import org.gradle.api.provider.Property
  * wow {
  *     context = "shop"
  *     schemaOverrides.put("sample.Money", """{"type":"string"}""")
+ *     manifestBaseline = layout.projectDirectory.file("manifest/baseline.json")
  * }
  * ```
  */
@@ -48,4 +50,11 @@ abstract class WowExtension {
 
     /** The service's version in the merged `manifest.json`; the project's version by default. */
     abstract val serviceVersion: Property<String>
+
+    /**
+     * The Manifest of the service's last published version, which `checkManifestCompatibility` compares the merged
+     * Manifest with (decision D76) and `updateManifestBaseline` rewrites; `manifest/baseline.json` of the project by
+     * default. Commit it.
+     */
+    abstract val manifestBaseline: RegularFileProperty
 }
