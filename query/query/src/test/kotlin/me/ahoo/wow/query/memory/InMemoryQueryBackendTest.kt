@@ -55,6 +55,14 @@ class InMemoryQueryBackendTest : QueryBackendSpec() {
     }
 
     @Test
+    fun `a rebuilt snapshot replaces the stored one of the same version, not a higher one`() {
+        storage.rewrite(snapshot("o1", """{"name":"first"}""", version = 2)).assert().isTrue()
+        storage.rewrite(snapshot("o1", """{"name":"rebuilt"}""", version = 2)).assert().isTrue()
+        storage.rewrite(snapshot("o1", """{"name":"older"}""", version = 1)).assert().isFalse()
+        storage.records(type).single().path("state").path("name").stringValue().assert().isEqualTo("rebuilt")
+    }
+
+    @Test
     fun `the gateway hands the budget's timeout to the backend`() {
         runBlocking {
             val fixture = given(orders())

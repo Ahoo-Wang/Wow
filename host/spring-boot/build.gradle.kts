@@ -32,8 +32,6 @@ dependencies {
     testImplementation("org.springframework:spring-test")
     testImplementation(project(":postgres"))
     testImplementation(project(":mongo"))
-    // The in-memory reference query backend, for the snapshot queries of a node on the memory backend.
-    testImplementation(testFixtures(project(":query")))
     testImplementation(project(":kafka"))
     testImplementation(project(":clickhouse"))
     testImplementation(project(":opentelemetry"))

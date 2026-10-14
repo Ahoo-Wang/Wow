@@ -105,13 +105,12 @@ val BUYER: Map<String, String> = mapOf(CatalogCallers.USER to "alice")
 
 /**
  * Starts the catalog server on random ports of the loopback interface, with [properties] over its `application.yaml`,
- * in [profiles] and with the further configuration [sources]. A request without headers is the anonymous caller; one
+ * in [profiles]. A request without headers is the anonymous caller; one
  * with [EMPLOYEE]'s or [BUYER]'s is an employee or a buyer ([CatalogCallers], decision D189).
  */
 fun startCatalog(
     vararg properties: Pair<String, Any>,
     profiles: List<String> = emptyList(),
-    sources: List<Class<*>> = emptyList(),
 ): CatalogNode {
     val arguments = mapOf(
         "spring.main.banner-mode" to "off",
@@ -123,7 +122,7 @@ fun startCatalog(
         "wow.subscription.stop-timeout" to "2s",
         "wow.wait.max-timeout" to "15s",
     ) + properties.toMap()
-    val context = SpringApplicationBuilder(CatalogServer::class.java, *sources.toTypedArray())
+    val context = SpringApplicationBuilder(CatalogServer::class.java)
         .profiles(*profiles.toTypedArray())
         .run(*arguments.map { (name, value) -> "--$name=$value" }.toTypedArray())
     return CatalogNode(context)

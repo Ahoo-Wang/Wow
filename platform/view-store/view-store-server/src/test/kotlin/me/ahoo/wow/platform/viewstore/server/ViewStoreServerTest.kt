@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test
 class ViewStoreServerTest {
     @Test
     fun `the server should run one node of the view store context on the memory backend`() {
-        startViewStore().use { store ->
+        startViewStore("wow.query.memory.enabled" to false).use { store ->
             val node = store.context.getBean(ServiceNode::class.java)
             node.service.assert().isEqualTo("view-store-service")
             node.isReady.assert().isTrue()
@@ -36,7 +36,8 @@ class ViewStoreServerTest {
                 ViewStoreContext.VIEW_PREFERENCES,
                 ViewStoreContext.DATASET_WORDING,
             )
-            // The memory backend serves no snapshot query: a claim then knows of no shared dashboard.
+            // Without the in-memory query backend, no snapshot query is served: a claim then knows of no shared
+            // dashboard.
             store.post(
                 "/view-store/view/snapshot/query",
                 """{"kind":"list","filter":{"op":"MATCH_ALL"}}""",

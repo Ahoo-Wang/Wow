@@ -45,6 +45,8 @@ import java.time.Duration
  * - `wow.query.dataset.config-directory` (`config`; D75, D145): the working directory whose `wow/dataset/` holds
  *   dataset files, `{context}.{dataset}.json`; each takes precedence over the classpath's `META-INF/wow/dataset/` file
  *   of the same dataset. The datasets of both are served when a dataset backend is wired (ClickHouse's, say).
+ * - `wow.query.memory.enabled` (false; D209): whether the snapshots on a store in memory are queried, from the
+ *   in-memory reference query backend: for local runs, demos and tests, not for production.
  */
 @ConfigurationProperties(prefix = QueryProperties.PREFIX)
 class QueryProperties {
@@ -58,6 +60,7 @@ class QueryProperties {
     var index: Index = Index()
     var dataset: Dataset = Dataset()
     var countCache: CountCache = CountCache()
+    var memory: Memory = Memory()
 
     /** The entry policy these settings give every gateway. */
     fun entryPolicy(): QueryEntryPolicy = QueryEntryPolicy(
@@ -127,6 +130,10 @@ class QueryProperties {
         var ttl: Duration = QueryCountCacheOptions.DEFAULT_TTL
 
         fun options(): QueryCountCacheOptions = QueryCountCacheOptions(maxEntries, ttl)
+    }
+
+    class Memory {
+        var enabled: Boolean = false
     }
 
     class Dataset {

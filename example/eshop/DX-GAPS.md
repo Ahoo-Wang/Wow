@@ -177,7 +177,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Proposed fix**: Document how a tenant crosses contexts. Have the target's admission check a cross-context command's tenant against its tenant policy, with a clear rejection.
 - **Blocks M7**: no, but it needs settling before multi-tenant users go cross-context.
 
-### G14. The in-memory query backend on the test class path does not serve the snapshot queries
+### G14. The in-memory query backend on the test class path does not serve the snapshot queries (resolved)
 
 - **Work package**: E.1
 - **Area**: testing, host, docs
@@ -187,6 +187,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: `catalog-server`'s tests copy the shop's `MemorySnapshotQueries` into a package of their own (`me.ahoo.wow.example.eshop.catalog.testing`). `CatalogQueryMemoryTest` passes it as a source, and `CatalogPostgresTest` in `:eshop-e2e` runs the storefront queries on PostgreSQL.
 - **Proposed fix**: When the reference backend is on the class path and the backend is `memory`, have the host wire it behind the snapshot queries, so the guide's sentence holds. Failing that, document the wiring with public types.
 - **Blocks M7**: no. There is a workaround, but every service that tests its queries without a container meets it.
+- **Resolved**: by the 7.3a follow-ups (decision D209). The in-memory reference query backend (`InMemoryQueryStorage`) is main code of `wow-query`, and `wow.query.memory.enabled` (default `false`; for local runs, demos and tests, not production) has the host write the snapshots of every store in memory into it and serve their snapshot queries from it. `CatalogQueryMemoryTest`, the ops server's and the view store server's memory tests set the property instead of a configuration of their own, and none of them puts `wow-query`'s test fixtures on its class path; the standalone view store server enables it in its `application.yaml`. `guide/v10/testing` still names the test fixtures; it changes with the V10 documentation.
 
 ### G15. The query language has no reference: filters, combinators, value shapes, results (resolved)
 

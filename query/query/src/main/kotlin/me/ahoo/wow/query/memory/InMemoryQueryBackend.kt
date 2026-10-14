@@ -56,9 +56,11 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
 /**
- * The in-memory reference query storage (decision D126): the snapshots of every aggregate type it holds, and the
- * [InMemoryQueryBackend] of each, which passes [QueryBackendSpec][me.ahoo.wow.query.tck.QueryBackendSpec]. A snapshot
- * replaces the stored one of its ref only with a higher version, as a snapshot store does.
+ * The in-memory reference query storage (decisions D126, D209): the snapshots of every aggregate type it holds, and the
+ * [InMemoryQueryBackend] of each, which passes `QueryBackendSpec` (the `:query` test fixtures). A snapshot replaces the
+ * stored one of its ref only with a higher version, as a snapshot store does; a rebuilt one ([rewrite]) also replaces
+ * one of the same version. The host serves the snapshot queries of a node on the memory backend from it when
+ * `wow.query.memory.enabled` is on: for local runs, demos and tests, whose data does not outlive the node.
  *
  * [delay] holds every primitive back that long before it answers, so tests can let a query outlive its timeout.
  */
@@ -70,12 +72,31 @@ class InMemoryQueryStorage(
     private val backends = ConcurrentHashMap<AggregateType, QueryBackendBinding<InMemoryQueryBackend>>()
 
     /** Stores [snapshot] unless a snapshot of the same or a higher version is stored; returns whether it was. */
-    fun save(snapshot: SnapshotRecord): Boolean {
+    fun save(snapshot: SnapshotRecord): Boolean = put(snapshot) { current -> current.version < snapshot.version }
+
+    /**
+     * Stores [snapshot], rebuilt from the log, in place of the stored one, as a snapshot store's `rewrite` does: unless
+     * a higher version is stored; returns whether it was.
+     */
+    fun rewrite(snapshot: SnapshotRecord): Boolean = put(snapshot) { current -> current.version <= snapshot.version }
+
+    /** The records of [type], in the order their aggregates were first stored, each a fresh tree. */
+    fun records(type: AggregateType): List<ObjectNode> {
+        val byRef = snapshots[type] ?: return emptyList()
+        return order[type].orEmpty().mapNotNull { byRef[it]?.toQueryRecord() }
+    }
+
+    override fun create(aggregateType: AggregateType): QueryBackendBinding<InMemoryQueryBackend> =
+        backends.computeIfAbsent(aggregateType) {
+            QueryBackendBinding(InMemoryQueryBackend(it, { records(it) }, delay), InMemoryQueryStorageAdapter)
+        }
+
+    private fun put(snapshot: SnapshotRecord, replaces: (current: SnapshotRecord) -> Boolean): Boolean {
         val type = snapshot.ref.type
         val byRef = snapshots.computeIfAbsent(type) { ConcurrentHashMap() }
         var written = false
         byRef.compute(snapshot.ref) { _, current ->
-            if (current == null || current.version < snapshot.version) {
+            if (current == null || replaces(current)) {
                 written = true
                 snapshot
             } else {
@@ -88,17 +109,6 @@ class InMemoryQueryStorage(
         }
         return written
     }
-
-    /** The records of [type], in the order their aggregates were first stored, each a fresh tree. */
-    fun records(type: AggregateType): List<ObjectNode> {
-        val byRef = snapshots[type] ?: return emptyList()
-        return order[type].orEmpty().mapNotNull { byRef[it]?.toQueryRecord() }
-    }
-
-    override fun create(aggregateType: AggregateType): QueryBackendBinding<InMemoryQueryBackend> =
-        backends.computeIfAbsent(aggregateType) {
-            QueryBackendBinding(InMemoryQueryBackend(it, { records(it) }, delay), InMemoryQueryStorageAdapter)
-        }
 }
 
 /**
@@ -190,7 +200,12 @@ class InMemoryQueryBackend internal constructor(
         }
 
     /** Whether [record] sorts strictly after the position [after] under [sort]. */
-    private fun isAfter(query: AdmittedQuery<*>, sort: List<Sort>, record: ObjectNode, after: List<JsonNode?>): Boolean {
+    private fun isAfter(
+        query: AdmittedQuery<*>,
+        sort: List<Sort>,
+        record: ObjectNode,
+        after: List<JsonNode?>
+    ): Boolean {
         sort.forEachIndexed { index, order ->
             val comparison = orderOf(sortKey(query, order, record), after[index])
             val directed = if (order.direction == Sort.Direction.ASC) comparison else -comparison

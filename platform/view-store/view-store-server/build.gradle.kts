@@ -24,8 +24,6 @@ dependencies {
     implementation(project(":postgres"))
     implementation("com.zaxxer:HikariCP")
     implementation("io.github.oshai:kotlin-logging-jvm")
-    // The in-memory reference query backend, so the memory backend's tests query the views.
-    testImplementation(testFixtures(project(":query")))
     testImplementation("org.springframework:spring-test")
     // The same contract on PostgreSQL in a container (decision D196).
     integrationTestImplementation(sourceSets["test"].output)
