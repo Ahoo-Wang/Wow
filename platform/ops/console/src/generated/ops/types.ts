@@ -104,6 +104,7 @@ export interface ParkedResolved {
 export interface ParkedState {
   aggregate: LedgerAggregate;
   context: string;
+  errorType: string;
   failedAt: number;
   fromPosition?: number | null;
   fromVersion: number;

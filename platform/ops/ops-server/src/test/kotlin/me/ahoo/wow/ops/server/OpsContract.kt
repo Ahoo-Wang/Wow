@@ -58,6 +58,7 @@ abstract class OpsContract {
         status: String = ParkedStatus.EXHAUSTED,
         subscription: String = SAGA,
         failedAt: Long = FAILED_AT,
+        reason: String = "The gateway is unreachable.",
     ): LedgerEntry = LedgerEntry(
         service = "$context-service",
         context = context,
@@ -65,7 +66,7 @@ abstract class OpsContract {
         aggregate = LedgerAggregate(context, "payment", Caller.DEFAULT_TENANT, id),
         fromVersion = 2,
         fromPosition = null,
-        reason = "The gateway is unreachable.",
+        reason = reason,
         failedAt = failedAt,
         retries = 3,
         retrySpec = LedgerRetrySpec(3, "PT1M", "PT2M"),
@@ -178,6 +179,48 @@ abstract class OpsContract {
         // An invalid argument is the entry's rejection, and sends nothing.
         ops.post("/ops/parked/$id/mark-recoverable", """{"recoverable":"maybe"}""", Who.OPERATOR)
             .assertProblem(UNPROCESSABLE, ParkedRejections.INVALID)
+    }
+
+    @Test
+    fun `an operator should count the entries by error type and subscription, and read an entry's history`() {
+        val context = context()
+        val connect = "java.net.ConnectException: Connection refused"
+        val first = ops.publish(entry(context, "p-1", reason = "$connect: gateway-1"))
+        val second = ops.publish(entry(context, "p-2", reason = "$connect: gateway-2"))
+        val other = ops.publish(
+            entry(
+                context,
+                "p-3",
+                subscription = "OtherSaga.onEvent",
+                reason = "java.lang.IllegalStateException: closed"
+            )
+        )
+        recorded(context, first, second, other)
+
+        // The failure clusters: the entries counted by what failed and where.
+        val clusters = ops.post(
+            QUERY,
+            """{"kind":"aggregate","filter":${eq("state.context", context)},"groupBy":[""" +
+                """{"type":"TERMS","field":"state.errorType","alias":"errorType"},""" +
+                """{"type":"TERMS","field":"state.subscription","alias":"subscription"}],""" +
+                """"metrics":[{"type":"COUNT","alias":"count"}],"sort":[{"field":"count","direction":"DESC"}]}""",
+            Who.OPERATOR,
+        ).assertOk().json.values().map {
+            Triple(it["errorType"].asString(), it["subscription"].asString(), it["count"].asLong())
+        }
+        clusters.assert().containsExactly(
+            Triple("java.net.ConnectException", SAGA, 2L),
+            Triple("java.lang.IllegalStateException", "OtherSaga.onEvent", 1L),
+        )
+
+        // The history: the entry's own event streams, oldest first.
+        ops.post("/ops/parked/$first/resume", """{"reason":"The gateway is back."}""", Who.OPERATOR).assertOk()
+        val history = ops.post(
+            "/ops/parked/events/query",
+            """{"kind":"list","filter":${eq("aggregateId", first)}}""",
+            Who.OPERATOR,
+        ).assertOk().json.values().map { stream -> stream["events"].values().single()["name"].asString() }
+        history.assert().containsExactly("ops.parked.ParkedRecorded", "ops.parked.ResumeRequested")
     }
 
     @Test

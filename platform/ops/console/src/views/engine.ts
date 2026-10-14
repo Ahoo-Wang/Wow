@@ -23,6 +23,7 @@ import {
 import { browserRuntimeEnvironment } from "@ahoo-wang/wow-view-engine/react";
 import { viewSourceOf } from "@ahoo-wang/wow-view-store/v10";
 import { ParkedSnapshotQueryClient } from "@/generated/index.ts";
+import { overview } from "./overview.ts";
 import { parked } from "./parked.ts";
 
 /**
@@ -61,7 +62,7 @@ export function createOpsEngine({
   ...options
 }: OpsEngineOptions): ViewEngine {
   return new ViewEngine({
-    resources: [{ definition: parked, source }],
+    resources: [{ definition: parked, source }, { definition: overview }],
     store,
     environment: browserRuntimeEnvironment({
       onError: ({ kind, error, context }) =>

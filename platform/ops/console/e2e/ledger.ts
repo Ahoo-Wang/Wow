@@ -21,8 +21,14 @@ import { expect, type APIRequestContext } from "@playwright/test";
  */
 
 export const SAGA = "PaymentGatewaySaga.onPaymentRequested";
-export const FAILED_AT = Date.parse("2026-10-01T08:00:00Z");
 const HOUR = 3_600_000;
+/** A few hours ago: inside the overview's default window, the last 7 days. */
+export const FAILED_AT = Date.now() - 6 * HOUR;
+
+/** The failure an entry is parked with: the runtime's `<class>: <message>`. */
+export function connectionRefused(aggregateId: string): string {
+  return `java.net.ConnectException: The gateway is unreachable for ${aggregateId}.`;
+}
 
 export type Status = "SCHEDULED" | "EXHAUSTED" | "UNRECOVERABLE";
 
@@ -44,6 +50,7 @@ export async function publish(
   aggregateId: string,
   status: Status,
   hoursLater = 0,
+  reason = connectionRefused(aggregateId),
 ): Promise<Parked> {
   const failedAt = FAILED_AT + hoursLater * HOUR;
   const answer = await request.post("/testing/ledger/parked", {
@@ -53,7 +60,7 @@ export async function publish(
       subscription: SAGA,
       aggregate: aggregateOf(context, aggregateId),
       fromVersion: 2,
-      reason: `The gateway is unreachable for ${aggregateId}.`,
+      reason,
       failedAt,
       retries: 3,
       retrySpec: {

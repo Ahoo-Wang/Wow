@@ -12,7 +12,7 @@
       "description" : "One service's parked entry, as its failure ledger publishes it, and an operator's actions on it",
       "state" : {
         "schema" : "#/$defs/me.ahoo.wow.ops.domain.parked.ParkedState",
-        "fingerprint" : "792874bdc711f7ca4d469dc4ca0a9cae6a2762a39a47927f266d1c039414dad6"
+        "fingerprint" : "0f46b404fe68436e0a327902743541a59701c33efcabc062b9a0c16f861e3ba2"
       },
       "snapshot" : {
         "enabled" : true
@@ -534,8 +534,14 @@
         "context" : {
           "type" : "string"
         },
+        "errorType" : {
+          "type" : "string"
+        },
         "failedAt" : {
-          "type" : "integer"
+          "type" : "integer",
+          "x-wow-temporal" : {
+            "unit" : "MILLISECONDS"
+          }
         },
         "fromPosition" : {
           "type" : [ "integer", "null" ]
@@ -544,7 +550,10 @@
           "type" : "integer"
         },
         "nextRetryAt" : {
-          "type" : [ "integer", "null" ]
+          "type" : [ "integer", "null" ],
+          "x-wow-temporal" : {
+            "unit" : "MILLISECONDS"
+          }
         },
         "outcome" : {
           "type" : [ "string", "null" ]
@@ -553,7 +562,10 @@
           "type" : "string"
         },
         "recordedAt" : {
-          "type" : "integer"
+          "type" : "integer",
+          "x-wow-temporal" : {
+            "unit" : "MILLISECONDS"
+          }
         },
         "recoverable" : {
           "type" : "string"
@@ -565,13 +577,19 @@
           "type" : [ "string", "null" ]
         },
         "resolvedAt" : {
-          "type" : [ "integer", "null" ]
+          "type" : [ "integer", "null" ],
+          "x-wow-temporal" : {
+            "unit" : "MILLISECONDS"
+          }
         },
         "retries" : {
           "type" : "integer"
         },
         "retryAt" : {
-          "type" : [ "integer", "null" ]
+          "type" : [ "integer", "null" ],
+          "x-wow-temporal" : {
+            "unit" : "MILLISECONDS"
+          }
         },
         "retrySpec" : {
           "$ref" : "#/$defs/me.ahoo.wow.api.ledger.LedgerRetrySpec"
@@ -586,7 +604,7 @@
           "type" : "string"
         }
       },
-      "required" : [ "aggregate", "context", "failedAt", "fromVersion", "reason", "recordedAt", "recoverable", "retries", "retrySpec", "service", "status", "subscription" ]
+      "required" : [ "aggregate", "context", "errorType", "failedAt", "fromVersion", "reason", "recordedAt", "recoverable", "retries", "retrySpec", "service", "status", "subscription" ]
     }
   }
 }

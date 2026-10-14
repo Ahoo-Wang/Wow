@@ -53,7 +53,8 @@ class ParkedSpec {
                     aggregate.assert().isEqualTo(AGGREGATE)
                     fromVersion.assert().isEqualTo(1)
                     fromPosition.assert().isNull()
-                    reason.assert().isEqualTo("The gateway is down.")
+                    reason.assert().isEqualTo("java.net.ConnectException: The gateway is down.")
+                    errorType.assert().isEqualTo("java.net.ConnectException")
                     failedAt.assert().isEqualTo(100L)
                     retries.assert().isEqualTo(0)
                     retryAt.assert().isNull()
@@ -104,6 +105,22 @@ class ParkedSpec {
                     resolved.assert().isFalse()
                     outcome.assert().isNull()
                 }
+            }
+        }
+    }
+
+    @Test
+    fun `the error type is what the reason names before its message, else the whole reason`() {
+        ParkedState.errorTypeOf("wow.subscription.unrecoverable: offset 3 is gone").assert()
+            .isEqualTo("wow.subscription.unrecoverable")
+        ParkedState.errorTypeOf("java.lang.IllegalStateException: a: b").assert()
+            .isEqualTo("java.lang.IllegalStateException")
+        ParkedState.errorTypeOf("The gateway is down.").assert().isEqualTo("The gateway is down.")
+        parkedSpec {
+            given(ParkedRecorded(ENTRY))
+            val other = ENTRY.copy(reason = "The gateway is down again.", recordedAt = 300)
+            whenCommand(RecordParked(other)) {
+                expectState { errorType.assert().isEqualTo("The gateway is down again.") }
             }
         }
     }
@@ -161,7 +178,7 @@ class ParkedSpec {
             subscription = SUBSCRIPTION,
             aggregate = AGGREGATE,
             fromVersion = 1,
-            reason = "The gateway is down.",
+            reason = "java.net.ConnectException: The gateway is down.",
             failedAt = 100,
             retrySpec = LedgerRetrySpec(10, "PT3M", "PT2M"),
             status = ParkedStatus.SCHEDULED,

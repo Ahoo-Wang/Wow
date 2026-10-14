@@ -13,11 +13,14 @@
 
 import type { RecordRow } from "@ahoo-wang/wow-view-engine";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+import { ServicesProvider } from "@/app/services.tsx";
 import { I18nProvider, type Locale } from "@/i18n.tsx";
+import type { OpsServices } from "@/services/ops.ts";
 import { parkedDetail } from "./parkedDetail.tsx";
 import { ParkedReading } from "./ParkedReading.tsx";
-import { formatTime, parkedTitle } from "./parkedEntry.ts";
+import { failureOf, formatTime, parkedTitle } from "./parkedEntry.ts";
 
 const FAILED_AT = Date.parse("2026-10-01T08:00:00Z");
 
@@ -65,9 +68,9 @@ function read(row: RecordRow, locale: Locale = "en") {
 describe("a parked entry's reading", () => {
   it("says why it is parked, where, how far its retries went and what was asked", () => {
     const reading = read(PARKED);
-    expect(reading).toHaveTextContent(
-      "java.net.ConnectException: the gateway is unreachable",
-    );
+    const failure = screen.getByTestId("parked-failure");
+    expect(failure).toHaveTextContent("Error typejava.net.ConnectException");
+    expect(failure).toHaveTextContent("the gateway is unreachable");
     expect(reading).toHaveTextContent("payment-service");
     expect(reading).toHaveTextContent("eshop-payment.payment");
     expect(reading).toHaveTextContent("From position41");
@@ -92,6 +95,28 @@ describe("a parked entry's reading", () => {
     expect(reading).toHaveTextContent("—");
   });
 
+  it("reads a cause that names no type as its own type", () => {
+    read(rowOf({ reason: "The gateway is down." }));
+    const failure = screen.getByTestId("parked-failure");
+    expect(failure).toHaveTextContent("Error typeThe gateway is down.");
+    expect(failure.querySelector("pre")).toBeNull();
+  });
+
+  it("copies the whole cause", async () => {
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    read(PARKED);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Copy the cause" }),
+    );
+    expect(writeText).toHaveBeenCalledWith(
+      "java.net.ConnectException: the gateway is unreachable",
+    );
+  });
+
   it("reads a value it has no word for as it is", () => {
     expect(
       read(rowOf({ status: "PAUSED", outcome: "LATER" })),
@@ -109,18 +134,23 @@ describe("the detail's title", () => {
     expect(parkedDetail.title).toBe(parkedTitle);
   });
 
-  it("renders the reading", () => {
+  it("renders the reading and the entry's history", async () => {
+    const history = vi.fn(async () => []);
     render(
       <I18nProvider initial="en">
-        {parkedDetail.render?.({
-          row: PARKED,
-          complete: true,
-          refresh: () => {},
-          runtime: undefined as never,
-        })}
+        <ServicesProvider services={{ history } as unknown as OpsServices}>
+          {parkedDetail.render?.({
+            row: PARKED,
+            complete: true,
+            refresh: () => {},
+            runtime: undefined as never,
+          })}
+        </ServicesProvider>
       </I18nProvider>,
     );
     expect(screen.getByTestId("parked-reading")).toBeVisible();
+    expect(await screen.findByText("No history recorded.")).toBeVisible();
+    expect(history).toHaveBeenCalledWith("k");
   });
 });
 
@@ -129,5 +159,12 @@ describe("a time", () => {
     expect(formatTime(FAILED_AT, "en")).toMatch(/2026/);
     expect(formatTime(null, "en")).toBeUndefined();
     expect(formatTime(Number.NaN, "en")).toBeUndefined();
+  });
+});
+
+describe("a failure", () => {
+  it("is the type before the first colon and the message after it", () => {
+    expect(failureOf("a.B: c: d")).toEqual({ type: "a.B", message: "c: d" });
+    expect(failureOf("plain")).toEqual({ type: "plain", message: "" });
   });
 });

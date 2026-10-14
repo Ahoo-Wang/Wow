@@ -24,7 +24,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useI18n } from "@/i18n.tsx";
 import { isOperator, OPERATOR_ROLE } from "@/services/caller.ts";
-import { CALLER_PATH, PARKED_PATH } from "@/views/bindings.ts";
+import { CALLER_PATH, OVERVIEW_PATH, PARKED_PATH } from "@/views/bindings.ts";
+import { OVERVIEW_WORDS } from "@/views/overview.ts";
 import { PARKED_WORDS } from "@/views/parked.ts";
 import { OpsHost } from "./OpsHost.tsx";
 import { useCaller } from "./services.tsx";
@@ -85,10 +86,16 @@ function CallerLink() {
   );
 }
 
+/** The console's places, each a page of the top bar. */
+const PLACES = [
+  [OVERVIEW_PATH, OVERVIEW_WORDS],
+  [PARKED_PATH, PARKED_WORDS],
+] as const;
+
 /**
- * The console's shell: one bar with the product, its one place — the
- * parked entries — then the caller and the language; the page below fills
- * the rest of the window and scrolls inside itself.
+ * The console's shell: one bar with the product, its places — the
+ * overview and the parked entries — then the caller and the language; the
+ * page below fills the rest of the window and scrolls inside itself.
  */
 export default function App() {
   const { locale, t } = useI18n();
@@ -98,19 +105,22 @@ export default function App() {
         <div className="flex h-svh flex-col overflow-hidden">
           <header className="relative z-10 flex h-13 shrink-0 items-center gap-4 border-b border-sidebar-border bg-sidebar px-4 text-sidebar-foreground">
             <Link
-              to={PARKED_PATH}
+              to={OVERVIEW_PATH}
               className="inline-flex items-center gap-2 font-semibold whitespace-nowrap"
             >
               <img src="logo.svg" alt="" className="size-5.5" />
               {t("product")}
             </Link>
             <nav className="flex h-full gap-1" aria-label={t("product")}>
-              <NavLink
-                to={PARKED_PATH}
-                className="inline-flex h-full items-center border-b-2 border-transparent px-3 font-medium whitespace-nowrap text-muted-foreground hover:text-foreground aria-[current=page]:border-primary aria-[current=page]:text-foreground"
-              >
-                {PARKED_WORDS[locale].title}
-              </NavLink>
+              {PLACES.map(([path, words]) => (
+                <NavLink
+                  key={path}
+                  to={path}
+                  className="inline-flex h-full items-center border-b-2 border-transparent px-3 font-medium whitespace-nowrap text-muted-foreground hover:text-foreground aria-[current=page]:border-primary aria-[current=page]:text-foreground"
+                >
+                  {words[locale].title}
+                </NavLink>
+              ))}
             </nav>
             <div className="ml-auto flex min-w-0 items-center gap-1.5">
               <CallerLink />

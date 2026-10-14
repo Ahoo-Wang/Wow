@@ -13,6 +13,7 @@
 
 import { bind } from "@ahoo-wang/wow-view-engine/ui";
 import { parkedDetail } from "@/detail/parkedDetail.tsx";
+import { OVERVIEW } from "./overview.ts";
 import { PARKED } from "./parked.ts";
 import { parkedActions } from "./parkedActions.ts";
 import type { ParkedCommands } from "./parkedCommands.ts";
@@ -22,6 +23,9 @@ export const PARKED_PATH = "/parked";
 
 /** Where the caller is named. */
 export const CALLER_PATH = "/caller";
+
+/** The console's home page: the overview board. */
+export const OVERVIEW_PATH = "/overview";
 
 /** The open view of the workbench, in its address. */
 export const VIEW_PARAM = "view";
@@ -45,5 +49,8 @@ export function consoleBindings(commands: ParkedCommands) {
       reading: parkedDetail,
       actions: parkedActions(commands),
     }),
+    // The overview has one board, the home page's; the console keeps no
+    // boards of its own to open another in.
+    bind(OVERVIEW, { route: () => OVERVIEW_PATH }),
   ];
 }

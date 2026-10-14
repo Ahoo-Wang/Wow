@@ -16,6 +16,7 @@ import {
   type MessageOverrides,
   type ViewMessages,
 } from "@ahoo-wang/wow-view-engine/ui";
+import { OVERVIEW_WORDS } from "./overview.ts";
 import { PARKED_WORDS } from "./parked.ts";
 import { PARKED_ACTION_WORDS } from "./parkedActions.ts";
 import { scoped, type Locale, type Words } from "./words.ts";
@@ -24,6 +25,7 @@ import { scoped, type Locale, type Words } from "./words.ts";
 const WORDS: Readonly<Record<string, Words>> = {
   parked: PARKED_WORDS,
   parkedActions: PARKED_ACTION_WORDS,
+  overview: OVERVIEW_WORDS,
 };
 
 /** The definitions' words in `locale`, by key. */

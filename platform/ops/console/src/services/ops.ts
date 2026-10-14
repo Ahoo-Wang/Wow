@@ -13,6 +13,7 @@
 
 import { Fetcher } from "@ahoo-wang/fetcher";
 import type { ViewEngine } from "@ahoo-wang/wow-view-engine";
+import { historySource, type HistorySource } from "@/detail/entryHistory.ts";
 import { createOpsEngine, parkedSource } from "@/views/engine.ts";
 import { parkedCommands, type ParkedCommands } from "@/views/parkedCommands.ts";
 import { CallerHeaders, CallerStore } from "./caller.ts";
@@ -23,6 +24,8 @@ export interface OpsServices {
   fetcher: Fetcher;
   commands: ParkedCommands;
   engine: ViewEngine;
+  /** An entry's event streams: its history. */
+  history: HistorySource;
 }
 
 /**
@@ -40,5 +43,6 @@ export function createOpsServices(
     fetcher,
     commands: parkedCommands(fetcher),
     engine: createOpsEngine({ source: parkedSource(fetcher) }),
+    history: historySource(fetcher),
   };
 }

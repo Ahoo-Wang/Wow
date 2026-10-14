@@ -172,9 +172,10 @@ object V10Rules {
         TCK to setOf("spi"),
         TCK_CONTAINERS to emptySet(),
         // A platform domain is an application's domain (decision D149): its API on wow-api, its domain on the kernel,
-        // compiled by the compiler; never the runtime.
+        // compiled by the compiler; never the runtime. The ops domain declares its state's times to the query engine
+        // (`@QueryTemporal`, roadmap 7.1c), as the eShop's catalog declares its indexes.
         OPS_API to setOf("api"),
-        OPS_DOMAIN to setOf("ops-api", "kernel", "compiler"),
+        OPS_DOMAIN to setOf("ops-api", "kernel", "compiler", "query-api"),
         VIEW_STORE_API to setOf("api"),
         VIEW_STORE_DOMAIN to setOf("view-store-api", "kernel", "compiler"),
     )

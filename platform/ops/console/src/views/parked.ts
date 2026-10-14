@@ -11,14 +11,20 @@
  * limitations under the License.
  */
 
-import { AggregationGroupType } from "@ahoo-wang/wow-client";
+import {
+  AggregationDateUnit,
+  AggregationFunction,
+  AggregationGroupType,
+} from "@ahoo-wang/wow-client";
 import type {
+  AnalysisMetric,
   AnalysisViewConfig,
   DataViewDefinition,
   FieldDefinition,
   FilterNode,
   RecordViewConfig,
   SystemView,
+  Text,
 } from "@ahoo-wang/wow-view-engine";
 import { textKeys, type Words } from "./words.ts";
 
@@ -65,6 +71,7 @@ export const PARKED_WORDS = {
     aggregateTenant: "Aggregate tenant",
     fromVersion: "From version",
     reason: "Cause",
+    errorType: "Error type",
     status: "Status",
     statusScheduled: "Scheduled",
     statusExhausted: "Exhausted",
@@ -99,6 +106,13 @@ export const PARKED_WORDS = {
     viewResolved: "Resolved",
     viewAll: "All",
     viewByContext: "Parked by context",
+    viewActive: "Parked",
+    viewClusters: "Failure clusters",
+    viewBySubscription: "Top failing subscriptions",
+    viewOverTime: "Parked over time",
+    clusterCount: "Parked",
+    clusterOldest: "First failed",
+    clusterLatest: "Last failed",
   },
   "zh-CN": {
     title: "搁置条目",
@@ -116,6 +130,7 @@ export const PARKED_WORDS = {
     aggregateTenant: "聚合租户",
     fromVersion: "起始版本",
     reason: "原因",
+    errorType: "错误类型",
     status: "状态",
     statusScheduled: "计划重试",
     statusExhausted: "重试耗尽",
@@ -150,6 +165,13 @@ export const PARKED_WORDS = {
     viewResolved: "已解决",
     viewAll: "全部",
     viewByContext: "按上下文统计",
+    viewActive: "搁置中",
+    viewClusters: "失败集群",
+    viewBySubscription: "失败最多的订阅",
+    viewOverTime: "搁置趋势",
+    clusterCount: "搁置中",
+    clusterOldest: "最早失败",
+    clusterLatest: "最近失败",
   },
 } satisfies Words;
 
@@ -162,7 +184,14 @@ export const ATTENTION: FilterNode = {
   value: ["EXHAUSTED", "UNRECOVERABLE"],
 };
 
-function status(...values: ParkedStatus[]): FilterNode {
+/** Still parked: every status but resolved, the 9.x dashboard's "active". */
+export const ACTIVE: FilterNode = {
+  field: "state.status",
+  operator: "IN",
+  value: ["SCHEDULED", "EXHAUSTED", "UNRECOVERABLE"],
+};
+
+export function status(...values: ParkedStatus[]): FilterNode {
   return { field: "state.status", operator: "IN", value: values };
 }
 
@@ -206,6 +235,154 @@ export function recordView(
     },
     ...overrides,
   };
+}
+
+/** An analysis of the entries `filter` keeps, counted, in a table. */
+export function analysisView(
+  overrides: Partial<AnalysisViewConfig> &
+    Pick<AnalysisViewConfig, "groups" | "chart">,
+  filter: FilterNode[] = [ACTIVE],
+): AnalysisViewConfig {
+  return {
+    kind: "analysis",
+    filter: { op: "and", children: filter },
+    filterMode: "simple",
+    refresh: { interval: null },
+    metrics: [{ alias: "count", type: "COUNT" }],
+    sort: [{ alias: "count", direction: "DESC" }],
+    limit: 20,
+    layout: "table",
+    table: { columns: [] },
+    ...overrides,
+  };
+}
+
+/**
+ * A cluster's identity, as the 9.x dashboard's: what failed (the error
+ * type the entry's reason names), where (the context) and in which
+ * processor (the subscription, `Processor.function`).
+ */
+export const CLUSTER_GROUPS: AnalysisViewConfig["groups"] = [
+  {
+    type: AggregationGroupType.TERMS,
+    field: "state.errorType",
+    alias: "errorType",
+  },
+  {
+    type: AggregationGroupType.TERMS,
+    field: "state.context",
+    alias: "context",
+  },
+  {
+    type: AggregationGroupType.TERMS,
+    field: "state.subscription",
+    alias: "subscription",
+  },
+];
+
+/** A cluster's parked entries, and when the first and the last of them failed. */
+export function clusterMetrics(): AnalysisViewConfig["metrics"] {
+  const failedAt = (alias: string, label: Text, fn: "MIN" | "MAX") => ({
+    type: "NUMERIC" as const,
+    alias,
+    label,
+    function: fn,
+    expression: { type: "FIELD" as const, field: "state.failedAt" },
+  });
+  return [
+    { type: "COUNT", alias: "count", label: t.clusterCount },
+    failedAt("oldest", t.clusterOldest, "MIN"),
+    failedAt("latest", t.clusterLatest, "MAX"),
+  ];
+}
+
+/**
+ * The failure clusters: the parked entries grouped by what failed and
+ * where, the largest first. A row drills into its entries (the workbench's
+ * drill-down), as the 9.x dashboard's cluster link opened them.
+ */
+export function clusters(limit = 50): AnalysisViewConfig {
+  return analysisView({
+    groups: CLUSTER_GROUPS,
+    metrics: clusterMetrics(),
+    limit,
+    chart: {
+      type: "bar",
+      cartesian: { x: "errorType", series: [{ metric: "count" }] },
+    },
+  });
+}
+
+/** The subscriptions (processors) with the most parked entries. */
+export function bySubscription(limit = 10): AnalysisViewConfig {
+  return analysisView({
+    groups: [
+      {
+        type: AggregationGroupType.TERMS,
+        field: "state.subscription",
+        alias: "subscription",
+      },
+    ],
+    limit,
+    layout: "chart",
+    chart: {
+      type: "bar",
+      cartesian: {
+        x: "subscription",
+        series: [{ metric: "count" }],
+        orientation: "horizontal",
+      },
+      legend: "none",
+    },
+  });
+}
+
+/** The statuses of the trend, the ones needing attention first. */
+const TREND: readonly [ParkedStatus, Text][] = [
+  ["EXHAUSTED", t.statusExhausted],
+  ["UNRECOVERABLE", t.statusUnrecoverable],
+  ["SCHEDULED", t.statusScheduled],
+  ["RESOLVED", t.statusResolved],
+];
+
+/**
+ * The entries by the day they failed, a stacked bar per status: how the
+ * pile grew, and how much of it was resolved since.
+ */
+export function overTime(): AnalysisViewConfig {
+  const [first, ...rest] = TREND.map(([value, label]): AnalysisMetric => ({
+    type: "COUNT",
+    alias: value.toLowerCase(),
+    label,
+    filter: { op: "and", children: [status(value)] },
+  }));
+  return analysisView(
+    {
+      groups: [
+        {
+          type: AggregationGroupType.DATE_HISTOGRAM,
+          field: "state.failedAt",
+          alias: "day",
+          unit: "DAY",
+        },
+      ],
+      metrics: [first, ...rest],
+      sort: [{ alias: "day", direction: "ASC" }],
+      limit: 366,
+      layout: "chart",
+      chart: {
+        type: "bar",
+        cartesian: {
+          x: "day",
+          series: TREND.map(([value]) => ({
+            metric: value.toLowerCase(),
+            stack: "status",
+          })),
+        },
+      },
+    },
+    [],
+  );
 }
 
 function byContext(): AnalysisViewConfig {
@@ -260,8 +437,16 @@ export function parkedViews(): SystemView[] {
         sort: [{ field: "state.resolvedAt", direction: "DESC" }],
       }),
     },
+    { id: "active", title: t.viewActive, config: recordView([ACTIVE]) },
     { id: "all", title: t.viewAll, config: recordView([]) },
     { id: "by-context", title: t.viewByContext, config: byContext() },
+    { id: "clusters", title: t.viewClusters, config: clusters() },
+    {
+      id: "by-subscription",
+      title: t.viewBySubscription,
+      config: bySubscription(),
+    },
+    { id: "over-time", title: t.viewOverTime, config: overTime() },
   ];
 }
 
@@ -309,6 +494,7 @@ export const parked: DataViewDefinition = {
     string("state.aggregate.tenantId", t.aggregateTenant),
     number("state.fromVersion", t.fromVersion),
     { ...string("state.reason", t.reason), cell: "text", sortable: false },
+    string("state.errorType", t.errorType),
     {
       name: "state.status",
       label: t.status,
@@ -388,6 +574,7 @@ export const parked: DataViewDefinition = {
         "state.aggregate.tenantId",
         "state.fromVersion",
         "state.reason",
+        "state.errorType",
       ],
     },
     {
@@ -430,16 +617,35 @@ export const parked: DataViewDefinition = {
     count: true,
     // Categories to count by; a formula takes none of them.
     fields: [
-      "state.context",
-      "state.service",
-      "state.subscription",
-      "state.status",
-    ].map((field) => ({
-      field,
-      groups: [AggregationGroupType.TERMS],
-      functions: [],
-      expressionInput: false,
-    })),
+      ...[
+        "state.context",
+        "state.service",
+        "state.subscription",
+        "state.status",
+        "state.errorType",
+        "state.recoverable",
+        "state.requested",
+        "state.outcome",
+      ].map((field) => ({
+        field,
+        groups: [AggregationGroupType.TERMS],
+        functions: [],
+        expressionInput: false,
+      })),
+      // The times bucket by day or hour, and a cluster reads its first and
+      // last failure (`@QueryTemporal` on the state's times).
+      ...["state.failedAt", "state.resolvedAt"].map((field) => ({
+        field,
+        groups: [AggregationGroupType.DATE_HISTOGRAM],
+        functions: [AggregationFunction.MIN, AggregationFunction.MAX],
+        dateUnits: [
+          AggregationDateUnit.HOUR,
+          AggregationDateUnit.DAY,
+          AggregationDateUnit.WEEK,
+          AggregationDateUnit.MONTH,
+        ],
+      })),
+    ],
   },
   views: parkedViews(),
 };
