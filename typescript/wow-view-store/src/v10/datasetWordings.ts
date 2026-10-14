@@ -37,15 +37,6 @@ export interface WowDatasetWordingsOptions {
   fetcher: Fetcher;
 }
 
-/**
- * The route that clears a wording by its dataset, the id derived by the
- * service as for a set. The service serves it, but its Manifest lists only
- * the route with an id (`ClearDatasetWording` creates nothing), so the
- * generated client has no method for it (a gap of the V10 view store,
- * roadmap 7.3a).
- */
-const CLEAR_WITHOUT_ID = '/view-store/dataset_wording/clear-dataset-wording';
-
 /** The most datasets one application's wording is read for at once. */
 const LIST_LIMIT = 1000;
 
@@ -139,8 +130,7 @@ export class WowDatasetWordings implements DatasetWordingStore {
   ): Promise<string> {
     return guard(async () => {
       const result = await request(() =>
-        this.commands.gateway.send(
-          CLEAR_WITHOUT_ID,
+        this.commands.clearDatasetWording(
           { dataset },
           optionsOf(revision, context),
         ),
