@@ -145,6 +145,7 @@ val v10IntegrationTestProjects = includedProjects(
     ":lease-spike",
     ":shop-server",
     ":example-e2e",
+    ":eshop-ordering-server",
     ":eshop-e2e",
 )
 val integrationTestProjects = includedProjects(

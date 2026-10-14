@@ -24,7 +24,6 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Configuration
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.net.URI
@@ -33,8 +32,10 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.time.Duration
 
-/** The test's command transport in place of Kafka, as the guide gives it: the sagas' commands to the ordering stay in memory. */
-@Configuration(proxyBeanMethods = false)
+/**
+ * The test's command transport in place of Kafka, as the guide gives it: the sagas' commands to the ordering stay in
+ * memory. No `@Configuration`, so the server's component scan does not pick it up where a test passes other topics.
+ */
 class InMemoryPaymentTopics {
     @Bean
     fun inMemoryTopics(): InMemoryTopics = InMemoryTopics(1)

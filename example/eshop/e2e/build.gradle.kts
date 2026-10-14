@@ -54,6 +54,8 @@ dependencies {
     integrationTestImplementation("org.testcontainers:testcontainers-kafka")
     // CatalogPostgresTest: the catalog's storefront queries on PostgreSQL (work package E.1).
     integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
+    // ... and the storefront's query written with the query DSL and the catalog's generated ProductStateProperties (D204).
+    integrationTestImplementation(project(":eshop-catalog-domain"))
     // EshopFullChainTest and EshopLoad: the ordering's order stream in ClickHouse, for the sales dataset (E.6).
     integrationTestImplementation("org.testcontainers:testcontainers-clickhouse")
 }
