@@ -237,7 +237,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | P.10 | 聚合归属与作用域继承（D189）：`Ownership` 声明、Manifest、查询准入；派生、补偿、定时命令继承根命令作用域；指南写两级调用方与 CoSec 解析；等待链放宽（D190）；创建类命令不带 ID 时由目标生成器分配、准入先按请求 ID 查（D191，含 Saga 派生的创建命令）；编译器支持 `@Retry`（P.3 的后续） | M | M7 前 | catalog 接上带所有者的解析器后买家能读商品、员工能改；结账产生的订单属于买家（去掉 `buyerId` 绕行）；eShop 结账等待不再需要多余 peer 与跳数配置 |
 | P.11 | 跨上下文成功回执 `@OnCommitted`（D192）：`CommandCommitted<C>`、`replyTo` 的成功回执标记、编译器与 Manifest、提交即发并在推进偏移量之前写回执主题 | S～M | M7 前 | 重投与重复请求下回执去重、单号不变的测试；eShop 的 `StockConfirmationSaga` 去掉读库存流的绕行（G23） |
 | P.12 | 跨上下文同步调用客户端（D193）：Saga 经它调用对方的 HTTP 命令网关，自动带确定的请求 ID、根作用域与操作人（服务凭证，目标 CoSec 只对服务身份信任声明的根作用域）、等待链头；对方地址配置 | M | M7 前 | 对方宕机时按预算重试后停放、恢复后单号不变；买家结账经同步调用创建的单据属于买家 |
-| P.13 | 订阅起点与指南发现的不一致（D194、D195）：`@OnEvent(start)`、跨上下文订阅默认 `BEGINNING`；内部端口默认绑成员地址；`@AggregateRoot(snapshot = false)`；读重试 `max-attempts` 接上；指南写明 Decider DSL 只用于测试 | S～M | M7 前 | 新加入的库存服务不丢已发货订单（去掉 inventory 的 `start: beginning` 配置，G10）；关闭快照的聚合无 `SNAPSHOT` 阶段的等待测试 |
+| P.13 | 订阅起点、指南发现的不一致与派生命令的作用域（D194、D195、D199）：派生命令不对已存在的目标做作用域检查，删除 `CartSaga` 的收窄；`@OnEvent(start)`、跨上下文订阅默认 `BEGINNING`；内部端口默认绑成员地址；`@AggregateRoot(snapshot = false)`；读重试 `max-attempts` 接上；指南写明 Decider DSL 只用于测试 | S～M | M7 前 | 新加入的库存服务不丢已发货订单（去掉 inventory 的 `start: beginning` 配置，G10）；关闭快照的聚合无 `SNAPSHOT` 阶段的等待测试 |
 | C.1 | 核心加固（D196）：eShop 全链路的故障注入（杀节点、重启 PostgreSQL 与 Kafka）与 1 小时以上浸泡，核对不变量（事件不丢不重、检查点单调、停放为 0、等待不悬挂）；清理 `v10` CI 历史中的偶发失败；夜跑 | M | M7 前（核心阶段，P.9 之后） | 连续两轮无异常 |
 
 ### M7 平台迁移
