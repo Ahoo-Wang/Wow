@@ -15,10 +15,12 @@ package me.ahoo.wow.mongo.timer
 
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoCollection
+import com.mongodb.client.model.BulkWriteOptions
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.IndexOptions
 import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.Sorts
+import com.mongodb.client.model.UpdateOneModel
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
@@ -30,22 +32,26 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoOperators
+import me.ahoo.wow.mongo.MongoRules
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.spi.timer.Timer
+import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.TimerStore
 import org.bson.Document
 import org.bson.conversions.Bson
 
 /**
- * The [TimerStore] of one bounded context on MongoDB (decision D166): the collection `wow_timer__<context>`, named by
- * the rule of the log's collections, one document per timer, keyed by a unique index on `(owner, key)`.
+ * The [TimerStore] of one bounded context on MongoDB (decisions D166, D198): the collection `wow_timer__<context>`,
+ * named by the rule of the log's collections, one document per timer, keyed by a unique index on `(owner, key)`.
  *
- * Every write is one single-document operation, but for [cancelAll]. A put is a conditional upsert (see
- * [conditionalUpsert]) whose filter admits only another timer at the same or a later version; a cancel and an update
- * are conditional updates. A partial index on `(partition, due_at, timer_id)` of the PENDING timers serves the due
- * read, one on the target of the PARKED timers a resume. The body is kept as the command's JSON text.
+ * Every write is one single-document operation, but for [cancelAll] and [settle]. A put is a conditional upsert (see
+ * [conditionalUpsert]) whose filter admits only another timer at the same or a later version; a cancel is a
+ * conditional update; a settle is one unordered bulk write of conditional updates, each on the document as it was
+ * loaded. A partial index on `(partition, due_at, timer_id)` of the PENDING timers serves the due read of every
+ * partition asked, one on the target of the PARKED timers a resume. The body is kept as the command's JSON text, the
+ * rule as a subdocument (`{type, ...}`, as Wow's JSON writes it). Format 2 added the rule and the slot.
  *
  * Calls run on [dispatcher], virtual threads by default (decision D29).
  */
@@ -88,6 +94,8 @@ class MongoTimerStore(
             Updates.set(TIMER_ID, timer.id),
             Updates.set(VERSION, timer.version),
             Updates.set(PARTITION, timer.partition),
+            Updates.set(RULE, MongoRules.document(timer.rule)),
+            Updates.set(SLOT, timer.slot),
             Updates.set(DUE_AT, timer.dueAt),
             Updates.set(TARGET_CONTEXT, timer.target.type.context),
             Updates.set(TARGET_AGGREGATE, timer.target.type.name),
@@ -127,12 +135,15 @@ class MongoTimerStore(
         timers.find(keyFilter(owner, key)).firstOrNull()?.let(::timerOf)
     }
 
-    override suspend fun due(partition: Int, until: Long, limit: Int): List<Timer> {
+    override suspend fun due(partitions: Set<Int>, until: Long, limit: Int): List<Timer> {
         require(limit >= 1) { "A page holds at least one timer." }
+        if (partitions.isEmpty()) {
+            return emptyList()
+        }
         return withContext(dispatcher) {
             timers.find(
                 Filters.and(
-                    Filters.eq(PARTITION, partition),
+                    Filters.`in`(PARTITION, partitions),
                     Filters.eq(STATUS, TimerStatus.PENDING.name),
                     Filters.lte(DUE_AT, until),
                 ),
@@ -140,20 +151,31 @@ class MongoTimerStore(
         }
     }
 
-    override suspend fun update(timer: Timer, expected: TimerStatus): Boolean = withContext(dispatcher) {
-        timers.updateOne(
-            Filters.and(
-                keyFilter(timer.owner, timer.key),
-                Filters.eq(TIMER_ID, timer.id),
-                Filters.eq(STATUS, expected.name),
-            ),
-            Updates.combine(
-                Updates.set(STATUS, timer.status.name),
-                Updates.set(ATTEMPTS, timer.attempts),
-                Updates.set(OUTCOME, timer.outcome),
-                Updates.set(DUE_AT, timer.dueAt),
-            ),
-        ).matchedCount == 1L
+    override suspend fun settle(changes: List<TimerChange>): Int {
+        if (changes.isEmpty()) {
+            return 0
+        }
+        return withContext(dispatcher) {
+            val writes = changes.map { (loaded, next) ->
+                UpdateOneModel<Document>(
+                    Filters.and(
+                        keyFilter(loaded.owner, loaded.key),
+                        Filters.eq(TIMER_ID, loaded.id),
+                        Filters.eq(STATUS, loaded.status.name),
+                        Filters.eq(SLOT, loaded.slot),
+                        Filters.eq(ATTEMPTS, loaded.attempts),
+                    ),
+                    Updates.combine(
+                        Updates.set(STATUS, next.status.name),
+                        Updates.set(SLOT, next.slot),
+                        Updates.set(DUE_AT, next.dueAt),
+                        Updates.set(ATTEMPTS, next.attempts),
+                        Updates.set(OUTCOME, next.outcome),
+                    ),
+                )
+            }
+            timers.bulkWrite(writes, BulkWriteOptions().ordered(false)).matchedCount
+        }
     }
 
     override suspend fun parked(target: AggregateRef): List<Timer> = withContext(dispatcher) {
@@ -187,6 +209,8 @@ class MongoTimerStore(
         key = document.getString(KEY),
         version = document.getLong(VERSION),
         partition = document.getInteger(PARTITION),
+        rule = MongoRules.of(document.get(RULE, Document::class.java)),
+        slot = document.getLong(SLOT),
         dueAt = document.getLong(DUE_AT),
         target = AggregateType(document.getString(TARGET_CONTEXT), document.getString(TARGET_AGGREGATE))
             .ref(document.getString(TARGET_TENANT_ID), document.getString(TARGET_ID)),
@@ -205,7 +229,7 @@ class MongoTimerStore(
 
     private companion object {
         /** The version of this layout (decision D59). */
-        const val FORMAT = 1
+        const val FORMAT = 2
         const val PREFIX = "wow_timer"
         const val TIMER_KEY = "timer_key"
         const val DUE_INDEX = "timer_due"
@@ -216,6 +240,8 @@ class MongoTimerStore(
         const val VERSION = "version"
         const val PARTITION = "partition"
         const val DUE_AT = "due_at"
+        const val RULE = "rule"
+        const val SLOT = "slot"
         const val TARGET_CONTEXT = "target_context"
         const val TARGET_AGGREGATE = "target_aggregate"
         const val TARGET_TENANT_ID = "target_tenant_id"

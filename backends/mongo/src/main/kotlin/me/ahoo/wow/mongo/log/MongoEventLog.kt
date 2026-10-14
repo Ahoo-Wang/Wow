@@ -56,7 +56,6 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Partitioner
-import me.ahoo.wow.spi.log.ScheduleChange
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.wait.Origin
@@ -518,45 +517,8 @@ class MongoEventLog(
         )
         .append(HEADERS, Document(stream.headers))
         .apply { MongoOperators.document(stream.operator)?.let { append(OPERATOR, it) } }
-        .apply { if (stream.schedules.isNotEmpty()) append(SCHEDULES, stream.schedules.map(::scheduleDocument)) }
         .apply { transport?.let { append(TRANSPORT, transportDocument(it)) } }
 
-    /**
-     * A schedule change (decision D166): a put is `{key, due_at, target, command_type, body}`, its target `{context,
-     * aggregate, tenant_id, id}` and its body a document; a cancel is `{key, cancel: true}`. A stream that changes no
-     * schedule has no `schedules` field, as one written before it.
-     */
-    private fun scheduleDocument(change: ScheduleChange): Document = when (change) {
-        is ScheduleChange.Put -> Document(KEY, change.key)
-            .append(DUE_AT, change.dueAt)
-            .append(
-                TARGET,
-                Document(CONTEXT, change.target.type.context)
-                    .append(AGGREGATE, change.target.type.name)
-                    .append(TENANT_ID, change.target.tenantId)
-                    .append(AGGREGATE_ID, change.target.id),
-            )
-            .append(COMMAND_TYPE, change.commandType)
-            .append(BODY, ExactBson.document(change.body))
-
-        is ScheduleChange.Cancel -> Document(KEY, change.key).append(CANCEL, true)
-    }
-
-    private fun scheduleOf(document: Document): ScheduleChange {
-        val key = document.getString(KEY)
-        if (document.getBoolean(CANCEL, false)) {
-            return ScheduleChange.Cancel(key)
-        }
-        val target = document.get(TARGET, Document::class.java)
-        return ScheduleChange.Put(
-            key = key,
-            dueAt = document.getLong(DUE_AT),
-            target = AggregateType(target.getString(CONTEXT), target.getString(AGGREGATE))
-                .ref(target.getString(TENANT_ID), target.getString(AGGREGATE_ID)),
-            commandType = document.getString(COMMAND_TYPE),
-            body = ExactBson.json(document.get(BODY, Document::class.java)),
-        )
-    }
 
     private fun transportDocument(transport: Transport) = Document()
         .apply { transport.wait?.let { append(WAIT, waitDocument(it)) } }
@@ -630,7 +592,6 @@ class MongoEventLog(
             Causation(it.getString(CORRELATION_ID), it.getString(CAUSATION_ID))
         },
         headers = strings(document.get(HEADERS, Document::class.java)),
-        schedules = document.getList(SCHEDULES, Document::class.java)?.map(::scheduleOf).orEmpty(),
         operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
     )
 
@@ -670,11 +631,6 @@ class MongoEventLog(
         const val HEADERS = "headers"
         const val OPERATOR = "operator"
         const val TRANSPORT = "transport"
-        const val SCHEDULES = "schedules"
-        const val DUE_AT = "due_at"
-        const val TARGET = "target"
-        const val BODY = "body"
-        const val CANCEL = "cancel"
         const val WAIT = "wait"
         const val WAIT_ID = "wait_id"
         const val ORIGIN = "origin"
