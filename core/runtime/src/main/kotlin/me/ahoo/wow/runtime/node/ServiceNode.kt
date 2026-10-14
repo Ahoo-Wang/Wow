@@ -162,6 +162,21 @@ class ContextNode internal constructor(
      */
     fun stateReader(reader: String): StateViewReader =
         StateViewReader(reader, models, kernel, codec, views, backends.snapshots)
+
+    /**
+     * The snapshot write checkpoint of [type] (decision D152): the [snapshots] subscription's progress over the
+     * partitions of [type]'s log group ([SubscriptionRuntime.progress]). It does not move while no snapshot of the
+     * group's aggregate types is written, so a count of [type]'s snapshots taken at one value is still the count at
+     * that value. Null when [type] has no snapshots here.
+     */
+    suspend fun snapshotCheckpoint(type: AggregateType): Long? {
+        val subscription = snapshots?.subscription ?: return null
+        if (type.context != context || type.name !in subscription.filter.aggregates) {
+            return null
+        }
+        val group = logGroups.first { type in it.types }
+        return group.subscriptions.progress(subscription.name, group.log.partitions)
+    }
 }
 
 /**
