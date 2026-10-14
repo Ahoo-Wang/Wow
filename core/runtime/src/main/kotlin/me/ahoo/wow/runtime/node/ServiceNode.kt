@@ -45,6 +45,7 @@ import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
 import me.ahoo.wow.runtime.cluster.PartitionedRouter
 import me.ahoo.wow.runtime.cluster.Refusal
+import me.ahoo.wow.runtime.cluster.TopicRouter
 import me.ahoo.wow.runtime.command.CommandIntake
 import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.command.MessageEntries
@@ -175,6 +176,14 @@ class ContextTimers internal constructor(
  * [PartitionOwnership]: the owner of a log partition reads the same partition of the topic, and [start] fails unless
  * the topic has as many partitions as the log.
  *
+ * **The `Kafka` router** (design 02 §2, decision D143): the commands admitted for the aggregate types of
+ * [ServiceNodeOptions.kafkaRouted] are written to their context's command topic ([TopicRouter]) and executed by the
+ * owner of their log partition through the context's intake, which every such context runs; the node is not built
+ * when it does not serve one of those types, or has no producer in [topics].
+ *
+ * **Topics** (decision D168): [start] first validates or creates the topics the node's contexts own
+ * ([topicRequirements]) as [SourceTopics.ddl] says, and fails when one is not as they need it.
+ *
  * **Startup checks**: the [manifest] (normally [me.ahoo.wow.runtime.manifest.ManifestLoader]'s) names this
  * [service], and it and the [models] agree ([ManifestCheck]); otherwise the node is not built. Nor is it built
  * without a producer in [topics] when a saga of the [manifest] derives, schedules or handles the rejections of
@@ -288,6 +297,21 @@ class ServiceNode(
         }
     }
 
+    /** The contexts of the types the `Kafka` router takes (decision D143): each takes the commands of its topic. */
+    private val kafkaRoutedContexts: Set<String> = options.kafkaRouted.mapTo(LinkedHashSet()) { it.context }
+
+    init {
+        val unknown = options.kafkaRouted.filter { registry.find(it) == null }
+        require(unknown.isEmpty()) {
+            "The Kafka router is configured for $unknown, which node $node does not serve; it serves " +
+                "${registry.models.map { it.type }}."
+        }
+        require(options.kafkaRouted.isEmpty() || topics?.producer != null) {
+            "The Kafka router of ${options.kafkaRouted} writes their commands to their command topics, but node $node " +
+                "has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers; decision D143)."
+        }
+    }
+
     private val parts: List<Parts> = models.groupBy { it.type.context }.map { (context, contextModels) ->
         assemble(context, contextModels, backends.backends(context), codec, subscriptions)
     }
@@ -375,6 +399,50 @@ class ServiceNode(
         }
     }
 
+    /**
+     * The topics the node's contexts own and use (decision D168), which [start] validates or creates as
+     * [SourceTopics.ddl] says: the command topic of each context that takes commands from it, with exactly its log's
+     * partitions; the receipts topic of each context that reads its rejections; with a producer, the topic of each
+     * stream its contexts publish. None without [topics].
+     */
+    val topicRequirements: List<TopicRequirement> = topicRequirements()
+
+    private fun topicRequirements(): List<TopicRequirement> {
+        val sources = topics ?: return emptyList()
+        val requirements = ArrayList<TopicRequirement>()
+        contexts.values.forEach { context ->
+            val partitions = context.backends.log.partitions
+            if (context.intake != null) {
+                requirements += TopicRequirement(
+                    sources.commandsOf(context.context),
+                    partitions,
+                    exact = true,
+                    "the command topic of context ${context.context}, with as many partitions as its log",
+                )
+            }
+            val receipts = sources.receiptsOf(context.context)
+            if (receipts in topicSubscriptions) {
+                requirements += TopicRequirement(
+                    receipts,
+                    partitions,
+                    exact = false,
+                    "the receipts topic of context ${context.context}",
+                )
+            }
+            if (sources.producer != null) {
+                manifest.contexts.firstOrNull { it.name == context.context }?.published.orEmpty().forEach {
+                    requirements += TopicRequirement(
+                        sources.topicOf(it.topic),
+                        partitions,
+                        exact = false,
+                        "the published stream of ${context.context}.${it.aggregate}",
+                    )
+                }
+            }
+        }
+        return requirements.distinctBy { it.topic }
+    }
+
     private val lifecycle = Mutex()
 
     /** Where the node is in its lifecycle. */
@@ -412,6 +480,7 @@ class ServiceNode(
         check(hasAddress) { "Node $node has no internal address: bind it before it starts." }
         state = State.STARTING
         try {
+            topics?.let { NodeTopics.prepare(node, it, topicRequirements) }
             intakes.keys.forEach { context ->
                 CommandIntake.checkPartitions(
                     topics!!.commandsOf(context.context),
@@ -545,6 +614,7 @@ class ServiceNode(
                 cluster = options.cluster,
                 signals = signals,
                 notifier = parkedNotifier,
+                partitionRefresh = topics!!.partitionRefresh,
             )
         }
     }
@@ -577,6 +647,7 @@ class ServiceNode(
                 signals = signals,
                 notifier = parkedNotifier,
                 entries = { partitions -> MessageEntries.receipts(topic, sources.source, partitions) },
+                partitionRefresh = sources.partitionRefresh,
             )
         }.toMap()
     }
@@ -586,7 +657,7 @@ class ServiceNode(
      * its lease [group] and stores: the topic's partitions are the log's (decision D135), so the same leases drive both.
      */
     private fun intakeOf(context: String, group: LeaseGroup, backends: ContextBackends): SubscriptionRuntime? =
-        topics?.takeIf { it.intake }?.let {
+        topics?.takeIf { it.intake || context in kafkaRoutedContexts }?.let {
             SubscriptionRuntime(
                 group.name,
                 MessageEntries.commands(it.commandsOf(context), it.source, backends.log.partitions),
@@ -742,6 +813,7 @@ class ServiceNode(
                 waitOptions,
                 waitIds = admission.ids.global::next,
                 router = router,
+                topicRouter = topicRouterOf(context, backends),
             )
             val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership))
             firing.firer = ContextTimerFirer(models, coordinator, sender)
@@ -767,6 +839,21 @@ class ServiceNode(
                 admission.ids,
             )
         }
+    }
+
+    /** The `Kafka` router of [context]'s types in [ServiceNodeOptions.kafkaRouted], if any (decision D143). */
+    private fun topicRouterOf(context: String, backends: ContextBackends): TopicRouter? {
+        val types = options.kafkaRouted.filterTo(LinkedHashSet()) { it.context == context }
+        if (types.isEmpty()) {
+            return null
+        }
+        val transport = checkNotNull(topics)
+        return TopicRouter(
+            types,
+            transport.commandsOf(context),
+            backends.log.partitions,
+            checkNotNull(transport.producer)
+        )
     }
 
     /** The context's timer firer, known once its coordinator is: the runner is built before it. */

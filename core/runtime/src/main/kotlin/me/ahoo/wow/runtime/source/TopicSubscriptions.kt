@@ -14,15 +14,19 @@
 package me.ahoo.wow.runtime.source
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.cluster.LeaseGroup
@@ -40,6 +44,7 @@ import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.transport.PartitionedSource
 import java.time.Clock
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.Duration
 
 /**
  * The [subscriptions] of one node that read another context's published [topic] (design 04 §5, decision D134): the
@@ -63,6 +68,11 @@ import kotlin.coroutines.CoroutineContext
  * [start] returns at once: the partitions are read once the topic has some, which it may not have yet when its
  * publisher has not started, and the lease group is joined then ([awaitStarted]). [stop] hands the held partitions
  * off, saving the checkpoints, and leaves the group.
+ *
+ * **Partitions added** while it reads (decision D168): every [partitionRefresh] it reads the topic's partitions
+ * again, and when there are more, hands the held ones off, saving their checkpoints, and joins the group again over
+ * all of them, so the new ones are read too, from their beginning. HRW gives each partition the same owner whatever
+ * their number, so the partitions held before are held again. A topic's partitions are never fewer.
  */
 class TopicSubscriptions internal constructor(
     val service: String,
@@ -83,6 +93,8 @@ class TopicSubscriptions internal constructor(
     private val entries: (Int) -> EntrySource,
     /** Hears what the parked entries come to (roadmap P.1). */
     private val notifier: ParkedNotifier = ParkedNotifier.NONE,
+    /** How often the topic's partitions are read again, for those added; never when infinite. */
+    private val partitionRefresh: Duration = Duration.INFINITE,
 ) {
     @Suppress("LongParameterList") // The parts of the subscriptions, as the primary constructor takes them.
     constructor(
@@ -101,6 +113,7 @@ class TopicSubscriptions internal constructor(
         context: CoroutineContext = Dispatchers.Default,
         signals: SignalSender = SignalSender.NONE,
         notifier: ParkedNotifier = ParkedNotifier.NONE,
+        partitionRefresh: Duration = Duration.INFINITE,
     ) : this(
         service,
         topic,
@@ -118,6 +131,7 @@ class TopicSubscriptions internal constructor(
         signals,
         { partitions -> TopicEntries(topic, source, partitions) },
         notifier,
+        partitionRefresh,
     )
 
     /** The lease group of the topic's partitions: `(service, "topic:<topic>")`. */
@@ -130,8 +144,8 @@ class TopicSubscriptions internal constructor(
     private var joining: Job? = null
     private var started = CompletableDeferred<Running>()
 
-    /** The partitions' runtime and their ownership, once the topic's partitions are known. */
-    private class Running(val runtime: SubscriptionRuntime, val ownership: PartitionOwnership)
+    /** The partitions' runtime and their ownership, once the topic's [partitions] are known. */
+    private class Running(val runtime: SubscriptionRuntime, val ownership: PartitionOwnership, val partitions: Int)
 
     @Volatile
     private var running: Running? = null
@@ -166,25 +180,59 @@ class TopicSubscriptions internal constructor(
                     check(it == it.indices.toList()) { "The partitions of $topic are not numbered from 0: $it." }
                 }
             }
-            val runtime = SubscriptionRuntime(
-                group.name,
-                entries(partitions.size),
-                checkpoints,
-                ledger,
-                subscriptions,
-                options,
-                clock,
-                context,
-                signals,
-                notifier,
-            )
-            val ownership =
-                PartitionOwnership(group, node, addressOf, partitions.size, leases, cluster, runtime, context)
-            ownership.start()
-            val run = Running(runtime, ownership)
+            val run = joinOver(partitions.size)
             running = run
             deferred.complete(run)
             logger.info { "$node reads topic $topic (${partitions.size} partitions) for ${subscriptions.size} subscriptions." }
+            if (partitionRefresh.isFinite()) {
+                refresh()
+            }
+        }
+    }
+
+    /** Joins the lease group over [partitions] partitions, reading this node's share of them. */
+    private suspend fun joinOver(partitions: Int): Running {
+        val runtime = SubscriptionRuntime(
+            group.name,
+            entries(partitions),
+            checkpoints,
+            ledger,
+            subscriptions,
+            options,
+            clock,
+            context,
+            signals,
+            notifier,
+        )
+        val ownership = PartitionOwnership(group, node, addressOf, partitions, leases, cluster, runtime, context)
+        ownership.start()
+        return Running(runtime, ownership, partitions)
+    }
+
+    /** Reads the topic's partitions every [partitionRefresh], and joins again over them when there are more. */
+    @Suppress("TooGenericExceptionCaught") // A refresh that fails is tried again at the next one.
+    private suspend fun refresh() {
+        while (true) {
+            delay(partitionRefresh)
+            val current = checkNotNull(running)
+            val count = try {
+                source.partitions(topic).size
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                logger.warn(
+                    failure
+                ) { "$node failed to read the partitions of $topic; it tries again in $partitionRefresh." }
+                continue
+            }
+            if (count > current.partitions) {
+                // Not cancelled half-way: a stop waits for the new partitions to be joined, then hands them off.
+                withContext(NonCancellable) {
+                    current.ownership.stop()
+                    running = joinOver(count)
+                }
+                logger.info { "$node reads topic $topic over $count partitions, ${current.partitions} before." }
+            }
         }
     }
 

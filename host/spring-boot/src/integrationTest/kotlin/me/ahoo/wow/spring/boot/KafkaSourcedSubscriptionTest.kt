@@ -37,8 +37,10 @@ import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.state.StateView
 import me.ahoo.wow.spi.transport.EnvelopeCodec
+import me.ahoo.wow.spi.transport.TopicMessage
 import org.apache.kafka.clients.admin.Admin
 import org.apache.kafka.clients.admin.AdminClientConfig
+import org.apache.kafka.clients.admin.NewPartitions
 import org.apache.kafka.clients.admin.NewTopic
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.AfterEach
@@ -100,14 +102,18 @@ class KafkaSourcedSubscriptionTest {
         return topic
     }
 
-    private suspend fun start(node: String, topic: String): TopicSubscriptions {
+    private suspend fun start(
+        node: String,
+        topic: String,
+        partitionRefresh: Duration = Duration.INFINITE,
+    ): TopicSubscriptions {
         val board = Subscription(BOARD, SubscriptionFilter(ORDER.context)) { entry ->
             failing[entry.ref]?.let { from ->
                 check(entry.version < from) { "${entry.ref}@${entry.version} fails" }
             }
             handled += Triple(node, entry.ref, entry.version)
         }
-        val source = KafkaPartitionedSource.create(options)
+        val source = KafkaPartitionedSource.create(options.copy(metadataMaxAge = 200.milliseconds))
         return TopicSubscriptions(
             service = SERVICE,
             topic = topic,
@@ -124,6 +130,7 @@ class KafkaSourcedSubscriptionTest {
                 readRetry = RetryPolicy(maxAttempts = 1, initialBackoff = 10.milliseconds, maxBackoff = 100.milliseconds),
             ),
             cluster = CLUSTER,
+            partitionRefresh = partitionRefresh,
         ).also {
             started += it to source
             it.start()
@@ -188,6 +195,24 @@ class KafkaSourcedSubscriptionTest {
             publish(topic, record(parked, 4))
             eventually { versionsOf(parked) == listOf(1, 2, 3, 4) }
         }
+
+    @Test
+    fun `partitions added to the topic while it is read should be read too (decision D168)`(): Unit = runBlocking {
+        val topic = newTopic(2)
+        val node = start("node-1", topic, partitionRefresh = 200.milliseconds)
+        val refs = (0 until 10).map { ORDER.ref("t", "o-$it") }
+        publish(topic, *refs.map { record(it, 1) }.toTypedArray())
+        eventually { handled.size == refs.size }
+        admin.createPartitions(mapOf(topic to NewPartitions.increaseTo(PARTITIONS))).all().get()
+        eventually { node.ownership?.owned == (0 until PARTITIONS).toSet() }
+        val added = ORDER.ref("t", "o-added")
+        val message = EnvelopeCodec.message(record(added, 1))
+        producer.send(topic, TopicMessage(message.key, message.value, message.headers, PARTITIONS - 1))
+        eventually { versionsOf(added) == listOf(1) }
+        delay(100)
+        // What was read before the partitions were added is not handled again.
+        handled.size.assert().isEqualTo(refs.size + 1)
+    }
 
     private suspend fun endOf(topic: String, partition: Int): Long =
         KafkaPartitionedSource.create(options).use { it.offsets(topic, partition).end }

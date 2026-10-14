@@ -28,6 +28,10 @@ spring:
       on-profile: kafka
 wow:
   kafka:
+    # Creates the topics the service owns when they are missing, for trying it out; production validates them, the
+    # default (decision D168).
+    topics:
+      ddl: auto
     # The order stream is published to wow.example.order.state; the order saga sends the inventory's commands to
     # wow.inventory.commands and reads the receipts of those it rejects from wow.example.receipts.
     bootstrap-servers: localhost:9092

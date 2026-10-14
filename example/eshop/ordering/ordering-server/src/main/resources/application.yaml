@@ -33,9 +33,13 @@ spring:
       on-profile: kafka
 wow:
   kafka:
+    # Creates the topics the service owns when they are missing, for trying it out; production validates them, the
+    # default (decision D168).
+    topics:
+      ddl: auto
     bootstrap-servers: localhost:9092
-    # Execute the orders the basket context sends to wow.eshop-ordering.commands, which must exist with as many
-    # partitions as the context's log (wow.log.partitions, 64 by default).
+    # Execute the orders the basket context sends to wow.eshop-ordering.commands, which has as many partitions as the
+    # context's log (wow.log.partitions, 64 by default).
     command-intake: true
   subscriptions:
     # The saga on the inventory's stock stream starts at the beginning of the stream the first time it reads a

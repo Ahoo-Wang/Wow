@@ -66,14 +66,49 @@ With `wow-kafka` and `wow.kafka.bootstrap-servers`, the node uses these topics (
 | Topic | Written by | Read by |
 | --- | --- | --- |
 | `wow.<context>.<aggregate>.state` | This context's Sink, one record per commit of each published aggregate | Other contexts' handlers of the stream |
-| `wow.<context>.commands` | Other contexts' sagas and timers | This context, with `wow.kafka.command-intake: true` |
+| `wow.<context>.commands` | Other contexts' sagas and timers; this context's nodes, for the types routed through Kafka | This context, with `wow.kafka.command-intake: true` or a type routed through Kafka |
 | `wow.<context>.receipts` | Other contexts, for the commands of this context they rejected | This context's `@OnRejected` handlers |
 
-A node whose sagas send commands to another context does not start without Kafka (or another command transport). The node does not create topics. Create them before the first start; the command topic must have exactly `wow.log.partitions` partitions (64 by default), or a node with `command-intake` does not start:
+A node whose sagas send commands to another context does not start without Kafka (or another command transport).
+
+### Kafka Router
+
+By default a node routes a command over the cluster channel to the owner of its aggregate's log partition (`wow.cluster.router`). An `accepted` answer then only means the command passed admission: a node that stops before running it loses it. For commands that must not be lost once accepted, such as asynchronous intake or load peaks, route their aggregate type through Kafka (decision D143):
+
+```yaml
+wow:
+  kafka:
+    bootstrap-servers: kafka:9092
+  aggregates:
+    "[eshop-ordering.order]":
+      routing: kafka
+```
+
+The node that admits such a command writes it to the context's command topic, in the partition of its aggregate's log partition, and waits for the broker. The owner of that log partition reads it from there and executes it, so one aggregate's commands keep their order. A wait plan of only `accepted` is answered **202** once the broker acknowledged the command: it is durable from then on, and the node may die at once. A longer wait (`committed`, `snapshot`, a saga's hops) goes on as usual, by the signals of the node that executed it. A broker that does not acknowledge within the wait's timeout ends the wait at `accepted`, failed; a retry with the same request id is not decided twice.
+
+The context runs its command intake whatever `wow.kafka.command-intake` says, so its command topic must have exactly `wow.log.partitions` partitions. Only commands admitted through the gateway (HTTP, `CommandGateway`) take this route. A saga's, a timer's or an intake's command is routed by `wow.cluster.router`: it is already durable, because its subscription or timer retries until it is committed.
+
+### Topic management
+
+Each context owns three kinds of topics: its command topic (when it takes commands), its receipts topic (when its sagas have `@OnRejected` handlers) and the state topic of each aggregate it publishes. The topics of other contexts are theirs. At startup the node checks the topics it owns, as `wow.kafka.topics.ddl` says (decision D168):
+
+| `wow.kafka.topics.ddl` | At startup |
+| --- | --- |
+| `validate` (default) | The node does not start when one of its topics is missing, or its command topic does not have exactly `wow.log.partitions` partitions. The message names each such topic |
+| `auto` | The node first creates the missing topics with `wow.log.partitions` partitions, `wow.kafka.topics.replication-factor` and `wow.kafka.topics.configs.*`, then validates. An existing topic is never altered |
+| `none` | The node checks nothing, except that a command topic it reads still has exactly `wow.log.partitions` partitions |
+
+The command topic's partition count is always checked, because a command's partition in it is its aggregate's log partition: with another count, commands would reach nodes that do not own their aggregates. Use `auto` for development and tests. In production, operators create the topics, and the default `validate` catches a missing one at the first start:
 
 ```bash
 kafka-topics --bootstrap-server localhost:9092 --create --topic wow.inventory.commands --partitions 64
+kafka-topics --bootstrap-server localhost:9092 --create --topic wow.inventory.receipts --partitions 64
+kafka-topics --bootstrap-server localhost:9092 --create --topic wow.inventory.stock.state --partitions 64
 ```
+
+The node never asks Kafka to create a topic as a side effect of reading it (`allow.auto.create.topics=false`), so a stream that does not exist yet is waited for, not created with the broker's default partitions.
+
+Partitions may be added to a state or receipts topic while the service runs: the node looks for them every `wow.kafka.topics.partition-refresh` (30 seconds) and reads them from their beginning, without a restart. Never add partitions to a command topic.
 
 The subscriptions of other contexts' streams keep their offsets in the service's checkpoints, with partitions assigned by its leases: there is no consumer group to manage. `wow.kafka.properties.*` passes client settings such as `security.protocol` to every producer and consumer.
 

@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallerResolver
@@ -272,6 +273,7 @@ class WowAutoConfiguration {
                 stateCacheCapacity = properties.stateCache.capacity,
                 defaultWaitTimeout = properties.wait.defaultTimeout.toKotlinDuration(),
                 timers = properties.timers.options(),
+                kafkaRouted = kafkaRouted(properties, models.models),
             ),
             admission = AdmissionPlugins(
                 authorizer = authorizers.getIfAvailable { CommandAuthorizer.ALLOW_ALL },
@@ -469,6 +471,20 @@ class WowAutoConfiguration {
                 }
             }.toMap()
             return TenantPolicy.fixed(fixed)
+        }
+
+        /**
+         * The aggregate types of [models] whose `wow.aggregates.[<context>.<aggregate>].routing` is `kafka` (decision
+         * D143): a key that names no such type is refused.
+         */
+        internal fun kafkaRouted(properties: WowProperties, models: List<AggregateModel<*>>): Set<AggregateType> {
+            val served = models.associateBy { "${it.type.context}.${it.type.name}" }
+            return properties.aggregates.filterValues { it.routing == WowProperties.AggregateRouting.KAFKA }
+                .keys.mapTo(LinkedHashSet()) { key ->
+                    checkNotNull(served[key]) {
+                        "wow.aggregates.[$key].routing names no aggregate type this node serves; it serves ${served.keys}."
+                    }.type
+                }
         }
 
         /**

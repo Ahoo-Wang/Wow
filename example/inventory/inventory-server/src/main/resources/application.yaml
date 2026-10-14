@@ -11,8 +11,12 @@ wow:
   internal:
     port: 9091
   kafka:
+    # Creates the topics the service owns when they are missing, for trying it out; production validates them, the
+    # default (decision D168).
+    topics:
+      ddl: auto
     bootstrap-servers: localhost:9092
-    # Execute the commands other contexts send to wow.inventory.commands, which must have as many partitions as the
+    # Execute the commands other contexts send to wow.inventory.commands, which has as many partitions as the
     # context's log (wow.log.partitions, 64 by default).
     command-intake: true
   subscriptions:

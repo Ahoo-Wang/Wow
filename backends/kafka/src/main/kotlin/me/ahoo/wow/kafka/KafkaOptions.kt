@@ -22,6 +22,7 @@ import org.apache.kafka.common.serialization.StringDeserializer
 import org.apache.kafka.common.serialization.StringSerializer
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * How Wow reaches Kafka (decision D31: `kafka-clients` only): the [bootstrapServers], and [properties] passed to
@@ -32,18 +33,24 @@ import kotlin.time.Duration.Companion.milliseconds
  *   replica, and a retry within the producer writes no duplicate;
  * - a consumer has no group and commits nothing ([consumerConfig]): the runtime assigns partitions by its leases and
  *   keeps the offsets in its checkpoint store (decision D134); an offset no longer retained reads from the earliest;
+ *   asking about a topic never creates it (`allow.auto.create.topics=false`), so a topic is made only by its owner,
+ *   by an operator or by `wow.kafka.topics.ddl=auto` (decision D168), with the partitions it needs;
  * - keys are strings, values bytes.
  *
- * [pollTimeout] bounds one poll of a source's read, so a cancelled read stops within it.
+ * [pollTimeout] bounds one poll of a source's read, so a cancelled read stops within it. [metadataMaxAge] is the
+ * consumers' `metadata.max.age.ms` unless [properties] set it: the longest before a consumer sees partitions added to
+ * a topic it reads (decision D168), 30 seconds instead of Kafka's 5 minutes.
  */
 data class KafkaOptions(
     val bootstrapServers: String,
     val properties: Map<String, String> = emptyMap(),
     val pollTimeout: Duration = DEFAULT_POLL_TIMEOUT,
+    val metadataMaxAge: Duration = DEFAULT_METADATA_MAX_AGE,
 ) {
     init {
         require(bootstrapServers.isNotBlank()) { "Kafka needs its bootstrap servers." }
         require(pollTimeout.isPositive()) { "The poll timeout is positive." }
+        require(metadataMaxAge.isPositive()) { "The metadata's maximum age is positive." }
     }
 
     /** The configuration of a producer. */
@@ -58,16 +65,19 @@ data class KafkaOptions(
 
     /** The configuration of a consumer. */
     fun consumerConfig(): Map<String, Any> = buildMap {
+        put(CommonClientConfigs.METADATA_MAX_AGE_CONFIG, metadataMaxAge.inWholeMilliseconds)
         putAll(properties)
         remove(ConsumerConfig.GROUP_ID_CONFIG)
         put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers)
         put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false)
         put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+        put(ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, false)
         put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java)
         put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer::class.java)
     }
 
     companion object {
         val DEFAULT_POLL_TIMEOUT: Duration = 200.milliseconds
+        val DEFAULT_METADATA_MAX_AGE: Duration = 30.seconds
     }
 }

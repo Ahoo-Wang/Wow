@@ -26,6 +26,7 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kafka.KafkaOptions
 import me.ahoo.wow.kafka.KafkaPartitionedSource
+import me.ahoo.wow.kafka.KafkaTopicAdmin
 import me.ahoo.wow.kafka.KafkaTopicProducer
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Creation
@@ -54,6 +55,7 @@ import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.node.SourceTopics
+import me.ahoo.wow.runtime.node.TopicDdl
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.spi.log.Partitioner
@@ -112,13 +114,23 @@ class KafkaCommandIntakeTest {
 
     @AfterAll
     fun close() {
+        topicAdmin.close()
         producer.close()
         admin.close()
         kafka.stop()
     }
 
-    private fun topics(prefix: String = PREFIX, intake: Boolean = false): SourceTopics =
-        SourceTopics(KafkaPartitionedSource.create(options).also { sources += it }, prefix, producer, intake)
+    private val topicAdmin = KafkaTopicAdmin.create(options)
+
+    private fun topics(prefix: String = PREFIX, intake: Boolean = false, ddl: TopicDdl = TopicDdl.NONE): SourceTopics =
+        SourceTopics(
+            KafkaPartitionedSource.create(options).also { sources += it },
+            prefix,
+            producer,
+            intake,
+            topicAdmin,
+            ddl,
+        )
 
     private fun node(
         service: String,
@@ -198,6 +210,18 @@ class KafkaCommandIntakeTest {
             .contains("has ${PARTITIONS - 1} partitions").contains("must have $PARTITIONS")
         CommandIntake.NAME.assert().isEqualTo("wow.commands")
     }
+
+    @Test
+    fun `the node should create its command topic with the log's partitions, or refuse to start without it`(): Unit =
+        runBlocking {
+            assertThrows<IllegalStateException> { runBlocking { stockNode(topics("validate.", true, TopicDdl.VALIDATE)).start() } }
+                .message.assert().contains("validate.wow.stock.commands does not exist")
+            nodes.removeLast().also { channel.unbind(it.address) }
+            val stock = stockNode(topics("auto.", intake = true, ddl = TopicDdl.AUTO)).also { it.start() }
+            stock.isReady.assert().isTrue()
+            topicAdmin.partitions(setOf("auto.wow.stock.commands")).assert().isEqualTo(mapOf("auto.wow.stock.commands" to PARTITIONS))
+            eventually { checkNotNull(stock.context(STOCK).intake).partitions == (0 until PARTITIONS).toSet() }
+        }
 
     private suspend fun eventually(timeout: Duration = 60.seconds, condition: suspend () -> Boolean) {
         withTimeout(timeout) {

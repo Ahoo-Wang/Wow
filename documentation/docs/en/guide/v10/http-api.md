@@ -89,7 +89,7 @@ answers once the inventory has committed the reservations the order saga sent, o
 
 ### Responses
 
-- **200** with the `CommandResult` the wait ended with; **202** for a plan that ends at `accepted`.
+- **200** with the `CommandResult` the wait ended with; **202** for a plan that ends at `accepted`. A 202 means the command will not be lost only when its aggregate type is routed through Kafka ([Kafka Router](./deployment.md#kafka-router)); otherwise it runs detached on the node that took it.
 - **An RFC 9457 problem** (`application/problem+json`) when the command was rejected or failed: `type` is `urn:wow:error:<code>`, `code` and `status` repeat it, and the body carries the result. The status of a domain code is its `@ErrorCode(status)`, 422 by default, overridable per code with `wow.http.errors.[<code>].status`.
 - **With `Accept: text/event-stream`**, the first result decides: an admission refusal is a problem; otherwise 200, then one event per result (its name the hop's stage, its data the result) until the wait ends. A rejection or failure after admission is the last event.
 

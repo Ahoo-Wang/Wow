@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.spi.transport.PartitionOffsets
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.SourceMessage
+import me.ahoo.wow.spi.transport.TopicAdmin
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
 import java.util.concurrent.ConcurrentHashMap
@@ -34,8 +35,11 @@ import kotlin.concurrent.withLock
  * from offset 0, until [retain] drops its oldest messages as a broker's retention would.
  *
  * [failure], when set, makes every [send] throw it without writing anything, as a broker that does not acknowledge.
+ *
+ * As a [TopicAdmin] (decision D168), it describes the topics created so far and creates the ones asked for; [grow]
+ * adds partitions to a topic, as an operator does to a Kafka topic.
  */
-class InMemoryTopics(private val partitions: Int = DEFAULT_PARTITIONS) : TopicProducer, PartitionedSource {
+class InMemoryTopics(private val partitions: Int = DEFAULT_PARTITIONS) : TopicProducer, PartitionedSource, TopicAdmin {
     private val topics = ConcurrentHashMap<String, Topic>()
 
     /** Thrown by every [send] while set. */
@@ -51,10 +55,10 @@ class InMemoryTopics(private val partitions: Int = DEFAULT_PARTITIONS) : TopicPr
         topicOf(topic).append(messages)
     }
 
-    override suspend fun partitions(topic: String): List<Int> = (0 until topicOf(topic).partitions.size).toList()
+    override suspend fun partitions(topic: String): List<Int> = (0 until topicOf(topic).size).toList()
 
     override suspend fun partitionOf(topic: String, key: String): Int =
-        Math.floorMod(key.hashCode(), topicOf(topic).partitions.size)
+        Math.floorMod(key.hashCode(), topicOf(topic).size)
 
     override suspend fun offsets(topic: String, partition: Int): PartitionOffsets = topicOf(topic).offsets(partition)
 
@@ -74,6 +78,18 @@ class InMemoryTopics(private val partitions: Int = DEFAULT_PARTITIONS) : TopicPr
         }
     }
 
+    override suspend fun partitions(topics: Set<String>): Map<String, Int> =
+        topics.mapNotNull { topic -> this.topics[topic]?.let { topic to it.size } }.toMap()
+
+    override suspend fun create(topics: Map<String, Int>) {
+        topics.forEach { (topic, partitions) -> create(topic, partitions) }
+    }
+
+    /** Gives [topic] [partitions] partitions, the new ones empty; a topic never has fewer than it had. */
+    fun grow(topic: String, partitions: Int) {
+        topicOf(topic).grow(partitions)
+    }
+
     /** Creates [topic] with [partitions] partitions, unless it exists. */
     fun create(topic: String, partitions: Int = this.partitions) {
         require(partitions >= 1) { "A topic has at least one partition." }
@@ -82,7 +98,7 @@ class InMemoryTopics(private val partitions: Int = DEFAULT_PARTITIONS) : TopicPr
 
     /** Every message [topic] holds, partition by partition, each in offset order. */
     fun messages(topic: String): List<SourceMessage> = topicOf(topic).let { target ->
-        target.partitions.indices.flatMap { target.messages(it, 0) }
+        (0 until target.size).flatMap { target.messages(it, 0) }
     }
 
     /**
@@ -97,11 +113,21 @@ class InMemoryTopics(private val partitions: Int = DEFAULT_PARTITIONS) : TopicPr
 
     private class Topic(partitions: Int) {
         val lock = ReentrantLock()
-        val partitions: List<MutableList<SourceMessage>> = List(partitions) { ArrayList() }
+        private val partitions: MutableList<MutableList<SourceMessage>> = MutableList(partitions) { ArrayList() }
 
         /** By partition, the first offset retained. */
-        private val starts = LongArray(partitions)
+        private val starts: MutableList<Long> = MutableList(partitions) { 0L }
         val appended = MutableStateFlow(0L)
+
+        val size: Int get() = lock.withLock { partitions.size }
+
+        fun grow(count: Int) = lock.withLock {
+            require(count >= partitions.size) { "A topic of ${partitions.size} partitions never has fewer." }
+            while (partitions.size < count) {
+                partitions.add(ArrayList())
+                starts.add(0L)
+            }
+        }
 
         fun append(messages: List<TopicMessage>) {
             lock.withLock {
