@@ -214,6 +214,11 @@ const RULES = [
     /^skills\/wow-(?:view-definition|view-host|client)\/(?!evals\/).+\.md$/,
     [DOCS],
   ],
+  // The ops console (roadmap 7.1b), a pnpm workspace member under the V10
+  // platform: no package, story or site builds on it; it is checked on its
+  // own, as the analytics console is, and rides v10.yml with the ops server
+  // that serves it (V10_PATH).
+  [/^platform\/ops\/console\//, []],
   // The V10 modules (documentation/designs/v10/06-modules.md §4; their tests
   // live under test/, below): no example server, client or site builds on
   // them yet.
