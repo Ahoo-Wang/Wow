@@ -20,6 +20,7 @@ import me.ahoo.wow.tck.containers.WowContainers
 import org.apache.kafka.clients.admin.Admin
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.admin.NewTopic
+import org.testcontainers.containers.ContainerLaunchException
 import org.testcontainers.containers.GenericContainer
 import java.io.File
 import java.net.ServerSocket
@@ -93,7 +94,7 @@ class SoakStack(private val config: SoakConfig, private val log: (String) -> Uni
             try {
                 container.start()
                 return
-            } catch (failure: RuntimeException) {
+            } catch (failure: ContainerLaunchException) {
                 container.stop()
                 if (attempt == BIND_ATTEMPTS - 1 || !portTaken(failure)) throw failure
                 log("host port $hostPort was taken before ${container.dockerImageName} bound it; trying another")
