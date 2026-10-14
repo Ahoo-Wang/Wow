@@ -24,7 +24,6 @@ import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionBinding
-import me.ahoo.wow.kernel.SagaSchedule
 import me.ahoo.wow.kernel.contextOf
 import me.ahoo.wow.kernel.rejectionContextOf
 import kotlin.reflect.KClass
@@ -116,7 +115,7 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
             listOf(find(handler))
         }
         val call = { handle(called, event) }
-        verify(ProcessorExpectations(called.map { it.name }, event.commitTime, call(), call), expect)
+        verify(ProcessorExpectations(called.map { it.name }, call(), call), expect)
     }
 
     /**
@@ -163,7 +162,7 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
             "$processor has no @OnRejected handler of the rejections of ${command.qualifiedName}.",
         )
         val call = { reject(onRejected, rejected) }
-        verify(ProcessorExpectations(listOf(onRejected.name), null, call(), call), expect)
+        verify(ProcessorExpectations(listOf(onRejected.name), call(), call), expect)
     }
 
     private fun verify(expectations: ProcessorExpectations, expect: ProcessorExpectations.() -> Unit) {
@@ -178,15 +177,13 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
 
     private fun handle(called: List<ProcessorBinding<*>>, event: StateEvent<*>): Result<Handled> = runCatchingAll {
         val commands = ArrayList<Command<*>>()
-        val schedules = ArrayList<SagaSchedule>()
         called.forEach { handler ->
             val context = contextOf(handler.kind, handler.name, event, SequentialIds())
             val derived = runBlocking { handler.invoke(event, context) }
             derived.forEach { derivedBy[it.id] = context.executionId }
             commands += derived
-            (context as? ExecutionSagaContext)?.let { schedules += it.schedules }
         }
-        Handled(commands, schedules)
+        Handled(commands)
     }
 
     private fun reject(handler: RejectionBinding<*>, rejected: CommandRejected<*>): Result<Handled> =
@@ -194,11 +191,11 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
             val context = rejectionContextOf(handler, rejected, SequentialIds())
             val derived = runBlocking { handler.invoke(rejected, context) }
             derived.forEach { derivedBy[it.id] = context.executionId }
-            Handled(derived, emptyList())
+            Handled(derived)
         }
 
-    /** The commands and the schedules of one handling. */
-    internal data class Handled(val commands: List<Command<*>>, val schedules: List<SagaSchedule>)
+    /** The commands of one handling, the schedules it set or cancelled among them. */
+    internal data class Handled(val commands: List<Command<*>>)
 
     private companion object {
         /** Whether [handler]'s subscription hands it [event]. */

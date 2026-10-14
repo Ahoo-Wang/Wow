@@ -15,6 +15,7 @@ package me.ahoo.wow.example.eshop.ordering.domain.order
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.example.eshop.ordering.api.OrderingContext
 import me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
@@ -106,7 +107,7 @@ class OrderSpec {
         given(submitted, OrderAwaitingValidation, OrderStockItemConfirmed(MUG))
         whenCommand(ConfirmOrderStock(CAP)) {
             expectEvents(OrderStockItemConfirmed(CAP), OrderStockConfirmed)
-            expectScheduled(Order.PAYMENT_GRACE_PERIOD, CancelOrder(Order.PAYMENT_TIMEOUT), after = GRACE)
+            expectScheduled(Order.PAYMENT_GRACE_PERIOD, CancelOrder(Order.PAYMENT_TIMEOUT), ScheduleRule.after(GRACE))
             expectState { status.assert().isEqualTo(OrderStatus.STOCK_CONFIRMED) }
         }
     }
@@ -125,7 +126,7 @@ class OrderSpec {
         given(submitted, OrderAwaitingValidation, OrderStockItemConfirmed(MUG))
         whenCommand(
             ConfirmOrderStock(CAP)
-        ) { expectScheduled(Order.PAYMENT_GRACE_PERIOD, CancelOrder(Order.PAYMENT_TIMEOUT), after = GRACE) }
+        ) { expectScheduled(Order.PAYMENT_GRACE_PERIOD, CancelOrder(Order.PAYMENT_TIMEOUT), ScheduleRule.after(GRACE)) }
         advanceTime(GRACE) {
             expectEvents(OrderCancelled(Order.PAYMENT_TIMEOUT))
             expectState {

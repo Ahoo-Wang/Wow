@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.manifest
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
@@ -26,7 +27,8 @@ import me.ahoo.wow.manifest.Manifest
  *
  * - an aggregate type in the Manifest without a model, or a model of an aggregate type the Manifest does not list;
  * - a command of the Manifest the model does not decide under that name, or a command the model decides
- *   ([AggregateModel.commandTypes]) that the Manifest does not list; the lifecycle commands are compared apart;
+ *   ([AggregateModel.commandTypes]) that the Manifest does not list; the lifecycle commands are compared apart, and the
+ *   schedule system commands every model decides (`wow.schedule.Set`, `Cancel`, decision D198) are not listed;
  * - a former name ([me.ahoo.wow.manifest.CommandManifest.aliases]) the model does not read as that command, or one the
  *   model reads as the command and the Manifest does not list;
  * - a different [creation][me.ahoo.wow.manifest.Creation];
@@ -94,7 +96,7 @@ object ManifestCheck {
             val (mounted, decided) = aggregate.commands.partition { it.mounted }
             val listed = decided.mapTo(HashSet()) { fullName(type, it.name) }
             model.commandTypes
-                .filter { Lifecycle.nameOf(it.type) == null && it.name !in listed }
+                .filter { Lifecycle.nameOf(it.type) == null && Schedules.nameOf(it.type) == null && it.name !in listed }
                 .forEach { add("command ${it.name} is decided by the model of $type but not in the Manifest") }
             val listedMounted = mounted.mapTo(HashSet()) { fullName(type, it.name) }
             model.mountedCommandTypes.filter { it.name !in listedMounted }

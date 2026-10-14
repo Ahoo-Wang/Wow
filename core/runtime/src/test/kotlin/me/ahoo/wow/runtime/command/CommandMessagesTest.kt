@@ -21,8 +21,12 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.lifecycle.DeleteAggregate
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.schedule.CancelSchedule
+import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.InMemoryTopics
@@ -128,6 +132,9 @@ class CommandMessagesTest {
                 SourceTopics(topics, PREFIX, topics),
             )
             sender.typeOf(Command("c", "r", ref, Reserve(1))).assert().isEqualTo("stock.item.Reserve")
+            // A system command is every aggregate's, by its system name (decision D198).
+            sender.typeOf(Command("c", "r", ref, CancelSchedule("k"))).assert().isEqualTo(Schedules.CANCEL)
+            sender.typeOf(Command("c", "r", ref, DeleteAggregate)).assert().isEqualTo(Lifecycle.DELETE_AGGREGATE)
             assertThrows<IllegalStateException> { sender.typeOf(Command("c", "r", ref, "not a command")) }
                 .message.assert().contains("wowPeers")
             val wrong = AggregateType(STOCK, "warehouse").ref(TENANT, "w")

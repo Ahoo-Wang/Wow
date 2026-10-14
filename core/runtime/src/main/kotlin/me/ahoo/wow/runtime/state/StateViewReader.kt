@@ -82,7 +82,8 @@ class StateViewReader(
         val state = base?.let { view -> baseOf(model, view)?.let { kernel.stateAt(model, ref, version, it) } }
             ?: kernel.stateAt(model, ref, version, usable)
         checkNotNull(state) { "The log does not hold $ref@$version." }
-        val view = StateView(version, codec.stateText(state.state), state.scope, state.deleted, state.tags)
+        val view =
+            StateView(version, codec.stateText(state.state), state.scope, state.deleted, state.tags, state.schedules)
         views.put(ref, view)
         pass(ref, version)
         return view
@@ -93,7 +94,14 @@ class StateViewReader(
      * not decode whole ([EventCodec.decodeState]), as a snapshot that does not fit: the reader then goes without it.
      */
     private fun baseOf(model: AggregateModel<*>, view: StateView): CachedState? = try {
-        CachedState(codec.decodeState(model, view.state), view.version, view.scope, view.deleted, view.tags)
+        CachedState(
+            codec.decodeState(model, view.state),
+            view.version,
+            view.scope,
+            view.deleted,
+            view.tags,
+            view.schedules,
+        )
     } catch (failure: IllegalArgumentException) {
         logger.debug(failure) { "The view of ${model.type}@${view.version} does not decode whole; not using it." }
         null

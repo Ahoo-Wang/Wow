@@ -44,9 +44,8 @@ data class EventRecord(val name: String, val revision: Int, val payload: String)
  * - [causation] and [headers] come from the command: the chain it belongs to and the request facts admission kept.
  * - [operator] comes from the command too: whose name the commit is recorded in (decision D163), the primary record of
  *   an audit; null for an anonymous caller.
- * - [schedules] are the scheduled commands the decision put or cancelled (decision D166), at most one change per key:
- *   framework metadata committed with the events, from which the built-in `timers` subscription derives the timer
- *   store. Projections do not see them. A stream may hold schedules and no event: a decision that only schedules.
+ * - The schedules a decision set or cancelled are among its [events], as the system events `wow.ScheduleSet` and
+ *   `wow.ScheduleCancelled` (decision D198), from which the built-in `timers` subscription derives the timer store.
  */
 data class EventStreamRecord(
     val ref: AggregateRef,
@@ -60,15 +59,11 @@ data class EventStreamRecord(
     val causation: Causation? = null,
     val headers: Map<String, String> = emptyMap(),
     val operator: Operator? = null,
-    val schedules: List<ScheduleChange> = emptyList(),
 ) {
     init {
         require(version >= 1) { "An event stream's version starts at 1." }
         require(commandType.isNotBlank()) { "An event stream names the type of its command." }
-        require(events.isNotEmpty() || schedules.isNotEmpty()) { "An event stream holds an event or a schedule." }
-        require(schedules.size < 2 || schedules.distinctBy { it.key }.size == schedules.size) {
-            "An event stream changes a schedule once."
-        }
+        require(events.isNotEmpty()) { "An event stream holds at least one event." }
     }
 }
 

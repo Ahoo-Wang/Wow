@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.InMemoryCheckpointStore
@@ -39,7 +40,6 @@ import me.ahoo.wow.runtime.command.Reserve
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.spi.timer.TimerStore
-import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.milliseconds
 import me.ahoo.wow.manifest.Creation as ManifestCreation
@@ -81,9 +81,14 @@ class OrderState {
 fun orderModel(): AggregateModel<OrderState> = aggregate<OrderState>(SHOP, "order") {
     initial { OrderState() }
     decide<PlaceOrder>(Creation.REQUIRED) { _, body ->
-        schedule(PAY_TIMEOUT, body.payWithinMillis.milliseconds, CancelOrder("unpaid"))
+        schedule(PAY_TIMEOUT, ScheduleRule.after(body.payWithinMillis.milliseconds), CancelOrder("unpaid"))
         if (body.reserve > 0) {
-            schedule("reserve", 0.milliseconds, Reserve(body.reserve), ITEM.ref(command.ref.tenantId, command.ref.id))
+            schedule(
+                "reserve",
+                ScheduleRule.After(0),
+                Reserve(body.reserve),
+                ITEM.ref(command.ref.tenantId, command.ref.id)
+            )
         }
         Decision.events(OrderPlaced(body.payWithinMillis))
     }
@@ -105,7 +110,7 @@ fun orderModel(): AggregateModel<OrderState> = aggregate<OrderState>(SHOP, "orde
         }
     }
     decide<Remind> { _, body ->
-        schedule("remind", Instant.ofEpochMilli(body.at), CancelOrder("reminded"))
+        schedule("remind", ScheduleRule.At(body.at), CancelOrder("reminded"))
         Decision.NoOp
     }
     evolve<OrderPlaced> { status = "PLACED" }
@@ -147,7 +152,8 @@ fun shopManifest(): Manifest = Manifest(
 
 /**
  * A saga of the shop context that reminds each placed order to pay: it schedules a [CancelOrder] of the order at the
- * commit's time plus [afterMillis], under the key `remind`, and derives nothing.
+ * commit's time plus [afterMillis], under the key `remind` (decision D198: the system command `wow.schedule.Set` to
+ * the order), and derives nothing else.
  */
 fun reminderSaga(afterMillis: Long = 100): ProcessorBinding<OrderState> = ProcessorBinding.saga(
     "ReminderSaga",
@@ -155,9 +161,12 @@ fun reminderSaga(afterMillis: Long = 100): ProcessorBinding<OrderState> = Proces
     OrderState::class.java,
 ) { event, context ->
     if (event.events.any { it is OrderPlaced }) {
-        context.schedule("remind", afterMillis.milliseconds, event.ref, CancelOrder("reminder"))
+        listOf(
+            context.schedule("remind", ScheduleRule.after(afterMillis.milliseconds), event.ref, CancelOrder("reminder"))
+        )
+    } else {
+        emptyList()
     }
-    emptyList()
 }
 
 /** In-memory stores of every context, a timer store included, shared by the nodes given this factory. */

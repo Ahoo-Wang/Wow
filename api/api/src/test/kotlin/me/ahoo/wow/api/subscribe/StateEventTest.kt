@@ -21,9 +21,11 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.id.Ids
+import me.ahoo.wow.api.schedule.CancelSchedule
+import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.schedule.SetSchedule
 import org.junit.jupiter.api.Test
-import java.time.Instant
-import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 
 class StateEventTest {
     private val ref = AggregateType("example", "cart").ref("tenant", "c-1")
@@ -94,13 +96,15 @@ class StateEventTest {
                 return Command(id, id, ref, body, causation = Causation("cmd-3", "$ref@3"))
             }
 
-            override fun schedule(key: String, at: Instant, target: AggregateRef, command: Any) = Unit
+            override fun schedule(key: String, rule: ScheduleRule, target: AggregateRef, command: Any) =
+                command(target, SetSchedule(key, rule, "example.cart.Remind", "{}"))
 
-            override fun schedule(key: String, after: Duration, target: AggregateRef, command: Any) = Unit
-
-            override fun cancel(key: String, target: AggregateRef) = Unit
+            override fun cancel(key: String, target: AggregateRef) = command(target, CancelSchedule(key))
         }
         listOf(project, react, saga).map { it.executionId }.distinct().assert().containsExactly(execution)
         saga.command(ref, "Pay").id.assert().isEqualTo("payment-saga.onEvent:example.cart/tenant/c-1@3#0")
+        saga.schedule("remind", ScheduleRule.after(1.minutes), ref, "Remind").body.rule.assert()
+            .isEqualTo(ScheduleRule.After(60_000))
+        saga.cancel("remind", ref).body.assert().isEqualTo(CancelSchedule("remind"))
     }
 }

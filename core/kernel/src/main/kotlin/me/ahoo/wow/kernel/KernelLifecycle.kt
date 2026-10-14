@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.AggregateDeleted
@@ -26,27 +27,52 @@ import me.ahoo.wow.api.lifecycle.SpaceTransferred
 import me.ahoo.wow.api.lifecycle.TagsApplied
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.lifecycle.TransferSpace
+import me.ahoo.wow.api.schedule.CancelSchedule
+import me.ahoo.wow.api.schedule.ScheduleCancelled
+import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.schedule.ScheduleSet
+import me.ahoo.wow.api.schedule.Schedules
+import me.ahoo.wow.api.schedule.SetSchedule
 
 /**
- * The kernel's side of the lifecycle commands (design 01 §6): their decide functions, which read the aggregate's
- * metadata rather than its state, and how their events evolve that metadata. The events leave the user's state as it
- * is unless the model declares an evolve function for them.
+ * The kernel's side of the lifecycle commands (design 01 §6) and of the schedule system commands (decision D198): their
+ * decide functions, which read the aggregate's metadata rather than its state, and how their events evolve that
+ * metadata. The events leave the user's state as it is unless the model declares an evolve function for them.
+ *
+ * `wow.schedule.Set` sets the schedule of its key on the aggregate it is sent to, which must exist; `wow.schedule.Cancel`
+ * cancels it, a no-op when the aggregate keeps no schedule of that key.
  */
 internal object KernelLifecycle {
     /** Every lifecycle command, enabled on a model unless it says otherwise. */
     val COMMANDS: Set<Class<*>> = Lifecycle.COMMANDS.values.toSet()
 
-    /** The kernel's decide function for the lifecycle command [commandType]. */
+    /** The schedule system commands (decision D198), which every model decides. */
+    val SCHEDULE_COMMANDS: Set<Class<*>> = Schedules.COMMANDS.values.toSet()
+
+    /** The kernel's decide function for the lifecycle or schedule command [commandType]. */
     fun <S : Any> decider(commandType: Class<*>): DecideFunction<S> {
-        require(commandType in COMMANDS) { "${commandType.name} is not a lifecycle command." }
-        return DecideFunction.Sync(Creation.NONE) { _, body -> decide((this as MetadataScope).loaded, body) }
+        require(commandType in COMMANDS || commandType in SCHEDULE_COMMANDS) {
+            "${commandType.name} is not a lifecycle command."
+        }
+        return DecideFunction.Sync(
+            Creation.NONE
+        ) { _, body -> decide((this as MetadataScope).loaded, body, command.ref) }
     }
+
+    /** The system name of [type], a lifecycle or schedule command or event, or null when it is none of them. */
+    fun systemNameOf(type: Class<*>): String? = Lifecycle.nameOf(type) ?: Schedules.nameOf(type)
+
+    /** Whether [name] is in the system namespace, which only the lifecycle and schedule types take. */
+    fun isSystemName(name: String): Boolean =
+        name.startsWith("${Lifecycle.NAMESPACE}.") || name in Schedules.COMMANDS || name in Schedules.EVENTS
 
     /**
      * Decides lifecycle command [body] on the metadata of [loaded]. A command that would change nothing is a no-op;
      * one to a deleted aggregate never gets here unless it restores it.
      */
-    fun decide(loaded: CachedState, body: Any): Decision = when (body) {
+    fun decide(loaded: CachedState, body: Any, ref: AggregateRef): Decision = when (body) {
+        is SetSchedule -> Decision.events(ScheduleSet(body.key, body.rule, ref, body.commandType, body.command))
+        is CancelSchedule -> changeOrNoOp(body.key !in loaded.schedules) { ScheduleCancelled(body.key) }
         DeleteAggregate -> Decision.events(AggregateDeleted)
         RestoreAggregate -> if (loaded.deleted) Decision.events(AggregateRestored) else Decision.NoOp
         is TransferOwner -> changeOrNoOp(loaded.scope.ownerId == body.ownerId) { OwnerTransferred(body.ownerId) }
@@ -57,7 +83,10 @@ internal object KernelLifecycle {
 
     /** [metadata] after [event]: only the lifecycle events change it. */
     fun evolve(metadata: Metadata, event: Any): Metadata = when (event) {
-        AggregateDeleted -> metadata.copy(deleted = true)
+        // Deleting cancels the aggregate's schedules; restoring does not bring them back.
+        AggregateDeleted -> metadata.copy(deleted = true, schedules = emptyMap())
+        is ScheduleSet -> metadata.copy(schedules = metadata.schedules - event.key + (event.key to event.rule))
+        is ScheduleCancelled -> metadata.copy(schedules = metadata.schedules - event.key)
         AggregateRestored -> metadata.copy(deleted = false)
         is OwnerTransferred -> metadata.copy(scope = metadata.scope.copy(ownerId = event.ownerId))
         is SpaceTransferred -> metadata.copy(scope = metadata.scope.copy(spaceId = event.spaceId))
@@ -69,7 +98,12 @@ internal object KernelLifecycle {
         if (unchanged) Decision.NoOp else Decision.events(event())
 
     /** The kernel-maintained metadata of an aggregate besides its version. */
-    data class Metadata(val scope: Scope, val deleted: Boolean, val tags: Map<String, List<String>>)
+    data class Metadata(
+        val scope: Scope,
+        val deleted: Boolean,
+        val tags: Map<String, List<String>>,
+        val schedules: Map<String, ScheduleRule> = emptyMap(),
+    )
 
     /** What the kernel's decide functions see beside the command: the committed state they decide on. */
     interface MetadataScope {

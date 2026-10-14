@@ -30,6 +30,7 @@ import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoOperators
+import me.ahoo.wow.mongo.MongoRules
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -101,6 +102,7 @@ class MongoSnapshotStore(
             Updates.set(TAGS, Document(snapshot.tags)),
             Updates.set(OPERATOR, MongoOperators.document(snapshot.operator)),
             Updates.set(FIRST_OPERATOR, MongoOperators.document(snapshot.firstOperator)),
+            Updates.set(SCHEDULES, Document(snapshot.schedules.mapValues { MongoRules.document(it.value) })),
         )
         conditionalUpsert { upsert ->
             val result = snapshots.updateOne(guarded, update, UpdateOptions().upsert(upsert))
@@ -132,6 +134,9 @@ class MongoSnapshotStore(
             tags = tags.keys.associateWith { tags.getList(it, String::class.java).toList() },
             operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
             firstOperator = MongoOperators.of(document.get(FIRST_OPERATOR, Document::class.java)),
+            schedules = document.get(SCHEDULES, Document::class.java)?.let { schedules ->
+                schedules.keys.associateWith { MongoRules.of(schedules.get(it, Document::class.java)) }
+            }.orEmpty(),
         )
     }
 
@@ -195,5 +200,6 @@ class MongoSnapshotStore(
         const val TAGS = "tags"
         const val OPERATOR = "operator"
         const val FIRST_OPERATOR = "first_operator"
+        const val SCHEDULES = "schedules"
     }
 }

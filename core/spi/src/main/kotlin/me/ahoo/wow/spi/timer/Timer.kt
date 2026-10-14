@@ -17,25 +17,28 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
-import me.ahoo.wow.api.subscribe.ExecutionId
+import me.ahoo.wow.api.schedule.ScheduleContext
+import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.schedule.ScheduleSet
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
-import me.ahoo.wow.spi.log.ScheduleChange
 
 /**
- * One scheduled command (decision D166): send the command of type [commandType], [body] its JSON, to [target] at
- * [dueAt] (epoch milliseconds).
+ * One schedule of an aggregate (decisions D166, D198): send the command of type [commandType], [body] its JSON, to
+ * [target] each time [rule] says, the next time [dueAt] (epoch milliseconds), for its [slot].
  *
- * - [id] is `ref#key@version` for an aggregate's timer and `executionId#n` for a saga's ([Timers]); it is also the
- *   request id the command is sent with, so sending it again is deduplicated by its target.
- * - [owner] and [key] name the timer: an aggregate's ref, or a saga and its target ([Timers.sagaOwner]); [version]
- *   orders the owner's changes ([TimerStore]).
+ * - [id] is `ref#key@version`, the schedule as the owner's stream at [version] set it ([Timers.idOf]); the command of
+ *   each slot is sent with the request id `id#slot` ([requestId]), so sending it again is deduplicated by its target.
+ * - [owner] and [key] name the schedule: the aggregate that set it ([Timers.ownerOf]); [version] orders the owner's
+ *   changes ([TimerStore]).
+ * - [slot] counts the times the schedule is due, from 1: firing a slot marks it fired and moves [dueAt] to the next
+ *   one in one write; a rule due once has one slot, after which the timer is FIRED.
  * - [partition] is the partition of the [target] among the scheduling context's log partitions: the owner of that
  *   partition fires the timer, so a target of the same context runs where its aggregate's commands run.
- * - [causation] links the command to the commit that scheduled it; [headers] and [operator] are the scheduling
- *   command's, which the command inherits (decisions D163, D166), and [scope] the scheduling commit's, the owner and
- *   space the command is sent in (decision D189).
- * - [status], [attempts] and [outcome] record what the runner did: [outcome] is what the target answered
+ * - [causation] links the command to the commit that set the schedule; [headers] and [operator] are the setting
+ *   command's, which the command inherits (decisions D163, D166), and [scope] the setting commit's, the owner and space
+ *   the command is sent in (decision D189).
+ * - [status], [attempts] and [outcome] record what the firing loop did: [outcome] is what the target answered
  *   ([TimerOutcomes]), or why a timer is parked.
  */
 data class Timer(
@@ -44,10 +47,12 @@ data class Timer(
     val key: String,
     val version: Long,
     val partition: Int,
+    val rule: ScheduleRule,
     val dueAt: Long,
     val target: AggregateRef,
     val commandType: String,
     val body: String,
+    val slot: Long = 1,
     val causation: Causation? = null,
     val headers: Map<String, String> = emptyMap(),
     val operator: Operator? = null,
@@ -62,11 +67,15 @@ data class Timer(
         require(key.isNotBlank()) { "A timer needs a key." }
         require(partition >= 0) { "A partition is never negative." }
         require(commandType.isNotBlank()) { "A timer names the type of its command." }
+        require(slot >= 1) { "A timer's slots count from 1." }
         require(attempts >= 0) { "A timer's attempts are never negative." }
     }
 
-    /** The request id the command is sent with: the timer's [id]. */
-    val requestId: String get() = id
+    /** The request id the command of the current [slot] is sent with: `id#slot`. */
+    val requestId: String get() = "$id#$slot"
+
+    /** Which time of the schedule the command of the current [slot] is sent for, as its target reads it. */
+    val context: ScheduleContext get() = ScheduleContext(id, key, slot, dueAt)
 }
 
 /** Where a [Timer] is. */
@@ -74,7 +83,15 @@ enum class TimerStatus {
     /** Waiting to be sent, or being retried after a technical failure. */
     PENDING,
 
-    /** Sent, and settled by its target: committed, already committed, unchanged or rejected ([Timer.outcome]). */
+    /**
+     * Claimed by the owner of its partition, which is sending its slot (decision D198): a conditional write from the
+     * PENDING row as loaded, so a timer cancelled or rescheduled after it was loaded is never sent. [Timer.dueAt] is
+     * then the claim's deadline: a claim left by a node that died is due again once it lapses, and the next owner
+     * claims it anew.
+     */
+    FIRING,
+
+    /** Its last slot is sent, and settled by its target: committed, already committed, unchanged or rejected. */
     FIRED,
 
     /** Cancelled or rescheduled by its owner, its owner deleted, expired, or skipped by an operator. */
@@ -99,9 +116,9 @@ object TimerOutcomes {
     const val SKIPPED = "SKIPPED"
 }
 
-/** How timers are named and derived from the log (decision D166). */
+/** How timers are named and derived from the log (decisions D166, D198). */
 object Timers {
-    /** The id of the timer [ref] scheduled under [key] in its stream at [version]: `ref#key@version`. */
+    /** The id of the schedule [ref] set under [key] in its stream at [version]: `ref#key@version`. */
     @JvmStatic
     fun idOf(ref: AggregateRef, key: String, version: Int): String = "$ref#$key@$version"
 
@@ -109,35 +126,29 @@ object Timers {
     @JvmStatic
     fun ownerOf(ref: AggregateRef): String = ref.toString()
 
-    /** The owner of the timers the saga [subscription] keeps of [target]: `subscription>target`. */
-    @JvmStatic
-    fun sagaOwner(subscription: String, target: AggregateRef): String = "$subscription>$target"
-
-    /** The id of the [index]-th schedule (from 0) of the saga's [execution]: `executionId#index`. */
-    @JvmStatic
-    fun sagaTimerId(execution: ExecutionId, index: Int): String {
-        require(index >= 0) { "A call index is never negative." }
-        return "$execution#$index"
-    }
-
     /**
-     * The timer [put] of [stream] schedules, in [partitions] log partitions: its causation is the commit (`ref@version`)
-     * in the chain of the command that committed it.
+     * The timer [set] makes, an event of [stream], in [partitions] log partitions: its first slot due as its rule says
+     * counted from the commit; a rule the runtime evaluates (cron, roadmap 6.8c) is not due until it is. Its causation
+     * is the commit (`ref@version`) in the chain of the command that committed it.
      */
     @JvmStatic
-    fun of(stream: EventStreamRecord, put: ScheduleChange.Put, partitions: Int): Timer = Timer(
-        id = idOf(stream.ref, put.key, stream.version),
+    fun of(stream: EventStreamRecord, set: ScheduleSet, partitions: Int): Timer = Timer(
+        id = idOf(stream.ref, set.key, stream.version),
         owner = ownerOf(stream.ref),
-        key = put.key,
+        key = set.key,
         version = stream.version.toLong(),
-        partition = Partitioner.partitionOf(put.target, partitions),
-        dueAt = put.dueAt,
-        target = put.target,
-        commandType = put.commandType,
-        body = put.body,
+        partition = Partitioner.partitionOf(set.target, partitions),
+        rule = set.rule,
+        dueAt = set.rule.firstDue(stream.commitTime) ?: NOT_EVALUATED,
+        target = set.target,
+        commandType = set.commandType,
+        body = set.command,
         causation = Causation(stream.causation?.correlationId ?: stream.commandId, "${stream.ref}@${stream.version}"),
-        headers = stream.headers,
+        headers = stream.headers - ScheduleContext.HEADERS,
         operator = stream.operator,
         scope = stream.scope,
     )
+
+    /** The due time of a timer whose rule the runtime does not evaluate yet: never. */
+    const val NOT_EVALUATED: Long = Long.MAX_VALUE
 }

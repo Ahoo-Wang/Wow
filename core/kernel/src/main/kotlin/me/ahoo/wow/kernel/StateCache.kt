@@ -15,6 +15,7 @@ package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.schedule.ScheduleRule
 
 /**
  * Where the kernel keeps aggregates' states between commands, so a command does not replay the log.
@@ -45,7 +46,8 @@ interface StateCache {
 /**
  * An aggregate's [state] after its event stream [version], with the metadata the kernel keeps beside it: its [scope],
  * the owner and space it has after that stream (decision D56), which the next stream carries forward; whether it is
- * [deleted]; and its [tags]. Only the lifecycle commands change them (design 01 §6).
+ * [deleted]; and its [tags]. Only the lifecycle commands change them (design 01 §6). Its [schedules] are the rules
+ * of the schedules it keeps, by key (decision D198): those its streams set and did not cancel.
  */
 class CachedState(
     val state: Any,
@@ -53,9 +55,10 @@ class CachedState(
     val scope: Scope = Scope.NONE,
     val deleted: Boolean = false,
     val tags: Map<String, List<String>> = emptyMap(),
+    val schedules: Map<String, ScheduleRule> = emptyMap(),
 ) {
-    internal val metadata: KernelLifecycle.Metadata get() = KernelLifecycle.Metadata(scope, deleted, tags)
+    internal val metadata: KernelLifecycle.Metadata get() = KernelLifecycle.Metadata(scope, deleted, tags, schedules)
 
     internal fun with(state: Any, version: Int, metadata: KernelLifecycle.Metadata): CachedState =
-        CachedState(state, version, metadata.scope, metadata.deleted, metadata.tags)
+        CachedState(state, version, metadata.scope, metadata.deleted, metadata.tags, metadata.schedules)
 }

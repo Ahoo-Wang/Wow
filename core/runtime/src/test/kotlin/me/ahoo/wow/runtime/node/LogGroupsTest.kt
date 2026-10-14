@@ -24,6 +24,7 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.InMemoryCheckpointStore
@@ -153,8 +154,8 @@ class LogGroupsTest {
             stores.invoices.timers.find(Timers.ownerOf(INVOICE.ref(TENANT, "i-3")), DUE)?.status == TimerStatus.FIRED
         }
         stores.default.timers.find(Timers.ownerOf(INVOICE.ref(TENANT, "i-3")), DUE).assert().isNull()
-        stores.invoices.log.read(INVOICE.ref(TENANT, "i-3")).toList().map { it.events.single().name }.assert()
-            .containsExactly("$CONTEXT.invoice.Issued", "$CONTEXT.invoice.Closed")
+        stores.invoices.log.read(INVOICE.ref(TENANT, "i-3")).toList().flatMap { it.events.map { event -> event.name } }
+            .assert().containsExactly("$CONTEXT.invoice.Issued", "wow.ScheduleSet", "$CONTEXT.invoice.Closed")
         node.context(CONTEXT).ownership.owned.forEach { partition ->
             node.context(CONTEXT).logGroups.forEach { group ->
                 group.timers!!.runner.partitions.assert().contains(partition)
@@ -294,7 +295,7 @@ class LogGroupsTest {
         ): AggregateModel<Item> = aggregate<Item>(CONTEXT, name) {
             initial { Item() }
             decide<C>(Creation.REQUIRED) { _, body ->
-                schedule(DUE, delay(body).milliseconds, Close())
+                schedule(DUE, ScheduleRule.after(delay(body).milliseconds), Close())
                 Decision.events(created(body))
             }
             decide<Close> { state, body ->
