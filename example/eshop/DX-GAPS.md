@@ -302,7 +302,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: `StockConfirmationSaga` reads the stock stream and sends `ConfirmOrderStock` to the order; the inventory's `StockReserved` carries the order's id as part of the contract.
 - **Proposed fix**: Document the pattern (accepted outcomes come back through the target's stream), or offer an `@OnAccepted` (or `@OnCommitted`) counterpart of `@OnRejected` for commands a saga derives.
 - **Blocks M7**: no.
-- **Resolved**: by P.11 (decision D192). A saga declares `@OnCommitted` on a `CommandCommitted<C>`; the target sends the receipt of the commit to the saga's receipts topic before it moves past the command, deduplicated by the command id. `OrderProcessSaga.onReserveCommitted` confirms the order's products, and `StockConfirmationSaga` is gone; `sagaSpec` tests the handler with `whenCommitted`.
+- **Resolved**: by #4455 (P.11, decision D192). A saga declares `@OnCommitted` on a `CommandCommitted<C>`; the target sends the receipt of the commit to the saga's receipts topic before it moves past the command, deduplicated by the command id. `OrderProcessSaga.onReserveCommitted` confirms the order's products, and `StockConfirmationSaga` is gone; `sagaSpec` tests the handler with `whenCommitted`.
 
 ### G24. The testing guide's saga example derives other ids the second time (resolved)
 
