@@ -29,7 +29,7 @@ import java.net.Socket
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HostFixedTenantTest {
-    private val host = startHost("wow.aggregates.[bank.account].tenant" to "t0", internalPort = 0)
+    private val host = startHost("wow.aggregates.[bank.account].tenant" to "t0")
 
     @AfterAll
     fun close() {

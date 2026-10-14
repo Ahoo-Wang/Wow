@@ -30,7 +30,6 @@ import org.springframework.test.web.reactive.server.WebTestClient
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.net.InetSocketAddress
-import java.net.ServerSocket
 import java.net.Socket
 import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
@@ -73,9 +72,6 @@ class ReadinessRecorder(private val timeline: Timeline) : ApplicationListener<Av
     }
 }
 
-/** A port no server listens on now. */
-fun freePort(): Int = ServerSocket(0).use { it.localPort }
-
 private fun accepts(port: Int): Boolean = try {
     Socket().use { it.connect(InetSocketAddress("127.0.0.1", port), 500) }
     true
@@ -83,9 +79,13 @@ private fun accepts(port: Int): Boolean = try {
     false
 }
 
-/** A host started in this JVM, its public port at [publicPort] and its internal one at [internalPort]. */
-class Host(val context: ConfigurableApplicationContext, val internalPort: Int) : AutoCloseable {
+/**
+ * A host started in this JVM, its public port at [publicPort] and its internal one at [internalPort]: both the ports
+ * the system chose, read once bound.
+ */
+class Host(val context: ConfigurableApplicationContext) : AutoCloseable {
     val publicPort: Int = (context as ReactiveWebServerApplicationContext).webServer!!.port
+    val internalPort: Int = context.getBean(InternalServer::class.java).boundPort
     val node: ServiceNode get() = context.getBean(ServiceNode::class.java)
     val decided: DecidedCommands get() = context.getBean(DecidedCommands::class.java)
 
@@ -128,13 +128,16 @@ fun WebTestClient.RequestHeadersSpec<*>.answer(): Answer {
     )
 }
 
-/** The properties every test host starts with: short cluster timings, the ports on the loopback interface. */
-fun hostProperties(internalPort: Int): Map<String, Any> = mapOf(
+/**
+ * The properties every test host starts with: short cluster timings, the ports on the loopback interface, both bound
+ * at a port the system chooses, so no other process can take a port picked before the host binds it.
+ */
+val hostProperties: Map<String, Any> = mapOf(
     "spring.application.name" to "bank-service",
     "spring.main.banner-mode" to "off",
     "server.port" to 0,
     "server.address" to "127.0.0.1",
-    "wow.internal.port" to internalPort,
+    "wow.internal.port" to 0,
     "wow.internal.host" to "127.0.0.1",
     "wow.cluster.drain-timeout" to "1s",
     "wow.cluster.lease-ttl" to "3s",
@@ -152,10 +155,9 @@ fun hostProperties(internalPort: Int): Map<String, Any> = mapOf(
 fun startHost(
     vararg properties: Pair<String, Any>,
     sources: List<Class<*>> = listOf(HostTestApp::class.java),
-    internalPort: Int = freePort(),
 ): Host {
     val context = SpringApplicationBuilder(*sources.toTypedArray())
-        .properties(hostProperties(internalPort) + properties.toMap())
+        .properties(hostProperties + properties.toMap())
         .run()
-    return Host(context, internalPort)
+    return Host(context)
 }

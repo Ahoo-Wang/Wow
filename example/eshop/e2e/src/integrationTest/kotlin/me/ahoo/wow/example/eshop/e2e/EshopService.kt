@@ -18,7 +18,6 @@ import org.testcontainers.postgresql.PostgreSQLContainer
 import tools.jackson.databind.json.JsonMapper
 import java.io.File
 import java.io.IOException
-import java.net.ServerSocket
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -60,7 +59,8 @@ data class Answer(val status: Int, val body: String)
 /**
  * One eShop service in a JVM of its own, started from the runtime class path of its server project (the system
  * property `eshop.<context>.classpath`, which the build passes), with its public and internal ports on the loopback
- * interface. Its output goes to a log file, printed when it fails to start.
+ * interface, both at a port the system chooses: the harness reads the public one from the service's log once it is
+ * bound. Its output goes to a log file, printed when it fails to start.
  */
 class EshopService private constructor(
     val name: String,
@@ -136,6 +136,10 @@ class EshopService private constructor(
         private val STOP_TIMEOUT: Duration = Duration.ofSeconds(20)
         private val POLL_INTERVAL: Duration = Duration.ofMillis(200)
 
+        /** The logger of Spring Boot's Reactor Netty web server, and the line it logs once bound. */
+        private const val WEB_SERVER_LOGGER = "org.springframework.boot.reactor.netty.NettyWebServer"
+        private val STARTED = Regex("""Netty started on port (\d+) \(http\)""")
+
         /**
          * Starts the service of [context] by its [mainClass], with the further command-line [arguments] and the JVM's
          * own [jvmArguments] (a heap bound, say), and waits until it serves its Manifest.
@@ -149,7 +153,6 @@ class EshopService private constructor(
             val property = "eshop.$context.classpath"
             val classpath = requireNotNull(System.getProperty(property)) { "System property $property is not set." }
             val java = ProcessHandle.current().info().command().orElseThrow()
-            val publicPort = freePort()
             // Kept in `eshop.logs` (the build's `eshop-logs`) when the build names it, so a failed run can be read.
             val logs = System.getProperty("eshop.logs")?.let { File(it).apply { mkdirs() } }
             val log = File.createTempFile("eshop-$context-", ".log", logs).apply { if (logs == null) deleteOnExit() }
@@ -161,13 +164,20 @@ class EshopService private constructor(
                 mainClass,
                 "--spring.main.banner-mode=off",
                 "--server.address=127.0.0.1",
-                "--server.port=$publicPort",
+                // Both ports bound where the system chooses, so no other process can take one picked up front: the
+                // node learns its internal port once bound, and the harness reads the public one from the log.
+                "--server.port=0",
+                "--logging.level.$WEB_SERVER_LOGGER=info",
                 "--wow.internal.host=127.0.0.1",
-                // The node learns its internal port once bound; only the public one must be known up front.
                 "--wow.internal.port=0",
                 *arguments.toTypedArray(),
             ).redirectErrorStream(true).redirectOutput(log).start()
-            val service = EshopService(context, process, log, publicPort)
+            val service = try {
+                EshopService(context, process, log, awaitPublicPort(context, process, log))
+            } catch (failure: Throwable) {
+                process.destroyForcibly().waitFor()
+                throw failure
+            }
             try {
                 service.awaitReady()
             } catch (failure: Throwable) {
@@ -177,6 +187,15 @@ class EshopService private constructor(
             return service
         }
 
-        private fun freePort(): Int = ServerSocket(0).use { it.localPort }
+        /** The public port the service of [context] logged once its web server was bound. */
+        private fun awaitPublicPort(context: String, process: Process, log: File): Int {
+            val deadline = System.nanoTime() + START_TIMEOUT.toNanos()
+            while (System.nanoTime() < deadline) {
+                STARTED.find(log.readText())?.let { return it.groupValues[1].toInt() }
+                check(process.isAlive) { "The $context service exited with ${process.exitValue()}:\n${log.readText()}" }
+                Thread.sleep(POLL_INTERVAL.toMillis())
+            }
+            error("The $context service did not bind its public port in $START_TIMEOUT:\n${log.readText()}")
+        }
     }
 }
