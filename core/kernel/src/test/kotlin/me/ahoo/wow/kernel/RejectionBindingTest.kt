@@ -131,7 +131,7 @@ class RejectionBindingTest {
                 it.operator.assert().isEqualTo(rejected.operator)
                 it.scope.assert().isEqualTo(Scope("alice", "space-a"))
             }
-            commands[0].id.assert().isEqualTo(RejectionSagaContext.compensationId(context.executionId, "c-1", 0))
+            commands[0].id.assert().isEqualTo(ReceiptSagaContext.compensationId(context.executionId, "c-1", 0))
             // Handling the same rejection again derives the same requests; another rejection, others.
             handler.invoke(rejected, rejectionContextOf(handler, rejected)).map { it.id }
                 .assert().isEqualTo(commands.map { it.id })
@@ -143,7 +143,7 @@ class RejectionBindingTest {
             // Not the ids the saga's execution derives itself.
             commands[0].id.assert().isNotEqualTo(ExecutionSagaContext.derivedId(execution, 0))
             assertThrownBy<IllegalArgumentException> {
-                RejectionSagaContext.compensationId(context.executionId, "c-1", -1)
+                ReceiptSagaContext.compensationId(context.executionId, "c-1", -1)
             }
         }
 }

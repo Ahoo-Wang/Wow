@@ -96,6 +96,7 @@ object ManifestTree {
         ),
         "derives" to subscription.derives,
         "rejected" to subscription.rejected,
+        "committed" to subscription.committed,
         "start" to subscription.start?.name,
         "schedules" to subscription.schedules,
         "retry" to subscription.retry?.let {
@@ -209,6 +210,7 @@ object ManifestTree {
             ),
             derives = if (node.has("derives")) node.strings("derives") else null,
             rejected = if (node.has("rejected")) node.strings("rejected") else null,
+            committed = if (node.has("committed")) node.strings("committed") else null,
             start = node.stringOrNull("start")?.let(SubscriptionStart::valueOf),
             schedules = if (node.has("schedules")) node.strings("schedules") else null,
             retry = node.objOrNull("retry")?.let {

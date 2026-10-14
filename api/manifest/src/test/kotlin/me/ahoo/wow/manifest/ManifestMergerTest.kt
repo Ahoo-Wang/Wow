@@ -296,7 +296,7 @@ class ManifestMergerTest {
         assertThrows<ManifestConflictException> {
             ManifestMerger.merge(listOf(ManifestFragment("a.json", fragment)))
         }.conflicts.assert().containsExactly(
-            "subscription CartSummary.onEvent of context shop in a.json handles rejections but is a PROJECTION",
+            "subscription CartSummary.onEvent of context shop in a.json handles receipts but is a PROJECTION",
         )
     }
 

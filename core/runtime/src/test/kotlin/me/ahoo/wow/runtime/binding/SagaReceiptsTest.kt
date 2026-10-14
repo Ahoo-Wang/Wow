@@ -25,12 +25,14 @@ import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
+import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.ProcessorBinding
+import me.ahoo.wow.kernel.ReceiptSagaContext
 import me.ahoo.wow.kernel.RejectionBinding
-import me.ahoo.wow.kernel.RejectionSagaContext
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
@@ -48,7 +50,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * ends at the saga's hop with the rejection, nothing is retried for it, and the saga's `@OnRejected` handler for the
  * command compensates instead of the aggregate being parked; technical failures are still retried.
  */
-class SagaRejectionsTest {
+class SagaReceiptsTest {
     private val backends = InMemoryBackends(partitions = 4)
     private val decided = CopyOnWriteArrayList<String>()
     private val rejections = CopyOnWriteArrayList<CommandRejected<*>>()
@@ -74,17 +76,31 @@ class SagaRejectionsTest {
         emptyList()
     }
 
-    private fun saga(vararg rejections: RejectionBinding<*>) = ProcessorBinding.saga(
+    private val commits = CopyOnWriteArrayList<CommandCommitted<*>>()
+
+    /** Thanks the owner of the cart a removal was committed on (decision D192). */
+    private val onRemoved = CommittedBinding.of(
         "CartSaga",
-        "onOrderPlaced",
-        OrderState::class.java,
-        rejections = rejections.toList(),
-    ) { event, context ->
-        val owner = event.scope.ownerId ?: return@saga emptyList()
-        event.events.filterIsInstance<Placed>().map {
-            context.command(CART.ref(event.ref.tenantId, owner), RemoveItems(it.items))
-        }
+        "onRemoved",
+        RemoveItems::class.java
+    ) { committed, context ->
+        commits += committed
+        listOf(context.command(committed.ref, AddItems(listOf("thanks"))))
     }
+
+    private fun saga(vararg rejections: RejectionBinding<*>, commits: List<CommittedBinding<*>> = emptyList()) =
+        ProcessorBinding.saga(
+            "CartSaga",
+            "onOrderPlaced",
+            OrderState::class.java,
+            rejections = rejections.toList(),
+            commits = commits,
+        ) { event, context ->
+            val owner = event.scope.ownerId ?: return@saga emptyList()
+            event.events.filterIsInstance<Placed>().map {
+                context.command(CART.ref(event.ref.tenantId, owner), RemoveItems(it.items))
+            }
+        }
 
     private var node: ServiceNode? = null
 
@@ -133,7 +149,7 @@ class SagaRejectionsTest {
         ExecutionSagaContext.derivedId(ExecutionId(SAGA, ORDER.ref(TENANT, order), 1), 0)
 
     private fun compensationId(order: String, handler: String = "CartSaga.onRemoveRejected") =
-        RejectionSagaContext.compensationId(ExecutionId(handler, ORDER.ref(TENANT, order), 1), rejectedId(order), 0)
+        ReceiptSagaContext.compensationId(ExecutionId(handler, ORDER.ref(TENANT, order), 1), rejectedId(order), 0)
 
     @Test
     fun `a rejection should go to the saga's handler, which compensates, and end the wait at the saga's hop`(): Unit =
@@ -163,6 +179,63 @@ class SagaRejectionsTest {
             compensated.causation.assert().isEqualTo(Causation(all.first().commandId, rejectedId("o-1")))
             ledger.isParked(SAGA, ORDER.ref(TENANT, "o-1")).assert().isFalse()
         }
+
+    @Test
+    fun `a command committed in the saga's context should go to its @OnCommitted handler, outside the wait`(): Unit =
+        runBlocking {
+            val node = start(saga(onRemoveRejected, commits = listOf(onRemoved)))
+            node.fill()
+            val all = node.place("o-c", "apple")
+            val last = all.last()
+            last.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            last.hop.stage.assert().isEqualTo(Stage.COMMITTED)
+            val committed = commits.single()
+            committed.commandId.assert().isEqualTo(rejectedId("o-c"))
+            committed.commandType.assert().isEqualTo("shop.cart.RemoveItems")
+            committed.ref.assert().isEqualTo(cart)
+            committed.version.assert().isEqualTo(2)
+            committed.result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            committed.executionId.assert().isEqualTo(ExecutionId(SAGA, ORDER.ref(TENANT, "o-c"), 1))
+            // What the handler derives is committed, caused by the committed command, but the wait does not follow it.
+            val thanks = compensationId("o-c", "CartSaga.onRemoved")
+            val derived = log.findByRequestId(TENANT, thanks)!!
+            derived.causation.assert().isEqualTo(Causation(all.first().commandId, rejectedId("o-c")))
+            all.flatMap { it.derived }.assert().doesNotContain(thanks)
+            rejections.assert().isEmpty()
+            // Handling the commit again hands the receipt over again; its command is not decided twice.
+            val versions = log.read(cart).toList().size
+            val subscription = SubscriptionBindings(mapOf(SHOP to listOf(saga(commits = listOf(onRemoved)))))
+                .subscriptions(node.context(SHOP)).single()
+            val again = subscription.handle(
+                subscription.decoder.decode(log.read(ORDER.ref(TENANT, "o-c")).first(), null, null),
+            )
+            again.derived.assert().containsExactly(rejectedId("o-c"))
+            commits.map { it.commandId }.distinct().assert().containsExactly(rejectedId("o-c"))
+            commits.last().result.duplicate.assert().isTrue()
+            log.read(cart).toList().size.assert().isEqualTo(versions)
+        }
+
+    @Test
+    fun `a wait naming the @OnCommitted handler's hop should go on into the commands it derives`(): Unit = runBlocking {
+        val node = start(saga(onRemoveRejected, commits = listOf(onRemoved)))
+        node.fill()
+        val chain = WaitPlan.of(
+            Hop.committed(),
+            Hop.handled(SAGA),
+            Hop.committed(),
+            Hop.handled(ON_REMOVED),
+            Hop.committed()
+        )
+        val all = node.gateway.send(request("order", "Place", listOf("apple"), "o-h", chain)).toList()
+        val thanks = compensationId("o-h", ON_REMOVED)
+        val handled = all.single { it.hop == Hop.handled(ON_REMOVED, SHOP) }
+        handled.commandId.assert().isEqualTo(rejectedId("o-h"))
+        handled.derived.assert().containsExactly(thanks)
+        val last = all.last()
+        last.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        last.hop.assert().isEqualTo(Hop.committed(SHOP))
+        last.commandId.assert().isEqualTo(thanks)
+    }
 
     @Test
     fun `handling the same rejection again should derive the same compensation, which is not decided twice`(): Unit =
@@ -221,7 +294,7 @@ class SagaRejectionsTest {
     @Test
     fun `a rejection of no saga of the context, or no handler, should be left to the caller`(): Unit = runBlocking {
         val node = start(saga())
-        val rejections = SagaRejections(
+        val rejections = SagaReceipts(
             listOf(saga(onRemoveRejected)),
             DerivedCommands(node.context(SHOP).models, node.context(SHOP).coordinator),
         )
@@ -233,14 +306,14 @@ class SagaRejectionsTest {
             Causation("root", "shop.order/t/o-7@1"),
             ExecutionId("Other.saga", ORDER.ref(TENANT, "o-7"), 1),
         )
-        rejections.handle(rejected, RemoveItems::class.java).assert().isNull()
-        rejections.handle(
+        rejections.rejected(rejected, RemoveItems::class.java).assert().isNull()
+        rejections.rejected(
             rejected.copy(executionId = rejected.executionId.copy(subscription = SAGA)),
             String::class.java
         )
             .assert().isNull()
         // The entry point of a receipt from another context (decision D136) takes the same rejection.
-        rejections.handle(
+        rejections.rejected(
             rejected.copy(executionId = rejected.executionId.copy(subscription = SAGA)),
             RemoveItems::class.java
         )
@@ -249,6 +322,7 @@ class SagaRejectionsTest {
 
     private companion object {
         const val SAGA = "CartSaga.onOrderPlaced"
+        const val ON_REMOVED = "CartSaga.onRemoved"
         val CHAIN: WaitPlan = WaitPlan.of(Hop.committed(), Hop.handled(SAGA), Hop.committed())
     }
 }

@@ -110,7 +110,8 @@ import tools.jackson.databind.json.JsonMapper
  * they must be aggregates of the module whose state the handler takes; of another context, the handler's binding
  * names them, and the runtime reads their published streams for it (decision D134). A handler of a nullable state,
  * `StateEvent<S?>` or `StateEvent<*>`, says so in its binding and in its Manifest source (decision D140). A saga's
- * `@OnRejected` handlers (decisions D136, D153) are in the fragment too, and bound with each of its handlers.
+ * `@OnRejected` handlers (decisions D136, D153) and `@OnCommitted` handlers (decision D192) are in the fragment too, and
+ * bound with each of its handlers.
  */
 internal class ModelSymbolProcessor(
     private val mode: Mode,
@@ -289,7 +290,11 @@ internal class ModelSymbolProcessor(
     }
 
     private fun processSubscriptions(resolver: Resolver): List<KSAnnotated> {
-        val handlerClasses = listOf(SubscriptionResolver.ON_EVENT, SubscriptionResolver.ON_REJECTED).asSequence()
+        val handlerClasses = listOf(
+            SubscriptionResolver.ON_EVENT,
+            SubscriptionResolver.ON_REJECTED,
+            SubscriptionResolver.ON_COMMITTED,
+        ).asSequence()
             .flatMap { resolver.getSymbolsWithAnnotation(it) }
             .filterIsInstance<KSFunctionDeclaration>()
             .mapNotNull { it.parentDeclaration as? KSClassDeclaration }

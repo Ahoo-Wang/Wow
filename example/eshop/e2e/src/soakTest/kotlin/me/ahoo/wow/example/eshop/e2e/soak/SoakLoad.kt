@@ -52,7 +52,7 @@ enum class Scenario(val product: String, val unitPrice: String, val wait: String
 private const val DECLINED_TAIL =
     " > handled(eshop-ordering/OrderProcessSaga.onOrderSubmitted) > committed(eshop-ordering)" +
         " > handled(eshop-ordering/OrderProcessSaga.onOrderAwaitingValidation) > committed(eshop-inventory)" +
-        " > handled(eshop-ordering/StockConfirmationSaga.onStockReserved) > committed(eshop-ordering)" +
+        " > handled(eshop-ordering/OrderProcessSaga.onReserveCommitted) > committed(eshop-ordering)" +
         " > handled(eshop-payment/OrderPaymentSaga.onOrderStockConfirmed) > committed(eshop-payment)" +
         " > handled(eshop-payment/PaymentGatewaySaga.onPaymentRequested) > committed(eshop-payment)"
 

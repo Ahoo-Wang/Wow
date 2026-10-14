@@ -43,6 +43,7 @@ object ContractFixtures {
         source: SubscriptionSource = SubscriptionSource("shop", listOf("cart")),
         derives: List<String>? = null,
         rejected: List<String>? = null,
+        committed: List<String>? = null,
     ): SubscriptionManifest = SubscriptionManifest(
         name = name,
         kind = kind,
@@ -59,6 +60,7 @@ object ContractFixtures {
         ),
         derives = derives,
         rejected = rejected,
+        committed = committed,
     )
 
     /** The shop service's Manifest: context `shop`, its cart, a projection of it, and a saga on inventory's stock. */
