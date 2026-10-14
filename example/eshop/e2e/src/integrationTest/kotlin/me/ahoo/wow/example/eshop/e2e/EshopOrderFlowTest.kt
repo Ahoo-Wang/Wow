@@ -32,8 +32,8 @@ import java.time.Duration
  *
  * - **Checkout.** The basket's checkout saga sends `eshop-ordering.order.SubmitOrder` to `wow.eshop-ordering.commands`.
  * - **Stock.** The ordering's order-process saga sends `eshop-inventory.stock.ReserveStock` to
- *   `wow.eshop-inventory.commands`; its stock-confirmation saga reads the reservations from
- *   `wow.eshop-inventory.stock.state` and confirms the order's products.
+ *   `wow.eshop-inventory.commands`; the inventory sends the receipt of each reservation it commits to
+ *   `wow.eshop-ordering.receipts`, and the saga's `@OnCommitted` confirms the order's product (decision D192).
  * - **Rejection.** A reservation the inventory rejects comes back as a receipt on `wow.eshop-ordering.receipts`, and the
  *   saga's `@OnRejected` cancels the order; the cancelled order releases the other reservations.
  * - **Grace period.** An order whose stock is confirmed cancels itself, by a scheduled command, when it is not paid in

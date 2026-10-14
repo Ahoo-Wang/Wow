@@ -55,6 +55,9 @@ internal interface EntrySource {
     /** The source as messages name it: the context's log, or a topic. */
     val name: String
 
+    /** The topic the source reads, null for the context's log: its entries are consumed messages (decision D174). */
+    val topic: String? get() = null
+
     /** Fails unless [partition] is one of the source's. */
     fun requirePartition(partition: Int)
 

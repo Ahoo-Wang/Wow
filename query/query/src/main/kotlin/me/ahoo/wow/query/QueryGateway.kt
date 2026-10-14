@@ -33,6 +33,7 @@ import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.mask.SchemaMasker
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.describe
+import me.ahoo.wow.spi.observation.observe
 import tools.jackson.databind.node.ObjectNode
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -145,12 +146,12 @@ class DefaultQueryGateway(
         caller: QueryCaller,
         rows: (T) -> Long,
         execute: suspend (AdmittedQuery<Q>) -> T,
-    ): T {
+    ): T = observer.started(aggregateType, operation.queryType).observe {
         val trail = trail(operation.queryType, query, caller)
         try {
             val admitted = admission.admit(operation, query, caller, schemaProvider::schema, trail)
             trail?.admitted(admitted.query)
-            return execute(admitted).also { result ->
+            execute(admitted).also { result ->
                 trail?.rows(rows(result))
                 finished(operation.queryType, trail, null)
             }
@@ -168,6 +169,8 @@ class DefaultQueryGateway(
         caller: QueryCaller,
         execute: (AdmittedQuery<Q>) -> Flow<ObjectNode>,
     ): Flow<ObjectNode> = flow {
+        // Its rows are emitted to the collector, so the observation times the stream without running it in its context.
+        val observed = observer.started(aggregateType, operation.queryType)
         val trail = trail(operation.queryType, query, caller)
         try {
             val admitted = admission.admit(operation, query, caller, schemaProvider::schema, trail)
@@ -178,8 +181,11 @@ class DefaultQueryGateway(
             }
             finished(operation.queryType, trail, null)
         } catch (error: Throwable) {
+            observed.failed(error)
             finished(operation.queryType, trail, error)
             throw error
+        } finally {
+            observed.end()
         }
     }
 

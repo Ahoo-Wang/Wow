@@ -58,7 +58,8 @@ import me.ahoo.wow.manifest.SubscriptionStart
  * - a saga's `derives` (decision D138): what `@OnEvent(derives)` declares, else the commands its return type names, a
  *   command a module's aggregate decides by its full type name and any other by its class's schema reference;
  * - the source `@OnEvent(aggregates)` names, of this context or another (decision D138);
- * - a saga's `@OnRejected` handlers (decisions D136, D153) as subscriptions with `rejected`.
+ * - a saga's `@OnRejected` handlers (decisions D136, D153) as subscriptions with `rejected`, and its `@OnCommitted`
+ *   handlers (decision D192) as subscriptions with `committed`.
  *
  * An aggregate's mounted commands (`@MountedCommand`, decision D182) are among its commands, marked `mounted`, with
  * routes with and without an id and the `transformsTo` they declare.
@@ -194,7 +195,10 @@ internal object ManifestFragmentBuilder {
         return classes.map { eventNames[it] ?: return null }.distinct().sorted()
     }
 
-    /** Each handler of [binding] is a subscription (design 04 §1), and so is each of its `@OnRejected` handlers. */
+    /**
+     * Each handler of [binding] is a subscription (design 04 §1), and so is each of its `@OnRejected` and
+     * `@OnCommitted` handlers.
+     */
     private fun subscriptions(
         context: String,
         binding: SubscriptionBinding,
@@ -226,7 +230,17 @@ internal object ManifestFragmentBuilder {
                 rejected = listOfNotNull(rejection.command?.let(commands::referenceOf)),
             )
         }
-        return handlers + rejections
+        val commits = binding.commits.map { committed ->
+            SubscriptionManifest(
+                name = committed.subscription,
+                kind = kind,
+                source = SubscriptionSource(),
+                function = FunctionManifest(functionKind, context, binding.name, committed.function),
+                derives = derives(emptyList(), committed.derived, commands),
+                committed = listOfNotNull(committed.command?.let(commands::referenceOf)),
+            )
+        }
+        return handlers + rejections + commits
     }
 
     /**

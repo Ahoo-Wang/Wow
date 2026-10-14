@@ -16,14 +16,21 @@ package me.ahoo.wow.query
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.query.filter.QueryType
+import me.ahoo.wow.spi.observation.Observation
+import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Sees the outcome of every query a gateway runs: the hook a host's metrics (9.x `QueryMetricsObserver`, wired by the
  * host in 6.2c), logs ([QueryLogObserver]) and audit trail implement. A query ends in exactly one of [onComplete],
  * [onError] and [onCancel]; when [audits] is set, [onAudit] follows with its [QueryAudit].
+ *
+ * [start] observes the query as a stage of work (decision D174): its span and its time, from its admission to its
+ * end; the gateway ends the [Observation] it returns once the query ends, telling it the failure it ended with.
  */
 interface QueryObserver {
+    fun start(aggregateType: AggregateType, queryType: QueryType): Observation = Observation.NONE
+
     fun onComplete(aggregateType: AggregateType, queryType: QueryType) = Unit
     fun onError(aggregateType: AggregateType, queryType: QueryType, error: Throwable) = Unit
     fun onCancel(aggregateType: AggregateType, queryType: QueryType) = Unit
@@ -53,6 +60,15 @@ interface QueryObserver {
 private class CompositeQueryObserver(private val observers: List<QueryObserver>) : QueryObserver {
     override val audits: Boolean = observers.any { it.audits }
 
+    override fun start(aggregateType: AggregateType, queryType: QueryType): Observation {
+        val started = observers.map { it.started(aggregateType, queryType) }.filter { it !== Observation.NONE }
+        return when (started.size) {
+            0 -> Observation.NONE
+            1 -> started.single()
+            else -> CompositeObservation(started)
+        }
+    }
+
     override fun onComplete(aggregateType: AggregateType, queryType: QueryType) =
         observers.forEach { it.isolated { onComplete(aggregateType, queryType) } }
 
@@ -66,7 +82,29 @@ private class CompositeQueryObserver(private val observers: List<QueryObserver>)
         observers.filter { it.audits }.forEach { it.isolated { onAudit(audit) } }
 }
 
+/** Every observation of [observations]: the first one's context and trace, each one told the outcome and the end. */
+private class CompositeObservation(private val observations: List<Observation>) : Observation {
+    override val context: CoroutineContext = observations.first().context
+
+    override fun outcome(outcome: String) = observations.forEach { it.outcome(outcome) }
+
+    override fun failed(error: Throwable) = observations.forEach { it.failed(error) }
+
+    override fun end() = observations.forEach { it.end() }
+}
+
 private val log = KotlinLogging.logger { }
+
+/** The observation [start] returns, or none when the observer fails to start one: an observer never fails a query. */
+@Suppress("TooGenericExceptionCaught")
+internal fun QueryObserver.started(aggregateType: AggregateType, queryType: QueryType): Observation = try {
+    start(aggregateType, queryType)
+} catch (failure: VirtualMachineError) {
+    throw failure
+} catch (failure: Throwable) {
+    log.error(failure) { "Query observer [${javaClass.name}] failed to start." }
+    Observation.NONE
+}
 
 /**
  * Runs [callback] on this observer so that its failure, any non-fatal [Throwable] (an [AssertionError] or a Kotlin

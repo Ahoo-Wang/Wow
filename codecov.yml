@@ -352,6 +352,12 @@ component_management:
         - edge/cosec/src/main/**
       flag_regexes:
         - "^v10$"
+    - component_id: v10-opentelemetry
+      name: v10-opentelemetry
+      paths:
+        - edge/opentelemetry/src/main/**
+      flag_regexes:
+        - "^v10$"
     - component_id: v10-spring-boot
       name: v10-spring-boot
       paths:
