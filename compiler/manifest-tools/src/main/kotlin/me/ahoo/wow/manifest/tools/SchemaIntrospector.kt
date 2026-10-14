@@ -29,8 +29,12 @@ import com.github.victools.jsonschema.generator.naming.SchemaDefinitionNamingStr
 import com.github.victools.jsonschema.module.jackson.JacksonOption
 import com.github.victools.jsonschema.module.jackson.JacksonSchemaModule
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.Description
+import me.ahoo.wow.api.annotation.Summary
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
+import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
 import tools.jackson.databind.JavaType
 import tools.jackson.databind.json.JsonMapper
@@ -49,8 +53,14 @@ import kotlin.reflect.jvm.kotlinProperty
  *
  * - Schemas come from victools' generator with its Jackson module over a Kotlin-aware Jackson mapper, so they follow
  *   what Jackson writes: `@JsonProperty` names (also on a Kotlin constructor parameter, as Jackson reads them),
- *   `@JsonNaming`, `@JsonIgnore`, `@JsonValue` and `@JsonProperty` enums. A Kotlin property is required when its
- *   constructor parameter is non-null and has no default, and accepts null when its type is nullable.
+ *   `@JsonNaming`, `@JsonIgnore`, `@JsonValue` and `@JsonProperty` enums. A Kotlin property accepts null when its
+ *   type is nullable, and is required when it is not and no reader can leave it out: a constructor parameter without
+ *   a default, or a property of the class body (a state's `var name: String = ""`), which Jackson always writes. A
+ *   nullable property, and a constructor parameter with a default, are optional.
+ * - A type is described (`description`) by its `@Description`, else its `@Summary`; a command or an event by the
+ *   description its fragment entry carries, which the compiler also reads from the KDoc (roadmap 5a.1c).
+ * - The body of each lifecycle command an aggregate lists (`wow.lifecycle.TransferOwner`, design 01 §6) is a
+ *   definition keyed by that full name, introspected from its class ([Lifecycle.COMMANDS]) like a command's.
  * - Every type the fragment refers to, and every type referred to more than once, is a definition keyed by its JVM
  *   binary name (`a.b.Outer$Inner`; a parameterized one as `a.b.Page(a.b.Item)`), the key the fragment's references
  *   use; a type referred to once is inlined.
@@ -70,17 +80,19 @@ internal class SchemaIntrospector(
     private val codec = EventCodec()
 
     fun complete(fragment: Manifest): Manifest {
-        val keys = fragment.unresolvedSchemaRefs.map(Manifest::schemaKey)
-        val states = fragment.contexts.flatMap { it.aggregates }.map { load(Manifest.schemaKey(it.state.schema)) }
+        val aggregates = fragment.contexts.flatMap { it.aggregates }
+        val types = fragment.unresolvedSchemaRefs.map(Manifest::schemaKey).associateWith(::load) +
+            lifecycleBodies(aggregates, fragment.defs)
+        val states = aggregates.map { load(Manifest.schemaKey(it.state.schema)) }
         val queryKeywords = QueryFieldKeywords(states.toSet())
         val builder = generator(queryKeywords).buildMultipleSchemaDefinitions()
-        val references = keys.associateWith { builder.createSchemaReference(load(it)) }
+        val references = types.mapValues { (_, type) -> builder.createSchemaReference(type) }
         val definitions = builder.collectDefinitions(DEFS)
         // A type referred to only by the fragment is inlined into its reference: it becomes the definition.
         val defined = definitions.properties().associate { it.key to it.value }
         val inlined = references.filterKeys { !definitions.has(it) }
-        val generated = (defined + inlined).mapValues { (_, schema) -> mapper.convertValue(schema, Map::class.java) }
-        val defs = fragment.defs + generated
+        val generated = (defined + inlined).mapValues { (_, schema) -> schemaMap(schema) }
+        val defs = fragment.defs + described(generated, aggregates)
         return fragment.copy(
             contexts = fragment.contexts.map { context ->
                 context.copy(
@@ -93,6 +105,28 @@ internal class SchemaIntrospector(
             },
             defs = (defs + queryIndexes(fragment, queryKeywords, defs)).toSortedMap(),
         )
+    }
+
+    /** The classes of the lifecycle commands [aggregates] list, by their full names, that [defs] does not hold. */
+    private fun lifecycleBodies(aggregates: List<AggregateManifest>, defs: Map<String, Any?>): Map<String, Class<*>> =
+        aggregates.flatMap { it.lifecycle }.distinct().filter { it !in defs }.mapNotNull { name ->
+            Lifecycle.COMMANDS[name]?.let { name to it }
+        }.toMap()
+
+    /**
+     * The [generated] schemas, each command's and event's described as its entry of [aggregates] says: the compiler
+     * read that description from the class's KDoc too, which introspection cannot see.
+     */
+    private fun described(
+        generated: Map<String, Map<String, Any?>>,
+        aggregates: List<AggregateManifest>,
+    ): Map<String, Any?> {
+        val descriptions = aggregates.flatMap { aggregate ->
+            aggregate.commands.map { it.schema to it.description } + aggregate.events.map { it.schema to it.description }
+        }.mapNotNull { (ref, description) -> description?.let { Manifest.schemaKey(ref) to it } }.toMap()
+        return generated.mapValues { (key, schema) ->
+            descriptions[key]?.let { schema + (DESCRIPTION to it) } ?: schema
+        }
     }
 
     /**
@@ -135,6 +169,9 @@ internal class SchemaIntrospector(
         }.toMap()
     }
 
+    @Suppress("UNCHECKED_CAST")
+    private fun schemaMap(schema: Any): Map<String, Any?> = mapper.convertValue(schema, Map::class.java) as Map<String, Any?>
+
     private fun load(binaryName: String): Class<*> = Class.forName(binaryName, false, classLoader)
 
     /** The kernel's fingerprint of [stateType]: only the model's state type takes part in it. */
@@ -168,6 +205,7 @@ internal class SchemaIntrospector(
                 Overrides(schemaOverrides.mapValues { (type, schema) -> parse(type, schema) }, mapper),
             )
             .withTypeAttributeOverride(queryKeywords)
+            .withDescriptionResolver { scope -> describe(scope.type.erasedType) }
         builder.forFields()
             .withRequiredCheck(::isKotlinRequired)
             .withNullableCheck(::isKotlinNullable)
@@ -251,6 +289,7 @@ internal class SchemaIntrospector(
 
     private companion object {
         const val DEFS = "\$defs"
+        const val DESCRIPTION = "description"
         val PLATFORM_PACKAGES = listOf("java.", "javax.", "kotlin.")
 
         private fun kotlinProperty(field: FieldScope) =
@@ -260,15 +299,24 @@ internal class SchemaIntrospector(
                 null
             }
 
-        /** A Kotlin property is required when its constructor parameter is non-null and has no default. */
+        /**
+         * A Kotlin property is required when it is non-null and no reader leaves it out: its constructor parameter has
+         * no default, or it is not a constructor parameter (a property of the class body, which Jackson always writes).
+         */
         fun isKotlinRequired(field: FieldScope): Boolean {
-            if (kotlinProperty(field) == null) {
-                return false
-            }
+            val property = kotlinProperty(field) ?: return false
             val constructor = runCatching { field.declaringType.erasedType.kotlin.primaryConstructor }.getOrNull()
-            val parameter = constructor?.parameters?.firstOrNull { it.name == field.declaredName } ?: return false
+            val parameter = constructor?.parameters?.firstOrNull { it.name == field.declaredName }
+                ?: return !property.returnType.isMarkedNullable
             return !parameter.isOptional && !parameter.type.isMarkedNullable
         }
+
+        /** A type's `@Description`, else its `@Summary`; null without either, or with a blank one. */
+        fun describe(type: Class<*>): String? =
+            listOfNotNull(
+                type.getAnnotation(Description::class.java)?.value,
+                type.getAnnotation(Summary::class.java)?.value,
+            ).map(String::trim).firstOrNull(String::isNotEmpty)
 
         fun isKotlinNullable(field: FieldScope): Boolean = kotlinProperty(field)?.returnType?.isMarkedNullable == true
     }

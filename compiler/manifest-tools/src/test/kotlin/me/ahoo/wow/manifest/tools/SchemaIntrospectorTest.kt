@@ -17,11 +17,15 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonValue
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.Description
+import me.ahoo.wow.api.annotation.Summary
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.FunctionKind
 import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
@@ -196,5 +200,79 @@ class SchemaIntrospectorTest {
         val known = fragment().copy(defs = mapOf(AddItem::class.java.name to mapOf("type" to "object")))
         val completed = introspector.complete(known)
         completed.defs[AddItem::class.java.name].assert().isEqualTo(mapOf("type" to "object"))
+    }
+
+    @Test
+    fun `a state's non-null properties should be required, its nullable ones optional`() {
+        val state = defOf(introspector.complete(fragment()), CartState::class.java)
+        // id: a constructor parameter without a default; items: a property of the body, always written.
+        (state["required"] as List<*>).assert().containsExactlyInAnyOrder("id", "items")
+        (state["properties"] as Map<*, *>)["owner"].assert().isEqualTo(mapOf("type" to listOf("string", "null")))
+    }
+
+    @Description("A shipment of the order")
+    @Summary("Shipment")
+    data class Ship(val carrier: String)
+
+    @Summary("  Shipped  ")
+    data class Shipped(val carrier: String)
+
+    @Description(" ")
+    data class Track(val carrier: String)
+
+    /** Its KDoc is the compiler's to read: the fragment entry carries what it says. */
+    data class Deliver(val carrier: String)
+
+    @Test
+    fun `schemas should be described by their annotations, and commands and events by their entries`() {
+        val aggregate = fragment().contexts.single().aggregates.single().copy(
+            commands = listOf(
+                CommandManifest("Ship", schema = schemaRef(Ship::class.java.name)),
+                CommandManifest("Track", schema = schemaRef(Track::class.java.name)),
+                CommandManifest("Deliver", schema = schemaRef(Deliver::class.java.name), description = "Delivers."),
+            ),
+            events = listOf(EventManifest("Shipped", schema = schemaRef(Shipped::class.java.name))),
+        )
+        val fragment = fragment().copy(contexts = listOf(ContextManifest("shop", aggregates = listOf(aggregate))))
+        val completed = introspector.complete(fragment)
+        defOf(completed, Ship::class.java)["description"].assert().isEqualTo("A shipment of the order")
+        defOf(completed, Shipped::class.java)["description"].assert().isEqualTo("Shipped")
+        defOf(completed, Track::class.java).containsKey("description").assert().isFalse()
+        defOf(completed, Deliver::class.java)["description"].assert().isEqualTo("Delivers.")
+        defOf(completed, CartState::class.java).containsKey("description").assert().isFalse()
+    }
+
+    @Test
+    fun `the body of each lifecycle command an aggregate lists should be a definition keyed by its name`() {
+        val aggregate = fragment().contexts.single().aggregates.single()
+            .copy(lifecycle = Lifecycle.COMMANDS.keys.sorted() + "wow.lifecycle.Unknown")
+        val fragment = fragment().copy(contexts = listOf(ContextManifest("shop", aggregates = listOf(aggregate))))
+        val defs = introspector.complete(fragment).defs
+        defs.keys.filter { it.startsWith("wow.") }.assert().containsExactlyInAnyOrder(*Lifecycle.COMMANDS.keys.toTypedArray())
+        defs[Lifecycle.TRANSFER_OWNER].assert().isEqualTo(
+            mapOf(
+                "type" to "object",
+                "properties" to mapOf("ownerId" to mapOf("type" to "string")),
+                "required" to listOf("ownerId"),
+                "description" to "Gives the aggregate to the owner ownerId.",
+            ),
+        )
+        defs[Lifecycle.APPLY_TAGS].assert().isEqualTo(
+            mapOf(
+                "type" to "object",
+                "properties" to mapOf(
+                    "tags" to mapOf(
+                        "type" to "object",
+                        "additionalProperties" to mapOf("type" to "array", "items" to mapOf("type" to "string")),
+                    ),
+                ),
+                "required" to listOf("tags"),
+                "description" to "Sets the aggregate's tags, replacing the ones it had; empty tags clear them.",
+            ),
+        )
+        (defs[Lifecycle.DELETE_AGGREGATE] as Map<*, *>)["type"].assert().isEqualTo("object")
+        // A body the fragment already holds is kept.
+        val known = fragment.copy(defs = mapOf(Lifecycle.DELETE_AGGREGATE to mapOf("type" to "object")))
+        introspector.complete(known).defs[Lifecycle.DELETE_AGGREGATE].assert().isEqualTo(mapOf("type" to "object"))
     }
 }
