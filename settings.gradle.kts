@@ -184,6 +184,8 @@ include(":ops-api")
 project(":ops-api").projectDir = file("platform/ops/ops-api")
 include(":ops-domain")
 project(":ops-domain").projectDir = file("platform/ops/ops-domain")
+include(":ops-server")
+project(":ops-server").projectDir = file("platform/ops/ops-server")
 if (nineX) {
     include(":kernel-benchmarks")
     project(":kernel-benchmarks").projectDir = file("test/kernel-benchmarks")

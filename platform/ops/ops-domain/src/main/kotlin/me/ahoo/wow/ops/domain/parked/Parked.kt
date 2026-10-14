@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.ops.domain.parked
 
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.OnCommand
@@ -43,8 +44,13 @@ import kotlin.time.Duration
  * - **Actions**: [Resume], [Skip], [MarkRecoverable] and [ApplyRetrySpec] record the operator's request
  *   ([ResumeRequested], ...), which [ParkedOperationSaga] sends to the owning service; what came of it arrives as the
  *   service's next record. A resolved entry takes no action: there is nothing parked to act on.
+ *
+ * An entry is a resource of its tenant (decision D189, [Ownership.TENANT]): the ledger records it without an owner,
+ * and every operator of the tenant, a tenant-level caller, reads it; each action is authorized as the ledger's system
+ * command of its name (roadmap 7.1a). It has no lifecycle command: it mirrors the owning service's ledger, which alone
+ * resolves it.
  */
-@AggregateRoot
+@AggregateRoot(lifecycle = [], ownership = Ownership.TENANT)
 @Description("One service's parked entry, as its failure ledger publishes it, and an operator's actions on it")
 class Parked(private val state: ParkedState) {
     @OnCommand(produces = [ParkedRecorded::class])

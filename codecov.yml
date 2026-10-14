@@ -389,6 +389,12 @@ component_management:
         - platform/ops/ops-domain/src/main/**
       flag_regexes:
         - "^v10$"
+    - component_id: v10-ops-server
+      name: v10-ops-server
+      paths:
+        - platform/ops/ops-server/src/main/**
+      flag_regexes:
+        - "^v10$"
     - component_id: wow-client
       name: wow-client
       paths:
