@@ -26,6 +26,7 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.snapshot.SnapshotRebuilds
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Creation
+import me.ahoo.wow.kernel.InMemorySnapshotStore
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
@@ -49,6 +50,7 @@ import me.ahoo.wow.runtime.snapshot.SnapshotPlacement
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -97,10 +99,13 @@ abstract class SnapshotRebuildSpec {
         second.snapshotStatus.rebuilding(type).assert().isTrue()
         // The write side does not read a snapshot of another revision back: it replays the log.
         add(second, IDS.first(), 1)
+        // Rebuilt, and caught up with the log: the table was first claimed by node-1, which never ran a round to mark it
+        // backfilled, so a round of node-2 marks it once its `snapshot` subscription passed the log's head.
         eventually {
             maintain(second)
-            table(A).rebuilding.not()
+            !table(A).catchingUp
         }
+        table(A).assert().isEqualTo(SnapshotTable(2))
         snapshot(A, IDS.first())!!.assertCounter(revision = 2, version = 3, total = 5, adds = 3)
         IDS.drop(1).forEach { snapshot(A, it)!!.assertCounter(revision = 2, version = 2, total = 4, adds = 2) }
         second.snapshotStatus.rebuilding(type).assert().isFalse()
@@ -184,6 +189,8 @@ abstract class SnapshotRebuildSpec {
         snapshot(B, IDS.first())!!.version.assert().isEqualTo(2)
         switched.context(context).backends.primarySnapshots!!.load(type.ref(TENANT, IDS.first()))!!.version
             .assert().isEqualTo(2)
+        // `a` is still a target, written by its own subscription, which the wait does not follow.
+        eventually { snapshot(A, IDS.first())?.version == 2 }
         switched.stop()
 
         val dropped = start("node-5", revision = 1, targets = listOf(B))
@@ -223,9 +230,10 @@ abstract class SnapshotRebuildSpec {
             val old = start("old-1", revision = 1)
             table(A).revision.assert().isEqualTo(2)
             rebuild(old, COUNTER, IDS.first()).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            // The request marks the snapshot stale, then the table rebuilding, in that order.
             eventually { snapshots(A).pending(type, 2, limit = 10).contains(type.ref(TENANT, IDS.first())) }
+            eventually { table(A).rebuilding }
             snapshot(A, IDS.first())!!.stateRevision.assert().isEqualTo(2)
-            table(A).rebuilding.assert().isTrue()
         }
 
     private fun SnapshotRecord.assertCounter(revision: Int, version: Int, total: Int, adds: Int) {
@@ -398,4 +406,28 @@ abstract class SnapshotRebuildSpec {
 /** [SnapshotRebuildSpec] in memory. */
 class MemorySnapshotRebuildTest : SnapshotRebuildSpec() {
     override fun store(name: String): HostStore = MemoryStore(name)
+}
+
+/**
+ * [SnapshotRebuildSpec] in memory with the writes of store `a` delayed: a subscription of `a` is behind the others,
+ * as on a loaded machine, so no assertion may rely on `a` keeping up with `b` or with a wait it does not answer.
+ */
+class SlowStoreSnapshotRebuildTest : SnapshotRebuildSpec() {
+    override fun store(name: String): HostStore = if (name != A) {
+        MemoryStore(name)
+    } else {
+        MemoryStore(name) { SlowSaves(InMemorySnapshotStore()) }
+    }
+
+    /** Saves to [delegate] after [SLOW_WRITE]. */
+    private class SlowSaves(private val delegate: SnapshotStore) : SnapshotStore by delegate {
+        override suspend fun save(snapshot: SnapshotRecord): Boolean {
+            delay(SLOW_WRITE)
+            return delegate.save(snapshot)
+        }
+    }
+
+    private companion object {
+        val SLOW_WRITE = 50.milliseconds
+    }
 }
