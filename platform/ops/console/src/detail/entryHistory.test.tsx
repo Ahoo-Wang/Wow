@@ -18,7 +18,6 @@ import { describe, expect, it, vi } from "vitest";
 import { I18nProvider, type Locale } from "@/i18n.tsx";
 import { ParkedHistory } from "./ParkedHistory.tsx";
 import {
-  eventName,
   HISTORY_LIMIT,
   historyOf,
   historySource,
@@ -102,6 +101,14 @@ const STREAMS: EventStreamRecord[] = [
   stream(10, "SomethingNew", {}),
 ];
 
+/** A system event the kernel commits beside the entry's own (wow-client's SystemEvent). */
+const TAGGED: EventStreamRecord = {
+  ...stream(11, "unused", {}),
+  events: [
+    { name: "wow.lifecycle.TagsApplied", revision: 1, body: { tags: {} } },
+  ],
+};
+
 describe("an entry's history", () => {
   it("reads each event as a step, newest first", () => {
     const items = historyOf([...STREAMS].reverse());
@@ -137,13 +144,24 @@ describe("an entry's history", () => {
     expect(byVersion[6].facts).toEqual({});
     expect(byVersion[7].facts.reason).toBe("The gateway is back.");
     expect(byVersion[9].facts).toEqual({ outcome: "RESUMED" });
-    expect(byVersion[10].name).toBe("SomethingNew");
+    expect(byVersion[10].name).toBe("ops.parked.SomethingNew");
     expect(byVersion[1].at).toBe(AT + 60_000);
   });
 
-  it("names an event without its context and aggregate", () => {
-    expect(eventName("ops.parked.ParkedRecorded")).toBe("ParkedRecorded");
-    expect(eventName("ParkedRecorded")).toBe("ParkedRecorded");
+  it("matches the event names the server sends, system events included", () => {
+    const [tagged] = historyOf([TAGGED]);
+    expect(tagged).toMatchObject({
+      kind: "unknown",
+      name: "wow.lifecycle.TagsApplied",
+    });
+    // The short name is not what the server sends: it is not read as a step.
+    const short = historyOf([
+      {
+        ...STREAMS[0],
+        events: [{ ...STREAMS[0].events[0], name: "ParkedRecorded" }],
+      },
+    ]);
+    expect(short[0].kind).toBe("unknown");
   });
 
   it("is read from the entry's event streams", async () => {
