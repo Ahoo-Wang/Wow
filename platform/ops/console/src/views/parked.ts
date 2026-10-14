@@ -38,7 +38,11 @@ export const PARKED_STATUSES = [
 export type ParkedStatus = (typeof PARKED_STATUSES)[number];
 
 /** Whether a retry may help the entry (`MarkRecoverable`). */
-export const RECOVERABLES = ["RECOVERABLE", "UNRECOVERABLE", "UNKNOWN"] as const;
+export const RECOVERABLES = [
+  "RECOVERABLE",
+  "UNRECOVERABLE",
+  "UNKNOWN",
+] as const;
 
 /** How often the open view reads the entries again, in seconds. */
 export const REFRESH_SECONDS = 15;
@@ -232,7 +236,11 @@ function byContext(): AnalysisViewConfig {
 /** The system views: the queues an operator works through. */
 export function parkedViews(): SystemView[] {
   return [
-    { id: "attention", title: t.viewAttention, config: recordView([ATTENTION]) },
+    {
+      id: "attention",
+      title: t.viewAttention,
+      config: recordView([ATTENTION]),
+    },
     {
       id: "scheduled",
       title: t.viewScheduled,
@@ -310,7 +318,11 @@ export const parked: DataViewDefinition = {
       options: [
         { value: "SCHEDULED", label: t.statusScheduled, tone: "neutral" },
         { value: "EXHAUSTED", label: t.statusExhausted, tone: "danger" },
-        { value: "UNRECOVERABLE", label: t.statusUnrecoverable, tone: "warning" },
+        {
+          value: "UNRECOVERABLE",
+          label: t.statusUnrecoverable,
+          tone: "warning",
+        },
         { value: "RESOLVED", label: t.statusResolved, tone: "success" },
       ],
     },
@@ -416,16 +428,18 @@ export const parked: DataViewDefinition = {
   },
   analysis: {
     count: true,
+    // Categories to count by; a formula takes none of them.
     fields: [
-      { field: "state.context", groups: [AggregationGroupType.TERMS], functions: [] },
-      { field: "state.service", groups: [AggregationGroupType.TERMS], functions: [] },
-      {
-        field: "state.subscription",
-        groups: [AggregationGroupType.TERMS],
-        functions: [],
-      },
-      { field: "state.status", groups: [AggregationGroupType.TERMS], functions: [] },
-    ],
+      "state.context",
+      "state.service",
+      "state.subscription",
+      "state.status",
+    ].map((field) => ({
+      field,
+      groups: [AggregationGroupType.TERMS],
+      functions: [],
+      expressionInput: false,
+    })),
   },
   views: parkedViews(),
 };

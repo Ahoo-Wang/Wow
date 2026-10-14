@@ -75,7 +75,8 @@ const SHELL = {
     cancel: "取消",
     signOut: "清除",
     needCaller: "请先指定调用者：运维服务对匿名请求返回 401。",
-    readOnly: "此调用者没有 ops.operator 角色：可以查看条目，但服务会拒绝其操作。",
+    readOnly:
+      "此调用者没有 ops.operator 角色：可以查看条目，但服务会拒绝其操作。",
     cause: "原因",
     owner: "所属聚合",
     attempts: "尝试",

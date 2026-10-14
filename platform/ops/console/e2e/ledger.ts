@@ -56,7 +56,11 @@ export async function publish(
       reason: `The gateway is unreachable for ${aggregateId}.`,
       failedAt,
       retries: 3,
-      retrySpec: { maxRetries: 3, minBackoff: "PT1M", executionTimeout: "PT2M" },
+      retrySpec: {
+        maxRetries: 3,
+        minBackoff: "PT1M",
+        executionTimeout: "PT2M",
+      },
       status,
       nextRetryAt: status === "SCHEDULED" ? failedAt + HOUR : null,
       recordedAt: failedAt + 1,

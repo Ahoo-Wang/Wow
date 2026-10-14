@@ -66,7 +66,9 @@ function classPath() {
 }
 
 if (!existsSync(join(CONSOLE, "index.html")))
-  throw new Error("The console is not built: pnpm build, in platform/ops/console.");
+  throw new Error(
+    "The console is not built: pnpm build, in platform/ops/console.",
+  );
 
 const java = process.env.JAVA_HOME
   ? join(process.env.JAVA_HOME, "bin", "java")

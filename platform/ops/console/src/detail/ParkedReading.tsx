@@ -54,13 +54,7 @@ const STATUS_VARIANT: Record<string, "destructive" | "secondary" | "outline"> =
     RESOLVED: "outline",
   };
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-2">
       <h3 className="text-sm font-semibold">{title}</h3>
@@ -170,7 +164,9 @@ export function ParkedReading({ row }: { row: RecordRow }) {
       </Section>
       {entry.requested ? (
         <Section title={t("request")}>
-          <Facts rows={[[label("requested"), option("requested", entry.requested)]]} />
+          <Facts
+            rows={[[label("requested"), option("requested", entry.requested)]]}
+          />
           <p className="text-sm text-muted-foreground">{t("pendingRequest")}</p>
         </Section>
       ) : null}

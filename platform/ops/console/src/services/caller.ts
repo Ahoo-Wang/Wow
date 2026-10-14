@@ -65,7 +65,9 @@ export function readCaller(value: string | null): OpsCaller | null {
           ? parsed.tenant.trim()
           : DEFAULT_TENANT,
       roles: Array.isArray(parsed.roles)
-        ? parsed.roles.filter((role): role is string => typeof role === "string")
+        ? parsed.roles.filter(
+            (role): role is string => typeof role === "string",
+          )
         : [],
     };
   } catch {

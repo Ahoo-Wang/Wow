@@ -12,7 +12,13 @@
  */
 
 import { expect, test, type Page } from "@playwright/test";
-import { ledgerCommands, listed, publish, resolve, type Parked } from "./ledger.ts";
+import {
+  ledgerCommands,
+  listed,
+  publish,
+  resolve,
+  type Parked,
+} from "./ledger.ts";
 
 /*
  * The ops console end to end (roadmap 7.1b): the console as the ops server
@@ -53,7 +59,9 @@ function row(page: Page, entry: Parked) {
 /** Opens a system view from the view list. */
 async function view(page: Page, title: string) {
   // A system view's entry reads its title and its audience.
-  await page.getByRole("button", { name: `${title} system`, exact: true }).click();
+  await page
+    .getByRole("button", { name: `${title} system`, exact: true })
+    .click();
 }
 
 let context: string;
@@ -76,7 +84,9 @@ test("the ops server serves the console, which asks for a caller first", async (
   page,
 }) => {
   await open(page, null);
-  await expect(page.getByText("Name a caller to read the parked entries")).toBeVisible();
+  await expect(
+    page.getByText("Name a caller to read the parked entries"),
+  ).toBeVisible();
   await page.getByLabel("User").fill(OPERATOR.user);
   await page.getByLabel("Roles").fill(OPERATOR.roles.join(","));
   await page.getByRole("button", { name: "Use this caller" }).click();
@@ -101,9 +111,13 @@ test("an entry's detail reads its cause, attempts, retry spec and owning aggrega
   page,
 }) => {
   await open(page, OPERATOR);
-  await row(page, exhausted).getByText(exhausted.aggregateId, { exact: true }).click();
+  await row(page, exhausted)
+    .getByText(exhausted.aggregateId, { exact: true })
+    .click();
   const detail = page.getByTestId("parked-reading");
-  await expect(detail).toContainText(`The gateway is unreachable for ${exhausted.aggregateId}.`);
+  await expect(detail).toContainText(
+    `The gateway is unreachable for ${exhausted.aggregateId}.`,
+  );
   await expect(detail).toContainText(`${context}-service`);
   await expect(detail).toContainText(`${context}.payment`);
   await expect(detail).toContainText("3 of 3");
@@ -126,7 +140,9 @@ test("an operator resumes an entry, it goes back to the owning service, and the 
   // The request is recorded on the entry, and the saga sends it to the owning context.
   await expect(row(page, exhausted)).toContainText("Resume");
   await expect
-    .poll(async () => (await ledgerCommands(request, context)).map((it) => [it.type, it.id]))
+    .poll(async () =>
+      (await ledgerCommands(request, context)).map((it) => [it.type, it.id]),
+    )
     .toContainEqual(["wow.ledger.Resume", exhausted.id]);
 
   // The owning service resumed it: the open view reads the entries again on
@@ -144,8 +160,13 @@ test("mark recoverable and apply retry spec go back as the ledger's commands", a
   await open(page, OPERATOR);
   const entry = row(page, unrecoverable);
   await entry.getByRole("button", { name: /^Actions for/ }).click();
-  await page.getByRole("menuitem", { name: "Recoverable", exact: true }).click();
-  await page.getByRole("dialog").getByRole("button", { name: /Mark as/ }).click();
+  await page
+    .getByRole("menuitem", { name: "Recoverable", exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: /Mark as/ })
+    .click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
   await entry.getByRole("button", { name: /^Actions for/ }).click();
@@ -159,10 +180,15 @@ test("mark recoverable and apply retry spec go back as the ledger's commands", a
   await expect
     .poll(async () => {
       const sent = await ledgerCommands(request, context);
-      return sent.filter((it) => it.id === unrecoverable.id).map((it) => it.type);
+      return sent
+        .filter((it) => it.id === unrecoverable.id)
+        .map((it) => it.type);
     })
     .toEqual(
-      expect.arrayContaining(["wow.ledger.MarkRecoverable", "wow.ledger.ApplyRetrySpec"]),
+      expect.arrayContaining([
+        "wow.ledger.MarkRecoverable",
+        "wow.ledger.ApplyRetrySpec",
+      ]),
     );
   const sent = await ledgerCommands(request, context);
   const spec = sent.find((it) => it.type === "wow.ledger.ApplyRetrySpec");
@@ -173,9 +199,16 @@ test("a caller without ops.operator reads the entries, and the service's refusal
   page,
 }) => {
   await open(page, VIEWER);
-  await expect(page.getByText("This caller has no ops.operator role")).toBeVisible();
-  await row(page, unrecoverable).getByRole("button", { name: "Resume" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "Resume" }).click();
+  await expect(
+    page.getByText("This caller has no ops.operator role"),
+  ).toBeVisible();
+  await row(page, unrecoverable)
+    .getByRole("button", { name: "Resume" })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Resume" })
+    .click();
   // The problem's own words and code (application/problem+json), said on
   // the outcome line.
   await expect(

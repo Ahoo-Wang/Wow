@@ -760,6 +760,9 @@ importers:
       jsdom:
         specifier: 'catalog:'
         version: 29.1.1(patch_hash=e3cc832b737c64812e91aeec5b51dcfc530c129436ae2ff992ee9655591e0962)
+      mingo:
+        specifier: 'catalog:'
+        version: 7.2.4
       shadcn:
         specifier: 'catalog:'
         version: 4.21.4

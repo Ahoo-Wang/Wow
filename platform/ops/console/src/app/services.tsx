@@ -37,7 +37,8 @@ export function ServicesProvider({
 
 export function useServices(): OpsServices {
   const services = useContext(ServicesContext);
-  if (!services) throw new Error("No ops services: render under ServicesProvider.");
+  if (!services)
+    throw new Error("No ops services: render under ServicesProvider.");
   return services;
 }
 
