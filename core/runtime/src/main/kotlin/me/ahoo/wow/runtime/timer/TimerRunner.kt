@@ -239,7 +239,7 @@ class TimerRunner(
                 return
             }
             val outcome = try {
-                firer.fire(timer)
+                firer.fire(claimed)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {

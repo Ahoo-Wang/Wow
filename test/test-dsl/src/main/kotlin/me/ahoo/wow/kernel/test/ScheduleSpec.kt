@@ -106,7 +106,12 @@ class ScheduleSpec(
     }
 
     /** Overrides the rule of [job]'s instance in [tenantId] with [rule], null to follow the default again. */
-    fun reschedule(job: String, tenantId: String = Caller.DEFAULT_TENANT, rule: JobRule? = null, partition: Int? = null) {
+    fun reschedule(
+        job: String,
+        tenantId: String = Caller.DEFAULT_TENANT,
+        rule: JobRule? = null,
+        partition: Int? = null
+    ) {
         check(instance(job, tenantId, partition).sendCommand(RescheduleJob(rule), OPERATOR), "reschedule $job")
     }
 

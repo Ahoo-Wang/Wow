@@ -149,23 +149,7 @@ object ScheduleJobModel {
 
     private fun DecideScope.enable(jobs: Map<String, ScheduleJob>, state: JobState, body: EnableJob): Decision {
         val job = jobs[body.job] ?: return invalid("No job ${body.job} in ${command.ref.type.context}.")
-        val ref = command.ref
-        val problem = when {
-            job.scope == JobScope.SYSTEM && ref.tenantId != Caller.DEFAULT_TENANT ->
-                "Job ${job.name} is a SYSTEM job: its instance is in the default tenant, not ${ref.tenantId}."
-
-            state.job != null && state.job != job.name -> "Instance ${ref.id} runs the job ${state.job}, not ${job.name}."
-            job.sharded && body.partition == null -> "Job ${job.name} is sharded: its instance names its partition."
-            !job.sharded && body.partition != null -> "Job ${job.name} is not sharded: its instance has no partition."
-            job.sharded && !ref.id.startsWith("${job.name}~${body.partition}~") ->
-                "Instance ${ref.id} is not the instance of ${job.name} for partition ${body.partition}."
-
-            !job.sharded && ref.id != job.name -> "The instance of job ${job.name} has the id ${job.name}, not ${ref.id}."
-            else -> null
-        }
-        if (problem != null) {
-            return invalid(problem)
-        }
+        problemOf(job, command.ref, state, body)?.let { return invalid(it) }
         val override = body.rule ?: state.override
         val rule = ruleOf(job, override) ?: return invalid("Job ${job.name} cannot run by $override.")
         if (state.enabled && state.rule == rule && state.override == override) {
@@ -173,6 +157,25 @@ object ScheduleJobModel {
         }
         schedule(ScheduleJobs.TICK_KEY, rule, TickJob)
         return Decision.events(JobEnabled(job.name, rule, override, body.partition))
+    }
+
+    /** Why [body] cannot enable [job] on the instance [ref] in [state]; null when it can. */
+    private fun problemOf(job: ScheduleJob, ref: AggregateRef, state: JobState, body: EnableJob): String? = when {
+        job.scope == JobScope.SYSTEM && ref.tenantId != Caller.DEFAULT_TENANT ->
+            "Job ${job.name} is a SYSTEM job: its instance is in the default tenant, not ${ref.tenantId}."
+
+        state.job != null && state.job != job.name -> "Instance ${ref.id} runs the job ${state.job}, not ${job.name}."
+        job.sharded -> when {
+            body.partition == null -> "Job ${job.name} is sharded: its instance names its partition."
+            !ref.id.startsWith("${job.name}~${body.partition}~") ->
+                "Instance ${ref.id} is not the instance of ${job.name} for partition ${body.partition}."
+
+            else -> null
+        }
+
+        body.partition != null -> "Job ${job.name} is not sharded: its instance has no partition."
+        ref.id != job.name -> "The instance of job ${job.name} has the id ${job.name}, not ${ref.id}."
+        else -> null
     }
 
     private fun DecideScope.reschedule(jobs: Map<String, ScheduleJob>, state: JobState, body: RescheduleJob): Decision {

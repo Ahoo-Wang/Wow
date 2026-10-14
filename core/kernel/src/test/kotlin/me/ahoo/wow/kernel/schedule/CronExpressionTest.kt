@@ -193,10 +193,18 @@ class CronExpressionTest {
         assertThrownBy<IllegalArgumentException> { CronExpression.parse(" ") }
         assertThrownBy<IllegalArgumentException> { CronExpression.parse("0 0 * * *") }.hasMessageContaining("5 fields")
         assertThrownBy<IllegalArgumentException> { CronExpression.parse("60 * * * * *") }.hasMessageContaining("\"60\"")
-        assertThrownBy<IllegalArgumentException> { CronExpression.parse("0 0 5-1 * * *") }.hasMessageContaining("backwards")
+        assertThrownBy<IllegalArgumentException> {
+            CronExpression.parse(
+                "0 0 5-1 * * *"
+            )
+        }.hasMessageContaining("backwards")
         assertThrownBy<IllegalArgumentException> { CronExpression.parse("*/0 * * * * *") }.hasMessageContaining("step")
         assertThrownBy<IllegalArgumentException> { CronExpression.parse("0 0 0 * FOO *") }
-        assertThrownBy<IllegalArgumentException> { CronExpression.parse("0 0 0 1,,2 * *") }.hasMessageContaining("empty")
+        assertThrownBy<IllegalArgumentException> {
+            CronExpression.parse(
+                "0 0 0 1,,2 * *"
+            )
+        }.hasMessageContaining("empty")
         assertThrownBy<IllegalArgumentException> { CronExpression.parse("0 0 0 L-0 * *") }
         assertThrownBy<IllegalArgumentException> { CronExpression.parse("0 0 0 * * MON#6") }
         assertThrownBy<IllegalArgumentException> { CronExpression.parse("0 0 0 * * L") }

@@ -27,12 +27,12 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
-import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.kernel.InMemoryEventLog
 import me.ahoo.wow.kernel.InMemoryReservationStore
 import me.ahoo.wow.kernel.InMemoryTimerStore
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.StateCache
+import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -266,8 +266,9 @@ class AggregateSpec<S : Any>(
     }
 
     /**
-     * Sends [command], from a caller in [scope], through the kernel and checks its outcome in [expect]. An exception
-     * the decide function throws fails the specification, unless [expect] checks it with
+     * Sends [command], from a caller in [scope], with the request facts [headers] (a scheduled command's
+     * [me.ahoo.wow.api.schedule.ScheduleContext.headers], say), through the kernel and checks its outcome in [expect].
+     * An exception the decide function throws fails the specification, unless [expect] checks it with
      * [Expectations.expectError].
      */
     fun whenCommand(
@@ -275,9 +276,12 @@ class AggregateSpec<S : Any>(
         requestId: String = "request-${++sequence}",
         expectedVersion: Int? = null,
         scope: Scope = Scope.NONE,
+        headers: Map<String, String> = emptyMap(),
         expect: Expectations<S>.() -> Unit,
     ) {
-        val result = send(Command("command-${++sequence}", requestId, ref, command, expectedVersion, scope))
+        val result = send(
+            Command("command-${++sequence}", requestId, ref, command, expectedVersion, scope, headers = headers),
+        )
         verify(result, expect)
     }
 
