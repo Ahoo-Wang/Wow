@@ -3,7 +3,11 @@
   "ceilings": {
     ".": {
       "gzip": 6800,
-      "reason": "Raised 2026-10-11 to about 19% over the 5,730 B measured with WowDatasetWordings (a dataset's wording, view engine D86); set 2026-09-30 at 5,400 B, 18% over 4,594 B."
+      "reason": "Raised 2026-10-11 to about 19% over the 5,730 B measured with WowDatasetWordings (a dataset's wording, view engine D86); set 2026-09-30 at 5,400 B, 18% over 4,594 B. Measured 5,939 B on 2026-10-14, once the paths, the wire and the memory of writes moved into a chunk the /v10 entry shares (7.3a)."
+    },
+    "./v10": {
+      "gzip": 7500,
+      "reason": "Set 2026-10-14 (roadmap 7.3a) at about 19% over the 6,322 B measured: the V10 store, its dataset wording and the ViewSource adapter, the clients generated from the V10 view store's Manifest, and the chunk shared with the root entry."
     }
   }
 }

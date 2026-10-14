@@ -15,16 +15,16 @@
 //
 // Holds the built package to the public surface its source promises:
 //
-// 1. Every file `exports` names exists and is not empty, and the entry
-//    resolves under `import` to the file it declares.
-// 2. The entry exports at run time exactly the values `test/surface/root.txt`
-//    names. The list is written from the source by
-//    `test/publicSurface.test.ts`; this holds the bundle to it.
+// 1. Every file `exports` names exists and is not empty, and each entry (the
+//    root and `/v10`) resolves under `import` to the file it declares.
+// 2. Each entry exports at run time exactly the values its list under
+//    `test/surface/` names. The lists are written from the source by
+//    `test/publicSurface.test.ts`; this holds the bundle to them.
 // 3. The bundle bundles none of its peers: the Fetcher, wow-client and the
 //    view engine are imported, so the `ViewStoreError` the store rejects with
 //    is the host's own engine's.
 // 4. No declaration map ships: the package holds no `src`.
-// 5. The entry's gzipped size stays under its regression ceiling.
+// 5. Each entry's gzipped size stays under its regression ceiling.
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -39,47 +39,65 @@ const manifest = JSON.parse(
   readFileSync(new URL('package.json', packageRoot), 'utf8'),
 );
 const name = manifest.name;
-const root = manifest.exports['.'];
 
-for (const path of [root.types, root.import, root.default])
-  assert.ok(
-    statSync(new URL(path, packageRoot)).size > 0,
-    `${path} is missing or empty; run the build first`,
+/** Each code entry: its `exports` key, and the surface list it is held to. */
+const ENTRIES = {
+  '.': 'test/surface/root.txt',
+  './v10': 'test/surface/v10.txt',
+};
+
+const measured = {};
+const counts = [];
+for (const [key, list] of Object.entries(ENTRIES)) {
+  const entry = manifest.exports[key];
+  const specifier = key === '.' ? name : `${name}/${key.slice(2)}`;
+  for (const path of [entry.types, entry.import, entry.default])
+    assert.ok(
+      statSync(new URL(path, packageRoot)).size > 0,
+      `${path} is missing or empty; run the build first`,
+    );
+
+  const esm = import.meta.resolve(specifier);
+  assert.equal(
+    esm,
+    new URL(entry.import, packageRoot).href,
+    `${specifier} does not resolve to its declared import target`,
   );
 
-const esm = import.meta.resolve(name);
-assert.equal(
-  esm,
-  new URL(root.import, packageRoot).href,
-  `${name} does not resolve to its declared import target`,
-);
+  const values = readFileSync(new URL(list, packageRoot), 'utf8')
+    .split('\n')
+    .filter(line => line.startsWith('value '))
+    .map(line => line.slice('value '.length).trim())
+    .sort();
+  assert.deepEqual(
+    Object.keys(await import(esm)).sort(),
+    values,
+    `${specifier} does not export the values ${list} names`,
+  );
+  counts.push(`${values.length} in ${list}`);
 
-const values = readFileSync(
-  new URL('test/surface/root.txt', packageRoot),
-  'utf8',
-)
-  .split('\n')
-  .filter(line => line.startsWith('value '))
-  .map(line => line.slice('value '.length).trim())
-  .sort();
-assert.deepEqual(
-  Object.keys(await import(esm)).sort(),
-  values,
-  `${name} does not export the values test/surface/root.txt names`,
-);
+  const file = fileURLToPath(new URL(entry.import, packageRoot));
+  const closure = staticClosure(file);
+  const bundle = closure.map(path => readFileSync(path, 'utf8')).join('\n');
+  assert.doesNotMatch(
+    bundle,
+    /class ViewStoreError\b/,
+    `${specifier} carries its own ViewStoreError instead of the engine's`,
+  );
+  measured[key] = gzippedSize(closure);
+}
 
-const bundle = readFileSync(new URL(root.import, packageRoot), 'utf8');
+// Every peer is imported, by one entry or the other, never bundled.
+const bundles = readdirSync(new URL('dist/', packageRoot))
+  .filter(file => file.endsWith('.js'))
+  .map(file => readFileSync(new URL(`dist/${file}`, packageRoot), 'utf8'))
+  .join('\n');
 for (const peer of Object.keys(manifest.peerDependencies))
   assert.match(
-    bundle,
-    new RegExp(`from\\s*["']${peer.replace('/', '\\/')}["']`),
+    bundles,
+    new RegExp(`from\\s*["']${peer.replace('/', '\\/')}(?:/[\\w-]+)?["']`),
     `the bundle does not import its peer ${peer}`,
   );
-assert.doesNotMatch(
-  bundle,
-  /class ViewStoreError\b/,
-  "the bundle carries its own ViewStoreError instead of the engine's",
-);
 
 const declarationMaps = readdirSync(new URL('dist/', packageRoot), {
   recursive: true,
@@ -89,13 +107,9 @@ assert.deepEqual(declarationMaps, [], 'dist holds declaration maps');
 const sizes = checkSizes({
   packageName: name,
   budgetFile: fileURLToPath(new URL('scripts/size-budget.json', packageRoot)),
-  measured: {
-    '.': gzippedSize(
-      staticClosure(fileURLToPath(new URL(root.import, packageRoot))),
-    ),
-  },
+  measured,
 });
 
 console.log(
-  `${name} resolves to its declared entry, exports at run time exactly the ${values.length} values test/surface/root.txt names, imports its peers rather than bundling them, ships no declaration map, and weighs, gzipped against its ceiling, ${sizes}.`,
+  `${name} resolves to its declared entries, exports at run time exactly the values its lists name (${counts.join(', ')}), imports its peers rather than bundling them, ships no declaration map, and weighs, gzipped against its ceilings, ${sizes}.`,
 );

@@ -28,6 +28,9 @@ typescript/wow-generator/expected/
 # Generator output committed byte for byte; typescript-contract.yml regenerates it
 # against the example server and fails on any difference.
 typescript/integration-test/src/generated/
+# Generated from the V10 view store's Manifest baseline, held byte for byte by
+# typescript/wow-view-store/test/v10/generated.test.ts.
+typescript/wow-view-store/src/v10/generated/
 test-output/
 # Baselines tests write and compare byte for byte: API Extractor's reports and
 # the golden files wow-client's tests write with -u.

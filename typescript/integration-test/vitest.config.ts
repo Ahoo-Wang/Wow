@@ -11,12 +11,14 @@
  * limitations under the License.
  */
 
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 // Kept apart from `vite.config.ts`, which builds the library: the tests need
 // none of its plugins, only the wait for a ready server (`test/globalSetup.ts`).
 export default defineConfig({
   test: {
     globalSetup: ['test/globalSetup.ts'],
+    // The V10 suites start a server of their own: vitest.v10.config.ts.
+    exclude: [...configDefaults.exclude, 'test/view-store-v10/**'],
   },
 });

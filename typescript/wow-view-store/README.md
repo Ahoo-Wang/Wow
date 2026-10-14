@@ -109,6 +109,81 @@ expected revision (`'0'` for one never written) and `clear` removes it; the
 gateway decides who may, by the role it admits to
 `…/owner/(shared)/datasets/{dataset}/wording`.
 
+### On a Wow V10 service
+
+`@ahoo-wang/wow-view-store/v10` is the same port on the **V10** view store
+service (`platform/view-store` in the Wow repository): `WowViewStore` and
+`WowDatasetWordings` of the same names and options, built on the clients
+generated from the service's Manifest (`@ahoo-wang/wow-client/v10`), and
+`viewSourceOf` / `datasetCatalogOf`, which put the engine's queries on V10
+query routes. The root entry stays the 9.x store; a host picks one by the
+entry it imports.
+
+<!-- typecheck-context
+import type { ViewDefinition, ViewPermissions } from '@ahoo-wang/wow-view-engine';
+declare const orders: ViewDefinition;
+declare const permissionsFromRoles: (definitionId: string) => ViewPermissions;
+-->
+
+```ts
+import { Fetcher } from '@ahoo-wang/fetcher';
+import { DatasetClient, SnapshotQueryClient } from '@ahoo-wang/wow-client/v10';
+import { DatasetResources, ViewEngine } from '@ahoo-wang/wow-view-engine';
+import {
+  WowDatasetWordings,
+  WowViewStore,
+  datasetCatalogOf,
+  viewSourceOf,
+} from '@ahoo-wang/wow-view-store/v10';
+
+// The V10 service takes the tenant and the owner from the principal: the
+// fetcher's interceptors send the authorization and `CoSec-App-Id`, and no
+// path names either.
+const fetcher = new Fetcher({ baseURL: 'https://api.example.com' });
+
+const engine = new ViewEngine({
+  store: new WowViewStore({ fetcher, permissions: permissionsFromRoles }),
+  resources: [
+    {
+      definition: orders,
+      // Any V10 query route: a generated `…SnapshotQueryClient` fits too.
+      source: viewSourceOf(
+        new SnapshotQueryClient(
+          { context: 'sales', name: 'order' },
+          { fetcher },
+        ),
+      ),
+    },
+  ],
+});
+
+// The service's datasets (`GET /wow/dataset`), worded by the tenant.
+const datasets = new DatasetResources(engine, {
+  ...datasetCatalogOf(new DatasetClient({ fetcher })),
+  wordings: new WowDatasetWordings({ fetcher }),
+});
+await datasets.refresh();
+```
+
+What differs from the 9.x store is the service's, not the port's:
+
+- **Who is asking** comes from the principal; a shared view is written as
+  the reserved owner `(shared)` and a stored system view as `(system)` of
+  `(platform)`, which the store says itself with `Wow-Scope`. The service
+  authorizes each write: give `createShared` and `changeAudience` by the role
+  that writes `(shared)` (`view-store.shared-writer` as shipped), and
+  `editSystem` by the one that writes `(system)`.
+- **Writes** carry the port's request id as `Wow-Request-Id` and its revision
+  as `If-Match`; the service deduplicates every write by its request id,
+  creates included, so a retry from any tab is answered with the first
+  outcome. Setting a view shared or personal waits for the service's saga
+  that moves it to its new owner.
+- **Errors** are read by the problem's `code`: a `ViewStoreError` carries it
+  as `detail.code` (`WowViewStoreErrorCodes` lists the view store's own), and
+  a route the service does not serve (`404` without a code) is `UNSUPPORTED`.
+- **A page's total** is the service's default `BOUNDED` count: a V10 service
+  refuses an exact total over HTTP.
+
 ## Documentation
 
 | To                                                                                              | Read                                                                                                             |
@@ -123,6 +198,8 @@ gateway decides who may, by the role it admits to
   server, the public surface and the API report.
 - The port's conformance suite runs over `WowViewStore` against a view store
   server in `typescript/integration-test` (`test/view-store/`), with the tenant
-  and application isolation.
+  and application isolation; over the V10 `WowViewStore` against the V10 view
+  store service, which `pnpm --dir typescript/integration-test test:v10`
+  starts on ports bound to 0 (`test/view-store-v10/`).
 
 Licensed under the Apache License, Version 2.0.

@@ -12,6 +12,7 @@
     "test",
     "vite.config.ts",
     "vitest.config.ts",
-    "vitest.released.config.ts"
+    "vitest.released.config.ts",
+    "vitest.v10.config.ts"
   ]
 }

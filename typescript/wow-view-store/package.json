@@ -33,6 +33,11 @@
       "import": "./dist/index.es.js",
       "default": "./dist/index.es.js"
     },
+    "./v10": {
+      "types": "./dist/v10/index.d.ts",
+      "import": "./dist/v10.es.js",
+      "default": "./dist/v10.es.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -61,6 +66,7 @@
     "@ahoo-wang/fetcher-decorator": "catalog:",
     "@ahoo-wang/fetcher-eventstream": "catalog:",
     "@ahoo-wang/wow-client": "workspace:~",
+    "@ahoo-wang/wow-generator": "workspace:~",
     "@ahoo-wang/wow-view-engine": "workspace:~",
     "@eslint/js": "catalog:",
     "@microsoft/api-extractor": "catalog:",

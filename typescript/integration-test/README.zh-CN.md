@@ -138,6 +138,21 @@ bin/wow-view-store-server \
 示例服务端同样带上这四个 `--wow.view-store.system-views[0].…` 参数启动。`test` 等两个服务端都就绪，并先在每个
 服务端上把视图存储的两个聚合各预热一次。
 
+## V10 store 对 V10 视图存储服务
+
+`test/view-store-v10/` 用 V10 视图存储服务（`platform/view-store`，路线图 7.3a）守着 `@ahoo-wang/wow-view-store/v10` 与跑在它上面的视图引擎：端口一致性套件、租户与应用的隔离、存储的与配置的系统视图、服务端的写入角色、租户的数据集措辞、错误、`viewSourceOf` 走 V10 查询路由，以及引擎端到端（保存、冲突、结局未知后重试、设为共享与认领、偏好、记录视图与分析经 V10 查询路由取数）。它与其余用例分开跑，有自己的 setup（`vitest.v10.config.ts`），不需要示例服务端，也不需要 MongoDB。
+
+setup 在一个 JVM 里起内存后端的服务，端口都绑 0，结束时停掉。内存后端自己不提供快照查询（eShop 的 DX 缺口 G14），所以服务带着它自己测试用的内存查询后端起。先用 JDK 21 构建：
+
+```bash
+./gradlew -Pwow.scope=v10 :view-store-server:installDist \
+  :view-store-server:testClasses :query:testFixturesJar
+pnpm --filter @ahoo-wang/wow-view-store... build
+pnpm --dir typescript/integration-test test:v10
+```
+
+`JAVA_HOME` 决定用哪个 JVM（没设时用路径上的 `java`）。设了 `WOW_V10_VIEW_STORE_URL` 时改连已经在跑的服务；它要提供快照查询，并配着 `test/view-store-v10/globalSetup.ts` 配置的那个 `conformance-system` 的系统视图。
+
 ## 在 Elasticsearch 上
 
 `test/view-engine/` 与 `test/view-store/` 还会对一个事件与快照都存在 Elasticsearch 上的示例服务端再跑一遍：给测试设置 `WOW_EXAMPLE_STORAGE=elasticsearch`（默认是 `mongo`）。它选择随后端而不同的部分：`recordView.test.ts` 里的搜索会真正执行并核对返回的行，而不是断言被拒绝。`PERCENTILE(50)` 在两种后端上都只要求落在中间两个值之间（MongoDB 返回较小的那个，Elasticsearch 做插值）。启动不带安全设置的 Elasticsearch 9.2.6，以及带着 Wow 的模板和它自带索引定义（`wow.example.order.snapshot.json`、视图存储的定义）的示例服务端：

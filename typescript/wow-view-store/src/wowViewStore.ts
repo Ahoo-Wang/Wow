@@ -58,6 +58,7 @@ import {
   type SystemViewBody,
   type ViewSnapshotBody,
 } from './wire.js';
+import { Remembered } from './remembered.js';
 
 /** How a {@link WowViewStore} reaches the view store. */
 export interface WowViewStoreOptions {
@@ -91,9 +92,6 @@ export interface WowViewStoreOptions {
  * more views of one audience lists the first this many.
  */
 const LIST_LIMIT = 1000;
-
-/** How many preference writes the store remembers the outcome of. */
-const REMEMBERED_WRITES = 256;
 
 /** What a stored system view's writes expect: its version at a revision. */
 interface StoredAt {
@@ -949,25 +947,3 @@ export async function guard<T>(run: () => Promise<T>): Promise<T> {
  * is read again before its write.
  */
 const REMEMBERED_SYSTEM_VIEWS = 1024;
-
-/** A bounded memory by key: the oldest entry goes first. */
-class Remembered<T> {
-  private readonly entries = new Map<string, T>();
-
-  constructor(private readonly limit = REMEMBERED_WRITES) {}
-
-  get(key: string): T | undefined {
-    return this.entries.get(key);
-  }
-
-  has(key: string): boolean {
-    return this.entries.has(key);
-  }
-
-  set(key: string, value: T): void {
-    this.entries.delete(key);
-    this.entries.set(key, value);
-    if (this.entries.size > this.limit)
-      this.entries.delete(this.entries.keys().next().value!);
-  }
-}
