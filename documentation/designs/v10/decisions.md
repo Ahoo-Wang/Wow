@@ -15,7 +15,7 @@
 
 | # | 问题 | 推荐 | 状态 | 最晚 | 文档 |
 |---|---|---|---|---|---|
-| T2 | 6.0g 按聚合配置存储（D177）是否进 10.0：它改日志分组、分区序号与检查点，按 D196「先稳住核心」不应排在核心加固之后 | 推迟到 10.x，10.0 只支持一个存储，D177 改为待定；若 10.0 需要，则排在 C.1 之前 | 待定（等用户拍板） | C.1 开始前 | [roadmap](roadmap.md) |
+| — | 当前无待决项（T1 由 D192、D193 决定，T2 由 D197 决定） | | | | |
 
 ## 2. 待验证的假设
 
@@ -215,6 +215,7 @@
 | D194 | 读其他上下文事件流的订阅起点（DX G10）：注解可声明起点 `@OnEvent(start = BEGINNING \| END)`（编译器写进 Manifest），宿主配置 `wow.subscriptions.[…].start` 覆盖它；读其他上下文事件流的订阅默认 `BEGINNING`，上下文内的订阅仍默认 `END`（从头重放会重复历史副作用）；起点只在没有检查点的首次加入时生效 | 2026-10-13，用户确认（按推荐） | [04](04-subscriptions.md) |
 | D195 | 写 V10 指南时发现的代码与决定不一致（E.D）的处理：D173 改代码，内部端口默认绑节点对外公布的成员地址，`wow.internal.host` 覆盖；D176 改决定，以代码为准，创建命令用两条 `POST` 路由（带与不带 `{id}`），幂等由请求 ID 保证；D4 改代码，`@AggregateRoot(snapshot = false)` 关闭该聚合的快照，编译器写进 Manifest，`WaitPlan` 与 Manifest 不再为它描述 `SNAPSHOT` 阶段；`wow.subscription.read-retry.max-attempts` 改代码接上读重试；手写的 Decider DSL 模型 10.0 不由宿主承载，只用于测试，指南写明，有需求再补 `ModelProvider` | 2026-10-13，用户确认（按推荐） | [02](02-write-path.md)、[03](03-log-and-snapshot.md)、[05](05-read-and-contract.md) |
 | D196 | 推进原则与测试门禁：**先稳住核心，再完成全能力**。M7 前分两阶段：先核心（P.10、偶发失败根因、H2 阶段 2、P.13、测试模块 P.9、核心加固 C.1），后全能力（P.11、P.12、6.3f、6.9、6.2d～f、5a.2～5a.4）。**测试模块是每次迭代的门禁**：P.9 提前到核心阶段并扩展为 V10 测试模块 `:test`（测试 DSL，从 `:kernel` 的测试夹具移出）与 `:tck`（SPI 规格从 `:spi` 的测试夹具移出，加 `TestValidator` 与 Testcontainers 夹具），artifactId 按 D87 为 `wow-test`、`wow-tck`，发布仍按 D88 在 M8；每个工作包合并前须过门禁：`v10Check`、各后端跑全部 TCK 规格、eShop 全链路及其不变量；新能力须同时带测试 DSL 或 TCK 的覆盖，测试模块缺的能力先于功能补；C.1 的故障注入与浸泡按夜跑 | 2026-10-13，用户 | [roadmap](roadmap.md)、[06](06-modules.md) |
+| D197 | 6.0g 按聚合配置存储（D177）进 10.0（T2）：它改日志分组、分区序号与检查点，按 D196 排在核心阶段、C.1 之前，在 P.9 测试门禁之后实现，C.1 的故障注入与浸泡覆盖多存储配置（两个存储实例、聚合分属不同日志组） | 2026-10-13，用户 | [roadmap](roadmap.md) |
 | D86 | 保留 `v10` 长期分支（维持 D2），不回主干：第一次前向合并只有 4 个冲突（都在工作流路径过滤），按目录分范围的 CI 与 D85 拆分已把分支成本降到每周一次合并；回主干则 main 须同时承载 9.x 与 10.0 的版本线，且工具链为 JDK 17 对 21（D29）。前向合并的提交由用户推送（自动权限分类器拦截直接推送）。M9 合入 main 前再评估 | 2026-10-12，用户 | [roadmap](roadmap.md) §1 |
 | D69 | 默认等待 `SNAPSHOT`（即 `HANDLED(snapshot)`）而不是 `COMMITTED`：快照是默认读模型，写后即可查；代价是多一段快照订阅延迟、每条条目写 `WaitContext`；聚合关闭快照时默认退回 `COMMITTED`；修订 D15 的默认值 | 2026-10-12，用户 | [04](04-subscriptions.md) |
 | D66 | `wow-api` 重新设计：只放领域代码会 import 的东西与对外线上契约的值类型，无依赖；包为 aggregate、decide、subscribe、result、lifecycle、annotation；9.x 的 modeling、naming、messaging、command、event 删除，query 搬入 `wow-query-api`；V10 包现在补齐，9.x 包随 `wow-core` 的替换删除 | 2026-10-12，用户 | [06](06-modules.md) |
