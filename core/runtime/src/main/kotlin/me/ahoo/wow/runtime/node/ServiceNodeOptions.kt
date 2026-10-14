@@ -27,6 +27,8 @@ import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.command.ReceiptHandler
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.schedule.JobOptions
+import me.ahoo.wow.runtime.snapshot.SnapshotOptions
+import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.runtime.state.StateViewOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
@@ -37,8 +39,6 @@ import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
-import me.ahoo.wow.runtime.snapshot.SnapshotOptions
-import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore

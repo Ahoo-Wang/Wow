@@ -448,7 +448,11 @@ class Kernel(
      * @return the state with the metadata the kernel keeps beside it; null when [streams] do not start at version 1
      *   or skip a version.
      */
-    fun <S : Any> replayed(model: AggregateModel<S>, ref: AggregateRef, streams: List<EventStreamRecord>): CachedState? {
+    fun <S : Any> replayed(
+        model: AggregateModel<S>,
+        ref: AggregateRef,
+        streams: List<EventStreamRecord>
+    ): CachedState? {
         require(ref.type == model.type) { "$ref is not a ${model.type}." }
         if (streams.isEmpty() || streams.withIndex().any { (index, stream) -> stream.version != index + 1 }) {
             return null

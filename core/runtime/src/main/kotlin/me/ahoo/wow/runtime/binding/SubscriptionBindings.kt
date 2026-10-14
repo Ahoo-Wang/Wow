@@ -23,7 +23,6 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.runtime.snapshot.SnapshotRebuildModel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.ProcessorBinding
@@ -34,6 +33,7 @@ import me.ahoo.wow.runtime.command.ReceiptHandler
 import me.ahoo.wow.runtime.node.ContextNode
 import me.ahoo.wow.runtime.node.SourcedSubscription
 import me.ahoo.wow.runtime.node.SubscriptionFactory
+import me.ahoo.wow.runtime.snapshot.SnapshotRebuildModel
 import me.ahoo.wow.runtime.subscription.EntryDecoder
 import me.ahoo.wow.runtime.subscription.HandledEntry
 import me.ahoo.wow.runtime.subscription.SubscribedEntry

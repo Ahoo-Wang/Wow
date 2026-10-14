@@ -25,6 +25,7 @@ import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.schedule.JobOptions
+import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RetryPolicy
@@ -36,7 +37,6 @@ import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.net.URI
-import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import java.time.Duration
 import kotlin.time.toJavaDuration
 import kotlin.time.toKotlinDuration

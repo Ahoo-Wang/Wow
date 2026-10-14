@@ -37,6 +37,7 @@ import me.ahoo.wow.http.read.StateHandler
 import me.ahoo.wow.http.read.StateReads
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandRoutes
+import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
@@ -138,12 +139,7 @@ fun wowRoutes(
                 GET("$state/${WowPaths.TRACE}") { request -> statuses.answering { states.trace(request, type) } }
                 queryRoutes(type, aggregate, queries, queryHandler)
             }
-            if (context.subscriptions.any { it.job != null }) {
-                jobRoutes(context.name, commands, statuses)
-            }
-            if (context.aggregates.any { it.snapshot.enabled }) {
-                rebuildRoute(context.name, commands, statuses)
-            }
+            systemRoutes(context, commands, statuses)
         }
         manifest.contexts.map { it.name }.distinct().forEach { context ->
             path("/$context/**").invoke { request ->
@@ -217,6 +213,20 @@ private fun CoRouterFunctionDsl.jobRoutes(context: String, handler: CommandHandl
         POST(CommandRoutes.byIdPath(context, ScheduleJobs.AGGREGATE, name)) { request ->
             statuses.answering { handler.handle(request, target) }
         }
+    }
+}
+
+/** The routes of [context]'s built-in aggregates: its jobs' (decision D198) and its snapshot rebuild's (D172). */
+private fun CoRouterFunctionDsl.systemRoutes(
+    context: ContextManifest,
+    handler: CommandHandler,
+    statuses: ErrorStatuses
+) {
+    if (context.subscriptions.any { it.job != null }) {
+        jobRoutes(context.name, handler, statuses)
+    }
+    if (context.aggregates.any { it.snapshot.enabled }) {
+        rebuildRoute(context.name, handler, statuses)
     }
 }
 

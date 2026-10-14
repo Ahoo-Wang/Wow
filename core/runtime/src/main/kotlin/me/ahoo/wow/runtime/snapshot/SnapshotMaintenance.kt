@@ -54,7 +54,7 @@ class LogProgress(val group: String, val log: EventLog, val checkpoints: Checkpo
  *   member of the claimed revision is left (a rollback). Its snapshot subscriptions write at its revision whatever the
  *   claim; the store keeps a node of a lower revision from overwriting the higher one and marks those snapshots stale.
  * - **In-place rebuild**: a node whose revision a table is claimed at, and which holds the table's rebuild lease (the
- *   lease group `<group>#snapshot-rebuild/<store>/<aggregate>`, so one node rebuilds), rewrites its [pending] snapshots
+ *   lease group `<group>#snapshot-rebuild/<store>/<aggregate>`, so one node rebuilds), rewrites its pending snapshots ([SnapshotStore.pending])
  *   from the log, page by page, at their latest version, and marks the table rebuilt once none is left. A node of
  *   another revision marks the table rebuilding on each run, so the stale marks its refused saves leave are rewritten.
  * - **Backfill**: a target that has not caught up with the log since it was first claimed is filled from the beginning
@@ -236,7 +236,14 @@ class SnapshotMaintenance(
 
     /** Keeps this node a member of its revision of each type. */
     private suspend fun heartbeat() {
-        models.values.forEach { leases.heartbeat(memberGroup(it.type, it.stateRevision), node, address(), options.memberTtl) }
+        models.values.forEach {
+            leases.heartbeat(
+                memberGroup(it.type, it.stateRevision),
+                node,
+                address(),
+                options.memberTtl
+            )
+        }
     }
 
     /** Claims [type]'s table in [store] at this node's revision, as the class says; the record after. */
@@ -257,7 +264,7 @@ class SnapshotMaintenance(
         return claimed
     }
 
-    /** Rewrites a run's pages of [type]'s pending snapshots in [store], under the table's rebuild lease. */
+    /** Rewrites a run's pages of the pending snapshots of [type] in [store], under the table's rebuild lease. */
     private suspend fun rebuild(store: String, type: AggregateType, revision: Int) {
         val lease = rebuildGroup(store, type)
         leases.acquire(lease, 0, node, options.leaseTtl) ?: return
@@ -313,7 +320,7 @@ class SnapshotMaintenance(
     /** The head of each partition of each log group, the empty ones left out. */
     private suspend fun heads(): Map<Pair<String, Int>, Long> = buildMap {
         progress.forEach { group ->
-            (0 until group.log.partitions).forEach { partition ->
+            for (partition in 0 until group.log.partitions) {
                 group.log.head(partition)?.let { put(group.group to partition, it) }
             }
         }

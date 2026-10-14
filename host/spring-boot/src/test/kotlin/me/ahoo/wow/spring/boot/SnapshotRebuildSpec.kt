@@ -193,7 +193,6 @@ abstract class SnapshotRebuildSpec {
         snapshot(A, IDS.first())!!.version.assert().isEqualTo(2)
     }
 
-
     @Test
     fun `a rebuild request repairs snapshots in place`(): Unit = runBlocking {
         val node = start("node-1", revision = 1)
@@ -360,7 +359,9 @@ abstract class SnapshotRebuildSpec {
                                     creation = ManifestCreation.ALLOWED,
                                 ),
                             ),
-                            events = listOf(EventManifest("Added", schema = Manifest.schemaRef(Added::class.java.name))),
+                            events = listOf(
+                                EventManifest("Added", schema = Manifest.schemaRef(Added::class.java.name))
+                            ),
                             lifecycle = Lifecycle.COMMANDS.keys.toList(),
                         ),
                     ),
@@ -383,7 +384,13 @@ abstract class SnapshotRebuildSpec {
                 retry = RetryPolicy(maxAttempts = 3, initialBackoff = 1.milliseconds, maxBackoff = 5.milliseconds),
                 checkpointInterval = 20.milliseconds,
             ),
-            snapshots = SnapshotOptions(interval = 1.hours, batch = 2, pages = 2, leaseTtl = 2.hours, memberTtl = 2.hours),
+            snapshots = SnapshotOptions(
+                interval = 1.hours,
+                batch = 2,
+                pages = 2,
+                leaseTtl = 2.hours,
+                memberTtl = 2.hours
+            ),
         )
     }
 }

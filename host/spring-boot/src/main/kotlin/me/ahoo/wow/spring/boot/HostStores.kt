@@ -221,26 +221,9 @@ class StoreLayout(
                     "wow.stores names ${stores.keys}: set wow.log.store to the one the logs are on by default.",
                 )
             val snapshot = properties.snapshot.store?.takeIf { it.isNotBlank() } ?: log
-            fun checked(key: String, name: String, kinds: Set<BackendKind>, what: String): String {
-                val store = checkNotNull(
-                    stores[name]
-                ) { "$key names the store $name, which wow.stores does not: ${stores.keys}." }
-                check(
-                    store.kind in kinds
-                ) { "$key names the store $name, of type ${store.kind}, which holds no $what." }
-                return name
-            }
-            checked("wow.log.store", log, LOG_KINDS, "log")
-            checked("wow.snapshot.store", snapshot, SNAPSHOT_KINDS, "snapshots")
-            fun placement(key: String, list: String, targets: List<String>, primary: String?, fallback: List<String>): SnapshotPlacement {
-                val listed = targets.filter { it.isNotBlank() }.distinct()
-                listed.forEach { checked("$key.$list", it, SNAPSHOT_KINDS, "snapshots") }
-                val chosen = listed.ifEmpty { fallback }
-                val first = primary?.takeIf { it.isNotBlank() } ?: chosen.first()
-                check(first in chosen) { "$key.primary names $first, which is not one of its targets $chosen." }
-                return SnapshotPlacement(chosen, first)
-            }
-            val fallback = placement(
+            stores.checked("wow.log.store", log, LOG_KINDS, "log")
+            stores.checked("wow.snapshot.store", snapshot, SNAPSHOT_KINDS, "snapshots")
+            val fallback = stores.placement(
                 "wow.snapshot",
                 "targets",
                 properties.snapshot.targets,
@@ -260,9 +243,9 @@ class StoreLayout(
                 val type = checkNotNull(served[key]) {
                     "wow.aggregates.[$key] names the stores of no aggregate type this node serves; it serves ${served.keys}."
                 }.type
-                logStore?.let { logs[type] = checked("wow.aggregates.[$key].log.store", it, LOG_KINDS, "log") }
+                logStore?.let { logs[type] = stores.checked("wow.aggregates.[$key].log.store", it, LOG_KINDS, "log") }
                 if (placed) {
-                    placements[type] = placement(
+                    placements[type] = stores.placement(
                         "wow.aggregates.[$key].snapshot",
                         "store",
                         snapshots.store,
@@ -271,7 +254,13 @@ class StoreLayout(
                     )
                 }
             }
-            return StoreLayout(log, snapshot, logs, placements = placements, snapshotDefault = fallback).also { layout ->
+            return StoreLayout(
+                log,
+                snapshot,
+                logs,
+                placements = placements,
+                snapshotDefault = fallback
+            ).also { layout ->
                 layout.logStores.map(stores::getValue).groupBy { it.location }.values.filter { it.size > 1 }.forEach {
                     throw IllegalStateException(
                         "The log stores ${it.map(HostStore::name)} are on one database: each log group's partition " +
@@ -279,6 +268,37 @@ class StoreLayout(
                     )
                 }
             }
+        }
+
+        /** [name], once [key] is found to name one of these stores, of one of [kinds], which holds [what]. */
+        private fun Map<String, HostStore>.checked(
+            key: String,
+            name: String,
+            kinds: Set<BackendKind>,
+            what: String
+        ): String {
+            val store = checkNotNull(this[name]) { "$key names the store $name, which wow.stores does not: $keys." }
+            check(store.kind in kinds) { "$key names the store $name, of type ${store.kind}, which holds no $what." }
+            return name
+        }
+
+        /**
+         * The snapshot placement `<key>.<list>` and `<key>.primary` configure (decision D172): the stores [targets]
+         * lists, [fallback] when none; [primary], the first of them when not set, must be one of them.
+         */
+        private fun Map<String, HostStore>.placement(
+            key: String,
+            list: String,
+            targets: List<String>,
+            primary: String?,
+            fallback: List<String>,
+        ): SnapshotPlacement {
+            val listed = targets.filter { it.isNotBlank() }.distinct()
+            listed.forEach { checked("$key.$list", it, SNAPSHOT_KINDS, "snapshots") }
+            val chosen = listed.ifEmpty { fallback }
+            val first = primary?.takeIf { it.isNotBlank() } ?: chosen.first()
+            check(first in chosen) { "$key.primary names $first, which is not one of its targets $chosen." }
+            return SnapshotPlacement(chosen, first)
         }
     }
 }

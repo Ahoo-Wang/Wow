@@ -310,7 +310,10 @@ class ManifestCompatibilityTest {
             ),
             row(
                 "state schema broken with a new state revision",
-                BASELINE.def("shop.CartState", schema()).cart { it.copy(snapshot = SnapshotManifest(stateRevision = 2)) },
+                BASELINE.def(
+                    "shop.CartState",
+                    schema()
+                ).cart { it.copy(snapshot = SnapshotManifest(stateRevision = 2)) },
                 "ADDITIVE $CART.snapshot.stateRevision: state revision raised from 1 to 2",
                 "ADDITIVE $CART.state.items: field removed (snapshots rebuilt at state revision 2)",
             ),

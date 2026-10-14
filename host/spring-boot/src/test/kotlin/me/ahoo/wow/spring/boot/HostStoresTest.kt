@@ -116,7 +116,14 @@ class HostStoresTest {
             StoreLayout.of(properties { snapshot.targets = mutableListOf("z") }, memory("a"), models)
         }.message.assert().contains("wow.snapshot.targets names the store z")
         assertThrows<IllegalStateException> {
-            StoreLayout.of(properties { log.store = "a"; snapshot.primary = "b" }, memory("a", "b"), models)
+            StoreLayout.of(
+                properties {
+                    log.store = "a"
+                    snapshot.primary = "b"
+                },
+                memory("a", "b"),
+                models
+            )
         }.message.assert().contains("wow.snapshot.primary names b, which is not one of its targets")
         assertThrows<IllegalStateException> {
             StoreLayout.of(

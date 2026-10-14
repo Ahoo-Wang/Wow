@@ -207,7 +207,10 @@ class ManifestTreeTest {
         )
         val manifest = Manifest(
             contexts = listOf(
-                ContextManifest("shop", aggregates = listOf(aggregate, aggregate.copy(name = "order", snapshot = SnapshotManifest()))),
+                ContextManifest(
+                    "shop",
+                    aggregates = listOf(aggregate, aggregate.copy(name = "order", snapshot = SnapshotManifest()))
+                ),
             ),
         )
         val tree = ManifestTree.write(manifest)
