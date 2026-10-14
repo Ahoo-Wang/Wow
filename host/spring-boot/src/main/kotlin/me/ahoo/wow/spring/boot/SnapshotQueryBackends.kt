@@ -70,3 +70,12 @@ internal object MongoQueries {
         )
     }
 }
+
+/**
+ * The in-memory reference query backend of a store in memory (decision D209), when `wow.query.memory.enabled` gave it
+ * one ([MemoryStore.queries]): its snapshot queries read what its snapshot stores wrote. Null without it.
+ */
+internal object MemoryQueries {
+    fun open(store: HostStore): SnapshotQueryBackend? =
+        (store as MemoryStore).queries?.let { SnapshotQueryBackend(factory = it) }
+}

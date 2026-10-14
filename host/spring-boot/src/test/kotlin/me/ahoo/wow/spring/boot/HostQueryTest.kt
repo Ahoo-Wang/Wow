@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregateIdFilter
@@ -157,6 +158,48 @@ class HostQueryTest {
     }
 
     @Test
+    fun `wow-query-memory-enabled should serve the snapshots of the memory backend`() {
+        startHost("wow.query.memory.enabled" to true).use { host ->
+            listOf("mona", "lisa").forEach { host.openAccount(it) }
+            host.context.getBean(HttpQueries::class.java).snapshots(ACCOUNT).assert().isNotNull()
+
+            val listed = host.post(
+                "/bank/account/snapshot/query",
+                """{"kind":"list","filter":{"op":"MATCH_ALL"},"sort":[{"field":"state.owner","direction":"ASC"}]}""",
+            )
+            listed.status.assert().isEqualTo(200)
+            listed.body!!.values().map { it["state"]["owner"].asString() }.assert().containsExactly("lisa", "mona")
+        }
+    }
+
+    @Test
+    fun `a queried memory store should write each snapshot written, saved or rebuilt, into its query storage`() {
+        runBlocking {
+            val queries = InMemoryQueryStorage()
+            val store = MemoryStore("memory", queries = queries).snapshots(BANK)
+            val ref = AggregateRef(ACCOUNT, "t-1", "a-1")
+            fun record(version: Int, owner: String) = SnapshotRecord(
+                ref = ref,
+                version = version,
+                schemaFingerprint = "f",
+                state = """{"owner":"$owner"}""",
+                firstEventTime = 1,
+                lastEventTime = 1,
+            )
+            fun owner() = queries.records(ACCOUNT).single()["state"]["owner"].asString()
+
+            store.save(record(2, "mona")).assert().isTrue()
+            store.save(record(1, "older")).assert().isFalse()
+            owner().assert().isEqualTo("mona")
+            store.rewrite(record(2, "rebuilt")).assert().isTrue()
+            owner().assert().isEqualTo("rebuilt")
+            store.rewrite(record(1, "older")).assert().isFalse()
+            owner().assert().isEqualTo("rebuilt")
+            MemoryStore("plain").snapshots(BANK).assert().isInstanceOf(InMemorySnapshotStore::class.java)
+        }
+    }
+
+    @Test
     fun `the query plane should be off when wow-query-enabled is false`() {
         startHost("wow.query.enabled" to false).use { host ->
             host.context.getBeanNamesForType(HttpQueries::class.java).assert().isEmpty()
@@ -200,6 +243,7 @@ class HostQueryTest {
         properties.abac.options().assert().isEqualTo(AbacQueryOptions.DEFAULT)
         properties.sensitivity.policy().displayComparable.assert().isTrue()
         properties.index.ddl.assert().isEqualTo(QueryIndexDdl.AUTO)
+        properties.memory.enabled.assert().isFalse()
         properties.http.defaultListSize.assert().isEqualTo(HttpQueries.DEFAULT_LIST_SIZE)
         properties.inProcessTimeout = Duration.ZERO
         properties.entryPolicy().inProcessTimeout.assert().isNull()

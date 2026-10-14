@@ -24,7 +24,5 @@ dependencies {
     // snapshot queries there, with the indexes the product's state declares.
     implementation(project(":postgres"))
     implementation("com.zaxxer:HikariCP")
-    // The in-memory reference query backend, so the memory backend's tests can query the snapshots (guide: Testing).
-    testImplementation(testFixtures(project(":query")))
     testImplementation("org.springframework:spring-test")
 }

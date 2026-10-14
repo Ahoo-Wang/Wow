@@ -142,11 +142,10 @@ bin/wow-view-store-server \
 
 `test/view-store-v10/` 用 V10 视图存储服务（`platform/view-store`，路线图 7.3a）守着 `@ahoo-wang/wow-view-store/v10` 与跑在它上面的视图引擎：端口一致性套件、租户与应用的隔离、存储的与配置的系统视图、服务端的写入角色、租户的数据集措辞、错误、`viewSourceOf` 走 V10 查询路由，以及引擎端到端（保存、冲突、结局未知后重试、设为共享与认领、偏好、记录视图与分析经 V10 查询路由取数）。它与其余用例分开跑，有自己的 setup（`vitest.v10.config.ts`），不需要示例服务端，也不需要 MongoDB。
 
-setup 在一个 JVM 里起内存后端的服务，端口都绑 0，结束时停掉。内存后端自己不提供快照查询（eShop 的 DX 缺口 G14），所以服务带着它自己测试用的内存查询后端起。先用 JDK 21 构建：
+setup 在一个 JVM 里起内存后端的服务，端口都绑 0，结束时停掉。在内存后端上，服务自己的配置（`wow.query.memory.enabled`）从内存提供快照查询。先用 JDK 21 构建：
 
 ```bash
-./gradlew -Pwow.scope=v10 :view-store-server:installDist \
-  :view-store-server:testClasses :query:testFixturesJar
+./gradlew -Pwow.scope=v10 :view-store-server:installDist
 pnpm --filter @ahoo-wang/wow-view-store... build
 pnpm --dir typescript/integration-test test:v10
 ```

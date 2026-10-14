@@ -58,7 +58,8 @@ class CommandRoutesTest {
 
     @Test
     fun `a mounted command should also have a route without an id`() {
-        CommandRoutes.of("shop", "customer", "ImportCustomer", Creation.NONE, mounted = true).assert().containsExactly(
+        val routes = CommandRoutes.of("shop", "customer", "ImportCustomer", Creation.NONE, unaddressed = true)
+        routes.assert().containsExactly(
             RouteManifest("POST", "/shop/customer/{id}/import-customer"),
             RouteManifest("POST", "/shop/customer/import-customer"),
         )

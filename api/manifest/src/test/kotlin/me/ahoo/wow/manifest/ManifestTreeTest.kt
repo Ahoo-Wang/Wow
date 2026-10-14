@@ -63,7 +63,7 @@ class ManifestTreeTest {
         val mounted = CommandManifest(
             name = "ImportCustomer",
             schema = Manifest.schemaRef("sample.ImportCustomer"),
-            routes = CommandRoutes.of("shop", "customer", "ImportCustomer", Creation.NONE, mounted = true),
+            routes = CommandRoutes.of("shop", "customer", "ImportCustomer", Creation.NONE, unaddressed = true),
             mounted = true,
             transformsTo = listOf("shop.customer.Register"),
         )

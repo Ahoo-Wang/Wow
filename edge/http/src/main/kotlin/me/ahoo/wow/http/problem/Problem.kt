@@ -24,7 +24,9 @@ import org.springframework.web.reactive.function.server.bodyValueAndAwait
 
 /**
  * An RFC 9457 problem as the public port writes it (decisions D101, D102): `type` is `urn:wow:error:<code>`, the
- * extension members are [code], [violations] and the whole [result] of a command that has a ref.
+ * extension members are [code], [violations] and the whole [result] of a command that has a ref, and the
+ * [extensions] of its rejection (decision D211), each a member of its own name; one without a value, or with the name of
+ * a member above (or of RFC 9457's `instance`), is left out.
  *
  * An error answered before a command has a ref (401, a malformed header, a missing route, 406, 415) carries no
  * [result]. One that is only HTTP's (a missing route, 406, 415) has no Wow code: its type is `about:blank`, as RFC 9457
@@ -37,6 +39,7 @@ data class Problem(
     val code: String?,
     val violations: List<Violation> = emptyList(),
     val result: CommandResult? = null,
+    val extensions: Map<String, Any?> = emptyMap(),
     /** The seconds after which the request may be retried, written as `Retry-After`; not a member of the body. */
     val retryAfter: Long? = null,
 ) {
@@ -54,6 +57,7 @@ data class Problem(
             put("violations", violations)
         }
         result?.let { put("result", it) }
+        extensions.forEach { (name, value) -> if (value != null && name !in this && name != INSTANCE) put(name, value) }
     }
 
     /** This problem as a response, with `Retry-After` when it has [retryAfter]. */
@@ -66,6 +70,9 @@ data class Problem(
     companion object {
         const val TYPE_PREFIX: String = "urn:wow:error:"
         const val ABOUT_BLANK: String = "about:blank"
+
+        /** RFC 9457's member that names the occurrence, which no extension takes. */
+        private const val INSTANCE: String = "instance"
 
         /** A problem that is the HTTP [status] alone. */
         fun ofStatus(status: HttpStatus, detail: String? = null): Problem =

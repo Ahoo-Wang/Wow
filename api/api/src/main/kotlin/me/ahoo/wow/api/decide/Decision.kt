@@ -36,16 +36,23 @@ sealed interface Decision {
         /** Produces [events]. */
         fun events(vararg events: Any): Decision = Events(events.toList())
 
-        /** Rejects the command with [code] and a human-readable [message]. */
-        fun reject(code: String, message: String): Decision = Rejected(Rejection(code, message))
+        /**
+         * Rejects the command with [code], a human-readable [message], and the structured [extensions] a client reads
+         * instead of parsing the message ([Rejection.extensions]).
+         */
+        fun reject(code: String, message: String, extensions: Map<String, Any?> = emptyMap()): Decision =
+            Rejected(Rejection(code, message, extensions))
     }
 }
 
 /**
  * Why a command was refused. [code] is stable and machine-readable (it names an error in the Manifest); [message]
- * is for people.
+ * is for people. [extensions] (decision D211) are the rejection's structured data, by name, each a JSON value (a
+ * string, a number, a boolean, a list, a map, or a data class of them), such as the ids and titles of what blocks the
+ * command: the command's result carries them ([me.ahoo.wow.api.result.ErrorInfo.extensions]), and an HTTP answer
+ * writes each as an extension member of its problem.
  */
-data class Rejection(val code: String, val message: String) {
+data class Rejection(val code: String, val message: String, val extensions: Map<String, Any?> = emptyMap()) {
     init {
         require(code.isNotBlank()) { "A rejection needs a code." }
     }

@@ -55,8 +55,16 @@ data class FunctionInfo(val kind: FunctionKind, val context: String, val process
 /** A field-level validation error: the [path] of the field, a [code] and a human-readable [message]. */
 data class Violation(val path: String, val code: String, val message: String)
 
-/** Why a command was rejected or failed: an error [code] (`wow.*` or a domain's own), a [message], [violations]. */
-data class ErrorInfo(val code: String, val message: String, val violations: List<Violation> = emptyList()) {
+/**
+ * Why a command was rejected or failed: an error [code] (`wow.*` or a domain's own), a [message], [violations], and the
+ * rejection's structured [extensions] (decision D211), which an HTTP problem writes as its extension members.
+ */
+data class ErrorInfo(
+    val code: String,
+    val message: String,
+    val violations: List<Violation> = emptyList(),
+    val extensions: Map<String, Any?> = emptyMap(),
+) {
     init {
         require(code.isNotBlank()) { "An error needs a code." }
     }

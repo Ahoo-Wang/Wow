@@ -218,6 +218,9 @@ class ViewSpec {
         whenCommand(ClaimView, scope = SHARED, headers = APP_HEADERS, operator = operator(BOB)) {
             expectRejected(ViewStoreRejections.REFERENCED_BY_SHARED_DASHBOARD) {
                 message.assert().contains("Weekly board").contains("board-1").doesNotContain("Itself")
+                extensions.assert().isEqualTo(
+                    mapOf(ViewStoreRejections.BOARDS to listOf(BoardReference("board-1", "Weekly board"))),
+                )
             }
             expectState { audience.assert().isEqualTo(ViewAudience.SHARED) }
         }

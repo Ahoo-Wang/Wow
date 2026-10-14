@@ -151,4 +151,50 @@ class MountedCommandTest {
             )
             .contains("mounted command Blank names no aggregate")
     }
+
+    @Test
+    fun `an unaddressed command lists its route without an id beside the one with`() {
+        val unaddressed = SourceFile.kotlin(
+            "Unaddressed.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+            import me.ahoo.wow.api.annotation.CreateAggregate
+            import me.ahoo.wow.api.annotation.Unaddressed
+
+            @CreateAggregate
+            data class Open(val owner: String)
+            data class Opened(val owner: String)
+
+            @Unaddressed
+            data class Clear(val owner: String)
+            data class Close(val owner: String)
+            data class Cleared(val owner: String)
+
+            @AggregateRoot
+            class Note(val id: String) {
+                fun onCommand(command: Open): Opened = Opened(command.owner)
+                fun onCommand(command: Clear): Cleared = Cleared(command.owner)
+                fun onCommand(command: Close): Cleared = Cleared(command.owner)
+                fun onSourcing(event: Opened) = Unit
+                fun onSourcing(event: Cleared) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compileModel("generate", options, unaddressed)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        val file = compilation.workingDir.walkTopDown().first { it.isFile && it.name == "shop-domain.json" }
+        val commands = ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java))
+            .contexts.single().aggregates.single().commands.associateBy { it.name }
+        commands.getValue("Clear").let { clear ->
+            clear.creation.assert().isEqualTo(Creation.NONE)
+            clear.mounted.assert().isFalse()
+            clear.routes.assert().containsExactly(
+                RouteManifest("POST", "/shop/note/{id}/clear"),
+                RouteManifest("POST", "/shop/note/clear"),
+            )
+        }
+        commands.getValue("Close").routes.assert().containsExactly(RouteManifest("POST", "/shop/note/{id}/close"))
+    }
 }

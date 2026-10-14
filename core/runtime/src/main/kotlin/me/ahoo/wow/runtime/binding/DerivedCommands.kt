@@ -31,6 +31,7 @@ import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.subscription.HandlingRejectedException
 import me.ahoo.wow.runtime.wait.Settlement
 import me.ahoo.wow.runtime.wait.WaitCoordinator
+import me.ahoo.wow.runtime.wait.toError
 import me.ahoo.wow.spi.wait.WaitContext
 
 /**
@@ -179,7 +180,7 @@ class DerivedCommands(
     /** The derived [command], of the full type name [commandType], was refused with [rejection]. */
     data class Rejected(val command: Command<*>, val rejection: Rejection, val commandType: String) {
         /** The error a wait at the saga's hop ends with. */
-        val error: ErrorInfo get() = ErrorInfo(rejection.code, rejection.message)
+        val error: ErrorInfo get() = rejection.toError()
 
         /** The rejection as the saga's `@OnRejected` handler takes it, from the saga's [execution] that derived it. */
         fun toCommandRejected(execution: ExecutionId): CommandRejected<Any> = CommandRejected(
@@ -215,7 +216,7 @@ class DerivedCommands(
  */
 class DerivedCommandRejectedException(val command: Command<*>, val rejection: Rejection) :
     HandlingRejectedException(
-        ErrorInfo(rejection.code, rejection.message),
+        rejection.toError(),
         "The derived command ${command.id} on ${command.ref} was rejected: ${rejection.code} ${rejection.message}",
     )
 
