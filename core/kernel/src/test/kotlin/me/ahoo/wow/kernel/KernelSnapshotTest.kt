@@ -172,7 +172,7 @@ class KernelSnapshotTest {
     }
 
     /** A store whose load always throws [failure]. */
-    private class FailingStore(private val failure: Exception) : SnapshotStore {
+    private class FailingStore(private val failure: Exception) : SnapshotStore by InMemorySnapshotStore() {
         override suspend fun save(snapshot: SnapshotRecord): Boolean = false
 
         override suspend fun load(ref: AggregateRef): SnapshotRecord = throw failure

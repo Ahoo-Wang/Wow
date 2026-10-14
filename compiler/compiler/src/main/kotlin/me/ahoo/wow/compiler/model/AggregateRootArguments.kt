@@ -63,6 +63,19 @@ internal object AggregateRootArguments {
         root.getAnnotationsByType(AggregateRoot::class).all { it.snapshot }
 
     /**
+     * The revision of the aggregate's state structure, as `@AggregateRoot(stateRevision)` says (decision D172): 1 by
+     * default; one below 1 is a problem.
+     */
+    @OptIn(KspExperimental::class)
+    fun stateRevision(root: KSClassDeclaration, problems: MutableList<String>): Int {
+        val revision = root.getAnnotationsByType(AggregateRoot::class).firstOrNull()?.stateRevision ?: 1
+        if (revision < 1) {
+            problems += "@AggregateRoot(stateRevision) is $revision: a state revision starts at 1 (decision D172)"
+        }
+        return revision
+    }
+
+    /**
      * The aggregate's ownership as `@AggregateRoot(ownership)` declares it (decision D189): the name of the
      * `Ownership` entry, `OWNER` by default.
      */

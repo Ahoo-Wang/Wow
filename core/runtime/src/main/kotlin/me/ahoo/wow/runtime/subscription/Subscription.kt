@@ -85,6 +85,12 @@ class Subscription private constructor(
      * over its global one ([SubscriptionOptions.retryOf]); null when the handler gives none.
      */
     val retry: HandlerRetry? = null,
+    /**
+     * The hop a wait names for this subscription's handling of an aggregate of a type, null when none does: its
+     * [name] when not given (a snapshot target answers the `snapshot` hop for the types whose primary it is, and none
+     * for the others, decision D172).
+     */
+    private val answers: ((AggregateType) -> String?)? = null,
 ) {
     constructor(
         name: String,
@@ -125,6 +131,9 @@ class Subscription private constructor(
         require(kind != FunctionKind.COMMAND) { "A subscription handles commits, not commands." }
     }
 
+    /** The name a wait's hop gives this subscription for an aggregate of [type], null when no hop names it. */
+    internal fun hopOf(type: AggregateType): String? = if (answers == null) name else answers.invoke(type)
+
     /** Handles [entry]; returns what it did: a saga's derived commands and the rejection that ended its hop. */
     internal suspend fun handle(entry: SubscribedEntry): HandledEntry = handler.handle(entry)
 
@@ -163,12 +172,17 @@ class Subscription private constructor(
             retry = retry,
         )
 
-        /** A subscription that [coalesces]: [handler] gets the latest entry of each aggregate's batch only. */
+        /**
+         * A subscription that [coalesces]: [handler] gets the latest entry of each aggregate's batch only. A wait's
+         * hop names it as [answers] says for an aggregate's type, by its [name] when not given.
+         */
         internal fun coalescing(
             name: String,
             filter: SubscriptionFilter,
             kind: FunctionKind,
             decoder: EntryDecoder = EntryDecoder.RECORDS,
+            answers: ((AggregateType) -> String?)? = null,
+
             handler: suspend (SubscribedEntry) -> Unit,
         ): Subscription = Subscription(
             name,
@@ -183,6 +197,7 @@ class Subscription private constructor(
             },
             coalesces = true,
             takesEventless = true,
+            answers = answers,
         )
 
         /**

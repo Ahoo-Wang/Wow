@@ -57,10 +57,16 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  *   or without one, and the subscription passes the aggregate's views up to that version: a view recorded after its
  *   entry was written without it never costs a second write.
  *
+ * - **Snapshot targets** (decision D172): the subscription writes one [store], the target it is [name]d after
+ *   ([SnapshotTargets.subscriptionOf]); a context with several targets runs one per store, each with its own
+ *   checkpoints. A wait's `snapshot` hop of an aggregate is answered by the subscription of its type's primary target
+ *   ([answers]); a subscription that backfills a target stops writing a type once it is no longer [active] for it.
+ * - **State revisions** (decision D172): the snapshot carries the model's state revision; the store never lets it
+ *   replace one of a higher revision, and marks that one stale instead, for the rebuild.
+ *
  * [codec] must be the kernel's, so the views and the fingerprints are what the kernel reads back. [views] are the
- * context's, where this subscription is the reader [Hop.SNAPSHOT_SUBSCRIPTION] of the snapshotted types; by default
- * its own, bounded by [capacity]. [capacity] also bounds the versions, first event times and first operators kept
- * per aggregate.
+ * context's, where this subscription is the reader [name] of the snapshotted types; by default its own, bounded by
+ * [capacity]. [capacity] also bounds the versions, first event times and first operators kept per aggregate.
  */
 @Suppress("LongParameterList")
 class SnapshotSubscription(
@@ -72,6 +78,12 @@ class SnapshotSubscription(
     private val codec: EventCodec = EventCodec(),
     views: StateViews? = null,
     capacity: Int = StateViewOptions.DEFAULT_CAPACITY,
+    /** The subscription's name, and its reader's: `snapshot` unless it writes another target than the default. */
+    val name: String = Hop.SNAPSHOT_SUBSCRIPTION,
+    /** Whether the subscription answers the `snapshot` hop of an aggregate of a type: it writes the primary target. */
+    answers: (AggregateType) -> Boolean = { true },
+    /** Whether the subscription still writes the snapshots of a type: a backfill stops once its target caught up. */
+    private val active: (AggregateType) -> Boolean = { true },
 ) {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val written = LruMap<AggregateRef, Written>(capacity)
@@ -84,19 +96,20 @@ class SnapshotSubscription(
     /** The state views the executor records for the snapshotted aggregate types, this subscription one of their readers. */
     val views: StateViews = views ?: StateViews(
         codec,
-        mapOf(Hop.SNAPSHOT_SUBSCRIPTION to this.models.keys),
+        mapOf(name to this.models.keys),
         StateViewOptions(capacity),
     )
 
-    private val reader = StateViewReader(Hop.SNAPSHOT_SUBSCRIPTION, models, kernel, codec, this.views, store)
+    private val reader = StateViewReader(name, models, kernel, codec, this.views, store)
 
-    /** The subscription to register: named [Hop.SNAPSHOT_SUBSCRIPTION], of the snapshotted aggregate types only. */
+    /** The subscription to register: [name]d, of the snapshotted aggregate types only. */
     val subscription: Subscription = Subscription.coalescing(
-        Hop.SNAPSHOT_SUBSCRIPTION,
+        name,
         SubscriptionFilter(context, this.models.keys.mapTo(LinkedHashSet()) { it.name }),
         FunctionKind.SNAPSHOT,
         EntryDecoder.stateEvents(reader, decodeEvents = false),
-        ::write,
+        answers = { type -> Hop.SNAPSHOT_SUBSCRIPTION.takeIf { answers(type) } },
+        handler = ::write,
     )
 
     private suspend fun write(entry: SubscribedEntry) {
@@ -104,6 +117,11 @@ class SnapshotSubscription(
         val ref = stream.ref
         val version = stream.version
         val model = checkNotNull(models[ref.type]) { "${ref.type} has no snapshot." }
+        if (!active(ref.type)) {
+            reader.pass(ref, version)
+            return
+        }
+
         val held = written[ref]
         if (held != null && held.version >= version) {
             // A view recorded after this subscription wrote its version, without one, is never written again.

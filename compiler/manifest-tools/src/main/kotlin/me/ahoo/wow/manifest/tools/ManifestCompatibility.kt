@@ -92,6 +92,9 @@ data class CompatibilityReport(
  * - Schemas follow [SchemaCompatibility]: a removed field, a narrowed type, a newly required field or a removed enum
  *   value break; an optional field or an enum value added does not. The state schema is the snapshot query's fields,
  *   so the same rules hold for it, and a field renamed with its old path in `x-wow-alias` is additive.
+ * - A state schema that breaks keeps the contract only when the aggregate's state revision
+ *   (`@AggregateRoot(stateRevision)`) was raised (decision D172): the service then rebuilds the stored snapshots from
+ *   the log. A lowered state revision breaks.
  * - An event whose schema breaks keeps the contract only when its revision was raised: the compiler then requires an
  *   `@Upgrade` from each earlier revision (decision D82), which reads the old records. A lowered revision breaks.
  * - Command creation that accepts more (`NONE` or `REQUIRED` to `ALLOWED`) is additive, any other change breaking; a
@@ -215,7 +218,7 @@ private class Changes(val schemas: SchemaCompatibility) {
     }
 
     fun compareAggregate(path: String, baseline: AggregateManifest, current: AggregateManifest) {
-        list += schemas.compare("$path.state", baseline.state.schema, current.state.schema, queryRoot = true)
+        compareState(path, baseline, current)
         if (baseline.snapshot.enabled != current.snapshot.enabled) {
             if (current.snapshot.enabled) {
                 additive("$path.snapshot", "snapshots enabled")
@@ -246,6 +249,44 @@ private class Changes(val schemas: SchemaCompatibility) {
         )
         compareValues("$path.lifecycle", baseline.lifecycle, current.lifecycle, "lifecycle command")
         compareNamed("$path.queries", baseline.queries, current.queries, { it.model }, "query model", ::compareQuery)
+    }
+
+    /**
+     * The state schema, as an event's (decision D172): a breaking change keeps the contract only when the aggregate's
+     * state revision was raised, so the stored snapshots are rebuilt from the log; a lowered revision breaks.
+     */
+    private fun compareState(path: String, baseline: AggregateManifest, current: AggregateManifest) {
+        val schemaChanges = schemas.compare("$path.state", baseline.state.schema, current.state.schema, queryRoot = true)
+        val old = baseline.snapshot.stateRevision
+        val new = current.snapshot.stateRevision
+        when {
+            new < old -> {
+                breaking("$path.snapshot.stateRevision", "state revision lowered from $old to $new")
+                list += schemaChanges
+            }
+
+            new > old -> {
+                additive("$path.snapshot.stateRevision", "state revision raised from $old to $new")
+                list += schemaChanges.map {
+                    if (it.kind == ChangeKind.BREAKING) {
+                        it.copy(
+                            kind = ChangeKind.ADDITIVE,
+                            description = "${it.description} (snapshots rebuilt at state revision $new)",
+                        )
+                    } else {
+                        it
+                    }
+                }
+            }
+
+            else -> list += schemaChanges.map {
+                if (it.kind == ChangeKind.BREAKING) {
+                    it.copy(description = "${it.description} without a new state revision")
+                } else {
+                    it
+                }
+            }
+        }
     }
 
     fun compareCommand(path: String, baseline: CommandManifest, current: CommandManifest) {

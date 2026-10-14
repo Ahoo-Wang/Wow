@@ -82,7 +82,8 @@ class CountingEventLog(private val delegate: EventLog, private val counters: Cou
 }
 
 /** Counts snapshot loads and saves. */
-class CountingSnapshotStore(private val delegate: SnapshotStore, private val counters: Counters) : SnapshotStore {
+class CountingSnapshotStore(private val delegate: SnapshotStore, private val counters: Counters) :
+    SnapshotStore by delegate {
     override suspend fun save(snapshot: SnapshotRecord): Boolean {
         counters.snapshotSaves.increment()
         return delegate.save(snapshot)

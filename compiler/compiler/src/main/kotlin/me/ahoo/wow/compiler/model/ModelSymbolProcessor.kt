@@ -484,6 +484,7 @@ internal class ModelSymbolProcessor(
             ownership = ownership,
             mounted = mounted,
             snapshot = AggregateRootArguments.snapshot(root),
+            stateRevision = AggregateRootArguments.stateRevision(root, problems),
         )
     }
 

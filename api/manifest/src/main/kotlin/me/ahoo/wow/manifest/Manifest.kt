@@ -139,7 +139,16 @@ enum class Ownership {
  */
 data class StateManifest(val schema: String, val fingerprint: String? = null)
 
-data class SnapshotManifest(val enabled: Boolean = true)
+/**
+ * Whether the aggregate keeps snapshots ([enabled], decisions D4, D195), and the revision of its state's structure
+ * the snapshots are written at ([stateRevision], decision D172): raised, the service rebuilds the stored snapshots in
+ * place, and the compatibility gate accepts a state schema change.
+ */
+data class SnapshotManifest(val enabled: Boolean = true, val stateRevision: Int = 1) {
+    init {
+        require(stateRevision >= 1) { "A state revision starts at 1." }
+    }
+}
 
 /**
  * A query model of an aggregate (decisions D127, D128): [model] is [QueryRoutes.SNAPSHOT], the aggregate's snapshots,

@@ -139,7 +139,7 @@ internal object ManifestFragmentBuilder {
 
     private fun aggregate(context: String, binding: AggregateBinding): AggregateManifest {
         val eventNames = binding.sourcing.associate { it.event to (it.eventName ?: simpleName(it.type)) }
-        val snapshot = SnapshotManifest(enabled = binding.snapshot)
+        val snapshot = SnapshotManifest(enabled = binding.snapshot, stateRevision = binding.stateRevision)
         return AggregateManifest(
             name = binding.aggregateName,
             description = binding.description,

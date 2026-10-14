@@ -46,6 +46,13 @@ import kotlin.reflect.KClass
  * Manifest marks them disabled and lists no snapshot query, and a wait has no snapshot stage for it: a caller that asks
  * for none waits until its command is committed, and a wait that asks for the snapshot is rejected at admission. Its
  * state is rebuilt from the log; keep its streams short.
+ *
+ * [stateRevision] is the revision of the state's structure as snapshots hold it (decision D172), 1 by default, as an
+ * event's `@Revision`. Raise it when the snapshots already written no longer read as the state, or no longer hold
+ * what the state now derives: an `evolve` or `@Upgrade` whose meaning changed, a field renamed or retyped, or a field
+ * added that the history must compute. The service then rebuilds the stored snapshots from the log in place, in the
+ * background, and the Manifest compatibility gate accepts the state schema change. An optional field added or a field
+ * removed needs no new revision.
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
@@ -63,4 +70,5 @@ annotation class AggregateRoot(
     val topic: String = "",
     val ownership: Ownership = Ownership.OWNER,
     val snapshot: Boolean = true,
+    val stateRevision: Int = 1,
 )
