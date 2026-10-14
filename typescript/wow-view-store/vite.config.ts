@@ -18,9 +18,10 @@ export default defineConfig({
   build: {
     sourcemap: true,
     lib: {
-      entry: 'src/index.ts',
+      // The 9.x store at the root, the V10 one at `/v10`.
+      entry: { index: 'src/index.ts', v10: 'src/v10/index.ts' },
       formats: ['es'],
-      fileName: () => 'index.es.js',
+      fileName: (_format, name) => `${name}.es.js`,
     },
     rolldownOptions: {
       // Every peer stays external: the Fetcher, wow-client and the view
@@ -28,6 +29,9 @@ export default defineConfig({
       external: [/^@ahoo-wang\//],
       output: {
         keepNames: true,
+        // What the two entries share (the paths, the wire, the memory of
+        // writes), under a name that does not change from build to build.
+        chunkFileNames: '[name].es.js',
       },
     },
   },

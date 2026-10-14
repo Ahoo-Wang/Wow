@@ -96,6 +96,7 @@ export const ENTRIES = [
     { require: false },
   ],
   ['@ahoo-wang/wow-view-store', 'WowViewStore', { require: false }],
+  ['@ahoo-wang/wow-view-store/v10', 'viewSourceOf', { require: false }],
 ];
 
 /** The view engine's style sheets a host imports (README「Styles」). */
@@ -184,11 +185,14 @@ import { AnalysisChart } from '@ahoo-wang/wow-view-engine/ui';
 import { ActionRefusedError } from '@ahoo-wang/wow-view-engine/testing';
 import { useReactRouter } from '@ahoo-wang/wow-view-engine/react-router';
 import { WowViewStore } from '@ahoo-wang/wow-view-store';
+import { WowViewStore as V10ViewStore } from '@ahoo-wang/wow-view-store/v10';
 
 // @ts-expect-error the engine takes options, not a number
 export const engine = new ViewEngine(42);
 // @ts-expect-error the store takes options, not a number
 export const store = new WowViewStore(42);
+// @ts-expect-error the V10 store takes options, not a number
+export const v10Store = new V10ViewStore(42);
 // @ts-expect-error the engine's exports must not be any
 export const chart: number = AnalysisChart;
 export const entries = [browserRuntimeEnvironment, ActionRefusedError, useReactRouter];

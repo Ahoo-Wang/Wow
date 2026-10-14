@@ -35,6 +35,7 @@
   "scripts": {
     "build": "vite build",
     "test": "vitest run --coverage",
+    "test:v10": "vitest run --config vitest.v10.config.ts",
     "lint": "eslint . --fix",
     "typecheck": "tsc -p tsconfig.test.json",
     "clean": "rm -rf dist",

@@ -1,0 +1,28 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// `@ahoo-wang/wow-view-store/v10`: the view engine on a Wow V10 service.
+// The public surface, name by name (test/surface/v10.txt).
+export { WowViewStore, type WowViewStoreOptions } from './wowViewStore.js';
+export {
+  WowDatasetWordings,
+  type WowDatasetWordingsOptions,
+} from './datasetWordings.js';
+export { WowViewStoreErrorCodes } from './errors.js';
+export { SHARED_SCOPE, SYSTEM_SCOPE } from './wire.js';
+export { datasetCatalogOf, viewSourceOf } from './source.js';
+export {
+  SHARED_OWNER_ID,
+  SYSTEM_OWNER_ID,
+  SYSTEM_TENANT_ID,
+} from '../paths.js';
