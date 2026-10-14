@@ -1,0 +1,94 @@
+{
+  "format" : 1,
+  "contexts" : [ {
+    "name" : "h2",
+    "description" : "Spike H2, stage 2: stage 1's account",
+    "aggregates" : [ {
+      "name" : "account",
+      "state" : {
+        "schema" : "#/$defs/AccountState"
+      },
+      "snapshot" : {
+        "enabled" : true
+      },
+      "commands" : [ {
+        "name" : "OpenAccount",
+        "aliases" : [ ],
+        "schema" : "#/$defs/OpenAccount",
+        "creation" : "REQUIRED",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/h2/account/{id}/open-account"
+        } ]
+      }, {
+        "name" : "Deposit",
+        "aliases" : [ ],
+        "schema" : "#/$defs/Deposit",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/h2/account/{id}/deposit"
+        } ]
+      }, {
+        "name" : "Withdraw",
+        "aliases" : [ ],
+        "schema" : "#/$defs/Withdraw",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/h2/account/{id}/withdraw"
+        } ]
+      } ],
+      "events" : [ {
+        "name" : "AccountOpened",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/AccountOpened"
+      }, {
+        "name" : "Deposited",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/Deposited"
+      }, {
+        "name" : "Withdrawn",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/Withdrawn"
+      } ],
+      "lifecycle" : [ "wow.lifecycle.DeleteAggregate", "wow.lifecycle.RestoreAggregate", "wow.lifecycle.TransferOwner", "wow.lifecycle.TransferSpace", "wow.lifecycle.ApplyTags" ],
+      "queries" : [ ]
+    } ],
+    "subscriptions" : [ ],
+    "errors" : [ {
+      "code" : "account.invalid-amount",
+      "status" : 422,
+      "description" : "A deposit is positive."
+    }, {
+      "code" : "account.insufficient-balance",
+      "status" : 422,
+      "description" : "The account holds less than the withdrawal."
+    } ]
+  } ],
+  "errors" : [ ],
+  "$defs" : {
+    "AccountState" : {
+      "type" : "object",
+      "properties" : {
+        "id" : {
+          "type" : "string"
+        },
+        "owner" : {
+          "type" : "string"
+        },
+        "balance" : {
+          "type" : "integer",
+          "format" : "int64"
+        },
+        "operations" : {
+          "type" : "integer",
+          "format" : "int32"
+        }
+      }
+    }
+  }
+}
