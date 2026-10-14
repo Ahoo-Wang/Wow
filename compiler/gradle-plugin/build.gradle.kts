@@ -17,6 +17,8 @@ gradlePlugin {
 
 dependencies {
     implementation(project(":manifest"))
+    // generateWowOpenApi: the OpenAPI document of the merged Manifest; plain data, like wow-manifest.
+    implementation(project(":openapi"))
     implementation("com.google.devtools.ksp:symbol-processing-gradle-plugin:${libs.versions.ksp.get()}")
 
     // The functional test reads the Manifests it builds, and checks the fingerprint against the kernel.

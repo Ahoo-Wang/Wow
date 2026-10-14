@@ -129,8 +129,9 @@ object V10Rules {
         MIGRATE_DATA to setOf("kernel"),
         // kernel and reactor only for the tests, which compile the generated models.
         COMPILER to setOf("api", "manifest", "kernel", "reactor"),
-        // compiler, kernel, manifest-tools and wow-dependencies only for the TestKit fixture and tests.
-        GRADLE_PLUGIN to setOf("manifest", "manifest-tools", "kernel", "compiler", "wow-dependencies"),
+        // compiler, kernel, manifest-tools and wow-dependencies only for the TestKit fixture and tests; openapi for
+        // generateWowOpenApi.
+        GRADLE_PLUGIN to setOf("manifest", "openapi", "manifest-tools", "kernel", "compiler", "wow-dependencies"),
         // kernel for the state fingerprint.
         MANIFEST_TOOLS to setOf("manifest", "kernel", "query-api"),
         // The test DSL runs a domain on the kernel, and only on it (06 §1).
