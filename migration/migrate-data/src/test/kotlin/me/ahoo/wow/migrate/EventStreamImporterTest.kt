@@ -160,8 +160,14 @@ class EventStreamImporterTest {
         val other = copyOf(first, "other").copy(requestId = first.requestId)
         val source = InMemoryNineXEventSource(listOf(first, other))
         importer(source).importAll(order).rewritten.assert().isEqualTo(1)
-        val rewritten = log.read(NineXExample.orderModel.type.ref("(0)", "other")).toList().single()
-        rewritten.requestId.assert().isEqualTo("${first.requestId}#${other.id}")
+        // Instances are imported concurrently, so either may claim the request id first; the other is rewritten.
+        val requestIds = listOf(first, other).associateWith { stream ->
+            log.read(NineXExample.orderModel.type.ref("(0)", stream.aggregateId.id)).toList().single().requestId
+        }
+        requestIds.values.assert().containsExactlyInAnyOrder(
+            first.requestId,
+            requestIds.entries.single { it.value != first.requestId }.key.let { "${first.requestId}#${it.id}" },
+        )
         importer(source, ImportOptions(restart = true)).importAll(order).also {
             it.imported.assert().isEqualTo(0)
             it.skipped.assert().isEqualTo(2)

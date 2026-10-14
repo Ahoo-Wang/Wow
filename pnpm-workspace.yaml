@@ -3,6 +3,7 @@ packages:
   - compensation/dashboard
   - analytics/console
   - platform/ops/console
+  - example/eshop/web
   - documentation
 
 allowBuilds:
