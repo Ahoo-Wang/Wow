@@ -54,7 +54,7 @@ import me.ahoo.wow.spi.transport.SourceMessage
  *   for (the messages carry no commit time) and starts at the beginning.
  */
 internal class MessageEntries private constructor(
-    val topic: String,
+    override val topic: String,
     private val source: PartitionedSource,
     private val partitions: Int,
     private val kind: EnvelopeKind,

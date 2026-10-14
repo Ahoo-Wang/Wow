@@ -16,6 +16,7 @@ package me.ahoo.wow.query
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
@@ -71,6 +72,9 @@ import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.observation.Observation
+import me.ahoo.wow.spi.observation.TraceContext
+import me.ahoo.wow.spi.observation.trace
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.databind.node.ObjectNode
@@ -78,6 +82,7 @@ import java.time.Duration
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.CoroutineContext
 
 /**
  * The gateway's admission, execution and observation, ported from 9.x `QueryGatewaySubscriptionTest`: a suspend call
@@ -926,6 +931,81 @@ class QueryGatewayTest {
 
             override fun onAudit(audit: QueryAudit) = audit(audit)
         }
+
+    /** The trace of an observed query, named after its observation. */
+    private class Trace(name: String) : TraceContext() {
+        override val fields: Map<String, String> = mapOf("traceparent" to name)
+    }
+
+    /** Records in [told] what the observation [name] is told; it runs in the trace [name]. */
+    private class Told(private val name: String, private val told: MutableList<String>) : Observation {
+        override val context: CoroutineContext = Trace(name)
+
+        override fun outcome(outcome: String) {
+            told += "$name $outcome"
+        }
+
+        override fun failed(error: Throwable) {
+            told += "$name failed"
+        }
+
+        override fun end() {
+            told += "$name end"
+        }
+    }
+
+    private fun startingObserver(name: String, told: MutableList<String>) = object : QueryObserver {
+        override fun start(aggregateType: AggregateType, queryType: QueryType): Observation =
+            Told("$name ${queryType.name}", told)
+    }
+
+    @Test
+    fun `a query should run in its observation, which ends with it and hears its failure (D174)`() {
+        runTest {
+            val told = CopyOnWriteArrayList<String>()
+            val traces = CopyOnWriteArrayList<Map<String, String>>()
+            val backend = GatewayBackend(row = {
+                traces += currentCoroutineContext().trace
+                null
+            })
+            val observer = startingObserver("q", told)
+            gateway(backend, observer = observer).single(SingleQuery(MatchAllFilter), QueryCaller.UNSPECIFIED)
+            traces.single().assert().isEqualTo(mapOf("traceparent" to "q SINGLE"))
+            gateway(backend, observer = observer).list(ListQuery(MatchAllFilter), QueryCaller.UNSPECIFIED).toList()
+            val failing = GatewayBackend(rows = { flow { error("The store is down.") } })
+            assertThrows<QueryExecutionException> {
+                gateway(failing, observer = observer).list(ListQuery(MatchAllFilter), QueryCaller.UNSPECIFIED).toList()
+            }
+            told.assert().containsExactly("q SINGLE end", "q LIST end", "q LIST failed", "q LIST end")
+        }
+    }
+
+    @Test
+    fun `observers together should each observe, and one that fails to start observe nothing (D174)`() {
+        val told = CopyOnWriteArrayList<String>()
+        val failing = object : QueryObserver {
+            override fun start(aggregateType: AggregateType, queryType: QueryType): Observation = error("No tracer.")
+        }
+        QueryObserver.of(listOf(failing, QueryLogObserver())).start(AGGREGATE, QueryType.LIST)
+            .assert().isSameAs(Observation.NONE)
+        QueryObserver.of(listOf(startingObserver("a", told), QueryLogObserver())).start(AGGREGATE, QueryType.LIST)
+            .context.trace.assert().isEqualTo(mapOf("traceparent" to "a LIST"))
+        val both = QueryObserver.of(listOf(startingObserver("a", told), startingObserver("b", told)))
+            .start(AGGREGATE, QueryType.COUNT)
+        both.context.trace.assert().isEqualTo(mapOf("traceparent" to "a COUNT"))
+        both.outcome("ok")
+        both.failed(IllegalStateException("boom"))
+        both.end()
+        told.assert().containsExactly(
+            "a COUNT ok",
+            "b COUNT ok",
+            "a COUNT failed",
+            "b COUNT failed",
+            "a COUNT end",
+            "b COUNT end",
+        )
+        QueryObserver.NONE.start(AGGREGATE, QueryType.LIST).assert().isSameAs(Observation.NONE)
+    }
 
     private fun gateway(
         backend: QueryBackend,

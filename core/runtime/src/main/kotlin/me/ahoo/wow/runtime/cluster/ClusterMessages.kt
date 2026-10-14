@@ -98,7 +98,8 @@ data class WaitWire(val waitId: String, val origin: Origin, val remaining: List<
  * The cluster channel's one message kind for now (design 02 §3): a node forwards [command] to the owner of its
  * partition and waits for the reply until [deadline] (epoch milliseconds). [wait] is the command's wait context; its
  * origin stays the node the command arrived at, so later hops signal that node directly (decision D65), never
- * through the channel.
+ * through the channel. [trace] is the trace context the command executes in (decision D174), its propagation
+ * fields; empty when the sender traces nothing.
  *
  * Every cluster message carries its format version [v] (design 08 §9). A reader ignores the fields it does not know,
  * so a node reads the messages of the next minor version (decision D48).
@@ -108,6 +109,7 @@ data class ForwardCommand(
     val command: CommandWire,
     val wait: WaitWire? = null,
     val deadline: Long,
+    val trace: Map<String, String> = emptyMap(),
 ) {
     companion object {
         const val VERSION: Int = 1
