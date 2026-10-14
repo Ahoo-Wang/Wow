@@ -72,9 +72,10 @@ import kotlin.time.toKotlinDuration
  *   of the scheduled commands (decision D166), see [Timers].
  * - `wow.tenant.default`: the tenant of a caller that has none (D97).
  * - `wow.http.request-facts`, `wow.http.errors.[<code>].status`, `wow.http.manifest.enabled`.
- * - `wow.aggregates.[<context>.<aggregate>].tenant`: a fixed tenant per aggregate type (decision D116), and
- *   `wow.aggregates.[<context>.<aggregate>].routing`: `cluster` (the default, the node's `wow.cluster.router`) or
- *   `kafka`, the `Kafka` router (decision D143), see [Aggregate].
+ * - `wow.aggregates.[<context>.<aggregate>].tenant`: a fixed tenant per aggregate type (decision D116);
+ *   `wow.aggregates.[<context>.<aggregate>].id-generator`: the generator of its new ids (decision D171);
+ *   `wow.aggregates.[<context>.<aggregate>].routing`: `cluster` (the default, the node's `wow.cluster.router`)
+ *   or `kafka`, the `Kafka` router (decision D143), see [Aggregate].
  */
 @ConfigurationProperties(prefix = WowProperties.PREFIX)
 class WowProperties {
@@ -426,10 +427,15 @@ class WowProperties {
     /**
      * An aggregate type's settings. [tenant] fixes the tenant of every aggregate of the type (decision D116, replacing
      * 9.x `@StaticTenantId`): its commands and state reads are in that tenant whoever the caller is
-     * ([me.ahoo.wow.runtime.admission.TenantPolicy]). A type the node does not serve is refused at startup.
+     * ([me.ahoo.wow.runtime.admission.TenantPolicy]). [idGenerator] names the
+     * [me.ahoo.wow.spi.id.AggregateIdGenerator] bean that gives the type's new ids (decision D171), or a generator an
+     * [me.ahoo.wow.spi.id.AggregateIdGeneratorSource] bean finds by that name (CosId's, with wow-cosid); the type's ids
+     * come from the `wowAggregateIdGenerator` bean otherwise. A type the node does not serve, or a name nothing gives
+     * a generator of, is refused at startup.
      */
     class Aggregate {
         var tenant: String? = null
+        var idGenerator: String? = null
 
         /**
          * How the commands of the type are routed (design 02 §2): by the node's router, or through its context's

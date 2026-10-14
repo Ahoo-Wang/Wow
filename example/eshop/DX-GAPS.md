@@ -187,7 +187,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Proposed fix**: When the reference backend is on the class path and the backend is `memory`, have the host wire it behind the snapshot queries, so the guide's sentence holds. Failing that, document the wiring with public types.
 - **Blocks M7**: no. There is a workaround, but every service that tests its queries without a container meets it.
 
-### G15. The query language has no reference: filters, combinators, value shapes, results
+### G15. The query language has no reference: filters, combinators, value shapes, results (resolved)
 
 - **Work package**: E.1
 - **Area**: edge, docs, Skills
@@ -204,8 +204,9 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
   - List the combinators in the descriptor's `record`.
   - Name the expected shape in the `wow.query.malformed` message for a known `op`.
 - **Blocks M7**: yes. A client cannot write anything beyond `MATCH_ALL` without guessing, and generated clients (5a.3) need the same reference.
+- **Resolved**: by #4393 (work package P.2, decision D184). `guide/v10/query` (en and zh) is the query language reference: each filter operator with its JSON shape and value types (`IN` takes `values`, `BETWEEN` takes `lowerBound` and `upperBound`), the combinators (`AND`, `OR`, `NOR`, and `NOT` as a `NOR` of one), field paths and the system fields, each kind's request and answer, paging, cursors, the capability descriptor and its `ETag`, and the errors. `wow-query-api` also has the Kotlin query DSL. The descriptor's `record` still lists no combinator, and `wow.query.malformed` still names no expected shape; the reference covers both.
 
-### G16. `@QueryIndex` and the query annotations are named in the guide but not described
+### G16. `@QueryIndex` and the query annotations are named in the guide but not described (resolved)
 
 - **Work package**: E.1
 - **Area**: docs, Skills
@@ -221,6 +222,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: Follow the KDoc. `CatalogPostgresTest` checks the PostgreSQL indexes by their definitions.
 - **Proposed fix**: Add a "Query model" section to the programming model page: the query annotations with an example on a state, the `wow-query-api` dependency, what the backends build, and how the index names map.
 - **Blocks M7**: no.
+- **Resolved**: by #4393 (work package P.2). The "Query annotations" section of `guide/v10/query` describes each annotation of `me.ahoo.wow.api.query.annotation` and its attributes, the `@field:` target, the `wow-query-api` dependency, what PostgreSQL and MongoDB build for `@QueryIndex`, and how a Manifest index name maps to PostgreSQL's `<table>_<name>`, limited to 63 characters with a hash. With `wow-query-api`, the compiler also generates each state's `<State>Properties`.
 
 ### G17. The guide sends container tests to an `integrationTest` source set it does not show how to declare
 

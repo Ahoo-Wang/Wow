@@ -16,6 +16,7 @@ build/generated/ksp/main/
 │   ├── ShopDomainModelProvider.kt          绑定索引
 │   ├── cart/CartModel.kt                    fun cartModel(context, configure)
 │   ├── cart/CartSagaSubscriptions.kt        fun cartSagaHandlers(dependencies)
+│   ├── cart/CartStateProperties.kt          状态的查询字段（有 wow-query-api 时）
 │   ├── order/OrderModel.kt                  fun orderModel(context, pricingService, configure)
 │   └── order/OrderSagaSubscriptions.kt      fun orderSagaHandlers(dependencies)
 └── resources/META-INF/
@@ -44,6 +45,10 @@ public fun orderModel(
 ## 处理器绑定
 
 每个 `@Saga`、`@Projection` 或 `@Reactor` 类在它的包里得到 `<processor>Handlers(dependencies)`（`OrderSaga` 得到 `orderSagaHandlers`），文件名为 `<Processor>Subscriptions.kt`。它构造处理器一次，构造函数的参数按类型（与限定符）从 `dependencies` 取得，并为每个处理函数返回一个内核 `ProcessorBinding`，名为 `<processor>.<function>`，Saga 的 `@OnRejected` 处理函数绑定在其上。生成的代码只依赖 `wow-kernel`：运行时把这些绑定变成订阅。
+
+## 查询字段：`<State>Properties`
+
+模块的类路径上有 `wow-query-api` 时，每个聚合的状态还会得到 `<State>Properties`：快照查询能命名的 `QueryField` 组成的对象，包括系统字段与每条 `state.*` 路径，如 `state.items.productId` 对应 `OrderStateProperties.STATE__ITEMS__PRODUCT_ID`。查询 DSL 接受它们；见[查询语言](./query.md#生成的字段常量)。
 
 ## 绑定索引：`ModelProvider`
 

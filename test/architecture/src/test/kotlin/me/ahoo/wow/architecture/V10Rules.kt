@@ -37,6 +37,7 @@ object V10Rules {
     val HTTP = V10Module("http", "edge/http")
     val COSEC = V10Module("cosec", "edge/cosec")
     val SPRING_BOOT = V10Module("spring-boot", "host/spring-boot")
+    val COSID = V10Module("cosid", "extensions/cosid")
     val MIGRATE_DATA = V10Module("migrate-data", "migration/migrate-data")
     val COMPILER = V10Module("compiler", "compiler/compiler")
     val GRADLE_PLUGIN = V10Module("gradle-plugin", "compiler/gradle-plugin")
@@ -44,7 +45,7 @@ object V10Rules {
 
     val MODULES = listOf(
         API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, HTTP,
-        COSEC, SPRING_BOOT, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
+        COSEC, SPRING_BOOT, COSID, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
     )
 
     val SHOP_API = V10Module("shop-api", "example/shop/shop-api")
@@ -119,6 +120,8 @@ object V10Rules {
         // postgres and mongo compileOnly: the backend follows the application's classpath (decision D110).
         // query, kafka and clickhouse compileOnly too: each is wired when the application has it.
         SPRING_BOOT to setOf("runtime", "http", "postgres", "mongo", "query", "kafka", "clickhouse"),
+        // CosId's generators as the node's (decision D171): the id SPIs only; it wires itself before the host.
+        COSID to setOf("spi"),
         MIGRATE_DATA to setOf("kernel"),
         // kernel and reactor only for the tests, which compile the generated models.
         COMPILER to setOf("api", "manifest", "kernel", "reactor"),

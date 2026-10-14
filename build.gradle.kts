@@ -67,7 +67,7 @@ val benchmarksProject = includedProjects(":wow-benchmarks")
 // are never published.
 val v10Projects = listOf(
     "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query",
-    "postgres", "mongo", "kafka", "clickhouse", "http", "cosec", "spring-boot", "migrate-data", "architecture",
+    "postgres", "mongo", "kafka", "clickhouse", "http", "cosec", "spring-boot", "cosid", "migrate-data", "architecture",
     "kernel-benchmarks", "compiler", "gradle-plugin", "manifest-tools",
     "routing-spike", "lease-spike",
     "shop-api", "shop-domain", "shop-server", "inventory-api", "inventory-domain", "inventory-server", "example-e2e",

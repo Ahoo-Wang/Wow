@@ -19,7 +19,6 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
-import me.ahoo.wow.runtime.admission.IdGenerator
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.command.RejectionHandler
@@ -29,6 +28,7 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.runtime.wait.WaitOptions
+import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
@@ -122,13 +122,14 @@ data class ServiceNodeOptions(
 
 /**
  * The admission plug-ins of a node's [me.ahoo.wow.runtime.admission.CommandGateway] (decisions D92, D114, D182), and the
- * [tenants] of its aggregate types (decision D116).
+ * [tenants] of its aggregate types (decision D116). [ids] are the node's id generators (decision D171): admission's
+ * command and aggregate ids, the wait ids, and the ids its decide functions and sagas take.
  */
 data class AdmissionPlugins(
     val authorizer: CommandAuthorizer = CommandAuthorizer.ALLOW_ALL,
     val transformers: List<CommandTransformer> = emptyList(),
     val validators: List<CommandValidator> = emptyList(),
-    val ids: IdGenerator = IdGenerator.UUID_V7,
+    val ids: IdGenerators = IdGenerators.DEFAULT,
     val tenants: TenantPolicy = TenantPolicy.CALLERS,
 )
 

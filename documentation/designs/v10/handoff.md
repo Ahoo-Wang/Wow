@@ -1,17 +1,20 @@
 # V10 交接与协调手册
 
-日期：2026-10-13（夜间更新）。状态：持续维护（每次交接前更新）。上位文档：[路线图](roadmap.md)。
+日期：2026-10-13（深夜更新，额度将尽前）。状态：持续维护（每次交接前更新）。上位文档：[路线图](roadmap.md)。
 
-本文是换会话、换机器继续推进的入口：先读本文，再读[决策台账](decisions.md)（D1～D188 已定；D123 由 D124 取代）、[08 数据协议](08-data-protocols.md)与 `example/eshop/DX-GAPS.md`。已合并的明细以 `git log origin/v10` 为准。
+本文是换会话、换机器继续推进的入口：先读本文，再读[决策台账](decisions.md)（D1～D191 已定；D123 由 D124 取代）、[08 数据协议](08-data-protocols.md)与 `example/eshop/DX-GAPS.md`。已合并的明细以 `git log origin/v10` 为准。
 
 ## 1. 位置
 
-- **M1～M5 完成；M6 大半；M6e 的 E.0～E.6、E.D、E.R 全部完成（出口还差阻塞 M7 的 DX 缺口）；M7～M9 未开始。** 决定 D1～D188 已定（D123 由 D124 取代）。不发预发布（D124）。
+- **M1～M5 完成；M6 大半；M6e 的 E.0～E.6、E.D、E.R 全部完成（出口还差阻塞 M7 的 DX 缺口）；M7～M9 未开始。** 决定 D1～D191 已定（D123 由 D124 取代）。不发预发布（D124）。
 - **M6 已合并**：6.00、6.0a～6.0d、6.1a～6.1e、6.2a～6.2c、6.3a～6.3e、6.4a～6.4c、6.6、6.8；另有 #4345（按类型查重）、#4346（Reactor Netty keep-alive 绕行，等 1.3.8 删除 `KeepAliveReads`）、#4377（示例的 Manifest schema 补全、Codecov 按模块路径）。
 - **M6e 已合并**：E.0 骨架；E.R 上下文名规则、`wow.contexts.include/exclude`、G9 启动检查、G12（#4380）；E.D V10 开发指南（`documentation/docs/{en,zh}/guide/v10/`）与 `wow-develop` 的 V10 参考（#4379）。G9 之后 shop 需要 Kafka（测试用内存 topic）。
 - **M6 又合并**：6.0e 调用方与操作人（#4381）。**M6e 又合并**：E.1 catalog（#4383）、E.2～E.4 basket、ordering、inventory（#4384）、E.5 payment 与 G21 修复（#4385）。
 - **又合并**：E.6 全链路（#4386，压测基线在 `example/eshop/e2e/README.md`）；P.1 停放自动重试与运维路由（#4389）；6.0h 命令转换（#4388）；09 §13 的决定 D184～D188（#4387）。
-- **在做（子代理）**：G32 与 G33 修复（`claude/v10-owner-routing-fix`，E.6 发现的框架 bug：Saga 的本上下文命令绕过分区属主、起始检查点为 0 时不落盘）；P.2 Kotlin 查询 DSL 与查询参考（`claude/v10-query-dsl`）；P.5 测试 DSL（`claude/v10-test-dsl`）。
+- **再合并**：G32/G33 修复（#4390）、P.5 测试 DSL（#4392）、P.3 与 P.4（#4394）、P.2 查询 DSL（#4393）；决定 D189～D191（#4397、#4398），待决 T1（成功回执）待讨论。
+- **开着的 PR（2026-10-13 晚，接手先处理）**：
+  - #4395 6.0f ID 生成器（`claude/v10-id-generators`）：CI 已绿；协调者要求它只再加 `:cosid` 的架构规则（`V10Rules` 的 `MODULES`、`ALLOWED_PROJECT_DEPENDENCIES`，`test/architecture/build.gradle.kts` 的 `v10ModuleDirs`）并合入 `origin/v10`，**不要**做「Saga ID 改为基于名字的 UUID」（已被 D191 否定）。接手时看分支最新提交：没加规则就自己补，演练后合并。
+  - #4396 6.3g Kafka 主题管理与 6.5 Kafka Router（`claude/v10-kafka-topics-router`）：子代理在做；接手时看 PR 状态与提交，未完成就在新会话派子代理从该分支继续（merge，不 rebase）。
 - **能力核对完成**（6.0i，#4371、#4372）：09 §13 的去向已定（D184～D188）：补齐项为路线图 M6p 的 P.1～P.9，P.1～P.5 是 M7 入口门槛。
 - **范围冻结（D181）**：M6e 期间新议题只登记，除非阻塞 eShop E.1～E.6；E.7 移到 M7。
 - **当前协调者**：本机会话（Claude Code 桌面，原账号），自 2026-10-12；额度用完后由用户在新机器上用另一个账号接手。
@@ -20,10 +23,11 @@
 
 | 顺序 | 工作包 | 要点 |
 |---|---|---|
-| 1 | 审查合并 G32/G33 修复、P.2、P.5 | 本地演练后合并 |
-| 2 | P.3、P.4；阻塞 M7 的 DX 缺口（G20 租户内公开读、G30 等待链与跳数） | M7 入口门槛 |
+| 1 | 收尾 #4395、#4396 | 见上 |
+| 2 | P.10（D189、D190、D191 与 `@Retry` 的编译器支持） | M7 入口门槛；涉及 `:api`、编译器、准入、查询准入、派生命令；P.3 的编译器草稿补丁见 #4394 的说明 |
 | 2 | H2 阶段 2（D155） | 机器空闲时跑：3 个 JVM、持久化 PostgreSQL、属主被杀的不可用窗口 |
-| M7 前 | 6.0f、6.0g、6.3f、6.3g、6.5、6.7、6.9、6.2d～f、5a.2～5a.4；M8 前：P.6～P.9 | 按 09 的阻塞分级排期 |
+| 3 | 待决 T1（成功回执）与用户讨论；DX-GAPS 剩余阻塞 M7 的条目 | 不按默认推荐派工 |
+| M7 前 | 6.0g、6.3f、6.7、6.9、6.2d～f、5a.2～5a.4；M8 前：P.6～P.9 | 按 09 的阻塞分级排期 |
 
 实现偏离已登记在对应决定的「实现」说明里（D163、D164、D165、D182、D184）；专题文档（02 §1 准入顺序、04 §2 台账、05 查询系统字段、08 线上与存储字段）待按这些说明同步。6.6 新增 `Subscription.context`（来源订阅按读它的上下文发信号）待补进 04。
 
@@ -43,7 +47,7 @@ E.D 写指南时发现、尚无工作包的不一致（待定是改代码还是�
 
 - **分工**：主会话只做协调、审查与设计文档；实现交给隔离 worktree 里的子代理。子代理从最新 `origin/v10` 开分支，开 PR 到 `v10`，不合并。
 - **子代理说明里必须写明**：JUnit 测试函数返回 `Unit`（否则被静默跳过，按 `build/test-results` 的 XML 核对数量）；M7 出口前 V10 模块不做 ABI 转储（D88、D147）；先 `detekt --auto-correct`；不改 `documentation/designs/v10/**`；并行的子代理不碰同一批文件（列出禁区）；分步提交并尽早推送；不 rebase、不 force-push，需要时 merge `origin/v10`；新增第三方依赖须先问用户。
-- **合并前**：在本地把 PR 合到最新 `origin/v10` 上演练，跑完整验证命令（下方）并按 XML 核对测试数；看 `gh pr checks`，红色检查要逐项确认与本 PR 无关（Codecov 的组件状态常在上传未齐时先报红，可查 `https://api.codecov.io/api/v2/github/Ahoo-Wang/repos/Wow/compare/components?pullid=<N>`）。合并用 `gh pr merge <N> --squash --admin --match-head-commit <完整 SHA> --subject "<标题> (#N)" --body "<正文>"`：显式写标题与正文，**不带 `Co-authored-by`**。
+- **合并前**：在本地把 PR 合到最新 `origin/v10` 上演练，跑完整验证命令（下方）并按 XML 核对测试数；看 `gh pr checks`，红色检查要逐项确认与本 PR 无关（Codecov 的组件状态常在上传未齐时先报红，可查 `https://api.codecov.io/api/v2/github/Ahoo-Wang/repos/Wow/compare/components?pullid=<N>`）。合并用 `gh pr merge <N> --squash --admin --match-head-commit <完整 SHA> --subject "<标题> (#N)" --body "<正文>"`：显式写标题与正文。
 - **完整验证命令**（本机需 JDK 21；不要 `./gradlew --stop`，会杀掉其他代理的守护进程）：
 
 ```text
@@ -69,3 +73,18 @@ E.D 写指南时发现、尚无工作包的不一致（待定是改代码还是�
 
 - 交接前（额度将尽、换机器、长时间离开）更新第 1、2 节；工作方式变了更新第 3 节。
 - 本文只放「现在在哪、接下来做什么、怎么做」；决定进[决策台账](decisions.md)，工作包定义进[路线图](roadmap.md)。
+
+## 6. 用户的长期要求（原记在协调者本机记忆，换机器时以此为准）
+
+- 与用户用中文交流；代码、提交与 PR 用英文。默认按协调者的推荐推进，只有真正需要用户拍板的才问（标注推荐项）；用户说「先讨论」「先记录」的议题不派工。
+- squash 合并时显式写 `--subject` 与 `--body`。
+- `--admin` 合并会绕过红色 CI：合并前必须看 `gh pr checks`，红色逐项确认与本 PR 无关（Codecov 状态常过时，以 compare API 为准），并在本地演练。
+- 直接推送 `v10` 会被拦截：前向合并推旁路分支，请用户执行 `git push origin <SHA>:v10`。
+- 不发预发布（alpha、beta、rc），全部 V10 目标完成后一次发版；打标签前问用户。
+- 新增第三方依赖、改发布自动化、改安全设置或 Dependabot 告警须先问用户。
+- 7.2b dataset-registry 与 7.2c analytics 先与用户讨论设计再开工。
+- 每周额度不作为限制，只看 5 小时窗口；同时最多 2～3 个长任务子代理；不用 Fable 模型。撞 5 小时限制后，额度恢复即继续推进。
+- 本机 Gradle 需要 JDK 21（默认 java 可能是 17），按新机器的路径设 `JAVA_HOME`；**不要 `./gradlew --stop`**。
+- 演练用独立 worktree，不要在正在跑的演练下切分支；改设计文档用另一个 worktree。
+- Reactor Netty 1.3.8 GA 发布后提议升级（需批准）并删除 `KeepAliveReads`；用户拒绝了 1.4.0-M2。
+- main 上两个无上游修复的开发依赖告警（braces、sprintf-js）由用户决定暂挂。

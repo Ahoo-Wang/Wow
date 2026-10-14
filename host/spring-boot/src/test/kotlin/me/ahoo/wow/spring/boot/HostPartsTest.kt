@@ -29,6 +29,8 @@ import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
+import me.ahoo.wow.spi.id.AggregateIdGenerator
+import me.ahoo.wow.spi.id.AggregateIdGeneratorSource
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.support.DefaultListableBeanFactory
@@ -293,6 +295,52 @@ class WowPropertiesTest {
         val blank = WowProperties().apply { aggregates["bank.account"] = WowProperties.Aggregate().apply { tenant = " " } }
         assertThrows<IllegalStateException> { WowAutoConfiguration.tenants(blank, models) }
             .message.assert().contains("blank")
+    }
+
+    @Test
+    fun `an aggregate type's id generator should be the one its id-generator names (D171)`() {
+        val models = BankModels().models(Dependencies.of(DecidedCommands()))
+        val account = AggregateType(BANK, "account")
+        val default = AggregateIdGenerator { "default" }
+        val named = AggregateIdGenerator { "named" }
+        val lookup = { name: String -> named.takeIf { name == "accounts" } }
+        WowAutoConfiguration.aggregateIdGenerators(WowProperties(), models, default, lookup).assert().isSameAs(default)
+        val configured = bind("wow.aggregates.[bank.account].id-generator" to "accounts")
+        WowAutoConfiguration.aggregateIdGenerators(configured, models, default, lookup).next(account)
+            .assert().isEqualTo("named")
+        val tenantOnly = bind("wow.aggregates.[bank.account].tenant" to "t0")
+        WowAutoConfiguration.aggregateIdGenerators(tenantOnly, models, default, lookup).assert().isSameAs(default)
+        val unknownName = bind("wow.aggregates.[bank.account].id-generator" to "missing")
+        assertThrows<IllegalStateException> {
+            WowAutoConfiguration.aggregateIdGenerators(unknownName, models, default, lookup)
+        }.message.assert().contains("names missing")
+        val unknownType = bind("wow.aggregates.[shop.cart].id-generator" to "accounts")
+        assertThrows<IllegalStateException> {
+            WowAutoConfiguration.aggregateIdGenerators(unknownType, models, default, lookup)
+        }.message.assert().contains("shop.cart")
+        val blank = bind("wow.aggregates.[bank.account].id-generator" to " ")
+        assertThrows<IllegalStateException> {
+            WowAutoConfiguration.aggregateIdGenerators(blank, models, default, lookup)
+        }.message.assert().contains("blank")
+    }
+
+    @Test
+    fun `a generator's name should find its bean first, then a source's generator (D171)`() {
+        val bean = AggregateIdGenerator { "bean" }
+        val sourced = AggregateIdGenerator { "sourced" }
+        val beans = DefaultListableBeanFactory().apply {
+            registerSingleton("accounts", bean)
+            registerSingleton("notAGenerator", "text")
+        }
+        val sources = listOf(
+            AggregateIdGeneratorSource { null },
+            AggregateIdGeneratorSource { name -> sourced.takeIf { name == "cosid-accounts" } },
+        )
+        val lookup = WowAutoConfiguration.idGeneratorLookup(beans, sources)
+        lookup("accounts").assert().isSameAs(bean)
+        lookup("cosid-accounts").assert().isSameAs(sourced)
+        lookup("notAGenerator").assert().isNull()
+        WowAutoConfiguration.idGeneratorLookup(beans, emptyList())("cosid-accounts").assert().isNull()
     }
 
     @Test

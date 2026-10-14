@@ -225,6 +225,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
                 {text: 'What the Compiler Generates', link: 'generated-code'},
                 {text: 'Testing', link: 'testing'},
                 {text: 'HTTP API', link: 'http-api'},
+                {text: 'Query Language', link: 'query'},
                 {text: 'Configuration Keys', link: 'configuration'},
                 {text: 'Deployment', link: 'deployment'},
             ],

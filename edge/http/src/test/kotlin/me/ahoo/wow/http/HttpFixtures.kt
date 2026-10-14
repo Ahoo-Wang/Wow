@@ -48,6 +48,7 @@ import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.wait.Origin
 import org.springframework.http.HttpHeaders
@@ -191,6 +192,7 @@ class HttpNode(
     options: WowHttpOptions = WowHttpOptions(),
     tenants: TenantPolicy = TenantPolicy.CALLERS,
     defaultWaitTimeout: kotlin.time.Duration = WaitPlan.DEFAULT_TIMEOUT,
+    ids: IdGenerators = IdGenerators.DEFAULT,
     queries: (InMemoryEventLog) -> HttpQueries = { HttpQueries.NONE },
 ) {
     val log = InMemoryEventLog(partitions = 2)
@@ -217,6 +219,7 @@ class HttpNode(
         mapOf(CONTEXT to coordinator),
         transformers = transformers,
         validators = validators,
+        ids = ids,
         tenants = tenants,
     )
     val reads = KernelStateReads(models, mapOf(CONTEXT to KernelStateReads.ContextReads(kernel, snapshots)))

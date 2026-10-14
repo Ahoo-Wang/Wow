@@ -145,6 +145,12 @@ internal class ModelSymbolProcessor(
     private val errorCodes = sortedMapOf<String, ErrorCodeBinding>()
     private val sources = mutableSetOf<KSFile>()
 
+    /** Whether the module has `wow-query-api`, so each state gets its `<State>Properties` ([QueryPropertiesSource]). */
+    private var queryApi: Boolean? = null
+
+    /** The states whose `<State>Properties` were generated. */
+    private val propertiesOf = mutableSetOf<String>()
+
     /** The packages of the module's aggregate roots and subscription processors, where its binding index goes. */
     private val packages = sortedSetOf<String>()
 
@@ -162,6 +168,7 @@ internal class ModelSymbolProcessor(
             return emptyList()
         }
         collectBoundedContexts(resolver)
+        queryApi = queryApi ?: QueryPropertiesSource.available(resolver)
         resolver.getSymbolsWithAnnotation(UpgradeResolver.UPGRADE).filterIsInstance<KSFunctionDeclaration>().forEach {
             it.containingFile?.let { file -> sources += file }
             upgrades += UpgradeResolver.read(it)
@@ -408,15 +415,20 @@ internal class ModelSymbolProcessor(
         }
     }
 
+    /** The root's state: its constructor's one parameter, or the root itself when it takes none or an id. */
+    private fun stateOf(root: KSClassDeclaration): KSClassDeclaration {
+        val constructor = root.primaryConstructor ?: root.getConstructors().firstOrNull()
+        val firstParameter = constructor?.parameters?.firstOrNull()?.type?.resolve()?.declaration as? KSClassDeclaration
+        return if (firstParameter == null || firstParameter.qualifiedName?.asString() == STRING) root else firstParameter
+    }
+
     @OptIn(KspExperimental::class)
     private fun analyze(root: KSClassDeclaration): AggregateBinding {
         val problems = mutableListOf<String>()
         val rootName = root.qualifiedName!!.asString()
         val constructor = root.primaryConstructor ?: root.getConstructors().firstOrNull()
-        val firstParameter = constructor?.parameters?.firstOrNull()?.type?.resolve()?.declaration as? KSClassDeclaration
-        val rootIsState = constructor == null || firstParameter == null ||
-            firstParameter.qualifiedName?.asString() == STRING
-        val state = if (rootIsState) root else firstParameter!!
+        val state = stateOf(root)
+        val rootIsState = state == root
         if (!rootIsState && constructor!!.parameters.size != 1) {
             problems += "the root's constructor must take only its state"
         }
@@ -789,6 +801,9 @@ internal class ModelSymbolProcessor(
             binding.packageName,
             "${binding.rootSimpleName}Model",
         ).bufferedWriter().use { it.write(ModelSource.render(binding)) }
+        if (queryApi == true) {
+            QueryPropertiesSource.generate(codeGenerator, stateOf(root), propertiesOf)
+        }
     }
 
     private fun KSClassDeclaration.functionsNamedOrAnnotated(

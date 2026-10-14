@@ -16,9 +16,11 @@ package me.ahoo.wow.kernel
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.SagaContext
+import me.ahoo.wow.spi.id.IdGenerators
 import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
@@ -99,13 +101,17 @@ class RejectionBinding<C : Any> private constructor(
 /**
  * The context an `@OnRejected` handler gets for [rejected] (decisions D136, D153): its execution is (handler,
  * aggregate, version) of the commit whose saga execution derived the command, and the commands it derives are
- * [RejectionSagaContext]'s, deterministic per rejected command.
+ * [RejectionSagaContext]'s, deterministic per rejected command; it takes its ids from [ids].
  */
-fun rejectionContextOf(handler: RejectionBinding<*>, rejected: CommandRejected<*>): SagaContext =
-    RejectionSagaContext(
-        ExecutionId(handler.name, rejected.executionId.ref, rejected.executionId.version),
-        rejected,
-    )
+fun rejectionContextOf(
+    handler: RejectionBinding<*>,
+    rejected: CommandRejected<*>,
+    ids: Ids = IdGenerators.DEFAULT,
+): SagaContext = RejectionSagaContext(
+    ExecutionId(handler.name, rejected.executionId.ref, rejected.executionId.version),
+    rejected,
+    ids,
+)
 
 /**
  * The context of an `@OnRejected` handler for the rejection [rejected] (decisions D136, D153). Handling the same
@@ -114,8 +120,11 @@ fun rejectionContextOf(handler: RejectionBinding<*>, rejected: CommandRejected<*
  * execution and the call's index. Each command's causation is the rejected command, in the chain of its root, and its
  * operator the rejected command's (decision D163).
  */
-class RejectionSagaContext(override val executionId: ExecutionId, private val rejected: CommandRejected<*>) :
-    SagaContext {
+class RejectionSagaContext(
+    override val executionId: ExecutionId,
+    private val rejected: CommandRejected<*>,
+    override val ids: Ids = IdGenerators.DEFAULT,
+) : SagaContext {
     private val calls = AtomicInteger()
 
     override fun <C : Any> command(ref: AggregateRef, body: C): Command<C> {
