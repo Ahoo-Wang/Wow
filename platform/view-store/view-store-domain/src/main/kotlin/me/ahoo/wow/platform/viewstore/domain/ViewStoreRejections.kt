@@ -44,4 +44,11 @@ object ViewStoreRejections {
 
     @ErrorCode(description = "A shared dashboard shows the view, which stays shared.", status = 409)
     const val REFERENCED_BY_SHARED_DASHBOARD = "view-store.referenced-by-shared-dashboard"
+
+    /**
+     * The extension of a [REFERENCED_BY_SHARED_DASHBOARD] rejection that lists the shared dashboards showing the view,
+     * each `{"id", "title"}` ([me.ahoo.wow.platform.viewstore.domain.view.BoardReference]): its problem carries it as
+     * the member `boards` (decision D211), and its `detail` names them for people.
+     */
+    const val BOARDS = "boards"
 }

@@ -55,6 +55,22 @@ class ProblemTest {
     }
 
     @Test
+    fun `a rejection's extensions are members of their own names, the problem's own members left to them`() {
+        val statuses = ErrorStatuses(cartManifest())
+        val extensions =
+            mapOf("items" to listOf(mapOf("id" to "i-1")), "code" to "other", "instance" to "/x", "none" to null)
+        val result = result(ErrorInfo(CART_EMPTY, "The cart is empty.", extensions = extensions))
+        val problem = statuses.problemOf(result)
+        problem.extensions.assert().isEqualTo(extensions)
+        problem.members().let { members ->
+            members["items"].assert().isEqualTo(listOf(mapOf("id" to "i-1")))
+            members["code"].assert().isEqualTo(CART_EMPTY)
+            members.containsKey("instance").assert().isFalse()
+            members.containsKey("none").assert().isFalse()
+        }
+    }
+
+    @Test
     fun `the exception's message is the detail, else the title`() {
         ProblemException(Problem.ofStatus(HttpStatus.NOT_FOUND)).message.assert().isEqualTo("Not Found")
         ProblemException(Problem.ofStatus(HttpStatus.NOT_FOUND, "No route.")).message.assert().isEqualTo("No route.")

@@ -117,10 +117,13 @@ abstract class ViewStoreContract {
     fun `a shared view a shared dashboard shows should stay shared`() {
         val definition = definition()
         val view = create(CAROL.shared, definition)
-        create(CAROL.shared, definition, title = "Weekly board", config = dashboardOf(view))
-        store.post("/view-store/view/$view/claim-view", "{}", CAROL.shared)
-            .assertProblem(CONFLICT, ViewStoreRejections.REFERENCED_BY_SHARED_DASHBOARD)
-            .json["detail"].asString().assert().contains("Weekly board")
+        // A title with " (" in it, which a client parsing the detail would cut.
+        val board = create(CAROL.shared, definition, title = "Weekly (team) board", config = dashboardOf(view))
+        val problem = store.post("/view-store/view/$view/claim-view", "{}", CAROL.shared)
+            .assertProblem(CONFLICT, ViewStoreRejections.REFERENCED_BY_SHARED_DASHBOARD).json
+        problem["detail"].asString().assert().contains("Weekly (team) board")
+        problem[ViewStoreRejections.BOARDS].values().map { it["id"].asString() to it["title"].asString() }.assert()
+            .containsExactly(board to "Weekly (team) board")
     }
 
     @Test
