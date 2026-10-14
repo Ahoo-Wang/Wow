@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.decide
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.id.Ids
 import java.time.Instant
 import kotlin.time.Duration
 
@@ -32,6 +33,12 @@ import kotlin.time.Duration
 interface DecideScope {
     /** The command being decided, with what admission learned about its request. */
     val command: Command<*>
+
+    /**
+     * The ids this decision takes (decision D171): the node's global and aggregate id generators, fixed ids in the
+     * test DSL. A decision decided again, after a version conflict, takes new ones.
+     */
+    val ids: Ids
 
     /** Adds [value] under [key] to what the caller is answered once the events are appended. */
     fun putResult(key: String, value: Any)

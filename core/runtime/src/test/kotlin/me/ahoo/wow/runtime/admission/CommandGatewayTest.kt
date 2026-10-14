@@ -44,6 +44,9 @@ import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.spi.id.AggregateIdGenerator
+import me.ahoo.wow.spi.id.GlobalIdGenerator
+import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -119,12 +122,14 @@ class CommandGatewayTest {
         validators: List<CommandValidator> = emptyList(),
         tenants: TenantPolicy = TenantPolicy.CALLERS,
         coordinator: WaitCoordinator = this.coordinator,
+        ids: IdGenerators = IdGenerators.DEFAULT,
     ) = CommandGateway(
         ModelRegistry(listOf(model)),
         mapOf(CONTEXT to coordinator),
         authorizer = authorizer,
         transformers = transformers,
         validators = validators,
+        ids = ids,
         tenants = tenants,
     )
 
@@ -173,6 +178,31 @@ class CommandGatewayTest {
         result.correlationId.assert().isEqualTo(result.commandId)
         decided.assert().containsExactly(result.commandId)
     }
+
+    @Test
+    fun `the command id should come from the global generator, a new aggregate's from its type's`(): Unit =
+        runBlocking {
+            val types = CopyOnWriteArrayList<AggregateType>()
+            var global = 0
+            val ids = IdGenerators(
+                GlobalIdGenerator { "g-${++global}" },
+                AggregateIdGenerator { type ->
+                    types += type
+                    "${type.name}-new"
+                },
+            )
+            val gateway = gateway(ids = ids)
+            gateway.ids.assert().isSameAs(ids)
+            val opened = gateway.execute(request(command = "OpenCart", body = "{}", aggregateId = null))
+            opened.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            opened.ref.id.assert().isEqualTo("cart-new")
+            opened.commandId.assert().isEqualTo("g-1")
+            opened.requestId.assert().isEqualTo("g-1")
+            types.assert().containsExactly(model.type)
+            val added = gateway.execute(request(aggregateId = "cart-new"))
+            added.commandId.assert().isEqualTo("g-2")
+            types.size.assert().isEqualTo(1)
+        }
 
     @Test
     fun `the operator is the caller's subject in its own tenant, marked when acting elsewhere (D163)`(): Unit =

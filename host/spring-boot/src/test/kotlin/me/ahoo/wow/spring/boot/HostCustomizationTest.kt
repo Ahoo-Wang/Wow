@@ -13,9 +13,6 @@
 
 package me.ahoo.wow.spring.boot
 
-import me.ahoo.cosid.provider.DefaultIdGeneratorProvider
-import me.ahoo.cosid.provider.IdGeneratorProvider
-import me.ahoo.cosid.snowflake.MillisecondSnowflakeId
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.kernel.CommandType
@@ -25,12 +22,14 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandInput
 import me.ahoo.wow.runtime.admission.CommandTarget
 import me.ahoo.wow.runtime.admission.CommandTransformer
-import me.ahoo.wow.runtime.admission.IdGenerator
+import me.ahoo.wow.spi.id.AggregateIdGenerator
+import me.ahoo.wow.spi.id.GlobalIdGenerator
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 
 /** The application's own beans and settings take the place of the host's defaults. */
@@ -42,6 +41,7 @@ class HostCustomizationTest {
         "wow.node.id" to "node-a",
         "wow.service" to "custom-bank",
         "wow.http.manifest.enabled" to false,
+        "wow.aggregates.[bank.account].id-generator" to "accountIds",
         sources = listOf(HostTestApp::class.java, Customizations::class.java),
     )
 
@@ -93,11 +93,14 @@ class HostCustomizationTest {
     }
 
     @Test
-    fun `CosId's shared generator should name new aggregates`() {
-        host.context.getBean(IdGenerator::class.java).assert().isInstanceOf(CosIdGenerator::class.java)
+    fun `the application's global generator and the aggregate's configured one should give the ids`() {
+        host.node.gateway.ids.global.assert().isSameAs(host.context.getBean(GlobalIdGenerator::class.java))
         val answer = host.post("/bank/account/open-account", """{"owner":"frank"}""")
-        val id = answer.body!!["ref"]["id"].asString()
-        id.contains('-').assert().isFalse()
+        answer.status.assert().isEqualTo(200)
+        answer.body!!["ref"]["id"].asString().assert().startsWith("acct-")
+        answer.body!!["commandId"].asString().assert().startsWith("g-")
+        host.client.get().uri("/wow/id/global").exchange().expectBody(String::class.java).returnResult()
+            .responseBody!!.assert().startsWith("g-")
     }
 
     @Test
@@ -126,8 +129,16 @@ class HostCustomizationTest {
         }
 
         @Bean
-        fun idGeneratorProvider(): IdGeneratorProvider = DefaultIdGeneratorProvider().apply {
-            share = MillisecondSnowflakeId(1)
+        fun globalIds(): GlobalIdGenerator {
+            val sequence = AtomicInteger()
+            return GlobalIdGenerator { "g-${sequence.incrementAndGet()}" }
+        }
+
+        /** The generator `wow.aggregates.[bank.account].id-generator` names. */
+        @Bean
+        fun accountIds(): AggregateIdGenerator {
+            val sequence = AtomicInteger()
+            return AggregateIdGenerator { "acct-${sequence.incrementAndGet()}" }
         }
     }
 }
@@ -173,6 +184,14 @@ class HostRefusalTest {
 
         @Bean
         fun second(): CommandTransformer = OwnerDefault()
+    }
+
+    @Test
+    fun `an id generator nothing gives, or of a type the node does not serve, should be refused`() {
+        refusal("wow.aggregates.[bank.account].id-generator" to "missing").assert()
+            .contains("wow.aggregates.[bank.account].id-generator names missing")
+        refusal("wow.aggregates.[bank.ledger].id-generator" to "missing").assert()
+            .contains("wow.aggregates.[bank.ledger].id-generator names no aggregate type")
     }
 
     @Test

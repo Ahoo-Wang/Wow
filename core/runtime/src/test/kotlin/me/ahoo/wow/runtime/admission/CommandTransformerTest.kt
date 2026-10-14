@@ -37,6 +37,8 @@ import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.spi.id.AggregateIdGenerator
+import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
@@ -119,9 +121,11 @@ class CommandTransformerTest {
         transformers: List<CommandTransformer> = listOf(byUsername, importer, callbacks, notes),
         authorizer: CommandAuthorizer = CommandAuthorizer.ALLOW_ALL,
         models: List<AggregateModel<*>> = listOf(account),
+        ids: IdGenerators = IdGenerators.DEFAULT,
     ) = CommandGateway(
         ModelRegistry(models),
         mapOf(CONTEXT to coordinator),
+        ids = ids,
         authorizer = CommandAuthorizer { caller, action ->
             actions += action
             authorizer.authorize(caller, action)
@@ -189,6 +193,16 @@ class CommandTransformerTest {
         result.transformedFrom.assert().isEqualTo(TransformedFrom("$TYPE.ChangePassword", registered.ref.id))
         actions.size.assert().isEqualTo(1)
     }
+
+    @Test
+    fun `a transformed creation without an aggregate should take its id from the target type's generator`(): Unit =
+        runBlocking {
+            val ids = IdGenerators(aggregates = AggregateIdGenerator { type -> "${type.name}-generated" })
+            val result = gateway(ids = ids).execute(request("Import", """{"username":"dora","legacyId":"7"}"""))
+            result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            result.ref.assert().isEqualTo(TYPE.ref(result.ref.tenantId, "account-generated"))
+            result.transformedFrom.assert().isEqualTo(TransformedFrom("$TYPE.Import"))
+        }
 
     @Test
     fun `a mounted import becomes the creation command, with a generated id`(): Unit = runBlocking {

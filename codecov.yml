@@ -355,6 +355,12 @@ component_management:
         - host/spring-boot/src/main/**
       flag_regexes:
         - "^v10$"
+    - component_id: v10-cosid
+      name: v10-cosid
+      paths:
+        - extensions/cosid/src/main/**
+      flag_regexes:
+        - "^v10$"
     - component_id: v10-migrate-data
       name: v10-migrate-data
       paths:

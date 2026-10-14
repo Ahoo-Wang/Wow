@@ -36,7 +36,6 @@ import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
-import me.ahoo.wow.runtime.admission.IdGenerator
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.ClusterChannel
@@ -51,6 +50,10 @@ import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.wait.SignalSender
+import me.ahoo.wow.spi.id.AggregateIdGenerator
+import me.ahoo.wow.spi.id.AggregateIdGeneratorSource
+import me.ahoo.wow.spi.id.GlobalIdGenerator
+import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.json.WowJson
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
@@ -75,7 +78,6 @@ import java.net.http.HttpClient
 import javax.sql.DataSource
 import kotlin.time.toKotlinDuration
 import jakarta.validation.Validator as JakartaValidator
-import me.ahoo.cosid.provider.IdGeneratorProvider as CosIdGeneratorProvider
 
 /**
  * The Wow V10 host (roadmap 5b.3; decisions D30, D44, D89, D105–D110, D114): by what the classpath and the
@@ -90,9 +92,12 @@ import me.ahoo.cosid.provider.IdGeneratorProvider as CosIdGeneratorProvider
  *   `MongoClient`, in memory (one node, with a warning) when it has neither, or the application's own
  *   [BackendFactory] bean.
  * - **Admission**: the application's [CommandAuthorizer], [CommandTransformer]s (D182) and [CommandValidator]s, the Jakarta
- *   validator when it has a Bean Validation provider (D106), the [IdGenerator]: CosId's shared generator when it
- *   runs CosId, UUIDv7 otherwise (D114), the fixed tenants of `wow.aggregates.*.tenant` (D116), and
- *   `wow.wait.default-timeout`, the node's default wait timeout for every entry (D64).
+ *   validator when it has a Bean Validation provider (D106), the id generators (D171): the [GlobalIdGenerator] bean
+ *   (UUIDv7 unless the application or wow-cosid gives one) and, per aggregate type, the [AggregateIdGenerator] bean
+ *   `wow.aggregates.*.id-generator` names, or one an [AggregateIdGeneratorSource] bean finds by that name, else the
+ *   `wowAggregateIdGenerator` bean (the global generator's ids unless replaced); the fixed tenants of
+ *   `wow.aggregates.*.tenant` (D116), and `wow.wait.default-timeout`, the node's default wait timeout for every entry
+ *   (D64).
  * - **Ports**: the public routes ([wowRoutes]) on the application's WebFlux server, authenticated by its
  *   [CallerResolver] (anonymous otherwise, D97); the cluster channel and the wait signals ([internalRoutes]) on an
  *   [InternalServer] of their own at `wow.internal.port`, never on the public server, the node's address learned once
@@ -111,7 +116,6 @@ import me.ahoo.cosid.provider.IdGeneratorProvider as CosIdGeneratorProvider
         "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration",
         "org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration",
         "org.springframework.boot.validation.autoconfigure.ValidationAutoConfiguration",
-        "me.ahoo.cosid.spring.boot.starter.CosIdAutoConfiguration",
     ],
 )
 @EnableConfigurationProperties(WowProperties::class)
@@ -192,9 +196,15 @@ class WowAutoConfiguration {
         }
     }
 
+    /** The node's global ids (decision D171): command, request and wait ids, and the ids domain code takes. */
     @Bean
     @ConditionalOnMissingBean
-    fun wowIdGenerator(): IdGenerator = IdGenerator.UUID_V7
+    fun wowGlobalIdGenerator(): GlobalIdGenerator = GlobalIdGenerator.UUID_V7
+
+    /** The ids of new aggregates of every type no `wow.aggregates.*.id-generator` names (decision D171). */
+    @Bean(WOW_AGGREGATE_ID_GENERATOR)
+    @ConditionalOnMissingBean(name = [WOW_AGGREGATE_ID_GENERATOR])
+    fun wowAggregateIdGenerator(global: GlobalIdGenerator): AggregateIdGenerator = AggregateIdGenerator.of(global)
 
     @Bean(defaultCandidate = false)
     @ConditionalOnMissingBean(name = [INTERNAL_HTTP_CLIENT])
@@ -227,7 +237,10 @@ class WowAutoConfiguration {
         dependencies: Dependencies,
         channel: ClusterChannel,
         signals: SignalSender,
-        ids: IdGenerator,
+        globalIds: GlobalIdGenerator,
+        @Qualifier(WOW_AGGREGATE_ID_GENERATOR) aggregateIds: AggregateIdGenerator,
+        idSources: ObjectProvider<AggregateIdGeneratorSource>,
+        beanFactory: ConfigurableListableBeanFactory,
         authorizers: ObjectProvider<CommandAuthorizer>,
         transformers: ObjectProvider<CommandTransformer>,
         validators: ObjectProvider<CommandValidator>,
@@ -264,7 +277,15 @@ class WowAutoConfiguration {
                 authorizer = authorizers.getIfAvailable { CommandAuthorizer.ALLOW_ALL },
                 transformers = transformers.orderedStream().toList(),
                 validators = validators.orderedStream().toList(),
-                ids = ids,
+                ids = IdGenerators(
+                    globalIds,
+                    aggregateIdGenerators(
+                        properties,
+                        models.models,
+                        aggregateIds,
+                        idGeneratorLookup(beanFactory, idSources.orderedStream().toList()),
+                    ),
+                ),
                 tenants = tenants(properties, models.models),
             ),
             subscriptions = bindings(models.providers, dependencies, subscriptions.orderedStream().toList()),
@@ -403,24 +424,16 @@ class WowAutoConfiguration {
             JakartaCommandValidator(validator.getObject())
     }
 
-    /** CosId's shared generator, when the application runs CosId (decision D114). */
-    @Configuration(proxyBeanMethods = false)
-    @ConditionalOnClass(name = [COSID_PROVIDER])
-    class CosId {
-        @Bean
-        @ConditionalOnBean(type = [COSID_PROVIDER])
-        @ConditionalOnMissingBean
-        fun wowCosIdGenerator(provider: CosIdGeneratorProvider): IdGenerator = CosIdGenerator(provider)
-    }
-
     companion object {
         const val WOW_JSON_MAPPER: String = "wowJsonMapper"
         const val INTERNAL_HTTP_CLIENT: String = "wowInternalHttpClient"
+
+        /** The default [AggregateIdGenerator] bean's name: the generator of the types no `id-generator` names. */
+        const val WOW_AGGREGATE_ID_GENERATOR: String = "wowAggregateIdGenerator"
         private const val POSTGRES_LOG = "me.ahoo.wow.postgres.PostgresEventLog"
         private const val MONGO_LOG = "me.ahoo.wow.mongo.log.MongoEventLog"
         private const val MONGO_CLIENT = "com.mongodb.client.MongoClient"
         private const val JAKARTA_VALIDATOR = "jakarta.validation.Validator"
-        private const val COSID_PROVIDER = "me.ahoo.cosid.provider.IdGeneratorProvider"
         private val logger = KotlinLogging.logger {}
 
         /**
@@ -459,6 +472,48 @@ class WowAutoConfiguration {
         }
 
         /**
+         * The generator of each aggregate type's new ids (decision D171): for each type of [models] that
+         * `wow.aggregates.[<context>.<aggregate>].id-generator` names one for, the one [lookup] finds by that name;
+         * [default] for the others. A key that names no such type, a blank name, or a name [lookup] finds nothing by
+         * is refused.
+         */
+        internal fun aggregateIdGenerators(
+            properties: WowProperties,
+            models: List<AggregateModel<*>>,
+            default: AggregateIdGenerator,
+            lookup: (String) -> AggregateIdGenerator?,
+        ): AggregateIdGenerator {
+            val served = models.associateBy { "${it.type.context}.${it.type.name}" }
+            val selected = properties.aggregates.mapNotNull { (key, aggregate) ->
+                aggregate.idGenerator?.let { name ->
+                    val model = checkNotNull(served[key]) {
+                        "wow.aggregates.[$key].id-generator names no aggregate type this node serves; it serves " +
+                            "${served.keys}."
+                    }
+                    check(name.isNotBlank()) { "wow.aggregates.[$key].id-generator is blank." }
+                    val generator = checkNotNull(lookup(name)) {
+                        "wow.aggregates.[$key].id-generator names $name, which is no AggregateIdGenerator bean and " +
+                            "no generator an AggregateIdGeneratorSource bean finds."
+                    }
+                    model.type to generator
+                }
+            }.toMap()
+            return AggregateIdGenerator.of(default, selected)
+        }
+
+        /** The [AggregateIdGenerator] bean of a name, else the generator the first of [sources] finds by it. */
+        internal fun idGeneratorLookup(
+            beanFactory: ConfigurableListableBeanFactory,
+            sources: List<AggregateIdGeneratorSource>,
+        ): (String) -> AggregateIdGenerator? = { name ->
+            if (name in beanFactory.getBeanNamesForType(AggregateIdGenerator::class.java)) {
+                beanFactory.getBean(name, AggregateIdGenerator::class.java)
+            } else {
+                sources.firstNotNullOfOrNull { it.find(name) }
+            }
+        }
+
+        /**
          * The subscriptions of the annotated processors of the node's contexts (the generated
          * [ModelProvider.processors] of [providers], the selected ones on the class path), their processors built
          * from [dependencies], then those of every [SubscriptionFactory] bean in [factories], in their order.
@@ -483,9 +538,4 @@ class WowAutoConfiguration {
             }
         }
     }
-}
-
-/** [IdGenerator] over CosId's shared generator (decision D114), looked up for each id. */
-class CosIdGenerator(private val provider: CosIdGeneratorProvider) : IdGenerator {
-    override fun next(): String = provider.share.generateAsString()
 }

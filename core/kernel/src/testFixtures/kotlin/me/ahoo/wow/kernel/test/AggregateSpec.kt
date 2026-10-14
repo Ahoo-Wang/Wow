@@ -66,6 +66,9 @@ import kotlin.time.Duration
  * }
  * ```
  *
+ * The ids a decide function takes ([me.ahoo.wow.api.decide.DecideScope.ids], decision D171) are [SequentialIds]:
+ * `id-1`, `id-2`… and `<aggregate>-1`… for aggregate ids, counted across the specification.
+ *
  * Scenarios that share a prefix [AggregateSpec.fork] from it, at the current point or at one marked with
  * [AggregateSpec.ref]: each fork runs on its own copy of the aggregate, so its commands do not reach the others.
  */
@@ -99,6 +102,7 @@ class AggregateSpec<S : Any>(
         verifyDecidePurity = true,
         reservations = InMemoryReservationStore(),
         states = GivenStates(),
+        ids = SequentialIds(),
     )
     private val timers = InMemoryTimerStore()
     private var sequence = 0

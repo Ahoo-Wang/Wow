@@ -22,11 +22,12 @@ import me.ahoo.wow.http.read.KernelStateReads
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.FrameworkCodes
-import me.ahoo.wow.runtime.admission.IdGenerator
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.wait.SignalSender
+import me.ahoo.wow.spi.id.AggregateIdGenerator
+import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -84,7 +85,10 @@ class HostTest {
         host.context.getBean(SignalSender::class.java).assert().isNotNull()
         host.context.getBean(CallerResolver::class.java).assert().isSameAs(CallerResolver.ANONYMOUS)
         host.context.getBean(KernelStateReads::class.java).assert().isNotNull()
-        host.context.getBean(IdGenerator::class.java).assert().isSameAs(IdGenerator.UUID_V7)
+        host.context.getBean(GlobalIdGenerator::class.java).assert().isSameAs(GlobalIdGenerator.UUID_V7)
+        host.context.getBean(WowAutoConfiguration.WOW_AGGREGATE_ID_GENERATOR, AggregateIdGenerator::class.java)
+            .assert().isNotNull()
+        node.gateway.ids.global.assert().isSameAs(GlobalIdGenerator.UUID_V7)
         host.internalPortOpen().assert().isTrue()
     }
 

@@ -77,6 +77,9 @@ object WowPaths {
     /** Serves the Manifest the routes were built from. */
     const val MANIFEST: String = "/wow/manifest"
 
+    /** Answers a new global id (09 §13 #15, decision D171), as 9.x did. */
+    const val GLOBAL_ID: String = "/wow/id/global"
+
     /**
      * The datasets the caller sees (decision D145), and the root of each dataset's query route,
      * `/wow/dataset/{context}/{dataset}/query`: a dataset is not an aggregate of the Manifest, so its routes live

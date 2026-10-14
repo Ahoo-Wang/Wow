@@ -71,6 +71,7 @@ import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.wait.Origin
 import java.time.Clock
@@ -117,6 +118,8 @@ class ContextNode internal constructor(
      * timer store: the runner's [TimerRunner.resume] and [TimerRunner.skip] serve an operator.
      */
     val timers: ContextTimers? = null,
+    /** The node's id generators (decision D171), the ids its sagas take. */
+    val ids: IdGenerators = IdGenerators.DEFAULT,
 ) {
     /**
      * Reads the state after a commit as the state consumer [reader] of [views] ([StateViewReader]), from the
@@ -220,7 +223,7 @@ class ServiceNode(
     /** Sends signals to the other nodes of the service; a single node needs none. */
     remoteSignals: SignalSender = SignalSender.NONE,
     val options: ServiceNodeOptions = ServiceNodeOptions(),
-    admission: AdmissionPlugins = AdmissionPlugins(),
+    private val admission: AdmissionPlugins = AdmissionPlugins(),
     subscriptions: SubscriptionFactory = SubscriptionFactory.NONE,
     private val listener: (Step) -> Unit = {},
     /** The kernel's codec, shared with the snapshot subscriptions. */
@@ -668,6 +671,7 @@ class ServiceNode(
             states = if (options.stateCacheCapacity > 0) LruStateCache(options.stateCacheCapacity) else StateCache.None,
             snapshots = backends.snapshots,
             commandTypes = names,
+            ids = admission.ids,
         )
 
     /** The scheduled commands of [context] (decision D166), when its [backends] have a timer store. */
@@ -730,7 +734,15 @@ class ServiceNode(
     ) {
         fun complete(): ContextNode {
             val directory = contracts.over(subscriptions, context)
-            val coordinator = WaitCoordinator(executor, waits, directory, signals, waitOptions, router = router)
+            val coordinator = WaitCoordinator(
+                executor,
+                waits,
+                directory,
+                signals,
+                waitOptions,
+                waitIds = admission.ids.global::next,
+                router = router,
+            )
             val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership))
             firing.firer = ContextTimerFirer(models, coordinator, sender)
             return ContextNode(
@@ -752,6 +764,7 @@ class ServiceNode(
                 intake,
                 sender,
                 timers,
+                admission.ids,
             )
         }
     }
