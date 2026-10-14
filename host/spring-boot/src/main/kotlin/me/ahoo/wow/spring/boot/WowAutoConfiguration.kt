@@ -56,6 +56,7 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.SubscriptionFactory
+import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.id.AggregateIdGenerator
@@ -118,9 +119,9 @@ import jakarta.validation.Validator as JakartaValidator
  *   calls ([callRoutes]) to the service identities of `wow.http.services`, by their tokens ([ServiceTokens]), or of
  *   the [InternalCallerResolver] bean (CoSec's service principals); the public port refuses `Wow-Call`.
  * - **Subscriptions**: the annotated processors' handlers the binding indexes list ([ModelProvider.processors], built
- *   from the application's beans), then every [SubscriptionFactory] bean, the application's and the modules' (such
- *   as the Kafka Sink), in their order. Those that read other contexts' published streams read them from the
- *   [SourceTopics] bean (wow-kafka's, decision D134).
+ *   from the application's beans), then every [SubscriptionFactory] bean, the application's and the modules', in their order,
+ *   and every [PublishedSinks] bean (such as the Kafka Sink). Those that read other contexts' published streams read
+ *   them from the [SourceTopics] bean (wow-kafka's, decision D134).
  * - **Parked entries** (roadmap P.1): retried over the long horizon by `wow.subscription.parked.*`; every
  *   [me.ahoo.wow.runtime.subscription.ParkedNotifier] bean, the webhook of `wow.ops.webhook.*` among them, hears when
  *   one parks or spends its retries; `wow.ops.enabled` serves the operator's routes ([parkedRoutes]).
@@ -285,6 +286,7 @@ class WowAutoConfiguration {
         transformers: ObjectProvider<CommandTransformer>,
         validators: ObjectProvider<CommandValidator>,
         subscriptions: ObjectProvider<SubscriptionFactory>,
+        sinks: ObjectProvider<PublishedSinks>,
         listeners: ObjectProvider<ServiceNodeListener>,
         topics: ObjectProvider<SourceTopics>,
         notifiers: ObjectProvider<ParkedNotifier>,
@@ -335,7 +337,11 @@ class WowAutoConfiguration {
                 ),
                 tenants = tenants(properties, models.models),
             ),
-            subscriptions = bindings(models.providers, dependencies, subscriptions.orderedStream().toList()),
+            subscriptions = bindings(
+                models.providers,
+                dependencies,
+                subscriptions.orderedStream().toList() + sinks.orderedStream().map { it.factory }.toList(),
+            ),
             listener = { step -> stepListeners.forEach { it.onStep(step) } },
             contracts = contracts,
             topics = topics.ifAvailable,

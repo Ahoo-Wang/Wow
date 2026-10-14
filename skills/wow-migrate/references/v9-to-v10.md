@@ -23,6 +23,7 @@ Status: first draft. V10 is still moving: verify every annotation, signature, ro
 | `wow-redis`, `wow-bi` | Removed (no Redis backend; ClickHouse sink replaces BI sync) |
 | `ksp("me.ahoo.wow:wow-compiler")` by hand | Gradle plugin `id("me.ahoo.wow")`: applies KSP with `wow-compiler` of its own version, excludes the 9.x processors, and adds `generateWowManifestFragment` and `mergeWowManifest` |
 | `wow-test` (`AggregateSpec<A, S>`) | The functional `aggregateSpec` and `sagaSpec` DSL (`me.ahoo.wow.kernel.test`), still the artifact `wow-test` (the project `:test-dsl` in the Wow repository): `testImplementation("me.ahoo.wow:wow-test:<version>")` |
+| In-memory stores and buses (`InMemoryEventStore`, `InMemorySnapshotStore`, ..., `wow-mock`) | No public in-memory store class: domain tests use `wow-test` (`aggregateSpec`, `sagaSpec` run on in-memory stores), a host uses `wow.backend: memory`, and a test without Kafka gives an `InMemoryTopics` bean (`me.ahoo.wow.kernel.memory`). The kernel's other `InMemory*` stores are `@InternalWowApi` |
 | Domain handlers returning `Mono`/`Flux` | `suspend`, or keep Reactor through `wow-reactor` (compile error without it) |
 
 Artifact ids keep the `wow-` prefix (`me.ahoo.wow:wow-kernel`); V10 Gradle project names in the Wow repository do not. No module may depend on both a 9.x and a V10 module.

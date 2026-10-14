@@ -202,7 +202,7 @@ class CrossContextWaitTest {
         remoteSignals = signals,
         options = fastNodeOptions(),
         subscriptions = SubscriptionBindings(mapOf(SALES to listOf(orderSaga(rejections)))) +
-            PublishedSinks.topics(salesManifest, topics, PREFIX),
+            PublishedSinks.topics(salesManifest, topics, PREFIX).factory,
         contracts = ContractDirectory(salesManifest, listOf(peer(stockManifest))),
         topics = SourceTopics(topics, PREFIX, topics),
     ).also {

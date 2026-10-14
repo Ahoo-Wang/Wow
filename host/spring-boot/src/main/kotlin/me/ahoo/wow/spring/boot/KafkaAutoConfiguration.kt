@@ -19,7 +19,6 @@ import me.ahoo.wow.kafka.KafkaTopicAdmin
 import me.ahoo.wow.kafka.KafkaTopicProducer
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.SourceTopics
-import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicAdmin
@@ -41,8 +40,8 @@ import kotlin.time.toKotlinDuration
  * - **Producer**: a [KafkaTopicProducer], idempotent with `acks=all`, unless the application has a [TopicProducer]
  *   bean of its own; closed with the context, after the node has stopped.
  * - **Sink**: [PublishedSinks.topics] over it, one subscription per stream the Manifest publishes
- *   (`ContextManifest.published`), each written to its topic after `wow.kafka.topic-prefix`: a [SubscriptionFactory]
- *   bean, which the node takes with every other one.
+ *   (`ContextManifest.published`), each written to its topic after `wow.kafka.topic-prefix`: a
+ *   [PublishedSinks] bean, which the node takes with its subscriptions.
  * - **Source**: a [KafkaPartitionedSource], unless the application has a [PartitionedSource] bean of its own, as the
  *   node's [SourceTopics] after the same prefix: the subscriptions of other contexts' published streams read their
  *   topics through it, partitions assigned by the node's leases and offsets kept in its checkpoint store, with no
@@ -105,7 +104,7 @@ class KafkaAutoConfiguration {
     }
 
     companion object {
-        /** The name of the sinks' [SubscriptionFactory] bean. */
+        /** The name of the sinks' [PublishedSinks] bean. */
         const val KAFKA_SINKS: String = "wowKafkaSinks"
 
         /** The transport's options from [properties]. */

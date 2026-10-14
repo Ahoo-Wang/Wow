@@ -36,11 +36,9 @@ import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
 /** The context of a projection's handler for one execution (design 01 §1). */
-@InternalWowApi
 data class ExecutionProjectContext(override val executionId: ExecutionId) : ProjectContext
 
 /** The context of a reactor's handler for one execution (design 01 §1). */
-@InternalWowApi
 data class ExecutionReactContext(override val executionId: ExecutionId) : ReactContext
 
 /**
@@ -61,11 +59,15 @@ data class ExecutionReactContext(override val executionId: ExecutionId) : ReactC
 class ExecutionSagaContext @InternalWowApi constructor(
     override val executionId: ExecutionId,
     private val event: StateEvent<*>,
-    override val ids: Ids = IdGenerators.DEFAULT,
-    private val commandTypes: CommandTypes = CommandTypes.SIMPLE_NAMES,
+    override val ids: Ids,
+    private val commandTypes: CommandTypes,
     private val codec: EventCodec = EventCodec(),
     private val calls: CommandCalls = CommandCalls.NONE,
 ) : SagaContext {
+    /** The context of the execution [executionId] of the commit [event], deriving its ids from [ids]. */
+    constructor(executionId: ExecutionId, event: StateEvent<*>, ids: Ids = IdGenerators.DEFAULT) :
+        this(executionId, event, ids, CommandTypes.SIMPLE_NAMES)
+
     private val derived = AtomicInteger()
 
     init {

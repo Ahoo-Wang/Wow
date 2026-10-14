@@ -30,16 +30,16 @@ import me.ahoo.wow.spi.transport.TopicProducer
  * writing to the sink [sinkOf] gives its stream, with or without the state as the stream says
  * ([PublishedManifest.includeState]).
  *
- * Give it to the node as a [SubscriptionFactory], beside the application's (`+`): each sink subscription is one of
- * its context's state readers ([stateReaders]), under its own name, of its aggregate type, so the context's executor
- * keeps the views it reads (decision D133). A context that publishes an aggregate it has no model of fails the
- * node's assembly.
+ * The host gives it to the node through its [factory], beside the application's subscriptions (a Spring host does so
+ * for every `PublishedSinks` bean): each sink subscription is one of its context's state readers, under its own
+ * name, of its aggregate type, so the context's executor keeps the views it reads (decision D133). A context that
+ * publishes an aggregate it has no model of fails the node's assembly.
  */
 class PublishedSinks(
     private val published: Map<String, List<PublishedManifest>>,
     private val processor: String,
     private val sinkOf: (context: String, stream: PublishedManifest) -> Sink,
-) : SubscriptionFactory {
+) {
     init {
         require(processor.isNotBlank()) { "The sinks are named after a processor." }
     }
@@ -47,24 +47,29 @@ class PublishedSinks(
     /** The name of the subscription that publishes [stream]: `<processor>.<aggregate>`. */
     fun nameOf(stream: PublishedManifest): String = "$processor.${stream.aggregate}"
 
-    override fun viewTypes(context: String, models: List<AggregateModel<*>>): Set<AggregateType> =
-        stateReaders(context, models).values.flatMapTo(LinkedHashSet()) { it }
-
-    override fun stateReaders(context: String, models: List<AggregateModel<*>>): Map<String, Set<AggregateType>> =
-        published[context].orEmpty().associate { stream -> nameOf(stream) to setOf(typeOf(context, stream, models)) }
-
+    /** The sinks as the node takes them: a [SubscriptionFactory] of one sink subscription per published stream. */
     @InternalWowApi
-    override fun subscriptions(context: ContextNode): List<Subscription> =
-        published[context.context].orEmpty().map { stream ->
-            val name = nameOf(stream)
-            SinkSubscription(
-                name = name,
-                type = typeOf(context.context, stream, context.models),
-                sink = sinkOf(context.context, stream),
-                reader = context.stateReader(name),
-                includeState = stream.includeState,
-            ).subscription
-        }
+    val factory: SubscriptionFactory = object : SubscriptionFactory {
+        override fun viewTypes(context: String, models: List<AggregateModel<*>>): Set<AggregateType> =
+            stateReaders(context, models).values.flatMapTo(LinkedHashSet()) { it }
+
+        override fun stateReaders(context: String, models: List<AggregateModel<*>>): Map<String, Set<AggregateType>> =
+            published[context].orEmpty().associate { stream -> nameOf(stream) to setOf(typeOf(context, stream, models)) }
+
+        override fun subscriptions(context: ContextNode): List<Subscription> =
+            published[context.context].orEmpty().map { stream ->
+                val name = nameOf(stream)
+                SinkSubscription(
+                    name = name,
+                    type = typeOf(context.context, stream, context.models),
+                    sink = sinkOf(context.context, stream),
+                    reader = context.stateReader(name),
+                    includeState = stream.includeState,
+                ).subscription
+            }
+
+        override fun toString(): String = this@PublishedSinks.toString()
+    }
 
     private fun typeOf(context: String, stream: PublishedManifest, models: List<AggregateModel<*>>): AggregateType {
         val type = AggregateType(context, stream.aggregate)

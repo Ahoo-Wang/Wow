@@ -15,6 +15,7 @@ package me.ahoo.wow.kernel.test
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.schedule.ScheduleCancelled
 import me.ahoo.wow.api.schedule.ScheduleRule
@@ -36,7 +37,7 @@ import kotlin.reflect.KClass
  * [expectScheduled] and [expectScheduleCancelled].
  */
 @Suppress("TooManyFunctions") // The DSL's expectations.
-class Expectations<S : Any>(
+class Expectations<S : Any> @InternalWowApi constructor(
     private val model: AggregateModel<S>,
     private val codec: EventCodec,
     private val result: Result<CommandOutcome>,

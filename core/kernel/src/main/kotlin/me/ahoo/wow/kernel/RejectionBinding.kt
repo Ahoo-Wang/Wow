@@ -101,7 +101,6 @@ class RejectionBinding<C : Any> private constructor(
  * aggregate, version) of the commit whose saga execution derived the command, and the commands it derives are
  * [ReceiptSagaContext]'s, deterministic per rejected command; it takes its ids from [ids].
  */
-@InternalWowApi
 fun rejectionContextOf(
     handler: RejectionBinding<*>,
     rejected: CommandRejected<*>,
