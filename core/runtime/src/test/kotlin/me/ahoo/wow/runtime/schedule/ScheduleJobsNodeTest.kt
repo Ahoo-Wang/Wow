@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.schedule
 
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
@@ -29,6 +30,7 @@ import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleTick
+import me.ahoo.wow.kernel.InMemoryTimerStore
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.schedule.JobState
 import me.ahoo.wow.kernel.schedule.ScheduleJob
@@ -46,7 +48,9 @@ import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.runtime.timer.orderModel
 import me.ahoo.wow.runtime.timer.shopManifest
 import me.ahoo.wow.spi.timer.Timer
+import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus
+import me.ahoo.wow.spi.timer.TimerStore
 import me.ahoo.wow.spi.timer.Timers
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
@@ -114,16 +118,22 @@ class ScheduleJobsNodeTest {
 
     @Test
     fun `a SYSTEM job is enabled at startup and its handler gets each slot`(): Unit = runBlocking {
-        val node = node("node-1", TimedBackends(), listOf(EVERY_SECOND_SYSTEM)).also { it.start() }
+        // The outcome of each slot is written late, as under load: the handler gets a tick while its timer is FIRING.
+        val backends = TimedBackends { SlowOutcomes(InMemoryTimerStore()) }
+        val node = node("node-1", backends, listOf(EVERY_SECOND_SYSTEM)).also { it.start() }
         eventually { ticks.size >= 2 }
         // Slot after slot, each once (the subscription may start after the first one committed).
         ticks.map { it.slot }.zipWithNext().forEach { (before, after) -> after.assert().isGreaterThan(before) }
         ticks.first().tenantId.assert().isEqualTo(Caller.DEFAULT_TENANT)
         ticks.first().job.assert().isEqualTo("heartbeat")
         ticks.first().partition.assert().isNull()
-        val timer = checkNotNull(node.tickTimer(ScheduleJobModel.refOf(SHOP, "heartbeat")))
+        // A tick reaches its handler once its slot committed, which may be before the firing loop wrote the slot's
+        // outcome: the timer is FIRING until then, and PENDING at a later slot after.
+        val instance = ScheduleJobModel.refOf(SHOP, "heartbeat")
+        val ticked = ticks.last().slot
+        eventually { node.tickTimer(instance)?.let { it.status == TimerStatus.PENDING && it.slot > ticked } == true }
+        val timer = checkNotNull(node.tickTimer(instance))
         timer.operator.assert().isEqualTo(Operator.system(ScheduleJobs.COMPONENT))
-        timer.status.assert().isEqualTo(TimerStatus.PENDING)
         node.registry.find(ScheduleJobs.typeOf(SHOP)).assert().isNotNull()
     }
 
@@ -196,7 +206,21 @@ class ScheduleJobsNodeTest {
             .assert().containsExactly(NIGHTLY)
     }
 
+    /**
+     * A timer store that writes the outcome of a sent slot (FIRING to its next slot, PENDING) [OUTCOME_DELAY] late,
+     * as a loaded node's firing loop may: the slot's command, and the tick its handler gets, come first.
+     */
+    private class SlowOutcomes(private val store: TimerStore) : TimerStore by store {
+        override suspend fun settle(changes: List<TimerChange>): Int {
+            if (changes.any { it.loaded.status == TimerStatus.FIRING }) {
+                delay(OUTCOME_DELAY)
+            }
+            return store.settle(changes)
+        }
+    }
+
     private companion object {
+        val OUTCOME_DELAY = 300.milliseconds
         val EVERY_SECOND_SYSTEM = ScheduleJob("heartbeat", ScheduleRule.Cron("* * * * * *"))
         val EVERY_SECOND_TENANT = ScheduleJob("report", ScheduleRule.Cron("* * * * * *"), JobScope.TENANT)
         val SHARDED = ScheduleJob("shard", ScheduleRule.Cron("* * * * * *"), sharded = true)
