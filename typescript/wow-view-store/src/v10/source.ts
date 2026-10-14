@@ -38,11 +38,12 @@ import type {
  * whether the total is exact, and its descriptor read answers the version
  * apart. This is the whole adapter.
  *
- * A page asks for its total exactly (`total: 'EXACT'`), as a 9.x page
- * counted it, since the engine shows the total as the count of matches; a
- * service whose budget bounds the count answers it bounded all the same.
- * The engine's `attributes` have no counterpart on a V10 request and are
- * not sent.
+ * A page counts its total as the service does by default, `BOUNDED`
+ * (D150): exact up to the budget's limit, and the limit itself past it. A
+ * V10 service refuses an exact total over HTTP, so the engine, which reads
+ * the total as the count of matches, shows a count past the limit as the
+ * limit (an engine follow-up: say "at least"). The engine's `attributes`
+ * have no counterpart on a V10 request and are not sent.
  *
  * ```ts
  * const engine = new ViewEngine({
@@ -59,7 +60,7 @@ export function viewSourceOf<F extends string>(
   return {
     async paged(query, _attributes, abort) {
       const page = await client.paged(
-        { ...(query as FilterPagedQuery<F>), total: 'EXACT' } as PagedQuery<F>,
+        query as FilterPagedQuery<F> as PagedQuery<F>,
         optionsOf(abort),
       );
       return {
