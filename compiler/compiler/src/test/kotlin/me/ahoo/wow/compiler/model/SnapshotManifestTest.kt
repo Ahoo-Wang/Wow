@@ -72,4 +72,75 @@ class SnapshotManifestTest {
         account.snapshot.assert().isEqualTo(SnapshotManifest(enabled = true))
         account.queries.map { it.model }.assert().containsExactly(QueryRoutes.SNAPSHOT, QueryRoutes.EVENTS)
     }
+
+    @Test
+    fun `@AggregateRoot(stateRevision) should reach the model and the fragment`() {
+        val sources = SourceFile.kotlin(
+            "Ledger.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+            import me.ahoo.wow.api.annotation.BoundedContext
+
+            @BoundedContext(name = "bank")
+            object BankContext
+
+            data class Open(val id: String)
+            data class Opened(val id: String)
+
+            @AggregateRoot(stateRevision = 3)
+            class Ledger(val id: String) {
+                fun onCommand(command: Open): Opened = Opened(command.id)
+                fun onSourcing(event: Opened) = Unit
+            }
+
+            @AggregateRoot
+            class Account(val id: String) {
+                fun onCommand(command: Open): Opened = Opened(command.id)
+                fun onSourcing(event: Opened) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compileModel("generate", sources)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        val fragment = compilation.workingDir.walkTopDown()
+            .single { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
+        val aggregates = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
+            .contexts.single().aggregates.associateBy { it.name }
+        aggregates.getValue("ledger").snapshot.assert().isEqualTo(SnapshotManifest(stateRevision = 3))
+        aggregates.getValue("account").snapshot.assert().isEqualTo(SnapshotManifest())
+        compilation.workingDir.walkTopDown().single { it.name == "LedgerModel.kt" }.readText()
+            .assert().contains("stateRevision(3)")
+        compilation.workingDir.walkTopDown().single { it.name == "AccountModel.kt" }.readText()
+            .assert().doesNotContain("stateRevision(")
+    }
+
+    @Test
+    fun `a state revision below 1 should be a problem`() {
+        val sources = SourceFile.kotlin(
+            "Ledger.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.AggregateRoot
+            import me.ahoo.wow.api.annotation.BoundedContext
+
+            @BoundedContext(name = "bank")
+            object BankContext
+
+            data class Open(val id: String)
+            data class Opened(val id: String)
+
+            @AggregateRoot(stateRevision = 0)
+            class Ledger(val id: String) {
+                fun onCommand(command: Open): Opened = Opened(command.id)
+                fun onSourcing(event: Opened) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("generate", sources)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains("@AggregateRoot(stateRevision) is 0")
+    }
 }

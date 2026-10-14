@@ -21,7 +21,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  * Where an aggregate type's snapshots are written (decisions D172, D177): its [targets], the names of the stores that
  * each keep them, and its [primary], the one the write side reads as its cache and queries read.
  */
-data class SnapshotPlacement(val targets: List<String>, val primary: String = targets.first()) {
+data class SnapshotPlacement(val targets: List<String>, val primary: String = targets.firstOrNull().orEmpty()) {
     init {
         require(targets.isNotEmpty()) { "Snapshots have at least one target." }
         require(targets.none { it.isBlank() }) { "A snapshot target names its store." }
