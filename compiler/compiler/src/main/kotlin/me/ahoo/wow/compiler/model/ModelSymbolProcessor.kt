@@ -414,11 +414,16 @@ internal class ModelSymbolProcessor(
         }
     }
 
-    /** The root's state: its constructor's one parameter, or the root itself when it takes none or an id. */
+    /**
+     * The root's state: its constructor's one parameter, or the root itself when it takes none, only parameters with
+     * default values, or an id (decision D203).
+     */
     private fun stateOf(root: KSClassDeclaration): KSClassDeclaration {
-        val constructor = root.primaryConstructor ?: root.getConstructors().firstOrNull()
-        val firstParameter = constructor?.parameters?.firstOrNull()?.type?.resolve()?.declaration as? KSClassDeclaration
-        return if (firstParameter == null || firstParameter.qualifiedName?.asString() == STRING) root else firstParameter
+        val parameters = (root.primaryConstructor ?: root.getConstructors().firstOrNull())?.parameters.orEmpty()
+        val firstParameter = parameters.firstOrNull()?.type?.resolve()?.declaration as? KSClassDeclaration
+        val rootIsState = firstParameter == null || firstParameter.qualifiedName?.asString() == STRING ||
+            parameters.all { it.hasDefault }
+        return if (rootIsState) root else firstParameter!!
     }
 
     @OptIn(KspExperimental::class)
@@ -551,18 +556,28 @@ internal class ModelSymbolProcessor(
             events.distinct().filterNot { it.isFramework() }.flatMap { V10Annotations.problemsOfType(it, "event") }
         ).distinct()
 
+    /**
+     * The arguments the initial state is built with (decision D203): `ref.id` for a constructor `(id: String)`,
+     * `ref.id, ref.tenantId` for `(id: String, tenantId: String)`, and none for a constructor that takes none or whose
+     * parameters all have default values. The aggregate's identity lives in its ref and stream: a state takes the id
+     * only when its domain needs it.
+     */
     private fun stateArguments(state: KSClassDeclaration, problems: MutableList<String>): List<String> {
-        val constructor = state.primaryConstructor ?: state.getConstructors().firstOrNull()
-        val parameters = constructor?.parameters.orEmpty()
-        val strings = parameters.all { it.type.resolve().declaration.qualifiedName?.asString() == STRING }
+        val parameters = (state.primaryConstructor ?: state.getConstructors().firstOrNull())?.parameters
+        val strings = parameters.orEmpty().all { it.type.resolve().declaration.qualifiedName?.asString() == STRING }
         return when {
+            parameters == null -> stateConstructorProblem(state, problems)
             parameters.size == 1 && strings -> listOf("ref.id")
             parameters.size == 2 && strings -> listOf("ref.id", "ref.tenantId")
-            else -> {
-                problems += "the state needs a constructor (id) or (id, tenantId)"
-                emptyList()
-            }
+            parameters.all { it.hasDefault } -> emptyList()
+            else -> stateConstructorProblem(state, problems)
         }
+    }
+
+    private fun stateConstructorProblem(state: KSClassDeclaration, problems: MutableList<String>): List<String> {
+        problems += "the state ${state.simpleName.asString()} needs a constructor (), (id: String) or " +
+            "(id: String, tenantId: String); one whose parameters all have default values counts as ()"
+        return emptyList()
     }
 
     @OptIn(KspExperimental::class)
