@@ -7,7 +7,7 @@ A multi-service shop on Wow V10, modelled on the classic eShop reference applica
 
 The eShop builds on the V10 modules only, and is never published. It is the V10 example: the shop (`example/shop`), its inventory (`example/inventory`) and their end-to-end tests (`example/e2e`) came before it and were folded into it (decision D204), each scenario they alone tested now covered here (see [Tests](#tests)).
 
-> **Status: E.1 to E.6 done.** The catalog has its products, brands and categories, and its storefront queries. The basket, ordering, inventory and payment contexts and the order flow between them work end to end on PostgreSQL and Kafka, the payment over a simulated gateway. All five services run together on PostgreSQL, Kafka and ClickHouse, with the sales dataset, a node killed mid-flow, and a load script with its baseline ([e2e/README.md](e2e/README.md)). The ordering runs on two nodes in the suite.
+> **Status: E.1 to E.7 done.** The catalog has its products, brands and categories, and its storefront queries. The basket, ordering, inventory and payment contexts and the order flow between them work end to end on PostgreSQL and Kafka, the payment over a simulated gateway. All five services run together on PostgreSQL, Kafka and ClickHouse, with the sales dataset, a node killed mid-flow, and a load script with its baseline ([e2e/README.md](e2e/README.md)). The ordering runs on two nodes in the suite. A web UI drives the shop end to end ([Web UI](#web-ui)).
 
 ## Contexts
 
@@ -26,7 +26,7 @@ The rest of the classic eShop maps like this:
 - **Identity.** `Identity.API` becomes Wow's `:cosec`. It is not a context of its own.
 - **Event bus.** The RabbitMQ event bus becomes Kafka.
 - **Sales data.** The ordering's order stream reaches ClickHouse through the ClickHouse Sink, and the ordering serves it as the `eshop-ordering.sales` dataset (see [Sales](#sales)).
-- **Web front ends.** They come after the backend, written with the TypeScript client that work package 5a.3 generates (D160).
+- **Web front ends.** One web UI, `example/eshop/web`, on the TypeScript clients generated from the services' Manifests (D160; see [Web UI](#web-ui)).
 - **End-to-end tests.** `:eshop-e2e` (`example/eshop/e2e`) holds them (see [Tests](#tests)): all five services on PostgreSQL, Kafka and ClickHouse, with failure scenarios and a load script.
 
 ## The order flow
@@ -221,6 +221,26 @@ curl -s -X POST localhost:8082/eshop-basket/basket/alice/checkout-basket "${BUYE
 curl -s localhost:8083/eshop-ordering/order/alice-1/state "${BUYER[@]}"   # alice's order: STOCK_CONFIRMED, then PAID
 curl -s localhost:8085/eshop-payment/payment/alice-1/state
 ```
+
+## Web UI
+
+Work package E.7: `example/eshop/web`, a React app (Vite, shadcn) on the clients `wow-generator` writes from the five Manifest baselines into `src/generated/<context>/` (`pnpm --filter wow-eshop-web generate`; a test holds them byte for byte). A switcher in its header picks the caller it sends as `X-User` and `X-Role`: the buyers `alice` and `bob`, or the employee `erin`.
+
+- **Shop.** Products from the catalog's snapshot query, searched by name and category, sorted and paged; a buyer sees the published ones and adds them to the basket.
+- **Catalog admin** (employee). Brands, categories and draft products; a product's price, its publication, and its stock in the inventory.
+- **Basket and checkout** (buyer). The checkout streams the 15-hop wait of [Waiting for the order](#the-order-flow) and shows each hop as it arrives, to the paid order or to the hop that stopped it.
+- **Orders.** A buyer's own orders, every order for an employee, who ships the paid ones; an order with its payment.
+- **Problems.** A refusal or rejection shows its title, status, code, detail and violations.
+
+The dev server forwards each context's routes (`/eshop-<context>/`) to its service on the ports of [Running](#running) (`ESHOP_<CONTEXT>_URL` overrides one). Without Kafka, run the whole shop in one JVM, in memory: `EshopLocal` shares one set of in-memory topics among the five services ([G27](DX-GAPS.md)).
+
+```bash
+./gradlew -Pwow.scope=v10 :eshop-e2e:eshopLocal          # the five services, ports 8081 to 8085
+pnpm --filter wow-eshop-web... build                     # once: the workspace packages it uses
+pnpm --filter wow-eshop-web dev                          # http://localhost:5173
+```
+
+`pnpm test` runs the component tests. `pnpm test:e2e` is the end-to-end test: it starts `EshopLocal` on ports bound to 0, the dev server against them, and drives the UI in Chromium from the catalog to a shipped order, with a short stock and a declined payment. Build its class path first with `./gradlew -Pwow.scope=v10 :eshop-e2e:eshopLocalClasspath` (JDK 21). Set `ESHOP_WEB_BROWSER_CHANNEL=chrome` to run it in an installed Chrome.
 
 ## Tests
 

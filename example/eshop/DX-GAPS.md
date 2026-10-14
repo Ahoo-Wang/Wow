@@ -341,11 +341,12 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 
 ### G27. A service whose saga sends to another context cannot run locally without Kafka
 
-- **Work package**: E.2, E.3, E.5
+- **Work package**: E.2, E.3, E.5, E.7
 - **Area**: host, docs
 - **What happened**: The quick start runs a new service on the memory backend with `./gradlew :<svc>-server:run`. Since G9's check, the basket, ordering and payment services refuse to start that way: their sagas send other contexts' commands. The guide gives an in-memory transport only for tests (`InMemoryTopics` and `SourceTopics` beans), not a switch for trying a service out.
+  - **The web UI (E.7).** A UI developer wants the whole shop on one machine, without Docker, and its end-to-end test wants it in CI without containers. Separate JVMs on the memory backend cannot reach each other's topics.
 - **Where they looked**: `guide/v10/index` (Run it and send a command); `guide/v10/programming-model` (Sending a command to another context).
-- **Workaround**: The servers keep Kafka in a `kafka` profile, like the shop; the README says to start Kafka and create the topics first.
+- **Workaround**: The servers keep Kafka in a `kafka` profile, like the shop; the README says to start Kafka and create the topics first. For the UI, `EshopLocal` (`:eshop-e2e`, task `eshopLocal`) starts the five services in one JVM on one shared `InMemoryTopics`. Each service gets the beans wow-kafka would give it on Kafka, written by hand: a `SourceTopics` with the intake and `TopicDdl.AUTO`, and `PublishedSinks.topics(manifest, topics)` for its published streams. The guide names neither type. An in-memory topic that is read or written before its owner creates it gets `InMemoryTopics`' default partitions, so the owner's command-topic check would fail unless they equal `wow.log.partitions`. `EshopLocal` sets both to 4 and starts each topic's owner first. With that, the checkout's 15-hop wait reaches the payment in memory.
 - **Proposed fix**: A host property for in-memory topics on the memory backend (`wow.kafka.in-memory`, say), or a note in the quick start.
 - **Blocks M7**: no.
 
@@ -412,3 +413,13 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Proposed fix**: Save the starting checkpoint at once whatever it is, 0 included.
 - **Blocks M7**: yes: a node killed in the first moments of a partition loses its saga effects.
 - **Resolved**: by #4390. A subscription saves its starting checkpoint as it starts, 0 included. `EshopFullChainTest` no longer warms the partition up with an order of its own before the kill.
+
+### G34. A wait chain that a saga leaves ends short of its plan, and reads as success
+
+- **Work package**: E.7
+- **Area**: runtime, edge, docs
+- **What happened**: The web UI checks a basket out with the 15-hop `Wow-Wait` of the README ("Waiting for the order"), as server-sent events. When the gateway declines the payment, `OrderPaymentSaga.onPaymentFailed` cancels the order. The stream still answers the hop `handled(eshop-payment/OrderPaymentSaga.onPaymentSucceeded)` as `SUCCEEDED`, although that handler sent nothing for a failed payment. Then the stream ends after 14 of 15 hops, with no error and no event that says the rest of the plan cannot come. A client sees a stream that completed normally. It can only tell that the order was not paid by counting hops against its plan and then reading the order. A plan cannot name alternatives either (`onPaymentSucceeded` or `onPaymentFailed`), so the one wait cannot follow both outcomes.
+- **Where they looked**: `guide/v10/http-api` (waiting for a command, server-sent events); the README's wait chain; `@ahoo-wang/wow-client/v10`'s `CommandGateway.stream`.
+- **Workaround**: The UI counts the hops it received. When the stream ends without a failure before the last hop, it says that the chain ended short of the payment, and links to the order, whose status says what happened (`CheckoutSteps`). The end-to-end test checks this with a payment over the gateway's limit.
+- **Proposed fix**: End such a stream with a final event or status that names where the chain stopped: the subscription handled the commit but derived nothing, so the plan's later hops will not come. Mark a `handled` hop whose handler had no function for the event differently from one that ran. Document the behaviour in the HTTP guide. A plan that accepts one of several subscriptions at a hop would let one wait follow both outcomes.
+- **Blocks M7**: no. The UI works around it, but every client that waits for a chain across sagas meets it.
