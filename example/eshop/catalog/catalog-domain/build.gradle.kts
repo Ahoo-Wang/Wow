@@ -23,5 +23,5 @@ dependencies {
     // @QueryIndex on the product's state: the storefront's filters and sorts stay index scans.
     implementation(project(":query-api"))
     ksp(project(":compiler"))
-    testImplementation(testFixtures(project(":kernel")))
+    testImplementation(project(":test-dsl"))
 }

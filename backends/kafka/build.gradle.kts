@@ -5,6 +5,6 @@ dependencies {
     api(project(":spi"))
     // Managed by the Spring Boot BOM that wow-dependencies imports; 9.x wow-kafka reaches it through reactor-kafka.
     api("org.apache.kafka:kafka-clients")
-    integrationTestImplementation(testFixtures(project(":spi")))
-    integrationTestImplementation("org.testcontainers:testcontainers-kafka")
+    integrationTestImplementation(project(":tck"))
+    integrationTestImplementation(project(":tck-containers"))
 }

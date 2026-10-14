@@ -21,13 +21,13 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
-import org.testcontainers.postgresql.PostgreSQLContainer
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
@@ -58,7 +58,7 @@ class PostgresDataSource {
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PostgresClusterTest {
-    private val postgres = PostgreSQLContainer("postgres:17-alpine").also { it.start() }
+    private val postgres = WowContainers.newPostgres().also { it.start() }
     private val hosts = listOf("node-a", "node-b").map { node ->
         startHost(
             "wow.node.id" to node,

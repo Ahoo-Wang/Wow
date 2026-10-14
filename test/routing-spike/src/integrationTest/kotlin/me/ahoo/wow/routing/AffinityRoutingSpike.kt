@@ -25,6 +25,7 @@ import me.ahoo.wow.postgres.PostgresEventLog
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import org.testcontainers.postgresql.PostgreSQLContainer
@@ -56,7 +57,7 @@ class AffinityRoutingSpike {
             System.getProperty("wow.spike.h2") == "true" || quick,
             "Run with -Dwow.spike.h2=true",
         )
-        val container = PostgreSQLContainer("postgres:17-alpine")
+        val container = WowContainers.newPostgres()
             // The routing effect under test is about a millisecond; fsync and checkpoint stalls of a laptop's Docker VM
             // reach hundreds of milliseconds and would drown it, so commits do not wait for the WAL flush.
             .withCommand(

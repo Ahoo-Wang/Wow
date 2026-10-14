@@ -16,14 +16,12 @@ package me.ahoo.wow.kafka
 import org.apache.kafka.clients.admin.Admin
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.admin.NewTopic
-import org.testcontainers.kafka.ConfluentKafkaContainer
+import me.ahoo.wow.tck.containers.WowContainers
 import java.util.concurrent.atomic.AtomicInteger
 
 /** One Kafka broker for the test JVM (the image the 9.x tests use), and a fresh topic per test. */
 object KafkaFixture {
-    private val container: ConfluentKafkaContainer by lazy {
-        ConfluentKafkaContainer("confluentinc/cp-kafka:7.4.0").also { it.start() }
-    }
+    private val container get() = WowContainers.kafka
 
     val options: KafkaOptions by lazy { KafkaOptions(container.bootstrapServers) }
 

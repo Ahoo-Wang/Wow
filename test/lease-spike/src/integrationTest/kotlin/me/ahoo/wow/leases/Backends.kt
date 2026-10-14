@@ -33,9 +33,8 @@ import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
+import me.ahoo.wow.tck.containers.WowContainers
 import org.bson.Document
-import org.testcontainers.mongodb.MongoDBContainer
-import org.testcontainers.postgresql.PostgreSQLContainer
 
 /** The stores one node uses, on its own connections, and how to close them. */
 class NodeStores(
@@ -62,7 +61,7 @@ interface Backend : AutoCloseable {
 }
 
 class PostgresBackend : Backend {
-    private val container = PostgreSQLContainer(IMAGE).withCommand("postgres", "-c", "max_connections=$MAX_CONNECTIONS")
+    private val container = WowContainers.newPostgres().withCommand("postgres", "-c", "max_connections=$MAX_CONNECTIONS")
         .also { it.start() }
     private val admin = pool(ADMIN_POOL)
     override val observer: LeaseStore = PostgresLeaseStore(admin)
@@ -71,7 +70,7 @@ class PostgresBackend : Backend {
         connection.createStatement().use { statement ->
             statement.executeQuery("SHOW server_version").use { rows ->
                 rows.next()
-                "$IMAGE (server ${rows.getString(1)}; defaults except max_connections=$MAX_CONNECTIONS)"
+                "${WowContainers.POSTGRES_IMAGE} (server ${rows.getString(1)}; defaults except max_connections=$MAX_CONNECTIONS)"
             }
         }
     }
@@ -113,7 +112,6 @@ class PostgresBackend : Backend {
     }
 
     private companion object {
-        const val IMAGE = "postgres:17-alpine"
         const val MAX_CONNECTIONS = 400
         const val NODE_POOL = 16
         const val ADMIN_POOL = 4
@@ -121,12 +119,12 @@ class PostgresBackend : Backend {
 }
 
 class MongoBackend : Backend {
-    private val container = MongoDBContainer(IMAGE).withReplicaSet().also { it.start() }
+    private val container = WowContainers.newMongo().also { it.start() }
     private val admin = client()
     override val observer: LeaseStore = MongoLeaseStore(admin, DATABASE)
     override val name = "MongoDB"
     override val description: String =
-        "$IMAGE (server ${admin.getDatabase("admin").runCommand(Document("buildInfo", 1)).getString("version")}; " +
+        "${WowContainers.MONGO_IMAGE} (server ${admin.getDatabase("admin").runCommand(Document("buildInfo", 1)).getString("version")}; " +
             "single-member replica set, default write concern)"
 
     init {
@@ -170,7 +168,6 @@ class MongoBackend : Backend {
     }
 
     private companion object {
-        const val IMAGE = "mongo:7.0"
         const val DATABASE = "wow_h6"
         const val NODE_POOL = 32
     }

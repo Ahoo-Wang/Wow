@@ -68,6 +68,7 @@ val benchmarksProject = includedProjects(":wow-benchmarks")
 val v10Projects = listOf(
     "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query",
     "postgres", "mongo", "kafka", "clickhouse", "http", "cosec", "spring-boot", "cosid", "migrate-data", "architecture",
+    "test-dsl", "tck", "tck-containers",
     "kernel-benchmarks", "compiler", "gradle-plugin", "manifest-tools",
     "routing-spike", "lease-spike",
     "shop-api", "shop-domain", "shop-server", "inventory-api", "inventory-domain", "inventory-server", "example-e2e",
@@ -76,7 +77,7 @@ val v10Projects = listOf(
 // D87: a V10 project's name and directory carry no `wow-` prefix (`:kernel` in core/kernel); its jar, Kotlin module and
 // Maven artifactId do (`wow-kernel`), so the coordinates users see are unchanged. A project whose name cannot be its
 // artifact minus the prefix (a Gradle task name, such as the test DSL's `:test-dsl`) is mapped here.
-val v10ArtifactIds = mapOf<String, String>()
+val v10ArtifactIds = mapOf("test-dsl" to "wow-test")
 fun Project.artifactName(): String =
     if (this in v10Projects && this !in v10ExampleProjects) v10ArtifactIds[name] ?: "wow-$name" else name
 // Libraries that build and test like the others but are not published yet. The dataset registry (dataset platform

@@ -5,8 +5,7 @@ dependencies {
     integrationTestImplementation(project(":postgres"))
     integrationTestImplementation(project(":mongo"))
     integrationTestImplementation("tools.jackson.module:jackson-module-kotlin")
-    integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
-    integrationTestImplementation("org.testcontainers:testcontainers-mongodb")
+    integrationTestImplementation(project(":tck-containers"))
     integrationTestImplementation("com.zaxxer:HikariCP")
 }
 

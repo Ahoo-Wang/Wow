@@ -4,7 +4,7 @@ dependencies {
     integrationTestImplementation(project(":runtime"))
     integrationTestImplementation(project(":postgres"))
     integrationTestImplementation("tools.jackson.module:jackson-module-kotlin")
-    integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
+    integrationTestImplementation(project(":tck-containers"))
     integrationTestImplementation("com.zaxxer:HikariCP")
 }
 

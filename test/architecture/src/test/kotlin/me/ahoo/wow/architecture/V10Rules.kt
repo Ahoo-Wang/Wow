@@ -43,10 +43,25 @@ object V10Rules {
     val GRADLE_PLUGIN = V10Module("gradle-plugin", "compiler/gradle-plugin")
     val MANIFEST_TOOLS = V10Module("manifest-tools", "compiler/manifest-tools")
 
+    /** The test DSL (artifact `wow-test`; a project named `:test` would clash with the `test` task, decision D87). */
+    val TEST_DSL = V10Module("test-dsl", "test/test-dsl")
+
+    /** The SPI contract specs every backend runs (decision D196). */
+    val TCK = V10Module("tck", "test/tck")
+
+    /** The TCK's shared Testcontainers, apart from [TCK] so a spec needs no Docker. */
+    val TCK_CONTAINERS = V10Module("tck-containers", "test/tck-containers")
+
+    /**
+     * The test modules (decision D196), the gate of every iteration: any module's tests may build on them, through a
+     * test configuration (`testImplementation`, `integrationTestImplementation`, ...); no module's main code may.
+     */
+    val TEST_MODULES = listOf(TEST_DSL, TCK, TCK_CONTAINERS)
+
     val MODULES = listOf(
         API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, HTTP,
         COSEC, SPRING_BOOT, COSID, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
-    )
+    ) + TEST_MODULES
 
     val SHOP_API = V10Module("shop-api", "example/shop/shop-api")
     val SHOP_DOMAIN = V10Module("shop-domain", "example/shop/shop-domain")
@@ -90,8 +105,11 @@ object V10Rules {
     fun isExampleDomain(project: String): Boolean =
         isExample(project) && !project.endsWith("-server") && !project.endsWith("-e2e")
 
-    /** The modules an application runs with; the compiler, the Gradle plugin and its tools run in the build only. */
-    val RUNTIME_MODULES = MODULES - COMPILER - GRADLE_PLUGIN - MANIFEST_TOOLS
+    /**
+     * The modules an application runs with; the compiler, the Gradle plugin and its tools run in the build only, the
+     * test modules in its tests only.
+     */
+    val RUNTIME_MODULES = MODULES - COMPILER - GRADLE_PLUGIN - MANIFEST_TOOLS - TEST_MODULES.toSet()
 
     /**
      * The project dependencies each V10 module may declare (06 §3). A module not listed here, such as wow-query, is a
@@ -129,6 +147,11 @@ object V10Rules {
         GRADLE_PLUGIN to setOf("manifest", "manifest-tools", "kernel", "compiler", "wow-dependencies"),
         // kernel for the state fingerprint.
         MANIFEST_TOOLS to setOf("manifest", "kernel", "query-api"),
+        // The test DSL runs a domain on the kernel, and only on it (06 §1).
+        TEST_DSL to setOf("kernel"),
+        // The contract specs test the ports, and only them (06 §1).
+        TCK to setOf("spi"),
+        TCK_CONTAINERS to emptySet(),
     )
 
     private val SPRING = listOf("org.springframework")
@@ -227,8 +250,19 @@ object V10Rules {
             API_9X,
     )
 
+    /**
+     * The test DSL and the TCK carry no framework and no container (decision D196): a domain's tests and an in-memory
+     * backend run them without Spring, Reactor, a driver or Docker; the containers are [TCK_CONTAINERS]'s.
+     */
+    val TEST_MODULES_ARE_FRAMEWORK_FREE = DependencyRule(
+        name = "wow-test and wow-tck import no Spring, Reactor, HTTP, driver or Testcontainers types",
+        modules = listOf(TEST_DSL, TCK).map { it.dir },
+        forbidden = SPRING + REACTOR_TYPES + HTTP_TYPES + DRIVERS + listOf("org.testcontainers"),
+    )
+
     val DEPENDENCY_RULES = listOf(
         CORE_IS_FRAMEWORK_FREE,
+        TEST_MODULES_ARE_FRAMEWORK_FREE,
         KERNEL_IGNORES_RUNTIME,
         ONLY_HOST_USES_SPRING_BOOT,
         MANIFEST_IS_PLAIN_DATA,
@@ -239,9 +273,19 @@ object V10Rules {
 
     private val PROJECT_DEPENDENCY = Regex("""project\(\s*":([\w-]+)"\s*\)""")
 
-    /** The projects [module]'s build script depends on. */
+    /** A test module declared in a test configuration (`testImplementation`, `integrationTestImplementation`, ...). */
+    private val TEST_SCOPED_TEST_MODULE = Regex(
+        """\b(?:test\w*|\w+Test\w*)\(\s*project\(\s*":(?:${TEST_MODULES.joinToString("|") { it.name }})"\s*\)\s*\)""",
+    )
+
+    /**
+     * The projects [module]'s build script depends on, in any configuration but for a test module its tests use
+     * ([TEST_MODULES]): those are allowed to every module.
+     */
     fun projectDependencies(repositoryRoot: File, module: V10Module): Set<String> =
-        PROJECT_DEPENDENCY.findAll(File(repositoryRoot, "${module.dir}/build.gradle.kts").readText())
+        PROJECT_DEPENDENCY.findAll(
+            File(repositoryRoot, "${module.dir}/build.gradle.kts").readText().replace(TEST_SCOPED_TEST_MODULE, ""),
+        )
             .map { it.groupValues[1] }
             .toSet()
 

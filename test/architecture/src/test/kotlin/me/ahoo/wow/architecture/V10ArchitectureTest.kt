@@ -197,6 +197,43 @@ class V10ArchitectureTest {
     }
 
     @Test
+    fun `module graph should allow the test modules to a module's tests only`(@TempDir root: File) {
+        File(root, V10Rules.POSTGRES.dir).apply { mkdirs() }.resolve("build.gradle.kts").writeText(
+            """
+            dependencies {
+                api(project(":spi"))
+                implementation(project(":tck-containers"))
+                testImplementation(project(":test-dsl"))
+                integrationTestImplementation(project( ":tck" ))
+                integrationTestImplementation(project(":runtime"))
+            }
+            """.trimIndent(),
+        )
+        V10Rules.projectDependencies(root, V10Rules.POSTGRES).assert()
+            .containsExactlyInAnyOrder("spi", "tck-containers", "runtime")
+    }
+
+    @Test
+    fun `test module rule should catch Testcontainers or a driver in the TCK`(@TempDir root: File) {
+        root.writeSource(
+            V10Rules.TCK.dir,
+            "me/ahoo/wow/spi/Bad.kt",
+            """
+            package me.ahoo.wow.spi
+
+            import org.testcontainers.postgresql.PostgreSQLContainer
+
+            val url = org.postgresql.Driver::class
+            """.trimIndent(),
+        )
+        val bad = "${V10Rules.TCK.dir}/src/main/kotlin/me/ahoo/wow/spi/Bad.kt"
+        V10Rules.TEST_MODULES_ARE_FRAMEWORK_FREE.violations(root).assert().containsExactly(
+            "$bad:3: org.testcontainers.postgresql.PostgreSQLContainer",
+            "$bad:5: org.postgresql.Driver",
+        )
+    }
+
+    @Test
     fun `module graph should read the projects and their directories from the settings`(@TempDir root: File) {
         File(root, "settings.gradle.kts").writeText(
             """

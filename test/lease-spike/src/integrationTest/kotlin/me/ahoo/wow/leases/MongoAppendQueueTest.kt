@@ -31,6 +31,7 @@ import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.tck.containers.WowContainers
 import org.bson.Document
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.BeforeAll
@@ -52,7 +53,7 @@ class MongoAppendQueueTest {
 
     @BeforeAll
     fun start() {
-        container = MongoDBContainer(IMAGE).withReplicaSet().also { it.start() }
+        container = WowContainers.newMongo().also { it.start() }
         client = MongoClients.create(container.replicaSetUrl)
     }
 
@@ -118,7 +119,6 @@ class MongoAppendQueueTest {
         client.getDatabase("admin").runCommand(Document("serverStatus", 1)).get("transactions", Document::class.java)
 
     private companion object {
-        const val IMAGE = "mongo:7.0"
         const val DATABASE = "wow_append_queue"
         const val AGGREGATES = 32
         const val VERSIONS = 8

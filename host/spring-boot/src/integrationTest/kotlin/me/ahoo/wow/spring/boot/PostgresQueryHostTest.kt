@@ -16,10 +16,10 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.testcontainers.postgresql.PostgreSQLContainer
 import javax.sql.DataSource
 
 /**
@@ -28,7 +28,7 @@ import javax.sql.DataSource
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PostgresQueryHostTest {
-    private val postgres = PostgreSQLContainer("postgres:17-alpine").also { it.start() }
+    private val postgres = WowContainers.newPostgres().also { it.start() }
     private val host = startHost(
         "wow.log.partitions" to 4,
         "test.postgres.url" to postgres.jdbcUrl,
