@@ -75,6 +75,7 @@ export const ENTRIES = [
   ['@ahoo-wang/wow-client', 'filter', { require: true }],
   ['@ahoo-wang/wow-client/dsl', 'filter', { require: true }],
   ['@ahoo-wang/wow-client/legacy', 'zh_CN', { require: true }],
+  ['@ahoo-wang/wow-client/v10', 'CommandGateway', { require: true }],
   ['@ahoo-wang/wow-react', 'useFetcherPagedQuery', { require: true }],
   ['@ahoo-wang/wow-generator', 'CodeGenerator', { require: true }],
   ['@ahoo-wang/wow-view-engine', 'ViewEngine', { require: false }],
@@ -160,6 +161,7 @@ export function floorPeers(workspaceYaml) {
 /** Consumers compiled under each resolution mode. */
 const CLIENT_AND_GENERATOR = `import { filter } from '@ahoo-wang/wow-client';
 import { zh_CN } from '@ahoo-wang/wow-client/legacy';
+import { CommandGateway } from '@ahoo-wang/wow-client/v10';
 import { CodeGenerator } from '@ahoo-wang/wow-generator';
 
 // A condition is not a number.
@@ -168,6 +170,8 @@ export const condition: number = filter.eq('status', 'PAID');
 // @ts-expect-error the generator's constructor takes options
 export const generator = new CodeGenerator(42);
 export const locale: string = zh_CN.AND;
+// @ts-expect-error the V10 gateway takes client options, not a number
+export const gateway = new CommandGateway(42);
 `;
 const REACT = `import { useFetcherPagedQuery } from '@ahoo-wang/wow-react';
 
