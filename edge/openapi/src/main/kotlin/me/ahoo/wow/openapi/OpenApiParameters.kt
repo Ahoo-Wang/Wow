@@ -27,8 +27,16 @@ internal object OpenApiParameters {
     const val DATASET: String = "dataset"
 
     /** The headers a command route reads, in order; [Http.IF_MATCH_HEADER] only on a route with the aggregate id. */
-    val COMMAND_HEADERS: List<String> =
-        listOf(Http.REQUEST_ID_HEADER, Http.WAIT_HEADER, Http.WAIT_TIMEOUT_HEADER, Http.SCOPE_HEADER, Http.SPACE_HEADER)
+    val COMMAND_HEADERS: List<String> = listOf(
+        Http.REQUEST_ID_HEADER,
+        Http.WAIT_HEADER,
+        Http.WAIT_TIMEOUT_HEADER,
+        Http.SCOPE_HEADER,
+        Http.SPACE_HEADER,
+        Http.TRACEPARENT_HEADER,
+        Http.TRACESTATE_HEADER,
+        Http.BAGGAGE_HEADER,
+    )
 
     fun ref(name: String): Map<String, Any?> = Json.ref(Json.PARAMETERS, name)
 
@@ -56,6 +64,12 @@ internal object OpenApiParameters {
             "The scope to act in, for a caller allowed to act across scopes: an RFC 8941 dictionary (decision D95).",
         ),
         Http.SPACE_HEADER to header(Http.SPACE_HEADER, "The space, among the caller's own, to act in (decision D96)."),
+        Http.TRACEPARENT_HEADER to header(
+            Http.TRACEPARENT_HEADER,
+            "The W3C trace context of the caller's span (decision D174): the command's admission continues the trace.",
+        ),
+        Http.TRACESTATE_HEADER to header(Http.TRACESTATE_HEADER, "The W3C trace state that goes with `traceparent`."),
+        Http.BAGGAGE_HEADER to header(Http.BAGGAGE_HEADER, "The W3C baggage that goes with `traceparent`."),
         Http.IF_MATCH_HEADER to header(
             Http.IF_MATCH_HEADER,
             "The version the aggregate is expected at, as an entity tag: `\"3\"`. A mismatch is 412.",

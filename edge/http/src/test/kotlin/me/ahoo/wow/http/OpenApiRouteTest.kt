@@ -17,6 +17,7 @@ import com.networknt.schema.InputFormat
 import com.networknt.schema.SchemaRegistry
 import com.networknt.schema.SpecificationVersion
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.http.command.CommandHandler
 import me.ahoo.wow.http.query.QueryHandler
 import me.ahoo.wow.http.read.StateHandler
 import me.ahoo.wow.kernel.CommandType
@@ -149,6 +150,7 @@ class OpenApiRouteTest {
         WowHttpContract.SPACE_HEADER.assert().isEqualTo(WowHeaders.SPACE)
         WowHttpContract.IF_MATCH_HEADER.assert().isEqualTo(WowHeaders.IF_MATCH)
         WowHttpContract.ETAG_HEADER.assert().isEqualTo(WowHeaders.ETAG)
+        WowHttpContract.TRACEPARENT_HEADER.assert().isEqualTo(CommandHandler.TRACEPARENT)
         WowHttpContract.MAX_TRACE_LIMIT.assert().isEqualTo(StateHandler.MAX_TRACE_LIMIT)
         WowHttpContract.DEFAULT_TRACE_LIMIT.assert().isEqualTo(StateHandler.DEFAULT_TRACE_LIMIT)
         WowHttpContract.ROW_EVENT.assert().isEqualTo(QueryHandler.ROW)

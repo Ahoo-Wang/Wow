@@ -296,6 +296,12 @@
         }, {
           "$ref" : "#/components/parameters/Wow-Space"
         }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
           "$ref" : "#/components/parameters/If-Match"
         } ],
         "requestBody" : {
@@ -383,6 +389,12 @@
           "$ref" : "#/components/parameters/Wow-Scope"
         }, {
           "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
         } ],
         "requestBody" : {
           "description" : "The command's body; an empty body is `{}`.",
@@ -468,6 +480,12 @@
           "$ref" : "#/components/parameters/Wow-Scope"
         }, {
           "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
         }, {
           "$ref" : "#/components/parameters/If-Match"
         } ],
@@ -558,6 +576,12 @@
         }, {
           "$ref" : "#/components/parameters/Wow-Space"
         }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
           "$ref" : "#/components/parameters/If-Match"
         } ],
         "requestBody" : {
@@ -646,6 +670,12 @@
           "$ref" : "#/components/parameters/Wow-Scope"
         }, {
           "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
         }, {
           "$ref" : "#/components/parameters/If-Match"
         } ],
@@ -736,6 +766,12 @@
         }, {
           "$ref" : "#/components/parameters/Wow-Space"
         }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
           "$ref" : "#/components/parameters/If-Match"
         } ],
         "requestBody" : {
@@ -822,6 +858,12 @@
           "$ref" : "#/components/parameters/Wow-Scope"
         }, {
           "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
         } ],
         "requestBody" : {
           "description" : "The command's body; an empty body is `{}`.",
@@ -907,6 +949,12 @@
         }, {
           "$ref" : "#/components/parameters/Wow-Space"
         }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
           "$ref" : "#/components/parameters/If-Match"
         } ],
         "requestBody" : {
@@ -987,6 +1035,12 @@
           "$ref" : "#/components/parameters/Wow-Scope"
         }, {
           "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
         }, {
           "$ref" : "#/components/parameters/If-Match"
         } ],
@@ -1069,6 +1123,12 @@
         }, {
           "$ref" : "#/components/parameters/Wow-Space"
         }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
           "$ref" : "#/components/parameters/If-Match"
         } ],
         "requestBody" : {
@@ -1150,6 +1210,12 @@
         }, {
           "$ref" : "#/components/parameters/Wow-Space"
         }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
           "$ref" : "#/components/parameters/If-Match"
         } ],
         "requestBody" : {
@@ -1230,6 +1296,12 @@
           "$ref" : "#/components/parameters/Wow-Scope"
         }, {
           "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
         }, {
           "$ref" : "#/components/parameters/If-Match"
         } ],
@@ -3342,6 +3414,30 @@
         "name" : "Wow-Space",
         "in" : "header",
         "description" : "The space, among the caller's own, to act in (decision D96).",
+        "schema" : {
+          "type" : "string"
+        }
+      },
+      "traceparent" : {
+        "name" : "traceparent",
+        "in" : "header",
+        "description" : "The W3C trace context of the caller's span (decision D174): the command's admission continues the trace.",
+        "schema" : {
+          "type" : "string"
+        }
+      },
+      "tracestate" : {
+        "name" : "tracestate",
+        "in" : "header",
+        "description" : "The W3C trace state that goes with `traceparent`.",
+        "schema" : {
+          "type" : "string"
+        }
+      },
+      "baggage" : {
+        "name" : "baggage",
+        "in" : "header",
+        "description" : "The W3C baggage that goes with `traceparent`.",
         "schema" : {
           "type" : "string"
         }

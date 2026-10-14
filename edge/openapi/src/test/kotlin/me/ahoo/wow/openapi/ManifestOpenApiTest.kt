@@ -69,6 +69,9 @@ class ManifestOpenApiTest {
             "Wow-Wait-Timeout",
             "Wow-Scope",
             "Wow-Space",
+            "traceparent",
+            "tracestate",
+            "baggage",
             "If-Match",
         )
         schemaOf(byId["requestBody"]).assert().isEqualTo("#/components/schemas/sample.CreateCart")
@@ -85,6 +88,9 @@ class ManifestOpenApiTest {
             "Wow-Wait-Timeout",
             "Wow-Scope",
             "Wow-Space",
+            "traceparent",
+            "tracestate",
+            "baggage",
         )
         withoutId["description"].toString().assert().contains("names no aggregate id")
         responses(withoutId).keys.assert().doesNotContain("412")

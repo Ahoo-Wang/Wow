@@ -47,6 +47,11 @@ object WowHttpContract {
     const val ETAG_HEADER: String = "ETag"
     const val RETRY_AFTER_HEADER: String = "Retry-After"
 
+    /** The W3C trace context headers a command request carries its trace in (decision D174). */
+    const val TRACEPARENT_HEADER: String = "traceparent"
+    const val TRACESTATE_HEADER: String = "tracestate"
+    const val BAGGAGE_HEADER: String = "baggage"
+
     /** The query parameters of a state read and of a trace. */
     const val VERSION_PARAMETER: String = "version"
     const val AT_PARAMETER: String = "at"
