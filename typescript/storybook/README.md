@@ -129,6 +129,14 @@ View Engine 的每个场景都放在宿主应用里评判：`shared/AppShell.tsx
 
 这些是引擎的夹具，不是产品：定义只保留这些故事断言到的部分，与控制台的定义**有意漂移**——产品改视图不该动引擎的回归，引擎的回归也不等产品。每个文件的注释都写明这一点。
 
+## V10 视图存储的回归夹具
+
+`view-engine/V10ViewStore.test.stories.tsx`（标题 `View Engine/回归夹具/V10 视图存储`，标签 `['!dev', '!autodocs', 'test']`，不进目录与导航）让记录工作台跑在 Wow V10 上（路线图 7.3a）：视图、偏好与系统视图经 `@ahoo-wang/wow-view-store/v10` 的 `WowViewStore` 存在 V10 视图存储里，行经 `viewSourceOf` 走 V10 的数据集查询路由（`POST /wow/dataset/sales/orders/query`）。
+
+- **服务端**是 `wow-view-store` 自己的单元测试用的内存替身（`typescript/wow-view-store/test/support/fakeV10ViewStore.ts`，按工作区路径引入），由故事的 `beforeEach` 装成页面的 `fetch`，结束时放回原来的。它照真服务端的路由、`Wow-Scope`、`Wow-Request-Id`、`If-Match` 与 problem 作答；真服务端由 `typescript/integration-test` 的 `pnpm test:v10` 守着同样的行为。
+- **数据**是订单夹具的六张单（`rowSource`）；一个配置的系统视图，一个共享视图与一个个人视图在 `beforeEach` 里经 V10 store 写入。
+- **三个故事**：列出并查询（系统视图路由、以调用者与 `(shared)` 各查一次快照、数据集的 `paged`）；保存共享视图（`save-view` 带 `If-Match`、`(shared)` 的 `Wow-Scope` 与请求 id）；设为共享再设为个人（`share-view` 以所有者身份发出并等 `ViewAudienceSaga`，`claim-view` 以 `(shared)` 发出）。
+
 ## 严格 CSP
 
 `view-engine/StrictCsp.test.stories.tsx`（目录里是「能力/严格 CSP/回归」，不进导航）在视图引擎 README「Content Security Policy」那条策略下走一遍引擎，出现一次违规就失败（view-engine D74）。策略由 `strictCsp.ts` 在每个故事开头以 `<meta http-equiv="Content-Security-Policy">` 装到页上，nonce 照 Vite 的约定写成 `<meta property="csp-nonce">`；装上先放一段不带 nonce 的 `<style>`，确认它被拦，证明策略生效，再监听 `securitypolicyviolation`。策略装上就收不回，所以只装在这一个文件的页上：测试运行器一个文件一个框架，别的故事不受影响。装之前页上已有的东西（测试框架的脚本、预览导入的样式表）不判；唯一放过的是 a11y 插件视觉模拟器插进 `<body>` 的带 `style` 的标记，按报告它的文件点名。
