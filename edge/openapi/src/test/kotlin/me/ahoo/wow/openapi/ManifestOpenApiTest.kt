@@ -214,8 +214,10 @@ class ManifestOpenApiTest {
         @Suppress("UNCHECKED_CAST")
         val schemas = (written["components"] as Map<String, Any?>)["schemas"] as Map<String, Any?>
         schemas["wow.lifecycle.ApplyTags"].assert().isEqualTo(body)
-        schemas.keys.filter { it.startsWith("wow.lifecycle.ApplyTags") }.assert().containsExactly("wow.lifecycle.ApplyTags")
-        schemas["wow.lifecycle.DeleteAggregate"].assert().isEqualTo(WowSchemas.LIFECYCLE["wow.lifecycle.DeleteAggregate"])
+        val applyTags = schemas.keys.filter { it.startsWith("wow.lifecycle.ApplyTags") }
+        applyTags.assert().containsExactly("wow.lifecycle.ApplyTags")
+        val delete = schemas["wow.lifecycle.DeleteAggregate"]
+        delete.assert().isEqualTo(WowSchemas.LIFECYCLE["wow.lifecycle.DeleteAggregate"])
         @Suppress("UNCHECKED_CAST")
         val put = ((written["paths"] as Map<String, Any?>)["/shop/cart/{id}/put-item"] as Map<String, Any?>)["post"]
             as Map<String, Any?>

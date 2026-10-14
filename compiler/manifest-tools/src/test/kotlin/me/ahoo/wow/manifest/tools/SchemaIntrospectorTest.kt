@@ -248,7 +248,8 @@ class SchemaIntrospectorTest {
             .copy(lifecycle = Lifecycle.COMMANDS.keys.sorted() + "wow.lifecycle.Unknown")
         val fragment = fragment().copy(contexts = listOf(ContextManifest("shop", aggregates = listOf(aggregate))))
         val defs = introspector.complete(fragment).defs
-        defs.keys.filter { it.startsWith("wow.") }.assert().containsExactlyInAnyOrder(*Lifecycle.COMMANDS.keys.toTypedArray())
+        val lifecycleKeys = defs.keys.filter { it.startsWith("wow.") }
+        lifecycleKeys.assert().containsExactlyInAnyOrder(*Lifecycle.COMMANDS.keys.toTypedArray())
         defs[Lifecycle.TRANSFER_OWNER].assert().isEqualTo(
             mapOf(
                 "type" to "object",

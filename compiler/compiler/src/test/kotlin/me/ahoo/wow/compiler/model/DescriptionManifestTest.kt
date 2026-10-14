@@ -47,72 +47,73 @@ class DescriptionManifestTest {
         return ManifestTree.read(jacksonObjectMapper().readValue(file, Map::class.java))
     }
 
+    private val cart = SourceFile.kotlin(
+        "Cart.kt",
+        """
+        package sample
+
+        import me.ahoo.wow.api.annotation.AggregateRoot
+        import me.ahoo.wow.api.annotation.CreateAggregate
+        import me.ahoo.wow.api.annotation.Description
+        import me.ahoo.wow.api.annotation.MountedCommand
+        import me.ahoo.wow.api.annotation.Summary
+
+        /**
+         * Opens the cart of [owner], a buyer
+         * of the [shop][ShopContext].
+         *
+         * A second paragraph that is not the summary.
+         */
+        @CreateAggregate
+        data class Open(val owner: String)
+
+        /**
+         * Adds an item.
+         * @param sku what is added
+         */
+        @Description("Puts an item into the cart")
+        @Summary("Add an item")
+        data class Add(val sku: String)
+
+        @Summary("Clear the cart")
+        data class Clear(val all: Boolean = true)
+
+        data class Close(val reason: String)
+
+        /** Imports a cart from elsewhere. */
+        @MountedCommand(aggregate = "cart")
+        data class ImportCart(val source: String)
+
+        /** The cart was opened. */
+        data class Opened(val owner: String)
+
+        @Description("   ")
+        data class Added(val sku: String)
+
+        /**
+         * @since 1.0
+         */
+        data class Cleared(val all: Boolean)
+
+        data class Closed(val reason: String)
+
+        /** A buyer's cart. */
+        @AggregateRoot
+        class Cart(val id: String) {
+            fun onCommand(command: Open): Opened = Opened(command.owner)
+            fun onCommand(command: Add): Added = Added(command.sku)
+            fun onCommand(command: Clear): Cleared = Cleared(command.all)
+            fun onCommand(command: Close): Closed = Closed(command.reason)
+            fun onSourcing(event: Opened) = Unit
+            fun onSourcing(event: Added) = Unit
+            fun onSourcing(event: Cleared) = Unit
+            fun onSourcing(event: Closed) = Unit
+        }
+        """.trimIndent(),
+    )
+
     @Test
     fun `commands, events and the aggregate should carry what their classes say they are`() {
-        val cart = SourceFile.kotlin(
-            "Cart.kt",
-            """
-            package sample
-
-            import me.ahoo.wow.api.annotation.AggregateRoot
-            import me.ahoo.wow.api.annotation.CreateAggregate
-            import me.ahoo.wow.api.annotation.Description
-            import me.ahoo.wow.api.annotation.MountedCommand
-            import me.ahoo.wow.api.annotation.Summary
-
-            /**
-             * Opens the cart of [owner], a buyer
-             * of the [shop][ShopContext].
-             *
-             * A second paragraph that is not the summary.
-             */
-            @CreateAggregate
-            data class Open(val owner: String)
-
-            /**
-             * Adds an item.
-             * @param sku what is added
-             */
-            @Description("Puts an item into the cart")
-            @Summary("Add an item")
-            data class Add(val sku: String)
-
-            @Summary("Clear the cart")
-            data class Clear(val all: Boolean = true)
-
-            data class Close(val reason: String)
-
-            /** Imports a cart from elsewhere. */
-            @MountedCommand(aggregate = "cart")
-            data class ImportCart(val source: String)
-
-            /** The cart was opened. */
-            data class Opened(val owner: String)
-
-            @Description("   ")
-            data class Added(val sku: String)
-
-            /**
-             * @since 1.0
-             */
-            data class Cleared(val all: Boolean)
-
-            data class Closed(val reason: String)
-
-            /** A buyer's cart. */
-            @AggregateRoot
-            class Cart(val id: String) {
-                fun onCommand(command: Open): Opened = Opened(command.owner)
-                fun onCommand(command: Add): Added = Added(command.sku)
-                fun onCommand(command: Clear): Cleared = Cleared(command.all)
-                fun onCommand(command: Close): Closed = Closed(command.reason)
-                fun onSourcing(event: Opened) = Unit
-                fun onSourcing(event: Added) = Unit
-                fun onSourcing(event: Cleared) = Unit
-                fun onSourcing(event: Closed) = Unit
-            }
-            """.trimIndent(),
-        )
         val (compilation, result) = compileModel("generate", context, cart)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         val aggregate = fragment(compilation).contexts.single().aggregates.single()

@@ -170,7 +170,8 @@ internal class SchemaIntrospector(
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun schemaMap(schema: Any): Map<String, Any?> = mapper.convertValue(schema, Map::class.java) as Map<String, Any?>
+    private fun schemaMap(schema: Any): Map<String, Any?> =
+        mapper.convertValue(schema, Map::class.java) as Map<String, Any?>
 
     private fun load(binaryName: String): Class<*> = Class.forName(binaryName, false, classLoader)
 
