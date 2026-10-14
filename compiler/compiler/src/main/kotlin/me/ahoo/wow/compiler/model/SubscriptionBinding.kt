@@ -80,6 +80,8 @@ internal data class HandlerBinding(
      * when neither gives any.
      */
     val retry: RetryBinding? = null,
+    /** The job of a saga's `@OnSchedule` handler (decision D198); null for an `@OnEvent` handler. */
+    val job: JobBinding? = null,
 ) {
     /** The context of the aggregates it reads, when `@OnEvent(aggregates)` names them. */
     val sourceContext: String? get() = aggregates.firstOrNull()?.substringBefore('.')

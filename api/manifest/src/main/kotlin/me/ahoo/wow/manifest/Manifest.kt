@@ -221,6 +221,9 @@ data class EventManifest(
  *   `@OnEvent(schedules)` declares; null when it declares none, and always for a projection or a reactor.
  * - [retry] is the handler's own in-process retry budget, as its `@Retry` and its processor's declare it (roadmap
  *   P.3): null when neither does. The host's `wow.subscriptions.[<name>].retry.*` overrides it, setting by setting.
+ * - [job] is the job of a saga's `@OnSchedule` handler (decision D198): its subscription reads the context's built-in
+ *   job aggregate `<context>.schedule` ([source]) and hands its job's ticks to the handler. Null for an `@OnEvent`
+ *   handler.
  */
 data class SubscriptionManifest(
     val name: String,
@@ -232,6 +235,21 @@ data class SubscriptionManifest(
     val start: SubscriptionStart? = null,
     val schedules: List<String>? = null,
     val retry: RetryManifest? = null,
+    val job: JobManifest? = null,
+)
+
+/**
+ * A job of an `@OnSchedule` handler (decision D198): its [name], its default rule ([cron] read in [zone], missed slots
+ * handled as [misfire] says: `COALESCE` or `CATCH_UP`), its [scope] (`SYSTEM` or `TENANT`) and whether it is [sharded].
+ * The host's `wow.schedules.<name>.*` overrides the rule.
+ */
+data class JobManifest(
+    val name: String,
+    val cron: String,
+    val zone: String = "UTC",
+    val scope: String = "SYSTEM",
+    val sharded: Boolean = false,
+    val misfire: String = "COALESCE",
 )
 
 /**

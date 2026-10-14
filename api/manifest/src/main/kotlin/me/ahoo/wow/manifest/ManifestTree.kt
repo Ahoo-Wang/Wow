@@ -20,7 +20,7 @@ package me.ahoo.wow.manifest
  * none.
  *
  * Absent optional values (a null description, unknown `produces`, `derives`, `schedules` or `transformsTo`, a fragment's
- * service, a subscription's `retry`) are left out, not written as null, and so are a subscription source's
+ * service, a subscription's `retry` or `job`) are left out, not written as null, and so are a subscription source's
  * `nullableState` and a command's `mounted` when false, and an aggregate's `ownership` when it is `OWNER`, the default.
  */
 object ManifestTree {
@@ -104,6 +104,16 @@ object ManifestTree {
                 "initialBackoff" to it.initialBackoff,
                 "maxBackoff" to it.maxBackoff,
                 "timeout" to it.timeout,
+            )
+        },
+        "job" to subscription.job?.let {
+            obj(
+                "name" to it.name,
+                "cron" to it.cron,
+                "zone" to it.zone,
+                "scope" to it.scope,
+                "sharded" to it.sharded,
+                "misfire" to it.misfire,
             )
         },
     )
@@ -217,6 +227,16 @@ object ManifestTree {
                     initialBackoff = it.stringOrNull("initialBackoff"),
                     maxBackoff = it.stringOrNull("maxBackoff"),
                     timeout = it.stringOrNull("timeout"),
+                )
+            },
+            job = node.objOrNull("job")?.let {
+                JobManifest(
+                    name = it.string("name"),
+                    cron = it.string("cron"),
+                    zone = it.stringOrNull("zone") ?: "UTC",
+                    scope = it.stringOrNull("scope") ?: "SYSTEM",
+                    sharded = it.booleanOrNull("sharded") ?: false,
+                    misfire = it.stringOrNull("misfire") ?: "COALESCE",
                 )
             },
         )

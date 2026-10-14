@@ -116,21 +116,32 @@ internal object SubscriptionResolver {
                 "exactly one kind"
         }
         val rejectionFunctions = processor.getAllFunctions().filter { it.hasAnnotation(ON_REJECTED) }.toList()
+        // A saga's @OnSchedule jobs (decision D198) are handlers of their own.
+        val jobFunctions = processor.getAllFunctions().filter { it.hasAnnotation(
+            ScheduleJobResolver.ON_SCHEDULE
+        ) }.toList()
         val functions = processor.getAllFunctions().filter {
-            !it.hasAnnotation(ON_REJECTED) &&
+            !it.hasAnnotation(ON_REJECTED) && !it.hasAnnotation(ScheduleJobResolver.ON_SCHEDULE) &&
                 (it.hasAnnotation(ON_EVENT) || (it.simpleName.asString() == ON_EVENT_NAME && !it.isPrivate()))
         }.toList()
-        if (functions.isEmpty()) {
+        if (functions.isEmpty() && jobFunctions.isEmpty()) {
             problems += "processor $className declares no @OnEvent function"
         }
         problems += rejectionProblems(className, name, kind, rejectionFunctions)
         processor.getDeclaredFunctions().forEach {
             problems += V10Annotations.problemsOfFunction(it, "processor $className", processor = true)
         }
-        (functions + rejectionFunctions).groupBy { it.simpleName.asString() }.filterValues { it.size > 1 }.keys.forEach {
-            problems += "processor $className has two handlers named $it: each is the subscription $name.$it"
+        (functions + rejectionFunctions + jobFunctions).groupBy { it.simpleName.asString() }
+            .filterValues { it.size > 1 }.keys.forEach {
+                problems += "processor $className has two handlers named $it: each is the subscription $name.$it"
+            }
+        val jobs = jobFunctions.mapNotNull {
+            ScheduleJobResolver.handler(it, name, kind?.name, reactorTypes, problems) { returned ->
+                returnProblem(Kind.SAGA, returned)
+            }
         }
-        val handlers = functions.mapNotNull { handler(it, name, kind, reactorTypes, problems) }
+        problems += ScheduleJobResolver.conflicts(className, jobs)
+        val handlers = (functions.mapNotNull { handler(it, name, kind, reactorTypes, problems) } + jobs)
             .map { it.copy(retry = it.retry?.over(processorRetry) ?: processorRetry) }
         val rejections = rejectionFunctions.mapNotNull { rejection(it, name, reactorTypes, problems) }
         rejections.groupBy { it.command }.filterValues { it.size > 1 }.forEach { (command, same) ->
