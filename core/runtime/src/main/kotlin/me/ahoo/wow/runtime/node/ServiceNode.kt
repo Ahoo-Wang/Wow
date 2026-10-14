@@ -15,7 +15,11 @@ package me.ahoo.wow.runtime.node
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -24,6 +28,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.kernel.Dependencies
@@ -31,6 +36,8 @@ import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.StateCache
+import me.ahoo.wow.kernel.schedule.ScheduleJob
+import me.ahoo.wow.kernel.schedule.ScheduleJobModel
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.LruStateCache
@@ -56,6 +63,7 @@ import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.log.LogGroupRouter
 import me.ahoo.wow.runtime.log.PartitionAppendQueue
 import me.ahoo.wow.runtime.manifest.ManifestCheck
+import me.ahoo.wow.runtime.schedule.ScheduleJobRuntime
 import me.ahoo.wow.runtime.reservation.ReservationSubscription
 import me.ahoo.wow.runtime.snapshot.SnapshotSubscription
 import me.ahoo.wow.runtime.source.TopicSubscriptions
@@ -300,8 +308,21 @@ class ServiceNode(
     /** Whether the node knows its [address]: it was built with one, or [bind] gave it. */
     val hasAddress: Boolean get() = bound != null
 
-    /** The aggregate models this node serves. */
-    val registry: ModelRegistry = ModelRegistry(models)
+    /**
+     * The jobs of each context's `@OnSchedule` handlers (decision D198), their defaults under the host's
+     * [ServiceNodeOptions.schedules]: each context with jobs gets the built-in job aggregate `<context>.schedule`.
+     */
+    private val jobs: Map<String, List<ScheduleJob>> = ScheduleJobRuntime.configured(
+        models.mapTo(LinkedHashSet()) { it.type.context }.associateWith { subscriptions.jobs(it) },
+        options.schedules,
+    )
+
+    /** The models the node runs: the [models] of the Manifest, and the built-in job aggregate of each context's [jobs]. */
+    private val served: List<AggregateModel<*>> =
+        models.toList() + jobs.map { (context, contextJobs) -> ScheduleJobModel.model(context, contextJobs) }
+
+    /** The aggregate models this node serves, the built-in job aggregates among them (decision D198). */
+    val registry: ModelRegistry = ModelRegistry(served)
 
     /** The waits started on this node. */
     val waits: WaitRegistry = WaitRegistry()
@@ -352,7 +373,7 @@ class ServiceNode(
     /** The node's one firing loop of every context's timers (decision D198). */
     val timerLoop: TimerLoop = TimerLoop(options.timers, clock)
 
-    private val parts: List<Parts> = models.groupBy { it.type.context }.map { (context, contextModels) ->
+    private val parts: List<Parts> = served.groupBy { it.type.context }.map { (context, contextModels) ->
         assemble(context, contextModels, backends.backends(context), codec, subscriptions)
     }
 
@@ -550,7 +571,37 @@ class ServiceNode(
             throw failure
         }
         state = State.RUNNING
+        startJobs()
         logger.info { "Node $node of $service started: contexts ${contexts.keys}." }
+    }
+
+    /** Runs the node's background work: the startup of the SYSTEM jobs; cancelled when the node stops. */
+    private val background = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    /**
+     * Brings each context's SYSTEM jobs in line with the Manifest and the host's configuration (decision D198), in the
+     * background: enables each instance (a no-op when nothing changed, a reschedule when its default did), or
+     * disables it, retrying until each settles.
+     */
+    private fun startJobs() {
+        jobs.forEach { (context, contextJobs) ->
+            val node = contexts.getValue(context)
+            val commands = ScheduleJobRuntime.startup(
+                context,
+                contextJobs,
+                options.schedules,
+                node.backends.log.partitions,
+            )
+            if (commands.isEmpty()) {
+                return@forEach
+            }
+            val model = registry.models.first { it.type == ScheduleJobs.typeOf(context) }
+            background.launch {
+                ScheduleJobRuntime.send(model, commands, options.timers.retry, admission.ids.global::next) { m, c ->
+                    node.coordinator.forward(m, c, null)
+                }
+            }
+        }
     }
 
     /** Leaves the cluster and closes the node, in the order the class describes. Stopping twice does nothing. */
@@ -564,6 +615,7 @@ class ServiceNode(
 
     private suspend fun shutdown() {
         state = State.STOPPING
+        background.coroutineContext[Job]?.cancelAndJoin()
         val waitsEnd = TimeSource.Monotonic.markNow() + options.maxWaitTimeout
         var failure: Exception? = null
         suspend fun step(step: Step, block: suspend () -> Unit) {
@@ -858,10 +910,8 @@ class ServiceNode(
      */
     private fun timersOf(context: String, group: GroupParts, firer: TimerFirer): ContextTimers? =
         group.timers?.let { store ->
-            ContextTimers(
-                TimersSubscription(context, store, group.log.partitions),
-                TimerRunner(context, store, group.ledger, firer, timerLoop),
-            )
+            val runner = TimerRunner(context, store, group.ledger, firer, timerLoop)
+            ContextTimers(TimersSubscription(context, store, group.log.partitions, runner::offer), runner)
         }
 
     /** The stores of one log group of a context, as [logGroupsOf] finds them. */
@@ -894,9 +944,10 @@ class ServiceNode(
         return readers
     }
 
+    /** Whether the Manifest enables [model]'s snapshots; a built-in job aggregate, not in it, keeps them. */
     private fun snapshotEnabled(model: AggregateModel<*>): Boolean = manifest.contexts
-        .first { it.name == model.type.context }.aggregates
-        .first { it.name == model.type.name }.snapshot.enabled
+        .firstOrNull { it.name == model.type.context }?.aggregates
+        ?.firstOrNull { it.name == model.type.name }?.snapshot?.enabled ?: true
 
     /** A context's parts before the node's router exists. */
     private inner class Parts(

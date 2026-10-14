@@ -23,6 +23,7 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.ProcessorBinding
@@ -68,6 +69,9 @@ import java.util.concurrent.Executors
  *   commands too, the system commands `wow.schedule.Set` and `wow.schedule.Cancel` to their target, executed in order
  *   with the others; the command they schedule is named by the context's models and Manifests
  *   ([ContextNode.commandTypes]). A target that does not exist rejects one, which goes to `@OnRejected`.
+ * - **Jobs** (decision D198): a saga's `@OnSchedule` handler ([ProcessorBinding.job]) is a saga handler of the
+ *   context's built-in job aggregate, `<context>.schedule`, which the node adds for the [jobs] its handlers run: each
+ *   tick of its job is handed to it, and what it derives is executed as any saga's.
  * - **Failures**: a handler that throws, or a state that cannot be read, is retried, then parks its aggregate, as any
  *   subscription ([me.ahoo.wow.runtime.subscription.SubscriptionOptions.retry]); a handler's `@Retry`
  *   ([ProcessorBinding.retry], roadmap P.3) is its subscription's own budget ([Subscription.retry]).
@@ -88,6 +92,8 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             }
         }
     }
+
+    override fun jobs(context: String): List<ScheduleJob> = processors[context].orEmpty().mapNotNull { it.job }
 
     override fun viewTypes(context: String, models: List<AggregateModel<*>>): Set<AggregateType> =
         stateReaders(context, models).values.flatMapTo(LinkedHashSet()) { it }

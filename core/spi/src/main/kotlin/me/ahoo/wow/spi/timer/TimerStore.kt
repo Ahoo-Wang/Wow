@@ -32,7 +32,9 @@ import me.ahoo.wow.api.aggregate.AggregateRef
  *   [Timer.dueAt] the claim's deadline) before it sends it, so a timer cancelled after it was loaded is never sent;
  *   recording the outcome from the claimed row marks the slot fired and moves [Timer.dueAt] and [Timer.slotDueAt] to
  *   the next slot in one write. A claim that lapses, its node dead, is due again and claimed anew. A claim or a retry
- *   moves [Timer.dueAt] only: the slot keeps its [Timer.slotDueAt].
+ *   moves [Timer.dueAt] only: the slot keeps its [Timer.slotDueAt]. A recurring timer is never FIRED while its rule
+ *   has a next time: its outcome moves it to that slot, PENDING; a claim of a slot long overdue may move it to the
+ *   latest slot due, the ones between counted in [Timer.skipped] (decision D198).
  */
 interface TimerStore {
     /**
@@ -70,9 +72,9 @@ interface TimerStore {
     suspend fun due(partitions: Set<Int>, until: Long, limit: Int): List<Timer>
 
     /**
-     * Writes each change's [TimerChange.next] status, slot, slot's due time, due time, attempts and outcome, when the
-     * store still holds its [TimerChange.loaded] timer as loaded (same id, status, slot, slot's due time, attempts and
-     * due time); in as few round trips as the backend allows.
+     * Writes each change's [TimerChange.next] status, slot, slot's due time, skipped slots, due time, attempts and
+     * outcome, when the store still holds its [TimerChange.loaded] timer as loaded (same id, status, slot, slot's due
+     * time, attempts and due time); in as few round trips as the backend allows.
      *
      * @return how many changes were written.
      */
@@ -83,8 +85,8 @@ interface TimerStore {
 }
 
 /**
- * A change of the timer [loaded] from the store to [next] (decision D198): its next status, slot, slot's due time, due
- * time, attempts or outcome. It applies only while the store holds [loaded] as loaded ([TimerStore.settle]).
+ * A change of the timer [loaded] from the store to [next] (decision D198): its next status, slot, slot's due time,
+ * skipped slots, due time, attempts or outcome. It applies only while the store holds [loaded] as loaded ([TimerStore.settle]).
  */
 data class TimerChange(val loaded: Timer, val next: Timer) {
     init {

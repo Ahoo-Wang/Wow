@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.timer.Timer
@@ -54,7 +55,7 @@ import kotlin.time.TimeSource
  * the next owner of the partition claims and sends the timer again, deduplicated by its request id:
  *
  * - committed, already committed (a duplicate: sent before, whose outcome was not recorded), unchanged or rejected:
- *   its slot fired; a rule due once is then FIRED. A rejection is the target's state guard doing its work, not a
+ *   its slot fired; a rule due once is then FIRED, a recurring one PENDING at its next slot, back in the wheel. A rejection is the target's state guard doing its work, not a
  *   failure: it is neither retried nor handed to `@OnRejected`;
  * - sent to another context's command topic: FIRED with the outcome `SENT` once the broker acknowledged it;
  * - a technical failure (a contended or unknown outcome, a failing store, no transport, a target whose clock is too
@@ -63,7 +64,10 @@ import kotlin.time.TimeSource
  *   failure ledger under [TimerOptions.PARKED_SUBSCRIPTION], for an operator to [resume] or [skip].
  *
  * A claim, a retry or a resume moves only the timer's [Timer.dueAt]: every send of the slot carries the slot's own due
- * time ([Timer.slotDueAt]), so its target never decides it before then (decision D198).
+ * time ([Timer.slotDueAt]), so its target never decides it before then (decision D198). A recurring timer whose slot is
+ * past due by more than one time of its rule when it is claimed is caught up first ([ScheduleSlots.caughtUp]): a
+ * coalescing rule sends only the latest slot due, the others counted as skipped; an expired slot of a recurring rule
+ * moves on to its next slot instead of cancelling the timer.
  *
  * At least once, applied once: a crash after sending and before writing sends the timer again, and its target finds
  * the request id committed already.
@@ -179,6 +183,32 @@ class TimerRunner(
         }
         quietly("write the outcomes of ${batch.size} timers") { store.settle(batch.map { it.change }) }
         batch.forEach { it.part.sending.remove(it.change.loaded.id) }
+        // A recurring timer's next slot goes straight back into the wheel; its claim fails if the write did not land.
+        batch.forEach { offer(it.change.next) }
+    }
+
+    /**
+     * Takes [timer], just written PENDING on this node, into the wheel of its partition at once (decision D198), when
+     * this runner sends that partition's timers and the timer is due within the loop's lookahead: the `timers`
+     * subscription's writes, and a recurring timer's next slot. Its send claims it from the row as written, so a timer
+     * the store does not hold so is not sent.
+     */
+    internal fun offer(timer: Timer) {
+        if (timer.status != TimerStatus.PENDING) {
+            return
+        }
+        val part = parts[timer.partition] ?: return
+        if (timer.dueAt > loop.clock.millis() + options.lookahead.inWholeMilliseconds) {
+            return
+        }
+        synchronized(part) {
+            if (timer.id in part.sending) {
+                return
+            }
+            part.wheel.removeIf { it.id == timer.id }
+            part.wheel.add(timer)
+        }
+        loop.wakeUp()
     }
 
     /** How many timers of [partition] are loaded and not sent yet. */
@@ -189,14 +219,18 @@ class TimerRunner(
     private suspend fun fire(part: Part, timer: Timer) {
         try {
             val now = loop.clock.millis()
+            // A recurring slot long past due moves on to the latest one due, as its rule's misfire policy says.
+            val current = ScheduleSlots.caughtUp(timer, now)
             val expiry = options.expiresAfter
-            if (expiry != null && now - timer.dueAt > expiry.inWholeMilliseconds) {
-                logger.warn { "The timer ${timer.id} was due ${(now - timer.dueAt).milliseconds} ago; it expired." }
-                settle(part, timer, timer.copy(status = TimerStatus.CANCELLED, outcome = TimerOutcomes.EXPIRED))
+            if (expiry != null && now - current.dueAt > expiry.inWholeMilliseconds) {
+                logger.warn { "The timer ${timer.id} was due ${(now - current.dueAt).milliseconds} ago; it expired." }
+                val next = ScheduleSlots.afterFired(current, now)?.copy(outcome = TimerOutcomes.EXPIRED)
+                    ?: current.copy(status = TimerStatus.CANCELLED, outcome = TimerOutcomes.EXPIRED)
+                settle(part, timer, next)
                 return
             }
             // Claimed before it is sent, from the row as loaded: one cancelled or rescheduled since is not sent.
-            val claimed = timer.copy(
+            val claimed = current.copy(
                 status = TimerStatus.FIRING,
                 dueAt = now + options.claimTimeout.inWholeMilliseconds
             )
@@ -212,7 +246,7 @@ class TimerRunner(
                 failed(part, claimed, failure, now)
                 return
             }
-            settle(part, claimed, fired(claimed, outcome))
+            settle(part, claimed, fired(claimed, outcome, loop.clock.millis()))
         } catch (cancelled: CancellationException) {
             part.sending.remove(timer.id)
             throw cancelled
@@ -220,11 +254,12 @@ class TimerRunner(
     }
 
     /**
-     * [timer], claimed, after its slot was sent with [outcome]: a rule due once is done, due when its slot was
-     * ([Timer.slotDueAt], decision D198), however many attempts or claims it took.
+     * [timer], claimed, after its slot was sent with [outcome] at [now]: a recurring rule moves on to its next slot,
+     * PENDING ([ScheduleSlots.afterFired], decision D198); a rule due once, or one with no next time, is done, due when
+     * its slot was ([Timer.slotDueAt]), however many attempts or claims it took.
      */
-    private fun fired(timer: Timer, outcome: String): Timer =
-        timer.copy(
+    private fun fired(timer: Timer, outcome: String, now: Long): Timer =
+        ScheduleSlots.afterFired(timer, now)?.copy(outcome = outcome) ?: timer.copy(
             status = TimerStatus.FIRED,
             attempts = timer.attempts + 1,
             outcome = outcome,

@@ -15,11 +15,15 @@ package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.schedule.ScheduleTick
+import me.ahoo.wow.api.schedule.Ticked
 import me.ahoo.wow.api.subscribe.ProjectContext
 import me.ahoo.wow.api.subscribe.ReactContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
+import me.ahoo.wow.kernel.schedule.JobState
+import me.ahoo.wow.kernel.schedule.ScheduleJob
 
 /**
  * One handler of an annotated subscription processor, bound to its processor instance (design 04 §1, decisions D37,
@@ -47,7 +51,11 @@ import me.ahoo.wow.api.subscribe.SubscriptionContext
  * - [rejections] are a saga's `@OnRejected` handlers (decisions D136, D153), the same for each handler of the saga:
  *   the runtime hands the rejection of a command this handler derived to the one [rejectionHandlerOf] its class.
  *
- * Built with [project], [react] or [saga], one per kind.
+ * - [job] is the job of a saga's `@OnSchedule` handler ([schedule], decision D198): its subscription reads the
+ *   context's built-in job aggregate (`<context>.schedule`, [JobState]) and hands each tick of its job over as a
+ *   [ScheduleTick].
+ *
+ * Built with [project], [react] or [saga], one per kind, or [schedule] for a saga's job.
  */
 class ProcessorBinding<S> private constructor(
     /** The processor's name: its `@Name`, or its class's simple name. */
@@ -64,6 +72,8 @@ class ProcessorBinding<S> private constructor(
     val nullableState: Boolean,
     /** The handler's own in-process retry budget (`@Retry`, roadmap P.3); null when it gives none. */
     val retry: HandlerRetry?,
+    /** The job of an `@OnSchedule` handler ([schedule], decision D198); null for an `@OnEvent` one. */
+    val job: ScheduleJob? = null,
     private val call: suspend (StateEvent<S>, SubscriptionContext) -> List<Command<*>>,
 ) {
     init {
@@ -213,6 +223,53 @@ class ProcessorBinding<S> private constructor(
                 retry,
             ) { e, c ->
                 handle(e, c as SagaContext)
+            }
+
+        /**
+         * A `@Saga`'s `@OnSchedule` handler [function] of [processor], running [job] (decision D198): a saga handler of
+         * the context's job aggregate ([JobState]) that hands each `wow.Ticked` of an instance of [job] to [handle] as
+         * a [ScheduleTick], and returns the commands it derives; the ticks of other jobs it skips.
+         */
+        @JvmStatic
+        @Suppress("LongParameterList")
+        fun schedule(
+            processor: String,
+            function: String,
+            job: ScheduleJob,
+            blocking: Boolean = false,
+            rejections: List<RejectionBinding<*>> = emptyList(),
+            retry: HandlerRetry? = null,
+            handle: suspend (ScheduleTick, SagaContext) -> List<Command<*>>,
+        ): ProcessorBinding<JobState> =
+            ProcessorBinding(
+                processor,
+                function,
+                FunctionKind.SAGA,
+                JobState::class.java,
+                null,
+                blocking,
+                rejections,
+                emptyList(),
+                false,
+                retry,
+                job,
+            ) { event, context ->
+                val state = event.state
+                if (state.job != job.name) {
+                    emptyList()
+                } else {
+                    event.events.filterIsInstance<Ticked>().flatMap { ticked ->
+                        val tick = ScheduleTick(
+                            tenantId = event.ref.tenantId,
+                            job = job.name,
+                            slot = ticked.slot,
+                            skipped = ticked.skipped,
+                            due = ticked.due,
+                            partition = state.partition,
+                        )
+                        handle(tick, context as SagaContext)
+                    }
+                }
             }
     }
 }

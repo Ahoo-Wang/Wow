@@ -14,12 +14,13 @@
 package me.ahoo.wow.runtime
 
 import me.ahoo.wow.kernel.KernelRejections
+import me.ahoo.wow.kernel.schedule.ScheduleJobModel
 import me.ahoo.wow.runtime.wait.ResultCodes
 
 /**
  * Every error code the framework itself answers with (design 05 §3; decisions D60, D103), in one place for the edge to
  * map to its statuses: the admission codes defined here, the kernel's rejections ([KernelRejections]) and the
- * runtime's results ([ResultCodes]). A domain's own codes are not among them.
+ * runtime's results ([ResultCodes]), and the job aggregate's rejection ([ScheduleJobModel.JOB_INVALID]). A domain's own codes are not among them.
  *
  * The Manifest's error table lists the same codes for clients; until the two are generated from one source, a code
  * added here is added there too.
@@ -56,6 +57,7 @@ object FrameworkCodes {
     const val NODE_CLOSING = ResultCodes.NODE_CLOSING
     const val STORAGE_UNAVAILABLE = ResultCodes.STORAGE_UNAVAILABLE
     const val SCHEDULE_NOT_DUE = ResultCodes.SCHEDULE_NOT_DUE
+    const val SCHEDULE_JOB_INVALID = ScheduleJobModel.JOB_INVALID
     const val WAIT_INVALID = ResultCodes.WAIT_INVALID
     const val WAIT_TIMEOUT = ResultCodes.WAIT_TIMEOUT
     const val SUBSCRIPTION_PARKED = ResultCodes.SUBSCRIPTION_PARKED
@@ -79,6 +81,7 @@ object FrameworkCodes {
         NODE_CLOSING,
         STORAGE_UNAVAILABLE,
         SCHEDULE_NOT_DUE,
+        SCHEDULE_JOB_INVALID,
         WAIT_INVALID,
         WAIT_TIMEOUT,
         SUBSCRIPTION_PARKED,
