@@ -56,6 +56,7 @@ import me.ahoo.wow.spi.id.AggregateIdGeneratorSource
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.observation.Observer
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
@@ -111,6 +112,8 @@ import jakarta.validation.Validator as JakartaValidator
  * - **Parked entries** (roadmap P.1): retried over the long horizon by `wow.subscription.parked.*`; every
  *   [me.ahoo.wow.runtime.subscription.ParkedNotifier] bean, the webhook of `wow.ops.webhook.*` among them, hears when
  *   one parks or spends its retries; `wow.ops.enabled` serves the operator's routes ([parkedRoutes]).
+ * - **Observation** (decision D174): the [Observer] bean, when there is one (wow-opentelemetry's,
+ *   [ObservabilityAutoConfiguration]), sees the node's work; nothing does otherwise.
  * - **Lifecycle**: [WowLifecycles].
  */
 @AutoConfiguration(
@@ -240,6 +243,7 @@ class WowAutoConfiguration {
         listeners: ObjectProvider<ServiceNodeListener>,
         topics: ObjectProvider<SourceTopics>,
         notifiers: ObjectProvider<ParkedNotifier>,
+        observers: ObjectProvider<Observer>,
     ): ServiceNode {
         checkShutdownTimeout(environment)
         val routing = routing(properties, backends.kind)
@@ -288,6 +292,7 @@ class WowAutoConfiguration {
             contracts = contracts,
             topics = topics.ifAvailable,
             parkedNotifier = ParkedNotifier.of(notifiers.orderedStream().toList()),
+            observer = observers.getIfUnique { Observer.NONE },
         )
     }
 

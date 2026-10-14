@@ -33,6 +33,7 @@ import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.time.Clock
 import java.util.concurrent.ConcurrentHashMap
@@ -71,6 +72,8 @@ class SubscriptionRuntime internal constructor(
     private val context: CoroutineContext = Dispatchers.Default,
     private val signals: SignalSender = SignalSender.NONE,
     private val notifier: ParkedNotifier = ParkedNotifier.NONE,
+    /** Sees each entry its subscriptions handle (decision D174). */
+    private val observer: Observer = Observer.NONE,
 ) : SubscriptionDirectory {
     @Suppress("LongParameterList") // The parts of a runtime, as the primary constructor takes them.
     constructor(
@@ -84,7 +87,20 @@ class SubscriptionRuntime internal constructor(
         context: CoroutineContext = Dispatchers.Default,
         signals: SignalSender = SignalSender.NONE,
         notifier: ParkedNotifier = ParkedNotifier.NONE,
-    ) : this(group, LogSource(log), checkpoints, ledger, subscriptions, options, clock, context, signals, notifier)
+        observer: Observer = Observer.NONE,
+    ) : this(
+        group,
+        LogSource(log),
+        checkpoints,
+        ledger,
+        subscriptions,
+        options,
+        clock,
+        context,
+        signals,
+        notifier,
+        observer,
+    )
 
     private val lifecycle = Mutex()
     private val retries = ParkedRetries(group, ledger, options.parked, clock, notifier)
@@ -301,6 +317,15 @@ class SubscriptionRuntime internal constructor(
     private fun startOf(subscription: Subscription): SubscriptionStart =
         options.starts[subscription.name] ?: SubscriptionStart.of(subscription.startFrom)
 
+    /**
+     * Where each subscription stands in each partition this runtime runs on this node (decision D174): its watermark,
+     * the sequence up to which every entry is complete. Against the source's head it is how far a subscription, a
+     * rebuild under a new name among them, has come. Empty while the runtime is stopped.
+     */
+    fun positions(): List<SubscriptionPosition> = running?.workers?.values?.map {
+        SubscriptionPosition(it.subscription.name, it.partition, it.watermark)
+    }.orEmpty()
+
     private suspend fun workerOf(subscription: String, ref: AggregateRef): SubscriptionWorker? {
         val workers = running?.workers ?: return null
         return workers[subscription to source.partitionOf(ref)]
@@ -330,6 +355,7 @@ class SubscriptionRuntime internal constructor(
             lanes = part.lanes,
             signals = signals,
             notifier = notifier,
+            observer = observer,
             checkpoint = checkpoint,
             parked = parked[partition].orEmpty(),
         ).also {
@@ -387,5 +413,11 @@ class SubscriptionRuntime internal constructor(
         val workers = ArrayList<SubscriptionWorker>()
     }
 }
+
+/**
+ * Where [subscription] stands in [partition] of its source: every entry up to the sequence [watermark] is complete
+ * (decision D174).
+ */
+data class SubscriptionPosition(val subscription: String, val partition: Int, val watermark: Long)
 
 private val logger = KotlinLogging.logger {}

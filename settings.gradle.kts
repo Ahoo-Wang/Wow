@@ -156,6 +156,9 @@ include(":http")
 project(":http").projectDir = file("edge/http")
 include(":cosec")
 project(":cosec").projectDir = file("edge/cosec")
+// Tracing and metrics on the core's observation seams (decision D174); artifact wow-opentelemetry, beside 9.x's.
+include(":opentelemetry")
+project(":opentelemetry").projectDir = file("edge/opentelemetry")
 include(":spring-boot")
 project(":spring-boot").projectDir = file("host/spring-boot")
 // Optional extensions an application adds beside the host (decision D171: CosId's id generators).

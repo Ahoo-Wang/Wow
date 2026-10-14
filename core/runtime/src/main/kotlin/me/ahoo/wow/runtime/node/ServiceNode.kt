@@ -74,6 +74,7 @@ import me.ahoo.wow.runtime.timer.TimerLoop
 import me.ahoo.wow.runtime.timer.TimerRunner
 import me.ahoo.wow.runtime.timer.TimersSubscription
 import me.ahoo.wow.runtime.wait.LocalSignalSender
+import me.ahoo.wow.runtime.wait.ReceiptHops
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
@@ -81,6 +82,7 @@ import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerStore
@@ -206,8 +208,9 @@ class LogGroupNode internal constructor(
  *
  * **Commands across contexts** (decisions D33, D135–D137), when [topics] has a producer: a saga's command to an
  * aggregate of another context is sent to that context's command topic ([ContextNode.sender]); the receipts of those
- * rejected come back on the saga's context's receipts topic, read in the lease group of that topic for the contexts
- * whose sagas have `@OnRejected` handlers ([SubscriptionFactory.rejections]). With [SourceTopics.intake], each context
+ * rejected, and of those committed that the saga asked about, come back on the saga's context's receipts topic, read
+ * in the lease group of that topic for the contexts whose sagas have `@OnRejected` or `@OnCommitted` handlers
+ * ([SubscriptionFactory.receipts]). With [SourceTopics.intake], each context
  * executes the commands of its own command topic ([ContextNode.intake], [CommandIntake]), driven by its
  * [PartitionOwnership]: the owner of a log partition reads the same partition of the topic, and [start] fails unless
  * the topic has as many partitions as the log.
@@ -285,6 +288,11 @@ class ServiceNode(
     parkedNotifier: ParkedNotifier = ParkedNotifier.NONE,
     /** The clock the node's timers fire by (decision D198): the system's, unless a test moves it. */
     clock: Clock = Clock.systemUTC(),
+    /**
+     * Sees the node's work (decision D174): admissions, executions, decisions, appends, the handling of every
+     * subscription and the firing of timers; nothing by default.
+     */
+    private val observer: Observer = Observer.NONE,
 ) {
     init {
         require(service.isNotBlank()) { "A node names its service." }
@@ -325,6 +333,9 @@ class ServiceNode(
 
     /** Sends the commands of every context's sagas to the command topics of other contexts; null without a producer. */
     private val sender: CommandSender? = topics?.takeIf { it.producer != null }?.let { CommandSender(contracts, it) }
+
+    /** The `@OnCommitted` handlers of each context's sagas: hops of its waits (decision D192). */
+    private val committedHandlers: (String) -> Set<String> = subscriptions::committedHandlers
 
     init {
         require(options.ledger == null || sender != null) {
@@ -397,6 +408,7 @@ class ServiceNode(
         committed = { type, tenantId, requestId ->
             contexts[type.context]?.log?.findByRequestId(type, tenantId, requestId)
         },
+        observer = observer,
     )
 
     /**
@@ -698,19 +710,20 @@ class ServiceNode(
                 signals = signals,
                 notifier = notifiers,
                 partitionRefresh = topics!!.partitionRefresh,
+                observer = observer,
             )
         }
     }
 
     /**
-     * The runtimes of the receipts topics of the contexts whose sagas the [application] gives `@OnRejected` handlers
-     * ([SubscriptionFactory.rejections], decision D136), each in the lease group of its topic and the stores of its
+     * The runtimes of the receipts topics of the contexts whose sagas the [application] gives `@OnRejected` or
+     * `@OnCommitted` handlers ([SubscriptionFactory.receipts], decisions D136, D192), each in the lease group of its topic and the stores of its
      * context. None without [topics]: no command left for another context then.
      */
     private fun receipts(application: SubscriptionFactory): Map<String, TopicSubscriptions> {
         val sources = topics ?: return emptyMap()
         return contexts.values.mapNotNull { context ->
-            val handler = application.rejections(context) ?: return@mapNotNull null
+            val handler = application.receipts(context) ?: return@mapNotNull null
             val topic = sources.receiptsOf(context.context)
             val receipts = Receipts(context.context, contracts, handler)
             topic to TopicSubscriptions(
@@ -731,6 +744,7 @@ class ServiceNode(
                 notifier = notifiers,
                 entries = { partitions -> MessageEntries.receipts(topic, sources.source, partitions) },
                 partitionRefresh = sources.partitionRefresh,
+                observer = observer,
             )
         }.toMap()
     }
@@ -749,6 +763,7 @@ class ServiceNode(
                 options = options.subscription,
                 signals = signals,
                 notifier = notifiers,
+                observer = observer,
             )
         }
 
@@ -839,6 +854,7 @@ class ServiceNode(
             options.subscription,
             signals = signals,
             notifier = notifiers,
+            observer = observer,
         )
         return LogGroupNode(part.store, part.types, part.log, runtime, timers)
     }
@@ -884,6 +900,7 @@ class ServiceNode(
             commandTypes = names,
             ids = admission.ids,
             maxEarlyWait = options.timers.maxEarlyWait,
+            observer = observer,
         )
 
     /**
@@ -957,7 +974,11 @@ class ServiceNode(
         fun complete(): ContextNode {
             val runtimes = logGroups.drop(1).flatMap { group -> group.types.map { it to group.subscriptions } }.toMap()
             val directory = contracts.over(
-                if (runtimes.isEmpty()) subscriptions else LogGroupDirectory(subscriptions, runtimes),
+                ReceiptHops(
+                    if (runtimes.isEmpty()) subscriptions else LogGroupDirectory(subscriptions, runtimes),
+                    context,
+                    committedHandlers(context),
+                ),
                 context,
             )
             val coordinator = WaitCoordinator(
@@ -970,8 +991,8 @@ class ServiceNode(
                 router = router,
                 topicRouter = topicRouterOf(context, backends),
             )
-            val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership))
-            firing.firer = ContextTimerFirer(models, coordinator, sender)
+            val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership), observer = observer)
+            firing.firer = ContextTimerFirer(models, coordinator, sender, observer)
             return ContextNode(
                 context,
                 models,

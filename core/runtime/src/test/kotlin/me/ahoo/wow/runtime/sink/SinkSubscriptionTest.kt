@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.sink
 
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
@@ -32,6 +33,7 @@ import me.ahoo.wow.kernel.InMemoryEventLog
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.runtime.Executor
+import me.ahoo.wow.runtime.TestTrace
 import me.ahoo.wow.runtime.state.StateViewReader
 import me.ahoo.wow.runtime.state.StateViews
 import me.ahoo.wow.spi.json.WowJson
@@ -182,6 +184,18 @@ class SinkSubscriptionTest {
         handle(sink, commit(SetPrice(BigDecimal.TEN)), Transport(reservations = reservations))
         written[0].transport.assert().isEqualTo(Transport(wait, trace = mapOf("traceparent" to "t")))
         written[1].transport.assert().isNull()
+    }
+
+    @Test
+    fun `an observed sink should write the trace of its own handling instead of the entry's`(): Unit = runBlocking {
+        val sink = sink()
+        val wait = WaitContext("w", Origin("n-1", "n-1:9090", "shop"), listOf(Hop.handled("OrderView.onEvent")), 9L)
+        withContext(TestTrace("sink")) {
+            handle(sink, commit(SetPrice(BigDecimal.ONE)), Transport(wait, trace = mapOf("traceparent" to "t")))
+            handle(sink, commit(SetPrice(BigDecimal.TEN)))
+        }
+        written[0].transport.assert().isEqualTo(Transport(wait, trace = mapOf("traceparent" to "sink")))
+        written[1].transport.assert().isEqualTo(Transport(trace = mapOf("traceparent" to "sink")))
     }
 
     @Test

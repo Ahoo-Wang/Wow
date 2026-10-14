@@ -30,7 +30,7 @@ package me.ahoo.wow.manifest
  *   model once;
  * - a context publishes the state events of one of its own aggregates, each once, and a topic carries one aggregate's
  *   state events only, across all contexts;
- * - only a saga's subscription handles rejections;
+ * - only a saga's subscription handles receipts, of rejections or of commits;
  * - no context takes the name of the framework's endpoints, and no command route ends in a segment the framework
  *   keeps for itself ([CommandRoutes]);
  * - a context documents an error code once, and not a framework (`wow.*`) one; a fragment's top-level errors, if
@@ -97,8 +97,8 @@ object ManifestMerger {
                 add("query model $it of aggregate ${context.name}.${aggregate.name} is declared twice in $source")
             }
         }
-        context.subscriptions.filter { it.rejected != null && it.kind != SubscriptionKind.SAGA }.forEach {
-            add("subscription ${it.name} of context ${context.name} in $source handles rejections but is a ${it.kind}")
+        context.subscriptions.filter { it.isReceiptHandler && it.kind != SubscriptionKind.SAGA }.forEach {
+            add("subscription ${it.name} of context ${context.name} in $source handles receipts but is a ${it.kind}")
         }
         addAll(publishedConflicts(source, context))
         context.errors.groupBy { it.code }.filterValues { it.size > 1 }.keys.forEach {

@@ -17,14 +17,15 @@ import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Decision
-import me.ahoo.wow.api.ledger.RecordParked
-import me.ahoo.wow.api.ledger.RecordResolved
+import me.ahoo.wow.api.ledger.LedgerEntry
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpec
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
 import me.ahoo.wow.ops.api.parked.MarkRecoverable
 import me.ahoo.wow.ops.api.parked.MarkRecoverableRequested
 import me.ahoo.wow.ops.api.parked.ParkedRecorded
 import me.ahoo.wow.ops.api.parked.ParkedResolved
+import me.ahoo.wow.ops.api.parked.RecordParked
+import me.ahoo.wow.ops.api.parked.RecordResolved
 import me.ahoo.wow.ops.api.parked.Resume
 import me.ahoo.wow.ops.api.parked.ResumeRequested
 import me.ahoo.wow.ops.api.parked.Skip
@@ -47,22 +48,25 @@ import kotlin.time.Duration
 @Description("One service's parked entry, as its failure ledger publishes it, and an operator's actions on it")
 class Parked(private val state: ParkedState) {
     @OnCommand(produces = [ParkedRecorded::class])
-    fun onCommand(command: RecordParked): Decision = when {
-        state.holds(command) -> Decision.NoOp
+    fun onCommand(command: RecordParked): Decision = recorded(command.entry)
+
+    private fun recorded(entry: LedgerEntry): Decision = when {
+        state.holds(entry) -> Decision.NoOp
         // A parking at or before the one resolved: a record sent before the resolution, delivered after it.
-        state.resolved && command.failedAt <= state.failedAt -> Decision.NoOp
-        !state.resolved && command.recordedAt < state.recordedAt -> Decision.NoOp
-        else -> Decision.events(ParkedRecorded(command))
+        state.resolved && entry.failedAt <= state.failedAt -> Decision.NoOp
+        !state.resolved && entry.recordedAt < state.recordedAt -> Decision.NoOp
+        else -> Decision.events(ParkedRecorded(entry))
     }
 
     @OnCommand(produces = [ParkedResolved::class])
     fun onCommand(command: RecordResolved): Decision {
-        val failedAt = command.failedAt
+        val resolution = command.resolution
+        val failedAt = resolution.failedAt
         // Resolved already, or the resolution of an older parking than the one recorded.
         if (state.resolved || (failedAt != null && failedAt < state.failedAt)) {
             return Decision.NoOp
         }
-        return Decision.events(ParkedResolved(command.outcome, failedAt, command.resolvedAt))
+        return Decision.events(ParkedResolved(resolution.outcome, failedAt, resolution.resolvedAt))
     }
 
     @OnCommand(produces = [ResumeRequested::class])
@@ -82,9 +86,7 @@ class Parked(private val state: ParkedState) {
 
     @OnCommand(produces = [ApplyRetrySpecRequested::class])
     fun onCommand(command: ApplyRetrySpec): Decision = acting {
-        if (command.maxRetries != null && command.maxRetries < 0) {
-            return invalid("maxRetries is never negative: ${command.maxRetries}.")
-        }
+        command.maxRetries?.takeIf { it < 0 }?.let { return invalid("maxRetries is never negative: $it.") }
         listOfNotNull(command.minBackoff, command.executionTimeout).firstOrNull { !isDuration(it) }?.let {
             return invalid("Not a duration (PT3M, 3m): '$it'.")
         }
@@ -101,7 +103,7 @@ class Parked(private val state: ParkedState) {
     private fun invalid(message: String): Decision = Decision.reject(ParkedRejections.INVALID, message)
 
     private companion object {
-        val RECOVERABLES = listOf("RECOVERABLE", "UNRECOVERABLE", RecordParked.UNKNOWN)
+        val RECOVERABLES = listOf("RECOVERABLE", "UNRECOVERABLE", LedgerEntry.UNKNOWN)
 
         fun isDuration(value: String): Boolean = Duration.parseOrNull(value.trim())?.let {
             it.isFinite() && !it.isNegative()

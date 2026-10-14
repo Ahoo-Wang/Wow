@@ -18,8 +18,13 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.result.FunctionInfo
+import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.ProjectContext
@@ -42,6 +47,7 @@ class ProcessorSpecTest {
     data class Release(val orderId: String)
     data class Cancel(val reason: String)
     data class Remind(val orderId: String)
+    data class Confirm(val stockId: String, val version: Int, val duplicate: Boolean)
 
     class Order(val id: String) {
         var total = 0
@@ -81,6 +87,12 @@ class ProcessorSpecTest {
         fun onReserveRejected(rejected: CommandRejected<Reserve>, context: SagaContext): Command<Cancel> =
             context.command(rejected.executionId.ref, Cancel(rejected.error.message))
 
+        fun onReserved(committed: CommandCommitted<Reserve>, context: SagaContext): Command<Confirm> =
+            context.command(
+                committed.executionId.ref,
+                Confirm(committed.aggregateId, committed.version, committed.result.duplicate),
+            )
+
         companion object {
             val STOCK = AggregateType("inventory", "stock").ref("tenant", "apple")
             val ORDER = AggregateType("shop", "order")
@@ -95,12 +107,18 @@ class ProcessorSpecTest {
                 derivedOf(processor.onReserveRejected(rejected, context))
             },
         )
+        val commits = listOf<CommittedBinding<*>>(
+            CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { committed, context ->
+                derivedOf(processor.onReserved(committed, context))
+            },
+        )
         return listOf(
             ProcessorBinding.saga(
                 "OrderSaga",
                 "onOrder",
                 Order::class.java,
-                rejections = rejections
+                rejections = rejections,
+                commits = commits,
             ) { event, context ->
                 derivedOf(processor.onOrder(event, context))
             },
@@ -193,6 +211,52 @@ class ProcessorSpecTest {
     }
 
     @Test
+    fun `a commit of a command the saga derived goes to its OnCommitted handler`() = sagaSpec(orderSagaHandlers()) {
+        whenEvent(stateEvent(order, Order("order-1"), OrderPlaced(2))) {
+            val reserve = commands.single()
+            whenCommitted(reserve, version = 4) {
+                handled.assert().containsExactly("OrderSaga.onReserved")
+                expectCommand(Confirm("apple", 4, duplicate = false), to = order)
+                expectCommand<Confirm> { causation!!.causationId.assert().isEqualTo(reserve.id) }
+                expectDeterministic()
+                expectNoSchedule()
+            }
+            // A duplicate request is answered with the aggregate it created (decision D191).
+            whenCommitted(reserve, version = 1, aggregateId = "pear", duplicate = true) {
+                expectCommands(Confirm("pear", 1, duplicate = true))
+            }
+        }
+        val committed = CommandCommitted<Reserve>(
+            commandId = "derived-1",
+            commandType = "inventory.stock.Reserve",
+            ref = stock,
+            version = 2,
+            result = CommandResult(
+                commandId = "derived-1",
+                requestId = "derived-1",
+                correlationId = "command-1",
+                ref = stock,
+                hop = Hop.committed("inventory"),
+                function = FunctionInfo(FunctionKind.COMMAND, "inventory", "stock", "Reserve"),
+                status = CommandResult.Status.SUCCEEDED,
+                version = 2,
+                signalTime = 0L,
+            ),
+            causation = Causation("command-1", "shop.order/tenant/order-1@1"),
+            executionId = ExecutionId("OrderSaga.onOrder", order, 1),
+        )
+        whenCommitted(committed, Reserve::class) { expectCommands(Confirm("apple", 2, duplicate = false)) }
+        // A saga without a handler of the command's receipts, or a receipt of another saga's command, fails.
+        assertThrownBy<AssertionError> { whenCommitted(committed, Release::class) { } }
+        assertThrownBy<IllegalArgumentException> {
+            whenCommitted(committed.copy(executionId = ExecutionId("Other.onOrder", order, 1)), Reserve::class) { }
+        }
+        assertThrownBy<IllegalArgumentException> {
+            whenCommitted(Command("x", "x", stock, Reserve("order-1", 1))) { }
+        }
+    }
+
+    @Test
     fun `an exception of a handler is expected by its type`() = sagaSpec(orderSagaHandlers()) {
         whenEvent(stateEvent(order, Order("order-1"), OrderPlaced(-1)), handler = "onOrder") {
             expectError<IllegalArgumentException> { message.assert().isEqualTo("A total is never negative.") }
@@ -278,6 +342,31 @@ class ProcessorSpecTest {
                         "t",
                         order,
                         ErrorInfo("e", "m"),
+                        Causation("c", "c"),
+                        ExecutionId("View.on", order, 1),
+                    ),
+                    Any::class,
+                ) { }
+            }
+        }
+        assertThrownBy<IllegalArgumentException> {
+            projectionSpec(listOf(project)) {
+                whenCommitted(
+                    CommandCommitted<Any>(
+                        "c",
+                        "t",
+                        order,
+                        1,
+                        CommandResult(
+                            commandId = "c",
+                            requestId = "c",
+                            correlationId = "c",
+                            ref = order,
+                            hop = Hop.committed("shop"),
+                            function = FunctionInfo(FunctionKind.COMMAND, "shop", "order", "C"),
+                            status = CommandResult.Status.SUCCEEDED,
+                            signalTime = 0L,
+                        ),
                         Causation("c", "c"),
                         ExecutionId("View.on", order, 1),
                     ),

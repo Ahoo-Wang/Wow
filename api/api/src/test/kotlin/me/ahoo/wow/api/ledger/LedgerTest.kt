@@ -68,7 +68,7 @@ class LedgerTest {
 
     @Test
     fun `the records carry an entry and its outcome`() {
-        val parked = RecordParked(
+        val parked = LedgerEntry(
             service = "svc",
             context = "eshop-payment",
             subscription = "s",
@@ -80,12 +80,12 @@ class LedgerTest {
             status = "SCHEDULED",
             recordedAt = 6,
         )
-        parked.recoverable.assert().isEqualTo(RecordParked.UNKNOWN)
+        parked.recoverable.assert().isEqualTo(LedgerEntry.UNKNOWN)
         parked.retrySpec.applied.assert().isFalse()
         parked.request.assert().isNull()
-        val resolved = RecordResolved("svc", "eshop-payment", "s", aggregate, 5, RecordResolved.RESUMED, 7)
+        val resolved = LedgerResolution("svc", "eshop-payment", "s", aggregate, 5, LedgerResolution.RESUMED, 7)
         resolved.outcome.assert().isEqualTo("RESUMED")
-        listOf(RecordResolved.SKIPPED, RecordResolved.RESOLVED, RecordResolved.NOT_PARKED).assert()
+        listOf(LedgerResolution.SKIPPED, LedgerResolution.RESOLVED, LedgerResolution.NOT_PARKED).assert()
             .containsExactly("SKIPPED", "RESOLVED", "NOT_PARKED")
     }
 }

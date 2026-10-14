@@ -31,8 +31,8 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerAggregate
 import me.ahoo.wow.api.ledger.LedgerRetrySpec
-import me.ahoo.wow.api.ledger.RecordParked
-import me.ahoo.wow.api.ledger.RecordResolved
+import me.ahoo.wow.api.ledger.LedgerEntry
+import me.ahoo.wow.api.ledger.LedgerResolution
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.node.ParkedKey
@@ -67,8 +67,8 @@ data class LedgerPublishing(
 
 /**
  * Publishes a service's failure ledger to the ops context (design 04 §2, decision D141): each entry as a
- * [RecordParked] to the ops aggregate [Ledger.parkedId] names, through the command topic of
- * [LedgerPublishing.context] ([send]), and each entry that is no longer parked as a [RecordResolved].
+ * [LedgerEntry] to the ops aggregate [Ledger.parkedId] names, through the command topic of
+ * [LedgerPublishing.context] ([send]), and each entry that is no longer parked as a [LedgerResolution].
  *
  * - **When**: at once when an entry parks or spends its retries (the node's [ParkedNotifier]), and when an operator's
  *   ledger command acts on one ([parked], [resolved]); and on every [scan], every [LedgerPublishing.interval], the
@@ -82,7 +82,7 @@ data class LedgerPublishing(
  * - **Operator**: the records are a framework component's, `system:ledger` (decision D163).
  *
  * After a restart the node no longer knows what it published: an entry resolved while it was down stays parked in the
- * ops view until an operator acts on it there, which the owning service answers with [RecordResolved.NOT_PARKED].
+ * ops view until an operator acts on it there, which the owning service answers with [LedgerResolution.NOT_PARKED].
  */
 class LedgerPublisher internal constructor(
     private val service: String,
@@ -102,7 +102,7 @@ class LedgerPublisher internal constructor(
     @Volatile
     private var loop: Job? = null
 
-    private class Observed(val record: RecordParked, val at: Long)
+    private class Observed(val record: LedgerEntry, val at: Long)
 
     /** Hears when an entry parks or spends its retries, and publishes it as it now stands. */
     val notifier: ParkedNotifier = ParkedNotifier { notice: ParkedNotice ->
@@ -147,7 +147,7 @@ class LedgerPublisher internal constructor(
             val gone = published.getValue(key).record
             // An entry whose partition moved to another node is that node's to publish now.
             if (parked.get(key.subscription, key.ref) == null) {
-                publishResolved(key, gone.context, gone.failedAt, RecordResolved.RESOLVED)
+                publishResolved(key, gone.context, gone.failedAt, LedgerResolution.RESOLVED)
             }
             published.remove(key)
         }
@@ -180,7 +180,7 @@ class LedgerPublisher internal constructor(
         val entry = view.entry
         val key = ParkedKey(entry.subscription, entry.ref)
         val now = clock.millis()
-        val record = RecordParked(
+        val record = LedgerEntry(
             service = service,
             context = view.context ?: entry.ref.type.context,
             subscription = entry.subscription,
@@ -207,11 +207,11 @@ class LedgerPublisher internal constructor(
         val observed = published[key]?.takeIf { it.record == content } ?: Observed(content, now)
         published[key] = observed
         val requestId = digest(key, ClusterCodec.mapper.writeValueAsString(content), observed.at)
-        trySend(key, Ledger.RECORD_PARKED, record, requestId)
+        trySend(key, Ledger.RECORD_PARKED, mapOf(Ledger.ENTRY to record), requestId)
     }
 
     private suspend fun publishResolved(key: ParkedKey, context: String, failedAt: Long?, outcome: String) {
-        val record = RecordResolved(
+        val record = LedgerResolution(
             service = service,
             context = context,
             subscription = key.subscription,
@@ -222,10 +222,10 @@ class LedgerPublisher internal constructor(
         )
         // A parking is resolved once; its failure time tells it from the next one of the same aggregate.
         val requestId = digest(key, "resolved:${failedAt ?: record.resolvedAt}", 0)
-        trySend(key, Ledger.RECORD_RESOLVED, record, requestId)
+        trySend(key, Ledger.RECORD_RESOLVED, mapOf(Ledger.RESOLUTION to record), requestId)
     }
 
-    /** Sends [body] as the command [command] of [key]'s ops aggregate; a failure is logged, the next scan sends it again. */
+    /** Sends [body], the record under its member, as the command [command] of [key]'s ops aggregate; a failure is logged, the next scan sends it again. */
     private suspend fun trySend(key: ParkedKey, command: String, body: Any, requestId: String) {
         val target = AggregateType(options.context, Ledger.PARKED)
             .ref(Caller.DEFAULT_TENANT, Ledger.parkedId(service, key.subscription, key.ref))

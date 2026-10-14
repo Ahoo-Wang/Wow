@@ -14,10 +14,13 @@
 package me.ahoo.wow.runtime.command
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.currentCoroutineContext
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.ledger.Ledger
+import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
@@ -29,6 +32,7 @@ import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.wait.WaitCoordinator
+import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicProducer
 import me.ahoo.wow.spi.wait.WaitContext
@@ -43,7 +47,13 @@ import me.ahoo.wow.spi.wait.WaitContext
  * 1. **Execute** it through the context's [coordinator] ([WaitCoordinator.forward]) with the wait context its
  *    envelope carries, a creation that names no aggregate given its id first by [creations] (decision D191): the kernel deduplicates by request id (per aggregate type), so a command delivered twice, or
  *    sent twice by a saga that retried, is not decided again; the waiting node is signalled as for a saga's command.
- * 2. **Settle** the outcome: committed, a duplicate or no change is done. A rejection is a business outcome (decision
+ * 2. **Settle** the outcome: committed, a duplicate or no change is done; when the command asks for the receipt of its
+ *    commit ([me.ahoo.wow.runtime.cluster.ReplyTo.committed], decision D192), the receipt, a [CommandCommitted] with
+ *    the aggregate, its version and the command's result, no state, is sent to `wow.<replyTo.context>.receipts` and
+ *    acknowledged by the broker **before** the entry completes, in the same order as a rejection's below. A duplicate
+ *    request (decision D191) answers with the original aggregate and version again, the result marked `duplicate`;
+ *    the saga drops the copy by the command id. A receipt carries the command's wait context past its commit, so a
+ *    chain whose next hop is the saga's `@OnCommitted` handler goes on through it. A rejection is a business outcome (decision
  *    D47): it is not retried nor parked, and nothing is written to the log; when the command says where to reply
  *    ([CommandWire.replyTo]), the receipt, a [CommandRejected], is sent to `wow.<replyTo.context>.receipts` and
  *    acknowledged by the broker **before** the entry completes, so the checkpoint never passes a rejection whose
@@ -80,7 +90,7 @@ class CommandIntake internal constructor(
     /** Executes [wire] with [wait] and settles its outcome, or throws a technical failure. */
     internal suspend fun execute(wire: CommandWire, wait: WaitContext?) {
         if (wire.type.startsWith(LEDGER_PREFIX)) {
-            ledger.execute(wire)?.let { reply(wire, it) }
+            ledger.execute(wire)?.let { reply(wire, it, null) }
             return
         }
         val model = checkNotNull(models[wire.ref.type]) {
@@ -92,8 +102,10 @@ class CommandIntake internal constructor(
         // A creation that names no aggregate takes the id its request created, or a new one (decision D191).
         val command = creations.assign(model, received)
         val settlement = coordinator.forward(model, command, wait)
+        // A receipt carries the rest of the command's chain on, past its commit (decision D192).
+        val next = wait?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
         settlement.rejection?.let { rejection ->
-            reply(wire.copy(ref = command.ref), ErrorInfo(rejection.code, rejection.message))
+            reply(wire.copy(ref = command.ref), ErrorInfo(rejection.code, rejection.message), next)
             return
         }
         if (settlement.failed) {
@@ -103,10 +115,35 @@ class CommandIntake internal constructor(
                 (settlement.outcome as? CommandOutcome.Unknown)?.cause,
             )
         }
+        replyCommitted(wire, settlement.committed, next)
+    }
+
+    /**
+     * Sends the success receipt of [wire], committed with [result], to where it says when it asks for one (decision
+     * D192), and waits for the broker.
+     */
+    private suspend fun replyCommitted(wire: CommandWire, result: CommandResult, wait: WaitContext?) {
+        val replyTo = wire.replyTo?.takeIf { it.committed } ?: return
+        val committed = CommandCommitted<Any>(
+            commandId = wire.id,
+            commandType = wire.type,
+            ref = result.ref,
+            version = result.version ?: 0,
+            result = result,
+            causation = wire.causation ?: Causation(wire.id, wire.id),
+            executionId = replyTo.executionId(),
+            operator = wire.operator,
+            scope = wire.scope,
+        )
+        // The receipt goes on in the trace the command was executed in (decision D174).
+        producer.send(
+            topics.receiptsOf(replyTo.context),
+            CommandMessages.receipt(committed, currentCoroutineContext().trace, wait),
+        )
     }
 
     /** Sends the receipt of [wire]'s rejection with [error] to where it says, and waits for the broker. */
-    private suspend fun reply(wire: CommandWire, error: ErrorInfo) {
+    private suspend fun reply(wire: CommandWire, error: ErrorInfo, wait: WaitContext?) {
         val replyTo = wire.replyTo
         if (replyTo == null) {
             logger.info { "Command ${wire.id} on ${wire.ref} was rejected: ${error.code} ${error.message}" }
@@ -122,7 +159,9 @@ class CommandIntake internal constructor(
             operator = wire.operator,
             scope = wire.scope,
         )
-        producer.send(topics.receiptsOf(replyTo.context), CommandMessages.receipt(rejected))
+        // The receipt goes on in the trace the command was executed in (decision D174).
+        val trace = currentCoroutineContext().trace
+        producer.send(topics.receiptsOf(replyTo.context), CommandMessages.receipt(rejected, trace, wait))
     }
 
     companion object {

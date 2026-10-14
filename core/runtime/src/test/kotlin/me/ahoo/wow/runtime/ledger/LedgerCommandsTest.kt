@@ -24,8 +24,8 @@ import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerAggregate
 import me.ahoo.wow.api.ledger.LedgerCommand
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
-import me.ahoo.wow.api.ledger.RecordParked
-import me.ahoo.wow.api.ledger.RecordResolved
+import me.ahoo.wow.api.ledger.LedgerEntry
+import me.ahoo.wow.api.ledger.LedgerResolution
 import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.kernel.InMemoryCheckpointStore
@@ -104,23 +104,23 @@ class LedgerCommandsTest {
     private fun wire(type: String, body: JsonNode, ref: AggregateRef = cart("x1"), operator: Operator? = ALICE) =
         CommandWire(type, "c-1", "r-1", ref, body, scope = Scope.NONE, operator = operator)
 
-    private fun lastRecord(): JsonNode = sent.last().body
+    private fun lastRecord(): JsonNode = sent.last().record
 
     @Test
     fun `a resume of an entry this node runs handles it again and publishes it resolved`(): Unit = runBlocking {
         parkAll("x1")
         commands.execute(wire(ResumeParked(NAME, X1))).assert().isNull()
-        sent.last().body["outcome"].assert().isNull()
-        ClusterCodec.mapper.treeToValue(lastRecord(), RecordParked::class.java).fromVersion.assert().isEqualTo(1)
+        sent.last().record["outcome"].assert().isNull()
+        ClusterCodec.mapper.treeToValue(lastRecord(), LedgerEntry::class.java).fromVersion.assert().isEqualTo(1)
         failing.set(false)
         commands.execute(wire(ResumeParked(NAME, X1))).assert().isNull()
         handled.assert().containsExactly("x1")
-        ClusterCodec.mapper.treeToValue(lastRecord(), RecordResolved::class.java).let {
-            it.outcome.assert().isEqualTo(RecordResolved.RESUMED)
+        ClusterCodec.mapper.treeToValue(lastRecord(), LedgerResolution::class.java).let {
+            it.outcome.assert().isEqualTo(LedgerResolution.RESUMED)
             it.context.assert().isEqualTo("shop")
         }
         commands.execute(wire(ResumeParked(NAME, X1))).assert().isNull()
-        lastRecord()["outcome"].asString().assert().isEqualTo(RecordResolved.NOT_PARKED)
+        lastRecord()["outcome"].asString().assert().isEqualTo(LedgerResolution.NOT_PARKED)
         val (caller, action) = actions.first()
         caller.subject.assert().isEqualTo("alice")
         caller.tenantId.assert().isEqualTo("t")
@@ -135,7 +135,7 @@ class LedgerCommandsTest {
         runBlocking {
             parkAll("x1", "x2")
             commands.execute(wire(SkipParked(NAME, X1))).assert().isNull()
-            lastRecord()["outcome"].asString().assert().isEqualTo(RecordResolved.SKIPPED)
+            lastRecord()["outcome"].asString().assert().isEqualTo(LedgerResolution.SKIPPED)
             runtime.stop()
             commands.execute(wire(ResumeParked(NAME, LedgerAggregate.of(cart("x2"))))).assert().isNull()
             ledger.parked(NAME, cart("x2"))!!.request.assert().isEqualTo(LedgerRequest.RESUME)
@@ -168,9 +168,9 @@ class LedgerCommandsTest {
         sent.clear()
         commands.execute(wire(MarkParkedRecoverable(NAME, absent, "RECOVERABLE"))).assert().isNull()
         commands.execute(wire(ApplyParkedRetrySpec(NAME, absent, maxRetries = 1))).assert().isNull()
-        sent.map { it.body["outcome"].asString() }.assert().containsExactly(
-            RecordResolved.NOT_PARKED,
-            RecordResolved.NOT_PARKED,
+        sent.map { it.record["outcome"].asString() }.assert().containsExactly(
+            LedgerResolution.NOT_PARKED,
+            LedgerResolution.NOT_PARKED,
         )
     }
 

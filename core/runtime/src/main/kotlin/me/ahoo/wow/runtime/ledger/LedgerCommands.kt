@@ -20,7 +20,7 @@ import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerCommand
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
-import me.ahoo.wow.api.ledger.RecordResolved
+import me.ahoo.wow.api.ledger.LedgerResolution
 import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.api.result.ErrorInfo
@@ -99,9 +99,9 @@ internal class LedgerCommands(
                 ref,
                 context,
                 parked.resume(subscription, ref),
-                RecordResolved.RESUMED
+                LedgerResolution.RESUMED
             )
-            is SkipParked -> settled(subscription, ref, context, parked.skip(subscription, ref), RecordResolved.SKIPPED)
+            is SkipParked -> settled(subscription, ref, context, parked.skip(subscription, ref), LedgerResolution.SKIPPED)
             is MarkParkedRecoverable -> {
                 val recoverable = Recoverable.entries.firstOrNull { it.name.equals(command.recoverable, ignoreCase = true) }
                     ?: return ErrorInfo(
@@ -139,7 +139,7 @@ internal class LedgerCommands(
         val publisher = publisher() ?: return
         when (outcome) {
             ParkedOps.Outcome.RESOLVED -> publisher.resolved(subscription, ref, context, resolved)
-            ParkedOps.Outcome.NOT_PARKED -> publisher.resolved(subscription, ref, context, RecordResolved.NOT_PARKED)
+            ParkedOps.Outcome.NOT_PARKED -> publisher.resolved(subscription, ref, context, LedgerResolution.NOT_PARKED)
             ParkedOps.Outcome.PARKED, ParkedOps.Outcome.REQUESTED ->
                 parked.get(subscription, ref)?.let { publisher.parked(it) }
         }
@@ -148,7 +148,7 @@ internal class LedgerCommands(
     private suspend fun amended(subscription: String, ref: AggregateRef, context: String?, view: ParkedView?) {
         val publisher = publisher() ?: return
         if (view == null) {
-            publisher.resolved(subscription, ref, context, RecordResolved.NOT_PARKED)
+            publisher.resolved(subscription, ref, context, LedgerResolution.NOT_PARKED)
         } else {
             publisher.parked(view)
         }

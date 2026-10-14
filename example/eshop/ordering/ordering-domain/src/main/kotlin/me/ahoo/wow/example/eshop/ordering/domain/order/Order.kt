@@ -45,7 +45,7 @@ import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
  * - [SubmitOrder] creates it; the basket context sends it on checkout. The order belongs to its buyer: its owner is the
  *   owner of the checkout's basket, whose scope the basket's saga carries on (decision D189).
  * - [AwaitStockValidation] moves it on, and [OrderProcessSaga] then reserves its stock in the inventory context.
- * - [ConfirmOrderStock] confirms one product, read from the inventory's stock stream by [StockConfirmationSaga]. The
+ * - [ConfirmOrderStock] confirms one product, as [OrderProcessSaga] learns from the receipt of its reservation. The
  *   last one confirms the order's stock and schedules its cancellation once the payment grace period of the
  *   [PaymentPolicy] has passed: a durable scheduled command, written with the events.
  * - [PayOrder] pays it and cancels that schedule; [ShipOrder] ships it.

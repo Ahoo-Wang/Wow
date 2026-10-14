@@ -15,7 +15,7 @@ package me.ahoo.wow.ops.domain.parked
 
 import me.ahoo.wow.api.ledger.LedgerAggregate
 import me.ahoo.wow.api.ledger.LedgerRetrySpec
-import me.ahoo.wow.api.ledger.RecordParked
+import me.ahoo.wow.api.ledger.LedgerEntry
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
 import me.ahoo.wow.ops.api.parked.MarkRecoverableRequested
 import me.ahoo.wow.ops.api.parked.ParkedRecorded
@@ -26,7 +26,7 @@ import me.ahoo.wow.ops.api.parked.SkipRequested
 
 /**
  * One service's entry of one parked aggregate, as its ledger last published it (decision D141): the ops view, whose
- * snapshot is the read model an operator queries. While parked, it is the entry's [RecordParked]; once resolved,
+ * snapshot is the read model an operator queries. While parked, it is the entry's [LedgerEntry]; once resolved,
  * [status] is [ParkedStatus.RESOLVED] with the [outcome]. [requested] is the last action an operator asked of the
  * owning service (`RESUME`, `SKIP`, `MARK_RECOVERABLE` or `APPLY_RETRY_SPEC`), until the service publishes the entry
  * again.
@@ -54,7 +54,7 @@ class ParkedState {
         private set
     var retrySpec: LedgerRetrySpec = LedgerRetrySpec(0, "PT0S", "PT0S")
         private set
-    var recoverable: String = RecordParked.UNKNOWN
+    var recoverable: String = LedgerEntry.UNKNOWN
         private set
     var request: String? = null
         private set
@@ -75,9 +75,9 @@ class ParkedState {
     val resolved: Boolean get() = status == ParkedStatus.RESOLVED
 
     /** Whether [record] says what this state holds already, whenever it was published. */
-    fun holds(record: RecordParked): Boolean = !resolved && toRecord(record.recordedAt) == record
+    fun holds(record: LedgerEntry): Boolean = !resolved && toRecord(record.recordedAt) == record
 
-    private fun toRecord(recordedAt: Long): RecordParked = RecordParked(
+    private fun toRecord(recordedAt: Long): LedgerEntry = LedgerEntry(
         service, context, subscription, aggregate, fromVersion, fromPosition, reason, failedAt, retries, retryAt,
         retrySpec, recoverable, request, status, nextRetryAt, recordedAt,
     )

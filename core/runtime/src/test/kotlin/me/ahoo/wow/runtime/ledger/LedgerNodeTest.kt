@@ -20,8 +20,8 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerAggregate
-import me.ahoo.wow.api.ledger.RecordParked
-import me.ahoo.wow.api.ledger.RecordResolved
+import me.ahoo.wow.api.ledger.LedgerEntry
+import me.ahoo.wow.api.ledger.LedgerResolution
 import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.kernel.InMemoryTopics
@@ -95,7 +95,7 @@ class LedgerNodeTest {
     private fun records(type: String): List<JsonNode> = topics.messages(OPS_COMMANDS)
         .map { CommandMessages.commandOf(EnvelopeCodec.decode(it.value)) }
         .filter { it.type == "ops.parked.$type" }
-        .map { it.body }
+        .map { it.record }
 
     private suspend fun ledgerCommand(type: String, body: Any, parked: AggregateRef, operator: String) {
         val ref = Ledger.targetOf(STOCK, Ledger.parkedId(STOCK_SERVICE, CommandIntake.NAME, parked))
@@ -123,7 +123,7 @@ class LedgerNodeTest {
             eventually { records(Ledger.RECORD_PARKED).isNotEmpty() }
             val parked = ClusterCodec.mapper.treeToValue(
                 records(Ledger.RECORD_PARKED).first(),
-                RecordParked::class.java
+                LedgerEntry::class.java
             )
             parked.service.assert().isEqualTo(STOCK_SERVICE)
             parked.context.assert().isEqualTo(STOCK)
@@ -155,7 +155,7 @@ class LedgerNodeTest {
             eventually { !ledger.isParked(CommandIntake.NAME, broken.ref) }
             stock.decided.assert().contains(broken.id)
             eventually { records(Ledger.RECORD_RESOLVED).isNotEmpty() }
-            records(Ledger.RECORD_RESOLVED).first()["outcome"].asString().assert().isEqualTo(RecordResolved.RESUMED)
+            records(Ledger.RECORD_RESOLVED).first()["outcome"].asString().assert().isEqualTo(LedgerResolution.RESUMED)
         }
 
     @Test

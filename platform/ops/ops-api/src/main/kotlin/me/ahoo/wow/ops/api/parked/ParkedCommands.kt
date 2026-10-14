@@ -13,12 +13,27 @@
 
 package me.ahoo.wow.ops.api.parked
 
+import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.Summary
+import me.ahoo.wow.api.ledger.Ledger
+import me.ahoo.wow.api.ledger.LedgerEntry
+import me.ahoo.wow.api.ledger.LedgerResolution
+
+/**
+ * The owning service publishes its entry as it stands (decision D141): the [LedgerEntry] its runtime sends, as the
+ * member [Ledger.ENTRY]. It creates the entry's aggregate the first time.
+ */
+@AllowCreate
+@Summary("Record a parked entry")
+data class RecordParked(val entry: LedgerEntry)
+
+/** The owning service publishes that its entry is resolved: the [LedgerResolution], as the member [Ledger.RESOLUTION]. */
+@Summary("Record a resolved entry")
+data class RecordResolved(val resolution: LedgerResolution)
 
 /*
  * An operator's actions on a parked entry (decisions D141, D185): each is recorded on the entry's `parked` aggregate
  * and sent to the owning service as the ledger's system command of the same name (`wow.ledger.*`), which runs it.
- * The services' own records, RecordParked and RecordResolved, are me.ahoo.wow.api.ledger's.
  */
 
 /** Handles the parked aggregate again from where it is parked (`wow.ledger.Resume`). */

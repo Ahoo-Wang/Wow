@@ -19,8 +19,8 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerAggregate
-import me.ahoo.wow.api.ledger.RecordParked
-import me.ahoo.wow.api.ledger.RecordResolved
+import me.ahoo.wow.api.ledger.LedgerEntry
+import me.ahoo.wow.api.ledger.LedgerResolution
 import me.ahoo.wow.kernel.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.InMemoryEventLog
 import me.ahoo.wow.kernel.InMemoryFailureLedger
@@ -91,7 +91,7 @@ class LedgerPublisherTest {
             )
             wire.operator.assert().isEqualTo(LedgerPublisher.OPERATOR)
             wire.requestId.assert().startsWith("wow.ledger:")
-            val record = ClusterCodec.mapper.treeToValue(wire.body, RecordParked::class.java)
+            val record = ClusterCodec.mapper.treeToValue(wire.record, LedgerEntry::class.java)
             record.service.assert().isEqualTo(SERVICE)
             record.context.assert().isEqualTo("shop")
             record.subscription.assert().isEqualTo(NAME)
@@ -118,7 +118,7 @@ class LedgerPublisherTest {
         again.id.assert().isNotEqualTo(first.id)
         ops.markRecoverable(NAME, cart("x1"), Recoverable.UNRECOVERABLE)
         publisher.scan()
-        ClusterCodec.mapper.treeToValue(sent.last().body, RecordParked::class.java).status
+        ClusterCodec.mapper.treeToValue(sent.last().record, LedgerEntry::class.java).status
             .assert().isEqualTo("UNRECOVERABLE")
         ops.markRecoverable(NAME, cart("x1"), Recoverable.UNKNOWN)
         publisher.scan()
@@ -134,8 +134,8 @@ class LedgerPublisherTest {
         ops.skip(NAME, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
         publisher.scan()
         val resolved = sent.single { it.type == "ops.parked.RecordResolved" }
-        val record = ClusterCodec.mapper.treeToValue(resolved.body, RecordResolved::class.java)
-        record.outcome.assert().isEqualTo(RecordResolved.RESOLVED)
+        val record = ClusterCodec.mapper.treeToValue(resolved.record, LedgerResolution::class.java)
+        record.outcome.assert().isEqualTo(LedgerResolution.RESOLVED)
         record.aggregate.id.assert().isEqualTo("x1")
         record.context.assert().isEqualTo("shop")
         record.failedAt.assert().isNotNull()
@@ -153,19 +153,19 @@ class LedgerPublisherTest {
         parkAll("x1")
         val entry = ledger.parked(NAME, cart("x1"))!!
         publisher.notifier.notify(ParkedNotice(ParkedNotice.Kind.EXHAUSTED, "group", entry, spec, 0))
-        ClusterCodec.mapper.treeToValue(sent.single().body, RecordParked::class.java).context.assert().isEqualTo("shop")
-        publisher.resolved(NAME, cart("x1"), null, RecordResolved.RESUMED)
-        val known = ClusterCodec.mapper.treeToValue(sent.last().body, RecordResolved::class.java)
+        ClusterCodec.mapper.treeToValue(sent.single().record, LedgerEntry::class.java).context.assert().isEqualTo("shop")
+        publisher.resolved(NAME, cart("x1"), null, LedgerResolution.RESUMED)
+        val known = ClusterCodec.mapper.treeToValue(sent.last().record, LedgerResolution::class.java)
         known.failedAt.assert().isEqualTo(entry.failedAt)
         known.context.assert().isEqualTo("shop")
-        known.outcome.assert().isEqualTo(RecordResolved.RESUMED)
+        known.outcome.assert().isEqualTo(LedgerResolution.RESUMED)
         // An entry it never published: what the caller says, else the aggregate's context.
-        publisher.resolved(NAME, cart("y1"), null, RecordResolved.NOT_PARKED)
-        val unknown = ClusterCodec.mapper.treeToValue(sent.last().body, RecordResolved::class.java)
+        publisher.resolved(NAME, cart("y1"), null, LedgerResolution.NOT_PARKED)
+        val unknown = ClusterCodec.mapper.treeToValue(sent.last().record, LedgerResolution::class.java)
         unknown.failedAt.assert().isNull()
         unknown.context.assert().isEqualTo("shop")
-        publisher.resolved(NAME, cart("y2"), "sales", RecordResolved.SKIPPED, failedAt = 3)
-        ClusterCodec.mapper.treeToValue(sent.last().body, RecordResolved::class.java).failedAt.assert().isEqualTo(3L)
+        publisher.resolved(NAME, cart("y2"), "sales", LedgerResolution.SKIPPED, failedAt = 3)
+        ClusterCodec.mapper.treeToValue(sent.last().record, LedgerResolution::class.java).failedAt.assert().isEqualTo(3L)
         runtime.stop()
     }
 
@@ -175,12 +175,12 @@ class LedgerPublisherTest {
         val attempts = AtomicLong()
         val failing = LedgerPublisher(SERVICE, LedgerPublishing(), ops, { wire ->
             attempts.incrementAndGet()
-            if (wire.body["aggregate"]["id"].asString() == "x1") error("The broker is down.")
+            if (wire.record["aggregate"]["id"].asString() == "x1") error("The broker is down.")
             sent += wire
         }, clock)
         failing.scan()
         attempts.get().assert().isEqualTo(2L)
-        sent.single().body["aggregate"]["id"].asString().assert().isEqualTo("x2")
+        sent.single().record["aggregate"]["id"].asString().assert().isEqualTo("x2")
         runtime.stop()
     }
 
