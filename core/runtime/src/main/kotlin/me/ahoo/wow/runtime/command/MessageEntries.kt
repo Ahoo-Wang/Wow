@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.mapNotNull
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.subscribe.CommandCommitted
+import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.runtime.subscription.EntrySource
 import me.ahoo.wow.runtime.subscription.SourcedEntry
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
@@ -164,8 +166,9 @@ internal class MessageEntries private constructor(
         }
 
         /**
-         * The receipts topic [topic] with [partitions] partitions (decision D136): a receipt runs in the lane of the
-         * aggregate whose commit the saga handled, in the partition its key maps to on the broker.
+         * The receipts topic [topic] with [partitions] partitions (decisions D136, D192): a receipt, of a rejection or
+         * of a commit, runs in the lane of the aggregate whose commit the saga handled, in the partition its key maps
+         * to on the broker.
          */
         fun receipts(topic: String, source: PartitionedSource, partitions: Int): MessageEntries = MessageEntries(
             topic,
@@ -174,16 +177,29 @@ internal class MessageEntries private constructor(
             EnvelopeKind.COMMAND_RECEIPT,
             { source.partitionOf(topic, it.toString()) },
         ) { envelope ->
-            val rejected = CommandMessages.rejectedOf(envelope)
-            Decoded(
-                rejected.executionId.ref,
-                rejected.commandId,
-                rejected.commandId,
-                rejected.commandType,
-                Scope.NONE,
-                rejected.causation,
-                rejected,
-            )
+            when (val receipt = CommandMessages.receiptOf(envelope)) {
+                is CommandCommitted<*> -> Decoded(
+                    receipt.executionId.ref,
+                    receipt.commandId,
+                    receipt.commandId,
+                    receipt.commandType,
+                    Scope.NONE,
+                    receipt.causation,
+                    receipt,
+                )
+
+                else -> (receipt as CommandRejected<*>).let { rejected ->
+                    Decoded(
+                        rejected.executionId.ref,
+                        rejected.commandId,
+                        rejected.commandId,
+                        rejected.commandType,
+                        Scope.NONE,
+                        rejected.causation,
+                        rejected,
+                    )
+                }
+            }
         }
     }
 }

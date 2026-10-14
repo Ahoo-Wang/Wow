@@ -15,13 +15,15 @@ package me.ahoo.wow.runtime.node
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.subscribe.CommandCommitted
+import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.cluster.ClusterOptions
-import me.ahoo.wow.runtime.command.RejectionHandler
+import me.ahoo.wow.runtime.command.ReceiptHandler
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.state.StateViewOptions
 import me.ahoo.wow.runtime.subscription.Subscription
@@ -209,11 +211,11 @@ fun interface SubscriptionFactory {
     fun sourced(context: ContextNode): List<SourcedSubscription> = emptyList()
 
     /**
-     * What handles the receipts of the commands [context]'s sagas sent to other contexts that rejected them (decision
-     * D136): the node reads the context's receipts topic for it ([SourceTopics.receiptsOf]). None by default; a
-     * factory whose sagas have `@OnRejected` handlers gives them.
+     * What handles the receipts of the commands [context]'s sagas sent to other contexts that rejected or committed
+     * them (decisions D136, D192): the node reads the context's receipts topic for it ([SourceTopics.receiptsOf]). None
+     * by default; a factory whose sagas have `@OnRejected` or `@OnCommitted` handlers gives them.
      */
-    fun rejections(context: ContextNode): RejectionHandler? = null
+    fun receipts(context: ContextNode): ReceiptHandler? = null
 
     /**
      * The aggregate types among [context]'s [models] whose state after each commit the subscriptions read (design 04
@@ -244,11 +246,15 @@ fun interface SubscriptionFactory {
             override fun sourced(context: ContextNode): List<SourcedSubscription> =
                 first.sourced(context) + other.sourced(context)
 
-            override fun rejections(context: ContextNode): RejectionHandler? {
-                val mine = first.rejections(context) ?: return other.rejections(context)
-                val theirs = other.rejections(context) ?: return mine
-                return RejectionHandler { rejected, command ->
-                    mine.handle(rejected, command) ?: theirs.handle(rejected, command)
+            override fun receipts(context: ContextNode): ReceiptHandler? {
+                val mine = first.receipts(context) ?: return other.receipts(context)
+                val theirs = other.receipts(context) ?: return mine
+                return object : ReceiptHandler {
+                    override suspend fun rejected(rejected: CommandRejected<*>, command: Class<*>): List<String>? =
+                        mine.rejected(rejected, command) ?: theirs.rejected(rejected, command)
+
+                    override suspend fun committed(committed: CommandCommitted<*>, command: Class<*>): List<String>? =
+                        mine.committed(committed, command) ?: theirs.committed(committed, command)
                 }
             }
 

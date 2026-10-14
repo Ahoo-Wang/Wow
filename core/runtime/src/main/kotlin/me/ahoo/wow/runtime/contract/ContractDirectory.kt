@@ -155,14 +155,14 @@ class ContractDirectory(
     /**
      * The kind of [subscription] of [context], as the context's Manifest lists it, or the built-in snapshot
      * subscription ([Hop.SNAPSHOT_SUBSCRIPTION]) of a context with an aggregate that keeps snapshots. A saga's
-     * `@OnRejected` handler is not a wait's hop: it handles rejections, not commits.
+     * `@OnRejected` or `@OnCommitted` handler is not a wait's hop: it handles receipts, not commits.
      */
     override fun kindOf(context: String, subscription: String): FunctionKind? {
         val owned = contextOf(context) ?: return null
         if (subscription == Hop.SNAPSHOT_SUBSCRIPTION) {
             return FunctionKind.SNAPSHOT.takeIf { owned.aggregates.any { it.snapshot.enabled } }
         }
-        val declared = subscriptionOf(context, subscription)?.takeIf { it.rejected == null } ?: return null
+        val declared = subscriptionOf(context, subscription)?.takeUnless { it.isReceiptHandler } ?: return null
         return when (declared.kind) {
             SubscriptionKind.PROJECTION -> FunctionKind.PROJECT
             SubscriptionKind.REACTOR -> FunctionKind.REACT
@@ -196,7 +196,7 @@ class ContractDirectory(
      * none, or when one of them cannot be resolved: a wait chain after its hop is then not checked.
      */
     override fun derivedContextsOf(context: String, subscription: String): Set<String>? {
-        val derives = subscriptionOf(context, subscription)?.takeIf { it.rejected == null }?.derives ?: return null
+        val derives = subscriptionOf(context, subscription)?.takeUnless { it.isReceiptHandler }?.derives ?: return null
         return derives.mapTo(LinkedHashSet()) { reference ->
             val type = commandTypeOf(reference) ?: reference.takeUnless { it.startsWith(DEFS_PREFIX) } ?: return null
             type.substringBefore('.')
@@ -206,7 +206,8 @@ class ContractDirectory(
     /**
      * The commands the subscriptions of [local] send outside [hosted], the contexts a node serves (DX gap G9): for
      * each subscription (`context/processor.function`), the contexts of the commands its saga derives
-     * ([SubscriptionManifest.derives]), handles the rejections of ([SubscriptionManifest.rejected]) or schedules
+     * ([SubscriptionManifest.derives]), handles the receipts of ([SubscriptionManifest.rejected],
+     * [SubscriptionManifest.committed]) or schedules
      * ([SubscriptionManifest.schedules]) that [hosted] does not hold. Such a command goes through a command topic
      * (decision D33). A command referred to by a schema no Manifest decides is another context's too, named
      * [UNKNOWN_CONTEXT]; a lifecycle command (design 01 §6) is no context's and is left out.
@@ -214,7 +215,7 @@ class ContractDirectory(
     fun commandsOutside(hosted: Set<String>): Map<String, Set<String>> = local.contexts.flatMap { context ->
         context.subscriptions.mapNotNull { subscription ->
             val references = subscription.derives.orEmpty() + subscription.rejected.orEmpty() +
-                subscription.schedules.orEmpty()
+                subscription.committed.orEmpty() + subscription.schedules.orEmpty()
             val outside = references.filterNot { it in LIFECYCLE_COMMANDS }.mapNotNullTo(sortedSetOf()) { reference ->
                 val type = if (reference.startsWith(DEFS_PREFIX)) commandTypeOf(reference) else reference
                 val target = type?.substringBefore('.') ?: UNKNOWN_CONTEXT
@@ -263,7 +264,7 @@ class ContractDirectory(
     /** The problems of a subscription of [context] that reads another context's published streams. */
     private fun sourceProblems(context: ContextManifest, subscription: SubscriptionManifest): List<String> {
         val source = subscription.source.context
-        if (source == null || source == context.name || subscription.rejected != null) {
+        if (source == null || source == context.name || subscription.isReceiptHandler) {
             return emptyList()
         }
         val where = "subscription ${context.name}.${subscription.name}"

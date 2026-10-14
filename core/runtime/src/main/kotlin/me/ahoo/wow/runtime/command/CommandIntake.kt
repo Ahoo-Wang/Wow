@@ -16,7 +16,9 @@ package me.ahoo.wow.runtime.command
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
@@ -40,7 +42,12 @@ import me.ahoo.wow.spi.wait.WaitContext
  * 1. **Execute** it through the context's [coordinator] ([WaitCoordinator.forward]) with the wait context its
  *    envelope carries, a creation that names no aggregate given its id first by [creations] (decision D191): the kernel deduplicates by request id (per aggregate type), so a command delivered twice, or
  *    sent twice by a saga that retried, is not decided again; the waiting node is signalled as for a saga's command.
- * 2. **Settle** the outcome: committed, a duplicate or no change is done. A rejection is a business outcome (decision
+ * 2. **Settle** the outcome: committed, a duplicate or no change is done; when the command asks for the receipt of its
+ *    commit ([me.ahoo.wow.runtime.cluster.ReplyTo.committed], decision D192), the receipt, a [CommandCommitted] with
+ *    the aggregate, its version and the command's result, no state, is sent to `wow.<replyTo.context>.receipts` and
+ *    acknowledged by the broker **before** the entry completes, in the same order as a rejection's below. A duplicate
+ *    request (decision D191) answers with the original aggregate and version again, the result marked `duplicate`;
+ *    the saga drops the copy by the command id. A rejection is a business outcome (decision
  *    D47): it is not retried nor parked, and nothing is written to the log; when the command says where to reply
  *    ([CommandWire.replyTo]), the receipt, a [CommandRejected], is sent to `wow.<replyTo.context>.receipts` and
  *    acknowledged by the broker **before** the entry completes, so the checkpoint never passes a rejection whose
@@ -92,6 +99,27 @@ class CommandIntake internal constructor(
                 (settlement.outcome as? CommandOutcome.Unknown)?.cause,
             )
         }
+        replyCommitted(wire, settlement.committed)
+    }
+
+    /**
+     * Sends the success receipt of [wire], committed with [result], to where it says when it asks for one (decision
+     * D192), and waits for the broker.
+     */
+    private suspend fun replyCommitted(wire: CommandWire, result: CommandResult) {
+        val replyTo = wire.replyTo?.takeIf { it.committed } ?: return
+        val committed = CommandCommitted<Any>(
+            commandId = wire.id,
+            commandType = wire.type,
+            ref = result.ref,
+            version = result.version ?: 0,
+            result = result,
+            causation = wire.causation ?: Causation(wire.id, wire.id),
+            executionId = replyTo.executionId(),
+            operator = wire.operator,
+            scope = wire.scope,
+        )
+        producer.send(topics.receiptsOf(replyTo.context), CommandMessages.receipt(committed))
     }
 
     /** Sends the receipt of [wire]'s rejection with [error] to where it says, and waits for the broker. */

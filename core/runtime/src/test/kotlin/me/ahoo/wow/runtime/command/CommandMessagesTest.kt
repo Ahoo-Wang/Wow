@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.command
 
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -23,10 +24,14 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.result.FunctionInfo
+import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.schedule.Schedules
+import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.InMemoryTopics
@@ -124,6 +129,121 @@ class CommandMessagesTest {
         assertThrows<IllegalArgumentException> { CommandMessages.commandOf(envelope) }
     }
 
+    private fun committed(commandId: String = "c-1", duplicate: Boolean = false): CommandCommitted<Any> {
+        val item = ITEM.ref(TENANT, "i-9")
+        return CommandCommitted(
+            commandId = commandId,
+            commandType = "stock.item.Reserve",
+            ref = item,
+            version = 2,
+            result = CommandResult(
+                commandId = commandId,
+                requestId = "r-$commandId",
+                correlationId = "root",
+                ref = item,
+                hop = Hop.committed(STOCK),
+                function = FunctionInfo(FunctionKind.COMMAND, STOCK, "item", "Reserve"),
+                status = CommandResult.Status.SUCCEEDED,
+                version = 2,
+                duplicate = duplicate,
+                results = mapOf("reserved" to 2),
+                signalTime = 7L,
+            ),
+            causation = Causation("root", "o-1@3"),
+            executionId = execution,
+            operator = Operator("alice", "t0"),
+            scope = Scope("alice", "space-a"),
+        )
+    }
+
+    @Test
+    fun `a success receipt should carry the aggregate, its version and the command's result, and no state`() {
+        val committed = committed()
+        val message = CommandMessages.receipt(committed)
+        message.key.assert().isEqualTo(execution.ref.toString())
+        val envelope = EnvelopeCodec.decode(message.value)
+        envelope.kind.assert().isEqualTo(EnvelopeKind.COMMAND_RECEIPT)
+        envelope.id.assert().isEqualTo("c-1")
+        envelope.type.assert().isEqualTo("stock.item.Reserve")
+        envelope.payload.has("state").assert().isFalse()
+        envelope.payload.has("error").assert().isFalse()
+        CommandMessages.committedOf(envelope).assert().isEqualTo(committed)
+        CommandMessages.receiptOf(envelope).assert().isEqualTo(committed)
+        val rejection = EnvelopeCodec.decode(
+            CommandMessages.receipt(
+                CommandRejected<Any>("c-2", "stock.item.Reserve", ref, ErrorInfo("e", "m"), Causation("a", "b"), execution),
+            ).value,
+        )
+        (CommandMessages.receiptOf(rejection) as CommandRejected<*>).commandId.assert().isEqualTo("c-2")
+        val command = EnvelopeCodec.decode(
+            CommandMessages.command(ClusterCodec.wire("stock.item.Reserve", Command("c", "c", ref, Reserve(1))), 0).value,
+        )
+        assertThrows<IllegalArgumentException> { CommandMessages.committedOf(command) }
+        assertThrows<IllegalArgumentException> { CommandMessages.receiptOf(command) }
+    }
+
+    @Test
+    fun `a reply should ask for the success receipt only when it says so, false for an older writer`() {
+        val asking = ReplyTo.of(SALES, execution, committed = true)
+        asking.committed.assert().isTrue()
+        ReplyTo.of(SALES, execution).committed.assert().isFalse()
+        val wire = ClusterCodec.wire("stock.item.Reserve", Command("c-1", "r-1", ref, Reserve(1)), asking)
+        CommandMessages.commandOf(EnvelopeCodec.decode(CommandMessages.command(wire, 0).value)).replyTo
+            .assert().isEqualTo(asking)
+        // A reply written before decision D192 has no flag: it asks for the receipt of a rejection only.
+        val tree = ClusterCodec.mapper.valueToTree<tools.jackson.databind.node.ObjectNode>(asking)
+        tree.remove("committed")
+        val older = ClusterCodec.mapper.treeToValue(tree, ReplyTo::class.java)
+        older.committed.assert().isFalse()
+        older.executionId().assert().isEqualTo(execution)
+    }
+
+    @Test
+    fun `the entries of a receipts topic should hold both kinds of receipts in the saga aggregate's lane`(): Unit =
+        runBlocking {
+            topics.create(RECEIPTS, 1)
+            val rejected = CommandRejected<Any>("c-2", "stock.item.Reserve", ref, ErrorInfo("e", "m"), Causation("a", "b"), execution)
+            topics.send(RECEIPTS, listOf(CommandMessages.receipt(committed()), CommandMessages.receipt(rejected)))
+            val entries = MessageEntries.receipts(RECEIPTS, topics, 1).tail(0, null).take(2).toList()
+            entries.map { it.message }.assert().containsExactly(committed(), rejected)
+            entries.forEach {
+                it.stream.ref.assert().isEqualTo(execution.ref)
+                it.stream.scope.assert().isEqualTo(Scope.NONE)
+            }
+            entries.map { it.stream.commandId }.assert().containsExactly("c-1", "c-2")
+            entries.first().stream.causation.assert().isEqualTo(Causation("root", "o-1@3"))
+        }
+
+    @Test
+    fun `a success receipt should reach the handler once per command id with the command's class`(): Unit =
+        runBlocking {
+            val handled = CopyOnWriteArrayList<Pair<String, Class<*>>>()
+            var answer: List<String>? = listOf("confirmed")
+            val receipts = Receipts(
+                SALES,
+                ContractDirectory(salesManifest(), listOf(peer(stockManifest()))),
+                receiptHandler(committed = { committed, command ->
+                    handled += committed.commandId to command
+                    answer
+                }),
+            )
+            receipts.handle(committed())
+            // A copy, or the duplicate request's receipt, is dropped by the command id.
+            receipts.handle(committed(duplicate = true))
+            handled.assert().containsExactly("c-1" to Reserve::class.java)
+            // A rejection of the same command is dropped too: one receipt per command id.
+            receipts.handle(CommandRejected<Any>("c-1", "stock.item.Reserve", ref, ErrorInfo("e", "m"), Causation("a", "b"), execution))
+            handled.size.assert().isEqualTo(1)
+            // No handler takes it: logged and passed over, once.
+            answer = null
+            receipts.handle(committed("c-2"))
+            receipts.handle(committed("c-2"))
+            handled.size.assert().isEqualTo(2)
+            assertThrows<IllegalStateException> {
+                runBlocking { receipts.handle(committed("c-3").copy(commandType = "stock.item.Gone")) }
+            }.message.assert().contains("stock.item.Gone")
+        }
+
     @Test
     fun `a command should be sent under the type its target's Manifest gives its class, in its log partition`(): Unit =
         runBlocking {
@@ -192,10 +312,10 @@ class CommandMessagesTest {
         val receipts = Receipts(
             SALES,
             ContractDirectory(salesManifest(), listOf(peer(stockManifest()))),
-            RejectionHandler { rejected, command ->
+            receiptHandler(rejected = { rejected, command ->
                 handled += rejected.commandId to command
                 answer
-            },
+            }),
         )
         receipts.subscription.name.assert().isEqualTo("wow.receipts.sales")
         val rejected = CommandRejected<Any>(
@@ -221,35 +341,41 @@ class CommandMessagesTest {
     }
 
     @Test
-    fun `combined factories should ask each for the handler of a rejection in turn`(): Unit = runBlocking {
+    fun `combined factories should ask each for the handler of a receipt in turn`(): Unit = runBlocking {
         val first = object : SubscriptionFactory {
             override fun subscriptions(
                 context: ContextNode
             ) = emptyList<me.ahoo.wow.runtime.subscription.Subscription>()
 
-            override fun rejections(context: ContextNode) = RejectionHandler { rejected, _ ->
-                listOf("first").takeIf { rejected.commandId == "mine" }
-            }
+            override fun receipts(context: ContextNode) = receiptHandler(
+                rejected = { rejected, _ -> listOf("first").takeIf { rejected.commandId == "mine" } },
+                committed = { committed, _ -> listOf("first").takeIf { committed.commandId == "mine" } },
+            )
         }
         val second = object : SubscriptionFactory {
             override fun subscriptions(
                 context: ContextNode
             ) = emptyList<me.ahoo.wow.runtime.subscription.Subscription>()
 
-            override fun rejections(context: ContextNode) = RejectionHandler { _, _ -> listOf("second") }
+            override fun receipts(context: ContextNode) =
+                receiptHandler(rejected = { _, _ -> listOf("second") }, committed = { _, _ -> listOf("second") })
         }
         val context = io.mockk.mockk<ContextNode>()
         val rejected = CommandRejected<Any>("mine", "t", ref, ErrorInfo("e", "m"), Causation("a", "b"), execution)
-        val combined = (first + second).rejections(context)!!
-        combined.handle(rejected, Reserve::class.java).assert().containsExactly("first")
-        combined.handle(rejected.copy(commandId = "theirs"), Reserve::class.java).assert().containsExactly("second")
-        (SubscriptionFactory.NONE + second).rejections(context).assert().isNotNull()
-        (first + SubscriptionFactory.NONE).rejections(context).assert().isNotNull()
-        (SubscriptionFactory.NONE + SubscriptionFactory.NONE).rejections(context).assert().isNull()
+        val committed = { id: String -> committed(id) }
+        val combined = (first + second).receipts(context)!!
+        combined.rejected(rejected, Reserve::class.java).assert().containsExactly("first")
+        combined.rejected(rejected.copy(commandId = "theirs"), Reserve::class.java).assert().containsExactly("second")
+        combined.committed(committed("mine"), Reserve::class.java).assert().containsExactly("first")
+        combined.committed(committed("theirs"), Reserve::class.java).assert().containsExactly("second")
+        (SubscriptionFactory.NONE + second).receipts(context).assert().isNotNull()
+        (first + SubscriptionFactory.NONE).receipts(context).assert().isNotNull()
+        (SubscriptionFactory.NONE + SubscriptionFactory.NONE).receipts(context).assert().isNull()
     }
 
     private companion object {
         const val PARTITIONS = 4
         const val COMMANDS = PREFIX + "wow.stock.commands"
+        const val RECEIPTS = PREFIX + "wow.sales.receipts"
     }
 }

@@ -17,7 +17,9 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.runtime.cluster.ClusterCodec
@@ -39,7 +41,9 @@ import me.ahoo.wow.spi.wait.WaitContext
  * - **Receipt** ([EnvelopeKind.COMMAND_RECEIPT]): `id` is the rejected command's id, the one a reader deduplicates by,
  *   `type` its type, `payload` the rejection as the saga's `@OnRejected` handler takes it, `{commandId, commandType,
  *   ref, error, causation, executionId, operator, scope}` (decisions D157, D163, D189), without the command's body. Keyed by the ref of the commit
- *   the saga handled, so the receipts of one saga aggregate keep their order.
+ *   the saga handled, so the receipts of one saga aggregate keep their order. A success receipt (decision D192), the
+ *   same kind and id, carries the commit instead: `{commandId, commandType, ref, version, result, causation,
+ *   executionId, operator, scope}`, its `result` the command's [CommandResult] at its `committed` hop, no state.
  *
  * Bodies and payloads are read and written with the cluster channel's lenient mapper ([ClusterCodec]): unknown fields
  * are ignored, and numbers keep their exact value.
@@ -89,6 +93,41 @@ object CommandMessages {
         return EnvelopeCodec.message(rejected.executionId.ref.toString(), envelope)
     }
 
+    /**
+     * The success receipt of [committed] (decision D192): `id` is the command's id, as a rejection's, and `payload`
+     * `{commandId, commandType, ref, version, result, causation, executionId, operator, scope}`, without the state.
+     */
+    fun receipt(committed: CommandCommitted<*>): TopicMessage {
+        val envelope = Envelope(
+            kind = EnvelopeKind.COMMAND_RECEIPT,
+            id = committed.commandId,
+            type = committed.commandType,
+            payload = mapper.valueToTree(
+                CommittedWire(
+                    committed.commandId,
+                    committed.commandType,
+                    committed.ref,
+                    committed.version,
+                    committed.result,
+                    committed.causation,
+                    committed.executionId,
+                    committed.operator,
+                    committed.scope,
+                ),
+            ),
+        )
+        return EnvelopeCodec.message(committed.executionId.ref.toString(), envelope)
+    }
+
+    /**
+     * What the receipt [envelope] holds: a [CommandCommitted] when its payload carries a `result` (decision D192),
+     * else a [CommandRejected].
+     */
+    fun receiptOf(envelope: Envelope): Any {
+        require(envelope.kind == EnvelopeKind.COMMAND_RECEIPT) { "A ${envelope.kind} envelope holds no receipt." }
+        return if (envelope.payload.has(RESULT)) committedOf(envelope) else rejectedOf(envelope)
+    }
+
     /** The rejection the receipt [envelope] holds. */
     fun rejectedOf(envelope: Envelope): CommandRejected<Any> {
         require(envelope.kind == EnvelopeKind.COMMAND_RECEIPT) { "A ${envelope.kind} envelope holds no receipt." }
@@ -105,11 +144,42 @@ object CommandMessages {
         )
     }
 
+    /** The commit the success receipt [envelope] holds (decision D192). */
+    fun committedOf(envelope: Envelope): CommandCommitted<Any> {
+        require(envelope.kind == EnvelopeKind.COMMAND_RECEIPT) { "A ${envelope.kind} envelope holds no receipt." }
+        val wire = mapper.treeToValue(envelope.payload, CommittedWire::class.java)
+        return CommandCommitted(
+            wire.commandId,
+            wire.commandType,
+            wire.ref,
+            wire.version,
+            wire.result,
+            wire.causation,
+            wire.executionId,
+            wire.operator,
+            wire.scope,
+        )
+    }
+
+    private const val RESULT = "result"
+
     private data class RejectedWire(
         val commandId: String,
         val commandType: String,
         val ref: AggregateRef,
         val error: ErrorInfo,
+        val causation: Causation,
+        val executionId: ExecutionId,
+        val operator: Operator? = null,
+        val scope: Scope = Scope.NONE,
+    )
+
+    private data class CommittedWire(
+        val commandId: String,
+        val commandType: String,
+        val ref: AggregateRef,
+        val version: Int,
+        val result: CommandResult,
         val causation: Causation,
         val executionId: ExecutionId,
         val operator: Operator? = null,

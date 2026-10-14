@@ -204,8 +204,9 @@ class LogGroupNode internal constructor(
  *
  * **Commands across contexts** (decisions D33, D135–D137), when [topics] has a producer: a saga's command to an
  * aggregate of another context is sent to that context's command topic ([ContextNode.sender]); the receipts of those
- * rejected come back on the saga's context's receipts topic, read in the lease group of that topic for the contexts
- * whose sagas have `@OnRejected` handlers ([SubscriptionFactory.rejections]). With [SourceTopics.intake], each context
+ * rejected, and of those committed that the saga asked about, come back on the saga's context's receipts topic, read
+ * in the lease group of that topic for the contexts whose sagas have `@OnRejected` or `@OnCommitted` handlers
+ * ([SubscriptionFactory.receipts]). With [SourceTopics.intake], each context
  * executes the commands of its own command topic ([ContextNode.intake], [CommandIntake]), driven by its
  * [PartitionOwnership]: the owner of a log partition reads the same partition of the topic, and [start] fails unless
  * the topic has as many partitions as the log.
@@ -668,14 +669,14 @@ class ServiceNode(
     }
 
     /**
-     * The runtimes of the receipts topics of the contexts whose sagas the [application] gives `@OnRejected` handlers
-     * ([SubscriptionFactory.rejections], decision D136), each in the lease group of its topic and the stores of its
+     * The runtimes of the receipts topics of the contexts whose sagas the [application] gives `@OnRejected` or
+     * `@OnCommitted` handlers ([SubscriptionFactory.receipts], decisions D136, D192), each in the lease group of its topic and the stores of its
      * context. None without [topics]: no command left for another context then.
      */
     private fun receipts(application: SubscriptionFactory): Map<String, TopicSubscriptions> {
         val sources = topics ?: return emptyMap()
         return contexts.values.mapNotNull { context ->
-            val handler = application.rejections(context) ?: return@mapNotNull null
+            val handler = application.receipts(context) ?: return@mapNotNull null
             val topic = sources.receiptsOf(context.context)
             val receipts = Receipts(context.context, contracts, handler)
             topic to TopicSubscriptions(
