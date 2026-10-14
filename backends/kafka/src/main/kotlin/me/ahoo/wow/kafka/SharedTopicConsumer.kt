@@ -40,6 +40,10 @@ import kotlin.time.toJavaDuration
  * keeps what did not fit and is paused until it has room, so a slow reader never holds up the others. The coroutine
  * runs while some partition is joined: the last [leave] stops it and closes the consumer. A consumer that fails closes
  * every joined channel with the failure; their readers read again.
+ *
+ * Each run of the coroutine is a [Session] of its own: the last [leave] ends the session at once, so a partition that
+ * joins right after it starts a new session, with a consumer of its own, instead of reviving the one stopping, which
+ * the leave waits for (finding C.1 F1).
  */
 internal class SharedTopicConsumer(
     private val topic: String,
@@ -50,12 +54,10 @@ internal class SharedTopicConsumer(
 ) : AutoCloseable {
     private val scope = CoroutineScope(dispatcher + SupervisorJob())
 
-    /** Guards [readers], [changes], [loop] and [consumer]. */
+    /** Guards [readers], [session] and each session's changes and consumer. */
     private val lock = Any()
     private val readers = HashMap<Int, Reader>()
-    private val changes = ArrayList<Reader>()
-    private var loop: Job? = null
-    private var consumer: Consumer<String, ByteArray>? = null
+    private var session: Session? = null
 
     /** One joined partition: the channel its reader takes from, and the records polled that did not fit yet. */
     inner class Reader(val partition: Int, from: Long) {
@@ -69,6 +71,16 @@ internal class SharedTopicConsumer(
         internal var left = false
     }
 
+    /**
+     * One run of the polling coroutine, from the first join to the last leave: the joins and leaves it has yet to
+     * apply, and its consumer once made. Guarded by `lock`.
+     */
+    private class Session {
+        val changes = ArrayList<SharedTopicConsumer.Reader>()
+        var consumer: Consumer<String, ByteArray>? = null
+        lateinit var job: Job
+    }
+
     /** Joins [partition] from offset [from]; null when it is joined already, so its reader needs a consumer of its own. */
     fun join(partition: Int, from: Long): Reader? = synchronized(lock) {
         if (partition in readers) {
@@ -76,45 +88,52 @@ internal class SharedTopicConsumer(
         }
         val reader = Reader(partition, from)
         readers[partition] = reader
-        changes += reader
-        if (loop == null) {
-            loop = scope.launch { run() }
-        } else {
-            consumer?.wakeup()
+        val current = session ?: Session().also { started ->
+            session = started
+            started.job = scope.launch { run(started) }
         }
+        current.changes += reader
+        current.consumer?.wakeup()
         reader
     }
 
-    /** Leaves [reader]'s partition; when no partition is left, waits until the consumer is closed. */
+    /**
+     * Leaves [reader]'s partition; when no partition is left, ends the session and waits until its consumer is
+     * closed.
+     */
     suspend fun leave(reader: Reader) {
         val stopping = synchronized(lock) {
-            if (readers[reader.partition] === reader) {
-                readers.remove(reader.partition)
-                reader.left = true
-                changes += reader
-                consumer?.wakeup()
+            if (readers[reader.partition] !== reader) {
+                return
             }
-            loop.takeIf { readers.isEmpty() }
+            readers.remove(reader.partition)
+            reader.left = true
+            val current = checkNotNull(session) { "A joined partition of $topic has no session." }
+            current.changes += reader
+            current.consumer?.wakeup()
+            if (readers.isNotEmpty()) {
+                return
+            }
+            session = null
+            current.job
         }
-        stopping?.let { withContext(NonCancellable) { it.join() } }
+        withContext(NonCancellable) { stopping.join() }
     }
 
     @Suppress("TooGenericExceptionCaught") // Whatever the consumer throws ends every read, which reads again.
-    private suspend fun run() {
+    private suspend fun run(session: Session) {
         val consumer = consumers()
-        synchronized(lock) { this.consumer = consumer }
+        synchronized(lock) { session.consumer = consumer }
         val assigned = HashMap<Int, Reader>()
         // Whether the assignment is to be applied again: a wakeup interrupted it.
         var reassigning = false
         try {
             while (true) {
                 val changed = synchronized(lock) {
-                    if (readers.isEmpty()) {
-                        loop = null
-                        this.consumer = null
+                    if (this.session !== session) {
                         return
                     }
-                    changes.toList().also { changes.clear() }
+                    session.changes.toList().also { session.changes.clear() }
                 }
                 try {
                     if (changed.isNotEmpty() || reassigning) {
@@ -132,11 +151,11 @@ internal class SharedTopicConsumer(
             throw cancelled
         } catch (failure: Exception) {
             synchronized(lock) {
-                readers.values.forEach { it.channel.close(failure) }
-                readers.clear()
-                changes.clear()
-                loop = null
-                this.consumer = null
+                if (this.session === session) {
+                    readers.values.forEach { it.channel.close(failure) }
+                    readers.clear()
+                    this.session = null
+                }
             }
         } finally {
             withContext(NonCancellable) { consumer.close() }
@@ -206,7 +225,7 @@ internal class SharedTopicConsumer(
         synchronized(lock) {
             readers.values.forEach { it.channel.close(IllegalStateException("The source of $topic is closed.")) }
             readers.clear()
-            changes.clear()
+            session = null
         }
         scope.cancel()
     }

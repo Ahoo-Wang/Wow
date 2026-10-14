@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.cluster
 
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -58,6 +59,9 @@ data class LeaseGroup(val service: String, val context: String) {
  *   then the command runs locally (D71).
  * - [maxInFlightPerPeer]: the forwards one peer may have outstanding; one more runs locally instead.
  * - [drainTimeout]: how long a hand-off waits for the partition's commands in flight before it moves on.
+ * - [reconcileTimeout]: how long one reconcile may run before the node takes itself as stuck: it stops heartbeating
+ *   and leaves the members until the reconcile ends, so the others take the partitions it cannot run (finding C.1
+ *   F1). Well above what a hand-off takes: the drain, then the stop of each runtime.
  */
 data class ClusterOptions(
     val leaseTtl: Duration = 10.seconds,
@@ -70,6 +74,7 @@ data class ClusterOptions(
     val maxInFlightPerPeer: Int = 1_024,
     val drainTimeout: Duration = 10.seconds,
     val leaseParallelism: Int = 16,
+    val reconcileTimeout: Duration = 1.minutes,
 ) {
     init {
         require(renewInterval.isPositive() && renewInterval < leaseTtl) { "A lease is renewed before it expires." }
@@ -82,5 +87,6 @@ data class ClusterOptions(
         require(maxInFlightPerPeer >= 1) { "A peer takes at least one forward." }
         require(!drainTimeout.isNegative()) { "The drain timeout is never negative." }
         require(leaseParallelism >= 1) { "At least one lease call runs at a time." }
+        require(reconcileTimeout.isPositive()) { "The reconcile timeout is positive." }
     }
 }

@@ -14,6 +14,7 @@
 package me.ahoo.wow.kafka
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -40,6 +41,7 @@ import org.apache.kafka.common.serialization.StringSerializer
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.Optional
+import java.util.concurrent.CountDownLatch
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -200,6 +202,52 @@ class KafkaTransportUnitTest {
             shared.closed().assert().isTrue()
             own.closed().assert().isTrue()
             source.close()
+        }
+
+    @Test
+    fun `a partition joining while the last one leaves should get a consumer of its own, and the leave return`(): Unit =
+        runBlocking {
+            // Finding C.1 F1: the last partition left, then another joined before the polling coroutine saw it was
+            // the last; the coroutine kept polling for the new one, and the leave, waiting for it to stop, never
+            // returned: the lost partition's subscriptions never stopped, and its node never took a partition again.
+            val stopping = MockConsumer<String, ByteArray>("earliest")
+            val next = MockConsumer<String, ByteArray>("earliest")
+            val zero = TopicPartition(topic, 0)
+            stopping.updateEndOffsets(mapOf(zero to 0L, TopicPartition(topic, 1) to 0L))
+            next.updateEndOffsets(mapOf(zero to 0L))
+            val made = ArrayDeque(listOf(stopping, next))
+            // The first coroutine makes its consumer only once the leave and the join below are done.
+            val making = CountDownLatch(1)
+            val shared = SharedTopicConsumer(
+                topic,
+                {
+                    val consumer = synchronized(made) { made.removeFirst() }
+                    if (consumer === stopping) {
+                        making.await()
+                    }
+                    consumer
+                },
+                1.milliseconds,
+                Dispatchers.IO,
+            )
+            val last = checkNotNull(shared.join(1, 0))
+            // Runs up to its wait for the coroutine to stop, a wait it cannot be cancelled out of.
+            val leaving = CoroutineScope(Dispatchers.Default).async(start = CoroutineStart.UNDISPATCHED) {
+                shared.leave(last)
+            }
+            val joined = checkNotNull(shared.join(0, 0))
+            making.countDown()
+
+            withTimeout(10.seconds) { leaving.await() }
+            stopping.closed().assert().isTrue()
+            eventually { next.assignment() == setOf(zero) }
+            next.addRecord(record(0, "a0"))
+            withTimeout(10.seconds) { joined.channel.receive() }.offset.assert().isEqualTo(0L)
+            shared.leave(joined)
+            next.closed().assert().isTrue()
+            // Leaving twice does nothing.
+            shared.leave(joined)
+            shared.close()
         }
 
     @Test
