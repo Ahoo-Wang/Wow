@@ -14,6 +14,7 @@
 package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogPosition
 
@@ -22,7 +23,7 @@ sealed interface CommandOutcome {
     /**
      * The command's events are committed as [stream] at [position]; [state] is the state after them. [results] are
      * what its decide function put for the caller ([me.ahoo.wow.api.decide.DecideScope.putResult]); they are not
-     * kept, so a duplicate of the command is answered without them. [deleted] and [tags] are the metadata the kernel
+     * kept, so a duplicate of the command is answered without them. [deleted], [tags] and [schedules] are the metadata the kernel
      * keeps beside the state after the stream ([CachedState]); its scope is the [stream]'s.
      */
     data class Committed(
@@ -32,6 +33,7 @@ sealed interface CommandOutcome {
         val results: Map<String, Any> = emptyMap(),
         val deleted: Boolean = false,
         val tags: Map<String, List<String>> = emptyMap(),
+        val schedules: Map<String, ScheduleRule> = emptyMap(),
     ) : CommandOutcome
 
     /** The same command was already committed as [stream]: it was not decided again. */

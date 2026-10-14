@@ -33,7 +33,6 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Partitioner
-import me.ahoo.wow.spi.log.ScheduleChange
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.wait.Origin
@@ -236,11 +235,10 @@ class PostgresEventLog(
                 append.setNullableString(17, stream.causation?.causationId)
                 append.setString(18, json.writeValueAsString(stream.headers))
                 append.setNullableString(19, transport?.let { encodeTransport(it) })
-                append.setNullableString(20, stream.schedules.takeIf { it.isNotEmpty() }?.let(::encodeSchedules))
                 val operator = stream.operator
-                append.setNullableString(21, operator?.id)
-                append.setNullableString(22, operator?.tenantId)
-                if (operator == null) append.setNull(23, Types.BOOLEAN) else append.setBoolean(23, operator.crossScope)
+                append.setNullableString(20, operator?.id)
+                append.setNullableString(21, operator?.tenantId)
+                if (operator == null) append.setNull(22, Types.BOOLEAN) else append.setBoolean(22, operator.crossScope)
                 append.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else null }
             }
             return if (sequence == null) {
@@ -444,7 +442,6 @@ class PostgresEventLog(
         scope = Scope(row.getString("owner_id"), row.getString("space_id")),
         causation = row.getString("correlation_id")?.let { Causation(it, row.getString("causation_id")) },
         headers = decodeStrings(row.getString("headers")),
-        schedules = row.getString("schedules")?.let(::decodeSchedules).orEmpty(),
         operator = row.getString("operator_id")?.let {
             Operator(it, row.getString("operator_tenant_id"), row.getBoolean("operator_cross_scope"))
         },
@@ -485,55 +482,6 @@ class PostgresEventLog(
                     .set("payload", json.readTree(event.payload))
             }
             return json.writeValueAsString(array)
-        }
-
-        /**
-         * Schedule changes as one JSON array (decision D166): a put is `{key, due_at, target, command_type, body}`,
-         * its target `{context, aggregate, tenant_id, id}` and its body stored as JSON; a cancel is `{key, cancel:
-         * true}`.
-         */
-        fun encodeSchedules(schedules: List<ScheduleChange>): String {
-            val array = json.createArrayNode()
-            schedules.forEach { change ->
-                val node = array.addObject().put(KEY, change.key)
-                when (change) {
-                    is ScheduleChange.Put -> {
-                        node.put(DUE_AT, change.dueAt)
-                        node.putObject(TARGET)
-                            .put(CONTEXT, change.target.type.context)
-                            .put(AGGREGATE, change.target.type.name)
-                            .put(TENANT_ID, change.target.tenantId)
-                            .put(ID, change.target.id)
-                        node.put(COMMAND_TYPE, change.commandType)
-                        node.set(BODY, json.readTree(change.body))
-                    }
-
-                    is ScheduleChange.Cancel -> node.put(CANCEL, true)
-                }
-            }
-            return json.writeValueAsString(array)
-        }
-
-        fun decodeSchedules(text: String): List<ScheduleChange> = buildList {
-            // ArrayNode has a map member of its own, so iterate rather than map.
-            for (node in json.readTree(text) as ArrayNode) {
-                val key = node.get(KEY).asString()
-                if (node.get(CANCEL)?.asBoolean() == true) {
-                    add(ScheduleChange.Cancel(key))
-                    continue
-                }
-                val target = node.get(TARGET)
-                add(
-                    ScheduleChange.Put(
-                        key = key,
-                        dueAt = node.get(DUE_AT).asLong(),
-                        target = AggregateType(target.get(CONTEXT).asString(), target.get(AGGREGATE).asString())
-                            .ref(target.get(TENANT_ID).asString(), target.get(ID).asString()),
-                        commandType = node.get(COMMAND_TYPE).asString(),
-                        body = json.writeValueAsString(node.get(BODY)),
-                    ),
-                )
-            }
         }
 
         /** A transport as one JSON object; an absent wait is left out. */
@@ -620,14 +568,6 @@ class PostgresEventLog(
         const val NAMESPACE = "namespace"
         const val KEY = "key"
         const val TRACE = "trace"
-        const val DUE_AT = "due_at"
-        const val TARGET = "target"
-        const val AGGREGATE = "aggregate"
-        const val TENANT_ID = "tenant_id"
-        const val ID = "id"
-        const val COMMAND_TYPE = "command_type"
-        const val BODY = "body"
-        const val CANCEL = "cancel"
 
         fun decodeEvents(text: String): List<EventRecord> = buildList {
             // ArrayNode has a map member of its own, so iterate rather than map.

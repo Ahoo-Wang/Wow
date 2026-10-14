@@ -15,8 +15,8 @@ package me.ahoo.wow.api.decide
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.id.Ids
-import java.time.Instant
-import kotlin.time.Duration
+import me.ahoo.wow.api.schedule.ScheduleContext
+import me.ahoo.wow.api.schedule.ScheduleRule
 
 /**
  * What a decide function (or an after hook) can ask of the kernel besides returning its decision.
@@ -26,9 +26,9 @@ import kotlin.time.Duration
  * decided again, or deciding fails. It does not run when whether the append committed is unknown, and it cannot run
  * if the process dies; an act that must not leak then needs its own expiry.
  *
- * A decide function may also schedule a command for later (decision D166): [schedule] and [cancelSchedule] record the
- * intent in the event stream the command commits, atomically with its events, and the runtime sends the command once
- * it is due. A decision that only schedules, with no event, still commits.
+ * A decide function may also schedule a command for later (decisions D166, D198): [schedule] and [cancelSchedule] add
+ * the system events `wow.ScheduleSet` and `wow.ScheduleCancelled` to the events the command commits, atomically with
+ * them, and the runtime sends the command each time it is due. A decision that only schedules commits those events.
  */
 interface DecideScope {
     /** The command being decided, with what admission learned about its request. */
@@ -59,24 +59,23 @@ interface DecideScope {
     suspend fun reserve(namespace: String, key: String): Boolean
 
     /**
-     * Schedules [command] to be sent to [target], this aggregate by default, at [at] (decision D166). [key] names the
-     * schedule within this aggregate: scheduling a key again replaces it (a reschedule), and [cancelSchedule] cancels
-     * it. Within one decision the last call for a key wins.
+     * Schedules [command] to be sent to [target], this aggregate by default, as [rule] says (decision D198): at an
+     * instant, after a delay counted from this commit, or by a cron expression. [key] names the schedule within this
+     * aggregate: scheduling a key again replaces it (a reschedule, or a new rule), and [cancelSchedule] cancels it.
+     * Within one decision the last call for a key wins.
      *
-     * The schedule commits with this command's events, or not at all. The command is sent at least once, not before
-     * [at], possibly a little later (after a handover or a backlog), and decided once: its request id is the timer's
-     * id. When it is due, the target decides it on its state then; a rejection is a normal guard (the timer is done),
-     * not a failure. Its scope is none, its causation this commit. A target of another context needs its context's
-     * Manifest (decision D139).
+     * The schedule commits with this command's events (as the system event `wow.ScheduleSet`), or not at all. Each
+     * time it is due the command is sent at least once, not before its time, possibly a little later (after a handover
+     * or a backlog), and decided once: its request id is the timer's id and the slot ([ScheduleContext], which the
+     * target reads from [Command.schedule]). The target decides it on its state then; a rejection is a normal guard,
+     * not a failure. Its scope is this commit's, its causation this commit. A target of another context needs its
+     * context's Manifest (decision D139).
      */
-    fun schedule(key: String, at: Instant, command: Any, target: AggregateRef = this.command.ref)
-
-    /** Schedules [command] to be sent to [target] [after] this commit's time; see the other [schedule]. */
-    fun schedule(key: String, after: Duration, command: Any, target: AggregateRef = this.command.ref)
+    fun schedule(key: String, rule: ScheduleRule, command: Any, target: AggregateRef = this.command.ref)
 
     /**
-     * Cancels the schedule this aggregate keeps under [key], scheduled by an earlier command or this one; nothing
-     * when there is none. A command already sent is not recalled: its target's state guards it.
+     * Cancels the schedule this aggregate keeps under [key], scheduled by an earlier command or this one (the system
+     * event `wow.ScheduleCancelled`); nothing when there is none. A command already sent is not recalled: its target's state guards it.
      */
     fun cancelSchedule(key: String)
 }

@@ -17,6 +17,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.schedule.CancelSchedule
+import me.ahoo.wow.api.schedule.Schedules
+import me.ahoo.wow.api.schedule.SetSchedule
 import org.junit.jupiter.api.Test
 
 /** What a model tells about the commands it decides (decisions D55, D108). */
@@ -43,6 +46,8 @@ class AggregateModelTest {
             CommandType("shop.cart.AddItem", AddItem::class.java, setOf("shop.cart.PutItem")),
             CommandType("shop.cart.DropItem", RemoveItem::class.java),
             CommandType(Lifecycle.DELETE_AGGREGATE, DeleteAggregate::class.java),
+            CommandType(Schedules.SET, SetSchedule::class.java),
+            CommandType(Schedules.CANCEL, CancelSchedule::class.java),
         )
         model.commandTypes.forEach { model.decider(it.type).assert().isNotNull() }
     }

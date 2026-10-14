@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
 import me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock
@@ -90,7 +91,11 @@ class Order(private val state: OrderState) {
         if (state.confirmedProducts + command.productId != state.products()) {
             return Decision.events(confirmed)
         }
-        scope.schedule(PAYMENT_GRACE_PERIOD, paymentPolicy.gracePeriod, CancelOrder(PAYMENT_TIMEOUT))
+        scope.schedule(
+            PAYMENT_GRACE_PERIOD,
+            ScheduleRule.after(paymentPolicy.gracePeriod),
+            CancelOrder(PAYMENT_TIMEOUT)
+        )
         return Decision.events(confirmed, OrderStockConfirmed)
     }
 

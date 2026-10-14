@@ -76,7 +76,7 @@ class CartState(val id: String) {
 | 注解 | 用途 | 取代 9.x 的 |
 |---|---|---|
 | `@BoundedContext` | 声明限界上下文 | 同名 |
-| `@AggregateRoot` | 聚合根；状态类可分离 | 同名 |
+| `@AggregateRoot` | 聚合根；状态类可分离，其构造函数可为 `()`、`(id)` 或 `(id, tenantId)`（D203） | 同名 |
 | `@OnCommand`、`@OnSourcing` | 非约定命名的命令函数、溯源函数（约定名 `onCommand`、`onSourcing` 不需要注解） | 同名 |
 | `@CreateAggregate`、`@AllowCreate` | 创建语义三态（`Creation`） | 同名 |
 | `@AfterCommand` | after 钩子（D39） | 同名 |

@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.spi.json.WowJson
@@ -97,6 +98,7 @@ class PostgresSnapshotStore(
                 save.setString(11, json.writeValueAsString(snapshot.tags))
                 save.setNullableString(12, snapshot.operator?.let(json::writeValueAsString))
                 save.setNullableString(13, snapshot.firstOperator?.let(json::writeValueAsString))
+                save.setNullableString(14, snapshot.schedules.takeIf { it.isNotEmpty() }?.let(::encodeSchedules))
                 save.executeQuery().use { rows -> rows.next() }
             }
         }
@@ -125,6 +127,7 @@ class PostgresSnapshotStore(
         tags = decodeTags(row.getString("tags")),
         operator = row.getString("operator")?.let(::decodeOperator),
         firstOperator = row.getString("first_operator")?.let(::decodeOperator),
+        schedules = row.getString("schedules")?.let(::decodeSchedules).orEmpty(),
     )
 
     private fun PreparedStatement.setNullableString(index: Int, value: String?) {
@@ -135,6 +138,19 @@ class PostgresSnapshotStore(
         val json: JsonMapper = WowJson.mapper
 
         fun decodeOperator(text: String): Operator = json.readValue(text, Operator::class.java)
+
+        /** Each rule by its key, each written as its own value so it carries its `type`. */
+        fun encodeSchedules(schedules: Map<String, ScheduleRule>): String {
+            val node = json.createObjectNode()
+            schedules.forEach { (key, rule) -> node.set(key, json.readTree(json.writeValueAsString(rule))) }
+            return json.writeValueAsString(node)
+        }
+
+        fun decodeSchedules(text: String): Map<String, ScheduleRule> = buildMap {
+            for ((key, rule) in json.readTree(text).properties()) {
+                put(key, json.treeToValue(rule, ScheduleRule::class.java))
+            }
+        }
 
         fun decodeTags(text: String): Map<String, List<String>> = buildMap {
             for ((name, values) in json.readTree(text).properties()) {

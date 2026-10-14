@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.Dependencies
@@ -73,7 +74,7 @@ class TreasuryModels : ModelProvider {
         initial { Holding() }
         lifecycle()
         decide<C>(Creation.REQUIRED) { _, body ->
-            schedule(SEAL, delay(body).milliseconds, Seal())
+            schedule(SEAL, ScheduleRule.after(delay(body).milliseconds), Seal())
             Decision.events(opened(body))
         }
         decide<Seal> { state, body -> if (state.sealed) Decision.NoOp else Decision.events(Sealed(body.reason)) }

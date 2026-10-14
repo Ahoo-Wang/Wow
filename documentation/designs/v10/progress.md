@@ -2,7 +2,7 @@
 
 日期：2026-10-14。状态：持续维护（每次合并或定下决定后更新）。上位文档：[路线图](roadmap.md)。
 
-本文记录 V10 现在在哪、正在做什么、接下来做什么，以及推进的工作方式。决定在[决策台账](decisions.md)（D1～D202 已定；D123 由 D124 取代），工作包定义在[路线图](roadmap.md)；已合并的明细以 `git log origin/v10` 为准。
+本文记录 V10 现在在哪、正在做什么、接下来做什么，以及推进的工作方式。决定在[决策台账](decisions.md)（D1～D204 已定；D123 由 D124 取代），工作包定义在[路线图](roadmap.md)；已合并的明细以 `git log origin/v10` 为准。
 
 ## 1. 位置
 
@@ -31,6 +31,8 @@
 |---|---|
 | 6.0g 按聚合配置存储（D177、D197） | PR #4420，已审查；合入 P.13 后重跑门禁再合并 |
 | 6.8b 定时设计的核心部分（D198） | PR #4425（叠在 6.0g 上），已审查：须改为发送前先条件领取，保证取消后的定时器不再触发 |
+| D203 状态构造函数的 `id` 可选 | 进行中（`claude/v10-state-ctor`）：编译器接受无参构造，示例的状态去掉用不到的 `id` |
+| E.8 示例收拢到 eShop（D204） | D203 合并后派：补齐 eShop 缺的覆盖，再删除 shop、inventory 与 `example/e2e` |
 | H2 阶段 2（D155） | 机器空闲时跑：3 个 JVM、持久化 PostgreSQL、属主被杀的不可用窗口 |
 | C.1 核心加固 | 测试工具与第一轮已开始（`claude/v10-c1-hardening`：eShop 全链路的故障注入与 1 小时浸泡，按不变量核对）；6.0g、6.8b 合并后用多存储配置跑最终两轮 |
 | `KafkaTransportTest`、`KafkaTopicAdminTest` 偶发失败 | 修复中（`claude/v10-kafka-transport-flake`）：测试夹具在 broker 发布新主题元数据前就返回，产品代码已等待 |
@@ -48,7 +50,7 @@
 
 ## 5. 工作方式
 
-- **分工**：主会话做协调、审查与设计文档；实现交给隔离 worktree 里的子代理，从最新 `origin/v10` 开分支 `claude/v10-<工作包>`，开 PR 到 `v10`，不合并；一个工作包只对应一个开着的 PR。
+- **分工**：主会话做协调、审查与设计文档；实现交给隔离 worktree 里的子代理，从最新 `origin/v10` 开分支 `v10-<工作包>`（不以 `claude/` 开头，用户 2026-10-14；`v10/` 前缀与 `v10` 分支冲突），开 PR 到 `v10`，不合并；一个工作包只对应一个开着的 PR。
 - **子代理说明里必须写明**：JUnit 测试函数返回 `Unit`（否则被静默跳过，按 `build/test-results` 的 XML 核对数量）；M7 出口前 V10 模块不做 ABI 转储（D88、D147）；先 `detekt --auto-correct`；不改文档；并行的子代理列出彼此的禁区；分步提交并尽早推送；不 rebase、不 force-push，需要时 merge `origin/v10`；新增第三方依赖须先问用户；不跑占满 CPU 的压力进程。
 - **测试门禁**（D196）：每个工作包合并前须过 `v10Check`、各后端的全部 TCK 规格与 eShop 全链路；新能力须同时带测试 DSL 或 TCK 的覆盖，测试模块缺的能力先补。
 - **合并前**：在独立 worktree 里把 PR 合到最新 `origin/v10` 上演练，跑完整验证命令并按 XML 核对测试数；看 `gh pr checks`，红色检查逐项确认与本 PR 无关（Codecov 以 compare API 为准：`https://api.codecov.io/api/v2/github/Ahoo-Wang/repos/Wow/compare/?pullid=<N>`，补丁覆盖率须 ≥ 90%）。合并用 `gh pr merge <N> --squash --admin --match-head-commit <完整 SHA> --subject "<标题> (#N)" --body "<正文>"`。

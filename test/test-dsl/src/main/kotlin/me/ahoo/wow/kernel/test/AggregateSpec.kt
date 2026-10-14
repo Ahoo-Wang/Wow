@@ -19,6 +19,9 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.schedule.ScheduleCancelled
+import me.ahoo.wow.api.schedule.ScheduleSet
+import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.CommandOutcome
@@ -31,8 +34,8 @@ import me.ahoo.wow.kernel.StateCache
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventStreamRecord
-import me.ahoo.wow.spi.log.ScheduleChange
 import me.ahoo.wow.spi.timer.Timer
+import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.Timers
 import java.time.Instant
@@ -56,12 +59,15 @@ import kotlin.time.Duration
  * fails the specification.
  *
  * Time stands still at [start] until [AggregateSpec.advanceTime] moves it: the commit times, and the due times of
- * the commands the aggregate schedules (decision D166), are read from it. Advancing the time sends the aggregate the
- * commands it scheduled for itself that are then due, as the runtime would, each with its timer's id as request id:
+ * the commands the aggregate schedules (decision D198), are read from it. Advancing the time sends the aggregate the
+ * commands it scheduled for itself that are then due, as the runtime would, each with its timer's request id
+ * (`timer#slot`) and its slot ([me.ahoo.wow.api.decide.Command.schedule]):
  *
  * ```kotlin
  * aggregateSpec(orderModel) {
- *     whenCommand(PlaceOrder(...)) { expectScheduled("pay-timeout", CancelOrder("unpaid"), after = 30.minutes) }
+ *     whenCommand(PlaceOrder(...)) {
+ *         expectScheduled("pay-timeout", CancelOrder("unpaid"), ScheduleRule.after(30.minutes))
+ *     }
  *     advanceTime(30.minutes) { expectEvents(OrderCancelled("unpaid")) }
  * }
  * ```
@@ -164,10 +170,16 @@ class AggregateSpec<S : Any>(
                     "${model.type} has no command ${timer.commandType}, which the timer ${timer.id} sends."
                 }
                 val body = codec.decodeTree(WowJson.mapper.readTree(timer.body), type.type)
-                val command =
-                    Command(timer.id, timer.requestId, ref, body, causation = timer.causation, headers = timer.headers)
+                val command = Command(
+                    timer.requestId,
+                    timer.requestId,
+                    ref,
+                    body,
+                    causation = timer.causation,
+                    headers = timer.headers + timer.context.headers(),
+                )
                 val outcome = execute(command)
-                timers.update(timer.copy(status = TimerStatus.FIRED, attempts = 1), TimerStatus.PENDING)
+                timers.settle(listOf(TimerChange(timer, timer.copy(status = TimerStatus.FIRED, attempts = 1))))
                 fired += outcome
             }
         }
@@ -175,7 +187,7 @@ class AggregateSpec<S : Any>(
     }
 
     private suspend fun dueTimers(by: Long): List<Timer> =
-        timers.due(PARTITION, by, Int.MAX_VALUE).filter { it.target == ref }
+        timers.due(setOf(PARTITION), by, Int.MAX_VALUE).filter { it.target == ref }
 
     /** Executes [command], recording the schedules it commits; a decide function's exception is the failure. */
     private suspend fun execute(command: Command<*>): Result<CommandOutcome> = try {
@@ -191,14 +203,14 @@ class AggregateSpec<S : Any>(
     private suspend fun record(outcome: CommandOutcome) {
         val stream = (outcome as? CommandOutcome.Committed)?.stream ?: return
         val owner = Timers.ownerOf(stream.ref)
-        stream.schedules.forEach { change ->
-            when (change) {
-                is ScheduleChange.Put -> timers.put(Timers.of(stream, change, PARTITIONS))
-                is ScheduleChange.Cancel -> timers.cancel(owner, change.key, stream.version.toLong())
-            }
-        }
         if (stream.events.any { it.name == Lifecycle.AGGREGATE_DELETED }) {
             timers.cancelAll(owner, stream.version.toLong())
+        }
+        stream.events.filter { it.name in Schedules.EVENTS }.forEach { record ->
+            when (val event = codec.decode(model, record)) {
+                is ScheduleSet -> timers.put(Timers.of(stream, event, PARTITIONS))
+                is ScheduleCancelled -> timers.cancel(owner, event.key, stream.version.toLong())
+            }
         }
     }
 

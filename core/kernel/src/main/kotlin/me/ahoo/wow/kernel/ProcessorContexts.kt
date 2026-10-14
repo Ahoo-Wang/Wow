@@ -18,6 +18,9 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.schedule.CancelSchedule
+import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.schedule.SetSchedule
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.ProjectContext
 import me.ahoo.wow.api.subscribe.ReactContext
@@ -25,11 +28,8 @@ import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.spi.id.IdGenerators
-import me.ahoo.wow.spi.timer.Timers
-import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.time.Duration
 
 /** The context of a projection's handler for one execution (design 01 §1). */
 data class ExecutionProjectContext(override val executionId: ExecutionId) : ProjectContext
@@ -43,9 +43,9 @@ data class ExecutionReactContext(override val executionId: ExecutionId) : ReactC
  * same subscription is the same request: handling the commit again derives the same commands, which the kernel does
  * not decide twice (it deduplicates by request id). A domain module's tests build one to call a saga directly.
  *
- * Its schedules (decision D166) are recorded in [schedules], the last change of each target and key, each with the id
- * [Timers.sagaTimerId] gives the call, so handling the commit again records the same: the runtime writes them to the
- * timer store before the saga's checkpoint passes the commit. `after` counts from the commit's time.
+ * Its schedules (decision D198) are commands too: [schedule] and [cancel] derive the system commands
+ * `wow.schedule.Set` and `wow.schedule.Cancel` to their target, numbered with the other commands, the command they
+ * schedule named by [commandTypes] and written by [codec].
  *
  * Its [ids] are the node's generators (decision D171); a domain module's test gives fixed ones.
  */
@@ -53,13 +53,10 @@ class ExecutionSagaContext(
     override val executionId: ExecutionId,
     private val event: StateEvent<*>,
     override val ids: Ids = IdGenerators.DEFAULT,
+    private val commandTypes: CommandTypes = CommandTypes.SIMPLE_NAMES,
+    private val codec: EventCodec = EventCodec(),
 ) : SagaContext {
     private val calls = AtomicInteger()
-    private val scheduleCalls = AtomicInteger()
-    private val scheduled = LinkedHashMap<Pair<AggregateRef, String>, SagaSchedule>()
-
-    /** The schedules this execution changed, the last change of each target and key, in the order of those changes. */
-    val schedules: List<SagaSchedule> get() = synchronized(scheduled) { scheduled.values.toList() }
 
     init {
         require(event.ref == executionId.ref && event.version == executionId.version) {
@@ -87,26 +84,16 @@ class ExecutionSagaContext(
         )
     }
 
-    override fun schedule(key: String, at: Instant, target: AggregateRef, command: Any) =
-        record(SagaSchedule.Put(nextId(), key, target, at.toEpochMilli(), command))
-
-    override fun schedule(key: String, after: Duration, target: AggregateRef, command: Any) {
-        require(!after.isNegative()) { "A schedule is not due before the commit." }
-        record(SagaSchedule.Put(nextId(), key, target, event.commitTime + after.inWholeMilliseconds, command))
-    }
-
-    override fun cancel(key: String, target: AggregateRef) = record(SagaSchedule.Cancel(nextId(), key, target))
-
-    private fun nextId(): String = Timers.sagaTimerId(executionId, scheduleCalls.getAndIncrement())
-
-    private fun record(schedule: SagaSchedule) {
-        require(schedule.key.isNotBlank()) { "A schedule needs a key." }
-        synchronized(scheduled) {
-            val key = schedule.target to schedule.key
-            scheduled.remove(key)
-            scheduled[key] = schedule
+    override fun schedule(key: String, rule: ScheduleRule, target: AggregateRef, command: Any): Command<SetSchedule> {
+        val type = requireNotNull(commandTypes.nameOf(target.type, command.javaClass)) {
+            "${executionId.subscription} schedules ${command.javaClass.name} for $target, a command no Manifest of the " +
+                "service or its peers names (decision D139)."
         }
+        return command(target, SetSchedule(key, rule, type, codec.commandText(command)))
     }
+
+    override fun cancel(key: String, target: AggregateRef): Command<CancelSchedule> =
+        command(target, CancelSchedule(key))
 
     companion object {
         /**
@@ -122,43 +109,22 @@ class ExecutionSagaContext(
 }
 
 /**
- * A schedule a saga changed in one execution (decision D166): its timer [id] (`executionId#n`), its [key] among the
- * saga's schedules of [target].
- */
-sealed interface SagaSchedule {
-    val id: String
-    val key: String
-    val target: AggregateRef
-
-    /** Sends [command] to [target] at [dueAt] (epoch milliseconds). */
-    data class Put(
-        override val id: String,
-        override val key: String,
-        override val target: AggregateRef,
-        val dueAt: Long,
-        val command: Any,
-    ) : SagaSchedule
-
-    /** Cancels the saga's schedule of [target] under [key]. */
-    data class Cancel(override val id: String, override val key: String, override val target: AggregateRef) :
-        SagaSchedule
-}
-
-/**
  * The context a handler of [kind] gets for the execution of [event] by the subscription [subscription]: its
- * [ExecutionId] is (subscription, aggregate, version); a saga's takes its ids from [ids].
+ * [ExecutionId] is (subscription, aggregate, version); a saga's takes its ids from [ids] and names the commands it
+ * schedules by [commandTypes].
  */
 fun contextOf(
     kind: FunctionKind,
     subscription: String,
     event: StateEvent<*>,
     ids: Ids = IdGenerators.DEFAULT,
+    commandTypes: CommandTypes = CommandTypes.SIMPLE_NAMES,
 ): SubscriptionContext {
     val execution = ExecutionId(subscription, event.ref, event.version)
     return when (kind) {
         FunctionKind.PROJECT -> ExecutionProjectContext(execution)
         FunctionKind.REACT -> ExecutionReactContext(execution)
-        FunctionKind.SAGA -> ExecutionSagaContext(execution, event, ids)
+        FunctionKind.SAGA -> ExecutionSagaContext(execution, event, ids, commandTypes)
         else -> throw IllegalArgumentException("A $kind handler is not a processor's.")
     }
 }

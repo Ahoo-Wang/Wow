@@ -16,19 +16,24 @@ package me.ahoo.wow.kernel.test
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.schedule.ScheduleCancelled
+import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.schedule.ScheduleSet
+import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.spi.json.WowJson
-import me.ahoo.wow.spi.log.ScheduleChange
-import java.time.Instant
 import kotlin.reflect.KClass
-import kotlin.time.Duration
 
 /**
  * The checks of a command's outcome, or of the exception its decide function threw ([expectError]). [version] is
  * the aggregate's version after the command and [stateAt] reads its committed state at a version: [expectState]
  * reads the state the aggregate is in after a command that committed nothing.
+ *
+ * The event checks ([expectEvents], [expectEventTypes], [expectEvent]) read the events the decision committed beside
+ * its schedules: the system events `wow.ScheduleSet` and `wow.ScheduleCancelled` (decision D198) are checked by
+ * [expectScheduled] and [expectScheduleCancelled].
  */
 @Suppress("TooManyFunctions") // The DSL's expectations.
 class Expectations<S : Any>(
@@ -49,7 +54,7 @@ class Expectations<S : Any>(
 
     /** The command committed exactly [events], in order. */
     fun expectEvents(vararg events: Any) {
-        val committed = committed().stream.events.map { codec.decode(model, it) }
+        val committed = decided()
         if (committed != events.toList()) {
             throw AssertionError("Expected events ${events.toList()} but got $committed.")
         }
@@ -60,7 +65,7 @@ class Expectations<S : Any>(
 
     /** The command committed events of exactly these types, in order. */
     fun expectEventTypes(vararg types: Class<*>) {
-        val committed = committed().stream.events.map { codec.decode(model, it).javaClass }
+        val committed = decided().map { it.javaClass }
         if (committed != types.toList()) {
             throw AssertionError(
                 "Expected event types ${types.map { it.simpleName }} but got ${committed.map { it.simpleName }}.",
@@ -73,7 +78,7 @@ class Expectations<S : Any>(
 
     /** The command committed exactly one event, of [type], which [check] checks. */
     fun <E : Any> expectEvent(type: KClass<E>, check: E.() -> Unit = {}): E {
-        val committed = committed().stream.events.map { codec.decode(model, it) }
+        val committed = decided()
         val event = committed.singleOrNull()
             ?: throw AssertionError("Expected one ${type.simpleName} but got $committed.")
         if (!type.isInstance(event)) {
@@ -121,44 +126,43 @@ class Expectations<S : Any>(
     }
 
     /**
-     * The command scheduled [command] under [key] (decision D166), for [target] (the aggregate itself by default), due
-     * [at] or [after] its commit when either is given.
+     * The command scheduled [command] under [key] (decision D198), for [target] (the aggregate itself by default), due
+     * as [rule] says when it is given: it committed `wow.ScheduleSet`.
      */
     @Suppress("ThrowsCount")
-    fun expectScheduled(
-        key: String,
-        command: Any,
-        at: Instant? = null,
-        after: Duration? = null,
-        target: AggregateRef? = null,
-    ) {
+    fun expectScheduled(key: String, command: Any, rule: ScheduleRule? = null, target: AggregateRef? = null) {
         val stream = committed().stream
-        val put = stream.schedules.filterIsInstance<ScheduleChange.Put>().firstOrNull { it.key == key }
-            ?: throw AssertionError("Expected a schedule $key but got ${stream.schedules}.")
-        val scheduled = codec.decodeTree(WowJson.mapper.readTree(put.body), command.javaClass)
+        val schedules = scheduleEvents()
+        val set = schedules.filterIsInstance<ScheduleSet>().firstOrNull { it.key == key }
+            ?: throw AssertionError("Expected a schedule $key but got $schedules.")
+        val scheduled = codec.decodeTree(WowJson.mapper.readTree(set.command), command.javaClass)
         if (scheduled != command) {
             throw AssertionError("Expected $key to send $command but it sends $scheduled.")
         }
-        val due = at?.toEpochMilli() ?: after?.let { stream.commitTime + it.inWholeMilliseconds }
-        if (due != null && put.dueAt != due) {
-            throw AssertionError(
-                "Expected $key due at ${Instant.ofEpochMilli(due)} " +
-                    "but it is due at ${Instant.ofEpochMilli(put.dueAt)}.",
-            )
+        if (rule != null && set.rule != rule) {
+            throw AssertionError("Expected $key due as $rule but it is due as ${set.rule}.")
         }
         val expectedTarget = target ?: stream.ref
-        if (put.target != expectedTarget) {
-            throw AssertionError("Expected $key for $expectedTarget but it is for ${put.target}.")
+        if (set.target != expectedTarget) {
+            throw AssertionError("Expected $key for $expectedTarget but it is for ${set.target}.")
         }
     }
 
-    /** The command cancelled the schedule [key] (decision D166). */
+    /** The command cancelled the schedule [key] (decision D198): it committed `wow.ScheduleCancelled`. */
     fun expectScheduleCancelled(key: String) {
-        val schedules = committed().stream.schedules
-        if (ScheduleChange.Cancel(key) !in schedules) {
+        val schedules = scheduleEvents()
+        if (ScheduleCancelled(key) !in schedules) {
             throw AssertionError("Expected the schedule $key cancelled but got $schedules.")
         }
     }
+
+    /** The events the command committed beside its schedules. */
+    private fun decided(): List<Any> =
+        committed().stream.events.filter { it.name !in Schedules.EVENTS }.map { codec.decode(model, it) }
+
+    /** The schedule events the command committed. */
+    private fun scheduleEvents(): List<Any> =
+        committed().stream.events.filter { it.name in Schedules.EVENTS }.map { codec.decode(model, it) }
 
     /** The committed stream leaves the aggregate in [scope]. */
     fun expectScope(scope: Scope) {

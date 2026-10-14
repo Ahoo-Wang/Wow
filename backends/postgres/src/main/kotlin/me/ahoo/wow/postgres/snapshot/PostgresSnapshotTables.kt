@@ -23,8 +23,9 @@ import me.ahoo.wow.postgres.PostgresIdentifiers
  * whose version is [FORMAT] and is recorded per table (decision D59). The key leads with the tenant, so a query within
  * one tenant scans one key range. The scope is two nullable columns, the owner and the space, which the query side
  * filters on. The operator and the first operator (decision D163) are nullable `jsonb` objects, `{id, tenantId,
- * crossScope}`, which the query side reads as the system fields `operator` and `firstOperator`: columns added within
- * format 1, so a table created before them gets them on its next ensure ([additions]).
+ * crossScope}`, which the query side reads as the system fields `operator` and `firstOperator`; the schedules
+ * (decision D198) a nullable `jsonb` object of each rule by its key, null when the aggregate keeps none: columns added
+ * within format 1, so a table created before them gets them on its next ensure ([additions]).
  *
  * The text columns the query side compares and sorts by use the `C` collation: they order by code point, as the query
  * backend orders the state's text values, and their indexes serve that order. Two partial indexes cover the predicates
@@ -57,6 +58,7 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
             tags jsonb NOT NULL,
             operator jsonb,
             first_operator jsonb,
+            schedules jsonb,
             PRIMARY KEY (tenant_id, aggregate_id)
         )
         """.trimIndent(),
@@ -65,10 +67,10 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
         "CREATE INDEX IF NOT EXISTS \"$spaceIndex\" ON $snapshot (tenant_id, space_id) WHERE NOT deleted",
     )
 
-    /** Adds format 1's added columns (the operators, decision D163) to a table created before them. */
+    /** Adds format 1's added columns (the operators, D163; the schedules, D198) to a table created before them. */
     val additions: String
         get() = "ALTER TABLE $snapshot ADD COLUMN IF NOT EXISTS operator jsonb, " +
-            "ADD COLUMN IF NOT EXISTS first_operator jsonb"
+            "ADD COLUMN IF NOT EXISTS first_operator jsonb, ADD COLUMN IF NOT EXISTS schedules jsonb"
 
     /**
      * The whole version-guarded save as one autocommitted statement: insert, or on the key's conflict replace the
@@ -79,8 +81,8 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
      */
     val save = """
         INSERT INTO $snapshot AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state,
-            owner_id, space_id, deleted, first_event_time, last_event_time, tags, operator, first_operator)
-        VALUES (?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb)
+            owner_id, space_id, deleted, first_event_time, last_event_time, tags, operator, first_operator, schedules)
+        VALUES (?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?::jsonb, ?::jsonb)
         ON CONFLICT (tenant_id, aggregate_id) DO UPDATE SET
             version = excluded.version,
             schema_fingerprint = excluded.schema_fingerprint,
@@ -92,7 +94,8 @@ internal class PostgresSnapshotTables(context: String, aggregate: String) {
             last_event_time = excluded.last_event_time,
             tags = excluded.tags,
             operator = excluded.operator,
-            first_operator = excluded.first_operator
+            first_operator = excluded.first_operator,
+            schedules = excluded.schedules
         WHERE excluded.version > stored.version
         RETURNING version
     """.trimIndent()
