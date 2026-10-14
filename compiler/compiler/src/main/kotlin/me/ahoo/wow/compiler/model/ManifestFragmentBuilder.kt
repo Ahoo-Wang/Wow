@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.compiler.model
 
+import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes
@@ -58,7 +59,9 @@ import me.ahoo.wow.manifest.SubscriptionStart
  * - a saga's `derives` (decision D138): what `@OnEvent(derives)` declares, else the commands its return type names, a
  *   command a module's aggregate decides by its full type name and any other by its class's schema reference;
  * - the source `@OnEvent(aggregates)` names, of this context or another (decision D138);
- * - a saga's `@OnRejected` handlers (decisions D136, D153) as subscriptions with `rejected`.
+ * - a saga's `@OnRejected` handlers (decisions D136, D153) as subscriptions with `rejected`, and its `@OnCommitted`
+ *   handlers (decision D192) as subscriptions with `committed`;
+ * - a saga's `@OnSchedule` handlers (decision D198) as subscriptions of the context's job aggregate with their `job`.
  *
  * An aggregate's mounted commands (`@MountedCommand`, decision D182) are among its commands, marked `mounted`, with
  * routes with and without an id and the `transformsTo` they declare.
@@ -194,7 +197,10 @@ internal object ManifestFragmentBuilder {
         return classes.map { eventNames[it] ?: return null }.distinct().sorted()
     }
 
-    /** Each handler of [binding] is a subscription (design 04 §1), and so is each of its `@OnRejected` handlers. */
+    /**
+     * Each handler of [binding] is a subscription (design 04 §1), and so is each of its `@OnRejected` and
+     * `@OnCommitted` handlers.
+     */
     private fun subscriptions(
         context: String,
         binding: SubscriptionBinding,
@@ -214,6 +220,7 @@ internal object ManifestFragmentBuilder {
                 start = SubscriptionStart.valueOf(handler.startIn(context, binding.kind)),
                 schedules = handler.schedules.distinct().sorted().ifEmpty { null },
                 retry = handler.retry?.manifest(),
+                job = handler.job?.manifest(),
             )
         }
         val rejections = binding.rejections.map { rejection ->
@@ -226,7 +233,17 @@ internal object ManifestFragmentBuilder {
                 rejected = listOfNotNull(rejection.command?.let(commands::referenceOf)),
             )
         }
-        return handlers + rejections
+        val commits = binding.commits.map { committed ->
+            SubscriptionManifest(
+                name = committed.subscription,
+                kind = kind,
+                source = SubscriptionSource(),
+                function = FunctionManifest(functionKind, context, binding.name, committed.function),
+                derives = derives(emptyList(), committed.derived, commands),
+                committed = listOfNotNull(committed.command?.let(commands::referenceOf)),
+            )
+        }
+        return handlers + rejections + commits
     }
 
     /**
@@ -240,6 +257,10 @@ internal object ManifestFragmentBuilder {
         aggregates: List<AggregateBinding>,
     ): SubscriptionSource {
         val nullable = handler.nullableState
+        if (handler.job != null) {
+            // A job's handler reads the context's built-in job aggregate (decision D198).
+            return SubscriptionSource(context, listOf(ScheduleJobs.AGGREGATE))
+        }
         if (handler.aggregates.isNotEmpty()) {
             return SubscriptionSource(
                 handler.sourceContext,

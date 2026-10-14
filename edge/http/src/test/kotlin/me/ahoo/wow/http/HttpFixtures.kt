@@ -23,6 +23,7 @@ import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.read.KernelStateReads
@@ -31,15 +32,22 @@ import me.ahoo.wow.kernel.InMemoryEventLog
 import me.ahoo.wow.kernel.InMemorySnapshotStore
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
+import me.ahoo.wow.kernel.schedule.ScheduleJob
+import me.ahoo.wow.kernel.schedule.ScheduleJobModel
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.manifest.FunctionManifest
+import me.ahoo.wow.manifest.JobManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.SubscriptionKind
+import me.ahoo.wow.manifest.SubscriptionManifest
+import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
@@ -64,6 +72,7 @@ import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.seconds
 import me.ahoo.wow.manifest.Creation as ManifestCreation
+import me.ahoo.wow.manifest.FunctionKind as ManifestFunctionKind
 
 const val CONTEXT = "shop"
 const val TENANT = "acme"
@@ -199,6 +208,8 @@ class HttpNode(
     tenants: TenantPolicy = TenantPolicy.CALLERS,
     defaultWaitTimeout: kotlin.time.Duration = WaitPlan.DEFAULT_TIMEOUT,
     ids: IdGenerators = IdGenerators.DEFAULT,
+    /** The jobs of the context (decision D198): with any, the node has the job aggregate and its routes. */
+    jobs: List<ScheduleJob> = emptyList(),
     queries: (EventLog) -> HttpQueries = { HttpQueries.NONE },
 ) {
     val log = InMemoryEventLog(partitions = 2)
@@ -238,7 +249,10 @@ class HttpNode(
         LocalSignalSender(origin.node, registry),
         WaitOptions(origin, maxTimeout = 30.seconds, defaultTimeout = defaultWaitTimeout),
     )
-    private val models = ModelRegistry(listOf(cartModel(commands, mounted)))
+    private val models = ModelRegistry(
+        listOf(cartModel(commands, mounted)) +
+            listOfNotNull(jobs.takeIf { it.isNotEmpty() }?.let { ScheduleJobModel.model(CONTEXT, it) }),
+    )
     val gateway = CommandGateway(
         models,
         mapOf(CONTEXT to coordinator),
@@ -250,7 +264,14 @@ class HttpNode(
     val reads = KernelStateReads(models, mapOf(CONTEXT to KernelStateReads.ContextReads(kernel, snapshots)))
     val client: WebTestClient = WebTestClient
         .bindToRouterFunction(
-            wowRoutes(manifest ?: cartManifest(mounted = mounted), gateway, reads, callers, options, queries(store)),
+            wowRoutes(
+                (manifest ?: cartManifest(mounted = mounted)).withJobs(jobs),
+                gateway,
+                reads,
+                callers,
+                options,
+                queries(store),
+            ),
         )
         .build()
         .mutate()
@@ -259,6 +280,26 @@ class HttpNode(
 }
 
 val json: JsonMapper = JsonMapper.builder().build()
+
+/** This Manifest with a saga subscription of each of [jobs] in its first context (decision D198). */
+private fun Manifest.withJobs(jobs: List<ScheduleJob>): Manifest {
+    if (jobs.isEmpty()) {
+        return this
+    }
+    val context = contexts.first()
+    val subscriptions = jobs.map { job ->
+        SubscriptionManifest(
+            "Jobs.${job.name}",
+            SubscriptionKind.SAGA,
+            SubscriptionSource(context.name, listOf(ScheduleJobs.AGGREGATE)),
+            FunctionManifest(ManifestFunctionKind.SAGA, context.name, "Jobs", job.name),
+            job = JobManifest(job.name, job.rule.expression, job.rule.zone, job.scope.name, job.sharded),
+        )
+    }
+    return copy(
+        contexts = listOf(context.copy(subscriptions = context.subscriptions + subscriptions)) + contexts.drop(1)
+    )
+}
 
 /** The response: its status, its content type and its body as JSON (null when it has none). */
 class Answer(val status: Int, val contentType: String?, val body: JsonNode?, val headers: HttpHeaders)

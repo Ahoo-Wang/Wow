@@ -50,4 +50,34 @@ object ManifestTools {
         ManifestJson.write(manifest, output)
         return fragments.size
     }
+
+    /**
+     * The Manifest compatibility gate (decision D76): compares the service's [current] Manifest with its [baseline],
+     * the Manifest of its last published version ([ManifestCompatibility]), and writes the classified changes to
+     * [report]. Fails, listing each breaking change with its path, when one breaks the contract within the baseline's
+     * major version; a new major version resets the baseline. Without a baseline file there is nothing to compare,
+     * and the report says how to record one. Returns the number of breaking changes.
+     */
+    @JvmStatic
+    fun checkCompatibility(baseline: File, current: File, report: File): Int {
+        report.parentFile.mkdirs()
+        if (!baseline.isFile) {
+            report.writeText("No Manifest baseline at $baseline: run $UPDATE_BASELINE_TASK to record one.\n")
+            return 0
+        }
+        val result = ManifestCompatibility.compare(ManifestJson.read(baseline), ManifestJson.read(current))
+        report.writeText(result.render())
+        check(!result.failed) {
+            buildString {
+                append("The Manifest has ${result.breaking.size} breaking change(s) against its baseline $baseline ")
+                append("(decision D76):\n")
+                result.breaking.forEach { append("  - ${it.path}: ${it.description}\n") }
+                append("Keep the contract (keep the field optional, keep the old name as an alias, raise the event's ")
+                append("@Revision with an @Upgrade), or, for a new major version, run $UPDATE_BASELINE_TASK.")
+            }
+        }
+        return result.breaking.size
+    }
+
+    private const val UPDATE_BASELINE_TASK = "updateManifestBaseline"
 }

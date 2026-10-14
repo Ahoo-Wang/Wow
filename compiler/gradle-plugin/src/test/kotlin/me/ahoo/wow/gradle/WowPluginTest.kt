@@ -18,6 +18,7 @@ import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PeerManifests
 import me.ahoo.wow.manifest.ServiceInfo
@@ -365,5 +366,60 @@ class WowPluginTest {
             "broken.jar!/${Manifest.FRAGMENT_DIRECTORY}/broken.json is not a JSON object"
         )
         failure.message.assert().doesNotContain("notes.txt", "other/shop.json")
+    }
+
+    @Test
+    fun `the compatibility gate should be part of check and read the baseline`() {
+        val project = project()
+        val check = project.tasks.getByName(WowPlugin.CHECK_COMPATIBILITY_TASK) as CheckManifestCompatibility
+        fun File.canonical() = canonicalFile
+        check.baseline.get().asFile.canonical().assert().isEqualTo(File(directory, WowPlugin.BASELINE_FILE).canonical())
+        check.manifest.get().asFile.canonical().assert().isEqualTo(
+            File(directory, "build/wow/manifest.json").canonical()
+        )
+        check.report.get().asFile.name.assert().isEqualTo("manifest-compatibility.txt")
+        project.tasks.getByName("check").taskDependencies.getDependencies(null).assert().contains(check)
+        val update = project.tasks.getByName(WowPlugin.UPDATE_BASELINE_TASK) as UpdateManifestBaseline
+        update.baseline.get().asFile.canonical().assert().isEqualTo(
+            File(directory, WowPlugin.BASELINE_FILE).canonical()
+        )
+
+        project.extensions.getByType(WowExtension::class.java).manifestBaseline.set(File(directory, "contract.json"))
+        check.baseline.get().asFile.name.assert().isEqualTo("contract.json")
+        update.baseline.get().asFile.name.assert().isEqualTo("contract.json")
+    }
+
+    @Test
+    fun `the gate should pass without a baseline, record one, and fail on a breaking change`() {
+        val project = project()
+        val manifest = File(directory, "build/wow/manifest.json")
+        val cart = ContextManifest("shop", errors = listOf(ErrorManifest("shop.cart.full", 409)))
+        ManifestJson.write(Manifest(service = ServiceInfo("shop", "1.0.0"), contexts = listOf(cart)), manifest)
+        val check = project.tasks.getByName(WowPlugin.CHECK_COMPATIBILITY_TASK) as CheckManifestCompatibility
+        val queue = mockk<WorkQueue>()
+        every { queue.submit(ManifestToolsWork.CheckCompatibility::class.java, any()) } answers {
+            val parameters = project.objects.newInstance(ManifestToolsWork.CheckCompatibility.Parameters::class.java)
+            secondArg<Action<ManifestToolsWork.CheckCompatibility.Parameters>>().execute(parameters)
+            object : ManifestToolsWork.CheckCompatibility() {
+                override fun getParameters() = parameters
+            }.execute()
+        }
+
+        check.submit(queue)
+        check.report.get().asFile.readText().assert().startsWith("No Manifest baseline")
+
+        (project.tasks.getByName(WowPlugin.UPDATE_BASELINE_TASK) as UpdateManifestBaseline).update()
+        File(directory, WowPlugin.BASELINE_FILE).readBytes().assert().isEqualTo(manifest.readBytes())
+        check.submit(queue)
+        check.report.get().asFile.readText().assert().startsWith(
+            "Manifest 1.0.0 against the baseline 1.0.0: 0 breaking"
+        )
+
+        ManifestJson.write(
+            Manifest(service = ServiceInfo("shop", "1.1.0"), contexts = listOf(cart.copy(errors = emptyList()))),
+            manifest
+        )
+        val failure = assertThrows<IllegalStateException> { check.submit(queue) }
+        failure.message.assert().contains("  - contexts[shop].errors[shop.cart.full]: error code removed")
     }
 }

@@ -21,9 +21,8 @@ data class StockReceived(
 )
 
 /**
- * Units were reserved for an order. The ordering context reads it from this context's published stream,
- * `wow.eshop-inventory.stock.state`, and confirms the order's product: the event's name and [orderId] are part of the
- * contract between the two contexts.
+ * Units were reserved for an order. The ordering context learns of it from the receipt of its `ReserveStock`, not
+ * from this event (decision D192).
  */
 @Summary("Stock was reserved for an order")
 data class StockReserved(

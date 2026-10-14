@@ -20,6 +20,7 @@ import me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock
 import me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
+import me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderAwaitingValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderCancelled
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
@@ -94,6 +95,19 @@ class OrderProcessSagaTest {
                 stock.ref(TENANT, "mug") to CommitReservation(ORDER),
                 stock.ref(TENANT, "cap") to CommitReservation(ORDER),
             )
+        }
+    }
+
+    @Test
+    fun `a reservation the inventory committed should confirm the order's product`() = sagaSpec(handlers) {
+        whenEvent(event(OrderAwaitingValidation)) {
+            val cap = commands.single { it.ref.id == "cap" }
+            whenCommitted(cap, version = 3) {
+                expectHandledBy("onReserveCommitted")
+                expectCommand(ConfirmOrderStock("cap"), to = order)
+                // The same receipt again, or the receipt of the same request again, derives the same request.
+                expectDeterministic()
+            }
         }
     }
 

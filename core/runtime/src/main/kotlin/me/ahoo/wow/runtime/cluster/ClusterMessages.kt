@@ -36,7 +36,7 @@ import tools.jackson.databind.json.JsonMapper
  * does not travel, only a wait context does.
  *
  * [replyTo] is set only on a command a saga sends to another context (decision D136, an addition within format 1):
- * where the target sends the receipt of a rejection. [operator] (decision D163, an addition within format 1 too) is the
+ * where the target sends the receipt of a rejection, and, when it asks for one, of the commit (decision D192). [operator] (decision D163, an addition within format 1 too) is the
  * command's operator; a reader of an older version ignores it, and one reading an older writer's command has none.
  */
 data class CommandWire(
@@ -58,8 +58,18 @@ data class CommandWire(
  * topic of [context], the sender's, and the saga handler [subscription] (`processor.function`) whose execution of the
  * commit [ref]@[version] derived it, the [executionId] the saga's `@OnRejected` handler gets. The design's
  * `{context, subscription}` carries the commit too, so the receipt names the execution exactly.
+ *
+ * [committed] (decision D192, an addition within format 1) asks for the success receipt too: the saga has an
+ * `@OnCommitted` handler of the command, so the target sends the receipt of its commit there as well. A reader of an
+ * older version ignores it and sends none; one reading an older writer's reply has it false.
  */
-data class ReplyTo(val context: String, val subscription: String, val ref: AggregateRef, val version: Int) {
+data class ReplyTo(
+    val context: String,
+    val subscription: String,
+    val ref: AggregateRef,
+    val version: Int,
+    val committed: Boolean = false,
+) {
     init {
         require(context.isNotBlank()) { "A reply names its context." }
         require(subscription.isNotBlank()) { "A reply names its subscription." }
@@ -69,9 +79,9 @@ data class ReplyTo(val context: String, val subscription: String, val ref: Aggre
     fun executionId(): ExecutionId = ExecutionId(subscription, ref, version)
 
     companion object {
-        /** The reply to [execution], a saga's of [context]. */
-        fun of(context: String, execution: ExecutionId): ReplyTo =
-            ReplyTo(context, execution.subscription, execution.ref, execution.version)
+        /** The reply to [execution], a saga's of [context], asking for the success receipt too when [committed]. */
+        fun of(context: String, execution: ExecutionId, committed: Boolean = false): ReplyTo =
+            ReplyTo(context, execution.subscription, execution.ref, execution.version, committed)
     }
 }
 
@@ -88,7 +98,8 @@ data class WaitWire(val waitId: String, val origin: Origin, val remaining: List<
  * The cluster channel's one message kind for now (design 02 §3): a node forwards [command] to the owner of its
  * partition and waits for the reply until [deadline] (epoch milliseconds). [wait] is the command's wait context; its
  * origin stays the node the command arrived at, so later hops signal that node directly (decision D65), never
- * through the channel.
+ * through the channel. [trace] is the trace context the command executes in (decision D174), its propagation
+ * fields; empty when the sender traces nothing.
  *
  * Every cluster message carries its format version [v] (design 08 §9). A reader ignores the fields it does not know,
  * so a node reads the messages of the next minor version (decision D48).
@@ -98,6 +109,7 @@ data class ForwardCommand(
     val command: CommandWire,
     val wait: WaitWire? = null,
     val deadline: Long,
+    val trace: Map<String, String> = emptyMap(),
 ) {
     companion object {
         const val VERSION: Int = 1

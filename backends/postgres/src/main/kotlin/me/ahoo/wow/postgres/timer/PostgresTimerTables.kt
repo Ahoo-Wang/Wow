@@ -61,9 +61,12 @@ internal class PostgresTimerTables(context: String) {
             outcome text,
             operator jsonb,
             scope jsonb,
+            skipped bigint NOT NULL DEFAULT 0,
             PRIMARY KEY (owner, key)
         )
         """.trimIndent(),
+        // Added within format 3 (decision D198): a table created before it gets it on its next ensure.
+        "ALTER TABLE $table ADD COLUMN IF NOT EXISTS skipped bigint NOT NULL DEFAULT 0",
         "CREATE INDEX IF NOT EXISTS \"$dueIndex\" ON $table (partition, due_at, timer_id) " +
             "WHERE status IN ('PENDING', 'FIRING')",
         "CREATE INDEX IF NOT EXISTS \"$parkedIndex\" ON $table " +
@@ -73,11 +76,12 @@ internal class PostgresTimerTables(context: String) {
     /**
      * Writes a timer, PENDING, unless the row holds the same timer or a later version. The conflict update locks the
      * row and re-checks its condition against the latest committed row, so concurrent writes of one key keep the
-     * latest version. Parameters: the [COLUMNS] up to `headers`, then the operator, the scope and the slot's due time.
+     * latest version. Parameters: the [COLUMNS] up to `headers`, then the operator, the scope, the slot's due time and
+     * the skipped slots.
      */
     val put = """
         INSERT INTO $table AS held ($COLUMNS) VALUES (?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb,
-            'PENDING', 0, NULL, ?::jsonb, ?::jsonb, ?)
+            'PENDING', 0, NULL, ?::jsonb, ?::jsonb, ?, ?)
         ON CONFLICT (owner, key) DO UPDATE
         SET timer_id = excluded.timer_id, version = excluded.version, partition = excluded.partition,
             rule = excluded.rule, slot = excluded.slot, due_at = excluded.due_at, target_context = excluded.target_context,
@@ -85,7 +89,8 @@ internal class PostgresTimerTables(context: String) {
             target_id = excluded.target_id, command_type = excluded.command_type, body = excluded.body,
             correlation_id = excluded.correlation_id, causation_id = excluded.causation_id,
             headers = excluded.headers, status = 'PENDING', attempts = 0, outcome = NULL,
-            operator = excluded.operator, scope = excluded.scope, slot_due_at = excluded.slot_due_at
+            operator = excluded.operator, scope = excluded.scope, slot_due_at = excluded.slot_due_at,
+            skipped = excluded.skipped
         WHERE held.timer_id <> excluded.timer_id AND held.version <= excluded.version
     """.trimIndent()
 
@@ -105,10 +110,11 @@ internal class PostgresTimerTables(context: String) {
         "ORDER BY due_at, timer_id LIMIT ?"
 
     /**
-     * Parameters: the next status, slot, slot's due at, due at, attempts and outcome; then the owner, key, timer id,
-     * status, slot, slot's due at, attempts and due at the row must still hold.
+     * Parameters: the next status, slot, slot's due at, skipped slots, due at, attempts and outcome; then the owner, key,
+     * timer id, status, slot, slot's due at, attempts and due at the row must still hold.
      */
-    val settle = "UPDATE $table SET status = ?, slot = ?, slot_due_at = ?, due_at = ?, attempts = ?, outcome = ? " +
+    val settle = "UPDATE $table SET status = ?, slot = ?, slot_due_at = ?, skipped = ?, due_at = ?, attempts = ?, " +
+        "outcome = ? " +
         "WHERE owner = ? AND key = ? AND timer_id = ? AND status = ? AND slot = ? AND slot_due_at = ? " +
         "AND attempts = ? AND due_at = ?"
 
@@ -123,6 +129,6 @@ internal class PostgresTimerTables(context: String) {
 
         const val COLUMNS = "owner, key, timer_id, version, partition, rule, slot, due_at, target_context, target_aggregate, " +
             "target_tenant_id, target_id, command_type, body, correlation_id, causation_id, headers, status, " +
-            "attempts, outcome, operator, scope, slot_due_at"
+            "attempts, outcome, operator, scope, slot_due_at, skipped"
     }
 }

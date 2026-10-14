@@ -32,7 +32,9 @@ import me.ahoo.wow.spi.log.Partitioner
  * - [owner] and [key] name the schedule: the aggregate that set it ([Timers.ownerOf]); [version] orders the owner's
  *   changes ([TimerStore]).
  * - [slot] counts the times the schedule is due, from 1: firing a slot marks it fired and moves [dueAt] to the next
- *   one in one write; a rule due once has one slot, after which the timer is FIRED.
+ *   one in one write; a rule due once has one slot, after which the timer is FIRED. A recurring rule's slot is the
+ *   number of its times since it was set, so slots it [skipped] (missed and coalesced, [me.ahoo.wow.api.schedule.Misfire])
+ *   are counted too: [skipped] is how many slots before this one were not sent.
  * - [slotDueAt] is when the current [slot] is due, as its rule said; [dueAt] is when the firing loop next looks at the
  *   timer: the slot's due time at first, then the claim's deadline while it is sent, or the next attempt after a
  *   technical failure. Every send of the slot, retried or claimed anew, carries [slotDueAt] ([context]), so its
@@ -65,6 +67,7 @@ data class Timer(
     val outcome: String? = null,
     val scope: Scope = Scope.NONE,
     val slotDueAt: Long = dueAt,
+    val skipped: Long = 0,
 ) {
     init {
         require(id.isNotBlank()) { "A timer needs an id." }
@@ -74,6 +77,7 @@ data class Timer(
         require(commandType.isNotBlank()) { "A timer names the type of its command." }
         require(slot >= 1) { "A timer's slots count from 1." }
         require(attempts >= 0) { "A timer's attempts are never negative." }
+        require(skipped in 0 until slot) { "A slot skips only the slots before it." }
     }
 
     /** The request id the command of the current [slot] is sent with: `id#slot`. */
@@ -83,7 +87,7 @@ data class Timer(
      * Which time of the schedule the command of the current [slot] is sent for, as its target reads it: due at
      * [slotDueAt], however many attempts or claims it took.
      */
-    val context: ScheduleContext get() = ScheduleContext(id, key, slot, slotDueAt)
+    val context: ScheduleContext get() = ScheduleContext(id, key, slot, slotDueAt, skipped)
 }
 
 /** Where a [Timer] is. */
@@ -136,8 +140,9 @@ object Timers {
 
     /**
      * The timer [set] makes, an event of [stream], in [partitions] log partitions: its first slot due as its rule says
-     * counted from the commit; a rule the runtime evaluates (cron, roadmap 6.8c) is not due until it is. Its causation
-     * is the commit (`ref@version`) in the chain of the command that committed it.
+     * counted from the commit; a rule the runtime evaluates (cron) is [NOT_EVALUATED] here, and the runtime gives it
+     * its first slot before it writes it. Its causation is the commit (`ref@version`) in the chain of the command that
+     * committed it.
      */
     @JvmStatic
     fun of(stream: EventStreamRecord, set: ScheduleSet, partitions: Int): Timer = Timer(
@@ -157,6 +162,6 @@ object Timers {
         scope = stream.scope,
     )
 
-    /** The due time of a timer whose rule the runtime does not evaluate yet: never. */
+    /** The due time of a timer whose rule this module does not evaluate (cron): never, until the runtime does. */
     const val NOT_EVALUATED: Long = Long.MAX_VALUE
 }

@@ -45,8 +45,9 @@ sealed interface ScheduleRule {
 
     /**
      * Due at each time [expression] names, in the time zone [zone] (UTC by default), six fields as Spring's
-     * `CronExpression` reads them; a time missed while no node fired it is handled as [misfire] says. Defined and stored
-     * with the schedule; the runtime evaluates it from roadmap 6.8c on (decision D198).
+     * `CronExpression` reads them; a time missed while no node fired it is handled as [misfire] says (decision D198).
+     * The runtime evaluates it: the first slot is the first time after the commit that sets it, and each next one the
+     * first time after the slot before it.
      */
     data class Cron(
         val expression: String,
@@ -142,29 +143,39 @@ data class ScheduleCancelled(val key: String) {
 /**
  * Which time of a schedule a command was sent for (decision D198), as its target reads it from
  * [me.ahoo.wow.api.decide.Command.schedule]: the [timer] (`ref#key@version`) of the schedule [key], its [slot] (from 1,
- * one per time it is due) and the time that slot was [due] (epoch milliseconds). A command sent for a schedule carries
- * it in its headers ([HEADERS]); its request id is `timer#slot`.
+ * one per time it is due), the time that slot was [due] (epoch milliseconds), and how many slots before it a
+ * recurring schedule [skipped] because they were missed ([Misfire.COALESCE]). A command sent for a schedule carries it
+ * in its headers ([HEADERS]); its request id is `timer#slot`.
  */
-data class ScheduleContext(val timer: String, val key: String, val slot: Long, val due: Long) {
+data class ScheduleContext(val timer: String, val key: String, val slot: Long, val due: Long, val skipped: Long = 0) {
     init {
         require(timer.isNotBlank()) { "A scheduled command names its timer." }
         require(key.isNotBlank()) { "A scheduled command names its schedule." }
         require(slot >= 1) { "A schedule's slots count from 1." }
+        require(skipped in 0 until slot) { "A slot skips only the slots before it." }
     }
 
-    /** The headers that carry this context. */
-    fun headers(): Map<String, String> =
-        mapOf(TIMER to timer, KEY to key, SLOT to slot.toString(), DUE to due.toString())
+    /** The headers that carry this context; [SKIPPED] only when a slot was skipped. */
+    fun headers(): Map<String, String> = buildMap {
+        put(TIMER, timer)
+        put(KEY, key)
+        put(SLOT, slot.toString())
+        put(DUE, due.toString())
+        if (skipped > 0) {
+            put(SKIPPED, skipped.toString())
+        }
+    }
 
     companion object {
         const val TIMER: String = "wow.schedule.timer"
         const val KEY: String = "wow.schedule.key"
         const val SLOT: String = "wow.schedule.slot"
         const val DUE: String = "wow.schedule.due"
+        const val SKIPPED: String = "wow.schedule.skipped"
 
         /** The header names a scheduled command carries its context in. */
         @JvmField
-        val HEADERS: Set<String> = setOf(TIMER, KEY, SLOT, DUE)
+        val HEADERS: Set<String> = setOf(TIMER, KEY, SLOT, DUE, SKIPPED)
 
         /** The context [headers] carry, or null when they are not a scheduled command's. */
         @JvmStatic
@@ -173,7 +184,8 @@ data class ScheduleContext(val timer: String, val key: String, val slot: Long, v
             val key = headers[KEY] ?: return null
             val slot = headers[SLOT]?.toLongOrNull() ?: return null
             val due = headers[DUE]?.toLongOrNull() ?: return null
-            return ScheduleContext(timer, key, slot, due)
+            val skipped = headers[SKIPPED]?.toLongOrNull()?.takeIf { it in 0 until slot } ?: 0
+            return ScheduleContext(timer, key, slot, due, skipped)
         }
     }
 }

@@ -63,7 +63,8 @@ val benchmarksProject = includedProjects(":wow-benchmarks")
 // :routing-spike (spike H2), :lease-spike (spike H6) and the example (:eshop-*) are never published.
 val v10Projects = listOf(
     "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query",
-    "postgres", "mongo", "kafka", "clickhouse", "http", "cosec", "spring-boot", "cosid", "migrate-data", "architecture",
+    "postgres", "mongo", "kafka", "clickhouse", "http", "cosec", "opentelemetry", "spring-boot", "cosid",
+    "migrate-data", "architecture",
     "test-dsl", "tck", "tck-containers",
     "kernel-benchmarks", "compiler", "gradle-plugin", "manifest-tools",
     "routing-spike", "lease-spike",

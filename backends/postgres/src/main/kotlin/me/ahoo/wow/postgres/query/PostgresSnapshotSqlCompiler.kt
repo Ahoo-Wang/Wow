@@ -147,7 +147,7 @@ internal class PostgresSnapshotSqlCompiler(private val table: String) {
         /** The columns of a record, without the state. */
         private const val RECORD_COLUMNS =
             "tenant_id, aggregate_id, version, owner_id, space_id, deleted, tags, first_event_time, last_event_time, " +
-                "operator, first_operator"
+                "operator, first_operator, schedules"
 
         fun key(index: Int): String = "k$index"
 

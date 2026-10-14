@@ -83,6 +83,7 @@ class PostgresTimerStore(
             put.setNullableString(18, timer.operator?.let(json::writeValueAsString))
             put.setNullableString(19, timer.scope.takeUnless { it == Scope.NONE }?.let(json::writeValueAsString))
             put.setLong(20, timer.slotDueAt)
+            put.setLong(21, timer.skipped)
             put.executeUpdate() == 1
         }
     }
@@ -140,17 +141,18 @@ class PostgresTimerStore(
                     settle.setString(1, next.status.name)
                     settle.setLong(2, next.slot)
                     settle.setLong(3, next.slotDueAt)
-                    settle.setLong(4, next.dueAt)
-                    settle.setInt(5, next.attempts)
-                    settle.setNullableString(6, next.outcome)
-                    settle.setString(7, loaded.owner)
-                    settle.setString(8, loaded.key)
-                    settle.setString(9, loaded.id)
-                    settle.setString(10, loaded.status.name)
-                    settle.setLong(11, loaded.slot)
-                    settle.setLong(12, loaded.slotDueAt)
-                    settle.setInt(13, loaded.attempts)
-                    settle.setLong(14, loaded.dueAt)
+                    settle.setLong(4, next.skipped)
+                    settle.setLong(5, next.dueAt)
+                    settle.setInt(6, next.attempts)
+                    settle.setNullableString(7, next.outcome)
+                    settle.setString(8, loaded.owner)
+                    settle.setString(9, loaded.key)
+                    settle.setString(10, loaded.id)
+                    settle.setString(11, loaded.status.name)
+                    settle.setLong(12, loaded.slot)
+                    settle.setLong(13, loaded.slotDueAt)
+                    settle.setInt(14, loaded.attempts)
+                    settle.setLong(15, loaded.dueAt)
                     settle.addBatch()
                 }
                 settle.executeBatch().sum()
@@ -209,6 +211,7 @@ class PostgresTimerStore(
             operator = row.getString("operator")?.let { json.readValue(it, Operator::class.java) },
             scope = row.getString("scope")?.let { json.readValue(it, Scope::class.java) } ?: Scope.NONE,
             slotDueAt = row.getLong("slot_due_at"),
+            skipped = row.getLong("skipped"),
         )
     }
 }

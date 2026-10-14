@@ -296,7 +296,33 @@ class ManifestMergerTest {
         assertThrows<ManifestConflictException> {
             ManifestMerger.merge(listOf(ManifestFragment("a.json", fragment)))
         }.conflicts.assert().containsExactly(
-            "subscription CartSummary.onEvent of context shop in a.json handles rejections but is a PROJECTION",
+            "subscription CartSummary.onEvent of context shop in a.json handles receipts but is a PROJECTION",
+        )
+    }
+
+    @Test
+    fun `a job declared twice differently, or beside an aggregate named schedule, should conflict`() {
+        val fragment = Manifests.fragment().let { fragment ->
+            val context = fragment.contexts.single()
+            val saga = context.subscriptions.first().copy(kind = SubscriptionKind.SAGA)
+            val nightly = saga.copy(name = "Jobs.nightly", job = JobManifest("nightly", "0 0 3 * * *"))
+            val again = nightly.copy(name = "Jobs.again")
+            val other = nightly.copy(name = "Jobs.other", job = JobManifest("nightly", "0 0 4 * * *"))
+            val schedule = context.aggregates.first().copy(name = "schedule")
+            fragment.copy(
+                contexts = listOf(
+                    context.copy(
+                        aggregates = context.aggregates + schedule,
+                        subscriptions = listOf(nightly, again, other),
+                    ),
+                ),
+            )
+        }
+        assertThrows<ManifestConflictException> {
+            ManifestMerger.merge(listOf(ManifestFragment("a.json", fragment)))
+        }.conflicts.assert().contains(
+            "job nightly of context shop is declared twice, differently, in a.json",
+            "context shop in a.json has jobs and an aggregate named schedule, the name of its built-in job aggregate",
         )
     }
 

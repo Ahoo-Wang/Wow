@@ -15,11 +15,15 @@ package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.schedule.ScheduleTick
+import me.ahoo.wow.api.schedule.Ticked
 import me.ahoo.wow.api.subscribe.ProjectContext
 import me.ahoo.wow.api.subscribe.ReactContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
+import me.ahoo.wow.kernel.schedule.JobState
+import me.ahoo.wow.kernel.schedule.ScheduleJob
 
 /**
  * One handler of an annotated subscription processor, bound to its processor instance (design 04 §1, decisions D37,
@@ -46,8 +50,14 @@ import me.ahoo.wow.api.subscribe.SubscriptionContext
  * - [invoke] calls the handler directly and returns the commands a saga derives; a projection's or a reactor's none.
  * - [rejections] are a saga's `@OnRejected` handlers (decisions D136, D153), the same for each handler of the saga:
  *   the runtime hands the rejection of a command this handler derived to the one [rejectionHandlerOf] its class.
+ * - [commits] are a saga's `@OnCommitted` handlers (decision D192), likewise: the runtime hands the success receipt of
+ *   a command this handler derived to the one [committedHandlerOf] its class, and only such a command asks for one.
  *
- * Built with [project], [react] or [saga], one per kind.
+ * - [job] is the job of a saga's `@OnSchedule` handler ([schedule], decision D198): its subscription reads the
+ *   context's built-in job aggregate (`<context>.schedule`, [JobState]) and hands each tick of its job over as a
+ *   [ScheduleTick].
+ *
+ * Built with [project], [react] or [saga], one per kind, or [schedule] for a saga's job.
  */
 class ProcessorBinding<S> private constructor(
     /** The processor's name: its `@Name`, or its class's simple name. */
@@ -64,6 +74,9 @@ class ProcessorBinding<S> private constructor(
     val nullableState: Boolean,
     /** The handler's own in-process retry budget (`@Retry`, roadmap P.3); null when it gives none. */
     val retry: HandlerRetry?,
+    val commits: List<CommittedBinding<*>>,
+    /** The job of an `@OnSchedule` handler ([schedule], decision D198); null for an `@OnEvent` one. */
+    val job: ScheduleJob? = null,
     private val call: suspend (StateEvent<S>, SubscriptionContext) -> List<Command<*>>,
 ) {
     init {
@@ -83,6 +96,14 @@ class ProcessorBinding<S> private constructor(
                 "$processor has two @OnRejected handlers of the rejections of ${it?.name ?: "every command"}.",
             )
         }
+        commits.forEach {
+            require(it.processor == processor) { "$it is not a handler of $processor." }
+        }
+        commits.groupBy { it.commandType }.filterValues { it.size > 1 }.keys.forEach {
+            throw IllegalArgumentException(
+                "$processor has two @OnCommitted handlers of the receipts of ${it?.name ?: "every command"}.",
+            )
+        }
     }
 
     /**
@@ -90,6 +111,12 @@ class ProcessorBinding<S> private constructor(
      * ([RejectionBinding.handlerOf]); null when the saga has none for it.
      */
     fun rejectionHandlerOf(command: Class<*>): RejectionBinding<*>? = RejectionBinding.handlerOf(rejections, command)
+
+    /**
+     * The `@OnCommitted` handler of the saga for the success receipt of a command of [command] this handler derived
+     * ([CommittedBinding.handlerOf]); null when the saga has none for it, and the command asks for no receipt.
+     */
+    fun committedHandlerOf(command: Class<*>): CommittedBinding<*>? = CommittedBinding.handlerOf(commits, command)
 
     /** The subscription the handler is compiled into: `processor.function` (design 04 §1). */
     val name: String = "$processor.$function"
@@ -147,6 +174,7 @@ class ProcessorBinding<S> private constructor(
                 aggregates,
                 nullableState,
                 retry,
+                emptyList(),
             ) { e, c ->
                 handle(e, c as ProjectContext)
                 emptyList()
@@ -177,6 +205,7 @@ class ProcessorBinding<S> private constructor(
                 aggregates,
                 nullableState,
                 retry,
+                emptyList(),
             ) { e, c ->
                 handle(e, c as ReactContext)
                 emptyList()
@@ -184,7 +213,8 @@ class ProcessorBinding<S> private constructor(
 
         /**
          * A `@Saga`'s handler [function] of [processor]: it returns the commands it derives ([derivedOf]); the saga's
-         * `@OnRejected` handlers, the [rejections], take the rejections of those commands.
+         * `@OnRejected` handlers, the [rejections], take the rejections of those commands, and its `@OnCommitted`
+         * handlers, the [commits], their success receipts.
          */
         @JvmStatic
         @Suppress("LongParameterList")
@@ -198,6 +228,7 @@ class ProcessorBinding<S> private constructor(
             aggregates: List<String> = emptyList(),
             nullableState: Boolean = stateType == null,
             retry: HandlerRetry? = null,
+            commits: List<CommittedBinding<*>> = emptyList(),
             handle: suspend (StateEvent<S>, SagaContext) -> List<Command<*>>,
         ): ProcessorBinding<S> =
             ProcessorBinding(
@@ -211,8 +242,58 @@ class ProcessorBinding<S> private constructor(
                 aggregates,
                 nullableState,
                 retry,
+                commits,
             ) { e, c ->
                 handle(e, c as SagaContext)
+            }
+
+        /**
+         * A `@Saga`'s `@OnSchedule` handler [function] of [processor], running [job] (decision D198): a saga handler of
+         * the context's job aggregate ([JobState]) that hands each `wow.Ticked` of an instance of [job] to [handle] as
+         * a [ScheduleTick], and returns the commands it derives; the ticks of other jobs it skips.
+         */
+        @JvmStatic
+        @Suppress("LongParameterList")
+        fun schedule(
+            processor: String,
+            function: String,
+            job: ScheduleJob,
+            blocking: Boolean = false,
+            rejections: List<RejectionBinding<*>> = emptyList(),
+            retry: HandlerRetry? = null,
+            commits: List<CommittedBinding<*>> = emptyList(),
+            handle: suspend (ScheduleTick, SagaContext) -> List<Command<*>>,
+        ): ProcessorBinding<JobState> =
+            ProcessorBinding(
+                processor,
+                function,
+                FunctionKind.SAGA,
+                JobState::class.java,
+                null,
+                blocking,
+                rejections,
+                emptyList(),
+                false,
+                retry,
+                commits,
+                job,
+            ) { event, context ->
+                val state = event.state
+                if (state.job != job.name) {
+                    emptyList()
+                } else {
+                    event.events.filterIsInstance<Ticked>().flatMap { ticked ->
+                        val tick = ScheduleTick(
+                            tenantId = event.ref.tenantId,
+                            job = job.name,
+                            slot = ticked.slot,
+                            skipped = ticked.skipped,
+                            due = ticked.due,
+                            partition = state.partition,
+                        )
+                        handle(tick, context as SagaContext)
+                    }
+                }
             }
     }
 }

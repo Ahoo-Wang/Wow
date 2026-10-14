@@ -21,6 +21,8 @@ dependencies {
     // with wow-http.
     compileOnly(project(":kafka"))
     compileOnly(project(":clickhouse"))
+    // Tracing and metrics are wired when the application has wow-opentelemetry (decision D174).
+    compileOnly(project(":opentelemetry"))
     // Activated only when the application has it: a Bean Validation provider (D106). CosId's ids come from wow-cosid,
     // which wires itself (D171).
     compileOnly("jakarta.validation:jakarta.validation-api")
@@ -34,6 +36,8 @@ dependencies {
     testImplementation(testFixtures(project(":query")))
     testImplementation(project(":kafka"))
     testImplementation(project(":clickhouse"))
+    testImplementation(project(":opentelemetry"))
+    testImplementation("io.opentelemetry:opentelemetry-sdk-testing")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     integrationTestImplementation(sourceSets["test"].output)
     integrationTestImplementation(project(":tck-containers"))

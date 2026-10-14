@@ -35,7 +35,9 @@ internal data class SubscriptionBinding(
     /** The processor's constructor parameters, in order: domain services from the host's `Dependencies`. */
     val dependencies: List<Dependency> = emptyList(),
     /** A saga's `@OnRejected` handlers (decisions D136, D153): bound with each of its handlers. */
-    val rejections: List<RejectionBinding> = emptyList(),
+    val rejections: List<ReceiptBinding> = emptyList(),
+    /** A saga's `@OnCommitted` handlers (decision D192): bound with each of its handlers. */
+    val commits: List<ReceiptBinding> = emptyList(),
 ) {
     /** The generated function that binds the processor's handlers: `cartSagaHandlers` for `CartSaga`. */
     val factoryName: String
@@ -80,6 +82,8 @@ internal data class HandlerBinding(
      * when neither gives any.
      */
     val retry: RetryBinding? = null,
+    /** The job of a saga's `@OnSchedule` handler (decision D198); null for an `@OnEvent` handler. */
+    val job: JobBinding? = null,
 ) {
     /** The context of the aggregates it reads, when `@OnEvent(aggregates)` names them. */
     val sourceContext: String? get() = aggregates.firstOrNull()?.substringBefore('.')
@@ -94,10 +98,46 @@ internal data class HandlerBinding(
 }
 
 /**
- * An `@OnRejected` handler of a saga (decisions D136, D153): it takes a `CommandRejected<C>` and, optionally, the
- * `SagaContext`, and returns the commands that compensate. Its subscription is named `processor.function` too.
+ * The two kinds of a saga's receipt handlers: `@OnRejected` (decisions D136, D153), taking a `CommandRejected<C>`, and
+ * `@OnCommitted` (decision D192), taking a `CommandCommitted<C>`; [binding] is the kernel's class of its binding.
  */
-internal data class RejectionBinding(
+internal enum class Receipt(
+    val annotation: String,
+    val parameter: String,
+    val binding: String,
+    /** What the handler takes, in the singular and the plural. */
+    val noun: String,
+    val nouns: String,
+) {
+    REJECTED(
+        "me.ahoo.wow.api.annotation.OnRejected",
+        "me.ahoo.wow.api.subscribe.CommandRejected",
+        "me.ahoo.wow.kernel.RejectionBinding",
+        "rejection",
+        "rejections",
+    ),
+    COMMITTED(
+        "me.ahoo.wow.api.annotation.OnCommitted",
+        "me.ahoo.wow.api.subscribe.CommandCommitted",
+        "me.ahoo.wow.kernel.CommittedBinding",
+        "receipt",
+        "receipts",
+    ),
+    ;
+
+    /** `@OnRejected` or `@OnCommitted`. */
+    val label: String get() = "@" + annotation.substringAfterLast('.')
+
+    /** `CommandRejected` or `CommandCommitted`. */
+    val parameterName: String get() = parameter.substringAfterLast('.')
+}
+
+/**
+ * A receipt handler of a saga, of the [receipt] kind: an `@OnRejected` handler (decisions D136, D153), which takes a
+ * `CommandRejected<C>`, or an `@OnCommitted` one (decision D192), which takes a `CommandCommitted<C>`, and optionally
+ * the `SagaContext`; it returns the commands it derives. Its subscription is named `processor.function` too.
+ */
+internal data class ReceiptBinding(
     val function: String,
     val subscription: String,
     /** The binary name of the command class `C`; null for `CommandRejected<*>`, every command the saga derives. */
@@ -110,4 +150,5 @@ internal data class RejectionBinding(
     val derived: List<String>? = null,
     /** The qualified name of `C`, as the generated binding writes it; null for `CommandRejected<*>`. */
     val commandSource: String? = null,
+    val receipt: Receipt = Receipt.REJECTED,
 )

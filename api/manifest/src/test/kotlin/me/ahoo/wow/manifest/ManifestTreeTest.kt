@@ -157,6 +157,7 @@ class ManifestTreeTest {
         ).let {
             it.derives.assert().isNull()
             it.rejected.assert().isNull()
+            it.committed.assert().isNull()
             it.start.assert().isNull()
         }
     }
@@ -193,6 +194,79 @@ class ManifestTreeTest {
         val subscriptions = (context["subscriptions"] as List<*>).map { it as Map<*, *> }
         subscriptions[0]["retry"].assert().isEqualTo(mapOf("maxAttempts" to 3, "timeout" to "PT2S"))
         subscriptions[1].containsKey("retry").assert().isFalse()
+        val json = mapper.writeValueAsString(tree)
+        ManifestTree.read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(manifest)
+    }
+
+    @Test
+    fun `a job should come back, its defaults written too, and an absent one left out`() {
+        val job = JobManifest("nightly", "0 0 3 * * *", zone = "Asia/Shanghai", scope = "TENANT", sharded = false)
+        val subscription = SubscriptionManifest(
+            "Billing.nightly",
+            SubscriptionKind.SAGA,
+            SubscriptionSource("shop", listOf("schedule")),
+            FunctionManifest(FunctionKind.SAGA, "shop", "Billing", "nightly"),
+            job = job,
+        )
+        val manifest = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    "shop",
+                    subscriptions = listOf(subscription, subscription.copy(name = "Billing.other", job = null)),
+                ),
+            ),
+        )
+        val tree = ManifestTree.write(manifest)
+        val context = (tree["contexts"] as List<*>).single() as Map<*, *>
+        val subscriptions = (context["subscriptions"] as List<*>).map { it as Map<*, *> }
+        subscriptions[0]["job"].assert().isEqualTo(
+            mapOf(
+                "name" to "nightly",
+                "cron" to "0 0 3 * * *",
+                "zone" to "Asia/Shanghai",
+                "scope" to "TENANT",
+                "sharded" to false,
+                "misfire" to "COALESCE",
+            ),
+        )
+        subscriptions[1].containsKey("job").assert().isFalse()
+        val json = mapper.writeValueAsString(tree)
+        ManifestTree.read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(manifest)
+        // A job written with its name and expression only reads with the defaults.
+        val minimal = mapOf(
+            "name" to "Billing.nightly",
+            "kind" to "SAGA",
+            "source" to emptyMap<String, Any>(),
+            "function" to mapOf("kind" to "SAGA", "context" to "shop", "processor" to "Billing", "name" to "nightly"),
+            "job" to mapOf("name" to "nightly", "cron" to "0 0 3 * * *"),
+        )
+        val read = ManifestTree.read(
+            mapOf(
+                "format" to Manifest.FORMAT,
+                "contexts" to listOf(mapOf("name" to "shop", "subscriptions" to listOf(minimal)))
+            ),
+        )
+        read.contexts.single().subscriptions.single().job.assert().isEqualTo(JobManifest("nightly", "0 0 3 * * *"))
+    }
+
+    @Test
+    fun `an @OnCommitted handler should come back with the commands it takes, which count as schema references`() {
+        val committed = SubscriptionManifest(
+            "CheckoutSaga.onRefundCommitted",
+            SubscriptionKind.SAGA,
+            SubscriptionSource(),
+            FunctionManifest(FunctionKind.SAGA, "shop", "CheckoutSaga", "onRefundCommitted"),
+            derives = emptyList(),
+            committed = listOf(Manifest.schemaRef("sales.Refund")),
+        )
+        committed.isReceiptHandler.assert().isTrue()
+        committed.copy(committed = null).isReceiptHandler.assert().isFalse()
+        committed.copy(committed = null, rejected = emptyList()).isReceiptHandler.assert().isTrue()
+        val manifest = Manifest(contexts = listOf(ContextManifest("shop", subscriptions = listOf(committed))))
+        manifest.schemaRefs.assert().containsExactly("#/\$defs/sales.Refund")
+        val tree = ManifestTree.write(manifest)
+        val subscription = ((tree["contexts"] as List<*>).single() as Map<*, *>)["subscriptions"] as List<*>
+        (subscription.single() as Map<*, *>)["committed"].assert().isEqualTo(listOf("#/\$defs/sales.Refund"))
         val json = mapper.writeValueAsString(tree)
         ManifestTree.read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(manifest)
     }

@@ -17,8 +17,10 @@ import kotlinx.coroutines.CompletableDeferred
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionBinding
@@ -31,6 +33,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.spi.wait.WaitContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import me.ahoo.wow.manifest.Creation as ManifestCreation
@@ -42,6 +45,7 @@ const val STOCK_SERVICE = "stock-service"
 const val TENANT = "t"
 const val PREFIX = "test."
 const val INSUFFICIENT = "stock.insufficient"
+const val REFUSED = "sales.order.refused"
 
 /** How many items one stock item holds: a reservation of more is rejected. */
 const val AVAILABLE = 5
@@ -56,6 +60,8 @@ data class PlaceOrder(val quantity: Int)
 data class OrderPlaced(val quantity: Int)
 class CancelOrder
 class OrderCancelled
+class ConfirmOrder
+class OrderConfirmed
 
 class OrderState {
     var quantity: Int = 0
@@ -69,8 +75,15 @@ class ItemState {
     var reserved: Int = 0
 }
 
-/** The order of the sales context; every command it decides is recorded in [decided], by id. */
-fun orderModel(decided: MutableList<String> = CopyOnWriteArrayList()): AggregateModel<OrderState> =
+/**
+ * The order of the sales context; every cancellation it decides is recorded in [decided], and every confirmation in
+ * [confirmed], by id; a confirmation is rejected unless [confirmable].
+ */
+fun orderModel(
+    decided: MutableList<String> = CopyOnWriteArrayList(),
+    confirmed: MutableList<String> = CopyOnWriteArrayList(),
+    confirmable: () -> Boolean = { true },
+): AggregateModel<OrderState> =
     aggregate<OrderState>(SALES, "order") {
         initial { OrderState() }
         decide<PlaceOrder>(Creation.REQUIRED) { _, body -> Decision.events(OrderPlaced(body.quantity)) }
@@ -78,8 +91,16 @@ fun orderModel(decided: MutableList<String> = CopyOnWriteArrayList()): Aggregate
             decided += command.id
             Decision.events(OrderCancelled())
         }
+        decide<ConfirmOrder> { _, _ ->
+            if (!confirmable()) {
+                return@decide Decision.reject(REFUSED, "The order cannot be confirmed.")
+            }
+            confirmed += command.id
+            Decision.events(OrderConfirmed())
+        }
         evolve<OrderPlaced> { quantity = it.quantity }
         evolve<OrderCancelled> { cancelled = true }
+        evolve<OrderConfirmed> { }
     }
 
 /**
@@ -134,6 +155,28 @@ fun orderSaga(rejections: MutableList<CommandRejected<*>> = CopyOnWriteArrayList
     }
 }
 
+/**
+ * The order saga with an `@OnCommitted` handler of its reservations too (decision D192): each reservation the stock
+ * context commits confirms the order; each receipt it handles is recorded in [commits].
+ */
+fun committingOrderSaga(
+    commits: MutableList<CommandCommitted<*>> = CopyOnWriteArrayList(),
+    rejections: MutableList<CommandRejected<*>> = CopyOnWriteArrayList(),
+): ProcessorBinding<OrderState> {
+    val onReserved = CommittedBinding.of("OrderSaga", "onReserved", Reserve::class.java) { committed, context ->
+        commits += committed
+        listOf(context.command(committed.executionId.ref, ConfirmOrder()))
+    }
+    val saga = orderSaga(rejections)
+    return ProcessorBinding.saga(
+        "OrderSaga",
+        "onOrderPlaced",
+        OrderState::class.java,
+        rejections = saga.rejections,
+        commits = listOf(onReserved),
+    ) { event, context -> saga.invoke(event, context) }
+}
+
 private fun aggregateManifest(name: String, commands: List<Pair<Class<*>, ManifestCreation>>, events: List<Class<*>>) =
     AggregateManifest(
         name,
@@ -156,9 +199,10 @@ fun salesManifest(): Manifest = Manifest(
                     "order",
                     listOf(
                         PlaceOrder::class.java to ManifestCreation.REQUIRED,
-                        CancelOrder::class.java to ManifestCreation.NONE
+                        CancelOrder::class.java to ManifestCreation.NONE,
+                        ConfirmOrder::class.java to ManifestCreation.NONE,
                     ),
-                    listOf(OrderPlaced::class.java, OrderCancelled::class.java),
+                    listOf(OrderPlaced::class.java, OrderCancelled::class.java, OrderConfirmed::class.java),
                 ),
             ),
         ),
@@ -185,3 +229,22 @@ fun stockManifest(): Manifest = Manifest(
 /** [manifest] as a peer's merged Manifest on the class path (decision D139). */
 fun peer(manifest: Manifest): ManifestFragment =
     ManifestFragment("META-INF/wow/peers/${manifest.service!!.name}.json", manifest)
+
+/** A receipt handler of the given [rejected] and [committed] answers; by default it takes none. */
+fun receiptHandler(
+    rejected: suspend (CommandRejected<*>, Class<*>) -> List<String>? = { _, _ -> null },
+    committed: suspend (CommandCommitted<*>, Class<*>) -> List<String>? = { _, _ -> null },
+): ReceiptHandler {
+    val onRejected = rejected
+    val onCommitted = committed
+    return object : ReceiptHandler {
+        override suspend fun rejected(rejected: CommandRejected<*>, command: Class<*>): List<String>? =
+            onRejected(rejected, command)
+
+        override suspend fun committed(
+            committed: CommandCommitted<*>,
+            command: Class<*>,
+            wait: WaitContext?,
+        ): List<String>? = onCommitted(committed, command)
+    }
+}

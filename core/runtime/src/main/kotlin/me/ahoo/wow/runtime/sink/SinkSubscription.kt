@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.sink
 
+import kotlinx.coroutines.currentCoroutineContext
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.kernel.AggregateModel
@@ -25,6 +26,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
@@ -43,8 +45,8 @@ import me.ahoo.wow.spi.state.StateView
  *   must be [name], so the sink is one of the context's state consumers: the view the executor took when the stream
  *   committed, else the nearest view or snapshot evolved with the log's tail, else the log replayed. It is mapped to
  *   the published form, a JSON tree with its schema's fingerprint ([StateView]).
- * - **Transport**: the entry's wait context and trace go with the record (decision D25); its reservations stay in
- *   the context.
+ * - **Transport**: the entry's wait context and trace go with the record (decision D25), the trace of the sink's
+ *   handling instead when it is observed (decision D174); its reservations stay in the context.
  * - **At least once** (decision D45): an entry is done, and the checkpoint may pass it, only once [Sink.write]
  *   returned, which is once the records are durable (the broker acknowledged them). A crash, a retry or an old owner
  *   beside the new one writes a record again; a reader drops it by [StateEventRecord.id].
@@ -101,7 +103,7 @@ class SinkSubscription(
             causation = stream.causation,
             headers = stream.headers,
             operator = stream.operator,
-            transport = entry.transport?.let(::published),
+            transport = published(entry.transport, currentCoroutineContext().trace),
         )
     }
 
@@ -116,10 +118,15 @@ class SinkSubscription(
         return StateEventPayload(current.name, current.revision, WowJson.mapper.readTree(text))
     }
 
-    /** What of [transport] goes with a published record: the wait context and the trace; null when neither. */
-    private fun published(transport: Transport): Transport? =
-        Transport(wait = transport.wait, trace = transport.trace)
-            .takeIf { it.wait != null || it.trace.isNotEmpty() }
+    /**
+     * What of [transport] goes with a published record: the wait context and the trace, the one the sink writes in
+     * ([current], decision D174) when it has one; null when neither.
+     */
+    private fun published(transport: Transport?, current: Map<String, String>): Transport? {
+        val trace = current.ifEmpty { transport?.trace.orEmpty() }
+        val wait = transport?.wait
+        return if (wait == null && trace.isEmpty()) null else Transport(wait = wait, trace = trace)
+    }
 
     override fun toString(): String = "SinkSubscription($name)"
 }

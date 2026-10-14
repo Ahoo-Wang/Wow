@@ -15,7 +15,11 @@ package me.ahoo.wow.runtime.node
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -24,6 +28,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.kernel.Dependencies
@@ -31,6 +36,8 @@ import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.StateCache
+import me.ahoo.wow.kernel.schedule.ScheduleJob
+import me.ahoo.wow.kernel.schedule.ScheduleJobModel
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.LruStateCache
@@ -57,6 +64,7 @@ import me.ahoo.wow.runtime.log.LogGroupRouter
 import me.ahoo.wow.runtime.log.PartitionAppendQueue
 import me.ahoo.wow.runtime.manifest.ManifestCheck
 import me.ahoo.wow.runtime.reservation.ReservationSubscription
+import me.ahoo.wow.runtime.schedule.ScheduleJobRuntime
 import me.ahoo.wow.runtime.snapshot.SnapshotSubscription
 import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.state.StateViewReader
@@ -72,6 +80,7 @@ import me.ahoo.wow.runtime.timer.TimerLoop
 import me.ahoo.wow.runtime.timer.TimerRunner
 import me.ahoo.wow.runtime.timer.TimersSubscription
 import me.ahoo.wow.runtime.wait.LocalSignalSender
+import me.ahoo.wow.runtime.wait.ReceiptHops
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
@@ -79,6 +88,7 @@ import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerStore
@@ -204,8 +214,9 @@ class LogGroupNode internal constructor(
  *
  * **Commands across contexts** (decisions D33, D135–D137), when [topics] has a producer: a saga's command to an
  * aggregate of another context is sent to that context's command topic ([ContextNode.sender]); the receipts of those
- * rejected come back on the saga's context's receipts topic, read in the lease group of that topic for the contexts
- * whose sagas have `@OnRejected` handlers ([SubscriptionFactory.rejections]). With [SourceTopics.intake], each context
+ * rejected, and of those committed that the saga asked about, come back on the saga's context's receipts topic, read
+ * in the lease group of that topic for the contexts whose sagas have `@OnRejected` or `@OnCommitted` handlers
+ * ([SubscriptionFactory.receipts]). With [SourceTopics.intake], each context
  * executes the commands of its own command topic ([ContextNode.intake], [CommandIntake]), driven by its
  * [PartitionOwnership]: the owner of a log partition reads the same partition of the topic, and [start] fails unless
  * the topic has as many partitions as the log.
@@ -279,6 +290,11 @@ class ServiceNode(
     private val parkedNotifier: ParkedNotifier = ParkedNotifier.NONE,
     /** The clock the node's timers fire by (decision D198): the system's, unless a test moves it. */
     clock: Clock = Clock.systemUTC(),
+    /**
+     * Sees the node's work (decision D174): admissions, executions, decisions, appends, the handling of every
+     * subscription and the firing of timers; nothing by default.
+     */
+    private val observer: Observer = Observer.NONE,
 ) {
     init {
         require(service.isNotBlank()) { "A node names its service." }
@@ -300,8 +316,21 @@ class ServiceNode(
     /** Whether the node knows its [address]: it was built with one, or [bind] gave it. */
     val hasAddress: Boolean get() = bound != null
 
-    /** The aggregate models this node serves. */
-    val registry: ModelRegistry = ModelRegistry(models)
+    /**
+     * The jobs of each context's `@OnSchedule` handlers (decision D198), their defaults under the host's
+     * [ServiceNodeOptions.schedules]: each context with jobs gets the built-in job aggregate `<context>.schedule`.
+     */
+    private val jobs: Map<String, List<ScheduleJob>> = ScheduleJobRuntime.configured(
+        models.mapTo(LinkedHashSet()) { it.type.context }.associateWith { subscriptions.jobs(it) },
+        options.schedules,
+    )
+
+    /** The models the node runs: the [models] of the Manifest, and the built-in job aggregate of each context's [jobs]. */
+    private val served: List<AggregateModel<*>> =
+        models.toList() + jobs.map { (context, contextJobs) -> ScheduleJobModel.model(context, contextJobs) }
+
+    /** The aggregate models this node serves, the built-in job aggregates among them (decision D198). */
+    val registry: ModelRegistry = ModelRegistry(served)
 
     /** The waits started on this node. */
     val waits: WaitRegistry = WaitRegistry()
@@ -319,6 +348,9 @@ class ServiceNode(
 
     /** Sends the commands of every context's sagas to the command topics of other contexts; null without a producer. */
     private val sender: CommandSender? = topics?.takeIf { it.producer != null }?.let { CommandSender(contracts, it) }
+
+    /** The `@OnCommitted` handlers of each context's sagas: hops of its waits (decision D192). */
+    private val committedHandlers: (String) -> Set<String> = subscriptions::committedHandlers
 
     init {
         // A saga that sends to another context needs a producer: without one, each of its executions would retry and
@@ -352,7 +384,7 @@ class ServiceNode(
     /** The node's one firing loop of every context's timers (decision D198). */
     val timerLoop: TimerLoop = TimerLoop(options.timers, clock)
 
-    private val parts: List<Parts> = models.groupBy { it.type.context }.map { (context, contextModels) ->
+    private val parts: List<Parts> = served.groupBy { it.type.context }.map { (context, contextModels) ->
         assemble(context, contextModels, backends.backends(context), codec, subscriptions)
     }
 
@@ -377,6 +409,7 @@ class ServiceNode(
         committed = { type, tenantId, requestId ->
             contexts[type.context]?.log?.findByRequestId(type, tenantId, requestId)
         },
+        observer = observer,
     )
 
     /**
@@ -550,7 +583,37 @@ class ServiceNode(
             throw failure
         }
         state = State.RUNNING
+        startJobs()
         logger.info { "Node $node of $service started: contexts ${contexts.keys}." }
+    }
+
+    /** Runs the node's background work: the startup of the SYSTEM jobs; cancelled when the node stops. */
+    private val background = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    /**
+     * Brings each context's SYSTEM jobs in line with the Manifest and the host's configuration (decision D198), in the
+     * background: enables each instance (a no-op when nothing changed, a reschedule when its default did), or
+     * disables it, retrying until each settles.
+     */
+    private fun startJobs() {
+        jobs.forEach { (context, contextJobs) ->
+            val node = contexts.getValue(context)
+            val commands = ScheduleJobRuntime.startup(
+                context,
+                contextJobs,
+                options.schedules,
+                node.backends.log.partitions,
+            )
+            if (commands.isEmpty()) {
+                return@forEach
+            }
+            val model = registry.models.first { it.type == ScheduleJobs.typeOf(context) }
+            background.launch {
+                ScheduleJobRuntime.send(model, commands, options.timers.retry, admission.ids.global::next) { m, c ->
+                    node.coordinator.forward(m, c, null)
+                }
+            }
+        }
     }
 
     /** Leaves the cluster and closes the node, in the order the class describes. Stopping twice does nothing. */
@@ -564,6 +627,7 @@ class ServiceNode(
 
     private suspend fun shutdown() {
         state = State.STOPPING
+        background.coroutineContext[Job]?.cancelAndJoin()
         val waitsEnd = TimeSource.Monotonic.markNow() + options.maxWaitTimeout
         var failure: Exception? = null
         suspend fun step(step: Step, block: suspend () -> Unit) {
@@ -663,19 +727,20 @@ class ServiceNode(
                 signals = signals,
                 notifier = parkedNotifier,
                 partitionRefresh = topics!!.partitionRefresh,
+                observer = observer,
             )
         }
     }
 
     /**
-     * The runtimes of the receipts topics of the contexts whose sagas the [application] gives `@OnRejected` handlers
-     * ([SubscriptionFactory.rejections], decision D136), each in the lease group of its topic and the stores of its
+     * The runtimes of the receipts topics of the contexts whose sagas the [application] gives `@OnRejected` or
+     * `@OnCommitted` handlers ([SubscriptionFactory.receipts], decisions D136, D192), each in the lease group of its topic and the stores of its
      * context. None without [topics]: no command left for another context then.
      */
     private fun receipts(application: SubscriptionFactory): Map<String, TopicSubscriptions> {
         val sources = topics ?: return emptyMap()
         return contexts.values.mapNotNull { context ->
-            val handler = application.rejections(context) ?: return@mapNotNull null
+            val handler = application.receipts(context) ?: return@mapNotNull null
             val topic = sources.receiptsOf(context.context)
             val receipts = Receipts(context.context, contracts, handler)
             topic to TopicSubscriptions(
@@ -696,6 +761,7 @@ class ServiceNode(
                 notifier = parkedNotifier,
                 entries = { partitions -> MessageEntries.receipts(topic, sources.source, partitions) },
                 partitionRefresh = sources.partitionRefresh,
+                observer = observer,
             )
         }.toMap()
     }
@@ -714,6 +780,7 @@ class ServiceNode(
                 options = options.subscription,
                 signals = signals,
                 notifier = parkedNotifier,
+                observer = observer,
             )
         }
 
@@ -804,6 +871,7 @@ class ServiceNode(
             options.subscription,
             signals = signals,
             notifier = parkedNotifier,
+            observer = observer,
         )
         return LogGroupNode(part.store, part.types, part.log, runtime, timers)
     }
@@ -849,6 +917,7 @@ class ServiceNode(
             commandTypes = names,
             ids = admission.ids,
             maxEarlyWait = options.timers.maxEarlyWait,
+            observer = observer,
         )
 
     /**
@@ -858,10 +927,8 @@ class ServiceNode(
      */
     private fun timersOf(context: String, group: GroupParts, firer: TimerFirer): ContextTimers? =
         group.timers?.let { store ->
-            ContextTimers(
-                TimersSubscription(context, store, group.log.partitions),
-                TimerRunner(context, store, group.ledger, firer, timerLoop),
-            )
+            val runner = TimerRunner(context, store, group.ledger, firer, timerLoop)
+            ContextTimers(TimersSubscription(context, store, group.log.partitions, runner::offer), runner)
         }
 
     /** The stores of one log group of a context, as [logGroupsOf] finds them. */
@@ -894,9 +961,10 @@ class ServiceNode(
         return readers
     }
 
+    /** Whether the Manifest enables [model]'s snapshots; a built-in job aggregate, not in it, keeps them. */
     private fun snapshotEnabled(model: AggregateModel<*>): Boolean = manifest.contexts
-        .first { it.name == model.type.context }.aggregates
-        .first { it.name == model.type.name }.snapshot.enabled
+        .firstOrNull { it.name == model.type.context }?.aggregates
+        ?.firstOrNull { it.name == model.type.name }?.snapshot?.enabled ?: true
 
     /** A context's parts before the node's router exists. */
     private inner class Parts(
@@ -922,7 +990,11 @@ class ServiceNode(
         fun complete(): ContextNode {
             val runtimes = logGroups.drop(1).flatMap { group -> group.types.map { it to group.subscriptions } }.toMap()
             val directory = contracts.over(
-                if (runtimes.isEmpty()) subscriptions else LogGroupDirectory(subscriptions, runtimes),
+                ReceiptHops(
+                    if (runtimes.isEmpty()) subscriptions else LogGroupDirectory(subscriptions, runtimes),
+                    context,
+                    committedHandlers(context),
+                ),
                 context,
             )
             val coordinator = WaitCoordinator(
@@ -935,8 +1007,8 @@ class ServiceNode(
                 router = router,
                 topicRouter = topicRouterOf(context, backends),
             )
-            val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership))
-            firing.firer = ContextTimerFirer(models, coordinator, sender)
+            val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership), observer = observer)
+            firing.firer = ContextTimerFirer(models, coordinator, sender, observer)
             return ContextNode(
                 context,
                 models,

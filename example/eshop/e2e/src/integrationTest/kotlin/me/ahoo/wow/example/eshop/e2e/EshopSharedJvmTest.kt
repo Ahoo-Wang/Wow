@@ -13,6 +13,13 @@
 
 package me.ahoo.wow.example.eshop.e2e
 
+import io.opentelemetry.api.OpenTelemetry
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator
+import io.opentelemetry.context.propagation.ContextPropagators
+import io.opentelemetry.sdk.OpenTelemetrySdk
+import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter
+import io.opentelemetry.sdk.trace.SdkTracerProvider
+import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.example.eshop.basket.server.BasketServer
 import me.ahoo.wow.example.eshop.catalog.server.CatalogServer
@@ -91,6 +98,35 @@ class EshopSharedJvmTest {
         }
     }
 
+    /**
+     * A request's trace (decision D174): with wow-opentelemetry on the class path, the catalog's admission of a
+     * request is the child of the span its `traceparent` names, and its execution and the snapshot subscription's
+     * handling of the commit go on in the same trace.
+     */
+    @Test
+    fun `a request's trace should go on through the service that serves it`() {
+        start(CatalogServer::class.java, "catalog", TracingBeans::class.java).use { catalog ->
+            val spans = catalog.bean(InMemorySpanExporter::class.java)
+            val trace = "4bf92f3577b34da6a3ce929d0e0e4736"
+            val caller = "00f067aa0ba902b7"
+            val product = catalog.post(
+                "/eshop-catalog/product/create-product",
+                """{"name":"Wow mug","price":8.50}""",
+                mapOf("traceparent" to "00-$trace-$caller-01"),
+            )
+            product.status.assert().describedAs(product.body).isEqualTo(OK)
+            val deadline = System.nanoTime() + TIMEOUT.toNanos()
+            while (spans.finishedSpanItems.none { it.name == "handle snapshot" } && System.nanoTime() < deadline) {
+                Thread.sleep(5)
+            }
+            val traced = spans.finishedSpanItems.filter { it.traceId == trace }
+            val admit = traced.single { it.name == "admit eshop-catalog.product" }
+            admit.parentSpanId.assert().isEqualTo(caller)
+            traced.single { it.name == "execute eshop-catalog.product" }.parentSpanId.assert().isEqualTo(admit.spanId)
+            traced.map { it.name }.assert().contains("append eshop-catalog.product", "handle snapshot")
+        }
+    }
+
     /** One service in this JVM, its ports on the loopback interface. */
     private class InJvmService(private val context: ConfigurableApplicationContext) : AutoCloseable {
         private val port = context.environment.getRequiredProperty("local.server.port", Int::class.java)
@@ -102,11 +138,14 @@ class EshopSharedJvmTest {
             return json.readTree(manifest.body)["contexts"].values().map { it["name"].asString() }
         }
 
-        fun post(path: String, body: String): Answer = send(
+        fun post(path: String, body: String, headers: Map<String, String> = emptyMap()): Answer = send(
             HttpRequest.newBuilder(uri(path))
                 .header("Content-Type", "application/json")
+                .apply { headers.forEach { (name, value) -> header(name, value) } }
                 .POST(HttpRequest.BodyPublishers.ofString(body)),
         )
+
+        fun <T : Any> bean(type: Class<T>): T = context.getBean(type)
 
         private fun uri(path: String): URI = URI.create("http://127.0.0.1:$port$path")
 
@@ -154,6 +193,19 @@ class EshopSharedJvmTest {
             ),
         )
     }
+}
+
+/** The application's OpenTelemetry, exporting its spans to memory and propagating the W3C trace context. */
+@Configuration(proxyBeanMethods = false)
+class TracingBeans {
+    @Bean
+    fun spanExporter(): InMemorySpanExporter = InMemorySpanExporter.create()
+
+    @Bean
+    fun openTelemetry(spans: InMemorySpanExporter): OpenTelemetry = OpenTelemetrySdk.builder()
+        .setTracerProvider(SdkTracerProvider.builder().addSpanProcessor(SimpleSpanProcessor.create(spans)).build())
+        .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
+        .build()
 }
 
 /** A command transport in memory in place of Kafka, as the guide gives it to a test. */

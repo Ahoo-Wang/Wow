@@ -24,19 +24,20 @@ package me.ahoo.wow.compiler.model
  *   publisher (decision D49), and, for a saga, read as the commands it derives (`derivedOf`). A saga's
  *   `@OnRejected` handlers (decisions D136, D153) are bound once, as `RejectionBinding`s of the class their
  *   `CommandRejected<C>` names (null for `*`), and passed to each of its handlers' bindings, whose derived commands'
- *   rejections they take. A handler names the aggregates of its `@OnEvent(aggregates)`, so one of another context's
+ *   rejections they take; so are its `@OnCommitted` handlers (decision D192), as `CommittedBinding`s, which take
+ *   their success receipts. A handler names the aggregates of its `@OnEvent(aggregates)`, so one of another context's
  *   (decision D138) reads their published streams (decision D134), and says whether its state is nullable
  *   (`StateEvent<S?>`, `StateEvent<*>`; decision D140), and its `@Retry` budget, merged with its processor's
- *   (`HandlerRetry`, roadmap P.3), which the runtime's per-subscription retry and timeout apply;
+ *   (`HandlerRetry`, roadmap P.3), which the runtime's per-subscription retry and timeout apply. A saga's
+ *   `@OnSchedule` handler (decision D198) is bound with `ProcessorBinding.schedule`, its job's rule as declared;
  * - per module, the model provider's `processors` lists them all ([ModelProviderSource]).
  */
 internal object SubscriptionSource {
     private const val KERNEL = "me.ahoo.wow.kernel"
     private const val PROCESSOR_BINDING = "$KERNEL.ProcessorBinding"
-    private const val REJECTION_BINDING = "$KERNEL.RejectionBinding"
-    private const val COMMAND_REJECTED = "me.ahoo.wow.api.subscribe.CommandRejected"
     private const val DEPENDENCIES = "$KERNEL.Dependencies"
     private const val STATE_EVENT = "me.ahoo.wow.api.subscribe.StateEvent"
+    private const val SCHEDULE = "me.ahoo.wow.api.schedule"
 
     /** The handlers of [binding], a processor without problems. */
     fun render(binding: SubscriptionBinding): String = buildString {
@@ -66,12 +67,18 @@ internal object SubscriptionSource {
         appendLine("    val processor = $instance")
         val rejections = kind == SAGA && binding.rejections.isNotEmpty()
         if (rejections) {
-            appendLine("    val rejections = listOf<$REJECTION_BINDING<*>>(")
-            binding.rejections.forEach { renderRejection(binding, it) }
+            appendLine("    val rejections = listOf<${Receipt.REJECTED.binding}<*>>(")
+            binding.rejections.forEach { renderReceipt(binding, it) }
+            appendLine("    )")
+        }
+        val commits = kind == SAGA && binding.commits.isNotEmpty()
+        if (commits) {
+            appendLine("    val commits = listOf<${Receipt.COMMITTED.binding}<*>>(")
+            binding.commits.forEach { renderReceipt(binding, it) }
             appendLine("    )")
         }
         appendLine("    return listOf(")
-        handlers.forEach { handler -> renderHandler(binding, handler, kind, rejections) }
+        handlers.forEach { handler -> renderHandler(binding, handler, kind, rejections, commits) }
         appendLine("    )")
         appendLine("}")
     }
@@ -81,7 +88,13 @@ internal object SubscriptionSource {
         handler: HandlerBinding,
         kind: String,
         rejections: Boolean,
+        commits: Boolean,
     ) {
+        val job = handler.job
+        if (job != null) {
+            renderJob(binding, handler, job, rejections, commits)
+            return
+        }
         // A star projection's state is nullable by default; a named state says so only when it is.
         val nullable = handler.state != null && handler.nullableState
         val state = handler.state?.let { if (nullable) "$it?" else it } ?: "Any"
@@ -90,7 +103,8 @@ internal object SubscriptionSource {
         val call = "processor.${handler.function}($arguments)"
         val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
         val body = if (kind == SAGA) "$KERNEL.derivedOf($awaited)" else awaited
-        val rejectionArgument = if (rejections) ", rejections = rejections" else ""
+        val rejectionArgument = (if (rejections) ", rejections = rejections" else "") +
+            if (commits) ", commits = commits" else ""
         val optionalArguments = optionalArguments(handler, nullable)
         appendLine(
             "        $PROCESSOR_BINDING.$kind<$state>(\"${escape(binding.name)}\", \"${handler.function}\", " +
@@ -117,19 +131,53 @@ internal object SubscriptionSource {
         handler.start?.let { append(", startFrom = $KERNEL.StartFrom.$it") }
     }
 
-    /** An `@OnRejected` handler of the saga [binding]: its call, read as the commands that compensate. */
-    private fun StringBuilder.renderRejection(binding: SubscriptionBinding, rejection: RejectionBinding) {
-        val command = rejection.commandSource ?: "Any"
-        val commandType = rejection.commandSource?.let { "$it::class.java" } ?: "null"
-        val arguments = if (rejection.context) "rejected, context" else "rejected"
-        val call = "processor.${rejection.function}($arguments)"
-        val awaited = if (rejection.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
+    /**
+     * A saga's `@OnSchedule` handler (decision D198): `ProcessorBinding.schedule` of its [job], whose handle calls the
+     * function with the tick and, if it takes it, the saga's context.
+     */
+    private fun StringBuilder.renderJob(
+        binding: SubscriptionBinding,
+        handler: HandlerBinding,
+        job: JobBinding,
+        rejections: Boolean,
+        commits: Boolean,
+    ) {
+        val arguments = if (handler.context) "tick, context" else "tick"
+        val call = "processor.${handler.function}($arguments)"
+        val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
+        val rule = "$SCHEDULE.ScheduleRule.Cron(\"${escape(job.cron)}\", \"${escape(job.zone)}\", " +
+            "$SCHEDULE.Misfire.${job.misfire})"
+        val definition = "$KERNEL.schedule.ScheduleJob(\"${escape(job.name)}\", $rule, " +
+            "$SCHEDULE.JobScope.${job.scope}, ${job.sharded})"
+        val receipts = (if (rejections) ", rejections = rejections" else "") +
+            if (commits) ", commits = commits" else ""
+        val retry = handler.retry?.let { ", retry = ${it.source()}" }.orEmpty()
         appendLine(
-            "        $REJECTION_BINDING.of<$command>(\"${escape(binding.name)}\", \"${rejection.function}\", " +
-                "$commandType, ${rejection.blocking}) {",
+            "        $PROCESSOR_BINDING.schedule(\"${escape(binding.name)}\", \"${handler.function}\", $definition, " +
+                "${handler.blocking}$receipts$retry) {",
+        )
+        appendLine("                tick: $SCHEDULE.ScheduleTick, ${if (handler.context) "context" else "_"} ->")
+        appendLine("            $KERNEL.derivedOf($awaited)")
+        appendLine("        },")
+    }
+
+    /**
+     * A receipt handler of the saga [binding], `@OnRejected` or `@OnCommitted`: its call, read as the commands it
+     * derives.
+     */
+    private fun StringBuilder.renderReceipt(binding: SubscriptionBinding, handler: ReceiptBinding) {
+        val command = handler.commandSource ?: "Any"
+        val commandType = handler.commandSource?.let { "$it::class.java" } ?: "null"
+        val parameter = if (handler.receipt == Receipt.REJECTED) "rejected" else "committed"
+        val arguments = if (handler.context) "$parameter, context" else parameter
+        val call = "processor.${handler.function}($arguments)"
+        val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
+        appendLine(
+            "        ${handler.receipt.binding}.of<$command>(\"${escape(binding.name)}\", \"${handler.function}\", " +
+                "$commandType, ${handler.blocking}) {",
         )
         appendLine(
-            "                rejected: $COMMAND_REJECTED<$command>, ${if (rejection.context) "context" else "_"} ->",
+            "                $parameter: ${handler.receipt.parameter}<$command>, ${if (handler.context) "context" else "_"} ->",
         )
         appendLine("            $KERNEL.derivedOf($awaited)")
         appendLine("        },")

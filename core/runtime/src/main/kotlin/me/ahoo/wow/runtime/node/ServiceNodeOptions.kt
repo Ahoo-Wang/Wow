@@ -15,14 +15,18 @@ package me.ahoo.wow.runtime.node
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.subscribe.CommandCommitted
+import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.cluster.ClusterOptions
-import me.ahoo.wow.runtime.command.RejectionHandler
+import me.ahoo.wow.runtime.command.ReceiptHandler
 import me.ahoo.wow.runtime.log.AppendQueueOptions
+import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.state.StateViewOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
@@ -40,6 +44,7 @@ import me.ahoo.wow.spi.timer.TimerStore
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicAdmin
 import me.ahoo.wow.spi.transport.TopicProducer
+import me.ahoo.wow.spi.wait.WaitContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -142,6 +147,8 @@ enum class Routing {
  * - [stateCacheCapacity]: the aggregate states kept per context between commands; 0 keeps none.
  * - [stateViews]: the bounds of each context's state views, shared by its state consumers (decision D133).
  * - [timers]: the timer runner of each context that has a timer store (decision D166).
+ * - [schedules]: the host's override of each job's default rule, by job name (`wow.schedules.<job>.*`, decision D198);
+ *   a name no `@OnSchedule` handler of the node runs fails its assembly.
  * - [kafkaRouted]: the aggregate types whose commands the `Kafka` router takes (design 02 §2, decision D143): an
  *   admitted command of one of them is written to its context's command topic, accepted once the broker acknowledged
  *   it, and executed by the owner of its log partition from there. Each must be a type the node serves, the node
@@ -160,6 +167,7 @@ data class ServiceNodeOptions(
     val defaultWaitTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT,
     val stateViews: StateViewOptions = StateViewOptions(),
     val timers: TimerOptions = TimerOptions(),
+    val schedules: Map<String, JobOptions> = emptyMap(),
     val kafkaRouted: Set<AggregateType> = emptySet(),
     val unknownWaitContexts: UnknownContexts = UnknownContexts.ALLOW,
 ) {
@@ -209,11 +217,23 @@ fun interface SubscriptionFactory {
     fun sourced(context: ContextNode): List<SourcedSubscription> = emptyList()
 
     /**
-     * What handles the receipts of the commands [context]'s sagas sent to other contexts that rejected them (decision
-     * D136): the node reads the context's receipts topic for it ([SourceTopics.receiptsOf]). None by default; a
-     * factory whose sagas have `@OnRejected` handlers gives them.
+     * What handles the receipts of the commands [context]'s sagas sent to other contexts that rejected or committed
+     * them (decisions D136, D192): the node reads the context's receipts topic for it ([SourceTopics.receiptsOf]). None
+     * by default; a factory whose sagas have `@OnRejected` or `@OnCommitted` handlers gives them.
      */
-    fun rejections(context: ContextNode): RejectionHandler? = null
+    fun receipts(context: ContextNode): ReceiptHandler? = null
+
+    /**
+     * The `@OnCommitted` handlers of [context]'s sagas, by name (`processor.function`): each is a saga's hop a wait
+     * chain may name (decision D192), though no subscription of the context's log runs it. None by default.
+     */
+    fun committedHandlers(context: String): Set<String> = emptySet()
+
+    /**
+     * The jobs of [context]'s `@OnSchedule` handlers (decision D198), asked before the context is assembled: the node
+     * adds the built-in job aggregate `<context>.schedule` deciding them, and starts the SYSTEM ones. None by default.
+     */
+    fun jobs(context: String): List<ScheduleJob> = emptyList()
 
     /**
      * The aggregate types among [context]'s [models] whose state after each commit the subscriptions read (design 04
@@ -244,16 +264,29 @@ fun interface SubscriptionFactory {
             override fun sourced(context: ContextNode): List<SourcedSubscription> =
                 first.sourced(context) + other.sourced(context)
 
-            override fun rejections(context: ContextNode): RejectionHandler? {
-                val mine = first.rejections(context) ?: return other.rejections(context)
-                val theirs = other.rejections(context) ?: return mine
-                return RejectionHandler { rejected, command ->
-                    mine.handle(rejected, command) ?: theirs.handle(rejected, command)
+            override fun committedHandlers(context: String): Set<String> =
+                first.committedHandlers(context) + other.committedHandlers(context)
+
+            override fun receipts(context: ContextNode): ReceiptHandler? {
+                val mine = first.receipts(context) ?: return other.receipts(context)
+                val theirs = other.receipts(context) ?: return mine
+                return object : ReceiptHandler {
+                    override suspend fun rejected(rejected: CommandRejected<*>, command: Class<*>): List<String>? =
+                        mine.rejected(rejected, command) ?: theirs.rejected(rejected, command)
+
+                    override suspend fun committed(
+                        committed: CommandCommitted<*>,
+                        command: Class<*>,
+                        wait: WaitContext?,
+                    ): List<String>? =
+                        mine.committed(committed, command, wait) ?: theirs.committed(committed, command, wait)
                 }
             }
 
             override fun viewTypes(context: String, models: List<AggregateModel<*>>): Set<AggregateType> =
                 first.viewTypes(context, models) + other.viewTypes(context, models)
+
+            override fun jobs(context: String): List<ScheduleJob> = first.jobs(context) + other.jobs(context)
 
             override fun stateReaders(
                 context: String,
