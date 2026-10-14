@@ -82,6 +82,10 @@ object ManifestOpenApi {
                 "name" to "${context.name}.${WowSchemas.JOB_AGGREGATE}",
                 "description" to "The context's scheduled jobs (decision D198).",
             ).takeIf { context.subscriptions.any { it.job != null } },
+            Json.obj(
+                "name" to "${context.name}.${WowSchemas.REBUILD_AGGREGATE}",
+                "description" to "The rebuild of the context's snapshots (decision D172).",
+            ).takeIf { context.aggregates.any { it.snapshot.enabled } },
         )
     } + Json.obj("name" to FRAMEWORK_TAG, "description" to "The framework's own endpoints.")
 

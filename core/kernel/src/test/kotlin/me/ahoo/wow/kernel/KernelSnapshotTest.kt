@@ -144,6 +144,27 @@ class KernelSnapshotTest {
     }
 
     @Test
+    fun `a snapshot of another state revision is ignored`(): Unit = runTest {
+        history()
+        val other = snapshots.load(ref)!!.copy(version = 4, stateRevision = 2)
+        snapshots.save(other).assert().isTrue()
+        log.streamsRead = 0
+        send(kernel, AddItem("apple", 10)).cart().items.assert().isEqualTo(mapOf("apple" to 14, "pear" to 6))
+        log.streamsRead.assert().isEqualTo(5)
+    }
+
+    @Test
+    fun `a state replayed from the whole log needs every version from 1`(): Unit = runTest {
+        history()
+        val streams = log.read(ref).toList()
+        val state = checkNotNull(kernel.replayed(cartModel, ref, streams))
+        state.version.assert().isEqualTo(5)
+        (state.state as CartState).items.assert().isEqualTo(mapOf("apple" to 4, "pear" to 6))
+        kernel.replayed(cartModel, ref, streams.drop(1)).assert().isNull()
+        kernel.replayed(cartModel, ref, emptyList()).assert().isNull()
+    }
+
+    @Test
     fun `a snapshot of another state schema is ignored`() = runTest {
         history()
         val stale = snapshots.load(ref)!!.copy(version = 4, schemaFingerprint = "another-schema", state = "{}")
@@ -172,7 +193,7 @@ class KernelSnapshotTest {
     }
 
     /** A store whose load always throws [failure]. */
-    private class FailingStore(private val failure: Exception) : SnapshotStore {
+    private class FailingStore(private val failure: Exception) : SnapshotStore by InMemorySnapshotStore() {
         override suspend fun save(snapshot: SnapshotRecord): Boolean = false
 
         override suspend fun load(ref: AggregateRef): SnapshotRecord = throw failure

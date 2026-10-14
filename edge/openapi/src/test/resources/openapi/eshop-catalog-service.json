@@ -16,6 +16,9 @@
     "name" : "eshop-catalog.product",
     "description" : "A product of the catalog"
   }, {
+    "name" : "eshop-catalog.snapshot",
+    "description" : "The rebuild of the context's snapshots (decision D172)."
+  }, {
     "name" : "wow",
     "description" : "The framework's own endpoints."
   } ],
@@ -3732,6 +3735,93 @@
           }
         }
       }
+    },
+    "/eshop-catalog/snapshot/{id}/wow.snapshot.rebuild" : {
+      "post" : {
+        "tags" : [ "eshop-catalog.snapshot" ],
+        "summary" : "Rebuild",
+        "description" : "Sends `wow.snapshot.Rebuild` (decision D172): rebuilds from the log the snapshots of the aggregate type the path's id names, in the caller's tenant: `brand`, `category`, `product`.",
+        "operationId" : "eshop-catalog.snapshot.wow.snapshot.Rebuild",
+        "parameters" : [ {
+          "$ref" : "#/components/parameters/id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Request-Id"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Wait-Timeout"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Wow-Space"
+        }, {
+          "$ref" : "#/components/parameters/traceparent"
+        }, {
+          "$ref" : "#/components/parameters/tracestate"
+        }, {
+          "$ref" : "#/components/parameters/baggage"
+        }, {
+          "$ref" : "#/components/parameters/If-Match"
+        } ],
+        "requestBody" : {
+          "description" : "The command's body; an empty body is `{}`.",
+          "required" : false,
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/wow.snapshot.Rebuild"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "$ref" : "#/components/responses/wow.command.200"
+          },
+          "202" : {
+            "$ref" : "#/components/responses/wow.command.202"
+          },
+          "400" : {
+            "$ref" : "#/components/responses/wow.command.400"
+          },
+          "401" : {
+            "$ref" : "#/components/responses/wow.command.401"
+          },
+          "403" : {
+            "$ref" : "#/components/responses/wow.command.403"
+          },
+          "404" : {
+            "$ref" : "#/components/responses/wow.command.404"
+          },
+          "406" : {
+            "$ref" : "#/components/responses/wow.command.406"
+          },
+          "409" : {
+            "$ref" : "#/components/responses/wow.command.409"
+          },
+          "410" : {
+            "$ref" : "#/components/responses/wow.command.410"
+          },
+          "412" : {
+            "$ref" : "#/components/responses/wow.command.412"
+          },
+          "415" : {
+            "$ref" : "#/components/responses/wow.command.415"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.command.429"
+          },
+          "500" : {
+            "$ref" : "#/components/responses/wow.command.500"
+          },
+          "503" : {
+            "$ref" : "#/components/responses/wow.command.503"
+          },
+          "504" : {
+            "$ref" : "#/components/responses/wow.command.504"
+          }
+        }
+      }
     }
   },
   "components" : {
@@ -4448,6 +4538,21 @@
             "enum" : [ "COALESCE", "CATCH_UP", null ]
           }
         }
+      },
+      "wow.snapshot.Rebuild" : {
+        "type" : "object",
+        "description" : "Rebuilds from the log the snapshots of the aggregates `ids` of the aggregate type the path's id names, in the caller's tenant.",
+        "properties" : {
+          "ids" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            },
+            "minItems" : 1,
+            "maxItems" : 1000
+          }
+        },
+        "required" : [ "ids" ]
       },
       "me.ahoo.wow.example.eshop.catalog.api.brand.BrandCreated" : {
         "type" : "object",

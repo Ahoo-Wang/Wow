@@ -47,6 +47,10 @@ internal class OpenApiPaths(
             if (jobs.isNotEmpty()) {
                 jobRoutes(context.name, jobs.map { it.name })
             }
+            val snapshotted = context.aggregates.filter { it.snapshot.enabled }.map { it.name }
+            if (snapshotted.isNotEmpty()) {
+                rebuildRoute(context.name, snapshotted)
+            }
         }
         return paths
     }
@@ -172,6 +176,30 @@ internal class OpenApiPaths(
                 ),
             )
         }
+    }
+
+    /**
+     * The snapshot rebuild command of [context]'s built-in rebuild aggregate (decision D172), as the edge routes it when
+     * its Manifest has an aggregate that keeps snapshots: `POST /{context}/snapshot/{id}/wow.snapshot.rebuild`, the id
+     * being the name of one of the [snapshotted] aggregate types.
+     */
+    private fun rebuildRoute(context: String, snapshotted: List<String>) {
+        val tag = "$context.${WowSchemas.REBUILD_AGGREGATE}"
+        val name = WowSchemas.REBUILD
+        add(
+            POST,
+            CommandRoutes.byIdPath(context, WowSchemas.REBUILD_AGGREGATE, name),
+            obj(
+                "tags" to listOf(tag),
+                "summary" to name.substringAfterLast('.'),
+                "description" to "Sends `$name` (decision D172): rebuilds from the log the snapshots of the aggregate " +
+                    "type the path's id names, in the caller's tenant: ${snapshotted.joinToString { "`$it`" }}.",
+                "operationId" to "$tag.$name",
+                "parameters" to commandParameters(byId = true),
+                "requestBody" to body(schemaRef(name)),
+                "responses" to commandResponses(context, byId = true, domain = false),
+            ),
+        )
     }
 
     private fun command(context: String, tag: String, command: CommandManifest, route: RouteManifest): Map<String, Any?> {

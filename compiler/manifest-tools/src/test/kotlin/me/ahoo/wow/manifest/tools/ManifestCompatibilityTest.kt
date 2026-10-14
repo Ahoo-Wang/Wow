@@ -306,8 +306,32 @@ class ManifestCompatibilityTest {
             row(
                 "query field removed",
                 BASELINE.def("shop.CartState", schema()),
-                "BREAKING $CART.state.items: field removed",
+                "BREAKING $CART.state.items: field removed without a new state revision",
             ),
+            row(
+                "state schema broken with a new state revision",
+                BASELINE.def(
+                    "shop.CartState",
+                    schema()
+                ).cart { it.copy(snapshot = SnapshotManifest(stateRevision = 2)) },
+                "ADDITIVE $CART.snapshot.stateRevision: state revision raised from 1 to 2",
+                "ADDITIVE $CART.state.items: field removed (snapshots rebuilt at state revision 2)",
+            ),
+            row(
+                "state revision raised alone",
+                BASELINE.cart { it.copy(snapshot = SnapshotManifest(stateRevision = 3)) },
+                "ADDITIVE $CART.snapshot.stateRevision: state revision raised from 1 to 3",
+            ),
+            row(
+                "state revision raised with an optional field",
+                BASELINE.def(
+                    "shop.CartState",
+                    schema("items" to mapOf("type" to "array", "items" to STRING), "total" to STRING)
+                ).cart { it.copy(snapshot = SnapshotManifest(stateRevision = 2)) },
+                "ADDITIVE $CART.snapshot.stateRevision: state revision raised from 1 to 2",
+                "ADDITIVE $CART.state.total: optional field added",
+            ),
+
             row(
                 "query field added",
                 BASELINE.def(
@@ -464,6 +488,11 @@ class ManifestCompatibilityTest {
         changes(BASELINE.context { it.copy(subscriptions = emptyList()) }, BASELINE)
             .assert().containsExactly("ADDITIVE $CONTEXT.subscriptions[CartProjector.onItemAdded]: subscription added")
         changes(BASELINE.copy(service = null), BASELINE).assert().isEmpty()
+        val revised = BASELINE.cart { it.copy(snapshot = SnapshotManifest(stateRevision = 2)) }
+        changes(revised, BASELINE.def("shop.CartState", schema())).assert().containsExactlyInAnyOrder(
+            "BREAKING $CART.snapshot.stateRevision: state revision lowered from 2 to 1",
+            "BREAKING $CART.state.items: field removed",
+        )
     }
 
     @Test

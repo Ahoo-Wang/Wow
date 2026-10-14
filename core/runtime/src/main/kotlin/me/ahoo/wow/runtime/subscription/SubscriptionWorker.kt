@@ -131,6 +131,17 @@ internal class SubscriptionWorker(
     var watermark: Long = checkpoint
         private set
 
+    /** The entries complete above the [watermark], each waiting for an earlier one. Guarded by the monitor. */
+    private var completeAbove = 0L
+
+    /**
+     * How far the worker has come, every complete entry counted at once: the [watermark] plus the entries complete
+     * above it. It grows with each entry completed, out of order too (an entry popped with the watermark adds at
+     * least what it counted above it), and is never below the watermark.
+     */
+    val progress: Long
+        get() = synchronized(this) { watermark + completeAbove }
+
     /** Takes [entry] if there is room, without waiting; false when the in-flight bound is reached. */
     fun tryAccept(entry: SourcedEntry): Boolean {
         if (entry.position.sequence <= cursor) {
@@ -189,7 +200,8 @@ internal class SubscriptionWorker(
     /** Whether a wait on [entry] waits for this subscription next. */
     private fun waitsHere(entry: SourcedEntry): Boolean {
         val hop = entry.transport?.wait?.nextHandled ?: return false
-        return hop.subscription == subscription.name && (hop.context ?: subscription.context) == subscription.context
+        return hop.subscription == subscription.hopOf(entry.stream.ref.type) &&
+            (hop.context ?: subscription.context) == subscription.context
     }
 
     /**
@@ -248,8 +260,10 @@ internal class SubscriptionWorker(
     /** Called under the monitor. */
     private fun complete(slot: Slot) {
         slot.done = true
+        completeAbove++
         while (pending.firstOrNull()?.done == true) {
             watermark = pending.removeFirst().sequence
+            completeAbove--
             permits.release()
         }
         outstanding.value = pending.size

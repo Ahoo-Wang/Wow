@@ -106,9 +106,23 @@ internal object WowSchemas {
     private val INTEGER: Map<String, Any?> get() = type("integer")
     private val BOOLEAN: Map<String, Any?> get() = type("boolean")
 
+    /** The name of the snapshot rebuild aggregate of a context (decision D172): `<context>.snapshot`. */
+    const val REBUILD_AGGREGATE: String = "snapshot"
+
+    /** The snapshot rebuild command (decision D172), by its full name. */
+    const val REBUILD: String = "wow.snapshot.Rebuild"
+
+    private val REBUILD_COMMAND: Map<String, Any?>
+        get() = objectSchema(
+            mapOf("ids" to obj("type" to "array", "items" to STRING, "minItems" to 1, "maxItems" to 1_000)),
+            listOf("ids"),
+            "Rebuilds from the log the snapshots of the aggregates `ids` of the aggregate type the path's id names, " +
+                "in the caller's tenant.",
+        )
+
     /** Every framework schema, by name. */
     fun all(): Map<String, Any?> = commandSchemas() + readSchemas() + querySchemas() + LIFECYCLE + JOB_COMMANDS +
-        ("wow.schedule.JobRule" to JOB_RULE)
+        ("wow.schedule.JobRule" to JOB_RULE) + (REBUILD to REBUILD_COMMAND)
 
     /** The command result and the problem, with what they hold. */
     private fun commandSchemas(): Map<String, Any?> = linkedMapOf(

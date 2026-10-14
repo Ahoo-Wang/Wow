@@ -34,6 +34,7 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleSet
 import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.api.schedule.SetSchedule
+import me.ahoo.wow.api.snapshot.SnapshotRebuilds
 
 /**
  * The kernel's side of the lifecycle commands (design 01 §6) and of the schedule system commands (decision D198): their
@@ -61,16 +62,18 @@ internal object KernelLifecycle {
     }
 
     /**
-     * The system name of [type], a lifecycle, schedule or job command or event (the jobs' only the built-in job
-     * aggregate takes, decision D198), or null when it is none of them.
+     * The system name of [type], a lifecycle, schedule, job or snapshot rebuild command or event (the jobs' only the
+     * built-in job aggregate takes, decision D198; the rebuild's only the built-in rebuild aggregate, decision D172),
+     * or null when it is none of them.
      */
     fun systemNameOf(type: Class<*>): String? =
-        Lifecycle.nameOf(type) ?: Schedules.nameOf(type) ?: ScheduleJobs.nameOf(type)
+        Lifecycle.nameOf(type) ?: Schedules.nameOf(type) ?: ScheduleJobs.nameOf(type) ?: SnapshotRebuilds.nameOf(type)
 
-    /** Whether [name] is in the system namespace, which only the lifecycle, schedule and job types take. */
+    /** Whether [name] is in the system namespace, which only the lifecycle, schedule, job and rebuild types take. */
     fun isSystemName(name: String): Boolean =
         name.startsWith("${Lifecycle.NAMESPACE}.") || name in Schedules.COMMANDS || name in Schedules.EVENTS ||
-            name in ScheduleJobs.COMMANDS || name in ScheduleJobs.EVENTS
+            name in ScheduleJobs.COMMANDS || name in ScheduleJobs.EVENTS ||
+            name in SnapshotRebuilds.COMMANDS || name in SnapshotRebuilds.EVENTS
 
     /**
      * Decides lifecycle command [body] on the metadata of [loaded]. A command that would change nothing is a no-op;

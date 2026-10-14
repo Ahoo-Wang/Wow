@@ -216,7 +216,7 @@ class CrossContextWaitTest {
     private fun ServiceNode.place(id: String, quantity: Int, vararg hops: Hop, timeout: Duration = 10.seconds) =
         context(SALES).let { context ->
             context.coordinator.stream(
-                context.models.single(),
+                context.models.first(),
                 Command(
                     "place-$id",
                     "place-$id",

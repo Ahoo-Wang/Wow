@@ -180,7 +180,7 @@ class KafkaCommandIntakeTest {
     private suspend fun ServiceNode.place(id: String, quantity: Int): CommandResult {
         val context = context(SALES)
         return context.coordinator.execute(
-            context.models.single(),
+            context.models.first(),
             Command("place-$id", "place-$id", ORDER.ref(TENANT, id), PlaceOrder(quantity), wait = WaitPlan.COMMITTED),
         )
     }

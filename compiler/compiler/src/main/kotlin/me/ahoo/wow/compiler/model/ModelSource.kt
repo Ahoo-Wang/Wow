@@ -72,12 +72,16 @@ internal object ModelSource {
     }
 
     /**
-     * The aggregate's ownership when it is not the default (decision D189), then its lifecycle commands when
+     * The aggregate's ownership when it is not the default (decision D189), its state revision when it is not 1
+     * (decision D172), then its lifecycle commands when
      * `@AggregateRoot(lifecycle)` narrows them (decision D91).
      */
     private fun StringBuilder.renderOwnershipAndLifecycle(binding: AggregateBinding) {
         if (binding.ownership != "OWNER") {
             appendLine("        ownership(me.ahoo.wow.api.aggregate.Ownership.${binding.ownership})")
+        }
+        if (binding.stateRevision != 1) {
+            appendLine("        stateRevision(${binding.stateRevision})")
         }
         if (binding.narrowsLifecycle) {
             val commands = binding.lifecycle.map { "${Lifecycle.COMMANDS.getValue(it).name}::class.java" }

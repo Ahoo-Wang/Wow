@@ -48,6 +48,12 @@ object WowHeaders {
 
     /** The version of a state read, as an entity tag: `ETag: "3"`. */
     const val ETAG: String = "ETag"
+
+    /**
+     * On the answer of a snapshot query or its descriptor, `true` while the aggregate type's snapshots are being
+     * rebuilt or backfilled (decision D172): the query answers from them as they are, some not yet rewritten.
+     */
+    const val REBUILDING: String = "Wow-Rebuilding"
 }
 
 /**

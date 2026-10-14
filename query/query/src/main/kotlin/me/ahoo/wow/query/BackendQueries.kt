@@ -133,15 +133,30 @@ fun QueryBackend.list(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> =
  * exact total for [TotalMode.EXACT], the total bounded by [totalLimit] for [TotalMode.BOUNDED] (exact when
  * [totalLimit] is `null`), and none for [TotalMode.NONE].
  */
-suspend fun QueryBackend.paged(query: AdmittedQuery<IPagedQuery>, totalLimit: Int? = null): PagedList<ObjectNode> {
+suspend fun QueryBackend.paged(query: AdmittedQuery<IPagedQuery>, totalLimit: Int? = null): PagedList<ObjectNode> =
+    paged(query, totalLimit, known = null)
+
+/**
+ * One page of [query] as [paged] reads it, except that a [known] total, the count cache's (decision D152), is the
+ * page's total without counting again.
+ */
+internal suspend fun QueryBackend.paged(
+    query: AdmittedQuery<IPagedQuery>,
+    totalLimit: Int?,
+    known: CountResult?,
+): PagedList<ObjectNode> {
     val pagination = query.query.pagination
     val mode = query.query.total
     val bound = if (mode == TotalMode.BOUNDED) totalLimit else null
-    val window = PageWindow.Offset(pagination.offset(), pagination.size, mode != TotalMode.NONE, bound)
+    val counts = mode != TotalMode.NONE && known == null
+    val window = PageWindow.Offset(pagination.offset(), pagination.size, counts, if (counts) bound else null)
     val page = executing(query.timeout) { page(query, window) }
     val rows = page.rows.map(ObjectNode::requireStandardRecord)
     if (mode == TotalMode.NONE) {
         return PagedList(null, rows)
+    }
+    if (known != null) {
+        return PagedList(known.count, rows, known.exact)
     }
     val total = page.total ?: throw QueryExecutionException("Backend page must carry the total it was asked for.")
     val counted = bounded(total, bound)

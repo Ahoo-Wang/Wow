@@ -25,6 +25,7 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.snapshot.SnapshotRebuilds
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.InMemoryCheckpointStore
@@ -125,7 +126,7 @@ class LogGroupsTest {
         eventually { projected.containsAll(listOf("order:o-1@1", "invoice:i-1@1")) }
         val groups = node.context(CONTEXT).logGroups
         groups.map { it.store }.assert().containsExactly(DEFAULT_STORE, INVOICE_STORE)
-        groups.map { it.types }.assert().containsExactly(setOf(ORDER), setOf(INVOICE))
+        groups.map { it.types }.assert().containsExactly(setOf(ORDER, SnapshotRebuilds.typeOf(CONTEXT)), setOf(INVOICE))
         groups.last().subscriptions.group.assert().isEqualTo("$SERVICE/$CONTEXT#$INVOICE_STORE")
         groups.forEach { it.subscriptions.subscriptionNames.assert().contains(PROJECTOR) }
         eventually { invoices.checkpoints.load("$SERVICE/$CONTEXT#$INVOICE_STORE", PROJECTOR, invoicePartition) == 1L }
@@ -142,6 +143,25 @@ class LogGroupsTest {
         val again = node.send(invoice, Issue(delayMillis = 60_000), WaitPlan.SNAPSHOT)
         again.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         node.context(CONTEXT).log.findByRequestId(TENANT, "i-2-Issue")?.ref.assert().isEqualTo(invoice)
+    }
+
+    @Test
+    fun `a type's snapshot write checkpoint should move with its group's snapshot writes only`(): Unit = runBlocking {
+        val node = node("node-1").also { it.start() }
+        val context = node.context(CONTEXT)
+        context.snapshotCheckpoint(AggregateType("elsewhere", "order")).assert().isNull()
+        context.snapshotCheckpoint(AggregateType(CONTEXT, "unknown")).assert().isNull()
+        val orders = checkNotNull(context.snapshotCheckpoint(ORDER))
+        val invoices = checkNotNull(context.snapshotCheckpoint(INVOICE))
+        node.send(INVOICE.ref(TENANT, "i-5"), Issue(delayMillis = 60_000), WaitPlan.SNAPSHOT).status.assert()
+            .isEqualTo(CommandResult.Status.SUCCEEDED)
+        eventually { checkNotNull(context.snapshotCheckpoint(INVOICE)) > invoices }
+        context.snapshotCheckpoint(ORDER).assert().isEqualTo(orders)
+        node.send(ORDER.ref(TENANT, "o-5"), Place(delayMillis = 60_000), WaitPlan.SNAPSHOT)
+        eventually { checkNotNull(context.snapshotCheckpoint(ORDER)) > orders }
+
+        val unsnapshotted = node("node-2", { stores.backends(it).copy(snapshots = null) }).also { it.start() }
+        unsnapshotted.context(CONTEXT).snapshotCheckpoint(ORDER).assert().isNull()
     }
 
     @Test

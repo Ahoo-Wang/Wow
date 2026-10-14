@@ -32,6 +32,7 @@ import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.runtime.admission.TenantPolicy
+import me.ahoo.wow.runtime.snapshot.SnapshotStatus
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.springframework.http.MediaType
 
@@ -89,12 +90,14 @@ class QueryNode(
     defaultListSize: Int = HttpQueries.DEFAULT_LIST_SIZE,
     tenants: TenantPolicy = TenantPolicy.CALLERS,
     snapshots: (QueryGateway) -> QueryGateway? = { it },
+    snapshotStatus: SnapshotStatus = SnapshotStatus.NONE,
 ) {
     val http = HttpNode(manifest = queryManifest(), tenants = tenants) { log ->
         HttpQueries(
             snapshots = listOfNotNull(snapshots(cartSnapshots(storage, entryPolicy))),
             events = listOf(EventQueryGateway(cartType, log, entryPolicy = entryPolicy)),
             defaultListSize = defaultListSize,
+            snapshotStatus = snapshotStatus,
         )
     }
 

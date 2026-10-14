@@ -54,6 +54,7 @@ import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.admission.TenantPolicy
+import me.ahoo.wow.runtime.snapshot.SnapshotRebuildModel
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
@@ -210,6 +211,8 @@ class HttpNode(
     ids: IdGenerators = IdGenerators.DEFAULT,
     /** The jobs of the context (decision D198): with any, the node has the job aggregate and its routes. */
     jobs: List<ScheduleJob> = emptyList(),
+    /** Whether the node keeps the cart's snapshots and so has the rebuild aggregate (decision D172). */
+    rebuilds: Boolean = false,
     queries: (EventLog) -> HttpQueries = { HttpQueries.NONE },
 ) {
     val log = InMemoryEventLog(partitions = 2)
@@ -251,7 +254,8 @@ class HttpNode(
     )
     private val models = ModelRegistry(
         listOf(cartModel(commands, mounted)) +
-            listOfNotNull(jobs.takeIf { it.isNotEmpty() }?.let { ScheduleJobModel.model(CONTEXT, it) }),
+            listOfNotNull(jobs.takeIf { it.isNotEmpty() }?.let { ScheduleJobModel.model(CONTEXT, it) }) +
+            listOfNotNull(SnapshotRebuildModel.model(CONTEXT, setOf("cart")).takeIf { rebuilds }),
     )
     val gateway = CommandGateway(
         models,

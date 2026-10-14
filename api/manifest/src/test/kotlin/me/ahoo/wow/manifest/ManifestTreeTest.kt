@@ -199,6 +199,30 @@ class ManifestTreeTest {
     }
 
     @Test
+    fun `a raised state revision should come back, and revision 1 be left out`() {
+        val aggregate = AggregateManifest(
+            "cart",
+            state = StateManifest(Manifest.schemaRef("sample.Cart")),
+            snapshot = SnapshotManifest(stateRevision = 2),
+        )
+        val manifest = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    "shop",
+                    aggregates = listOf(aggregate, aggregate.copy(name = "order", snapshot = SnapshotManifest()))
+                ),
+            ),
+        )
+        val tree = ManifestTree.write(manifest)
+        val aggregates = ((tree["contexts"] as List<*>).single() as Map<*, *>)["aggregates"] as List<*>
+        (aggregates[0] as Map<*, *>)["snapshot"].assert().isEqualTo(mapOf("enabled" to true, "stateRevision" to 2))
+        (aggregates[1] as Map<*, *>)["snapshot"].assert().isEqualTo(mapOf("enabled" to true))
+        val json = mapper.writeValueAsString(tree)
+        ManifestTree.read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(manifest)
+        assertThrows<IllegalArgumentException> { SnapshotManifest(stateRevision = 0) }
+    }
+
+    @Test
     fun `a job should come back, its defaults written too, and an absent one left out`() {
         val job = JobManifest("nightly", "0 0 3 * * *", zone = "Asia/Shanghai", scope = "TENANT", sharded = false)
         val subscription = SubscriptionManifest(

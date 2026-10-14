@@ -1,0 +1,61 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.runtime.snapshot
+
+import me.ahoo.wow.api.aggregate.AggregateType
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
+
+/**
+ * The tuning of each context's [SnapshotMaintenance] (decision D172): it runs every [interval]; an in-place rebuild
+ * rewrites [batch] snapshots a page, at most [pages] pages a run, under a lease of [leaseTtl]; a node stays a member of
+ * its state revision for [memberTtl] after its last run, so a rollback waits that long after the last node of the
+ * higher revision is gone (none when it leaves gracefully).
+ */
+data class SnapshotOptions(
+    val interval: Duration = DEFAULT_INTERVAL,
+    val batch: Int = DEFAULT_BATCH,
+    val pages: Int = DEFAULT_PAGES,
+    val leaseTtl: Duration = DEFAULT_TTL,
+    val memberTtl: Duration = DEFAULT_TTL,
+) {
+    init {
+        require(interval.isPositive()) { "The snapshot maintenance runs at a positive interval." }
+        require(batch >= 1) { "A rebuild rewrites at least one snapshot a page." }
+        require(pages >= 1) { "A rebuild rewrites at least one page a run." }
+        require(leaseTtl > interval) { "The rebuild lease outlives the interval between runs." }
+        require(memberTtl > interval) { "A revision membership outlives the interval between runs." }
+    }
+
+    companion object {
+        val DEFAULT_INTERVAL: Duration = 5.seconds
+        const val DEFAULT_BATCH: Int = 100
+        const val DEFAULT_PAGES: Int = 10
+        val DEFAULT_TTL: Duration = 30.seconds
+    }
+}
+
+/**
+ * Whether the snapshots of an aggregate type are being rebuilt or backfilled (decision D172): its primary target is
+ * not caught up, so a query of them answers with `rebuilding`.
+ */
+fun interface SnapshotStatus {
+    fun rebuilding(type: AggregateType): Boolean
+
+    companion object {
+        /** Nothing is rebuilding. */
+        @JvmField
+        val NONE: SnapshotStatus = SnapshotStatus { false }
+    }
+}

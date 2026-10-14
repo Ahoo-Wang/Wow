@@ -42,7 +42,7 @@ class MongoHostTest {
         "wow.mongo.database" to "host_test",
         "wow.log.partitions" to 4,
         "test.mongo.url" to mongo.replicaSetUrl,
-        sources = listOf(HostTestApp::class.java, MongoClientConfiguration::class.java),
+        sources = listOf(HostTestApp::class.java, MongoClientConfiguration::class.java, QueryOutcomes::class.java),
     )
 
     @AfterAll
@@ -56,6 +56,11 @@ class MongoHostTest {
         host.context.getBean(HostBackends::class.java).kind.assert().isEqualTo(BackendKind.MONGO)
         host.node.options.appendQueue.enabled.assert().isTrue()
         host.node.options.routing.assert().isEqualTo(Routing.PARTITIONED)
+    }
+
+    @Test
+    fun `counts should be cached on MongoDB until a snapshot is written`() {
+        host.assertCountCache()
     }
 
     @Test

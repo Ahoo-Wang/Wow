@@ -302,6 +302,7 @@ class WowAutoConfiguration {
                 schedules = properties.schedules.mapValues { it.value.options() },
                 kafkaRouted = kafkaRouted(properties, models.models),
                 ledger = properties.ops.publish.options(),
+                snapshots = properties.snapshot.options(),
             ),
             admission = AdmissionPlugins(
                 authorizer = authorizers.getIfAvailable { CommandAuthorizer.ALLOW_ALL },
