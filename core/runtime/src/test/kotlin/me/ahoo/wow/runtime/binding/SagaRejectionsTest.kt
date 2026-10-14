@@ -30,7 +30,7 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.RejectionBinding
-import me.ahoo.wow.kernel.RejectionSagaContext
+import me.ahoo.wow.kernel.ReceiptSagaContext
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandRequest
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
@@ -133,7 +133,7 @@ class SagaRejectionsTest {
         ExecutionSagaContext.derivedId(ExecutionId(SAGA, ORDER.ref(TENANT, order), 1), 0)
 
     private fun compensationId(order: String, handler: String = "CartSaga.onRemoveRejected") =
-        RejectionSagaContext.compensationId(ExecutionId(handler, ORDER.ref(TENANT, order), 1), rejectedId(order), 0)
+        ReceiptSagaContext.compensationId(ExecutionId(handler, ORDER.ref(TENANT, order), 1), rejectedId(order), 0)
 
     @Test
     fun `a rejection should go to the saga's handler, which compensates, and end the wait at the saga's hop`(): Unit =

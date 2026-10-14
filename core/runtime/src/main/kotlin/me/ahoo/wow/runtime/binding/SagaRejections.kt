@@ -36,7 +36,7 @@ import me.ahoo.wow.spi.id.IdGenerators
  * ([ProcessorBinding.rejectionHandlerOf]).
  *
  * Each rejection is handled once per command id in effect: the handler's context derives deterministic requests from
- * the rejected command's id ([me.ahoo.wow.kernel.RejectionSagaContext]), so handling it again, after a retry or a
+ * the rejected command's id ([me.ahoo.wow.kernel.ReceiptSagaContext]), so handling it again, after a retry or a
  * second delivery of its receipt, derives the same requests, which the kernel does not decide twice.
  *
  * A command the handler derives that is rejected in turn is not handed to a handler again (a compensation does not
