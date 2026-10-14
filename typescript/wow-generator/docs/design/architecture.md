@@ -7,11 +7,12 @@
 
 用户有三类：
 
-| 用户                         | 怎么用                                                                             | 他们需要什么成立                                                                        |
-| ---------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| Wow 服务的前端开发者         | CLI：`wow-generator generate -i http://…/v3/api-docs -o src/generated`，产物提交库 | 产物能编译（strict、`NodeNext`、`bundler`）；重新生成只在文档变了的地方变；大文档也要快 |
-| 调用任意 OpenAPI 3 服务的人  | 同上，文档不是 Wow 的                                                              | 通用的模型和 API 客户端；Wow 的约定不能误伤非 Wow 文档                                  |
-| 构建脚本、模板项目（程序化） | `new CodeGenerator(options).generate()`                                            | 一个小而稳的 API：选项、结果、日志器、错误类别；不泄漏 ts-morph、不泄漏内部模型         |
+| 用户                         | 怎么用                                                                                        | 他们需要什么成立                                                                        |
+| ---------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Wow 服务的前端开发者         | CLI：`wow-generator generate -i http://…/v3/api-docs -o src/generated`，产物提交库            | 产物能编译（strict、`NodeNext`、`bundler`）；重新生成只在文档变了的地方变；大文档也要快 |
+| Wow V10 服务的前端开发者     | 同上，输入换成服务的 Manifest（`-i http://…/wow/manifest` 或构建出的 `manifest.json`），见 §6 | 同上；产物只依赖 `@ahoo-wang/wow-client/v10`                                            |
+| 调用任意 OpenAPI 3 服务的人  | 同上，文档不是 Wow 的                                                                         | 通用的模型和 API 客户端；Wow 的约定不能误伤非 Wow 文档                                  |
+| 构建脚本、模板项目（程序化） | `new CodeGenerator(options).generate()`                                                       | 一个小而稳的 API：选项、结果、日志器、错误类别；不泄漏 ts-morph、不泄漏内部模型         |
 
 不变量，任何改动都不能碰：
 
@@ -34,22 +35,23 @@
 
 ### 2.2 分层
 
-| 目录        | 职责                                                                                                                                      | 碰 ts-morph                  |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
-| `index.ts`  | 只做公开再导出                                                                                                                            | 否                           |
-| `api/`      | 公开类型与值：`GeneratorOptions`、`GenerationResult`、配置类型、`Logger`、`ConsoleLogger`、`SilentLogger`、`GeneratorError`、`EXIT_CODES` | 否                           |
-| `cli/`      | commander 程序与用法错误的退出码（`program.ts`）、`runGenerate`（选项、退出码）、`generateAction`（Ctrl-C）                               | 否                           |
-| `pipeline/` | `CodeGenerator` 串起各段、记警告；`seams.ts` 的内部接缝 `PROJECT_SEAM`、`SIGNAL_SEAM`                                                     | 经各段                       |
-| `input/`    | 加载资源（文件、http）、JSON/YAML、文档校验、配置读取与校验（警告作为返回值）                                                             | 否                           |
-| `openapi/`  | `OpenApiDocument`（endpoint 只算一次、合并路径级参数）、组件与引用、操作、响应、schema 判定                                               | 否                           |
-| `naming/`   | 标识符与大小写、固定的 en-US 排序、`ModelInfo`、文件布局（`modelFilePath`、`boundedContextFilePath`）与 `combinePaths`                    | 否                           |
-| `wow/`      | `conventions.ts`（全部 Wow 约定）、`model.ts`（`WowModel`）、`resolveWowModel`（纯函数，不改文档）                                        | 否                           |
-| `analysis/` | 文档 + Wow 模型 + 配置 → `GenerationModel` 与警告：模型与限界上下文、聚合的命令与查询客户端、API 客户端；组件 key → 模型名                | 否                           |
-| `types/`    | `typeResolver.ts`：schema → 类型文本与它需要的导入，纯函数                                                                                | 只借 `CodeBlockWriter.quote` |
-| `emit/`     | 写入工具：`ModuleBuilder`（每个文件的语句结构，一次写入）、`ImportRegistry`、导入说明符、JSDoc 文本；不认识模型                           | 是                           |
-| `emitters/` | 读 `GenerationModel`、经 `emit/` 写出：模型（`ModelEmitter`）、限界上下文、查询、命令、API 客户端、index 文件                             | 是                           |
-| `finalize/` | 格式化、整理导入、类型导入、编译校验、文件头                                                                                              | 是                           |
-| `output/`   | `OutputStore`：一次运行一个；读清单、所有权、防路径越界、清理陈旧文件、落盘                                                               | 是                           |
+| 目录        | 职责                                                                                                                                                   | 碰 ts-morph                  |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- |
+| `index.ts`  | 只做公开再导出                                                                                                                                         | 否                           |
+| `api/`      | 公开类型与值：`GeneratorOptions`、`GenerationResult`、配置类型、`Logger`、`ConsoleLogger`、`SilentLogger`、`GeneratorError`、`EXIT_CODES`              | 否                           |
+| `cli/`      | commander 程序与用法错误的退出码（`program.ts`）、`runGenerate`（选项、退出码）、`generateAction`（Ctrl-C）                                            | 否                           |
+| `pipeline/` | `CodeGenerator` 串起各段、记警告；`seams.ts` 的内部接缝 `PROJECT_SEAM`、`SIGNAL_SEAM`                                                                  | 经各段                       |
+| `input/`    | 加载资源（文件、http）、JSON/YAML、文档校验、配置读取与校验（警告作为返回值）                                                                          | 否                           |
+| `manifest/` | V10 Manifest 的读取与校验（`document.ts`）、Manifest → `ManifestModel` 与警告（`analyze.ts`，含 JSON Schema → 类型文本），纯函数（§6）                 | 否                           |
+| `openapi/`  | `OpenApiDocument`（endpoint 只算一次、合并路径级参数）、组件与引用、操作、响应、schema 判定                                                            | 否                           |
+| `naming/`   | 标识符与大小写、固定的 en-US 排序、`ModelInfo`、文件布局（`modelFilePath`、`boundedContextFilePath`）与 `combinePaths`                                 | 否                           |
+| `wow/`      | `conventions.ts`（全部 Wow 约定）、`model.ts`（`WowModel`）、`resolveWowModel`（纯函数，不改文档）                                                     | 否                           |
+| `analysis/` | 文档 + Wow 模型 + 配置 → `GenerationModel` 与警告：模型与限界上下文、聚合的命令与查询客户端、API 客户端；组件 key → 模型名                             | 否                           |
+| `types/`    | `typeResolver.ts`：schema → 类型文本与它需要的导入，纯函数                                                                                             | 只借 `CodeBlockWriter.quote` |
+| `emit/`     | 写入工具：`ModuleBuilder`（每个文件的语句结构，一次写入）、`ImportRegistry`、导入说明符、JSDoc 文本；不认识模型                                        | 是                           |
+| `emitters/` | 读 `GenerationModel`、经 `emit/` 写出：模型（`ModelEmitter`）、限界上下文、查询、命令、API 客户端、index 文件；`manifestClients.ts` 读 `ManifestModel` | 是                           |
+| `finalize/` | 格式化、整理导入、类型导入、编译校验、文件头                                                                                                           | 是                           |
+| `output/`   | `OutputStore`：一次运行一个；读清单、所有权、防路径越界、清理陈旧文件、落盘                                                                            | 是                           |
 
 ```mermaid
 flowchart TD
@@ -62,6 +64,9 @@ flowchart TD
   pipe --> oa[openapi/]
   pipe --> wow[wow/]
   pipe --> ana[analysis/ → GenerationModel]
+  pipe --> mf[manifest/ → ManifestModel]
+  ems --> mf
+  mf --> nm
   pipe --> ems[emitters/]
   pipe --> fin[finalize/]
   pipe --> out[output/ OutputStore]
@@ -174,6 +179,18 @@ golden：`expected/demo-spec/`、`expected/compensation-spec/`、`expected/opena
 | `test/openai.spec.yml`（非 Wow） | 873    | 219  | 203.1 秒，峰值 RSS 792 MB | 1.09 秒，峰值 RSS 496 MB |
 
 平方复杂度的根因（逐条增量改 ts-morph 文件）和 B4 之后的各阶段耗时见附录 §7。`pnpm --filter @ahoo-wang/wow-generator bench [spec ...]` 在构建后按阶段计时（配置、解析、Wow 模型、分析、发射、index、收尾、落盘），不进 CI；B7 之后 OpenAI 文档最大的一块是收尾（格式化、整理导入、类型导入、校验，约 0.57 秒），其次是解析文档（约 0.21 秒）。
+
+## 6. 从 Manifest 生成（roadmap 5a.3，2026-10-14）
+
+V10 的服务契约是 Manifest（D17、D73～D76），不是 OpenAPI。生成器在 9.x 的 OpenAPI 路径之外加一条 Manifest 路径，产物建在 `@ahoo-wang/wow-client/v10` 上。
+
+- **输入不加选项。** `input/` 只加载与解析（`loadDocument`），流水线按形状分辨：有数字 `format`、`contexts` 数组且没有 `openapi`、`swagger` 的是 Manifest，其余照旧按 OpenAPI 校验。CLI、`GeneratorOptions` 与公开面都不变；配置文件里 API 客户端的设置只对 OpenAPI 有意义，Manifest 路径不读。格式不是 1 是 `input`（2），缺名字、缺状态 schema、`$defs` 不是对象等是 `specification`（4），一次列出全部问题。
+- **流水线。** 配置 → 文档 → `analyzeManifest`（纯数据的 `ManifestModel` 与警告）→ `emitManifestGeneration`（每个文件一次写入）→ index 文件 → 收尾 → 落盘；后三段与 OpenAPI 路径共用，所以清单、陈旧文件、确定性与编译校验的保证都不变。
+- **布局。** 每个上下文一个目录：`types.ts`（它的聚合能达到的 `$defs`；两个上下文都达到的 schema 声明在第一个，另一个导入）、`boundedContext.ts`（上下文常量、领域错误码与状态、订阅名、`<ctx>Wait` 跳构建器）；每个聚合一个子目录：`aggregate.ts`（聚合常量、`state.*` 字段路径、事件联合）、`commandClient.ts`（路由常量、每个命令一个方法与它的 `…Stream`、聚合列出的生命周期命令）、`queryClient.ts`（列出快照模型时的快照查询客户端、事件查询客户端、状态客户端）。
+- **类型。** `$defs` 的键是类的二进制名，类型名取简单类名（`Outer$Inner` → `OuterInner`），冲突时逐级加包名限定（`one.Item`、`two.Item` → `OneItem`、`TwoItem`），包名用尽仍冲突才加序号。schema 到类型：`$ref`、`const`、`enum`、`oneOf`/`anyOf`（联合）、`allOf`（交叉）、`type` 数组（可空）、`items`、`properties`（不在 `required` 里的可选）、`additionalProperties`（只有它时是 `Record`；与属性并存时索引签名是 `unknown`，类型化的索引签名必须容下每个属性的类型）。`$defs` 里找不到的引用是 `unknown` 并给一条警告。
+- **命令方法的形状。** 只有带 `{id}` 路由的命令收 `id` 作第一个参数；两条路由都有的（创建、挂载命令）把 `id` 放进可选的选项，给了走带 `{id}` 的路由；只有不带 `{id}` 路由的不收 `id`。命令 schema 不要求任何属性时正文可省（`= {}`）。与生命周期方法同名的领域命令加 `Command` 后缀。
+- **Manifest 尚缺的。** 状态 schema 没有 `required`，所以生成的状态属性全是可选；命令与事件没有描述；生命周期命令的正文不在 `$defs`，由 `wow-client/v10` 手写类型。这些由 Manifest（JVM 侧）补上后，产物自然收紧。
+- **把关。** `test/manifests/` 提交了 eShop 五个服务 `GET /wow/manifest` 的应答；`test/goldens/manifestDocuments.test.ts` 把它们生成到 `expected/eshop-manifest/` 逐字节比对、在 `bundler` 与 `NodeNext` 下类型检查，并对桩 `fetch` 运行产物核对线协议；`test/probes/manifestClients.test.ts` 覆盖 eShop 没有的形状（各种 schema、名字冲突、跨上下文共用、缺失引用、拒绝的输入）。
 
 ---
 
