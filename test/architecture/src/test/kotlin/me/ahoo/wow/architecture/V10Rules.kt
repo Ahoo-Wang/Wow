@@ -157,7 +157,8 @@ object V10Rules {
         SPRING_BOOT to setOf("runtime", "http", "postgres", "mongo", "query", "kafka", "clickhouse", "opentelemetry"),
         // CosId's generators as the node's (decision D171): the id SPIs only; it wires itself before the host.
         COSID to setOf("spi"),
-        MIGRATE_DATA to setOf("kernel"),
+        // The V10 log on either first-class backend, which the import writes to (roadmap 8b.1).
+        MIGRATE_DATA to setOf("kernel", "postgres", "mongo"),
         // kernel and reactor only for the tests, which compile the generated models.
         COMPILER to setOf("api", "manifest", "kernel", "reactor"),
         // compiler, kernel, manifest-tools and wow-dependencies only for the TestKit fixture and tests; openapi for
