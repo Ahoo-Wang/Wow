@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.subscribe.CallRejectedException
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
@@ -28,6 +29,7 @@ import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.contextOf
 import me.ahoo.wow.kernel.schedule.ScheduleJob
+import me.ahoo.wow.runtime.call.SagaCalls
 import me.ahoo.wow.runtime.cluster.ReplyTo
 import me.ahoo.wow.runtime.command.ReceiptHandler
 import me.ahoo.wow.runtime.node.ContextNode
@@ -132,12 +134,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                     context.models,
                     retry = handler.retry
                 ) { entry ->
-                    val event = stateEventOf(entry, context)
-                    val execution = contextOf(handler.kind, name, event, context.ids, context.commandTypes)
-                    val commands = call(handler, event, execution)
-                    val wait = DerivedCommands.waitOf(entry.transport?.wait, context.context, name)
-                    val replyTo = replyTo(handler, context.context, execution.executionId)
-                    sagaHandled(derived.execute(commands, wait, replyTo), execution.executionId, receipts, wait)
+                    handleSaga(handler, stateEventOf(entry, context), entry, context, derived, receipts)
                 }
             } else {
                 Subscription(
@@ -178,12 +175,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                     context = context.context,
                     retry = handler.retry
                 ) { entry ->
-                    val event = publishedStateEventOf(entry, handler, context)
-                    val execution = contextOf(handler.kind, name, event, context.ids, context.commandTypes)
-                    val commands = call(handler, event, execution)
-                    val wait = DerivedCommands.waitOf(entry.transport?.wait, context.context, name)
-                    val replyTo = replyTo(handler, context.context, execution.executionId)
-                    sagaHandled(derived.execute(commands, wait, replyTo), execution.executionId, receipts, wait)
+                    handleSaga(handler, publishedStateEventOf(entry, handler, context), entry, context, derived, receipts)
                 }
             } else {
                 Subscription(
@@ -258,6 +250,36 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 .mapValues { (_, inContext) -> inContext.flatMap { it.processors(dependencies) } }
                 .filterValues { it.isNotEmpty() },
         )
+
+        /**
+         * Hands [event], of [entry], to the saga [handler] of [context] and executes what it derives through [derived]
+         * (design 04 §6.1). The wait the entry carries on past the saga's hop ([DerivedCommands.waitOf]) goes with its
+         * derived commands and with its synchronous calls (decision D193), whose ids the saga's hop reports first, in
+         * the order they were made. A call's rejection the handler lets through parks the aggregate at once
+         * ([CallRejectedHandlingException]); a call that failed fails the handling, retried then parked.
+         */
+        internal suspend fun handleSaga(
+            handler: ProcessorBinding<*>,
+            event: StateEvent<*>,
+            entry: SubscribedEntry,
+            context: ContextNode,
+            derived: DerivedCommands,
+            receipts: SagaReceipts,
+        ): HandledEntry {
+            val name = handler.name
+            val wait = DerivedCommands.waitOf(entry.transport?.wait, context.context, name)
+            val calls = SagaCalls(context.caller, context.served, context.commandTypes, wait)
+            val execution = contextOf(handler.kind, name, event, context.ids, context.commandTypes, calls)
+            val commands = try {
+                call(handler, event, execution)
+            } catch (rejected: CallRejectedException) {
+                throw CallRejectedHandlingException(rejected)
+            }
+            val replyTo = replyTo(handler, context.context, execution.executionId)
+            val executed = derived.execute(commands, wait, replyTo)
+            val withCalls = executed.copy(executed = calls.called + executed.executed)
+            return sagaHandled(withCalls, execution.executionId, receipts, wait)
+        }
 
         /**
          * What a saga's execution [executed] reports (decision D153): the commands it executed, or, when one was

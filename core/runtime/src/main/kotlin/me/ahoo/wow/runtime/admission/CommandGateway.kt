@@ -80,6 +80,11 @@ import kotlin.time.Duration
  *    - the command id is always a new global one from [ids]; the request id is the request's, or the command id;
  *    - the operator is the caller's ([me.ahoo.wow.api.caller.Caller.toOperator], decision D163): its subject in its
  *      own tenant, marked as acting elsewhere when a target was named; none for an anonymous caller;
+ *    - a synchronous call's [CommandRequest.call] (decision D193) is [FrameworkCodes.AUTH_FORBIDDEN] unless the caller
+ *      is a [service][me.ahoo.wow.api.caller.Caller.service] identity, and [FrameworkCodes.MALFORMED] beside a target;
+ *      from a service, the command's id, tenant, scope, operator and causation are the call's: a derived command
+ *      (decision D199), executed with the call's wait context as one from another context's command topic, and
+ *      answered at COMMITTED;
  *    - a request header in the framework's namespace (`Wow-…`, `wow.…`) is refused: identity, ids and the wait have
  *      fields of their own.
  * 3. Authorize the action with [authorizer], before the body is decoded.
@@ -163,7 +168,15 @@ class CommandGateway(
                 val from = admission.transformedFrom
                 // The command executes in the admission's trace (decision D174).
                 val trace = observed.context
-                if (admission.command.wait.isAcceptedOnly) {
+                val call = admission.call
+                if (call != null) {
+                    val settled = if (trace === EmptyCoroutineContext) {
+                        coordinator.forward(admission.model, admission.command, call.wait)
+                    } else {
+                        withContext(trace) { coordinator.forward(admission.model, admission.command, call.wait) }
+                    }
+                    emit(if (from == null) settled.committed else settled.committed.copy(transformedFrom = from))
+                } else if (admission.command.wait.isAcceptedOnly) {
                     val accepted = if (trace === EmptyCoroutineContext) {
                         coordinator.accept(admission.model, admission.command, detached)
                     } else {
@@ -214,7 +227,8 @@ class CommandGateway(
      * same request id is safe.
      */
     private suspend fun admitting(request: CommandRequest): Admission {
-        val facts = Facts(request, ids.global.next())
+        // A service's call keeps the id its saga derived (decision D193); any other command gets a new one.
+        val facts = Facts(request, request.call?.takeIf { request.caller.service }?.commandId ?: ids.global.next())
         return try {
             admit(request, facts)
         } catch (unavailable: StorageUnavailableException) {
@@ -245,8 +259,10 @@ class CommandGateway(
         identityConflict(request, creation, transformed = transformer != null)?.let {
             return facts.refuse(FrameworkCodes.MALFORMED, it)
         }
-        val target = request.target
-        if (target != null && !request.caller.crossScope) {
+        val call = request.call
+        callProblem(request)?.let { (code, message) -> return facts.refuse(code, message) }
+        val target = call?.let { TargetScope(it.tenantId, it.scope) } ?: request.target
+        if (call == null && target != null && !request.caller.crossScope) {
             return facts.refuse(FrameworkCodes.AUTH_FORBIDDEN, "The caller may not act in another scope.")
         }
         val tenantId = try {
@@ -320,7 +336,11 @@ class CommandGateway(
         }
         // 7. The command.
         val coordinator = coordinators.getValue(facts.ref.type.context)
-        val plan = request.wait ?: WaitPlan.DEFAULT.within(coordinator.options.defaultTimeout)
+        val plan = if (call != null) {
+            WaitPlan.COMMITTED.within(coordinator.options.defaultTimeout)
+        } else {
+            request.wait ?: WaitPlan.DEFAULT.within(coordinator.options.defaultTimeout)
+        }
         val admitted = Command(
             id = facts.commandId,
             requestId = facts.requestId,
@@ -329,10 +349,25 @@ class CommandGateway(
             expectedVersion = request.expectedVersion,
             scope = scope,
             headers = command.headers,
-            operator = request.caller.toOperator(actingElsewhere = target != null),
+            causation = call?.causation,
+            operator = if (call != null) call.operator else request.caller.toOperator(actingElsewhere = target != null),
             wait = plan.within(minOf(plan.timeout, coordinator.options.maxTimeout)),
         )
-        return Admission.Admitted(command.model, admitted, facts.transformedFrom)
+        return Admission.Admitted(command.model, admitted, facts.transformedFrom, call)
+    }
+
+    /**
+     * Why [request]'s synchronous call (decision D193) is refused, with its code, or null when it has none or may
+     * make it: only a service identity asserts the root command a call acts for, and it names the call's scope in
+     * the call alone.
+     */
+    private fun callProblem(request: CommandRequest): Pair<String, String>? = when {
+        request.call == null -> null
+        !request.caller.service -> FrameworkCodes.AUTH_FORBIDDEN to
+            "Only a service identity calls on behalf of a root command (decision D193)."
+
+        request.target != null -> FrameworkCodes.MALFORMED to "A call names its scope in the call, not in Wow-Scope."
+        else -> null
     }
 
     /** The authorizer's denial of [action], or null when it allows it. */
@@ -423,6 +458,8 @@ class CommandGateway(
             val model: AggregateModel<*>,
             val command: Command<*>,
             val transformedFrom: TransformedFrom?,
+            /** The synchronous call the command came with, from a service identity (decision D193). */
+            val call: CallContext? = null,
         ) : Admission
 
         class Refused(val result: CommandResult) : Admission

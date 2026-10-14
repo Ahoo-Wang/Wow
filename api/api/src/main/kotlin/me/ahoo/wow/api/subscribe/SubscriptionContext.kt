@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.id.Ids
+import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.SetSchedule
@@ -92,4 +93,24 @@ interface SagaContext : SubscriptionContext {
 
     /** The system command `wow.schedule.Cancel` to [target]: cancels its schedule [key]; see [schedule]. */
     fun cancel(key: String, target: AggregateRef): Command<CancelSchedule>
+
+    /**
+     * Sends [command], to an aggregate of another bounded context, through that context's HTTP command gateway and
+     * returns its result once it is committed there (decision D193): the aggregate it acted on (the id the target
+     * gave a creation without one, decision D191), its version, `duplicate` when the target had already committed the
+     * request. Build [command] with [command] first: its deterministic request id makes every retry and replay of
+     * this execution the same request, which the target decides once and answers with the same aggregate; its
+     * operator, scope and causation are the root command's, which the client asserts with the service's credential.
+     * A wait that follows the saga goes on with it: the target signals the next hops as for a derived command.
+     *
+     * The default is D33's: derive the command (return it), which its context's command topic delivers. Call only
+     * where the target being online is a precondition and the saga needs the result now; the target's address is the
+     * host's configuration (`wow.calls.contexts.<context>.url`).
+     *
+     * @throws CallRejectedException when the target refuses it, a business outcome that is not retried.
+     * @throws CallFailedException when it reaches no result: the handler fails, is retried within its subscription's
+     * budget, then parks its aggregate.
+     */
+    suspend fun call(command: Command<*>): CommandResult =
+        throw UnsupportedOperationException("This handler cannot call another context synchronously (decision D193).")
 }

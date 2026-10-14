@@ -34,6 +34,9 @@ import org.springframework.web.reactive.function.server.ServerRequest
  *   [tenantPolicies], compared whole: its caller has no owner, so it reads and writes every aggregate of its tenant,
  *   each action still authorized by CoSec. Any other principal is an owner-level caller, its own owner.
  * - The principal's attributes whose key starts with [attributePrefix] are its ABAC attributes.
+ * - A principal is a service identity (decision D193) when it has one of [serviceRoles] or one of [servicePolicies],
+ *   compared whole: another service of the system, authenticated by the token CoSec issued to its service account,
+ *   which alone may assert the root command of a synchronous call (`Wow-Call`).
  */
 data class CoSecCallerOptions(
     val defaultTenant: String = Caller.DEFAULT_TENANT,
@@ -42,6 +45,8 @@ data class CoSecCallerOptions(
     val attributePrefix: String = ABAC_PREFIX,
     val tenantRoles: Set<String> = emptySet(),
     val tenantPolicies: Set<String> = emptySet(),
+    val serviceRoles: Set<String> = emptySet(),
+    val servicePolicies: Set<String> = emptySet(),
 ) {
     init {
         require(defaultTenant.isNotBlank()) { "The default tenant is not blank." }
@@ -69,6 +74,8 @@ data class CoSecCallerOptions(
  *   none when it belongs to none or to several. A `Wow-Space` the principal does not belong to leaves the caller in
  *   that default, so the edge answers 403 `wow.auth.forbidden`.
  * - **Cross scope**: [CoSecCallerOptions.crossScopeRoles] and [CoSecCallerOptions.crossScopePolicies].
+ * - **Service identity** (decision D193): [CoSecCallerOptions.serviceRoles] and [CoSecCallerOptions.servicePolicies];
+ *   no other principal is one, whatever headers its request carries.
  * - **Attributes**: the principal's roles ([ROLES]), its policies ([POLICIES]), and its ABAC attributes, keyed with
  *   their prefix (`abac.dept`); a value is a list, an array or a comma-separated string.
  */
@@ -97,6 +104,8 @@ class CoSecCallerResolver(private val options: CoSecCallerOptions = CoSecCallerO
             crossScope = principal.roles.any { it in options.crossScopeRoles } ||
                 principal.policies.any { it in options.crossScopePolicies },
             attributes = attributesOf(principal),
+            service = principal.roles.any { it in options.serviceRoles } ||
+                principal.policies.any { it in options.servicePolicies },
         )
     }
 

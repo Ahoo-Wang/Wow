@@ -13,12 +13,14 @@
 
 package me.ahoo.wow.http.command
 
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.runtime.FrameworkCodes
+import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.TargetScope
 import org.springframework.http.HttpStatus
 import org.springframework.http.InvalidMediaTypeException
@@ -71,6 +73,26 @@ internal class RequestHeaders(private val statuses: ErrorStatuses) {
         val tag = value.removeSurrounding("\"")
         return tag.toIntOrNull()?.takeIf { it >= 0 }
             ?: throw problem(FrameworkCodes.MALFORMED, "If-Match is one version as an entity tag, such as \"3\".")
+    }
+
+    /**
+     * The synchronous call of `Wow-Call` (decision D193), or null without it: only a [service][Caller.service] identity
+     * may send it, and any other caller is answered 403 `wow.auth.forbidden`, so no client asserts a root command's
+     * scope, operator or causation; one that does not parse is a problem with [FrameworkCodes.MALFORMED].
+     */
+    fun call(request: ServerRequest, caller: Caller): CallContext? {
+        val value = request.header(WowHeaders.CALL) ?: return null
+        if (!caller.service) {
+            throw problem(
+                FrameworkCodes.AUTH_FORBIDDEN,
+                "Only a service identity sends ${WowHeaders.CALL} (decision D193).",
+            )
+        }
+        return try {
+            CallHeader.parse(value)
+        } catch (invalid: IllegalArgumentException) {
+            throw problem(FrameworkCodes.MALFORMED, invalid.message ?: "${WowHeaders.CALL} does not parse.")
+        }
     }
 
     /** The request id of `Wow-Request-Id`, or null without it. */

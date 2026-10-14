@@ -17,7 +17,10 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.WowHttpOptions
+import me.ahoo.wow.http.call.HttpCommandCaller
+import me.ahoo.wow.http.call.ServiceCredential
 import me.ahoo.wow.http.caller.CallerResolver
+import me.ahoo.wow.http.caller.ServiceTokens
 import me.ahoo.wow.http.command.JakartaCommandValidator
 import me.ahoo.wow.http.internal.HttpClusterChannel
 import me.ahoo.wow.http.internal.HttpSignalSender
@@ -39,6 +42,7 @@ import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
+import me.ahoo.wow.runtime.call.CommandCaller
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.manifest.ManifestLoader
@@ -218,6 +222,27 @@ class WowAutoConfiguration {
         properties: WowProperties,
     ): SignalSender = HttpSignalSender(client, queueCapacity = properties.internal.signalQueueCapacity)
 
+    /** The credential of the node's synchronous calls (decision D193): `wow.calls.token` as a bearer, else none. */
+    @Bean
+    @ConditionalOnMissingBean
+    fun wowServiceCredential(properties: WowProperties): ServiceCredential =
+        properties.calls.token?.takeIf { it.isNotBlank() }?.let(ServiceCredential::bearer) ?: ServiceCredential.NONE
+
+    /** The client of the other contexts' command gateways the sagas call (decision D193), at `wow.calls.contexts`. */
+    @Bean
+    @ConditionalOnMissingBean
+    fun wowCommandCaller(properties: WowProperties, credential: ServiceCredential): CommandCaller {
+        val calls = properties.calls
+        return HttpCommandCaller(
+            endpoints = calls.contexts.mapValues { (context, target) ->
+                checkNotNull(target.url) { "wow.calls.contexts.$context.url is not set." }
+            },
+            credential = credential,
+            client = HttpCommandCaller.client(calls.connectTimeout.toKotlinDuration()),
+            timeout = calls.timeout.toKotlinDuration(),
+        )
+    }
+
     @Bean
     @ConditionalOnMissingBean
     @Suppress("LongParameterList") // One parameter per part of the node, each a bean the application may replace.
@@ -244,6 +269,7 @@ class WowAutoConfiguration {
         topics: ObjectProvider<SourceTopics>,
         notifiers: ObjectProvider<ParkedNotifier>,
         observers: ObjectProvider<Observer>,
+        callers: ObjectProvider<CommandCaller>,
     ): ServiceNode {
         checkShutdownTimeout(environment)
         val routing = routing(properties, backends.kind)
@@ -294,6 +320,7 @@ class WowAutoConfiguration {
             topics = topics.ifAvailable,
             parkedNotifier = ParkedNotifier.of(notifiers.orderedStream().toList()),
             observer = observers.getIfUnique { Observer.NONE },
+            caller = callers.ifAvailable,
         )
     }
 
@@ -377,8 +404,15 @@ class WowAutoConfiguration {
         callers: CallerResolver,
         options: WowHttpOptions,
         queries: ObjectProvider<HttpQueries>,
-    ): RouterFunction<ServerResponse> =
-        wowRoutes(manifest, node.gateway, reads, callers, options, queries.getIfAvailable { HttpQueries.NONE })
+        properties: WowProperties,
+    ): RouterFunction<ServerResponse> = wowRoutes(
+        manifest,
+        node.gateway,
+        reads,
+        serviceTokens(properties).resolver(callers),
+        options,
+        queries.getIfAvailable { HttpQueries.NONE },
+    )
 
     /**
      * The operator's routes over the parked entries (roadmap P.1), when `wow.ops.enabled`: authenticated by the
@@ -439,6 +473,15 @@ class WowAutoConfiguration {
          * Where commands run: `wow.cluster.router`, by default local on the memory backend, whose stores no other
          * node shares, and partitioned on the others. The memory backend refuses partitioned routing.
          */
+        /**
+         * The service identities the public port trusts by their static tokens (`wow.http.services`, decision D193), in
+         * the default tenant.
+         */
+        internal fun serviceTokens(properties: WowProperties): ServiceTokens = ServiceTokens(
+            properties.http.services.mapValues { it.value.tokens.toList() },
+            properties.tenant.default,
+        )
+
         internal fun routing(properties: WowProperties, kind: BackendKind?): Routing {
             val configured = properties.cluster.router
             if (kind == BackendKind.MEMORY) {

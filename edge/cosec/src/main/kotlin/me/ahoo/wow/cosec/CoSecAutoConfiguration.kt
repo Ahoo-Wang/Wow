@@ -36,7 +36,8 @@ import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
  * - [CoSecCallerResolver] is the host's [CallerResolver] unless the application has one: the host's anonymous
  *   default steps aside. Its options are `wow.tenant.default`, `wow.cosec.cross-scope.roles` /
  *   `wow.cosec.cross-scope.policies` and `wow.cosec.tenant-level.roles` / `wow.cosec.tenant-level.policies` (the
- *   tenant-level callers, decision D189), comma-separated or indexed lists.
+ *   tenant-level callers, decision D189), `wow.cosec.service.roles` / `wow.cosec.service.policies` (the service
+ *   identities, decision D193), comma-separated or indexed lists.
  * - The CoSec request facts ([CoSecRequestFacts]) join the edge's request-fact list (`wow.http.request-facts`).
  * - [CoSecCommandAuthorizer] is the host's [CommandAuthorizer] when `wow.cosec.authorizer.enabled` is true, the
  *   application has CoSec's `Authorization` and no authorizer of its own. On the public port CoSec's WebFilter
@@ -76,6 +77,8 @@ class CoSecAutoConfiguration {
         const val CROSS_SCOPE_POLICIES: String = "$PREFIX.cross-scope.policies"
         const val TENANT_ROLES: String = "$PREFIX.tenant-level.roles"
         const val TENANT_POLICIES: String = "$PREFIX.tenant-level.policies"
+        const val SERVICE_ROLES: String = "$PREFIX.service.roles"
+        const val SERVICE_POLICIES: String = "$PREFIX.service.policies"
         const val AUTHORIZER_ENABLED: String = "$PREFIX.authorizer.enabled"
         const val DEFAULT_TENANT: String = "wow.tenant.default"
 
@@ -93,6 +96,8 @@ class CoSecAutoConfiguration {
             crossScopePolicies = environment.list(CROSS_SCOPE_POLICIES),
             tenantRoles = environment.list(TENANT_ROLES),
             tenantPolicies = environment.list(TENANT_POLICIES),
+            serviceRoles = environment.list(SERVICE_ROLES),
+            servicePolicies = environment.list(SERVICE_POLICIES),
         )
 
         private fun defaultTenant(environment: Environment): String =

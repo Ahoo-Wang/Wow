@@ -19,6 +19,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.subscribe.CallRejectedException
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
@@ -217,3 +218,11 @@ class DerivedCommandRejectedException(val command: Command<*>, val rejection: Re
         ErrorInfo(rejection.code, rejection.message),
         "The derived command ${command.id} on ${command.ref} was rejected: ${rejection.code} ${rejection.message}",
     )
+
+/**
+ * A saga's handler let through the rejection of a synchronous call it made (decision D193): a business outcome, so the
+ * aggregate parks at once, without a retry, as for a derived command's rejection no `@OnRejected` handler takes
+ * (decision D153), and a wait at the saga's hop ends REJECTED with the target's error.
+ */
+class CallRejectedHandlingException(val rejected: CallRejectedException) :
+    HandlingRejectedException(rejected.result.error!!, rejected.message!!)

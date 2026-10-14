@@ -28,6 +28,10 @@ import me.ahoo.wow.api.aggregate.Scope
  *   D95).
  * - [attributes] are further facts about the principal an authorizer or a query policy may read (roles, policies,
  *   `abac.` attributes). They live only as long as the request: none of them is written into a fact (decision D163).
+ * - [service] says the caller is a service identity (decision D193): another service of the system, authenticated by
+ *   its service credential, calling for a saga of its own. Only such a caller may assert the root command a call
+ *   acts for (its tenant, scope, operator and causation, the `Wow-Call` header); the edge refuses that header from
+ *   any other caller. A service identity has a [subject].
  *
  * A caller is the runtime's view of one request; the [Operator] is what a commit records of it ([toOperator]).
  */
@@ -37,10 +41,12 @@ data class Caller(
     val subject: String? = null,
     val crossScope: Boolean = false,
     val attributes: Map<String, List<String>> = emptyMap(),
+    val service: Boolean = false,
 ) {
     init {
         require(tenantId.isNotBlank()) { "A caller's tenant is not blank." }
         require(subject == null || subject.isNotBlank()) { "A caller's subject, when present, is not blank." }
+        require(!service || subject != null) { "A service identity names its subject." }
     }
 
     /**

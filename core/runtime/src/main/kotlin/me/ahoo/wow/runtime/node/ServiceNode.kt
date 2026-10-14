@@ -56,6 +56,7 @@ import me.ahoo.wow.runtime.cluster.PartitionedRouter
 import me.ahoo.wow.runtime.cluster.Refusal
 import me.ahoo.wow.runtime.cluster.TopicRouter
 import me.ahoo.wow.runtime.command.CommandIntake
+import me.ahoo.wow.runtime.call.CommandCaller
 import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.command.MessageEntries
 import me.ahoo.wow.runtime.command.Receipts
@@ -148,6 +149,13 @@ class ContextNode internal constructor(
     val logGroups: List<LogGroupNode> = emptyList(),
     /** Names the commands the context's sagas schedule (decision D198): by its models and the service's Manifests. */
     val commandTypes: CommandTypes = CommandTypes.SIMPLE_NAMES,
+    /**
+     * The client of the other contexts' command gateways the context's sagas call synchronously (decision D193); null
+     * when the host gives none, and a call then fails.
+     */
+    val caller: CommandCaller? = null,
+    /** The contexts of the node: a saga derives the commands of these, and calls only the others (decision D193). */
+    val served: Set<String> = setOf(context),
 ) {
     /**
      * The ids of the context's creation commands that name no aggregate (decision D191): a saga's derived command, one
@@ -301,6 +309,11 @@ class ServiceNode(
      * subscription and the firing of timers; nothing by default.
      */
     private val observer: Observer = Observer.NONE,
+    /**
+     * The client of the other contexts' command gateways (decision D193), through which the sagas call them
+     * synchronously; none by default, and a call then fails.
+     */
+    private val caller: CommandCaller? = null,
 ) {
     init {
         require(service.isNotBlank()) { "A node names its service." }
@@ -1066,6 +1079,8 @@ class ServiceNode(
                 admission.ids,
                 logGroups,
                 commandTypes,
+                caller,
+                registry.contexts,
             )
         }
     }

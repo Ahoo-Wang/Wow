@@ -13,8 +13,12 @@
 
 package me.ahoo.wow.runtime.admission
 
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.spi.wait.WaitContext
 import tools.jackson.databind.JsonNode
 
 /**
@@ -30,6 +34,9 @@ import tools.jackson.databind.JsonNode
  *
  * [trace] holds the trace context the request arrived with (decision D174), such as the W3C `traceparent` and
  * `tracestate` headers: delivery metadata, never a fact, which only an observer reads.
+ *
+ * [call] is the root command a service identity's synchronous call acts for (decision D193, the `Wow-Call` header):
+ * admission takes it only from a caller that is a [service][Caller.service] identity.
  */
 data class CommandRequest(
     val context: String,
@@ -44,6 +51,7 @@ data class CommandRequest(
     val headers: Map<String, String> = emptyMap(),
     val wait: WaitPlan? = null,
     val trace: Map<String, String> = emptyMap(),
+    val call: CallContext? = null,
 ) {
     init {
         require(context.isNotBlank()) { "A command request names its context." }
@@ -66,5 +74,29 @@ sealed interface CommandBody {
         /** [json] as a body. */
         @JvmStatic
         fun of(json: String): CommandBody = Bytes(json.toByteArray())
+    }
+}
+
+/**
+ * The root command a synchronous call acts for (decision D193), as the calling service asserts it: the call's command
+ * id [commandId] (the id its saga derived, so a wait that follows the saga finds it), and the root command's tenant
+ * [tenantId], [scope], [operator] (decisions D163, D189) and the [causation] that makes it a derived command (decision
+ * D199), with the [wait] context a wait that follows the saga goes on with.
+ *
+ * Admission trusts it only from a [service][Caller.service] identity, and then acts as for a command another context
+ * sent through its command topic: the command is in [tenantId] and [scope], an aggregate it creates belongs to them, an
+ * existing one is not checked against them, and its result is the one at COMMITTED.
+ */
+data class CallContext(
+    val commandId: String,
+    val tenantId: String,
+    val scope: Scope,
+    val causation: Causation,
+    val operator: Operator? = null,
+    val wait: WaitContext? = null,
+) {
+    init {
+        require(commandId.isNotBlank()) { "A call names its command id." }
+        require(tenantId.isNotBlank()) { "A call names its tenant." }
     }
 }
