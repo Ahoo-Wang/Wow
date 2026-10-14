@@ -1,0 +1,739 @@
+{
+  "format" : 1,
+  "service" : {
+    "name" : "view-store-service",
+    "version" : "9.9.0"
+  },
+  "contexts" : [ {
+    "name" : "view-store",
+    "description" : "The view engine's saved views, view preferences and dataset wording",
+    "aggregates" : [ {
+      "name" : "dataset_wording",
+      "description" : "A tenant's wording over one dataset in one application",
+      "state" : {
+        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.domain.wording.DatasetWordingState",
+        "fingerprint" : "1abd5abba062140c3915e36794eeaf4ed4594a9b34198a2ed17671e202c14a52"
+      },
+      "snapshot" : {
+        "enabled" : true
+      },
+      "commands" : [ {
+        "name" : "ClearDatasetWording",
+        "aliases" : [ ],
+        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.wording.ClearDatasetWording",
+        "creation" : "NONE",
+        "produces" : [ "DatasetWordingCleared" ],
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/view-store/dataset_wording/{id}/clear-dataset-wording"
+        } ],
+        "description" : "Clear the wording of a dataset"
+      }, {
+        "name" : "SetDatasetWording",
+        "aliases" : [ ],
+        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.wording.SetDatasetWording",
+        "creation" : "ALLOWED",
+        "produces" : [ "DatasetWordingSet" ],
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/view-store/dataset_wording/{id}/set-dataset-wording"
+        }, {
+          "method" : "POST",
+          "path" : "/view-store/dataset_wording/set-dataset-wording"
+        } ],
+        "description" : "Set the wording of a dataset"
+      } ],
+      "events" : [ {
+        "name" : "DatasetWordingCleared",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.wording.DatasetWordingCleared",
+        "description" : "A dataset's wording was cleared"
+      }, {
+        "name" : "DatasetWordingSet",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.wording.DatasetWordingSet",
+        "description" : "A dataset's wording was set"
+      } ],
+      "lifecycle" : [ ],
+      "queries" : [ {
+        "model" : "snapshot",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/view-store/dataset_wording/snapshot/query"
+        }, {
+          "method" : "GET",
+          "path" : "/view-store/dataset_wording/snapshot/query"
+        } ]
+      }, {
+        "model" : "events",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/view-store/dataset_wording/events/query"
+        }, {
+          "method" : "GET",
+          "path" : "/view-store/dataset_wording/events/query"
+        } ]
+      } ],
+      "ownership" : "TENANT"
+    }, {
+      "name" : "view",
+      "description" : "A saved view of the view engine: a record view, an analysis view or a dashboard",
+      "state" : {
+        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.domain.view.ViewState",
+        "fingerprint" : "2c9c6bb78603b6724c2326a5ca43a0bfb25ded34996087a5a642de66dc38ba95"
+      },
+      "snapshot" : {
+        "enabled" : true
+      },
+      "commands" : [ {
+        "name" : "ClaimView",
+        "aliases" : [ ],
+        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.view.ClaimView",
+        "creation" : "NONE",
+        "produces" : [ "ViewClaimed" ],
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/view-store/view/{id}/claim-view"
+        } ],
+        "description" : "Make a shared view personal"
+      }, {
+        "name" : "CreateView",
+        "aliases" : [ ],
+        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.view.CreateView",
+        "creation" : "REQUIRED",
+        "produces" : [ "ViewCreated" ],
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/view-store/view/{id}/create-view"
+        }, {
+          "method" : "POST",
+          "path" : "/view-store/view/create-view"
+        } ],
+        "description" : "Create a view"
+      }, {
+        "name" : "RenameView",
+        "aliases" : [ ],
+        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.view.RenameView",
+        "creation" : "NONE",
+        "produces" : [ "ViewRenamed" ],
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/view-store/view/{id}/rename-view"
+        } ],
+        "description" : "Rename a view"
+      }, {
+        "name" : "SaveView",
+        "aliases" : [ ],
+        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.view.SaveView",
+        "creation" : "NONE",
+        "produces" : [ "ViewSaved" ],
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/view-store/view/{id}/save-view"
+        } ],
+        "description" : "Save a view's config"
+      }, {
+        "name" : "ShareView",
+        "aliases" : [ ],
+        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.view.ShareView",
+        "creation" : "NONE",
+        "produces" : [ "ViewShared" ],
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/view-store/view/{id}/share-view"
+        } ],
+        "description" : "Make a view shared"
+      } ],
+      "events" : [ {
+        "name" : "ViewClaimed",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.view.ViewClaimed",
+        "description" : "A shared view was made personal to toOwnerId, who becomes its owner"
+      }, {
+        "name" : "ViewCreated",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.view.ViewCreated",
+        "description" : "A view was saved"
+      }, {
+        "name" : "ViewRenamed",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.view.ViewRenamed",
+        "description" : "A view was renamed"
+      }, {
+        "name" : "ViewSaved",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.view.ViewSaved",
+        "description" : "A view's config was overwritten"
+      }, {
+        "name" : "ViewShared",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.view.ViewShared",
+        "description" : "A view was made shared; its owner becomes (shared)"
+      } ],
+      "lifecycle" : [ "wow.lifecycle.DeleteAggregate", "wow.lifecycle.TransferOwner" ],
+      "queries" : [ {
+        "model" : "snapshot",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/view-store/view/snapshot/query"
+        }, {
+          "method" : "GET",
+          "path" : "/view-store/view/snapshot/query"
+        } ]
+      }, {
+        "model" : "events",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/view-store/view/events/query"
+        }, {
+          "method" : "GET",
+          "path" : "/view-store/view/events/query"
+        } ]
+      } ]
+    }, {
+      "name" : "view_preferences",
+      "description" : "One owner's view preferences for one definition in one application",
+      "state" : {
+        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.domain.preferences.ViewPreferencesState",
+        "fingerprint" : "0b644bb159eb53116cd5041f82bcc53d4ded98b8c52f6f05156af56410836dbf"
+      },
+      "snapshot" : {
+        "enabled" : true
+      },
+      "commands" : [ {
+        "name" : "SetViewPreferences",
+        "aliases" : [ ],
+        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.preferences.SetViewPreferences",
+        "creation" : "ALLOWED",
+        "produces" : [ "ViewPreferencesSet" ],
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/view-store/view_preferences/{id}/set-view-preferences"
+        }, {
+          "method" : "POST",
+          "path" : "/view-store/view_preferences/set-view-preferences"
+        } ],
+        "description" : "Set the view preferences of a definition"
+      } ],
+      "events" : [ {
+        "name" : "ViewPreferencesSet",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.preferences.ViewPreferencesSet",
+        "description" : "A definition's view preferences were set"
+      } ],
+      "lifecycle" : [ ],
+      "queries" : [ {
+        "model" : "snapshot",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/view-store/view_preferences/snapshot/query"
+        }, {
+          "method" : "GET",
+          "path" : "/view-store/view_preferences/snapshot/query"
+        } ]
+      }, {
+        "model" : "events",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/view-store/view_preferences/events/query"
+        }, {
+          "method" : "GET",
+          "path" : "/view-store/view_preferences/events/query"
+        } ]
+      } ]
+    } ],
+    "subscriptions" : [ {
+      "name" : "ViewAudienceSaga.onAudienceChanged",
+      "kind" : "SAGA",
+      "source" : {
+        "context" : "view-store",
+        "aggregates" : [ "view" ],
+        "events" : [ ]
+      },
+      "function" : {
+        "kind" : "SAGA",
+        "context" : "view-store",
+        "processor" : "ViewAudienceSaga",
+        "name" : "onAudienceChanged"
+      },
+      "derives" : [ "#/$defs/me.ahoo.wow.api.lifecycle.TransferOwner" ],
+      "start" : "END"
+    } ],
+    "published" : [ {
+      "aggregate" : "dataset_wording",
+      "topic" : "wow.view-store.dataset_wording.state",
+      "includeState" : true
+    }, {
+      "aggregate" : "view",
+      "topic" : "wow.view-store.view.state",
+      "includeState" : true
+    }, {
+      "aggregate" : "view_preferences",
+      "topic" : "wow.view-store.view_preferences.state",
+      "includeState" : true
+    } ],
+    "errors" : [ {
+      "code" : "view-store.app-required",
+      "status" : 400,
+      "description" : "The request carries no CoSec-App-Id."
+    }, {
+      "code" : "view-store.invalid",
+      "status" : 400,
+      "description" : "The request is not a valid write: its config, title, preferences or wording."
+    }, {
+      "code" : "view-store.not-found",
+      "status" : 404,
+      "description" : "The aggregate belongs to another application, which reads as none."
+    }, {
+      "code" : "view-store.owner-required",
+      "status" : 400,
+      "description" : "A view is saved by an owner: a user, (shared), or (system) under (platform)."
+    }, {
+      "code" : "view-store.referenced-by-shared-dashboard",
+      "status" : 409,
+      "description" : "A shared dashboard shows the view, which stays shared."
+    }, {
+      "code" : "view-store.system-view-read-only",
+      "status" : 403,
+      "description" : "A system view never moves audience: it is neither shared nor claimed."
+    } ]
+  } ],
+  "errors" : [ {
+    "code" : "wow.auth.unauthenticated",
+    "status" : 401,
+    "description" : "The request carries no valid credentials."
+  }, {
+    "code" : "wow.auth.forbidden",
+    "status" : 403,
+    "description" : "The caller may not send this command."
+  }, {
+    "code" : "wow.aggregate.forbidden",
+    "status" : 403,
+    "description" : "The aggregate is outside the caller's scope."
+  }, {
+    "code" : "wow.command.malformed",
+    "status" : 400,
+    "description" : "The command body cannot be read as the command type."
+  }, {
+    "code" : "wow.command.invalid",
+    "status" : 400,
+    "description" : "The command failed validation; the problem lists the violations."
+  }, {
+    "code" : "wow.wait.invalid",
+    "status" : 400,
+    "description" : "The wait is not a chain the runtime can follow; the command was not run."
+  }, {
+    "code" : "wow.command.unhandled",
+    "status" : 400,
+    "description" : "The aggregate does not handle this command."
+  }, {
+    "code" : "wow.aggregate.not-found",
+    "status" : 404,
+    "description" : "The aggregate does not exist."
+  }, {
+    "code" : "wow.aggregate.exists",
+    "status" : 409,
+    "description" : "The aggregate already exists."
+  }, {
+    "code" : "wow.aggregate.version-mismatch",
+    "status" : 409,
+    "description" : "The aggregate is not at the expected version (412 when the request carried If-Match)."
+  }, {
+    "code" : "wow.command.request-id-reused",
+    "status" : 409,
+    "description" : "The request id was used by another command."
+  }, {
+    "code" : "wow.command.contended",
+    "status" : 409,
+    "description" : "Concurrent writers kept winning the version; retrying with the same request id is safe."
+  }, {
+    "code" : "wow.aggregate.deleted",
+    "status" : 410,
+    "description" : "The aggregate is deleted; only RestoreAggregate applies."
+  }, {
+    "code" : "wow.command.busy",
+    "status" : 429,
+    "description" : "The node has too many commands in flight; retry later."
+  }, {
+    "code" : "wow.command.unknown",
+    "status" : 503,
+    "description" : "Whether the command committed is unknown; retrying with the same request id is safe."
+  }, {
+    "code" : "wow.node.closing",
+    "status" : 503,
+    "description" : "The node is shutting down; retry on another node."
+  }, {
+    "code" : "wow.storage.unavailable",
+    "status" : 503,
+    "description" : "A store could not be reached or did not answer in time; retry later, a command with the same request id."
+  }, {
+    "code" : "wow.schedule.not-due",
+    "status" : 503,
+    "description" : "A scheduled command arrived too long before its due time on this node's clock; it is sent again later."
+  }, {
+    "code" : "wow.schedule.job-invalid",
+    "status" : 400,
+    "description" : "The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled."
+  }, {
+    "code" : "wow.subscription.parked",
+    "status" : 500,
+    "description" : "A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes."
+  }, {
+    "code" : "wow.wait.timeout",
+    "status" : 504,
+    "description" : "The wait ran out of time; the command may have committed. The problem carries the last stage reached."
+  }, {
+    "code" : "wow.query.malformed",
+    "status" : 400,
+    "description" : "The query body cannot be read as a query."
+  }, {
+    "code" : "wow.query.invalid",
+    "status" : 400,
+    "description" : "The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...)."
+  }, {
+    "code" : "wow.query.failed",
+    "status" : 500,
+    "description" : "The query backend failed to run the query."
+  }, {
+    "code" : "wow.query.timeout",
+    "status" : 503,
+    "description" : "The query ran longer than its budget allows; narrow it, or retry later."
+  } ],
+  "$defs" : {
+    "java.util.Map(java.lang.String,java.lang.Object)" : {
+      "type" : "object"
+    },
+    "java.util.Map(java.lang.String,java.lang.Object)-nullable" : {
+      "anyOf" : [ {
+        "type" : "null"
+      }, {
+        "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
+      } ]
+    },
+    "java.util.Map(java.lang.String,java.lang.String)-nullable" : {
+      "type" : [ "object", "null" ],
+      "additionalProperties" : {
+        "type" : "string"
+      }
+    },
+    "me.ahoo.wow.api.lifecycle.TransferOwner" : {
+      "type" : "object",
+      "properties" : {
+        "ownerId" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "ownerId" ],
+      "description" : "Gives the aggregate to the owner ownerId."
+    },
+    "me.ahoo.wow.platform.viewstore.api.ViewAudience" : {
+      "type" : "string",
+      "enum" : [ "personal", "shared", "system" ]
+    },
+    "me.ahoo.wow.platform.viewstore.api.ViewKind" : {
+      "type" : "string",
+      "enum" : [ "record", "analysis", "dashboard" ]
+    },
+    "me.ahoo.wow.platform.viewstore.api.preferences.SetViewPreferences" : {
+      "type" : "object",
+      "properties" : {
+        "autoRun" : {
+          "type" : [ "boolean", "null" ]
+        },
+        "defaultInstanceId" : {
+          "type" : [ "string", "null" ]
+        },
+        "definitionId" : {
+          "type" : "string"
+        },
+        "lastTabs" : {
+          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.String)-nullable"
+        },
+        "order" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        }
+      },
+      "required" : [ "definitionId" ],
+      "description" : "Set the view preferences of a definition"
+    },
+    "me.ahoo.wow.platform.viewstore.api.preferences.ViewPreferencesSet" : {
+      "type" : "object",
+      "properties" : {
+        "appId" : {
+          "type" : "string"
+        },
+        "autoRun" : {
+          "type" : [ "boolean", "null" ]
+        },
+        "defaultInstanceId" : {
+          "type" : [ "string", "null" ]
+        },
+        "definitionId" : {
+          "type" : "string"
+        },
+        "lastTabs" : {
+          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.String)-nullable"
+        },
+        "order" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        }
+      },
+      "required" : [ "appId", "definitionId", "order" ],
+      "description" : "A definition's view preferences were set"
+    },
+    "me.ahoo.wow.platform.viewstore.api.view.ClaimView" : {
+      "type" : "object",
+      "description" : "Make a shared view personal"
+    },
+    "me.ahoo.wow.platform.viewstore.api.view.CreateView" : {
+      "type" : "object",
+      "properties" : {
+        "config" : {
+          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
+        },
+        "definitionId" : {
+          "type" : "string"
+        },
+        "title" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "config", "definitionId", "title" ],
+      "description" : "Create a view"
+    },
+    "me.ahoo.wow.platform.viewstore.api.view.RenameView" : {
+      "type" : "object",
+      "properties" : {
+        "title" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "title" ],
+      "description" : "Rename a view"
+    },
+    "me.ahoo.wow.platform.viewstore.api.view.SaveView" : {
+      "type" : "object",
+      "properties" : {
+        "config" : {
+          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
+        }
+      },
+      "required" : [ "config" ],
+      "description" : "Save a view's config"
+    },
+    "me.ahoo.wow.platform.viewstore.api.view.ShareView" : {
+      "type" : "object",
+      "description" : "Make a view shared"
+    },
+    "me.ahoo.wow.platform.viewstore.api.view.ViewClaimed" : {
+      "type" : "object",
+      "properties" : {
+        "toOwnerId" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "toOwnerId" ],
+      "description" : "A shared view was made personal to toOwnerId, who becomes its owner"
+    },
+    "me.ahoo.wow.platform.viewstore.api.view.ViewCreated" : {
+      "type" : "object",
+      "properties" : {
+        "appId" : {
+          "type" : "string"
+        },
+        "audience" : {
+          "$ref" : "#/$defs/me.ahoo.wow.platform.viewstore.api.ViewAudience"
+        },
+        "config" : {
+          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
+        },
+        "definitionId" : {
+          "type" : "string"
+        },
+        "kind" : {
+          "$ref" : "#/$defs/me.ahoo.wow.platform.viewstore.api.ViewKind"
+        },
+        "title" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "appId", "audience", "config", "definitionId", "kind", "title" ],
+      "description" : "A view was saved"
+    },
+    "me.ahoo.wow.platform.viewstore.api.view.ViewRenamed" : {
+      "type" : "object",
+      "properties" : {
+        "title" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "title" ],
+      "description" : "A view was renamed"
+    },
+    "me.ahoo.wow.platform.viewstore.api.view.ViewSaved" : {
+      "type" : "object",
+      "properties" : {
+        "config" : {
+          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
+        },
+        "kind" : {
+          "$ref" : "#/$defs/me.ahoo.wow.platform.viewstore.api.ViewKind"
+        }
+      },
+      "required" : [ "config", "kind" ],
+      "description" : "A view's config was overwritten"
+    },
+    "me.ahoo.wow.platform.viewstore.api.view.ViewShared" : {
+      "type" : "object",
+      "description" : "A view was made shared; its owner becomes (shared)"
+    },
+    "me.ahoo.wow.platform.viewstore.api.wording.ClearDatasetWording" : {
+      "type" : "object",
+      "properties" : {
+        "dataset" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "dataset" ],
+      "description" : "Clear the wording of a dataset"
+    },
+    "me.ahoo.wow.platform.viewstore.api.wording.DatasetWordingCleared" : {
+      "type" : "object",
+      "description" : "A dataset's wording was cleared"
+    },
+    "me.ahoo.wow.platform.viewstore.api.wording.DatasetWordingSet" : {
+      "type" : "object",
+      "properties" : {
+        "appId" : {
+          "type" : "string"
+        },
+        "dataset" : {
+          "type" : "string"
+        },
+        "fields" : {
+          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)-nullable"
+        },
+        "recordNoun" : {
+          "type" : [ "string", "null" ]
+        },
+        "title" : {
+          "type" : [ "string", "null" ]
+        }
+      },
+      "required" : [ "appId", "dataset" ],
+      "description" : "A dataset's wording was set"
+    },
+    "me.ahoo.wow.platform.viewstore.api.wording.SetDatasetWording" : {
+      "type" : "object",
+      "properties" : {
+        "dataset" : {
+          "type" : "string"
+        },
+        "fields" : {
+          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)-nullable"
+        },
+        "recordNoun" : {
+          "type" : [ "string", "null" ]
+        },
+        "title" : {
+          "type" : [ "string", "null" ]
+        }
+      },
+      "required" : [ "dataset" ],
+      "description" : "Set the wording of a dataset"
+    },
+    "me.ahoo.wow.platform.viewstore.domain.preferences.ViewPreferencesState" : {
+      "type" : "object",
+      "properties" : {
+        "appId" : {
+          "type" : "string"
+        },
+        "autoRun" : {
+          "type" : [ "boolean", "null" ]
+        },
+        "defaultInstanceId" : {
+          "type" : [ "string", "null" ]
+        },
+        "definitionId" : {
+          "type" : "string"
+        },
+        "lastTabs" : {
+          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.String)-nullable"
+        },
+        "order" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        }
+      },
+      "required" : [ "appId", "definitionId", "order" ]
+    },
+    "me.ahoo.wow.platform.viewstore.domain.view.ViewState" : {
+      "type" : "object",
+      "properties" : {
+        "appId" : {
+          "type" : "string"
+        },
+        "audience" : {
+          "$ref" : "#/$defs/me.ahoo.wow.platform.viewstore.api.ViewAudience"
+        },
+        "config" : {
+          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
+        },
+        "definitionId" : {
+          "type" : "string"
+        },
+        "kind" : {
+          "$ref" : "#/$defs/me.ahoo.wow.platform.viewstore.api.ViewKind"
+        },
+        "title" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "appId", "audience", "config", "definitionId", "kind", "title" ]
+    },
+    "me.ahoo.wow.platform.viewstore.domain.wording.DatasetWordingState" : {
+      "type" : "object",
+      "properties" : {
+        "appId" : {
+          "type" : "string"
+        },
+        "dataset" : {
+          "type" : "string"
+        },
+        "fields" : {
+          "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)-nullable"
+        },
+        "recordNoun" : {
+          "type" : [ "string", "null" ]
+        },
+        "title" : {
+          "type" : [ "string", "null" ]
+        }
+      },
+      "required" : [ "appId", "dataset" ]
+    },
+    "wow.lifecycle.DeleteAggregate" : {
+      "type" : "object",
+      "description" : "Marks the aggregate deleted; its events stay in the log."
+    },
+    "wow.lifecycle.TransferOwner" : {
+      "$ref" : "#/$defs/me.ahoo.wow.api.lifecycle.TransferOwner"
+    }
+  }
+}

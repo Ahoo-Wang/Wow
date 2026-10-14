@@ -186,6 +186,14 @@ include(":ops-domain")
 project(":ops-domain").projectDir = file("platform/ops/ops-domain")
 include(":ops-server")
 project(":ops-server").projectDir = file("platform/ops/ops-server")
+// The view store (roadmap 7.2a): the view engine's saved views, view preferences and dataset wording, ported from the
+// 9.x view-store/ (decision D146, which stays until M9) with the migration Skill.
+include(":view-store-api")
+project(":view-store-api").projectDir = file("platform/view-store/view-store-api")
+include(":view-store-domain")
+project(":view-store-domain").projectDir = file("platform/view-store/view-store-domain")
+include(":view-store-server")
+project(":view-store-server").projectDir = file("platform/view-store/view-store-server")
 if (nineX) {
     include(":kernel-benchmarks")
     project(":kernel-benchmarks").projectDir = file("test/kernel-benchmarks")

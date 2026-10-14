@@ -66,17 +66,26 @@ object V10Rules {
     /** The ops domain: the `parked` aggregate, the read model of every service's failure ledger (decision D141). */
     val OPS_DOMAIN = V10Module("ops-domain", "platform/ops/ops-domain")
 
+    /** The view store's API: its commands, events and value types (roadmap 7.2a). */
+    val VIEW_STORE_API = V10Module("view-store-api", "platform/view-store/view-store-api")
+
+    /** The view store's domain: the view, view preferences and dataset wording aggregates (roadmap 7.2a). */
+    val VIEW_STORE_DOMAIN = V10Module("view-store-domain", "platform/view-store/view-store-domain")
+
     /** The platform modules (roadmap M7): domains of their own, built on the kernel as an application's domain is. */
-    val PLATFORM_MODULES = listOf(OPS_API, OPS_DOMAIN)
+    val PLATFORM_MODULES = listOf(OPS_API, OPS_DOMAIN, VIEW_STORE_API, VIEW_STORE_DOMAIN)
 
     /** The ops service (roadmap 7.1a): an application of the V10 modules, on the Spring Boot host. */
     val OPS_SERVER = V10Module("ops-server", "platform/ops/ops-server")
+
+    /** The view store service (roadmap 7.2a): an application of the V10 modules, on the Spring Boot host. */
+    val VIEW_STORE_SERVER = V10Module("view-store-server", "platform/view-store/view-store-server")
 
     /**
      * The platform's services (roadmap M7): applications of the V10 modules, as the eShop's servers are, not modules
      * of the framework, so the rules of [MODULES] (Spring Boot only in the host, say) do not apply to them.
      */
-    val PLATFORM_SERVERS = listOf(OPS_SERVER)
+    val PLATFORM_SERVERS = listOf(VIEW_STORE_SERVER, OPS_SERVER)
 
     val MODULES = listOf(
         API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, OPENAPI, HTTP,
@@ -165,6 +174,8 @@ object V10Rules {
         // compiled by the compiler; never the runtime.
         OPS_API to setOf("api"),
         OPS_DOMAIN to setOf("ops-api", "kernel", "compiler"),
+        VIEW_STORE_API to setOf("api"),
+        VIEW_STORE_DOMAIN to setOf("view-store-api", "kernel", "compiler"),
     )
 
     /**
@@ -173,6 +184,7 @@ object V10Rules {
      */
     val ALLOWED_SERVER_DEPENDENCIES: Map<V10Module, Set<String>> = mapOf(
         OPS_SERVER to setOf("ops-domain", "spring-boot", "kafka", "postgres", "query"),
+        VIEW_STORE_SERVER to setOf("view-store-domain", "spring-boot", "postgres", "query"),
     )
 
     /**

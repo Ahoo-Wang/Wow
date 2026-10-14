@@ -16,6 +16,7 @@ package me.ahoo.wow.kernel
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.test.ForkAssertionError
@@ -106,6 +107,18 @@ class AggregateSpecDslTest {
         whenCommand(Close("again")) {
             expectUnchanged()
             expectState { closed.assert().isTrue() }
+        }
+    }
+
+    @Test
+    fun `a command is sent in the name of its operator`() = aggregateSpec(model) {
+        given(Opened(10))
+        whenCommand(Deposit(1), operator = Operator("ahoo", "tenant")) {
+            expectEvents(Deposited(1))
+            (outcome as CommandOutcome.Committed).stream.operator.assert().isEqualTo(Operator("ahoo", "tenant"))
+        }
+        whenCommand(Deposit(1)) {
+            (outcome as CommandOutcome.Committed).stream.operator.assert().isNull()
         }
     }
 

@@ -66,6 +66,7 @@ val v10Projects = listOf(
     "postgres", "mongo", "kafka", "clickhouse", "openapi", "http", "cosec", "opentelemetry", "spring-boot", "cosid",
     "migrate-data", "architecture",
     "test-dsl", "tck", "tck-containers", "ops-api", "ops-domain", "ops-server",
+    "view-store-api", "view-store-domain", "view-store-server",
     "kernel-benchmarks", "compiler", "gradle-plugin", "manifest-tools",
     "routing-spike", "lease-spike",
 ).plus(eshopProjects).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
@@ -142,6 +143,7 @@ val v10IntegrationTestProjects = includedProjects(
     ":eshop-ordering-server",
     ":eshop-e2e",
     ":ops-server",
+    ":view-store-server",
 )
 val integrationTestProjects = includedProjects(
     ":wow-bi",
