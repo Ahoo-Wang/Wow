@@ -186,6 +186,57 @@ export interface EventView<N extends string = string, B = unknown> {
   readonly body: B;
 }
 
+/** The body of `wow.lifecycle.OwnerTransferred`: the aggregate's new owner. */
+export interface OwnerTransferred {
+  readonly ownerId: string;
+}
+
+/** The body of `wow.lifecycle.SpaceTransferred`: the aggregate's new space. */
+export interface SpaceTransferred {
+  readonly spaceId: string;
+}
+
+/** The body of `wow.lifecycle.TagsApplied`: the aggregate's tags now. */
+export interface TagsApplied {
+  readonly tags: Tags;
+}
+
+/**
+ * The body of `wow.ScheduleSet` (decision D198): the aggregate set its
+ * schedule `key`, to send `target` the command of type `commandType`
+ * (`command` its JSON text) as `rule` says.
+ */
+export interface ScheduleSet {
+  readonly key: string;
+  readonly rule: ScheduleRule;
+  readonly target: AggregateRef;
+  readonly commandType: string;
+  readonly command: string;
+}
+
+/** The body of `wow.ScheduleCancelled` (decision D198). */
+export interface ScheduleCancelled {
+  readonly key: string;
+}
+
+/**
+ * The system events the kernel gives every aggregate (decisions D113, D198):
+ * the lifecycle events and the schedule events. A state trace and an event
+ * stream carry them beside the aggregate's own events, so the event union
+ * `wow-generator` writes for an aggregate includes this one.
+ */
+export type SystemEvent =
+  | EventView<'wow.lifecycle.AggregateDeleted', Readonly<Record<string, never>>>
+  | EventView<
+      'wow.lifecycle.AggregateRestored',
+      Readonly<Record<string, never>>
+    >
+  | EventView<'wow.lifecycle.OwnerTransferred', OwnerTransferred>
+  | EventView<'wow.lifecycle.SpaceTransferred', SpaceTransferred>
+  | EventView<'wow.lifecycle.TagsApplied', TagsApplied>
+  | EventView<'wow.ScheduleSet', ScheduleSet>
+  | EventView<'wow.ScheduleCancelled', ScheduleCancelled>;
+
 /**
  * One commit of a state trace (decision D40): the events of a version and the
  * aggregate after it.

@@ -198,12 +198,17 @@ function emitAggregate(
     ])}export type ${name}StateField = ${union(aggregate.stateFields.map(quoteStringLiteral))};`,
   );
   const events = aggregate.events.map(
-    event => `EventView<${quoteStringLiteral(event.name)}, ${event.type}>`,
+    event => `EventView<${quoteStringLiteral(event.wireName)}, ${event.type}>`,
   );
-  if (events.length > 0) module.imports.add(V10_CLIENT, ['EventView']);
+  module.imports.add(
+    V10_CLIENT,
+    events.length > 0 ? ['EventView', 'SystemEvent'] : ['SystemEvent'],
+  );
   addStatement(
     module,
-    `${doc([`The events of \`${aggregate.name}\`, by name.`])}export type ${name}Event = ${union(events)};`,
+    `${doc([
+      `The events of \`${aggregate.name}\`, named as the server sends them: \`${aggregate.context}.${aggregate.name}.<Event>\`, and the system events every aggregate has.`,
+    ])}export type ${name}Event = ${union([...events, 'SystemEvent'])};`,
   );
   importTypes(
     module,

@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client/v10 — 85 names, from src/v10/index.ts.
+# @ahoo-wang/wow-client/v10 — 91 names, from src/v10/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 type  AggregateManifest
@@ -38,6 +38,7 @@ value LifecycleCommands
 value MANIFEST_FORMAT
 type  Manifest
 type  Operator
+type  OwnerTransferred
 type  Ownership
 value PROBLEM_TYPE_PREFIX
 type  PagedQuery
@@ -49,11 +50,14 @@ type  RequestOptions
 type  RetryHint
 type  RouteManifest
 value SNAPSHOT_SUBSCRIPTION
+type  ScheduleCancelled
 type  ScheduleRule
+type  ScheduleSet
 type  Scope
 value SnapshotQueryClient
 type  SnapshotRecord
 type  SnapshotSystemField
+type  SpaceTransferred
 value Stage
 value StateClient
 type  StateReadOptions
@@ -62,7 +66,9 @@ type  StateTrace
 type  StateTraceOptions
 type  StateView
 type  SubscriptionManifest
+type  SystemEvent
 type  Tags
+type  TagsApplied
 type  TargetScope
 type  TotalMode
 type  TransferOwner

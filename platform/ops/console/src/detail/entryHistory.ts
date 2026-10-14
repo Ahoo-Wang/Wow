@@ -16,12 +16,8 @@ import { filter } from "@ahoo-wang/wow-client";
 import type { EventStreamRecord, EventView } from "@ahoo-wang/wow-client/v10";
 import {
   ParkedEventQueryClient,
-  type ApplyRetrySpecRequested,
-  type MarkRecoverableRequested,
+  type ParkedEvent,
   type ParkedRecorded,
-  type ParkedResolved,
-  type ResumeRequested,
-  type SkipRequested,
 } from "@/generated/index.ts";
 
 /** The most event streams an entry's history reads: the service's list limit. */
@@ -62,7 +58,7 @@ export interface HistoryItem {
   /** Unique within the history: the stream's version and the event's place. */
   key: string;
   kind: HistoryKind;
-  /** The event's own name, without its context and aggregate. */
+  /** The event's name as the server sends it: `ops.parked.ParkedRecorded`. */
   name: string;
   version: number;
   at: number;
@@ -81,14 +77,6 @@ export interface HistoryFacts {
   outcome: string;
   minBackoff: string;
   executionTimeout: string;
-}
-
-/**
- * An event's name without its prefix: the log names an event by its
- * context and aggregate (`ops.parked.ParkedRecorded`).
- */
-export function eventName(name: string): string {
-  return name.slice(name.lastIndexOf(".") + 1);
 }
 
 function recorded(
@@ -113,47 +101,45 @@ function recorded(
   };
 }
 
-/** One event of a stream, read as a step of the entry's history. */
+/**
+ * One event of a stream, read as a step of the entry's history. The server
+ * names it `ops.parked.<Event>` (`wow.*` for a system event); a name the
+ * console does not know, from a newer service, is an `unknown` step.
+ */
 function step(
-  event: EventView,
+  view: EventView,
   last: ParkedRecorded["entry"] | undefined,
 ): Pick<HistoryItem, "kind" | "facts"> {
-  switch (eventName(event.name)) {
-    case "ParkedRecorded":
-      return recorded(event.body as ParkedRecorded, last);
-    case "ResumeRequested":
+  const event = view as ParkedEvent;
+  switch (event.name) {
+    case "ops.parked.ParkedRecorded":
+      return recorded(event.body, last);
+    case "ops.parked.ResumeRequested":
       return {
         kind: "resumeRequested",
-        facts: { reason: (event.body as ResumeRequested).reason ?? undefined },
+        facts: { reason: event.body.reason ?? undefined },
       };
-    case "SkipRequested":
+    case "ops.parked.SkipRequested":
       return {
         kind: "skipRequested",
-        facts: { reason: (event.body as SkipRequested).reason ?? undefined },
+        facts: { reason: event.body.reason ?? undefined },
       };
-    case "MarkRecoverableRequested":
+    case "ops.parked.MarkRecoverableRequested":
       return {
         kind: "markRecoverableRequested",
-        facts: {
-          recoverable: (event.body as MarkRecoverableRequested).recoverable,
-        },
+        facts: { recoverable: event.body.recoverable },
       };
-    case "ApplyRetrySpecRequested": {
-      const spec = event.body as ApplyRetrySpecRequested;
+    case "ops.parked.ApplyRetrySpecRequested":
       return {
         kind: "applyRetrySpecRequested",
         facts: {
-          maxRetries: spec.maxRetries ?? undefined,
-          minBackoff: spec.minBackoff ?? undefined,
-          executionTimeout: spec.executionTimeout ?? undefined,
+          maxRetries: event.body.maxRetries ?? undefined,
+          minBackoff: event.body.minBackoff ?? undefined,
+          executionTimeout: event.body.executionTimeout ?? undefined,
         },
       };
-    }
-    case "ParkedResolved":
-      return {
-        kind: "resolved",
-        facts: { outcome: (event.body as ParkedResolved).outcome },
-      };
+    case "ops.parked.ParkedResolved":
+      return { kind: "resolved", facts: { outcome: event.body.outcome } };
     default:
       return { kind: "unknown", facts: {} };
   }
@@ -172,12 +158,12 @@ export function historyOf(
   for (const stream of [...streams].sort((a, b) => a.version - b.version))
     stream.events.forEach((event, index) => {
       const { kind, facts } = step(event, last);
-      if (eventName(event.name) === "ParkedRecorded")
+      if (event.name === "ops.parked.ParkedRecorded")
         last = (event.body as ParkedRecorded).entry;
       items.push({
         key: `${stream.version}:${index}`,
         kind,
-        name: eventName(event.name),
+        name: event.name,
         version: stream.version,
         at: stream.commitTime,
         ...(stream.operator?.id ? { operator: stream.operator.id } : {}),

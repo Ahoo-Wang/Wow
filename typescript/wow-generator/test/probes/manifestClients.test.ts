@@ -70,7 +70,7 @@ describe('Manifest clients', () => {
        void [new ThingCommandClient(), new ThingStateClient(), probeWait.committed(), ProbeErrorCodes, events];`,
     );
     expect(read('probe/thing/aggregate.ts')).toContain(
-      'export type ThingEvent = never;',
+      'export type ThingEvent = SystemEvent;',
     );
     expect(read('probe/thing/queryClient.ts')).not.toContain(
       'SnapshotQueryClient',
@@ -339,6 +339,48 @@ describe('Manifest clients', () => {
     expect(types).toContain('export type OuterInner = boolean;');
     expect(read('probe/thing/aggregate.ts')).toContain(
       "export type ThingStateField = 'state.self' | 'state.nested' | 'state.nested.deep' | 'state.nested.deep.d' | 'state.tags';",
+    );
+  });
+
+  it('names each event by the type the server sends, qualified by its context and aggregate', async () => {
+    // The server names an event `context.aggregate.EventName` in a state
+    // trace and an event stream (08-data-protocols §2; edge/http's
+    // HistoryRoutesTest reads `shop.cart.ItemAdded` from a trace), while the
+    // Manifest declares it inside its aggregate by the short name. A name the
+    // Manifest already qualifies is kept as it is, as the server's
+    // ManifestCheck does. The union adds the system events every aggregate
+    // has (wow-client's SystemEvent).
+    const { read } = await generateCompiling(
+      manifest(
+        {
+          events: [
+            { name: 'Shaped', schema: schema('b.Shape') },
+            {
+              name: 'probe.thing.Reshaped',
+              revision: 2,
+              schema: schema('b.Shape'),
+            },
+          ],
+        },
+        {
+          'b.Shape': { type: 'object', properties: { s: { type: 'string' } } },
+        },
+      ),
+      `import type { ThingEvent } from './out/index.js';
+       const traced: ThingEvent = { name: 'probe.thing.Shaped', revision: 1, body: { s: 'x' } };
+       const reshaped: ThingEvent = { name: 'probe.thing.Reshaped', revision: 2, body: {} };
+       // @ts-expect-error the server never sends the short name
+       const short: ThingEvent = { name: 'Shaped', revision: 1, body: {} };
+       // The kernel's lifecycle and schedule events come in the same trace.
+       const owner: ThingEvent = { name: 'wow.lifecycle.OwnerTransferred', revision: 1, body: { ownerId: 'bob' } };
+       function body(event: ThingEvent): string | undefined {
+         if (event.name === 'wow.ScheduleCancelled') return event.body.key;
+         return event.name === 'probe.thing.Shaped' ? event.body.s : undefined;
+       }
+       void [traced, reshaped, short, owner, body];`,
+    );
+    expect(read('probe/thing/aggregate.ts')).toContain(
+      "export type ThingEvent = EventView<'probe.thing.Shaped', Shape> | EventView<'probe.thing.Reshaped', Shape> | SystemEvent;",
     );
   });
 
