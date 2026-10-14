@@ -140,7 +140,8 @@ class SoakDatabase(private val connection: Connection, val context: String) {
         "SELECT aggregate_id, version, request_id, events FROM \"$table\" ORDER BY aggregate_id, version",
     ) { row ->
         val events = json.readTree(row.getString(4)).values().map { event ->
-            Event(event["name"].asString().substringAfterLast('.'), event["payload"])
+            val name = event["name"].asString()
+            Event(name.substringAfterLast('.'), event["payload"], system = name.startsWith(SYSTEM_PREFIX))
         }
         Commit(row.getString(1), row.getInt(2), row.getString(3), events)
     }.groupBy { it.aggregateId }
@@ -175,11 +176,14 @@ class SoakDatabase(private val connection: Connection, val context: String) {
     /** A commit of an aggregate: its version, its request id and its events. */
     data class Commit(val aggregateId: String, val version: Int, val requestId: String, val events: List<Event>)
 
-    /** An event: its simple name and its payload. */
-    data class Event(val name: String, val payload: JsonNode)
+    /** An event: its simple name, its payload, and whether it is a system event (`wow.ScheduleSet`, ...). */
+    data class Event(val name: String, val payload: JsonNode, val system: Boolean = false)
 
     private companion object {
         const val REASON = 500
+
+        /** The prefix of the system events the kernel commits beside the domain's (decision D198). */
+        const val SYSTEM_PREFIX = "wow."
         val TABLE = Regex("""(?:FROM|JOIN)\s+(?:"([a-z0-9_]+)"|([a-z0-9_]+))""")
     }
 }

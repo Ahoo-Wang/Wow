@@ -380,6 +380,13 @@ class SoakChecks(
                 )
             }
             expect(order, "order", events, expectedOrder.first)
+            // A settled order leaves no schedule behind: paying or cancelling it cancels its grace period.
+            val pending = pendingSchedules(ordersLog[order.orderId].orEmpty())
+            if (status == expectedOrder.second && pending.isNotEmpty()) {
+                invariants.flowsComplete.violate(
+                    linkedMapOf("order" to order.orderId, "status" to status, "pendingSchedules" to pending),
+                )
+            }
             expect(order, "payment", payment, expectedPayment)
             expect(order, "stock", stock, expectedStock)
             if (order.scenario == Scenario.PAID && "OrderShipped" in events) shippedA += order.quantity
@@ -511,10 +518,17 @@ class SoakChecks(
         }
     }
 
-    private fun names(commits: List<SoakDatabase.Commit>): List<String> = commits.flatMap { commit ->
-        commit.events.map {
-            it.name
+    /** The domain events of [commits], in order: the system events (schedules) are checked apart. */
+    private fun names(commits: List<SoakDatabase.Commit>): List<String> =
+        commits.flatMap { commit -> commit.events.filterNot { it.system }.map { it.name } }
+
+    /** The keys of the schedules [commits] set and did not cancel (`wow.ScheduleSet`, `wow.ScheduleCancelled`). */
+    private fun pendingSchedules(commits: List<SoakDatabase.Commit>): List<String> {
+        val last = LinkedHashMap<String, String>()
+        commits.flatMap { it.events }.filter { it.system }.forEach { event ->
+            event.payload["key"]?.asString()?.let { key -> last[key] = event.name }
         }
+        return last.filterValues { it == "ScheduleSet" }.keys.toList()
     }
 
     /** The fault whose window holds [at] (from its start to a minute after its recovery), if any. */
