@@ -16,7 +16,7 @@ import {
   toJsonServerSentEventStream,
   toServerSentEventStream,
 } from '@ahoo-wang/fetcher-eventstream';
-import type { CommandResult } from './model.js';
+import type { CommandResult } from './wire.js';
 import { isProblem, WowProblemError } from './problem.js';
 
 /** The event of each record of a streamed query list. */
@@ -24,6 +24,9 @@ const ROW_EVENT = 'row';
 
 /** The event that ends a streamed query list that failed: the problem. */
 const ERROR_EVENT = 'error';
+
+/** The name an event without one is read under. */
+const UNNAMED_EVENT = 'message';
 
 /**
  * The results of a command's event stream (`Accept: text/event-stream`), one
@@ -35,9 +38,7 @@ export type CommandResultStream<R = Record<string, unknown>> = ReadableStream<
 >;
 
 /** The data of each event of `response`'s server-sent event stream. */
-export function commandResults<R>(
-  response: Response,
-): CommandResultStream<R> {
+export function commandResults<R>(response: Response): CommandResultStream<R> {
   return toJsonServerSentEventStream<CommandResult<R>>(
     toServerSentEventStream(response),
   ).pipeThrough(
@@ -72,7 +73,7 @@ export function queryRows<T>(response: Response): ReadableStream<T> {
           );
           return;
         }
-        if (event.event === ROW_EVENT || event.event === undefined) {
+        if (event.event === ROW_EVENT || event.event === UNNAMED_EVENT) {
           controller.enqueue(event.data as T);
         }
       },

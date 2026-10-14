@@ -39,6 +39,7 @@ const ENTRIES = {
   'dist/index.d.ts': 'root',
   'dist/dsl.d.ts': 'dsl',
   'dist/legacy/index.d.ts': 'legacy',
+  'dist/v10/index.d.ts': 'v10',
 };
 
 /**

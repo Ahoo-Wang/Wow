@@ -63,6 +63,16 @@
         "default": "./dist/legacy.cjs"
       }
     },
+    "./v10": {
+      "import": {
+        "types": "./dist/v10/index.d.ts",
+        "default": "./dist/v10.es.js"
+      },
+      "require": {
+        "types": "./dist/v10/index.d.cts",
+        "default": "./dist/v10.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "files": [

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import type { CommandResult, Violation } from './model.js';
+import type { CommandResult, Violation } from './wire.js';
 
 /**
  * The framework's error codes (design 05 §3, decisions D102, D103, D130),
@@ -56,6 +56,8 @@ export const FrameworkErrorCodes = {
   STORAGE_UNAVAILABLE: 'wow.storage.unavailable',
   /** 503: a scheduled command arrived too long before its due time; it is sent again later. */
   SCHEDULE_NOT_DUE: 'wow.schedule.not-due',
+  /** 400: the job command does not fit its job or instance (decision D198). */
+  SCHEDULE_JOB_INVALID: 'wow.schedule.job-invalid',
   /** 500: a subscription on the wait chain parked the aggregate. */
   SUBSCRIPTION_PARKED: 'wow.subscription.parked',
   /** 504: the wait ran out of time; the command may have committed. */
@@ -170,7 +172,7 @@ export class WowProblemError extends Error {
   /** What a client may do about it. */
   readonly retry: RetryHint;
   /** The error this one explains: the fetcher's, or the stream's. */
-  override readonly cause?: unknown;
+  readonly cause?: unknown;
 
   /**
    * @param problem - The problem the server answered with
@@ -191,7 +193,11 @@ export class WowProblemError extends Error {
     if (problem.code !== undefined) this.code = problem.code;
     this.violations = problem.violations ?? [];
     if (problem.result !== undefined) this.result = problem.result;
-    this.retry = retryHintOf(problem.code, problem.status, options.retryAfterMs);
+    this.retry = retryHintOf(
+      problem.code,
+      problem.status,
+      options.retryAfterMs,
+    );
     if (options.cause !== undefined) this.cause = options.cause;
   }
 

@@ -64,6 +64,13 @@ const FORBIDDEN: [from: string, source: string][] = [
   ['src/legacy/probe.ts', '../model/common.js'],
   ['src/legacy/probe.ts', '../error/wowError.js'],
   ['src/legacy/probe.ts', '@ahoo-wang/fetcher'],
+  ['src/v10/probe.ts', '../client/command/commandClient.js'],
+  ['src/v10/probe.ts', '../transport/endpoints.js'],
+  ['src/v10/probe.ts', '../model/command.js'],
+  ['src/v10/probe.ts', '../error/wowError.js'],
+  ['src/v10/probe.ts', '../legacy/condition.js'],
+  ['src/v10/probe.ts', '../dsl/filter/index.js'],
+  ['src/v10/probe.ts', '@ahoo-wang/fetcher-decorator'],
 ];
 
 const ALLOWED: [from: string, code: string][] = [
@@ -93,6 +100,15 @@ const ALLOWED: [from: string, code: string][] = [
   ],
   ['src/legacy/index.ts', "export * from '../client/query/requests.js';"],
   ['src/index.ts', "export * from './client/command/index.js';"],
+  [
+    'src/v10/probe.ts',
+    "import type { FilterExpression } from '../dsl/filter/index.js';",
+  ],
+  ['src/v10/probe.ts', "import { Fetcher } from '@ahoo-wang/fetcher';"],
+  [
+    'src/v10/probe.ts',
+    "import { toServerSentEventStream } from '@ahoo-wang/fetcher-eventstream';",
+  ],
 ];
 
 describe('layer boundaries', () => {

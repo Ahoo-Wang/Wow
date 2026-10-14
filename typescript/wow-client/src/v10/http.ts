@@ -72,7 +72,9 @@ function quote(value: string): string {
  */
 export function formatScope(scope: TargetScope): string {
   const members = [
-    scope.tenantId === undefined ? undefined : `tenant=${quote(scope.tenantId)}`,
+    scope.tenantId === undefined
+      ? undefined
+      : `tenant=${quote(scope.tenantId)}`,
     scope.ownerId === undefined ? undefined : `owner=${quote(scope.ownerId)}`,
     scope.spaceId === undefined ? undefined : `space=${quote(scope.spaceId)}`,
   ].filter(member => member !== undefined);
@@ -166,8 +168,8 @@ export async function send(
       ...(options.signal === undefined ? {} : { signal: options.signal }),
     });
   } catch (error) {
-    const response = (error as { exchange?: { response?: Response } })
-      ?.exchange?.response;
+    const response = (error as { exchange?: { response?: Response } })?.exchange
+      ?.response;
     if (call.notModified && response?.status === 304) return response;
     throw (await toWowProblemError(error)) ?? error;
   }

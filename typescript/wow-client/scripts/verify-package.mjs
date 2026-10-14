@@ -55,6 +55,7 @@ const SURFACE_LISTS = {
   '.': 'test/surface/root.txt',
   './dsl': 'test/surface/dsl.txt',
   './legacy': 'test/surface/legacy.txt',
+  './v10': 'test/surface/v10.txt',
 };
 
 /** The code entries: every `exports` key but `./package.json`. */
@@ -182,7 +183,7 @@ const sizes = checkSizes({
   packageName: name,
   budgetFile: fileURLToPath(new URL('scripts/size-budget.json', packageRoot)),
   measured: Object.fromEntries(
-    ['.', './dsl', './legacy'].map(subpath => [
+    ['.', './dsl', './legacy', './v10'].map(subpath => [
       subpath,
       gzippedSize(
         staticClosure(

@@ -234,6 +234,11 @@ export interface SnapshotRecord<S = unknown> {
   readonly operator: Operator | null;
   /** Who created the aggregate; null for an anonymous caller. */
   readonly firstOperator: Operator | null;
+  /**
+   * The schedules the aggregate keeps (decision D198): each rule, `{type,
+   * ...}`, by its key; absent from a server before 6.8c.
+   */
+  readonly schedules?: Readonly<Record<string, ScheduleRule>>;
   readonly state: S;
 }
 
@@ -258,7 +263,15 @@ export type SnapshotSystemField =
   | 'firstOperator'
   | 'firstOperator.id'
   | 'firstOperator.tenantId'
-  | 'firstOperator.crossScope';
+  | 'firstOperator.crossScope'
+  | 'schedules';
+
+/** A schedule rule of a snapshot's `schedules` (decision D198). */
+export interface ScheduleRule {
+  /** The rule's type: `at`, `after`, `cron`, … */
+  readonly type: string;
+  readonly [property: string]: unknown;
+}
 
 /**
  * A record of the `events` query model (decision D131): one commit of one
@@ -283,10 +296,7 @@ export interface EventStreamRecord<E extends EventView = EventView> {
 
 /** The fields of an event stream record a query can filter and sort on. */
 export type EventStreamField =
-  | 'aggregateId'
-  | 'tenantId'
-  | 'version'
-  | 'commitTime';
+  'aggregateId' | 'tenantId' | 'version' | 'commitTime';
 
 /** How an aggregate belongs to its callers (decision D189). */
 export type Ownership = 'OWNER' | 'TENANT';

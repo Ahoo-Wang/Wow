@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { type Hop, Stage } from './model.js';
+import { type Hop, Stage } from './wire.js';
 
 /** The name of the built-in subscription that writes snapshots. */
 export const SNAPSHOT_SUBSCRIPTION = 'snapshot';
@@ -28,7 +28,9 @@ function checkName(kind: string, value: string): string {
 function hop(stage: Stage, context?: string, subscription?: string): Hop {
   return {
     stage,
-    ...(context === undefined ? {} : { context: checkName('context', context) }),
+    ...(context === undefined
+      ? {}
+      : { context: checkName('context', context) }),
     ...(subscription === undefined
       ? {}
       : { subscription: checkName('subscription', subscription) }),
