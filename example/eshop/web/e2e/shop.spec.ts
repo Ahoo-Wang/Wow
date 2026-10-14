@@ -67,6 +67,19 @@ test("the shop end to end: catalog, basket, checkout to payment, orders, shippin
     await mug.getByLabel("Quantity of mug received").fill("10");
     await mug.getByRole("button", { name: "Receive" }).click();
     await expect(mug.getByTestId("stock")).toHaveText("10 / 10");
+    // Over the simulated gateway's limit (1000.00): its payment is declined.
+    await submit(
+      page,
+      "New product",
+      { Id: "tv", Name: "Wow TV", Description: "", Price: "1500" },
+      { Brand: "wow", Category: "mugs" },
+    );
+    const tv = page.locator('[data-product="tv"]');
+    await tv.getByRole("button", { name: "Publish" }).click();
+    await expect(tv).toContainText("PUBLISHED");
+    await tv.getByLabel("Quantity of tv received").fill("1");
+    await tv.getByRole("button", { name: "Receive" }).click();
+    await expect(tv.getByTestId("stock")).toHaveText("1 / 1");
   });
 
   await test.step("a rejected command shows its problem", async () => {
@@ -123,6 +136,20 @@ test("the shop end to end: catalog, basket, checkout to payment, orders, shippin
     await expect(page.getByText("No orders")).toBeVisible();
     await page.goto(web("/orders/alice-1"));
     await expect(page.getByTestId("problem-code")).toHaveText("wow.aggregate.forbidden");
+  });
+
+  await test.step("a declined payment ends the chain short of the paid order, and cancels it", async () => {
+    await page.goto(web("/"));
+    await page.getByRole("button", { name: "Add Wow TV to the basket" }).click();
+    await expect(page.getByRole("status")).toBeVisible();
+    await page.getByRole("link", { name: "Basket" }).click();
+    await page.getByRole("button", { name: "Check out" }).click();
+    await expect(page.getByText(/the chain ended after 14 of 15 hops/)).toBeVisible({
+      timeout: 45_000,
+    });
+    await page.getByRole("link", { name: "bob-1" }).click();
+    await expect(page.getByTestId("order-status")).toHaveText("CANCELLED");
+    await expect(page.getByTestId("payment")).toContainText("FAILED");
   });
 
   await test.step("an employee ships the paid order", async () => {

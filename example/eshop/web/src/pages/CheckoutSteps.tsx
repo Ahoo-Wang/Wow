@@ -101,8 +101,11 @@ export function CheckoutSteps({ progress }: { progress: CheckoutProgress }) {
             <Link to={`/orders/${encodeURIComponent(progress.orderId)}`}>
               {progress.orderId}
             </Link>
-            {progress.done && !paid && !progress.failure &&
-              " — the wait ended before the payment; the order goes on."}
+            {progress.done &&
+              !paid &&
+              !progress.failure &&
+              ` — the chain ended after ${progress.results.length} of ${CHECKOUT_TO_PAID.length} hops without paying the order:` +
+                " a saga on the way sent no further command (a declined payment cancels the order), or the wait timed out."}
           </p>
         )}
       </CardContent>
