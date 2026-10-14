@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.http.query
 
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.query.AbacQueryOptions
 import me.ahoo.wow.query.AbacQueryPolicy
 import me.ahoo.wow.query.QueryCaller
@@ -24,6 +25,7 @@ import me.ahoo.wow.query.dataset.QueryDatasetScope
  * routes of a dataset the caller does not see are a 404, as if it did not exist. It hides only what the caller could
  * not read anyway, and every query is still restricted by the gateway's policies.
  */
+@ExperimentalWowApi
 fun interface DatasetVisibility {
     /** Whether [caller] sees [dataset]. */
     fun visible(dataset: QueryDataset, caller: QueryCaller): Boolean

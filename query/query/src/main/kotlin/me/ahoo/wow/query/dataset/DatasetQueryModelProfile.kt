@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.dataset
 
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelProfile
@@ -24,6 +25,7 @@ import me.ahoo.wow.query.spec.SystemField
  * the system fields are the columns the dataset names. A dataset has no aggregate id and no deletion flag, so a filter
  * on either is an unknown field, and no default scope.
  */
+@ExperimentalWowApi
 class DatasetQueryModelProfile internal constructor(val dataset: QueryDataset) : QueryModelProfile(QueryModel.DATASET) {
     override val identityField: QueryField?
         get() = dataset.identity

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.clickhouse.query
 
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.query.dataset.QueryDataset
 import java.time.Duration
 
@@ -27,6 +28,7 @@ import java.time.Duration
  * `deduplicate` is `NONE` (the default) or `FINAL`, which merges a replacing or collapsing engine's rows at read time.
  * The Sink's `_state_flat` view already reads `_state FINAL`, so a dataset over it needs no `deduplicate`.
  */
+@ExperimentalWowApi
 data class ClickHouseDatasetStorage(
     val database: String,
     val table: String,
@@ -68,6 +70,7 @@ data class ClickHouseDatasetStorage(
 }
 
 /** How a [ClickHouseDatasetQueryBackendFactory] reaches and runs its datasets. */
+@ExperimentalWowApi
 data class ClickHouseDatasetOptions(
     /** The database of a dataset whose `table` names none: `wow.clickhouse.database`, as the Sink writes there. */
     val database: String = "default",

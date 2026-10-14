@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query
 
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.FilterExpression
@@ -43,6 +44,7 @@ import me.ahoo.wow.query.schema.SnapshotFields
  * @property attributePrefix the prefix of the caller attributes ([QueryCaller.attributes]) that are ABAC tags: the
  * attribute `abac.region` with the values `east` and `north` is the tag `region`.
  */
+@ExperimentalWowApi
 data class AbacQueryOptions(
     val enabled: Boolean = false,
     val requirePrincipalTags: Boolean = false,
@@ -80,6 +82,7 @@ data class AbacQueryOptions(
  * The last two rows are the defaults; [AbacQueryOptions] tightens each. Every tag must match (AND). A tag key that is
  * not a valid query path segment cannot be matched against the snapshot, so it matches nothing (fails closed).
  */
+@ExperimentalWowApi
 class AbacQueryPolicy(
     val options: AbacQueryOptions = AbacQueryOptions.DEFAULT,
     override val order: Int = 0,
@@ -191,6 +194,7 @@ class AbacQueryPolicy(
 }
 
 /** An HTTP query rejected because its caller has no ABAC tags; see [AbacQueryOptions.requirePrincipalTags]. */
+@ExperimentalWowApi
 class AbacPrincipalTagsRequiredException :
     RuntimeException(MESSAGE),
     QueryError {

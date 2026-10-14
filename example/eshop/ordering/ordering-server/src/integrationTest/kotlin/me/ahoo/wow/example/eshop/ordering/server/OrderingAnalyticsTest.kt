@@ -15,6 +15,7 @@ package me.ahoo.wow.example.eshop.ordering.server
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.spring.boot.BackendKind
@@ -80,6 +81,7 @@ class OrderingAnalyticsTest {
     }
 
     @Test
+    @OptIn(ExperimentalWowApi::class) // the dataset queries are experimental (D216)
     fun `the orders should be served from PostgreSQL, and the sales dataset from ClickHouse`() {
         context.getBean(HostBackends::class.java).kind.assert().isEqualTo(BackendKind.POSTGRES)
         val queries = context.getBean(HttpQueries::class.java)

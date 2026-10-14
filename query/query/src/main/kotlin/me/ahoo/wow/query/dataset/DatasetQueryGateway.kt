@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.dataset
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.query.DefaultQueryGateway
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryGateway
@@ -31,11 +32,13 @@ import java.util.concurrent.ConcurrentHashMap
  * dataset's schema with the same filters, policies (scope and ABAC, decision D129), budgets and masking as an
  * aggregate's snapshots. Its [aggregateType] is the dataset's name.
  */
+@ExperimentalWowApi
 interface DatasetQueryGateway : QueryGateway {
     val dataset: QueryDataset
 }
 
 /** A [DatasetQueryGateway] over [backend], admitting against the schema [schemaProvider] compiles. */
+@ExperimentalWowApi
 class DefaultDatasetQueryGateway @JvmOverloads constructor(
     override val dataset: QueryDataset,
     backend: DatasetQueryBackend,
@@ -65,6 +68,7 @@ class DefaultDatasetQueryGateway @JvmOverloads constructor(
  * The gateways of the datasets a node serves, by dataset name, following [QueryDatasets]: a dataset that joins or
  * changes gets a new gateway, one that leaves loses its own.
  */
+@ExperimentalWowApi
 class DatasetQueryGateways(gateways: Collection<DatasetQueryGateway>) {
     private val byName = ConcurrentHashMap(gateways.associateBy { it.dataset.name })
 

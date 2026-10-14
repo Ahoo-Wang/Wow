@@ -15,6 +15,7 @@ package me.ahoo.wow.http.ops
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.http.HttpJson
@@ -71,6 +72,7 @@ import kotlin.time.Duration.Companion.seconds
  * a command, and CoSec's WebFilter can guard the routes by their paths too. Errors are problems as on the other
  * public routes.
  */
+@ExperimentalWowApi
 fun parkedRoutes(
     ops: ParkedOps,
     manifest: Manifest,
@@ -92,6 +94,7 @@ fun parkedRoutes(
 }
 
 /** The paths of the operator's routes, under the reserved context `wow` (decision D104). */
+@ExperimentalWowApi
 object OpsPaths {
     /** The parked entries; one entry is `{subscription}/{context}/{aggregate}/{tenant}/{id}` under it. */
     const val PARKED: String = "/wow/ops/parked"
@@ -110,6 +113,7 @@ object OpsPaths {
  * The system commands the operator's actions are authorized as (decision D141): a [CommandAuthorizer] sees a
  * [CommandAction] of one of these types on the parked aggregate.
  */
+@ExperimentalWowApi
 object OpsCommands {
     const val RESUME: String = Ledger.RESUME
     const val SKIP: String = Ledger.SKIP

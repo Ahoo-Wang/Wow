@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ICountQuery
@@ -47,6 +48,7 @@ import tools.jackson.databind.node.ObjectNode
  * or view its storage binding names ([ClickHouseDatasetStorage]), with the facts [ClickHouseQuerySchemaAdapter] reads
  * from `system.columns`. A host builds one over the client-v2 [client] the Sink writes with.
  */
+@ExperimentalWowApi
 class ClickHouseDatasetQueryBackendFactory @JvmOverloads constructor(
     private val client: Client,
     private val options: ClickHouseDatasetOptions = ClickHouseDatasetOptions(),
@@ -73,6 +75,7 @@ class ClickHouseDatasetQueryBackendFactory @JvmOverloads constructor(
  * granted cursor sort), and reads each row's position from extra columns: a date as epoch milliseconds, a decimal as
  * its exact text, anything else as its JSON value.
  */
+@ExperimentalWowApi
 class ClickHouseDatasetQueryBackend internal constructor(
     val dataset: QueryDataset,
     private val storage: ClickHouseDatasetStorage,

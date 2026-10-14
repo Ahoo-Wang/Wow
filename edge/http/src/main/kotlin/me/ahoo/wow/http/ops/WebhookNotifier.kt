@@ -14,6 +14,7 @@
 package me.ahoo.wow.http.ops
 
 import kotlinx.coroutines.future.await
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.runtime.node.ParkedView
 import me.ahoo.wow.runtime.subscription.ParkedNotice
@@ -38,6 +39,7 @@ import kotlin.time.toJavaDuration
  *
  * [service] names the service in the message; [headers] are added to each request (a token, say).
  */
+@ExperimentalWowApi
 class WebhookNotifier(
     private val uri: URI,
     private val format: Format = Format.GENERIC,

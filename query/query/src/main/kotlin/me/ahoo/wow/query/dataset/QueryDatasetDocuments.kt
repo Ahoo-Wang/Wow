@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.dataset
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.query.dataset.QueryDatasetProperties.DESCRIPTION
@@ -63,6 +64,7 @@ import tools.jackson.databind.node.ObjectNode
  * `types`, `nullable`, `enum`, `semantic`, `description`, `properties`, `items`, `values`) and may also declare its
  * sensitivity (`sensitive`: `level`, `keepPrefix`, `keepSuffix`). `storage` is the backend's opaque binding.
  */
+@ExperimentalWowApi
 object QueryDatasetProperties {
     const val TITLE = "title"
     const val IDENTITY = "identity"
