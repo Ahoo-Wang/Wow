@@ -9,7 +9,8 @@ val v10ModuleDirs = listOf(
     "compiler/gradle-plugin", "compiler/manifest-tools", "test/test-dsl", "test/tck", "test/tck-containers",
 ) + listOf("catalog", "basket", "ordering", "inventory", "payment").flatMap { context ->
     listOf("api", "domain", "server").map { "example/eshop/$context/$context-$it" }
-} + "example/eshop/e2e"
+} + "example/eshop/e2e" + listOf("ops/ops-api", "ops/ops-domain").map { "platform/$it" } +
+    listOf("api", "domain", "server").map { "platform/view-store/view-store-$it" }
 tasks.named<Test>("test") {
     systemProperty("wow.repository.root", projectDir.toPath().relativize(rootDir.toPath()).toString())
     inputs.files(

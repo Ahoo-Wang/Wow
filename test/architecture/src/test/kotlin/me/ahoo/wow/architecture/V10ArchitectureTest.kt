@@ -31,7 +31,7 @@ class V10ArchitectureTest {
 
     @Test
     fun `every V10 module and the example should exist`() {
-        (V10Rules.MODULES + V10Rules.EXAMPLES).forEach { module ->
+        (V10Rules.MODULES + V10Rules.EXAMPLES + V10Rules.PLATFORM_SERVERS).forEach { module ->
             File(repositoryRoot, "${module.dir}/build.gradle.kts").isFile.assert()
                 .describedAs("${module.dir}/build.gradle.kts must exist under $repositoryRoot")
                 .isTrue()
@@ -55,6 +55,28 @@ class V10ArchitectureTest {
                     .isEmpty()
             }
         }
+
+    @TestFactory
+    fun `platform services should depend only on the projects their rules allow`(): List<DynamicTest> =
+        V10Rules.PLATFORM_SERVERS.map { server ->
+            DynamicTest.dynamicTest(server.name) {
+                val allowed = V10Rules.ALLOWED_SERVER_DEPENDENCIES.getValue(server)
+                V10Rules.projectDependencies(repositoryRoot, server).minus(allowed).assert()
+                    .describedAs("${server.name} depends on projects outside $allowed")
+                    .isEmpty()
+            }
+        }
+
+    @Test
+    fun `platform services should reach V10 modules only`() {
+        V10Rules.platformOutsideV10Violations(repositoryRoot).assert().isEmpty()
+    }
+
+    @Test
+    fun `the platform's modules and services should be in the settings' V10 region`() {
+        V10Rules.v10SettingsProjects(repositoryRoot).assert()
+            .containsAll((V10Rules.PLATFORM_MODULES + V10Rules.PLATFORM_SERVERS).map { it.name })
+    }
 
     @TestFactory
     fun `V10 production sources should follow the dependency rules`(): List<DynamicTest> =
