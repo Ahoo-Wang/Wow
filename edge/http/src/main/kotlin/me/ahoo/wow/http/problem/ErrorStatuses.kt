@@ -67,6 +67,7 @@ class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> 
             code = error.code,
             violations = error.violations,
             result = result,
+            extensions = error.extensions,
             retryAfter = retryAfter(error.code),
         )
     }

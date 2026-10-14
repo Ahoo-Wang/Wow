@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.wait
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
@@ -121,7 +122,7 @@ fun CommandOutcome.toResult(command: Command<*>, function: FunctionInfo, hop: Ho
         is CommandOutcome.Unchanged -> result.copy(version = version)
         is CommandOutcome.Rejected -> result.copy(
             status = CommandResult.Status.REJECTED,
-            error = ErrorInfo(rejection.code, rejection.message),
+            error = rejection.toError(),
         )
 
         is CommandOutcome.Contended -> result.failed(
@@ -157,6 +158,9 @@ fun handledResult(
     derived = derived,
     signalTime = now,
 )
+
+/** The error of a command refused for this rejection: its code, message and extensions (decision D211). */
+fun Rejection.toError(): ErrorInfo = ErrorInfo(code, message, extensions = extensions)
 
 /** This result, failed with [code] and [message]. */
 fun CommandResult.failed(code: String, message: String): CommandResult =

@@ -3969,6 +3969,10 @@
             "items" : {
               "$ref" : "#/components/schemas/wow.Violation"
             }
+          },
+          "extensions" : {
+            "type" : "object",
+            "description" : "The rejection's structured data (decision D211)."
           }
         },
         "required" : [ "code", "message" ]
@@ -4003,7 +4007,7 @@
       },
       "wow.Problem" : {
         "type" : "object",
-        "description" : "An RFC 9457 problem (decision D101); `result` is the command's when it has one.",
+        "description" : "An RFC 9457 problem (decision D101); `result` is the command's when it has one, and the rejection's extensions are members of their own names (decision D211).",
         "properties" : {
           "type" : {
             "type" : "string",

@@ -184,13 +184,12 @@ query routes). It runs apart from the rest, with a setup of its own
 (`vitest.v10.config.ts`), and needs neither the example server nor MongoDB.
 
 The setup starts the service in a JVM on the memory backend, every port
-bound to 0, and stops it at the end. The memory backend serves no snapshot
-query on its own (the eShop's DX gap G14), so the service starts with the
-in-memory query backend its own tests use. Build it first, with JDK 21:
+bound to 0, and stops it at the end. On the memory backend the service's
+own configuration serves its snapshot queries from memory
+(`wow.query.memory.enabled`). Build it first, with JDK 21:
 
 ```bash
-./gradlew -Pwow.scope=v10 :view-store-server:installDist \
-  :view-store-server:testClasses :query:testFixturesJar
+./gradlew -Pwow.scope=v10 :view-store-server:installDist
 pnpm --filter @ahoo-wang/wow-view-store... build
 pnpm --dir typescript/integration-test test:v10
 ```

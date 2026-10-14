@@ -38,8 +38,6 @@ dependencies {
     // The `postgres` profile: the entries' log and snapshots on PostgreSQL, their snapshot queries served there.
     implementation(project(":postgres"))
     implementation("com.zaxxer:HikariCP")
-    // The in-memory reference query backend, so the memory backend's tests query the entries.
-    testImplementation(testFixtures(project(":query")))
     testImplementation("org.springframework:spring-test")
     // The same flow on PostgreSQL in a container (decision D196).
     integrationTestImplementation(sourceSets["test"].output)

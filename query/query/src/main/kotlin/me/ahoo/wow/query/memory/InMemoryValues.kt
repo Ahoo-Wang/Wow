@@ -89,7 +89,8 @@ internal fun List<JsonNode>.sortKey(ascending: Boolean): JsonNode? {
     if (scalars.isEmpty()) return null
     return scalars.reduce { best, next ->
         val order = orderOf(next, best)
-        if (ascending && order < 0 || !ascending && order > 0) next else best
+        val better = if (ascending) order < 0 else order > 0
+        if (better) next else best
     }
 }
 

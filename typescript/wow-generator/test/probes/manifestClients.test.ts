@@ -342,6 +342,68 @@ describe('Manifest clients', () => {
     );
   });
 
+  it('writes a parameterized type in place, never as a type that shadows a global', async () => {
+    const map = 'java.util.Map(java.lang.String,java.lang.Object)';
+    const list = 'java.util.List(s.Shared)';
+    const parameterized = {
+      format: 1,
+      contexts: [
+        {
+          name: 'first',
+          aggregates: [{ name: 'a', state: { schema: schema('s.Shared') } }],
+        },
+        {
+          name: 'second',
+          aggregates: [{ name: 'b', state: { schema: schema('s.Holder') } }],
+        },
+      ],
+      $defs: {
+        's.Shared': {
+          type: 'object',
+          properties: {
+            config: { $ref: schema(map) },
+            fields: { $ref: schema(`${map}-nullable`) },
+            labels: {
+              $ref: schema('java.util.Map(java.lang.String,java.lang.String)'),
+            },
+          },
+          required: ['config'],
+        },
+        's.Holder': {
+          type: 'object',
+          properties: { items: { $ref: schema(list) } },
+        },
+        [map]: { type: 'object' },
+        [`${map}-nullable`]: {
+          anyOf: [{ type: 'null' }, { $ref: schema(map) }],
+        },
+        'java.util.Map(java.lang.String,java.lang.String)': {
+          type: 'object',
+          additionalProperties: { type: 'string' },
+        },
+        [list]: { type: 'array', items: { $ref: schema('s.Shared') } },
+      },
+    };
+    const { read } = await generateCompiling(
+      parameterized,
+      `import type { Shared } from './out/first/types.js';
+       import type { Holder } from './out/second/types.js';
+       const shared: Shared = { config: { any: 1 }, fields: null, labels: { a: 'b' } };
+       const holder: Holder = { items: [shared] };
+       void [holder, Object.keys(shared)];`,
+    );
+    const first = read('first/types.ts');
+    expect(first).toContain('config: Record<string, unknown>;');
+    expect(first).toContain('fields?: null | Record<string, unknown>;');
+    expect(first).toContain('labels?: Record<string, string>;');
+    expect(first).not.toMatch(/export (type|interface) (Object|String)\b/);
+    const second = read('second/types.ts');
+    expect(second).toContain('items?: Shared[];');
+    expect(second).toContain(
+      "import type { Shared } from '../first/types.js';",
+    );
+  });
+
   it('declares a schema two contexts reach in the first', async () => {
     const shared = {
       format: 1,

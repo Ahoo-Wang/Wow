@@ -32,6 +32,7 @@ import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.wait.WaitCoordinator
+import me.ahoo.wow.runtime.wait.toError
 import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicProducer
@@ -105,7 +106,7 @@ class CommandIntake internal constructor(
         // A receipt carries the rest of the command's chain on, past its commit (decision D192).
         val next = wait?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
         settlement.rejection?.let { rejection ->
-            reply(wire.copy(ref = command.ref), ErrorInfo(rejection.code, rejection.message), next)
+            reply(wire.copy(ref = command.ref), rejection.toError(), next)
             return
         }
         if (settlement.failed) {

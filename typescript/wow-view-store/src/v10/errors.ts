@@ -159,15 +159,21 @@ export async function failureOf(error: unknown): Promise<Failure> {
 }
 
 /**
- * The titles of the shared dashboards a claim refusal names. The server
- * says them in the problem's `detail` only, each as `"title" (id)`:
- * `The view is shown by the shared dashboards "Ops" (b1), "Daily" (b2).`
- * A title holding `" (` is cut there; the server gives no structured list
- * (a gap of the V10 view store, roadmap 7.3a).
+ * The titles of the shared dashboards a claim refusal names: the problem's
+ * `boards` extension member, a list of `{ id, title }` (decision D211). A
+ * board without a title is named by its id; anything else is skipped.
  */
-export function boardTitles(detail: string | undefined): string[] {
-  if (!detail) return [];
-  return [...detail.matchAll(/"(.*?)" \(([^()]*)\)/g)].map(match => match[1]);
+export function boardTitles(
+  extensions: Readonly<Record<string, unknown>> | undefined,
+): string[] {
+  const boards = extensions?.boards;
+  if (!Array.isArray(boards)) return [];
+  return boards.flatMap((board: unknown) => {
+    if (typeof board !== 'object' || board === null) return [];
+    const { id, title } = board as { id?: unknown; title?: unknown };
+    if (typeof title === 'string' && title.trim() !== '') return [title];
+    return typeof id === 'string' ? [id] : [];
+  });
 }
 
 /**

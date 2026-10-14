@@ -16,7 +16,6 @@ package me.ahoo.wow.ops.server
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.ops.api.parked.ParkedStatus
 import me.ahoo.wow.ops.testing.LedgerSimulatorRoutes
-import me.ahoo.wow.ops.testing.MemorySnapshotQueries
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -45,7 +44,8 @@ class OpsConsoleTest {
 
     private val ops: OpsNode = startOps(
         "spring.web.resources.static-locations" to console.toUri().toString(),
-        sources = listOf(MemorySnapshotQueries::class.java, LedgerSimulatorRoutes::class.java),
+        "wow.query.memory.enabled" to true,
+        sources = listOf(LedgerSimulatorRoutes::class.java),
     )
 
     private val client: WebTestClient = WebTestClient.bindToServer()

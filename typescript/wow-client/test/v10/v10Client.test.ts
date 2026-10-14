@@ -26,6 +26,7 @@ import {
   FrameworkErrorCodes,
   LifecycleCommands,
   parseRetryAfter,
+  type Problem,
   readProblem,
   retryHintOf,
   SnapshotQueryClient,
@@ -390,6 +391,39 @@ describe('problems', () => {
       code: 'wow.node.closing',
       title: 'Service Unavailable',
     });
+  });
+
+  it('gathers the extension members of a problem as its extensions', async () => {
+    const boards = [{ id: 'b1', title: 'Ops' }];
+    const problem = await readProblem(
+      new Response(
+        JSON.stringify({
+          type: 'urn:wow:error:view-store.referenced-by-shared-dashboard',
+          title: 'Unprocessable Content',
+          status: 422,
+          detail: 'Shown by shared dashboards.',
+          instance: '/view-store/view/v1/claim-view',
+          code: 'view-store.referenced-by-shared-dashboard',
+          boards,
+        }),
+        { status: 422 },
+      ),
+    );
+    expect(problem.extensions).toEqual({ boards });
+    expect(problem.detail).toBe('Shown by shared dashboards.');
+    const streamed = new WowProblemError({
+      type: 'about:blank',
+      title: 'Failed',
+      status: 500,
+      hint: 'x',
+    } as Problem);
+    expect(streamed.problem.extensions).toEqual({ hint: 'x' });
+    const given = { type: 'x', title: 't', status: 500, extensions: { a: 1 } };
+    expect(new WowProblemError(given).problem).toBe(given);
+    expect(
+      new WowProblemError({ type: 'x', title: 't', status: 500 }).problem
+        .extensions,
+    ).toBeUndefined();
   });
 
   it('makes a problem of a status when the body is not one', async () => {

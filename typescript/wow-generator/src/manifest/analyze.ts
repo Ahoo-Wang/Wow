@@ -196,6 +196,16 @@ class SchemaTypes {
 
   constructor(readonly defs: Readonly<Record<string, JsonSchema>>) {}
 
+  /**
+   * Whether `key` is a parameterized type's, such as
+   * `java.util.Map(java.lang.String,java.lang.Object)`: its schema is written
+   * in place (`Record<string, unknown>`), never declared, since a name taken
+   * from its last type argument would shadow a global such as `Object`.
+   */
+  inlined(key: string): boolean {
+    return key.includes('(');
+  }
+
   /** Names each key after its simple class name, qualified as far as needed to be unique. */
   name(keys: readonly string[]): void {
     const pending = new Set(keys);
@@ -270,6 +280,20 @@ class SchemaTypes {
     return into;
   }
 
+  /** The keys a schema refers to by name: an inlined key's own, in its place. */
+  namedReferences(schema: unknown): Set<string> {
+    const named = new Set<string>();
+    for (const key of this.references(schema)) {
+      const target = this.schemaOf(key);
+      if (target !== undefined && this.inlined(key)) {
+        this.namedReferences(target).forEach(inner => named.add(inner));
+      } else {
+        named.add(key);
+      }
+    }
+    return named;
+  }
+
   /** Every key reachable from `roots`. */
   closure(roots: Iterable<string>): string[] {
     const reached = new Set<string>();
@@ -286,6 +310,10 @@ class SchemaTypes {
 
   /** The type of a reference to `key`. */
   refType(key: string, where: string): string {
+    const schema = this.schemaOf(key);
+    if (schema !== undefined && this.inlined(key)) {
+      return this.type(schema, where);
+    }
     const name = this.names.get(key);
     if (name !== undefined && this.schemaOf(key)) return name;
     this.warnings.push(
@@ -501,7 +529,9 @@ export function analyzeManifest(manifest: ManifestDocument): {
       if (!reach.has(key)) reach.set(key, context.name);
     }
   }
-  const keys = [...reach.keys()].filter(key => types.schemaOf(key));
+  const keys = [...reach.keys()].filter(
+    key => types.schemaOf(key) && !types.inlined(key),
+  );
   types.name([...keys].sort(compareNames));
 
   const typeModels: TypeModel[] = keys
@@ -528,7 +558,7 @@ function typeModel(types: SchemaTypes, key: string, file: string): TypeModel {
   const name = types.names.get(key)!;
   const description =
     typeof schema.description === 'string' ? schema.description : undefined;
-  const references = [...types.references(schema)]
+  const references = [...types.namedReferences(schema)]
     .map(ref => types.names.get(ref))
     .filter((ref): ref is string => ref !== undefined && ref !== name);
   const base = {

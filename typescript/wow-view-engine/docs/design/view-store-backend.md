@@ -297,7 +297,7 @@ V10 的视图存储服务在 `platform/view-store`（7.2a，#4474；配置的系
 请求经由 wow-generator 从服务的 Manifest 基线（`platform/view-store/view-store-server/manifest/baseline.json`，服务自己的 `check` 守着它等于所服务的）生成的客户端发出，提交在 `src/v10/generated/`，包里的 `generated.test.ts` 逐字节核对；不导出，只供手写的 store 用。Manifest 之外的两处手写：
 
 - 系统视图路由 `GET /view-store/system-views[/{id}]`：服务自己的 RouterFunction，不在 Manifest 里（#4477）。
-- `POST /view-store/dataset_wording/clear-dataset-wording`（不带 id）：服务按数据集推导 id，路由也在，但 Manifest 只列出带 `{id}` 的那条，生成的客户端没有它；经生成客户端的 `gateway` 按路径发。
+- `POST /view-store/dataset_wording/clear-dataset-wording`（不带 id）：服务按数据集推导 id；命令标了 `@Unaddressed`（D210），Manifest 两条路由都列，生成的 `clearDatasetWording` 不带 `id` 时走这条。
 
 ### 10.3 与 9.x 客户端的差别
 
@@ -307,20 +307,20 @@ V10 的视图存储服务在 `platform/view-store`（7.2a，#4474；配置的系
 - **改受众**：`share-view` 总以所有者身份（不带 `Wow-Scope`）发，`claim-view` 总以 `(shared)` 发，视图是否已经挪过都一样——所以重试在挪动之后仍被认作重复。两者都等 `Wow-Wait: handled(view-store/ViewAudienceSaga.onAudienceChanged) > snapshot(view-store)`：受众是视图自己的一次提交，所有者由 saga 的 `TransferOwner` 晚一个版本改。重复答的是第一次提交的版本，挪动在下一版，store 读那一版并核对它的所有者；中间插进别的写入时以现状作答。已在目标受众的视图被服务端以「不在该所有者的范围」拒绝，store 读现状，revision 对得上就原样作答（端口的「没有变化就不写」），对不上是 `CONFLICT`。
 - **存储的系统视图**的 revision 是内容哈希，写入要的是版本：store 记着见过的每个（id, revision）→ 版本，重试仍能带第一次期望的版本、被认作重复；没见过的 revision 先读一次，不是现在的就是 `CONFLICT`。
 - **错误**按 problem 的 `code` 映射：`wow.aggregate.version-mismatch`、`wow.command.request-id-reused` → `CONFLICT`；`wow.aggregate.not-found`、`wow.aggregate.deleted`、`view-store.not-found` → `NOT_FOUND`；`wow.auth.*`、`wow.aggregate.forbidden`、`view-store.system-view-read-only` → `FORBIDDEN`；`view-store.invalid`、`app-required`、`owner-required`、`wow.command.*`／`wow.query.*` 的格式与校验码 → `INVALID`；服务端说可以重试的（`retry.retryable`：busy、contended、unknown、wait 超时……）→ `UNAVAILABLE`。不认识的码按状态；**不带码的 `404`** 是服务端不提供的路由（没有视图存储，或内存后端没有快照查询）→ `UNSUPPORTED`。
-- **拒绝改成个人**的看板标题只在 problem 的 `detail` 里，形如 `"标题" (id)`；store 从中读出标题放进 `boards`（标题里含 `" (` 时会被截断，见 10.5）。
+- **拒绝改成个人**时 problem 带扩展成员 `boards: [{ id, title }]`（D211，`@ahoo-wang/wow-client/v10` 的 `Problem.extensions`）；store 把标题放进 `boards`，没有标题的按 id。`detail` 只是给人读的文字，不再解析。
 - **一页的总数**：V10 服务经 HTTP 拒绝 `EXACT` 总数，`viewSourceOf` 用服务端缺省的 `BOUNDED`，超过预算时引擎拿到的是上限而不是确数（见 `todo.md`）。
 
 ### 10.4 验证
 
 - `wow-view-store` 的 `test/v10/`：端口一致性套件跑在内存替身（`test/support/fakeV10ViewStore.ts`）上，另有 store 的边界、错误映射、数据源、措辞，以及生成代码对 Manifest 的逐字节核对。
-- `typescript/integration-test` 的 `pnpm test:v10`（`test/view-store-v10/`）：全局 setup 在本进程起 V10 服务（内存后端，端口都绑 0，带服务自己测试用的内存快照查询，见 10.5），对它跑一致性套件、隔离、两种系统视图、服务端的角色、措辞、错误，以及**引擎端到端**——保存、另存为、冲突后重载／覆盖、结局未知后重试、设为共享再由同事认领、偏好，以及记录视图与分析经 V10 查询路由取数。设了 `WOW_V10_VIEW_STORE_URL` 时改连现成的服务。
+- `typescript/integration-test` 的 `pnpm test:v10`（`test/view-store-v10/`）：全局 setup 在本进程起 V10 服务（内存后端，端口都绑 0，服务自己的配置 `wow.query.memory.enabled` 从内存提供快照查询，见 10.5），对它跑一致性套件、隔离、两种系统视图、服务端的角色、措辞、错误，以及**引擎端到端**——保存、另存为、冲突后重载／覆盖、结局未知后重试、设为共享再由同事认领、偏好，以及记录视图与分析经 V10 查询路由取数。设了 `WOW_V10_VIEW_STORE_URL` 时改连现成的服务。
 - Storybook 的 `View Engine/回归夹具/V10 视图存储`：记录工作台跑在 V10 store 与 V10 数据集路由上（同一个内存替身装成页面的 `fetch`）。
 
 ### 10.5 服务端缺口（JVM 的后续，7.3a 不改 JVM）
 
-- **内存后端不提供快照查询**（eShop 的 DX 缺口 G14）：独立起的内存服务列不出视图。契约测试照服务自己的测试那样，把 MemorySnapshotQueries（服务的测试类）与 wow-query 的测试夹具放上类路径、经 `--spring.main.sources` 启用。需要一个正式开关。
-- **`ClearDatasetWording` 的无 id 路由不在 Manifest 里**（创建方式为 `NONE` 的命令只列带 `{id}` 的路由，转换器推导 id 的情形漏了）。
-- **拒绝改成个人时看板只在 `detail` 的文字里**：没有结构化的看板列表（id 与标题），客户端只能解析文字。
+- ~~**内存后端不提供快照查询**（eShop 的 DX 缺口 G14）~~：已解决（D209）。`wow.query.memory.enabled` 打开后内存存储的快照查询由内存参考后端提供；独立的视图存储服务默认打开，契约测试不再往类路径上放测试类与测试夹具。
+- ~~**`ClearDatasetWording` 的无 id 路由不在 Manifest 里**~~：已解决（D210，`@Unaddressed`）；生成的客户端有了它，store 不再按路径手发。
+- ~~**拒绝改成个人时看板只在 `detail` 的文字里**~~：已解决（D211）；看板在 problem 的扩展成员 `boards` 里。
 - **生命周期删除不核对应用**（#4474 已列）：别的应用的视图按 id 能删。
-- **`EXACT` 总数经 HTTP 被拒**：对 V10 是有意的（D150）；引擎要学会说「至少 N 条」。
-- **生成器把 `Map<String, Any>` 命名为 `Object`**，在生成的 `types.ts` 里遮住全局的 `Object`（wow-generator 的后续，不影响使用）。
+- **`EXACT` 总数经 HTTP 被拒**：对 V10 是有意的（D150），服务端不改；`paged` 已答 `exact`，超出预算时 `exact: false`，引擎要学会据此说「至少 N 条」。
+- ~~**生成器把 `Map<String, Any>` 命名为 `Object`**~~：已解决；带类型参数的类型就地写出（`Record<string, unknown>` 等），不再声明。

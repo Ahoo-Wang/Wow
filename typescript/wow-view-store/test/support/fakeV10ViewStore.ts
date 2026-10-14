@@ -358,13 +358,15 @@ export function fakeV10ViewStore(
     detail: string,
     ref: { name: AggregateName; tenantId: string; id: string },
     requestId: string,
+    extensions: Record<string, unknown> = {},
   ): never {
     const rejected = {
       ...result(ref, requestId, null),
       status: 'REJECTED',
-      error: { code, message: detail },
+      error: { code, message: detail, extensions },
     };
-    fail(status, code, detail, { result: rejected });
+    // As the service: each extension is a member of the problem (D211).
+    fail(status, code, detail, { ...extensions, result: rejected });
   }
 
   function commit(
@@ -730,6 +732,12 @@ export function fakeV10ViewStore(
             `The view is shown by the shared dashboards ${boards.map(board => `"${board.state.title}" (${board.id})`).join(', ')}.`,
             ref,
             requestId,
+            {
+              boards: boards.map(board => ({
+                id: board.id,
+                title: board.state.title,
+              })),
+            },
           );
         commit(aggregate, { ...state, audience: 'personal' });
         firstVersion = aggregate.version;

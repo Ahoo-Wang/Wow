@@ -19,13 +19,14 @@ import { scopes, unitPackages } from './ci-scope.mjs';
 
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
 // The TypeScript workflow scopes; `compatDebt` and `package` are derived from
-// them, `mixedVersion` and `v10` gate Kotlin workflows, and `opsConsole` the
-// ops console's own; each has its own tests.
+// them, `mixedVersion` and `v10` gate Kotlin workflows, and `v10Contract` and
+// `opsConsole` are decided apart from the rules; each has its own tests.
 const KOTLIN_GATES = new Set([
   'compatDebt',
   'package',
   'mixedVersion',
   'v10',
+  'v10Contract',
   'opsConsole',
 ]);
 const gates = paths =>
@@ -118,14 +119,15 @@ test('example server sources and the Gradle build run only the same-source contr
     assert.deepEqual(on([path]), ['contract'], path);
 });
 
-test('the view store client runs its unit tests, the site and the contract', () => {
+test('the view store client runs its unit tests, the site, the stories and the contract', () => {
   for (const path of [
     'typescript/wow-view-store/src/wowViewStore.ts',
+    'typescript/wow-view-store/src/v10/wowViewStore.ts',
     'typescript/wow-view-store/package.json',
   ])
     assert.deepEqual(
       on([path]),
-      ['typescript', 'sdk', 'docs', 'contract'],
+      ['typescript', 'sdk', 'docs', 'storybook', 'contract'],
       path,
     );
   assert.deepEqual(on(['typescript/wow-view-store/test/errors.test.ts']), [
@@ -545,6 +547,73 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
   assert.ok(scopes(['.github/workflows/v10.yml']).workflows);
 });
 
+test('the V10 store, what its suites import, the service and its modules run the V10 contract', () => {
+  for (const path of [
+    'typescript/wow-view-store/src/v10/wowViewStore.ts',
+    'typescript/wow-view-store/package.json',
+    'typescript/wow-client/src/v10/index.ts',
+    'typescript/wow-view-engine/src/index.ts',
+    'typescript/wow-view-engine/test/conformance/viewStoreConformance.ts',
+    'typescript/integration-test/test/view-store-v10/engine.test.ts',
+    'typescript/integration-test/vitest.v10.config.ts',
+    'typescript/integration-test/package.json',
+    'platform/view-store/view-store-server/src/main/kotlin/A.kt',
+    'platform/view-store/view-store-domain/build.gradle.kts',
+    'api/api/src/main/kotlin/A.kt',
+    'compiler/compiler/src/main/kotlin/A.kt',
+    'core/kernel/src/main/kotlin/A.kt',
+    'query/query/src/testFixtures/kotlin/A.kt',
+    'backends/postgres/src/main/kotlin/A.kt',
+    'edge/http/src/main/kotlin/A.kt',
+    'host/spring-boot/src/main/kotlin/A.kt',
+    'test/tck/src/main/kotlin/A.kt',
+    'test/test-dsl/src/main/kotlin/A.kt',
+    'wow-dependencies/build.gradle.kts',
+    'gradle/libs.versions.toml',
+    'build-logic/build.gradle.kts',
+    'build.gradle.kts',
+    'settings.gradle.kts',
+    'gradle.properties',
+    'gradlew',
+    '.github/workflows/typescript-contract.yml',
+    // An unknown path or a CI script runs everything.
+    '.github/scripts/ci-scope.mjs',
+    'new-directory/index.ts',
+  ])
+    assert.ok(scopes([path]).v10Contract, path);
+  for (const path of [
+    'typescript/wow-view-store/README.md',
+    'typescript/wow-view-store/test/v10/wowViewStore.test.ts',
+    'typescript/wow-client/test/index.test.ts',
+    'typescript/wow-view-engine/test/setup.ts',
+    'typescript/wow-view-engine/README.md',
+    'typescript/wow-react/src/index.ts',
+    'typescript/wow-generator/src/cli.ts',
+    'typescript/storybook/stories/view-engine/V10ViewStore.test.stories.tsx',
+    'typescript/integration-test/README.md',
+    'platform/ops/ops-domain/src/main/kotlin/A.kt',
+    'platform/view-store/README.md',
+    'migration/migrate-data/build.gradle.kts',
+    'extensions/cosid/src/main/kotlin/A.kt',
+    'test/architecture/src/test/kotlin/A.kt',
+    'example/eshop/e2e/build.gradle.kts',
+    'view-store/wow-view-store-server/build.gradle.kts',
+    'wow-core/src/main/kotlin/A.kt',
+    'documentation/designs/v10/roadmap.md',
+    '.github/workflows/v10.yml',
+    '.github/workflows/typescript-storybook.yml',
+  ])
+    assert.ok(!scopes([path]).v10Contract, path);
+  // A V10 contract path keeps the scopes its rule gives it.
+  assert.deepEqual(
+    on(['platform/view-store/view-store-server/build.gradle.kts']),
+    [],
+  );
+  assert.ok(
+    scopes(['platform/view-store/view-store-server/build.gradle.kts']).v10,
+  );
+});
+
 test('the ops console, the ops service and what the console builds with run ops-console-test.yml', () => {
   for (const path of [
     'platform/ops/console/src/main.tsx',
@@ -646,6 +715,7 @@ test('the command reads the diff and runs everything without a base', () => {
       `package=${value}\n` +
       `mixedVersion=${value}\n` +
       `v10=${value}\n` +
+      `v10Contract=${value}\n` +
       `opsConsole=${value}\n` +
       `unitPackages=${value ? '["wow-client","wow-react","wow-generator","wow-view-store"]' : '[]'}\n`;
     assert.equal(run({ BASE_SHA: base, HEAD_SHA: head }), output(false));

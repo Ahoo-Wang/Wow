@@ -715,7 +715,8 @@ function readOnly(message: string): never {
 /**
  * The port's refusal of a write. A claim the service refuses because shared
  * dashboards show the view carries those boards' titles (`boards`), read
- * from the problem's detail; the engine says the refusal around them.
+ * from the problem's `boards` extension member; the engine says the refusal
+ * around them.
  */
 function refusal(failure: Failure): ViewStoreError {
   if (
@@ -724,6 +725,6 @@ function refusal(failure: Failure): ViewStoreError {
     return failure.toStoreError();
   return new ViewStoreError('INVALID', failure.message, {
     ...failure.held(),
-    boards: boardTitles(failure.problem?.problem.detail),
+    boards: boardTitles(failure.problem?.problem.extensions),
   });
 }

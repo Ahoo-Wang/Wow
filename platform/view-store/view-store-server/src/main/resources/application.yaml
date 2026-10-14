@@ -8,6 +8,12 @@ wow:
   # One node, its data in memory: the default, for trying the view store out. The `postgres` profile below keeps the
   # views on PostgreSQL and serves their snapshot queries.
   backend: memory
+  query:
+    memory:
+      # The memory backend's snapshot queries, from the in-memory reference query backend (decision D209), so the
+      # views are listed: for local runs, demos and tests, never production. The `postgres` profile has no store in
+      # memory, so it does not apply there.
+      enabled: true
   internal:
     port: 9090
   http:

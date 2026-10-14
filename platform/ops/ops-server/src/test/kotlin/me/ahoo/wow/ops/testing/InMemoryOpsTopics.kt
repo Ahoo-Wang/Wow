@@ -13,13 +13,8 @@
 
 package me.ahoo.wow.ops.testing
 
-import me.ahoo.wow.kernel.InMemorySnapshotStore
 import me.ahoo.wow.kernel.InMemoryTopics
-import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.runtime.node.SourceTopics
-import me.ahoo.wow.spi.snapshot.SnapshotRecord
-import me.ahoo.wow.spi.snapshot.SnapshotStore
-import me.ahoo.wow.spring.boot.HostBackends
 import me.ahoo.wow.spring.boot.WowProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -36,26 +31,4 @@ class InMemoryOpsTopics {
 
     @Bean
     fun sourceTopics(topics: InMemoryTopics): SourceTopics = SourceTopics(topics, producer = topics, intake = true)
-}
-
-/**
- * The snapshot queries on the memory backend, as the eShop's catalog tests wire them (DX gap G14): the in-memory
- * reference query backend on the test class path is not enough by itself. It lives outside the server's package, so
- * the application's component scan does not pick it up for every test.
- */
-@Configuration(proxyBeanMethods = false)
-class MemorySnapshotQueries {
-    @Bean
-    fun memoryQueryStorage(): InMemoryQueryStorage = InMemoryQueryStorage()
-
-    @Bean
-    fun memoryBackends(properties: WowProperties, queries: InMemoryQueryStorage): HostBackends =
-        HostBackends.memory(properties.log.partitions) { QueriedSnapshots(InMemorySnapshotStore(), queries) }
-}
-
-/** A snapshot store that also writes each snapshot it saves into the in-memory reference query backend. */
-class QueriedSnapshots(private val store: SnapshotStore, private val queries: InMemoryQueryStorage) :
-    SnapshotStore by store {
-    override suspend fun save(snapshot: SnapshotRecord): Boolean =
-        store.save(snapshot).also { written -> if (written) queries.save(snapshot) }
 }

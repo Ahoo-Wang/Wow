@@ -52,6 +52,17 @@ const MIXED_VERSION = 'mixedVersion';
 const V10 = 'v10';
 const V10_PATH =
   /^(?:(?:api|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|kernel-benchmarks|routing-spike|lease-spike|test-dsl|tck|tck-containers)|example\/eshop|wow-dependencies|gradle|build-logic|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/v10\.yml$)/;
+// typescript-contract.yml (v10 branch): `test:v10` of integration-test, the
+// V10 store (`@ahoo-wang/wow-view-store/v10`) and the view engine on it
+// against the V10 view store service (platform/view-store) built from this
+// commit. Decided apart from RULES, by V10_CONTRACT_PATH: the packages the
+// suites import (the libraries' own tests and the engine's apart from its
+// port conformance suite left out), integration-test, the service, the V10
+// modules on its runtime and test classpath, the root build and the workflow.
+// Markdown is left out: nothing the suites run reads it.
+const V10_CONTRACT = 'v10Contract';
+const V10_CONTRACT_PATH =
+  /^(?:typescript\/(?:wow-(?:client|view-store)\/(?!(?:test|expected|scripts)\/)|wow-view-engine\/(?!test\/(?!conformance\/))|integration-test\/)|(?:api|compiler|core|query|backends|edge|host|platform\/view-store|test\/(?:tck|test-dsl)|wow-dependencies|gradle|build-logic)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/typescript-contract\.yml$)/;
 // ops-console-test.yml (v10 branch): the ops console's lint, types, tests and
 // build, and its end-to-end suite against the ops server it is served by. Not a
 // TypeScript scope of typescript.yml. Decided apart from RULES, by
@@ -131,8 +142,12 @@ const RULES = [
     [TYPESCRIPT, VIEW_ENGINE, STORYBOOK, DOCS, CONTRACT],
   ],
   // The same-source contract runs WowViewStore against the view store server
-  // (integration-test/test/view-store/); the site lists the package.
-  [/^typescript\/wow-view-store\//, [TYPESCRIPT, SDK, DOCS, CONTRACT]],
+  // (integration-test/test/view-store/); the site lists the package, and the
+  // stories render it.
+  [
+    /^typescript\/wow-view-store\//,
+    [TYPESCRIPT, SDK, DOCS, STORYBOOK, CONTRACT],
+  ],
   // The static checks lint the stories and check their formatting.
   [/^typescript\/storybook\//, [TYPESCRIPT, STORYBOOK, DOCS]],
   [/^typescript\//, [TYPESCRIPT, SDK]],
@@ -298,6 +313,7 @@ export function scopes(paths) {
     PACKAGE,
     MIXED_VERSION,
     V10,
+    V10_CONTRACT,
     OPS_CONSOLE,
   ];
   const result = Object.fromEntries(keys.map(key => [key, false]));
@@ -327,7 +343,11 @@ export function scopes(paths) {
   // Also apart from RULES: a V10 path keeps its scopes, and an unknown path
   // has already returned every scope above.
   result[V10] = paths.some(path => V10_PATH.test(path));
-  // Also apart from RULES, and the same way.
+  // Also apart from RULES, the same way.
+  result[V10_CONTRACT] = paths.some(
+    path => V10_CONTRACT_PATH.test(path) && !path.endsWith('.md'),
+  );
+  // And the ops console's, the same way.
   result[OPS_CONSOLE] = paths.some(path => OPS_CONSOLE_PATH.test(path));
   return result;
 }

@@ -123,12 +123,21 @@ describe('the V10 store reads a failure', () => {
 describe('boardTitles', () => {
   it('reads the titles of the boards the claim refusal names', () => {
     expect(
-      boardTitles(
-        'The view is shown by the shared dashboards "Ops" (b1), "Daily, team" (b2).',
-      ),
-    ).toEqual(['Ops', 'Daily, team']);
+      boardTitles({
+        boards: [
+          { id: 'b1', title: 'Ops' },
+          { id: 'b2', title: 'Daily (team) "x" (y)' },
+          { id: 'b3', title: ' ' },
+          { id: 'b4' },
+          { title: 7 },
+          null,
+          'b5',
+        ],
+      }),
+    ).toEqual(['Ops', 'Daily (team) "x" (y)', 'b3', 'b4']);
     expect(boardTitles(undefined)).toEqual([]);
-    expect(boardTitles('No boards here.')).toEqual([]);
+    expect(boardTitles({})).toEqual([]);
+    expect(boardTitles({ boards: 'Ops' })).toEqual([]);
   });
 });
 

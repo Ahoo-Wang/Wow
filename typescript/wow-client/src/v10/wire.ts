@@ -105,6 +105,11 @@ export interface ErrorInfo {
   readonly code: string;
   readonly message: string;
   readonly violations?: readonly Violation[];
+  /**
+   * The rejection's structured data (decision D211), which a problem
+   * writes as its extension members.
+   */
+  readonly extensions?: Readonly<Record<string, unknown>>;
 }
 
 /** How a command ended at a hop. */
