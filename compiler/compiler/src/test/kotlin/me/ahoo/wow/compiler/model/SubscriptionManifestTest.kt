@@ -19,6 +19,7 @@ import com.tschuchort.compiletesting.SourceFile
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
+import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.manifest.FunctionKind
 import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
@@ -203,7 +204,8 @@ class SubscriptionManifestTest {
                 source = stock,
                 function = saga("onStock"),
                 derives = listOf("shop.order.Cancel"),
-                start = SubscriptionStart.END,
+                // Decision D194: a saga of another context's stream starts from its beginning.
+                start = SubscriptionStart.BEGINNING,
             ),
             SubscriptionManifest(
                 name = "OrderSaga.untyped",
@@ -279,6 +281,79 @@ class SubscriptionManifestTest {
             saga.rejections.assert().isEqualTo(sagas.first().rejections)
         }
         processors.filter { it.processor == "StockBoard" }.forEach { it.rejections.assert().isEmpty() }
+    }
+
+    @Suppress("LongMethod") // The sources and the expected starts, whole.
+    @Test
+    fun `a handler's declared start should be in the fragment and its binding, over its kind and source`() {
+        val starts = SourceFile.kotlin(
+            "Starts.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Projection
+            import me.ahoo.wow.api.annotation.Reactor
+            import me.ahoo.wow.api.decide.Command
+            import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.subscribe.StateEvent
+
+            @Saga
+            class Replaying {
+                @OnEvent(start = OnEvent.Start.BEGINNING)
+                fun onOrder(event: StateEvent<Order>): Command<*>? = null
+
+                @OnEvent(aggregates = ["inventory.stock"], start = OnEvent.Start.END)
+                fun onStock(event: StateEvent<StockView>): Command<*>? = null
+
+                @OnEvent(aggregates = ["inventory.stock"], start = OnEvent.Start.DEFAULT)
+                fun onStockAgain(event: StateEvent<StockView>): Command<*>? = null
+
+                @OnEvent(aggregates = ["shop.order"])
+                fun onOwnOrder(event: StateEvent<Order>): Command<*>? = null
+            }
+
+            @Projection
+            class Recent {
+                @OnEvent(start = OnEvent.Start.END)
+                fun onOrder(event: StateEvent<Order>) = Unit
+            }
+
+            @Reactor
+            class Mailer {
+                @OnEvent
+                fun onOrder(event: StateEvent<Order>) = Unit
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compile(model, starts)
+        fragment(compilation).contexts.single().subscriptions.associate { it.name to it.start }.assert().isEqualTo(
+            mapOf(
+                "Mailer.onOrder" to SubscriptionStart.END,
+                "Recent.onOrder" to SubscriptionStart.END,
+                "Replaying.onOrder" to SubscriptionStart.BEGINNING,
+                "Replaying.onOwnOrder" to SubscriptionStart.END,
+                "Replaying.onStock" to SubscriptionStart.END,
+                "Replaying.onStockAgain" to SubscriptionStart.BEGINNING,
+            ),
+        )
+        val processors = provider(compilation, result).processors(Dependencies.NONE).associateBy { it.name }
+        processors.mapValues { it.value.startIn("shop") }.assert().isEqualTo(
+            mapOf(
+                "Mailer.onOrder" to StartFrom.END,
+                "Recent.onOrder" to StartFrom.END,
+                "Replaying.onOrder" to StartFrom.BEGINNING,
+                "Replaying.onOwnOrder" to StartFrom.END,
+                "Replaying.onStock" to StartFrom.END,
+                "Replaying.onStockAgain" to StartFrom.BEGINNING,
+            ),
+        )
+        // Only a declared start is generated; the others are left to the runtime's default.
+        processors.getValue("Mailer.onOrder").startFrom.assert().isNull()
+        processors.getValue("Replaying.onStockAgain").startFrom.assert().isNull()
+        generated(compilation, "ReplayingSubscriptions.kt")!!.readText().assert()
+            .contains("startFrom = me.ahoo.wow.kernel.StartFrom.BEGINNING")
+            .contains("startFrom = me.ahoo.wow.kernel.StartFrom.END")
     }
 
     @Test

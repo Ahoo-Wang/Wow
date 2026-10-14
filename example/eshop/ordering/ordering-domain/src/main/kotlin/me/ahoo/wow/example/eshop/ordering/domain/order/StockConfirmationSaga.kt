@@ -32,8 +32,8 @@ import me.ahoo.wow.spi.state.StateEventPayload
  * JSON), matched by name; the order's id is read from the JSON of `StockReserved`. The commands it derives are this
  * context's own, with ids fixed by the record it handles, so a record read twice derives the same requests.
  *
- * The handler starts at the end of the stream by default, like every saga; the server's configuration starts it at
- * the beginning, so a reservation published before the ordering service first read the topic is not missed.
+ * The handler reads another context's stream, so it starts at the beginning of it by default (decision D194): a
+ * reservation published before the ordering service first read the topic is not missed.
  */
 @Saga
 class StockConfirmationSaga {
