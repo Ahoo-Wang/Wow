@@ -47,8 +47,9 @@ import me.ahoo.wow.manifest.SubscriptionStart
  *
  * What M6 adds (decision D148):
  *
- * - an aggregate's `queries` (decision D128): `snapshot` when it keeps snapshots, which nothing declared in the model
- *   turns off yet, and `events`, each with its routes ([QueryRoutes], decision D127);
+ * - an aggregate's `snapshot` and `queries` (decisions D128, D195): snapshots enabled unless
+ *   `@AggregateRoot(snapshot = false)` turns them off, the `snapshot` query only when they are, and `events`, each
+ *   with its routes ([QueryRoutes], decision D127);
  * - the context's `published` streams (decisions D58, D135, D156): the state events of every aggregate whose
  *   `@AggregateRoot(published)` is not false, with its state unless `publishState` is false, on its `topic`, else
  *   on `wow.<context>.<aggregate>.state`;
@@ -135,7 +136,7 @@ internal object ManifestFragmentBuilder {
 
     private fun aggregate(context: String, binding: AggregateBinding): AggregateManifest {
         val eventNames = binding.sourcing.associate { it.event to (it.eventName ?: simpleName(it.type)) }
-        val snapshot = SnapshotManifest()
+        val snapshot = SnapshotManifest(enabled = binding.snapshot)
         return AggregateManifest(
             name = binding.aggregateName,
             description = binding.description,

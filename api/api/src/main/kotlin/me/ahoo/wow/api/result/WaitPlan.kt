@@ -111,8 +111,10 @@ data class Hop @JvmOverloads constructor(
  * the chain's shape at admission.
  *
  * [isDefault] marks [DEFAULT], the plan of a caller that asked for none: it waits for the snapshot, but where the
- * aggregate has no snapshot subscription it waits for COMMITTED instead (decision D69). Any other plan is taken as
- * asked, so a snapshot hop the aggregate cannot reach is rejected at admission. [within] keeps the mark.
+ * aggregate has no snapshot subscription, its context has none or the aggregate turns its snapshots off
+ * (`@AggregateRoot(snapshot = false)`, decision D195), it waits for COMMITTED instead (decision D69). Any other plan is
+ * taken as asked, so a snapshot hop the aggregate cannot reach is rejected at admission rather than left to time out.
+ * [within] keeps the mark.
  *
  * From Java, build a plan with [of] and give it a timeout with the `java.time.Duration` overloads of the constructor
  * and [within]; read it back with [javaTimeout].
