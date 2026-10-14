@@ -294,9 +294,9 @@ V10 的视图存储服务在 `platform/view-store`（7.2a，#4474；配置的系
 
 ### 10.2 生成的客户端
 
-请求经由 wow-generator 从服务的 Manifest 基线（`platform/view-store/view-store-server/manifest/baseline.json`，服务自己的 `check` 守着它等于所服务的）生成的客户端发出，提交在 `src/v10/generated/`，`test/v10/generated.test.ts` 逐字节核对；不导出，只供手写的 store 用。Manifest 之外的两处手写：
+请求经由 wow-generator 从服务的 Manifest 基线（`platform/view-store/view-store-server/manifest/baseline.json`，服务自己的 `check` 守着它等于所服务的）生成的客户端发出，提交在 `src/v10/generated/`，包里的 `generated.test.ts` 逐字节核对；不导出，只供手写的 store 用。Manifest 之外的两处手写：
 
-- 系统视图路由 `GET /view-store/system-views[/{id}]`：服务自己的 `RouterFunction`，不在 Manifest 里（#4477）。
+- 系统视图路由 `GET /view-store/system-views[/{id}]`：服务自己的 RouterFunction，不在 Manifest 里（#4477）。
 - `POST /view-store/dataset_wording/clear-dataset-wording`（不带 id）：服务按数据集推导 id，路由也在，但 Manifest 只列出带 `{id}` 的那条，生成的客户端没有它；经生成客户端的 `gateway` 按路径发。
 
 ### 10.3 与 9.x 客户端的差别
@@ -318,7 +318,7 @@ V10 的视图存储服务在 `platform/view-store`（7.2a，#4474；配置的系
 
 ### 10.5 服务端缺口（JVM 的后续，7.3a 不改 JVM）
 
-- **内存后端不提供快照查询**（eShop 的 DX 缺口 G14）：独立起的内存服务列不出视图。契约测试照服务自己的测试那样，把 `MemorySnapshotQueries`（服务的测试类）与 wow-query 的测试夹具放上类路径、经 `--spring.main.sources` 启用。需要一个正式开关。
+- **内存后端不提供快照查询**（eShop 的 DX 缺口 G14）：独立起的内存服务列不出视图。契约测试照服务自己的测试那样，把 MemorySnapshotQueries（服务的测试类）与 wow-query 的测试夹具放上类路径、经 `--spring.main.sources` 启用。需要一个正式开关。
 - **`ClearDatasetWording` 的无 id 路由不在 Manifest 里**（创建方式为 `NONE` 的命令只列带 `{id}` 的路由，转换器推导 id 的情形漏了）。
 - **拒绝改成个人时看板只在 `detail` 的文字里**：没有结构化的看板列表（id 与标题），客户端只能解析文字。
 - **生命周期删除不核对应用**（#4474 已列）：别的应用的视图按 id 能删。

@@ -27,6 +27,10 @@
  */
 
 import type { FetchExchange, ResponseInterceptor } from '@ahoo-wang/fetcher';
+import {
+  AggregationFunction,
+  AggregationGroupType,
+} from '@ahoo-wang/wow-client';
 import { SnapshotQueryClient } from '@ahoo-wang/wow-client/v10';
 import {
   DEFAULT_RUNTIME_LIMITS,
@@ -44,6 +48,9 @@ import { viewSourceOf, WowViewStore } from '@ahoo-wang/wow-view-store/v10';
 import { describe, expect, it } from 'vitest';
 import { nextResult } from '../view-engine/salesOrders';
 import { actingAs, SHARED_WRITER } from './v10ViewStoreServer';
+
+const { TERMS } = AggregationGroupType;
+const { SUM, MAX } = AggregationFunction;
 
 const tenantId = `engine-${Date.now()}`;
 const APP = 'engine-e2e';
@@ -75,8 +82,8 @@ const viewsDefinition: DataViewDefinition = {
   analysis: {
     count: true,
     fields: [
-      { field: 'state.kind', groups: ['TERMS'], functions: [] },
-      { field: 'version', groups: [], functions: ['SUM', 'MAX'] },
+      { field: 'state.kind', groups: [TERMS], functions: [] },
+      { field: 'version', groups: [], functions: [SUM, MAX] },
     ],
   },
 };

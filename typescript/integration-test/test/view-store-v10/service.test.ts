@@ -20,7 +20,7 @@
  */
 
 import { Fetcher } from '@ahoo-wang/fetcher';
-import { filter } from '@ahoo-wang/wow-client';
+import { asc, desc, filter } from '@ahoo-wang/wow-client';
 import { SnapshotQueryClient } from '@ahoo-wang/wow-client/v10';
 import type { ViewConfig, ViewInstance } from '@ahoo-wang/wow-view-engine';
 import {
@@ -355,7 +355,7 @@ describe('viewSourceOf over a V10 query route', () => {
 
     const page = await source.paged({
       filter: mine,
-      sort: [{ field: 'state.title', direction: 'DESC' }],
+      sort: [desc('state.title')],
       pagination: { index: 1, size: 2 },
     });
     expect(page.total).toBe(3);
@@ -366,7 +366,7 @@ describe('viewSourceOf over a V10 query route', () => {
 
     const first = await source.cursor({
       filter: mine,
-      sort: [{ field: 'aggregateId', direction: 'ASC' }],
+      sort: [asc('aggregateId')],
       size: 2,
     });
     expect(first.list).toHaveLength(2);
