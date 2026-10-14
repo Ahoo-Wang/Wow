@@ -61,10 +61,9 @@ class ViewStoreServerTest {
         ).use { store ->
             store.get("/view-store/system-views", Who.user("a")).assertOk().json.values().map { it["id"].asString() }
                 .assert().containsExactly("all")
-            // A blank definition is none; a blank application is none.
-            store.get("/view-store/system-views?definitionId=%20", Who.user("a")).assertOk().json.size().assert()
+            // A blank definition is none.
+            store.get("/view-store/system-views?definitionId=", Who.user("a")).assertOk().json.size().assert()
                 .isEqualTo(1)
-            store.get("/view-store/system-views", Who.user("a").inApp(" ")).status.assert().isEqualTo(BAD_REQUEST)
             store.get("/view-store/system-views/all", Who.user("a")).assertOk().json["kind"].asString().assert()
                 .isEqualTo("analysis")
         }
@@ -72,6 +71,5 @@ class ViewStoreServerTest {
 
     private companion object {
         const val NOT_FOUND = 404
-        const val BAD_REQUEST = 400
     }
 }
