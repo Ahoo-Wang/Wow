@@ -349,8 +349,12 @@ class CrossContextWaitTest {
                 it.error!!.code.assert().isEqualTo(ResultCodes.WAIT_INVALID)
                 it.error!!.message.assert().contains("derives commands of [stock] only")
             }
+            // A context the node does not know is let through (decision D190), but not past a saga that declares
+            // what it derives, nor with a name that is no context's.
             rejected(Hop.committed(), SAGA_HOP, Hop.committed("nowhere")).error!!.message.assert()
-                .contains("unknown context")
+                .contains("derives commands of [stock] only")
+            rejected(Hop.committed(), Hop.handled("Some.saga", "Nowhere")).error!!.message.assert()
+                .contains("names no context")
             // A subscription of the other context, known from its Manifest; a projection ends a chain.
             rejected(Hop.handled("Unknown.onOrder", STOCK)).error!!.message.assert().contains("unknown subscription")
             rejected(Hop.handled(BOARD, STOCK), Hop.committed(STOCK)).error!!.message.assert()

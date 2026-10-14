@@ -278,6 +278,7 @@ class ServiceNode(
         options.maxWaitTimeout,
         options.maxWaitHops,
         options.defaultWaitTimeout,
+        options.unknownWaitContexts,
     )
 
     /** Sends the commands of every context's sagas to the command topics of other contexts; null without a producer. */

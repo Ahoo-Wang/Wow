@@ -125,6 +125,31 @@ class WaitChainTest {
     }
 
     @Test
+    fun `a context the directory does not know is let through when allowed and its name is legal (D190)`() {
+        val known = object : SubscriptionDirectory by directory {
+            override fun hasContext(context: String): Boolean = context == "shop"
+        }
+        fun allowed(vararg hops: Hop): CheckedPlan =
+            WaitChain.of(WaitPlan.of(*hops), ORDER, known, 16, UnknownContexts.ALLOW)
+        fun rejected(vararg hops: Hop): CheckedPlan = WaitChain.of(WaitPlan.of(*hops), ORDER, known, 16)
+
+        val saga = Hop.handled("order.saga")
+        val through = Hop.handled("payment.saga", "payment")
+        (allowed(Hop.committed(), saga, Hop.committed("payment"), through, Hop.committed("ordering")) as WaitChain)
+            .hops.assert().contains(through)
+        (rejected(Hop.committed(), saga, Hop.committed("payment")) as WaitChain.Invalid).reason
+            .assert().contains("unknown context")
+        (rejected(Hop.committed(), Hop.handled("payment.saga", "payment")) as WaitChain.Invalid).reason
+            .assert().contains("unknown context")
+        (allowed(Hop.committed(), saga, Hop.committed("Payment")) as WaitChain.Invalid).reason
+            .assert().contains("names no context").contains("D169")
+        (allowed(Hop.committed(), Hop.handled("x.saga", "pay.ment")) as WaitChain.Invalid).reason
+            .assert().contains("names no context")
+        // A known context's subscriptions are still checked.
+        (allowed(Hop.handled("missing")) as WaitChain.Invalid).reason.assert().contains("unknown subscription")
+    }
+
+    @Test
     fun `a chain names known subscriptions and has at most four hops`() {
         reason(Hop.handled("missing")).assert().contains("unknown subscription")
         reason(Hop.handled("order.saga", "payment"), Hop.committed()).assert().contains("unknown subscription")

@@ -29,6 +29,7 @@ import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
+import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.AggregateIdGeneratorSource
 import org.junit.jupiter.api.Test
@@ -191,7 +192,8 @@ class WowPropertiesTest {
         properties.tenant.default.assert().isEqualTo("(0)")
         properties.wait.defaultTimeout.assert().isEqualTo(Duration.ofSeconds(10))
         properties.wait.maxTimeout.assert().isEqualTo(Duration.ofSeconds(60))
-        properties.wait.maxHops.assert().isEqualTo(4)
+        properties.wait.maxHops.assert().isEqualTo(16)
+        properties.wait.unknownContexts.assert().isEqualTo(UnknownContexts.ALLOW)
         properties.http.manifest.enabled.assert().isTrue()
         properties.mongo.database.assert().isEqualTo("wow")
     }

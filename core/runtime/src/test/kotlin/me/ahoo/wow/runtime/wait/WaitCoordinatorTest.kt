@@ -706,6 +706,24 @@ class WaitCoordinatorTest {
     }
 
     @Test
+    fun `a chain into a context the node does not know is let through and times out at the hop it reached`(): Unit =
+        runBlocking {
+            started()
+            val shopOnly = object : SubscriptionDirectory by runtime {
+                override fun hasContext(context: String): Boolean = context == "shop"
+            }
+            // The saga's commands are the shop's: a chain that expects them in the payment context is wrong.
+            val unknown = Hop.committed("payment")
+            val plan = WaitPlan.of(Hop.committed(), Hop.handled("order.saga"), unknown).within(1.seconds)
+            val result = coordinator(WaitOptions(origin), shopOnly).execute(order, place(wait = plan, items = 1))
+            result.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
+            result.hop.assert().isEqualTo(Hop.handled("order.saga", "shop"))
+            // With unknown contexts rejected, the plan is invalid and the command does not run.
+            val strict = coordinator(WaitOptions(origin, unknownContexts = UnknownContexts.REJECT), shopOnly)
+            strict.execute(order, place(wait = plan)).error!!.code.assert().isEqualTo(ResultCodes.WAIT_INVALID)
+        }
+
+    @Test
     fun `a signal for a wait on another node goes to the remote sender`(): Unit = runBlocking {
         val sent = CopyOnWriteArrayList<String>()
         val sender = LocalSignalSender(
