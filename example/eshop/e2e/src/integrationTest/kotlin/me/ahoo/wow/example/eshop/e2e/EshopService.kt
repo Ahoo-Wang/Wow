@@ -103,12 +103,12 @@ class EshopService private constructor(
         return Answer(response.statusCode(), response.body())
     }
 
-    private fun awaitReady() {
+    private fun awaitReady(headers: Map<String, String>) {
         val deadline = System.nanoTime() + START_TIMEOUT.toNanos()
         while (System.nanoTime() < deadline) {
             check(process.isAlive) { "The $name service exited with ${process.exitValue()}:\n${log.readText()}" }
             val ready = try {
-                get("/wow/manifest").status == OK
+                get("/wow/manifest", headers).status == OK
             } catch (_: IOException) {
                 false
             }
@@ -142,7 +142,8 @@ class EshopService private constructor(
          * Starts the service of [context] by its [mainClass], with the further command-line [arguments] and the JVM's
          * own [jvmArguments] (a heap bound, say), on [publicPort] (a free one by default) and [internalPort] (one the
          * node chooses by default; a replacement takes the one of the node it replaces, the address the other services
-         * call it at, decision D193), and waits until it serves its Manifest.
+         * call it at, decision D193), and waits until it serves its Manifest, asked with [readyHeaders] (the
+         * credentials of a service that answers no anonymous request).
          */
         fun start(
             context: String,
@@ -151,6 +152,7 @@ class EshopService private constructor(
             jvmArguments: List<String> = emptyList(),
             publicPort: Int = freePort(),
             internalPort: Int = 0,
+            readyHeaders: Map<String, String> = emptyMap(),
         ): EshopService {
             val property = "eshop.$context.classpath"
             val classpath = requireNotNull(System.getProperty(property)) { "System property $property is not set." }
@@ -174,7 +176,7 @@ class EshopService private constructor(
             ).redirectErrorStream(true).redirectOutput(log).start()
             val service = EshopService(context, process, log, publicPort, internalPort)
             try {
-                service.awaitReady()
+                service.awaitReady(readyHeaders)
             } catch (failure: Throwable) {
                 service.close()
                 throw failure

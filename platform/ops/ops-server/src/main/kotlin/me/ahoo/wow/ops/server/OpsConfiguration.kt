@@ -11,15 +11,19 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.example.eshop.e2e.ops
+package me.ahoo.wow.ops.server
 
-import org.springframework.boot.autoconfigure.SpringBootApplication
+import me.ahoo.wow.http.caller.CallerResolver
+import me.ahoo.wow.runtime.admission.CommandAuthorizer
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
 
-/**
- * A minimal ops service for the failure ledger's end-to-end test (work package 6.3f, decision D141): the Wow host over
- * `:ops-domain`'s binding index, serving the context `ops` alone (`wow.contexts.include`), since the test's class
- * path holds the eShop's servers too. The ops service proper is roadmap 7.1a's `platform/ops/ops-server`. Its package
- * is apart from the e2e tests', so its component scan finds none of their configurations.
- */
-@SpringBootApplication(proxyBeanMethods = false)
-class OpsTestServer
+/** The ops service's beans: who calls it, and what each caller may send. */
+@Configuration(proxyBeanMethods = false)
+class OpsConfiguration {
+    @Bean
+    fun opsCallers(): CallerResolver = OpsCallers()
+
+    @Bean
+    fun opsAuthorizer(): CommandAuthorizer = OpsAuthorizer()
+}

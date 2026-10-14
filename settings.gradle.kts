@@ -184,6 +184,8 @@ include(":ops-api")
 project(":ops-api").projectDir = file("platform/ops/ops-api")
 include(":ops-domain")
 project(":ops-domain").projectDir = file("platform/ops/ops-domain")
+include(":ops-server")
+project(":ops-server").projectDir = file("platform/ops/ops-server")
 // The view store (roadmap 7.2a): the view engine's saved views, view preferences and dataset wording, ported from the
 // 9.x view-store/ (decision D146, which stays until M9) with the migration Skill.
 include(":view-store-api")

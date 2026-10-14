@@ -75,6 +75,9 @@ object V10Rules {
     /** The platform modules (roadmap M7): domains of their own, built on the kernel as an application's domain is. */
     val PLATFORM_MODULES = listOf(OPS_API, OPS_DOMAIN, VIEW_STORE_API, VIEW_STORE_DOMAIN)
 
+    /** The ops service (roadmap 7.1a): an application of the V10 modules, on the Spring Boot host. */
+    val OPS_SERVER = V10Module("ops-server", "platform/ops/ops-server")
+
     /** The view store service (roadmap 7.2a): an application of the V10 modules, on the Spring Boot host. */
     val VIEW_STORE_SERVER = V10Module("view-store-server", "platform/view-store/view-store-server")
 
@@ -82,7 +85,7 @@ object V10Rules {
      * The platform's services (roadmap M7): applications of the V10 modules, as the eShop's servers are, not modules
      * of the framework, so the rules of [MODULES] (Spring Boot only in the host, say) do not apply to them.
      */
-    val PLATFORM_SERVERS = listOf(VIEW_STORE_SERVER)
+    val PLATFORM_SERVERS = listOf(VIEW_STORE_SERVER, OPS_SERVER)
 
     val MODULES = listOf(
         API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, OPENAPI, HTTP,
@@ -180,6 +183,7 @@ object V10Rules {
      * (decision D110), and the query module's test fixtures for its tests.
      */
     val ALLOWED_SERVER_DEPENDENCIES: Map<V10Module, Set<String>> = mapOf(
+        OPS_SERVER to setOf("ops-domain", "spring-boot", "kafka", "postgres", "query"),
         VIEW_STORE_SERVER to setOf("view-store-domain", "spring-boot", "postgres", "query"),
     )
 
@@ -441,12 +445,13 @@ object V10Rules {
     /**
      * The example builds on the V10 modules only (decisions D118, D159), directly or transitively: it shows V10 as an
      * application uses it, with no 9.x module, spike or test project on its classpath. Its projects, `:eshop-*`
-     * ([isExample]), may build on each other.
+     * ([isExample]), may build on each other, and its end-to-end tests run the platform's services
+     * ([PLATFORM_SERVERS]) beside its own: the ops service shows the eShop's parked entries.
      */
     fun exampleOutsideV10Violations(repositoryRoot: File): List<String> {
         val graph = projectGraph(repositoryRoot)
         val examples = graph.keys.filter(::isExample).sorted()
-        val modules = MODULES.map { it.name }.toSet()
+        val modules = (MODULES + PLATFORM_SERVERS).map { it.name }.toSet()
         return examples.flatMap { example ->
             val allowed = modules + examples
             reachable(graph, example).filterNot { it in allowed }.sorted().map { "$example reaches :$it" }
