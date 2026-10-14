@@ -39,8 +39,3 @@ wow:
     topics:
       ddl: auto
     bootstrap-servers: localhost:9092
-  subscriptions:
-    # The saga on the ordering's order stream starts at the beginning of the stream the first time it reads a
-    # partition, so no order confirmed before the payment service first started goes unpaid.
-    "[OrderPaymentSaga.onOrderStockConfirmed]":
-      start: beginning

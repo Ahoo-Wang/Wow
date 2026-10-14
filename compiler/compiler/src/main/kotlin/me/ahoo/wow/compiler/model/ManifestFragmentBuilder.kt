@@ -47,12 +47,14 @@ import me.ahoo.wow.manifest.SubscriptionStart
  *
  * What M6 adds (decision D148):
  *
- * - an aggregate's `queries` (decision D128): `snapshot` when it keeps snapshots, which nothing declared in the model
- *   turns off yet, and `events`, each with its routes ([QueryRoutes], decision D127);
+ * - an aggregate's `snapshot` and `queries` (decisions D128, D195): snapshots enabled unless
+ *   `@AggregateRoot(snapshot = false)` turns them off, the `snapshot` query only when they are, and `events`, each
+ *   with its routes ([QueryRoutes], decision D127);
  * - the context's `published` streams (decisions D58, D135, D156): the state events of every aggregate whose
  *   `@AggregateRoot(published)` is not false, with its state unless `publishState` is false, on its `topic`, else
  *   on `wow.<context>.<aggregate>.state`;
- * - a subscription's `start` (decision D154), its kind's default;
+ * - a subscription's `start` (decisions D154, D194): what `@OnEvent(start)` declares, else the beginning for a
+ *   projection or a handler of another context's stream, the end for a reactor or a saga of its own context's log;
  * - a saga's `derives` (decision D138): what `@OnEvent(derives)` declares, else the commands its return type names, a
  *   command a module's aggregate decides by its full type name and any other by its class's schema reference;
  * - the source `@OnEvent(aggregates)` names, of this context or another (decision D138);
@@ -134,7 +136,7 @@ internal object ManifestFragmentBuilder {
 
     private fun aggregate(context: String, binding: AggregateBinding): AggregateManifest {
         val eventNames = binding.sourcing.associate { it.event to (it.eventName ?: simpleName(it.type)) }
-        val snapshot = SnapshotManifest()
+        val snapshot = SnapshotManifest(enabled = binding.snapshot)
         return AggregateManifest(
             name = binding.aggregateName,
             description = binding.description,
@@ -209,7 +211,7 @@ internal object ManifestFragmentBuilder {
                 source = source(context, handler, aggregates),
                 function = FunctionManifest(functionKind, context, binding.name, handler.function),
                 derives = derives.takeIf { kind == SubscriptionKind.SAGA },
-                start = SubscriptionStart.defaultFor(kind),
+                start = SubscriptionStart.valueOf(handler.startIn(context, binding.kind)),
                 schedules = handler.schedules.distinct().sorted().ifEmpty { null },
                 retry = handler.retry?.manifest(),
             )

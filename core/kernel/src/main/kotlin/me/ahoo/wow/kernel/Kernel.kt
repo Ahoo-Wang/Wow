@@ -93,9 +93,15 @@ import kotlin.time.Duration.Companion.seconds
  * or space ([KernelRejections.FORBIDDEN]). A part absent from the command's scope is not checked: a tenant-level
  * caller's (decision D189), or an administrator's acting across scopes, carries no owner. Creating an aggregate is not
  * guarded; it gives the aggregate the creating command's scope. An aggregate that belongs to its tenant
- * ([AggregateModel.ownership], decision D189) neither records nor checks an owner: only the space of a command counts. A transfer of the owner or the space is guarded like any other command: its
- * scope is the caller's, so the current owner (or a member of the current space) transfers, and the new owner or space
- * is in its body.
+ * ([AggregateModel.ownership], decision D189) neither records nor checks an owner: only the space of a command counts.
+ * A transfer of the owner or the space is guarded like any other command: its scope is the caller's, so the current
+ * owner (or a member of the current space) transfers, and the new owner or space is in its body.
+ *
+ * A derived command ([isDerived]: a saga's, an `@OnRejected` compensation, a timer's, one another context sent
+ * through its command topic) is not guarded (decision D199): the server's own code made it, there is no caller to
+ * check, and what it may do to whom is the domain's to decide, such as A's transfer crediting B's account. The root
+ * command was authorized when it was admitted. The scope it inherits from the root only gives an aggregate it creates
+ * its ownership (D189) and is recorded for the audit; a retry of one is answered whatever the aggregate's scope.
  *
  * A decide function's schedules ([DecideScope.schedule], [DecideScope.cancelSchedule], decisions D166, D198) are the
  * system events `wow.ScheduleSet` and `wow.ScheduleCancelled` after its events in the stream it commits, the last
@@ -605,7 +611,7 @@ class Kernel(
             version == 0 && decider.creation == Creation.NONE ->
                 rejected(KernelRejections.NOT_FOUND, "${command.ref} does not exist.")
 
-            version > 0 && !admits(loaded.scope, command.scope) -> forbidden(command)
+            version > 0 && !command.isDerived && !admits(loaded.scope, command.scope) -> forbidden(command)
 
             loaded.deleted && command.body != RestoreAggregate ->
                 rejected(KernelRejections.DELETED, "${command.ref} is deleted.")
@@ -652,7 +658,8 @@ class Kernel(
      * committed it, so this check comes before the command types are compared. That scope is the aggregate's before
      * the stream, but the stream records only its scope after; the two differ only in a part the stream's own events
      * transferred, and that part is not checked: retrying a transfer is still answered though the caller no longer
-     * holds the aggregate.
+     * holds the aggregate. A derived command is answered whatever its scope (decision D199): its retry is the server
+     * handling the same commit again, not a caller.
      */
     private fun duplicate(existing: EventStreamRecord, command: Command<*>, commandType: CommandType): CommandOutcome {
         val names = existing.events.mapTo(HashSet()) { it.name }
@@ -660,7 +667,11 @@ class Kernel(
             if (Lifecycle.OWNER_TRANSFERRED in names) command.scope.ownerId else existing.scope.ownerId,
             if (Lifecycle.SPACE_TRANSFERRED in names) command.scope.spaceId else existing.scope.spaceId,
         )
-        return if (admits(before, command.scope)) settled(existing, commandType) else forbidden(command)
+        return if (command.isDerived || admits(before, command.scope)) {
+            settled(existing, commandType)
+        } else {
+            forbidden(command)
+        }
     }
 
     /** Whether an aggregate in scope [aggregate] takes a command in scope [caller]: each part the caller has matches. */
@@ -830,3 +841,10 @@ fun interface CommandTypes {
         val SIMPLE_NAMES: CommandTypes = CommandTypes { target, command -> "$target.${command.simpleName}" }
     }
 }
+
+/**
+ * Whether this command was derived by the server's own code rather than sent by a caller (decision D199): a saga's,
+ * an `@OnRejected` compensation, a timer's, or one another context sent through its command topic. Such a command
+ * belongs to a chain, so it carries a [Command.causation]; admission gives a caller's none (it is its own root).
+ */
+val Command<*>.isDerived: Boolean get() = causation != null

@@ -47,7 +47,8 @@ import java.util.concurrent.Executors
  * - **Name, filter and start**: the subscription is the handler's [ProcessorBinding.name], `processor.function`, of
  *   the aggregates of the context whose state is the handler's state type (every aggregate for `StateEvent<*>`), of
  *   any of their events: a handler's signature names its state, not its events. It starts where the handler says
- *   ([ProcessorBinding.startFrom]). A state type no aggregate of the context has fails the node's assembly.
+ *   ([ProcessorBinding.startIn]: as `@OnEvent(start)` declares, else a projection or a handler of another context's
+ *   stream from the beginning, a reactor or a saga of the context's own log from the end; decision D194). A state type no aggregate of the context has fails the node's assembly.
  * - **What the handler gets**: the entry decoded by [EntryDecoder.stateEvents] (decision D133), each subscription
  *   the state reader of its own name ([stateReaders]): its events decoded and upgraded, and the state after the
  *   commit, a copy decoded from the context's shared view for this handler alone; with the context of its kind, whose
@@ -115,7 +116,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 Subscription.saga(
                     name,
                     filter,
-                    handler.startFrom,
+                    handler.startIn(context.context),
                     decoder,
                     context.models,
                     retry = handler.retry
@@ -131,7 +132,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 Subscription(
                     name,
                     filter,
-                    handler.startFrom,
+                    handler.startIn(context.context),
                     decoder,
                     context.models,
                     handler.kind,
@@ -162,7 +163,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 Subscription.saga(
                     name,
                     filter,
-                    handler.startFrom,
+                    handler.startIn(context.context),
                     context = context.context,
                     retry = handler.retry
                 ) { entry ->
@@ -177,7 +178,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 Subscription(
                     name,
                     filter,
-                    handler.startFrom,
+                    handler.startIn(context.context),
                     kind = handler.kind,
                     context = context.context,
                     retry = handler.retry,

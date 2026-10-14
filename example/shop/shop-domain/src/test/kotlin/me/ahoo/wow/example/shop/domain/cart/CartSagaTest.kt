@@ -75,9 +75,10 @@ class CartSagaTest {
     }
 
     @Test
-    fun `a spaced order should derive a command with the order's owner but not its space`() {
+    fun `a spaced order should derive a command with the order's scope, space included`() {
+        // Decision D199: the cart has no space, but a derived command is not checked against it.
         val event = event(space = "store-1")
-        CartSaga().onOrderCreated(event, context(event))!!.scope.assert().isEqualTo(Scope("alice"))
+        CartSaga().onOrderCreated(event, context(event))!!.scope.assert().isEqualTo(Scope("alice", "store-1"))
     }
 
     @Test
@@ -97,7 +98,7 @@ class CartSagaTest {
             handler.name.assert().isEqualTo(SUBSCRIPTION)
             handler.kind.assert().isEqualTo(FunctionKind.SAGA)
             handler.stateType.assert().isEqualTo(OrderState::class.java)
-            handler.startFrom.assert().isEqualTo(StartFrom.END)
+            handler.startIn("example").assert().isEqualTo(StartFrom.END)
             handler.blocking.assert().isFalse()
             val event = event()
             handler.invoke(event, context(event)).single().body.assert()

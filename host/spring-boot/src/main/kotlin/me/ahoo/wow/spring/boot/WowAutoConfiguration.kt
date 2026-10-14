@@ -295,10 +295,10 @@ class WowAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun wowInternalServer(properties: WowProperties, node: ServiceNode): InternalServer =
+    fun wowInternalServer(properties: WowProperties, node: ServiceNode, identity: NodeIdentity): InternalServer =
         InternalServer(
             properties.internal.port,
-            properties.internal.host,
+            identity.bindHost,
             internalRoutes(node.forwardHandler, node.waits)
         )
 
