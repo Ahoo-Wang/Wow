@@ -14,7 +14,7 @@
 package me.ahoo.wow.kernel
 
 import me.ahoo.wow.spi.timer.TimerStore
-import me.ahoo.wow.spi.timer.TimerStoreSpec
+import me.ahoo.wow.tck.timer.TimerStoreSpec
 
 class InMemoryTimerStoreTest : TimerStoreSpec() {
     override fun createStore(): TimerStore = InMemoryTimerStore()

@@ -20,7 +20,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.postgres.PostgresFixture
 import me.ahoo.wow.postgres.PostgresIdentifiers
 import me.ahoo.wow.spi.snapshot.SnapshotStore
-import me.ahoo.wow.spi.snapshot.SnapshotStoreSpec
+import me.ahoo.wow.tck.snapshot.SnapshotStoreSpec
 import org.junit.jupiter.api.Test
 
 class PostgresSnapshotStoreTest : SnapshotStoreSpec() {

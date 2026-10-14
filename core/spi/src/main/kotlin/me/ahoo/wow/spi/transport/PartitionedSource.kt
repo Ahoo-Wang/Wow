@@ -16,6 +16,7 @@ package me.ahoo.wow.spi.transport
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.transformWhile
+import me.ahoo.wow.api.annotation.WowSpi
 
 /** A message read from a partition of a topic at its [offset], with its [key] (null when it has none). */
 class SourceMessage(val offset: Long, val key: String?, val headers: Map<String, String>, val value: ByteArray) {
@@ -48,6 +49,7 @@ data class PartitionOffsets(val start: Long, val end: Long) {
  *   within a partition. The flow does not complete: after the messages written so far it waits for new ones, until
  *   it is cancelled. Bounded by `until`, it emits those before `until` only and completes once it has passed them.
  */
+@WowSpi
 interface PartitionedSource {
     suspend fun partitions(topic: String): List<Int>
 

@@ -9,7 +9,7 @@ Status: V10 is developed on the Wow repository's `v10` branch and has no release
 V10 when the build or sources show any of:
 
 - dependencies `me.ahoo.wow:wow-kernel`, `wow-spring-boot`, `wow-runtime`, `wow-http`, `wow-postgres`, `wow-manifest`; the Gradle plugin `id("me.ahoo.wow")`; or, inside the Wow repository's examples, `project(":kernel")`, `project(":spring-boot")`, `ksp(project(":compiler"))`;
-- imports of `me.ahoo.wow.api.decide.Decision`, `me.ahoo.wow.api.decide.DecideScope`, `me.ahoo.wow.api.subscribe.StateEvent`, `me.ahoo.wow.api.subscribe.SagaContext`, `me.ahoo.wow.kernel.*`, `me.ahoo.wow.kernel.test.aggregateSpec`;
+- imports of `me.ahoo.wow.api.decide.Decision`, `me.ahoo.wow.api.decide.DecideScope`, `me.ahoo.wow.api.subscribe.StateEvent`, `me.ahoo.wow.api.subscribe.SagaContext`, `me.ahoo.wow.kernel.*`, `me.ahoo.wow.test.aggregateSpec`;
 - annotations `@Saga`, `@Reactor`, `@Projection`, `@OnRejected`, `@ErrorCode`, `@Revision`, `@Upgrade`, `@Alias`;
 - resources `META-INF/wow/manifest/<module>.json` and a generated `<Module>ModelProvider`.
 
@@ -80,7 +80,7 @@ Requirements: JDK 21, Kotlin with KSP (Java sources need the Kotlin Gradle plugi
 
 ## Tests
 
-- `aggregateSpec(model, id, tenantId, start) { given(...) or givenState(state, version) / givenState(version) { … }; whenCommand(cmd, scope = …) { expectEvents / expectEventTypes(X::class) / expectEvent<E> { } / expectUnchanged / expectRejected(code) { } / expectError<T> { } / expectNoError / expectState / expectScope / expectScheduled / expectScheduleCancelled }; advanceTime(d) { … }; expectNothingDue(within = d) }` from `me.ahoo.wow.kernel.test`, in the kernel's test fixtures. Build the model with the generated factory and stub services.
+- `aggregateSpec(model, id, tenantId, start) { given(...) or givenState(state, version) / givenState(version) { … }; whenCommand(cmd, scope = …) { expectEvents / expectEventTypes(X::class) / expectEvent<E> { } / expectUnchanged / expectRejected(code) { } / expectError<T> { } / expectNoError / expectState / expectScope / expectScheduled / expectScheduleCancelled }; advanceTime(d) { … }; expectNothingDue(within = d) }` from `me.ahoo.wow.test`, in the kernel's test fixtures. Build the model with the generated factory and stub services.
 - `givenState` is the first step: the aggregate starts in that state at that version (copied through JSON), and later streams continue from it.
 - Shared prefixes: `ref("name")` marks a point; `fork("name") { … }` or `fork(from = "name") { … }` runs on a copy of the aggregate (log, timers, clock), leaving the spec as it was.
 - After a command that committed nothing (`expectUnchanged`, `expectRejected`, `expectError`), `expectState` checks the current state. A rejection is a code (`expectRejected`); an exception the decide function throws is checked by type (`expectError<T>`), and fails the spec when unchecked.

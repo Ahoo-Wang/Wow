@@ -21,7 +21,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.spi.snapshot.SnapshotStore
-import me.ahoo.wow.spi.snapshot.SnapshotStoreSpec
+import me.ahoo.wow.tck.snapshot.SnapshotStoreSpec
 import org.bson.Document
 import org.bson.types.ObjectId
 import org.junit.jupiter.api.Test

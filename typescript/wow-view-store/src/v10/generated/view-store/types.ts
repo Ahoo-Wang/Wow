@@ -12,13 +12,13 @@ export interface ApiLifecycleTransferOwner {
 
 /**
  * Make a shared view personal
- * - key: `me.ahoo.wow.platform.viewstore.api.view.ClaimView`
+ * - key: `me.ahoo.wow.viewstore.api.view.ClaimView`
  */
 export type ClaimView = Record<string, unknown>;
 
 /**
  * Clear the wording of a dataset
- * - key: `me.ahoo.wow.platform.viewstore.api.wording.ClearDatasetWording`
+ * - key: `me.ahoo.wow.viewstore.api.wording.ClearDatasetWording`
  */
 export interface ClearDatasetWording {
   dataset: string;
@@ -27,7 +27,7 @@ export interface ClearDatasetWording {
 
 /**
  * Create a view
- * - key: `me.ahoo.wow.platform.viewstore.api.view.CreateView`
+ * - key: `me.ahoo.wow.viewstore.api.view.CreateView`
  */
 export interface CreateView {
   config: Record<string, unknown>;
@@ -38,13 +38,13 @@ export interface CreateView {
 
 /**
  * A dataset's wording was cleared
- * - key: `me.ahoo.wow.platform.viewstore.api.wording.DatasetWordingCleared`
+ * - key: `me.ahoo.wow.viewstore.api.wording.DatasetWordingCleared`
  */
 export type DatasetWordingCleared = Record<string, unknown>;
 
 /**
  * A dataset's wording was set
- * - key: `me.ahoo.wow.platform.viewstore.api.wording.DatasetWordingSet`
+ * - key: `me.ahoo.wow.viewstore.api.wording.DatasetWordingSet`
  */
 export interface DatasetWordingSet {
   appId: string;
@@ -55,7 +55,7 @@ export interface DatasetWordingSet {
 }
 
 
-/** - key: `me.ahoo.wow.platform.viewstore.domain.wording.DatasetWordingState` */
+/** - key: `me.ahoo.wow.viewstore.domain.wording.DatasetWordingState` */
 export interface DatasetWordingState {
   appId: string;
   dataset: string;
@@ -67,7 +67,7 @@ export interface DatasetWordingState {
 
 /**
  * Rename a view
- * - key: `me.ahoo.wow.platform.viewstore.api.view.RenameView`
+ * - key: `me.ahoo.wow.viewstore.api.view.RenameView`
  */
 export interface RenameView {
   title: string;
@@ -76,7 +76,7 @@ export interface RenameView {
 
 /**
  * Save a view's config
- * - key: `me.ahoo.wow.platform.viewstore.api.view.SaveView`
+ * - key: `me.ahoo.wow.viewstore.api.view.SaveView`
  */
 export interface SaveView {
   config: Record<string, unknown>;
@@ -85,7 +85,7 @@ export interface SaveView {
 
 /**
  * Set the wording of a dataset
- * - key: `me.ahoo.wow.platform.viewstore.api.wording.SetDatasetWording`
+ * - key: `me.ahoo.wow.viewstore.api.wording.SetDatasetWording`
  */
 export interface SetDatasetWording {
   dataset: string;
@@ -97,7 +97,7 @@ export interface SetDatasetWording {
 
 /**
  * Set the view preferences of a definition
- * - key: `me.ahoo.wow.platform.viewstore.api.preferences.SetViewPreferences`
+ * - key: `me.ahoo.wow.viewstore.api.preferences.SetViewPreferences`
  */
 export interface SetViewPreferences {
   autoRun?: boolean | null;
@@ -110,16 +110,16 @@ export interface SetViewPreferences {
 
 /**
  * Make a view shared
- * - key: `me.ahoo.wow.platform.viewstore.api.view.ShareView`
+ * - key: `me.ahoo.wow.viewstore.api.view.ShareView`
  */
 export type ShareView = Record<string, unknown>;
 
-/** - key: `me.ahoo.wow.platform.viewstore.api.ViewAudience` */
+/** - key: `me.ahoo.wow.viewstore.api.ViewAudience` */
 export type ViewAudience = 'personal' | 'shared' | 'system';
 
 /**
  * A shared view was made personal to toOwnerId, who becomes its owner
- * - key: `me.ahoo.wow.platform.viewstore.api.view.ViewClaimed`
+ * - key: `me.ahoo.wow.viewstore.api.view.ViewClaimed`
  */
 export interface ViewClaimed {
   toOwnerId: string;
@@ -128,7 +128,7 @@ export interface ViewClaimed {
 
 /**
  * A view was saved
- * - key: `me.ahoo.wow.platform.viewstore.api.view.ViewCreated`
+ * - key: `me.ahoo.wow.viewstore.api.view.ViewCreated`
  */
 export interface ViewCreated {
   appId: string;
@@ -140,12 +140,12 @@ export interface ViewCreated {
 }
 
 
-/** - key: `me.ahoo.wow.platform.viewstore.api.ViewKind` */
+/** - key: `me.ahoo.wow.viewstore.api.ViewKind` */
 export type ViewKind = 'record' | 'analysis' | 'dashboard';
 
 /**
  * A definition's view preferences were set
- * - key: `me.ahoo.wow.platform.viewstore.api.preferences.ViewPreferencesSet`
+ * - key: `me.ahoo.wow.viewstore.api.preferences.ViewPreferencesSet`
  */
 export interface ViewPreferencesSet {
   appId: string;
@@ -157,7 +157,7 @@ export interface ViewPreferencesSet {
 }
 
 
-/** - key: `me.ahoo.wow.platform.viewstore.domain.preferences.ViewPreferencesState` */
+/** - key: `me.ahoo.wow.viewstore.domain.preferences.ViewPreferencesState` */
 export interface ViewPreferencesState {
   appId: string;
   autoRun?: boolean | null;
@@ -170,7 +170,7 @@ export interface ViewPreferencesState {
 
 /**
  * A view was renamed
- * - key: `me.ahoo.wow.platform.viewstore.api.view.ViewRenamed`
+ * - key: `me.ahoo.wow.viewstore.api.view.ViewRenamed`
  */
 export interface ViewRenamed {
   title: string;
@@ -179,7 +179,7 @@ export interface ViewRenamed {
 
 /**
  * A view's config was overwritten
- * - key: `me.ahoo.wow.platform.viewstore.api.view.ViewSaved`
+ * - key: `me.ahoo.wow.viewstore.api.view.ViewSaved`
  */
 export interface ViewSaved {
   config: Record<string, unknown>;
@@ -189,11 +189,11 @@ export interface ViewSaved {
 
 /**
  * A view was made shared; its owner becomes (shared)
- * - key: `me.ahoo.wow.platform.viewstore.api.view.ViewShared`
+ * - key: `me.ahoo.wow.viewstore.api.view.ViewShared`
  */
 export type ViewShared = Record<string, unknown>;
 
-/** - key: `me.ahoo.wow.platform.viewstore.domain.view.ViewState` */
+/** - key: `me.ahoo.wow.viewstore.domain.view.ViewState` */
 export interface ViewState {
   appId: string;
   audience: ViewAudience;

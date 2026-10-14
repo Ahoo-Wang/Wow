@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.observation
 
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.timer.Timer
@@ -34,6 +35,7 @@ import kotlin.coroutines.EmptyCoroutineContext
  * message of a topic) or the cluster channel. A stage that starts from what arrived that way is handed its
  * propagation fields.
  */
+@WowSpi
 interface Observer {
     /**
      * Admission of a request for [command] (the name the request gave) of the aggregate type [aggregate] of

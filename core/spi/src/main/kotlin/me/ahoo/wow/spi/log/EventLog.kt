@@ -16,6 +16,7 @@ package me.ahoo.wow.spi.log
 import kotlinx.coroutines.flow.Flow
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.WowSpi
 
 /**
  * The log of one bounded context: the only place a fact is written (V10 axiom A1).
@@ -29,6 +30,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
  *   in which commits became visible: [tail] never skips a committed entry and reads the same entries again from the
  *   same position.
  */
+@WowSpi
 interface EventLog {
     /** The number of partitions, fixed for the context's lifetime. */
     val partitions: Int

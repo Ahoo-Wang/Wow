@@ -15,6 +15,7 @@ package me.ahoo.wow.spi.snapshot
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.WowSpi
 
 /**
  * The snapshots of one bounded context: each aggregate's latest committed state, the default read model (V10 axiom
@@ -34,6 +35,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
  * claimed at ([claim], [table]), and the snapshots of another revision or marked stale ([markStale]) are [pending]
  * until a rebuild [rewrite]s them from the log, in place, whatever their revision.
  */
+@WowSpi
 interface SnapshotStore {
     /**
      * Stores [snapshot] if the store holds none for its ref, or holds a lower version of the same or a lower state

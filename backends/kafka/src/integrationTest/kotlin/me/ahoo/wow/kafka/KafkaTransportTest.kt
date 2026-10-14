@@ -18,7 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
-import me.ahoo.wow.spi.transport.TopicTransportSpec
+import me.ahoo.wow.tck.transport.TopicTransportSpec
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 

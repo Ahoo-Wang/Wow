@@ -25,9 +25,9 @@ import me.ahoo.wow.example.eshop.basket.api.basket.BasketItem
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 import me.ahoo.wow.kernel.Dependencies
-import me.ahoo.wow.kernel.test.rejectedResult
-import me.ahoo.wow.kernel.test.sagaSpec
-import me.ahoo.wow.kernel.test.stateEvent
+import me.ahoo.wow.test.rejectedResult
+import me.ahoo.wow.test.sagaSpec
+import me.ahoo.wow.test.stateEvent
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 

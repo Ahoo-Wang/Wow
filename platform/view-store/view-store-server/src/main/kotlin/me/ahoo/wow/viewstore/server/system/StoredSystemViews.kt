@@ -1,0 +1,87 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.viewstore.server.system
+
+import kotlinx.coroutines.flow.toList
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.query.dsl.listQuery
+import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.query.QueryCaller
+import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.viewstore.api.SystemView
+import me.ahoo.wow.viewstore.api.SystemViewSource
+import me.ahoo.wow.viewstore.api.ViewStoreContext
+import tools.jackson.databind.node.ObjectNode
+
+/**
+ * The system views a request reads: the configured ones of its tenant and application and the stored ones of its
+ * application (views of the tenant `(platform)` under the owner `(system)`), which every tenant reads. A stored view
+ * wins over a configured one with the same id. A node whose backend serves no snapshot query serves the configured
+ * ones alone.
+ */
+class StoredSystemViews(
+    private val configured: ConfiguredSystemViews,
+    private val queries: () -> HttpQueries,
+) {
+    /** Every system view of [tenantId] and [appId], of [definitionId] when it is given: the configured first. */
+    suspend fun systemViews(tenantId: String, appId: String, definitionId: String? = null): List<SystemView> {
+        val stored = stored(appId, definitionId, null)
+        val storedIds = stored.mapTo(HashSet()) { it.id }
+        return configured.systemViews(tenantId, appId)
+            .filter { definitionId == null || it.definitionId == definitionId }
+            .filterNot { it.id in storedIds } + stored
+    }
+
+    /** System view [id] of [tenantId] and [appId]: the stored one, else the configured one; null when neither is. */
+    suspend fun systemView(tenantId: String, appId: String, id: String): SystemView? =
+        stored(appId, null, id).firstOrNull() ?: configured.systemViews(tenantId, appId).firstOrNull { it.id == id }
+
+    private suspend fun stored(appId: String, definitionId: String?, id: String?): List<SystemView> {
+        val gateway = queries().snapshots(VIEW) ?: return emptyList()
+        val query = listQuery {
+            filter {
+                tenantId(ViewStoreContext.SYSTEM_TENANT_ID)
+                ownerId(ViewStoreContext.SYSTEM_OWNER_ID)
+                id?.let { id(it) }
+                "state.appId" eq appId
+                definitionId?.let { "state.definitionId" eq it }
+            }
+            sort {
+                "firstEventTime".asc()
+                "aggregateId".asc()
+            }
+            limit(MAX_STORED)
+        }
+        return gateway.list(query, QueryCaller.IN_PROCESS).toList().map { it.toSystemView() }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun ObjectNode.toSystemView(): SystemView {
+        val state = this["state"]
+        return SystemViews.of(
+            id = this["aggregateId"].asString(),
+            definitionId = state["definitionId"].asString(),
+            title = state["title"].asString(),
+            config = WowJson.mapper.convertValue(state["config"], Map::class.java) as Map<String, Any?>,
+            source = SystemViewSource.STORED,
+            version = this["version"].asInt(),
+        )
+    }
+
+    companion object {
+        /** The most stored system views one application lists, the client's list budget: the oldest are served. */
+        const val MAX_STORED: Int = 1000
+        private val VIEW = AggregateType(ViewStoreContext.NAME, ViewStoreContext.VIEW)
+    }
+}

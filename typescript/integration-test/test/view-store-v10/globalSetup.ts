@@ -44,7 +44,7 @@ declare module 'vitest' {
 
 const ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
 const SERVER = join(ROOT, 'platform/view-store/view-store-server/build');
-const MAIN = 'me.ahoo.wow.platform.viewstore.server.ViewStoreServerKt';
+const MAIN = 'me.ahoo.wow.viewstore.server.ViewStoreServerKt';
 /** How long the JVM may take to listen. */
 const START_DEADLINE_MS = 2 * 60_000;
 

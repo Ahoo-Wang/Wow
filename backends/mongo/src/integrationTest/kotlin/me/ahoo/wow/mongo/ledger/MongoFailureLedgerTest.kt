@@ -18,9 +18,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.spi.ledger.FailureLedger
-import me.ahoo.wow.spi.ledger.FailureLedgerSpec
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedAmendment
+import me.ahoo.wow.tck.ledger.FailureLedgerSpec
 import org.bson.Document
 import org.junit.jupiter.api.Test
 

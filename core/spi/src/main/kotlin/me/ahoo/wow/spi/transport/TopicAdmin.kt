@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spi.transport
 
+import me.ahoo.wow.api.annotation.WowSpi
+
 /**
  * Describes and creates the topics of a broker (decision D168): the port the runtime validates and creates a node's
  * topics through at its start, as `wow.kafka.topics.ddl` says. Neither call creates a topic as a side effect of
@@ -23,6 +25,7 @@ package me.ahoo.wow.spi.transport
  *   being the implementation's; a topic that exists already, such as one another node created at the same moment,
  *   is left as it is. It returns once the created topics can be described.
  */
+@WowSpi
 interface TopicAdmin {
     suspend fun partitions(topics: Set<String>): Map<String, Int>
 

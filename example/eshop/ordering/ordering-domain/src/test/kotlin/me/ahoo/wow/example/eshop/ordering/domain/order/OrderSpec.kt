@@ -32,8 +32,8 @@ import me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted
 import me.ahoo.wow.example.eshop.ordering.api.order.PayOrder
 import me.ahoo.wow.example.eshop.ordering.api.order.ShipOrder
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
-import me.ahoo.wow.kernel.test.AggregateSpec
-import me.ahoo.wow.kernel.test.aggregateSpec
+import me.ahoo.wow.test.AggregateSpec
+import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 import kotlin.time.Duration.Companion.minutes

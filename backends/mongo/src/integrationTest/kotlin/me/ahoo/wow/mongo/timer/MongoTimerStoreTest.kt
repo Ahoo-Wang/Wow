@@ -24,7 +24,7 @@ import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerStore
-import me.ahoo.wow.spi.timer.TimerStoreSpec
+import me.ahoo.wow.tck.timer.TimerStoreSpec
 import org.junit.jupiter.api.Test
 
 class MongoTimerStoreTest : TimerStoreSpec() {

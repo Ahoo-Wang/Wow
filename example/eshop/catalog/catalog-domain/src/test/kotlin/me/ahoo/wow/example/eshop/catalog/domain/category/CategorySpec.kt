@@ -19,7 +19,7 @@ import me.ahoo.wow.example.eshop.catalog.api.category.CategoryCreated
 import me.ahoo.wow.example.eshop.catalog.api.category.CategoryRenamed
 import me.ahoo.wow.example.eshop.catalog.api.category.CreateCategory
 import me.ahoo.wow.example.eshop.catalog.api.category.RenameCategory
-import me.ahoo.wow.kernel.test.aggregateSpec
+import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 
 /** The category on the kernel. Two categories competing for one name are the server's test, `CatalogEndToEndTest`. */
