@@ -313,6 +313,27 @@ class SubscriptionRuntime internal constructor(
         return progress >= position.sequence && !ledger.isParked(subscription, stream.ref)
     }
 
+    /**
+     * How far [subscription] has come over all [partitions] of its source: the sum, over each partition, of its
+     * progress there (the running worker's watermark, else the saved checkpoint, else 0). A checkpoint only moves
+     * forward, so the sum changes exactly when the subscription completed an entry somewhere: the snapshot
+     * subscription's is the validator of the cached counts (decision D152). Null when [subscription] is not
+     * registered.
+     */
+    suspend fun progress(subscription: String, partitions: Int): Long? {
+        if (!directory.containsKey(subscription)) {
+            return null
+        }
+        val workers = running?.workers
+        var total = 0L
+        for (partition in 0 until partitions) {
+            total += workers?.get(subscription to partition)?.watermark
+                ?: checkpoints.load(group, subscription, partition)
+                ?: 0L
+        }
+        return total
+    }
+
     /** Where [subscription] starts without a checkpoint: as the host overrides it (decision D154), else as it says. */
     private fun startOf(subscription: Subscription): SubscriptionStart =
         options.starts[subscription.name] ?: SubscriptionStart.of(subscription.startFrom)
