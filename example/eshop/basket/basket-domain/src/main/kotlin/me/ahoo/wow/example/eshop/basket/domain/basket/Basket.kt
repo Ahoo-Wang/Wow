@@ -60,7 +60,7 @@ class Basket(private val state: BasketState) {
     fun onCommand(command: ChangeBasketItemQuantity): Decision {
         val item = state.item(command.productId) ?: return Decision.reject(
             BasketRejections.ITEM_NOT_FOUND,
-            "The basket ${state.id} holds no ${command.productId}.",
+            "The basket holds no ${command.productId}.",
         )
         return when {
             command.quantity <= 0 -> Decision.reject(
@@ -91,9 +91,9 @@ class Basket(private val state: BasketState) {
     @OnCommand(produces = [BasketCheckedOut::class])
     fun onCommand(command: CheckoutBasket, scope: DecideScope): Decision {
         if (state.items.isEmpty()) {
-            return Decision.reject(BasketRejections.EMPTY, "The basket ${state.id} is empty.")
+            return Decision.reject(BasketRejections.EMPTY, "The basket is empty.")
         }
-        val orderId = "${state.id}-${state.checkouts + 1}"
+        val orderId = "${scope.command.ref.id}-${state.checkouts + 1}"
         scope.putResult(ORDER_ID_RESULT, orderId)
         return Decision.events(BasketCheckedOut(orderId, state.items))
     }

@@ -35,7 +35,7 @@ class BasketCheckoutSagaTest {
     private fun event(vararg events: Any) =
         stateEvent(
             basket,
-            BasketState("alice"),
+            BasketState(),
             *events,
             version = 3,
             commandType = "eshop-basket.basket.CheckoutBasket",

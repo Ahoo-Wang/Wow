@@ -22,7 +22,7 @@ import me.ahoo.wow.example.inventory.api.StockReserved
  * A product's stock, changed in place by its events: [onHand] units in the warehouse, of which [reservations] hold
  * some for orders not shipped yet (by order id), and [available] are free to reserve.
  */
-class StockState(val id: String) {
+class StockState {
     var onHand: Int = 0
         private set
     var available: Int = 0

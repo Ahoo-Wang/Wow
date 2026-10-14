@@ -41,7 +41,7 @@ class ShippedBeforeTransport {
     @Bean
     fun inMemoryTopics(): InMemoryTopics = InMemoryTopics(InventoryServerTest.PARTITIONS).also { topics ->
         val order = InventoryJoinsLaterTest.ORDER
-        val view = json.readTree("""{"id":"${order.id}","items":[{"productId":"fig","quantity":1}]}""")
+        val view = json.readTree("""{"items":[{"productId":"fig","quantity":1}]}""")
         val record = StateEventRecord(
             ref = order,
             version = 3,

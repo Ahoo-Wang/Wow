@@ -80,6 +80,6 @@ class Payment(private val state: PaymentState) {
 
     private fun wrongStatus(action: String): Decision = Decision.reject(
         PaymentRejections.WRONG_STATUS,
-        "The payment ${state.id} is ${state.status}: it cannot $action.",
+        "The payment is ${state.status}: it cannot $action.",
     )
 }

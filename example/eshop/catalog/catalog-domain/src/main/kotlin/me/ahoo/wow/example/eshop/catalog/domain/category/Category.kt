@@ -36,7 +36,7 @@ object CategoryRejections {
 }
 
 /** The state of a [Category]. */
-class CategoryState(val id: String) {
+class CategoryState {
     var name: String = ""
         private set
 

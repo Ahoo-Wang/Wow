@@ -19,7 +19,7 @@ import me.ahoo.wow.example.shop.api.cart.CartItemRemoved
 import me.ahoo.wow.example.shop.api.cart.CartQuantityChanged
 
 /** The cart's state, changed in place by its events (the default, mutable style). */
-class CartState(val id: String) {
+class CartState {
     var items: List<CartItem> = emptyList()
         private set
 

@@ -71,7 +71,10 @@ class StateConstructorTest {
         return result to source
     }
 
-    private fun JvmCompilationResult.run(): Any? = classLoader.loadClass("sample.ScenarioKt").getMethod("run").invoke(null)
+    private fun JvmCompilationResult.run(): Any? {
+        val scenario = classLoader.loadClass("sample.ScenarioKt")
+        return scenario.getMethod("run").invoke(null)
+    }
 
     @Test
     fun `a state without a constructor parameter is built without arguments`() {
