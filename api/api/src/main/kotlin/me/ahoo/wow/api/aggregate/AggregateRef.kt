@@ -25,12 +25,21 @@ data class AggregateType(val context: String, val name: String) {
     /** Refers to the instance [id] of this type under [tenantId]. */
     fun ref(tenantId: String, id: String): AggregateRef = AggregateRef(this, tenantId, id)
 
+    /**
+     * Refers to a new instance of this type under [tenantId] whose id is not chosen yet ([AggregateRef.UNASSIGNED]):
+     * the target of a creation command that leaves its id to admission (decision D191).
+     */
+    fun unassigned(tenantId: String): AggregateRef = AggregateRef(this, tenantId, AggregateRef.UNASSIGNED)
+
     override fun toString(): String = "$context.$name"
 }
 
 /**
  * The identity of one aggregate instance: its [type], its tenant and its id. Decided once, at admission; every unique
  * key in the log includes the tenant (V10 axiom A6), so two tenants may use the same [id] without meeting.
+ *
+ * A creation command may name no id yet, its ref's id [UNASSIGNED] (decision D191): admission gives it the id of the
+ * aggregate its request already created, or a new one from the aggregate type's generator. Committed ids never change.
  */
 data class AggregateRef(val type: AggregateType, val tenantId: String, val id: String) {
     init {
@@ -38,5 +47,13 @@ data class AggregateRef(val type: AggregateType, val tenantId: String, val id: S
         require(id.isNotBlank()) { "An aggregate ref needs an id." }
     }
 
+    /** Whether the id is chosen: not [UNASSIGNED]. */
+    val isAssigned: Boolean get() = id != UNASSIGNED
+
     override fun toString(): String = "$type/$tenantId/$id"
+
+    companion object {
+        /** The id of a ref whose id admission has not chosen yet (decision D191). */
+        const val UNASSIGNED: String = "(none)"
+    }
 }

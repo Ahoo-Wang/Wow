@@ -22,6 +22,7 @@ import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
+import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.cluster.ReplyTo
 import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.subscription.HandlingRejectedException
@@ -44,6 +45,10 @@ import me.ahoo.wow.spi.wait.WaitContext
  * - **Rejections** are business outcomes (decision D153): the first command that is rejected stops the execution, the
  *   commands after it are not executed, and the result says which one it was ([Executed.rejected]), for the saga's
  *   `@OnRejected` handler ([SagaRejections]); nothing is retried for it.
+ * - **Creations without an id** (decision D191): a command of its own context that names no aggregate
+ *   ([me.ahoo.wow.api.aggregate.AggregateRef.isAssigned]) takes its id from [creations] before it runs: the id its
+ *   request already created, else a new one from its aggregate type's generator. One to another context takes it
+ *   there, at the target's intake.
  * - **Other contexts** (decisions D33, D137): a command to an aggregate of a context outside the saga's own is sent
  *   to that context's command topic through the sender ([CommandSender]), and is done once the broker has acknowledged it, a durable
  *   ACCEPTED; its outcome is the target's, and a rejection comes back as a receipt to the [ReplyTo] the caller gives
@@ -58,6 +63,7 @@ class DerivedCommands(
     models: Collection<AggregateModel<*>>,
     private val coordinator: WaitCoordinator,
     private val sender: CommandSender? = null,
+    private val creations: CreationIds = CreationIds(),
 ) {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val contexts: Set<String> = models.mapTo(HashSet()) { it.type.context }
@@ -73,13 +79,15 @@ class DerivedCommands(
         replyTo: (Command<*>) -> ReplyTo? = { null },
     ): Executed {
         val executed = ArrayList<String>(commands.size)
-        for (command in commands) {
-            val model = models[command.ref.type]
+        for (derived in commands) {
+            val model = models[derived.ref.type]
             if (model == null) {
-                send(command, wait, replyTo(command))
-                executed += command.id
+                send(derived, wait, replyTo(derived))
+                executed += derived.id
                 continue
             }
+            // A creation that names no aggregate takes the id its request created, or a new one (decision D191).
+            val command = creations.assign(model, derived)
             val settlement = coordinator.forward(model, command, wait)
             failureOf(command, settlement)?.let { throw it }
             executed += command.id

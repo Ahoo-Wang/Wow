@@ -141,6 +141,10 @@ class ProcessorBindingTest {
             it.scope.assert().isEqualTo(Scope("alice", "space-a"))
         }
         commands[0].id.assert().isEqualTo(ExecutionSagaContext.derivedId(execution, 0))
+        // A creation that leaves its id to the target's admission (decision D191), in the commit's tenant.
+        val creation = first.command(cart, "new")
+        creation.ref.assert().isEqualTo(cart.unassigned("t"))
+        creation.id.assert().isEqualTo(ExecutionSagaContext.derivedId(execution, 2))
         ExecutionSagaContext.derivedId(execution.copy(version = 4), 0).assert().isNotEqualTo(commands[0].id)
         ExecutionSagaContext.derivedId(execution.copy(subscription = "Other.saga"), 0)
             .assert().isNotEqualTo(commands[0].id)

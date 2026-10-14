@@ -135,6 +135,7 @@ class Kernel(
         wait: WaitContext? = null,
     ): CommandOutcome {
         require(admitted.ref.type == model.type) { "${admitted.ref} is not a ${model.type}." }
+        require(admitted.ref.isAssigned) { "${admitted.ref} names no aggregate: admission assigns its id (D191)." }
         // A tenant's aggregate (decision D189) neither records nor checks an owner: only that part of the scope counts.
         val scope = model.ownership.scopeOf(admitted.scope)
         val command = if (scope == admitted.scope) admitted else admitted.copy(scope = scope)

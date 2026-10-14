@@ -35,6 +35,8 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.LruStateCache
 import me.ahoo.wow.runtime.admission.CommandGateway
+import me.ahoo.wow.runtime.admission.CommittedRequests
+import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
@@ -122,6 +124,12 @@ class ContextNode internal constructor(
     /** The node's id generators (decision D171), the ids its sagas take. */
     val ids: IdGenerators = IdGenerators.DEFAULT,
 ) {
+    /**
+     * The ids of the context's creation commands that name no aggregate (decision D191): a saga's derived command, one
+     * its command topic brings, each looked up by its request in the context's [log] first.
+     */
+    val creations: CreationIds = CreationIds(ids, CommittedRequests.of(log))
+
     /**
      * Reads the state after a commit as the state consumer [reader] of [views] ([StateViewReader]), from the
      * context's snapshots when its views miss: what [me.ahoo.wow.runtime.subscription.EntryDecoder.stateEvents]
@@ -335,6 +343,9 @@ class ServiceNode(
         validators = admission.validators,
         ids = admission.ids,
         tenants = admission.tenants,
+        committed = { type, tenantId, requestId ->
+            contexts[type.context]?.log?.findByRequestId(type, tenantId, requestId)
+        },
     )
 
     /**
@@ -366,7 +377,7 @@ class ServiceNode(
 
     /** The command intake of each context that takes commands from its topic (decision D137). */
     private val intakes: Map<ContextNode, CommandIntake> = contexts.values.filter { it.intake != null }.associateWith {
-        CommandIntake(it.context, it.models, it.coordinator, topics!!)
+        CommandIntake(it.context, it.models, it.coordinator, topics!!, it.creations)
     }
 
     init {

@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.subscribe
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.id.Ids
 import java.time.Instant
@@ -50,9 +51,13 @@ interface ReactContext : SubscriptionContext
 /** The context of a [me.ahoo.wow.api.annotation.Saga]'s handler: it derives commands from the commit. */
 interface SagaContext : SubscriptionContext {
     /**
-     * The ids this execution takes (decision D171), such as the id of an aggregate a derived command creates: the
-     * node's generators, fixed ids in the test DSL. Handling the commit again takes new ones, but the derived
-     * commands keep their request ids, so the targets still decide them once (decision D162).
+     * The ids this execution takes (decision D171): the node's generators, each aggregate type's the one the host
+     * configures for it (`wow.aggregates.<ctx.agg>.id-generator`), fixed ids in the test DSL.
+     *
+     * Handling the commit again (a retry, a replay) takes new ones: an id drawn here for an aggregate a derived
+     * command creates may be used only for that same creation command, whose request id is the same every time, so
+     * the target creates it once (decision D162) and keeps the first id; any other use would see the id change. To
+     * leave the id to the target, derive the command with [command] of an [AggregateType] instead (decision D191).
      */
     val ids: Ids
 
@@ -64,6 +69,15 @@ interface SagaContext : SubscriptionContext {
      * creates belongs to the owner the chain acts for, and one it changes is guarded as for that owner.
      */
     fun <C : Any> command(ref: AggregateRef, body: C): Command<C>
+
+    /**
+     * A creation command asking [body] of a new aggregate of [type], in the tenant of the commit this execution
+     * handles, that leaves its id to the target's admission (decision D191): the target gives it the id of the
+     * aggregate its request already created, or a new one from [type]'s configured generator, so handling the commit
+     * again keeps the first id. The command must create its aggregate; otherwise the target refuses it.
+     */
+    fun <C : Any> command(type: AggregateType, body: C): Command<C> =
+        command(type.unassigned(executionId.ref.tenantId), body)
 
     /**
      * Schedules [command] to be sent to [target] at [at] (decision D166). [key] names the schedule among this saga's

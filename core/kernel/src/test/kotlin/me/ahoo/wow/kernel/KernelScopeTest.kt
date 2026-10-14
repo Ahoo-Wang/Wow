@@ -225,6 +225,14 @@ class KernelScopeTest {
     }
 
     @Test
+    fun `a command whose aggregate has no id yet never reaches the kernel's decision`(): Unit = runTest {
+        val unassigned = Command("c-x", "r-x", cartModel.type.unassigned("tenant"), CreateCart("ahoo"))
+        runCatching { kernel.execute(cartModel, unassigned) }.exceptionOrNull()
+            .assert().isInstanceOf(IllegalArgumentException::class.java)
+        versions().assert().isEmpty()
+    }
+
+    @Test
     fun `an aggregate of its tenant decides no transfer of its owner`() {
         assertThrows<IllegalArgumentException> {
             aggregate<CartState>("example", "shelf") {

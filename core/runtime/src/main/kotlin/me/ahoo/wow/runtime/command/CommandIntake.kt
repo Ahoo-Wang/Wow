@@ -20,6 +20,7 @@ import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
+import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.node.SourceTopics
@@ -37,7 +38,7 @@ import me.ahoo.wow.spi.wait.WaitContext
  * For each command, in its aggregate's lane (one aggregate's commands in order, different aggregates in parallel):
  *
  * 1. **Execute** it through the context's [coordinator] ([WaitCoordinator.forward]) with the wait context its
- *    envelope carries: the kernel deduplicates by request id (per aggregate type), so a command delivered twice, or
+ *    envelope carries, a creation that names no aggregate given its id first by [creations] (decision D191): the kernel deduplicates by request id (per aggregate type), so a command delivered twice, or
  *    sent twice by a saga that retried, is not decided again; the waiting node is signalled as for a saga's command.
  * 2. **Settle** the outcome: committed, a duplicate or no change is done. A rejection is a business outcome (decision
  *    D47): it is not retried nor parked, and nothing is written to the log; when the command says where to reply
@@ -59,6 +60,7 @@ class CommandIntake internal constructor(
     models: Collection<AggregateModel<*>>,
     private val coordinator: WaitCoordinator,
     private val topics: SourceTopics,
+    private val creations: CreationIds = CreationIds(),
 ) {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val producer: TopicProducer = requireNotNull(topics.producer) { "An intake sends receipts." }
@@ -73,12 +75,14 @@ class CommandIntake internal constructor(
         val model = checkNotNull(models[wire.ref.type]) {
             "Context $context has no aggregate ${wire.ref.type}, which the command ${wire.id} is sent to."
         }
-        val command = checkNotNull(ClusterCodec.command(model, wire)) {
+        val received = checkNotNull(ClusterCodec.command(model, wire)) {
             "${wire.ref.type} has no command type ${wire.type}, which the command ${wire.id} is."
         }
+        // A creation that names no aggregate takes the id its request created, or a new one (decision D191).
+        val command = creations.assign(model, received)
         val settlement = coordinator.forward(model, command, wait)
         settlement.rejection?.let { rejection ->
-            reply(wire, ErrorInfo(rejection.code, rejection.message))
+            reply(wire.copy(ref = command.ref), ErrorInfo(rejection.code, rejection.message))
             return
         }
         if (settlement.failed) {

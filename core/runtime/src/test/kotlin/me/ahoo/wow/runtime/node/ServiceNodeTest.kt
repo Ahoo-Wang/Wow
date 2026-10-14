@@ -428,6 +428,20 @@ class ServiceNodeTest {
     }
 
     @Test
+    fun `a creation without an id keeps the id its request created in the context's log (D191)`(): Unit = runBlocking {
+        val node = node("node-1").also { it.start() }
+        val request = deposit().copy(requestId = "deposit-1")
+        val first = node.gateway.execute(request)
+        first.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        val again = node.gateway.execute(request)
+        again.ref.assert().isEqualTo(first.ref)
+        again.duplicate.assert().isTrue()
+        node.gateway.execute(deposit(context = "nowhere").copy(requestId = "deposit-1"))
+            .error!!.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
+        node.stop()
+    }
+
+    @Test
     fun `a wait chain may name a subscription of a peer's context through the node's contracts`(): Unit = runBlocking {
         val peer = WaitPlan.of(Hop.handled("StockProjector.onStock", "inventory")).within(200.milliseconds)
         // A node that knows no Manifest of the context lets the hop through (decision D190): it times out unheard.

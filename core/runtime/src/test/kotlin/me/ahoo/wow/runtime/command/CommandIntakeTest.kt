@@ -150,6 +150,22 @@ class CommandIntakeTest {
         }
 
     @Test
+    fun `a creation that names no item should take its id at the intake, the same for its request every time`(): Unit =
+        runBlocking {
+            val stockNode = stockNode().also { it.start() }
+            val unassigned = ITEM.unassigned(TENANT)
+            val reserve = Command("new-1", "r-new-1", unassigned, Reserve(1))
+            sender.send(reserve)
+            eventually { stock.decided.size == 1 }
+            val created = checkNotNull(stockBackends.backends(STOCK).log.findByRequestId(ITEM, TENANT, "r-new-1"))
+            created.ref.isAssigned.assert().isTrue()
+            // Sent again (a saga that handled its commit again): the same request finds the item it created.
+            sender.send(reserve.copy(id = "new-1-again"))
+            eventually { checkpoint(stockNode, unassigned) == 2L }
+            stock.decided.assert().containsExactly("new-1")
+        }
+
+    @Test
     fun `a rejected command should send a receipt that the saga's handler takes once`(): Unit = runBlocking {
         stockNode().start()
         val sales = salesNode().also { it.start() }

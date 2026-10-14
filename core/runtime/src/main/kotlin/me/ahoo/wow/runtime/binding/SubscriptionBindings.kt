@@ -102,7 +102,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         if (local.isEmpty()) {
             return emptyList()
         }
-        val derived = DerivedCommands(context.models, context.coordinator, context.sender)
+        val derived = DerivedCommands(context.models, context.coordinator, context.sender, context.creations)
         val rejections = SagaRejections(bound, derived, context.ids)
         return local.map { handler ->
             val name = handler.name
@@ -151,7 +151,7 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         if (sourced.isEmpty()) {
             return emptyList()
         }
-        val derived = DerivedCommands(context.models, context.coordinator, context.sender)
+        val derived = DerivedCommands(context.models, context.coordinator, context.sender, context.creations)
         val rejections = SagaRejections(bound, derived, context.ids)
         return sourced.map { handler ->
             val name = handler.name
@@ -198,8 +198,8 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
      */
     override fun rejections(context: ContextNode): RejectionHandler? {
         val bound = processors[context.context].orEmpty()
-        return SagaRejections(bound, DerivedCommands(context.models, context.coordinator, context.sender), context.ids)
-            .takeUnless { it.isEmpty }
+        val derived = DerivedCommands(context.models, context.coordinator, context.sender, context.creations)
+        return SagaRejections(bound, derived, context.ids).takeUnless { it.isEmpty }
     }
 
     /** The models of [models] whose state [handler] reads. */

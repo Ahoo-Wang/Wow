@@ -105,7 +105,8 @@ class CommandGatewayTest {
 
     private val registry = WaitRegistry()
     private val origin = Origin("node-1", "127.0.0.1:9090", "shop")
-    private val executor = Executor(Kernel(InMemoryEventLog(partitions = 2)), laneCapacity = 1)
+    private val log = InMemoryEventLog(partitions = 2)
+    private val executor = Executor(Kernel(log), laneCapacity = 1)
     private val coordinator = coordinator()
 
     private fun coordinator(defaultTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT) = WaitCoordinator(
@@ -123,6 +124,7 @@ class CommandGatewayTest {
         tenants: TenantPolicy = TenantPolicy.CALLERS,
         coordinator: WaitCoordinator = this.coordinator,
         ids: IdGenerators = IdGenerators.DEFAULT,
+        committed: CommittedRequests = CommittedRequests.NONE,
     ) = CommandGateway(
         ModelRegistry(listOf(model)),
         mapOf(CONTEXT to coordinator),
@@ -131,6 +133,7 @@ class CommandGatewayTest {
         validators = validators,
         ids = ids,
         tenants = tenants,
+        committed = committed,
     )
 
     private val alice = Caller(TENANT, Scope("alice", "home"), subject = "alice")
@@ -178,6 +181,31 @@ class CommandGatewayTest {
         result.correlationId.assert().isEqualTo(result.commandId)
         decided.assert().containsExactly(result.commandId)
     }
+
+    @Test
+    fun `a creation without an id keeps the id its request created, within the caller's scope (D191)`(): Unit =
+        runBlocking {
+            var drawn = 0
+            val ids = IdGenerators(aggregates = AggregateIdGenerator { "cart-n${++drawn}" })
+            val gateway = gateway(ids = ids, committed = CommittedRequests.of(log))
+            fun open(caller: Caller = alice, requestId: String? = "open-1") =
+                request(command = "OpenCart", body = "{}", aggregateId = null, caller = caller, requestId = requestId)
+
+            val opened = gateway.execute(open())
+            opened.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            opened.ref.id.assert().isEqualTo("cart-n1")
+            // The retry takes the committed id, without drawing another, and is answered as a duplicate.
+            val retried = gateway.execute(open())
+            retried.ref.id.assert().isEqualTo("cart-n1")
+            retried.duplicate.assert().isTrue()
+            drawn.assert().isEqualTo(1)
+            // Another owner reusing the request id learns nothing of the cart: a new id, refused as a duplicate.
+            val stranger = gateway.execute(open(caller = bob))
+            stranger.error!!.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+            stranger.ref.id.assert().isEqualTo("cart-n2")
+            // Without a request id of its own, a request is new: it draws a new id.
+            gateway.execute(open(requestId = null)).ref.id.assert().isEqualTo("cart-n3")
+        }
 
     @Test
     fun `the command id should come from the global generator, a new aggregate's from its type's`(): Unit =
