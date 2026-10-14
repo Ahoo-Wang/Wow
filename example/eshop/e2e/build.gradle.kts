@@ -58,6 +58,9 @@ dependencies {
     integrationTestImplementation(project(":eshop-catalog-domain"))
     // EshopFullChainTest and EshopLoad: the ordering's order stream in ClickHouse, for the sales dataset (E.6).
     integrationTestImplementation("org.testcontainers:testcontainers-clickhouse")
+    // EshopSharedJvmTest: a request's trace through a service (decision D174), its spans exported to memory.
+    integrationTestImplementation(project(":opentelemetry"))
+    integrationTestImplementation("io.opentelemetry:opentelemetry-sdk-testing")
 }
 
 /** The class paths of the servers, and the directory of their output, as the services' JVMs take them. */

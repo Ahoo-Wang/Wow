@@ -35,6 +35,8 @@ import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.handledResult
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.time.Clock
 
@@ -72,6 +74,9 @@ import java.time.Clock
  * An aggregate's entries are compared by their ordinal ([EntrySource.ordinalOf]): their version, or, in a topic of
  * commands or receipts (decisions D135–D137), whose entries commit nothing, their offset. Parking, copies and
  * resumes go by it.
+ *
+ * Each handling of an entry, its retries included, is observed by [observer] (decision D174), in the trace the entry
+ * carries ([me.ahoo.wow.spi.log.Transport.trace]): what the handler does goes on in that trace.
  */
 internal class SubscriptionWorker(
     private val group: String,
@@ -87,6 +92,7 @@ internal class SubscriptionWorker(
     checkpoint: Long,
     parked: Map<AggregateRef, Long>,
     private val notifier: ParkedNotifier = ParkedNotifier.NONE,
+    private val observer: Observer = Observer.NONE,
 ) {
     private val permits = Semaphore(options.maxInFlight)
 
@@ -352,8 +358,17 @@ internal class SubscriptionWorker(
      * retries are spent. An attempt that outlasts the budget's timeout is cancelled and fails with a
      * [HandlerTimeoutException]. A [HandlingRejectedException] is not retried: a business outcome does not change.
      */
-    @Suppress("TooGenericExceptionCaught") // A handler may fail with anything; only cancellation stops the retries.
     private suspend fun handle(sourced: SourcedEntry): Result<HandledEntry> {
+        val stream = sourced.stream
+        val trace = sourced.transport?.trace.orEmpty()
+        val observed = observer.handling(subscription.name, subscription.context, stream, trace, source.topic)
+        return observed.observe {
+            retried(sourced).also { handled -> handled.exceptionOrNull()?.let { observed.failed(it) } }
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught") // A handler may fail with anything; only cancellation stops the retries.
+    private suspend fun retried(sourced: SourcedEntry): Result<HandledEntry> {
         var failures = 0
         while (true) {
             try {

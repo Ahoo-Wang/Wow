@@ -24,6 +24,8 @@ import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
+import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerOutcomes
 
@@ -53,16 +55,25 @@ class ContextCommandTypes(models: Collection<AggregateModel<*>>, private val con
  * whose due time the target's kernel waits for. Its scope is the scheduling commit's (decision D189), its causation
  * that commit, and its other headers and operator the scheduling command's (decision D163). It is not waited for: a
  * scheduled command is in no caller's wait chain.
+ *
+ * Each firing is observed by [observer] (decision D174), its outcome the [TimerOutcomes] it answers: the command goes
+ * on in the firing's trace.
  */
 class ContextTimerFirer(
     models: Collection<AggregateModel<*>>,
     private val coordinator: WaitCoordinator,
     private val sender: CommandSender? = null,
+    private val observer: Observer = Observer.NONE,
 ) : TimerFirer {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val contexts: Set<String> = models.mapTo(HashSet()) { it.type.context }
 
     override suspend fun fire(timer: Timer): String {
+        val firing = observer.firing(timer)
+        return firing.observe { fired(timer).also { firing.outcome(it) } }
+    }
+
+    private suspend fun fired(timer: Timer): String {
         val wire = CommandWire(
             type = timer.commandType,
             id = timer.requestId,

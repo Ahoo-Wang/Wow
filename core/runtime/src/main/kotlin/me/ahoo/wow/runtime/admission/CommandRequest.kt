@@ -27,6 +27,9 @@ import tools.jackson.databind.JsonNode
  * [command] is the command type's model name (or a former name, `@Alias`), or the part of it after the aggregate type
  * (`AddItem` for `shop.cart.AddItem`). Identity is not taken from anywhere else:
  * not from [headers] (a header named `Wow-…` or `wow.…` is reserved and refused) and never from the body (D68).
+ *
+ * [trace] holds the trace context the request arrived with (decision D174), such as the W3C `traceparent` and
+ * `tracestate` headers: delivery metadata, never a fact, which only an observer reads.
  */
 data class CommandRequest(
     val context: String,
@@ -40,6 +43,7 @@ data class CommandRequest(
     val expectedVersion: Int? = null,
     val headers: Map<String, String> = emptyMap(),
     val wait: WaitPlan? = null,
+    val trace: Map<String, String> = emptyMap(),
 ) {
     init {
         require(context.isNotBlank()) { "A command request names its context." }

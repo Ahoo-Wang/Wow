@@ -245,14 +245,15 @@ class EshopStack(
 
         /**
          * A checkout's `Wow-Wait` until the payment's `PayOrder` is committed: 15 hops, through every saga on the way
-         * (each adds its own hop and the next commit), the ordering's on the inventory's stock stream included. The
+         * (each adds its own hop and the next commit), the ordering's `@OnCommitted` handler of the reservations'
+         * success receipts included (decision D192): its confirmations go on with the chain. The
          * basket knows only the ordering's Manifest: it lets the hops of the inventory and the payment through, and
          * each is checked where the chain arrives (decision D190); the default of 16 hops holds it.
          */
         const val CHECKOUT_TO_PAID = CHECKOUT_TO_ORDER +
             " > handled(eshop-ordering/OrderProcessSaga.onOrderSubmitted) > committed(eshop-ordering)" +
             " > handled(eshop-ordering/OrderProcessSaga.onOrderAwaitingValidation) > committed(eshop-inventory)" +
-            " > handled(eshop-ordering/StockConfirmationSaga.onStockReserved) > committed(eshop-ordering)" +
+            " > handled(eshop-ordering/OrderProcessSaga.onReserveCommitted) > committed(eshop-ordering)" +
             " > handled(eshop-payment/OrderPaymentSaga.onOrderStockConfirmed) > committed(eshop-payment)" +
             " > handled(eshop-payment/PaymentGatewaySaga.onPaymentRequested) > committed(eshop-payment)" +
             " > handled(eshop-payment/OrderPaymentSaga.onPaymentSucceeded) > committed(eshop-ordering)"

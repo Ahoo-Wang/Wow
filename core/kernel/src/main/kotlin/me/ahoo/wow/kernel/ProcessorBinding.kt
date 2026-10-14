@@ -46,6 +46,8 @@ import me.ahoo.wow.api.subscribe.SubscriptionContext
  * - [invoke] calls the handler directly and returns the commands a saga derives; a projection's or a reactor's none.
  * - [rejections] are a saga's `@OnRejected` handlers (decisions D136, D153), the same for each handler of the saga:
  *   the runtime hands the rejection of a command this handler derived to the one [rejectionHandlerOf] its class.
+ * - [commits] are a saga's `@OnCommitted` handlers (decision D192), likewise: the runtime hands the success receipt of
+ *   a command this handler derived to the one [committedHandlerOf] its class, and only such a command asks for one.
  *
  * Built with [project], [react] or [saga], one per kind.
  */
@@ -64,6 +66,7 @@ class ProcessorBinding<S> private constructor(
     val nullableState: Boolean,
     /** The handler's own in-process retry budget (`@Retry`, roadmap P.3); null when it gives none. */
     val retry: HandlerRetry?,
+    val commits: List<CommittedBinding<*>>,
     private val call: suspend (StateEvent<S>, SubscriptionContext) -> List<Command<*>>,
 ) {
     init {
@@ -83,6 +86,14 @@ class ProcessorBinding<S> private constructor(
                 "$processor has two @OnRejected handlers of the rejections of ${it?.name ?: "every command"}.",
             )
         }
+        commits.forEach {
+            require(it.processor == processor) { "$it is not a handler of $processor." }
+        }
+        commits.groupBy { it.commandType }.filterValues { it.size > 1 }.keys.forEach {
+            throw IllegalArgumentException(
+                "$processor has two @OnCommitted handlers of the receipts of ${it?.name ?: "every command"}.",
+            )
+        }
     }
 
     /**
@@ -90,6 +101,12 @@ class ProcessorBinding<S> private constructor(
      * ([RejectionBinding.handlerOf]); null when the saga has none for it.
      */
     fun rejectionHandlerOf(command: Class<*>): RejectionBinding<*>? = RejectionBinding.handlerOf(rejections, command)
+
+    /**
+     * The `@OnCommitted` handler of the saga for the success receipt of a command of [command] this handler derived
+     * ([CommittedBinding.handlerOf]); null when the saga has none for it, and the command asks for no receipt.
+     */
+    fun committedHandlerOf(command: Class<*>): CommittedBinding<*>? = CommittedBinding.handlerOf(commits, command)
 
     /** The subscription the handler is compiled into: `processor.function` (design 04 §1). */
     val name: String = "$processor.$function"
@@ -147,6 +164,7 @@ class ProcessorBinding<S> private constructor(
                 aggregates,
                 nullableState,
                 retry,
+                emptyList(),
             ) { e, c ->
                 handle(e, c as ProjectContext)
                 emptyList()
@@ -177,6 +195,7 @@ class ProcessorBinding<S> private constructor(
                 aggregates,
                 nullableState,
                 retry,
+                emptyList(),
             ) { e, c ->
                 handle(e, c as ReactContext)
                 emptyList()
@@ -184,7 +203,8 @@ class ProcessorBinding<S> private constructor(
 
         /**
          * A `@Saga`'s handler [function] of [processor]: it returns the commands it derives ([derivedOf]); the saga's
-         * `@OnRejected` handlers, the [rejections], take the rejections of those commands.
+         * `@OnRejected` handlers, the [rejections], take the rejections of those commands, and its `@OnCommitted`
+         * handlers, the [commits], their success receipts.
          */
         @JvmStatic
         @Suppress("LongParameterList")
@@ -198,6 +218,7 @@ class ProcessorBinding<S> private constructor(
             aggregates: List<String> = emptyList(),
             nullableState: Boolean = stateType == null,
             retry: HandlerRetry? = null,
+            commits: List<CommittedBinding<*>> = emptyList(),
             handle: suspend (StateEvent<S>, SagaContext) -> List<Command<*>>,
         ): ProcessorBinding<S> =
             ProcessorBinding(
@@ -211,6 +232,7 @@ class ProcessorBinding<S> private constructor(
                 aggregates,
                 nullableState,
                 retry,
+                commits,
             ) { e, c ->
                 handle(e, c as SagaContext)
             }

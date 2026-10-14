@@ -17,7 +17,9 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.AggregateModel
@@ -44,7 +46,9 @@ import me.ahoo.wow.spi.wait.WaitContext
  *   none derived, it is complete at once.
  * - **Rejections** are business outcomes (decision D153): the first command that is rejected stops the execution, the
  *   commands after it are not executed, and the result says which one it was ([Executed.rejected]), for the saga's
- *   `@OnRejected` handler ([SagaRejections]); nothing is retried for it.
+ *   `@OnRejected` handler ([SagaReceipts]); nothing is retried for it.
+ * - **Commits** of its own context: the result lists each command committed (or already committed, or unchanged)
+ *   with its outcome ([Executed.committed]), for the saga's `@OnCommitted` handler (decision D192).
  * - **Creations without an id** (decision D191): a command of its own context that names no aggregate
  *   ([me.ahoo.wow.api.aggregate.AggregateRef.isAssigned]) takes its id from [creations] before it runs: the id its
  *   request already created, else a new one from its aggregate type's generator. One to another context takes it
@@ -82,6 +86,7 @@ class DerivedCommands(
         replyTo: (Command<*>) -> ReplyTo? = { null },
     ): Executed {
         val executed = ArrayList<String>(commands.size)
+        val committed = ArrayList<Committed>()
         for (returned in commands) {
             // A derived command belongs to a chain; one a handler built without a causation is its own root.
             val derived = if (returned.causation == null) {
@@ -100,11 +105,13 @@ class DerivedCommands(
             val settlement = coordinator.forward(model, command, wait)
             failureOf(command, settlement)?.let { throw it }
             executed += command.id
+            val commandType = model.commandType(command.body.javaClass).name
             settlement.rejection?.let { rejection ->
-                return Executed(executed, Rejected(command, rejection, model.commandType(command.body.javaClass).name))
+                return Executed(executed, Rejected(command, rejection, commandType), committed)
             }
+            committed += Committed(command, commandType, settlement.committed)
         }
-        return Executed(executed)
+        return Executed(executed, committed = committed)
     }
 
     /** Sends [command], to an aggregate of another context, to its command topic and waits for the broker. */
@@ -138,9 +145,35 @@ class DerivedCommands(
 
     /**
      * What [execute] did: the ids of the commands it [executed], in order, the rejected one last when one was
-     * [rejected].
+     * [rejected]; and those of its own context it [committed], in order.
      */
-    data class Executed(val executed: List<String>, val rejected: Rejected? = null)
+    data class Executed(
+        val executed: List<String>,
+        val rejected: Rejected? = null,
+        val committed: List<Committed> = emptyList(),
+    )
+
+    /**
+     * The derived [command] of its own context, of the full type name [commandType], was committed (or had been, or
+     * changed nothing) with [result] at its `committed` hop.
+     */
+    data class Committed(val command: Command<*>, val commandType: String, val result: CommandResult) {
+        /**
+         * The commit as the saga's `@OnCommitted` handler takes it (decision D192), from the saga's [execution] that
+         * derived it: on the aggregate the result names, the one a creation without an id got (decision D191).
+         */
+        fun toCommandCommitted(execution: ExecutionId): CommandCommitted<Any> = CommandCommitted(
+            commandId = command.id,
+            commandType = commandType,
+            ref = result.ref,
+            version = result.version ?: 0,
+            result = result,
+            causation = command.causation ?: Causation(command.id, command.id),
+            executionId = execution,
+            operator = command.operator,
+            scope = command.scope,
+        )
+    }
 
     /** The derived [command], of the full type name [commandType], was refused with [rejection]. */
     data class Rejected(val command: Command<*>, val rejection: Rejection, val commandType: String) {

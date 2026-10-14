@@ -198,6 +198,22 @@ class ContractDirectoryTest {
     }
 
     @Test
+    fun `an @OnCommitted handler should be a saga's hop, and the commands it takes should count as sent outside`() {
+        val committed = subscription(
+            "OrderSaga.onReserved",
+            source = SubscriptionSource(),
+            derives = listOf("shop.cart.AddItem"),
+            committed = listOf("inventory.stock.ReserveStock"),
+        )
+        val directory = ContractDirectory(shop(subscriptions = listOf(committed)), ContractFixtures.peers)
+        // Decision D192: the receipts of the commands it answers signal its hop, and its commands go on with the chain.
+        directory.kindOf("shop", "OrderSaga.onReserved").assert().isEqualTo(FunctionKind.SAGA)
+        directory.derivedContextsOf("shop", "OrderSaga.onReserved").assert().containsExactly("shop")
+        directory.commandsOutside(setOf("shop"))
+            .assert().isEqualTo(mapOf("shop/OrderSaga.onReserved" to sortedSetOf("inventory")))
+    }
+
+    @Test
     fun `a source of an unknown context or aggregate, or of an unpublished one, should fail`() {
         problems(
             shop(
@@ -208,6 +224,7 @@ class ContractDirectoryTest {
                     // Its own context and a rejection handler are not cross-context sources.
                     subscription("D.onCart"),
                     subscription("E.onRejected", source = SubscriptionSource("warehouse"), rejected = emptyList()),
+                    subscription("F.onCommitted", source = SubscriptionSource("warehouse"), committed = emptyList()),
                 ),
             ),
         ).assert().containsExactly(

@@ -14,6 +14,8 @@
 package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.id.Ids
@@ -88,78 +90,95 @@ class RejectionBinding<C : Any> private constructor(
          * when none [handles] it.
          */
         @JvmStatic
-        fun handlerOf(handlers: List<RejectionBinding<*>>, command: Class<*>): RejectionBinding<*>? {
-            val typed = handlers.filter { it.commandType != null && it.handles(command) }
-            return typed.firstOrNull { it.commandType == command }
-                ?: typed.firstOrNull { candidate ->
-                    typed.none { it !== candidate && candidate.commandType!!.isAssignableFrom(it.commandType!!) }
-                }
-                ?: handlers.firstOrNull { it.commandType == null }
-        }
+        fun handlerOf(handlers: List<RejectionBinding<*>>, command: Class<*>): RejectionBinding<*>? =
+            nearestHandlerOf(handlers, command) { it.commandType }
     }
 }
 
 /**
  * The context an `@OnRejected` handler gets for [rejected] (decisions D136, D153): its execution is (handler,
  * aggregate, version) of the commit whose saga execution derived the command, and the commands it derives are
- * [RejectionSagaContext]'s, deterministic per rejected command; it takes its ids from [ids].
+ * [ReceiptSagaContext]'s, deterministic per rejected command; it takes its ids from [ids].
  */
 fun rejectionContextOf(
     handler: RejectionBinding<*>,
     rejected: CommandRejected<*>,
     ids: Ids = IdGenerators.DEFAULT,
-): SagaContext = RejectionSagaContext(
+): SagaContext = ReceiptSagaContext(
     ExecutionId(handler.name, rejected.executionId.ref, rejected.executionId.version),
-    rejected,
+    rejected.commandId,
+    rejected.causation,
+    rejected.operator,
+    rejected.scope,
     ids,
 )
 
 /**
- * The context of an `@OnRejected` handler for the rejection [rejected] (decisions D136, D153). Handling the same
- * rejection again, after a retry or a second delivery of its receipt, derives the same requests, which the kernel does
- * not decide twice: the n-th [command]'s id and request id are [compensationId] of the rejected command, this
- * execution and the call's index. Each command's causation is the rejected command, in the chain of its root, and its
- * operator and scope the rejected command's (decisions D163, D189).
+ * The handler among [handlers] of a receipt of a command of [command], each taking the commands of the class its
+ * [typeOf] gives (null: every command): the one of [command] itself, else the nearest superclass or interface one
+ * names, else one of every command; null when none takes it.
  */
-class RejectionSagaContext(
+internal fun <B : Any> nearestHandlerOf(handlers: List<B>, command: Class<*>, typeOf: (B) -> Class<*>?): B? {
+    val typed = handlers.filter { typeOf(it)?.isAssignableFrom(command) == true }
+    return typed.firstOrNull { typeOf(it) == command }
+        ?: typed.firstOrNull { candidate ->
+            typed.none { it !== candidate && typeOf(candidate)!!.isAssignableFrom(typeOf(it)!!) }
+        }
+        ?: handlers.firstOrNull { typeOf(it) == null }
+}
+
+/**
+ * The context of a saga's handler of a receipt (decisions D136, D153, D192): of the rejection of the command
+ * [receiptOf], by an `@OnRejected` handler, or of its commit, by an `@OnCommitted` one. Handling the same receipt
+ * again, after a retry or a second delivery, derives the same requests, which the kernel does not decide twice: the
+ * n-th [command]'s id and request id are [compensationId] of [receiptOf], this execution and the call's index. Each
+ * command's [causation][Command.causation] is the command [receiptOf], in the chain of its root ([causation]), and
+ * its operator and scope are that command's (decisions D163, D189).
+ */
+class ReceiptSagaContext(
     override val executionId: ExecutionId,
-    private val rejected: CommandRejected<*>,
+    /** The command whose receipt the handler takes. */
+    private val receiptOf: String,
+    private val causation: Causation,
+    private val operator: Operator?,
+    private val scope: Scope,
     override val ids: Ids = IdGenerators.DEFAULT,
 ) : SagaContext {
     private val calls = AtomicInteger()
 
     override fun <C : Any> command(ref: AggregateRef, body: C): Command<C> {
-        val id = compensationId(executionId, rejected.commandId, calls.getAndIncrement())
+        val id = compensationId(executionId, receiptOf, calls.getAndIncrement())
         return Command(
             id = id,
             requestId = id,
             ref = ref,
             body = body,
-            scope = rejected.scope,
-            causation = Causation(rejected.causation.correlationId, rejected.commandId),
-            operator = rejected.operator,
+            scope = scope,
+            causation = Causation(causation.correlationId, receiptOf),
+            operator = operator,
         )
     }
 
-    /** An `@OnRejected` handler compensates now; it does not schedule (decision D166). */
+    /** A receipt's handler acts now; it does not schedule (decision D166). */
     override fun schedule(key: String, rule: ScheduleRule, target: AggregateRef, command: Any): Command<SetSchedule> =
         unsupported()
 
-    /** An `@OnRejected` handler compensates now; it does not schedule (decision D166). */
+    /** A receipt's handler acts now; it does not schedule (decision D166). */
     override fun cancel(key: String, target: AggregateRef): Command<CancelSchedule> = unsupported()
 
-    private fun unsupported(): Nothing =
-        throw UnsupportedOperationException("An @OnRejected handler derives commands; it does not schedule them.")
+    private fun unsupported(): Nothing = throw UnsupportedOperationException(
+        "An @OnRejected or @OnCommitted handler derives commands; it does not schedule them.",
+    )
 
     companion object {
         /**
-         * The id, and request id, of the [index]-th command (from 0) derived by [execution] for the rejection of
-         * [rejectedCommandId]: a name-based UUID of `execution!rejectedCommandId#index`, stable for that rejection.
+         * The id, and request id, of the [index]-th command (from 0) derived by [execution] for the receipt of
+         * [receiptCommandId]: a name-based UUID of `execution!receiptCommandId#index`, stable for that receipt.
          */
         @JvmStatic
-        fun compensationId(execution: ExecutionId, rejectedCommandId: String, index: Int): String {
+        fun compensationId(execution: ExecutionId, receiptCommandId: String, index: Int): String {
             require(index >= 0) { "A call index is never negative." }
-            return UUID.nameUUIDFromBytes("$execution!$rejectedCommandId#$index".toByteArray(Charsets.UTF_8))
+            return UUID.nameUUIDFromBytes("$execution!$receiptCommandId#$index".toByteArray(Charsets.UTF_8))
                 .toString()
         }
     }
