@@ -77,7 +77,7 @@
 - 发版（D202）：除 7.2b、7.2c 外的工作全部完成后才发第一个预发布；alpha、beta 不需确认，rc 与 GA 须用户确认；发布配置的改动须用户批准。
 - 新增第三方依赖、改发布自动化、改安全设置或 Dependabot 告警须先问用户。
 - 7.2b dataset-registry 与 7.2c analytics 延期到发版之前（D201），开工前先与用户讨论设计。
-- 每周额度不作为限制，只看 5 小时窗口；同时最多 6 个长任务子代理（D207）；不用 Fable 模型。
+- 每周额度不作为限制，只看 5 小时窗口；同时最多 2～3 个长任务子代理（D207，用户 2026-10-14 由 6 改回）；不用 Fable 模型。
 - Gradle 需要 JDK 21，设 `JAVA_HOME`；**不要 `./gradlew --stop`**。演练用独立 worktree；改设计文档用另一个 worktree。
 - Reactor Netty 1.3.8 GA 发布后提议升级（需批准）并删除 `KeepAliveReads`；用户拒绝了 1.4.0-M2。
 - main 上两个无上游修复的开发依赖告警（braces、sprintf-js）由用户决定暂挂。
