@@ -180,13 +180,17 @@ class MongoNineXEventSource(private val database: MongoDatabase) : NineXEventSou
             is Collection<*> -> NODES.arrayNode().also { node -> value.forEach { node.add(toNode(it)) } }
             is String -> NODES.textNode(value)
             is Boolean -> NODES.booleanNode(value)
-            is Int -> NODES.numberNode(value)
-            is Long -> NODES.numberNode(value)
-            is Double -> NODES.numberNode(value)
-            is Decimal128 -> NODES.numberNode(value.bigDecimalValue())
+            is Number -> numberNode(value)
             is Date -> NODES.numberNode(value.time)
             is ObjectId -> NODES.textNode(value.toHexString())
             else -> NODES.textNode(value.toString())
+        }
+
+        private fun numberNode(value: Number): JsonNode = when (value) {
+            is Decimal128 -> NODES.numberNode(value.bigDecimalValue())
+            is Int -> NODES.numberNode(value)
+            is Long -> NODES.numberNode(value)
+            else -> NODES.numberNode(value.toDouble())
         }
     }
 }

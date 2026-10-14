@@ -217,7 +217,12 @@ class EventStreamImporter(
      * Appends [record], converted from [stream]; returns null when the log now holds it (appended or already there),
      * or the version the instance's import resumes from.
      */
-    private suspend fun append(plan: AggregatePlan, record: EventStreamRecord, stream: NineXStream, stats: Stats): Int? {
+    private suspend fun append(
+        plan: AggregatePlan,
+        record: EventStreamRecord,
+        stream: NineXStream,
+        stats: Stats,
+    ): Int? {
         val log = logOf(record.ref.type.context)
         var attempt = record
         var unknowns = 0
@@ -273,8 +278,9 @@ class EventStreamImporter(
         stats: Stats,
     ): Int {
         val inLog = log.read(record.ref, current, current).firstOrNull()
-        val inNineX = blocking { source.streams(plan.source, stream.aggregateId, current, 1) }.firstOrNull()
-        if (inLog == null || inNineX == null || inNineX.version != current || inLog.commandId != inNineX.commandId) {
+        val inNineX = blocking { source.streams(plan.source, stream.aggregateId, current, 1) }
+            .firstOrNull { it.version == current }
+        if (inNineX == null || inLog?.commandId != inNineX.commandId) {
             throw MigrationException(
                 "${record.ref} v$current in the V10 log is not the 9.x stream there (${inNineX?.id ?: "none"}): V10 " +
                     "has been written to since the import began, so the import stops (design 07 §3; decision D32).",

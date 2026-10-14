@@ -27,7 +27,8 @@ import me.ahoo.wow.manifest.Manifest
 class MigrationPlan(val map: MigrationMap, val manifest: Manifest) {
     /** The plans of the mapped 9.x aggregates. */
     val aggregates: Map<NineXAggregate, AggregatePlan> = map.aggregates.associate { mapping ->
-        val target = mapping.to.indexOf('.').let { AggregateType(mapping.to.substring(0, it), mapping.to.substring(it + 1)) }
+        val dot = mapping.to.indexOf('.')
+        val target = AggregateType(mapping.to.substring(0, dot), mapping.to.substring(dot + 1))
         mapping.source() to AggregatePlan(mapping, target, manifestOf(target), map.headers)
     }
 

@@ -60,7 +60,10 @@ class MigrateData(
             return USAGE_ERROR
         }
         val config = MigrationConfig.read(Path.of(configPath))
-        val plan = MigrationPlan(MigrationMap.read(Files.readString(Path.of(config.map))), readManifests(config.manifests))
+        val plan = MigrationPlan(
+            MigrationMap.read(Files.readString(Path.of(config.map))),
+            readManifests(config.manifests),
+        )
         return try {
             connect(config).use { connections ->
                 runBlocking {
@@ -93,7 +96,11 @@ class MigrateData(
         if (check(plan, connections) != OK) {
             return FAILED
         }
-        val checkpoints = if (dryRun) InMemoryCheckpointRepository() else FileCheckpointRepository(Path.of(config.checkpoint))
+        val checkpoints = if (dryRun) {
+            InMemoryCheckpointRepository()
+        } else {
+            FileCheckpointRepository(Path.of(config.checkpoint))
+        }
         val importer = importer(plan, config.options(dryRun, restart), connections, checkpoints)
         plan.aggregates.keys.forEach { importer.importAll(it) }
         out.println(if (dryRun) "Dry run done: nothing was appended." else "Import done.")
@@ -105,7 +112,12 @@ class MigrateData(
         if (source is MongoNineXEventSource && config.source.commitTimeIndex) {
             plan.aggregates.keys.forEach(source::ensureCommitTimeIndex)
         }
-        val importer = importer(plan, config.options(), connections, FileCheckpointRepository(Path.of(config.checkpoint)))
+        val importer = importer(
+            plan,
+            config.options(),
+            connections,
+            FileCheckpointRepository(Path.of(config.checkpoint)),
+        )
         do {
             plan.aggregates.keys.forEach { importer.tailOnce(it) }
             if (!once) {

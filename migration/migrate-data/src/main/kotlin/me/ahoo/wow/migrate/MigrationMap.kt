@@ -56,9 +56,13 @@ data class MigrationMap(
     val headers: Map<String, String> = emptyMap(),
 ) {
     init {
-        require(format == FORMAT) { "migration-map.json format $format is not supported; this tool reads format $FORMAT." }
+        require(format == FORMAT) {
+            "migration-map.json format $format is not supported; this tool reads format $FORMAT."
+        }
         val framework = headers.keys.filter(NineXHeaders::isFramework)
-        require(framework.isEmpty()) { "migration-map.json keeps the 9.x framework headers $framework as request facts." }
+        require(framework.isEmpty()) {
+            "migration-map.json keeps the 9.x framework headers $framework as request facts."
+        }
         require(headers.values.none { it.isBlank() }) { "migration-map.json renames a header to a blank name." }
     }
 
@@ -104,7 +108,9 @@ data class AggregateMapping(
     }
 
     /** The 9.x aggregate. */
-    fun source(): NineXAggregate = from.lastIndexOf('.').let { NineXAggregate(from.substring(0, it), from.substring(it + 1)) }
+    fun source(): NineXAggregate = from.lastIndexOf('.').let {
+        NineXAggregate(from.substring(0, it), from.substring(it + 1))
+    }
 }
 
 /** The 9.x command [from] imported as the V10 command [to]. */

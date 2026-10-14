@@ -49,11 +49,7 @@ class StreamConverter(private val plan: MigrationPlan) {
         val subject = "9.x stream ${stream.id} (${stream.aggregate}/${stream.aggregateId} v${stream.version})"
         val commandType = aggregate.commandTypeOf(stream.commandName)
             ?: throw MigrationException("$subject: the 9.x command ${stream.commandName} has no mapping.")
-        val events = stream.events.mapNotNull { event ->
-            val mapping = aggregate.eventOf(event.name, event.revision)
-                ?: throw MigrationException("$subject: the 9.x event ${event.name}@${event.revision} has no mapping.")
-            mapping.to?.let { to -> EventRecord(aggregate.fullName(to), mapping.toRevision, payload(event.body, mapping)) }
-        }
+        val events = eventsOf(aggregate, stream, subject)
         if (events.isEmpty()) {
             // A version slot cannot be left empty, and V10 has no retired-event marker yet (roadmap P.6).
             throw MigrationException("$subject: every event of the stream is dropped, so its version would be empty.")
@@ -74,6 +70,15 @@ class StreamConverter(private val plan: MigrationPlan) {
             operator = NineXOperators.operatorOf(stream.header, tenantId),
         )
     }
+
+    private fun eventsOf(aggregate: AggregatePlan, stream: NineXStream, subject: String): List<EventRecord> =
+        stream.events.mapNotNull { event ->
+            val mapping = aggregate.eventOf(event.name, event.revision)
+                ?: throw MigrationException("$subject: the 9.x event ${event.name}@${event.revision} has no mapping.")
+            mapping.to?.let { to ->
+                EventRecord(aggregate.fullName(to), mapping.toRevision, payload(event.body, mapping))
+            }
+        }
 
     private fun payload(body: JsonNode, mapping: EventMapping): String {
         if (mapping.fields.isEmpty() || body !is ObjectNode) {

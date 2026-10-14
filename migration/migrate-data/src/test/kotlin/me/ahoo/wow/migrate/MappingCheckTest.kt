@@ -84,7 +84,13 @@ class MappingCheckTest {
             copy(events = events + EventMapping("order_created", "1.0.0", "OrderCreated", toRevision = 2))
         }
         val inventories = example.map {
-            if (it.aggregate == order) it.copy(events = it.events + (NineXEventType("order_created", "1.0.0") to 1L)) else it
+            if (it.aggregate == order) {
+                it.copy(
+                    events = it.events + (NineXEventType("order_created", "1.0.0") to 1L)
+                )
+            } else {
+                it
+            }
         }
         check(map, inventories).passed.assert().isTrue()
         val plan = MigrationPlan(map, NineXExample.manifest).of(order)
@@ -134,7 +140,11 @@ class MappingCheckTest {
                         aggregates = context.aggregates.map { aggregate ->
                             aggregate.copy(
                                 commands = aggregate.commands.map { it.copy(aliases = listOf("Old${it.name}")) },
-                                events = aggregate.events.map { it.copy(aliases = listOf("example.order.Old${it.name}")) },
+                                events = aggregate.events.map {
+                                    it.copy(
+                                        aliases = listOf("example.order.Old${it.name}")
+                                    )
+                                },
                             )
                         },
                     )

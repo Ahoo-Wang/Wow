@@ -96,7 +96,10 @@ class EventStreamImporterTest {
         val source = InMemoryNineXEventSource((1..5).map { copyOf(first, "order-$it") })
         val options = ImportOptions(pageSize = 2, concurrency = 2)
         checkpoints.save(
-            ImportCheckpoints().with(order, AggregateCheckpoint(startedAt = 1, after = NineXAggregateId("order-2", "(0)"))),
+            ImportCheckpoints().with(
+                order,
+                AggregateCheckpoint(startedAt = 1, after = NineXAggregateId("order-2", "(0)"))
+            ),
         )
         importer(source, options).importAll(order).also {
             it.instances.assert().isEqualTo(3)
@@ -216,12 +219,19 @@ class EventStreamImporterTest {
             AppendOutcome.Conflict(0),
             AppendOutcome.Committed(position),
         )
-        importer(InMemoryNineXEventSource(listOf(first)), target = flaky).importAll(order).imported.assert().isEqualTo(1)
+        importer(
+            InMemoryNineXEventSource(listOf(first)),
+            target = flaky
+        ).importAll(order).imported.assert().isEqualTo(1)
         val broken = mockk<EventLog>()
         coEvery { broken.append(any(), any()) } returns AppendOutcome.Unknown(IllegalStateException("timeout"))
         checkpoints.save(ImportCheckpoints())
         val failure = assertThrows<MigrationException> {
-            importer(InMemoryNineXEventSource(listOf(first)), ImportOptions(maxUnknownRetries = 1), broken).importAll(order)
+            importer(
+                InMemoryNineXEventSource(listOf(first)),
+                ImportOptions(maxUnknownRetries = 1),
+                broken
+            ).importAll(order)
         }
         failure.message!!.assert().contains("unknown")
     }

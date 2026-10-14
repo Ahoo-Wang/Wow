@@ -72,8 +72,6 @@ data class NineXStream(
         fun parse(node: JsonNode): NineXStream {
             require(node is ObjectNode) { "A 9.x event stream is a JSON object." }
             val id = node.textOf("_id") ?: node.requiredText("id")
-            val events = node.get("body")?.takeIf { it.isArray && it.size() > 0 }
-                ?: throw MigrationException("9.x stream $id has no events.")
             return NineXStream(
                 id = id,
                 aggregate = NineXAggregate(node.requiredText("contextName"), node.requiredText("aggregateName")),
@@ -82,28 +80,38 @@ data class NineXStream(
                 spaceId = node.textOf("spaceId").orEmpty(),
                 commandId = node.requiredText("commandId"),
                 requestId = node.textOf("requestId").orEmpty(),
-                version = node.get("version")?.takeIf { it.isIntegralNumber }?.asInt()
-                    ?: throw MigrationException("9.x stream $id has no version."),
-                header = node.get("header")?.properties()?.associate { (key, value) -> key to value.asString() }.orEmpty(),
-                events = events.toList().map { event ->
-                    NineXEvent(
-                        id = event.textOf("id").orEmpty(),
-                        name = event.textOf("name") ?: throw MigrationException("An event of 9.x stream $id has no name."),
-                        revision = event.textOf("revision") ?: DEFAULT_REVISION,
-                        body = event.get("body") ?: WowJson.mapper.createObjectNode(),
-                    )
-                },
-                createTime = node.get("createTime")?.takeIf { it.isIntegralNumber }?.asLong()
-                    ?: throw MigrationException("9.x stream $id has no createTime."),
+                version = node.requiredNumber("version").asInt(),
+                header = headerOf(node),
+                events = eventsOf(node, id),
+                createTime = node.requiredNumber("createTime").asLong(),
             )
+        }
+
+        private fun eventsOf(node: JsonNode, id: String): List<NineXEvent> {
+            val events = node.get("body")?.takeIf { it.isArray && it.size() > 0 }
+                ?: throw MigrationException("9.x stream $id has no events.")
+            return events.toList().map { event ->
+                NineXEvent(
+                    id = event.textOf("id").orEmpty(),
+                    name = event.textOf("name") ?: throw MigrationException("An event of 9.x stream $id has no name."),
+                    revision = event.textOf("revision") ?: DEFAULT_REVISION,
+                    body = event.get("body") ?: WowJson.mapper.createObjectNode(),
+                )
+            }
         }
 
         /** The revision of a 9.x event declared without one (9.x `DEFAULT_REVISION`). */
         const val DEFAULT_REVISION: String = "0.0.1"
 
+        private fun headerOf(node: JsonNode): Map<String, String> =
+            node.get("header")?.properties()?.associate { (key, value) -> key to value.asString() }.orEmpty()
+
         private fun JsonNode.textOf(field: String): String? = get(field)?.takeIf { it.isString }?.asString()
 
         private fun JsonNode.requiredText(field: String): String = textOf(field)?.takeIf { it.isNotBlank() }
+            ?: throw MigrationException("9.x stream ${textOf("_id") ?: textOf("id")} has no $field.")
+
+        private fun JsonNode.requiredNumber(field: String): JsonNode = get(field)?.takeIf { it.isIntegralNumber }
             ?: throw MigrationException("9.x stream ${textOf("_id") ?: textOf("id")} has no $field.")
     }
 }

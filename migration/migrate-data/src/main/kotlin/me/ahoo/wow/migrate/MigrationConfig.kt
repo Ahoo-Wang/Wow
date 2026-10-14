@@ -154,7 +154,9 @@ interface MigrationConnections : Closeable {
  * context's first use creates (with the configured partition count, which an existing log must already have).
  */
 class ConfiguredConnections(private val config: MigrationConfig) : MigrationConnections {
-    private val sourceClient: MongoClient = MongoClients.create(requireNotNull(MigrationConfig.resolve(config.source.uri)))
+    private val sourceClient: MongoClient = MongoClients.create(
+        requireNotNull(MigrationConfig.resolve(config.source.uri)),
+    )
     override val source: MongoNineXEventSource =
         MongoNineXEventSource(sourceClient.getDatabase(config.source.database))
     private val targetClient: MongoClient? = config.target.uri?.takeIf { config.target.type == TargetConfig.MONGO }

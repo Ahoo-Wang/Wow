@@ -74,8 +74,11 @@ class InMemoryCheckpointRepository(private var checkpoints: ImportCheckpoints = 
 
 /** A JSON file at [path], replaced atomically on each save, so a run stopped mid-write leaves the last one whole. */
 class FileCheckpointRepository(private val path: Path) : CheckpointRepository {
-    override fun load(): ImportCheckpoints =
-        if (Files.exists(path)) WowJson.mapper.readValue(path.toFile(), ImportCheckpoints::class.java) else ImportCheckpoints()
+    override fun load(): ImportCheckpoints = if (Files.exists(path)) {
+        WowJson.mapper.readValue(path.toFile(), ImportCheckpoints::class.java)
+    } else {
+        ImportCheckpoints()
+    }
 
     override fun save(checkpoints: ImportCheckpoints) {
         val temporary = path.resolveSibling("${path.fileName}.tmp")
