@@ -21,10 +21,12 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.job
 import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
@@ -46,9 +48,12 @@ import me.ahoo.wow.runtime.wait.admissionRejected
 import me.ahoo.wow.runtime.wait.isAcceptedOnly
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.id.IdGenerators
+import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.observation.observe
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.json.JsonMapper
 import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.time.Duration
 
 /**
@@ -119,6 +124,8 @@ class CommandGateway(
     detachedContext: CoroutineContext = Dispatchers.Default,
     /** The streams committed for a request, which a creation without an id looks up first (decision D191). */
     committed: CommittedRequests = CommittedRequests.NONE,
+    /** Sees each admission (decision D174); the admitted command executes in the admission's trace. */
+    private val observer: Observer = Observer.NONE,
 ) {
     private val creations = CreationIds(ids, committed)
 
@@ -147,16 +154,25 @@ class CommandGateway(
      * admitted when the flow is collected.
      */
     fun send(request: CommandRequest): Flow<CommandResult> = flow {
-        when (val admission = admitting(request)) {
+        val observed = observer.admitting(request.context, request.aggregate, request.command, request.trace)
+        val admission = observed.observe { admitting(request).also { observed.outcome(it.observedName) } }
+        when (admission) {
             is Admission.Refused -> emit(admission.result)
             is Admission.Admitted -> {
                 val coordinator = coordinators.getValue(admission.command.ref.type.context)
                 val from = admission.transformedFrom
+                // The command executes in the admission's trace (decision D174).
+                val trace = observed.context
                 if (admission.command.wait.isAcceptedOnly) {
-                    val accepted = coordinator.accept(admission.model, admission.command, detached)
+                    val accepted = if (trace === EmptyCoroutineContext) {
+                        coordinator.accept(admission.model, admission.command, detached)
+                    } else {
+                        withContext(trace) { coordinator.accept(admission.model, admission.command, detached) }
+                    }
                     emit(if (from == null) accepted else accepted.copy(transformedFrom = from))
                 } else {
-                    val results = coordinator.stream(admission.model, admission.command)
+                    val streamed = coordinator.stream(admission.model, admission.command)
+                    val results = if (trace === EmptyCoroutineContext) streamed else streamed.flowOn(trace)
                     emitAll(if (from == null) results else results.map { it.copy(transformedFrom = from) })
                 }
             }
@@ -410,6 +426,9 @@ class CommandGateway(
         ) : Admission
 
         class Refused(val result: CommandResult) : Admission
+
+        /** How the admission ended, as its observation names it (decision D174). */
+        val observedName: String get() = if (this is Refused) "refused" else "admitted"
     }
 
     companion object {

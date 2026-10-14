@@ -36,6 +36,7 @@ object V10Rules {
     val CLICKHOUSE = V10Module("clickhouse", "backends/clickhouse")
     val HTTP = V10Module("http", "edge/http")
     val COSEC = V10Module("cosec", "edge/cosec")
+    val OPENTELEMETRY = V10Module("opentelemetry", "edge/opentelemetry")
     val SPRING_BOOT = V10Module("spring-boot", "host/spring-boot")
     val COSID = V10Module("cosid", "extensions/cosid")
     val MIGRATE_DATA = V10Module("migrate-data", "migration/migrate-data")
@@ -60,7 +61,7 @@ object V10Rules {
 
     val MODULES = listOf(
         API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, HTTP,
-        COSEC, SPRING_BOOT, COSID, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
+        COSEC, OPENTELEMETRY, SPRING_BOOT, COSID, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
     ) + TEST_MODULES
 
     /** The eShop's five contexts (decision D158), each an `-api`, a `-domain` and a `-server` project. */
@@ -118,9 +119,12 @@ object V10Rules {
         // query for the query routes (06 §3, decisions D118, D127).
         HTTP to setOf("runtime", "query"),
         COSEC to setOf("http"),
+        // The core's observation seams (decision D174) and the query engine's observer; http for the tests only, which
+        // follow a trace from an HTTP request.
+        OPENTELEMETRY to setOf("runtime", "query", "http"),
         // postgres and mongo compileOnly: the backend follows the application's classpath (decision D110).
-        // query, kafka and clickhouse compileOnly too: each is wired when the application has it.
-        SPRING_BOOT to setOf("runtime", "http", "postgres", "mongo", "query", "kafka", "clickhouse"),
+        // query, kafka, clickhouse and opentelemetry compileOnly too: each is wired when the application has it.
+        SPRING_BOOT to setOf("runtime", "http", "postgres", "mongo", "query", "kafka", "clickhouse", "opentelemetry"),
         // CosId's generators as the node's (decision D171): the id SPIs only; it wires itself before the host.
         COSID to setOf("spi"),
         MIGRATE_DATA to setOf("kernel"),
@@ -185,6 +189,16 @@ object V10Rules {
         forbidden = listOf("me.ahoo.wow.runtime"),
     )
 
+    /**
+     * Observability is wired at fixed seams (decision D174, 06 §3): only wow-opentelemetry and the host that wires it
+     * import OpenTelemetry or Micrometer; the core exposes ports instead.
+     */
+    val ONLY_OPENTELEMETRY_OBSERVES = DependencyRule(
+        name = "only wow-opentelemetry and wow-spring-boot import OpenTelemetry or Micrometer",
+        modules = (MODULES - OPENTELEMETRY - SPRING_BOOT).map { it.dir },
+        forbidden = listOf("io.opentelemetry", "io.micrometer"),
+    )
+
     /** Only the host depends on Spring Boot. */
     val ONLY_HOST_USES_SPRING_BOOT = DependencyRule(
         name = "only wow-spring-boot imports Spring Boot",
@@ -247,6 +261,7 @@ object V10Rules {
         CORE_IS_FRAMEWORK_FREE,
         TEST_MODULES_ARE_FRAMEWORK_FREE,
         KERNEL_IGNORES_RUNTIME,
+        ONLY_OPENTELEMETRY_OBSERVES,
         ONLY_HOST_USES_SPRING_BOOT,
         MANIFEST_IS_PLAIN_DATA,
         QUERY_API_IS_PLAIN_DATA,
@@ -285,6 +300,7 @@ object V10Rules {
         "compiler" to "wow-compiler",
         "mongo" to "wow-mongo",
         "cosec" to "wow-cosec",
+        "opentelemetry" to "wow-opentelemetry",
     )
 
     /**

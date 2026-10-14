@@ -48,6 +48,8 @@ internal data class CommandTarget(val context: String, val aggregate: String, va
  * - the caller from [authenticator]; the wait (a plan that names no timeout waits the gateway's
  *   [default][CommandGateway.defaultWaitTimeout]), the target scope, the expected version and the request id from the Wow
  *   headers; the request facts [WowHttpOptions.requestFacts] lists as the command's headers; an empty body is `{}`;
+ * - the W3C trace context headers (`traceparent`, `tracestate`, `baggage`) as the request's trace (decision D174),
+ *   which the command's admission continues;
  * - without `Accept: text/event-stream`, the result the wait ends with: 200, or 202 for a plan that ends at ACCEPTED,
  *   with the [CommandResult]; a problem with the result when it did not succeed;
  * - with it, the first result decides: an admission refusal (a result at ACCEPTED that did not succeed) is a problem,
@@ -83,6 +85,7 @@ internal class CommandHandler(
             expectedVersion = expectedVersion,
             headers = headers.facts(request, options.requestFacts),
             wait = headers.wait(request, gateway.defaultWaitTimeout(target.context)),
+            trace = traceOf(request),
         )
         val ifMatch = request.headers().firstHeader(WowHeaders.IF_MATCH) != null
         return if (eventStream) stream(command, ifMatch) else execute(command, ifMatch)
@@ -124,6 +127,22 @@ internal class CommandHandler(
 
         /** The path variable of the aggregate id. */
         const val ID: String = "id"
+
+        /** The W3C trace context header that names the caller's span; without it a request carries no trace. */
+        const val TRACEPARENT: String = "traceparent"
+
+        /** The W3C trace context headers that go with [TRACEPARENT]. */
+        private val TRACE_STATE = listOf("tracestate", "baggage")
+
+        /** The W3C trace context [request] carries (decision D174); empty without a [TRACEPARENT]. */
+        internal fun traceOf(request: ServerRequest): Map<String, String> {
+            val headers = request.headers()
+            val parent = headers.firstHeader(TRACEPARENT) ?: return emptyMap()
+            return buildMap {
+                put(TRACEPARENT, parent)
+                TRACE_STATE.forEach { name -> headers.firstHeader(name)?.let { put(name, it) } }
+            }
+        }
 
         private val EMPTY_BODY = "{}".toByteArray()
     }
