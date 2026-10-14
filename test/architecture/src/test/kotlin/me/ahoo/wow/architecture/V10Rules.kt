@@ -34,6 +34,7 @@ object V10Rules {
     val MONGO = V10Module("mongo", "backends/mongo")
     val KAFKA = V10Module("kafka", "backends/kafka")
     val CLICKHOUSE = V10Module("clickhouse", "backends/clickhouse")
+    val OPENAPI = V10Module("openapi", "edge/openapi")
     val HTTP = V10Module("http", "edge/http")
     val COSEC = V10Module("cosec", "edge/cosec")
     val SPRING_BOOT = V10Module("spring-boot", "host/spring-boot")
@@ -59,7 +60,7 @@ object V10Rules {
     val TEST_MODULES = listOf(TEST_DSL, TCK, TCK_CONTAINERS)
 
     val MODULES = listOf(
-        API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, HTTP,
+        API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, OPENAPI, HTTP,
         COSEC, SPRING_BOOT, COSID, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
     ) + TEST_MODULES
 
@@ -115,8 +116,10 @@ object V10Rules {
         KAFKA to setOf("spi"),
         // query for the dataset backend (decision D142).
         CLICKHOUSE to setOf("spi", "query"),
-        // query for the query routes (06 §3, decisions D118, D127).
-        HTTP to setOf("runtime", "query"),
+        // The Manifest only (roadmap 5a.2); the eShop's domains only for the snapshot tests, which document its services.
+        OPENAPI to setOf("manifest") + ESHOP_CONTEXTS.map { "eshop-$it-domain" },
+        // query for the query routes (06 §3, decisions D118, D127); openapi for GET /wow/openapi.
+        HTTP to setOf("runtime", "query", "openapi"),
         COSEC to setOf("http"),
         // postgres and mongo compileOnly: the backend follows the application's classpath (decision D110).
         // query, kafka and clickhouse compileOnly too: each is wired when the application has it.
@@ -174,7 +177,7 @@ object V10Rules {
     /** The contract and core modules carry no runtime framework: no Spring, Reactor, HTTP or driver types. */
     val CORE_IS_FRAMEWORK_FREE = DependencyRule(
         name = "contract and core modules import no Spring, Reactor, HTTP or driver types",
-        modules = listOf(MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, QUERY).map { it.dir },
+        modules = listOf(MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, QUERY, OPENAPI).map { it.dir },
         forbidden = SPRING + REACTOR_TYPES + HTTP_TYPES + DRIVERS,
     )
 
@@ -285,6 +288,7 @@ object V10Rules {
         "compiler" to "wow-compiler",
         "mongo" to "wow-mongo",
         "cosec" to "wow-cosec",
+        "openapi" to "wow-openapi",
     )
 
     /**
