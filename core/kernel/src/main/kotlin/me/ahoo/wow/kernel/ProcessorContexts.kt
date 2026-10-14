@@ -71,7 +71,8 @@ class ExecutionSagaContext(
      * A command to [ref] asking [body]: its id and request id are [derivedId] of this execution and the call's index,
      * and its causation links it to the commit (`ref@version`) and to the root command of the chain; its operator is
      * the commit's, the root command's (decision D163), and so is its scope (decision D189): the owner and space of
-     * the commit, so an aggregate it creates belongs to them, and the kernel guards one it changes as for them (D94).
+     * the commit, so an aggregate it creates belongs to them; an existing one it changes is not checked against
+     * them (decision D199), and they are recorded for the audit.
      */
     override fun <C : Any> command(ref: AggregateRef, body: C): Command<C> {
         val id = derivedId(executionId, calls.getAndIncrement())
