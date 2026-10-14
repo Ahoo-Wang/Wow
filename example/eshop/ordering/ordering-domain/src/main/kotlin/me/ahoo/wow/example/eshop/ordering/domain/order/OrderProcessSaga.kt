@@ -50,8 +50,8 @@ import me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted
  *   releases nothing.
  * - [onOrderShipped]: a shipped order commits its reservations.
  *
- * A receipt is not a hop of a wait chain: a checkout's `Wow-Wait` follows the reservations to their commit in the
- * inventory, not the confirmations they send back.
+ * [onReserveCommitted] is a hop of a wait chain: a checkout's `Wow-Wait` follows the reservations to their commit in
+ * the inventory, then their receipts back to it, and on into the confirmations it derives.
  */
 @Saga
 class OrderProcessSaga {

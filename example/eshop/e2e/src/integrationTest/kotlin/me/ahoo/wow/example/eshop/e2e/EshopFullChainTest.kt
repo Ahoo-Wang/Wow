@@ -28,9 +28,8 @@ import java.time.Duration
  * the ordering on two nodes sharing its database, so a saga's commands are routed to their partitions' owners (G32).
  *
  * - **Full chain.** Products created and published in the catalog, stock received, a basket checked out with one
- *   `Wow-Wait` chain that follows the order through the ordering into the inventory until its reservations are
- *   committed; their success receipts confirm the order's stock (decision D192), the payment follows, then the order
- *   is shipped, and its reservations committed.
+ *   `Wow-Wait` chain that follows the order through the ordering, the inventory and the payment until the order's
+ *   `PayOrder` is committed, then shipped, and its reservations committed.
  * - **Rejection.** A stock too short cancels the order (the receipt's `@OnRejected`), and no payment is requested.
  * - **Sales.** The sales dataset over the ClickHouse view of the order stream: the revenue by status and by day.
  * - **Node killed.** The ordering node owning the order's partition is killed (`SIGKILL`) right after a checkout,
@@ -62,12 +61,12 @@ class EshopFullChainTest {
         addItem("alice", "cap", price("cap"), 1)
 
         val checkedOut = checkout("alice", mapOf(WAIT to FULL_CHAIN, WAIT_TIMEOUT to "30s"))
-        // The wait ends where the order's reservations are committed in the inventory: their success receipts
-        // confirm the order's stock (decision D192), which is no hop of the chain.
+        // The wait ends where the payment saga's PayOrder is committed in the ordering context.
         checkedOut["status"].asString().assert().describedAs(checkedOut.toString()).isEqualTo("SUCCEEDED")
         checkedOut["hop"]["stage"].asString().assert().isEqualTo("COMMITTED")
-        checkedOut["hop"]["context"].asString().assert().isEqualTo("eshop-inventory")
-        checkedOut["function"]["name"].asString().assert().isEqualTo("ReserveStock")
+        checkedOut["hop"]["context"].asString().assert().isEqualTo("eshop-ordering")
+        checkedOut["function"]["name"].asString().assert().isEqualTo("PayOrder")
+        checkedOut["ref"]["id"].asString().assert().isEqualTo("alice-1")
         basketItems("alice").assert().isEmpty()
 
         stack.eventually("alice-1 paid") { stack.orderStatus("alice-1") == "PAID" }
@@ -323,7 +322,7 @@ class EshopFullChainTest {
         const val REVENUE = """{"type":"NUMERIC","function":"SUM","expression":{"type":"FIELD","field":"totalAmount"},"alias":"revenue"}"""
         const val REPLACEMENT = "ordering-3"
         const val TO_ORDERING = EshopStack.CHECKOUT_TO_ORDER
-        const val FULL_CHAIN = EshopStack.CHECKOUT_TO_RESERVED
+        const val FULL_CHAIN = EshopStack.CHECKOUT_TO_PAID
         const val ANSWER = 300
         val TAKEOVER_BOUND: Duration = Duration.ofSeconds(90)
     }

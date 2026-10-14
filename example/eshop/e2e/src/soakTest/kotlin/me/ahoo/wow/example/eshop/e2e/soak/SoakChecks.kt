@@ -188,8 +188,8 @@ class SoakChecks(
     }
 
     /**
-     * Waits until every checked-out order has settled, shipping each paid one (no checkout's wait reaches the
-     * payment, decision D192), for at most [SoakConfig.quiescence]. Settled: shipped, or cancelled.
+     * Waits until every checked-out order has settled, shipping each paid one the client did not ship (its checkout
+     * did not see the payment), for at most [SoakConfig.quiescence]. Settled: shipped, or cancelled.
      */
     fun settle(load: SoakLoad) {
         val begun = System.nanoTime()

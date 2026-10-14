@@ -63,15 +63,19 @@ A declined payment's CancelOrder, and the grace period's scheduled one for an or
 - **Payment.** See [Payment](#payment). A client may still send `pay-order` itself, with the order's total.
 - **Buyer.** The order belongs to its buyer. The basket's owner is its buyer, and the checkout saga's `SubmitOrder` carries the basket's scope, as every command a saga derives carries the scope of the commit it handles (decision D189). The order takes its owner from that command, and so does the payment the payment context's saga creates for it.
 - **Stock confirmation.** The inventory sends the receipt of each reservation it commits back to `wow.eshop-ordering.receipts`, because `OrderProcessSaga` declares an `@OnCommitted` handler of `ReserveStock` (decision D192); the handler confirms the product on the order. The receipt carries the stock's id, its version and the command's result, not its state, and the saga handles each receipt once.
-- **Waiting for the order.** A checkout's `Wow-Wait` can follow the order into the inventory, in 7 hops, until its reservations are committed there. Each hop names its saga and context:
+- **Waiting for the order.** A checkout's `Wow-Wait` can follow the order the whole way to its payment, in 15 hops: every saga on the way, the ordering's `@OnCommitted` handler of the reservations' receipts included, until the payment's `PayOrder` is committed in the ordering context. Each hop names its saga and context:
 
   ```text
   committed > handled(eshop-basket/BasketCheckoutSaga.onBasketCheckedOut) > committed(eshop-ordering)
     > handled(eshop-ordering/OrderProcessSaga.onOrderSubmitted) > committed(eshop-ordering)
     > handled(eshop-ordering/OrderProcessSaga.onOrderAwaitingValidation) > committed(eshop-inventory)
+    > handled(eshop-ordering/OrderProcessSaga.onReserveCommitted) > committed(eshop-ordering)
+    > handled(eshop-payment/OrderPaymentSaga.onOrderStockConfirmed) > committed(eshop-payment)
+    > handled(eshop-payment/PaymentGatewaySaga.onPaymentRequested) > committed(eshop-payment)
+    > handled(eshop-payment/OrderPaymentSaga.onPaymentSucceeded) > committed(eshop-ordering)
   ```
 
-  (written on one line in the header). The basket knows only the ordering's Manifest, its one peer. It lets the inventory's hop through, and that hop is checked where the chain arrives (decision D190). Each saga adds two hops, its own and the next commit. The chain ends at the reservations: their receipts are not hops of a wait chain (decision D192), so a client reads the order to see its stock confirmed and its payment.
+  (written on one line in the header). The basket knows only the ordering's Manifest, its one peer. It lets the hops of the inventory and the payment through, and each is checked where the chain arrives (decision D190). Each saga adds two hops, its own and the next commit, and the 15 hops fit in the default of 16 (`wow.wait.max-hops`). Shipping is the client's command, so the wait cannot go past the payment. A reservation's receipt carries the rest of the chain back to the ordering, where the `@OnCommitted` handler's hop is signalled and its confirmation goes on with it (decision D192).
 
 ### Naming
 
