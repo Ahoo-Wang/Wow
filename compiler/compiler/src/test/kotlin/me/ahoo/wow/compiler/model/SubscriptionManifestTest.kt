@@ -308,6 +308,9 @@ class SubscriptionManifestTest {
 
                 @OnEvent(aggregates = ["inventory.stock"], start = OnEvent.Start.DEFAULT)
                 fun onStockAgain(event: StateEvent<StockView>): Command<*>? = null
+
+                @OnEvent(aggregates = ["shop.order"])
+                fun onOwnOrder(event: StateEvent<Order>): Command<*>? = null
             }
 
             @Projection
@@ -329,6 +332,7 @@ class SubscriptionManifestTest {
                 "Mailer.onOrder" to SubscriptionStart.END,
                 "Recent.onOrder" to SubscriptionStart.END,
                 "Replaying.onOrder" to SubscriptionStart.BEGINNING,
+                "Replaying.onOwnOrder" to SubscriptionStart.END,
                 "Replaying.onStock" to SubscriptionStart.END,
                 "Replaying.onStockAgain" to SubscriptionStart.BEGINNING,
             ),
@@ -339,6 +343,7 @@ class SubscriptionManifestTest {
                 "Mailer.onOrder" to StartFrom.END,
                 "Recent.onOrder" to StartFrom.END,
                 "Replaying.onOrder" to StartFrom.BEGINNING,
+                "Replaying.onOwnOrder" to StartFrom.END,
                 "Replaying.onStock" to StartFrom.END,
                 "Replaying.onStockAgain" to StartFrom.BEGINNING,
             ),

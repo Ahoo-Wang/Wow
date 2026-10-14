@@ -34,7 +34,7 @@ data class NodeIdentity(
     val node: String,
     val address: String?,
     val host: String,
-    val bindHost: String = host,
+    val bindHost: String,
 ) {
     /** The address of the internal port bound at [port]: [address] when configured, else [host] and [port]. */
     fun addressAt(port: Int): String = address ?: "$host:$port"

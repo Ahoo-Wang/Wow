@@ -80,7 +80,6 @@ internal object SubscriptionResolver {
     private const val AGGREGATES = "aggregates"
     private const val DERIVES = "derives"
     private const val SCHEDULES = "schedules"
-    private const val START = "start"
     private val STATE_EVENT = StateEvent::class.java.name
     private val COMMAND_REJECTED = CommandRejected::class.java.name
     private const val ANY = "kotlin.Any"
@@ -280,7 +279,7 @@ internal object SubscriptionResolver {
             aggregates = aggregates,
             derives = derives,
             schedules = schedules,
-            start = onEvent.start(),
+            start = startOf(function),
             derived = if (kind == Kind.SAGA) returned?.let { derivedClasses(it, reactor) } else null,
             retry = retry,
         )
@@ -399,18 +398,12 @@ internal object SubscriptionResolver {
 
     /**
      * `@OnEvent(start)` (decision D194): `BEGINNING` or `END` when the handler declares it, null for `DEFAULT` or
-     * without the argument.
+     * without the annotation.
      */
-    private fun KSAnnotation?.start(): String? {
-        val value = this?.arguments?.firstOrNull { it.name?.asString() == START }?.value
-        val name = when (value) {
-            is KSType -> value.declaration.simpleName.asString()
-            is KSDeclaration -> value.simpleName.asString()
-            null -> null
-            else -> value.toString().substringAfterLast('.')
-        }
-        return name?.takeUnless { it == OnEvent.Start.DEFAULT.name }
-    }
+    @OptIn(KspExperimental::class)
+    private fun startOf(function: KSFunctionDeclaration): String? =
+        function.getAnnotationsByType(OnEvent::class).map { it.start }
+            .firstOrNull { it != OnEvent.Start.DEFAULT }?.name
 
     private fun KSAnnotation.isOf(qualifiedName: String): Boolean =
         annotationType.resolve().declaration.qualifiedName?.asString() == qualifiedName

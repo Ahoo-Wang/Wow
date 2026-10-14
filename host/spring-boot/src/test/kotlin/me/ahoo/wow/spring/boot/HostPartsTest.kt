@@ -373,6 +373,11 @@ class WowPropertiesTest {
         NodeIdentity.of(properties, environment).bindHost.assert().isEqualTo("fd00::1")
         properties.node.address = "node-1.shop"
         NodeIdentity.of(properties, environment).bindHost.assert().isEqualTo("node-1.shop")
+        // A blank wow.internal.host is not set.
+        properties.internal.host = " "
+        NodeIdentity.of(properties, environment).bindHost.assert().isEqualTo("node-1.shop")
+        properties.node.address = " "
+        NodeIdentity.of(properties, environment).let { it.bindHost.assert().isEqualTo(it.host) }
         properties.internal.host = "0.0.0.0"
         NodeIdentity.of(properties, environment).bindHost.assert().isEqualTo("0.0.0.0")
         properties.internal.host = "127.0.0.1"

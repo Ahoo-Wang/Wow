@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.compiler.model
 
+import com.google.devtools.ksp.KspExperimental
+import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSType
@@ -29,7 +31,6 @@ internal object AggregateRootArguments {
     private const val PUBLISHED = "published"
     private const val PUBLISH_STATE = "publishState"
     private const val TOPIC = "topic"
-    private const val SNAPSHOT = "snapshot"
     private val TRANSFER_OWNER: String = Lifecycle.nameOf(TransferOwner::class.java)!!
 
     /** The lifecycle commands' system names, by their classes' names. */
@@ -57,10 +58,9 @@ internal object AggregateRootArguments {
     /**
      * Whether the aggregate keeps snapshots, as `@AggregateRoot(snapshot)` says (decisions D4, D195): true by default.
      */
+    @OptIn(KspExperimental::class)
     fun snapshot(root: KSClassDeclaration): Boolean =
-        root.annotations.firstOrNull {
-            it.annotationType.resolve().declaration.qualifiedName?.asString() == AGGREGATE_ROOT
-        }?.arguments?.firstOrNull { it.name?.asString() == SNAPSHOT }?.value as? Boolean ?: true
+        root.getAnnotationsByType(AggregateRoot::class).all { it.snapshot }
 
     /**
      * The aggregate's ownership as `@AggregateRoot(ownership)` declares it (decision D189): the name of the
