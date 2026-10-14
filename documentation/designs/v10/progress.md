@@ -2,7 +2,7 @@
 
 日期：2026-10-14。状态：持续维护（每次合并或定下决定后更新）。上位文档：[路线图](roadmap.md)。
 
-本文记录 V10 现在在哪、正在做什么、接下来做什么，以及推进的工作方式。决定在[决策台账](decisions.md)（D1～D204 已定；D123 由 D124 取代），工作包定义在[路线图](roadmap.md)；已合并的明细以 `git log origin/v10` 为准。
+本文记录 V10 现在在哪、正在做什么、接下来做什么，以及推进的工作方式。决定在[决策台账](decisions.md)（D1～D205 已定；D123 由 D124 取代），工作包定义在[路线图](roadmap.md)；已合并的明细以 `git log origin/v10` 为准。
 
 ## 1. 位置
 
@@ -42,7 +42,8 @@
 
 ## 4. 已知问题
 
-- **待用户批准**：夜间浸泡工作流 `v10-soak.yml`（由 `v10-nightly.yml` 触发，100 分钟超时，报告作为构件上传）；若定位 F1 需要协程转储，则新增测试依赖 `kotlinx-coroutines-debug`。
+- 已获批准（D205）：夜间浸泡工作流（`v10-soak-nightly` 进行中）、F1 定位用的测试依赖 `kotlinx-coroutines-debug`、发布配置（R.1，第一个预发布之前做）。
+- `HostKafkaRoutingTest` 端口冲突（Address already in use）偶发失败，并入 C.1 清理。
 - `KafkaCommandIntakeTest`（`:spring-boot` 集成测试）的 Kafka 容器启动偶发超时（E.8 的门禁上见到一次），并入 C.1 清理。
 - P.13 之后用户文档有三处过时（读重试、内部端口的默认绑定、eShop README 的 `start: beginning`），留给 9.1 重写。
 - 实现偏离登记在对应决定的「实现」说明里；专题文档 02 §1、04 §1～§2、05 §1、08 §4 已按 D163～D191 同步。
