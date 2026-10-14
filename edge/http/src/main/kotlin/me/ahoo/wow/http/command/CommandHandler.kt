@@ -57,7 +57,9 @@ internal data class CommandTarget(val context: String, val aggregate: String, va
  *   with the [CommandResult]; a problem with the result when it did not succeed;
  * - with it, the first result decides: an admission refusal (a result at ACCEPTED that did not succeed) is a problem,
  *   else 200 and one event per result, its id the result's index, its name the hop's stage, its data the result,
- *   until the wait ends; a rejection or a failure after admission is the stream's last event.
+ *   until the wait ends; a rejection or a failure after admission is the stream's last event, and so is a chain that
+ *   ended before its plan did, its result marked `chainEnded` with the hops not reached as `pending` (decision D212),
+ *   which is also the result answered without the event stream.
  *
  * The SSE results are collected in [scope], apart from the request, and handed over as the response is written; a
  * client that goes away cancels the collection.

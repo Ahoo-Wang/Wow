@@ -1799,7 +1799,7 @@
     "schemas" : {
       "wow.CommandResult" : {
         "type" : "object",
-        "description" : "How a command ended at a hop of its wait (decision D59).",
+        "description" : "How a command ended at a hop of its wait (decision D59); `chainEnded` and `pending` (the hops not reached) mark a chain that ended before its plan did (decision D212).",
         "properties" : {
           "format" : {
             "type" : "integer"
@@ -1857,6 +1857,15 @@
             }, {
               "type" : "null"
             } ]
+          },
+          "chainEnded" : {
+            "type" : "boolean"
+          },
+          "pending" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/wow.Hop"
+            }
           }
         },
         "required" : [ "format", "commandId", "requestId", "correlationId", "ref", "hop", "function", "status", "signalTime" ]

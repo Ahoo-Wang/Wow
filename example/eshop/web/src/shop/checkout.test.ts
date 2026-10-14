@@ -18,6 +18,7 @@ import { shopClients } from "./clients";
 import {
   checkout,
   CHECKOUT_TO_PAID,
+  isPaid,
   orderIdOf,
   type CheckoutProgress,
 } from "./checkout";
@@ -88,6 +89,34 @@ describe("the checkout", () => {
     expect(progress.results).toHaveLength(7);
     expect(progress.failure).toBe(progress.results[6]);
     expect(progress.done).toBe(true);
+  });
+
+  it("ends where the server says the chain ended, short of its plan", async () => {
+    const events = hops(14);
+    const ended = {
+      ...events[13],
+      chainEnded: true,
+      pending: [CHECKOUT_TO_PAID[14].hop],
+    };
+    const { transport } = fakeServices([
+      ["POST", /checkout-basket$/, () => ({ events: [...events.slice(0, 13), ended] })],
+    ]);
+    const progress = await checkout(shopClients(ALICE, transport), "alice", () => {});
+    expect(progress.results).toHaveLength(14);
+    expect(progress.ended).toEqual(ended);
+    expect(progress.failure).toBeUndefined();
+    expect(progress.done).toBe(true);
+    expect(isPaid(progress)).toBe(false);
+  });
+
+  it("is paid only when the chain reached its plan's last hop", async () => {
+    const { transport } = fakeServices([
+      ["POST", /checkout-basket$/, () => ({ events: hops(15) })],
+    ]);
+    const progress = await checkout(shopClients(ALICE, transport), "alice", () => {});
+    expect(isPaid(progress)).toBe(true);
+    expect(isPaid({ ...progress, done: false })).toBe(false);
+    expect(isPaid({ results: [], done: true })).toBe(false);
   });
 
   it("rejects with the problem when the checkout is refused at admission", async () => {

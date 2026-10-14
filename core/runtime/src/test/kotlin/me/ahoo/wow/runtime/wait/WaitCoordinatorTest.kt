@@ -401,14 +401,18 @@ class WaitCoordinatorTest {
     }
 
     @Test
-    fun `a saga deriving nothing completes the chain at its own hop`(): Unit = runBlocking {
+    fun `a saga deriving nothing ends the chain early at its own hop`(): Unit = runBlocking {
         started()
         val result = coordinator.execute(
             order,
             place(items = 0, wait = WaitPlan.of(Hop.handled("order.saga"), Hop.committed()))
         )
         result.hop.assert().isEqualTo(Hop.handled("order.saga", "shop"))
+        result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         result.derived.assert().isEmpty()
+        // The chain ended before its plan did (D212): the hop it did not reach is named.
+        result.chainEnded.assert().isTrue()
+        result.pending.assert().containsExactly(Hop.committed("shop"))
     }
 
     @Test

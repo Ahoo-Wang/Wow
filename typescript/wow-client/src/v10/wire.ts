@@ -130,6 +130,12 @@ export interface TransformedFrom {
  * hop of its wait chain. A command route answers the last one; its event
  * stream sends one per hop.
  *
+ * A chain can end before its plan does (decision D212): a hop, such as a
+ * saga's that sent no command (a declined payment, say), leaves nothing to
+ * reach the later hops. Its result is then the last one, at that hop with its
+ * own status, `chainEnded` and the hops not reached in `pending`; a server
+ * before D212 sends neither, so read them as `false` and empty when absent.
+ *
  * @typeParam R - The shape of `results`, what the command's decide function
  * answered with.
  */
@@ -154,6 +160,13 @@ export interface CommandResult<R = Record<string, unknown>> {
   /** When it was produced, in epoch milliseconds. */
   readonly signalTime: number;
   readonly transformedFrom?: TransformedFrom | null;
+  /**
+   * The chain ended at this hop before its plan did (decision D212): the
+   * hops in `pending` will not come.
+   */
+  readonly chainEnded?: boolean;
+  /** When `chainEnded`, the hops of the plan not reached, in order. */
+  readonly pending?: readonly Hop[];
 }
 
 /** The tags of an aggregate: names to values. */

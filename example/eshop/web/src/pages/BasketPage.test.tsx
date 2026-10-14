@@ -110,18 +110,28 @@ describe("the basket", () => {
     expect(screen.getByText(/15 of 15 hops/)).toBeInTheDocument();
   });
 
-  it("says when the chain ends short of the paid order", async () => {
-    // A declined payment: OrderPaymentSaga.onPaymentSucceeded sends nothing.
-    const { transport } = basket(() => ({ events: hops(14) }));
+  it("says when the chain ends short of the paid order, as the server says", async () => {
+    // A declined payment: OrderPaymentSaga.onPaymentSucceeded sends nothing, and the chain ends there (D212).
+    const events = hops(14);
+    events[13] = {
+      ...events[13],
+      chainEnded: true,
+      pending: [CHECKOUT_TO_PAID[14].hop],
+    };
+    const { transport } = basket(() => ({ events }));
     renderShop("/basket", ALICE, transport);
     await userEvent.click(await screen.findByRole("button", { name: "Check out" }));
     expect(
-      await screen.findByText(/the chain ended after 14 of 15 hops/),
+      await screen.findByText(
+        /the chain ended at handled\(eshop-payment\/OrderPaymentSaga\.onPaymentSucceeded\) without paying the order: Step13 sent no further command/,
+      ),
     ).toBeInTheDocument();
+    expect(screen.getByText(/committed\(eshop-ordering\) will not come/)).toBeInTheDocument();
+    expect(screen.queryByText(/Paid:/)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "alice-1" })).toBeInTheDocument();
-    expect(screen.getAllByTestId("checkout-hop")[14].dataset.state).toBe(
-      "not-reached",
-    );
+    const steps = screen.getAllByTestId("checkout-hop");
+    expect(steps[13].dataset.state).toBe("reached");
+    expect(steps[14].dataset.state).toBe("not-reached");
   });
 
   it("marks the hop that was rejected, with its code", async () => {

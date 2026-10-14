@@ -30,6 +30,9 @@ import java.time.Duration
  * - **Full chain.** Products created and published in the catalog, stock received, a basket checked out with one
  *   `Wow-Wait` chain that follows the order through the ordering, the inventory and the payment until the order's
  *   `PayOrder` is committed, then shipped, and its reservations committed.
+ * - **Declined payment** (G34, decision D212). The gateway declines a payment over its limit, so the payment saga's
+ *   `onPaymentSucceeded` sends nothing: the wait ends at that hop, marked as the chain's end, naming the order's
+ *   commit as the hop that will not come, answered at once and as server-sent events alike.
  * - **Rejection.** A stock too short cancels the order (the receipt's `@OnRejected`), and no payment is requested.
  * - **Sales.** The sales dataset over the ClickHouse view of the order stream: the revenue by status and by day.
  * - **Node killed.** The ordering node owning the order's partition is killed (`SIGKILL`) right after a checkout,
@@ -99,6 +102,52 @@ class EshopFullChainTest {
 
     @Test
     @Order(2)
+    fun `a declined payment should end the wait early, saying which hops will not come (G34, D212)`() {
+        product("tv", "Wow TV", "1500.00")
+        receive("tv", 2)
+        addItem("erin", "tv", price("tv"), 1)
+        addItem("frank", "tv", price("tv"), 1)
+
+        // Over the gateway's limit: the payment fails, onPaymentSucceeded sends nothing, onPaymentFailed cancels.
+        val ended = checkout("erin", mapOf(WAIT to FULL_CHAIN, WAIT_TIMEOUT to "30s"))
+        ended.assertEndedAtThePaymentSaga()
+        stack.eventually("erin-1 cancelled") { stack.orderStatus("erin-1") == "CANCELLED" }
+        checkNotNull(stack.payment("erin-1"))["status"].asString().assert().isEqualTo("FAILED")
+
+        // As server-sent events: one per hop reached, the last of them the chain's end, then the stream closes.
+        val streamed = stack.basket.post(
+            "/eshop-basket/basket/frank/checkout-basket",
+            "{}",
+            mapOf(WAIT to FULL_CHAIN, WAIT_TIMEOUT to "30s", "Accept" to "text/event-stream") +
+                EshopStack.buyer("frank"),
+        )
+        streamed.status.assert().describedAs(streamed.body).isEqualTo(OK)
+        val events = streamed.body.lineSequence().filter { it.startsWith("data:") }
+            .map { json.readTree(it.removePrefix("data:")) }.toList()
+        events.assert().describedAs(streamed.body).hasSize(FULL_CHAIN_HOPS - 1)
+        events.dropLast(1).map { it["chainEnded"].asBoolean() }.assert().doesNotContain(true)
+        events.last().assertEndedAtThePaymentSaga()
+        stack.eventually("frank-1 cancelled") { stack.orderStatus("frank-1") == "CANCELLED" }
+    }
+
+    /**
+     * This final result is the payment saga's hop that sent nothing for a declined payment (decision D212): reached,
+     * as it was, and marked as the chain's end, with the order's `PayOrder` commit as the hop that will not come.
+     */
+    private fun JsonNode.assertEndedAtThePaymentSaga() {
+        this["status"].asString().assert().describedAs(toString()).isEqualTo("SUCCEEDED")
+        this["hop"]["stage"].asString().assert().isEqualTo("HANDLED")
+        this["hop"]["context"].asString().assert().isEqualTo("eshop-payment")
+        this["hop"]["subscription"].asString().assert().isEqualTo("OrderPaymentSaga.onPaymentSucceeded")
+        this["derived"].values().toList().assert().isEmpty()
+        this["chainEnded"].asBoolean().assert().isTrue()
+        val pending = this["pending"].values().toList()
+        pending.map { it["stage"].asString() to it["context"].asString() }
+            .assert().containsExactly("COMMITTED" to "eshop-ordering")
+    }
+
+    @Test
+    @Order(3)
     fun `a stock too short should cancel the order and request no payment`() {
         product("pen", "Wow pen", "2.00")
         receive("pen", 1)
@@ -112,7 +161,7 @@ class EshopFullChainTest {
     }
 
     @Test
-    @Order(3)
+    @Order(4)
     fun `the sales dataset should sum the revenue of the orders by status and by day`() {
         val byStatus = """{"kind":"aggregate","filter":{"op":"IN","field":"aggregate_id","values":["alice-1","bob-1"]},""" +
             """"groupBy":[{"type":"TERMS","field":"status","alias":"status"}],""" +
@@ -134,7 +183,7 @@ class EshopFullChainTest {
     }
 
     @Test
-    @Order(4)
+    @Order(5)
     fun `an ordering node killed mid-flow should lose no effect and repeat none once replaced`() {
         product("kite", "Wow kite", "20.00")
         receive("kite", 10)
@@ -325,6 +374,7 @@ class EshopFullChainTest {
         const val REPLACEMENT = "ordering-3"
         const val TO_ORDERING = EshopStack.CHECKOUT_TO_ORDER
         const val FULL_CHAIN = EshopStack.CHECKOUT_TO_PAID
+        const val FULL_CHAIN_HOPS = 15
         const val ANSWER = 300
         val TAKEOVER_BOUND: Duration = Duration.ofSeconds(90)
     }

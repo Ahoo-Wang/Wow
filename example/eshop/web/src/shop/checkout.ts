@@ -84,7 +84,26 @@ export interface CheckoutProgress {
   readonly orderId?: string;
   /** Set when a hop ended the chain without success. */
   readonly failure?: CommandResult;
+  /**
+   * Set when the chain ended before its plan did (decision D212): the last
+   * result, at the hop that sent nothing further (a declined payment's
+   * `onPaymentSucceeded`), naming the hops that will not come as `pending`.
+   */
+  readonly ended?: CommandResult;
   readonly done: boolean;
+}
+
+/**
+ * Whether the checkout paid its order: the chain reached the last hop of its
+ * plan, as the server says by ending neither with a failure nor early.
+ */
+export function isPaid(progress: CheckoutProgress): boolean {
+  return (
+    progress.done &&
+    progress.results.length > 0 &&
+    !progress.failure &&
+    !progress.ended
+  );
 }
 
 /** The order id a checkout's result names: its `orderId` result, or the order a hop of the ordering acted on. */
@@ -101,7 +120,8 @@ export function orderIdOf(result: CommandResult): string | undefined {
  * Checks `basketId` out, waiting for the whole chain as server-sent events:
  * `onProgress` gets each hop's result as it arrives. An admission refusal
  * (an empty basket, say) rejects with its `WowProblemError`; a hop that does
- * not succeed ends the progress with its result as the `failure`.
+ * not succeed ends the progress with its result as the `failure`, and a chain
+ * that ends before its plan does with its last result as `ended`.
  */
 export async function checkout(
   clients: ShopClients,
@@ -129,10 +149,11 @@ export async function checkout(
       results: [...results],
       orderId: progress.orderId ?? orderIdOf(value),
       failure: value.status === "SUCCEEDED" ? undefined : value,
+      ended: value.chainEnded ? value : undefined,
       done: false,
     };
     onProgress(progress);
-    if (progress.failure) break;
+    if (progress.failure || progress.ended) break;
   }
   progress = { ...progress, done: true };
   onProgress(progress);

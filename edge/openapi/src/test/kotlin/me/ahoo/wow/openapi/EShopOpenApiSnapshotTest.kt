@@ -70,7 +70,8 @@ class EShopOpenApiSnapshotTest {
             "hop":{"stage":"HANDLED","context":"c","subscription":"s"},
             "function":{"kind":"SAGA","context":"c","processor":"p","name":"n"},"status":"FAILED","version":1,
             "duplicate":false,"error":{"code":"x","message":"m","violations":[{"path":"p","code":"c","message":"m"}]},
-            "results":{},"derived":[],"signalTime":1,"transformedFrom":{"command":"x","aggregateId":"y"}}"""
+            "results":{},"derived":[],"signalTime":1,"transformedFrom":{"command":"x","aggregateId":"y"},
+            "chainEnded":true,"pending":[{"stage":"COMMITTED","context":"c"}]}"""
 
         /** The Manifest of the eShop service of [context], merged from its domain's fragment. */
         fun manifest(context: String): Manifest {
