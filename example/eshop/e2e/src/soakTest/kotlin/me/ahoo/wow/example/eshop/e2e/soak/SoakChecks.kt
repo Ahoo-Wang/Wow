@@ -15,6 +15,7 @@ package me.ahoo.wow.example.eshop.e2e.soak
 
 import me.ahoo.wow.example.eshop.e2e.json
 import tools.jackson.databind.JsonNode
+import java.io.File
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.concurrent.thread
@@ -28,12 +29,20 @@ class SoakChecks(
     private val stack: SoakStack,
     private val config: SoakConfig,
     private val faults: FaultInjector,
+    private val evidence: File,
     private val log: (String) -> Unit,
 ) {
     val invariants = Invariants()
     private val running = AtomicBoolean(true)
     private var sampler: Thread? = null
     private val checkpoints = HashMap<String, Long>()
+
+    /** Since when each lease (`context|group|partition`) has had no live owner, and whether its stall is reported. */
+    private val unowned = HashMap<String, Long>()
+    private val stalled = HashSet<String>()
+
+    /** Every stall of a partition without an owner: when it began, when it ended, the thread dumps taken. */
+    val stalls = mutableListOf<MutableMap<String, Any?>>()
 
     /** Every parked entry seen, by database and key, with when it was first and last seen. */
     val parkedSeen = LinkedHashMap<String, MutableMap<String, Any?>>()
@@ -69,6 +78,7 @@ class SoakChecks(
                 stack.connect(SoakStack.DATABASES.getValue(context)).use { connection ->
                     val database = SoakDatabase(connection, context)
                     sampleCheckpoints(database)
+                    sampleLeases(database)
                     sampleParked(database)
                     if (samples % CONTIGUITY_EVERY == 1) checkContiguity(database)
                 }
@@ -98,6 +108,45 @@ class SoakChecks(
                     ),
                 )
                 log("checkpoint $id moved back from $before to $position")
+            }
+        }
+    }
+
+    /**
+     * Tracks each lease without a live owner; one still without after [OWNERLESS_LIMIT] is a stall, reported once with
+     * a thread dump of the context's nodes, and closed when the partition has an owner again.
+     */
+    private fun sampleLeases(database: SoakDatabase) {
+        val now = System.currentTimeMillis()
+        database.leases().forEach { (key, lease) ->
+            val id = "${database.context}|$key"
+            val (owner, expiresAt) = lease
+            if (expiresAt > now) {
+                unowned.remove(id)
+                if (stalled.remove(id)) {
+                    stalls.lastOrNull { it["lease"] == id }?.set("ended", now)
+                    stalls.lastOrNull { it["lease"] == id }?.set("owner", owner)
+                    log("lease $id has an owner again: $owner")
+                }
+                return@forEach
+            }
+            invariants.partitionsOwned.check()
+            val since = unowned.getOrPut(id) { now }
+            if (now - since > OWNERLESS_LIMIT.toMillis() && stalled.add(id)) {
+                val dumps = stack.threadDumps(database.context, evidence, "${id.replace('|', '_').replace('/', '_').replace(':', '_')}-$now")
+                val stall = linkedMapOf<String, Any?>(
+                    "lease" to id,
+                    "lastOwner" to owner,
+                    "unownedSince" to since,
+                    "reportedAt" to now,
+                    "ended" to null,
+                    "fault" to faultAround(since),
+                    "nodes" to stack.nodes(database.context).map { it.id },
+                    "threadDumps" to dumps.map { it.name },
+                )
+                stalls += stall
+                invariants.partitionsOwned.violate(stall)
+                log("lease $id has had no owner since $since (last $owner); thread dumps ${dumps.map { it.name }}")
             }
         }
     }
@@ -470,5 +519,6 @@ class SoakChecks(
         private val SETTLE_POLL: Duration = Duration.ofSeconds(5)
         private val SNAPSHOT_DEADLINE: Duration = Duration.ofSeconds(60)
         private val FAULT_TAIL: Duration = Duration.ofMinutes(1)
+        private val OWNERLESS_LIMIT: Duration = Duration.ofMinutes(1)
     }
 }

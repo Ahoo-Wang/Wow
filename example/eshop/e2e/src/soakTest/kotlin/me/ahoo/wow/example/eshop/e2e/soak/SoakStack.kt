@@ -20,6 +20,7 @@ import me.ahoo.wow.tck.containers.WowContainers
 import org.apache.kafka.clients.admin.Admin
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.admin.NewTopic
+import java.io.File
 import java.net.ServerSocket
 import java.sql.Connection
 import java.sql.DriverManager
@@ -99,6 +100,28 @@ class SoakStack(private val config: SoakConfig, private val log: (String) -> Uni
         log("node ${node.id} killed")
     }
 
+    /**
+     * A thread dump of every live node of [context] (`jcmd <pid> Thread.dump_to_file`), each written to [directory] as
+     * `threads-<node>-<tag>.txt`; the files written.
+     */
+    fun threadDumps(context: String, directory: File, tag: String): List<File> {
+        val jcmd = File(System.getProperty("java.home"), "bin/jcmd").path
+        directory.mkdirs()
+        return nodes(context).mapNotNull { node ->
+            val process = ProcessHandle.current().descendants()
+                .filter { handle -> handle.info().commandLine().orElse("").contains("--wow.node.id=${node.id}") }
+                .findFirst().orElse(null) ?: return@mapNotNull null
+            // Thread.dump_to_file holds the virtual threads too, which the services run their blocking calls on.
+            val file = File(directory, "threads-${node.id}-$tag.txt").absoluteFile
+            runCatching {
+                ProcessBuilder(jcmd, process.pid().toString(), "Thread.dump_to_file", "-format=text", file.path)
+                    .redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.DISCARD).start()
+                    .waitFor(DUMP_SECONDS, TimeUnit.SECONDS)
+                file.takeIf { it.exists() }
+            }.getOrNull()
+        }
+    }
+
     fun pausePostgres() {
         postgres.dockerClient.pauseContainerCmd(postgres.containerId).exec()
     }
@@ -161,6 +184,7 @@ class SoakStack(private val config: SoakConfig, private val log: (String) -> Uni
         const val KAFKA_PORT = 9092
         private const val RESTART_GRACE_SECONDS = 10
         private const val SOCKET_TIMEOUT_SECONDS = 30
+        private const val DUMP_SECONDS = 30L
         private val HEALTH_DEADLINE: Duration = Duration.ofMinutes(3)
         private val POLL: Duration = Duration.ofSeconds(1)
 

@@ -78,6 +78,12 @@ class Invariants {
         "checkpoints.monotonic",
         "No subscription checkpoint (wow_checkpoint, sampled in every database) ever moves backwards.",
     )
+    val partitionsOwned = Invariant(
+        "partitions.owned",
+        "Every partition of every lease group (a context's commands and subscriptions, a topic's intake) has a live " +
+            "owner again within a minute of losing one: a partition without stalls its commands and events until " +
+            "a node joins or leaves. A stall is reported once, with a thread dump of the context's nodes.",
+    )
     val parkedEmpty = Invariant(
         "parked.empty",
         "The failure ledger (wow_failure_ledger) of every database is empty at the end; an entry seen while the " +
@@ -96,6 +102,6 @@ class Invariants {
 
     val all: List<Invariant> = listOf(
         exactlyOnce, logContiguous, noDuplicateEffects, flowsComplete,
-        checkpointsMonotonic, parkedEmpty, waitsAnswered, readModelsConverge,
+        checkpointsMonotonic, partitionsOwned, parkedEmpty, waitsAnswered, readModelsConverge,
     )
 }

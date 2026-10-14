@@ -51,7 +51,7 @@ class EshopSoakTest {
             seed(stack)
             log("started in ${System.currentTimeMillis() - begun} ms")
             val faults = FaultInjector(stack, config, ::log)
-            val checks = SoakChecks(stack, config, faults, ::log)
+            val checks = SoakChecks(stack, config, faults, File(config.dir, "evidence-$stamp"), ::log)
             val load = SoakLoad(stack, config, ::log)
             checks.startSampling()
             val loadBegan = System.currentTimeMillis()
@@ -77,6 +77,7 @@ class EshopSoakTest {
             report["faults"] = faults.timeline.map(SoakSummary::fault)
             report["samples"] = mapOf("taken" to checks.samples, "failed" to checks.failedSamples)
             report["parkedSeen"] = checks.parkedSeen.values.toList()
+            report["stalls"] = checks.stalls.toList()
             report["invariants"] = checks.invariants.all.map { it.describe() }
             violations = checks.invariants.all.sumOf { it.violated }
             report["violations"] = violations

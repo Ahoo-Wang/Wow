@@ -38,6 +38,11 @@ class SoakDatabase(private val connection: Connection, val context: String) {
         "SELECT subscription_group, subscription, partition, position FROM wow_checkpoint",
     ) { "${it.getString(1)}|${it.getString(2)}|${it.getInt(3)}" to it.getLong(4) }.toMap()
 
+    /** The leases (`wow_lease`): `group|partition` to its owner and when it expires (epoch milliseconds, 0 released). */
+    fun leases(): Map<String, Pair<String, Long>> = query(
+        "SELECT subscription_group, partition, owner, expires_at FROM wow_lease",
+    ) { "${it.getString(1)}|${it.getInt(2)}" to (it.getString(3) to it.getLong(4)) }.toMap()
+
     /** The parked entries, keyed by subscription and aggregate. */
     fun parked(): Map<String, Map<String, Any?>> = query(
         "SELECT subscription, context, aggregate_name, tenant_id, aggregate_id, from_version, reason, failed_at " +
