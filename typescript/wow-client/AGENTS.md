@@ -168,9 +168,20 @@ src/
     operator.ts               — Operator enum — use FilterOperator
     queryable.ts              — Condition queries and their factories
     locale/                   — i18n for the Operator enum (en_US, zh_CN)
+  v10/                        — `@ahoo-wang/wow-client/v10`: the client of a Wow V10 service's routes (design §8)
+    index.ts                  — The entry
+    wire.ts                   — The V10 wire model: CommandResult, Hop, StateView, SnapshotRecord, EventStreamRecord, …
+    problem.ts                — Problem, FrameworkErrorCodes, WowProblemError and its retry hint, toWowProblemError
+    wait.ts                   — wait.* hops, formatWaitPlan, formatWaitTimeout (the Wow-Wait grammar)
+    http.ts                   — WowV10Headers, WowClientOptions, formatScope; (internal) send, path expansion
+    streams.ts                — CommandResultStream; (internal) the SSE readers of command results and query rows
+    commands.ts               — CommandGateway (commands, their streams, lifecycle routes), CommandOptions
+    queries.ts                — QueryModelClient, SnapshotQueryClient, EventQueryClient, DatasetClient
+    state.ts                  — StateClient: state reads at a version or a time, and traces
+    manifest.ts               — The Manifest's types and fetchManifest (GET /wow/manifest)
 scripts/
   verify-package.mjs          — Run by the build: entries resolve, export what test/surface/ lists, /dsl loads no HTTP code, the root entry tree-shakes, no declaration maps, each ES entry under its gzip ceiling
-  size-budget.json            — The gzip regression ceilings of the root entry, /dsl and /legacy (typescript/AGENTS.md「Size ceilings」)
+  size-budget.json            — The gzip regression ceilings of the root entry, /dsl, /legacy and /v10 (typescript/AGENTS.md「Size ceilings」)
   api-report.mjs              — `pnpm test:api`: holds the built declarations to test/api/ (-u to accept a change) and fails on a top-level declaration without a doc comment
 test/
   surface/                    — The public surface of each entry, one name a line
@@ -201,7 +212,10 @@ test/
   streams answer rows, so it names no event type), and `legacy/` only from
   `client/query/requests.ts`, as types.
 - `legacy/` imports only `dsl/`. The entries (`index.ts`, `dsl.ts`,
-  `legacy/index.ts`) only re-export and are not restricted.
+  `legacy/index.ts`, `v10/index.ts`) only re-export and are not restricted.
+- `v10/` imports `dsl/` as types only, fetcher and fetcher-eventstream; never
+  `client/`, `transport/`, `model/`, `error/`, `legacy/` or fetcher-decorator.
+  Its wire model, problems and streams are V10's own.
 
 A new edge is a design change: change §2.2 of the design page and the rule together, and add the
 edge to `test/layerBoundaries.test.ts`.
@@ -233,8 +247,8 @@ the `code`, `path` and `message` of its first coded binding error):
 
 ## Public surface
 
-The root entry (`src/index.ts`), `/dsl` (`src/dsl.ts`) and `/legacy`
-(`src/legacy/index.ts`) are the only entries. Their exports are listed name by name under `test/surface/`; a
+The root entry (`src/index.ts`), `/dsl` (`src/dsl.ts`), `/legacy`
+(`src/legacy/index.ts`) and `/v10` (`src/v10/index.ts`) are the only entries. Their exports are listed name by name under `test/surface/`; a
 new export, or a removed one, changes a list, and the change is made on
 purpose with `pnpm exec vitest run test/publicSurface.test.ts -u`. The build
 runs `scripts/verify-package.mjs`, which holds the built ES module and
@@ -254,7 +268,7 @@ A module with a top-level side effect that a client does not need breaks this.
 The names are not the whole contract; three baselines hold the rest, and a
 refactor must leave all three unchanged:
 
-- **Signatures.** `test/api/{root,dsl,legacy}.api.md` are API Extractor
+- **Signatures.** `test/api/{root,dsl,legacy,v10}.api.md` are API Extractor
   reports of the built declarations: every export with its parameter and
   return types, generic defaults, optional markers and enum values, plus the
   shapes of the unexported types a signature names. `pnpm test:api` (the last

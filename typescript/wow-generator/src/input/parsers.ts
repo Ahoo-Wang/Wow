@@ -33,6 +33,28 @@ export async function parseOpenAPI(
   inputPath: string,
   options?: LoadResourceOptions,
 ): Promise<OpenAPI> {
+  return validateOpenAPIDocument(
+    await loadDocument(inputPath, options),
+    inputPath,
+  );
+}
+
+/**
+ * Loads and parses the input document, an OpenAPI 3 document or a Wow
+ * Manifest, without checking which it is.
+ *
+ * Every failure is a {@link GeneratorError} of kind `input` whose message
+ * names the document: it cannot be read or fetched, or it is neither JSON
+ * nor YAML.
+ *
+ * @param inputPath - The path or http(s) URL of the document
+ * @param options - Headers and timeout for an http(s) document
+ * @returns The parsed document
+ */
+export async function loadDocument(
+  inputPath: string,
+  options?: LoadResourceOptions,
+): Promise<unknown> {
   let content: string;
   try {
     content = await loadResource(inputPath, options);
@@ -43,9 +65,8 @@ export async function parseOpenAPI(
       { cause: error },
     );
   }
-  let document: unknown;
   try {
-    document = parseContent(content);
+    return parseContent(content);
   } catch (error) {
     throw new GeneratorError(
       'input',
@@ -53,7 +74,6 @@ export async function parseOpenAPI(
       { cause: error },
     );
   }
-  return validateOpenAPIDocument(document, inputPath);
 }
 
 /**

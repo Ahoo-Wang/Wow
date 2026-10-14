@@ -40,6 +40,7 @@ src/
     query/        QueryApi、requests.ts（唯一的 /legacy 兼容缝）、factory.ts（QueryClientFactory）、snapshot/ event/ state/ descriptor/（接口＋客户端＋内部端点路径）
     metadata/     WowMetadata、WowMetadataClient
   legacy/       已弃用的 Condition API，v10 删除
+  v10/          `/v10` 入口：V10 服务公开路由的客户端（§8）；自带线协议模型、problem 与流，不引 9.x 的 client/transport/model/error
 ```
 
 ### 2.2 依赖规则
@@ -59,6 +60,8 @@ graph TD
   client -. 仅 requests.ts，只引类型 .-> legacy
   transport --> fetcher["fetcher / fetcher-eventstream"]
   client --> decorator["fetcher / fetcher-decorator"]
+  v10 -. 只引类型 .-> dsl
+  v10 --> v10fetch["fetcher / fetcher-eventstream"]
 ```
 
 图里没有的边一律禁止。`eslint.config.js` 用 `@typescript-eslint/no-restricted-imports` 按目录各一段规则强制：
@@ -67,6 +70,7 @@ graph TD
 - `transport/` 不引 `client/`、`dsl/` 或 fetcher-decorator。
 - `client/` 不引 fetcher-eventstream，类型也不引：流给出的是行，客户端层不再提到服务端事件；只有 `client/query/requests.ts` 能以类型引 `legacy/`。
 - `legacy/` 只引 `dsl/`；入口只转出，不受限。
+- `v10/` 只以 `import type` 引 `dsl/`（查询的类型），可引 fetcher 与 fetcher-eventstream；不引 `client/`、`transport/`、`model/`、`error/`、`legacy/` 与 fetcher-decorator。V10 的命令结果、错误与流的约定都与 9.x 不同（§8），共用 9.x 的模块只会让两边互相牵制。
 
 `test/layerBoundaries.test.ts` 为每条禁止的边造一个违规并断言规则报错，为允许的边断言不报，最后断言整个 `src/` 零违规。加一条边是设计变更：本节与规则、测试一起改。
 
@@ -90,14 +94,14 @@ graph TD
 
 ## 5. 公开面与基线
 
-入口只有三个：根（`src/index.ts`）、`/dsl`（`src/dsl.ts`）、`/legacy`（`src/legacy/index.ts`）。重构要证明行为不变，改 API 要让差异逐条可见，靠四份基线：
+入口有四个：根（`src/index.ts`）、`/dsl`（`src/dsl.ts`）、`/legacy`（`src/legacy/index.ts`）与 `/v10`（`src/v10/index.ts`，§8）。重构要证明行为不变，改 API 要让差异逐条可见，靠四份基线：
 
-| 基线       | 文件                                 | 由谁维持                                                                                 |
-| ---------- | ------------------------------------ | ---------------------------------------------------------------------------------------- |
-| 名字       | `test/surface/{root,dsl,legacy}.txt` | `test/publicSurface.test.ts`；构建后 `scripts/verify-package.mjs` 对 ESM 与 CJS 再核一遍 |
-| 签名       | `test/api/{root,dsl,legacy}.api.md`  | `pnpm test:api`（API Extractor，读构建出的声明；入口的顶层声明缺文档注释也失败）         |
-| DSL 线协议 | `test/golden/dsl-wire.json`          | `test/dslWire.test.ts`：每个构建器（含嵌套命名空间）都要有用例                           |
-| 客户端端点 | `test/golden/client-endpoints.json`  | `test/client/endpointTable.test.ts`：反射列出每个客户端方法，记下请求、结果与流在哪里停  |
+| 基线       | 文件                                     | 由谁维持                                                                                 |
+| ---------- | ---------------------------------------- | ---------------------------------------------------------------------------------------- |
+| 名字       | `test/surface/{root,dsl,legacy,v10}.txt` | `test/publicSurface.test.ts`；构建后 `scripts/verify-package.mjs` 对 ESM 与 CJS 再核一遍 |
+| 签名       | `test/api/{root,dsl,legacy,v10}.api.md`  | `pnpm test:api`（API Extractor，读构建出的声明；入口的顶层声明缺文档注释也失败）         |
+| DSL 线协议 | `test/golden/dsl-wire.json`              | `test/dslWire.test.ts`：每个构建器（含嵌套命名空间）都要有用例                           |
+| 客户端端点 | `test/golden/client-endpoints.json`      | `test/client/endpointTable.test.ts`：反射列出每个客户端方法，记下请求、结果与流在哪里停  |
 
 行为不变的批次四份逐字节不变；API 变化的批次在 PR 里列出差异并有意接受（`-u`）。
 
@@ -136,6 +140,18 @@ graph TD
 - **类型的位置。** 描述是线协议类型，引用 `FilterOperator`、`SearchMode` 等 DSL 枚举，而 `model/` 不能引 `dsl/`，所以放在 `dsl/descriptor.ts`，根入口与 `/dsl` 都导出：视图引擎做准入时不必加载 HTTP 代码。
 - **开放与封闭。** OpenAPI 里是枚举的（`FilterOperator`、`PagingMode`、`QueryValueKind`、`SearchMode`、`DeletionState`）用 enum；是普通字符串的（模型、值类型、系统字段角色、约束类型、分组、函数、指标）是「已知联合 + `string & {}`」，并给出已知值的冻结对象。Kotlin 的 `@JsonInclude(NON_NULL)` 类把 null 省掉，对应属性是可选的；`LimitsDescriptor` 没有这个注解，发 `null`，类型是 `number | null`。`integration-test` 的 `wowOpenApi.test.ts` 逐类型核对属性集合、开放或封闭、可空属性。
 - **不缓存。** 客户端不持有描述；缓存与重新验证的时机归调用方（视图引擎的设计见 `typescript/wow-view-engine/docs/design/capabilities.md`）。
+
+## 8. V10 客户端层（roadmap 5a.3，2026-10-14）
+
+V10 服务的公开路由（`:http`）与 9.x 不同：命令按 `POST /{ctx}/{agg}/{id}/{命令}` 与不带 `{id}` 的创建路由发送（D176、D195），等待由 `Wow-Wait`、`Wow-Wait-Timeout` 表达（D98、D99），错误是 RFC 9457 problem（D101～D103），查询是 `POST …/{model}/query` 按正文的 `kind` 分派（D127），另有状态读取（D40）、数据集（D145）与 `GET /wow/manifest`（D74）。`/v10` 是它们的客户端，也是 wow-generator 从 Manifest 生成的代码所依赖的入口。
+
+- **加法，不碰 9.x。** 根、`/dsl`、`/legacy` 的名字与签名不变；9.x 用户不受影响。`v10/` 不复用 9.x 的 `model/`、`error/`、`transport/`：`CommandResult` 的形状（`hop`、`function`、`error.code`）、错误（problem 而非 `ErrorInfo`）与流的约定（命令按阶段命名事件，查询以 `row`/`error` 事件）都是 V10 自己的。查询的过滤、排序、投影仍用 `/dsl` 构建，只以类型引用。
+- **传输。** 每个请求经应用的 `Fetcher`（`WowClientOptions.fetcher`，缺省是默认 fetcher；`basePath` 可选），认证等拦截器照常生效。路径由客户端自己展开并编码（`{id}`），不依赖 fetcher 的模板风格。非 2xx 由 fetcher 的状态校验抛出，`send` 读成 `WowProblemError`；需要 304 的读取（描述、状态）显式放行。
+- **错误与重试提示。** `WowProblemError` 带 problem 原文、`code`（缺省时从 `urn:wow:error:<code>` 读出）、`violations`、命令的 `result` 与 `Retry-After`。`retry` 给出能否重试、是否沿用同一 `Wow-Request-Id`（让已提交的命令以重复应答）与等待时长：503 的 `wow.command.unknown`、`wow.node.closing`、`wow.storage.unavailable`、`wow.schedule.not-due`、`wow.query.timeout`，429 的 `wow.command.busy`，409 的 `wow.command.contended` 与 504 的 `wow.wait.timeout` 可重试，没有码的 503（代理的）也可以。命令被拒默认以错误拒绝，`resolveRejected` 可改为返回结果。
+- **流。** 命令流每跳一个 `CommandResult`，准入之后的拒绝是最后一个结果而不是错误；查询列表流读 `row` 事件（无名事件同样当作行），`error` 事件以它的 problem 结束流。两者都用 fetcher-eventstream 的纯函数解析，不经 9.x 的提取器。
+- **等待计划。** `wait.*` 构建跳、`formatWaitPlan` 按 `WaitHeader` 的语法拼写（`handled(ctx/sub)`、`snapshot(ctx)`），名字按服务端的字符集预检。生成代码给每个上下文一个 `<ctx>Wait`，其 `handled` 只收 Manifest 里该上下文的订阅名。
+- **类型参数。** `SnapshotQueryClient<S, STATE_FIELDS>` 让过滤字段限于系统字段与 Manifest 推出的 `state.*` 路径；`EventQueryClient<E>`、`StateClient<S, E>` 的事件是 `EventView<名字, 正文>` 的联合。
+- **把关。** `test/v10/` 对一个桩 `fetch` 核对每个方法的请求、结果与错误；层规则见 §2.2；名字、签名基线与体积上限（`scripts/size-budget.json` 的 `./v10`）同其他入口；`package-check.mjs` 在新项目里 import、require 并类型检查 `/v10`。
 
 ## 附录：2026-09 首发前的架构审查与重构方案
 

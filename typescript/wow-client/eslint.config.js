@@ -55,6 +55,7 @@ function layerBoundaries() {
     model: dir('model'),
     error: dir('error'),
     legacy: dir('legacy'),
+    v10: dir('v10'),
   };
   const packages = {
     fetcher: '^@ahoo-wang/fetcher',
@@ -127,6 +128,23 @@ function layerBoundaries() {
       rules: rule([
         deny('client', layer.legacy, { allowTypeImports: true }),
         deny('client', packages.eventstream),
+      ]),
+    },
+    {
+      // The V10 client stands on its own: its wire model, problems and
+      // streams are V10's, so it reaches the 9.x clients, transport, model
+      // and errors not at all, and the DSL only for the query types.
+      files: ['src/v10/**/*.ts'],
+      ignores: ['src/v10/index.ts'],
+      rules: rule([
+        deny('v10', layer.client),
+        deny('v10', layer.transport),
+        deny('v10', layer.legacy),
+        deny('v10', layer.model),
+        deny('v10', layer.error),
+        deny('v10', layer.dsl, { allowTypeImports: true }),
+        deny('v10', packages.decorator),
+        deny('v10', packages.reflect),
       ]),
     },
     {

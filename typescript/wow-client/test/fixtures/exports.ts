@@ -26,6 +26,7 @@ export const ENTRIES = {
   '@ahoo-wang/wow-client': 'src/index.ts',
   '@ahoo-wang/wow-client/dsl': 'src/dsl.ts',
   '@ahoo-wang/wow-client/legacy': 'src/legacy/index.ts',
+  '@ahoo-wang/wow-client/v10': 'src/v10/index.ts',
 } as const;
 
 export type Entry = keyof typeof ENTRIES;

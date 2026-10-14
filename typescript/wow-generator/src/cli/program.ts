@@ -69,10 +69,12 @@ export function setupCLI(target: Command = program): Command {
 
   target
     .command('generate')
-    .description('Generate TypeScript code from OpenAPI specification')
+    .description(
+      'Generate TypeScript code from an OpenAPI specification or a Wow V10 Manifest',
+    )
     .requiredOption(
       '-i, --input <file>',
-      'Input OpenAPI specification file path or URL (http/https)',
+      'Input OpenAPI specification or Wow Manifest (GET /wow/manifest) file path or URL (http/https)',
     )
     .option('-o, --output <path>', 'Output directory path', 'src/generated')
     // No commander default: an omitted -c falls back to DEFAULT_CONFIG_PATH,
