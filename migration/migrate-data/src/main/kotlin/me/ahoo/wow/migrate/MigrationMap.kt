@@ -36,7 +36,8 @@ import tools.jackson.databind.json.JsonMapper
  *           "upgrade": "upgradeOrderCreatedFrom1" },
  *         { "from": "owner_transferred", "to": "wow.lifecycle.OwnerTransferred", "fields": { "toOwnerId": "ownerId" } },
  *         { "from": "order_archived", "drop": true }
- *       ]
+ *       ],
+ *       "state": { "fields": { "orderStatus": "status" }, "ignore": ["payable", "items.totalPrice"] }
  *     }
  *   ]
  * }
@@ -48,7 +49,9 @@ import tools.jackson.databind.json.JsonMapper
  *   header is dropped: 9.x framework headers ([NineXHeaders.FRAMEWORK]) become fields of their own or go (design 07
  *   §3), and a request fact not listed here is not recorded (decision D163).
  *
- * A file of another [format] is refused, as is a property this format does not define.
+ * A file of another [format] is refused, as is a property this format does not define. [AggregateMapping.state] joined
+ * format 1 with the state comparison (roadmap 8b.2) as an optional property, not a new format: a map without it reads
+ * as before, and only `compare` reads it.
  */
 data class MigrationMap(
     val format: Int,
@@ -88,6 +91,8 @@ data class MigrationMap(
  * - [defaultCommand] is the V10 command name of a stream that records no command name; without it, such a stream
  *   fails the check.
  * - [events] map the 9.x event names (and revisions) to V10 event names and revisions, or drop them.
+ * - [state] says how a 9.x snapshot's state reads as the V10 state when `compare` compares them ([StateMapping]);
+ *   by default field for field.
  *
  * A V10 name without a dot is the simple name in [to]'s namespace (`OrderCreated` is `example.order.OrderCreated`);
  * one with a dot is a system name such as `wow.lifecycle.AggregateDeleted`.
@@ -98,6 +103,7 @@ data class AggregateMapping(
     val commands: List<CommandMapping> = emptyList(),
     val events: List<EventMapping> = emptyList(),
     val defaultCommand: String? = null,
+    val state: StateMapping = StateMapping(),
 ) {
     init {
         val dot = from.lastIndexOf('.')
@@ -147,5 +153,27 @@ data class EventMapping(
         require(to == null || to.isNotBlank()) { "The event mapping of $from names a blank V10 event." }
         require(toRevision >= 1) { "The event mapping of $from has a V10 revision below 1." }
         require(!drop || fields.isEmpty()) { "The event mapping of $from drops it and renames its fields." }
+    }
+}
+
+/**
+ * How a 9.x snapshot's state reads as the V10 state, for the state comparison only ([StateDiff]; the import does not
+ * read it):
+ *
+ * - [fields] renames top-level fields of the 9.x state, 9.x name to V10 name, where the Skill renamed a state
+ *   property;
+ * - [ignore] lists fields left out of the comparison on both sides, by their V10 name: a dotted path (`items.price`)
+ *   goes into objects, and through an array into each of its elements. It is for a field only one side has by design
+ *   (a 9.x property V10 dropped, a V10 property 9.x never had), an explained difference (design 07 §3 step 4), not for
+ *   hiding values that differ.
+ */
+data class StateMapping(val fields: Map<String, String> = emptyMap(), val ignore: List<String> = emptyList()) {
+    init {
+        require(fields.keys.none { it.isBlank() } && fields.values.none { it.isBlank() }) {
+            "A state field mapping names both fields."
+        }
+        require(ignore.none { path -> path.split('.').any { it.isBlank() } }) {
+            "An ignored state field is a dotted path of names: $ignore"
+        }
     }
 }

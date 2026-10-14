@@ -16,6 +16,7 @@ package me.ahoo.wow.migrate
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.mongodb.client.MongoDatabase
+import com.mongodb.client.model.ReplaceOptions
 import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.tck.containers.WowContainers
@@ -32,9 +33,23 @@ object NineXMongoStore {
 
     private val databases = AtomicInteger()
 
-    /** A fresh database holding the 9.x example's streams. */
+    /** A fresh database holding the 9.x example's streams and snapshots. */
     fun example(): MongoDatabase = client.getDatabase("ninex_example_${databases.incrementAndGet()}").also { database ->
         (NineXExample.ORDER_STREAMS + NineXExample.CART_STREAMS).forEach { insert(database, NineXExample.resource(it)) }
+        NineXExample.SNAPSHOTS.forEach { saveSnapshot(database, NineXExample.resource(it)) }
+    }
+
+    /**
+     * Saves the snapshot whose JSON is [text] into [database] as 9.x's `MongoSnapshotStore` does: a document of
+     * `<aggregateName>_snapshot`, its `aggregateId` as `_id`, replacing the instance's previous snapshot.
+     */
+    fun saveSnapshot(database: MongoDatabase, text: String) {
+        @Suppress("UNCHECKED_CAST")
+        val snapshot = WowJson.mapper.readValue(text, LinkedHashMap::class.java) as LinkedHashMap<String, Any?>
+        val document = Document(snapshot)
+        document["_id"] = document.remove("aggregateId")
+        database.getCollection("${snapshot["aggregateName"]}${MongoNineXSnapshotSource.SUFFIX}")
+            .replaceOne(Document("_id", document["_id"]), document, ReplaceOptions().upsert(true))
     }
 
     /** Inserts the stream whose JSON is [text] into [database], as 9.x would have. */

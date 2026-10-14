@@ -29,6 +29,20 @@ class MigrationMapTest {
             EventMapping("order_created", "0.0.1", "OrderCreated", 1, upgrade = "upgradeOrderCreatedFrom1"),
         )
         map.headers.assert().isEmpty()
+        order.state.assert().isEqualTo(StateMapping())
+    }
+
+    @Test
+    fun `format 1 maps the state fields of an aggregate when told`() {
+        val map = MigrationMap.read(
+            """{"format":1,"aggregates":[{"from":"s.order","to":"c.order",
+               "state":{"fields":{"orderStatus":"status"},"ignore":["items.totalPrice"]}}]}""",
+        )
+        map.aggregates.single().state.assert()
+            .isEqualTo(StateMapping(mapOf("orderStatus" to "status"), listOf("items.totalPrice")))
+        assertThrows<Exception> {
+            MigrationMap.read("""{"format":1,"aggregates":[{"from":"s.order","to":"c.order","state":{"rename":{}}}]}""")
+        }
     }
 
     @Test
