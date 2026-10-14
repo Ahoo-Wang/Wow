@@ -37,8 +37,8 @@ import me.ahoo.wow.runtime.subscription.HandledEntry
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
-import java.util.concurrent.Executors
 import me.ahoo.wow.spi.wait.WaitContext
+import java.util.concurrent.Executors
 
 /**
  * Adapts the handlers of annotated processors ([ProcessorBinding], decision D149) into the subscriptions of a

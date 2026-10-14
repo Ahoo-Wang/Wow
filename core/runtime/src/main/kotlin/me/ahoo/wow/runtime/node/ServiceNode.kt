@@ -62,7 +62,6 @@ import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.state.StateViewReader
 import me.ahoo.wow.runtime.state.StateViews
 import me.ahoo.wow.runtime.subscription.LogGroupDirectory
-import me.ahoo.wow.runtime.wait.ReceiptHops
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
@@ -73,6 +72,7 @@ import me.ahoo.wow.runtime.timer.TimerLoop
 import me.ahoo.wow.runtime.timer.TimerRunner
 import me.ahoo.wow.runtime.timer.TimersSubscription
 import me.ahoo.wow.runtime.wait.LocalSignalSender
+import me.ahoo.wow.runtime.wait.ReceiptHops
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions

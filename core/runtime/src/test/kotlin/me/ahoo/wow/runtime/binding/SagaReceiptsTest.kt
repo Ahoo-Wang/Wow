@@ -219,7 +219,13 @@ class SagaReceiptsTest {
     fun `a wait naming the @OnCommitted handler's hop should go on into the commands it derives`(): Unit = runBlocking {
         val node = start(saga(onRemoveRejected, commits = listOf(onRemoved)))
         node.fill()
-        val chain = WaitPlan.of(Hop.committed(), Hop.handled(SAGA), Hop.committed(), Hop.handled(ON_REMOVED), Hop.committed())
+        val chain = WaitPlan.of(
+            Hop.committed(),
+            Hop.handled(SAGA),
+            Hop.committed(),
+            Hop.handled(ON_REMOVED),
+            Hop.committed()
+        )
         val all = node.gateway.send(request("order", "Place", listOf("apple"), "o-h", chain)).toList()
         val thanks = compensationId("o-h", ON_REMOVED)
         val handled = all.single { it.hop == Hop.handled(ON_REMOVED, SHOP) }

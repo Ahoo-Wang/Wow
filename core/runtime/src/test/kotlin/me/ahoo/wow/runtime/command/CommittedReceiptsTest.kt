@@ -21,8 +21,8 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
-import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
@@ -37,11 +37,11 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.TopicMessage
-import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.transport.TopicProducer
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.AfterEach
@@ -201,7 +201,10 @@ class CommittedReceiptsTest {
         confirmed.single().assert().isEqualTo(result.commandId)
         // The receipt carried the rest of the chain, past the reservation's commit.
         val receipt = EnvelopeCodec.decode(topics.messages(RECEIPTS).single().value)
-        receipt.transport!!.wait!!.remaining.assert().containsExactly(Hop.handled(ON_RESERVED, SALES), Hop.committed(SALES))
+        receipt.transport!!.wait!!.remaining.assert().containsExactly(
+            Hop.handled(ON_RESERVED, SALES),
+            Hop.committed(SALES)
+        )
     }
 
     @Test
