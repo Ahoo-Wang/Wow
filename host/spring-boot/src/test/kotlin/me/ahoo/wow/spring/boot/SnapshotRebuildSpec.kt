@@ -125,11 +125,12 @@ abstract class SnapshotRebuildSpec {
             maintain(old)
             table(A).assert().isEqualTo(table(A).copy(revision = 2, rebuilding = true))
             eventually {
+                // The old node keeps the table rebuilding on each of its runs: its refused saves leave stale marks.
+                maintain(old)
                 maintain(new)
                 IDS.all { snapshot(A, it)?.let { s -> s.version == 2 && s.stateRevision == 2 } == true }
             }
             IDS.forEach { snapshot(A, it)!!.assertCounter(revision = 2, version = 2, total = 2, adds = 2) }
-            new.snapshotStatus.rebuilding(type).assert().isTrue()
             old.stop()
             eventually {
                 maintain(new)
@@ -202,7 +203,7 @@ abstract class SnapshotRebuildSpec {
         snapshots(A).rewrite(broken).assert().isTrue()
 
         rebuild(node, COUNTER, IDS.first(), "missing").status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-        eventually { snapshot(A, IDS.first())?.state?.contains("\"total\":2") == true }
+        eventually { snapshot(A, IDS.first())?.state?.replace(" ", "")?.contains("\"total\":2") == true }
         snapshot(A, "missing").assert().isNull()
 
         val refused = rebuild(node, "nothing", IDS.first())

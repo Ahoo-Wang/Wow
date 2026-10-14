@@ -725,8 +725,12 @@ class ServiceNode(
      * (decision D172).
      */
     private suspend fun handOff() = coroutineScope {
-        contexts.values.forEach { context -> context.snapshotMaintenance?.let { launch { it.stop() } } }
-        contexts.values.forEach { launch { it.ownership.stop() } }
+        contexts.values.forEach { context ->
+            launch {
+                context.ownership.stop()
+                context.snapshotMaintenance?.stop()
+            }
+        }
         topicSubscriptions.values.forEach { launch { it.stop() } }
     }
 

@@ -163,10 +163,20 @@ class SnapshotMaintenance(
         }
     }
 
-    /** Stops the runs and leaves this node's revision memberships, so a rollback need not wait for them to expire. */
+    /**
+     * Stops the runs and leaves this node's revision memberships, so a rollback need not wait for them to expire. Call
+     * it once the node's subscriptions stopped: a table claimed at another revision than this node's is marked
+     * rebuilding once more, for the stale marks its last refused saves left.
+     */
     suspend fun stop() {
         loop?.cancel()
         loop = null
+        tables.forEach { (key, table) ->
+            val (store, type) = key
+            if (table.revision != revisionOf(type)) {
+                storeOf(store).mark(type, table.revision, rebuilding = true)
+            }
+        }
         models.values.forEach { leases.leave(memberGroup(it.type, it.stateRevision), node) }
     }
 
