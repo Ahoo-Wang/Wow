@@ -57,9 +57,13 @@ import kotlin.time.TimeSource
  *   its slot fired; a rule due once is then FIRED. A rejection is the target's state guard doing its work, not a
  *   failure: it is neither retried nor handed to `@OnRejected`;
  * - sent to another context's command topic: FIRED with the outcome `SENT` once the broker acknowledged it;
- * - a technical failure (a contended or unknown outcome, a failing store, no transport): the timer stays PENDING, due
- *   again after [TimerOptions.retry]'s backoff, until its attempts are spent; it is then PARKED and its target
- *   recorded in the failure ledger under [TimerOptions.PARKED_SUBSCRIPTION], for an operator to [resume] or [skip].
+ * - a technical failure (a contended or unknown outcome, a failing store, no transport, a target whose clock is too
+ *   far behind, [me.ahoo.wow.runtime.wait.ResultCodes.SCHEDULE_NOT_DUE]): the timer stays PENDING, due again after
+ *   [TimerOptions.retry]'s backoff, until its attempts are spent; it is then PARKED and its target recorded in the
+ *   failure ledger under [TimerOptions.PARKED_SUBSCRIPTION], for an operator to [resume] or [skip].
+ *
+ * A claim, a retry or a resume moves only the timer's [Timer.dueAt]: every send of the slot carries the slot's own due
+ * time ([Timer.slotDueAt]), so its target never decides it before then (decision D198).
  *
  * At least once, applied once: a crash after sending and before writing sends the timer again, and its target finds
  * the request id committed already.
@@ -208,7 +212,7 @@ class TimerRunner(
                 failed(part, claimed, failure, now)
                 return
             }
-            settle(part, claimed, fired(claimed, outcome, timer.dueAt))
+            settle(part, claimed, fired(claimed, outcome))
         } catch (cancelled: CancellationException) {
             part.sending.remove(timer.id)
             throw cancelled
@@ -216,11 +220,16 @@ class TimerRunner(
     }
 
     /**
-     * [timer], claimed, after its slot due at [due] was sent with [outcome]: a rule due once is done, due when it was
-     * (decision D198).
+     * [timer], claimed, after its slot was sent with [outcome]: a rule due once is done, due when its slot was
+     * ([Timer.slotDueAt], decision D198), however many attempts or claims it took.
      */
-    private fun fired(timer: Timer, outcome: String, due: Long): Timer =
-        timer.copy(status = TimerStatus.FIRED, attempts = timer.attempts + 1, outcome = outcome, dueAt = due)
+    private fun fired(timer: Timer, outcome: String): Timer =
+        timer.copy(
+            status = TimerStatus.FIRED,
+            attempts = timer.attempts + 1,
+            outcome = outcome,
+            dueAt = timer.slotDueAt
+        )
 
     private fun settle(part: Part, loaded: Timer, next: Timer) {
         settling += Settling(part, TimerChange(loaded, next))

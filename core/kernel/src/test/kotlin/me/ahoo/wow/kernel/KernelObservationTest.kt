@@ -17,11 +17,13 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.schedule.ScheduleContext
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.observation.Observation
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.TraceContext
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.coroutines.CoroutineContext
 
@@ -41,6 +43,10 @@ class KernelObservationTest {
             override fun outcome(outcome: String) {
                 seen += "$name $outcome"
             }
+
+            override fun failed(error: Throwable) {
+                seen += "$name failed ${error.javaClass.simpleName}"
+            }
         }
 
         override fun executing(command: Command<*>): Observation = stage("execute")
@@ -52,7 +58,7 @@ class KernelObservationTest {
 
     private val observer = Recording()
     private val log = InMemoryEventLog()
-    private val kernel = Kernel(log, observer = observer)
+    private val kernel = Kernel(log, clock = { 0L }, observer = observer)
     private val ref = cartModel.type.ref("tenant", "cart-1")
 
     @Test
@@ -70,4 +76,14 @@ class KernelObservationTest {
             log.readEntries(ref).toList().single().transport!!.trace.assert()
                 .isEqualTo(mapOf("traceparent" to "append"))
         }
+
+    @Test
+    fun `a scheduled command not yet due should fail its observed execution, unchanged`(): Unit = runBlocking {
+        val due = ScheduleContext("timer-1", "expire", 1, 60_000).headers()
+        assertThrows<ScheduleNotDueException> {
+            kernel.execute(cartModel, Command("c-1", "r-1", ref, CreateCart("ahoo"), headers = due))
+        }
+        observer.seen.assert().containsExactly("execute failed ScheduleNotDueException")
+        log.readEntries(ref).toList().assert().isEmpty()
+    }
 }

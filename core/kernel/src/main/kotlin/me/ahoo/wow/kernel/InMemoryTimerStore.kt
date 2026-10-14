@@ -67,6 +67,7 @@ class InMemoryTimerStore : TimerStore {
             timers[key] = held.copy(
                 status = next.status,
                 slot = next.slot,
+                slotDueAt = next.slotDueAt,
                 dueAt = next.dueAt,
                 attempts = next.attempts,
                 outcome = next.outcome,
@@ -91,7 +92,7 @@ class InMemoryTimerStore : TimerStore {
 
         /** Whether this, the timer held, is still [loaded] as it was loaded. */
         fun Timer.isAsLoaded(loaded: Timer): Boolean =
-            id == loaded.id && status == loaded.status && slot == loaded.slot && attempts == loaded.attempts &&
-                dueAt == loaded.dueAt
+            id == loaded.id && status == loaded.status && slot == loaded.slot && slotDueAt == loaded.slotDueAt &&
+                attempts == loaded.attempts && dueAt == loaded.dueAt
     }
 }

@@ -38,6 +38,7 @@ class FrameworkErrorsTest {
                 "wow.command.unknown" to 503,
                 "wow.node.closing" to 503,
                 "wow.storage.unavailable" to 503,
+                "wow.schedule.not-due" to 503,
                 "wow.subscription.parked" to 500,
                 "wow.wait.timeout" to 504,
                 "wow.query.malformed" to 400,

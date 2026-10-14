@@ -115,7 +115,8 @@ import kotlin.time.Duration.Companion.seconds
  *
  * A command a schedule sent ([Command.schedule]) is not decided before the time its slot was due by this kernel's
  * [clock] (decision D198): a node whose clock is behind the firing node's waits until then, so a schedule never fires
- * early.
+ * early. It waits at most [maxEarlyWait], holding the aggregate's queue meanwhile: a command due later than that fails
+ * at once with [ScheduleNotDueException], and its firing runner sends it again later.
  *
  * A decide function takes its ids from [ids] ([DecideScope.ids], decision D171): the node's generators, fixed ids in
  * the test DSL.
@@ -135,10 +136,12 @@ class Kernel(
     private val snapshots: SnapshotStore? = null,
     private val commandTypes: CommandTypes = CommandTypes.NONE,
     private val ids: Ids = IdGenerators.DEFAULT,
+    private val maxEarlyWait: Duration = DEFAULT_MAX_EARLY_WAIT,
     private val observer: Observer = Observer.NONE,
 ) {
     init {
         require(maxAttempts >= 1) { "At least one attempt." }
+        require(!maxEarlyWait.isNegative()) { "The maximum early wait is never negative." }
     }
 
     /**
@@ -209,10 +212,17 @@ class Kernel(
 
     /**
      * Waits until the slot [command] was sent for is due on this kernel's clock, when it was sent for a schedule
-     * (decision D198): a schedule never fires before its time here, whatever the firing node's clock said.
+     * (decision D198): a schedule never fires before its time here, whatever the firing node's clock said. One due
+     * later than [maxEarlyWait] from now is not waited for, holding the aggregate's queue: it throws
+     * [ScheduleNotDueException], and its firing runner sends it again later.
      */
     private suspend fun awaitDue(command: Command<*>) {
-        val early = (command.schedule ?: return).due - clock()
+        val due = (command.schedule ?: return).due
+        val now = clock()
+        val early = due - now
+        if (early > maxEarlyWait.inWholeMilliseconds) {
+            throw ScheduleNotDueException(command.ref, command.requestId, due, now)
+        }
         if (early > 0) {
             delay(early)
         }
@@ -864,6 +874,7 @@ class Kernel(
             if (isBefore(Instant.EPOCH)) Long.MIN_VALUE else Long.MAX_VALUE
         }
         val DEFAULT_RESERVATION_TTL = 30.seconds
+        val DEFAULT_MAX_EARLY_WAIT = 5.seconds
         val logger = KotlinLogging.logger {}
     }
 }

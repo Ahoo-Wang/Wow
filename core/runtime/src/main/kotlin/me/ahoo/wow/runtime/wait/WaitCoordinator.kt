@@ -40,6 +40,7 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
+import me.ahoo.wow.kernel.ScheduleNotDueException
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.ExecutorBusyException
 import me.ahoo.wow.runtime.ExecutorClosedException
@@ -452,7 +453,10 @@ class WaitCoordinator(
      * lane is full ([ResultCodes.BUSY]), or the executor is closed ([ResultCodes.NODE_CLOSING]). So is one whose
      * execution a store failed with a transient failure ([StorageUnavailableException], such as the request id's
      * lookup during a restart): [ResultCodes.STORAGE_UNAVAILABLE], which a retry with the same request id may pass, as
-     * the kernel deduplicates it. An append whose outcome is unknown is [ResultCodes.UNKNOWN], from the kernel.
+     * the kernel deduplicates it. So is a scheduled command due longer from now than the kernel waits for one
+     * ([ScheduleNotDueException], decision D198): [ResultCodes.SCHEDULE_NOT_DUE], logged with the clock skew, which
+     * its firing runner sends again later. An append whose outcome is unknown is [ResultCodes.UNKNOWN], from the
+     * kernel.
      */
     suspend fun executeHere(model: AggregateModel<*>, command: Command<*>, wait: WaitContext?): Settlement {
         val function = commandFunction(model, command)
@@ -470,6 +474,11 @@ class WaitCoordinator(
             return Settlement(
                 reachedResult(command, function, hop, clock())
                     .failed(ResultCodes.STORAGE_UNAVAILABLE, unavailable.message!!),
+            )
+        } catch (early: ScheduleNotDueException) {
+            logger.warn { "Clock skew at node ${options.origin.node}: ${early.message}" }
+            return Settlement(
+                reachedResult(command, function, hop, clock()).failed(ResultCodes.SCHEDULE_NOT_DUE, early.message!!),
             )
         }
         val committed = outcome.toResult(command, function, hop, clock())

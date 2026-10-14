@@ -17,7 +17,8 @@ import me.ahoo.wow.postgres.PostgresIdentifiers
 
 /**
  * The timer table of one context, `wow_timer__<context>` (decisions D166, D198), and its statements. The column layout
- * is part of the format, version [FORMAT] (decision D59): format 2 added the rule and the slot.
+ * is part of the format, version [FORMAT] (decision D59): format 2 added the rule and the slot, format 3 the slot's due
+ * time (`slot_due_at`), kept apart from `due_at`, which a claim or a retry moves.
  *
  * One row per timer, keyed by `(owner, key)`; `timer_id` is the timer's id, its command sent with the request id
  * `timer_id#slot`; the rule is a `jsonb` object (`{type, ...}`, as Wow's JSON writes it) and the slot a counter from 1.
@@ -45,6 +46,7 @@ internal class PostgresTimerTables(context: String) {
             rule jsonb NOT NULL,
             slot bigint NOT NULL,
             due_at bigint NOT NULL,
+            slot_due_at bigint NOT NULL,
             target_context text NOT NULL,
             target_aggregate text NOT NULL,
             target_tenant_id text NOT NULL,
@@ -71,11 +73,11 @@ internal class PostgresTimerTables(context: String) {
     /**
      * Writes a timer, PENDING, unless the row holds the same timer or a later version. The conflict update locks the
      * row and re-checks its condition against the latest committed row, so concurrent writes of one key keep the
-     * latest version. Parameters: the [COLUMNS] up to `headers`, then the operator and the scope.
+     * latest version. Parameters: the [COLUMNS] up to `headers`, then the operator, the scope and the slot's due time.
      */
     val put = """
         INSERT INTO $table AS held ($COLUMNS) VALUES (?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb,
-            'PENDING', 0, NULL, ?::jsonb, ?::jsonb)
+            'PENDING', 0, NULL, ?::jsonb, ?::jsonb, ?)
         ON CONFLICT (owner, key) DO UPDATE
         SET timer_id = excluded.timer_id, version = excluded.version, partition = excluded.partition,
             rule = excluded.rule, slot = excluded.slot, due_at = excluded.due_at, target_context = excluded.target_context,
@@ -83,7 +85,7 @@ internal class PostgresTimerTables(context: String) {
             target_id = excluded.target_id, command_type = excluded.command_type, body = excluded.body,
             correlation_id = excluded.correlation_id, causation_id = excluded.causation_id,
             headers = excluded.headers, status = 'PENDING', attempts = 0, outcome = NULL,
-            operator = excluded.operator, scope = excluded.scope
+            operator = excluded.operator, scope = excluded.scope, slot_due_at = excluded.slot_due_at
         WHERE held.timer_id <> excluded.timer_id AND held.version <= excluded.version
     """.trimIndent()
 
@@ -103,11 +105,12 @@ internal class PostgresTimerTables(context: String) {
         "ORDER BY due_at, timer_id LIMIT ?"
 
     /**
-     * Parameters: the next status, slot, due at, attempts and outcome; then the owner, key, timer id, status, slot,
-     * attempts and due at the row must still hold.
+     * Parameters: the next status, slot, slot's due at, due at, attempts and outcome; then the owner, key, timer id,
+     * status, slot, slot's due at, attempts and due at the row must still hold.
      */
-    val settle = "UPDATE $table SET status = ?, slot = ?, due_at = ?, attempts = ?, outcome = ? " +
-        "WHERE owner = ? AND key = ? AND timer_id = ? AND status = ? AND slot = ? AND attempts = ? AND due_at = ?"
+    val settle = "UPDATE $table SET status = ?, slot = ?, slot_due_at = ?, due_at = ?, attempts = ?, outcome = ? " +
+        "WHERE owner = ? AND key = ? AND timer_id = ? AND status = ? AND slot = ? AND slot_due_at = ? " +
+        "AND attempts = ? AND due_at = ?"
 
     /** Parameters: the target's context, aggregate, tenant and id. */
     val parked = "SELECT $COLUMNS FROM $table WHERE target_context = ? AND target_aggregate = ? " +
@@ -115,11 +118,11 @@ internal class PostgresTimerTables(context: String) {
 
     companion object {
         /** The version of this layout. */
-        const val FORMAT = 2
+        const val FORMAT = 3
         const val PREFIX = "wow_timer"
 
         const val COLUMNS = "owner, key, timer_id, version, partition, rule, slot, due_at, target_context, target_aggregate, " +
             "target_tenant_id, target_id, command_type, body, correlation_id, causation_id, headers, status, " +
-            "attempts, outcome, operator, scope"
+            "attempts, outcome, operator, scope, slot_due_at"
     }
 }

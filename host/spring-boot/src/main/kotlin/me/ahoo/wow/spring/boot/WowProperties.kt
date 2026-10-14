@@ -77,8 +77,8 @@ import kotlin.time.toKotlinDuration
  *   (`generic` or `wecom`), `events` (`parked`, `exhausted`), `timeout` (5s), `headers`: the webhook told when an
  *   entry parks or spends its retries, see [Ops] and [Webhook].
  * - `wow.timers.poll-interval` (1s), `lookahead` (30s), `max-attempts` (10), `expires-after` (none), `parallelism`
- *   (64), `max-fire-rate` (none, per partition and second), `claim-timeout` (30s): the node's firing loop
- *   of the scheduled commands (decision D166), see [Timers].
+ *   (64), `max-fire-rate` (none, per partition and second), `claim-timeout` (30s), `max-early-wait` (5s): the
+ *   node's firing loop of the scheduled commands (decision D166), see [Timers].
  * - `wow.tenant.default`: the tenant of a caller that has none (D97).
  * - `wow.http.request-facts`, `wow.http.errors.[<code>].status`, `wow.http.manifest.enabled`.
  * - `wow.aggregates.[<context>.<aggregate>].tenant`: a fixed tenant per aggregate type (decision D116);
@@ -417,7 +417,9 @@ class WowProperties {
      * technical failure to send one gets before it is parked under `wow.timers` ([maxAttempts]); when set, how late a
      * timer may be sent before it expires instead ([expiresAfter]); how many commands a partition sends at once
      * ([parallelism]) and, when set, at most a second ([maxFireRate]), the rate a backlog of overdue timers drains at;
-     * how long the claim on a timer being sent holds before another owner may send it ([claimTimeout]).
+     * how long the claim on a timer being sent holds before another owner may send it ([claimTimeout]); how long a
+     * scheduled command waits in its target for its due time on the target node's clock before it fails instead, to
+     * be sent again later ([maxEarlyWait]).
      */
     class Timers {
         var pollInterval: Duration = DEFAULT_TIMERS.pollInterval.toJavaDuration()
@@ -427,6 +429,7 @@ class WowProperties {
         var parallelism: Int = DEFAULT_TIMERS.parallelism
         var maxFireRate: Double? = null
         var claimTimeout: Duration = DEFAULT_TIMERS.claimTimeout.toJavaDuration()
+        var maxEarlyWait: Duration = DEFAULT_TIMERS.maxEarlyWait.toJavaDuration()
 
         fun options(): TimerOptions = DEFAULT_TIMERS.copy(
             pollInterval = pollInterval.toKotlinDuration(),
@@ -436,6 +439,7 @@ class WowProperties {
             parallelism = parallelism,
             maxFireRate = maxFireRate,
             claimTimeout = claimTimeout.toKotlinDuration(),
+            maxEarlyWait = maxEarlyWait.toKotlinDuration(),
         )
     }
 

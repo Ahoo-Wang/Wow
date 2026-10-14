@@ -52,6 +52,13 @@ object ResultCodes {
      * ([me.ahoo.wow.spi.StorageUnavailableException]); retrying with the same request id is safe.
      */
     const val STORAGE_UNAVAILABLE = "wow.storage.unavailable"
+
+    /**
+     * A command a schedule sent arrived longer before its due time, on the target node's clock, than the node waits
+     * for one (`wow.timers.max-early-wait`, decision D198): the firing node's clock is ahead. It was not decided;
+     * sending it again later with the same request id is safe.
+     */
+    const val SCHEDULE_NOT_DUE = "wow.schedule.not-due"
 }
 
 /** The function of [command]'s decide function on [model]: the aggregate and the command's model name. */

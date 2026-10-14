@@ -16,6 +16,7 @@ package me.ahoo.wow.kernel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
@@ -38,6 +39,7 @@ import org.junit.jupiter.api.Test
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Decision D198: a decide function's schedules are the system events `wow.ScheduleSet` and `wow.ScheduleCancelled`
@@ -282,6 +284,46 @@ class KernelScheduleTest {
         val again = System.nanoTime()
         send(CancelOrder("now"), headers = headers.plus(ScheduleContext.SLOT to "2"))
         ((System.nanoTime() - again) / 1_000_000).assert().isLessThan(250)
+    }
+
+    @Test
+    fun `a scheduled command due later than the maximum early wait fails at once, then waits within it`(): Unit =
+        runTest {
+            send(Place())
+            val due = NOW + 5.seconds.inWholeMilliseconds + 1
+            val headers = ScheduleContext("$ref#remind@1", "remind", 1, due).headers()
+            val failure = runCatching { send(CancelOrder("early"), "timer#1", headers) }.exceptionOrNull()
+            failure.assert().isInstanceOf(ScheduleNotDueException::class.java)
+            failure as ScheduleNotDueException
+            failure.ref.assert().isEqualTo(ref)
+            failure.requestId.assert().isEqualTo("timer#1")
+            failure.due.assert().isEqualTo(due)
+            failure.now.assert().isEqualTo(NOW)
+            failure.message.assert().contains("5001 ms")
+            // Not decided, and nothing waited for.
+            decided.assert().isEmpty()
+            currentTime.assert().isEqualTo(0L)
+            streams().size.assert().isEqualTo(1)
+            // Sent again within the maximum early wait: it waits for its due time and is decided once.
+            now.set(due - 5.seconds.inWholeMilliseconds)
+            send(CancelOrder("again"), "timer#1", headers).assert().isEqualTo(CommandOutcome.Unchanged(1))
+            currentTime.assert().isEqualTo(5.seconds.inWholeMilliseconds)
+            decided.single()?.slot.assert().isEqualTo(1L)
+        }
+
+    @Test
+    fun `a scheduled command already committed is answered as a duplicate however early it arrives`(): Unit = runTest {
+        send(Place())
+        val headers = ScheduleContext("$ref#remind@1", "remind", 1, NOW).headers()
+        send(Pay(), "timer#1", headers).assert().isInstanceOf(CommandOutcome.Committed::class.java)
+        now.set(NOW - 1.minutes.inWholeMilliseconds)
+        send(Pay(), "timer#1", headers).assert().isInstanceOf(CommandOutcome.AlreadyCommitted::class.java)
+    }
+
+    @Test
+    fun `a negative maximum early wait is refused`() {
+        runCatching { Kernel(log, maxEarlyWait = (-1).seconds) }
+            .exceptionOrNull().assert().isInstanceOf(IllegalArgumentException::class.java)
     }
 
     @Test

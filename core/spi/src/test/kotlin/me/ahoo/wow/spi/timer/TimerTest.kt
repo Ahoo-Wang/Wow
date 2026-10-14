@@ -61,6 +61,8 @@ class TimerTest {
     fun `a slot is sent with its own request id and context`() {
         timer(slot = 3).requestId.assert().isEqualTo("$ref#pay@1#3")
         timer(slot = 3).context.assert().isEqualTo(ScheduleContext("$ref#pay@1", "pay", 3, 5))
+        // Claimed or retried, the slot is still sent as due when it was.
+        timer(slot = 3).copy(dueAt = 9).context.due.assert().isEqualTo(5L)
         assertThrownBy<IllegalArgumentException> { timer(slot = 0) }
     }
 
