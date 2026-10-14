@@ -71,7 +71,12 @@ class KernelScheduleTest {
         decide<Pay> { _, body ->
             cancelSchedule("pay-timeout")
             if (body.alsoRemind) {
-                schedule("remind", ScheduleRule.at(Instant.ofEpochMilli(NOW + 5)), Notify("paid"), shipment.ref("t", "s-1"))
+                schedule(
+                    "remind",
+                    ScheduleRule.at(Instant.ofEpochMilli(NOW + 5)),
+                    Notify("paid"),
+                    shipment.ref("t", "s-1")
+                )
             }
             Decision.events(Paid)
         }
@@ -197,7 +202,11 @@ class KernelScheduleTest {
     @Test
     fun `a decision that only schedules needs an aggregate that exists`(): Unit = runTest {
         send(Remind(at = NOW)).assert().isInstanceOf(CommandOutcome.Rejected::class.java)
-        runCatching { send(Prepare(at = NOW)) }.exceptionOrNull().assert().isInstanceOf(IllegalStateException::class.java)
+        runCatching {
+            send(
+                Prepare(at = NOW)
+            )
+        }.exceptionOrNull().assert().isInstanceOf(IllegalStateException::class.java)
         streams().assert().isEmpty()
     }
 
@@ -278,7 +287,16 @@ class KernelScheduleTest {
     @Test
     fun `a stream without an event is refused`() {
         runCatching {
-            EventStreamRecord(ref, 1, "c", "r", "test.order.Pay", NOW, emptyList(), me.ahoo.wow.api.aggregate.Scope.NONE)
+            EventStreamRecord(
+                ref,
+                1,
+                "c",
+                "r",
+                "test.order.Pay",
+                NOW,
+                emptyList(),
+                me.ahoo.wow.api.aggregate.Scope.NONE
+            )
         }.exceptionOrNull().assert().isInstanceOf(IllegalArgumentException::class.java)
     }
 

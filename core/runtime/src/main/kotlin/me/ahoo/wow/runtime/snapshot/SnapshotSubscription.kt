@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
@@ -112,7 +113,7 @@ class SnapshotSubscription(
         val view = views.get(ref, version)
         val known = if (version == 1) First(stream.commitTime, stream.operator) else held?.first
         if (view != null && known != null) {
-            save(snapshotOf(model, stream, view.state, known, view.deleted, view.tags))
+            save(snapshotOf(model, stream, view.state, known, view.deleted, view.tags, view.schedules))
             return
         }
         val stored = store.load(ref)
@@ -122,11 +123,11 @@ class SnapshotSubscription(
         }
         val first = known ?: stored?.let(First::of) ?: firstOf(ref)
         val state = entry.state(stored)
-        save(snapshotOf(model, stream, state.state, first, state.deleted, state.tags))
+        save(snapshotOf(model, stream, state.state, first, state.deleted, state.tags, state.schedules))
     }
 
     /**
-     * The snapshot of [stream]: [state] with the kernel's [deleted] mark and [tags] after it, its scope and operator,
+     * The snapshot of [stream]: [state] with the kernel's [deleted] mark, [tags] and [schedules] after it, its scope and operator,
      * and what [first] says of the aggregate's first stream.
      */
     @Suppress("LongParameterList")
@@ -137,6 +138,7 @@ class SnapshotSubscription(
         first: First,
         deleted: Boolean,
         tags: Map<String, List<String>>,
+        schedules: Map<String, ScheduleRule>,
     ): SnapshotRecord = codec.snapshotOf(
         model,
         stream.ref,
@@ -149,6 +151,7 @@ class SnapshotSubscription(
         tags,
         stream.operator,
         first.operator,
+        schedules,
     )
 
     /** Saves [snapshot]: written or not, the store then holds its version or a later one (a version-guarded save). */

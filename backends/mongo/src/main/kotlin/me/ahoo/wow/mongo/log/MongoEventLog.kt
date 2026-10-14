@@ -519,7 +519,6 @@ class MongoEventLog(
         .apply { MongoOperators.document(stream.operator)?.let { append(OPERATOR, it) } }
         .apply { transport?.let { append(TRANSPORT, transportDocument(it)) } }
 
-
     private fun transportDocument(transport: Transport) = Document()
         .apply { transport.wait?.let { append(WAIT, waitDocument(it)) } }
         .append(RESERVATIONS, transport.reservations.map { Document(NAMESPACE, it.namespace).append(KEY, it.key) })

@@ -14,6 +14,8 @@
 package me.ahoo.wow.runtime.command
 
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
@@ -60,9 +62,13 @@ class CommandSender(private val contracts: ContractDirectory, private val topics
         )
     }
 
-    /** The full type name of [command], as the contracts give its class. */
+    /**
+     * The full type name of [command], as the contracts give its class; a system command (a lifecycle one, a schedule's
+     * `wow.schedule.Set` or `Cancel`, decision D198) by its system name, which every aggregate decides.
+     */
     fun typeOf(command: Command<*>): String {
         val type = command.body.javaClass
+        (Lifecycle.nameOf(type) ?: Schedules.nameOf(type))?.let { return it }
         val named = checkNotNull(contracts.commandTypeOf(Manifest.schemaRef(type.name))) {
             "No Manifest of the service or its peers declares the command ${type.name} sent to ${command.ref}: add " +
                 "the service of ${command.ref.type.context} to wowPeers (decision D139)."

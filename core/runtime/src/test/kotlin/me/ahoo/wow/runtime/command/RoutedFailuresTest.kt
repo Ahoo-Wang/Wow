@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.command
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.InMemoryEventLog
 import me.ahoo.wow.kernel.InMemoryTopics
 import me.ahoo.wow.kernel.Kernel
@@ -95,6 +96,7 @@ class RoutedFailuresTest {
         key = "key",
         version = 1,
         partition = 0,
+        rule = ScheduleRule.At(0),
         dueAt = 0,
         target = CART.ref(TENANT, "alice"),
         commandType = "shop.cart.$command",

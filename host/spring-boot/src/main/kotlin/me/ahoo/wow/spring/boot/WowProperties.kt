@@ -75,7 +75,8 @@ import kotlin.time.toKotlinDuration
  * - `wow.ops.enabled` (false): the operator's routes under `/wow/ops/parked`; `wow.ops.webhook.url`, `format`
  *   (`generic` or `wecom`), `events` (`parked`, `exhausted`), `timeout` (5s), `headers`: the webhook told when an
  *   entry parks or spends its retries, see [Ops] and [Webhook].
- * - `wow.timers.poll-interval` (1s), `lookahead` (30s), `max-attempts` (10), `expires-after` (none): the timer runner
+ * - `wow.timers.poll-interval` (1s), `lookahead` (30s), `max-attempts` (10), `expires-after` (none), `parallelism`
+ *   (64), `max-fire-rate` (none, per partition and second): the node's firing loop
  *   of the scheduled commands (decision D166), see [Timers].
  * - `wow.tenant.default`: the tenant of a caller that has none (D97).
  * - `wow.http.request-facts`, `wow.http.errors.[<code>].status`, `wow.http.manifest.enabled`.
@@ -403,22 +404,27 @@ class WowProperties {
     }
 
     /**
-     * The timer runner of each context (decision D166): how often each owned partition reads the timers due within
-     * [lookahead] ([pollInterval]); how many attempts a technical failure to send one gets before it is parked under
-     * `wow.timers` ([maxAttempts]); and, when set, how late a timer may be sent before it expires instead
-     * ([expiresAfter]).
+     * The node's firing loop of the timers (decisions D166, D198): how often it reads, with one query per timer store
+     * over every partition the node owns, the timers due within [lookahead] ([pollInterval]); how many attempts a
+     * technical failure to send one gets before it is parked under `wow.timers` ([maxAttempts]); when set, how late a
+     * timer may be sent before it expires instead ([expiresAfter]); how many commands a partition sends at once
+     * ([parallelism]) and, when set, at most a second ([maxFireRate]), the rate a backlog of overdue timers drains at.
      */
     class Timers {
         var pollInterval: Duration = DEFAULT_TIMERS.pollInterval.toJavaDuration()
         var lookahead: Duration = DEFAULT_TIMERS.lookahead.toJavaDuration()
         var maxAttempts: Int = DEFAULT_TIMERS.retry.maxAttempts
         var expiresAfter: Duration? = null
+        var parallelism: Int = DEFAULT_TIMERS.parallelism
+        var maxFireRate: Double? = null
 
         fun options(): TimerOptions = DEFAULT_TIMERS.copy(
             pollInterval = pollInterval.toKotlinDuration(),
             lookahead = lookahead.toKotlinDuration(),
             retry = DEFAULT_TIMERS.retry.copy(maxAttempts = maxAttempts),
             expiresAfter = expiresAfter?.toKotlinDuration(),
+            parallelism = parallelism,
+            maxFireRate = maxFireRate,
         )
     }
 

@@ -54,7 +54,9 @@ internal object KernelLifecycle {
         require(commandType in COMMANDS || commandType in SCHEDULE_COMMANDS) {
             "${commandType.name} is not a lifecycle command."
         }
-        return DecideFunction.Sync(Creation.NONE) { _, body -> decide((this as MetadataScope).loaded, body, command.ref) }
+        return DecideFunction.Sync(
+            Creation.NONE
+        ) { _, body -> decide((this as MetadataScope).loaded, body, command.ref) }
     }
 
     /** The system name of [type], a lifecycle or schedule command or event, or null when it is none of them. */

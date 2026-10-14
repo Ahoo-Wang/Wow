@@ -16,25 +16,28 @@ package me.ahoo.wow.runtime.timer
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.schedule.ScheduleCancelled
+import me.ahoo.wow.api.schedule.ScheduleSet
+import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
-import me.ahoo.wow.spi.log.ScheduleChange
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.timer.TimerStore
 import me.ahoo.wow.spi.timer.Timers
 
 /**
- * The built-in `timers` subscription of one bounded [context] (decision D166): writes the timers the context's
- * aggregates schedule into its [store], from the schedule changes their streams commit
- * ([me.ahoo.wow.spi.log.EventStreamRecord.schedules]). The store is a view of the log: this subscription rebuilds it
- * from the beginning of the log under a new name, and a replay writes nothing twice.
+ * The built-in `timers` subscription of one bounded [context] (decisions D166, D198): writes the timers the context's
+ * aggregates schedule into its [store], from the system events `wow.ScheduleSet` and `wow.ScheduleCancelled` their
+ * streams commit. The store is a view of the log: this subscription rebuilds it from the beginning of the log under a
+ * new name, and a replay writes nothing twice.
  *
- * Register [subscription] in the context's [me.ahoo.wow.runtime.subscription.SubscriptionRuntime]: it runs on each
+ * Register [subscription] in the runtime of the log group whose timers [store] keeps (decision D177): it runs on each
  * partition's owner, checkpoints and parks like any subscription, and takes the streams that only change schedules.
  *
- * - **Put**: the timer `ref#key@version`, of the partition of its target among the log's [partitions], due when the
- *   decision said ([Timers.of]); it replaces what the aggregate scheduled under the key before.
- * - **Cancel**: cancels the aggregate's PENDING (or parked) timer of the key.
+ * - **Set**: the timer `ref#key@version`, of the partition of its target among the log's [partitions], its first slot
+ *   due as its rule says ([Timers.of]); it replaces what the aggregate scheduled under the key before.
+ * - **Cancelled**: cancels the aggregate's PENDING (or parked) timer of the key.
  * - **Delete**: a stream that deletes the aggregate cancels every PENDING timer the aggregate keeps, before its own
  *   changes apply; a restore does not bring them back.
  * - **Idempotent**: every write carries the stream's version, and the store ignores what it already holds at that
@@ -61,11 +64,18 @@ class TimersSubscription(context: String, private val store: TimerStore, private
         if (stream.events.any { it.name == Lifecycle.AGGREGATE_DELETED }) {
             store.cancelAll(owner, version)
         }
-        stream.schedules.forEach { change ->
-            when (change) {
-                is ScheduleChange.Put -> store.put(Timers.of(stream, change, partitions))
-                is ScheduleChange.Cancel -> store.cancel(owner, change.key, version)
+        stream.events.forEach { event ->
+            when (event.name) {
+                Schedules.SCHEDULE_SET ->
+                    store.put(Timers.of(stream, json.readValue(event.payload, ScheduleSet::class.java), partitions))
+
+                Schedules.SCHEDULE_CANCELLED ->
+                    store.cancel(owner, json.readValue(event.payload, ScheduleCancelled::class.java).key, version)
             }
         }
+    }
+
+    private companion object {
+        val json = WowJson.mapper
     }
 }

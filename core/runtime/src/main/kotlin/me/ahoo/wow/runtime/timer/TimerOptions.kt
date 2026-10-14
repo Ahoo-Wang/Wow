@@ -19,17 +19,21 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * The tuning of a context's [TimerRunner] (decision D166; `wow.timers.*`).
+ * The tuning of a node's [TimerLoop] (decisions D166, D198; `wow.timers.*`).
  *
- * - [pollInterval]: how often each owned partition reads the store for the timers due within [lookahead]; between
- *   reads it sends what it loaded when each is due. A timer scheduled less than [lookahead] ahead is sent up to
- *   [pollInterval] late at most, plus the `timers` subscription's lag; a longer [lookahead] reads more timers at once.
+ * - [pollInterval]: how often the loop reads, with one query per timer store over every partition the node owns, the
+ *   timers due within [lookahead]; between reads it sends what it loaded when each is due. A timer scheduled less than
+ *   [lookahead] ahead is sent up to [pollInterval] late at most, plus the `timers` subscription's lag; a longer
+ *   [lookahead] reads more timers at once.
  * - [retry]: how a technical failure to send a timer's command is retried, each attempt at its own due time
  *   ([RetryPolicy.backoff] after the failure), before the timer is parked under [PARKED_SUBSCRIPTION] after
  *   [RetryPolicy.maxAttempts] attempts in all (`wow.timers.max-attempts`).
  * - [expiresAfter]: a timer found due longer ago than this, after an outage, is not sent but cancelled with the
  *   outcome `EXPIRED`; null, the default, sends every timer however late.
- * - [batch]: the most timers a partition loads at once; [parallelism]: the most commands a partition sends at once.
+ * - [batch]: the most timers one read of a store loads; [parallelism]: the most commands a partition sends at once.
+ * - [maxFireRate]: the most commands a partition sends a second (`wow.timers.max-fire-rate`), so a backlog of overdue
+ *   timers after an outage drains at that rate instead of at once; null, the default, sends them as fast as
+ *   [parallelism] allows.
  */
 data class TimerOptions(
     val pollInterval: Duration = 1.seconds,
@@ -38,13 +42,15 @@ data class TimerOptions(
     val expiresAfter: Duration? = null,
     val batch: Int = 1_000,
     val parallelism: Int = 64,
+    val maxFireRate: Double? = null,
 ) {
     init {
         require(pollInterval.isPositive()) { "The poll interval is positive." }
         require(!lookahead.isNegative()) { "The lookahead is never negative." }
         require(expiresAfter == null || expiresAfter.isPositive()) { "An expiry is positive." }
-        require(batch >= 1) { "A partition loads at least one timer at once." }
+        require(batch >= 1) { "A read loads at least one timer." }
         require(parallelism >= 1) { "A partition sends at least one command at once." }
+        require(maxFireRate == null || maxFireRate > 0) { "A fire rate is positive." }
     }
 
     companion object {

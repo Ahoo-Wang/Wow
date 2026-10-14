@@ -67,8 +67,8 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.timer.ContextCommandTypes
 import me.ahoo.wow.runtime.timer.ContextTimerFirer
-import me.ahoo.wow.runtime.timer.SagaTimers
 import me.ahoo.wow.runtime.timer.TimerFirer
+import me.ahoo.wow.runtime.timer.TimerLoop
 import me.ahoo.wow.runtime.timer.TimerRunner
 import me.ahoo.wow.runtime.timer.TimersSubscription
 import me.ahoo.wow.runtime.wait.LocalSignalSender
@@ -134,6 +134,8 @@ class ContextNode internal constructor(
      * and its timers. [subscriptions] and [timers] are the default group's.
      */
     val logGroups: List<LogGroupNode> = emptyList(),
+    /** Names the commands the context's sagas schedule (decision D198): by its models and the service's Manifests. */
+    val commandTypes: CommandTypes = CommandTypes.SIMPLE_NAMES,
 ) {
     /**
      * The ids of the context's creation commands that name no aggregate (decision D191): a saga's derived command, one
@@ -151,14 +153,13 @@ class ContextNode internal constructor(
 }
 
 /**
- * The scheduled commands of one context on a node (decision D166): the built-in `timers` [subscription] writes the
- * timers its aggregates schedule, [sagas] those its sagas schedule, and the [runner] sends them from the partitions
- * the node owns.
+ * The scheduled commands of one log group of a context on a node (decisions D166, D198): the built-in `timers`
+ * [subscription] writes the timers its aggregates schedule, and the [runner] sends them, through the node's
+ * [TimerLoop], from the partitions the node owns.
  */
 class ContextTimers internal constructor(
     val subscription: TimersSubscription,
     val runner: TimerRunner,
-    val sagas: SagaTimers,
 )
 
 /**
@@ -276,6 +277,8 @@ class ServiceNode(
     private val topics: SourceTopics? = null,
     /** Hears when an entry parks and when its automatic retries are spent (roadmap P.1); nobody by default. */
     private val parkedNotifier: ParkedNotifier = ParkedNotifier.NONE,
+    /** The clock the node's timers fire by (decision D198): the system's, unless a test moves it. */
+    clock: Clock = Clock.systemUTC(),
 ) {
     init {
         require(service.isNotBlank()) { "A node names its service." }
@@ -345,6 +348,9 @@ class ServiceNode(
                 "has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers; decision D143)."
         }
     }
+
+    /** The node's one firing loop of every context's timers (decision D198). */
+    val timerLoop: TimerLoop = TimerLoop(options.timers, clock)
 
     private val parts: List<Parts> = models.groupBy { it.type.context }.map { (context, contextModels) ->
         assemble(context, contextModels, backends.backends(context), codec, subscriptions)
@@ -597,7 +603,10 @@ class ServiceNode(
                 it.coordinator.close()
             }
         }
-        step(Step.LOGS_CLOSED) { contexts.values.forEach { it.log.close() } }
+        step(Step.LOGS_CLOSED) {
+            timerLoop.close()
+            contexts.values.forEach { it.log.close() }
+        }
         state = State.STOPPED
         logger.info { "Node $node of $service stopped." }
         failure?.let { throw it }
@@ -730,13 +739,12 @@ class ServiceNode(
         }
         val reservations = backends.reservations?.let { ReservationSubscription(context, it) }
         val firing = LateFirer()
-        val sagas = backends.timers?.let { SagaTimers(it, names, backends.log.partitions, codec) }
         val group = LeaseGroup(service, context)
         val builtIns = listOfNotNull(snapshots?.subscription, reservations?.subscription)
         val logGroups = groups.mapIndexed { index, part ->
             // The default group's checkpoints are keyed as before log groups (decision D177).
             val name = if (index == 0) group.name else "${group.name}#${part.store}"
-            logGroupOf(name, part, builtIns, sagas?.let { timersOf(context, part, firing, it) })
+            logGroupOf(name, part, builtIns, timersOf(context, part, firing))
         }
         val subscriptions = logGroups.first().subscriptions
         val intake = intakeOf(context, group, backends)
@@ -773,6 +781,7 @@ class ServiceNode(
             logGroups.first().timers,
             firing,
             logGroups,
+            names,
         )
     }
 
@@ -842,22 +851,17 @@ class ServiceNode(
         )
 
     /**
-     * The scheduled commands of one log group of [context] (decision D166), when its [group] has a timer store: the
-     * `timers` subscription writes the timers of the group's aggregates there, and the runner sends them. The
-     * context's [sagas] write theirs in its default group's store.
+     * The scheduled commands of one log group of [context] (decisions D166, D198), when its [group] has a timer
+     * store: the `timers` subscription writes the timers of the group's aggregates there, and the runner sends them
+     * through the node's [timerLoop].
      */
-    private fun timersOf(
-        context: String,
-        group: GroupParts,
-        firer: TimerFirer,
-        sagas: SagaTimers,
-    ): ContextTimers? = group.timers?.let { store ->
-        ContextTimers(
-            TimersSubscription(context, store, group.log.partitions),
-            TimerRunner(context, store, group.ledger, firer, options.timers),
-            sagas,
-        )
-    }
+    private fun timersOf(context: String, group: GroupParts, firer: TimerFirer): ContextTimers? =
+        group.timers?.let { store ->
+            ContextTimers(
+                TimersSubscription(context, store, group.log.partitions),
+                TimerRunner(context, store, group.ledger, firer, timerLoop),
+            )
+        }
 
     /** The stores of one log group of a context, as [logGroupsOf] finds them. */
     private class GroupParts(
@@ -912,6 +916,7 @@ class ServiceNode(
         val timers: ContextTimers?,
         val firing: LateFirer,
         val logGroups: List<LogGroupNode>,
+        val commandTypes: CommandTypes,
     ) {
         fun complete(): ContextNode {
             val runtimes = logGroups.drop(1).flatMap { group -> group.types.map { it to group.subscriptions } }.toMap()
@@ -952,6 +957,7 @@ class ServiceNode(
                 timers,
                 admission.ids,
                 logGroups,
+                commandTypes,
             )
         }
     }

@@ -13,11 +13,11 @@
 
 package me.ahoo.wow.kernel
 
-import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.test.ForkAssertionError
 import me.ahoo.wow.kernel.test.aggregateSpec
 import org.junit.jupiter.api.Test

@@ -154,8 +154,7 @@ class Kernel(
         // The request key is unique within an aggregate type (decision D162): one lookup in this type's storage.
         log.findByRequestId(model.type, command.ref.tenantId, command.requestId)
             ?.let { return duplicate(it, command, commandType) }
-        // A schedule never fires before its time on this node's clock, whatever the firing node's said (D198).
-        command.schedule?.let { schedule -> (schedule.due - clock()).takeIf { it > 0 }?.let { delay(it) } }
+        awaitDue(command)
         val waitBeyondCommitted = wait?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
         val encode = { target: AggregateRef, body: Any -> scheduledCommand(model, target, body) }
         var attempts = 0
@@ -185,6 +184,17 @@ class Kernel(
             attempts++
         }
         return CommandOutcome.Contended(maxAttempts)
+    }
+
+    /**
+     * Waits until the slot [command] was sent for is due on this kernel's clock, when it was sent for a schedule
+     * (decision D198): a schedule never fires before its time here, whatever the firing node's clock said.
+     */
+    private suspend fun awaitDue(command: Command<*>) {
+        val early = (command.schedule ?: return).due - clock()
+        if (early > 0) {
+            delay(early)
+        }
     }
 
     /** The outcome of an attempt whose [stream] was [appended]; null on a version conflict, decided again. */

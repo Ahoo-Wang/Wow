@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.HandlerRetry
@@ -58,10 +59,11 @@ import kotlin.time.Duration
  * batch completes, and is signalled, only once the latest is handled, so a wait on an earlier version reaches its
  * hop when what holds the later one is written (design 03 §3: the snapshot subscription's merged writes).
  *
- * A stream with no event, one that only changes schedules (decision D166), is the application's to see only as a
- * position: its subscriptions pass it over like an entry outside their filter. The built-in subscriptions ([builtIn],
- * and the snapshot's [coalescing] one) take it, so the timers are written, the snapshot keeps the aggregate's version
- * and the reservations it made are confirmed.
+ * A stream that only changes schedules, its events all the system events `wow.ScheduleSet` and `wow.ScheduleCancelled`
+ * (decision D198), is the application's to see only as a position: its subscriptions pass it over like an entry
+ * outside their filter. The built-in subscriptions ([builtIn], and the snapshot's [coalescing] one) take it, so the
+ * timers are written, the snapshot keeps the aggregate's version and schedules, and the reservations it made are
+ * confirmed.
  */
 class Subscription private constructor(
     val name: String,
@@ -74,7 +76,7 @@ class Subscription private constructor(
     internal val coalesces: Boolean = false,
     /** Whether every entry is the subscription's, whatever its filter: one of a topic of commands or receipts. */
     private val takesAll: Boolean = false,
-    /** Whether a stream with no event, one that only changes schedules, is the subscription's: a built-in one's. */
+    /** Whether a stream that only changes schedules is the subscription's: a built-in one's. */
     private val takesEventless: Boolean = false,
     /** The bounded context the subscription belongs to: its filter's, unless it reads another context's stream. */
     val context: String = filter.context,
@@ -128,7 +130,7 @@ class Subscription private constructor(
 
     /** Whether [stream] is this subscription's to handle: its [filter] matches it, or it takes every entry. */
     internal fun takes(stream: EventStreamRecord): Boolean =
-        takesAll || (takesEventless || stream.events.isNotEmpty()) && filter.matches(stream)
+        takesAll || (takesEventless || stream.events.any { it.name !in Schedules.EVENTS }) && filter.matches(stream)
 
     override fun toString(): String = "Subscription($name)"
 

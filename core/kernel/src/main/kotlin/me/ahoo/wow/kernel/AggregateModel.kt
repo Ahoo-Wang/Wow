@@ -211,7 +211,9 @@ class AggregateModel<S : Any>(
         }
         val decidedAndMounted = this.mountedCommandTypes.map { it.type }.filter { it in this.deciders }
         require(decidedAndMounted.isEmpty()) { "Command types of $type both decided and mounted: $decidedAndMounted" }
-        require(this.mountedCommandTypes.none { isSystemName(it.name) || it.aliases.any { name -> isSystemName(name) } }) {
+        require(
+            this.mountedCommandTypes.none { isSystemName(it.name) || it.aliases.any { name -> isSystemName(name) } }
+        ) {
             "A mounted command of $type takes a name in ${Lifecycle.NAMESPACE}."
         }
         val unnamed = this.deciders.keys - commandsByType.keys

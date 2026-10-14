@@ -16,98 +16,85 @@ package me.ahoo.wow.runtime.timer
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.timer.Timer
+import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerOutcomes
 import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.TimerStore
-import java.time.Clock
 import java.util.TreeSet
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.coroutines.CoroutineContext
+import java.util.concurrent.ConcurrentLinkedQueue
+import kotlin.math.roundToLong
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 /**
- * Sends the scheduled commands of one bounded [context] (decision D166) in the partitions this node owns: a loop per
- * partition, started and stopped with the partition's lease ([me.ahoo.wow.runtime.cluster.PartitionOwnership]), so a
- * timer is sent by the owner of its target's partition. A new owner reads the store again: nothing is handed over.
+ * Fires the timers of one log group of one bounded [context] (decisions D166, D177, D198) in the partitions this node
+ * owns: the node's [TimerLoop] reads them from [store] and sends them, the runner holds what it loaded and what is
+ * being sent per partition ([startPartition], [stopPartition], driven by the partition leases,
+ * [me.ahoo.wow.runtime.cluster.PartitionOwnership]), so a timer is sent by the owner of its target's partition. A new
+ * owner reads the store again: nothing is handed over.
  *
- * **The loop** reads the PENDING timers of its partition due within [TimerOptions.lookahead] every
- * [TimerOptions.pollInterval] ([TimerStore.due]) into a wheel ordered by due time, and sends each one when it is due,
- * at most [TimerOptions.parallelism] at once. A timer overdue when it is read (an outage, a handover, a backlog) is
- * sent at once: a command is never sent early, and may be sent late.
+ * **Sending one**: from the row as loaded, with no read of it again; a timer cancelled or rescheduled since it was
+ * loaded (at most a poll ago) is sent once more, and its target's state guards it. One due longer ago than
+ * [TimerOptions.expiresAfter] is cancelled as `EXPIRED`. Otherwise [firer] sends it, its request id `timer#slot`, and
+ * its outcome becomes a conditional change of the loaded row ([TimerChange]), written with the others of the round in
+ * one batch ([flush]):
  *
- * **Sending one** ([fire]): the timer is read again, so one cancelled or rescheduled since it was loaded is not sent;
- * one due longer ago than [TimerOptions.expiresAfter] is cancelled as `EXPIRED`. Otherwise [firer] sends it, its
- * request id the timer's id, and its outcome is recorded with a conditional update ([TimerStore.update]):
- *
- * - committed, already committed (a duplicate: sent before, whose outcome was not recorded) or unchanged: FIRED;
- * - rejected: FIRED with the outcome `REJECTED`. A rejection is the target's state guard doing its work (the order
- *   was paid before its payment timed out), not a failure: it is neither retried nor handed to `@OnRejected`;
- * - a command sent to another context's command topic: FIRED with the outcome `SENT` once the broker acknowledged it;
- *   its outcome is the target's;
+ * - committed, already committed (a duplicate: sent before, whose outcome was not recorded), unchanged or rejected:
+ *   its slot fired; a rule due once is then FIRED. A rejection is the target's state guard doing its work, not a
+ *   failure: it is neither retried nor handed to `@OnRejected`;
+ * - sent to another context's command topic: FIRED with the outcome `SENT` once the broker acknowledged it;
  * - a technical failure (a contended or unknown outcome, a failing store, no transport): the timer stays PENDING, due
  *   again after [TimerOptions.retry]'s backoff, until its attempts are spent; it is then PARKED and its target
  *   recorded in the failure ledger under [TimerOptions.PARKED_SUBSCRIPTION], for an operator to [resume] or [skip].
  *
- * At least once, applied once: a crash after sending and before recording sends the timer again, and its target
- * finds the request id committed already.
+ * At least once, applied once: a crash after sending and before writing sends the timer again, and its target finds
+ * the request id committed already.
  */
-@Suppress("LongParameterList")
 class TimerRunner(
     val context: String,
-    private val store: TimerStore,
+    internal val store: TimerStore,
     private val ledger: FailureLedger,
     private val firer: TimerFirer,
-    private val options: TimerOptions = TimerOptions(),
-    private val clock: Clock = Clock.systemUTC(),
-    coroutineContext: CoroutineContext = Dispatchers.Default,
+    private val loop: TimerLoop,
 ) {
-    private val scope = CoroutineScope(coroutineContext + SupervisorJob())
-    private val lifecycle = Mutex()
-    private val loops = HashMap<Int, Job>()
+    private val options: TimerOptions get() = loop.options
+    private val parts = ConcurrentHashMap<Int, Part>()
+    private val settling = ConcurrentLinkedQueue<Settling>()
 
     /** The partitions whose timers this runner sends now. */
-    val partitions: Set<Int> get() = synchronized(loops) { loops.keys.toSortedSet() }
+    val partitions: Set<Int> get() = parts.keys.toSortedSet()
 
     /** Starts sending the timers of [partition], which the node has just acquired; nothing when it does already. */
-    suspend fun startPartition(partition: Int): Unit = lifecycle.withLock {
-        synchronized(loops) {
-            if (partition !in loops) {
-                loops[partition] = scope.launch { PartitionLoop(partition).run() }
-            }
-        }
+    suspend fun startPartition(partition: Int) {
+        parts.computeIfAbsent(partition) { Part(it) }
+        loop.register(this)
     }
 
     /**
      * Stops sending the timers of [partition]: the node hands it off. A command being sent is cancelled; if it reached
-     * its target, the new owner sends it again and the target finds it committed.
+     * its target, the new owner sends it again and the target finds it committed. What was sent is written first.
      */
-    suspend fun stopPartition(partition: Int): Unit = lifecycle.withLock {
-        synchronized(loops) { loops.remove(partition) }?.cancelAndJoin()
+    suspend fun stopPartition(partition: Int) {
+        parts.remove(partition)?.job?.cancelAndJoin()
+        flush()
     }
 
     /** Stops every partition. */
-    suspend fun stop(): Unit = lifecycle.withLock {
-        val stopped = synchronized(loops) { loops.values.toList().also { loops.clear() } }
-        stopped.forEach { it.cancelAndJoin() }
+    suspend fun stop() {
+        parts.keys.toList().forEach { stopPartition(it) }
+        loop.unregister(this)
     }
 
     /**
@@ -117,13 +104,12 @@ class TimerRunner(
      * @return how many timers were resumed.
      */
     suspend fun resume(target: AggregateRef): Int {
-        val now = clock.millis()
-        val resumed = store.parked(target).count {
-            store.update(
-                it.copy(status = TimerStatus.PENDING, attempts = 0, outcome = null, dueAt = now),
-                TimerStatus.PARKED
-            )
-        }
+        val now = loop.clock.millis()
+        val resumed = store.settle(
+            store.parked(target).map {
+                TimerChange(it, it.copy(status = TimerStatus.PENDING, attempts = 0, outcome = null, dueAt = now))
+            },
+        )
         ledger.resolve(TimerOptions.PARKED_SUBSCRIPTION, target)
         return resumed
     }
@@ -135,63 +121,117 @@ class TimerRunner(
      * @return how many timers were skipped.
      */
     suspend fun skip(target: AggregateRef): Int {
-        val skipped = store.parked(target).count {
-            store.update(it.copy(status = TimerStatus.CANCELLED, outcome = TimerOutcomes.SKIPPED), TimerStatus.PARKED)
-        }
+        val skipped = store.settle(
+            store.parked(target).map {
+                TimerChange(it, it.copy(status = TimerStatus.CANCELLED, outcome = TimerOutcomes.SKIPPED))
+            },
+        )
         ledger.resolve(TimerOptions.PARKED_SUBSCRIPTION, target)
         return skipped
     }
 
-    /** Sends [timer], due, if it is still PENDING as it was read, and records the outcome. */
-    @Suppress("TooGenericExceptionCaught") // Whatever fails is a technical failure of this attempt.
-    internal suspend fun fire(timer: Timer) {
-        val now = clock.millis()
-        val current = try {
-            store.find(timer.owner, timer.key)
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (failure: Exception) {
-            logger.warn(failure) { "Failed to read the timer ${timer.id}; it is read again on the next poll." }
-            return
+    /** Takes [due], the timers the loop just read, into the wheel of each partition, but those being sent. */
+    internal fun load(due: List<Timer>) {
+        val byPartition = due.groupBy { it.partition }
+        parts.values.forEach { part ->
+            synchronized(part) {
+                part.wheel.clear()
+                byPartition[part.partition].orEmpty().filterNot { it.id in part.sending }.forEach(part.wheel::add)
+            }
         }
-        if (current == null || !current.isDue(timer, now)) {
-            return
-        }
-        val expiry = options.expiresAfter
-        if (expiry != null && now - current.dueAt > expiry.inWholeMilliseconds) {
-            logger.warn { "The timer ${current.id} was due ${(now - current.dueAt).milliseconds} ago; it expired." }
-            record(current.copy(status = TimerStatus.CANCELLED, outcome = TimerOutcomes.EXPIRED))
-            return
-        }
-        val outcome = try {
-            firer.fire(current)
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (failure: Exception) {
-            failed(current, failure, now)
-            return
-        }
-        record(current.copy(status = TimerStatus.FIRED, attempts = current.attempts + 1, outcome = outcome))
     }
 
-    /** Whether this, the stored timer, is still [loaded], PENDING and due at [now]. */
-    private fun Timer.isDue(loaded: Timer, now: Long): Boolean =
-        id == loaded.id && status == TimerStatus.PENDING && dueAt <= now
+    /**
+     * Sends what is due by [now] (the clock's epoch milliseconds) in each partition, as fast as the partitions'
+     * parallelism and rate allow; returns how long until the next loaded timer is due or may be sent, infinite when none
+     * is loaded. The rate is measured on the monotonic clock, so a clock set back or forth does not burst nor stall it.
+     */
+    internal fun dispatch(now: Long): Duration = parts.values.minOfOrNull { part ->
+        synchronized(part) {
+            while (part.wheel.isNotEmpty() && part.wheel.first().dueAt <= now && part.mayFire()) {
+                val timer = part.wheel.pollFirst()!!
+                if (!part.sending.add(timer.id)) {
+                    continue
+                }
+                part.fired()
+                part.scope.launch { part.permits.withPermit { fire(part, timer) } }
+            }
+            val first = part.wheel.firstOrNull() ?: return@synchronized Duration.INFINITE
+            maxOf((first.dueAt - now).milliseconds, part.untilNextFire())
+        }
+    } ?: Duration.INFINITE
+
+    /**
+     * Writes the changes the timers sent since the last flush came to, in one batch: each only while the store holds
+     * its timer as it was loaded. A failed write leaves them PENDING: sent again, they are deduplicated by their
+     * targets.
+     */
+    internal suspend fun flush() {
+        val batch = generateSequence { settling.poll() }.toList()
+        if (batch.isEmpty()) {
+            return
+        }
+        quietly("write the outcomes of ${batch.size} timers") { store.settle(batch.map { it.change }) }
+        batch.forEach { it.part.sending.remove(it.change.loaded.id) }
+    }
+
+    /** Sends [timer], due, and queues its outcome for the next [flush]. */
+    @Suppress("TooGenericExceptionCaught") // Whatever fails is a technical failure of this attempt.
+    private suspend fun fire(part: Part, timer: Timer) {
+        try {
+            val now = loop.clock.millis()
+            val expiry = options.expiresAfter
+            if (expiry != null && now - timer.dueAt > expiry.inWholeMilliseconds) {
+                logger.warn { "The timer ${timer.id} was due ${(now - timer.dueAt).milliseconds} ago; it expired." }
+                settle(part, timer, timer.copy(status = TimerStatus.CANCELLED, outcome = TimerOutcomes.EXPIRED))
+                return
+            }
+            val outcome = try {
+                firer.fire(timer)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                failed(part, timer, failure, now)
+                return
+            }
+            settle(part, timer, fired(timer, outcome))
+        } catch (cancelled: CancellationException) {
+            part.sending.remove(timer.id)
+            throw cancelled
+        }
+    }
+
+    /** [timer] after its slot was sent with [outcome]: a rule due once is done (decision D198). */
+    private fun fired(timer: Timer, outcome: String): Timer =
+        timer.copy(status = TimerStatus.FIRED, attempts = timer.attempts + 1, outcome = outcome)
+
+    private fun settle(part: Part, loaded: Timer, next: Timer) {
+        settling += Settling(part, TimerChange(loaded, next))
+        loop.wakeUp()
+    }
 
     /** One more failed attempt of [timer]: due again after the backoff, or parked once its attempts are spent. */
-    private suspend fun failed(timer: Timer, failure: Exception, now: Long) {
+    private suspend fun failed(part: Part, timer: Timer, failure: Exception, now: Long) {
         val attempts = timer.attempts + 1
         val reason = "${failure.javaClass.name}: ${failure.message}"
         if (attempts < options.retry.maxAttempts) {
             val backoff = options.retry.backoff(attempts)
             logger.warn(failure) { "Sending the timer ${timer.id} failed (attempt $attempts); retrying in $backoff." }
-            record(timer.copy(attempts = attempts, outcome = reason, dueAt = now + backoff.inWholeMilliseconds))
+            settle(
+                part,
+                timer,
+                timer.copy(attempts = attempts, outcome = reason, dueAt = now + backoff.inWholeMilliseconds)
+            )
             return
         }
         logger.error(failure) {
             "Sending the timer ${timer.id} failed $attempts times; parking it under ${TimerOptions.PARKED_SUBSCRIPTION}."
         }
-        if (record(timer.copy(status = TimerStatus.PARKED, attempts = attempts, outcome = reason))) {
+        // Written at once, so the ledger records only a timer the store holds parked.
+        val parked = TimerChange(timer, timer.copy(status = TimerStatus.PARKED, attempts = attempts, outcome = reason))
+        val written = quietly("park the timer ${timer.id}") { store.settle(listOf(parked)) } == 1
+        part.sending.remove(timer.id)
+        if (written) {
             quietly("park the target of the timer ${timer.id}") {
                 ledger.park(
                     ParkedAggregate(TimerOptions.PARKED_SUBSCRIPTION, timer.target, 1, "${timer.id}: $reason", now),
@@ -199,13 +239,6 @@ class TimerRunner(
             }
         }
     }
-
-    /**
-     * Records [timer]'s new status while it is still the PENDING timer it was read as; false when it is not, or the
-     * store failed: then it is read again on the next poll, and a command already sent is deduplicated by its target.
-     */
-    private suspend fun record(timer: Timer): Boolean =
-        quietly("record the outcome of the timer ${timer.id}") { store.update(timer, TimerStatus.PENDING) } == true
 
     @Suppress("TooGenericExceptionCaught") // A failed write is retried by the next poll.
     private suspend fun <T> quietly(action: String, block: suspend () -> T): T? = try {
@@ -217,53 +250,38 @@ class TimerRunner(
         null
     }
 
-    /** The loop of one partition: polls the store into the wheel and sends each timer when it is due. */
-    private inner class PartitionLoop(private val partition: Int) {
-        private val wheel = TreeSet(DUE_ORDER)
-        private val sending = ConcurrentHashMap.newKeySet<String>()
-        private val permits = Semaphore(options.parallelism)
+    /** One partition's timers: those loaded and not sent yet ([wheel]), and those being sent or written ([sending]). */
+    private inner class Part(val partition: Int) {
+        val job = SupervisorJob(loop.scope.coroutineContext[Job])
+        val scope = CoroutineScope(loop.scope.coroutineContext + job)
+        val wheel = TreeSet(DUE_ORDER)
+        val sending: MutableSet<String> = ConcurrentHashMap.newKeySet()
+        val permits = Semaphore(options.parallelism)
 
-        suspend fun run() = coroutineScope {
-            var polled: TimeMark? = null
-            while (isActive) {
-                if (polled == null || polled.elapsedNow() >= options.pollInterval) {
-                    load()
-                    polled = TimeSource.Monotonic.markNow()
-                }
-                val now = clock.millis()
-                while (wheel.isNotEmpty() && wheel.first().dueAt <= now) {
-                    val timer = wheel.pollFirst()!!
-                    if (sending.add(timer.id)) {
-                        launch {
-                            try {
-                                permits.withPermit { fire(timer) }
-                            } finally {
-                                sending.remove(timer.id)
-                            }
-                        }
-                    }
-                }
-                val untilPoll = options.pollInterval - polled.elapsedNow()
-                val untilDue = wheel.firstOrNull()?.let { (it.dueAt - clock.millis()).milliseconds } ?: Duration.INFINITE
-                delay(minOf(untilPoll, untilDue).coerceAtLeast(TICK))
-            }
+        /** The time between two sends at the partition's rate, none without one. */
+        private val interval: Duration =
+            options.maxFireRate?.let { (MILLIS_PER_SECOND / it).roundToLong().coerceAtLeast(1).milliseconds } ?: Duration.ZERO
+
+        /** When the partition may send its next timer, by its rate. */
+        private var next: TimeSource.Monotonic.ValueTimeMark = TimeSource.Monotonic.markNow()
+
+        fun mayFire(): Boolean = !next.hasNotPassedNow()
+
+        /** One timer sent: the next one may go [interval] after the later of now and the previous allowance. */
+        fun fired() {
+            next = maxOf(next, TimeSource.Monotonic.markNow()) + interval
         }
 
-        /** Replaces the wheel with the timers due within the lookahead, but those being sent. */
-        private suspend fun load() {
-            val until = clock.millis() + options.lookahead.inWholeMilliseconds
-            val due = quietly("read the timers of partition $partition") {
-                store.due(partition, until, options.batch)
-            } ?: return
-            wheel.clear()
-            due.filterNot { it.id in sending }.forEach(wheel::add)
-        }
+        fun untilNextFire(): Duration = (-next.elapsedNow()).coerceAtLeast(Duration.ZERO)
     }
+
+    /** A change waiting for the next [flush], of a timer of [part]. */
+    private class Settling(val part: Part, val change: TimerChange)
 
     private companion object {
         val logger = KotlinLogging.logger {}
         val DUE_ORDER: Comparator<Timer> = compareBy<Timer>({ it.dueAt }, { it.id })
-        val TICK = 1.milliseconds
+        const val MILLIS_PER_SECOND = 1_000.0
     }
 }
 

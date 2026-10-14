@@ -13,19 +13,18 @@
 
 package me.ahoo.wow.kernel
 
-import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.ProjectContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
-import me.ahoo.wow.kernel.test.DEFAULT_START
 import me.ahoo.wow.kernel.test.projectionSpec
 import me.ahoo.wow.kernel.test.publishedEvent
 import me.ahoo.wow.kernel.test.reactorSpec
@@ -220,7 +219,13 @@ class ProcessorSpecTest {
             assertThrownBy<AssertionError> { expectCommand<Release>() }
             assertThrownBy<AssertionError> { expectScheduled("other", Remind("order-1")) }
             assertThrownBy<AssertionError> { expectScheduled("remind", Remind("order-2")) }
-            assertThrownBy<AssertionError> { expectScheduled("remind", Remind("order-1"), ScheduleRule.after(1.minutes)) }
+            assertThrownBy<AssertionError> {
+                expectScheduled(
+                    "remind",
+                    Remind("order-1"),
+                    ScheduleRule.after(1.minutes)
+                )
+            }
             assertThrownBy<AssertionError> { expectScheduleCancelled("remind") }
             assertThrownBy<AssertionError> { expectNoSchedule() }
             assertThrownBy<AssertionError> { expectError<IllegalStateException>() }
