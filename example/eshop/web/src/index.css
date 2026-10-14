@@ -82,7 +82,7 @@
   body {
     @apply bg-background text-foreground antialiased;
   }
-  a {
+  main a {
     @apply underline underline-offset-4;
   }
 }
