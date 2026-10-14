@@ -70,7 +70,7 @@ class HostBackends(
             partitions: Int,
             snapshots: (context: String) -> SnapshotStore = { InMemorySnapshotStore() },
         ): HostBackends {
-            val store = MemoryStore(ContextBackends.DEFAULT_STORE, snapshots)
+            val store = MemoryStore(ContextBackends.DEFAULT_STORE, snapshotsOf = snapshots)
             return of(mapOf(store.name to store), StoreLayout(store.name), partitions)
         }
 

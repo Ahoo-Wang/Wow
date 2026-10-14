@@ -188,9 +188,11 @@ class WowAutoConfiguration {
         beanFactory: ConfigurableListableBeanFactory,
         factories: ObjectProvider<BackendFactory>,
         models: WowModels,
+        queries: ObjectProvider<QueryProperties>,
     ): HostBackends {
         factories.ifAvailable?.let { return HostBackends.of(it) }
-        val stores = StoreInstances.open(properties, beanFactory, beanFactory.beanClassLoader)
+        val memoryQueries = queries.ifAvailable?.memory?.enabled == true
+        val stores = StoreInstances.open(properties, beanFactory, beanFactory.beanClassLoader, memoryQueries)
         val layout = StoreLayout.of(properties, stores, models.models)
         val memory = (layout.logStores + layout.snapshotStores).filter { stores.getValue(it).kind == BackendKind.MEMORY }
         if (memory.isNotEmpty()) {

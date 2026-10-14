@@ -43,6 +43,7 @@ import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.OnSourcing
 import me.ahoo.wow.api.annotation.Revision
+import me.ahoo.wow.api.annotation.Unaddressed
 import me.ahoo.wow.manifest.ContextName
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
@@ -635,6 +636,7 @@ internal class ModelSymbolProcessor(
                 command.hasAnnotation(AllowCreate::class.java.name) -> "ALLOWED"
                 else -> "NONE"
             },
+            unaddressed = command.hasAnnotation(Unaddressed::class.java.name),
             type = command.binaryName(),
             yields = returned ?: producesListed.ifEmpty { null },
             declaredProduces = producesListed,

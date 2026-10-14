@@ -13,12 +13,11 @@
 
 package me.ahoo.wow.ops.server
 
-import me.ahoo.wow.ops.testing.MemorySnapshotQueries
-
 /**
- * The ops service's flow on the memory backend, its snapshots queried by the in-memory reference backend. The same
+ * The ops service's flow on the memory backend, its snapshots queried by the in-memory reference backend
+ * (`wow.query.memory.enabled`). The same
  * flow runs on PostgreSQL in the integration tests (`OpsPostgresTest`).
  */
 class OpsMemoryTest : OpsContract() {
-    override val ops: OpsNode = startOps(sources = listOf(MemorySnapshotQueries::class.java))
+    override val ops: OpsNode = startOps("wow.query.memory.enabled" to true)
 }

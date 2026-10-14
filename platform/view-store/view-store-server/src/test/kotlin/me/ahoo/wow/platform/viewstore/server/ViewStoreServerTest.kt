@@ -20,12 +20,14 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.platform.viewstore.api.ViewStoreContext
 import me.ahoo.wow.runtime.node.ServiceNode
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.JsonNode
+import java.io.File
 
 /** The view store service as its `application.yaml` configures it, on random ports. */
 class ViewStoreServerTest {
     @Test
     fun `the server should run one node of the view store context on the memory backend`() {
-        startViewStore().use { store ->
+        startViewStore("wow.query.memory.enabled" to false).use { store ->
             val node = store.context.getBean(ServiceNode::class.java)
             node.service.assert().isEqualTo("view-store-service")
             node.isReady.assert().isTrue()
@@ -36,7 +38,8 @@ class ViewStoreServerTest {
                 ViewStoreContext.VIEW_PREFERENCES,
                 ViewStoreContext.DATASET_WORDING,
             )
-            // The memory backend serves no snapshot query: a claim then knows of no shared dashboard.
+            // Without the in-memory query backend, no snapshot query is served: a claim then knows of no shared
+            // dashboard.
             store.post(
                 "/view-store/view/snapshot/query",
                 """{"kind":"list","filter":{"op":"MATCH_ALL"}}""",
@@ -50,6 +53,24 @@ class ViewStoreServerTest {
                 .assert().isEmpty()
         }
     }
+
+    @Test
+    fun `the Manifest baseline should list every command route the server serves`() {
+        startViewStore().use { store ->
+            val served = commandRoutes(store.get("/wow/manifest", Who.user("a")).assertOk().json)
+            served.assert().contains("POST /view-store/dataset_wording/clear-dataset-wording")
+            commandRoutes(json.readTree(File("manifest/baseline.json"))).assert().isEqualTo(served)
+        }
+    }
+
+    /** The command routes of [manifest], a Manifest tree, as `METHOD path`. */
+    private fun commandRoutes(manifest: JsonNode): Set<String> = manifest["contexts"].values().flatMap { context ->
+        context["aggregates"].values().flatMap { aggregate ->
+            aggregate["commands"].values().flatMap { command ->
+                command["routes"].values().map { "${it["method"].asString()} ${it["path"].asString()}" }
+            }
+        }
+    }.toSet()
 
     @Test
     fun `the configured system views should be served without snapshot queries`() {

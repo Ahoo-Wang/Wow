@@ -110,7 +110,7 @@ class QueryAutoConfiguration {
                 when (store.kind) {
                     BackendKind.POSTGRES -> PostgresQueries.open(store, ddl)
                     BackendKind.MONGO -> MongoQueries.open(store, ddl)
-                    else -> null
+                    else -> MemoryQueries.open(store)
                 }
             }
             val types = snapshotTypes(manifest, node.contexts.keys)
@@ -121,7 +121,8 @@ class QueryAutoConfiguration {
             if (unserved.isNotEmpty()) {
                 logger.info {
                     "No snapshot query backend serves the snapshots of $unserved (${backends.kind ?: "the application's"} " +
-                        "stores): they are not queried; give the node a QueryBackendFactory bean to query them."
+                        "stores): they are not queried; give the node a QueryBackendFactory bean to query them, or set " +
+                        "wow.query.memory.enabled on the memory backend."
                 }
             }
             return backend

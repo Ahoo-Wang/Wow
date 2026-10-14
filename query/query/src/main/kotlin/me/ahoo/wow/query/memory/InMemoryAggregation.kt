@@ -28,12 +28,12 @@ import me.ahoo.wow.query.GroupWindow
 import me.ahoo.wow.query.QueryExecutionException
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.time.temporal.IsoFields
-import java.time.DayOfWeek
 import java.time.temporal.TemporalAdjusters
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -81,6 +81,7 @@ internal class InMemoryAggregation(private val admitted: AdmittedQuery<Aggregati
         if (group.scope == AggregationGroupScope.ROOT) RecordScope(scope.record) else scope
 
     /** The key of [group] for [scope]; [UNGROUPED] when the scope has no key, so it joins no group. */
+    @Suppress("CyclomaticComplexMethod") // One exhaustive table: a branch per kind of group.
     private fun key(group: AggregationGroup, scope: RecordScope): JsonNode? {
         val at = groupScope(group, scope)
         return when (group) {
@@ -117,8 +118,8 @@ internal class InMemoryAggregation(private val admitted: AdmittedQuery<Aggregati
             me.ahoo.wow.api.query.AggregationDateUnit.QUARTER -> time.with(IsoFields.DAY_OF_QUARTER, 1)
                 .truncatedTo(ChronoUnit.DAYS)
             me.ahoo.wow.api.query.AggregationDateUnit.MONTH -> time.withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS)
-            me.ahoo.wow.api.query.AggregationDateUnit.WEEK -> time.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                .truncatedTo(ChronoUnit.DAYS)
+            me.ahoo.wow.api.query.AggregationDateUnit.WEEK ->
+                time.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).truncatedTo(ChronoUnit.DAYS)
             me.ahoo.wow.api.query.AggregationDateUnit.DAY -> time.truncatedTo(ChronoUnit.DAYS)
             me.ahoo.wow.api.query.AggregationDateUnit.HOUR -> time.truncatedTo(ChronoUnit.HOURS)
             me.ahoo.wow.api.query.AggregationDateUnit.MINUTE -> time.truncatedTo(ChronoUnit.MINUTES)
@@ -159,7 +160,10 @@ internal class InMemoryAggregation(private val admitted: AdmittedQuery<Aggregati
     private fun metric(metric: AggregationMetric, members: List<RecordScope>, values: Map<String, Double?>): JsonNode =
         when (metric) {
             is AggregationMetric.Count -> nodes.numberNode(members.size.toLong())
-            is AggregationMetric.Numeric -> numeric(metric.function, members.mapNotNull { filters.expression(metric.expression, it) })
+            is AggregationMetric.Numeric -> numeric(
+                metric.function,
+                members.mapNotNull { filters.expression(metric.expression, it) }
+            )
             is AggregationMetric.Any -> members.firstNotNullOfOrNull { scope ->
                 scope.values(admitted.field(metric.field)).firstOrNull()?.takeUnless(JsonNode::isNull)
             } ?: nodes.nullNode()

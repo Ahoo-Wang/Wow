@@ -155,7 +155,7 @@ internal object ManifestFragmentBuilder {
                         schema = Manifest.schemaRef(command.type),
                         creation = creation,
                         produces = produces(command, binding.afters, eventNames),
-                        routes = CommandRoutes.of(context, binding.aggregateName, name, creation),
+                        routes = CommandRoutes.of(context, binding.aggregateName, name, creation, command.unaddressed),
                         description = command.description,
                     )
                 } + binding.mounted.map { mounted ->
@@ -163,7 +163,7 @@ internal object ManifestFragmentBuilder {
                     CommandManifest(
                         name = name,
                         schema = Manifest.schemaRef(mounted.type),
-                        routes = CommandRoutes.of(context, binding.aggregateName, name, Creation.NONE, mounted = true),
+                        routes = CommandRoutes.of(context, binding.aggregateName, name, Creation.NONE, unaddressed = true),
                         mounted = true,
                         transformsTo = mounted.transformsTo.distinct().sorted().ifEmpty { null },
                         description = mounted.description,

@@ -162,12 +162,11 @@ class OpsNode(val context: ConfigurableApplicationContext) : AutoCloseable {
 
 /**
  * Starts the ops server on random ports of the loopback interface, with [properties] over its `application.yaml`, in
- * [profiles], its topics in memory and the further configuration [sources].
+ * [profiles], its topics in memory.
  */
 fun startOps(
     vararg properties: Pair<String, Any>,
     profiles: List<String> = emptyList(),
-    sources: List<Class<*>> = emptyList(),
 ): OpsNode {
     val arguments = mapOf(
         "spring.main.banner-mode" to "off",
@@ -181,11 +180,7 @@ fun startOps(
         "wow.subscription.checkpoint-interval" to "100ms",
         "wow.wait.max-timeout" to "15s",
     ) + properties.toMap()
-    val context = SpringApplicationBuilder(
-        OpsServer::class.java,
-        InMemoryOpsTopics::class.java,
-        *sources.toTypedArray()
-    )
+    val context = SpringApplicationBuilder(OpsServer::class.java, InMemoryOpsTopics::class.java)
         .profiles(*profiles.toTypedArray())
         .run(*arguments.map { (name, value) -> "--$name=$value" }.toTypedArray())
     return OpsNode(context)

@@ -615,7 +615,7 @@ data class Settlement(
     /** The rejection [committed] ends with, when it is REJECTED (a business outcome, decision D153). */
     val rejection: Rejection?
         get() = committed.error?.takeIf { committed.status == CommandResult.Status.REJECTED }
-            ?.let { Rejection(it.code, it.message) }
+            ?.let { Rejection(it.code, it.message, it.extensions) }
 
     /** Whether [committed] is FAILED: a technical failure, such as contention, an unknown outcome or a busy lane. */
     val failed: Boolean get() = committed.status == CommandResult.Status.FAILED
