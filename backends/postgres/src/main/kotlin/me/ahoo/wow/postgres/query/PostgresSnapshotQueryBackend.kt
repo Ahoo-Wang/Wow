@@ -247,6 +247,11 @@ class PostgresSnapshotQueryBackend internal constructor(
                 SnapshotFields.FIRST_OPERATOR,
                 row.getString("first_operator")?.let(WowJson.mapper::readTree) ?: nodes.nullNode(),
             )
+            // An aggregate without schedules keeps none (decision D198): the column is null, the record's object empty.
+            set(
+                SnapshotFields.SCHEDULES,
+                row.getString("schedules")?.let(WowJson.mapper::readTree) ?: nodes.objectNode(),
+            )
             if (state) set(SnapshotFields.STATE, WowJson.mapper.readTree(row.getString("state")))
         }
 
