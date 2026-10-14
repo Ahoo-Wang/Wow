@@ -16,6 +16,7 @@ package me.ahoo.wow.ops.domain.parked
 import me.ahoo.wow.api.ledger.LedgerAggregate
 import me.ahoo.wow.api.ledger.LedgerEntry
 import me.ahoo.wow.api.ledger.LedgerRetrySpec
+import me.ahoo.wow.api.query.annotation.QueryTemporal
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
 import me.ahoo.wow.ops.api.parked.MarkRecoverableRequested
 import me.ahoo.wow.ops.api.parked.ParkedRecorded
@@ -29,7 +30,9 @@ import me.ahoo.wow.ops.api.parked.SkipRequested
  * snapshot is the read model an operator queries. While parked, it is the entry's [LedgerEntry]; once resolved,
  * [status] is [ParkedStatus.RESOLVED] with the [outcome]. [requested] is the last action an operator asked of the
  * owning service (`RESUME`, `SKIP`, `MARK_RECOVERABLE` or `APPLY_RETRY_SPEC`), until the service publishes the entry
- * again.
+ * again. [errorType] is what [reason] says failed, which an operator groups the entries by (roadmap 7.1c).
+ *
+ * Its times are epoch milliseconds, declared so (`@QueryTemporal`): a query counts the entries by day or hour of them.
  */
 class ParkedState {
     var service: String = ""
@@ -46,12 +49,26 @@ class ParkedState {
         private set
     var reason: String = ""
         private set
+
+    /**
+     * The type of the failure [reason] records: what it names before its first `": "`, the exception's class as the
+     * runtime parks an aggregate with it (`<class>: <message>`), or `wow.subscription.unrecoverable` for an entry its
+     * source no longer holds; the whole reason when it names none.
+     */
+    var errorType: String = ""
+        private set
+
+    @field:QueryTemporal
     var failedAt: Long = 0
         private set
+
     var retries: Int = 0
         private set
+
+    @field:QueryTemporal
     var retryAt: Long? = null
         private set
+
     var retrySpec: LedgerRetrySpec = LedgerRetrySpec(0, "PT0S", "PT0S")
         private set
     var recoverable: String = LedgerEntry.UNKNOWN
@@ -60,14 +77,22 @@ class ParkedState {
         private set
     var status: String = ParkedStatus.SCHEDULED
         private set
+
+    @field:QueryTemporal
     var nextRetryAt: Long? = null
         private set
+
+    @field:QueryTemporal
     var recordedAt: Long = 0
         private set
+
     var outcome: String? = null
         private set
+
+    @field:QueryTemporal
     var resolvedAt: Long? = null
         private set
+
     var requested: String? = null
         private set
 
@@ -91,6 +116,7 @@ class ParkedState {
         fromVersion = entry.fromVersion
         fromPosition = entry.fromPosition
         reason = entry.reason
+        errorType = errorTypeOf(entry.reason)
         failedAt = entry.failedAt
         retries = entry.retries
         retryAt = entry.retryAt
@@ -131,6 +157,9 @@ class ParkedState {
     }
 
     companion object {
+        /** The type of the failure [reason] records; see [errorType]. */
+        fun errorTypeOf(reason: String): String = reason.substringBefore(": ").trim()
+
         const val RESUME: String = "RESUME"
         const val SKIP: String = "SKIP"
         const val MARK_RECOVERABLE: String = "MARK_RECOVERABLE"

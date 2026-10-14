@@ -26,19 +26,30 @@ import kotlin.system.exitProcess
  * The command line of `wow-migrate-data` (design 07 §3):
  *
  * ```text
- * migrate-data check  --config <file>                       the mapping check: a dry run that writes nothing
- * migrate-data import --config <file> [--dry-run] [--restart]
- * migrate-data tail   --config <file> [--once]
+ * migrate-data check    --config <file>                       the mapping check: a dry run that writes nothing
+ * migrate-data import   --config <file> [--dry-run] [--restart] [--snapshots]
+ * migrate-data tail     --config <file> [--once]
+ * migrate-data compare  --config <file> [--sample <percent>] [--restart]
+ * migrate-data snapshot --config <file> [--restart]
  * ```
  *
  * - `check` scans the 9.x store and checks `migration-map.json` against it and the V10 Manifest.
  * - `import` checks first and does not start on a failed check; then imports every mapped 9.x aggregate, resuming from
  *   its checkpoint. `--dry-run` converts every stream and appends none; `--restart` walks every instance again, the
- *   final complete pass once 9.x has stopped writing.
+ *   final complete pass once 9.x has stopped writing; `--snapshots` then writes the V10 snapshots, as `snapshot` does.
  * - `tail` follows what 9.x commits after the full import until it is stopped (or after one pass with `--once`), the
  *   increment until cut-over. It reads the 9.x store by commit time, which needs an index 9.x did not create: without
  *   it the tail refuses to start and prints the command that creates it, unless `source.createCommitTimeIndex` lets
  *   it create the index itself, the tool's only write to a 9.x store.
+ * - `compare` compares each 9.x snapshot with the V10 state rebuilt from the imported log at its version
+ *   ([StateComparison]), resuming from its checkpoint; `--sample` compares that percentage of the instances, the same
+ *   ones on every run, and `--restart` compares from the first again. It prints each instance that differs, and exits
+ *   with [DIFFERS] when one does.
+ * - `snapshot` writes the V10 snapshot of every imported instance at its last version ([SnapshotWriter]), resuming
+ *   from its checkpoint; `--restart` walks every instance again (the snapshots already written are skipped).
+ *
+ * `compare` and `snapshot` rebuild states with the services' V10 models, found on the configuration's `classpath`
+ * ([MigrationModels]).
  *
  * From the repository: `./gradlew :migrate-data:run --args="check --config /path/to/migrate-data.json"`.
  */
@@ -46,19 +57,25 @@ class MigrateData(
     private val out: PrintStream = System.out,
     private val connect: (MigrationConfig) -> MigrationConnections = ::ConfiguredConnections,
     private val running: () -> Boolean = { true },
+    private val models: (MigrationConfig) -> MigrationModels = { config ->
+        MigrationModels.load(MigrationModels.classLoaderOf(config.classpath, MigrateData::class.java.classLoader))
+    },
 ) {
-    /** Runs [args]; returns the process exit code: 0 done, 1 the check or the import failed, 2 a usage error. */
+    /**
+     * Runs [args]; returns the process exit code: 0 done, 1 the check, the import or another step failed, 2 a usage
+     * error, 3 the comparison found differences.
+     */
     fun run(args: List<String>): Int {
         val command = args.firstOrNull()?.takeIf { it in COMMANDS }
         val options = args.drop(1)
-        val configPath = options.zipWithNext().firstOrNull { it.first == "--config" }?.second
+        val configPath = valueOf(options, CONFIG)
         if (command == null || configPath == null) {
             out.println(USAGE)
             return USAGE_ERROR
         }
-        val unknown = options.filter { it.startsWith("--") } - KNOWN_OPTIONS.getValue(command)
-        if (unknown.isNotEmpty()) {
-            out.println("Unknown options $unknown.\n$USAGE")
+        val sample = valueOf(options, SAMPLE)?.toIntOrNull()
+        usageProblem(command, options, sample)?.let { problem ->
+            out.println("$problem\n$USAGE")
             return USAGE_ERROR
         }
         val config = MigrationConfig.read(Path.of(configPath))
@@ -71,8 +88,10 @@ class MigrateData(
                 runBlocking {
                     when (command) {
                         CHECK -> check(plan, connections)
-                        IMPORT -> import(plan, config, connections, "--dry-run" in options, "--restart" in options)
-                        else -> tail(plan, config, connections, "--once" in options)
+                        IMPORT -> import(plan, config, connections, options)
+                        TAIL -> tail(plan, config, connections, ONCE in options)
+                        COMPARE -> compare(plan, config, connections, sample ?: CompareOptions.ALL, RESTART in options)
+                        else -> snapshot(plan, config, connections, RESTART in options)
                     }
                 }
             }
@@ -81,6 +100,22 @@ class MigrateData(
             FAILED
         }
     }
+
+    /** What is wrong with [command]'s [options] ([sample] is the value of `--sample`); null when nothing is. */
+    private fun usageProblem(command: String, options: List<String>, sample: Int?): String? {
+        val unknown = options.filter { it.startsWith("--") } - KNOWN_OPTIONS.getValue(command)
+        return when {
+            unknown.isNotEmpty() -> "Unknown options $unknown."
+            SAMPLE in options && (sample == null || sample !in 1..CompareOptions.ALL) ->
+                "$SAMPLE takes a percentage from 1 to 100."
+
+            DRY_RUN in options && SNAPSHOTS in options -> "A dry run writes no snapshots: $DRY_RUN or $SNAPSHOTS."
+            else -> null
+        }
+    }
+
+    private fun valueOf(options: List<String>, name: String): String? =
+        options.zipWithNext().firstOrNull { it.first == name }?.second
 
     private fun check(plan: MigrationPlan, connections: MigrationConnections): Int {
         val report = MappingCheck(plan).check(connections.source.inventory())
@@ -92,20 +127,70 @@ class MigrateData(
         plan: MigrationPlan,
         config: MigrationConfig,
         connections: MigrationConnections,
-        dryRun: Boolean,
-        restart: Boolean,
+        options: List<String>,
     ): Int {
         if (check(plan, connections) != OK) {
             return FAILED
         }
+        val dryRun = DRY_RUN in options
         val checkpoints = if (dryRun) {
             InMemoryCheckpointRepository()
         } else {
             FileCheckpointRepository(Path.of(config.checkpoint))
         }
-        val importer = importer(plan, config.options(dryRun, restart), connections, checkpoints)
+        val importer = importer(plan, config.options(dryRun, RESTART in options), connections, checkpoints)
         plan.aggregates.keys.forEach { importer.importAll(it) }
         out.println(if (dryRun) "Dry run done: nothing was appended." else "Import done.")
+        return if (SNAPSHOTS in options) snapshot(plan, config, connections, RESTART in options) else OK
+    }
+
+    private suspend fun compare(
+        plan: MigrationPlan,
+        config: MigrationConfig,
+        connections: MigrationConnections,
+        sample: Int,
+        restart: Boolean,
+    ): Int {
+        val comparison = StateComparison(
+            snapshots = connections.snapshots,
+            plan = plan,
+            models = models(config),
+            logOf = connections::logOf,
+            checkpoints = FileCheckpointRepository(Path.of(config.checkpoint)),
+            options = CompareOptions(config.pageSize, config.concurrency, sample, restart),
+            report = out::println,
+        )
+        val differing = plan.aggregates.keys.map { comparison.compare(it) }.filterNot { it.passed }
+        if (differing.isEmpty()) {
+            out.println("Comparison done: every state compared equals its 9.x snapshot.")
+            return OK
+        }
+        out.println(
+            "Comparison done: ${differing.sumOf { it.differing }} instances of ${differing.map { it.aggregate }} " +
+                "differ. Explain each kind of difference (a known 9.x defect or an intended change) before the " +
+                "cut-over (design 07 §3 step 4).",
+        )
+        return DIFFERS
+    }
+
+    private suspend fun snapshot(
+        plan: MigrationPlan,
+        config: MigrationConfig,
+        connections: MigrationConnections,
+        restart: Boolean,
+    ): Int {
+        val writer = SnapshotWriter(
+            source = connections.source,
+            plan = plan,
+            models = models(config),
+            logOf = connections::logOf,
+            storeOf = connections::snapshotStoreOf,
+            checkpoints = FileCheckpointRepository(Path.of(config.checkpoint)),
+            options = config.options(restart = restart),
+            progress = { out.println(it.render()) },
+        )
+        plan.aggregates.keys.forEach { writer.writeAll(it) }
+        out.println("Snapshots done.")
         return OK
     }
 
@@ -164,20 +249,36 @@ class MigrateData(
         const val OK = 0
         const val FAILED = 1
         const val USAGE_ERROR = 2
+        const val DIFFERS = 3
         private const val CHECK = "check"
         private const val IMPORT = "import"
         private const val TAIL = "tail"
-        private val COMMANDS = setOf(CHECK, IMPORT, TAIL)
+        private const val COMPARE = "compare"
+        private const val SNAPSHOT = "snapshot"
+        private const val CONFIG = "--config"
+        private const val DRY_RUN = "--dry-run"
+        private const val RESTART = "--restart"
+        private const val SNAPSHOTS = "--snapshots"
+        private const val ONCE = "--once"
+        private const val SAMPLE = "--sample"
+        private val COMMANDS = setOf(CHECK, IMPORT, TAIL, COMPARE, SNAPSHOT)
         private val KNOWN_OPTIONS = mapOf(
-            CHECK to setOf("--config"),
-            IMPORT to setOf("--config", "--dry-run", "--restart"),
-            TAIL to setOf("--config", "--once"),
+            CHECK to setOf(CONFIG),
+            IMPORT to setOf(CONFIG, DRY_RUN, RESTART, SNAPSHOTS),
+            TAIL to setOf(CONFIG, ONCE),
+            COMPARE to setOf(CONFIG, SAMPLE, RESTART),
+            SNAPSHOT to setOf(CONFIG, RESTART),
         )
         private val USAGE = """
             Usage: migrate-data <command> --config <file>
-              check   checks migration-map.json against the 9.x store and the V10 Manifest; writes nothing
-              import  [--dry-run] [--restart]  imports the 9.x event streams into the V10 log
-              tail    [--once]  follows what 9.x commits after the import, until stopped
+              check     checks migration-map.json against the 9.x store and the V10 Manifest; writes nothing
+              import    [--dry-run] [--restart] [--snapshots]  imports the 9.x event streams into the V10 log,
+                        then writes the V10 snapshots with --snapshots
+              tail      [--once]  follows what 9.x commits after the import, until stopped
+              compare   [--sample <percent>] [--restart]  compares each 9.x snapshot with the V10 state rebuilt
+                        from the log at its version; exits with 3 when one differs
+              snapshot  [--restart]  writes the V10 snapshot of every imported instance
+            Exit codes: 0 done, 1 failed, 2 usage error, 3 the comparison found differences.
         """.trimIndent()
     }
 }

@@ -36,10 +36,43 @@ data class AggregateCheckpoint(
     val tailedTo: Long? = null,
 )
 
-/** The checkpoints of a migration, by 9.x aggregate (`contextName.aggregateName`), in format [format]. */
+/**
+ * Where the state comparison of one 9.x aggregate stands (`compare`): [after] is the last instance whose 9.x snapshot
+ * was compared, in snapshot order, [completed] is set once every one is, and the counts are those of every run since
+ * it started, so a resumed comparison reports, and exits on, the differences an earlier run found. [sample] is the
+ * percentage of the instances it compares; another sample starts it over.
+ */
+data class CompareCheckpoint(
+    val sample: Int = 100,
+    val after: NineXAggregateId? = null,
+    val completed: Boolean = false,
+    val snapshots: Long = 0,
+    val compared: Long = 0,
+    val differing: Long = 0,
+    val kinds: Map<String, Long> = emptyMap(),
+)
+
+/**
+ * Where the snapshot writing of one 9.x aggregate stands (`snapshot`, `import --snapshots`): [after] is the last
+ * instance whose V10 snapshot is written, in the import's id order, and [completed] is set once every one is.
+ */
+data class SnapshotCheckpoint(
+    val after: NineXAggregateId? = null,
+    val completed: Boolean = false,
+    val written: Long = 0,
+    val skipped: Long = 0,
+)
+
+/**
+ * The checkpoints of a migration, by 9.x aggregate (`contextName.aggregateName`), in format [format]: the import's
+ * ([aggregates]), the state comparison's ([compared]) and the snapshot writing's ([snapshots]). The last two joined
+ * format 1 as optional properties (roadmap 8b.2): a file without them reads as before.
+ */
 data class ImportCheckpoints(
     val format: Int = FORMAT,
     val aggregates: Map<String, AggregateCheckpoint> = emptyMap(),
+    val compared: Map<String, CompareCheckpoint> = emptyMap(),
+    val snapshots: Map<String, SnapshotCheckpoint> = emptyMap(),
 ) {
     init {
         require(format == FORMAT) { "Checkpoint format $format is not supported; this tool reads format $FORMAT." }
@@ -49,6 +82,16 @@ data class ImportCheckpoints(
 
     fun with(aggregate: NineXAggregate, checkpoint: AggregateCheckpoint): ImportCheckpoints =
         copy(aggregates = aggregates + (aggregate.toString() to checkpoint))
+
+    fun comparisonOf(aggregate: NineXAggregate): CompareCheckpoint? = compared[aggregate.toString()]
+
+    fun with(aggregate: NineXAggregate, checkpoint: CompareCheckpoint): ImportCheckpoints =
+        copy(compared = compared + (aggregate.toString() to checkpoint))
+
+    fun snapshotsOf(aggregate: NineXAggregate): SnapshotCheckpoint? = snapshots[aggregate.toString()]
+
+    fun with(aggregate: NineXAggregate, checkpoint: SnapshotCheckpoint): ImportCheckpoints =
+        copy(snapshots = snapshots + (aggregate.toString() to checkpoint))
 
     companion object {
         const val FORMAT: Int = 1

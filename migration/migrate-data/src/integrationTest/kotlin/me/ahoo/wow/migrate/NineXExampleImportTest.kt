@@ -21,9 +21,12 @@ import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.migrate.example.OrderStatus
 import me.ahoo.wow.migrate.example.OrderState
 import me.ahoo.wow.mongo.log.MongoEventLog
+import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.postgres.PostgresEventLog
+import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -34,9 +37,10 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 /**
- * Roadmap 8b.1's exit: the 9.x example's data, in a 9.x MongoDB event store, imported by the command line into the V10
- * log on PostgreSQL and on MongoDB, then read back through V10, where every aggregate's state equals the 9.x state;
- * then a stream 9.x commits after the import is followed by the tail.
+ * Roadmap 8b.1's and 8b.2's exits: the 9.x example's data, in a 9.x MongoDB store, imported by the command line into
+ * the V10 log on PostgreSQL and on MongoDB, then read back through V10, where every aggregate's state equals the 9.x
+ * state; `compare` finds every 9.x snapshot equal (and reports a broken state mapping), `snapshot` writes the V10
+ * snapshots once; then a stream 9.x commits after the import is followed by the tail.
  */
 class NineXExampleImportTest {
     @TempDir
@@ -45,8 +49,8 @@ class NineXExampleImportTest {
     private val output = ByteArrayOutputStream()
     private val nineX: MongoDatabase = NineXMongoStore.example()
 
-    private fun config(target: String, createIndex: Boolean = false): Path {
-        Files.writeString(directory.resolve("migration-map.json"), NineXExample.MAP_TEXT)
+    private fun config(target: String, createIndex: Boolean = false, map: String = NineXExample.MAP_TEXT): Path {
+        Files.writeString(directory.resolve("migration-map.json"), map)
         Files.writeString(directory.resolve("manifest.json"), NineXExample.MANIFEST_TEXT)
         return directory.resolve("migrate-data.json").also {
             Files.writeString(
@@ -69,7 +73,7 @@ class NineXExampleImportTest {
 
     private fun run(vararg args: String): Int = MigrateData(PrintStream(output, true)).run(args.toList())
 
-    private fun migrate(target: String, log: EventLog) = runBlocking {
+    private fun migrate(target: String, log: EventLog, store: SnapshotStore) = runBlocking {
         val config = config(target)
         run("check", "--config", config.toString()).assert().describedAs(output.toString()).isEqualTo(MigrateData.OK)
         run("import", "--config", config.toString(), "--dry-run").assert().isEqualTo(MigrateData.OK)
@@ -94,6 +98,39 @@ class NineXExampleImportTest {
         // Idempotent: a complete pass again writes nothing.
         run("import", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
         output.toString().assert().contains("example-service.order done: 1 instances, 0 streams imported, 4 skipped")
+
+        // Roadmap 8b.2: every 9.x snapshot equals the V10 state rebuilt from the imported log, and the V10 snapshots
+        // are written, once.
+        run("compare", "--config", config.toString()).assert().describedAs(output.toString())
+            .isEqualTo(MigrateData.OK)
+        output.toString().assert()
+            .contains("example-service.order compared: 1 of 1 instances have a 9.x snapshot (100.0%), 1 compared, 0 differ")
+            .contains("example-service.cart compared: 1 of 1 instances have a 9.x snapshot (100.0%), 1 compared, 0 differ")
+            .doesNotContain("DIFFERS")
+        run("snapshot", "--config", config.toString()).assert().describedAs(output.toString())
+            .isEqualTo(MigrateData.OK)
+        output.toString().assert().contains("example-service.order snapshots done: 1 instances, 1 V10 snapshots written")
+        val snapshot = store.load(orderRef)!!
+        snapshot.version.assert().isEqualTo(4)
+        NineXExample.sameJson(
+            WowJson.mapper.readTree(snapshot.state),
+            WowJson.mapper.readTree(NineXExample.resource("order-state.json")),
+        ).assert().isTrue()
+        kernel.stateAt(NineXExample.orderModel, orderRef, 4, snapshot)!!.version.assert().isEqualTo(4)
+        run("import", "--config", config.toString(), "--restart", "--snapshots").assert().isEqualTo(MigrateData.OK)
+        output.toString().assert().contains("example-service.order snapshots done: 1 instances, 0 V10 snapshots written, 1 already there")
+
+        // A deliberately broken state mapping is reported, with the instance, its version and the fields.
+        val broken = NineXExample.MAP_TEXT.replace(
+            "\"to\": \"example.order\",",
+            "\"to\": \"example.order\", \"state\": { \"fields\": { \"status\": \"orderStatus\" } },",
+        )
+        run("compare", "--config", config(target, map = broken).toString(), "--restart").assert()
+            .isEqualTo(MigrateData.DIFFERS)
+        output.toString().assert()
+            .contains("DIFFERS example-service.order (0)/0VY3GwaK4OmV00E v4: orderStatus: 9.x \"SHIPPED\", V10 (none); status: 9.x (none), V10 \"SHIPPED\"")
+            .contains("differing fields: orderStatus (1), status (1)")
+        config(target)
 
         // The tail follows what 9.x commits after the import.
         val received = NineXMongoStore.received(NineXExample.resource("order-stream-v4.json"), System.currentTimeMillis())
@@ -125,14 +162,22 @@ class NineXExampleImportTest {
             user = postgres.username
             password = postgres.password
         }
-        migrate(target, PostgresEventLog(dataSource, NineXExample.CONTEXT, PARTITIONS))
+        migrate(
+            target,
+            PostgresEventLog(dataSource, NineXExample.CONTEXT, PARTITIONS),
+            PostgresSnapshotStore(dataSource, NineXExample.CONTEXT),
+        )
     }
 
     @Test
     fun `the 9x example's data imports into the V10 log on MongoDB`() {
         val target =
             """{ "type": "mongo", "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "$TARGET_DATABASE" }"""
-        migrate(target, MongoEventLog(NineXMongoStore.client, TARGET_DATABASE, NineXExample.CONTEXT, PARTITIONS))
+        migrate(
+            target,
+            MongoEventLog(NineXMongoStore.client, TARGET_DATABASE, NineXExample.CONTEXT, PARTITIONS),
+            MongoSnapshotStore(NineXMongoStore.client, TARGET_DATABASE, NineXExample.CONTEXT),
+        )
     }
 
     private companion object {

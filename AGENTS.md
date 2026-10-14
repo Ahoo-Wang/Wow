@@ -62,6 +62,16 @@ pnpm test
 pnpm lint
 ```
 
+Ops console (`platform/ops/console`, V10, served by `:ops-server` from its `ui/`; see its README for the end-to-end suite):
+
+```bash
+pnpm --filter wow-ops-console^... build
+cd platform/ops/console
+pnpm test
+pnpm lint
+pnpm build
+```
+
 Documentation site:
 
 ```bash

@@ -1,6 +1,11 @@
 spring:
   application:
     name: ops-service
+  web:
+    resources:
+      # The console (roadmap 7.1b, platform/ops/console): the distribution's ui/ folder, or the console's own build
+      # when the server runs from its project directory (`./gradlew :ops-server:run`).
+      static-locations: file:./ui/, file:../console/dist/
 server:
   port: 8088
 wow:

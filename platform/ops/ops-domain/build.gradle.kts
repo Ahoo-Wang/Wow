@@ -21,6 +21,8 @@ dependencies {
     api(project(":ops-api"))
     // The generated models and the binding index build on the kernel only (decision D149).
     api(project(":kernel"))
+    // @QueryTemporal on the parked state's times: a query buckets the entries by when they failed (roadmap 7.1c).
+    implementation(project(":query-api"))
     ksp(project(":compiler"))
     testImplementation(project(":test-dsl"))
 }
