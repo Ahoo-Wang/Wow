@@ -144,6 +144,7 @@ val v10IntegrationTestProjects = includedProjects(
     ":eshop-e2e",
     ":ops-server",
     ":view-store-server",
+    ":migrate-data",
 )
 val integrationTestProjects = includedProjects(
     ":wow-bi",

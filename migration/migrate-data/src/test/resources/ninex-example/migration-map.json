@@ -1,0 +1,43 @@
+{
+  "format": 1,
+  "aggregates": [
+    {
+      "from": "example-service.order",
+      "to": "example.order",
+      "commands": [
+        { "from": "create_order", "to": "CreateOrder" },
+        { "from": "change_address", "to": "ChangeAddress" },
+        { "from": "pay_order", "to": "PayOrder" },
+        { "from": "ship_order", "to": "ShipOrder" },
+        { "from": "receipt_order", "to": "ReceiptOrder" }
+      ],
+      "events": [
+        {
+          "from": "order_created",
+          "fromRevision": "0.0.1",
+          "to": "OrderCreated",
+          "toRevision": 1,
+          "upgrade": "upgradeOrderCreatedFrom1"
+        },
+        { "from": "address_changed", "to": "AddressChanged" },
+        { "from": "order_paid", "to": "OrderPaid" },
+        { "from": "order_shipped", "to": "OrderShipped" },
+        { "from": "order_received", "to": "OrderReceived" }
+      ]
+    },
+    {
+      "from": "example-service.cart",
+      "to": "example.cart",
+      "commands": [
+        { "from": "add_cart_item", "to": "AddCartItem" },
+        { "from": "change_quantity", "to": "ChangeQuantity" },
+        { "from": "remove_cart_item", "to": "RemoveCartItem" }
+      ],
+      "events": [
+        { "from": "cart_item_added", "to": "CartItemAdded" },
+        { "from": "cart_quantity_changed", "to": "CartQuantityChanged" },
+        { "from": "cart_item_removed", "to": "CartItemRemoved" }
+      ]
+    }
+  ]
+}
