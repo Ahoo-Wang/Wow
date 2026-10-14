@@ -51,7 +51,12 @@ import kotlin.time.toKotlinDuration
  *   port (D89).
  * - `wow.contexts.include`, `wow.contexts.exclude`: the bounded contexts the node serves among the domain modules on
  *   the class path, by default all of them (decision D169), see [Contexts].
- * - `wow.backend`: `auto` (the default), `memory`, `postgres` or `mongo` ([BackendKind]); `wow.mongo.database`.
+ * - `wow.backend`: `auto` (the default), `memory`, `postgres` or `mongo` ([BackendKind]); `wow.mongo.database`: the one
+ *   store of a node that names none.
+ * - `wow.stores.<name>.*`: the named store instances (decision D177, [Store]); `wow.log.store` and
+ *   `wow.snapshot.store`, the stores of the aggregates' logs and snapshots by default; per aggregate type,
+ *   `wow.aggregates.[<context>.<aggregate>].log.store` and `.snapshot.store`. The aggregates whose logs are on one store
+ *   form a log group, with its own partition sequences, checkpoints, parked entries and timers.
  * - `wow.log.partitions` (64) and `wow.log.append-queue.*`, whose defaults are the backend's preset.
  * - `wow.cluster.*` ([ClusterOptions]) and `wow.cluster.router`: `partitioned`, or `local` (the default on the memory
  *   backend, which cannot route across nodes).
@@ -106,6 +111,12 @@ class WowProperties {
     /** Per aggregate type, by `<context>.<aggregate>` (bracketed in a property name: `wow.aggregates.[shop.cart]`). */
     var aggregates: MutableMap<String, Aggregate> = LinkedHashMap()
 
+    /** The named store instances (decision D177), by name: `wow.stores.<name>.type` and its settings. */
+    var stores: MutableMap<String, Store> = LinkedHashMap()
+
+    /** Where the snapshots are by default (decision D177): `wow.snapshot.store`. */
+    var snapshot: Snapshot = Snapshot()
+
     class Node {
         /** This node's id among the nodes of the service; a new one each start when not set. */
         var id: String? = null
@@ -155,6 +166,38 @@ class WowProperties {
         /** The partitions of each context's log: fixed once the log holds entries. */
         var partitions: Int = DEFAULT_PARTITIONS
         var appendQueue: AppendQueue = AppendQueue()
+
+        /**
+         * The store of every aggregate's log that `wow.aggregates.[<context>.<aggregate>].log.store` does not name
+         * (decision D177): one of `wow.stores`, the only one when not set.
+         */
+        var store: String? = null
+    }
+
+    /**
+     * A named store instance (decision D177, `wow.stores.<name>`), as 9.x's `storage-routing` binds one: its [type],
+     * `memory`, `postgres` or `mongo`; on PostgreSQL, the `DataSource` bean [dataSource] names (the only one when not
+     * set); on MongoDB, the `MongoClient` bean [client] names (the only one when not set) and its [database] (`wow`
+     * when not set). Two stores of one type may serve different databases; two log stores may not share one.
+     */
+    class Store {
+        var type: BackendKind? = null
+        var dataSource: String? = null
+        var client: String? = null
+        var database: String? = null
+    }
+
+    /**
+     * Where the snapshots are (decision D177): [store] is the store of every aggregate's snapshots that
+     * `wow.aggregates.[<context>.<aggregate>].snapshot.store` does not name, `wow.log.store` when not set.
+     */
+    class Snapshot {
+        var store: String? = null
+    }
+
+    /** One aggregate type's store of its log or of its snapshots (decision D177): one of `wow.stores`. */
+    class AggregateStore {
+        var store: String? = null
     }
 
     /** The partition append queue; each setting not given is the backend's preset ([AppendQueueOptions]). */
@@ -458,6 +501,12 @@ class WowProperties {
          * command topic, accepted once the broker acknowledged them (decision D143), which needs Kafka.
          */
         var routing: AggregateRouting = AggregateRouting.CLUSTER
+
+        /** The store of the type's log (decision D177), over `wow.log.store`: the type's log group. */
+        var log: AggregateStore = AggregateStore()
+
+        /** The store of the type's snapshots (decision D177), over `wow.snapshot.store`; its queries read it. */
+        var snapshot: AggregateStore = AggregateStore()
     }
 
     /** How the commands of an aggregate type are routed (`wow.aggregates.[<context>.<aggregate>].routing`). */

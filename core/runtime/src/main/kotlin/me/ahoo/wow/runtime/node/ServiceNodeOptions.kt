@@ -48,6 +48,13 @@ import kotlin.time.Duration.Companion.seconds
  * [log]'s partition count is the context's. Without [snapshots] the context has no snapshot subscription, and its
  * default wait is COMMITTED; without [reservations] its commands cannot reserve keys; without [timers] its commands and
  * sagas cannot schedule commands (decision D166): a schedule is committed but never sent.
+ *
+ * **Log groups** (decision D177): the aggregates whose log is on one store instance form a group, with its own
+ * partition sequences and aggregate tables, and the checkpoints, parked entries and timers of the subscriptions that
+ * read it in the same store. [log], [checkpoints], [ledger] and [timers] are the context's default group, on the store
+ * named [store]: every aggregate type of the context that no other group names. Each of [groups] is another store's,
+ * with the aggregate types it holds. Partitions and leases stay per context: every group has the context's partitions,
+ * and the owner of a partition reads it in every group. One store, no [groups]: one group, as before D177.
  */
 data class ContextBackends(
     val log: EventLog,
@@ -57,7 +64,53 @@ data class ContextBackends(
     val snapshots: SnapshotStore? = null,
     val reservations: ReservationStore? = null,
     val timers: TimerStore? = null,
-)
+    /** The store instance of the default log group, as the host names it (`wow.log.store`). */
+    val store: String = DEFAULT_STORE,
+    /** The context's other log groups, each on a store of its own (decision D177). */
+    val groups: List<LogGroupBackends> = emptyList(),
+) {
+    init {
+        require(store.isNotBlank()) { "A log group names its store." }
+        val stores = groups.map { it.store }
+        require(store !in stores && stores.toSet().size == stores.size) {
+            "Each log group is on a store of its own: $store and $stores."
+        }
+        val types = groups.flatMap { it.types }
+        require(types.toSet().size == types.size) { "An aggregate type is in one log group: $types." }
+        groups.forEach { group ->
+            require(group.log.partitions == log.partitions) {
+                "The log group ${group.store} has ${group.log.partitions} partitions, not the context's ${log.partitions}."
+            }
+            require((group.timers == null) == (timers == null)) {
+                "Either every log group has a timer store or none has: ${group.store} differs from $store."
+            }
+        }
+    }
+
+    companion object {
+        /** The name of the store of a context's default log group when the host names none. */
+        const val DEFAULT_STORE: String = "default"
+    }
+}
+
+/**
+ * One log group of a context other than its default one (decision D177): the aggregate [types] whose log is [log], on
+ * the store instance [store]; the checkpoints, parked entries and timers of the subscriptions reading it are in
+ * [checkpoints], [ledger] and [timers], on the same store.
+ */
+data class LogGroupBackends(
+    val store: String,
+    val types: Set<AggregateType>,
+    val log: EventLog,
+    val checkpoints: CheckpointStore,
+    val ledger: FailureLedger,
+    val timers: TimerStore? = null,
+) {
+    init {
+        require(store.isNotBlank()) { "A log group names its store." }
+        require(types.isNotEmpty()) { "A log group holds at least one aggregate type." }
+    }
+}
 
 /** Opens the [ContextBackends] of each bounded context the node hosts; the host closes what it opened. */
 fun interface BackendFactory {

@@ -1,0 +1,113 @@
+{
+  "format" : 1,
+  "contexts" : [ {
+    "name" : "treasury",
+    "description" : "The mixed-store tests' context: vaults and ledgers on different stores",
+    "aggregates" : [ {
+      "name" : "vault",
+      "state" : {
+        "schema" : "#/$defs/Holding"
+      },
+      "snapshot" : {
+        "enabled" : true
+      },
+      "commands" : [ {
+        "name" : "OpenVault",
+        "aliases" : [ ],
+        "schema" : "#/$defs/OpenVault",
+        "creation" : "REQUIRED",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/treasury/vault/{id}/open-vault"
+        } ]
+      }, {
+        "name" : "Seal",
+        "aliases" : [ ],
+        "schema" : "#/$defs/Seal",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/treasury/vault/{id}/seal"
+        } ]
+      } ],
+      "events" : [ {
+        "name" : "Sealed",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/Sealed"
+      }, {
+        "name" : "VaultOpened",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/VaultOpened"
+      } ],
+      "lifecycle" : [ ],
+      "queries" : [ {
+        "model" : "snapshot",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/treasury/vault/snapshot/query"
+        } ]
+      } ]
+    }, {
+      "name" : "ledger",
+      "state" : {
+        "schema" : "#/$defs/Holding"
+      },
+      "snapshot" : {
+        "enabled" : true
+      },
+      "commands" : [ {
+        "name" : "OpenLedger",
+        "aliases" : [ ],
+        "schema" : "#/$defs/OpenLedger",
+        "creation" : "REQUIRED",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/treasury/ledger/{id}/open-ledger"
+        } ]
+      }, {
+        "name" : "Seal",
+        "aliases" : [ ],
+        "schema" : "#/$defs/Seal",
+        "creation" : "NONE",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/treasury/ledger/{id}/seal"
+        } ]
+      } ],
+      "events" : [ {
+        "name" : "LedgerOpened",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/LedgerOpened"
+      }, {
+        "name" : "Sealed",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/Sealed"
+      } ],
+      "lifecycle" : [ ],
+      "queries" : [ {
+        "model" : "snapshot",
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/treasury/ledger/snapshot/query"
+        } ]
+      } ]
+    } ],
+    "subscriptions" : [ ],
+    "errors" : [ ]
+  } ],
+  "errors" : [ ],
+  "$defs" : {
+    "Holding" : {
+      "type" : "object",
+      "properties" : {
+        "sealed" : {
+          "type" : "boolean"
+        }
+      }
+    }
+  }
+}

@@ -53,6 +53,7 @@ import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.command.MessageEntries
 import me.ahoo.wow.runtime.command.Receipts
 import me.ahoo.wow.runtime.contract.ContractDirectory
+import me.ahoo.wow.runtime.log.LogGroupRouter
 import me.ahoo.wow.runtime.log.PartitionAppendQueue
 import me.ahoo.wow.runtime.manifest.ManifestCheck
 import me.ahoo.wow.runtime.reservation.ReservationSubscription
@@ -60,6 +61,7 @@ import me.ahoo.wow.runtime.snapshot.SnapshotSubscription
 import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.state.StateViewReader
 import me.ahoo.wow.runtime.state.StateViews
+import me.ahoo.wow.runtime.subscription.LogGroupDirectory
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
@@ -75,7 +77,11 @@ import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.id.IdGenerators
+import me.ahoo.wow.spi.ledger.FailureLedger
+import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.timer.Timer
+import me.ahoo.wow.spi.timer.TimerStore
 import me.ahoo.wow.spi.wait.Origin
 import java.time.Clock
 import kotlin.time.Duration.Companion.milliseconds
@@ -123,6 +129,11 @@ class ContextNode internal constructor(
     val timers: ContextTimers? = null,
     /** The node's id generators (decision D171), the ids its sagas take. */
     val ids: IdGenerators = IdGenerators.DEFAULT,
+    /**
+     * The context's log groups (decision D177), its default one first: each with the runtime of its subscriptions
+     * and its timers. [subscriptions] and [timers] are the default group's.
+     */
+    val logGroups: List<LogGroupNode> = emptyList(),
 ) {
     /**
      * The ids of the context's creation commands that name no aggregate (decision D191): a saga's derived command, one
@@ -148,6 +159,20 @@ class ContextTimers internal constructor(
     val subscription: TimersSubscription,
     val runner: TimerRunner,
     val sagas: SagaTimers,
+)
+
+/**
+ * One log group of a context on a node (decision D177): the aggregate [types] whose log is [log], on the store named
+ * [store]; the runtime of the context's [subscriptions] over that log, its checkpoints and parked entries in the
+ * group's store; and the group's [timers], when its store has a timer store. Every group runs the same
+ * subscriptions, in the partitions the node owns.
+ */
+class LogGroupNode internal constructor(
+    val store: String,
+    val types: Set<AggregateType>,
+    val log: EventLog,
+    val subscriptions: SubscriptionRuntime,
+    val timers: ContextTimers?,
 )
 
 /**
@@ -371,7 +396,7 @@ class ServiceNode(
      */
     val parked: ParkedOps = ParkedOps {
         contexts.values.flatMap { context ->
-            listOfNotNull(context.subscriptions, context.intake).map { ParkedOps.Scope.of(it) }
+            (context.logGroups.map { it.subscriptions } + listOfNotNull(context.intake)).map { ParkedOps.Scope.of(it) }
         } + topicSubscriptions.values.map { ParkedOps.Scope.of(it, options.subscription.parked) }
     }
 
@@ -502,7 +527,9 @@ class ServiceNode(
                 )
             }
             contexts.values.forEach { context ->
-                applicationSubscriptions.getValue(context).forEach { context.subscriptions.add(it) }
+                applicationSubscriptions.getValue(context).forEach { subscription ->
+                    context.logGroups.forEach { it.subscriptions.add(subscription) }
+                }
                 intakes[context]?.let { context.intake!!.add(it.subscription) }
                 context.ownership.start()
             }
@@ -688,28 +715,30 @@ class ServiceNode(
         codec: EventCodec,
         application: SubscriptionFactory,
     ): Parts {
-        val log = PartitionAppendQueue(backends.log, options.appendQueue)
+        val groups = logGroupsOf(context, models, backends)
+        val routed = LogGroupRouter.of(
+            backends.log,
+            groups.drop(1).flatMap { group -> group.types.map { it to group.log } }.toMap(),
+        )
+        val log = PartitionAppendQueue(routed, options.appendQueue)
         val names = ContextCommandTypes(models, contracts)
         val kernel = kernelOf(log, backends, codec, names)
         val snapshotted = if (backends.snapshots == null) emptyList() else models.filter { snapshotEnabled(it) }
         val views = StateViews(codec, stateReaders(context, models, snapshotted, application), options.stateViews)
         val snapshots = backends.snapshots?.takeIf { snapshotted.isNotEmpty() }?.let {
-            SnapshotSubscription(context, snapshotted, it, kernel, backends.log, codec, views)
+            SnapshotSubscription(context, snapshotted, it, kernel, routed, codec, views)
         }
         val reservations = backends.reservations?.let { ReservationSubscription(context, it) }
         val firing = LateFirer()
-        val timers = timersOf(context, backends, names, firing, codec)
+        val sagas = backends.timers?.let { SagaTimers(it, names, backends.log.partitions, codec) }
         val group = LeaseGroup(service, context)
-        val subscriptions = SubscriptionRuntime(
-            group.name,
-            backends.log,
-            backends.checkpoints,
-            backends.ledger,
-            listOfNotNull(snapshots?.subscription, reservations?.subscription, timers?.subscription?.subscription),
-            options.subscription,
-            signals = signals,
-            notifier = parkedNotifier,
-        )
+        val builtIns = listOfNotNull(snapshots?.subscription, reservations?.subscription)
+        val logGroups = groups.mapIndexed { index, part ->
+            // The default group's checkpoints are keyed as before log groups (decision D177).
+            val name = if (index == 0) group.name else "${group.name}#${part.store}"
+            logGroupOf(name, part, builtIns, sagas?.let { timersOf(context, part, firing, it) })
+        }
+        val subscriptions = logGroups.first().subscriptions
         val intake = intakeOf(context, group, backends)
         val ownership = PartitionOwnership(
             group,
@@ -722,7 +751,8 @@ class ServiceNode(
             // Connected ahead of the first forward, so its timeout is not spent opening a connection (D80).
             peers = { peer -> if (options.routing == Routing.PARTITIONED) channel.connect(peer.address) },
             intake = intake,
-            timers = timers?.runner,
+            timers = logGroups.mapNotNull { it.timers?.runner },
+            groups = logGroups.drop(1).map { it.subscriptions },
         )
         val executor = Executor(kernel, options.laneCapacity, views.takeIf { it.types.isNotEmpty() })
         return Parts(
@@ -740,9 +770,63 @@ class ServiceNode(
             codec,
             views,
             intake,
-            timers,
+            logGroups.first().timers,
             firing,
+            logGroups,
         )
+    }
+
+    /**
+     * A log group [part] of a context on this node: the runtime [name]d of its subscriptions, the [builtIns] and its
+     * [timers]' `timers` subscription among them, over its log, checkpoints and ledger.
+     */
+    private fun logGroupOf(
+        name: String,
+        part: GroupParts,
+        builtIns: List<Subscription>,
+        timers: ContextTimers?,
+    ): LogGroupNode {
+        val runtime = SubscriptionRuntime(
+            name,
+            part.log,
+            part.checkpoints,
+            part.ledger,
+            builtIns + listOfNotNull(timers?.subscription?.subscription),
+            options.subscription,
+            signals = signals,
+            notifier = parkedNotifier,
+        )
+        return LogGroupNode(part.store, part.types, part.log, runtime, timers)
+    }
+
+    /**
+     * The log groups of [context] (decision D177): its default one, of every aggregate type of [models] no other group
+     * names, then each of [backends]' other groups, whose types must be the context's.
+     */
+    private fun logGroupsOf(
+        context: String,
+        models: List<AggregateModel<*>>,
+        backends: ContextBackends,
+    ): List<GroupParts> {
+        val types = models.mapTo(LinkedHashSet()) { it.type }
+        backends.groups.forEach { group ->
+            val foreign = group.types - types
+            require(foreign.isEmpty()) {
+                "The log group ${group.store} of context $context holds $foreign, which are not its aggregate types $types."
+            }
+        }
+        val grouped = backends.groups.flatMapTo(HashSet()) { it.types }
+        val default = GroupParts(
+            backends.store,
+            types - grouped,
+            backends.log,
+            backends.checkpoints,
+            backends.ledger,
+            backends.timers,
+        )
+        return listOf(default) + backends.groups.map {
+            GroupParts(it.store, it.types, it.log, it.checkpoints, it.ledger, it.timers)
+        }
     }
 
     /** The kernel of a context over its [log], with its state cache, snapshot and reservation stores. */
@@ -757,20 +841,33 @@ class ServiceNode(
             ids = admission.ids,
         )
 
-    /** The scheduled commands of [context] (decision D166), when its [backends] have a timer store. */
+    /**
+     * The scheduled commands of one log group of [context] (decision D166), when its [group] has a timer store: the
+     * `timers` subscription writes the timers of the group's aggregates there, and the runner sends them. The
+     * context's [sagas] write theirs in its default group's store.
+     */
     private fun timersOf(
         context: String,
-        backends: ContextBackends,
-        names: ContextCommandTypes,
+        group: GroupParts,
         firer: TimerFirer,
-        codec: EventCodec,
-    ): ContextTimers? = backends.timers?.let { store ->
+        sagas: SagaTimers,
+    ): ContextTimers? = group.timers?.let { store ->
         ContextTimers(
-            TimersSubscription(context, store, backends.log.partitions),
-            TimerRunner(context, store, backends.ledger, firer, options.timers),
-            SagaTimers(store, names, backends.log.partitions, codec),
+            TimersSubscription(context, store, group.log.partitions),
+            TimerRunner(context, store, group.ledger, firer, options.timers),
+            sagas,
         )
     }
+
+    /** The stores of one log group of a context, as [logGroupsOf] finds them. */
+    private class GroupParts(
+        val store: String,
+        val types: Set<AggregateType>,
+        val log: EventLog,
+        val checkpoints: CheckpointStore,
+        val ledger: FailureLedger,
+        val timers: TimerStore?,
+    )
 
     /**
      * The state consumers of [context] (decision D133): the snapshot subscription of the [snapshotted] types, and the
@@ -814,9 +911,14 @@ class ServiceNode(
         val intake: SubscriptionRuntime?,
         val timers: ContextTimers?,
         val firing: LateFirer,
+        val logGroups: List<LogGroupNode>,
     ) {
         fun complete(): ContextNode {
-            val directory = contracts.over(subscriptions, context)
+            val runtimes = logGroups.drop(1).flatMap { group -> group.types.map { it to group.subscriptions } }.toMap()
+            val directory = contracts.over(
+                if (runtimes.isEmpty()) subscriptions else LogGroupDirectory(subscriptions, runtimes),
+                context,
+            )
             val coordinator = WaitCoordinator(
                 executor,
                 waits,
@@ -849,6 +951,7 @@ class ServiceNode(
                 sender,
                 timers,
                 admission.ids,
+                logGroups,
             )
         }
     }

@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.spring.boot
 
-import com.mongodb.client.MongoClient
 import me.ahoo.wow.mongo.query.MongoQueryIndexes
 import me.ahoo.wow.mongo.query.MongoQueryOptions
 import me.ahoo.wow.mongo.query.MongoSnapshotQueryStorage
@@ -24,26 +23,22 @@ import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.index.QueryIndexDdl
 import java.util.concurrent.ConcurrentHashMap
-import javax.sql.DataSource
 
 /**
- * The PostgreSQL snapshot query backend (6.2a), one storage per context over the snapshot tables of
- * [backends]' stores; loaded only when wow-postgres is on the classpath.
+ * The PostgreSQL snapshot query backend (6.2a) of one [store], one storage per context over its snapshot tables; loaded
+ * only when wow-postgres is on the classpath.
  */
 internal object PostgresQueries {
-    fun open(dataSource: Any, backends: HostBackends, ddl: QueryIndexDdl): SnapshotQueryBackend {
-        val source = dataSource as DataSource
+    fun open(store: HostStore, ddl: QueryIndexDdl): SnapshotQueryBackend {
+        val postgres = store as PostgresStore
         val storages = ConcurrentHashMap<String, PostgresSnapshotQueryStorage>()
         fun storage(context: String) = storages.computeIfAbsent(context) {
-            PostgresSnapshotQueryStorage(source, it, PostgresQueryOptions(indexDdl = ddl))
+            PostgresSnapshotQueryStorage(postgres.dataSource, it, PostgresQueryOptions(indexDdl = ddl))
         }
         return SnapshotQueryBackend(
             factory = QueryBackendFactory { type -> storage(type.context).create(type) },
             // The table is created on an aggregate type's first write; an index needs it now.
-            prepare = { type ->
-                val store = backends.contexts[type.context]?.snapshots as? PostgresSnapshotStore
-                store?.createTable(type.name)
-            },
+            prepare = { type -> (postgres.snapshots(type.context) as? PostgresSnapshotStore)?.createTable(type.name) },
             indexes = { type, schema, declarations ->
                 val indexes = PostgresQueryIndexes.plan(type.context, type.name, schema, declarations)
                 val report = storage(type.context).manageIndexes(indexes)
@@ -54,15 +49,15 @@ internal object PostgresQueries {
 }
 
 /**
- * The MongoDB snapshot query backend (6.2b), one storage per context over the snapshot collections of [database];
- * loaded only when wow-mongo is on the classpath.
+ * The MongoDB snapshot query backend (6.2b) of one [store], one storage per context over the snapshot collections of
+ * its database; loaded only when wow-mongo is on the classpath.
  */
 internal object MongoQueries {
-    fun open(client: Any, database: String, ddl: QueryIndexDdl): SnapshotQueryBackend {
-        val mongo = client as MongoClient
+    fun open(store: HostStore, ddl: QueryIndexDdl): SnapshotQueryBackend {
+        val mongo = store as MongoStore
         val storages = ConcurrentHashMap<String, MongoSnapshotQueryStorage>()
         fun storage(context: String) = storages.computeIfAbsent(context) {
-            MongoSnapshotQueryStorage(mongo, database, it, MongoQueryOptions(indexDdl = ddl))
+            MongoSnapshotQueryStorage(mongo.client, mongo.database, it, MongoQueryOptions(indexDdl = ddl))
         }
         return SnapshotQueryBackend(
             factory = QueryBackendFactory { type -> storage(type.context).create(type) },

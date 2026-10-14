@@ -50,18 +50,16 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.util.ClassUtils
 import java.nio.file.Path
-import javax.sql.DataSource
 
 /**
  * The query plane (decisions D126–D131, D150, D151), active when wow-query is on the classpath (wow-http brings it)
  * and `wow.query.enabled` is not off. Over the node's Manifest it builds:
  *
  * - a [SnapshotQueryBackend] chosen by the classpath as the stores are (decision D110): the application's own
- *   [QueryBackendFactory] bean when it has one, else PostgreSQL or MongoDB when the node runs on it; on the memory
- *   backend (or the application's own [me.ahoo.wow.runtime.node.BackendFactory]) without one, the snapshots are not
- *   queried and their routes are not served;
+ *   [QueryBackendFactory] bean when it has one, else, for each aggregate type, PostgreSQL or MongoDB when its
+ *   snapshots are on a store of that type (decision D177); the snapshots in memory (or of the application's own
+ *   [me.ahoo.wow.runtime.node.BackendFactory]) are not queried without one, and their routes are not served;
  * - a [QuerySchemaCatalog] compiling each aggregate's snapshot model from the Manifest
  *   ([ManifestStateSchemas], with the application's [MaskStrategyResolver] and [QuerySchemaSource] beans) under
  *   `wow.query.sensitivity`;
@@ -96,30 +94,35 @@ class QueryAutoConfiguration {
         @Bean
         @ConditionalOnMissingBean
         fun wowSnapshotQueryBackend(
-            wow: WowProperties,
+            manifest: Manifest,
+            node: ServiceNode,
             properties: QueryProperties,
             backends: HostBackends,
-            beanFactory: ConfigurableListableBeanFactory,
             factories: ObjectProvider<QueryBackendFactory<*>>,
         ): SnapshotQueryBackend {
             factories.ifAvailable?.let { return SnapshotQueryBackend(it) }
             val ddl = properties.index.ddl
-            return when (backends.kind) {
-                BackendKind.POSTGRES ->
-                    PostgresQueries.open(beanFactory.getBean(DataSource::class.java), backends, ddl)
-                BackendKind.MONGO -> MongoQueries.open(
-                    beanFactory.getBean(ClassUtils.forName(MONGO_CLIENT, beanFactory.beanClassLoader)),
-                    wow.mongo.database,
-                    ddl,
-                )
-                else -> {
-                    logger.info {
-                        "No snapshot query backend serves this node's backend (${backends.kind ?: "the application's"}): " +
-                            "its snapshots are not queried; give it a QueryBackendFactory bean to query them."
-                    }
-                    SnapshotQueryBackend.NONE
+            // One backend per store the snapshots are on (decision D177), each type's routed to its store's.
+            val byStore = backends.layout?.snapshotStores.orEmpty().associateWith { name ->
+                val store = backends.stores.getValue(name)
+                when (store.kind) {
+                    BackendKind.POSTGRES -> PostgresQueries.open(store, ddl)
+                    BackendKind.MONGO -> MongoQueries.open(store, ddl)
+                    else -> null
                 }
             }
+            val types = snapshotTypes(manifest, node.contexts.keys)
+            val backend = SnapshotQueryBackend.routing(types) { type ->
+                backends.snapshotStoreOf(type)?.let { byStore[it.name] }
+            }
+            val unserved = types.filterNot(backend::serves)
+            if (unserved.isNotEmpty()) {
+                logger.info {
+                    "No snapshot query backend serves the snapshots of $unserved (${backends.kind ?: "the application's"} " +
+                        "stores): they are not queried; give the node a QueryBackendFactory bean to query them."
+                }
+            }
+            return backend
         }
 
         /**
@@ -155,7 +158,7 @@ class QueryAutoConfiguration {
                     properties.sensitivity.policy(),
                     datasets,
                 ),
-                aggregates = snapshotTypes(manifest, node.contexts.keys),
+                aggregates = snapshotTypes(manifest, node.contexts.keys).filter(backend::serves),
                 datasets = datasets,
             )
         }
@@ -227,7 +230,7 @@ class QueryAutoConfiguration {
             val snapshots = if (factory == null) {
                 emptyList()
             } else {
-                snapshotTypes(manifest, contexts).map { type ->
+                snapshotTypes(manifest, contexts).filter(backend::serves).map { type ->
                     DefaultQueryGateway(
                         aggregateType = type,
                         backend = factory.create(type).backend,
@@ -242,7 +245,7 @@ class QueryAutoConfiguration {
             val events = queryTypes(manifest, contexts, QueryRoutes.EVENTS).map { type ->
                 EventQueryGateway(
                     type,
-                    node.contexts.getValue(type.context).backends.log,
+                    node.contexts.getValue(type.context).log,
                     tenants,
                     entryPolicy,
                     QueryOwnership.of(manifest).ownershipOf(type),
@@ -274,7 +277,6 @@ class QueryAutoConfiguration {
     }
 
     private companion object {
-        const val MONGO_CLIENT = "com.mongodb.client.MongoClient"
         val logger = KotlinLogging.logger {}
 
         /**
