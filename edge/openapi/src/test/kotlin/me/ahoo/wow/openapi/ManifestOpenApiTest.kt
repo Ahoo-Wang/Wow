@@ -28,6 +28,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.manifest.SnapshotManifest
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
@@ -59,7 +60,8 @@ class ManifestOpenApiTest {
     fun `tags should be one per aggregate, described by it or by its context, then the framework's`() {
         @Suppress("UNCHECKED_CAST")
         val tags = document["tags"] as List<Map<String, Any?>>
-        tags.map { it["name"] }.assert().containsExactly("shop.cart", "shop.order", ManifestOpenApi.FRAMEWORK_TAG)
+        tags.map { it["name"] }.assert()
+            .containsExactly("shop.cart", "shop.order", "shop.snapshot", ManifestOpenApi.FRAMEWORK_TAG)
         tags[0]["description"].assert().isEqualTo("The shop")
         tags[1]["description"].assert().isEqualTo("An order")
     }
@@ -222,6 +224,24 @@ class ManifestOpenApiTest {
         val invalid = response("wow.command.400")["x-wow-error-codes"] as List<*>
         invalid.assert().contains(FrameworkErrors.SCHEDULE_JOB_INVALID)
         paths().keys.assert().noneMatch { it.contains("/schedule/") }
+    }
+
+    @Test
+    fun `a context that keeps snapshots should have the snapshot rebuild route`() {
+        val rebuild = operation("post", "/shop/snapshot/{id}/wow.snapshot.rebuild")
+        rebuild["operationId"].assert().isEqualTo("shop.snapshot.wow.snapshot.Rebuild")
+        schemaOf(rebuild["requestBody"]).assert().isEqualTo("#/components/schemas/wow.snapshot.Rebuild")
+        OpenApiChecks.validate(document, "wow.snapshot.Rebuild", """{"ids":["c-1"]}""").assert().isEmpty()
+        OpenApiChecks.validate(document, "wow.snapshot.Rebuild", """{"ids":[]}""").assert().isNotEmpty()
+        val none = ManifestOpenApi.write(
+            MANIFEST.copy(
+                contexts = MANIFEST.contexts.map { context ->
+                    context.copy(aggregates = context.aggregates.map { it.copy(snapshot = SnapshotManifest(false)) })
+                },
+            ),
+        )
+        @Suppress("UNCHECKED_CAST")
+        (none["paths"] as Map<String, Any?>).keys.assert().noneMatch { it.contains("/snapshot/{id}/") }
     }
 
     @Test
