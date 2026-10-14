@@ -109,6 +109,10 @@ import jakarta.validation.Validator as JakartaValidator
  *   [CallerResolver] (anonymous otherwise, D97); the cluster channel and the wait signals ([internalRoutes]) on an
  *   [InternalServer] of their own at `wow.internal.port`, never on the public server, the node's address learned once
  *   it is bound when the port is 0; [HttpClusterChannel] and [HttpSignalSender] share one JDK client.
+ * - **Synchronous calls** (decision D193): the sagas call other contexts' gateways through the [CommandCaller] bean,
+ *   by default an [HttpCommandCaller] at `wow.calls.contexts.<context>.url` presenting the [ServiceCredential] bean
+ *   (`wow.calls.token` as a bearer); the public port takes the service identities of `wow.http.services` by their
+ *   tokens ([ServiceTokens]) before the application's [CallerResolver], and `Wow-Call` from them alone.
  * - **Subscriptions**: the annotated processors' handlers the binding indexes list ([ModelProvider.processors], built
  *   from the application's beans), then every [SubscriptionFactory] bean, the application's and the modules' (such
  *   as the Kafka Sink), in their order. Those that read other contexts' published streams read them from the
