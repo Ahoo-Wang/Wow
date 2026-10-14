@@ -87,4 +87,15 @@ class ProblemTest {
         val problem = statuses.problemOf(FrameworkCodes.BUSY, "Later.")
         problem.assert().isEqualTo(Problem(503, "Busy.", "Later.", FrameworkCodes.BUSY))
     }
+
+    @Test
+    fun `only an unavailable store carries Retry-After, which is not a member of the body`() {
+        val statuses = ErrorStatuses(Manifest())
+        val unavailable = statuses.problemOf(FrameworkCodes.STORAGE_UNAVAILABLE, "Down.")
+        unavailable.status.assert().isEqualTo(503)
+        unavailable.retryAfter.assert().isEqualTo(ErrorStatuses.STORAGE_RETRY_AFTER_SECONDS)
+        unavailable.members().keys.assert().containsExactly("type", "title", "status", "detail", "code")
+        statuses.problemOf(FrameworkCodes.UNKNOWN, "Unknown.").retryAfter.assert().isNull()
+        statuses.retryAfter(FrameworkCodes.BUSY).assert().isNull()
+    }
 }

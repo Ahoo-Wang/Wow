@@ -16,7 +16,8 @@
 # them; this run catches what such a change could still break in 9.x. GitHub
 # runs a schedule from the default branch only, so this file takes effect on
 # main: it dispatches each workflow on v10, which runs v10's copy of it there.
-# It skips a night on which v10 did not move.
+# It skips a night on which v10 did not move. On the same nights it dispatches
+# v10-soak.yml, the eShop's fault-injection soak (C.1), on v10.
 name: V10 Nightly
 on:
   schedule:
@@ -28,7 +29,7 @@ permissions:
 
 jobs:
   dispatch:
-    name: Dispatch the 9.x suites on v10
+    name: Dispatch the 9.x suites and the soak on v10
     if: github.repository == 'Ahoo-Wang/Wow'
     timeout-minutes: 5
     runs-on: ubuntu-latest
@@ -48,6 +49,6 @@ jobs:
             exit 0
           fi
           for workflow in local-test.yml integration-test.yml contract-test.yml static-analysis.yml \
-            compensation-test.yml example-java-test.yml benchmark-smoke.yml; do
+            compensation-test.yml example-java-test.yml benchmark-smoke.yml v10-soak.yml; do
             gh workflow run "$workflow" --ref v10
           done

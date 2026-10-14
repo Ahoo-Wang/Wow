@@ -44,6 +44,7 @@ import me.ahoo.wow.runtime.ExecutorBusyException
 import me.ahoo.wow.runtime.ExecutorClosedException
 import me.ahoo.wow.runtime.cluster.CommandRouter
 import me.ahoo.wow.runtime.cluster.TopicRouter
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import java.util.UUID
@@ -443,7 +444,10 @@ class WaitCoordinator(
      * partition runs it so for a forward.
      *
      * A command the executor does not take is settled FAILED at COMMITTED, not thrown (decision D115): its aggregate's
-     * lane is full ([ResultCodes.BUSY]), or the executor is closed ([ResultCodes.NODE_CLOSING]).
+     * lane is full ([ResultCodes.BUSY]), or the executor is closed ([ResultCodes.NODE_CLOSING]). So is one whose
+     * execution a store failed with a transient failure ([StorageUnavailableException], such as the request id's
+     * lookup during a restart): [ResultCodes.STORAGE_UNAVAILABLE], which a retry with the same request id may pass, as
+     * the kernel deduplicates it. An append whose outcome is unknown is [ResultCodes.UNKNOWN], from the kernel.
      */
     suspend fun executeHere(model: AggregateModel<*>, command: Command<*>, wait: WaitContext?): Settlement {
         val function = commandFunction(model, command)
@@ -455,6 +459,12 @@ class WaitCoordinator(
         } catch (closed: ExecutorClosedException) {
             return Settlement(
                 reachedResult(command, function, hop, clock()).failed(ResultCodes.NODE_CLOSING, closed.message!!),
+            )
+        } catch (unavailable: StorageUnavailableException) {
+            logger.warn(unavailable) { "Command ${command.id} on ${command.ref} failed: a store is unavailable." }
+            return Settlement(
+                reachedResult(command, function, hop, clock())
+                    .failed(ResultCodes.STORAGE_UNAVAILABLE, unavailable.message!!),
             )
         }
         val committed = outcome.toResult(command, function, hop, clock())

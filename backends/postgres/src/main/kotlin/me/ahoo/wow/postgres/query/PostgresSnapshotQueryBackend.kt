@@ -23,6 +23,7 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.ICountQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.Queryable
+import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.query.PostgresSnapshotSqlCompiler.Companion.keepsState
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
 import me.ahoo.wow.query.AdmittedQuery
@@ -194,7 +195,7 @@ class PostgresSnapshotQueryBackend internal constructor(
         when {
             error.sqlState == UNDEFINED_TABLE -> missing()
             timeout != null && error.sqlState == QUERY_CANCELED -> throw QueryTimeoutException(timeout, error)
-            else -> throw error
+            else -> throw PostgresFailures.translate(error)
         }
     }
 

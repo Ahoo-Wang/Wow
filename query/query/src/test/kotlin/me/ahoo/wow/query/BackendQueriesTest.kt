@@ -66,6 +66,7 @@ import me.ahoo.wow.query.schema.boundSchemaFixture
 import me.ahoo.wow.query.schema.objectFixture
 import me.ahoo.wow.query.schema.scalarFixture
 import me.ahoo.wow.query.spec.MetricSpec
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -694,6 +695,25 @@ class BackendQueriesTest {
                 cause.assert().isSameAs(driver)
                 errorCode.assert().isEqualTo(QueryErrors.FAILED)
             }
+        }
+    }
+
+    @Test
+    fun `a storage that is unavailable is the retryable storage error, not a server fault`() {
+        runTest {
+            val unavailable = StorageUnavailableException("PostgreSQL is unavailable; retry later.")
+            assertThrows<QueryStorageUnavailableException> {
+                RecordingBackend(counts = { throw unavailable })
+                    .countBounded(QueryAdmission.Trusted.count(CountQuery(MatchAllFilter), schema))
+            }.apply {
+                errorCode.assert().isEqualTo(QueryErrors.STORAGE_UNAVAILABLE)
+                errorMsg.assert().isEqualTo("Query storage is unavailable; retry later.")
+                generateSequence(cause) { it.cause }.last().assert().isSameAs(unavailable)
+            }
+            assertThrows<QueryStorageUnavailableException> {
+                RecordingBackend(records = { throw unavailable })
+                    .list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema)).toList()
+            }.errorCode.assert().isEqualTo(QueryErrors.STORAGE_UNAVAILABLE)
         }
     }
 

@@ -46,7 +46,9 @@ import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryError
+import me.ahoo.wow.query.QueryErrors
 import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.QueryStorageUnavailableException
 import me.ahoo.wow.query.dataset.DatasetQueryGateway
 import me.ahoo.wow.query.json.QueryJson
 import me.ahoo.wow.query.schema.QueryViolation
@@ -54,6 +56,7 @@ import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.TargetScope
 import me.ahoo.wow.runtime.admission.TenantConflictException
 import me.ahoo.wow.runtime.admission.TenantPolicy
+import me.ahoo.wow.spi.StorageUnavailableException
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
@@ -321,6 +324,11 @@ internal class QueryHandler(
     /** The problem a query that failed with [failure] answers. */
     private fun problemOf(failure: Throwable, context: String?): Problem {
         if (failure is ProblemException) return failure.problem
+        // From a backend primitive through the core, or from a read of the log (the events model).
+        if (failure is QueryStorageUnavailableException || failure is StorageUnavailableException) {
+            logger.warn(failure) { "A query failed: its storage is unavailable." }
+            return statuses.problemOf(QueryErrors.STORAGE_UNAVAILABLE, QUERY_STORAGE_UNAVAILABLE, context)
+        }
         if (failure !is QueryError) {
             logger.error(failure) { "A query failed." }
             return statuses.problemOf(FrameworkErrors.QUERY_FAILED, "The query failed.", context)
@@ -344,6 +352,7 @@ internal class QueryHandler(
         const val ERROR: String = "error"
 
         private const val NOT_MODIFIED = 304
+        private const val QUERY_STORAGE_UNAVAILABLE = "Query storage is unavailable; retry later."
         private val logger = KotlinLogging.logger {}
 
         /** The path of the query route of the dataset [name]: `/wow/dataset/{context}/{dataset}/query`. */

@@ -40,6 +40,7 @@ object FrameworkErrors {
     const val COMMAND_BUSY: String = "wow.command.busy"
     const val COMMAND_UNKNOWN: String = "wow.command.unknown"
     const val NODE_CLOSING: String = "wow.node.closing"
+    const val STORAGE_UNAVAILABLE: String = "wow.storage.unavailable"
     const val SUBSCRIPTION_PARKED: String = "wow.subscription.parked"
     const val WAIT_TIMEOUT: String = "wow.wait.timeout"
     const val QUERY_MALFORMED: String = "wow.query.malformed"
@@ -83,6 +84,11 @@ object FrameworkErrors {
             "Whether the command committed is unknown; retrying with the same request id is safe.",
         ),
         ErrorManifest(NODE_CLOSING, 503, "The node is shutting down; retry on another node."),
+        ErrorManifest(
+            STORAGE_UNAVAILABLE,
+            503,
+            "A store could not be reached or did not answer in time; retry later, a command with the same request id.",
+        ),
         ErrorManifest(
             SUBSCRIPTION_PARKED,
             500,

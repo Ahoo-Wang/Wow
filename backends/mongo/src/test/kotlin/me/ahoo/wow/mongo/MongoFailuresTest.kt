@@ -1,0 +1,126 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.mongo
+
+import com.mongodb.MongoClientSettings
+import com.mongodb.MongoException
+import com.mongodb.MongoNodeIsRecoveringException
+import com.mongodb.MongoNotPrimaryException
+import com.mongodb.MongoSocketOpenException
+import com.mongodb.MongoSocketReadException
+import com.mongodb.MongoTimeoutException
+import com.mongodb.ServerAddress
+import com.mongodb.client.MongoClient
+import com.mongodb.client.MongoClients
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.mongo.log.MongoEventLog
+import me.ahoo.wow.mongo.query.MongoSnapshotQueryBackend
+import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
+import me.ahoo.wow.spi.StorageUnavailableException
+import org.bson.BsonDocument
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import java.io.IOException
+import java.net.ServerSocket
+import java.util.concurrent.TimeUnit
+
+/** A transient failure of MongoDB is the SPI's retryable [StorageUnavailableException]; a defect stays the driver's. */
+class MongoFailuresTest {
+    private val cart = AggregateType("shop", "cart")
+    private val address = ServerAddress("127.0.0.1", ServerSocket(0).use { it.localPort })
+
+    /** A client of a server nobody runs: every call fails to select a server within a short timeout. */
+    private val unreachable: MongoClient = MongoClients.create(
+        MongoClientSettings.builder()
+            .applyToClusterSettings {
+                it.hosts(listOf(address)).serverSelectionTimeout(SELECTION_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+            }
+            .applyToSocketSettings { it.connectTimeout(SELECTION_TIMEOUT_MS, TimeUnit.MILLISECONDS) }
+            .build(),
+    )
+
+    @AfterEach
+    fun close() {
+        unreachable.close()
+    }
+
+    @Test
+    fun `a socket, a server selection or a primary that failed should be transient`() {
+        listOf(
+            MongoSocketOpenException("Exception opening socket", address, IOException("Connection refused")),
+            MongoSocketReadException("Prematurely reached end of stream", address),
+            MongoTimeoutException("Timed out while waiting for a server"),
+            MongoNotPrimaryException(BsonDocument(), address),
+            MongoNodeIsRecoveringException(BsonDocument(), address),
+            MongoException(SHUTDOWN_IN_PROGRESS, "shutdown in progress").apply {
+                addLabel(MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL)
+            },
+            MongoException(SHUTDOWN_IN_PROGRESS, "shutdown in progress").apply { addLabel("RetryableWriteError") },
+        ).forEach { failure ->
+            MongoFailures.isTransient(failure).assert().describedAs("$failure").isTrue()
+            val translated = MongoFailures.translate(failure)
+            translated.assert().isInstanceOf(StorageUnavailableException::class.java)
+            translated.cause.assert().isSameAs(failure)
+            translated.message.assert().isEqualTo("MongoDB is unavailable; retry later.")
+        }
+    }
+
+    @Test
+    fun `a defect should stay the driver's exception`() {
+        val duplicate = MongoException(DUPLICATE_KEY, "E11000 duplicate key error")
+        MongoFailures.isTransient(duplicate).assert().isFalse()
+        MongoFailures.translate(duplicate).assert().isSameAs(duplicate)
+    }
+
+    @Test
+    fun `the request id lookup on an unreachable server should throw the retryable error (C1 F2)`() {
+        val log = MongoEventLog(unreachable, "wow", "shop", partitions = 1, dispatcher = Dispatchers.IO)
+        assertThrows<StorageUnavailableException> {
+            runBlocking { log.findByRequestId(cart, "tenant", "request-1") }
+        }.causes().filterIsInstance<MongoTimeoutException>().assert().isNotEmpty()
+    }
+
+    @Test
+    fun `a snapshot load on an unreachable server should throw the retryable error`() {
+        val store = MongoSnapshotStore(unreachable, "wow", "shop", dispatcher = Dispatchers.IO)
+        assertThrows<StorageUnavailableException> {
+            runBlocking { store.load(cart.ref("tenant", "cart-1")) }
+        }.causes().filterIsInstance<MongoTimeoutException>().assert().isNotEmpty()
+    }
+
+    @Test
+    fun `a snapshot query whose server went away should throw the retryable error, a defect as it is`() {
+        val reset = MongoSocketReadException("Prematurely reached end of stream", address)
+        assertThrows<StorageUnavailableException> {
+            MongoSnapshotQueryBackend.timed(null) { throw reset }
+        }.cause.assert().isSameAs(reset)
+        val duplicate = MongoException(DUPLICATE_KEY, "E11000 duplicate key error")
+        assertThrows<MongoException> {
+            MongoSnapshotQueryBackend.timed(null) { throw duplicate }
+        }.assert().isSameAs(duplicate)
+    }
+
+    private companion object {
+        const val SELECTION_TIMEOUT_MS = 200L
+        const val SHUTDOWN_IN_PROGRESS = 91
+        const val DUPLICATE_KEY = 11000
+    }
+}
+
+/** This throwable and its causes: a coroutine may rethrow a copy of what was thrown, with it as the cause. */
+internal fun Throwable.causes(): List<Throwable> = generateSequence(this) { it.cause }.toList()

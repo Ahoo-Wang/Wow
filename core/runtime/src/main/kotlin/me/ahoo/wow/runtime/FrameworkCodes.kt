@@ -54,6 +54,7 @@ object FrameworkCodes {
     const val UNKNOWN = ResultCodes.UNKNOWN
     const val BUSY = ResultCodes.BUSY
     const val NODE_CLOSING = ResultCodes.NODE_CLOSING
+    const val STORAGE_UNAVAILABLE = ResultCodes.STORAGE_UNAVAILABLE
     const val WAIT_INVALID = ResultCodes.WAIT_INVALID
     const val WAIT_TIMEOUT = ResultCodes.WAIT_TIMEOUT
     const val SUBSCRIPTION_PARKED = ResultCodes.SUBSCRIPTION_PARKED
@@ -75,6 +76,7 @@ object FrameworkCodes {
         UNKNOWN,
         BUSY,
         NODE_CLOSING,
+        STORAGE_UNAVAILABLE,
         WAIT_INVALID,
         WAIT_TIMEOUT,
         SUBSCRIPTION_PARKED,
