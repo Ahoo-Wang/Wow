@@ -18,5 +18,5 @@ export const BasketAggregate = {
 /** The `state.*` paths of `basket`'s snapshots a query filters, sorts and projects on. */
 export type BasketStateField = 'state.checkouts' | 'state.items';
 
-/** The events of `basket`, by name. */
-export type BasketEvent = EventView<'BasketCheckedOut', BasketCheckedOut> | EventView<'BasketCleared', BasketCleared> | EventView<'BasketItemAdded', BasketItemAdded> | EventView<'BasketItemQuantityChanged', BasketItemQuantityChanged> | EventView<'BasketItemRemoved', BasketItemRemoved>;
+/** The events of `basket`, named as the server sends them: `eshop-basket.basket.<Event>`. */
+export type BasketEvent = EventView<'eshop-basket.basket.BasketCheckedOut', BasketCheckedOut> | EventView<'eshop-basket.basket.BasketCleared', BasketCleared> | EventView<'eshop-basket.basket.BasketItemAdded', BasketItemAdded> | EventView<'eshop-basket.basket.BasketItemQuantityChanged', BasketItemQuantityChanged> | EventView<'eshop-basket.basket.BasketItemRemoved', BasketItemRemoved>;

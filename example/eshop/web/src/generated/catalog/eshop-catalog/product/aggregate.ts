@@ -18,5 +18,5 @@ export const ProductAggregate = {
 /** The `state.*` paths of `product`'s snapshots a query filters, sorts and projects on. */
 export type ProductStateField = 'state.brandId' | 'state.categoryId' | 'state.description' | 'state.name' | 'state.price' | 'state.status';
 
-/** The events of `product`, by name. */
-export type ProductEvent = EventView<'ProductCreated', ProductCreated> | EventView<'ProductDelisted', ProductDelisted> | EventView<'ProductPriceChanged', ProductPriceChanged> | EventView<'ProductPublished', ProductPublished> | EventView<'ProductUpdated', ProductUpdated>;
+/** The events of `product`, named as the server sends them: `eshop-catalog.product.<Event>`. */
+export type ProductEvent = EventView<'eshop-catalog.product.ProductCreated', ProductCreated> | EventView<'eshop-catalog.product.ProductDelisted', ProductDelisted> | EventView<'eshop-catalog.product.ProductPriceChanged', ProductPriceChanged> | EventView<'eshop-catalog.product.ProductPublished', ProductPublished> | EventView<'eshop-catalog.product.ProductUpdated', ProductUpdated>;

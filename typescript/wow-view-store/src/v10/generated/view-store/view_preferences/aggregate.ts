@@ -18,5 +18,5 @@ export const ViewPreferencesAggregate = {
 /** The `state.*` paths of `view_preferences`'s snapshots a query filters, sorts and projects on. */
 export type ViewPreferencesStateField = 'state.appId' | 'state.autoRun' | 'state.defaultInstanceId' | 'state.definitionId' | 'state.lastTabs' | 'state.order';
 
-/** The events of `view_preferences`, by name. */
-export type ViewPreferencesEvent = EventView<'ViewPreferencesSet', ViewPreferencesSet>;
+/** The events of `view_preferences`, named as the server sends them: `view-store.view_preferences.<Event>`. */
+export type ViewPreferencesEvent = EventView<'view-store.view_preferences.ViewPreferencesSet', ViewPreferencesSet>;

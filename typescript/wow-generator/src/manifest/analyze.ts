@@ -106,7 +106,14 @@ export interface AggregateModel {
   readonly stateFields: readonly string[];
   readonly commands: readonly CommandModel[];
   readonly events: readonly {
+    /** The name the Manifest declares: `ProductCreated`. */
     readonly name: string;
+    /**
+     * The event type the server names it by on the wire (08-data-protocols §2):
+     * `context.aggregate.EventName`, or the declared name when it is already
+     * qualified.
+     */
+    readonly wireName: string;
     readonly revision: number;
     readonly type: string;
   }[];
@@ -696,6 +703,9 @@ function aggregateModel(
     commands,
     events: (aggregate.events ?? []).map(event => ({
       name: event.name,
+      wireName: event.name.includes('.')
+        ? event.name
+        : `${context.name}.${aggregate.name}.${event.name}`,
       revision: event.revision ?? 1,
       type: typeOfRef(types, event.schema, `${where}.${event.name}`),
     })),

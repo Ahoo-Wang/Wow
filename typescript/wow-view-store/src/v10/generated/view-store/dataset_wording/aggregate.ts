@@ -18,5 +18,5 @@ export const DatasetWordingAggregate = {
 /** The `state.*` paths of `dataset_wording`'s snapshots a query filters, sorts and projects on. */
 export type DatasetWordingStateField = 'state.appId' | 'state.dataset' | 'state.fields' | 'state.recordNoun' | 'state.title';
 
-/** The events of `dataset_wording`, by name. */
-export type DatasetWordingEvent = EventView<'DatasetWordingCleared', DatasetWordingCleared> | EventView<'DatasetWordingSet', DatasetWordingSet>;
+/** The events of `dataset_wording`, named as the server sends them: `view-store.dataset_wording.<Event>`. */
+export type DatasetWordingEvent = EventView<'view-store.dataset_wording.DatasetWordingCleared', DatasetWordingCleared> | EventView<'view-store.dataset_wording.DatasetWordingSet', DatasetWordingSet>;

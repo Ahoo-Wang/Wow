@@ -18,5 +18,5 @@ export const StockAggregate = {
 /** The `state.*` paths of `stock`'s snapshots a query filters, sorts and projects on. */
 export type StockStateField = 'state.available' | 'state.onHand' | 'state.reservations';
 
-/** The events of `stock`, by name. */
-export type StockEvent = EventView<'ReservationCommitted', ReservationCommitted> | EventView<'ReservationReleased', ReservationReleased> | EventView<'StockReceived', StockReceived> | EventView<'StockReserved', StockReserved>;
+/** The events of `stock`, named as the server sends them: `eshop-inventory.stock.<Event>`. */
+export type StockEvent = EventView<'eshop-inventory.stock.ReservationCommitted', ReservationCommitted> | EventView<'eshop-inventory.stock.ReservationReleased', ReservationReleased> | EventView<'eshop-inventory.stock.StockReceived', StockReceived> | EventView<'eshop-inventory.stock.StockReserved', StockReserved>;

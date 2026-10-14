@@ -18,5 +18,5 @@ export const ViewAggregate = {
 /** The `state.*` paths of `view`'s snapshots a query filters, sorts and projects on. */
 export type ViewStateField = 'state.appId' | 'state.audience' | 'state.config' | 'state.definitionId' | 'state.kind' | 'state.title';
 
-/** The events of `view`, by name. */
-export type ViewEvent = EventView<'ViewClaimed', ViewClaimed> | EventView<'ViewCreated', ViewCreated> | EventView<'ViewRenamed', ViewRenamed> | EventView<'ViewSaved', ViewSaved> | EventView<'ViewShared', ViewShared>;
+/** The events of `view`, named as the server sends them: `view-store.view.<Event>`. */
+export type ViewEvent = EventView<'view-store.view.ViewClaimed', ViewClaimed> | EventView<'view-store.view.ViewCreated', ViewCreated> | EventView<'view-store.view.ViewRenamed', ViewRenamed> | EventView<'view-store.view.ViewSaved', ViewSaved> | EventView<'view-store.view.ViewShared', ViewShared>;
