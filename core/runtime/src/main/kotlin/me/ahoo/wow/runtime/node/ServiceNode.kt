@@ -68,13 +68,10 @@ import me.ahoo.wow.runtime.manifest.ManifestCheck
 import me.ahoo.wow.runtime.reservation.ReservationSubscription
 import me.ahoo.wow.runtime.schedule.ScheduleJobRuntime
 import me.ahoo.wow.runtime.snapshot.LogProgress
-import me.ahoo.wow.runtime.snapshot.SnapshotAssembly
 import me.ahoo.wow.runtime.snapshot.SnapshotHops
 import me.ahoo.wow.runtime.snapshot.SnapshotMaintenance
-import me.ahoo.wow.runtime.snapshot.SnapshotRebuildModel
 import me.ahoo.wow.runtime.snapshot.SnapshotStatus
 import me.ahoo.wow.runtime.snapshot.SnapshotSubscription
-import me.ahoo.wow.runtime.snapshot.SnapshotTargets
 import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.state.StateViewReader
 import me.ahoo.wow.runtime.state.StateViews
@@ -363,17 +360,7 @@ class ServiceNode(
     private val opened: Map<String, ContextBackends> =
         models.mapTo(LinkedHashSet()) { it.type.context }.associateWith { backends.backends(it) }
 
-    /**
-     * The built-in rebuild aggregate of each context whose snapshots are kept (decision D172), taking the requests of
-     * its snapshotted aggregate types.
-     */
-    private val rebuildModels: List<AggregateModel<*>> = opened.mapNotNull { (context, contextBackends) ->
-        contextBackends.primarySnapshots ?: return@mapNotNull null
-        val snapshotted = models.filter { it.type.context == context && snapshotEnabled(it) }
-        snapshotted.takeIf { it.isNotEmpty() }?.let {
-            SnapshotRebuildModel.model(context, it.mapTo(LinkedHashSet()) { model -> model.type.name })
-        }
-    }
+    private val nodeSnapshots = NodeSnapshots(manifest)
 
     /**
      * The models the node runs: the [models] of the Manifest, the built-in job aggregate of each context's [jobs], and
@@ -381,7 +368,7 @@ class ServiceNode(
      */
     private val served: List<AggregateModel<*>> =
         models.toList() + jobs.map { (context, contextJobs) -> ScheduleJobModel.model(context, contextJobs) } +
-            rebuildModels
+            nodeSnapshots.rebuildModels(opened, models)
 
     /** The aggregate models this node serves, the built-in job aggregates among them (decision D198). */
     val registry: ModelRegistry = ModelRegistry(served)
@@ -900,7 +887,7 @@ class ServiceNode(
         val log = PartitionAppendQueue(routed, options.appendQueue)
         val names = ContextCommandTypes(models, contracts)
         val kernel = kernelOf(log, backends, codec, names)
-        val snaps = snapshotAssembly(context, models, backends, kernel, routed, codec)
+        val snaps = nodeSnapshots.assembly(context, models, backends, kernel, routed, codec)
         val views = StateViews(codec, stateReaders(context, models, snaps.readers, application), options.stateViews)
         val snapshots = snaps.subscriptions(views)
         val reservations = backends.reservations?.let { ReservationSubscription(context, it) }
@@ -1022,21 +1009,6 @@ class ServiceNode(
             LogProgress(if (index == 0) group.name else "${group.name}#${part.store}", part.log, part.checkpoints)
         }
 
-    /** The snapshot parts of [context] (decision D172): its targets and the [models] whose snapshots it keeps. */
-    @Suppress("LongParameterList")
-    private fun snapshotAssembly(
-        context: String,
-        models: List<AggregateModel<*>>,
-        backends: ContextBackends,
-        kernel: Kernel,
-        log: EventLog,
-        codec: EventCodec,
-    ): SnapshotAssembly {
-        val targets = backends.snapshotTargets ?: backends.snapshots?.let { SnapshotTargets.single(it) }
-        val snapshotted = if (targets == null) emptyList() else models.filter { snapshotEnabled(it) }
-        return SnapshotAssembly(context, targets, snapshotted, kernel, log, codec)
-    }
-
     /** The kernel of a context over its [log], with its state cache, snapshot and reservation stores. */
     private fun kernelOf(log: PartitionAppendQueue, backends: ContextBackends, codec: EventCodec, names: CommandTypes) =
         Kernel(
@@ -1088,15 +1060,6 @@ class ServiceNode(
         }
         return readers
     }
-
-    /**
-     * Whether the Manifest enables [model]'s snapshots; a built-in job aggregate, not in it, keeps them, and a built-in
-     * rebuild aggregate does not (decision D172).
-     */
-    private fun snapshotEnabled(model: AggregateModel<*>): Boolean = manifest.contexts
-        .firstOrNull { it.name == model.type.context }?.aggregates
-        ?.firstOrNull { it.name == model.type.name }?.snapshot?.enabled
-        ?: !SnapshotRebuildModel.isRebuild(model)
 
     /** A context's parts before the node's router exists. */
     private inner class Parts(
