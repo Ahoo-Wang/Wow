@@ -46,6 +46,7 @@ class ScheduleManifestTest {
         import me.ahoo.wow.api.annotation.CreateAggregate
         import me.ahoo.wow.api.annotation.OnCommand
         import me.ahoo.wow.api.decide.DecideScope
+        import me.ahoo.wow.api.schedule.ScheduleRule
         import kotlin.time.Duration.Companion.minutes
 
         @CreateAggregate
@@ -60,7 +61,7 @@ class ScheduleManifestTest {
         class Order(val id: String) {
             @OnCommand(schedules = ["shop.order.CancelOrder", "shop.order.CancelOrder"])
             fun onCommand(command: PlaceOrder, scope: DecideScope): OrderPlaced {
-                scope.schedule("pay-timeout", 30.minutes, CancelOrder("unpaid"))
+                scope.schedule("pay-timeout", ScheduleRule.after(30.minutes), CancelOrder("unpaid"))
                 return OrderPlaced(command.id)
             }
 
@@ -86,6 +87,7 @@ class ScheduleManifestTest {
         import me.ahoo.wow.api.annotation.OnEvent
         import me.ahoo.wow.api.annotation.Saga
         import me.ahoo.wow.api.decide.Command
+        import me.ahoo.wow.api.schedule.ScheduleRule
         import me.ahoo.wow.api.subscribe.SagaContext
         import me.ahoo.wow.api.subscribe.StateEvent
         import kotlin.time.Duration.Companion.hours
@@ -94,8 +96,7 @@ class ScheduleManifestTest {
         class Reminder {
             @OnEvent(schedules = ["shop.order.CancelOrder"])
             fun onEvent(event: StateEvent<Order>, context: SagaContext): List<Command<*>> {
-                context.schedule("remind", 1.hours, event.ref, CancelOrder("reminder"))
-                return emptyList()
+                return listOf(context.schedule("remind", ScheduleRule.after(1.hours), event.ref, CancelOrder("reminder")))
             }
 
             @OnEvent

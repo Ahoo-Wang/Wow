@@ -76,7 +76,6 @@ import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 import tools.jackson.databind.json.JsonMapper
 import java.net.http.HttpClient
-import javax.sql.DataSource
 import kotlin.time.toKotlinDuration
 import jakarta.validation.Validator as JakartaValidator
 
@@ -91,7 +90,9 @@ import jakarta.validation.Validator as JakartaValidator
  *   classpath ([ContractDirectory], decision D139).
  * - **Backend** (`wow.backend`, [BackendSelection]): PostgreSQL over the application's `DataSource`, MongoDB over its
  *   `MongoClient`, in memory (one node, with a warning) when it has neither, or the application's own
- *   [BackendFactory] bean.
+ *   [BackendFactory] bean. With `wow.stores`, the named store instances instead ([StoreInstances]), each aggregate's
+ *   log and snapshots on the store `wow.log.store`, `wow.snapshot.store` and its `wow.aggregates.*` name
+ *   ([StoreLayout], decision D177).
  * - **Admission**: the application's [CommandAuthorizer], [CommandTransformer]s (D182) and [CommandValidator]s, the Jakarta
  *   validator when it has a Bean Validation provider (D106), the id generators (D171): the [GlobalIdGenerator] bean
  *   (UUIDv7 unless the application or wow-cosid gives one) and, per aggregate type, the [AggregateIdGenerator] bean
@@ -172,29 +173,19 @@ class WowAutoConfiguration {
         properties: WowProperties,
         beanFactory: ConfigurableListableBeanFactory,
         factories: ObjectProvider<BackendFactory>,
+        models: WowModels,
     ): HostBackends {
         factories.ifAvailable?.let { return HostBackends.of(it) }
-        val classLoader = beanFactory.beanClassLoader
-        val postgres = ClassUtils.isPresent(POSTGRES_LOG, classLoader) &&
-            beanFactory.getBeanNamesForType(DataSource::class.java).isNotEmpty()
-        val mongoClient = MONGO_CLIENT.takeIf { ClassUtils.isPresent(MONGO_LOG, classLoader) }
-            ?.takeIf { ClassUtils.isPresent(it, classLoader) }
-            ?.let { ClassUtils.forName(it, classLoader) }
-        val mongo = mongoClient != null && beanFactory.getBeanNamesForType(mongoClient).isNotEmpty()
-        val partitions = properties.log.partitions
-        return when (BackendSelection.select(properties.backend, postgres, mongo)) {
-            BackendKind.POSTGRES -> PostgresBackends.open(beanFactory.getBean(DataSource::class.java), partitions)
-            BackendKind.MONGO ->
-                MongoBackends.open(beanFactory.getBean(mongoClient!!), properties.mongo.database, partitions)
-
-            else -> {
-                logger.warn {
-                    "Wow runs on the memory backend (wow.backend=memory, or no DataSource or MongoClient backs it): " +
-                        "its data does not outlive the node, and it serves one node only."
-                }
-                HostBackends.memory(partitions)
+        val stores = StoreInstances.open(properties, beanFactory, beanFactory.beanClassLoader)
+        val layout = StoreLayout.of(properties, stores, models.models)
+        val memory = (layout.logStores + layout.snapshotStores).filter { stores.getValue(it).kind == BackendKind.MEMORY }
+        if (memory.isNotEmpty()) {
+            logger.warn {
+                "Wow keeps data in memory on the stores $memory (wow.backend=memory, a store of type memory, or no " +
+                    "DataSource or MongoClient backs it): it does not outlive the node, and serves one node only."
             }
         }
+        return HostBackends.of(stores, layout, properties.log.partitions)
     }
 
     /** The node's global ids (decision D171): command, request and wait ids, and the ids domain code takes. */
@@ -304,10 +295,10 @@ class WowAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun wowInternalServer(properties: WowProperties, node: ServiceNode): InternalServer =
+    fun wowInternalServer(properties: WowProperties, node: ServiceNode, identity: NodeIdentity): InternalServer =
         InternalServer(
             properties.internal.port,
-            properties.internal.host,
+            identity.bindHost,
             internalRoutes(node.forwardHandler, node.waits)
         )
 
@@ -433,9 +424,6 @@ class WowAutoConfiguration {
 
         /** The default [AggregateIdGenerator] bean's name: the generator of the types no `id-generator` names. */
         const val WOW_AGGREGATE_ID_GENERATOR: String = "wowAggregateIdGenerator"
-        private const val POSTGRES_LOG = "me.ahoo.wow.postgres.PostgresEventLog"
-        private const val MONGO_LOG = "me.ahoo.wow.mongo.log.MongoEventLog"
-        private const val MONGO_CLIENT = "com.mongodb.client.MongoClient"
         private const val JAKARTA_VALIDATOR = "jakarta.validation.Validator"
         private val logger = KotlinLogging.logger {}
 

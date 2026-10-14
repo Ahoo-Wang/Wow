@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.test.DEFAULT_START
 import me.ahoo.wow.kernel.test.aggregateSpec
 import me.ahoo.wow.spi.timer.TimerStatus
@@ -41,7 +42,7 @@ class ScheduleSpecTest {
     private val model = aggregate<Order>("shop", "order") {
         initial { Order(it.id) }
         decide<PlaceOrder>(Creation.REQUIRED) { _, body ->
-            schedule("pay-timeout", 30.minutes, CancelOrder("unpaid"))
+            schedule("pay-timeout", ScheduleRule.after(30.minutes), CancelOrder("unpaid"))
             Decision.events(OrderPlaced(body.total))
         }
         decide<PayOrder> { state, body ->
@@ -69,8 +70,8 @@ class ScheduleSpecTest {
         aggregateSpec(model) {
             whenCommand(PlaceOrder(10)) {
                 expectEvents(OrderPlaced(10))
-                expectScheduled("pay-timeout", CancelOrder("unpaid"), after = 30.minutes)
-                expectScheduled("pay-timeout", CancelOrder("unpaid"), at = DEFAULT_START.plusSeconds(1800))
+                expectScheduled("pay-timeout", CancelOrder("unpaid"), ScheduleRule.after(30.minutes))
+                expectScheduled("pay-timeout", CancelOrder("unpaid"))
             }
             advanceTime(29.minutes)
             timer("pay-timeout")?.status.assert().isEqualTo(TimerStatus.PENDING)
@@ -122,11 +123,7 @@ class ScheduleSpecTest {
                 assertThrownBy<AssertionError> { expectScheduled("other", CancelOrder("unpaid")) }
                 assertThrownBy<AssertionError> { expectScheduled("pay-timeout", CancelOrder("other")) }
                 assertThrownBy<AssertionError> {
-                    expectScheduled(
-                        "pay-timeout",
-                        CancelOrder("unpaid"),
-                        after = 1.minutes
-                    )
+                    expectScheduled("pay-timeout", CancelOrder("unpaid"), ScheduleRule.after(1.minutes))
                 }
                 assertThrownBy<AssertionError> {
                     expectScheduled("pay-timeout", CancelOrder("unpaid"), target = model.type.ref("tenant", "other"))

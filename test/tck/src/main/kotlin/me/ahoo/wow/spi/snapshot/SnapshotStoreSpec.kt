@@ -22,6 +22,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.schedule.Misfire
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.ExactJson
 import org.junit.jupiter.api.Test
 import java.util.UUID
@@ -50,6 +52,11 @@ abstract class SnapshotStoreSpec {
         tags: Map<String, List<String>> = mapOf("region" to listOf("east", "west"), "tier" to listOf("gold")),
         operator: Operator? = Operator("bob", tenant),
         firstOperator: Operator? = Operator("alice ü", "home", crossScope = true),
+        schedules: Map<String, ScheduleRule> = mapOf(
+            "pay-timeout" to ScheduleRule.After(1_800_000),
+            "report" to ScheduleRule.Cron("0 0 9 * * *", "Asia/Shanghai", Misfire.CATCH_UP),
+            "remind" to ScheduleRule.At(FIRST_EVENT_TIME + 60_000),
+        ),
     ) = SnapshotRecord(
         ref = aggregate.ref(tenant, id),
         version = version,
@@ -62,6 +69,7 @@ abstract class SnapshotStoreSpec {
         tags = tags,
         operator = operator,
         firstOperator = firstOperator,
+        schedules = schedules,
     )
 
     private fun SnapshotRecord?.assertSameAs(expected: SnapshotRecord) {
@@ -111,6 +119,7 @@ abstract class SnapshotStoreSpec {
             tags = emptyMap(),
             operator = null,
             firstOperator = null,
+            schedules = emptyMap(),
         )
         store.save(saved).assert().isTrue()
         store.load(saved.ref).assertSameAs(saved)

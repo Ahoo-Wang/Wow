@@ -24,7 +24,6 @@ import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
-import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.contextOf
@@ -48,7 +47,8 @@ import java.util.concurrent.Executors
  * - **Name, filter and start**: the subscription is the handler's [ProcessorBinding.name], `processor.function`, of
  *   the aggregates of the context whose state is the handler's state type (every aggregate for `StateEvent<*>`), of
  *   any of their events: a handler's signature names its state, not its events. It starts where the handler says
- *   ([ProcessorBinding.startFrom]). A state type no aggregate of the context has fails the node's assembly.
+ *   ([ProcessorBinding.startIn]: as `@OnEvent(start)` declares, else a projection or a handler of another context's
+ *   stream from the beginning, a reactor or a saga of the context's own log from the end; decision D194). A state type no aggregate of the context has fails the node's assembly.
  * - **What the handler gets**: the entry decoded by [EntryDecoder.stateEvents] (decision D133), each subscription
  *   the state reader of its own name ([stateReaders]): its events decoded and upgraded, and the state after the
  *   commit, a copy decoded from the context's shared view for this handler alone; with the context of its kind, whose
@@ -64,9 +64,10 @@ import java.util.concurrent.Executors
  *   REJECTED with its error ([HandledEntry.rejection]). The saga's `@OnRejected` handler for the command, if any, gets it
  *   ([SagaRejections], which executes what it derives to compensate); without one, the aggregate parks at once
  *   ([DerivedCommandRejectedException]).
- * - **Schedules** a saga's handler makes ([me.ahoo.wow.api.subscribe.SagaContext.schedule], decision D166) are written
- *   to the context's timer store ([me.ahoo.wow.runtime.timer.SagaTimers]) before the commands it derived execute, so
- *   before its checkpoint passes the commit; handling it again writes the same timers.
+ * - **Schedules** a saga's handler makes ([me.ahoo.wow.api.subscribe.SagaContext.schedule], decision D198) are derived
+ *   commands too, the system commands `wow.schedule.Set` and `wow.schedule.Cancel` to their target, executed in order
+ *   with the others; the command they schedule is named by the context's models and Manifests
+ *   ([ContextNode.commandTypes]). A target that does not exist rejects one, which goes to `@OnRejected`.
  * - **Failures**: a handler that throws, or a state that cannot be read, is retried, then parks its aggregate, as any
  *   subscription ([me.ahoo.wow.runtime.subscription.SubscriptionOptions.retry]); a handler's `@Retry`
  *   ([ProcessorBinding.retry], roadmap P.3) is its subscription's own budget ([Subscription.retry]).
@@ -115,15 +116,14 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 Subscription.saga(
                     name,
                     filter,
-                    handler.startFrom,
+                    handler.startIn(context.context),
                     decoder,
                     context.models,
                     retry = handler.retry
                 ) { entry ->
                     val event = stateEventOf(entry, context)
-                    val execution = contextOf(handler.kind, name, event, context.ids)
+                    val execution = contextOf(handler.kind, name, event, context.ids, context.commandTypes)
                     val commands = call(handler, event, execution)
-                    writeSchedules(context, name, event, execution)
                     val wait = DerivedCommands.waitOf(entry.transport?.wait, context.context, name)
                     val replyTo = replyTo(handler, context.context, execution.executionId)
                     sagaHandled(derived.execute(commands, wait, replyTo), execution.executionId, rejections)
@@ -132,14 +132,14 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 Subscription(
                     name,
                     filter,
-                    handler.startFrom,
+                    handler.startIn(context.context),
                     decoder,
                     context.models,
                     handler.kind,
                     retry = handler.retry,
                 ) { entry ->
                     val event = stateEventOf(entry, context)
-                    call(handler, event, contextOf(handler.kind, name, event, context.ids))
+                    call(handler, event, contextOf(handler.kind, name, event, context.ids, context.commandTypes))
                 }
             }
         }
@@ -163,14 +163,13 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 Subscription.saga(
                     name,
                     filter,
-                    handler.startFrom,
+                    handler.startIn(context.context),
                     context = context.context,
                     retry = handler.retry
                 ) { entry ->
                     val event = publishedStateEventOf(entry, handler, context)
-                    val execution = contextOf(handler.kind, name, event, context.ids)
+                    val execution = contextOf(handler.kind, name, event, context.ids, context.commandTypes)
                     val commands = call(handler, event, execution)
-                    writeSchedules(context, name, event, execution)
                     val wait = DerivedCommands.waitOf(entry.transport?.wait, context.context, name)
                     val replyTo = replyTo(handler, context.context, execution.executionId)
                     sagaHandled(derived.execute(commands, wait, replyTo), execution.executionId, rejections)
@@ -179,13 +178,13 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                 Subscription(
                     name,
                     filter,
-                    handler.startFrom,
+                    handler.startIn(context.context),
                     kind = handler.kind,
                     context = context.context,
                     retry = handler.retry,
                 ) { entry ->
                     val event = publishedStateEventOf(entry, handler, context)
-                    call(handler, event, contextOf(handler.kind, name, event, context.ids))
+                    call(handler, event, contextOf(handler.kind, name, event, context.ids, context.commandTypes))
                 }
             }
             SourcedSubscription(subscription, types)
@@ -266,26 +265,6 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             execution: ExecutionId,
         ): (Command<*>) -> ReplyTo? = { command ->
             handler.rejectionHandlerOf(command.body.javaClass)?.let { ReplyTo.of(context, execution) }
-        }
-
-        /**
-         * Writes the schedules the saga [subscription] made in its [execution] of [event] to [context]'s timer store
-         * (decision D166); a context without one fails the handling.
-         */
-        internal suspend fun writeSchedules(
-            context: ContextNode,
-            subscription: String,
-            event: StateEvent<*>,
-            execution: SubscriptionContext,
-        ) {
-            val schedules = (execution as? ExecutionSagaContext)?.schedules.orEmpty()
-            if (schedules.isEmpty()) {
-                return
-            }
-            val timers = checkNotNull(context.timers) {
-                "$subscription schedules commands, and context ${context.context} has no timer store (decision D166)."
-            }
-            timers.sagas.write(subscription, event, schedules)
         }
 
         /** Calls [handler] with [event] and [context]: on a virtual thread when it is blocking. */

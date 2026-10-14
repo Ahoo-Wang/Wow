@@ -53,6 +53,9 @@ import me.ahoo.wow.spi.wait.WaitContext
  *   to that context's command topic through the sender ([CommandSender]), and is done once the broker has acknowledged it, a durable
  *   ACCEPTED; its outcome is the target's, and a rejection comes back as a receipt to the [ReplyTo] the caller gives
  *   it (decision D136). It carries [wait] on, so the target signals the waiting node as this context would.
+ * - **Scope** (decision D199): a derived command is not checked against the caller's scope on an existing target; the
+ *   root command was authorized at its admission. Each carries a causation, so the kernel tells it from a caller's
+ *   ([me.ahoo.wow.kernel.isDerived]): one a handler built without it is given itself as its root.
  * - **Technical failures** fail the handling: a command whose outcome is contended or unknown, or that the executor
  *   did not take (its lane full, the node closing), a command the broker
  *   did not acknowledge, one to another context with no sender (a node without a Kafka transport), and one to an
@@ -79,7 +82,13 @@ class DerivedCommands(
         replyTo: (Command<*>) -> ReplyTo? = { null },
     ): Executed {
         val executed = ArrayList<String>(commands.size)
-        for (derived in commands) {
+        for (returned in commands) {
+            // A derived command belongs to a chain; one a handler built without a causation is its own root.
+            val derived = if (returned.causation == null) {
+                returned.copy(causation = Causation(returned.id, returned.id))
+            } else {
+                returned
+            }
             val model = models[derived.ref.type]
             if (model == null) {
                 send(derived, wait, replyTo(derived))

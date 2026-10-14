@@ -103,7 +103,8 @@ internal object SubscriptionSource {
 
     /**
      * The arguments of [handler]'s binding that it gives only when it has them: the aggregates of its
-     * `@OnEvent(aggregates)`, whether its state is [nullable], and its `@Retry` budget.
+     * `@OnEvent(aggregates)`, whether its state is [nullable], its `@Retry` budget, and the start its `@OnEvent(start)`
+     * declares (decision D194; the runtime gives one that declares none its kind's and source's).
      */
     private fun optionalArguments(handler: HandlerBinding, nullable: Boolean): String = buildString {
         if (handler.aggregates.isNotEmpty()) {
@@ -113,6 +114,7 @@ internal object SubscriptionSource {
             append(", nullableState = true")
         }
         handler.retry?.let { append(", retry = ${it.source()}") }
+        handler.start?.let { append(", startFrom = $KERNEL.StartFrom.$it") }
     }
 
     /** An `@OnRejected` handler of the saga [binding]: its call, read as the commands that compensate. */

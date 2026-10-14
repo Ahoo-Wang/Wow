@@ -95,7 +95,7 @@ class Product(private val state: ProductState) {
     fun onCommand(command: PublishProduct): Decision = when {
         state.status == ProductStatus.PUBLISHED -> Decision.NoOp
         state.brandId == null || state.categoryId == null ->
-            Decision.reject(ProductRejections.INCOMPLETE, "Product ${state.id} needs a brand and a category.")
+            Decision.reject(ProductRejections.INCOMPLETE, "The product needs a brand and a category.")
 
         else -> Decision.events(ProductPublished)
     }
@@ -103,7 +103,7 @@ class Product(private val state: ProductState) {
     @OnCommand(produces = [ProductDelisted::class])
     fun onCommand(command: DelistProduct): Decision =
         if (state.status != ProductStatus.PUBLISHED) {
-            Decision.reject(ProductRejections.NOT_PUBLISHED, "Product ${state.id} is ${state.status}.")
+            Decision.reject(ProductRejections.NOT_PUBLISHED, "The product is ${state.status}.")
         } else {
             Decision.events(ProductDelisted(command.reason))
         }

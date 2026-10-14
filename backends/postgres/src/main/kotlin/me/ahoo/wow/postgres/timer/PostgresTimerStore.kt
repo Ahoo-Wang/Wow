@@ -20,10 +20,12 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.timer.Timer
+import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.TimerStore
 import java.sql.Connection
@@ -33,12 +35,12 @@ import java.sql.Types
 import javax.sql.DataSource
 
 /**
- * The [TimerStore] of one bounded context on PostgreSQL (decision D166): the table `wow_timer__<context>` in the
+ * The [TimerStore] of one bounded context on PostgreSQL (decisions D166, D198): the table `wow_timer__<context>` in the
  * database of the log ([PostgresTimerTables]).
  *
- * Every write is one autocommitted statement: a put is an upsert whose conflict condition admits only another timer at
- * the same or a later version; a cancel and an update are conditional updates. The due read uses the partial index of
- * the PENDING timers.
+ * Every write is autocommitted: a put is an upsert whose conflict condition admits only another timer at the same or a
+ * later version; a cancel is a conditional update; a settle is one batch of conditional updates, each on the row as
+ * it was loaded. The due read takes every partition asked in one query, over the partial index of the PENDING timers.
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29).
  */
@@ -66,18 +68,20 @@ class PostgresTimerStore(
             put.setString(3, timer.id)
             put.setLong(4, timer.version)
             put.setInt(5, timer.partition)
-            put.setLong(6, timer.dueAt)
-            put.setString(7, timer.target.type.context)
-            put.setString(8, timer.target.type.name)
-            put.setString(9, timer.target.tenantId)
-            put.setString(10, timer.target.id)
-            put.setString(11, timer.commandType)
-            put.setString(12, timer.body)
-            put.setNullableString(13, timer.causation?.correlationId)
-            put.setNullableString(14, timer.causation?.causationId)
-            put.setString(15, json.writeValueAsString(timer.headers))
-            put.setNullableString(16, timer.operator?.let(json::writeValueAsString))
-            put.setNullableString(17, timer.scope.takeUnless { it == Scope.NONE }?.let(json::writeValueAsString))
+            put.setString(6, json.writeValueAsString(timer.rule))
+            put.setLong(7, timer.slot)
+            put.setLong(8, timer.dueAt)
+            put.setString(9, timer.target.type.context)
+            put.setString(10, timer.target.type.name)
+            put.setString(11, timer.target.tenantId)
+            put.setString(12, timer.target.id)
+            put.setString(13, timer.commandType)
+            put.setString(14, timer.body)
+            put.setNullableString(15, timer.causation?.correlationId)
+            put.setNullableString(16, timer.causation?.causationId)
+            put.setString(17, json.writeValueAsString(timer.headers))
+            put.setNullableString(18, timer.operator?.let(json::writeValueAsString))
+            put.setNullableString(19, timer.scope.takeUnless { it == Scope.NONE }?.let(json::writeValueAsString))
             put.executeUpdate() == 1
         }
     }
@@ -109,11 +113,14 @@ class PostgresTimerStore(
         }
     }
 
-    override suspend fun due(partition: Int, until: Long, limit: Int): List<Timer> {
+    override suspend fun due(partitions: Set<Int>, until: Long, limit: Int): List<Timer> {
         require(limit >= 1) { "A page holds at least one timer." }
+        if (partitions.isEmpty()) {
+            return emptyList()
+        }
         return jdbc { connection ->
             connection.prepareStatement(tables.due).use { query ->
-                query.setInt(1, partition)
+                query.setArray(1, connection.createArrayOf("integer", partitions.toTypedArray()))
                 query.setLong(2, until)
                 query.setInt(3, limit)
                 query.executeQuery().use(::timersOf)
@@ -121,17 +128,30 @@ class PostgresTimerStore(
         }
     }
 
-    override suspend fun update(timer: Timer, expected: TimerStatus): Boolean = jdbc { connection ->
-        connection.prepareStatement(tables.update).use { update ->
-            update.setString(1, timer.status.name)
-            update.setInt(2, timer.attempts)
-            update.setNullableString(3, timer.outcome)
-            update.setLong(4, timer.dueAt)
-            update.setString(5, timer.owner)
-            update.setString(6, timer.key)
-            update.setString(7, timer.id)
-            update.setString(8, expected.name)
-            update.executeUpdate() == 1
+    /** One batch of conditional updates: one round trip for every change. */
+    override suspend fun settle(changes: List<TimerChange>): Int {
+        if (changes.isEmpty()) {
+            return 0
+        }
+        return jdbc { connection ->
+            connection.prepareStatement(tables.settle).use { settle ->
+                changes.forEach { (loaded, next) ->
+                    settle.setString(1, next.status.name)
+                    settle.setLong(2, next.slot)
+                    settle.setLong(3, next.dueAt)
+                    settle.setInt(4, next.attempts)
+                    settle.setNullableString(5, next.outcome)
+                    settle.setString(6, loaded.owner)
+                    settle.setString(7, loaded.key)
+                    settle.setString(8, loaded.id)
+                    settle.setString(9, loaded.status.name)
+                    settle.setLong(10, loaded.slot)
+                    settle.setInt(11, loaded.attempts)
+                    settle.setLong(12, loaded.dueAt)
+                    settle.addBatch()
+                }
+                settle.executeBatch().sum()
+            }
         }
     }
 
@@ -167,6 +187,8 @@ class PostgresTimerStore(
             key = row.getString("key"),
             version = row.getLong("version"),
             partition = row.getInt("partition"),
+            rule = json.readValue(row.getString("rule"), ScheduleRule::class.java),
+            slot = row.getLong("slot"),
             dueAt = row.getLong("due_at"),
             target = AggregateType(row.getString("target_context"), row.getString("target_aggregate"))
                 .ref(row.getString("target_tenant_id"), row.getString("target_id")),

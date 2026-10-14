@@ -36,7 +36,8 @@ internal object ModelSource {
             "public fun $functionName(${parameters.joinToString(", ")}): me.ahoo.wow.kernel.AggregateModel<$state> =",
         )
         appendLine("    me.ahoo.wow.kernel.aggregate<$state>(context, \"${binding.aggregateName}\") {")
-        appendLine("        initial { ref -> $state(${binding.stateArguments.joinToString(", ")}) }")
+        val ref = if (binding.stateArguments.isEmpty()) "_" else "ref"
+        appendLine("        initial { $ref -> $state(${binding.stateArguments.joinToString(", ")}) }")
         binding.commands.forEach { command ->
             val dsl = if (command.suspending || command.reactor) "decideSuspending" else "decide"
             val first = if (command.admitted) "this.command as $COMMAND<${command.command}>" else "command"

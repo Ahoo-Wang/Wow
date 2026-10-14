@@ -92,9 +92,14 @@ class SnapshotQueryBackend(
     val factory: QueryBackendFactory<*>?,
     private val prepare: (AggregateType) -> Unit = {},
     private val indexes: ((AggregateType, QueryModelSchema, List<QueryIndexDeclaration>) -> QueryIndexReport)? = null,
+    /** Whether the backend queries [AggregateType]'s snapshots: every type's, when it has a [factory]. */
+    private val serves: (AggregateType) -> Boolean = { factory != null },
 ) {
     /** Whether the host manages this backend's indexes; an application's own backend manages its own. */
     val managesIndexes: Boolean get() = factory != null && indexes != null
+
+    /** Whether the backend queries [type]'s snapshots: their store has a query backend (decision D177). */
+    fun serves(type: AggregateType): Boolean = serves.invoke(type)
 
     /** Makes sure [type]'s storage exists, so its facts are the storage's own. */
     fun prepare(type: AggregateType) = prepare.invoke(type)
@@ -110,6 +115,32 @@ class SnapshotQueryBackend(
         /** No backend: the node's snapshots are not queried. */
         @JvmField
         val NONE: SnapshotQueryBackend = SnapshotQueryBackend(null)
+
+        /**
+         * The backend of each aggregate type's snapshot store (decision D177): [backendOf] gives it, null when its
+         * store has none, whose snapshots are then not queried. [NONE] when no type's store has one.
+         */
+        fun routing(
+            types: Collection<AggregateType>,
+            backendOf: (AggregateType) -> SnapshotQueryBackend?
+        ): SnapshotQueryBackend {
+            if (types.none { backendOf(it) != null }) {
+                return NONE
+            }
+            return SnapshotQueryBackend(
+                factory = QueryBackendFactory { type ->
+                    checkNotNull(
+                        backendOf(type)?.factory
+                    ) { "The snapshots of $type are on a store no query backend reads." }
+                        .create(type)
+                },
+                prepare = { type -> backendOf(type)?.prepare(type) },
+                indexes = { type, schema, declarations ->
+                    backendOf(type)?.manageIndexes(type, schema, declarations) ?: QueryIndexReport()
+                },
+                serves = { type -> backendOf(type)?.serves(type) == true },
+            )
+        }
     }
 }
 
@@ -157,7 +188,7 @@ class QueryIndexesLifecycle(
 
     override fun start() {
         if (ddl != QueryIndexDdl.NONE && backend.managesIndexes) {
-            reports = types.associateWith { type ->
+            reports = types.filter(backend::serves).associateWith { type ->
                 backend.prepare(type)
                 val schema = runBlocking { catalog.schema(type, QueryModel.SNAPSHOT) }
                 val declarations = QueryIndexDeclaration.of(manifest, type.context, type.name)

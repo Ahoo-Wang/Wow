@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.state
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
@@ -29,7 +30,8 @@ import kotlin.time.TimeSource
 
 /**
  * The state of an aggregate after its stream [version] (design 01 §2, 08 §5): its [state] as the kernel's codec
- * serialized it, the [scope] of the stream, and whether it is [deleted] and its [tags], as the kernel committed them.
+ * serialized it, the [scope] of the stream, whether it is [deleted], its [tags] and its [schedules] (decision D198),
+ * as the kernel committed them.
  * A view is serialized once and decoded afresh by each reader, so no reader sees another's changes nor the live
  * instance. This is the runtime's form, the text a snapshot stores; what a sink publishes is the `:spi`
  * [me.ahoo.wow.spi.state.StateView] of design 08 §5 (decision D132), a JSON tree with its schema's fingerprint, which
@@ -41,6 +43,7 @@ class StateView(
     val scope: Scope = Scope.NONE,
     val deleted: Boolean = false,
     val tags: Map<String, List<String>> = emptyMap(),
+    val schedules: Map<String, ScheduleRule> = emptyMap(),
 ) {
     init {
         require(version >= 1) { "A committed state has a version from 1." }
@@ -119,7 +122,8 @@ class StateViews(
                 codec.stateText(committed.state),
                 stream.scope,
                 committed.deleted,
-                committed.tags
+                committed.tags,
+                committed.schedules,
             ),
         )
     }

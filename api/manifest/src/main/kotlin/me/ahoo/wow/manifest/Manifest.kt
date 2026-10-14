@@ -214,8 +214,9 @@ data class EventManifest(
  * - [rejected] is set on an `@OnRejected` handler of a saga (decisions D136, D153) and on no other: the commands whose
  *   rejections it handles, the one its `CommandRejected<C>` names, or empty for any command the saga derives. Such a
  *   handler reads rejections, not state events: its [source] is empty and not read.
- * - [start] is where a new subscription starts in the log (decision D154): [SubscriptionStart.defaultFor] its kind,
- *   unless the host configures another. Null on an `@OnRejected` handler, which reads no log.
+ * - [start] is where a new subscription starts in the log (decisions D154, D194): what `@OnEvent(start)` declares,
+ *   else [SubscriptionStart.defaultFor] its kind, or [SubscriptionStart.BEGINNING] for a handler of another context's
+ *   stream; the host may configure another. Null on an `@OnRejected` handler, which reads no log.
  * - [schedules] names the commands a saga's handler may schedule (decision D166), each by its full type name, as its
  *   `@OnEvent(schedules)` declares; null when it declares none, and always for a projection or a reactor.
  * - [retry] is the handler's own in-process retry budget, as its `@Retry` and its processor's declare it (roadmap

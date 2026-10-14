@@ -27,7 +27,7 @@ import java.math.BigDecimal
  * queries filter it by category, brand and status and sort it by price, so each of those leads an index whose further
  * keys are the storefront's usual filter and sort ("the published products of a category, cheapest first").
  */
-class ProductState(val id: String) {
+class ProductState {
     var name: String = ""
         private set
 

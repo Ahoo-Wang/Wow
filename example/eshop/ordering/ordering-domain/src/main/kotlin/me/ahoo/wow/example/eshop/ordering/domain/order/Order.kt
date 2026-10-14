@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
 import me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock
@@ -90,7 +91,11 @@ class Order(private val state: OrderState) {
         if (state.confirmedProducts + command.productId != state.products()) {
             return Decision.events(confirmed)
         }
-        scope.schedule(PAYMENT_GRACE_PERIOD, paymentPolicy.gracePeriod, CancelOrder(PAYMENT_TIMEOUT))
+        scope.schedule(
+            PAYMENT_GRACE_PERIOD,
+            ScheduleRule.after(paymentPolicy.gracePeriod),
+            CancelOrder(PAYMENT_TIMEOUT)
+        )
         return Decision.events(confirmed, OrderStockConfirmed)
     }
 
@@ -102,7 +107,7 @@ class Order(private val state: OrderState) {
         if (command.amount.compareTo(state.totalAmount) != 0) {
             Decision.reject(
                 OrderRejections.WRONG_AMOUNT,
-                "The order ${state.id} costs ${state.totalAmount}, not ${command.amount}.",
+                "The order costs ${state.totalAmount}, not ${command.amount}.",
             )
         } else {
             scope.cancelSchedule(PAYMENT_GRACE_PERIOD)
@@ -122,7 +127,7 @@ class Order(private val state: OrderState) {
         OrderStatus.CANCELLED -> Decision.NoOp
         OrderStatus.PAID, OrderStatus.SHIPPED -> Decision.reject(
             OrderRejections.WRONG_STATUS,
-            "The order ${state.id} is ${state.status}: only an order not paid yet can be cancelled.",
+            "The order is ${state.status}: only an order not paid yet can be cancelled.",
         )
 
         else -> {
@@ -137,7 +142,7 @@ class Order(private val state: OrderState) {
         } else {
             Decision.reject(
                 OrderRejections.WRONG_STATUS,
-                "The order ${state.id} is ${state.status}: only a $required order can $action.",
+                "The order is ${state.status}: only a $required order can $action.",
             )
         }
 

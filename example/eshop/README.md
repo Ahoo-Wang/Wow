@@ -5,7 +5,7 @@ A multi-service shop on Wow V10, modelled on the classic eShop reference applica
 - that everything from M1 to M6 works together across several services;
 - that the developer experience holds up for someone who knows Wow only from the public documentation and the Skills. Each gap goes into [DX-GAPS.md](DX-GAPS.md).
 
-The eShop builds on the V10 modules only, and is never published. `example/shop` stays as the minimal example and as the reference for 9.x-to-V10 migration.
+The eShop builds on the V10 modules only, and is never published. It is the V10 example: the shop (`example/shop`), its inventory (`example/inventory`) and their end-to-end tests (`example/e2e`) came before it and were folded into it (decision D204), each scenario they alone tested now covered here (see [Tests](#tests)).
 
 > **Status: E.1 to E.6 done.** The catalog has its products, brands and categories, and its storefront queries. The basket, ordering, inventory and payment contexts and the order flow between them work end to end on PostgreSQL and Kafka, the payment over a simulated gateway. All five services run together on PostgreSQL, Kafka and ClickHouse, with the sales dataset, a node killed mid-flow, and a load script with its baseline ([e2e/README.md](e2e/README.md)). The ordering runs on two nodes in the suite.
 
@@ -78,10 +78,10 @@ A declined payment's CancelOrder, and the grace period's scheduled one for an or
 
 ### Naming
 
-- **Context names.** Each context is named `eshop-<context>` (`@BoundedContext` in each `-domain`), so it does not clash with the shop's `example`.
+- **Context names.** Each context is named `eshop-<context>` (`@BoundedContext` in each `-domain`), so it does not clash with the 9.x example's `example`.
 - **No dots.** A context name holds no dot, because Wow writes a type as `<context>.<aggregate>`.
 - **Commands and routes.** Commands and events are named `eshop-catalog.product.CreateProduct`. Routes start with `/eshop-catalog/product/`.
-- **Gradle projects.** Every Gradle project is named `eshop-*`, so none clashes with the shop's projects, `:inventory-*` included.
+- **Gradle projects.** Every Gradle project is named `eshop-*`, so none clashes with a 9.x example's projects.
 
 ### Dependencies
 
@@ -99,13 +99,14 @@ Work package E.5, after the classic eShop's `PaymentProcessor`. One aggregate, `
 | `RequestPayment` (creates it) | `OrderPaymentSaga`, on the order's `OrderStockConfirmed` | The payment does not exist yet | `invalid-amount` (422): an amount that is not positive |
 | `ConfirmPayment` | `PaymentGatewaySaga`, when the gateway approves | `REQUESTED`; again on `SUCCEEDED` changes nothing | `wrong-status` (409) |
 | `FailPayment` | `PaymentGatewaySaga`, when the gateway declines | `REQUESTED`; again on `FAILED` changes nothing | `wrong-status` (409) |
-| `RefundPayment` | `OrderPaymentSaga`, when the order rejects its `PayOrder` | `SUCCEEDED`; again on `REFUNDED` changes nothing | `wrong-status` (409) |
+| `RefundPayment` | `OrderPaymentSaga`, when the order rejects its `PayOrder`; the gateway's chargeback callback, `ChargebackNotified` | `SUCCEEDED`; again on `REFUNDED` changes nothing | `wrong-status` (409) |
 
 - **States.** `REQUESTED`, then `SUCCEEDED` or `FAILED`; a succeeded payment may become `REFUNDED`.
 - **Request.** `OrderPaymentSaga.onOrderStockConfirmed` reads the order stream the ordering context publishes, `wow.eshop-ordering.order.state`, matches `eshop-ordering.order.OrderStockConfirmed` by name and reads the order's `totalAmount` from its published state. The server starts it at the beginning of the stream.
 - **Gateway.** `PaymentGatewaySaga` charges the `PaymentGateway` for each requested payment, with its execution as the idempotency key, and records the answer. It is a saga, not a reactor, because it sends a command. The server binds the `SimulatedPaymentGateway`: it approves an amount up to `eshop.payment.gateway.limit` (1000.00) and declines one above it, so a test picks the outcome by the order's total.
 - **Outcome.** A succeeded payment sends `PayOrder` (the payment's id and amount) to the ordering context; a failed one sends `CancelOrder`, and the cancelled order releases its stock as any cancelled order does.
 - **Refund.** An order that rejects its `PayOrder` (cancelled meanwhile, when its grace period passed, say) comes back as a receipt on `wow.eshop-payment.receipts`, and `OrderPaymentSaga.onPayRejected` refunds the payment.
+- **Chargeback.** The gateway calls back when a buyer disputes a payment with their bank: `ChargebackNotified` (`merchantReference`, `disputeId`, `reason`), in the gateway's shape, is a mounted command (`@MountedCommand(aggregate = "payment")`, decision D182) with no `@OnCommand`. The server's transformer, `Chargebacks`, turns it into the `RefundPayment` of the payment the reference names, and keeps the dispute in the `dispute-id` header. The gateway knows no payment id, so it posts to the route without one, `POST /eshop-payment/payment/chargeback-notified`; the result's `transformedFrom` and the stream's `wow.transformed-from` header name the callback, and the refund is authorized again as itself.
 - **Peers.** The payment server takes the ordering's Manifest as its peer (`wowPeers`). The ordering knows nothing of the payment.
 
 ## Sales
@@ -224,15 +225,19 @@ curl -s localhost:8085/eshop-payment/payment/alice-1/state
 
 The catalog's tests are in three places:
 
-- **`:eshop-catalog-domain`.** The specs of the three aggregates (`aggregateSpec`), and a test of the binding index and fragment.
-- **`:eshop-catalog-server`.** Its commands and rejections over HTTP (`CatalogEndToEndTest`), and the storefront's query contract on the memory backend (`CatalogQueryContract`).
-- **`:eshop-e2e`.** The storefront queries and the indexes on PostgreSQL, in a container (`CatalogPostgresTest`). The catalog server has no `integrationTest` source set of its own ([G17](DX-GAPS.md)).
+- **`:eshop-catalog-domain`.** The specs of the three aggregates (`aggregateSpec`), a test of the binding index and fragment, and `StatePropertiesTest`: the compiler's `ProductStateProperties`, `BrandStateProperties` and `CategoryStateProperties` name exactly the state schemas' paths, and the query DSL takes them.
+- **`:eshop-catalog-server`.** Its commands and rejections over HTTP (`CatalogEndToEndTest`), and the storefront's query contract on the memory backend (`CatalogQueryContract`): the descriptor, lists, pages, cursors and counts, a list as server-sent events, a product's events by version, the operator and the creator from the employee's command to the snapshot query (decision D163), and the storefront's query written with the DSL and `ProductStateProperties`, run on the node's query gateway.
+- **`:eshop-e2e`.** The storefront queries, the DSL's query and the indexes on PostgreSQL, in a container (`CatalogPostgresTest`). The catalog server has no `integrationTest` source set of its own ([G17](DX-GAPS.md)).
 
 The basket, ordering and inventory tests:
 
 - **Aggregates.** Each domain module has `aggregateSpec` specs: `BasketSpec`, `OrderSpec` (the state machine and the grace period, with `advanceTime`), `StockSpec` and `PaymentSpec`.
 - **Sagas.** `BasketCheckoutSagaTest`, `OrderProcessSagaTest` (with the `@OnRejected` handlers), `StockConfirmationSagaTest`, `PaymentGatewaySagaTest` (over the simulated gateway) and `OrderPaymentSagaTest` (with the refund on a rejected `PayOrder`).
-- **Servers.** Each server test starts its service on the memory backend. The basket, ordering and payment tests give it in-memory topics and drive it over HTTP: the basket's checkout, the order's flow and grace period without an inventory, and the payment's approval and decline without an ordering.
+- **Servers.** Each server test starts its service on the memory backend. The basket, ordering and payment tests give it in-memory topics and drive it over HTTP: the basket's checkout, the order's flow and grace period without an inventory, and the payment's approval and decline without an ordering. Besides:
+  - `OrderLifecycleTest`: the lifecycle routes (decision D113) on an order: deleted, refused with `wow.aggregate.deleted` (410) and restored; moved to another buyer's account, which the former owner then neither reads nor changes; tagged and moved into a fulfilment space by an employee.
+  - `PaymentTransformationTest`: the chargeback callback refunds the payment it names through the route without an id, an unknown reference is `wow.aggregate.not-found` naming the callback, and a second transformer of the callback stops the service from starting. `PaymentTransformationAuthorizationTest` gives the service an authorizer that lets only the gateway refund: anyone may call the callback's route, and the refund it becomes is refused to anyone but the gateway (decision D182).
+  - `PaymentJoinsLaterTest`: the ordering's stream already holds an order whose stock was confirmed when the payment service first starts; with no configured start, the order-payment saga reads that stream, another context's, from its beginning, so the payment is still requested and charged (decision D194).
+- **`:eshop-ordering-server` `integrationTest`.** `OrderingAnalyticsTest` runs the ordering in the test's JVM in its `postgres` and `clickhouse` profiles, on PostgreSQL and ClickHouse in containers: the orders' snapshot and event queries are each buyer's own and every order an employee's; the Sink writes each order's current state to the flat view, and the sales dataset is read in the caller's scope, aggregated by buyer, listed and described with its version as ETag (decision D145).
 - **`:eshop-e2e`.** Besides `CatalogPostgresTest`:
   - `EshopE2eTest`: the catalog and inventory, each in a JVM of its own.
   - `EshopSharedJvmTest`: services in the test's JVM, on one class path, each including its own context: the catalog and basket; and the inventory, ordering and payment, whose servers carry each other's Manifests as peers (DX gap G21). Services on one class path read one `application.yaml`, so the test passes each one's configuration as arguments.

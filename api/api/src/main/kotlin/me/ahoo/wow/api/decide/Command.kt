@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.schedule.ScheduleContext
 
 /**
  * An admitted command: who it targets and what it asks, with every fact decided once at admission and read-only
@@ -57,4 +58,10 @@ data class Command<C : Any>(
         require(requestId.isNotBlank()) { "A command needs a request id." }
         require(expectedVersion == null || expectedVersion >= 0) { "An expected version is never negative." }
     }
+
+    /**
+     * Which time of a schedule this command was sent for (decision D198), read from its headers; null when it was not
+     * sent by a schedule.
+     */
+    val schedule: ScheduleContext? get() = ScheduleContext.of(headers)
 }

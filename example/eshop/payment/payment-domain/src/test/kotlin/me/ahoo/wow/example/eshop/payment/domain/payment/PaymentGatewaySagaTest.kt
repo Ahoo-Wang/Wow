@@ -36,7 +36,7 @@ class PaymentGatewaySagaTest {
 
     private fun requested(amount: String, vararg events: Any) = stateEvent(
         payment,
-        PaymentState(ORDER).apply { onSourcing(PaymentRequested(ORDER, BigDecimal(amount))) },
+        PaymentState().apply { onSourcing(PaymentRequested(ORDER, BigDecimal(amount))) },
         *events.ifEmpty { arrayOf(PaymentRequested(ORDER, BigDecimal(amount))) },
         commandType = "eshop-payment.payment.RequestPayment",
     )

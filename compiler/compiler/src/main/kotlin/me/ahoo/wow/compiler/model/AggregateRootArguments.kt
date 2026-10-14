@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.compiler.model
 
+import com.google.devtools.ksp.KspExperimental
+import com.google.devtools.ksp.getAnnotationsByType
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSType
@@ -52,6 +54,13 @@ internal object AggregateRootArguments {
             topic = topic,
         )
     }
+
+    /**
+     * Whether the aggregate keeps snapshots, as `@AggregateRoot(snapshot)` says (decisions D4, D195): true by default.
+     */
+    @OptIn(KspExperimental::class)
+    fun snapshot(root: KSClassDeclaration): Boolean =
+        root.getAnnotationsByType(AggregateRoot::class).all { it.snapshot }
 
     /**
      * The aggregate's ownership as `@AggregateRoot(ownership)` declares it (decision D189): the name of the

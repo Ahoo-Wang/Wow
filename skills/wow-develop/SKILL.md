@@ -60,4 +60,4 @@ Add `references/review-rubric.md` for a review and `references/pipeline-map.md` 
 - Do not introduce blocking or manual subscription into reactive runtime paths.
 - Verify event/schema/API compatibility when changing public messages or metadata.
 - Use the assertion style already established by the target module; Kotlin Wow tests normally use `me.ahoo.test.asserts.assert` and `.assert()`.
-- Guides: https://wow.ahoo.me/guide/ (testing: https://wow.ahoo.me/guide/test-suite.html, troubleshooting: https://wow.ahoo.me/guide/troubleshooting.html). V10: https://wow.ahoo.me/guide/v10/ once the site carries it; until then the Wow repository's `v10` branch (`documentation/docs/en/guide/v10/` and the examples `example/shop`, `example/inventory`).
+- Guides: https://wow.ahoo.me/guide/ (testing: https://wow.ahoo.me/guide/test-suite.html, troubleshooting: https://wow.ahoo.me/guide/troubleshooting.html). V10: https://wow.ahoo.me/guide/v10/ once the site carries it; until then the Wow repository's `v10` branch (`documentation/docs/en/guide/v10/` and the example, the eShop: `example/eshop`, five services with their end-to-end tests).

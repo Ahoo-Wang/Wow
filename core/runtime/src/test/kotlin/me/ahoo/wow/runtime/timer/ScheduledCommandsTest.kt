@@ -21,9 +21,18 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.schedule.ScheduleContext
+import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.api.schedule.Schedules
+import me.ahoo.wow.api.schedule.SetSchedule
+import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
+import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.InMemoryTimerStore
 import me.ahoo.wow.kernel.InMemoryTopics
+import me.ahoo.wow.kernel.KernelRejections
+import me.ahoo.wow.kernel.ProcessorBinding
+import me.ahoo.wow.kernel.RejectionBinding
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.command.ITEM
@@ -39,12 +48,14 @@ import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.timer.Timer
+import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerOutcomes
 import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.TimerStore
 import me.ahoo.wow.spi.timer.Timers
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import java.time.Clock
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -69,6 +80,7 @@ class ScheduledCommandsTest {
         backends: TimedBackends,
         subscriptions: SubscriptionFactory = SubscriptionFactory.NONE,
         topics: SourceTopics? = null,
+        clock: Clock = Clock.systemUTC(),
     ): ServiceNode = ServiceNode(
         SHOP_SERVICE,
         name,
@@ -77,10 +89,17 @@ class ScheduledCommandsTest {
         shopManifest(),
         backends,
         channel,
-        options = fastNodeOptions().copy(timers = TimerOptions(pollInterval = 20.milliseconds, lookahead = 1.seconds)),
+        options = fastNodeOptions().copy(
+            timers = TimerOptions(
+                pollInterval = 20.milliseconds,
+                lookahead = 1.seconds,
+                claimTimeout = 300.milliseconds
+            ),
+        ),
         subscriptions = subscriptions,
         contracts = ContractDirectory(shopManifest(), listOf(peer(stockManifest()))),
         topics = topics,
+        clock = clock,
     ).also {
         nodes += it
         channel.bind(it.address, it.forwardHandler)
@@ -112,9 +131,12 @@ class ScheduledCommandsTest {
         timer.outcome.assert().isEqualTo(TimerOutcomes.COMMITTED)
         timer.id.assert().isEqualTo("${order("o-1")}#$PAY_TIMEOUT@1")
         val streams = node.streams("o-1")
-        streams.eventNames().assert().containsExactly("shop.order.OrderPlaced", "shop.order.OrderCancelled")
+        streams.eventNames().assert()
+            .containsExactly("shop.order.OrderPlaced", Schedules.SCHEDULE_SET, "shop.order.OrderCancelled")
         val cancelled = streams.last()
-        cancelled.requestId.assert().isEqualTo(timer.id)
+        cancelled.requestId.assert().isEqualTo("${timer.id}#1")
+        // The target reads which slot it was sent for (decision D198).
+        ScheduleContext.of(cancelled.headers).assert().isEqualTo(ScheduleContext(timer.id, PAY_TIMEOUT, 1, timer.dueAt))
         cancelled.commandType.assert().isEqualTo("shop.order.CancelOrder")
         cancelled.causation?.causationId.assert().isEqualTo("${order("o-1")}@1")
         cancelled.causation?.correlationId.assert().isEqualTo(streams.first().commandId)
@@ -128,7 +150,12 @@ class ScheduledCommandsTest {
         eventually { node.timer(order("o-1"), PAY_TIMEOUT)?.status == TimerStatus.PENDING }
         node.send("o-1", PayOrder())
         eventually { node.timer(order("o-1"), PAY_TIMEOUT)?.status == TimerStatus.CANCELLED }
-        node.streams("o-1").eventNames().assert().containsExactly("shop.order.OrderPlaced", "shop.order.OrderPaid")
+        node.streams("o-1").eventNames().assert().containsExactly(
+            "shop.order.OrderPlaced",
+            Schedules.SCHEDULE_SET,
+            "shop.order.OrderPaid",
+            Schedules.SCHEDULE_CANCELLED,
+        )
     }
 
     @Test
@@ -139,7 +166,8 @@ class ScheduledCommandsTest {
         node.send("o-1", PayOrder(cancelTimeout = false))
         eventually { node.timer(order("o-1"), PAY_TIMEOUT)?.status == TimerStatus.FIRED }
         node.timer(order("o-1"), PAY_TIMEOUT)?.outcome.assert().isEqualTo(TimerOutcomes.REJECTED)
-        node.streams("o-1").eventNames().assert().containsExactly("shop.order.OrderPlaced", "shop.order.OrderPaid")
+        node.streams("o-1").eventNames().assert()
+            .containsExactly("shop.order.OrderPlaced", Schedules.SCHEDULE_SET, "shop.order.OrderPaid")
         node.context(SHOP).backends.ledger.list(TimerOptions.PARKED_SUBSCRIPTION).assert().isEmpty()
     }
 
@@ -150,7 +178,8 @@ class ScheduledCommandsTest {
         node.send("o-1", PlaceOrder(payWithinMillis = 100))
         eventually { node.timer(order("o-1"), PAY_TIMEOUT)?.status == TimerStatus.FIRED }
         node.timer(order("o-1"), PAY_TIMEOUT)?.outcome.assert().isEqualTo(TimerOutcomes.ALREADY_COMMITTED)
-        node.streams("o-1").eventNames().assert().containsExactly("shop.order.OrderPlaced", "shop.order.OrderCancelled")
+        node.streams("o-1").eventNames().assert()
+            .containsExactly("shop.order.OrderPlaced", Schedules.SCHEDULE_SET, "shop.order.OrderCancelled")
     }
 
     @Test
@@ -164,23 +193,69 @@ class ScheduledCommandsTest {
         val second = node("node-2", backends).also { it.start() }
         eventually { second.timer(order("o-1"), PAY_TIMEOUT)?.status == TimerStatus.FIRED }
         second.timer(order("o-1"), PAY_TIMEOUT)?.outcome.assert().isEqualTo(TimerOutcomes.COMMITTED)
-        second.streams(
-            "o-1"
-        ).eventNames().assert().containsExactly("shop.order.OrderPlaced", "shop.order.OrderCancelled")
+        second.streams("o-1").eventNames().assert()
+            .containsExactly("shop.order.OrderPlaced", Schedules.SCHEDULE_SET, "shop.order.OrderCancelled")
     }
 
     @Test
-    fun `a saga's timer is written with a deterministic id and sent`(): Unit = runBlocking {
+    fun `a saga's schedule is a system command to its target, with a deterministic id, and sent`(): Unit = runBlocking {
         val bindings = SubscriptionBindings(mapOf(SHOP to listOf(reminderSaga(afterMillis = 100))))
         val node = node("node-1", TimedBackends(), bindings).also { it.start() }
         node.send("o-1", PlaceOrder(payWithinMillis = 60_000))
-        val owner = Timers.sagaOwner("ReminderSaga.onOrderPlaced", order("o-1"))
-        val store = node.context(SHOP).backends.timers!!
-        eventually { store.find(owner, "remind")?.status == TimerStatus.FIRED }
-        val timer = checkNotNull(store.find(owner, "remind"))
-        timer.id.assert().isEqualTo(Timers.sagaTimerId(ExecutionId("ReminderSaga.onOrderPlaced", order("o-1"), 1), 0))
+        eventually { node.timer(order("o-1"), "remind")?.status == TimerStatus.FIRED }
+        val streams = node.streams("o-1")
+        val set = streams[1]
+        set.commandType.assert().isEqualTo(Schedules.SET)
+        set.requestId.assert()
+            .isEqualTo(ExecutionSagaContext.derivedId(ExecutionId("ReminderSaga.onOrderPlaced", order("o-1"), 1), 0))
+        val timer = checkNotNull(node.timer(order("o-1"), "remind"))
+        timer.id.assert().isEqualTo("${order("o-1")}#remind@2")
         timer.outcome.assert().isEqualTo(TimerOutcomes.COMMITTED)
-        node.streams("o-1").last().events.single().payload.assert().isEqualTo("""{"reason":"reminder"}""")
+        streams.last().events.single().payload.assert().isEqualTo("""{"reason":"reminder"}""")
+    }
+
+    @Test
+    fun `a saga's schedule of an aggregate that does not exist reaches its OnRejected handler`(): Unit = runBlocking {
+        val rejected = CopyOnWriteArrayList<CommandRejected<*>>()
+        val saga = ProcessorBinding.saga(
+            "GhostSaga",
+            "onOrderPlaced",
+            OrderState::class.java,
+            rejections = listOf(
+                RejectionBinding.of("GhostSaga", "onScheduleRejected", SetSchedule::class.java) { rejection, _ ->
+                    rejected += rejection
+                    emptyList()
+                },
+            ),
+        ) { event, context ->
+            if (event.events.any { it is OrderPlaced }) {
+                listOf(context.schedule("ghost", ScheduleRule.after(1.seconds), order("ghost"), CancelOrder("ghost")))
+            } else {
+                emptyList()
+            }
+        }
+        val node = node(
+            "node-1",
+            TimedBackends(),
+            SubscriptionBindings(mapOf(SHOP to listOf(saga)))
+        ).also { it.start() }
+        node.send("o-1", PlaceOrder(payWithinMillis = 60_000))
+        eventually { rejected.isNotEmpty() }
+        rejected.single().ref.assert().isEqualTo(order("ghost"))
+        rejected.single().commandType.assert().isEqualTo(Schedules.SET)
+        rejected.single().error.code.assert().isEqualTo(KernelRejections.NOT_FOUND)
+    }
+
+    @Test
+    fun `a node whose clock is ahead fires early, and the target waits for the due time`(): Unit = runBlocking {
+        val ahead = Clock.offset(Clock.systemUTC(), java.time.Duration.ofMillis(AHEAD_MILLIS))
+        val node = node("node-1", TimedBackends(), clock = ahead).also { it.start() }
+        node.send("o-1", PlaceOrder(payWithinMillis = 1_000))
+        eventually { node.timer(order("o-1"), PAY_TIMEOUT)?.status == TimerStatus.FIRED }
+        val timer = checkNotNull(node.timer(order("o-1"), PAY_TIMEOUT))
+        val cancelled = node.streams("o-1").last()
+        cancelled.events.single().name.assert().isEqualTo("shop.order.OrderCancelled")
+        cancelled.commitTime.assert().isGreaterThanOrEqualTo(timer.dueAt)
     }
 
     @Test
@@ -189,7 +264,7 @@ class ScheduledCommandsTest {
         node.send("o-1", PlaceOrder(payWithinMillis = 60_000))
         val reminded = node.send("o-1", Remind(at = System.currentTimeMillis() + 100), wait = WaitPlan.SNAPSHOT)
         reminded.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-        node.streams("o-1")[1].events.assert().isEmpty()
+        node.streams("o-1")[1].events.map { it.name }.assert().containsExactly(Schedules.SCHEDULE_SET)
         eventually { node.timer(order("o-1"), "remind")?.status == TimerStatus.FIRED }
         node.streams("o-1").last().events.single().name.assert().isEqualTo("shop.order.OrderCancelled")
     }
@@ -227,7 +302,7 @@ class ScheduledCommandsTest {
         eventually { shop.timer(order("o-1"), "reserve")?.status == TimerStatus.FIRED }
         shop.timer(order("o-1"), "reserve")?.outcome.assert().isEqualTo(TimerOutcomes.SENT)
         eventually { stock.decided.size == 1 }
-        stock.decided.single().assert().isEqualTo("${order("o-1")}#reserve@1")
+        stock.decided.single().assert().isEqualTo("${order("o-1")}#reserve@1#1")
         topics.messages(STOCK_COMMANDS).single().key.assert().isEqualTo(ITEM.ref(TENANT, "o-1").toString())
     }
 
@@ -236,17 +311,18 @@ class ScheduledCommandsTest {
         @Volatile
         private var lost = false
 
-        override suspend fun update(timer: Timer, expected: TimerStatus): Boolean {
-            if (!lost && timer.status == TimerStatus.FIRED) {
+        override suspend fun settle(changes: List<TimerChange>): Int {
+            if (!lost && changes.any { it.next.status == TimerStatus.FIRED }) {
                 lost = true
                 throw IllegalStateException("The node crashed before recording the outcome.")
             }
-            return store.update(timer, expected)
+            return store.settle(changes)
         }
     }
 
     private companion object {
         const val PREFIX = "test."
+        const val AHEAD_MILLIS = 700L
         const val STOCK_PARTITIONS = 4
         const val STOCK_COMMANDS = PREFIX + "wow.stock.commands"
     }

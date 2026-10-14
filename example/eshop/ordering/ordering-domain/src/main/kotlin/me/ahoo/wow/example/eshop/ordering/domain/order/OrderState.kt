@@ -28,7 +28,7 @@ import java.math.BigDecimal
  * The state of an [Order], changed in place by its events. Every property has a value before the order is submitted:
  * the kernel serializes the state as it is.
  */
-class OrderState(val id: String) {
+class OrderState {
     var items: List<OrderItem> = emptyList()
         private set
 

@@ -44,7 +44,7 @@ class OrderPaymentSagaTest {
 
     private fun paymentEvent(vararg events: Any) = stateEvent(
         payment,
-        PaymentState(ORDER).apply { onSourcing(PaymentRequested(ORDER, TOTAL)) },
+        PaymentState().apply { onSourcing(PaymentRequested(ORDER, TOTAL)) },
         *events,
         version = 2,
     )
@@ -81,11 +81,14 @@ class OrderPaymentSagaTest {
             whenRejected(
                 expectCommand<PayOrder>(),
                 code = "eshop-ordering.order.wrong-status",
-                message = "The order alice-1 is CANCELLED.",
+                message = "The order is CANCELLED: only a STOCK_CONFIRMED order can be paid.",
             ) {
                 expectHandledBy("onPayRejected")
                 expectCommand(
-                    RefundPayment("The order alice-1 refused the payment: The order alice-1 is CANCELLED."),
+                    RefundPayment(
+                        "The order alice-1 refused the payment: " +
+                            "The order is CANCELLED: only a STOCK_CONFIRMED order can be paid.",
+                    ),
                     to = payment,
                 )
                 expectDeterministic()

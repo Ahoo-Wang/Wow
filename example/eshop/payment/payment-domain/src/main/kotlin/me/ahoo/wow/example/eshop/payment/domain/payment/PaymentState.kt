@@ -24,7 +24,7 @@ import java.math.BigDecimal
  * The state of a [Payment], changed in place by its events. Every property has a value before the payment is
  * requested: the kernel serializes the state as it is.
  */
-class PaymentState(val id: String) {
+class PaymentState {
     var orderId: String = ""
         private set
 
