@@ -126,7 +126,9 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
                     completed += result
                 }
                 if (reached.keys.containsAll(generation)) {
-                    complete()?.let { ended -> endEarly(ended, completed) }
+                    // A hop completes only with the first result of its last command, emitted just now: a chain
+                    // that ended early ends with that result marked as its end, not with one more result (D212).
+                    complete()?.let { ended -> completed[completed.lastIndex] = ended }
                     true
                 } else {
                     false
@@ -192,19 +194,6 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
             }
         }
         return null
-    }
-
-    /**
-     * Makes [ended] the final result [completed] ends with: in place of its command's result at the hop, emitted just
-     * before it, so the stream ends with the chain's end rather than one more result of the same hop.
-     */
-    private fun endEarly(ended: CommandResult, completed: MutableList<CommandResult>) {
-        val last = completed.lastOrNull()
-        if (last != null && last.commandId == ended.commandId && last.hop == ended.hop) {
-            completed[completed.lastIndex] = ended
-        } else {
-            completed += ended
-        }
     }
 }
 

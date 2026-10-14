@@ -197,6 +197,34 @@ class WaitStateTest {
     }
 
     @Test
+    fun `a saga hop deriving nothing that arrived early ends the chain when it is replayed`() {
+        val state = WaitState(listOf(committed, saga, snapshot), "root")
+        state.offer(result("root", saga, sagaFunction))!!.assert().isEmpty()
+        val emitted = state.offer(result("root", committed))!!
+        emitted.map { it.hop to it.chainEnded }.assert().containsExactly(committed to false, saga to true)
+        emitted.last().pending.assert().containsExactly(snapshot)
+        state.outcome.assert().isEqualTo(emitted.last())
+    }
+
+    @Test
+    fun `a command reaching the hop again does not end the chain before the hop's last command`() {
+        val second = Hop.handled("payment.saga", "shop")
+        val other = FunctionInfo(FunctionKind.SAGA, "stock", "picker", "saga")
+        val state = WaitState(listOf(saga, committed, second, committed), "root")
+        state.offer(result("root", saga, sagaFunction, derived = listOf("d-1", "d-2")))
+        state.offer(result("d-1", committed))
+        state.offer(result("d-2", committed))
+        state.offer(result("d-1", second, sagaFunction))!!.single().chainEnded.assert().isFalse()
+        // The same command at the same hop through another function is taken, emitted once, and ends nothing.
+        state.offer(result("d-1", second, other))!!.assert().isEmpty()
+        state.outcome.assert().isNull()
+        val ended = state.offer(result("d-2", second, sagaFunction))!!.single()
+        ended.commandId.assert().isEqualTo("d-2")
+        ended.chainEnded.assert().isTrue()
+        ended.pending.assert().containsExactly(committed)
+    }
+
+    @Test
     fun `a chain that reaches its last hop is not marked as ended early`() {
         val state = WaitState(listOf(saga, committed), "root")
         state.offer(result("root", saga, sagaFunction, derived = listOf("d-1")))
