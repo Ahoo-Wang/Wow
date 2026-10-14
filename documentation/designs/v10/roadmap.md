@@ -195,6 +195,8 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | 6.3g | Kafka 主题管理（D168）：`wow.kafka.topics.ddl` 三态与分区数校验；消费中扩分区的元数据刷新 | S | 6.3d | 主题自动创建与校验测试；扩分区后新分区被消费 |
 | 6.9 | 可观测性 `:opentelemetry`（D174）：追踪传播、各环节 span、Micrometer 指标 | M | 6.3d、6.8 | 端到端追踪贯穿 HTTP → 提交 → 订阅 → Kafka；指标测试 |
 | 6.8 | 持久化定时命令：`:api` 的 `schedule`/`cancelSchedule`（`DecideScope`、`SagaContext`）；事件流 `schedules`；`TimerStore` 与契约测试（内存、PostgreSQL、MongoDB）；`timers` 订阅与按分区的 `TimerRunner`；停放与重试；Manifest；配置；shop「30 分钟未支付取消」 | M | 6.3d | 交接、提交后标记前崩溃、取消竞态、晚触发、跨上下文的测试；eShop E.3 的宽限期用它 |
+| 6.8b | 定时设计修订的核心部分（D198）：`wow.ScheduleSet`/`ScheduleCancelled` 取代 `schedules` 字段，快照字段 `schedules`；规则模型与 API（删旧重载）；Saga 定时改系统命令；`TimerStore` 加 `rule`、`slot`、原子推进与条件批量写；每节点一个触发循环；积压限速；触发时核对到期 | M | 6.8、与 6.0g 协调 | 后端 TCK 覆盖新形状；多分区多组下每节点每轮一次查询；积压按限速；时钟回拨不提前；Saga 定时被拒交 `@OnRejected` |
+| 6.8c | 定时设计修订的能力部分（D198）：cron 计算与错过策略；`@OnSchedule`（`SYSTEM`、`TENANT`、分片）与内置聚合 `<ctx>.schedule`、`Enable`/`Reschedule`/`Disable`；本节点近期定时器入时间轮；指南 | M | 6.8b | 月度周期连续触发与合并错过槽；租户各自时区的作业；分片作业恰好一次 |
 
 **发版前必做**（D167）：6.7 Elasticsearch（快照存储、查询、事件检索 Sink；3.4 的 ES 快照存储并入），L，M6 之后、M8c 之前（D131）。
 
