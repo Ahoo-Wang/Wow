@@ -78,6 +78,8 @@ data class Operator(val id: String, val tenantId: String, val crossScope: Boolea
   - 内核把它和状态一起维护：`CachedState` 增加 `scope`，快照加载时一并恢复。
   - 这样每条事实都自带作用域：投影、查询授权（ABAC）、快照订阅直接读取，不必回放历史。9.x 的 `DomainEventStream.ownerId` 也是这个语义。
 - **操作人**（D163）：`operator` 记这条事实在谁名下。`Caller` 是一次请求的调用方，只活在准入期间；`Operator` 是它写进事实的子集（`id = subject`、操作人自己的租户、是否代操作）。Saga 派生命令、补偿与台账操作继承根命令的操作人，「谁触发的」看 `causation`。角色、属性与可识别个人身份的信息不进事实。
+  - 存储（#4381）：PostgreSQL 日志用三个平铺列，快照与定时器用 `jsonb`；MongoDB 用子文档；ClickHouse 的 `_state` 不存 `first_operator`（取 `version = 1` 的操作人）。ClickHouse 的事件列为 `Array(Tuple(name, revision, payload))`，数字另存 `state_numbers`（D164）。
+  - 命令转换（D182）在事件流 headers 留下 `wow.transformed-from` 与 `wow.transformed-from-id`。
 - **定时意图**（D166，D198 修订）：不再是事实上的字段，而是内置系统事件 `wow.ScheduleSet(key, rule, target, command)` 与 `wow.ScheduleCancelled(key)`，与领域事件同一次提交；定时器存储由内置订阅 `timers` 从它们派生，可重建；快照系统字段 `schedules` 记键与规则。
 - **删除与标签**不放进每条事实。它们是生命周期事件本身，快照订阅按事件演化元数据（`deleted`、`tags`）。
 - **因果链**：

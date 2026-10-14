@@ -11,6 +11,8 @@ subscription("cart-projection") {
 }
 ```
 
+订阅的 `context`（6.6）：读别的上下文流的订阅，以**读它的上下文**的名义发等待信号与登记台账，而不是来源上下文。
+
 订阅 = 名字 + 过滤器 + **一个**处理函数（React、Saga、Project）。一个处理器类里声明了多个处理函数时，KSP 把每个函数编成一个独立订阅（名字为 `处理器.函数`）。原因来自 KaeX mvp 的 BUG-B：一个检查点覆盖多个函数时，部分成功、部分失败会让重放重复触发已成功的函数，mvp 只好再加一层「每个函数的子水位」。共享尾随让订阅几乎没有额外成本，所以直接让检查点与函数一一对应。运行时负责：
 
 - **分区租约**：单位是（租约组，分区），租约组是（服务，上下文）（D72）：分区按上下文的日志划分，一个服务承载多个上下文时各自有独立的 P 与租约；同一组内命令路由与所有订阅共享分区属主；租约存在存储里，过期按节点时钟计算，部署要求节点间时钟偏差远小于租约 TTL（D53）。
@@ -27,6 +29,8 @@ subscription("cart-projection") {
 Saga 派生的命令被拒绝不算失败：不重试、不停放，交给 Saga 的 `@OnRejected`（未声明才停放），等待立即失败（D153）。技术故障重试超过上限，就停放**这个聚合**：台账记一条（订阅，聚合，起始版本，原因），其他聚合照常推进；该聚合后续的条目不复制、不暂存，检查点越过它们。修复后从台账重试或跳过：恢复时按聚合从日志读取起始版本之后的事件流（日志本来就支持按聚合读，[03](03-log-and-snapshot.md) §1），所以台账大小与停放的聚合数有关，与停放期间的写入量无关（R3-1）。9.x 的补偿模块因此变成「失败台账 + 控制台」（wow-ops，D14），重试天然定向，不再广播。
 
 台账写在**出错服务自己的存储**里：停放必须与检查点原子地可靠，不能依赖一个远程服务。wow-ops 是汇总与操作面（D141，修订原先「经 Kafka Sink 发布台账变化」的写法）：各服务把台账变化作为跨上下文命令（`RecordParked`、`RecordResolved`，请求 ID 确定）发给 `ops` 上下文的 `parked` 聚合，对账循环按 `FailureLedger.list` 定期重发；重试与跳过是系统命令 `wow.ledger.Resume`、`wow.ledger.Skip`，发到所属服务的命令主题（D33），运行时把它写成台账条目上的请求（`FailureLedger.request`），持有该分区的节点在对账时取走并在本地执行。
+
+**长周期恢复与运维**（D184 的 P.1，#4389）：停放条目按退避（每次翻倍，自上次重试起算）自动重试，用尽后标为 exhausted（同 9.x `isRetryable = false`，不置 `UNRECOVERABLE`），`ApplyRetrySpec` 可恢复自动重试；定时器条目不自动重试。运维路由 `/wow/ops/parked`（列表、单条、resume、skip、mark-recoverable、apply-retry-spec）默认关闭（`wow.ops.enabled`），四个动作是系统命令 `wow.ledger.*`，经 `CommandAuthorizer` 授权；`ParkedNotifier` 推送通用或企业微信 webhook（`wow.ops.webhook.*`）。按订阅的重试与超时（P.3）由 `@Retry` 或 `wow.subscriptions.[…].retry.*` 声明，预算写进 Manifest。
 
 ## 3. 重放与回填
 

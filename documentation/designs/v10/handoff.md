@@ -2,11 +2,11 @@
 
 日期：2026-10-13（深夜更新，额度将尽前）。状态：持续维护（每次交接前更新）。上位文档：[路线图](roadmap.md)。
 
-本文是换会话、换机器继续推进的入口：先读本文，再读[决策台账](decisions.md)（D1～D199 已定；D123 由 D124 取代）、[08 数据协议](08-data-protocols.md)与 `example/eshop/DX-GAPS.md`。已合并的明细以 `git log origin/v10` 为准。
+本文是换会话、换机器继续推进的入口：先读本文，再读[决策台账](decisions.md)（D1～D200 已定；D123 由 D124 取代）、[08 数据协议](08-data-protocols.md)与 `example/eshop/DX-GAPS.md`。已合并的明细以 `git log origin/v10` 为准。
 
 ## 1. 位置
 
-- **M1～M5 完成；M6 大半；M6e 的 E.0～E.6、E.D、E.R 全部完成（出口还差阻塞 M7 的 DX 缺口）；M7～M9 未开始。** 决定 D1～D199 已定（D123 由 D124 取代）。不发预发布（D124）。
+- **M1～M5 完成；M6 大半；M6e 的 E.0～E.6、E.D、E.R 全部完成（出口还差阻塞 M7 的 DX 缺口）；M7～M9 未开始。** 决定 D1～D200 已定（D123 由 D124 取代）。不发预发布（D124）。
 - **M6 已合并**：6.00、6.0a～6.0d、6.1a～6.1e、6.2a～6.2c、6.3a～6.3e、6.4a～6.4c、6.6、6.8；另有 #4345（按类型查重）、#4346（Reactor Netty keep-alive 绕行，等 1.3.8 删除 `KeepAliveReads`）、#4377（示例的 Manifest schema 补全、Codecov 按模块路径）。
 - **M6e 已合并**：E.0 骨架；E.R 上下文名规则、`wow.contexts.include/exclude`、G9 启动检查、G12（#4380）；E.D V10 开发指南（`documentation/docs/{en,zh}/guide/v10/`）与 `wow-develop` 的 V10 参考（#4379）。G9 之后 shop 需要 Kafka（测试用内存 topic）。
 - **M6 又合并**：6.0e 调用方与操作人（#4381）。**M6e 又合并**：E.1 catalog（#4383）、E.2～E.4 basket、ordering、inventory（#4384）、E.5 payment 与 G21 修复（#4385）。
@@ -34,7 +34,7 @@
 
 **全能力阶段**（核心阶段完成后）：P.11（D192 `@OnCommitted`）、P.12（D193 同步调用客户端，审查时核对服务身份的信任边界）、6.8c（D198：cron、`@OnSchedule` 与租户作业）、6.3f、6.7、6.9、6.2d～f、5a.2～5a.4；M8 前：P.6～P.8。
 
-实现偏离已登记在对应决定的「实现」说明里（D163、D164、D165、D182、D184）；专题文档（02 §1 准入顺序、04 §2 台账、05 查询系统字段、08 线上与存储字段）待按这些说明同步。6.6 新增 `Subscription.context`（来源订阅按读它的上下文发信号）待补进 04。
+实现偏离登记在对应决定的「实现」说明里；02 §1、04 §1～§2、05 §1、08 §4 已按 D163～D191 的实现同步（含 6.6 的 `Subscription.context`）。
 
 E.D 写指南时发现的不一致已由 D195 决定（P.13）；V10 模块未发布、无 BOM 属 M8。
 
