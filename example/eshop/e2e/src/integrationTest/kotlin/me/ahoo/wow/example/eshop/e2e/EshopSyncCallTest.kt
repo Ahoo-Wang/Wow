@@ -42,7 +42,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * The checkout's synchronous call (roadmap P.12, decision D193): the basket's checkout saga submits the order through
- * the ordering service's command gateway, with the basket service's token, for the buyer. The services run in this
+ * the ordering service's command gateway on its internal port, with the basket service's token, for the buyer. The services run in this
  * JVM on the memory backend, as [EshopSharedJvmTest]'s do, so the test controls when the ordering is up.
  *
  * - **Call.** A checkout whose wait follows the call into the ordering context ends once the order is committed
@@ -51,14 +51,15 @@ import java.util.concurrent.atomic.AtomicInteger
  *   service does), the saga is retried within its subscription's budget, then the basket parks. Once the ordering is
  *   back and an operator resumes the basket, the order is submitted, once; the same call again is the same request,
  *   answered with the same order.
- * - **Trust boundary.** Only the basket service, by its token, may assert the root command a call acts for
- *   (`Wow-Call`): a buyer, or a caller with a wrong token, is refused.
+ * - **Trust boundary.** Only the basket service, by its token, and only on the ordering's internal port, may assert the
+ *   root command a call acts for (`Wow-Call`): the public port refuses it even with that token, and the internal port
+ *   refuses a buyer, a caller without a token, and one with a wrong token.
  */
 class EshopSyncCallTest {
     @Test
     fun `a checkout should submit the buyer's order through a synchronous call`() {
         ordering().use { ordering ->
-            basket(ordering.port).use { basket ->
+            basket(ordering.internalPort).use { basket ->
                 basket.addItem("alice")
                 val checkedOut = basket.post(
                     "/eshop-basket/basket/alice/checkout-basket",
@@ -123,7 +124,17 @@ class EshopSyncCallTest {
     fun `only the basket service should assert the root command of a call`() {
         ordering().use { ordering ->
             val execution = ExecutionId(CHECKOUT_SAGA, BASKET.ref(Caller.DEFAULT_TENANT, "carol"), 2)
-            // A buyer who sends Wow-Call to act for another buyer is refused, before anything is admitted.
+            // The public port refuses a call, even with the basket service's token.
+            val public = ordering.call(
+                "/eshop-ordering/order/carol-1/submit-order",
+                execution,
+                Scope(ownerId = "carol"),
+                TOKEN,
+                internal = false,
+            )
+            public.status.assert().describedAs(public.body).isEqualTo(FORBIDDEN)
+            json.readTree(public.body)["code"].asString().assert().isEqualTo("wow.auth.forbidden")
+            // On the internal port, a buyer who sends Wow-Call to act for another buyer is refused.
             val buyer = ordering.call(
                 "/eshop-ordering/order/carol-1/submit-order",
                 execution,
@@ -133,7 +144,14 @@ class EshopSyncCallTest {
             )
             buyer.status.assert().describedAs(buyer.body).isEqualTo(FORBIDDEN)
             json.readTree(buyer.body)["code"].asString().assert().isEqualTo("wow.auth.forbidden")
-            // So is a caller whose token is not the basket service's.
+            // So is a caller without a token, and one whose token is not the basket service's.
+            val anonymous = ordering.call(
+                "/eshop-ordering/order/carol-1/submit-order",
+                execution,
+                Scope(ownerId = "carol"),
+                token = null,
+            )
+            anonymous.status.assert().describedAs(anonymous.body).isEqualTo(FORBIDDEN)
             val forged = ordering.call(
                 "/eshop-ordering/order/carol-1/submit-order",
                 execution,
@@ -155,8 +173,8 @@ class EshopSyncCallTest {
         }
     }
 
-    /** A service of this JVM, its ports on the loopback interface. */
-    private class Service(private val context: ConfigurableApplicationContext) : AutoCloseable {
+    /** A service of this JVM, its public and [internalPort] on the loopback interface. */
+    private class Service(private val context: ConfigurableApplicationContext, val internalPort: Int) : AutoCloseable {
         val port: Int = context.environment.getRequiredProperty("local.server.port", Int::class.java)
         private val http: HttpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()
 
@@ -196,13 +214,17 @@ class EshopSyncCallTest {
             }
         }
 
-        /** The call the checkout saga's [execution] makes first, sent to [path] with [token] and [headers]. */
+        /**
+         * The call the checkout saga's [execution] makes first, sent to [path] of the internal port (the public one
+         * unless [internal]) with [token] and [headers].
+         */
         fun call(
             path: String,
             execution: ExecutionId,
             scope: Scope,
             token: String?,
             headers: Map<String, String> = emptyMap(),
+            internal: Boolean = true,
         ): Answer {
             val id = ExecutionSagaContext.derivedId(execution, 0)
             val call = CallContext(
@@ -213,10 +235,19 @@ class EshopSyncCallTest {
                 operator = Operator(checkNotNull(scope.ownerId), Caller.DEFAULT_TENANT),
             )
             val authorization = token?.let { mapOf("Authorization" to "Bearer $it") }.orEmpty()
-            return post(
-                path,
-                """{"items":[{"productId":"mug","unitPrice":8.50,"quantity":2}]}""",
-                headers + authorization + mapOf(WowHeaders.REQUEST_ID to id, WowHeaders.CALL to CallHeader.format(call)),
+            return send(
+                HttpRequest.newBuilder(URI.create("http://127.0.0.1:${if (internal) internalPort else port}$path"))
+                    .header("Content-Type", "application/json")
+                    .apply {
+                        val all = headers + authorization +
+                            mapOf(WowHeaders.REQUEST_ID to id, WowHeaders.CALL to CallHeader.format(call))
+                        all.forEach { (name, value) -> header(name, value) }
+                    }
+                    .POST(
+                        HttpRequest.BodyPublishers.ofString(
+                            """{"items":[{"productId":"mug","unitPrice":8.50,"quantity":2}]}""",
+                        ),
+                    ),
             )
         }
 
@@ -276,23 +307,26 @@ class EshopSyncCallTest {
 
         fun encode(segment: String): String = URLEncoder.encode(segment, Charsets.UTF_8)
 
-        /** The ordering service, trusting the basket service's [TOKEN], on [port] (a free one by default). */
-        fun ordering(port: Int = 0): Service = start(
+        /**
+         * The ordering service, trusting the basket service's [TOKEN] on its [internalPort] (a free one by default),
+         * where the basket calls it.
+         */
+        fun ordering(internalPort: Int = freePort()): Service = start(
             OrderingServer::class.java,
             "ordering",
-            port,
+            internalPort,
             "--wow.http.services.eshop-basket-service.tokens[0]=$TOKEN",
             "--eshop.ordering.payment-grace-period=30m",
         )
 
         /**
-         * The basket service, calling the ordering at [orderingPort] with [TOKEN]; its checkout saga makes [retries]
-         * attempts 50 ms apart, then parks until an operator resumes it.
+         * The basket service, calling the ordering at its internal [orderingPort] with [TOKEN]; its checkout saga makes
+         * [retries] attempts 50 ms apart, then parks until an operator resumes it.
          */
         fun basket(orderingPort: Int, retries: Int = 5): Service = start(
             BasketServer::class.java,
             "basket",
-            0,
+            freePort(),
             "--wow.calls.contexts.eshop-ordering.url=http://127.0.0.1:$orderingPort",
             "--wow.calls.token=$TOKEN",
             "--wow.calls.timeout=5s",
@@ -304,24 +338,28 @@ class EshopSyncCallTest {
         )
 
         /**
-         * Starts [application] as the eShop service of [context] on [port], serving `eshop-<context>` alone on the memory
-         * backend, its commands to other contexts in memory ([InMemoryTopicsBeans]), with the further [arguments]: the
-         * services share one class path, so Spring Boot reads one `application.yaml` for both.
+         * Starts [application] as the eShop service of [context] with its internal port [internalPort], serving
+         * `eshop-<context>` alone on the memory backend, its commands to other contexts in memory
+         * ([InMemoryTopicsBeans]), with the further [arguments]: the services share one class path, so Spring Boot reads
+         * one `application.yaml` for both.
          */
-        fun start(application: Class<*>, context: String, port: Int, vararg arguments: String): Service = Service(
+        fun start(application: Class<*>, context: String, internalPort: Int, vararg arguments: String) = Service(
             SpringApplicationBuilder(application, InMemoryTopicsBeans::class.java).run(
                 *arguments,
                 "--spring.main.banner-mode=off",
                 "--spring.application.name=eshop-$context-service",
                 "--server.address=127.0.0.1",
-                "--server.port=$port",
+                "--server.port=0",
                 "--wow.service=eshop-$context-service",
                 "--wow.backend=memory",
                 "--wow.internal.host=127.0.0.1",
-                "--wow.internal.port=0",
+                "--wow.internal.port=$internalPort",
                 "--wow.contexts.include=eshop-$context",
             ),
+            internalPort,
         )
+
+        fun freePort(): Int = EshopService.freePort()
 
         fun eventually(what: String, condition: () -> Boolean) {
             val until = System.nanoTime() + DEADLINE.toNanos()

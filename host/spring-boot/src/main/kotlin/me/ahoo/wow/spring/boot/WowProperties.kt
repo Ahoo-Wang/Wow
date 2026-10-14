@@ -95,7 +95,7 @@ import kotlin.time.toKotlinDuration
  * - `wow.tenant.default`: the tenant of a caller that has none (D97).
  * - `wow.http.request-facts`, `wow.http.errors.[<code>].status`, `wow.http.manifest.enabled`,
  *   `wow.http.openapi.enabled` (`GET /wow/openapi`, the OpenAPI document of the routes);
- *   `wow.http.services.<service>.tokens`: the service identities the public port trusts without CoSec (decision
+ *   `wow.http.services.<service>.tokens`: the service identities the internal port trusts without CoSec (decision
  *   D193), see [Http.Service].
  * - `wow.calls.contexts.<context>.url`, `wow.calls.token`, `wow.calls.timeout` (10s), `wow.calls.connect-timeout`
  *   (2s): the synchronous calls of the sagas to other contexts' command gateways (decision D193), see [Calls].
@@ -573,9 +573,10 @@ class WowProperties {
         var openapi: OpenApi = OpenApi()
 
         /**
-         * The service identities the public port trusts by their static tokens, by service name (decision D193): a
-         * request whose `Authorization: Bearer` token is one of them is that service, which alone may send `Wow-Call`.
-         * For a deployment without CoSec; with CoSec, `wow.cosec.service.roles` names its service principals.
+         * The service identities the internal port trusts by their static tokens, by service name (decision D193): a
+         * call whose `Authorization: Bearer` token is one of them is that service's, which alone may send `Wow-Call`,
+         * and only to the internal port. For a deployment without CoSec; with CoSec, `wow.cosec.service.roles` names its
+         * service principals.
          */
         var services: MutableMap<String, Service> = LinkedHashMap()
 
@@ -604,7 +605,8 @@ class WowProperties {
 
     /**
      * The synchronous calls of the node's sagas to the command gateways of other contexts (decision D193): each
-     * context's base URL ([contexts], `wow.calls.contexts.<context>.url`, its public port), the service token the node
+     * context's base URL ([contexts], `wow.calls.contexts.<context>.url`: the target's internal port, `http://host:port`
+     * of an address in its internal network, never its public port, which refuses calls), the service token the node
      * presents as `Authorization: Bearer` ([token]; an application's
      * [me.ahoo.wow.http.call.ServiceCredential] bean, such as one that renews a CoSec token, replaces it), how long one
      * call may take ([timeout]) and connect ([connectTimeout]). A saga that calls a context without a URL fails, then

@@ -38,19 +38,21 @@ import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import org.springframework.test.web.reactive.server.WebTestClient
 import java.net.URI
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * A service's synchronous call to the public port (decision D193): the client of another context's gateway, the
- * service identity its token makes it, and `Wow-Call`, which the edge takes from a service identity alone.
+ * A service's synchronous call (decision D193): the client of another context's gateway, the service identity its
+ * token makes it, and `Wow-Call`, which only the internal port's call routes take, from a service identity alone; the
+ * public port refuses it whatever the credential.
  */
 class ServiceCallRoutesTest {
     private val tokens = ServiceTokens(mapOf("basket-service" to listOf(TOKEN, ROTATED)), TENANT)
     private val node = HttpNode(callers = tokens.resolver(headerCallers))
-    private val server = InternalServer(
-        wowRoutes(cartManifest(), node.gateway, node.reads, tokens.resolver(headerCallers)),
-    )
+    private val calls = callRoutes(cartManifest(), node.gateway, tokens.resolver(headerCallers))
+    private val server = InternalServer(calls)
+    private val internal: WebTestClient = WebTestClient.bindToRouterFunction(calls).build()
     private val caller = HttpCommandCaller(
         mapOf(CONTEXT to URI.create("http://${server.address}/")),
         ServiceCredential.bearer(TOKEN),
@@ -123,26 +125,52 @@ class ServiceCallRoutesTest {
         node.commands.assert().isEmpty()
     }
 
+    /** `POST [path]` on the internal port's call routes with [headers]. */
+    private fun internalPost(path: String, headers: Map<String, String>): Answer = internal.post().uri(path)
+        .headers { http -> headers.forEach { (name, value) -> http.set(name, value) } }
+        .header("Content-Type", "application/json")
+        .bodyValue("""{"sku":"mug"}""")
+        .answer()
+
+    private fun Answer.assertForbidden() {
+        status.assert().isEqualTo(403)
+        body!!["code"].asString().assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
+    }
+
     @Test
-    fun `a caller that is not a service identity should be refused Wow-Call`() {
-        val answer = node.post(
+    fun `the public port should refuse Wow-Call whatever the credential`() {
+        node.post("/shop/cart/cart-1/add-item", """{"sku":"mug"}""", "mallory", mapOf(WowHeaders.CALL to callHeader()))
+            .assertForbidden()
+        // Even the service's own token: a call is taken on the internal port alone.
+        node.post(
             "/shop/cart/cart-1/add-item",
             """{"sku":"mug"}""",
-            "mallory",
-            mapOf(WowHeaders.CALL to callHeader())
-        )
-        answer.status.assert().isEqualTo(403)
-        answer.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.AUTH_FORBIDDEN)
+            user = null,
+            headers = mapOf("Authorization" to "Bearer $TOKEN", WowHeaders.CALL to callHeader()),
+        ).assertForbidden()
+        node.commands.assert().isEmpty()
+    }
+
+    @Test
+    fun `the internal port should take a call from a service identity alone`() {
+        val path = "/shop/cart/cart-1/add-item"
+        // A buyer, a forged token and no credentials at all are no service.
+        internalPost(path, mapOf("X-User" to "mallory", WowHeaders.CALL to callHeader())).assertForbidden()
+        internalPost(
+            path,
+            mapOf("Authorization" to "Bearer $FORGED", WowHeaders.CALL to callHeader())
+        ).assertForbidden()
+        internalPost(path, mapOf(WowHeaders.CALL to callHeader())).assertForbidden()
+        // A service's request that is no call is not taken either.
+        internalPost(path, mapOf("Authorization" to "Bearer $TOKEN")).assertForbidden()
         node.commands.assert().isEmpty()
     }
 
     @Test
     fun `a service's Wow-Call that does not parse should be malformed`() {
-        val answer = node.post(
+        val answer = internalPost(
             "/shop/cart/cart-1/add-item",
-            """{"sku":"mug"}""",
-            user = null,
-            headers = mapOf("Authorization" to "Bearer $ROTATED", WowHeaders.CALL to "%%%"),
+            mapOf("Authorization" to "Bearer $ROTATED", WowHeaders.CALL to "%%%"),
         )
         answer.status.assert().isEqualTo(400)
         answer.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.COMMAND_MALFORMED)
@@ -150,11 +178,9 @@ class ServiceCallRoutesTest {
 
     @Test
     fun `a service's call should be answered as JSON even when it accepts an event stream`() {
-        val answer = node.post(
+        val answer = internalPost(
             "/shop/cart/cart-1/add-item",
-            """{"sku":"mug"}""",
-            user = null,
-            headers = mapOf(
+            mapOf(
                 "Authorization" to "Bearer $TOKEN",
                 "Accept" to "text/event-stream",
                 WowHeaders.CALL to callHeader(owner = "bob"),
@@ -166,7 +192,7 @@ class ServiceCallRoutesTest {
     }
 
     @Test
-    fun `a service identity without a call should send a command of its own`() {
+    fun `a service identity without a call should send a command of its own on the public port`() {
         val answer = node.post(
             "/shop/cart/cart-9/add-item",
             """{"sku":"mug"}""",
@@ -199,5 +225,6 @@ class ServiceCallRoutesTest {
     private companion object {
         const val TOKEN = "basket-service-token-0123456789abcdef"
         const val ROTATED = "basket-service-next-token-0123456789"
+        const val FORGED = "a-forged-token-of-at-least-32-characters"
     }
 }

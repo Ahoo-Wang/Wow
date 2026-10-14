@@ -97,13 +97,14 @@ class EshopStack(
     }
     /**
      * The basket, whose checkout saga calls the ordering's command gateway synchronously (decision D193) at the first
-     * ordering node's port, which a replacement of that node takes over ([startOrdering]), as a deployment calls a
-     * stable address in front of the ordering's nodes; the service token is the one both `application.yaml` share.
+     * ordering node's internal port, which a replacement of that node takes over ([startOrdering]), as a deployment
+     * calls a stable internal address in front of the ordering's nodes; the service token is the one both
+     * `application.yaml` share.
      */
     val basket: EshopService = start(
         "basket",
         BASKET_MAIN,
-        arguments(BASKET_DATABASE) + callOrdering(ordering.values.first().publicPort),
+        arguments(BASKET_DATABASE) + callOrdering(ordering.values.first().internalPort),
     )
     val payment: EshopService = start(
         "payment",
@@ -116,9 +117,9 @@ class EshopStack(
 
     /**
      * Starts the ordering node [nodeId] on the ordering's database, with the Sink and the sales dataset, on
-     * [publicPort]: a free one, or the port of the node it replaces, which the basket calls.
+     * [internalPort]: a free one, or the internal port of the node it replaces, which the basket calls.
      */
-    fun startOrdering(nodeId: String, publicPort: Int = EshopService.freePort()): EshopService = start(
+    fun startOrdering(nodeId: String, internalPort: Int = EshopService.freePort()): EshopService = start(
         "ordering",
         ORDERING_MAIN,
         arguments(ORDERING_DATABASE, listOf("clickhouse")) + listOf(
@@ -127,7 +128,7 @@ class EshopStack(
             "--wow.clickhouse.username=${clickhouse.username}",
             "--wow.clickhouse.password=${clickhouse.password}",
         ),
-        publicPort,
+        internalPort,
     )
 
     /** The ordering's partition of the order [orderId] in the default tenant. */
@@ -224,8 +225,9 @@ class EshopStack(
         context: String,
         mainClass: String,
         arguments: List<String>,
-        publicPort: Int = EshopService.freePort(),
-    ): EshopService = EshopService.start(context, mainClass, arguments, publicPort = publicPort).also { started += it }
+        internalPort: Int = 0,
+    ): EshopService = EshopService.start(context, mainClass, arguments, internalPort = internalPort)
+        .also { started += it }
 
     private fun arguments(database: String, profiles: List<String> = emptyList()): List<String> =
         backendArguments(postgres, kafka, database, partitions, profiles)
@@ -282,7 +284,10 @@ class EshopStack(
         /** An employee: a tenant-level caller of the catalog, basket and ordering services (decision D189). */
         val EMPLOYEE: Map<String, String> = mapOf("X-User" to "erin", "X-Role" to "employee")
 
-        /** The basket's argument that has its checkout saga call the ordering's gateway on [port] (decision D193). */
+        /**
+         * The basket's argument that has its checkout saga call the ordering's gateway on the internal [port] of an
+         * ordering node (decision D193): the public port refuses a call.
+         */
         fun callOrdering(port: Int): String = "--wow.calls.contexts.eshop-ordering.url=http://127.0.0.1:$port"
 
         /** The headers of the buyer [id]: an owner-level caller whose owner is [id]. */

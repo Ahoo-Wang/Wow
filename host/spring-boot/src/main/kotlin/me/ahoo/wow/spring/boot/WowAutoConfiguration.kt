@@ -19,7 +19,9 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.call.HttpCommandCaller
 import me.ahoo.wow.http.call.ServiceCredential
+import me.ahoo.wow.http.callRoutes
 import me.ahoo.wow.http.caller.CallerResolver
+import me.ahoo.wow.http.caller.InternalCallerResolver
 import me.ahoo.wow.http.caller.ServiceTokens
 import me.ahoo.wow.http.command.JakartaCommandValidator
 import me.ahoo.wow.http.internal.HttpClusterChannel
@@ -110,9 +112,10 @@ import jakarta.validation.Validator as JakartaValidator
  *   [InternalServer] of their own at `wow.internal.port`, never on the public server, the node's address learned once
  *   it is bound when the port is 0; [HttpClusterChannel] and [HttpSignalSender] share one JDK client.
  * - **Synchronous calls** (decision D193): the sagas call other contexts' gateways through the [CommandCaller] bean,
- *   by default an [HttpCommandCaller] at `wow.calls.contexts.<context>.url` presenting the [ServiceCredential] bean
- *   (`wow.calls.token` as a bearer); the public port takes the service identities of `wow.http.services` by their
- *   tokens ([ServiceTokens]) before the application's [CallerResolver], and `Wow-Call` from them alone.
+ *   by default an [HttpCommandCaller] at `wow.calls.contexts.<context>.url`, the target's internal port, presenting
+ *   the [ServiceCredential] bean (`wow.calls.token` as a bearer). The internal port serves the command routes of the
+ *   calls ([callRoutes]) to the service identities of `wow.http.services`, by their tokens ([ServiceTokens]), or of
+ *   the [InternalCallerResolver] bean (CoSec's service principals); the public port refuses `Wow-Call`.
  * - **Subscriptions**: the annotated processors' handlers the binding indexes list ([ModelProvider.processors], built
  *   from the application's beans), then every [SubscriptionFactory] bean, the application's and the modules' (such
  *   as the Kafka Sink), in their order. Those that read other contexts' published streams read them from the
@@ -334,12 +337,26 @@ class WowAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    fun wowInternalServer(properties: WowProperties, node: ServiceNode, identity: NodeIdentity): InternalServer =
-        InternalServer(
-            properties.internal.port,
-            identity.bindHost,
-            internalRoutes(node.forwardHandler, node.waits)
-        )
+    fun wowInternalServer(
+        properties: WowProperties,
+        node: ServiceNode,
+        identity: NodeIdentity,
+        manifest: Manifest,
+        callers: CallerResolver,
+        internalCallers: ObjectProvider<InternalCallerResolver>,
+        options: WowHttpOptions,
+    ): InternalServer = InternalServer(
+        properties.internal.port,
+        identity.bindHost,
+        internalRoutes(node.forwardHandler, node.waits).and(
+            callRoutes(
+                manifest,
+                node.gateway,
+                serviceTokens(properties).resolver(internalCallers.ifAvailable ?: callers),
+                options,
+            ),
+        ),
+    )
 
     /** Binds the internal port, then gives a node without a configured address the one it is bound at. */
     @Bean
@@ -409,12 +426,11 @@ class WowAutoConfiguration {
         callers: CallerResolver,
         options: WowHttpOptions,
         queries: ObjectProvider<HttpQueries>,
-        properties: WowProperties,
     ): RouterFunction<ServerResponse> = wowRoutes(
         manifest,
         node.gateway,
         reads,
-        serviceTokens(properties).resolver(callers),
+        callers,
         options,
         queries.getIfAvailable { HttpQueries.NONE },
     )
@@ -475,11 +491,7 @@ class WowAutoConfiguration {
         private val logger = KotlinLogging.logger {}
 
         /**
-         * Where commands run: `wow.cluster.router`, by default local on the memory backend, whose stores no other
-         * node shares, and partitioned on the others. The memory backend refuses partitioned routing.
-         */
-        /**
-         * The service identities the public port trusts by their static tokens (`wow.http.services`, decision D193), in
+         * The service identities the internal port trusts by their static tokens (`wow.http.services`, decision D193), in
          * the default tenant.
          */
         internal fun serviceTokens(properties: WowProperties): ServiceTokens = ServiceTokens(
@@ -487,6 +499,10 @@ class WowAutoConfiguration {
             properties.tenant.default,
         )
 
+        /**
+         * Where commands run: `wow.cluster.router`, by default local on the memory backend, whose stores no other
+         * node shares, and partitioned on the others. The memory backend refuses partitioned routing.
+         */
         internal fun routing(properties: WowProperties, kind: BackendKind?): Routing {
             val configured = properties.cluster.router
             if (kind == BackendKind.MEMORY) {

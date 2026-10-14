@@ -13,9 +13,12 @@
 
 package me.ahoo.wow.cosec
 
+import me.ahoo.cosec.context.SecurityContextParser
+import me.ahoo.cosec.context.request.RequestParser
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallerResolver
+import me.ahoo.wow.http.caller.InternalCallerResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.context.annotation.Bean
@@ -25,6 +28,7 @@ import org.springframework.context.annotation.Conditional
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
 import org.springframework.core.type.AnnotatedTypeMetadata
+import org.springframework.web.server.ServerWebExchange
 import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
 
 /**
@@ -50,6 +54,19 @@ class CoSecAutoConfiguration {
     fun wowCoSecCallerResolver(environment: Environment): CoSecCallerResolver =
         CoSecCallerResolver(callerOptions(environment))
 
+    /**
+     * The callers of the internal port's call routes (decision D193): CoSec's service principals, parsed from their
+     * tokens by CoSec's own parsers, since the internal port runs no CoSec filter.
+     */
+    @Bean
+    @Conditional(InternalCallersAvailable::class)
+    fun wowCoSecInternalCallerResolver(
+        requests: RequestParser<ServerWebExchange>,
+        contexts: SecurityContextParser,
+        environment: Environment,
+    ): CoSecInternalCallerResolver =
+        CoSecInternalCallerResolver(requests, contexts, CoSecCallerResolver(callerOptions(environment)))
+
     @Bean
     @Conditional(AuthorizerEnabled::class)
     fun wowCoSecCommandAuthorizer(authorization: CoSecAuthorization, environment: Environment): CoSecCommandAuthorizer =
@@ -59,6 +76,19 @@ class CoSecAutoConfiguration {
     internal class NoCallerResolver : Condition {
         override fun matches(context: ConditionContext, metadata: AnnotatedTypeMetadata): Boolean =
             context.beanFactory?.getBeanNamesForType(CallerResolver::class.java, true, false).isNullOrEmpty()
+    }
+
+    /**
+     * The application has CoSec's request and security-context parsers, and no
+     * [me.ahoo.wow.http.caller.InternalCallerResolver] of its own.
+     */
+    internal class InternalCallersAvailable : Condition {
+        override fun matches(context: ConditionContext, metadata: AnnotatedTypeMetadata): Boolean {
+            val beans = context.beanFactory ?: return false
+            return beans.getBeanNamesForType(RequestParser::class.java, true, false).isNotEmpty() &&
+                beans.getBeanNamesForType(SecurityContextParser::class.java, true, false).isNotEmpty() &&
+                beans.getBeanNamesForType(InternalCallerResolver::class.java, true, false).isEmpty()
+        }
     }
 
     /** `wow.cosec.authorizer.enabled` is true, the application has CoSec's `Authorization` and no authorizer. */

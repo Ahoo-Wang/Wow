@@ -156,8 +156,8 @@ class EshopFullChainTest {
         // Killed before the order's stock was confirmed: no payment was requested.
         stack.payment("carol-1").assert().isNull()
 
-        // On the killed node's port: the basket calls the ordering there (decision D193).
-        val replacement = stack.startOrdering(REPLACEMENT, killed.publicPort)
+        // On the killed node's internal port: the basket calls the ordering there (decision D193).
+        val replacement = stack.startOrdering(REPLACEMENT, killed.internalPort)
         stack.ordering[REPLACEMENT] = replacement
         val started = since(killedAt)
         // A node that does not hold a partition's lease runs its commands itself (D71), so the partition takes a

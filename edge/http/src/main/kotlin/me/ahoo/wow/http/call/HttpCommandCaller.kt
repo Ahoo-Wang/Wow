@@ -63,7 +63,9 @@ fun interface ServiceCredential {
 /**
  * Calls the HTTP command gateways of other contexts for the sagas of a node (decision D193), on the routes their
  * Manifests give (`POST /{context}/{aggregate}/{id}/{command}`, or without the id for a creation that leaves it to the
- * target, decision D191), at the base URL [endpoints] gives each context (`wow.calls.contexts.<context>.url`).
+ * target, decision D191), at the base URL [endpoints] gives each context (`wow.calls.contexts.<context>.url`): the
+ * target's **internal port** ([me.ahoo.wow.http.callRoutes]), the only one that takes a call; its public port refuses
+ * `Wow-Call`.
  *
  * Each call carries:
  * - the command's body as JSON, and its expected version as `If-Match`;
@@ -98,7 +100,8 @@ class HttpCommandCaller @JvmOverloads constructor(
         val command = call.command
         val context = command.ref.type.context
         val base = endpoints[context] ?: throw CallFailedException(
-            "No URL calls context $context for ${command.id}: set wow.calls.contexts.$context.url (decision D193).",
+            "No URL calls context $context for ${command.id}: set wow.calls.contexts.$context.url to the internal " +
+                "port of its service (decision D193).",
         )
         val request = HttpRequest.newBuilder(URI.create(base + pathOf(call)))
             .timeout(timeout.toJavaDuration())

@@ -32,7 +32,7 @@ fun interface CommandCalls {
         val NONE: CommandCalls = CommandCalls { command ->
             throw CallFailedException(
                 "No client calls ${command.ref.type.context} synchronously for ${command.id}: give the host its " +
-                    "address, wow.calls.contexts.${command.ref.type.context}.url (decision D193).",
+                    "internal address, wow.calls.contexts.${command.ref.type.context}.url (decision D193).",
             )
         }
     }

@@ -56,7 +56,10 @@ class SoakStack(private val config: SoakConfig, private val log: (String) -> Uni
      */
     private val freedPorts = ConcurrentHashMap<String, ConcurrentLinkedQueue<Int>>()
 
-    /** The port the basket calls the ordering at: the first ordering node's, kept by its replacements. */
+    /** The internal ports of each context's killed nodes, which their replacements take. */
+    private val freedInternalPorts = ConcurrentHashMap<String, ConcurrentLinkedQueue<Int>>()
+
+    /** The internal port the basket calls the ordering at: the first ordering node's, kept by its replacements. */
     private var orderingPort: Int = 0
 
     fun start() {
@@ -104,8 +107,9 @@ class SoakStack(private val config: SoakConfig, private val log: (String) -> Uni
     fun start(context: String): SoakNode {
         val id = "$context-${numbers.computeIfAbsent(context) { AtomicInteger() }.incrementAndGet()}"
         val port = freedPorts[context]?.poll() ?: EshopService.freePort()
+        val internalPort = freedInternalPorts[context]?.poll() ?: EshopService.freePort()
         if (context == "ordering" && orderingPort == 0) {
-            orderingPort = port
+            orderingPort = internalPort
         }
         val calls = if (context == "basket") listOf(EshopStack.callOrdering(orderingPort)) else emptyList()
         val arguments = backendArguments(postgres, kafka, DATABASES.getValue(context), config.partitions) +
@@ -116,6 +120,7 @@ class SoakStack(private val config: SoakConfig, private val log: (String) -> Uni
             arguments,
             listOf("-Xmx${config.heap}"),
             publicPort = port,
+            internalPort = internalPort,
         )
         return SoakNode(context, id, service).also { node ->
             nodes.computeIfAbsent(context) { CopyOnWriteArrayList() }.add(node)
@@ -128,6 +133,7 @@ class SoakStack(private val config: SoakConfig, private val log: (String) -> Uni
         nodes[node.context]?.remove(node)
         node.service.kill()
         freedPorts.computeIfAbsent(node.context) { ConcurrentLinkedQueue() }.add(node.service.publicPort)
+        freedInternalPorts.computeIfAbsent(node.context) { ConcurrentLinkedQueue() }.add(node.service.internalPort)
         log("node ${node.id} killed")
     }
 

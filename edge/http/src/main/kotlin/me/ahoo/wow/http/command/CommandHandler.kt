@@ -50,8 +50,9 @@ internal data class CommandTarget(val context: String, val aggregate: String, va
  *   headers; the request facts [WowHttpOptions.requestFacts] lists as the command's headers; an empty body is `{}`;
  * - the W3C trace context headers (`traceparent`, `tracestate`, `baggage`) as the request's trace (decision D174),
  *   which the command's admission continues;
- * - `Wow-Call`, the root command of a service's synchronous call (decision D193), from a service identity only (403
- *   from any other caller); such a request is answered once its command is committed, never as an event stream;
+ * - `Wow-Call`, the root command of a service's synchronous call (decision D193): refused (403) on the public port;
+ *   on the internal port (`internal`) required, from a service identity only, and answered once its command is
+ *   committed, never as an event stream;
  * - without `Accept: text/event-stream`, the result the wait ends with: 200, or 202 for a plan that ends at ACCEPTED,
  *   with the [CommandResult]; a problem with the result when it did not succeed;
  * - with it, the first result decides: an admission refusal (a result at ACCEPTED that did not succeed) is a problem,
@@ -68,10 +69,12 @@ internal class CommandHandler(
     private val statuses: ErrorStatuses,
     private val options: WowHttpOptions,
     private val scope: CoroutineScope,
+    /** Whether this is the internal port's handler, of the services' synchronous calls alone (decision D193). */
+    private val internal: Boolean = false,
 ) {
     suspend fun handle(request: ServerRequest, target: CommandTarget): ServerResponse {
         val caller = authenticator.authenticate(request)
-        val call = headers.call(request, caller)
+        val call = headers.call(request, caller, internal)
         val eventStream = call == null && Negotiation.wantsEventStream(request)
         Negotiation.checkAcceptable(request, alsoEventStream = true)
         Negotiation.checkJsonBody(request)

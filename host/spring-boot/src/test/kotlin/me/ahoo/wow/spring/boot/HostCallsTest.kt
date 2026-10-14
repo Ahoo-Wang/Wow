@@ -22,7 +22,9 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.subscribe.CallFailedException
 import me.ahoo.wow.http.WowHeaders
+import me.ahoo.wow.http.call.HttpCommandCaller
 import me.ahoo.wow.http.call.ServiceCredential
 import me.ahoo.wow.http.command.CallHeader
 import me.ahoo.wow.runtime.admission.CallContext
@@ -32,21 +34,22 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
+import java.net.URI
 
 /**
  * The host's synchronous calls (decision D193): `wow.calls.*` gives the node its client of the other contexts'
- * gateways and its service token, `wow.http.services.*` the service identities its public port trusts. The host here
- * calls its own gateway, as another service would.
+ * gateways, at their internal ports, and its service token; `wow.http.services.*` the service identities its internal
+ * port trusts. The host here calls its own internal port, as another service would; its public port refuses calls.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class HostCallsTest {
-    private val port = freePort()
+    private val internalPort = freePort()
     private val host = startHost(
-        "server.port" to port,
-        "wow.calls.contexts.bank.url" to "http://127.0.0.1:$port",
+        "wow.calls.contexts.bank.url" to "http://127.0.0.1:$internalPort",
         "wow.calls.token" to TOKEN,
         "wow.calls.timeout" to "5s",
         "wow.http.services.ledger-service.tokens[0]" to TOKEN,
+        internalPort = internalPort,
     )
 
     @AfterAll
@@ -79,10 +82,33 @@ class HostCallsTest {
     }
 
     @Test
-    fun `a caller without the service's token should not send Wow-Call`() {
+    fun `the public port should refuse Wow-Call, even with the service's token`() {
         val call = CallHeader.format(CallContext("call-2", Caller.DEFAULT_TENANT, Scope("dave"), root))
-        val answer = host.post("/bank/account/open-account", """{"owner":"mallory"}""", mapOf(WowHeaders.CALL to call))
-        answer.status.assert().isEqualTo(403)
+        host.post("/bank/account/open-account", """{"owner":"mallory"}""", mapOf(WowHeaders.CALL to call))
+            .status.assert().isEqualTo(403)
+        host.post(
+            "/bank/account/open-account",
+            """{"owner":"mallory"}""",
+            mapOf(WowHeaders.CALL to call, "Authorization" to "Bearer $TOKEN"),
+        ).status.assert().isEqualTo(403)
+    }
+
+    @Test
+    fun `the internal port should refuse a call without the service's token`(): Unit = runBlocking {
+        val forged = HttpCommandCaller(
+            mapOf(BANK to URI.create("http://127.0.0.1:$internalPort")),
+            ServiceCredential.bearer("a-forged-token-of-at-least-32-characters"),
+        )
+        val command = Command(
+            "call-3",
+            "request-3",
+            AggregateType(BANK, "account").unassigned(Caller.DEFAULT_TENANT),
+            OpenAccount("mallory"),
+            causation = root,
+        )
+        assertThrows<CallFailedException> {
+            runBlocking { forged.call(OutgoingCall("bank.account.OpenAccount", command)) }
+        }.message.assert().contains("403")
     }
 
     @Test

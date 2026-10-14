@@ -39,7 +39,8 @@ object WowHeaders {
 
     /**
      * The root command a service's synchronous call acts for (decision D193), in the form of
-     * [me.ahoo.wow.http.command.CallHeader]: taken from a service identity only, and refused (403) from any other caller.
+     * [me.ahoo.wow.http.command.CallHeader]: taken on the internal port alone, from a service identity
+     * ([me.ahoo.wow.http.callRoutes]); refused (403) on the public port whatever the credential.
      */
     const val CALL: String = "Wow-Call"
 

@@ -80,11 +80,12 @@ class EshopOrderFlowTest {
             "--eshop.ordering.payment-grace-period=${GRACE.toMillis()}ms",
             "--wow.timers.poll-interval=200ms",
         ),
+        internalPort = EshopService.freePort(),
     )
     private val basket = EshopService.start(
         "basket",
         BASKET_MAIN,
-        arguments(BASKET_DATABASE) + EshopStack.callOrdering(ordering.publicPort),
+        arguments(BASKET_DATABASE) + EshopStack.callOrdering(ordering.internalPort),
     )
 
     @AfterAll
