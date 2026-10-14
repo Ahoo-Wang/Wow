@@ -99,12 +99,14 @@ export default tseslint.config(
             leaf('types', ['api', 'naming', 'openapi', 'emit']),
             leaf('wow', ['api', 'openapi']),
             leaf('analysis', ['api', 'naming', 'openapi', 'wow']),
+            leaf('manifest', ['api', 'naming']),
             leaf('emitters', [
               'api',
               'naming',
               'openapi',
               'wow',
               'analysis',
+              'manifest',
               'types',
               'emit',
             ]),
@@ -133,6 +135,7 @@ export default tseslint.config(
       'src/openapi/**/*.ts',
       'src/wow/**/*.ts',
       'src/analysis/**/*.ts',
+      'src/manifest/**/*.ts',
     ],
     rules: {
       'no-restricted-imports': [

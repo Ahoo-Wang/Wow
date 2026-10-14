@@ -1,0 +1,479 @@
+{
+  "format": 1,
+  "service": { "name": "eshop-payment-service" },
+  "contexts": [
+    {
+      "name": "eshop-payment",
+      "description": "The eShop payment: payments of orders through a simulated gateway",
+      "aggregates": [
+        {
+          "name": "payment",
+          "description": "The payment of an order through the payment gateway",
+          "state": {
+            "schema": "#/$defs/me.ahoo.wow.example.eshop.payment.domain.payment.PaymentState",
+            "fingerprint": "023c24b7e46d73764823f6dc4f4679484899b405e3ca3b15b2055bbdcb775c72"
+          },
+          "snapshot": { "enabled": true },
+          "commands": [
+            {
+              "name": "ChargebackNotified",
+              "aliases": [],
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.payment.domain.payment.ChargebackNotified",
+              "creation": "NONE",
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-payment/payment/{id}/chargeback-notified"
+                },
+                {
+                  "method": "POST",
+                  "path": "/eshop-payment/payment/chargeback-notified"
+                }
+              ],
+              "mounted": true,
+              "transformsTo": ["eshop-payment.payment.RefundPayment"]
+            },
+            {
+              "name": "ConfirmPayment",
+              "aliases": [],
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment",
+              "creation": "NONE",
+              "produces": ["PaymentSucceeded"],
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-payment/payment/{id}/confirm-payment"
+                }
+              ]
+            },
+            {
+              "name": "FailPayment",
+              "aliases": [],
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.FailPayment",
+              "creation": "NONE",
+              "produces": ["PaymentFailed"],
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-payment/payment/{id}/fail-payment"
+                }
+              ]
+            },
+            {
+              "name": "RefundPayment",
+              "aliases": [],
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment",
+              "creation": "NONE",
+              "produces": ["PaymentRefunded"],
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-payment/payment/{id}/refund-payment"
+                }
+              ]
+            },
+            {
+              "name": "RequestPayment",
+              "aliases": [],
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment",
+              "creation": "REQUIRED",
+              "produces": ["PaymentRequested"],
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-payment/payment/{id}/request-payment"
+                },
+                {
+                  "method": "POST",
+                  "path": "/eshop-payment/payment/request-payment"
+                }
+              ]
+            }
+          ],
+          "events": [
+            {
+              "name": "PaymentFailed",
+              "aliases": [],
+              "revision": 1,
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed"
+            },
+            {
+              "name": "PaymentRefunded",
+              "aliases": [],
+              "revision": 1,
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.PaymentRefunded"
+            },
+            {
+              "name": "PaymentRequested",
+              "aliases": [],
+              "revision": 1,
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested"
+            },
+            {
+              "name": "PaymentSucceeded",
+              "aliases": [],
+              "revision": 1,
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded"
+            }
+          ],
+          "lifecycle": [
+            "wow.lifecycle.ApplyTags",
+            "wow.lifecycle.DeleteAggregate",
+            "wow.lifecycle.RestoreAggregate",
+            "wow.lifecycle.TransferOwner",
+            "wow.lifecycle.TransferSpace"
+          ],
+          "queries": [
+            {
+              "model": "snapshot",
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-payment/payment/snapshot/query"
+                },
+                {
+                  "method": "GET",
+                  "path": "/eshop-payment/payment/snapshot/query"
+                }
+              ]
+            },
+            {
+              "model": "events",
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-payment/payment/events/query"
+                },
+                {
+                  "method": "GET",
+                  "path": "/eshop-payment/payment/events/query"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "subscriptions": [
+        {
+          "name": "OrderPaymentSaga.onOrderStockConfirmed",
+          "kind": "SAGA",
+          "source": {
+            "context": "eshop-ordering",
+            "aggregates": ["order"],
+            "events": []
+          },
+          "function": {
+            "kind": "SAGA",
+            "context": "eshop-payment",
+            "processor": "OrderPaymentSaga",
+            "name": "onOrderStockConfirmed"
+          },
+          "derives": ["eshop-payment.payment.RequestPayment"],
+          "start": "BEGINNING"
+        },
+        {
+          "name": "OrderPaymentSaga.onPayRejected",
+          "kind": "SAGA",
+          "source": { "aggregates": [], "events": [] },
+          "function": {
+            "kind": "SAGA",
+            "context": "eshop-payment",
+            "processor": "OrderPaymentSaga",
+            "name": "onPayRejected"
+          },
+          "derives": ["eshop-payment.payment.RefundPayment"],
+          "rejected": [
+            "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.PayOrder"
+          ]
+        },
+        {
+          "name": "OrderPaymentSaga.onPaymentFailed",
+          "kind": "SAGA",
+          "source": {
+            "context": "eshop-payment",
+            "aggregates": ["payment"],
+            "events": []
+          },
+          "function": {
+            "kind": "SAGA",
+            "context": "eshop-payment",
+            "processor": "OrderPaymentSaga",
+            "name": "onPaymentFailed"
+          },
+          "derives": [
+            "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder"
+          ],
+          "start": "END"
+        },
+        {
+          "name": "OrderPaymentSaga.onPaymentSucceeded",
+          "kind": "SAGA",
+          "source": {
+            "context": "eshop-payment",
+            "aggregates": ["payment"],
+            "events": []
+          },
+          "function": {
+            "kind": "SAGA",
+            "context": "eshop-payment",
+            "processor": "OrderPaymentSaga",
+            "name": "onPaymentSucceeded"
+          },
+          "derives": [
+            "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.PayOrder"
+          ],
+          "start": "END"
+        },
+        {
+          "name": "PaymentGatewaySaga.onPaymentRequested",
+          "kind": "SAGA",
+          "source": {
+            "context": "eshop-payment",
+            "aggregates": ["payment"],
+            "events": []
+          },
+          "function": {
+            "kind": "SAGA",
+            "context": "eshop-payment",
+            "processor": "PaymentGatewaySaga",
+            "name": "onPaymentRequested"
+          },
+          "derives": [
+            "eshop-payment.payment.ConfirmPayment",
+            "eshop-payment.payment.FailPayment"
+          ],
+          "start": "END"
+        }
+      ],
+      "published": [
+        {
+          "aggregate": "payment",
+          "topic": "wow.eshop-payment.payment.state",
+          "includeState": true
+        }
+      ],
+      "errors": [
+        {
+          "code": "eshop-payment.payment.invalid-amount",
+          "status": 422,
+          "description": "A payment is of a positive amount."
+        },
+        {
+          "code": "eshop-payment.payment.wrong-status",
+          "status": 409,
+          "description": "The payment's status does not allow the command."
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": "wow.auth.unauthenticated",
+      "status": 401,
+      "description": "The request carries no valid credentials."
+    },
+    {
+      "code": "wow.auth.forbidden",
+      "status": 403,
+      "description": "The caller may not send this command."
+    },
+    {
+      "code": "wow.aggregate.forbidden",
+      "status": 403,
+      "description": "The aggregate is outside the caller's scope."
+    },
+    {
+      "code": "wow.command.malformed",
+      "status": 400,
+      "description": "The command body cannot be read as the command type."
+    },
+    {
+      "code": "wow.command.invalid",
+      "status": 400,
+      "description": "The command failed validation; the problem lists the violations."
+    },
+    {
+      "code": "wow.wait.invalid",
+      "status": 400,
+      "description": "The wait is not a chain the runtime can follow; the command was not run."
+    },
+    {
+      "code": "wow.command.unhandled",
+      "status": 400,
+      "description": "The aggregate does not handle this command."
+    },
+    {
+      "code": "wow.aggregate.not-found",
+      "status": 404,
+      "description": "The aggregate does not exist."
+    },
+    {
+      "code": "wow.aggregate.exists",
+      "status": 409,
+      "description": "The aggregate already exists."
+    },
+    {
+      "code": "wow.aggregate.version-mismatch",
+      "status": 409,
+      "description": "The aggregate is not at the expected version (412 when the request carried If-Match)."
+    },
+    {
+      "code": "wow.command.request-id-reused",
+      "status": 409,
+      "description": "The request id was used by another command."
+    },
+    {
+      "code": "wow.command.contended",
+      "status": 409,
+      "description": "Concurrent writers kept winning the version; retrying with the same request id is safe."
+    },
+    {
+      "code": "wow.aggregate.deleted",
+      "status": 410,
+      "description": "The aggregate is deleted; only RestoreAggregate applies."
+    },
+    {
+      "code": "wow.command.busy",
+      "status": 429,
+      "description": "The node has too many commands in flight; retry later."
+    },
+    {
+      "code": "wow.command.unknown",
+      "status": 503,
+      "description": "Whether the command committed is unknown; retrying with the same request id is safe."
+    },
+    {
+      "code": "wow.node.closing",
+      "status": 503,
+      "description": "The node is shutting down; retry on another node."
+    },
+    {
+      "code": "wow.storage.unavailable",
+      "status": 503,
+      "description": "A store could not be reached or did not answer in time; retry later, a command with the same request id."
+    },
+    {
+      "code": "wow.schedule.not-due",
+      "status": 503,
+      "description": "A scheduled command arrived too long before its due time on this node's clock; it is sent again later."
+    },
+    {
+      "code": "wow.schedule.job-invalid",
+      "status": 400,
+      "description": "The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled."
+    },
+    {
+      "code": "wow.subscription.parked",
+      "status": 500,
+      "description": "A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes."
+    },
+    {
+      "code": "wow.wait.timeout",
+      "status": 504,
+      "description": "The wait ran out of time; the command may have committed. The problem carries the last stage reached."
+    },
+    {
+      "code": "wow.query.malformed",
+      "status": 400,
+      "description": "The query body cannot be read as a query."
+    },
+    {
+      "code": "wow.query.invalid",
+      "status": 400,
+      "description": "The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...)."
+    },
+    {
+      "code": "wow.query.failed",
+      "status": 500,
+      "description": "The query backend failed to run the query."
+    },
+    {
+      "code": "wow.query.timeout",
+      "status": 503,
+      "description": "The query ran longer than its budget allows; narrow it, or retry later."
+    }
+  ],
+  "$defs": {
+    "me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder": {
+      "type": "object",
+      "properties": { "reason": { "type": "string" } },
+      "required": ["reason"]
+    },
+    "me.ahoo.wow.example.eshop.ordering.api.order.PayOrder": {
+      "type": "object",
+      "properties": {
+        "amount": { "type": "number" },
+        "paymentId": { "type": "string" }
+      },
+      "required": ["amount", "paymentId"]
+    },
+    "me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment": {
+      "type": "object",
+      "properties": { "transactionId": { "type": "string" } },
+      "required": ["transactionId"]
+    },
+    "me.ahoo.wow.example.eshop.payment.api.payment.FailPayment": {
+      "type": "object",
+      "properties": { "reason": { "type": "string" } },
+      "required": ["reason"]
+    },
+    "me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed": {
+      "type": "object",
+      "properties": { "reason": { "type": "string" } },
+      "required": ["reason"]
+    },
+    "me.ahoo.wow.example.eshop.payment.api.payment.PaymentRefunded": {
+      "type": "object",
+      "properties": { "reason": { "type": "string" } },
+      "required": ["reason"]
+    },
+    "me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested": {
+      "type": "object",
+      "properties": {
+        "amount": { "type": "number" },
+        "orderId": { "type": "string" }
+      },
+      "required": ["amount", "orderId"]
+    },
+    "me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded": {
+      "type": "object",
+      "properties": { "transactionId": { "type": "string" } },
+      "required": ["transactionId"]
+    },
+    "me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment": {
+      "type": "object",
+      "properties": { "reason": { "type": "string" } },
+      "required": ["reason"]
+    },
+    "me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment": {
+      "type": "object",
+      "properties": {
+        "amount": { "type": "number" },
+        "orderId": { "type": "string" }
+      },
+      "required": ["amount", "orderId"]
+    },
+    "me.ahoo.wow.example.eshop.payment.domain.payment.ChargebackNotified": {
+      "type": "object",
+      "properties": {
+        "disputeId": { "type": "string" },
+        "merchantReference": { "type": "string" },
+        "reason": { "type": "string" }
+      },
+      "required": ["disputeId", "merchantReference", "reason"]
+    },
+    "me.ahoo.wow.example.eshop.payment.domain.payment.PaymentState": {
+      "type": "object",
+      "properties": {
+        "amount": { "type": "number" },
+        "orderId": { "type": "string" },
+        "reason": { "type": ["string", "null"] },
+        "status": {
+          "type": "string",
+          "enum": ["REQUESTED", "SUCCEEDED", "FAILED", "REFUNDED"]
+        },
+        "transactionId": { "type": ["string", "null"] }
+      }
+    }
+  }
+}
