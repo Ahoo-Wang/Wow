@@ -64,7 +64,7 @@ val benchmarksProject = includedProjects(":wow-benchmarks")
 val v10Projects = listOf(
     "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query",
     "postgres", "mongo", "kafka", "clickhouse", "http", "cosec", "spring-boot", "cosid", "migrate-data", "architecture",
-    "test-dsl", "tck", "tck-containers",
+    "test-dsl", "tck", "tck-containers", "ops-api", "ops-domain",
     "kernel-benchmarks", "compiler", "gradle-plugin", "manifest-tools",
     "routing-spike", "lease-spike",
 ).plus(eshopProjects).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }

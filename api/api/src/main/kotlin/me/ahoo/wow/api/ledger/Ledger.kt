@@ -23,14 +23,14 @@ import me.ahoo.wow.api.caller.Caller
  * the owning service.
  *
  * - **Publishing**: a service sends each change of an entry as a command to the aggregate [PARKED] of the ops context
- *   ([OPS_CONTEXT] by default), through that context's command topic: [RecordParked] while the entry is parked,
- *   [RecordResolved] once it is not. The aggregate's id is [parkedId]: one per service, subscription and parked
- *   aggregate.
+ *   ([OPS_CONTEXT] by default), through that context's command topic: [RECORD_PARKED] with the [LedgerEntry] as its
+ *   member [ENTRY] while the entry is parked, [RECORD_RESOLVED] with the [LedgerResolution] as its member [RESOLUTION]
+ *   once it is not. The aggregate's id is [parkedId]: one per service, subscription and parked aggregate.
  * - **Acting**: the ops context sends the system commands [RESUME], [SKIP], [MARK_RECOVERABLE] and [APPLY_RETRY_SPEC]
  *   ([ResumeParked], [SkipParked], [MarkParkedRecoverable], [ApplyParkedRetrySpec]) to the command topic of the
- *   context that holds the entry ([RecordParked.context]), addressed to [targetOf] that context and the entry's ops
- *   id. The owning service authorizes each as the system command of
- *   that name on the parked aggregate, as it does the same action on its own operator routes, and runs it.
+ *   context that holds the entry ([LedgerEntry.context]), addressed to [targetOf] that context and the entry's ops id.
+ *   The owning service authorizes each as the system command of that name on the parked aggregate, as it does the
+ *   same action on its own operator routes, and runs it.
  *
  * Their names sit in the system namespace [NAMESPACE], as the lifecycle commands' do.
  */
@@ -52,6 +52,12 @@ object Ledger {
     /** The simple names of the commands a service sends to [PARKED]: their full names are `<ops>.parked.<name>`. */
     const val RECORD_PARKED: String = "RecordParked"
     const val RECORD_RESOLVED: String = "RecordResolved"
+
+    /** The member of [RECORD_PARKED]'s body that holds its [LedgerEntry]. */
+    const val ENTRY: String = "entry"
+
+    /** The member of [RECORD_RESOLVED]'s body that holds its [LedgerResolution]. */
+    const val RESOLUTION: String = "resolution"
 
     /** The ledger's system commands, by their names. */
     @JvmField

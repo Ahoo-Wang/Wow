@@ -173,6 +173,12 @@ include(":tck")
 project(":tck").projectDir = file("test/tck")
 include(":tck-containers")
 project(":tck-containers").projectDir = file("test/tck-containers")
+// The platform (roadmap M7): the ops context, the aggregation and operation surface of every service's failure ledger
+// (decision D141); work package 6.3f gives it its API and the parked aggregate, 7.1a its service.
+include(":ops-api")
+project(":ops-api").projectDir = file("platform/ops/ops-api")
+include(":ops-domain")
+project(":ops-domain").projectDir = file("platform/ops/ops-domain")
 if (nineX) {
     include(":kernel-benchmarks")
     project(":kernel-benchmarks").projectDir = file("test/kernel-benchmarks")

@@ -13,19 +13,17 @@
 
 package me.ahoo.wow.api.ledger
 
-import me.ahoo.wow.api.annotation.AllowCreate
-import me.ahoo.wow.api.annotation.Summary
-
 /*
- * The records a service publishes of its failure ledger (decision D141): the commands of the ops context's `parked`
- * aggregate, in the wire format of a command body (design 08 §3). Fields are only ever added; a reader ignores the
- * ones it does not know. Enumerated values travel as their names, so a reader of an older version reads a value a newer
- * writer added.
+ * The records a service publishes of its failure ledger (decision D141), in the wire format of a command body (design
+ * 08 §3): the ops context's `parked` aggregate takes a [LedgerEntry] as the member [Ledger.ENTRY] of its command
+ * [Ledger.RECORD_PARKED], and a [LedgerResolution] as the member [Ledger.RESOLUTION] of [Ledger.RECORD_RESOLVED].
+ * Fields are only ever added; a reader ignores the ones it does not know. Enumerated values travel as their names, so
+ * a reader of an older version reads a value a newer writer added.
  */
 
 /**
- * [subscription] of [service] has parked [aggregate], as its ledger holds it now (`FailureLedger`'s entry with the
- * retry spec it is retried by): the entry's command topic is [context]'s, the context of the subscription.
+ * [subscription] of [service] parks [aggregate], as its ledger holds it now (`FailureLedger`'s entry with the retry
+ * spec it is retried by); the entry's command topic is [context]'s, the context of the subscription.
  *
  * - [fromVersion] and [fromPosition]: where the aggregate is parked; [reason] and [failedAt] (epoch milliseconds): why
  *   and when it last failed, which also tells one parking of the aggregate from the next.
@@ -36,9 +34,7 @@ import me.ahoo.wow.api.annotation.Summary
  * - [status]: `SCHEDULED` (retried automatically), `EXHAUSTED` (its retries spent) or `UNRECOVERABLE`.
  * - [recordedAt]: when the service published it (epoch milliseconds).
  */
-@AllowCreate
-@Summary("Record a parked entry")
-data class RecordParked(
+data class LedgerEntry(
     val service: String,
     val context: String,
     val subscription: String,
@@ -79,8 +75,7 @@ data class LedgerRetrySpec(
  * [SKIPPED], [RESOLVED] (gone from the ledger, by an automatic retry or another node's action) or [NOT_PARKED] (an
  * operator's action found nothing parked).
  */
-@Summary("Record a resolved entry")
-data class RecordResolved(
+data class LedgerResolution(
     val service: String,
     val context: String,
     val subscription: String,
