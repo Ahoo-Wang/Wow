@@ -1,6 +1,6 @@
 # Wow 9.x to V10 Domain Source Migration
 
-Use this reference only when a downstream domain module written against Wow 9.x is rewritten for V10. It maps 9.x constructs to their V10 form; the before/after pairs come from the hand port of the 9.x example (`example-api`, `example-domain`) to the V10 example shop (`shop-api`, `shop-domain`).
+Use this reference only when a downstream domain module written against Wow 9.x is rewritten for V10. It maps 9.x constructs to their V10 form; the before/after pairs come from the hand port of the 9.x example (`example-api`, `example-domain`) to V10 (the first V10 example, the shop, since folded into the eShop). For a complete V10 application to compare against, read the eShop (`example/eshop` on the `v10` branch): five contexts, each an API, a domain and a server module, with their end-to-end tests.
 
 Status: first draft. V10 is still moving: verify every annotation, signature, route and configuration key against the pinned V10 target, not against this page. V10 has no release yet; a target pinned to a `v10` commit is a source baseline, not a published artifact, so record the artifact, plugin and repository availability as `MISSING EVIDENCE` until the target tag exists.
 
@@ -48,13 +48,13 @@ plugins {
     id("me.ahoo.wow") version "<pinned V10 version>"
 }
 dependencies {
-    api(project(":shop-api"))
+    api(project(":ordering-api"))
     // The generated models and the binding index return kernel types.
     api("me.ahoo.wow:wow-kernel:<pinned V10 version>")
 }
 ```
 
-The shop itself applies KSP by hand with the plugin's options (`wow.model=generate`, `wow.manifest.module=<project>`), only because the plugin cannot be applied inside the build that produces it. A downstream module uses the plugin. The KSP option `wow.context` is needed only when the module has no single `@BoundedContext`.
+The eShop's domain modules apply KSP by hand with the plugin's options (`wow.model=generate`, `wow.manifest.module=<project>`), only because the plugin cannot be applied inside the build that produces it. A downstream module uses the plugin. The KSP option `wow.context` is needed only when the module has no single `@BoundedContext`.
 
 ## Annotation mapping
 
@@ -62,7 +62,7 @@ V10 annotations keep the package `me.ahoo.wow.api.annotation`, so kept names nee
 
 | 9.x | V10 | Rewrite |
 |---|---|---|
-| `@BoundedContext(name, alias, description, scopes, packageScopes, aggregates)` | `@BoundedContext(name, description)` | The aggregate list comes from `@AggregateRoot`; a fixed tenant moves to host configuration. The context name is part of every command, event and route name, so decide it explicitly (the shop chose the 9.x alias `example` over `example-service`) and record it in the map. |
+| `@BoundedContext(name, alias, description, scopes, packageScopes, aggregates)` | `@BoundedContext(name, description)` | The aggregate list comes from `@AggregateRoot`; a fixed tenant moves to host configuration. The context name is part of every command, event and route name, so decide it explicitly (the port chose the 9.x alias `example` over `example-service`; the eShop names its contexts `eshop-<context>`) and record it in the map. |
 | `@AggregateRoot(commands = [...])` | `@AggregateRoot(lifecycle = [...], published, publishState, topic)` | Mounted commands have no equivalent. `lifecycle` lists the system commands kept (all five by default). `published = false` keeps the aggregate's state events out of the context's published streams, `publishState = false` publishes them without the state, and `topic` overrides `wow.<context>.<aggregate>.state` (a Kafka topic name, at most 249 characters). |
 | `@OnCommand(returns = [...])` | `@OnCommand(produces = [...])` | Needed only when the function returns `Decision`; a concrete or sealed return type is inferred. |
 | `@OnSourcing`, `@CreateAggregate`, `@AllowCreate`, `@AfterCommand(include, exclude)`, `@Blocking`, `@Description`, `@Summary`, `@WowSpi` | Same | Unchanged. |
@@ -204,9 +204,9 @@ suspend fun onCommand(
 }
 ```
 
-The 9.x `CreateOrderSpec` indirection existed to inject one qualified bean; the port injects the two services directly and turns their `Mono` APIs into `suspend` functions. Keeping the indirection with `@Name("createOrderSpec")` on the parameter is also valid. The host supplies the services by type and qualifier (in the shop, Spring beans).
+The 9.x `CreateOrderSpec` indirection existed to inject one qualified bean; the port injects the two services directly and turns their `Mono` APIs into `suspend` functions. Keeping the indirection with `@Name("createOrderSpec")` on the parameter is also valid. The host supplies the services by type and qualifier (in the eShop, Spring beans, such as the payment server's `PaymentGateway`).
 
-This is the one-to-one port. The shop has since moved the stock out of the order: placing an order consults the pricing service only, and the order's `OrderSaga` reserves each product in the `inventory` context, another service, with a cross-context command; a reservation the inventory rejects comes back to the saga's `@OnRejected` handler, which cancels the order (`example/inventory/README.md`). Make that move only when the stock belongs to another context; a 9.x service call inside decide stays a service parameter otherwise.
+This is the one-to-one port. The eShop keeps the stock out of the order: the ordering's `OrderProcessSaga` reserves each product in the `eshop-inventory` context, another service, with a cross-context command; a reservation the inventory rejects comes back to the saga's `@OnRejected` handler, which cancels the order (`example/eshop/README.md`). Make that move only when the stock belongs to another context; a 9.x service call inside decide stays a service parameter otherwise.
 
 Rejections are values with stable codes. Declare them beside the aggregate so the compiler lists them in the context's Manifest `errors`; codes must not start with `wow.` and must be unique in the module. The HTTP status defaults to 422.
 
@@ -343,7 +343,7 @@ class OrderState(val id: String) {
 
 ## Sagas, projections, reactors
 
-Target form; check that the pinned target compiler generates subscription bindings before rewriting (the shop's sagas were deferred until it did).
+Target form; check that the pinned target compiler generates subscription bindings before rewriting (the first port deferred its sagas until it did).
 
 - The class carries exactly one of `@Projection`, `@Reactor`, `@Saga`; its handlers are `@OnEvent` functions or functions named `onEvent`, none private.
 - A handler takes `StateEvent<S>` (the commit's events plus the state after it) and optionally its kind's context (`ProjectContext`, `ReactContext`, `SagaContext`), nothing else. Services go to the processor's constructor.
@@ -404,9 +404,9 @@ A 9.x saga or `onStateEvent` handler that only logs has no V10 counterpart worth
 
 There are no tenant or owner route variants, no `PUT`/`PATCH`, no custom action segments, and no path or header variables bound into bodies. The aggregate segment is the aggregate's name; renaming it with `@Name` renames the aggregate.
 
-Routes of the 9.x example, from its generated OpenAPI, next to the shop's:
+Routes of the 9.x example, from its generated OpenAPI, next to its V10 port's (context `example`):
 
-| 9.x (example) | V10 (shop) |
+| 9.x (example) | V10 (port) |
 |---|---|
 | `POST /tenant/{tenantId}/owner/{ownerId}/sales-order` (`CreateOrder`, `action = ""`) | `POST /example/order/create-order`, or `POST /example/order/{id}/create-order` with a client-chosen id |
 | `PUT /tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/address` (`ChangeAddress`) | `POST /example/order/{id}/change-address` |
@@ -493,7 +493,7 @@ class CartSpec {
 | `ErrorInfo` on events | Plain data. |
 | Private `onSourcing`; events without one; `lateinit` state | Must be rewritten (see [State classes](#state-classes)). |
 | `@StatelessSaga` sagas | Wait for subscription bindings in the pinned target; until then mark them `TODO(wow-migrate)` so the build fails. |
-| Test DSL artifact | The shop uses the kernel's test fixtures; the separate `wow-test` module is planned. |
+| Test DSL artifact | `wow-test` (`:test-dsl`), the V10 test DSL (`aggregateSpec`, `sagaSpec`); the eShop's domain tests use it. |
 
 Gaps the port reported that later V10 work closed, so do not report them as missing: qualifying an injected service (`@Name` on the parameter), declaring `produces` for functions returning `Decision` (`@OnCommand(produces)`), and declaring rejection codes in the Manifest (`@ErrorCode`). Verify each against the pinned target.
 

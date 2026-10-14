@@ -66,6 +66,23 @@ class CatalogNode(val context: ConfigurableApplicationContext) : AutoCloseable {
     fun get(path: String, headers: Map<String, String> = emptyMap()): Answer =
         client.get().uri(path).headers { http -> headers.forEach { (name, value) -> http.set(name, value) } }.answer()
 
+    /** POSTs [body] to [path] asking for server-sent events: each event's name and data, in the order they came. */
+    fun stream(path: String, body: String, headers: Map<String, String> = emptyMap()): List<Pair<String, String>> {
+        val text = client.post().uri(path).contentType(MediaType.APPLICATION_JSON).accept(MediaType.TEXT_EVENT_STREAM)
+            .headers { http -> headers.forEach { (name, value) -> http.set(name, value) } }
+            .bodyValue(body)
+            .exchange()
+            .expectStatus().isOk
+            .expectHeader().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM)
+            .expectBody(String::class.java)
+            .returnResult().responseBody.orEmpty()
+        return text.split("\n\n").filter { it.isNotBlank() }.map { block ->
+            val lines = block.lines()
+            val name = lines.first { it.startsWith("event:") }.removePrefix("event:").trim()
+            name to lines.filter { it.startsWith("data:") }.joinToString("") { it.removePrefix("data:") }
+        }
+    }
+
     private fun WebTestClient.RequestHeadersSpec<*>.answer(): Answer {
         val result = exchange().expectBody(String::class.java).returnResult()
         return Answer(

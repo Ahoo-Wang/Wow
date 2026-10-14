@@ -31,4 +31,9 @@ dependencies {
     // The `clickhouse` profile: the order stream is written to ClickHouse by the Sink, and the sales dataset of
     // META-INF/wow/dataset/eshop-ordering.sales.json is queried there (work package E.6).
     implementation(project(":clickhouse"))
+    // The integration tests run the service in their JVM on PostgreSQL and ClickHouse in containers, with the test's
+    // command transport in memory (InMemoryOrderingTopics): the snapshot queries and the sales dataset (decision D204).
+    integrationTestImplementation(sourceSets["test"].output)
+    integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
+    integrationTestImplementation("org.testcontainers:testcontainers-clickhouse")
 }

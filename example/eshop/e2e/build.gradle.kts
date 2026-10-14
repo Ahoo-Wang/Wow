@@ -1,6 +1,6 @@
 description = "Wow V10 eShop: end-to-end tests across the eShop's services"
 
-// Test-only and never published (decision D159), like :example-e2e.
+// Test-only and never published (decision D159).
 //
 // - EshopE2eTest runs the catalog and inventory services each in a JVM of its own, on the runtime class path of its
 //   server project alone; the class paths reach the tests as system properties (`eshop.<context>.classpath`).
@@ -54,6 +54,8 @@ dependencies {
     integrationTestImplementation("org.testcontainers:testcontainers-kafka")
     // CatalogPostgresTest: the catalog's storefront queries on PostgreSQL (work package E.1).
     integrationTestImplementation("org.testcontainers:testcontainers-postgresql")
+    // ... and the storefront's query written with the query DSL and the catalog's generated ProductStateProperties (D204).
+    integrationTestImplementation(project(":eshop-catalog-domain"))
     // EshopFullChainTest and EshopLoad: the ordering's order stream in ClickHouse, for the sales dataset (E.6).
     integrationTestImplementation("org.testcontainers:testcontainers-clickhouse")
 }

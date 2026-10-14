@@ -187,25 +187,9 @@ include(":routing-spike")
 project(":routing-spike").projectDir = file("test/routing-spike")
 include(":lease-spike")
 project(":lease-spike").projectDir = file("test/lease-spike")
-// The V10 example (decision D111); the 9.x example under example/ stays as it is until M9.
-include(":shop-api")
-project(":shop-api").projectDir = file("example/shop/shop-api")
-include(":shop-domain")
-project(":shop-domain").projectDir = file("example/shop/shop-domain")
-include(":shop-server")
-project(":shop-server").projectDir = file("example/shop/shop-server")
-// The example's second context, inventory (decision D144): a service of its own beside the shop.
-include(":inventory-api")
-project(":inventory-api").projectDir = file("example/inventory/inventory-api")
-include(":inventory-domain")
-project(":inventory-domain").projectDir = file("example/inventory/inventory-domain")
-include(":inventory-server")
-project(":inventory-server").projectDir = file("example/inventory/inventory-server")
-// The example's end-to-end tests across its services (decision D144): test-only, never published.
-include(":example-e2e")
-project(":example-e2e").projectDir = file("example/e2e")
-// The eShop (decisions D158, D159): five contexts after the classic eShop reference application, each an API, a domain
-// and a server of its own, and their end-to-end tests. Every project is named `eshop-*`, so none clashes with the shop's.
+// The V10 example, the eShop (decisions D158, D159, D204): five contexts after the classic eShop reference application,
+// each an API, a domain and a server of its own, and their end-to-end tests; the 9.x example under example/ stays as it
+// is until M9. Every project is named `eshop-*`, so none clashes with a 9.x example's.
 include(":eshop-catalog-api")
 project(":eshop-catalog-api").projectDir = file("example/eshop/catalog/catalog-api")
 include(":eshop-catalog-domain")

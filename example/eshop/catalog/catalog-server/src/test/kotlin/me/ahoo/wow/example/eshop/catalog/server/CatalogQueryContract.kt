@@ -13,12 +13,23 @@
 
 package me.ahoo.wow.example.eshop.catalog.server
 
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.query.dsl.listQuery
+import me.ahoo.wow.example.eshop.catalog.api.CatalogContext
+import me.ahoo.wow.example.eshop.catalog.api.product.ProductStatus
+import me.ahoo.wow.example.eshop.catalog.domain.product.ProductStateProperties
+import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.query.QueryCaller
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.springframework.http.HttpHeaders
 import tools.jackson.databind.JsonNode
+import java.math.BigDecimal
 import java.util.UUID
 
 /**
@@ -180,6 +191,96 @@ abstract class CatalogQueryContract {
         catalog.post(PRODUCTS, """{"kind":"list","filter":{"op":"EQ","field":"state.colour","value":"red"}}""")
             .assertProblem(BAD_REQUEST, "wow.query.invalid")
             .json["violations"][0]["code"].asString().assert().isEqualTo("UNKNOWN_FIELD")
+        // A body that is no query at all is malformed, not invalid.
+        catalog.post(PRODUCTS, """{"kind":"lists","filter":{"op":"MATCH_ALL"}}""")
+            .assertProblem(BAD_REQUEST, "wow.query.malformed")
+    }
+
+    /**
+     * What a service's own code does: the storefront's query written with the query DSL and the compiler's
+     * `ProductStateProperties`, run in process on the node's snapshot query gateway, which the routes above serve too.
+     */
+    @Test
+    fun `the storefront's query written with the DSL and the generated properties should run on the gateway`() {
+        val category = storefront.category()
+        val brand = storefront.brand()
+        storefront.product(category, brand, "4.00")
+        val five = storefront.product(category, brand, "5.00")
+        val seven = storefront.product(category, brand, "7.00")
+        storefront.product(category, brand, "6.00", publish = false)
+        val query = listQuery {
+            filter {
+                ProductStateProperties.STATE__CATEGORY_ID eq category
+                ProductStateProperties.STATE__STATUS eq ProductStatus.PUBLISHED
+                ProductStateProperties.STATE__PRICE gte BigDecimal("5.00")
+            }
+            sort { ProductStateProperties.STATE__PRICE.asc() }
+        }
+        val gateway = checkNotNull(catalog.context.getBean(HttpQueries::class.java).snapshots(PRODUCT))
+        val rows = runBlocking { gateway.list(query, QueryCaller.IN_PROCESS).toList() }
+        rows.map { it["aggregateId"].asString() }.assert().containsExactly(five, seven)
+    }
+
+    @Test
+    fun `a list should stream as server-sent events, one row per event`() {
+        val category = storefront.category()
+        val brand = storefront.brand()
+        val filed = (1..3).map { storefront.product(category, brand, "$it.00") }
+        val events = catalog.stream(PRODUCTS, """{"kind":"list","filter":${published(category)}}""", BUYER)
+        events.map { it.first }.assert().containsOnly("row")
+        val streamed = events.map { (_, data) -> json.readTree(data)["aggregateId"].asString() }
+        streamed.assert().containsExactlyInAnyOrderElementsOf(filed)
+    }
+
+    @Test
+    fun `a product's events should be read by version, naming the product`() {
+        val product = storefront.product(storefront.category(), storefront.brand(), "3.00")
+        val events = catalog.post(PRODUCT_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$product"}}""", BUYER)
+            .assertOk().json
+        events.values().map { it["version"].asInt() }.assert().containsExactly(1, 2)
+        events.values().map { it["events"][0]["name"].asString() }.assert()
+            .containsExactly("eshop-catalog.product.ProductCreated", "eshop-catalog.product.ProductPublished")
+        // The event model reads one aggregate's stream at a time.
+        catalog.post(PRODUCT_EVENTS, """{"kind":"list","filter":{"op":"MATCH_ALL"}}""", BUYER)
+            .assertProblem(BAD_REQUEST, "wow.query.invalid")
+    }
+
+    /**
+     * The audit trail of decision D163, end to end: the employee whose HTTP command committed a version is its
+     * operator, in the commit's event stream and in the snapshot, which keeps the creator too; a snapshot query filters
+     * by both.
+     */
+    @Test
+    fun `the operator should follow a product from the employee's command to the snapshot query`() {
+        val category = storefront.category()
+        val product = storefront.product(category, storefront.brand(), "3.00")
+        val created = catalog.post(PRODUCT_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$product"}}""", BUYER)
+            .assertOk().json[0]
+        created["operator"].assertOperator(EMPLOYEE_ID)
+
+        val other = "frank-" + UUID.randomUUID().toString().take(8)
+        catalog.post(
+            "/eshop-catalog/product/$product/change-product-price",
+            """{"price":3.50}""",
+            mapOf(CatalogCallers.USER to other, CatalogCallers.ROLE to CatalogCallers.EMPLOYEE),
+        ).assertOk()
+        val latest = storefront.query("""{"kind":"single","filter":{"op":"ID","value":"$product"}}""").json
+        latest["operator"].assertOperator(other)
+        latest["firstOperator"].assertOperator(EMPLOYEE_ID)
+
+        val inCategory = """{"op":"EQ","field":"state.categoryId","value":"$category"}"""
+
+        fun filed(filter: String) =
+            ids(storefront.query("""{"kind":"list","filter":{"op":"AND","operands":[$filter,$inCategory]}}""").json)
+        filed("""{"op":"EQ","field":"operator.id","value":"$other"}""").assert().containsExactly(product)
+        filed("""{"op":"EQ","field":"firstOperator.id","value":"$EMPLOYEE_ID"}""").assert().containsExactly(product)
+        filed("""{"op":"EQ","field":"operator.id","value":"$EMPLOYEE_ID"}""").assert().isEmpty()
+    }
+
+    private fun JsonNode.assertOperator(id: String) {
+        this["id"].asString().assert().isEqualTo(id)
+        this["tenantId"].asString().assert().isEqualTo(Caller.DEFAULT_TENANT)
+        this["crossScope"].asBoolean().assert().isFalse()
     }
 
     private fun published(category: String): String = """{"op":"AND","operands":[
@@ -188,6 +289,9 @@ abstract class CatalogQueryContract {
 
     companion object {
         const val PRODUCTS = "/eshop-catalog/product/snapshot/query"
+        const val PRODUCT_EVENTS = "/eshop-catalog/product/events/query"
+        private const val EMPLOYEE_ID = "erin"
+        private val PRODUCT = AggregateType(CatalogContext.NAME, CatalogContext.PRODUCT)
         const val BY_PRICE = """{"field":"state.price","direction":"ASC"}"""
         const val BAD_REQUEST = 400
         const val FORBIDDEN = 403

@@ -68,7 +68,7 @@ Requirements: JDK 21, Kotlin with KSP (Java sources need the Kotlin Gradle plugi
 
 - `<root>Model(context, services…, configure = {})` beside each root (`Order` gives `orderModel`); the context is always a parameter.
 - `<processor>Handlers(dependencies)` per processor in `<Processor>Subscriptions.kt`.
-- One `ModelProvider` per module, named after the module (`shop-domain` gives `ShopDomainModelProvider`), in the deepest common package, registered in `META-INF/services/me.ahoo.wow.kernel.ModelProvider`; the host serves every provider on its class path unless `wow.contexts.include` / `exclude` select some (several contexts on one class path, shared-JVM end-to-end tests); an unknown name fails the startup.
+- One `ModelProvider` per module, named after the module (`eshop-catalog-domain` gives `EshopCatalogDomainModelProvider`), in the deepest common package, registered in `META-INF/services/me.ahoo.wow.kernel.ModelProvider`; the host serves every provider on its class path unless `wow.contexts.include` / `exclude` select some (several contexts on one class path, shared-JVM end-to-end tests); an unknown name fails the startup.
 - `META-INF/wow/manifest/<module>.json`: aggregates (commands with `creation`, `produces`, `routes`; events with `revision`; `lifecycle`; `queries`; `schedules`), `subscriptions`, `published`, `errors`; schemas completed into `$defs` by `generateWowManifestFragment`. Without completion, snapshot queries cannot filter `state.*`.
 - Routes, all from the Manifest:
   - commands: `POST /<ctx>/<agg>/{id}/<kebab-command>`, plus `POST /<ctx>/<agg>/<kebab-command>` for creating commands;
