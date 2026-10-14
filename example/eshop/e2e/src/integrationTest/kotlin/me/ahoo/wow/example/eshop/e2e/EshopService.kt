@@ -137,10 +137,15 @@ class EshopService private constructor(
         private val POLL_INTERVAL: Duration = Duration.ofMillis(200)
 
         /**
-         * Starts the service of [context] by its [mainClass], with the further command-line [arguments], and waits
-         * until it serves its Manifest.
+         * Starts the service of [context] by its [mainClass], with the further command-line [arguments] and the JVM's
+         * own [jvmArguments] (a heap bound, say), and waits until it serves its Manifest.
          */
-        fun start(context: String, mainClass: String, arguments: List<String> = emptyList()): EshopService {
+        fun start(
+            context: String,
+            mainClass: String,
+            arguments: List<String> = emptyList(),
+            jvmArguments: List<String> = emptyList(),
+        ): EshopService {
             val property = "eshop.$context.classpath"
             val classpath = requireNotNull(System.getProperty(property)) { "System property $property is not set." }
             val java = ProcessHandle.current().info().command().orElseThrow()
@@ -150,6 +155,7 @@ class EshopService private constructor(
             val log = File.createTempFile("eshop-$context-", ".log", logs).apply { if (logs == null) deleteOnExit() }
             val process = ProcessBuilder(
                 java,
+                *jvmArguments.toTypedArray(),
                 "-cp",
                 classpath,
                 mainClass,
