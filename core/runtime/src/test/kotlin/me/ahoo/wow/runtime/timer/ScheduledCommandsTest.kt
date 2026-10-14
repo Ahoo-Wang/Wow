@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.runtime.timer
 
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -265,8 +264,24 @@ class ScheduledCommandsTest {
     }
 
     @Test
-    fun `a node whose clock is far ahead has its timer refused at once, sent again once corrected, decided once`():
-        Unit = runBlocking {
+    fun `a timer refused under a sustained skew is retried, and fires once, not before its slot's due time`(): Unit =
+        runBlocking {
+            fireUnderSkew(correctClock = false)
+        }
+
+    @Test
+    fun `a timer refused until the clock is corrected fires once, not before its slot's due time`(): Unit =
+        runBlocking {
+            fireUnderSkew(correctClock = true)
+        }
+
+    /**
+     * A node whose clock runs [FAR_AHEAD_MILLIS] ahead, beyond the target's maximum early wait, fires an order's timer:
+     * the order refuses it at once without holding its queue, and the runner retries it. Every retry carries the slot's
+     * own due time, so the order decides it once, when it is due on its own clock, whether or not the firing node's
+     * clock is corrected first ([correctClock], right after the first refusals).
+     */
+    private suspend fun fireUnderSkew(correctClock: Boolean) {
         val skew = AtomicLong(FAR_AHEAD_MILLIS)
         val skewed = object : Clock() {
             override fun getZone(): ZoneId = ZoneOffset.UTC
@@ -285,21 +300,25 @@ class ScheduledCommandsTest {
         val due = node.streams("o-1").single().commitTime + FAR_AHEAD_MILLIS + 500
         // Sent far too early for the order's node: refused at once as a technical failure, and sent again later.
         eventually { (node.timer(order("o-1"), PAY_TIMEOUT)?.attempts ?: 0) >= 2 }
-        node.timer(order("o-1"), PAY_TIMEOUT)!!.outcome.assert().contains(ResultCodes.SCHEDULE_NOT_DUE)
+        val retried = checkNotNull(node.timer(order("o-1"), PAY_TIMEOUT))
+        retried.outcome.assert().contains(ResultCodes.SCHEDULE_NOT_DUE)
+        retried.slotDueAt.assert().isEqualTo(due)
         // The order's queue is not held meanwhile: another command on it commits at once.
         val started = System.nanoTime()
         node.send("o-1", Remind(at = System.currentTimeMillis() + 60_000))
             .status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         ((System.nanoTime() - started) / 1_000_000).assert().isLessThan(FAR_AHEAD_MILLIS / 2)
         node.streams("o-1").eventNames().assert().doesNotContain("shop.order.OrderCancelled")
-        // The firing node's clock is corrected once the timer is due: the next attempt is decided, once.
-        delay(due - System.currentTimeMillis())
-        skew.set(0)
+        if (correctClock) {
+            skew.set(0)
+        }
         eventually { node.timer(order("o-1"), PAY_TIMEOUT)?.status == TimerStatus.FIRED }
         val fired = checkNotNull(node.timer(order("o-1"), PAY_TIMEOUT))
         fired.outcome.assert().isEqualTo(TimerOutcomes.COMMITTED)
-        val streams = node.streams("o-1")
-        val cancelled = streams.filter { stream -> stream.events.any { it.name == "shop.order.OrderCancelled" } }
+        fired.dueAt.assert().isEqualTo(due)
+        val cancelled = node.streams("o-1").filter { stream ->
+            stream.events.any { it.name == "shop.order.OrderCancelled" }
+        }
         cancelled.single().requestId.assert().isEqualTo(fired.requestId)
         cancelled.single().commitTime.assert().isGreaterThanOrEqualTo(due)
     }
