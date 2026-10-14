@@ -1,0 +1,343 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.runtime.node
+
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.Creation
+import me.ahoo.wow.kernel.InMemoryCheckpointStore
+import me.ahoo.wow.kernel.InMemoryEventLog
+import me.ahoo.wow.kernel.InMemoryFailureLedger
+import me.ahoo.wow.kernel.InMemoryLeaseStore
+import me.ahoo.wow.kernel.InMemorySnapshotStore
+import me.ahoo.wow.kernel.InMemoryTimerStore
+import me.ahoo.wow.kernel.aggregate
+import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.CommandManifest
+import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.EventManifest
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
+import me.ahoo.wow.runtime.subscription.Subscription
+import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.runtime.timer.TimerOptions
+import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.timer.TimerStatus
+import me.ahoo.wow.spi.timer.Timers
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+import me.ahoo.wow.manifest.Creation as ManifestCreation
+
+/**
+ * A context whose aggregates are in two log groups (decision D177): its orders on the default store, its invoices on a
+ * store of their own. Each group has its own partition sequences, checkpoints, parked entries and timers; the owner of
+ * a partition reads it in both, and hands both over.
+ */
+class LogGroupsTest {
+    private val channel = LoopbackClusterChannel()
+    private val nodes = CopyOnWriteArrayList<ServiceNode>()
+    private val stores = GroupedStores()
+    private val projected = CopyOnWriteArrayList<String>()
+
+    @AfterEach
+    fun stop(): Unit = runBlocking {
+        nodes.forEach { it.stop() }
+    }
+
+    private fun node(name: String, backends: BackendFactory = stores): ServiceNode = ServiceNode(
+        SERVICE,
+        name,
+        "$name.internal:9090",
+        listOf(orderModel(), invoiceModel()),
+        manifest(),
+        backends,
+        channel,
+        options = fastNodeOptions().copy(timers = TimerOptions(pollInterval = 20.milliseconds, lookahead = 1.seconds)),
+        subscriptions = SubscriptionFactory { context ->
+            listOf(
+                Subscription(PROJECTOR, SubscriptionFilter(context.context)) { entry ->
+                    check(entry.stream.ref.id != POISON) { "The projector fails on $POISON." }
+                    projected += "${entry.stream.ref.type.name}:${entry.stream.ref.id}@${entry.stream.version}"
+                },
+            )
+        },
+    ).also {
+        nodes += it
+        channel.bind(it.address, it.forwardHandler)
+    }
+
+    private suspend fun ServiceNode.send(ref: AggregateRef, body: Any, wait: WaitPlan = WaitPlan.COMMITTED): CommandResult {
+        val context = context(CONTEXT)
+        val requestId = "${ref.id}-${body.javaClass.simpleName}"
+        return context.coordinator.execute(
+            context.models.first { it.type == ref.type },
+            Command(requestId, requestId, ref, body, wait = wait),
+        )
+    }
+
+    @Test
+    fun `each group keeps its aggregates, its partition sequences and its checkpoints`(): Unit = runBlocking {
+        val node = node("node-1").also { it.start() }
+        node.send(ORDER.ref(TENANT, "o-1"), Place(delayMillis = 60_000)).status.assert()
+            .isEqualTo(CommandResult.Status.SUCCEEDED)
+        node.send(INVOICE.ref(TENANT, "i-1"), Issue(delayMillis = 60_000)).status.assert()
+            .isEqualTo(CommandResult.Status.SUCCEEDED)
+        val default = stores.default
+        val invoices = stores.invoices
+        default.log.read(ORDER.ref(TENANT, "o-1")).toList().assert().hasSize(1)
+        default.log.read(INVOICE.ref(TENANT, "i-1")).toList().assert().isEmpty()
+        invoices.log.read(INVOICE.ref(TENANT, "i-1")).toList().assert().hasSize(1)
+        invoices.log.read(ORDER.ref(TENANT, "o-1")).toList().assert().isEmpty()
+        // Each group's partition sequence starts at 1 on its own.
+        val invoicePartition = Partitioner.partitionOf(INVOICE.ref(TENANT, "i-1"), PARTITIONS)
+        invoices.log.tail(invoicePartition, null).first().position.sequence.assert().isEqualTo(1L)
+        node.context(CONTEXT).log.read(INVOICE.ref(TENANT, "i-1")).toList().assert().hasSize(1)
+        eventually { projected.containsAll(listOf("order:o-1@1", "invoice:i-1@1")) }
+        val groups = node.context(CONTEXT).logGroups
+        groups.map { it.store }.assert().containsExactly(DEFAULT_STORE, INVOICE_STORE)
+        groups.map { it.types }.assert().containsExactly(setOf(ORDER), setOf(INVOICE))
+        groups.last().subscriptions.group.assert().isEqualTo("$SERVICE/$CONTEXT#$INVOICE_STORE")
+        groups.forEach { it.subscriptions.subscriptionNames.assert().contains(PROJECTOR) }
+        eventually { invoices.checkpoints.load("$SERVICE/$CONTEXT#$INVOICE_STORE", PROJECTOR, invoicePartition) == 1L }
+        default.checkpoints.load("$SERVICE/$CONTEXT#$INVOICE_STORE", PROJECTOR, invoicePartition).assert().isNull()
+    }
+
+    @Test
+    fun `a wait follows each group's subscriptions, a duplicate request answered by its group`(): Unit = runBlocking {
+        val node = node("node-1").also { it.start() }
+        val invoice = INVOICE.ref(TENANT, "i-2")
+        node.send(invoice, Issue(delayMillis = 60_000), WaitPlan.SNAPSHOT).status.assert()
+            .isEqualTo(CommandResult.Status.SUCCEEDED)
+        eventually { stores.snapshots.load(invoice)?.version == 1 }
+        val again = node.send(invoice, Issue(delayMillis = 60_000), WaitPlan.SNAPSHOT)
+        again.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        node.context(CONTEXT).log.findByRequestId(TENANT, "i-2-Issue")?.ref.assert().isEqualTo(invoice)
+    }
+
+    @Test
+    fun `each group's timers are in its store, and sent`(): Unit = runBlocking {
+        val node = node("node-1").also { it.start() }
+        node.send(ORDER.ref(TENANT, "o-3"), Place(delayMillis = 100))
+        node.send(INVOICE.ref(TENANT, "i-3"), Issue(delayMillis = 100))
+        eventually { stores.default.timers.find(Timers.ownerOf(ORDER.ref(TENANT, "o-3")), DUE)?.status == TimerStatus.FIRED }
+        eventually {
+            stores.invoices.timers.find(Timers.ownerOf(INVOICE.ref(TENANT, "i-3")), DUE)?.status == TimerStatus.FIRED
+        }
+        stores.default.timers.find(Timers.ownerOf(INVOICE.ref(TENANT, "i-3")), DUE).assert().isNull()
+        stores.invoices.log.read(INVOICE.ref(TENANT, "i-3")).toList().map { it.events.single().name }.assert()
+            .containsExactly("$CONTEXT.invoice.Issued", "$CONTEXT.invoice.Closed")
+        node.context(CONTEXT).ownership.owned.forEach { partition ->
+            node.context(CONTEXT).logGroups.forEach { group ->
+                group.timers!!.runner.partitions.assert().contains(partition)
+                group.subscriptions.partitions.assert().contains(partition)
+            }
+        }
+    }
+
+    @Test
+    fun `the next owner reads both groups on from their checkpoints and sends both groups' timers`(): Unit =
+        runBlocking {
+            val first = node("node-1").also { it.start() }
+            first.send(ORDER.ref(TENANT, "o-4"), Place(delayMillis = 1_500))
+            first.send(INVOICE.ref(TENANT, "i-4"), Issue(delayMillis = 1_500))
+            eventually { projected.containsAll(listOf("order:o-4@1", "invoice:i-4@1")) }
+            first.stop()
+            first.context(CONTEXT).logGroups.forEach { group ->
+                group.timers!!.runner.partitions.assert().isEmpty()
+                group.subscriptions.partitions.assert().isEmpty()
+            }
+            val second = node("node-2").also { it.start() }
+            eventually {
+                stores.invoices.timers.find(Timers.ownerOf(INVOICE.ref(TENANT, "i-4")), DUE)?.status == TimerStatus.FIRED &&
+                    stores.default.timers.find(Timers.ownerOf(ORDER.ref(TENANT, "o-4")), DUE)?.status == TimerStatus.FIRED
+            }
+            eventually { projected.containsAll(listOf("order:o-4@2", "invoice:i-4@2")) }
+            // Neither group's first entries were handled again: each group's checkpoint was saved on the hand-off.
+            projected.count { it == "invoice:i-4@1" }.assert().isEqualTo(1)
+            projected.count { it == "order:o-4@1" }.assert().isEqualTo(1)
+            second.context(CONTEXT).ownership.owned.assert().hasSize(PARTITIONS)
+        }
+
+    @Test
+    fun `a parked aggregate of a group is in its group's ledger, and resumed there`(): Unit = runBlocking {
+        val node = node("node-1").also { it.start() }
+        val poison = INVOICE.ref(TENANT, POISON)
+        node.send(poison, Issue(delayMillis = 60_000))
+        eventually { stores.invoices.ledger.isParked(PROJECTOR, poison) }
+        stores.default.ledger.isParked(PROJECTOR, poison).assert().isFalse()
+        node.parked.get(PROJECTOR, poison)?.entry?.ref.assert().isEqualTo(poison)
+        node.parked.list(PROJECTOR).entries.map { it.entry.ref }.assert().containsExactly(poison)
+        node.parked.skip(PROJECTOR, poison).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
+        stores.invoices.ledger.isParked(PROJECTOR, poison).assert().isFalse()
+    }
+
+    @Test
+    fun `a group that holds a type of no model of its context is refused`() {
+        val wrong = object : BackendFactory {
+            override fun backends(context: String): ContextBackends = stores.backends(context).let {
+                it.copy(groups = listOf(it.groups.single().copy(types = setOf(AggregateType(CONTEXT, "ghost")))))
+            }
+        }
+        assertThrows<IllegalArgumentException> { node("node-1", wrong) }.message.assert().contains("ghost")
+    }
+
+    @Test
+    fun `the context's backends refuse groups that do not add up`() {
+        val base = stores.backends(CONTEXT)
+        val group = base.groups.single()
+        assertThrows<IllegalArgumentException> { base.copy(groups = listOf(group, group.copy(store = "c"))) }
+        assertThrows<IllegalArgumentException> { base.copy(groups = listOf(group.copy(store = DEFAULT_STORE))) }
+        assertThrows<IllegalArgumentException> { base.copy(groups = listOf(group.copy(log = InMemoryEventLog(2)))) }
+        assertThrows<IllegalArgumentException> { base.copy(groups = listOf(group.copy(timers = null))) }
+        assertThrows<IllegalArgumentException> { group.copy(types = emptySet()) }
+        assertThrows<IllegalArgumentException> { group.copy(store = " ") }
+        assertThrows<IllegalArgumentException> { base.copy(store = "") }
+    }
+
+    /** One store's parts, in memory. */
+    class MemoryStore {
+        val log = InMemoryEventLog(PARTITIONS)
+        val checkpoints = InMemoryCheckpointStore()
+        val ledger = InMemoryFailureLedger()
+        val timers = InMemoryTimerStore()
+    }
+
+    /** The context's orders on the default store, its invoices on a store of their own; one lease store. */
+    class GroupedStores : BackendFactory {
+        val default = MemoryStore()
+        val invoices = MemoryStore()
+        val snapshots = InMemorySnapshotStore()
+        private val leases = InMemoryLeaseStore()
+        private val opened = ConcurrentHashMap<String, ContextBackends>()
+
+        override fun backends(context: String): ContextBackends = opened.computeIfAbsent(context) {
+            ContextBackends(
+                log = default.log,
+                checkpoints = default.checkpoints,
+                leases = leases,
+                ledger = default.ledger,
+                snapshots = snapshots,
+                timers = default.timers,
+                store = DEFAULT_STORE,
+                groups = listOf(
+                    LogGroupBackends(
+                        INVOICE_STORE,
+                        setOf(INVOICE),
+                        invoices.log,
+                        invoices.checkpoints,
+                        invoices.ledger,
+                        invoices.timers,
+                    ),
+                ),
+            )
+        }
+    }
+
+    data class Place(val delayMillis: Long)
+    data class Issue(val delayMillis: Long)
+    data class Close(val reason: String = "due")
+    data class Placed(val delayMillis: Long)
+    data class Issued(val delayMillis: Long)
+    data class Closed(val reason: String)
+
+    class Item {
+        var closed: Boolean = false
+    }
+
+    private companion object {
+        const val SERVICE = "grouped-service"
+        const val CONTEXT = "sales"
+        const val TENANT = "t"
+        const val PARTITIONS = 4
+        const val DEFAULT_STORE = "orders-store"
+        const val INVOICE_STORE = "invoices-store"
+        const val PROJECTOR = "Projector.onEvent"
+        const val POISON = "poison"
+        const val DUE = "due"
+        val ORDER = AggregateType(CONTEXT, "order")
+        val INVOICE = AggregateType(CONTEXT, "invoice")
+
+        /** An aggregate created by [create] that closes itself [Close] when its schedule `due` is. */
+        inline fun <reified C : Any, reified E : Any> item(
+            name: String,
+            crossinline delay: (C) -> Long,
+            crossinline created: (C) -> E,
+        ): AggregateModel<Item> = aggregate<Item>(CONTEXT, name) {
+            initial { Item() }
+            decide<C>(Creation.REQUIRED) { _, body ->
+                schedule(DUE, delay(body).milliseconds, Close())
+                Decision.events(created(body))
+            }
+            decide<Close> { state, body ->
+                if (state.closed) Decision.NoOp else Decision.events(Closed(body.reason))
+            }
+            evolve<E> { }
+            evolve<Closed> { closed = true }
+        }
+
+        fun orderModel(): AggregateModel<Item> = item<Place, Placed>(
+            "order",
+            { it.delayMillis }
+        ) { Placed(it.delayMillis) }
+
+        fun invoiceModel(): AggregateModel<Item> = item<Issue, Issued>(
+            "invoice",
+            { it.delayMillis }
+        ) { Issued(it.delayMillis) }
+
+        fun manifest(): Manifest = Manifest(
+            service = ServiceInfo(SERVICE),
+            contexts = listOf(
+                ContextManifest(
+                    CONTEXT,
+                    aggregates = listOf(
+                        aggregateManifest("order", Place::class.java, Placed::class.java),
+                        aggregateManifest("invoice", Issue::class.java, Issued::class.java),
+                    ),
+                ),
+            ),
+        )
+
+        fun aggregateManifest(name: String, create: Class<*>, created: Class<*>): AggregateManifest = AggregateManifest(
+            name,
+            state = StateManifest(Manifest.schemaRef(Item::class.java.name)),
+            commands = listOf(create to ManifestCreation.REQUIRED, Close::class.java to ManifestCreation.NONE)
+                .map { (command, creation) ->
+                    CommandManifest(command.simpleName, schema = Manifest.schemaRef(command.name), creation = creation)
+                },
+            events = listOf(created, Closed::class.java).map {
+                EventManifest(it.simpleName, schema = Manifest.schemaRef(it.name))
+            },
+            lifecycle = Lifecycle.COMMANDS.keys.toList(),
+        )
+    }
+}

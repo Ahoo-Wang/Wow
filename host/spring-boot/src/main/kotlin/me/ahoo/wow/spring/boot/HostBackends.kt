@@ -13,13 +13,8 @@
 
 package me.ahoo.wow.spring.boot
 
-import me.ahoo.wow.kernel.InMemoryCheckpointStore
-import me.ahoo.wow.kernel.InMemoryEventLog
-import me.ahoo.wow.kernel.InMemoryFailureLedger
-import me.ahoo.wow.kernel.InMemoryLeaseStore
-import me.ahoo.wow.kernel.InMemoryReservationStore
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.InMemorySnapshotStore
-import me.ahoo.wow.kernel.InMemoryTimerStore
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
@@ -32,14 +27,18 @@ import java.util.concurrent.CopyOnWriteArrayList
  * each context's stores from, remembering what it opened, so that the state reads find a context's stores and the
  * backend lifecycle ([WowLifecycles.BACKENDS_PHASE]) creates their schemas before the node starts.
  *
- * [kind] is the backend the host selected, or null for the application's own [BackendFactory] bean, whose schemas
- * are the application's; [appendQueue] is the backend's preset of the partition append queue. [shared] creates the
- * schemas of the stores the contexts share; [open] opens a context's stores and adds what creates their schemas.
+ * [kind] is the backend the host selected (memory when any log is in memory, else the default log store's), or null
+ * for the application's own [BackendFactory] bean, whose schemas are the application's; [appendQueue] is the backends'
+ * preset of the partition append queue. [shared] creates the schemas of the stores the contexts share; [open] opens a
+ * context's stores and adds what creates their schemas. [stores] are the node's store instances by name, and [layout]
+ * where each aggregate's log and snapshots are (decision D177), when the host opened them.
  */
 class HostBackends(
     val kind: BackendKind?,
     val appendQueue: AppendQueueOptions,
     shared: List<() -> Unit> = emptyList(),
+    val stores: Map<String, HostStore> = emptyMap(),
+    val layout: StoreLayout? = null,
     private val open: (context: String, schemas: MutableList<() -> Unit>) -> ContextBackends,
 ) {
     private val opened = ConcurrentHashMap<String, ContextBackends>()
@@ -58,6 +57,9 @@ class HostBackends(
         schemas.forEach { it() }
     }
 
+    /** The store instance [type]'s snapshots are on, when the host opened its stores. */
+    fun snapshotStoreOf(type: AggregateType): HostStore? = layout?.let { stores[it.snapshotStoreOf(type)] }
+
     companion object {
         /**
          * In memory, each context its own log, snapshots and timers: for one node, whose data does not outlive it.
@@ -68,21 +70,34 @@ class HostBackends(
             partitions: Int,
             snapshots: (context: String) -> SnapshotStore = { InMemorySnapshotStore() },
         ): HostBackends {
-            val checkpoints = InMemoryCheckpointStore()
-            val leases = InMemoryLeaseStore()
-            val ledger = InMemoryFailureLedger()
-            val reservations = InMemoryReservationStore()
-            return HostBackends(BackendKind.MEMORY, AppendQueueOptions()) { context, _ ->
-                ContextBackends(
-                    log = InMemoryEventLog(partitions),
-                    checkpoints = checkpoints,
-                    leases = leases,
-                    ledger = ledger,
-                    snapshots = snapshots(context),
-                    reservations = reservations,
-                    timers = InMemoryTimerStore(),
-                )
+            val store = MemoryStore(ContextBackends.DEFAULT_STORE, snapshots)
+            return of(mapOf(store.name to store), StoreLayout(store.name), partitions)
+        }
+
+        /**
+         * The node's [stores] by name, each context's stores opened as [layout] says (decision D177), its logs of
+         * [partitions] partitions. The append queue is MongoDB's preset when a log is on MongoDB, else PostgreSQL's
+         * when one is on PostgreSQL.
+         */
+        fun of(stores: Map<String, HostStore>, layout: StoreLayout, partitions: Int): HostBackends {
+            val logs = layout.logStores.map(stores::getValue)
+            val kind = if (logs.any { it.kind == BackendKind.MEMORY }) {
+                BackendKind.MEMORY
+            } else {
+                stores.getValue(layout.log).kind
             }
+            val appendQueue = when {
+                logs.any { it.kind == BackendKind.MONGO } -> AppendQueueOptions.MONGO
+                logs.any { it.kind == BackendKind.POSTGRES } -> AppendQueueOptions.POSTGRES
+                else -> AppendQueueOptions()
+            }
+            return HostBackends(
+                kind,
+                appendQueue,
+                stores.values.map { store -> { store.createSchemas() } },
+                stores,
+                layout,
+            ) { context, _ -> layout.open(context, stores, partitions) }
         }
 
         /** The application's own [factory]: the host neither selects nor prepares its stores. */
