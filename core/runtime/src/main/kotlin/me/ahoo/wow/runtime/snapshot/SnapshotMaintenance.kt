@@ -58,8 +58,9 @@ class LogProgress(val group: String, val log: EventLog, val checkpoints: Checkpo
  *   from the log, page by page, at their latest version, and marks the table rebuilt once none is left. A node of
  *   another revision marks the table rebuilding on each run, so the stale marks its refused saves leave are rewritten.
  * - **Backfill**: a target that has not caught up with the log since it was first claimed is filled from the beginning
- *   of the log, by its store's subscription when that one has no checkpoint yet, else by a subscription of its own
- *   ([backfills], `<store subscription>#<aggregate>`) that stops writing once the target caught up. A target caught up
+ *   of the log, by its store's subscription when that one has no checkpoint yet or is `snapshot` (the default store's,
+ *   which wrote every type from the beginning before targets existed), else by a subscription of its own ([prepare],
+ *   `<store subscription>#<aggregate>`) that stops writing once the target caught up. A target caught up
  *   once its subscription's checkpoint in every partition reached the log's head of the previous run; the table is
  *   then marked backfilled.
  * - **Rebuild requests**: the built-in subscription [REBUILD_SUBSCRIPTION] rewrites, from the log, the snapshots each
@@ -128,7 +129,9 @@ class SnapshotMaintenance(
                 val table = claim(store, type)
                 if (!table.backfilled) {
                     val subscription = targets.subscriptionOf(store)
-                    if (progress.any { hasCheckpoint(it, subscription) }) {
+                    // The default store's subscription, `snapshot`, has written every type from the beginning since
+                    // before targets: another store's, past the beginning, has not written this one from it.
+                    if (store != targets.default && progress.any { hasCheckpoint(it, subscription) }) {
                         val backfill = backfillOf(store, type)
                         tracked[store to type] = backfill.name
                         backfills += backfill
@@ -141,10 +144,11 @@ class SnapshotMaintenance(
         return backfills
     }
 
-    /** Runs [maintain] every interval in [scope] until [stop]. */
+    /** Runs [maintain] every interval in [scope], the first one an interval after [prepare], until [stop]. */
     fun start(scope: CoroutineScope) {
         loop = scope.launch {
             while (isActive) {
+                delay(options.interval)
                 try {
                     maintain()
                 } catch (cancelled: CancellationException) {
@@ -155,7 +159,6 @@ class SnapshotMaintenance(
                 ) {
                     logger.warn(failure) { "The snapshot maintenance of $context failed; it runs again." }
                 }
-                delay(options.interval)
             }
         }
     }
