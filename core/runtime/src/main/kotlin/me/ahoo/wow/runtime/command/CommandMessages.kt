@@ -47,14 +47,19 @@ import me.ahoo.wow.spi.wait.WaitContext
 object CommandMessages {
     private val mapper = ClusterCodec.mapper
 
-    /** The message of [wire] in [partition], carrying [wait]. */
-    fun command(wire: CommandWire, partition: Int, wait: WaitContext? = null): TopicMessage {
+    /** The message of [wire] in [partition], carrying [wait] and the propagation fields of its [trace] (D174). */
+    fun command(
+        wire: CommandWire,
+        partition: Int,
+        wait: WaitContext? = null,
+        trace: Map<String, String> = emptyMap(),
+    ): TopicMessage {
         val envelope = Envelope(
             kind = EnvelopeKind.COMMAND,
             id = wire.id,
             type = wire.type,
             payload = mapper.valueToTree(wire),
-            transport = wait?.let { Transport(wait = it) },
+            transport = transportOf(wait, trace),
         )
         return EnvelopeCodec.message(wire.ref.toString(), envelope).let {
             TopicMessage(it.key, it.value, it.headers, partition)
@@ -67,8 +72,8 @@ object CommandMessages {
         return mapper.treeToValue(envelope.payload, CommandWire::class.java)
     }
 
-    /** The receipt of [rejected]. */
-    fun receipt(rejected: CommandRejected<*>): TopicMessage {
+    /** The receipt of [rejected], carrying the propagation fields of its [trace] (decision D174). */
+    fun receipt(rejected: CommandRejected<*>, trace: Map<String, String> = emptyMap()): TopicMessage {
         val envelope = Envelope(
             kind = EnvelopeKind.COMMAND_RECEIPT,
             id = rejected.commandId,
@@ -85,9 +90,14 @@ object CommandMessages {
                     rejected.scope,
                 ),
             ),
+            transport = transportOf(null, trace),
         )
         return EnvelopeCodec.message(rejected.executionId.ref.toString(), envelope)
     }
+
+    /** The transport of a message: [wait] and [trace]; null when it has neither. */
+    private fun transportOf(wait: WaitContext?, trace: Map<String, String>): Transport? =
+        if (wait == null && trace.isEmpty()) null else Transport(wait = wait, trace = trace)
 
     /** The rejection the receipt [envelope] holds. */
     fun rejectedOf(envelope: Envelope): CommandRejected<Any> {

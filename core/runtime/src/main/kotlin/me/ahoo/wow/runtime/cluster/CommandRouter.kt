@@ -15,6 +15,8 @@ package me.ahoo.wow.runtime.cluster
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
@@ -22,10 +24,13 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.runtime.wait.Settlement
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.subscription.Member
 import me.ahoo.wow.spi.wait.WaitContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -119,6 +124,7 @@ class PartitionedRouter(
                 command = ClusterCodec.wire(model, command),
                 wait = wait?.let(WaitWire::of),
                 deadline = deadline,
+                trace = currentCoroutineContext().trace,
             )
             val reply = withTimeoutOrNull((deadline - now).coerceAtLeast(0).milliseconds) {
                 channel.forward(peer.address, request)
@@ -157,17 +163,26 @@ class PartitionedRouter(
  * ([PartitionOwnership.pending]); a command of a context without a group in [groups] runs as under `Local`. It
  * refuses a partition it neither holds nor is about to hold, a forward past its deadline, and a type it does not
  * know; the sender then runs the command itself. It never forwards again.
+ *
+ * The command executes in the trace it was forwarded with ([ForwardCommand.trace]), which [observer] resumes
+ * (decision D174).
  */
 class ForwardEndpoint(
     private val coordinator: WaitCoordinator,
     models: Collection<AggregateModel<*>>,
     groups: Collection<PartitionOwnership>,
     private val clock: () -> Long = System::currentTimeMillis,
+    private val observer: Observer = Observer.NONE,
 ) : ClusterChannelHandler {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val groups: Map<String, PartitionOwnership> = groups.associateBy { it.group.context }
 
     override suspend fun forward(request: ForwardCommand): ForwardReply {
+        val trace = observer.resuming(request.trace)
+        return if (trace === EmptyCoroutineContext) forwarded(request) else withContext(trace) { forwarded(request) }
+    }
+
+    private suspend fun forwarded(request: ForwardCommand): ForwardReply {
         if (clock() > request.deadline) {
             return ForwardReply.refused(Refusal.EXPIRED)
         }

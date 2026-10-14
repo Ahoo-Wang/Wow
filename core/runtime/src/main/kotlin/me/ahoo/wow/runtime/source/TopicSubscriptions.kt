@@ -39,6 +39,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.subscription.retryForever
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.ledger.FailureLedger
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.transport.PartitionedSource
@@ -95,6 +96,8 @@ class TopicSubscriptions internal constructor(
     private val notifier: ParkedNotifier = ParkedNotifier.NONE,
     /** How often the topic's partitions are read again, for those added; never when infinite. */
     private val partitionRefresh: Duration = Duration.INFINITE,
+    /** Sees each message its subscriptions consume (decision D174). */
+    private val observer: Observer = Observer.NONE,
 ) {
     @Suppress("LongParameterList") // The parts of the subscriptions, as the primary constructor takes them.
     constructor(
@@ -114,6 +117,7 @@ class TopicSubscriptions internal constructor(
         signals: SignalSender = SignalSender.NONE,
         notifier: ParkedNotifier = ParkedNotifier.NONE,
         partitionRefresh: Duration = Duration.INFINITE,
+        observer: Observer = Observer.NONE,
     ) : this(
         service,
         topic,
@@ -132,6 +136,7 @@ class TopicSubscriptions internal constructor(
         { partitions -> TopicEntries(topic, source, partitions) },
         notifier,
         partitionRefresh,
+        observer,
     )
 
     /** The lease group of the topic's partitions: `(service, "topic:<topic>")`. */
@@ -203,6 +208,7 @@ class TopicSubscriptions internal constructor(
             context,
             signals,
             notifier,
+            observer,
         )
         val ownership = PartitionOwnership(group, node, addressOf, partitions, leases, cluster, runtime, context)
         ownership.start()

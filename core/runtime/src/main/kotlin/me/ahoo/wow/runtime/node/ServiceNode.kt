@@ -79,6 +79,7 @@ import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerStore
@@ -279,6 +280,11 @@ class ServiceNode(
     private val parkedNotifier: ParkedNotifier = ParkedNotifier.NONE,
     /** The clock the node's timers fire by (decision D198): the system's, unless a test moves it. */
     clock: Clock = Clock.systemUTC(),
+    /**
+     * Sees the node's work (decision D174): admissions, executions, decisions, appends, the handling of every
+     * subscription and the firing of timers; nothing by default.
+     */
+    private val observer: Observer = Observer.NONE,
 ) {
     init {
         require(service.isNotBlank()) { "A node names its service." }
@@ -377,6 +383,7 @@ class ServiceNode(
         committed = { type, tenantId, requestId ->
             contexts[type.context]?.log?.findByRequestId(type, tenantId, requestId)
         },
+        observer = observer,
     )
 
     /**
@@ -663,6 +670,7 @@ class ServiceNode(
                 signals = signals,
                 notifier = parkedNotifier,
                 partitionRefresh = topics!!.partitionRefresh,
+                observer = observer,
             )
         }
     }
@@ -696,6 +704,7 @@ class ServiceNode(
                 notifier = parkedNotifier,
                 entries = { partitions -> MessageEntries.receipts(topic, sources.source, partitions) },
                 partitionRefresh = sources.partitionRefresh,
+                observer = observer,
             )
         }.toMap()
     }
@@ -714,6 +723,7 @@ class ServiceNode(
                 options = options.subscription,
                 signals = signals,
                 notifier = parkedNotifier,
+                observer = observer,
             )
         }
 
@@ -804,6 +814,7 @@ class ServiceNode(
             options.subscription,
             signals = signals,
             notifier = parkedNotifier,
+            observer = observer,
         )
         return LogGroupNode(part.store, part.types, part.log, runtime, timers)
     }
@@ -849,6 +860,7 @@ class ServiceNode(
             commandTypes = names,
             ids = admission.ids,
             maxEarlyWait = options.timers.maxEarlyWait,
+            observer = observer,
         )
 
     /**
@@ -935,8 +947,8 @@ class ServiceNode(
                 router = router,
                 topicRouter = topicRouterOf(context, backends),
             )
-            val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership))
-            firing.firer = ContextTimerFirer(models, coordinator, sender)
+            val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership), observer = observer)
+            firing.firer = ContextTimerFirer(models, coordinator, sender, observer)
             return ContextNode(
                 context,
                 models,

@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.command
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.currentCoroutineContext
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.ErrorInfo
@@ -26,6 +27,7 @@ import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.wait.WaitCoordinator
+import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicProducer
 import me.ahoo.wow.spi.wait.WaitContext
@@ -111,7 +113,9 @@ class CommandIntake internal constructor(
             operator = wire.operator,
             scope = wire.scope,
         )
-        producer.send(topics.receiptsOf(replyTo.context), CommandMessages.receipt(rejected))
+        // The receipt goes on in the trace the command was executed in (decision D174).
+        val trace = currentCoroutineContext().trace
+        producer.send(topics.receiptsOf(replyTo.context), CommandMessages.receipt(rejected, trace))
     }
 
     companion object {

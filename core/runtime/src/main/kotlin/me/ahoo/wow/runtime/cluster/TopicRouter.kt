@@ -13,11 +13,13 @@
 
 package me.ahoo.wow.runtime.cluster
 
+import kotlinx.coroutines.currentCoroutineContext
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.runtime.command.CommandMessages
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.transport.TopicProducer
 import me.ahoo.wow.spi.wait.WaitContext
 
@@ -47,10 +49,14 @@ class TopicRouter(
     /** Whether the commands of [type] go through the command topic. */
     fun routes(type: AggregateType): Boolean = type in types
 
-    /** Writes [command], of [model]'s aggregate, to the command topic with [wait], and waits for the broker. */
+    /**
+     * Writes [command], of [model]'s aggregate, to the command topic with [wait] and the trace it is sent in (decision
+     * D174), and waits for the broker.
+     */
     suspend fun send(model: AggregateModel<*>, command: Command<*>, wait: WaitContext?) {
         require(routes(command.ref.type)) { "${command.ref.type} is not routed through $topic." }
         val partition = Partitioner.partitionOf(command.ref, partitions)
-        producer.send(topic, CommandMessages.command(ClusterCodec.wire(model, command), partition, wait))
+        val trace = currentCoroutineContext().trace
+        producer.send(topic, CommandMessages.command(ClusterCodec.wire(model, command), partition, wait, trace))
     }
 }

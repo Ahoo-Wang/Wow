@@ -48,7 +48,7 @@ import me.ahoo.wow.spi.transport.SourceMessage
  *   they handled ([repeats]).
  */
 internal class TopicEntries(
-    val topic: String,
+    override val topic: String,
     private val source: PartitionedSource,
     private val partitions: Int,
 ) : EntrySource {
