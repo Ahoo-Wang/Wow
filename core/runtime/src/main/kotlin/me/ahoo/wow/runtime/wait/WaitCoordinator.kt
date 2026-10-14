@@ -218,9 +218,11 @@ class WaitCoordinator(
      * the flow is collected.
      *
      * - The flow completes after the final result, the last one emitted: the last hop's last command, a saga hop that
-     *   derived nothing, the first failure or rejection of any command on the chain (emitted at once, with nothing
-     *   after it), a duplicate stopped at its last known hop, or a timeout ([ResultCodes.WAIT_TIMEOUT], at the last
-     *   hop completed). A plan rejected at admission emits only that rejection, at ACCEPTED.
+     *   derived nothing before the plan's last hop (marked [CommandResult.chainEnded], with the hops not reached as
+     *   [CommandResult.pending], decision D212), the first failure or rejection of any command on the chain (emitted
+     *   at once, with nothing after it), a duplicate stopped at its last known hop, or a timeout
+     *   ([ResultCodes.WAIT_TIMEOUT], at the last hop completed). A plan rejected at admission emits only that
+     *   rejection, at ACCEPTED.
      * - A plan whose only hop is ACCEPTED still runs the command before the flow completes; [accept] answers it at
      *   once instead (decision D100).
      * - The timeout bounds the execution too (decision D64): a command whose outcome is not known by the deadline ends

@@ -156,7 +156,7 @@ class CrossContextWaitTest {
         aggregates = listOf("sales.order"),
     ) { event, _ -> boarded += event }
 
-    /** Picks an order: reserves its quantity of the item `picked-<order>`. */
+    /** Picks an order: reserves its quantity of the item `picked-<order>`; an order of nothing derives nothing. */
     private val picker = ProcessorBinding.saga<OrderView>(
         "Picker",
         "onOrder",
@@ -164,7 +164,13 @@ class CrossContextWaitTest {
         startFrom = StartFrom.BEGINNING,
         aggregates = listOf("sales.order"),
     ) { event, context ->
-        listOf(context.command(ITEM.ref(event.ref.tenantId, "picked-${event.ref.id}"), Reserve(event.state.quantity)))
+        if (event.state.quantity == 0) {
+            emptyList()
+        } else {
+            listOf(
+                context.command(ITEM.ref(event.ref.tenantId, "picked-${event.ref.id}"), Reserve(event.state.quantity))
+            )
+        }
     }
 
     private fun stockNode(): ServiceNode = ServiceNode(
@@ -328,6 +334,24 @@ class CrossContextWaitTest {
             results.first().function.context.assert().isEqualTo(STOCK)
             results.first().derived.assert().containsExactly(results.last().commandId)
             results.last().ref.assert().isEqualTo(ITEM.ref(TENANT, "picked-o-4"))
+        }
+
+    @Test
+    fun `a saga of the other context deriving nothing should end the chain early at its hop (D212)`(): Unit =
+        runBlocking {
+            val sales = started()
+            val results = sales.place("o-6", 0, Hop.handled(PICKER, STOCK), Hop.committed(STOCK)).toList()
+            val ended = results.single()
+            ended.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            ended.hop.assert().isEqualTo(Hop.handled(PICKER, STOCK))
+            ended.function.context.assert().isEqualTo(STOCK)
+            ended.derived.assert().isEmpty()
+            ended.chainEnded.assert().isTrue()
+            ended.pending.assert().containsExactly(Hop.committed(STOCK))
+            // The stock node signalled the saga's hop as it was: the chain's end is the origin's to tell.
+            signalled.filter { it.result.hop == Hop.handled(PICKER, STOCK) }.map { it.result.chainEnded }
+                .assert().isNotEmpty().doesNotContain(true)
+            sales.waits.size.assert().isEqualTo(0)
         }
 
     @Test

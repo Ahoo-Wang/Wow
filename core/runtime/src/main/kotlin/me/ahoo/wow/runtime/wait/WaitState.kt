@@ -24,8 +24,9 @@ import me.ahoo.wow.api.result.Stage
  *
  * The [hops] are split into generations: the root command's, then, after each saga hop, the commands that saga
  * derived. A hop completes when every command of its generation has reached it; a saga hop's results name the next
- * generation (`derived`), and an empty one completes the chain at once. A failure of any command of the current
- * generation fails the wait at once.
+ * generation (`derived`), and an empty one ends the chain at once, short of its plan when hops remain (decision D212):
+ * the final result is the saga hop's, marked [CommandResult.chainEnded], with the hops not reached as
+ * [CommandResult.pending]. A failure of any command of the current generation fails the wait at once.
  *
  * Each command's result at the hop its generation waits for is emitted as it applies, so a hop of N commands emits N
  * results, the last of them completing it; the stream of a chain shows each derived command as it settles.
@@ -125,7 +126,9 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
                     completed += result
                 }
                 if (reached.keys.containsAll(generation)) {
-                    complete()
+                    // A hop completes only with the first result of its last command, emitted just now: a chain
+                    // that ended early ends with that result marked as its end, not with one more result (D212).
+                    complete()?.let { ended -> completed[completed.lastIndex] = ended }
                     true
                 } else {
                     false
@@ -165,8 +168,12 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
     /**
      * Completes the current hop, whose results were already emitted one per command: the next generation is what the
      * saga hop's results derived together, and the hop as a whole, with all of them, is what a timeout reports.
+     *
+     * A saga hop that derived nothing, with hops still to come, ends the chain early (decision D212): the wait ends at
+     * this hop, with its own status, its result marked [CommandResult.chainEnded] and naming the hops not reached
+     * ([CommandResult.pending]). Returns that result; null when the chain goes on or reached its plan's last hop.
      */
-    private fun complete() {
+    private fun complete(): CommandResult? {
         val results = reached.values.toList()
         val saga = isSaga(index)
         val derived = if (saga) results.flatMapTo(LinkedHashSet()) { it.derived } else emptySet()
@@ -179,9 +186,14 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
             past += generation
             generation = derived
         }
-        if (index == hops.size || (saga && derived.isEmpty())) {
+        if (index == hops.size) {
             outcome = result
+        } else if (saga && derived.isEmpty()) {
+            return result.copy(chainEnded = true, pending = hops.subList(index, hops.size).toList()).also {
+                outcome = it
+            }
         }
+        return null
     }
 }
 

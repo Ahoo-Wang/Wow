@@ -301,6 +301,45 @@ describe('CommandGateway', () => {
     expect(requests[0].headers.get('Accept')).toBe('text/event-stream');
   });
 
+  it('reads a chain that ended before its plan, and an older server that says nothing of it', async () => {
+    const ended: CommandResult = {
+      ...result('SUCCEEDED', 'HANDLED'),
+      hop: {
+        stage: 'HANDLED',
+        context: 'eshop-payment',
+        subscription: 'OrderPaymentSaga.onPaymentSucceeded',
+      },
+      chainEnded: true,
+      pending: [{ stage: 'COMMITTED', context: 'eshop-ordering' }],
+    };
+    stubFetch(() =>
+      sseResponse(
+        `id:0\nevent:committed\ndata:${JSON.stringify(result())}\n\n` +
+          `id:1\nevent:handled\ndata:${JSON.stringify(ended)}\n\n`,
+      ),
+    );
+    const results = await readAll(
+      await new CommandGateway(client()).stream('/c/a/{id}/x', {}, { id: '1' }),
+    );
+    expect(results.map(r => r.chainEnded ?? false)).toEqual([false, true]);
+    expect(results[1].status).toBe('SUCCEEDED');
+    expect(results[1].pending).toEqual([
+      { stage: 'COMMITTED', context: 'eshop-ordering' },
+    ]);
+    expect(formatWaitPlan(results[1].pending!)).toBe(
+      'committed(eshop-ordering)',
+    );
+
+    stubFetch(() => jsonResponse(ended));
+    const answered = await new CommandGateway(client()).send(
+      '/c/a/{id}/x',
+      {},
+      { id: '1' },
+    );
+    expect(answered.chainEnded).toBe(true);
+    expect(answered.pending).toHaveLength(1);
+  });
+
   it('sends lifecycle commands to their routes', async () => {
     const { requests } = stubFetch(() => jsonResponse(result()));
     const gateway = new CommandGateway(client());

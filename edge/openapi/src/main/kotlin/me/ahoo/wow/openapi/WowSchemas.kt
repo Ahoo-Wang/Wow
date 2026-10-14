@@ -222,9 +222,12 @@ internal object WowSchemas {
             "derived" to array(STRING),
             "signalTime" to INTEGER,
             "transformedFrom" to nullable(schemaRef(TRANSFORMED_FROM)),
+            "chainEnded" to BOOLEAN,
+            "pending" to array(schemaRef(HOP)),
         ),
         listOf("format", "commandId", "requestId", "correlationId", "ref", "hop", "function", "status", "signalTime"),
-        "How a command ended at a hop of its wait (decision D59).",
+        "How a command ended at a hop of its wait (decision D59); `chainEnded` and `pending` (the hops not reached) " +
+            "mark a chain that ended before its plan did (decision D212).",
     )
 
     private fun aggregateRef(): Map<String, Any?> = objectSchema(

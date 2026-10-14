@@ -83,6 +83,10 @@ data class ErrorInfo(
  * - [signalTime] is when it was produced, in epoch milliseconds.
  * - [transformedFrom] is the command the request named when a transformer turned it into this one (decision D182);
  *   null when none did.
+ * - [chainEnded] marks the final result of a wait whose chain ended before its plan did (decision D212): a hop, such
+ *   as a saga's that derived no command (a declined payment, say), left nothing to reach the plan's later hops. The
+ *   result stays at that hop, with its own status: it is not the plan's last hop reached. [pending] lists the hops of
+ *   the plan that were not reached, in order; it is empty unless [chainEnded].
  */
 data class CommandResult(
     val format: Int = FORMAT,
@@ -100,10 +104,13 @@ data class CommandResult(
     val derived: List<String> = emptyList(),
     val signalTime: Long,
     val transformedFrom: TransformedFrom? = null,
+    val chainEnded: Boolean = false,
+    val pending: List<Hop> = emptyList(),
 ) {
     init {
         require(commandId.isNotBlank()) { "A result names its command." }
         require((status == Status.SUCCEEDED) == (error == null)) { "Only a result that did not succeed has an error." }
+        require(chainEnded == pending.isNotEmpty()) { "A chain that ended early names its pending hops, and only it." }
     }
 
     /** How a command ended at a hop. */

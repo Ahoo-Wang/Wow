@@ -170,10 +170,70 @@ class WaitStateTest {
     }
 
     @Test
-    fun `a saga deriving nothing completes the chain at once`() {
+    fun `a saga deriving nothing ends the chain early, at its own hop, naming the hops not reached (D212)`() {
+        val state = WaitState(listOf(saga, committed, snapshot), "root")
+        val ended = state.offer(result("root", saga, sagaFunction))!!.single()
+        ended.hop.assert().isEqualTo(saga)
+        ended.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        ended.chainEnded.assert().isTrue()
+        ended.pending.assert().containsExactly(committed, snapshot)
+        state.outcome.assert().isEqualTo(ended)
+        state.offer(result("d-1", committed)).assert().isNull()
+    }
+
+    @Test
+    fun `a saga hop of several commands deriving nothing ends the chain with its last command's result`() {
+        val second = Hop.handled("payment.saga", "shop")
+        val state = WaitState(listOf(saga, committed, second, committed), "root")
+        state.offer(result("root", saga, sagaFunction, derived = listOf("d-1", "d-2")))
+        state.offer(result("d-1", committed))
+        state.offer(result("d-2", committed))
+        state.offer(result("d-1", second, sagaFunction))!!.single().chainEnded.assert().isFalse()
+        val emitted = state.offer(result("d-2", second, sagaFunction))!!
+        // The hop's last result is the chain's end itself, not one more result after it.
+        emitted.map { it.commandId to it.chainEnded }.assert().containsExactly("d-2" to true)
+        emitted.single().pending.assert().containsExactly(committed)
+        state.outcome.assert().isEqualTo(emitted.single())
+    }
+
+    @Test
+    fun `a saga hop deriving nothing that arrived early ends the chain when it is replayed`() {
+        val state = WaitState(listOf(committed, saga, snapshot), "root")
+        state.offer(result("root", saga, sagaFunction))!!.assert().isEmpty()
+        val emitted = state.offer(result("root", committed))!!
+        emitted.map { it.hop to it.chainEnded }.assert().containsExactly(committed to false, saga to true)
+        emitted.last().pending.assert().containsExactly(snapshot)
+        state.outcome.assert().isEqualTo(emitted.last())
+    }
+
+    @Test
+    fun `a command reaching the hop again does not end the chain before the hop's last command`() {
+        val second = Hop.handled("payment.saga", "shop")
+        val other = FunctionInfo(FunctionKind.SAGA, "stock", "picker", "saga")
+        val state = WaitState(listOf(saga, committed, second, committed), "root")
+        state.offer(result("root", saga, sagaFunction, derived = listOf("d-1", "d-2")))
+        state.offer(result("d-1", committed))
+        state.offer(result("d-2", committed))
+        state.offer(result("d-1", second, sagaFunction))!!.single().chainEnded.assert().isFalse()
+        // The same command at the same hop through another function is taken, emitted once, and ends nothing.
+        state.offer(result("d-1", second, other))!!.assert().isEmpty()
+        state.outcome.assert().isNull()
+        val ended = state.offer(result("d-2", second, sagaFunction))!!.single()
+        ended.commandId.assert().isEqualTo("d-2")
+        ended.chainEnded.assert().isTrue()
+        ended.pending.assert().containsExactly(committed)
+    }
+
+    @Test
+    fun `a chain that reaches its last hop is not marked as ended early`() {
         val state = WaitState(listOf(saga, committed), "root")
-        state.offer(result("root", saga, sagaFunction))!!.single().hop.assert().isEqualTo(saga)
-        state.outcome!!.hop.assert().isEqualTo(saga)
+        state.offer(result("root", saga, sagaFunction, derived = listOf("d-1")))
+        val done = state.offer(result("d-1", committed))!!.single()
+        done.chainEnded.assert().isFalse()
+        done.pending.assert().isEmpty()
+        // A saga as the plan's last hop ends the plan, whatever it derived.
+        val last = WaitState(listOf(saga), "root")
+        last.offer(result("root", saga, sagaFunction))!!.single().chainEnded.assert().isFalse()
     }
 
     @Test

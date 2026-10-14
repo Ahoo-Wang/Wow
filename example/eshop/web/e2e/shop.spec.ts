@@ -144,9 +144,13 @@ test("the shop end to end: catalog, basket, checkout to payment, orders, shippin
     await expect(page.getByRole("status")).toBeVisible();
     await page.getByRole("link", { name: "Basket" }).click();
     await page.getByRole("button", { name: "Check out" }).click();
-    await expect(page.getByText(/the chain ended after 14 of 15 hops/)).toBeVisible({
-      timeout: 45_000,
-    });
+    // The server ends the chain at the payment saga's hop, which sent nothing for a declined payment (D212).
+    await expect(
+      page.getByText(
+        /the chain ended at handled\(eshop-payment\/OrderPaymentSaga\.onPaymentSucceeded\) without paying the order/,
+      ),
+    ).toBeVisible({ timeout: 45_000 });
+    await expect(page.getByText(/committed\(eshop-ordering\) will not come/)).toBeVisible();
     await page.getByRole("link", { name: "bob-1" }).click();
     await expect(page.getByTestId("order-status")).toHaveText("CANCELLED");
     await expect(page.getByTestId("payment")).toContainText("FAILED");
