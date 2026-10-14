@@ -47,7 +47,8 @@ declare module 'vitest' {
 const ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
 const SERVER = join(ROOT, 'platform/view-store/view-store-server/build');
 const MAIN = 'me.ahoo.wow.platform.viewstore.server.ViewStoreServerKt';
-const MEMORY_QUERIES = 'me.ahoo.wow.platform.viewstore.testing.MemorySnapshotQueries';
+const MEMORY_QUERIES =
+  'me.ahoo.wow.platform.viewstore.testing.MemorySnapshotQueries';
 /** How long the JVM may take to listen. */
 const START_DEADLINE_MS = 2 * 60_000;
 
@@ -131,12 +132,13 @@ function start(): Promise<{ url: string; child: ChildProcess }> {
   });
 }
 
-export default async function setup(
-  project: TestProject,
-): Promise<() => void> {
+export default async function setup(project: TestProject): Promise<() => void> {
   const given = process.env.WOW_V10_VIEW_STORE_URL;
   if (given) {
-    project.provide('v10ViewStoreURL', given.endsWith('/') ? given : `${given}/`);
+    project.provide(
+      'v10ViewStoreURL',
+      given.endsWith('/') ? given : `${given}/`,
+    );
     return () => {};
   }
   const { url, child } = await start();

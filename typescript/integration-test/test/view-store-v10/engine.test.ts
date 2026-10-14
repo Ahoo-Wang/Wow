@@ -261,7 +261,11 @@ describe('the view engine on the V10 store', () => {
   it('sets a personal view shared for a colleague, who takes it back as theirs', async () => {
     const { engine } = tabOf('dave');
     const view = await engine.save(
-      engine.create(VIEWS, { title: 'For the team', scope: 'personal', config }),
+      engine.create(VIEWS, {
+        title: 'For the team',
+        scope: 'personal',
+        config,
+      }),
     );
     const { engine: colleague } = tabOf('erin', [SHARED_WRITER]);
     expect(
@@ -279,9 +283,9 @@ describe('the view engine on the V10 store', () => {
 
     const claimed = await colleague.changeAudience(view.id, 'personal');
     expect(claimed).toMatchObject({ id: view.id, scope: 'personal' });
-    expect(
-      (await engine.list(VIEWS)).items.map(({ id }) => id),
-    ).not.toContain(view.id);
+    expect((await engine.list(VIEWS)).items.map(({ id }) => id)).not.toContain(
+      view.id,
+    );
     expect(pageSizeOf(await colleague.open(view.id))).toBe(5);
   });
 

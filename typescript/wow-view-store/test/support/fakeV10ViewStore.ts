@@ -55,9 +55,14 @@ export interface FakeDataset {
   title?: string;
   source: {
     paged(query: object): Promise<{ total: number; list: unknown[] }>;
-    cursor(query: object): Promise<{ list: unknown[]; nextCursor: string | null }>;
+    cursor(
+      query: object,
+    ): Promise<{ list: unknown[]; nextCursor: string | null }>;
     aggregate(query: object): Promise<unknown[]>;
-    describe?(): Promise<{ notModified: boolean; descriptor?: { version: string } }>;
+    describe?(): Promise<{
+      notModified: boolean;
+      descriptor?: { version: string };
+    }>;
   };
 }
 
@@ -134,7 +139,11 @@ class Answer {
   constructor(readonly response: Response) {}
 }
 
-function json(value: unknown, status = 200, headers: HeadersInit = {}): Response {
+function json(
+  value: unknown,
+  status = 200,
+  headers: HeadersInit = {},
+): Response {
   return new Response(JSON.stringify(value), {
     status,
     headers: { 'Content-Type': 'application/json', ...headers },
@@ -250,20 +259,44 @@ export function fakeV10ViewStore(
     const scope = headers.get('Wow-Scope');
     if (scope !== null) {
       const members = Object.fromEntries(
-        [...scope.matchAll(/(\w+)="((?:[^"\\]|\\.)*)"/g)].map(m => [m[1], m[2]]),
+        [...scope.matchAll(/(\w+)="((?:[^"\\]|\\.)*)"/g)].map(m => [
+          m[1],
+          m[2],
+        ]),
       );
       const names = Object.keys(members).sort().join(',');
       if (names === 'owner' && members.owner === SHARED)
-        return { tenantId: tenant, ownerId: SHARED, user, roles, app, reserved: true };
+        return {
+          tenantId: tenant,
+          ownerId: SHARED,
+          user,
+          roles,
+          app,
+          reserved: true,
+        };
       if (
         names === 'owner,tenant' &&
         members.owner === SYSTEM &&
         members.tenant === PLATFORM
       )
-        return { tenantId: PLATFORM, ownerId: SYSTEM, user, roles, app, reserved: true };
+        return {
+          tenantId: PLATFORM,
+          ownerId: SYSTEM,
+          user,
+          roles,
+          app,
+          reserved: true,
+        };
       fail(403, 'wow.auth.forbidden', 'The caller may not act in that scope.');
     }
-    return { tenantId: tenant, ownerId: user, user, roles, app, reserved: false };
+    return {
+      tenantId: tenant,
+      ownerId: user,
+      user,
+      roles,
+      app,
+      reserved: false,
+    };
   }
 
   function authorize(caller: Caller, name: AggregateName, command: string) {
@@ -298,8 +331,17 @@ export function fakeV10ViewStore(
         tenantId: aggregate.tenantId,
         id: aggregate.id,
       },
-      hop: { stage: 'HANDLED', context: 'view-store', subscription: 'snapshot' },
-      function: { kind: 'SNAPSHOT', context: 'view-store', processor: 'snapshot', name: 'snapshot' },
+      hop: {
+        stage: 'HANDLED',
+        context: 'view-store',
+        subscription: 'snapshot',
+      },
+      function: {
+        kind: 'SNAPSHOT',
+        context: 'view-store',
+        processor: 'snapshot',
+        name: 'snapshot',
+      },
       status: 'SUCCEEDED',
       version,
       duplicate,
@@ -317,24 +359,50 @@ export function fakeV10ViewStore(
     ref: { name: AggregateName; tenantId: string; id: string },
     requestId: string,
   ): never {
-    const rejected = { ...result(ref, requestId, null), status: 'REJECTED', error: { code, message: detail } };
+    const rejected = {
+      ...result(ref, requestId, null),
+      status: 'REJECTED',
+      error: { code, message: detail },
+    };
     fail(status, code, detail, { result: rejected });
   }
 
-  function commit(aggregate: Aggregate, state: State, ownerId = aggregate.ownerId) {
+  function commit(
+    aggregate: Aggregate,
+    state: State,
+    ownerId = aggregate.ownerId,
+  ) {
     aggregate.version += 1;
     aggregate.state = state;
     aggregate.ownerId = ownerId;
     clock = tick();
     aggregate.lastEventTime = clock;
-    aggregate.history.push({ version: aggregate.version, ownerId, deleted: aggregate.deleted, state: structuredClone(state) });
+    aggregate.history.push({
+      version: aggregate.version,
+      ownerId,
+      deleted: aggregate.deleted,
+      state: structuredClone(state),
+    });
   }
 
-  function create(name: AggregateName, tenantId: string, id: string, ownerId: string | null): Aggregate {
+  function create(
+    name: AggregateName,
+    tenantId: string,
+    id: string,
+    ownerId: string | null,
+  ): Aggregate {
     clock = tick();
     const aggregate: Aggregate = {
-      name, tenantId, id, ownerId, version: 0, deleted: false,
-      firstEventTime: clock, lastEventTime: clock, state: {}, history: [],
+      name,
+      tenantId,
+      id,
+      ownerId,
+      version: 0,
+      deleted: false,
+      firstEventTime: clock,
+      lastEventTime: clock,
+      state: {},
+      history: [],
     };
     aggregates.set(keyOf(name, tenantId, id), aggregate);
     return aggregate;
@@ -365,31 +433,66 @@ export function fakeV10ViewStore(
     caller: Caller,
     headers: Headers,
     id: string,
-  ): { requestId: string; duplicate?: Record<string, unknown>; aggregate?: Aggregate; expected?: number } {
+  ): {
+    requestId: string;
+    duplicate?: Record<string, unknown>;
+    aggregate?: Aggregate;
+    expected?: number;
+  } {
     if (command === 'wow.lifecycle.TransferOwner')
-      fail(403, 'wow.auth.forbidden', "A view's owner changes only by sharing or claiming it.");
+      fail(
+        403,
+        'wow.auth.forbidden',
+        "A view's owner changes only by sharing or claiming it.",
+      );
     authorize(caller, name, command);
     const requestId = headers.get('Wow-Request-Id') ?? `request-${++sequence}`;
     const first = answered.get(`${caller.tenantId}\u0000${requestId}`);
     if (first) {
-      if (first.command !== command || (first.id !== undefined && first.id !== id && id !== ''))
-        fail(409, 'wow.command.request-id-reused', `Request ${requestId} was used by another command.`);
+      if (
+        first.command !== command ||
+        (first.id !== undefined && first.id !== id && id !== '')
+      )
+        fail(
+          409,
+          'wow.command.request-id-reused',
+          `Request ${requestId} was used by another command.`,
+        );
       return { requestId, duplicate: first };
     }
     const match = headers.get('If-Match');
-    const expected = match === null ? undefined : Number(match.replace(/"/g, ''));
-    return { requestId, aggregate: aggregates.get(keyOf(name, caller.tenantId, id)), expected };
+    const expected =
+      match === null ? undefined : Number(match.replace(/"/g, ''));
+    return {
+      requestId,
+      aggregate: aggregates.get(keyOf(name, caller.tenantId, id)),
+      expected,
+    };
   }
 
-  function remember(caller: Caller, requestId: string, command: string, answer: Record<string, unknown>) {
-    answered.set(`${caller.tenantId}\u0000${requestId}`, { ...answer, command, id: (answer.ref as { id: string }).id });
+  function remember(
+    caller: Caller,
+    requestId: string,
+    command: string,
+    answer: Record<string, unknown>,
+  ) {
+    answered.set(`${caller.tenantId}\u0000${requestId}`, {
+      ...answer,
+      command,
+      id: (answer.ref as { id: string }).id,
+    });
   }
 
   function duplicateOf(first: Record<string, unknown>): Response {
     const { command: _command, id: _id, firstVersion, ...rest } = first;
     void _command;
     void _id;
-    return json({ ...rest, commandId: `command-${++sequence}`, duplicate: true, version: firstVersion ?? rest.version });
+    return json({
+      ...rest,
+      commandId: `command-${++sequence}`,
+      duplicate: true,
+      version: firstVersion ?? rest.version,
+    });
   }
 
   /** The aggregate a command acts on, as the kernel admits it. */
@@ -400,58 +503,121 @@ export function fakeV10ViewStore(
     id: string,
     expected: number | undefined,
   ): Aggregate {
-    if (!aggregate) fail(404, 'wow.aggregate.not-found', `view-store.${name}/${caller.tenantId}/${id} does not exist.`);
-    if (aggregate.deleted) fail(410, 'wow.aggregate.deleted', `view-store.${name}/${id} is deleted.`);
+    if (!aggregate)
+      fail(
+        404,
+        'wow.aggregate.not-found',
+        `view-store.${name}/${caller.tenantId}/${id} does not exist.`,
+      );
+    if (aggregate.deleted)
+      fail(
+        410,
+        'wow.aggregate.deleted',
+        `view-store.${name}/${id} is deleted.`,
+      );
     if (name !== 'dataset_wording' && aggregate.ownerId !== caller.ownerId)
-      fail(403, 'wow.aggregate.forbidden', `view-store.${name}/${id} is outside the caller's scope.`);
+      fail(
+        403,
+        'wow.aggregate.forbidden',
+        `view-store.${name}/${id} is outside the caller's scope.`,
+      );
     if (expected !== undefined && expected !== aggregate.version)
-      fail(412, 'wow.aggregate.version-mismatch', `view-store.${name}/${caller.tenantId}/${id} is at version ${aggregate.version}, not ${expected}.`);
+      fail(
+        412,
+        'wow.aggregate.version-mismatch',
+        `view-store.${name}/${caller.tenantId}/${id} is at version ${aggregate.version}, not ${expected}.`,
+      );
     return aggregate;
   }
 
-  function appOf(caller: Caller, ref: { name: AggregateName; tenantId: string; id: string }, requestId: string): string {
-    if (!caller.app) reject(400, 'view-store.app-required', 'The request carries no CoSec-App-Id.', ref, requestId);
+  function appOf(
+    caller: Caller,
+    ref: { name: AggregateName; tenantId: string; id: string },
+    requestId: string,
+  ): string {
+    if (!caller.app)
+      reject(
+        400,
+        'view-store.app-required',
+        'The request carries no CoSec-App-Id.',
+        ref,
+        requestId,
+      );
     return caller.app!;
   }
 
-  function invalid(problemText: string | undefined, ref: { name: AggregateName; tenantId: string; id: string }, requestId: string) {
-    if (problemText) reject(400, 'view-store.invalid', problemText, ref, requestId);
+  function invalid(
+    problemText: string | undefined,
+    ref: { name: AggregateName; tenantId: string; id: string },
+    requestId: string,
+  ) {
+    if (problemText)
+      reject(400, 'view-store.invalid', problemText, ref, requestId);
   }
 
   function configProblem(config: unknown): string | undefined {
-    if (config === null || typeof config !== 'object') return "A view's config must be an object.";
-    if (!KINDS.includes((config as State).kind as string)) return "A view's config must say its kind.";
+    if (config === null || typeof config !== 'object')
+      return "A view's config must be an object.";
+    if (!KINDS.includes((config as State).kind as string))
+      return "A view's config must say its kind.";
     const bytes = new TextEncoder().encode(JSON.stringify(config)).length;
-    if (bytes > MAX_CONFIG_BYTES) return `A view's config is ${bytes} bytes; the limit is ${MAX_CONFIG_BYTES}.`;
+    if (bytes > MAX_CONFIG_BYTES)
+      return `A view's config is ${bytes} bytes; the limit is ${MAX_CONFIG_BYTES}.`;
     return undefined;
   }
 
   function titleProblem(title: unknown): string | undefined {
-    if (typeof title !== 'string' || title.trim() === '') return "A view's title must not be blank.";
-    if (title.trim().length > MAX_TITLE) return `A view's title is longer than ${MAX_TITLE} characters.`;
+    if (typeof title !== 'string' || title.trim() === '')
+      return "A view's title must not be blank.";
+    if (title.trim().length > MAX_TITLE)
+      return `A view's title is longer than ${MAX_TITLE} characters.`;
     return undefined;
   }
 
   function audienceOf(ownerId: string): string {
-    return ownerId === SHARED ? 'shared' : ownerId === SYSTEM ? 'system' : 'personal';
+    return ownerId === SHARED
+      ? 'shared'
+      : ownerId === SYSTEM
+        ? 'system'
+        : 'personal';
   }
 
-  function viewCommand(command: string, id: string, caller: Caller, headers: Headers, body: State): Response {
+  function viewCommand(
+    command: string,
+    id: string,
+    caller: Caller,
+    headers: Headers,
+    body: State,
+  ): Response {
     const admitted = admit('view', command, caller, headers, id);
     if (admitted.duplicate) return duplicateOf(admitted.duplicate);
     const { requestId, expected } = admitted;
     const waitsForMove = (headers.get('Wow-Wait') ?? '').includes(SAGA);
     if (command === 'CreateView') {
       const viewId = id || `view-${++sequence}`;
-      const ref = { name: 'view' as const, tenantId: caller.tenantId, id: viewId };
+      const ref = {
+        name: 'view' as const,
+        tenantId: caller.tenantId,
+        id: viewId,
+      };
       if (aggregates.has(keyOf('view', caller.tenantId, viewId)))
         fail(409, 'wow.aggregate.exists', `view-store.view/${viewId} exists.`);
       const app = appOf(caller, ref, requestId);
-      if (!caller.ownerId) reject(400, 'view-store.owner-required', 'A view is saved by an owner: the caller acts as none.', ref, requestId);
+      if (!caller.ownerId)
+        reject(
+          400,
+          'view-store.owner-required',
+          'A view is saved by an owner: the caller acts as none.',
+          ref,
+          requestId,
+        );
       invalid(
-        (typeof body.definitionId !== 'string' || body.definitionId.trim() === ''
+        (typeof body.definitionId !== 'string' ||
+        body.definitionId.trim() === ''
           ? "A view's definitionId must not be blank."
-          : undefined) ?? titleProblem(body.title) ?? configProblem(body.config),
+          : undefined) ??
+          titleProblem(body.title) ??
+          configProblem(body.config),
         ref,
         requestId,
       );
@@ -468,16 +634,33 @@ export function fakeV10ViewStore(
       remember(caller, requestId, command, answer);
       return json(answer);
     }
-    const aggregate = existing('view', caller, admitted.aggregate, id, expected);
+    const aggregate = existing(
+      'view',
+      caller,
+      admitted.aggregate,
+      id,
+      expected,
+    );
     const ref = aggregate;
     const app = appOf(caller, ref, requestId);
-    if (aggregate.state.appId !== app) reject(404, 'view-store.not-found', `${id} is not found.`, ref, requestId);
+    if (aggregate.state.appId !== app)
+      reject(
+        404,
+        'view-store.not-found',
+        `${id} is not found.`,
+        ref,
+        requestId,
+      );
     const state = structuredClone(aggregate.state);
     let firstVersion: number | undefined;
     switch (command) {
       case 'SaveView':
         invalid(configProblem(body.config), ref, requestId);
-        commit(aggregate, { ...state, kind: (body.config as State).kind, config: body.config });
+        commit(aggregate, {
+          ...state,
+          kind: (body.config as State).kind,
+          config: body.config,
+        });
         break;
       case 'RenameView':
         invalid(titleProblem(body.title), ref, requestId);
@@ -485,7 +668,14 @@ export function fakeV10ViewStore(
           commit(aggregate, { ...state, title: (body.title as string).trim() });
         break;
       case 'ShareView':
-        if (state.audience === 'system') reject(403, 'view-store.system-view-read-only', 'A system view never moves audience.', ref, requestId);
+        if (state.audience === 'system')
+          reject(
+            403,
+            'view-store.system-view-read-only',
+            'A system view never moves audience.',
+            ref,
+            requestId,
+          );
         if (state.audience === 'personal') {
           commit(aggregate, { ...state, audience: 'shared' });
           firstVersion = aggregate.version;
@@ -493,26 +683,54 @@ export function fakeV10ViewStore(
         }
         break;
       case 'ClaimView': {
-        if (state.audience === 'system') reject(403, 'view-store.system-view-read-only', 'A system view never moves audience.', ref, requestId);
+        if (state.audience === 'system')
+          reject(
+            403,
+            'view-store.system-view-read-only',
+            'A system view never moves audience.',
+            ref,
+            requestId,
+          );
         const to = caller.user;
-        if (!to || to.startsWith('(')) reject(400, 'view-store.owner-required', 'A view is claimed by a signed-in user.', ref, requestId);
+        if (!to || to.startsWith('('))
+          reject(
+            400,
+            'view-store.owner-required',
+            'A view is claimed by a signed-in user.',
+            ref,
+            requestId,
+          );
         if (state.audience === 'personal') {
-          if (caller.ownerId !== to) invalid('Only a shared view can be claimed.', ref, requestId);
+          if (caller.ownerId !== to)
+            invalid('Only a shared view can be claimed.', ref, requestId);
           break;
         }
         const boards = [...aggregates.values()].filter(
           board =>
-            board.name === 'view' && !board.deleted && board.id !== id &&
-            board.tenantId === aggregate.tenantId && board.ownerId === SHARED &&
-            board.state.appId === app && board.state.kind === 'dashboard' &&
-            (((board.state.config as State).panels as State[] | undefined) ?? []).some(panel =>
-              ['instanceId', 'opens', 'click.instanceId'].some(path => at(panel, path) === id),
+            board.name === 'view' &&
+            !board.deleted &&
+            board.id !== id &&
+            board.tenantId === aggregate.tenantId &&
+            board.ownerId === SHARED &&
+            board.state.appId === app &&
+            board.state.kind === 'dashboard' &&
+            (
+              ((board.state.config as State).panels as State[] | undefined) ??
+              []
+            ).some(panel =>
+              ['instanceId', 'opens', 'click.instanceId'].some(
+                path => at(panel, path) === id,
+              ),
             ),
         );
         if (boards.length > 0)
-          reject(409, 'view-store.referenced-by-shared-dashboard',
+          reject(
+            409,
+            'view-store.referenced-by-shared-dashboard',
             `The view is shown by the shared dashboards ${boards.map(board => `"${board.state.title}" (${board.id})`).join(', ')}.`,
-            ref, requestId);
+            ref,
+            requestId,
+          );
         commit(aggregate, { ...state, audience: 'personal' });
         firstVersion = aggregate.version;
         commit(aggregate, aggregate.state, to!);
@@ -523,25 +741,64 @@ export function fakeV10ViewStore(
         commit(aggregate, state);
         break;
     }
-    const answer = result(ref, requestId, firstVersion !== undefined && !waitsForMove ? firstVersion : aggregate.version);
-    remember(caller, requestId, command, { ...answer, ...(firstVersion === undefined ? {} : { firstVersion }) });
+    const answer = result(
+      ref,
+      requestId,
+      firstVersion !== undefined && !waitsForMove
+        ? firstVersion
+        : aggregate.version,
+    );
+    remember(caller, requestId, command, {
+      ...answer,
+      ...(firstVersion === undefined ? {} : { firstVersion }),
+    });
     return json(answer);
   }
 
-  function preferencesCommand(caller: Caller, headers: Headers, body: State): Response {
+  function preferencesCommand(
+    caller: Caller,
+    headers: Headers,
+    body: State,
+  ): Response {
     const app = caller.app ?? '';
     const id = `preferences-${hash(`${caller.ownerId ?? ''}\u0000${app}\u0000${String(body.definitionId)}`)}`;
-    const admitted = admit('view_preferences', 'SetViewPreferences', caller, headers, id);
+    const admitted = admit(
+      'view_preferences',
+      'SetViewPreferences',
+      caller,
+      headers,
+      id,
+    );
     if (admitted.duplicate) return duplicateOf(admitted.duplicate);
     const { requestId, expected } = admitted;
-    const ref = { name: 'view_preferences' as const, tenantId: caller.tenantId, id };
-    if (!caller.app) reject(400, 'view-store.app-required', 'The request carries no CoSec-App-Id.', ref, requestId);
+    const ref = {
+      name: 'view_preferences' as const,
+      tenantId: caller.tenantId,
+      id,
+    };
+    if (!caller.app)
+      reject(
+        400,
+        'view-store.app-required',
+        'The request carries no CoSec-App-Id.',
+        ref,
+        requestId,
+      );
     let aggregate = admitted.aggregate;
-    if (aggregate) existing('view_preferences', caller, aggregate, id, expected);
+    if (aggregate)
+      existing('view_preferences', caller, aggregate, id, expected);
     else if (expected !== undefined && expected !== 0)
-      fail(412, 'wow.aggregate.version-mismatch', `view-store.view_preferences/${id} is at version 0, not ${expected}.`);
+      fail(
+        412,
+        'wow.aggregate.version-mismatch',
+        `view-store.view_preferences/${id} is at version 0, not ${expected}.`,
+      );
     if (typeof body.definitionId !== 'string' || body.definitionId === '')
-      invalid("The preferences' definitionId must not be blank.", ref, requestId);
+      invalid(
+        "The preferences' definitionId must not be blank.",
+        ref,
+        requestId,
+      );
     const next = {
       definitionId: body.definitionId,
       appId: app,
@@ -550,55 +807,106 @@ export function fakeV10ViewStore(
       autoRun: body.autoRun ?? null,
       lastTabs: body.lastTabs ?? null,
     };
-    aggregate ??= create('view_preferences', caller.tenantId, id, caller.ownerId);
-    if (JSON.stringify(next) !== JSON.stringify(aggregate.state)) commit(aggregate, next);
+    aggregate ??= create(
+      'view_preferences',
+      caller.tenantId,
+      id,
+      caller.ownerId,
+    );
+    if (JSON.stringify(next) !== JSON.stringify(aggregate.state))
+      commit(aggregate, next);
     const answer = result(ref, requestId, aggregate.version);
     remember(caller, requestId, 'SetViewPreferences', answer);
     return json(answer);
   }
 
-  function wordingCommand(command: string, caller: Caller, headers: Headers, body: State): Response {
+  function wordingCommand(
+    command: string,
+    caller: Caller,
+    headers: Headers,
+    body: State,
+  ): Response {
     const app = caller.app ?? '';
     const id = `wording-${hash(`${app}\u0000${String(body.dataset)}`)}`;
     const admitted = admit('dataset_wording', command, caller, headers, id);
     if (admitted.duplicate) return duplicateOf(admitted.duplicate);
     const { requestId, expected } = admitted;
-    const ref = { name: 'dataset_wording' as const, tenantId: caller.tenantId, id };
-    if (!caller.app) reject(400, 'view-store.app-required', 'The request carries no CoSec-App-Id.', ref, requestId);
+    const ref = {
+      name: 'dataset_wording' as const,
+      tenantId: caller.tenantId,
+      id,
+    };
+    if (!caller.app)
+      reject(
+        400,
+        'view-store.app-required',
+        'The request carries no CoSec-App-Id.',
+        ref,
+        requestId,
+      );
     let aggregate = admitted.aggregate;
     if (aggregate) existing('dataset_wording', caller, aggregate, id, expected);
     else if (command === 'ClearDatasetWording')
-      fail(404, 'wow.aggregate.not-found', `view-store.dataset_wording/${id} does not exist.`);
+      fail(
+        404,
+        'wow.aggregate.not-found',
+        `view-store.dataset_wording/${id} does not exist.`,
+      );
     else if (expected !== undefined && expected !== 0)
-      fail(412, 'wow.aggregate.version-mismatch', `view-store.dataset_wording/${id} is at version 0, not ${expected}.`);
+      fail(
+        412,
+        'wow.aggregate.version-mismatch',
+        `view-store.dataset_wording/${id} is at version 0, not ${expected}.`,
+      );
     aggregate ??= create('dataset_wording', caller.tenantId, id, null);
     const state =
       command === 'SetDatasetWording'
-        ? { dataset: body.dataset, appId: app, title: body.title ?? null, recordNoun: body.recordNoun ?? null, fields: body.fields ?? null }
+        ? {
+            dataset: body.dataset,
+            appId: app,
+            title: body.title ?? null,
+            recordNoun: body.recordNoun ?? null,
+            fields: body.fields ?? null,
+          }
         : { ...aggregate.state, title: null, recordNoun: null, fields: null };
-    if (JSON.stringify(state) !== JSON.stringify(aggregate.state)) commit(aggregate, state);
+    if (JSON.stringify(state) !== JSON.stringify(aggregate.state))
+      commit(aggregate, state);
     const answer = result(ref, requestId, aggregate.version);
     remember(caller, requestId, command, answer);
     return json(answer);
   }
 
-  function snapshotQuery(name: AggregateName, caller: Caller, body: State): Response {
+  function snapshotQuery(
+    name: AggregateName,
+    caller: Caller,
+    body: State,
+  ): Response {
     if (!caller.app)
       fail(400, 'wow.query.malformed', 'The request carries no CoSec-App-Id.', {
-        violations: [{ path: 'body', code: 'APP_REQUIRED', message: 'The request carries no CoSec-App-Id.' }],
+        violations: [
+          {
+            path: 'body',
+            code: 'APP_REQUIRED',
+            message: 'The request carries no CoSec-App-Id.',
+          },
+        ],
       });
     const filter = (body.filter as Filter | undefined) ?? { op: 'MATCH_ALL' };
     let records = [...aggregates.values()]
       .filter(
         aggregate =>
-          aggregate.name === name && !aggregate.deleted &&
+          aggregate.name === name &&
+          !aggregate.deleted &&
           aggregate.tenantId === caller.tenantId &&
-          (name === 'dataset_wording' || aggregate.ownerId === caller.ownerId) &&
+          (name === 'dataset_wording' ||
+            aggregate.ownerId === caller.ownerId) &&
           aggregate.state.appId === caller.app,
       )
       .map(recordOf)
       .filter(record => matches(record, filter));
-    for (const { field, direction } of [...((body.sort as { field: string; direction: string }[]) ?? [])].reverse())
+    for (const { field, direction } of [
+      ...((body.sort as { field: string; direction: string }[]) ?? []),
+    ].reverse())
       records.sort((a, b) => {
         const x = at(a, field) as string | number;
         const y = at(b, field) as string | number;
@@ -606,7 +914,8 @@ export function fakeV10ViewStore(
         return direction === 'DESC' ? -order : order;
       });
     records = records.slice(0, (body.limit as number | undefined) ?? 100);
-    const include = (body.projection as { include?: string[] } | undefined)?.include;
+    const include = (body.projection as { include?: string[] } | undefined)
+      ?.include;
     const project = (record: Record<string, unknown>) => {
       if (!include?.length) return record;
       const picked: Record<string, unknown> = {};
@@ -614,23 +923,58 @@ export function fakeV10ViewStore(
       return picked;
     };
     if (body.kind === 'single') {
-      if (records.length === 0) fail(404, 'wow.aggregate.not-found', `No record of view-store.${name} matches the query.`);
+      if (records.length === 0)
+        fail(
+          404,
+          'wow.aggregate.not-found',
+          `No record of view-store.${name} matches the query.`,
+        );
       return json(project(records[0]));
     }
     if (body.kind === 'list') return json(records.map(project));
-    return fail(400, 'wow.query.invalid', `The fake serves no ${String(body.kind)} query.`);
+    return fail(
+      400,
+      'wow.query.invalid',
+      `The fake serves no ${String(body.kind)} query.`,
+    );
   }
 
-  function stateRead(caller: Caller, id: string, query: URLSearchParams): Response {
+  function stateRead(
+    caller: Caller,
+    id: string,
+    query: URLSearchParams,
+  ): Response {
     const aggregate = aggregates.get(keyOf('view', caller.tenantId, id));
-    if (!aggregate) fail(404, 'wow.aggregate.not-found', `view-store.view/${id} does not exist.`);
-    if (aggregate.ownerId !== caller.ownerId) fail(403, 'wow.aggregate.forbidden', `view-store.view/${id} is outside the caller's scope.`);
+    if (!aggregate)
+      fail(
+        404,
+        'wow.aggregate.not-found',
+        `view-store.view/${id} does not exist.`,
+      );
+    if (aggregate.ownerId !== caller.ownerId)
+      fail(
+        403,
+        'wow.aggregate.forbidden',
+        `view-store.view/${id} is outside the caller's scope.`,
+      );
     const version = query.get('version');
-    const at = version === null ? aggregate.history[aggregate.history.length - 1] : aggregate.history.find(entry => entry.version === Number(version));
-    if (!at) fail(404, 'wow.aggregate.not-found', `view-store.view/${id} has no version ${version}.`);
+    const at =
+      version === null
+        ? aggregate.history[aggregate.history.length - 1]
+        : aggregate.history.find(entry => entry.version === Number(version));
+    if (!at)
+      fail(
+        404,
+        'wow.aggregate.not-found',
+        `view-store.view/${id} has no version ${version}.`,
+      );
     return json(
       {
-        ref: { type: { context: 'view-store', name: 'view' }, tenantId: aggregate.tenantId, id },
+        ref: {
+          type: { context: 'view-store', name: 'view' },
+          tenantId: aggregate.tenantId,
+          id,
+        },
         version: at.version,
         scope: { ownerId: at.ownerId, spaceId: null },
         deleted: at.deleted,
@@ -643,42 +987,97 @@ export function fakeV10ViewStore(
   }
 
   function systemViews(caller: Caller): Record<string, unknown>[] {
-    if (!caller.app) fail(400, 'view-store.app-required', 'The request carries no CoSec-App-Id.');
+    if (!caller.app)
+      fail(
+        400,
+        'view-store.app-required',
+        'The request carries no CoSec-App-Id.',
+      );
     const configured = (options.systemViews ?? [])
-      .filter(view => (!view.tenantId || view.tenantId === caller.tenantId) && (!view.appId || view.appId === caller.app))
+      .filter(
+        view =>
+          (!view.tenantId || view.tenantId === caller.tenantId) &&
+          (!view.appId || view.appId === caller.app),
+      )
       .map(view => ({
-        id: view.id, definitionId: view.definitionId, title: view.title,
+        id: view.id,
+        definitionId: view.definitionId,
+        title: view.title,
         kind: view.config.kind,
-        revision: hash(JSON.stringify([view.definitionId, view.title, view.config])),
-        config: view.config, source: 'configured', version: null, scope: 'system',
+        revision: hash(
+          JSON.stringify([view.definitionId, view.title, view.config]),
+        ),
+        config: view.config,
+        source: 'configured',
+        version: null,
+        scope: 'system',
       }));
     const stored = [...aggregates.values()]
-      .filter(view => view.name === 'view' && !view.deleted && view.tenantId === PLATFORM && view.ownerId === SYSTEM && view.state.appId === caller.app)
-      .sort((a, b) => a.firstEventTime - b.firstEventTime || (a.id < b.id ? -1 : 1))
+      .filter(
+        view =>
+          view.name === 'view' &&
+          !view.deleted &&
+          view.tenantId === PLATFORM &&
+          view.ownerId === SYSTEM &&
+          view.state.appId === caller.app,
+      )
+      .sort(
+        (a, b) => a.firstEventTime - b.firstEventTime || (a.id < b.id ? -1 : 1),
+      )
       .map(view => ({
-        id: view.id, definitionId: view.state.definitionId, title: view.state.title, kind: view.state.kind,
-        revision: hash(JSON.stringify([view.state.definitionId, view.state.title, view.state.config])),
-        config: view.state.config, source: 'stored', version: view.version, scope: 'system',
+        id: view.id,
+        definitionId: view.state.definitionId,
+        title: view.state.title,
+        kind: view.state.kind,
+        revision: hash(
+          JSON.stringify([
+            view.state.definitionId,
+            view.state.title,
+            view.state.config,
+          ]),
+        ),
+        config: view.state.config,
+        source: 'stored',
+        version: view.version,
+        scope: 'system',
       }));
     const ids = new Set(stored.map(view => view.id));
     return [...configured.filter(view => !ids.has(view.id)), ...stored];
   }
 
-  async function dataset(path: string, method: string, body: State): Promise<Response | undefined> {
+  async function dataset(
+    path: string,
+    method: string,
+    body: State,
+  ): Promise<Response | undefined> {
     if (path === '/wow/dataset' && method === 'GET')
-      return json((options.datasets ?? []).map(({ context, dataset: name, title }) => ({
-        name: `${context}.${name}`, context, dataset: name, title: title ?? null,
-        path: `/wow/dataset/${context}/${name}/query`,
-      })));
+      return json(
+        (options.datasets ?? []).map(({ context, dataset: name, title }) => ({
+          name: `${context}.${name}`,
+          context,
+          dataset: name,
+          title: title ?? null,
+          path: `/wow/dataset/${context}/${name}/query`,
+        })),
+      );
     const match = /^\/wow\/dataset\/([^/]+)\/([^/]+)\/query$/.exec(path);
     if (!match) return undefined;
-    const found = (options.datasets ?? []).find(entry => entry.context === match[1] && entry.dataset === match[2]);
-    if (!found) return problem(404, 'wow.dataset.not-found', `No dataset ${match[1]}.${match[2]}.`);
+    const found = (options.datasets ?? []).find(
+      entry => entry.context === match[1] && entry.dataset === match[2],
+    );
+    if (!found)
+      return problem(
+        404,
+        'wow.dataset.not-found',
+        `No dataset ${match[1]}.${match[2]}.`,
+      );
     const { source } = found;
     if (method === 'GET') {
       const read = await source.describe?.();
       if (!read?.descriptor) return problem(404, undefined, 'No descriptor.');
-      return json(read.descriptor, 200, { ETag: `"${read.descriptor.version}"` });
+      return json(read.descriptor, 200, {
+        ETag: `"${read.descriptor.version}"`,
+      });
     }
     const { kind, total: _total, ...query } = body;
     void _total;
@@ -692,7 +1091,11 @@ export function fakeV10ViewStore(
       case 'aggregate':
         return json(await source.aggregate(query));
       default:
-        return problem(400, 'wow.query.invalid', `The fake serves no ${String(kind)} query.`);
+        return problem(
+          400,
+          'wow.query.invalid',
+          `The fake serves no ${String(kind)} query.`,
+        );
     }
   }
 
@@ -703,14 +1106,27 @@ export function fakeV10ViewStore(
     const caller = callerOf(headers);
     if (method === 'GET' && path === '/view-store/system-views') {
       const definitionId = query.get('definitionId');
-      return json(systemViews(caller).filter(view => !definitionId || view.definitionId === definitionId));
+      return json(
+        systemViews(caller).filter(
+          view => !definitionId || view.definitionId === definitionId,
+        ),
+      );
     }
     const one = /^\/view-store\/system-views\/([^/]+)$/.exec(path);
     if (method === 'GET' && one) {
       const view = systemViews(caller).find(entry => entry.id === one[1]);
-      return view ? json(view) : problem(404, 'view-store.not-found', `System view [${one[1]}] is not found.`);
+      return view
+        ? json(view)
+        : problem(
+            404,
+            'view-store.not-found',
+            `System view [${one[1]}] is not found.`,
+          );
     }
-    const route = /^\/view-store\/(view|view_preferences|dataset_wording)(?:\/([^/]+))?(?:\/([^/]+))?$/.exec(path);
+    const route =
+      /^\/view-store\/(view|view_preferences|dataset_wording)(?:\/([^/]+))?(?:\/([^/]+))?$/.exec(
+        path,
+      );
     if (!route) return problem(404, undefined, `No route ${method} ${path}`);
     const name = route[1] as AggregateName;
     const [, , first, second] = route;
@@ -719,24 +1135,46 @@ export function fakeV10ViewStore(
       return snapshotQuery(name, caller, payload);
     if (name === 'view') {
       if (method === 'DELETE' && first && !second)
-        return viewCommand('wow.lifecycle.DeleteAggregate', first, caller, headers, payload);
-      if (method === 'GET' && first && second === 'state') return stateRead(caller, first, query);
+        return viewCommand(
+          'wow.lifecycle.DeleteAggregate',
+          first,
+          caller,
+          headers,
+          payload,
+        );
+      if (method === 'GET' && first && second === 'state')
+        return stateRead(caller, first, query);
       const commands: Record<string, string> = {
-        'create-view': 'CreateView', 'save-view': 'SaveView', 'rename-view': 'RenameView',
-        'share-view': 'ShareView', 'claim-view': 'ClaimView',
+        'create-view': 'CreateView',
+        'save-view': 'SaveView',
+        'rename-view': 'RenameView',
+        'share-view': 'ShareView',
+        'claim-view': 'ClaimView',
         'wow.lifecycle.transfer-owner': 'wow.lifecycle.TransferOwner',
       };
       const segment = second ?? first;
       const command = segment ? commands[segment] : undefined;
       if (method === 'POST' && command)
-        return viewCommand(command, second ? first! : '', caller, headers, payload);
+        return viewCommand(
+          command,
+          second ? first! : '',
+          caller,
+          headers,
+          payload,
+        );
     }
-    if (name === 'view_preferences' && method === 'POST' && (second ?? first) === 'set-view-preferences')
+    if (
+      name === 'view_preferences' &&
+      method === 'POST' &&
+      (second ?? first) === 'set-view-preferences'
+    )
       return preferencesCommand(caller, headers, payload);
     if (name === 'dataset_wording' && method === 'POST') {
       const segment = second ?? first;
-      if (segment === 'set-dataset-wording') return wordingCommand('SetDatasetWording', caller, headers, payload);
-      if (segment === 'clear-dataset-wording') return wordingCommand('ClearDatasetWording', caller, headers, payload);
+      if (segment === 'set-dataset-wording')
+        return wordingCommand('SetDatasetWording', caller, headers, payload);
+      if (segment === 'clear-dataset-wording')
+        return wordingCommand('ClearDatasetWording', caller, headers, payload);
     }
     return problem(404, undefined, `No route ${method} ${path}`);
   }
@@ -747,13 +1185,19 @@ export function fakeV10ViewStore(
       failures.push({ path, answer });
     },
     async fetch(input, init = {}) {
-      const url = new URL(input instanceof Request ? input.url : String(input), 'http://view-store.test/');
+      const url = new URL(
+        input instanceof Request ? input.url : String(input),
+        'http://view-store.test/',
+      );
       const seen: SeenRequest = {
         method: init.method ?? 'GET',
         path: decodeURIComponent(url.pathname),
         query: url.searchParams,
         headers: new Headers(init.headers),
-        body: typeof init.body === 'string' && init.body !== '' ? JSON.parse(init.body) : init.body,
+        body:
+          typeof init.body === 'string' && init.body !== ''
+            ? JSON.parse(init.body)
+            : init.body,
       };
       requests.push(seen);
       if (init.signal?.aborted) throw init.signal.reason;

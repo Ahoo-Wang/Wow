@@ -364,7 +364,9 @@ export class WowViewStore implements ViewStore {
       try {
         const record = await request(() =>
           this.preferenceSnapshots.single(
-            singleQuery({ filter: filter.eq('state.definitionId', definitionId) }),
+            singleQuery({
+              filter: filter.eq('state.definitionId', definitionId),
+            }),
             { signal },
           ),
         );
@@ -725,4 +727,3 @@ function refusal(failure: Failure): ViewStoreError {
     boards: boardTitles(failure.problem?.problem.detail),
   });
 }
-

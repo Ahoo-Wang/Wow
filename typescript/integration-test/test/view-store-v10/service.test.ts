@@ -157,9 +157,9 @@ describe('system views', () => {
       },
     ]);
     expect(await reader.get(id)).toEqual(created);
-    expect(await storeOf({ ...READER, appId: 'portal' }).list(definitionId)).toEqual(
-      [],
-    );
+    expect(
+      await storeOf({ ...READER, appId: 'portal' }).list(definitionId),
+    ).toEqual([]);
 
     // Edited at its revision (the content hash); a stale one conflicts.
     const renamed = await admin.rename(
@@ -254,7 +254,11 @@ describe('the dataset wording', () => {
 
     const first = await writer.set(
       dataset,
-      { title: 'Sales', recordNoun: 'sale', fields: { amount: { label: 'Amount' } } },
+      {
+        title: 'Sales',
+        recordNoun: 'sale',
+        fields: { amount: { label: 'Amount' } },
+      },
       '0',
       write(),
     );

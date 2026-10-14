@@ -74,7 +74,7 @@ for (const [key, list] of Object.entries(ENTRIES)) {
     values,
     `${specifier} does not export the values ${list} names`,
   );
-  counts.push(`${values.length} values of ${list}`);
+  counts.push(`${values.length} in ${list}`);
 
   const file = fileURLToPath(new URL(entry.import, packageRoot));
   const closure = staticClosure(file);
@@ -111,5 +111,5 @@ const sizes = checkSizes({
 });
 
 console.log(
-  `${name} resolves to its declared entries, exports at run time exactly the ${counts.join(' and the ')} name, imports its peers rather than bundling them, ships no declaration map, and weighs, gzipped against its ceilings, ${sizes}.`,
+  `${name} resolves to its declared entries, exports at run time exactly the values its lists name (${counts.join(', ')}), imports its peers rather than bundling them, ships no declaration map, and weighs, gzipped against its ceilings, ${sizes}.`,
 );

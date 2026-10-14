@@ -21,4 +21,8 @@ export {
 export { WowViewStoreErrorCodes } from './errors.js';
 export { SHARED_SCOPE, SYSTEM_SCOPE } from './wire.js';
 export { datasetCatalogOf, viewSourceOf } from './source.js';
-export { SHARED_OWNER_ID, SYSTEM_OWNER_ID, SYSTEM_TENANT_ID } from '../paths.js';
+export {
+  SHARED_OWNER_ID,
+  SYSTEM_OWNER_ID,
+  SYSTEM_TENANT_ID,
+} from '../paths.js';

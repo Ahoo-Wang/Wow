@@ -82,7 +82,8 @@ export class Failure {
    * carries several decisions (a `400` is a bad title and a missing
    * application alike). Only an answer without a code the store knows — a
    * gateway's own page, a proxy, a code a later server adds — falls back to
-   * the status. A `404` without a code is a route the server does not serve:
+   * the status; a problem the service says a retry may get past is
+   * `UNAVAILABLE` whatever its status. A `404` without a code is a route the server does not serve:
    * no view store there (or, on the memory backend, no snapshot query), so
    * `UNSUPPORTED`. No answer at all is `UNAVAILABLE`: the outcome is
    * unknown, and a retry under the same request id is safe, since the
@@ -92,6 +93,9 @@ export class Failure {
     const code = this.problemCode;
     const known = code === undefined ? undefined : CODES[code];
     if (known) return known;
+    // What a retry may get past (a busy or closing node, a store out of
+    // reach, contended writers, a wait that ran out): the outcome is unknown.
+    if (this.problem?.retry.retryable) return 'UNAVAILABLE';
     switch (this.problem?.status) {
       case 400:
       case 422:

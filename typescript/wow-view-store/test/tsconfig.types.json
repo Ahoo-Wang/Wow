@@ -4,7 +4,10 @@
     "composite": false,
     "incremental": false,
     "noEmit": true,
-    "rootDir": "..",
+    // `../..`, not `..`: the V10 conformance suite imports the view engine's
+    // port conformance suite by its workspace path
+    // (../wow-view-engine/test/conformance/), which is never published.
+    "rootDir": "../..",
     "types": ["node"]
   },
   "include": ["../src/**/*", "./**/*.ts"]

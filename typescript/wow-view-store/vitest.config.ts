@@ -23,7 +23,9 @@ export default mergeConfig(
       unstubGlobals: true,
       coverage: {
         include: ['src/**/*.ts'],
-        exclude: [...configDefaults.exclude],
+        // Generated from the Manifest, held byte for byte rather than line by
+        // line (test/v10/generated.test.ts).
+        exclude: [...configDefaults.exclude, 'src/v10/generated/**'],
         // Held a point or two below what the suite measured on 2026-09-30
         // (statements 96.88, branches 92.63, functions 98.41, lines 98.52): a
         // coverage drop fails CI, a behaviour-preserving refactor does not.

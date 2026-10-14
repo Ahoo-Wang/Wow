@@ -66,6 +66,7 @@
     "@ahoo-wang/fetcher-decorator": "catalog:",
     "@ahoo-wang/fetcher-eventstream": "catalog:",
     "@ahoo-wang/wow-client": "workspace:~",
+    "@ahoo-wang/wow-generator": "workspace:~",
     "@ahoo-wang/wow-view-engine": "workspace:~",
     "@eslint/js": "catalog:",
     "@microsoft/api-extractor": "catalog:",

@@ -1255,6 +1255,9 @@ importers:
       '@ahoo-wang/wow-client':
         specifier: workspace:~
         version: link:../wow-client
+      '@ahoo-wang/wow-generator':
+        specifier: workspace:~
+        version: link:../wow-generator
       '@ahoo-wang/wow-view-engine':
         specifier: workspace:~
         version: link:../wow-view-engine
