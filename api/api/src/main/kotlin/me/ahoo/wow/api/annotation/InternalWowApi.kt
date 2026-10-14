@@ -13,7 +13,13 @@
 
 package me.ahoo.wow.api.annotation
 
-/** Internal to Wow (V10): public for Wow's own modules only, and it may change or go in any release. */
+/**
+ * Internal to Wow (V10): public for Wow's own modules only, and it may change or go in any release.
+ *
+ * Declarations marked with it are left out of the ABI dumps (`api/<module>.api`), so changing them is not a binary
+ * break. Only Wow's own modules opt in; an application, the eShop example and the platform services do not (D216).
+ * Mark a constructor to keep a public class while hiding how it is built.
+ */
 @RequiresOptIn(
     message = "Internal to Wow: it may change or be removed in any release.",
     level = RequiresOptIn.Level.ERROR,
@@ -21,8 +27,10 @@ package me.ahoo.wow.api.annotation
 @Retention(AnnotationRetention.BINARY)
 @Target(
     AnnotationTarget.CLASS,
+    AnnotationTarget.CONSTRUCTOR,
     AnnotationTarget.FUNCTION,
     AnnotationTarget.PROPERTY,
+    AnnotationTarget.FIELD,
     AnnotationTarget.TYPEALIAS,
 )
 @MustBeDocumented

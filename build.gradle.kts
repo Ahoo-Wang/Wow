@@ -20,6 +20,7 @@ import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.testretry.TestRetryPlugin
 import org.jetbrains.dokka.gradle.DokkaExtension
 import org.jetbrains.dokka.gradle.DokkaPlugin
+import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
@@ -70,6 +71,27 @@ val v10Projects = listOf(
     "kernel-benchmarks", "compiler", "gradle-plugin", "manifest-tools",
     "routing-spike", "lease-spike",
 ).plus(eshopProjects).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
+
+// The V10 modules a 10.x release publishes (06-modules.md §6; R.1 turns their publication on). Their ABI is kept in
+// `api/<module>.api` like a 9.x module's (D88, D147, D216; see `abiValidation` below). :migrate-data (a CLI
+// application) and :manifest-tools (run in an isolated worker by the same-version Gradle plugin, D83) keep no dump:
+// their contract is not a JVM signature.
+val v10PublishedProjects = includedProjects(
+    ":api", ":manifest", ":query-api", ":spi", ":kernel", ":runtime", ":reactor", ":query",
+    ":postgres", ":mongo", ":kafka", ":clickhouse", ":openapi", ":http", ":cosec", ":opentelemetry", ":spring-boot",
+    ":cosid", ":test-dsl", ":tck", ":tck-containers", ":ops-api", ":view-store-api",
+    ":compiler", ":gradle-plugin",
+)
+// The V10 modules whose ABI is checked now: none until their first dumps are committed (D216, after the API is
+// narrowed); `-Pwow.abi.v10=true` turns the check on for `v10PublishedProjects`.
+val v10AbiProjects =
+    if (providers.gradleProperty("wow.abi.v10").orNull.toBoolean()) v10PublishedProjects else emptySet()
+// V10 modules that use Wow the way an application does (D216): the eShop, the platform services' domains and servers,
+// and :architecture. They do not opt in to `@InternalWowApi` or `@ExperimentalWowApi`, so the compiler shows where
+// they reach past the public API.
+val v10UserProjects = v10ExampleProjects + includedProjects(
+    ":ops-domain", ":ops-server", ":view-store-domain", ":view-store-server", ":architecture",
+)
 
 // D87: a V10 project's name and directory carry no `wow-` prefix (`:kernel` in core/kernel); its jar, Kotlin module and
 // Maven artifactId do (`wow-kernel`), so the coordinates users see are unchanged. A project whose name cannot be its
@@ -270,12 +292,27 @@ configure(libraryProjects) {
     tasks.withType<KotlinCompile> {
         compilerOptions {
             freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
-            optIn.add("me.ahoo.wow.api.annotation.InternalWowApi")
+            // Wow's own modules share internal declarations and build on its experimental ones; a user module
+            // (`v10UserProjects`, the 9.x example libraries) does not (D216).
+            if (project !in v10UserProjects && project !in exampleLibraries) {
+                optIn.addAll(
+                    "me.ahoo.wow.api.annotation.InternalWowApi",
+                    "me.ahoo.wow.api.annotation.ExperimentalWowApi",
+                )
+            }
             // Test, contract and benchmark code exercises the SPI directly; main code opts in per module.
             if (project in wowSpiProjects || name != "compileKotlin") {
                 optIn.add("me.ahoo.wow.api.annotation.WowSpi")
             }
             javaParameters = true
+        }
+    }
+    // V10 interfaces compile to plain JVM default methods, without the `DefaultImpls` classes (`-jvm-default=
+    // no-compatibility`, D216): free before the API freeze, a binary break after it. The 9.x modules keep the default,
+    // `enable`, so their ABI does not change.
+    if (project in v10Projects) {
+        tasks.withType<KotlinCompile> {
+            compilerOptions.jvmDefault.set(JvmDefaultMode.NO_COMPATIBILITY)
         }
     }
     tasks.withType<JavaCompile> {
@@ -353,13 +390,15 @@ tasks.register("benchmarkSmoke") {
 
 // The V10 checks (v10.yml), in either build scope; `-Pwow.scope=v10` configures no 9.x module. `check` of every V10
 // module compiles it and runs its unit tests (`:architecture:test` holds the V10 dependency rules); detekt covers
-// the same modules. V10 modules keep no ABI dump before 10.0.0-beta (D88), so no `checkKotlinAbi` runs here. The full
+// the same modules. The ABI of the published V10 modules is checked from the API freeze at the M7 exit (D88, D147,
+// D216): `checkKotlinAbi` of `v10AbiProjects`, which stays empty until their first dumps are committed. The full
 // build also compiles the JMH sources of :kernel-benchmarks, which the v10 scope leaves out.
 tasks.register("v10Check") {
     description = "Compiles, unit-tests and runs detekt over the V10 modules."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     dependsOn(v10Projects.map { it.tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) })
     dependsOn(v10Projects.map { it.tasks.named("detekt") })
+    dependsOn(v10AbiProjects.map { it.tasks.named("checkKotlinAbi") })
     findProject(":kernel-benchmarks")?.let { dependsOn(it.tasks.named("compileJmhKotlin")) }
 }
 
@@ -460,8 +499,10 @@ configure(publishProjects - v10Projects) {
 
 // The JVM ABI of every published library is kept in its `api/<module>.api`; `check` runs `checkKotlinAbi`
 // against it, so a 9.x patch cannot change a public signature unnoticed. `./gradlew updateKotlinAbi` rewrites
-// the dumps; AGENTS.md ("Binary Compatibility") says when that is allowed.
-configure(publishProjects - bomProjects) {
+// the dumps; AGENTS.md ("Binary Compatibility") says when that is allowed. The published V10 modules join from the
+// API freeze (D216); until their first dumps are committed, only `-Pwow.abi.v10=true` adds them, as in
+// `./gradlew -Pwow.scope=v10 -Pwow.abi.v10=true updateKotlinAbi`, which records them.
+configure(publishProjects - bomProjects + v10AbiProjects) {
     configure<KotlinJvmProjectExtension> {
         @OptIn(ExperimentalAbiValidation::class)
         abiValidation {

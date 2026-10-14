@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.dataset
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
 import java.nio.file.Files
 import java.nio.file.Path
@@ -29,6 +30,7 @@ import kotlin.io.path.nameWithoutExtension
  *
  * Every failure to find, read or parse a file is a [QuerySchemaUnavailableException] whose cause says what is wrong.
  */
+@ExperimentalWowApi
 class QueryDatasetFiles @JvmOverloads constructor(
     configDirectory: Path = Path.of("config"),
     private val classLoader: ClassLoader =

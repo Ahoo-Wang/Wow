@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.dataset
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.query.schema.DeclarationValue
@@ -31,6 +32,7 @@ import tools.jackson.databind.node.ObjectNode
  * [owner] and the [space], and the column each ABAC tag key is bound to ([tags], decision D129). A dataset either
  * names its tenant column or declares that it is platform-level, never both.
  */
+@ExperimentalWowApi
 data class QueryDatasetScope(
     val tenant: QueryField? = null,
     val owner: QueryField? = null,
@@ -70,6 +72,7 @@ data class QueryDatasetScope(
  * the query engine keys it as it keys an aggregate type. [storage] is the backend's binding of the dataset (a
  * ClickHouse table, say), opaque to the core: a [DatasetQueryBackendFactory] reads it.
  */
+@ExperimentalWowApi
 data class QueryDataset(
     val name: AggregateType,
     val scope: QueryDatasetScope,
@@ -118,6 +121,7 @@ data class QueryDataset(
 }
 
 /** Declares a [QueryDataset] in code: its profile columns, its fields and their sensitivity. */
+@ExperimentalWowApi
 class QueryDatasetBuilder(private val name: AggregateType) {
     private var tenant: QueryField? = null
     private var platform: Boolean = false

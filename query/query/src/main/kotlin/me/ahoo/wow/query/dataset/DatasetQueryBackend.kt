@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.dataset
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
 import java.util.concurrent.ConcurrentHashMap
@@ -24,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap
  * are the table's rows, fields at the root, read only through `AdmittedQuery.field`/`systemField`; the backend passes
  * [DatasetQueryBackendSpec][me.ahoo.wow.query.tck.DatasetQueryBackendSpec] (`:query` testFixtures).
  */
+@ExperimentalWowApi
 interface DatasetQueryBackend : QueryBackend
 
 /**
@@ -32,6 +34,7 @@ interface DatasetQueryBackend : QueryBackend
  * declaration against. It reads the dataset's [storage][QueryDataset.storage] binding; a dataset it cannot serve
  * (a binding it does not understand) fails with an [IllegalArgumentException].
  */
+@ExperimentalWowApi
 fun interface DatasetQueryBackendFactory {
     fun create(dataset: QueryDataset): QueryBackendBinding<DatasetQueryBackend>
 }
@@ -40,6 +43,7 @@ fun interface DatasetQueryBackendFactory {
  * A [DatasetQueryBackendFactory] that creates each dataset's binding once, and again when the dataset changes: a
  * dataset replaced by a new declaration (another table, other columns) gets a binding of its own.
  */
+@ExperimentalWowApi
 abstract class AbstractDatasetQueryBackendFactory : DatasetQueryBackendFactory {
     private val bindingCache =
         ConcurrentHashMap<AggregateType, Pair<QueryDataset, QueryBackendBinding<DatasetQueryBackend>>>()

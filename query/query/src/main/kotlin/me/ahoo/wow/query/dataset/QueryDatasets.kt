@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.dataset
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelProfile
 import me.ahoo.wow.query.schema.QuerySchemaContext
@@ -23,6 +24,7 @@ import me.ahoo.wow.query.schema.QuerySchemaSourcePriority
 import java.util.concurrent.CopyOnWriteArrayList
 
 /** One change to the [QueryDatasets]: a dataset joined, was replaced by a new declaration, or left. */
+@ExperimentalWowApi
 sealed interface QueryDatasetChange {
     /** The dataset the change leaves in place, or the one it removed. */
     val dataset: QueryDataset
@@ -38,6 +40,7 @@ sealed interface QueryDatasetChange {
  * Follows the changes of [QueryDatasets]: every listener [validate]s a change before any [apply]s it, so a listener
  * that cannot follow a change (a gateway that cannot be built, a name an aggregate takes) refuses it for all of them.
  */
+@ExperimentalWowApi
 interface QueryDatasetListener {
     /** Refuses [change] by throwing; nothing has changed yet. */
     fun validate(change: QueryDatasetChange) = Unit
@@ -51,6 +54,7 @@ interface QueryDatasetListener {
  * ([QueryDatasetFiles]) or registered while the node runs, as dataset-registry does. The schema Catalog, the dataset
  * gateways and the storages follow it through [listen].
  */
+@ExperimentalWowApi
 class QueryDatasets(datasets: Collection<QueryDataset> = emptyList()) {
     @Volatile
     private var byName: Map<AggregateType, QueryDataset> = datasets.associateBy { it.name }
