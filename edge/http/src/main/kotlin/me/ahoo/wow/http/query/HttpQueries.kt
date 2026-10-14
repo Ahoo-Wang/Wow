@@ -16,6 +16,7 @@ package me.ahoo.wow.http.query
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
+import me.ahoo.wow.runtime.snapshot.SnapshotStatus
 
 /**
  * The query models the public routes serve (decisions D127, D131, D145), by aggregate type: the [snapshots] of each
@@ -28,6 +29,9 @@ import me.ahoo.wow.query.dataset.DatasetQueryGateways
  *
  * [defaultListSize] is the limit a `list` query that names none (`limit` 0) runs with over HTTP, at most the HTTP
  * budget's `maxListSize`; `0` keeps 0's meaning, every match, where the budget allows it.
+ *
+ * [snapshotStatus] tells whether an aggregate type's snapshots are being rebuilt or backfilled (decision D172): its
+ * snapshot query and descriptor then answer with `Wow-Rebuilding: true`.
  */
 class HttpQueries(
     snapshots: Collection<QueryGateway> = emptyList(),
@@ -35,6 +39,7 @@ class HttpQueries(
     val defaultListSize: Int = DEFAULT_LIST_SIZE,
     val datasets: DatasetQueryGateways = DatasetQueryGateways.NONE,
     val datasetVisibility: DatasetVisibility = DatasetVisibility.DEFAULT,
+    val snapshotStatus: SnapshotStatus = SnapshotStatus.NONE,
 ) {
     private val snapshots: Map<AggregateType, QueryGateway> = snapshots.associateBy { it.aggregateType }
     private val events: Map<AggregateType, EventQueryGateway> = events.associateBy { it.aggregateType }

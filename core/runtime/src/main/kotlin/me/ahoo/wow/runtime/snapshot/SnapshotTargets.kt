@@ -32,7 +32,7 @@ data class SnapshotPlacement(val targets: List<String>, val primary: String = ta
 
 /**
  * The snapshot targets of one bounded context (decision D172): its snapshot [stores] by name, and the [placement] of
- * each aggregate type, [SnapshotPlacement] of the [default] store alone for a type that has none.
+ * each aggregate type, [fallback] for a type that has none: by default the [default] store alone.
  *
  * Each store has a built-in subscription of its own, with its own checkpoints, which writes the snapshots of the types
  * it is a target of ([subscriptionOf]): `snapshot` for the [default] store, as before targets, and `snapshot:<store>`
@@ -44,24 +44,25 @@ class SnapshotTargets(
     val default: String,
     val stores: Map<String, SnapshotStore>,
     placements: Map<AggregateType, SnapshotPlacement> = emptyMap(),
+    val fallback: SnapshotPlacement = SnapshotPlacement(listOf(default)),
 ) {
     private val placements: Map<AggregateType, SnapshotPlacement> = placements.toMap()
 
     init {
         require(default in stores) { "The default snapshot store $default is not one of ${stores.keys}." }
-        val missing = this.placements.values.flatMap { it.targets }.filter { it !in stores }.distinct()
+        val missing = (this.placements.values + fallback).flatMap { it.targets }.filter { it !in stores }.distinct()
         require(missing.isEmpty()) { "The snapshot targets $missing name no snapshot store of ${stores.keys}." }
     }
 
     /** Where [type]'s snapshots are written. */
-    fun placementOf(type: AggregateType): SnapshotPlacement = placements[type] ?: SnapshotPlacement(listOf(default))
+    fun placementOf(type: AggregateType): SnapshotPlacement = placements[type] ?: fallback
 
     /** The store [type]'s snapshots are read from: its primary target. */
     fun primaryOf(type: AggregateType): SnapshotStore = stores.getValue(placementOf(type).primary)
 
     /** The snapshots each type's primary target keeps: what the kernel and the state readers read. */
     val primary: SnapshotStore = SnapshotStoreRouter.of(
-        stores.getValue(default),
+        stores.getValue(fallback.primary),
         this.placements.mapValues { (_, placement) -> stores.getValue(placement.primary) },
     )
 

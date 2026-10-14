@@ -33,6 +33,7 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.http.HttpJson
+import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.WowPaths
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.command.Negotiation
@@ -113,8 +114,13 @@ internal class QueryHandler(
             val body = body(request)
             val eventStream = body.kind == QueryKind.LIST && Negotiation.wantsEventStream(request)
             when (target.model) {
-                QueryRoutes.SNAPSHOT ->
-                    snapshots(checkNotNull(queries.snapshots(target.type)), body, caller, eventStream)
+                QueryRoutes.SNAPSHOT -> snapshots(
+                    checkNotNull(queries.snapshots(target.type)),
+                    body,
+                    caller,
+                    eventStream,
+                    queries.snapshotStatus.rebuilding(target.type),
+                )
                 else -> events(checkNotNull(queries.events(target.type)), body, caller, eventStream)
             }
         }
@@ -135,7 +141,8 @@ internal class QueryHandler(
                     described.get("version").asString() to QueryJson.mapper.writeValueAsBytes(described)
                 }
             }
-            tagged(request, version, descriptor)
+            val rebuilding = target.model == QueryRoutes.SNAPSHOT && queries.snapshotStatus.rebuilding(target.type)
+            tagged(request, version, descriptor, rebuilding)
         }
 
     /**
@@ -200,14 +207,27 @@ internal class QueryHandler(
         return body
     }
 
-    /** [descriptor] of [version], with the version as its `ETag`; 304 when `If-None-Match` names it. */
-    private suspend fun tagged(request: ServerRequest, version: String, descriptor: ByteArray): ServerResponse {
+    /**
+     * [descriptor] of [version], with the version as its `ETag`; 304 when `If-None-Match` names it. A descriptor of
+     * snapshots being [rebuilding] says so ([WowHeaders.REBUILDING]).
+     */
+    private suspend fun tagged(
+        request: ServerRequest,
+        version: String,
+        descriptor: ByteArray,
+        rebuilding: Boolean = false,
+    ): ServerResponse {
         val tag = "\"$version\""
         if (request.headers().header(HttpHeaders.IF_NONE_MATCH).any { matches(it, tag) }) {
-            return ServerResponse.status(NOT_MODIFIED).eTag(tag).buildAndAwait()
+            return ServerResponse.status(NOT_MODIFIED).eTag(tag).rebuilding(rebuilding).buildAndAwait()
         }
-        return ServerResponse.ok().eTag(tag).contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(descriptor)
+        return ServerResponse.ok().eTag(tag).rebuilding(rebuilding).contentType(MediaType.APPLICATION_JSON)
+            .bodyValueAndAwait(descriptor)
     }
+
+    /** Marks an answer from snapshots that are being rebuilt or backfilled (decision D172). */
+    private fun ServerResponse.BodyBuilder.rebuilding(rebuilding: Boolean): ServerResponse.BodyBuilder =
+        if (rebuilding) header(WowHeaders.REBUILDING, "true") else this
 
     /** The query caller of [request] for a query of [type] (decision D129). */
     private suspend fun caller(request: ServerRequest, type: AggregateType): QueryCaller {
@@ -225,19 +245,22 @@ internal class QueryHandler(
         body: QueryBody,
         caller: QueryCaller,
         eventStream: Boolean,
+        rebuilding: Boolean = false,
     ): ServerResponse = when (body.kind) {
         QueryKind.LIST -> {
             val query = (body.query as ListQuery).withListDefault(gateway.entryPolicy.http)
-            rows(gateway.list(query, caller), eventStream, gateway.aggregateType.context)
+            rows(gateway.list(query, caller), eventStream, gateway.aggregateType.context, rebuilding)
         }
-        QueryKind.PAGED -> json(gateway.paged(body.query as IPagedQuery, caller))
-        QueryKind.CURSOR -> json(gateway.cursor(body.query as ICursorQuery, caller))
-        QueryKind.SINGLE -> single(gateway.single(body.query as ISingleQuery, caller), gateway.aggregateType)
-        QueryKind.COUNT -> json(gateway.count(body.query as ICountQuery, caller))
+        QueryKind.PAGED -> json(gateway.paged(body.query as IPagedQuery, caller), rebuilding)
+        QueryKind.CURSOR -> json(gateway.cursor(body.query as ICursorQuery, caller), rebuilding)
+        QueryKind.SINGLE ->
+            single(gateway.single(body.query as ISingleQuery, caller), gateway.aggregateType, rebuilding)
+        QueryKind.COUNT -> json(gateway.count(body.query as ICountQuery, caller), rebuilding)
         QueryKind.AGGREGATE -> rows(
             gateway.aggregate(body.query as AggregationQuery, caller),
             false,
-            gateway.aggregateType.context
+            gateway.aggregateType.context,
+            rebuilding,
         )
     }
 
@@ -268,21 +291,29 @@ internal class QueryHandler(
         return if (limit != 0 || default == null) this else copy(limit = default)
     }
 
-    private suspend fun json(value: Any): ServerResponse =
-        ServerResponse.ok().contentType(
+    private suspend fun json(value: Any, rebuilding: Boolean = false): ServerResponse =
+        ServerResponse.ok().rebuilding(rebuilding).contentType(
             MediaType.APPLICATION_JSON
         ).bodyValueAndAwait(QueryJson.mapper.writeValueAsBytes(value))
 
-    private suspend fun single(record: ObjectNode?, type: AggregateType): ServerResponse =
-        json(record ?: throw problem(FrameworkCodes.NOT_FOUND, "No record of $type matches the query.", type))
+    private suspend fun single(record: ObjectNode?, type: AggregateType, rebuilding: Boolean = false): ServerResponse =
+        json(
+            record ?: throw problem(FrameworkCodes.NOT_FOUND, "No record of $type matches the query.", type),
+            rebuilding,
+        )
 
     /**
      * [records] as one JSON array, read whole before the response starts so a failure is still a problem; or, for
      * an [eventStream], as server-sent events, the first one read before the response starts.
      */
     @OptIn(ExperimentalCoroutinesApi::class) // produce: the records of one collection, handed to the response.
-    private suspend fun rows(records: Flow<ObjectNode>, eventStream: Boolean, context: String): ServerResponse {
-        if (!eventStream) return json(records.toList())
+    private suspend fun rows(
+        records: Flow<ObjectNode>,
+        eventStream: Boolean,
+        context: String,
+        rebuilding: Boolean = false,
+    ): ServerResponse {
+        if (!eventStream) return json(records.toList(), rebuilding)
         val rows = scope.produce { records.collect { send(it) } }
         val first = try {
             rows.receive()
@@ -303,7 +334,7 @@ internal class QueryHandler(
                 ).event(ERROR).build()
             )
         }
-        return ServerResponse.ok().contentType(MediaType.TEXT_EVENT_STREAM).bodyAndAwait(events)
+        return ServerResponse.ok().rebuilding(rebuilding).contentType(MediaType.TEXT_EVENT_STREAM).bodyAndAwait(events)
     }
 
     private fun row(record: ObjectNode, index: Long): ServerSentEvent<String> =

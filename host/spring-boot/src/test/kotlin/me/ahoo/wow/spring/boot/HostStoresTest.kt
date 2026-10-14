@@ -63,7 +63,7 @@ class HostStoresTest {
                 snapshot.store = "b"
                 aggregates["$BANK.account"] = WowProperties.Aggregate().apply {
                     log.store = "c"
-                    snapshot.store = "a"
+                    snapshot.store = mutableListOf("a")
                 }
                 aggregates["$BANK.other"] = WowProperties.Aggregate().apply { tenant = "fixed" }
             },
@@ -108,7 +108,7 @@ class HostStoresTest {
             StoreLayout.of(
                 properties {
                     log.store = "a"
-                    aggregates["$BANK.account"] = WowProperties.Aggregate().apply { snapshot.store = "z" }
+                    aggregates["$BANK.account"] = WowProperties.Aggregate().apply { snapshot.store = mutableListOf("z") }
                 },
                 two,
                 models,

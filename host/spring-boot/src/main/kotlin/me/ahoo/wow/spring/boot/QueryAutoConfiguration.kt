@@ -257,6 +257,7 @@ class QueryAutoConfiguration {
                 properties.http.defaultListSize,
                 datasets,
                 visibility.getIfAvailable { DatasetVisibility.of(properties.abac.options()) },
+                node.snapshotStatus,
             )
         }
 
