@@ -18,7 +18,6 @@ import java.math.BigDecimal
 
 @Summary("An order was submitted")
 data class OrderSubmitted(
-    val buyerId: String,
     val items: List<OrderItem>,
 )
 

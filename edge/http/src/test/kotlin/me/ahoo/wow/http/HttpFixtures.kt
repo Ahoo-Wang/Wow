@@ -165,7 +165,8 @@ val headerCallers = CallerResolver { request ->
     val space = request.headers().firstHeader(WowHeaders.SPACE)?.takeIf { it in spaces }
     Caller(
         tenantId = TENANT,
-        scope = Scope(user, space),
+        // A tenant-level caller (decision D189) has no owner: it reads and writes every aggregate of its tenant.
+        scope = Scope(user.takeUnless { request.headers().firstHeader("X-Tenant-Level") != null }, space),
         subject = user,
         crossScope = request.headers().firstHeader("X-Admin") != null,
     )

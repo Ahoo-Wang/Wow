@@ -26,6 +26,7 @@ import me.ahoo.wow.query.QueryBackendStorages
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryLogObserver
 import me.ahoo.wow.query.QueryObserver
+import me.ahoo.wow.query.QueryOwnership
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.ScopeQueryPolicy
@@ -168,6 +169,7 @@ class QueryAutoConfiguration {
         @ConditionalOnMissingBean
         @Suppress("LongParameterList") // One parameter per part of a gateway, each a bean the application may give.
         fun wowDatasetQueryGateways(
+            manifest: Manifest,
             properties: QueryProperties,
             datasets: QueryDatasets,
             catalog: QuerySchemaCatalog,
@@ -193,7 +195,7 @@ class QueryAutoConfiguration {
                 catalog,
                 factory,
                 filters = filters.orderedStream().toList(),
-                policies = scopePolicies(tenants, properties) + policies.orderedStream().toList(),
+                policies = scopePolicies(manifest, tenants, properties) + policies.orderedStream().toList(),
                 observer = observerOf(observers),
                 entryPolicy = entryPolicy,
             )
@@ -220,7 +222,7 @@ class QueryAutoConfiguration {
         ): HttpQueries {
             val contexts = node.contexts.keys
             val observer = observerOf(observers)
-            val scope = scopePolicies(tenants, properties)
+            val scope = scopePolicies(manifest, tenants, properties)
             val factory = backend.factory
             val snapshots = if (factory == null) {
                 emptyList()
@@ -238,7 +240,13 @@ class QueryAutoConfiguration {
                 }
             }
             val events = queryTypes(manifest, contexts, QueryRoutes.EVENTS).map { type ->
-                EventQueryGateway(type, node.contexts.getValue(type.context).backends.log, tenants, entryPolicy)
+                EventQueryGateway(
+                    type,
+                    node.contexts.getValue(type.context).backends.log,
+                    tenants,
+                    entryPolicy,
+                    QueryOwnership.of(manifest).ownershipOf(type),
+                )
             }
             return HttpQueries(
                 snapshots,
@@ -269,9 +277,18 @@ class QueryAutoConfiguration {
         const val MONGO_CLIENT = "com.mongodb.client.MongoClient"
         val logger = KotlinLogging.logger {}
 
-        /** The scope and ABAC policies every gateway runs first (decision D129). */
-        fun scopePolicies(tenants: QueryTenantPolicy, properties: QueryProperties): List<QueryPolicy> =
-            listOf(ScopeQueryPolicy(tenants), AbacQueryPolicy(properties.abac.options()))
+        /**
+         * The scope and ABAC policies every gateway runs first (decision D129), the owner applying to the aggregates
+         * [manifest] says belong to their owners (decision D189).
+         */
+        fun scopePolicies(
+            manifest: Manifest,
+            tenants: QueryTenantPolicy,
+            properties: QueryProperties,
+        ): List<QueryPolicy> = listOf(
+            ScopeQueryPolicy(tenants, ownerships = QueryOwnership.of(manifest)),
+            AbacQueryPolicy(properties.abac.options()),
+        )
 
         /** The query log and the application's observers. */
         fun observerOf(observers: ObjectProvider<QueryObserver>): QueryObserver =

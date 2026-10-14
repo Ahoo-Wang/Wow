@@ -25,14 +25,40 @@ Without a `CallerResolver` bean, every request is the anonymous caller: the defa
 
 The tenant, owner and space of a command come from the caller, never from the path or the body. A caller with `crossScope` may name another with `Wow-Scope`.
 
+### Two caller levels
+
+Every aggregate belongs to its tenant, and to its owner and space when it has them. A caller is at one of two levels, as its resolver decides:
+
+| Level | Caller's scope | Reads and writes |
+| --- | --- | --- |
+| Owner-level, such as a buyer | Has an owner | Only the aggregates of its owner (and space) |
+| Tenant-level, such as an employee | No owner | Every aggregate of its tenant, an order of any buyer, say |
+
+A part absent from the caller's scope is never checked, by the kernel on a command or by a query or a state read. So a tenant-level caller may ship any buyer's order, and its commit leaves the order's owner as it was. What a caller may do is the action-level authorization's (a `CommandAuthorizer`, CoSec's): the levels only decide which aggregates a caller reaches.
+
+```kotlin
+@Bean
+fun callerResolver(): CallerResolver = CallerResolver { request ->
+    val user = request.headers().firstHeader("X-User") ?: return@CallerResolver null
+    val employee = request.headers().firstHeader("X-Role") == "employee"
+    Caller(scope = if (employee) Scope.NONE else Scope(ownerId = user), subject = user)
+}
+```
+
+With CoSec (`wow-cosec`), `CoSecCallerResolver` makes the principal its own owner, unless it has one of the roles of `wow.cosec.tenant-level.roles` or one of the policies of `wow.cosec.tenant-level.policies`: such a principal is a tenant-level caller. Its subject is its id either way, so the operator of what it commits is recorded.
+
+An aggregate that every caller of its tenant reads, such as a product of a catalog, declares `@AggregateRoot(ownership = Ownership.TENANT)` ([Owners, spaces and tenants](./programming-model.md#owners-spaces-and-tenants)): no owner is recorded on it, and no read or write of it is restricted by the caller's owner. Its writes are then left to action-level authorization alone.
+
 ## Commands
 
 | Method and path | Sends |
 | --- | --- |
 | `POST /<context>/<aggregate>/{id}/<command>` | The command to the aggregate `{id}` |
-| `POST /<context>/<aggregate>/<command>` | A creating command to a new aggregate whose id the server generates |
+| `POST /<context>/<aggregate>/<command>` | A creating command to a new aggregate whose id the server gives it |
 
-`<command>` is the command's name in kebab case: `AddCartItem` is `add-cart-item`. The body is the command's JSON; an empty body is `{}`. With a Bean Validation provider on the class path (`spring-boot-starter-validation`), the command's Jakarta constraints are checked before it is decided.
+`<command>` is the command's name in kebab case: `AddCartItem` is `add-cart-item`. The body is the command's JSON; an empty body is `{}`.
+
+A creating command sent without an id gets one at admission: when its `Wow-Request-Id` already created an aggregate (within the caller's scope), the id of that aggregate, without drawing a new one; otherwise a new one from the aggregate type's generator (`wow.aggregates.[<context>.<aggregate>].id-generator`). A retry with the same request id is therefore answered with the same id, as a duplicate. A committed id never changes. The ids are stable, not gap-free: two concurrent requests with one id may draw a number that is then not used. With a Bean Validation provider on the class path (`spring-boot-starter-validation`), the command's Jakarta constraints are checked before it is decided.
 
 ### Lifecycle routes
 
@@ -85,7 +111,10 @@ A hop without a context is in the command's context. After a saga's `handled` ho
 Wow-Wait: committed > handled(example/OrderSaga.onOrderCreated) > committed(inventory)
 ```
 
-answers once the inventory has committed the reservations the order saga sent, or at once with the inventory's refusal. A plan has at most `wow.wait.max-hops` (4) hops. Without `Wow-Wait`, a command waits for `snapshot`, so the caller reads its own write.
+answers once the inventory has committed the reservations the order saga sent, or at once with the inventory's refusal. Without `Wow-Wait`, a command waits for `snapshot`, so the caller reads its own write.
+
+- **Hops.** A plan has at most `wow.wait.max-hops` (16) hops; a node allows at most 32. Each saga a chain follows adds two hops: its own `handled` and the next `committed`. A checkout followed through four sagas to its payment takes 15.
+- **Contexts the node does not know.** The node a wait starts on checks the hops of the contexts it has a Manifest of, its own and its peers'. A hop of any other context is let through when its name is a legal context name, and is checked where the chain arrives: a hop that names a subscription or a context the chain never reaches is never signalled, so the wait times out with the last hop it reached. With `wow.wait.unknown-contexts: reject`, such a hop makes the plan invalid (`wow.wait.invalid`) instead.
 
 ### Responses
 
@@ -117,7 +146,7 @@ A `CommandResult` holds:
 | `GET …/state?at=<ISO-8601 instant>` | The state after the last commit at or before that instant (write `+` as `%2B`) |
 | `GET …/state/trace?from=&to=&limit=` | The commits from `from` (1) to `to` (the last), at most `limit`, each with its events and the state after it |
 
-A state outside the caller's scope is 403 `wow.aggregate.forbidden`; a missing one 404 `wow.aggregate.not-found`. A deleted aggregate's state is read as any other, with `deleted` set.
+A state outside the caller's scope is 403 `wow.aggregate.forbidden`; a missing one 404 `wow.aggregate.not-found`. The caller's owner is not checked for an aggregate of its tenant (`Ownership.TENANT`). A deleted aggregate's state is read as any other, with `deleted` set.
 
 ## Queries
 
@@ -147,7 +176,7 @@ curl -X POST localhost:8080/example/order/events/query \
   -H 'Content-Type: application/json' -d '{"kind":"list","filter":{"op":"ID","value":"<order id>"}}'
 ```
 
-- The caller sees only its own aggregates: its tenant, and its owner and space when it has them. A query does not see deleted aggregates unless it names their deletion state.
+- The caller sees only its own aggregates: its tenant, and its owner and space when it has them. A tenant-level caller, without an owner, sees every aggregate of its tenant. Query admission reads each aggregate's ownership from the Manifest: the caller's owner does not restrict the queries of an aggregate of its tenant (`Ownership.TENANT`). A query does not see deleted aggregates unless it names their deletion state.
 - A snapshot query filters and sorts the system fields (`tenantId`, `aggregateId`, `version`, `ownerId`, `spaceId`, `deleted`, `tags`, `firstEventTime`, `lastEventTime`, `operator`, `firstOperator`) and `state.*`, as the state schema in the completed fragment describes it. `@QueryIndex` (`me.ahoo.wow.api.query.annotation`, in `wow-query-api`) on a state field declares an index the backend creates (`wow.query.index.ddl`); see [Query annotations](./query.md#query-annotations).
 - The `events` model's filter names one aggregate's id and may bound `version` or `commitTime`, nothing else.
 - A query the model refuses is 400 `wow.query.invalid`, its violations naming each rule; one that does not read as a query is 400 `wow.query.malformed`; a timeout is `wow.query.timeout`.

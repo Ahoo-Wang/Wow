@@ -44,7 +44,6 @@ class OrderProcessSagaTest {
     private val state = OrderState(ORDER).apply {
         onSourcing(
             OrderSubmitted(
-                "alice",
                 listOf(
                     OrderItem("mug", BigDecimal.ONE, 2),
                     OrderItem("cap", BigDecimal.TEN, 1),
@@ -59,7 +58,7 @@ class OrderProcessSagaTest {
 
     @Test
     fun `a submitted order should await its stock validation`() = sagaSpec(handlers) {
-        whenEvent(event(OrderSubmitted("alice", state.items))) {
+        whenEvent(event(OrderSubmitted(state.items))) {
             expectHandledBy("onOrderSubmitted", "onOrderAwaitingValidation", "onOrderCancelled", "onOrderShipped")
             expectCommand(AwaitStockValidation, to = order)
         }

@@ -64,7 +64,7 @@ A function that returns `Decision` (or `Any`, or a `Mono<Decision>`) does not te
 | `@AllowCreate` | Whether or not the aggregate exists |
 | Neither | The aggregate exists; otherwise `wow.aggregate.not-found` |
 
-A creating command (`@CreateAggregate` or `@AllowCreate`) gets two routes: one with `{id}`, where the client names the id, and one without, where the server generates it.
+A creating command (`@CreateAggregate` or `@AllowCreate`) gets two routes: one with `{id}`, where the client names the id, and one without, where the server gives it one. Without an id, admission first looks for the aggregate the command's request id already created, and gives the command that id; otherwise the aggregate type's generator draws a new one. A saga's creating command may leave its id to the target the same way, `context.command(type, body)`. A committed id never changes, so an id used as a document number (`SO-20261013-001`, say) stays the one the customer was given. The ids are not gap-free: a strictly consecutive numbering needs an aggregate that hands the numbers out.
 
 A command carries no identity field (no aggregate id, tenant, owner or version in its body): the id comes from the route or from the saga that sends the command, the tenant, owner and space from the caller, and the expected version from `If-Match`.
 
@@ -126,7 +126,21 @@ Every aggregate handles five system commands of `me.ahoo.wow.api.lifecycle` unle
 
 ### Owners, spaces and tenants
 
-An aggregate's scope is its owner and its space. The first command's caller gives it; after that, the kernel refuses a command whose caller's owner or space differs from the aggregate's (`wow.aggregate.forbidden`). A part the caller has no value for is not checked. A command function that must compare the caller with the aggregate's id (a cart whose id is its customer's user id, say) takes `Command<X>` and reads `command.scope.ownerId`. A fixed tenant for every aggregate of a type is host configuration: `wow.aggregates.[<context>.<aggregate>].tenant`.
+An aggregate's scope is its owner and its space. The first command's caller gives it; after that, the kernel refuses a command whose caller's owner or space differs from the aggregate's (`wow.aggregate.forbidden`). A part the caller has no value for is not checked: a tenant-level caller, without an owner, reaches every aggregate of its tenant ([Two caller levels](./http-api.md#two-caller-levels)).
+
+`@AggregateRoot(ownership = ...)` says who the aggregate belongs to besides its tenant:
+
+| `Ownership` | The aggregate | Such as |
+| --- | --- | --- |
+| `OWNER`, the default | Belongs to the owner of the command that creates it, when it has one | An order, a basket |
+| `TENANT` | Belongs to its tenant alone: no owner is recorded, and no read or write is restricted by the caller's owner. Its space still applies, and it handles no `TransferOwner` | A product every shopper reads |
+
+```kotlin
+@AggregateRoot(ownership = Ownership.TENANT)
+class Product(private val state: ProductState) { /* ... */ }
+```
+
+The compiler writes the ownership into the Manifest, where query admission reads it. The writes of a `TENANT` aggregate are left to action-level authorization (a `CommandAuthorizer`, CoSec's), which decides who may change a product. A command function that must compare the caller with the aggregate's id (a cart whose id is its customer's user id, say) takes `Command<X>` and reads `command.scope.ownerId`. A fixed tenant for every aggregate of a type is host configuration: `wow.aggregates.[<context>.<aggregate>].tenant`.
 
 ### Published streams
 
@@ -238,7 +252,8 @@ class CartSaga {
 
 - A derived command's id and request id are fixed by the execution and the order of the calls, so handling the commit again derives the same requests, and they are decided once.
 - The saga's hop is done once its commands are committed in its own context, or, across contexts, once the broker has them.
-- A derived command carries no caller scope, so the target's scope guard does not refuse it; it carries the tenant of the `ref` the saga gives it.
+- A derived command carries the scope (owner and space) and the operator of the commit it is derived from, and the tenant of the `ref` the saga gives it. An aggregate it creates belongs to the same owner: a basket's checkout creates an order that belongs to the basket's buyer. The target's scope guard checks the scope, so a command to an aggregate of another owner is refused, unless the target belongs to its tenant (`Ownership.TENANT`, a stock, say). A saga may narrow the scope of a command it returns: the shop's `CartSaga` returns `command.copy(scope = command.scope.copy(spaceId = null))`, since a cart has no space while an order may. A compensation (`@OnRejected`) and a scheduled command carry the scope of the command they follow the same way.
+- `context.command(type, body)`, with an `AggregateType` instead of a ref, derives a creating command that leaves the aggregate's id to the target's admission: the target gives it the id of the aggregate its request already created, else a new one, so handling the commit again keeps the first id. `context.ids` draws an id in the saga instead; handling the commit again draws a new one, so use it only for the creating command it names, whose request id keeps the target from creating the aggregate twice.
 - When the handler's return type does not name the commands (a `List<Command<*>>`, say), declare them with `@OnEvent(derives = ["<context>.<aggregate>.<Command>"])`, so a wait can follow the saga's hop into their contexts.
 
 ### Rejections a saga expects: `@OnRejected`
@@ -270,7 +285,19 @@ The setting applies only while the subscription has no checkpoint; after that it
 
 A handler that throws is retried (`wow.subscription.retry`: 5 attempts, from 100 ms up to 5 s by default). After the last attempt the aggregate is parked for that subscription in the failure ledger: the subscription goes on with other aggregates, and the parked one waits until it is resumed or skipped. The runtime offers both operations; no route or console exposes them yet.
 
-A subscription can have a budget of its own, for a handler that calls a slow external system. `timeout` bounds one attempt: an attempt that runs longer is cancelled and counts as a failed attempt. Each setting given replaces the global one; the others stay the global ones:
+A subscription can have a budget of its own, for a handler that calls a slow external system. `timeout` bounds one attempt: an attempt that runs longer is cancelled and counts as a failed attempt. `@Retry` declares it on a processor class, for all its handlers, or on an `@OnEvent` handler; a handler's settings override its processor's one at a time, and a setting left out is not given. Durations are Kotlin's (`500ms`, `2s`) or ISO-8601 (`PT2S`):
+
+```kotlin
+@Reactor
+@Retry(maxAttempts = 3, timeout = "2s")
+class ShippingNotifier(private val carrier: CarrierClient) {
+    @OnEvent
+    @Retry(initialBackoff = "1s")
+    suspend fun onShipped(event: StateEvent<OrderState>) = carrier.notify(event.state.id)
+}
+```
+
+The compiler checks the settings, writes the budget into the generated binding and into the subscription's entry of the Manifest (`retry`). The host's configuration overrides it per subscription; each setting given replaces the annotation's, and the ones neither gives stay the global ones:
 
 ```yaml
 wow:

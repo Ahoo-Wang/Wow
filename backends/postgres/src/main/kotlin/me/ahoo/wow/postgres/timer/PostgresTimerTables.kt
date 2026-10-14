@@ -22,7 +22,9 @@ import me.ahoo.wow.postgres.PostgresIdentifiers
  * One row per timer, keyed by `(owner, key)`; `timer_id` is the timer's id, the request id its command is sent with.
  * The target takes four columns; the body is the command's JSON as text, given back as written; the causation is two
  * nullable columns, both null or both set; the operator (decision D163) is a nullable `jsonb` object, `{id, tenantId,
- * crossScope}`, a column added within format 1 that a table created before it gets on its next ensure. A partial index on `(partition, due_at, timer_id)` of the PENDING timers
+ * crossScope}`, a column added within format 1 that a table created before it gets on its next ensure; so is the
+ * scope the command is sent in (decision D189), a nullable `jsonb` object `{ownerId, spaceId}`, null for none. A
+ * partial index on `(partition, due_at, timer_id)` of the PENDING timers
  * serves the runner's due read, and one on the target of the PARKED timers serves a resume.
  */
 internal class PostgresTimerTables(context: String) {
@@ -53,10 +55,12 @@ internal class PostgresTimerTables(context: String) {
             attempts integer NOT NULL,
             outcome text,
             operator jsonb,
+            scope jsonb,
             PRIMARY KEY (owner, key)
         )
         """.trimIndent(),
         "ALTER TABLE $table ADD COLUMN IF NOT EXISTS operator jsonb",
+        "ALTER TABLE $table ADD COLUMN IF NOT EXISTS scope jsonb",
         "CREATE INDEX IF NOT EXISTS \"$dueIndex\" ON $table (partition, due_at, timer_id) WHERE status = 'PENDING'",
         "CREATE INDEX IF NOT EXISTS \"$parkedIndex\" ON $table " +
             "(target_context, target_aggregate, target_tenant_id, target_id) WHERE status = 'PARKED'",
@@ -65,11 +69,11 @@ internal class PostgresTimerTables(context: String) {
     /**
      * Writes a timer, PENDING, unless the row holds the same timer or a later version. The conflict update locks the
      * row and re-checks its condition against the latest committed row, so concurrent writes of one key keep the
-     * latest version. Parameters: the [COLUMNS] up to `headers`, then the operator.
+     * latest version. Parameters: the [COLUMNS] up to `headers`, then the operator and the scope.
      */
     val put = """
         INSERT INTO $table AS held ($COLUMNS) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, 'PENDING', 0, NULL,
-            ?::jsonb)
+            ?::jsonb, ?::jsonb)
         ON CONFLICT (owner, key) DO UPDATE
         SET timer_id = excluded.timer_id, version = excluded.version, partition = excluded.partition,
             due_at = excluded.due_at, target_context = excluded.target_context,
@@ -77,7 +81,7 @@ internal class PostgresTimerTables(context: String) {
             target_id = excluded.target_id, command_type = excluded.command_type, body = excluded.body,
             correlation_id = excluded.correlation_id, causation_id = excluded.causation_id,
             headers = excluded.headers, status = 'PENDING', attempts = 0, outcome = NULL,
-            operator = excluded.operator
+            operator = excluded.operator, scope = excluded.scope
         WHERE held.timer_id <> excluded.timer_id AND held.version <= excluded.version
     """.trimIndent()
 
@@ -110,6 +114,6 @@ internal class PostgresTimerTables(context: String) {
 
         const val COLUMNS = "owner, key, timer_id, version, partition, due_at, target_context, target_aggregate, " +
             "target_tenant_id, target_id, command_type, body, correlation_id, causation_id, headers, status, " +
-            "attempts, outcome, operator"
+            "attempts, outcome, operator, scope"
     }
 }

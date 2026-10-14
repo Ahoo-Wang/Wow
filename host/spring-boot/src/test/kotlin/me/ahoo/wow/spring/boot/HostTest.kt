@@ -26,6 +26,7 @@ import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.wait.SignalSender
+import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.json.WowJson
@@ -53,6 +54,7 @@ class HostTest {
         "wow.executor.lane-capacity" to 32,
         "wow.state-cache.capacity" to 0,
         "wow.wait.max-hops" to 3,
+        "wow.wait.unknown-contexts" to "reject",
         "wow.subscription.max-in-flight" to 64,
         "wow.subscription.retry.max-attempts" to 2,
         "wow.timers.poll-interval" to "250ms",
@@ -100,6 +102,7 @@ class HostTest {
         options.cluster.reconcileInterval.assert().isEqualTo(200.milliseconds)
         options.maxWaitTimeout.assert().isEqualTo(15.seconds)
         options.maxWaitHops.assert().isEqualTo(3)
+        options.unknownWaitContexts.assert().isEqualTo(UnknownContexts.REJECT)
         options.appendQueue.enabled.assert().isTrue()
         options.appendQueue.maxBatch.assert().isEqualTo(16)
         options.laneCapacity.assert().isEqualTo(32)

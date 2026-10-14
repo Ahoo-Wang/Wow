@@ -37,6 +37,7 @@ import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.QueryRoutes
+import me.ahoo.wow.query.QueryOwnership
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.runtime.admission.CommandGateway
 import org.springframework.http.HttpMethod
@@ -97,7 +98,8 @@ fun wowRoutes(
         scope = scope,
     )
     val queryHandler = QueryHandler(queries, authenticator, headers, statuses, gateway.tenants, scope)
-    val states = StateHandler(reads, authenticator, headers, statuses, gateway.tenants)
+    val ownerships = QueryOwnership.of(manifest)
+    val states = StateHandler(reads, authenticator, headers, statuses, gateway.tenants, ownerships::ownershipOf)
     val served = withTransformedRoutes(manifest, gateway)
     val manifestBody = HttpJson.write(ManifestTree.write(served))
     return coRouter {

@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregateIdFilter
@@ -108,6 +109,24 @@ class EventQueryGatewayTest {
         }
         visible("s-1").assert().hasSize(3)
         visible("s-2").assert().isEmpty()
+    }
+
+    @Test
+    fun `the principal's owner should not restrict the streams of an aggregate of its tenant`() {
+        fun visible(gateway: EventQueryGateway) = runBlocking {
+            gateway.list(
+                ListQuery(of()),
+                inProcess.copy(caller = inProcess.caller!!.copy(scope = Scope("bob", "s-1")))
+            ).toList()
+        }
+        visible(untimed).assert().isEmpty()
+        val tenantWide = EventQueryGateway(
+            type,
+            log,
+            entryPolicy = QueryEntryPolicy(inProcessTimeout = null),
+            ownership = Ownership.TENANT,
+        )
+        visible(tenantWide).assert().hasSize(3)
     }
 
     @Test

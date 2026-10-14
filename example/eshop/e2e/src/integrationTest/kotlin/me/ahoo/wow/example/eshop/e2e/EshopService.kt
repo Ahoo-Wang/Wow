@@ -73,7 +73,9 @@ class EshopService private constructor(
         .connectTimeout(Duration.ofSeconds(5))
         .build()
 
-    fun get(path: String): Answer = send(HttpRequest.newBuilder(uri(path)).GET())
+    fun get(path: String, headers: Map<String, String> = emptyMap()): Answer = send(
+        HttpRequest.newBuilder(uri(path)).GET().also { request -> headers.forEach { (name, value) -> request.header(name, value) } },
+    )
 
     fun post(path: String, body: String, headers: Map<String, String> = emptyMap()): Answer = send(
         HttpRequest.newBuilder(uri(path))

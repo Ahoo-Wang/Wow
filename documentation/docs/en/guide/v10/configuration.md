@@ -69,7 +69,8 @@ The host serves every context of the domain modules on its class path. `wow.cont
 | --- | --- | --- |
 | `wow.wait.default-timeout` | `10s` | How long a command whose request names no timeout waits |
 | `wow.wait.max-timeout` | `60s` | The longest wait; a longer timeout is capped to it |
-| `wow.wait.max-hops` | `4` | The most hops of a wait plan |
+| `wow.wait.max-hops` | `16` | The most hops of a wait plan, at most 32. Each saga a chain follows adds two |
+| `wow.wait.unknown-contexts` | `allow` | A hop of a context the node has no Manifest of: `allow` lets it through when its name is legal, checked where the chain arrives; `reject` makes the plan invalid |
 | `wow.executor.lane-capacity` | `1024` | The commands one aggregate may have waiting |
 | `wow.state-cache.capacity` | `4096` | The aggregate states kept per context between commands; `0` keeps none |
 | `wow.tenant.default` | `(0)` | The tenant of a caller that has none, such as the anonymous one |
@@ -107,6 +108,16 @@ Unless the application sets `spring.lifecycle.timeout-per-shutdown-phase`, the h
 | `wow.http.manifest.enabled` | `true` | Whether `GET /wow/manifest` is served |
 
 The public port is Spring Boot's `server.port`.
+
+## CoSec
+
+With `wow-cosec` on the class path, `CoSecCallerResolver` resolves the callers ([Two caller levels](./http-api.md#two-caller-levels)) unless the application defines a `CallerResolver`:
+
+| Key | Default | Means |
+| --- | --- | --- |
+| `wow.cosec.tenant-level.roles`, `wow.cosec.tenant-level.policies` | Empty | The roles and policies whose principal is a tenant-level caller: no owner, so it reaches every aggregate of its tenant |
+| `wow.cosec.cross-scope.roles`, `wow.cosec.cross-scope.policies` | Empty | The roles and policies whose principal may act in another scope with `Wow-Scope` |
+| `wow.cosec.authorizer.enabled` | `false` | Whether CoSec's authorization decides every command (action-level authorization) |
 
 ## Query
 

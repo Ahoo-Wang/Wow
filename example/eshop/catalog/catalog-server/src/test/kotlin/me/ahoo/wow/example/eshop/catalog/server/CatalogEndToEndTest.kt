@@ -92,6 +92,20 @@ class CatalogEndToEndTest {
     }
 
     @Test
+    fun `an employee should change the catalog, a buyer only read it (D189)`() {
+        val id = catalog.post("/eshop-catalog/product/create-product", """{"name":"Wow cap","price":12}""", EMPLOYEE)
+            .assertOk().json["ref"]["id"].asString()
+        catalog.post("/eshop-catalog/product/create-product", """{"name":"Mine","price":1}""", BUYER)
+            .assertProblem(FORBIDDEN, "wow.auth.forbidden")
+        // The product belongs to the tenant: it records no owner, and the buyer reads it.
+        val owner = catalog.get("/eshop-catalog/product/$id/state", BUYER).assertOk().json["scope"].path("ownerId")
+        (owner.isNull || owner.isMissingNode).assert().isTrue()
+        catalog.post("/eshop-catalog/product/$id/change-product-price", """{"price":13}""", BUYER)
+            .assertProblem(FORBIDDEN, "wow.auth.forbidden")
+        catalog.post("/eshop-catalog/product/$id/change-product-price", """{"price":13}""", EMPLOYEE).assertOk()
+    }
+
+    @Test
     fun `the memory backend should serve no snapshot queries`() {
         catalog.post(CatalogQueryContract.PRODUCTS, """{"kind":"list","filter":{"op":"MATCH_ALL"}}""").status
             .assert().isEqualTo(NOT_FOUND)
@@ -101,5 +115,6 @@ class CatalogEndToEndTest {
         const val CONFLICT = 409
         const val UNPROCESSABLE = 422
         const val NOT_FOUND = 404
+        const val FORBIDDEN = 403
     }
 }

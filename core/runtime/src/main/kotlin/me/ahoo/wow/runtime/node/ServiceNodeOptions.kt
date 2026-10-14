@@ -27,6 +27,7 @@ import me.ahoo.wow.runtime.state.StateViewOptions
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.timer.TimerOptions
+import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.ledger.FailureLedger
@@ -76,7 +77,7 @@ enum class Routing {
  * The tuning of a [ServiceNode] (decision D110 names the host's keys for them).
  *
  * - [cluster]: partition ownership and the cluster channel; [routing]: where commands run.
- * - [maxWaitTimeout], [maxWaitHops] and [defaultWaitTimeout]: the waits ([WaitOptions]); the default timeout is that
+ * - [maxWaitTimeout], [maxWaitHops], [unknownWaitContexts] and [defaultWaitTimeout]: the waits ([WaitOptions]); the default timeout is that
  *   of every command whose request names none, whichever edge it came through, capped by [maxWaitTimeout]. [ServiceNode.stop] also waits at most
  *   [maxWaitTimeout] for the waits registered on the node to end: none of them outlives it.
  * - [subscription]: the subscriptions of every context, the built-in ones included, with the starts the host
@@ -107,6 +108,7 @@ data class ServiceNodeOptions(
     val stateViews: StateViewOptions = StateViewOptions(),
     val timers: TimerOptions = TimerOptions(),
     val kafkaRouted: Set<AggregateType> = emptySet(),
+    val unknownWaitContexts: UnknownContexts = UnknownContexts.ALLOW,
 ) {
     init {
         require(defaultWaitTimeout.isPositive()) { "The default wait timeout is positive." }

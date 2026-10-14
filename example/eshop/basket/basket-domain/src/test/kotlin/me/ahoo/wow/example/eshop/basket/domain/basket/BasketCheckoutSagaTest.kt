@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.example.eshop.basket.domain.basket
 
+import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCleared
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketItem
@@ -36,16 +38,19 @@ class BasketCheckoutSagaTest {
             BasketState("alice"),
             *events,
             version = 3,
-            commandType = "eshop-basket.basket.CheckoutBasket"
+            commandType = "eshop-basket.basket.CheckoutBasket",
+            scope = Scope(ownerId = "alice"),
         )
 
     @Test
     fun `a checked-out basket should submit its order to the ordering context`() = sagaSpec(handlers) {
         whenEvent(event(BasketCheckedOut("alice-1", listOf(BasketItem("mug", BigDecimal("8.50"), 2))))) {
-            expectCommand(
-                SubmitOrder("alice", listOf(OrderItem("mug", BigDecimal("8.50"), 2))),
+            val submit = expectCommand(
+                SubmitOrder(listOf(OrderItem("mug", BigDecimal("8.50"), 2))),
                 to = AggregateType("eshop-ordering", "order").ref("tenant", "alice-1"),
             )
+            // In the basket's scope: the order belongs to its buyer (decision D189).
+            submit.scope.assert().isEqualTo(Scope(ownerId = "alice"))
             // Handling the commit again derives the same request, which the ordering context decides once.
             expectDeterministic()
         }

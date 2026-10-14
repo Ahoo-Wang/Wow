@@ -65,12 +65,23 @@ internal object ModelSource {
             appendLine("            me.ahoo.wow.kernel.eventsOf(${awaited(call, after.reactor)})")
             appendLine("        }")
         }
+        renderOwnershipAndLifecycle(binding)
+        appendLine("        configure()")
+        appendLine("    }")
+    }
+
+    /**
+     * The aggregate's ownership when it is not the default (decision D189), then its lifecycle commands when
+     * `@AggregateRoot(lifecycle)` narrows them (decision D91).
+     */
+    private fun StringBuilder.renderOwnershipAndLifecycle(binding: AggregateBinding) {
+        if (binding.ownership != "OWNER") {
+            appendLine("        ownership(me.ahoo.wow.api.aggregate.Ownership.${binding.ownership})")
+        }
         if (binding.narrowsLifecycle) {
             val commands = binding.lifecycle.map { "${Lifecycle.COMMANDS.getValue(it).name}::class.java" }
             appendLine("        lifecycle(${commands.joinToString(", ")})")
         }
-        appendLine("        configure()")
-        appendLine("    }")
     }
 
     /** The commands' former names, then the events' upgrades (D82), each a call of its `@Upgrade` function. */

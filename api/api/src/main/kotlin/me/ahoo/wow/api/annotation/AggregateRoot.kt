@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.api.annotation
 
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.lifecycle.ApplyTags
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
@@ -35,6 +36,11 @@ import kotlin.reflect.KClass
  * its events without the state after each commit, for a state too large to send (decision D140); [topic] names the
  * Kafka topic, `wow.<context>.<aggregate>.state` when empty. A topic is at most 249 characters of `a-z`, `A-Z`,
  * `0-9`, `.`, `_` and `-`, and neither `.` nor `..`.
+ *
+ * [ownership] says who the aggregate belongs to besides its tenant (decision D189): [Ownership.OWNER] by default, the
+ * owner of the command that creates it; [Ownership.TENANT] for a resource every caller of the tenant reads, such as a
+ * product, whose owner is not recorded and whose reads are not restricted by owner. The compiler passes it to the
+ * model and writes it into the Manifest, where query admission reads it.
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
@@ -50,4 +56,5 @@ annotation class AggregateRoot(
     val published: Boolean = true,
     val publishState: Boolean = true,
     val topic: String = "",
+    val ownership: Ownership = Ownership.OWNER,
 )

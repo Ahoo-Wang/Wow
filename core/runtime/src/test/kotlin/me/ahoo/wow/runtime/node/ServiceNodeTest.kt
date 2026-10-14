@@ -51,6 +51,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.runtime.wait.ResultCodes
+import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -427,13 +428,35 @@ class ServiceNodeTest {
     }
 
     @Test
+    fun `a creation without an id keeps the id its request created in the context's log (D191)`(): Unit = runBlocking {
+        val node = node("node-1").also { it.start() }
+        val request = deposit().copy(requestId = "deposit-1")
+        val first = node.gateway.execute(request)
+        first.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        val again = node.gateway.execute(request)
+        again.ref.assert().isEqualTo(first.ref)
+        again.duplicate.assert().isTrue()
+        node.gateway.execute(deposit(context = "nowhere").copy(requestId = "deposit-1"))
+            .error!!.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
+        node.stop()
+    }
+
+    @Test
     fun `a wait chain may name a subscription of a peer's context through the node's contracts`(): Unit = runBlocking {
         val peer = WaitPlan.of(Hop.handled("StockProjector.onStock", "inventory")).within(200.milliseconds)
+        // A node that knows no Manifest of the context lets the hop through (decision D190): it times out unheard.
         val alone = node("node-1")
         alone.start()
-        val refused = alone.gateway.execute(deposit(id = "a-1", wait = peer))
-        refused.error!!.code.assert().isEqualTo(ResultCodes.WAIT_INVALID)
+        val unheard = alone.gateway.execute(deposit(id = "a-0", wait = peer))
+        unheard.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
+        unheard.hop.assert().isEqualTo(Hop.committed(BANK))
         alone.stop()
+        // Unless it rejects the contexts it does not know.
+        val strict = node("node-3", options = fastNodeOptions().copy(unknownWaitContexts = UnknownContexts.REJECT))
+        strict.start()
+        val refused = strict.gateway.execute(deposit(id = "a-1", wait = peer))
+        refused.error!!.code.assert().isEqualTo(ResultCodes.WAIT_INVALID)
+        strict.stop()
 
         val node = node("node-2", backends = InMemoryBackends(), peers = ContractFixtures.peers)
         node.contracts.serviceOf("inventory").assert().isEqualTo("inventory-service")

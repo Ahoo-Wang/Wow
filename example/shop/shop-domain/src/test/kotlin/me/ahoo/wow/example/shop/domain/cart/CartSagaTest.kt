@@ -67,16 +67,17 @@ class CartSagaTest {
         val command = CartSaga().onOrderCreated(event, context(event))!!
         command.ref.assert().isEqualTo(AggregateType("example", "cart").ref("tenant", "alice"))
         command.body.assert().isEqualTo(RemoveCartItem(setOf("apple", "pear")))
-        command.scope.assert().isEqualTo(Scope.NONE)
+        // The order's owner, as for every derived command (decision D189).
+        command.scope.assert().isEqualTo(Scope("alice"))
         command.causation!!.causationId.assert().isEqualTo("example.order/tenant/order-1@1")
         // Handling the commit again derives the same request.
         CartSaga().onOrderCreated(event, context(event))!!.requestId.assert().isEqualTo(command.requestId)
     }
 
     @Test
-    fun `a spaced order should derive a command without the order's space`() {
+    fun `a spaced order should derive a command with the order's owner but not its space`() {
         val event = event(space = "store-1")
-        CartSaga().onOrderCreated(event, context(event))!!.scope.assert().isEqualTo(Scope.NONE)
+        CartSaga().onOrderCreated(event, context(event))!!.scope.assert().isEqualTo(Scope("alice"))
     }
 
     @Test

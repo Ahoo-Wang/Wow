@@ -25,14 +25,40 @@ fun callerResolver(): CallerResolver = CallerResolver { request ->
 
 命令的租户、所有者与空间来自调用方，从不来自路径或请求体。带 `crossScope` 的调用方可以用 `Wow-Scope` 指定另一个。
 
+### 两级调用方
+
+聚合一律属于它的租户，有所有者、空间时也属于它们。调用方分两级，由解析器决定：
+
+| 级别 | 调用方作用域 | 能读写 |
+| --- | --- | --- |
+| 所有者级，例如买家 | 带所有者 | 只有自己所有者（与空间）的聚合 |
+| 租户级，例如员工 | 不带所有者 | 本租户的全部聚合，例如任何买家的订单 |
+
+调用方作用域里缺的部分从不检查，无论是内核检查命令，还是查询与状态读。所以租户级调用方可以给任何买家的订单发货，它的提交不改变订单的所有者。调用方能做什么由动作级授权（`CommandAuthorizer`，例如 CoSec 的）决定；级别只决定它能触达哪些聚合。
+
+```kotlin
+@Bean
+fun callerResolver(): CallerResolver = CallerResolver { request ->
+    val user = request.headers().firstHeader("X-User") ?: return@CallerResolver null
+    val employee = request.headers().firstHeader("X-Role") == "employee"
+    Caller(scope = if (employee) Scope.NONE else Scope(ownerId = user), subject = user)
+}
+```
+
+接 CoSec（`wow-cosec`）时，`CoSecCallerResolver` 让主体成为自己的所有者，除非它持有 `wow.cosec.tenant-level.roles` 中的某个角色或 `wow.cosec.tenant-level.policies` 中的某个策略：这样的主体是租户级调用方。两种情况下主体 `subject` 都是它的 ID，所以它提交的内容都记下了操作人。
+
+本租户所有调用方都要读的聚合，例如目录里的商品，声明 `@AggregateRoot(ownership = Ownership.TENANT)`（[所有者、空间与租户](./programming-model.md#所有者、空间与租户)）：它不记所有者，对它的读写都不按调用方的所有者限制，写只由动作级授权保护。
+
 ## 命令
 
 | 方法与路径 | 发送 |
 | --- | --- |
 | `POST /<context>/<aggregate>/{id}/<command>` | 发给聚合 `{id}` 的命令 |
-| `POST /<context>/<aggregate>/<command>` | 发给一个新聚合的创建类命令，ID 由服务端生成 |
+| `POST /<context>/<aggregate>/<command>` | 发给一个新聚合的创建类命令，ID 由服务端分配 |
 
-`<command>` 是命令名的 kebab case：`AddCartItem` 为 `add-cart-item`。请求体是命令的 JSON；空请求体即 `{}`。类路径上有 Bean Validation 实现（`spring-boot-starter-validation`）时，命令被决定之前先校验它的 Jakarta 约束。
+`<command>` 是命令名的 kebab case：`AddCartItem` 为 `add-cart-item`。请求体是命令的 JSON；空请求体即 `{}`。
+
+不带 ID 的创建类命令在准入时得到 ID：它的 `Wow-Request-Id` 已经（在调用方的作用域内）创建过聚合时，取那个聚合的 ID，不再取号；否则由聚合类型的生成器（`wow.aggregates.[<context>.<aggregate>].id-generator`）分配新 ID。所以用同一请求 ID 的重试得到同一个 ID，作为重复请求回答。已提交的 ID 永不改变。ID 稳定但不保证连号：同一请求 ID 的两个并发请求可能取了一个最终没用上的号。类路径上有 Bean Validation 实现（`spring-boot-starter-validation`）时，命令被决定之前先校验它的 Jakarta 约束。
 
 ### 生命周期路由
 
@@ -85,7 +111,10 @@ hop  := "accepted" ["(" context ")"]
 Wow-Wait: committed > handled(example/OrderSaga.onOrderCreated) > committed(inventory)
 ```
 
-在库存上下文提交了订单 Saga 发出的预留之后回答，或者在库存拒绝时立即回答。一个计划最多 `wow.wait.max-hops`（4）跳。不带 `Wow-Wait` 时命令等待 `snapshot`，调用方能读到自己的写入。
+在库存上下文提交了订单 Saga 发出的预留之后回答，或者在库存拒绝时立即回答。不带 `Wow-Wait` 时命令等待 `snapshot`，调用方能读到自己的写入。
+
+- **跳数。** 一个计划最多 `wow.wait.max-hops`（16）跳，节点允许的上限是 32。等待链每经过一个 Saga 加两跳：它自己的 `handled` 与下一个 `committed`。一次结账经四个 Saga 一直等到支付，需要 15 跳。
+- **节点不认识的上下文。** 发起等待的节点只校验它有 Manifest 的上下文，即自己的与 peer 的。其他上下文的跳，名字合法即放行，到达处再校验：写错的订阅或上下文永远收不到信号，等待超时并带回最后到达的跳。设置 `wow.wait.unknown-contexts: reject` 时，这样的跳使计划无效（`wow.wait.invalid`）。
 
 ### 响应
 
@@ -117,7 +146,7 @@ Wow-Wait: committed > handled(example/OrderSaga.onOrderCreated) > committed(inve
 | `GET …/state?at=<ISO-8601 时刻>` | 该时刻或之前最后一次提交之后的状态（`+` 写作 `%2B`） |
 | `GET …/state/trace?from=&to=&limit=` | 从 `from`（1）到 `to`（最后一次）的提交，最多 `limit` 条，每条带事件及其后的状态 |
 
-调用方作用域之外的状态返回 403 `wow.aggregate.forbidden`；不存在的返回 404 `wow.aggregate.not-found`。已删除聚合的状态照常读取，`deleted` 为真。
+调用方作用域之外的状态返回 403 `wow.aggregate.forbidden`；不存在的返回 404 `wow.aggregate.not-found`。属于租户的聚合（`Ownership.TENANT`）不检查调用方的所有者。已删除聚合的状态照常读取，`deleted` 为真。
 
 ## 查询
 
@@ -147,7 +176,7 @@ curl -X POST localhost:8080/example/order/events/query \
   -H 'Content-Type: application/json' -d '{"kind":"list","filter":{"op":"ID","value":"<order id>"}}'
 ```
 
-- 调用方只看到自己的聚合：自己的租户，以及它有值时的所有者与空间。除非查询指明删除状态，否则看不到已删除的聚合。
+- 调用方只看到自己的聚合：自己的租户，以及它有值时的所有者与空间。不带所有者的租户级调用方看到本租户的全部聚合。查询准入从 Manifest 读取每个聚合的归属：属于租户的聚合（`Ownership.TENANT`）的查询不按调用方的所有者限制。除非查询指明删除状态，否则看不到已删除的聚合。
 - 快照查询可以筛选与排序系统字段（`tenantId`、`aggregateId`、`version`、`ownerId`、`spaceId`、`deleted`、`tags`、`firstEventTime`、`lastEventTime`、`operator`、`firstOperator`）以及补全后的片段中状态 Schema 描述的 `state.*`。状态字段上的 `@QueryIndex`（`me.ahoo.wow.api.query.annotation`，在 `wow-query-api` 中）声明一个由后端创建的索引（`wow.query.index.ddl`）；见[查询注解](./query.md#查询注解)。
 - `events` 模型的筛选条件指定一个聚合的 ID，可以再限定 `version` 或 `commitTime`，不能有其他条件。
 - 模型拒绝的查询返回 400 `wow.query.invalid`，其中的违例逐条指出规则；无法读成查询的返回 400 `wow.query.malformed`；超时为 `wow.query.timeout`。

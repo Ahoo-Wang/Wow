@@ -29,6 +29,7 @@ import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.timer.TimerOptions
+import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import org.springframework.boot.context.properties.ConfigurationProperties
@@ -53,8 +54,9 @@ import kotlin.time.toKotlinDuration
  * - `wow.log.partitions` (64) and `wow.log.append-queue.*`, whose defaults are the backend's preset.
  * - `wow.cluster.*` ([ClusterOptions]) and `wow.cluster.router`: `partitioned`, or `local` (the default on the memory
  *   backend, which cannot route across nodes).
- * - `wow.wait.default-timeout` (10s), `max-timeout` (60s), `max-hops` (4): the default timeout is the node's
- *   ([ServiceNodeOptions.defaultWaitTimeout]), for every command whose request names none.
+ * - `wow.wait.default-timeout` (10s), `max-timeout` (60s), `max-hops` (16, at most 32), `unknown-contexts` (`allow`
+ *   or `reject`, decision D190): the default timeout is the node's ([ServiceNodeOptions.defaultWaitTimeout]), for every
+ *   command whose request names none.
  * - `wow.executor.lane-capacity`, `wow.state-cache.capacity`, `wow.subscription.*`.
  * - `wow.subscriptions.[<subscription>].start`: `beginning`, `end` or an ISO-8601 instant, where the subscription
  *   (`processor.function`, bracketed for its dot) starts in a partition it has no checkpoint in yet, instead of its
@@ -198,8 +200,14 @@ class WowProperties {
         /** The longest wait; a longer timeout is capped to it, and a node stops within it. */
         var maxTimeout: Duration = WaitOptions.DEFAULT_MAX_TIMEOUT.toJavaDuration()
 
-        /** The most hops of a wait plan. */
+        /** The most hops of a wait plan, at most [WaitOptions.MAX_HOPS_CAP]; each saga a chain follows adds two. */
         var maxHops: Int = WaitOptions.DEFAULT_MAX_HOPS
+
+        /**
+         * Whether a wait plan may name a context the node knows no Manifest of (decision D190): `allow`, checked where
+         * the chain arrives, or `reject`.
+         */
+        var unknownContexts: UnknownContexts = UnknownContexts.ALLOW
     }
 
     class Executor {

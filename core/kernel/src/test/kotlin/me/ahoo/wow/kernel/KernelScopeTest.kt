@@ -16,13 +16,16 @@ package me.ahoo.wow.kernel
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
 import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.lifecycle.TransferSpace
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 /** The kernel's scope guard (decision D94): an existing aggregate takes commands from its own scope only. */
 class KernelScopeTest {
@@ -190,5 +193,53 @@ class KernelScopeTest {
         send(TransferSpace("space-b"), Scope("carol", "space-a"), requestId = "to-b")
             .rejection().assert().isEqualTo(KernelRejections.FORBIDDEN)
         versions().assert().containsExactly(1, 2, 3)
+    }
+
+    @Test
+    fun `an aggregate of its tenant records no owner and checks none, but still its space`(): Unit = runTest {
+        val model = aggregate<CartState>("example", "shelf") {
+            ownership(Ownership.TENANT)
+            initial { CartState(it.id) }
+            decide<CreateCart>(Creation.REQUIRED) { _, command -> Decision.events(CartCreated(command.owner)) }
+            decide<AddItem> { _, command -> Decision.events(ItemAdded(command.productId, command.quantity)) }
+            evolve<CartCreated> { owner = it.owner }
+            evolve<ItemAdded> { items[it.productId] = (items[it.productId] ?: 0) + it.quantity }
+        }
+        model.ownership.assert().isEqualTo(Ownership.TENANT)
+        model.lifecycleCommands.assert().doesNotContain(TransferOwner::class.java)
+        val shelf = model.type.ref("tenant", "shelf-1")
+        suspend fun send(body: Any, scope: Scope, requestId: String): CommandOutcome =
+            kernel.execute(model, Command("c-$requestId", requestId, shelf, body, scope = scope))
+
+        val created = send(CreateCart("ahoo"), owned, "create") as CommandOutcome.Committed
+        created.stream.scope.assert().isEqualTo(Scope(spaceId = "space-a"))
+        (send(AddItem("apple", 1), Scope("bob", "space-a"), "bob") as CommandOutcome.Committed)
+            .stream.scope.assert().isEqualTo(Scope(spaceId = "space-a"))
+        (send(AddItem("apple", 1), Scope("bob", "space-b"), "elsewhere") as CommandOutcome.Rejected)
+            .rejection.code.assert().isEqualTo(KernelRejections.FORBIDDEN)
+        // A retry of the creation from another owner is answered: the owner is no part of the aggregate's scope.
+        send(CreateCart("ahoo"), Scope("carol", "space-a"), "create")
+            .assert().isInstanceOf(CommandOutcome.AlreadyCommitted::class.java)
+        (send(TransferOwner("carol"), Scope.NONE, "transfer") as CommandOutcome.Rejected)
+            .rejection.code.assert().isEqualTo(KernelRejections.UNHANDLED)
+    }
+
+    @Test
+    fun `a command whose aggregate has no id yet never reaches the kernel's decision`(): Unit = runTest {
+        val unassigned = Command("c-x", "r-x", cartModel.type.unassigned("tenant"), CreateCart("ahoo"))
+        runCatching { kernel.execute(cartModel, unassigned) }.exceptionOrNull()
+            .assert().isInstanceOf(IllegalArgumentException::class.java)
+        versions().assert().isEmpty()
+    }
+
+    @Test
+    fun `an aggregate of its tenant decides no transfer of its owner`() {
+        assertThrows<IllegalArgumentException> {
+            aggregate<CartState>("example", "shelf") {
+                ownership(Ownership.TENANT)
+                initial { CartState(it.id) }
+                decide<TransferOwner> { _, _ -> Decision.NoOp }
+            }
+        }.message.assert().contains("Ownership.TENANT")
     }
 }

@@ -32,9 +32,9 @@ import me.ahoo.wow.example.shop.domain.order.OrderState
  *
  * A cart's id is its customer's user id, the owner of the order (decision D56: the stream's scope is the order's),
  * and it is in the order's tenant. The command it derives has a request id fixed by the commit (design 01 §1), so
- * handling the order's commit again does not remove anything twice; it carries no scope, so the cart's scope guard
- * (decision D94) does not refuse it, whatever space the order is in. An order without an owner, or not placed from
- * the cart, derives nothing.
+ * handling the order's commit again does not remove anything twice. It carries the order's owner (decision D189) but
+ * not its space: a cart has none, so the cart's scope guard (decision D94) does not refuse it, whatever space the
+ * order is in. An order without an owner, or not placed from the cart, derives nothing.
  *
  * The cart may refuse the removal: the customer deleted it, or never had one (decision D153). The order stands all
  * the same, so [onRemoveRejected] takes the rejection and derives nothing to compensate; without it, the order would
@@ -52,7 +52,7 @@ class CartSaga {
         return context.command(
             CART.ref(event.ref.tenantId, owner),
             RemoveCartItem(productIds = created.items.mapTo(linkedSetOf()) { it.productId }),
-        )
+        ).let { it.copy(scope = it.scope.copy(spaceId = null)) }
     }
 
     /** A cart that is deleted, or does not exist, holds nothing to remove: the order stands as it is. */

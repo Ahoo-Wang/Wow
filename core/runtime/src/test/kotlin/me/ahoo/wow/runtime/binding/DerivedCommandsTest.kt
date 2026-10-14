@@ -21,11 +21,15 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.InMemoryEventLog
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.runtime.Executor
+import me.ahoo.wow.runtime.admission.CommittedRequests
+import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.spi.id.AggregateIdGenerator
+import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -68,6 +72,25 @@ class DerivedCommandsTest {
                 .executed.assert().containsExactly("c-1", "c-2")
             derived.execute(listOf(add), null).executed.assert().containsExactly("c-1")
             decided.assert().containsExactly("c-2")
+        }
+
+    @Test
+    fun `a creation that names no cart should take its id from its request, the same when derived again (D191)`(): Unit =
+        runBlocking {
+            var drawn = 0
+            val ids = IdGenerators(aggregates = AggregateIdGenerator { "cart-n${++drawn}" })
+            val creating =
+                DerivedCommands(listOf(cart), coordinator, creations = CreationIds(ids, CommittedRequests.of(log)))
+            val add = Command("c-new", "c-new", CART.unassigned(TENANT), AddItems(listOf("apple")))
+            creating.execute(listOf(add), null).executed.assert().containsExactly("c-new")
+            log.findByRequestId(CART, TENANT, "c-new")!!.ref.id.assert().isEqualTo("cart-n1")
+            // Handling the commit again derives the same request: it finds the cart it created and draws no id.
+            creating.execute(listOf(add), null).executed.assert().containsExactly("c-new")
+            drawn.assert().isEqualTo(1)
+            // A command that does not create its aggregate cannot leave its id to admission.
+            val remove = Command("c-remove", "c-remove", CART.unassigned(TENANT), RemoveItems(listOf("apple")))
+            runCatching { creating.execute(listOf(remove), null) }.exceptionOrNull()!!.message.assert()
+                .contains("only a command that creates its aggregate may leave its id to admission")
         }
 
     @Test

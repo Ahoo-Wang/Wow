@@ -107,7 +107,10 @@ class EshopOrderFlowTest {
         basketItems("alice").assert().isEmpty()
 
         eventually("alice-1 confirmed") { orderStatus("alice-1") == "STOCK_CONFIRMED" }
-        order("alice-1")["buyerId"].asString().assert().isEqualTo("alice")
+        // The order belongs to its buyer (decision D189): the checkout saga's command carried the basket's scope.
+        val view = json.readTree(ordering.get("/eshop-ordering/order/alice-1/state", buyer("alice")).body)
+        view["scope"]["ownerId"].asString().assert().isEqualTo("alice")
+        ordering.get("/eshop-ordering/order/alice-1/state", buyer("bob")).status.assert().isEqualTo(FORBIDDEN)
         stock("mug")["reservations"]["alice-1"].asInt().assert().isEqualTo(2)
         stock("cap")["reservations"]["alice-1"].asInt().assert().isEqualTo(1)
 
@@ -167,15 +170,19 @@ class EshopOrderFlowTest {
         val added = basket.post(
             "/eshop-basket/basket/$buyer/add-basket-item",
             """{"productId":"$product","unitPrice":$price,"quantity":$quantity}""",
+            buyer(buyer),
         )
         added.status.assert().describedAs(added.body).isEqualTo(OK)
     }
 
     private fun checkout(buyer: String, headers: Map<String, String> = emptyMap()): JsonNode {
-        val checkedOut = basket.post("/eshop-basket/basket/$buyer/checkout-basket", "{}", headers)
+        val checkedOut = basket.post("/eshop-basket/basket/$buyer/checkout-basket", "{}", headers + buyer(buyer))
         checkedOut.status.assert().describedAs(checkedOut.body).isEqualTo(OK)
         return json.readTree(checkedOut.body)
     }
+
+    /** The headers of the buyer [id] ([me.ahoo.wow.example.eshop.basket.server.BasketCallers]). */
+    private fun buyer(id: String): Map<String, String> = mapOf(USER to id)
 
     private fun pay(order: String, amount: String): Answer =
         ordering.post("/eshop-ordering/order/$order/pay-order", """{"paymentId":"payment-$order","amount":$amount}""")
@@ -216,6 +223,8 @@ class EshopOrderFlowTest {
         const val OK = 200
         const val NOT_FOUND = 404
         const val CONFLICT = 409
+        const val FORBIDDEN = 403
+        const val USER = "X-User"
         const val TAIL = 4_000
         const val WAIT = "Wow-Wait"
         const val WAIT_TIMEOUT = "Wow-Wait-Timeout"

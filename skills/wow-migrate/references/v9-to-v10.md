@@ -77,7 +77,7 @@ V10 annotations keep the package `me.ahoo.wow.api.annotation`, so kept names nee
 | `@EventProcessor` | `@Reactor` | Same. |
 | `@OnEvent(vararg aggregates)`, `@OnStateEvent`, `@OnMessage` | `@OnEvent` | One handler kind, taking a `StateEvent`. `aggregates = ["ctx.agg"]` names the source only for another context's aggregates; a saga may declare `derives = ["ctx.agg.Command"]`. |
 | none | `@OnRejected` | A saga's handler for the rejection of a command it derived (`CommandRejected<C>`, or `CommandRejected<*>` for any), returning the commands that compensate. Without one, a rejected derived command parks the aggregate at once; 9.x had no such outcome. |
-| `@Retry(...)` | Removed | Retries are subscription configuration. |
+| `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, timeout)` and `wow.subscriptions.[<name>].parked.*` | V10's `@Retry`, on a processor or its `@OnEvent` handler, is the in-process budget before the aggregate parks. The 9.x settings are the parked entry's long-horizon retries: `wow.subscriptions.[<processor.function>].parked.max-retries`, `min-backoff` and `execution-timeout`. |
 | `@OnError` | Removed | Return a rejection; compensate in a `@Saga`. |
 | `@PreparableKey` | Removed | `DecideScope.reserve(namespace, key)`. |
 | `@AggregateId`, `@TenantId`, `@OwnerId`, `@AggregateVersion` on command fields | Removed (compile error) | See [Command bodies](#command-bodies-carry-no-identity). |
@@ -352,7 +352,7 @@ Target form; check that the pinned target compiler generates subscription bindin
 - A projection or reactor returns nothing; a saga returns the commands it derives, a `Command` or a list of them, built with `context.command(ref, body)` so ids and request ids are deterministic. Reactor returns go through `wow-reactor`.
 - Each handler is its own subscription named `processor.function`; the processor name is `@Name` or the class name. Derive the subscription names from the 9.x processor names and report them.
 - Use `context.executionId` as the idempotency key of external calls; side effects must tolerate at-least-once delivery and cross-aggregate reordering.
-- `@Retry` becomes subscription configuration; failures park the aggregate in the failure ledger.
+- 9.x `@Retry`'s settings become the subscription's parked retries (`wow.subscriptions.[<name>].parked.*`); failures park the aggregate in the failure ledger. V10's `@Retry(maxAttempts, initialBackoff, maxBackoff, timeout)` sets the in-process budget before it parks.
 
 Before:
 

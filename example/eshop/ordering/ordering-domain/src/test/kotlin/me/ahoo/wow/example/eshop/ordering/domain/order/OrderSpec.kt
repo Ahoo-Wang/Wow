@@ -14,6 +14,7 @@
 package me.ahoo.wow.example.eshop.ordering.domain.order
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.example.eshop.ordering.api.OrderingContext
 import me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
@@ -52,11 +53,12 @@ class OrderSpec {
 
     @Test
     fun `submitting should create the order`() = orderSpec {
-        whenCommand(SubmitOrder(BUYER, items)) {
+        // The basket's saga sends it in its buyer's scope (decision D189): the order belongs to the buyer.
+        whenCommand(SubmitOrder(items), scope = Scope(ownerId = BUYER)) {
             expectEvents(submitted)
+            expectScope(Scope(ownerId = BUYER))
             expectState {
                 status.assert().isEqualTo(OrderStatus.SUBMITTED)
-                buyerId.assert().isEqualTo(BUYER)
                 totalAmount.assert().isEqualByComparingTo(TOTAL)
             }
         }
@@ -64,11 +66,11 @@ class OrderSpec {
 
     @Test
     fun `an order without items, or with an invalid one, should be rejected`() = orderSpec {
-        whenCommand(SubmitOrder(BUYER, emptyList())) { expectRejected(OrderRejections.INVALID_ITEMS) }
-        whenCommand(SubmitOrder(BUYER, listOf(OrderItem(MUG, MUG_PRICE, 0)))) {
+        whenCommand(SubmitOrder(emptyList())) { expectRejected(OrderRejections.INVALID_ITEMS) }
+        whenCommand(SubmitOrder(listOf(OrderItem(MUG, MUG_PRICE, 0)))) {
             expectRejected(OrderRejections.INVALID_ITEMS)
         }
-        whenCommand(SubmitOrder(BUYER, listOf(OrderItem(MUG, BigDecimal("-1"), 1)))) {
+        whenCommand(SubmitOrder(listOf(OrderItem(MUG, BigDecimal("-1"), 1)))) {
             expectRejected(OrderRejections.INVALID_ITEMS)
         }
     }
@@ -224,7 +226,7 @@ class OrderSpec {
         val MUG_PRICE = BigDecimal("8.50")
         val CAP_PRICE = BigDecimal("12.00")
         val items = listOf(OrderItem(MUG, MUG_PRICE, 2), OrderItem(CAP, CAP_PRICE, 1))
-        val submitted = OrderSubmitted(BUYER, items)
+        val submitted = OrderSubmitted(items)
         val TOTAL = BigDecimal("29.00")
     }
 }

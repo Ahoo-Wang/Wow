@@ -61,7 +61,7 @@ A declined payment's CancelOrder, and the grace period's scheduled one for an or
 - **States.** `SUBMITTED → AWAITING_VALIDATION → STOCK_CONFIRMED → PAID → SHIPPED`, or `CANCELLED` from any state before `PAID`.
 - **Grace period.** `eshop.ordering.payment-grace-period` (30 minutes) is a durable scheduled command (decision D166), written with the commit that confirms the stock. Paying or cancelling the order cancels it. If it fires late on a paid order, the order rejects it, which is a normal guard.
 - **Payment.** See [Payment](#payment). A client may still send `pay-order` itself, with the order's total.
-- **Buyer.** A saga's command carries no caller scope, so `SubmitOrder` carries the buyer in its body (DX gap G22).
+- **Buyer.** The order belongs to its buyer. The basket's owner is its buyer, and the checkout saga's `SubmitOrder` carries the basket's scope, as every command a saga derives carries the scope of the commit it handles (decision D189). The order takes its owner from that command, and so does the payment the payment context's saga creates for it.
 - **Waiting for the order.** A checkout's `Wow-Wait` can follow the order the whole way to its payment, in 15 hops: every saga on the way, the ordering's `StockConfirmationSaga` on the inventory's stock stream included, until the payment's `PayOrder` is committed in the ordering context. Each hop names its saga and context:
 
   ```text
@@ -74,7 +74,7 @@ A declined payment's CancelOrder, and the grace period's scheduled one for an or
     > handled(eshop-payment/OrderPaymentSaga.onPaymentSucceeded) > committed(eshop-ordering)
   ```
 
-  (written on one line in the header). Two settings make it work: the basket takes the inventory's and the payment's Manifests as peers, though it sends them nothing, because a chain names only contexts the node knows; and the basket allows 16 hops (`wow.wait.max-hops`, 4 by default). See DX gap G30. Shipping is the client's command, so the wait cannot go past the payment. A client's wait follows the inventory's accepted reservation back into the ordering, the round trip that a saga cannot follow by a receipt (G23).
+  (written on one line in the header). The basket knows only the ordering's Manifest, its one peer. It lets the hops of the inventory and the payment through, and each is checked where the chain arrives (decision D190). Each saga adds two hops, its own and the next commit, and the 15 hops fit in the default of 16 (`wow.wait.max-hops`). Shipping is the client's command, so the wait cannot go past the payment. A client's wait follows the inventory's accepted reservation back into the ordering, the round trip that a saga cannot follow by a receipt (G23).
 
 ### Naming
 
@@ -110,7 +110,7 @@ Work package E.5, after the classic eShop's `PaymentProcessor`. One aggregate, `
 
 ## Sales
 
-Work package E.6. The ordering's `clickhouse` profile turns on the ClickHouse Sink: it writes the order stream to `eshop_ordering_order_state_events`, with the views `eshop_ordering_order_state` and `eshop_ordering_order_state_flat`. The dataset file `META-INF/wow/dataset/eshop-ordering.sales.json` of the ordering server declares the `eshop-ordering.sales` dataset over the flat view: one row per order in its current state, with its `buyerId`, `status` and `totalAmount` beside the system columns (`aggregate_id`, `commit_time`, ...). The items are a list, which the flat view leaves out, so the dataset has no revenue per product.
+Work package E.6. The ordering's `clickhouse` profile turns on the ClickHouse Sink: it writes the order stream to `eshop_ordering_order_state_events`, with the views `eshop_ordering_order_state` and `eshop_ordering_order_state_flat`. The dataset file `META-INF/wow/dataset/eshop-ordering.sales.json` of the ordering server declares the `eshop-ordering.sales` dataset over the flat view: one row per order in its current state, with its `status` and `totalAmount` beside the system columns (`aggregate_id`, `owner_id`, the buyer, `commit_time`, ...). The items are a list, which the flat view leaves out, so the dataset has no revenue per product.
 
 The ordering serves it at `/wow/dataset/eshop-ordering/sales/query`. For example, the revenue by status, then the shipped revenue by day:
 
@@ -142,7 +142,7 @@ Work package E.1. Three aggregates, the classic eShop's catalog items, brands an
 - **Product status.** A product is `DRAFT`, `PUBLISHED` or `DELISTED`. A delisted product can be published again. Publishing a published product, or a command that changes nothing, is accepted and writes nothing.
 - **Unique names.** Brand and category names are unique, ignoring case and surrounding blanks. The aggregate reserves the name with `DecideScope.reserve`. A renamed brand or category keeps its old name reserved, because nothing releases a reserved key yet ([G19](DX-GAPS.md)).
 - **References.** A product names its brand and category by id. The catalog does not check that they exist.
-- **Callers.** The catalog declares no `CallerResolver`. Every request is the anonymous caller of the default tenant, so every product belongs to the tenant and every shopper sees it ([G20](DX-GAPS.md)). Protecting the writes is CoSec's work (M7).
+- **Callers.** The products, brands and categories belong to the tenant (`@AggregateRoot(ownership = Ownership.TENANT)`, decision D189), so every shopper reads them. The server's `CatalogCallers` gives the two caller levels from headers, standing in for CoSec: `X-User: <id>` is a buyer, and `X-User` with `X-Role: employee` is an employee, a caller of the whole tenant. Its `CommandAuthorizer` lets only an employee change the catalog. A request with neither header is the anonymous caller, for trying the service out.
 
 The storefront reads the product snapshots through the HTTP query routes: `POST /eshop-catalog/product/snapshot/query`. The product's state declares `@QueryIndex` indexes for what the storefront filters and sorts on:
 
@@ -196,25 +196,27 @@ With the `kafka` profile, each service creates the topics it owns when they are 
 ./gradlew -Pwow.scope=v10 :eshop-payment-server:run --args='--spring.profiles.active=kafka'
 ```
 
-The servers have no `CallerResolver` yet, so every request is served as the anonymous caller. For example:
+The catalog, basket and ordering servers read the caller from the `X-User` and `X-Role` headers (`CatalogCallers`, `BasketCallers`, `OrderingCallers`). A request without them is the anonymous caller, and the inventory and payment servers serve every request so. For example:
 
 ```bash
 curl -s localhost:8081/wow/manifest
-curl -s -X POST localhost:8081/eshop-catalog/brand/wow/create-brand \
+EMPLOYEE=(-H 'X-User: erin' -H 'X-Role: employee')   # changes the catalog
+BUYER=(-H 'X-User: alice')                           # reads the catalog, owns her basket and orders
+curl -s -X POST localhost:8081/eshop-catalog/brand/wow/create-brand "${EMPLOYEE[@]}" \
   -H 'Content-Type: application/json' -d '{"name":"Wow"}'
-curl -s -X POST localhost:8081/eshop-catalog/category/mugs/create-category \
+curl -s -X POST localhost:8081/eshop-catalog/category/mugs/create-category "${EMPLOYEE[@]}" \
   -H 'Content-Type: application/json' -d '{"name":"Mugs"}'
-curl -s -X POST localhost:8081/eshop-catalog/product/mug/create-product \
+curl -s -X POST localhost:8081/eshop-catalog/product/mug/create-product "${EMPLOYEE[@]}" \
   -H 'Content-Type: application/json' -d '{"name":"Wow mug","price":8.50,"brandId":"wow","categoryId":"mugs"}'
-curl -s -X POST localhost:8081/eshop-catalog/product/mug/publish-product
-curl -s localhost:8081/eshop-catalog/product/mug/state
+curl -s -X POST localhost:8081/eshop-catalog/product/mug/publish-product "${EMPLOYEE[@]}"
+curl -s localhost:8081/eshop-catalog/product/mug/state "${BUYER[@]}"
 curl -s -X POST localhost:8084/eshop-inventory/stock/mug/receive-stock \
   -H 'Content-Type: application/json' -d '{"quantity":10}'
-curl -s -X POST localhost:8082/eshop-basket/basket/alice/add-basket-item \
+curl -s -X POST localhost:8082/eshop-basket/basket/alice/add-basket-item "${BUYER[@]}" \
   -H 'Content-Type: application/json' -d '{"productId":"mug","unitPrice":8.50,"quantity":2}'
-curl -s -X POST localhost:8082/eshop-basket/basket/alice/checkout-basket -H 'Content-Type: application/json' -d '{}' \
+curl -s -X POST localhost:8082/eshop-basket/basket/alice/checkout-basket "${BUYER[@]}" -H 'Content-Type: application/json' -d '{}' \
   -H 'Wow-Wait: committed > handled(eshop-basket/BasketCheckoutSaga.onBasketCheckedOut) > committed(eshop-ordering)'
-curl -s localhost:8083/eshop-ordering/order/alice-1/state     # STOCK_CONFIRMED, then PAID once the payment succeeds
+curl -s localhost:8083/eshop-ordering/order/alice-1/state "${BUYER[@]}"   # alice's order: STOCK_CONFIRMED, then PAID
 curl -s localhost:8085/eshop-payment/payment/alice-1/state
 ```
 

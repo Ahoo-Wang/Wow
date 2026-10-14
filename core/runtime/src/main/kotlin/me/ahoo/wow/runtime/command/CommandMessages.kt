@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.command
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.ErrorInfo
@@ -37,7 +38,7 @@ import me.ahoo.wow.spi.wait.WaitContext
  *   partitions, which are the target context's log partitions.
  * - **Receipt** ([EnvelopeKind.COMMAND_RECEIPT]): `id` is the rejected command's id, the one a reader deduplicates by,
  *   `type` its type, `payload` the rejection as the saga's `@OnRejected` handler takes it, `{commandId, commandType,
- *   ref, error, causation, executionId, operator}` (decisions D157, D163), without the command's body. Keyed by the ref of the commit
+ *   ref, error, causation, executionId, operator, scope}` (decisions D157, D163, D189), without the command's body. Keyed by the ref of the commit
  *   the saga handled, so the receipts of one saga aggregate keep their order.
  *
  * Bodies and payloads are read and written with the cluster channel's lenient mapper ([ClusterCodec]): unknown fields
@@ -81,6 +82,7 @@ object CommandMessages {
                     rejected.causation,
                     rejected.executionId,
                     rejected.operator,
+                    rejected.scope,
                 ),
             ),
         )
@@ -99,6 +101,7 @@ object CommandMessages {
             wire.causation,
             wire.executionId,
             wire.operator,
+            wire.scope,
         )
     }
 
@@ -110,5 +113,6 @@ object CommandMessages {
         val causation: Causation,
         val executionId: ExecutionId,
         val operator: Operator? = null,
+        val scope: Scope = Scope.NONE,
     )
 }

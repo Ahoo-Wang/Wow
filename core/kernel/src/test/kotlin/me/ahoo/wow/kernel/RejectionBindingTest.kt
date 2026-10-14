@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
@@ -44,6 +45,7 @@ class RejectionBindingTest {
         Causation("root", "shop.order/t/o-1@3"),
         execution,
         Operator("alice", "t"),
+        Scope("alice", "space-a"),
     )
 
     private fun handler(function: String, type: Class<*>?) =
@@ -127,6 +129,7 @@ class RejectionBindingTest {
                 it.ref.assert().isEqualTo(rejected.ref)
                 it.causation.assert().isEqualTo(Causation("root", "c-1"))
                 it.operator.assert().isEqualTo(rejected.operator)
+                it.scope.assert().isEqualTo(Scope("alice", "space-a"))
             }
             commands[0].id.assert().isEqualTo(RejectionSagaContext.compensationId(context.executionId, "c-1", 0))
             // Handling the same rejection again derives the same requests; another rejection, others.

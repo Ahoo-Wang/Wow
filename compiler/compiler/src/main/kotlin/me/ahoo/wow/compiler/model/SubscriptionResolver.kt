@@ -31,6 +31,7 @@ import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Projection
 import me.ahoo.wow.api.annotation.Reactor
+import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.subscribe.CommandRejected
@@ -85,6 +86,7 @@ internal object SubscriptionResolver {
     private val AGGREGATE_NAME = Regex("[^.\\s]+\\.[^.\\s]+")
     private val COMMAND_NAME = Regex("[^.\\s]+\\.[^.\\s]+\\.[^.\\s]+")
     private val BLOCKING = Blocking::class.java.name
+    private val RETRY = Retry::class.java.name
     private val COMMAND = Command::class.java.name
     private const val UNIT = "kotlin.Unit"
     private val COMMAND_COLLECTIONS = setOf(
@@ -101,7 +103,8 @@ internal object SubscriptionResolver {
     fun resolve(processor: KSClassDeclaration, reactorTypes: Set<String>): SubscriptionBinding {
         val className = processor.simpleName.asString()
         val name = processor.getAnnotationsByType(Name::class).firstOrNull()?.value ?: className
-        val problems = V10Annotations.problems(processor, "processor $className").toMutableList()
+        val problems = V10Annotations.problems(processor, "processor $className", processor = true).toMutableList()
+        val processorRetry = RetryResolver.read(processor, "processor $className", problems)
         val kinds = Kind.entries.filter { kind -> processor.hasAnnotation(kind.annotation) }
         val kind = kinds.singleOrNull()
         if (kinds.isEmpty()) {
@@ -122,12 +125,13 @@ internal object SubscriptionResolver {
         }
         problems += rejectionProblems(className, name, kind, rejectionFunctions)
         processor.getDeclaredFunctions().forEach {
-            problems += V10Annotations.problemsOfFunction(it, "processor $className")
+            problems += V10Annotations.problemsOfFunction(it, "processor $className", processor = true)
         }
         (functions + rejectionFunctions).groupBy { it.simpleName.asString() }.filterValues { it.size > 1 }.keys.forEach {
             problems += "processor $className has two handlers named $it: each is the subscription $name.$it"
         }
         val handlers = functions.mapNotNull { handler(it, name, kind, reactorTypes, problems) }
+            .map { it.copy(retry = it.retry?.over(processorRetry) ?: processorRetry) }
         val rejections = rejectionFunctions.mapNotNull { rejection(it, name, reactorTypes, problems) }
         rejections.groupBy { it.command }.filterValues { it.size > 1 }.forEach { (command, same) ->
             problems += "processor $className has two @OnRejected handlers of the rejections of " +
@@ -162,6 +166,12 @@ internal object SubscriptionResolver {
             add(
                 "handler $name.${it.simpleName.asString()} is both @OnEvent and @OnRejected: a handler takes " +
                     "either a state event or a rejection",
+            )
+        }
+        functions.filter { it.hasAnnotation(RETRY) }.forEach {
+            add(
+                "handler $name.${it.simpleName.asString()} is annotated @Retry: an @OnRejected handler compensates a " +
+                    "business outcome, which is not retried; @Retry goes on an @OnEvent handler or its processor",
             )
         }
         if (functions.isNotEmpty() && kind != null && kind != Kind.SAGA) {
@@ -247,6 +257,7 @@ internal object SubscriptionResolver {
         problems += sourceProblems(where, aggregates)
         problems += derivesProblems(where, derives, kind)
         problems += schedulesProblems(where, schedules, kind)
+        val retry = RetryResolver.read(function, where, problems)
         if (problems.size > count) {
             return null
         }
@@ -269,6 +280,7 @@ internal object SubscriptionResolver {
             derives = derives,
             schedules = schedules,
             derived = if (kind == Kind.SAGA) returned?.let { derivedClasses(it, reactor) } else null,
+            retry = retry,
         )
     }
 

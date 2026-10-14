@@ -15,6 +15,7 @@ package me.ahoo.wow.http.read
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.HttpJson
@@ -53,7 +54,8 @@ import java.time.format.DateTimeParseException
  * `wow.auth.forbidden` for another), unless [tenants] fixes the aggregate type's tenant (decision D116), as admission
  * does: then it is that tenant, and a `Wow-Scope` that names another is 400 `wow.command.malformed`. A state outside
  * the caller's scope (an owner or a space it names and the state does not have) is 403 `wow.aggregate.forbidden`, as
- * for a command (decision D94); in a trace, every commit's state is checked so, as each `?version=` read would be. A
+ * for a command (decision D94); the caller's owner is not checked for an aggregate of its tenant, as [ownerships] say
+ * (decision D189); in a trace, every commit's state is checked so, as each `?version=` read would be. A
  * missing state, or a trace with no commit, is 404 `wow.aggregate.not-found`. A deleted aggregate's state is read as
  * any other, `deleted` set. A query parameter that cannot be read is 400 `wow.command.malformed`, the code of a
  * request the edge cannot read, as for a `Wow-Scope` it cannot.
@@ -64,6 +66,7 @@ internal class StateHandler(
     private val headers: RequestHeaders,
     private val statuses: ErrorStatuses,
     private val tenants: TenantPolicy = TenantPolicy.CALLERS,
+    private val ownerships: (AggregateType) -> Ownership = { Ownership.OWNER },
 ) {
     suspend fun handle(request: ServerRequest, type: AggregateType): ServerResponse {
         val (scope, ref) = reader(request, type)
@@ -99,7 +102,7 @@ internal class StateHandler(
         if (target != null && !caller.crossScope) {
             throw problem(FrameworkCodes.AUTH_FORBIDDEN, "The caller may not read in another scope.", type)
         }
-        val scope = target?.scope ?: caller.scope
+        val scope = ownerships(type).scopeOf(target?.scope ?: caller.scope)
         return scope to type.ref(tenantOf(type, caller, target), request.pathVariable(CommandHandler.ID))
     }
 

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.eshop.inventory.domain.stock
 
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.OnCommand
@@ -35,8 +36,11 @@ import me.ahoo.wow.example.eshop.inventory.api.stock.StockReserved
  * the ordering saga that sent the reservation, as a receipt. Every command for one order is idempotent by the order's
  * id, besides the kernel's de-duplication by request id: reserving again for an order already reserved, and releasing
  * a reservation that is not there, change nothing.
+ *
+ * A product's stock belongs to its tenant (`Ownership.TENANT`, decision D189): the order-process saga reserves it in
+ * the scope of the buyer whose order it handles, which the stock does not check.
  */
-@AggregateRoot
+@AggregateRoot(ownership = Ownership.TENANT)
 @Description("A product's stock: units on hand, and those reserved for orders")
 class Stock(private val state: StockState) {
     @OnCommand(produces = [StockReceived::class])

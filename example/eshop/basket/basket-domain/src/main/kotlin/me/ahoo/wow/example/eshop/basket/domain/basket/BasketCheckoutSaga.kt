@@ -30,8 +30,8 @@ import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
  * it. Its id is fixed by the basket's commit, so handling the commit again sends the same request, which the ordering
  * context decides once.
  *
- * The buyer goes in the command's body: a saga's command carries no caller scope, so the order cannot take its owner
- * from the basket's (see `example/eshop/DX-GAPS.md`).
+ * The order belongs to the buyer: the command carries the basket's scope, whose owner is its buyer, as every command a
+ * saga derives carries the scope of the commit it handles (decision D189).
  */
 @Saga
 class BasketCheckoutSaga {
@@ -40,10 +40,7 @@ class BasketCheckoutSaga {
         val checkedOut = event.events.filterIsInstance<BasketCheckedOut>().firstOrNull() ?: return null
         return context.command(
             ORDER.ref(event.ref.tenantId, checkedOut.orderId),
-            SubmitOrder(
-                buyerId = event.ref.id,
-                items = checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) },
-            ),
+            SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) }),
         )
     }
 
