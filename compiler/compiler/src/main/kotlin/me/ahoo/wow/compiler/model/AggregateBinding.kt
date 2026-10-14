@@ -39,7 +39,7 @@ internal data class AggregateBinding(
     val problems: List<String>,
     /** The state's JVM binary name, which keys its schema in the Manifest fragment. */
     val stateType: String,
-    /** The root's `@Description`. */
+    /** What the root says it is ([Descriptions]). */
     val description: String?,
     /**
      * The system names of the lifecycle commands the model handles (design 01 §6), sorted: those of
@@ -107,6 +107,8 @@ internal data class CommandBinding(
     val declaredProduces: List<String>,
     /** `@OnCommand(schedules)`: the full type names of the commands the function declares it schedules (D166). */
     val schedules: List<String> = emptyList(),
+    /** What the command's class says it is ([Descriptions]). */
+    val description: String? = null,
 )
 
 /**
@@ -122,6 +124,8 @@ internal data class MountedBinding(
     val type: String,
     val transformsTo: List<String>,
     val problems: List<String>,
+    /** What the command's class says it is ([Descriptions]). */
+    val description: String? = null,
 )
 
 internal data class SourcingBinding(
@@ -136,6 +140,8 @@ internal data class SourcingBinding(
     val returnsState: Boolean,
     /** The event's JVM binary name, which keys its schema in the Manifest fragment. */
     val type: String,
+    /** What the event's class says it is ([Descriptions]). */
+    val description: String? = null,
 )
 
 internal data class AfterBinding(

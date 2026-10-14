@@ -156,6 +156,7 @@ internal object ManifestFragmentBuilder {
                         creation = creation,
                         produces = produces(command, binding.afters, eventNames),
                         routes = CommandRoutes.of(context, binding.aggregateName, name, creation),
+                        description = command.description,
                     )
                 } + binding.mounted.map { mounted ->
                     val name = mounted.commandName ?: simpleName(mounted.type)
@@ -165,6 +166,7 @@ internal object ManifestFragmentBuilder {
                         routes = CommandRoutes.of(context, binding.aggregateName, name, Creation.NONE, mounted = true),
                         mounted = true,
                         transformsTo = mounted.transformsTo.distinct().sorted().ifEmpty { null },
+                        description = mounted.description,
                     )
                 }
                 ).sortedBy { it.name },
@@ -174,6 +176,7 @@ internal object ManifestFragmentBuilder {
                     aliases = sourcing.aliases,
                     revision = sourcing.revision,
                     schema = Manifest.schemaRef(sourcing.type),
+                    description = sourcing.description,
                 )
             }.sortedBy { it.name },
             lifecycle = binding.lifecycle,
