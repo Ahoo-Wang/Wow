@@ -39,7 +39,6 @@ import me.ahoo.wow.api.annotation.Alias
 import me.ahoo.wow.api.annotation.AllowCreate
 import me.ahoo.wow.api.annotation.BoundedContext
 import me.ahoo.wow.api.annotation.CreateAggregate
-import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.OnSourcing
@@ -478,7 +477,7 @@ internal class ModelSymbolProcessor(
             upgrades = upgradeBindings,
             problems = problems,
             stateType = state.binaryName(),
-            description = root.getAnnotationsByType(Description::class).firstOrNull()?.value,
+            description = Descriptions.of(root),
             lifecycle = AggregateRootArguments.lifecycle(root, ownership, problems),
             publication = AggregateRootArguments.publication(root, problems),
             ownership = ownership,
@@ -640,6 +639,7 @@ internal class ModelSymbolProcessor(
             yields = returned ?: producesListed.ifEmpty { null },
             declaredProduces = producesListed,
             schedules = schedules,
+            description = Descriptions.of(command),
         )
     }
 
@@ -745,6 +745,7 @@ internal class ModelSymbolProcessor(
             function = name,
             returnsState = returned == state.qualifiedName?.asString(),
             type = event.binaryName(),
+            description = Descriptions.of(event),
         )
     }
 

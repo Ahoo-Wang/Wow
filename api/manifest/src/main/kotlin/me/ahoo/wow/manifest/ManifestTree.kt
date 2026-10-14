@@ -67,10 +67,17 @@ object ManifestTree {
                 "routes" to it.routes.map(::writeRoute),
                 "mounted" to it.mounted.takeIf { mounted -> mounted },
                 "transformsTo" to it.transformsTo,
+                "description" to it.description,
             )
         },
         "events" to aggregate.events.map {
-            obj("name" to it.name, "aliases" to it.aliases, "revision" to it.revision, "schema" to it.schema)
+            obj(
+                "name" to it.name,
+                "aliases" to it.aliases,
+                "revision" to it.revision,
+                "schema" to it.schema,
+                "description" to it.description,
+            )
         },
         "lifecycle" to aggregate.lifecycle,
         "queries" to aggregate.queries.map {
@@ -190,6 +197,7 @@ object ManifestTree {
                     routes = it.objects("routes").map(::readRoute),
                     mounted = it.booleanOrNull("mounted") ?: false,
                     transformsTo = if (it.has("transformsTo")) it.strings("transformsTo") else null,
+                    description = it.stringOrNull("description"),
                 )
             },
             events = node.objects("events").map {
@@ -198,6 +206,7 @@ object ManifestTree {
                     aliases = it.strings("aliases"),
                     revision = it.int("revision"),
                     schema = it.string("schema"),
+                    description = it.stringOrNull("description"),
                 )
             },
             lifecycle = node.strings("lifecycle"),

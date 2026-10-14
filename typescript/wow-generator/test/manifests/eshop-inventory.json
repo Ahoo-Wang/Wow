@@ -26,7 +26,8 @@
                   "method": "POST",
                   "path": "/eshop-inventory/stock/{id}/commit-reservation"
                 }
-              ]
+              ],
+              "description": "Commit an order's reservation"
             },
             {
               "name": "ReceiveStock",
@@ -43,7 +44,8 @@
                   "method": "POST",
                   "path": "/eshop-inventory/stock/receive-stock"
                 }
-              ]
+              ],
+              "description": "Receive stock"
             },
             {
               "name": "ReleaseReservation",
@@ -56,7 +58,8 @@
                   "method": "POST",
                   "path": "/eshop-inventory/stock/{id}/release-reservation"
                 }
-              ]
+              ],
+              "description": "Release an order's reservation"
             },
             {
               "name": "ReserveStock",
@@ -69,7 +72,8 @@
                   "method": "POST",
                   "path": "/eshop-inventory/stock/{id}/reserve-stock"
                 }
-              ]
+              ],
+              "description": "Reserve stock for an order"
             }
           ],
           "events": [
@@ -77,25 +81,29 @@
               "name": "ReservationCommitted",
               "aliases": [],
               "revision": 1,
-              "schema": "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.ReservationCommitted"
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.ReservationCommitted",
+              "description": "An order's reservation was committed"
             },
             {
               "name": "ReservationReleased",
               "aliases": [],
               "revision": 1,
-              "schema": "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.ReservationReleased"
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.ReservationReleased",
+              "description": "An order's reservation was released"
             },
             {
               "name": "StockReceived",
               "aliases": [],
               "revision": 1,
-              "schema": "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.StockReceived"
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.StockReceived",
+              "description": "Stock was received"
             },
             {
               "name": "StockReserved",
               "aliases": [],
               "revision": 1,
-              "schema": "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.StockReserved"
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.StockReserved",
+              "description": "Stock was reserved for an order"
             }
           ],
           "lifecycle": [
@@ -293,17 +301,20 @@
     "me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation": {
       "type": "object",
       "properties": { "orderId": { "type": "string" } },
-      "required": ["orderId"]
+      "required": ["orderId"],
+      "description": "Commit an order's reservation"
     },
     "me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock": {
       "type": "object",
       "properties": { "quantity": { "type": "integer" } },
-      "required": ["quantity"]
+      "required": ["quantity"],
+      "description": "Receive stock"
     },
     "me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation": {
       "type": "object",
       "properties": { "orderId": { "type": "string" } },
-      "required": ["orderId"]
+      "required": ["orderId"],
+      "description": "Release an order's reservation"
     },
     "me.ahoo.wow.example.eshop.inventory.api.stock.ReservationCommitted": {
       "type": "object",
@@ -311,7 +322,8 @@
         "orderId": { "type": "string" },
         "quantity": { "type": "integer" }
       },
-      "required": ["orderId", "quantity"]
+      "required": ["orderId", "quantity"],
+      "description": "An order's reservation was committed"
     },
     "me.ahoo.wow.example.eshop.inventory.api.stock.ReservationReleased": {
       "type": "object",
@@ -319,7 +331,8 @@
         "orderId": { "type": "string" },
         "quantity": { "type": "integer" }
       },
-      "required": ["orderId", "quantity"]
+      "required": ["orderId", "quantity"],
+      "description": "An order's reservation was released"
     },
     "me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock": {
       "type": "object",
@@ -327,12 +340,14 @@
         "orderId": { "type": "string" },
         "quantity": { "type": "integer" }
       },
-      "required": ["orderId", "quantity"]
+      "required": ["orderId", "quantity"],
+      "description": "Reserve stock for an order"
     },
     "me.ahoo.wow.example.eshop.inventory.api.stock.StockReceived": {
       "type": "object",
       "properties": { "quantity": { "type": "integer" } },
-      "required": ["quantity"]
+      "required": ["quantity"],
+      "description": "Stock was received"
     },
     "me.ahoo.wow.example.eshop.inventory.api.stock.StockReserved": {
       "type": "object",
@@ -340,7 +355,8 @@
         "orderId": { "type": "string" },
         "quantity": { "type": "integer" }
       },
-      "required": ["orderId", "quantity"]
+      "required": ["orderId", "quantity"],
+      "description": "Stock was reserved for an order"
     },
     "me.ahoo.wow.example.eshop.inventory.domain.stock.StockState": {
       "type": "object",
@@ -351,7 +367,36 @@
           "type": "object",
           "additionalProperties": { "type": "integer" }
         }
-      }
+      },
+      "required": ["available", "onHand", "reservations"]
+    },
+    "wow.lifecycle.ApplyTags": {
+      "type": "object",
+      "properties": {
+        "tags": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "string" }
+          }
+        }
+      },
+      "required": ["tags"],
+      "description": "Sets the aggregate's tags, replacing the ones it had; empty tags clear them."
+    },
+    "wow.lifecycle.DeleteAggregate": {
+      "type": "object",
+      "description": "Marks the aggregate deleted; its events stay in the log."
+    },
+    "wow.lifecycle.RestoreAggregate": {
+      "type": "object",
+      "description": "Takes back the deletion of a deleted aggregate."
+    },
+    "wow.lifecycle.TransferSpace": {
+      "type": "object",
+      "properties": { "spaceId": { "type": "string" } },
+      "required": ["spaceId"],
+      "description": "Moves the aggregate to the space spaceId."
     }
   }
 }

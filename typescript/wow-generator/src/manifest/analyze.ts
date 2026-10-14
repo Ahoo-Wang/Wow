@@ -68,6 +68,8 @@ export interface CommandModel {
   readonly creation: string;
   readonly mounted: boolean;
   readonly produces: readonly string[];
+  /** What the command's class says it is, as the Manifest describes it. */
+  readonly description?: string;
 }
 
 /** A lifecycle command an aggregate lists. */
@@ -77,8 +79,16 @@ export interface LifecycleModel {
   /** The `LifecycleCommands` member. */
   readonly member: string;
   readonly method: string;
-  /** The body's type in `@ahoo-wang/wow-client/v10`, or undefined. */
+  /**
+   * The body's type, or undefined for a command without one: the type
+   * generated from the Manifest's `$defs` entry of the command's name when it
+   * holds one (`bodyGenerated`), else `@ahoo-wang/wow-client/v10`'s.
+   */
   readonly bodyType?: string;
+  /** The body's type is generated from the Manifest, not `@ahoo-wang/wow-client/v10`'s. */
+  readonly bodyGenerated?: boolean;
+  /** What the Manifest's schema of the body says the command does. */
+  readonly description?: string;
 }
 
 /** An aggregate and its clients. */
@@ -439,14 +449,31 @@ function emptyBody(
   return !Array.isArray(resolved.required) || resolved.required.length === 0;
 }
 
-function aggregateRoots(aggregate: ManifestAggregate): string[] {
+function aggregateRoots(
+  types: SchemaTypes,
+  aggregate: ManifestAggregate,
+): string[] {
   return [
     aggregate.state.schema,
     ...(aggregate.commands ?? []).map(command => command.schema),
     ...(aggregate.events ?? []).map(event => event.schema),
   ]
     .map(schemaKey)
-    .filter((key): key is string => key !== undefined);
+    .filter((key): key is string => key !== undefined)
+    .concat(lifecycleBodies(types, aggregate));
+}
+
+/**
+ * The lifecycle commands with a body that `aggregate` lists and whose body
+ * the Manifest's `$defs` holds, keyed by the command's name (roadmap 5a.1c).
+ */
+function lifecycleBodies(
+  types: SchemaTypes,
+  aggregate: ManifestAggregate,
+): string[] {
+  return (aggregate.lifecycle ?? []).filter(
+    name => LIFECYCLE_BODIES[name] !== undefined && types.schemaOf(name),
+  );
 }
 
 /**
@@ -467,7 +494,9 @@ export function analyzeManifest(manifest: ManifestDocument): {
   const contexts = manifest.contexts;
   const reach = new Map<string, string>();
   for (const context of contexts) {
-    const roots = (context.aggregates ?? []).flatMap(aggregateRoots);
+    const roots = (context.aggregates ?? []).flatMap(aggregate =>
+      aggregateRoots(types, aggregate),
+    );
     for (const key of types.closure(roots).sort(compareNames)) {
       if (!reach.has(key)) reach.set(key, context.name);
     }
@@ -565,15 +594,22 @@ function aggregateModel(
 ): AggregateModel {
   const where = `${context.name}.${aggregate.name}`;
   const typeName = toTypeIdentifier(pascalCase(aggregate.name));
+  const generated = new Set(lifecycleBodies(types, aggregate));
   const lifecycle: LifecycleModel[] = (aggregate.lifecycle ?? [])
     .filter(name => LIFECYCLE_COMMANDS.has(name))
     .map(name => {
       const simple = name.split('.').pop()!;
+      const description = types.schemaOf(name)?.description;
       return {
         name,
         member: upperSnakeCase(simple),
         method: toIdentifier(camelCase(simple)),
-        ...(LIFECYCLE_BODIES[name] ? { bodyType: LIFECYCLE_BODIES[name] } : {}),
+        ...(generated.has(name)
+          ? { bodyType: types.refType(name, where), bodyGenerated: true }
+          : LIFECYCLE_BODIES[name]
+            ? { bodyType: LIFECYCLE_BODIES[name] }
+            : {}),
+        ...(typeof description === 'string' ? { description } : {}),
       };
     });
   const taken = new Set(lifecycle.map(item => item.method));
@@ -608,6 +644,7 @@ function aggregateModel(
       creation: command.creation ?? 'NONE',
       mounted: command.mounted ?? false,
       produces: command.produces ?? [],
+      ...(command.description ? { description: command.description } : {}),
     };
   });
   const stateKey = schemaKey(aggregate.state.schema);

@@ -59,6 +59,7 @@ export interface ManifestCommand {
     readonly path: string;
   }[];
   readonly mounted?: boolean;
+  readonly description?: string;
 }
 
 /** An event of an aggregate. */

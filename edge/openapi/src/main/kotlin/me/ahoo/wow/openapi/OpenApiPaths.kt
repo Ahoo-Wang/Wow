@@ -225,6 +225,8 @@ internal class OpenApiPaths(
     }
 
     private fun commandDescription(type: String, command: CommandManifest, byId: Boolean): String = buildList {
+        // The command's own description, a sentence even when it is a one-line summary.
+        command.description?.let { add(if (it.last() in SENTENCE_ENDS) it else "$it.") }
         add("Sends `$type`.")
         add(
             when {
@@ -454,5 +456,6 @@ internal class OpenApiPaths(
         const val TEXT = "text/plain"
         const val EVENT_STREAM = "text/event-stream"
         const val DELETE_AGGREGATE = "wow.lifecycle.DeleteAggregate"
+        val SENTENCE_ENDS = setOf('.', '!', '?')
     }
 }

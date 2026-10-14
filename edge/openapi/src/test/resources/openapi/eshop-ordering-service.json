@@ -284,7 +284,7 @@
       "post" : {
         "tags" : [ "eshop-ordering.order" ],
         "summary" : "AwaitStockValidation",
-        "description" : "Sends `eshop-ordering.order.AwaitStockValidation`. Acts on an aggregate that exists. Produces `OrderAwaitingValidation`.",
+        "description" : "Await the stock validation. Sends `eshop-ordering.order.AwaitStockValidation`. Acts on an aggregate that exists. Produces `OrderAwaitingValidation`.",
         "operationId" : "eshop-ordering.order.AwaitStockValidation",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -379,7 +379,7 @@
       "post" : {
         "tags" : [ "eshop-ordering.order" ],
         "summary" : "CancelOrder",
-        "description" : "Sends `eshop-ordering.order.CancelOrder`. Acts on an aggregate that exists. Produces `OrderCancelled`.",
+        "description" : "Cancel the order. Sends `eshop-ordering.order.CancelOrder`. Acts on an aggregate that exists. Produces `OrderCancelled`.",
         "operationId" : "eshop-ordering.order.CancelOrder",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -474,7 +474,7 @@
       "post" : {
         "tags" : [ "eshop-ordering.order" ],
         "summary" : "ConfirmOrderStock",
-        "description" : "Sends `eshop-ordering.order.ConfirmOrderStock`. Acts on an aggregate that exists. Produces `OrderStockConfirmed`, `OrderStockItemConfirmed`.",
+        "description" : "Confirm a product's stock. Sends `eshop-ordering.order.ConfirmOrderStock`. Acts on an aggregate that exists. Produces `OrderStockConfirmed`, `OrderStockItemConfirmed`.",
         "operationId" : "eshop-ordering.order.ConfirmOrderStock",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -569,7 +569,7 @@
       "post" : {
         "tags" : [ "eshop-ordering.order" ],
         "summary" : "PayOrder",
-        "description" : "Sends `eshop-ordering.order.PayOrder`. Acts on an aggregate that exists. Produces `OrderPaid`.",
+        "description" : "Pay the order. Sends `eshop-ordering.order.PayOrder`. Acts on an aggregate that exists. Produces `OrderPaid`.",
         "operationId" : "eshop-ordering.order.PayOrder",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -664,7 +664,7 @@
       "post" : {
         "tags" : [ "eshop-ordering.order" ],
         "summary" : "ShipOrder",
-        "description" : "Sends `eshop-ordering.order.ShipOrder`. Acts on an aggregate that exists. Produces `OrderShipped`.",
+        "description" : "Ship the order. Sends `eshop-ordering.order.ShipOrder`. Acts on an aggregate that exists. Produces `OrderShipped`.",
         "operationId" : "eshop-ordering.order.ShipOrder",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -759,7 +759,7 @@
       "post" : {
         "tags" : [ "eshop-ordering.order" ],
         "summary" : "SubmitOrder",
-        "description" : "Sends `eshop-ordering.order.SubmitOrder`. Creates the aggregate; one that exists is refused. Produces `OrderSubmitted`.",
+        "description" : "Submit an order. Sends `eshop-ordering.order.SubmitOrder`. Creates the aggregate; one that exists is refused. Produces `OrderSubmitted`.",
         "operationId" : "eshop-ordering.order.SubmitOrder",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -854,7 +854,7 @@
       "post" : {
         "tags" : [ "eshop-ordering.order" ],
         "summary" : "SubmitOrder",
-        "description" : "Sends `eshop-ordering.order.SubmitOrder`. Creates the aggregate; one that exists is refused. The request names no aggregate id: the server chooses it, or the transformer finds the aggregate. Produces `OrderSubmitted`.",
+        "description" : "Submit an order. Sends `eshop-ordering.order.SubmitOrder`. Creates the aggregate; one that exists is refused. The request names no aggregate id: the server chooses it, or the transformer finds the aggregate. Produces `OrderSubmitted`.",
         "operationId" : "eshop-ordering.order.SubmitOrder.withoutId",
         "parameters" : [ {
           "$ref" : "#/components/parameters/Wow-Request-Id"
@@ -2507,49 +2507,6 @@
         "type" : "object",
         "description" : "What the query model can do on the backend the node runs: operations, fields and limits."
       },
-      "wow.lifecycle.DeleteAggregate" : {
-        "type" : "object",
-        "description" : "Marks the aggregate deleted.",
-        "properties" : { }
-      },
-      "wow.lifecycle.RestoreAggregate" : {
-        "type" : "object",
-        "description" : "Restores a deleted aggregate.",
-        "properties" : { }
-      },
-      "wow.lifecycle.TransferOwner" : {
-        "type" : "object",
-        "properties" : {
-          "ownerId" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "ownerId" ]
-      },
-      "wow.lifecycle.TransferSpace" : {
-        "type" : "object",
-        "properties" : {
-          "spaceId" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "spaceId" ]
-      },
-      "wow.lifecycle.ApplyTags" : {
-        "type" : "object",
-        "properties" : {
-          "tags" : {
-            "type" : "object",
-            "additionalProperties" : {
-              "type" : "array",
-              "items" : {
-                "type" : "string"
-              }
-            }
-          }
-        },
-        "required" : [ "tags" ]
-      },
       "wow.schedule.Enable" : {
         "type" : "object",
         "description" : "Creates, or enables again, the job instance of the path's id, the job's name in the caller's tenant.",
@@ -2627,7 +2584,8 @@
             "type" : "string"
           }
         },
-        "required" : [ "orderId" ]
+        "required" : [ "orderId" ],
+        "description" : "Commit an order's reservation"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation" : {
         "type" : "object",
@@ -2636,7 +2594,8 @@
             "type" : "string"
           }
         },
-        "required" : [ "orderId" ]
+        "required" : [ "orderId" ],
+        "description" : "Release an order's reservation"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock" : {
         "type" : "object",
@@ -2648,10 +2607,12 @@
             "type" : "integer"
           }
         },
-        "required" : [ "orderId", "quantity" ]
+        "required" : [ "orderId", "quantity" ],
+        "description" : "Reserve stock for an order"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation" : {
-        "type" : "object"
+        "type" : "object",
+        "description" : "Await the stock validation"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder" : {
         "type" : "object",
@@ -2660,7 +2621,8 @@
             "type" : "string"
           }
         },
-        "required" : [ "reason" ]
+        "required" : [ "reason" ],
+        "description" : "Cancel the order"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock" : {
         "type" : "object",
@@ -2669,10 +2631,12 @@
             "type" : "string"
           }
         },
-        "required" : [ "productId" ]
+        "required" : [ "productId" ],
+        "description" : "Confirm a product's stock"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.OrderAwaitingValidation" : {
-        "type" : "object"
+        "type" : "object",
+        "description" : "The order awaits its stock validation"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.OrderCancelled" : {
         "type" : "object",
@@ -2681,7 +2645,8 @@
             "type" : "string"
           }
         },
-        "required" : [ "reason" ]
+        "required" : [ "reason" ],
+        "description" : "The order was cancelled"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.OrderItem" : {
         "type" : "object",
@@ -2708,13 +2673,16 @@
             "type" : "string"
           }
         },
-        "required" : [ "amount", "paymentId" ]
+        "required" : [ "amount", "paymentId" ],
+        "description" : "The order was paid"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.OrderShipped" : {
-        "type" : "object"
+        "type" : "object",
+        "description" : "The order was shipped"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.OrderStockConfirmed" : {
-        "type" : "object"
+        "type" : "object",
+        "description" : "The inventory reserved every product of the order; it awaits its payment"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.OrderStockItemConfirmed" : {
         "type" : "object",
@@ -2723,7 +2691,8 @@
             "type" : "string"
           }
         },
-        "required" : [ "productId" ]
+        "required" : [ "productId" ],
+        "description" : "The inventory reserved one of the order's products"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted" : {
         "type" : "object",
@@ -2735,7 +2704,8 @@
             }
           }
         },
-        "required" : [ "items" ]
+        "required" : [ "items" ],
+        "description" : "An order was submitted"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.PayOrder" : {
         "type" : "object",
@@ -2747,10 +2717,12 @@
             "type" : "string"
           }
         },
-        "required" : [ "amount", "paymentId" ]
+        "required" : [ "amount", "paymentId" ],
+        "description" : "Pay the order"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.ShipOrder" : {
-        "type" : "object"
+        "type" : "object",
+        "description" : "Ship the order"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder" : {
         "type" : "object",
@@ -2762,7 +2734,8 @@
             }
           }
         },
-        "required" : [ "items" ]
+        "required" : [ "items" ],
+        "description" : "Submit an order"
       },
       "me.ahoo.wow.example.eshop.ordering.domain.order.OrderState" : {
         "type" : "object",
@@ -2792,7 +2765,52 @@
           "totalAmount" : {
             "type" : "number"
           }
-        }
+        },
+        "required" : [ "confirmedProducts", "items", "status", "totalAmount" ]
+      },
+      "wow.lifecycle.ApplyTags" : {
+        "type" : "object",
+        "properties" : {
+          "tags" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "required" : [ "tags" ],
+        "description" : "Sets the aggregate's tags, replacing the ones it had; empty tags clear them."
+      },
+      "wow.lifecycle.DeleteAggregate" : {
+        "type" : "object",
+        "description" : "Marks the aggregate deleted; its events stay in the log."
+      },
+      "wow.lifecycle.RestoreAggregate" : {
+        "type" : "object",
+        "description" : "Takes back the deletion of a deleted aggregate."
+      },
+      "wow.lifecycle.TransferOwner" : {
+        "type" : "object",
+        "properties" : {
+          "ownerId" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "ownerId" ],
+        "description" : "Gives the aggregate to the owner ownerId."
+      },
+      "wow.lifecycle.TransferSpace" : {
+        "type" : "object",
+        "properties" : {
+          "spaceId" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "spaceId" ],
+        "description" : "Moves the aggregate to the space spaceId."
       }
     },
     "responses" : {

@@ -226,6 +226,7 @@ function commandDoc(command: CommandModel): string {
         : undefined;
   return doc(
     [
+      command.description,
       `\`${command.name}\`${command.mounted ? ', mounted (a transformer finds its aggregate)' : ''}: ${routes}.`,
       creates,
       command.produces.length > 0
@@ -305,26 +306,27 @@ function emitCommandClient(
   ) {
     v10.push('CommandOptions');
   }
+  const lifecycleTypes: string[] = [];
   for (const lifecycle of aggregate.lifecycle) {
     v10.push('LifecycleCommands');
-    if (lifecycle.bodyType) v10.push(lifecycle.bodyType);
+    if (lifecycle.bodyType) {
+      (lifecycle.bodyGenerated ? lifecycleTypes : v10).push(lifecycle.bodyType);
+    }
     const params = lifecycle.bodyType
       ? `id: string, body: ${lifecycle.bodyType}, options?: CommandOptions`
       : `id: string, options?: CommandOptions`;
     methods.push(
-      `${doc([`The lifecycle command \`${lifecycle.name}\`.`], '  ')}  ${lifecycle.method}(${params}): Promise<CommandResult> {\n    return this.gateway.lifecycle(${name}Aggregate.path, id, LifecycleCommands.${lifecycle.member}, ${lifecycle.bodyType ? 'body' : 'undefined'}, options);\n  }`,
+      `${doc([lifecycle.description, `The lifecycle command \`${lifecycle.name}\`.`], '  ')}  ${lifecycle.method}(${params}): Promise<CommandResult> {\n    return this.gateway.lifecycle(${name}Aggregate.path, id, LifecycleCommands.${lifecycle.member}, ${lifecycle.bodyType ? 'body' : 'undefined'}, options);\n  }`,
     );
   }
   if (aggregate.lifecycle.length > 0) {
     module.imports.add('./aggregate.js', [`${name}Aggregate`]);
   }
   module.imports.add(V10_CLIENT, [...new Set(v10)].sort());
-  importTypes(
-    module,
-    outputDir,
-    files,
-    commands.map(command => command.bodyType),
-  );
+  importTypes(module, outputDir, files, [
+    ...commands.map(command => command.bodyType),
+    ...lifecycleTypes,
+  ]);
   addStatement(
     module,
     `${doc([

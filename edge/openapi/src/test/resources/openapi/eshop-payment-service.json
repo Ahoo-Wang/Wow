@@ -284,7 +284,7 @@
       "post" : {
         "tags" : [ "eshop-payment.payment" ],
         "summary" : "ChargebackNotified",
-        "description" : "Sends `eshop-payment.payment.ChargebackNotified`. A mounted command (decision D182): a transformer turns it into the commands it becomes.",
+        "description" : "The payment gateway's chargeback callback, in the gateway's shape (decision D182): the buyer disputed a payment with their bank, which took the money back. Mounted under the payment's routes, it is no command of the payment's; the payment server's transformer turns it into the `RefundPayment` of the payment merchantReference names (the gateway knows a payment by the reference it was charged under, the payment's id), and keeps disputeId in the command's headers, so the payment's event stream says which dispute refunded it. Sends `eshop-payment.payment.ChargebackNotified`. A mounted command (decision D182): a transformer turns it into the commands it becomes.",
         "operationId" : "eshop-payment.payment.ChargebackNotified",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -380,7 +380,7 @@
       "post" : {
         "tags" : [ "eshop-payment.payment" ],
         "summary" : "ChargebackNotified",
-        "description" : "Sends `eshop-payment.payment.ChargebackNotified`. A mounted command (decision D182): a transformer turns it into the commands it becomes. The request names no aggregate id: the server chooses it, or the transformer finds the aggregate.",
+        "description" : "The payment gateway's chargeback callback, in the gateway's shape (decision D182): the buyer disputed a payment with their bank, which took the money back. Mounted under the payment's routes, it is no command of the payment's; the payment server's transformer turns it into the `RefundPayment` of the payment merchantReference names (the gateway knows a payment by the reference it was charged under, the payment's id), and keeps disputeId in the command's headers, so the payment's event stream says which dispute refunded it. Sends `eshop-payment.payment.ChargebackNotified`. A mounted command (decision D182): a transformer turns it into the commands it becomes. The request names no aggregate id: the server chooses it, or the transformer finds the aggregate.",
         "operationId" : "eshop-payment.payment.ChargebackNotified.withoutId",
         "parameters" : [ {
           "$ref" : "#/components/parameters/Wow-Request-Id"
@@ -469,7 +469,7 @@
       "post" : {
         "tags" : [ "eshop-payment.payment" ],
         "summary" : "ConfirmPayment",
-        "description" : "Sends `eshop-payment.payment.ConfirmPayment`. Acts on an aggregate that exists. Produces `PaymentSucceeded`.",
+        "description" : "Confirm a payment. Sends `eshop-payment.payment.ConfirmPayment`. Acts on an aggregate that exists. Produces `PaymentSucceeded`.",
         "operationId" : "eshop-payment.payment.ConfirmPayment",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -564,7 +564,7 @@
       "post" : {
         "tags" : [ "eshop-payment.payment" ],
         "summary" : "FailPayment",
-        "description" : "Sends `eshop-payment.payment.FailPayment`. Acts on an aggregate that exists. Produces `PaymentFailed`.",
+        "description" : "Fail a payment. Sends `eshop-payment.payment.FailPayment`. Acts on an aggregate that exists. Produces `PaymentFailed`.",
         "operationId" : "eshop-payment.payment.FailPayment",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -659,7 +659,7 @@
       "post" : {
         "tags" : [ "eshop-payment.payment" ],
         "summary" : "RefundPayment",
-        "description" : "Sends `eshop-payment.payment.RefundPayment`. Acts on an aggregate that exists. Produces `PaymentRefunded`.",
+        "description" : "Refund a payment. Sends `eshop-payment.payment.RefundPayment`. Acts on an aggregate that exists. Produces `PaymentRefunded`.",
         "operationId" : "eshop-payment.payment.RefundPayment",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -754,7 +754,7 @@
       "post" : {
         "tags" : [ "eshop-payment.payment" ],
         "summary" : "RequestPayment",
-        "description" : "Sends `eshop-payment.payment.RequestPayment`. Creates the aggregate; one that exists is refused. Produces `PaymentRequested`.",
+        "description" : "Request a payment. Sends `eshop-payment.payment.RequestPayment`. Creates the aggregate; one that exists is refused. Produces `PaymentRequested`.",
         "operationId" : "eshop-payment.payment.RequestPayment",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -849,7 +849,7 @@
       "post" : {
         "tags" : [ "eshop-payment.payment" ],
         "summary" : "RequestPayment",
-        "description" : "Sends `eshop-payment.payment.RequestPayment`. Creates the aggregate; one that exists is refused. The request names no aggregate id: the server chooses it, or the transformer finds the aggregate. Produces `PaymentRequested`.",
+        "description" : "Request a payment. Sends `eshop-payment.payment.RequestPayment`. Creates the aggregate; one that exists is refused. The request names no aggregate id: the server chooses it, or the transformer finds the aggregate. Produces `PaymentRequested`.",
         "operationId" : "eshop-payment.payment.RequestPayment.withoutId",
         "parameters" : [ {
           "$ref" : "#/components/parameters/Wow-Request-Id"
@@ -2502,49 +2502,6 @@
         "type" : "object",
         "description" : "What the query model can do on the backend the node runs: operations, fields and limits."
       },
-      "wow.lifecycle.DeleteAggregate" : {
-        "type" : "object",
-        "description" : "Marks the aggregate deleted.",
-        "properties" : { }
-      },
-      "wow.lifecycle.RestoreAggregate" : {
-        "type" : "object",
-        "description" : "Restores a deleted aggregate.",
-        "properties" : { }
-      },
-      "wow.lifecycle.TransferOwner" : {
-        "type" : "object",
-        "properties" : {
-          "ownerId" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "ownerId" ]
-      },
-      "wow.lifecycle.TransferSpace" : {
-        "type" : "object",
-        "properties" : {
-          "spaceId" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "spaceId" ]
-      },
-      "wow.lifecycle.ApplyTags" : {
-        "type" : "object",
-        "properties" : {
-          "tags" : {
-            "type" : "object",
-            "additionalProperties" : {
-              "type" : "array",
-              "items" : {
-                "type" : "string"
-              }
-            }
-          }
-        },
-        "required" : [ "tags" ]
-      },
       "wow.schedule.Enable" : {
         "type" : "object",
         "description" : "Creates, or enables again, the job instance of the path's id, the job's name in the caller's tenant.",
@@ -2622,7 +2579,8 @@
             "type" : "string"
           }
         },
-        "required" : [ "reason" ]
+        "required" : [ "reason" ],
+        "description" : "Cancel the order"
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.PayOrder" : {
         "type" : "object",
@@ -2634,7 +2592,8 @@
             "type" : "string"
           }
         },
-        "required" : [ "amount", "paymentId" ]
+        "required" : [ "amount", "paymentId" ],
+        "description" : "Pay the order"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment" : {
         "type" : "object",
@@ -2643,7 +2602,8 @@
             "type" : "string"
           }
         },
-        "required" : [ "transactionId" ]
+        "required" : [ "transactionId" ],
+        "description" : "Confirm a payment"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.FailPayment" : {
         "type" : "object",
@@ -2652,7 +2612,8 @@
             "type" : "string"
           }
         },
-        "required" : [ "reason" ]
+        "required" : [ "reason" ],
+        "description" : "Fail a payment"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed" : {
         "type" : "object",
@@ -2661,7 +2622,8 @@
             "type" : "string"
           }
         },
-        "required" : [ "reason" ]
+        "required" : [ "reason" ],
+        "description" : "The gateway declined a payment"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.PaymentRefunded" : {
         "type" : "object",
@@ -2670,7 +2632,8 @@
             "type" : "string"
           }
         },
-        "required" : [ "reason" ]
+        "required" : [ "reason" ],
+        "description" : "A payment was refunded"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested" : {
         "type" : "object",
@@ -2682,7 +2645,8 @@
             "type" : "string"
           }
         },
-        "required" : [ "amount", "orderId" ]
+        "required" : [ "amount", "orderId" ],
+        "description" : "A payment was requested"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded" : {
         "type" : "object",
@@ -2691,7 +2655,8 @@
             "type" : "string"
           }
         },
-        "required" : [ "transactionId" ]
+        "required" : [ "transactionId" ],
+        "description" : "The gateway approved a payment"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment" : {
         "type" : "object",
@@ -2700,7 +2665,8 @@
             "type" : "string"
           }
         },
-        "required" : [ "reason" ]
+        "required" : [ "reason" ],
+        "description" : "Refund a payment"
       },
       "me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment" : {
         "type" : "object",
@@ -2712,7 +2678,8 @@
             "type" : "string"
           }
         },
-        "required" : [ "amount", "orderId" ]
+        "required" : [ "amount", "orderId" ],
+        "description" : "Request a payment"
       },
       "me.ahoo.wow.example.eshop.payment.domain.payment.ChargebackNotified" : {
         "type" : "object",
@@ -2727,7 +2694,8 @@
             "type" : "string"
           }
         },
-        "required" : [ "disputeId", "merchantReference", "reason" ]
+        "required" : [ "disputeId", "merchantReference", "reason" ],
+        "description" : "The payment gateway's chargeback callback, in the gateway's shape (decision D182): the buyer disputed a payment with their bank, which took the money back. Mounted under the payment's routes, it is no command of the payment's; the payment server's transformer turns it into the `RefundPayment` of the payment merchantReference names (the gateway knows a payment by the reference it was charged under, the payment's id), and keeps disputeId in the command's headers, so the payment's event stream says which dispute refunded it."
       },
       "me.ahoo.wow.example.eshop.payment.domain.payment.PaymentState" : {
         "type" : "object",
@@ -2748,7 +2716,52 @@
           "transactionId" : {
             "type" : [ "string", "null" ]
           }
-        }
+        },
+        "required" : [ "amount", "orderId", "status" ]
+      },
+      "wow.lifecycle.ApplyTags" : {
+        "type" : "object",
+        "properties" : {
+          "tags" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "required" : [ "tags" ],
+        "description" : "Sets the aggregate's tags, replacing the ones it had; empty tags clear them."
+      },
+      "wow.lifecycle.DeleteAggregate" : {
+        "type" : "object",
+        "description" : "Marks the aggregate deleted; its events stay in the log."
+      },
+      "wow.lifecycle.RestoreAggregate" : {
+        "type" : "object",
+        "description" : "Takes back the deletion of a deleted aggregate."
+      },
+      "wow.lifecycle.TransferOwner" : {
+        "type" : "object",
+        "properties" : {
+          "ownerId" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "ownerId" ],
+        "description" : "Gives the aggregate to the owner ownerId."
+      },
+      "wow.lifecycle.TransferSpace" : {
+        "type" : "object",
+        "properties" : {
+          "spaceId" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "spaceId" ],
+        "description" : "Moves the aggregate to the space spaceId."
       }
     },
     "responses" : {

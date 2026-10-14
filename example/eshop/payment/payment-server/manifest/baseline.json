@@ -30,7 +30,8 @@
           "path" : "/eshop-payment/payment/chargeback-notified"
         } ],
         "mounted" : true,
-        "transformsTo" : [ "eshop-payment.payment.RefundPayment" ]
+        "transformsTo" : [ "eshop-payment.payment.RefundPayment" ],
+        "description" : "The payment gateway's chargeback callback, in the gateway's shape (decision D182): the buyer disputed a payment with their bank, which took the money back. Mounted under the payment's routes, it is no command of the payment's; the payment server's transformer turns it into the `RefundPayment` of the payment merchantReference names (the gateway knows a payment by the reference it was charged under, the payment's id), and keeps disputeId in the command's headers, so the payment's event stream says which dispute refunded it."
       }, {
         "name" : "ConfirmPayment",
         "aliases" : [ ],
@@ -40,7 +41,8 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-payment/payment/{id}/confirm-payment"
-        } ]
+        } ],
+        "description" : "Confirm a payment"
       }, {
         "name" : "FailPayment",
         "aliases" : [ ],
@@ -50,7 +52,8 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-payment/payment/{id}/fail-payment"
-        } ]
+        } ],
+        "description" : "Fail a payment"
       }, {
         "name" : "RefundPayment",
         "aliases" : [ ],
@@ -60,7 +63,8 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-payment/payment/{id}/refund-payment"
-        } ]
+        } ],
+        "description" : "Refund a payment"
       }, {
         "name" : "RequestPayment",
         "aliases" : [ ],
@@ -73,28 +77,33 @@
         }, {
           "method" : "POST",
           "path" : "/eshop-payment/payment/request-payment"
-        } ]
+        } ],
+        "description" : "Request a payment"
       } ],
       "events" : [ {
         "name" : "PaymentFailed",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed"
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed",
+        "description" : "The gateway declined a payment"
       }, {
         "name" : "PaymentRefunded",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.PaymentRefunded"
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.PaymentRefunded",
+        "description" : "A payment was refunded"
       }, {
         "name" : "PaymentRequested",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested"
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested",
+        "description" : "A payment was requested"
       }, {
         "name" : "PaymentSucceeded",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded"
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded",
+        "description" : "The gateway approved a payment"
       } ],
       "lifecycle" : [ "wow.lifecycle.ApplyTags", "wow.lifecycle.DeleteAggregate", "wow.lifecycle.RestoreAggregate", "wow.lifecycle.TransferOwner", "wow.lifecycle.TransferSpace" ],
       "queries" : [ {
@@ -285,6 +294,10 @@
     "status" : 503,
     "description" : "A scheduled command arrived too long before its due time on this node's clock; it is sent again later."
   }, {
+    "code" : "wow.schedule.job-invalid",
+    "status" : 400,
+    "description" : "The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled."
+  }, {
     "code" : "wow.subscription.parked",
     "status" : 500,
     "description" : "A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes."
@@ -317,7 +330,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "reason" ]
+      "required" : [ "reason" ],
+      "description" : "Cancel the order"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.PayOrder" : {
       "type" : "object",
@@ -329,7 +343,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "amount", "paymentId" ]
+      "required" : [ "amount", "paymentId" ],
+      "description" : "Pay the order"
     },
     "me.ahoo.wow.example.eshop.payment.api.payment.ConfirmPayment" : {
       "type" : "object",
@@ -338,7 +353,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "transactionId" ]
+      "required" : [ "transactionId" ],
+      "description" : "Confirm a payment"
     },
     "me.ahoo.wow.example.eshop.payment.api.payment.FailPayment" : {
       "type" : "object",
@@ -347,7 +363,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "reason" ]
+      "required" : [ "reason" ],
+      "description" : "Fail a payment"
     },
     "me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed" : {
       "type" : "object",
@@ -356,7 +373,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "reason" ]
+      "required" : [ "reason" ],
+      "description" : "The gateway declined a payment"
     },
     "me.ahoo.wow.example.eshop.payment.api.payment.PaymentRefunded" : {
       "type" : "object",
@@ -365,7 +383,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "reason" ]
+      "required" : [ "reason" ],
+      "description" : "A payment was refunded"
     },
     "me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested" : {
       "type" : "object",
@@ -377,7 +396,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "amount", "orderId" ]
+      "required" : [ "amount", "orderId" ],
+      "description" : "A payment was requested"
     },
     "me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded" : {
       "type" : "object",
@@ -386,7 +406,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "transactionId" ]
+      "required" : [ "transactionId" ],
+      "description" : "The gateway approved a payment"
     },
     "me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment" : {
       "type" : "object",
@@ -395,7 +416,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "reason" ]
+      "required" : [ "reason" ],
+      "description" : "Refund a payment"
     },
     "me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment" : {
       "type" : "object",
@@ -407,7 +429,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "amount", "orderId" ]
+      "required" : [ "amount", "orderId" ],
+      "description" : "Request a payment"
     },
     "me.ahoo.wow.example.eshop.payment.domain.payment.ChargebackNotified" : {
       "type" : "object",
@@ -422,7 +445,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "disputeId", "merchantReference", "reason" ]
+      "required" : [ "disputeId", "merchantReference", "reason" ],
+      "description" : "The payment gateway's chargeback callback, in the gateway's shape (decision D182): the buyer disputed a payment with their bank, which took the money back. Mounted under the payment's routes, it is no command of the payment's; the payment server's transformer turns it into the `RefundPayment` of the payment merchantReference names (the gateway knows a payment by the reference it was charged under, the payment's id), and keeps disputeId in the command's headers, so the payment's event stream says which dispute refunded it."
     },
     "me.ahoo.wow.example.eshop.payment.domain.payment.PaymentState" : {
       "type" : "object",
@@ -443,7 +467,52 @@
         "transactionId" : {
           "type" : [ "string", "null" ]
         }
-      }
+      },
+      "required" : [ "amount", "orderId", "status" ]
+    },
+    "wow.lifecycle.ApplyTags" : {
+      "type" : "object",
+      "properties" : {
+        "tags" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "required" : [ "tags" ],
+      "description" : "Sets the aggregate's tags, replacing the ones it had; empty tags clear them."
+    },
+    "wow.lifecycle.DeleteAggregate" : {
+      "type" : "object",
+      "description" : "Marks the aggregate deleted; its events stay in the log."
+    },
+    "wow.lifecycle.RestoreAggregate" : {
+      "type" : "object",
+      "description" : "Takes back the deletion of a deleted aggregate."
+    },
+    "wow.lifecycle.TransferOwner" : {
+      "type" : "object",
+      "properties" : {
+        "ownerId" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "ownerId" ],
+      "description" : "Gives the aggregate to the owner ownerId."
+    },
+    "wow.lifecycle.TransferSpace" : {
+      "type" : "object",
+      "properties" : {
+        "spaceId" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "spaceId" ],
+      "description" : "Moves the aggregate to the space spaceId."
     }
   }
 }

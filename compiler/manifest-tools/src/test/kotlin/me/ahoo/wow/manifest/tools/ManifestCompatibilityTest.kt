@@ -525,6 +525,19 @@ class ManifestCompatibilityTest {
     }
 
     @Test
+    @Suppress("UNCHECKED_CAST")
+    fun `descriptions and lifecycle bodies added to the Manifest should be no change`() {
+        val current = BASELINE.addItem { it.copy(description = "Adds an item.") }
+            .itemAdded { it.copy(description = "An item was added.") }
+            .def(
+                "shop.AddItem",
+                BASELINE.defs.getValue("shop.AddItem") as Map<String, Any?> + ("description" to "Adds.")
+            )
+            .def("wow.lifecycle.DeleteAggregate", mapOf("type" to "object", "description" to "Marks it deleted."))
+        ManifestCompatibility.compare(BASELINE, current).changes.assert().isEmpty()
+    }
+
+    @Test
     fun `a breaking change should fail only within the baseline's major version`() {
         val broken = BASELINE.cart { it.copy(commands = emptyList()) }
         ManifestCompatibility.compare(BASELINE, broken).failed.assert().isTrue()

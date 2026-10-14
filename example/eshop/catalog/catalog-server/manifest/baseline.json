@@ -29,7 +29,8 @@
         }, {
           "method" : "POST",
           "path" : "/eshop-catalog/brand/create-brand"
-        } ]
+        } ],
+        "description" : "Create a brand"
       }, {
         "name" : "RenameBrand",
         "aliases" : [ ],
@@ -39,18 +40,21 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-catalog/brand/{id}/rename-brand"
-        } ]
+        } ],
+        "description" : "Rename a brand"
       } ],
       "events" : [ {
         "name" : "BrandCreated",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.brand.BrandCreated"
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.brand.BrandCreated",
+        "description" : "A brand was added to the catalog"
       }, {
         "name" : "BrandRenamed",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.brand.BrandRenamed"
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.brand.BrandRenamed",
+        "description" : "A brand was renamed"
       } ],
       "lifecycle" : [ "wow.lifecycle.ApplyTags", "wow.lifecycle.DeleteAggregate", "wow.lifecycle.RestoreAggregate", "wow.lifecycle.TransferSpace" ],
       "queries" : [ {
@@ -95,7 +99,8 @@
         }, {
           "method" : "POST",
           "path" : "/eshop-catalog/category/create-category"
-        } ]
+        } ],
+        "description" : "Create a category"
       }, {
         "name" : "RenameCategory",
         "aliases" : [ ],
@@ -105,18 +110,21 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-catalog/category/{id}/rename-category"
-        } ]
+        } ],
+        "description" : "Rename a category"
       } ],
       "events" : [ {
         "name" : "CategoryCreated",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.category.CategoryCreated"
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.category.CategoryCreated",
+        "description" : "A category was added to the catalog"
       }, {
         "name" : "CategoryRenamed",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.category.CategoryRenamed"
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.category.CategoryRenamed",
+        "description" : "A category was renamed"
       } ],
       "lifecycle" : [ "wow.lifecycle.ApplyTags", "wow.lifecycle.DeleteAggregate", "wow.lifecycle.RestoreAggregate", "wow.lifecycle.TransferSpace" ],
       "queries" : [ {
@@ -158,7 +166,8 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-catalog/product/{id}/change-product-price"
-        } ]
+        } ],
+        "description" : "Change a product's price"
       }, {
         "name" : "CreateProduct",
         "aliases" : [ ],
@@ -171,7 +180,8 @@
         }, {
           "method" : "POST",
           "path" : "/eshop-catalog/product/create-product"
-        } ]
+        } ],
+        "description" : "Create a product"
       }, {
         "name" : "DelistProduct",
         "aliases" : [ ],
@@ -181,7 +191,8 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-catalog/product/{id}/delist-product"
-        } ]
+        } ],
+        "description" : "Delist a product"
       }, {
         "name" : "PublishProduct",
         "aliases" : [ ],
@@ -191,7 +202,8 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-catalog/product/{id}/publish-product"
-        } ]
+        } ],
+        "description" : "Publish a product"
       }, {
         "name" : "UpdateProduct",
         "aliases" : [ ],
@@ -201,33 +213,39 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-catalog/product/{id}/update-product"
-        } ]
+        } ],
+        "description" : "Update a product"
       } ],
       "events" : [ {
         "name" : "ProductCreated",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.ProductCreated"
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.ProductCreated",
+        "description" : "A product was added to the catalog"
       }, {
         "name" : "ProductDelisted",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.ProductDelisted"
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.ProductDelisted",
+        "description" : "A product was taken off the storefront"
       }, {
         "name" : "ProductPriceChanged",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.ProductPriceChanged"
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.ProductPriceChanged",
+        "description" : "A product's price changed"
       }, {
         "name" : "ProductPublished",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.ProductPublished"
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.ProductPublished",
+        "description" : "A product was published on the storefront"
       }, {
         "name" : "ProductUpdated",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.ProductUpdated"
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.catalog.api.product.ProductUpdated",
+        "description" : "A product's name, description, brand or category changed"
       } ],
       "lifecycle" : [ "wow.lifecycle.ApplyTags", "wow.lifecycle.DeleteAggregate", "wow.lifecycle.RestoreAggregate", "wow.lifecycle.TransferSpace" ],
       "queries" : [ {
@@ -372,6 +390,10 @@
     "status" : 503,
     "description" : "A scheduled command arrived too long before its due time on this node's clock; it is sent again later."
   }, {
+    "code" : "wow.schedule.job-invalid",
+    "status" : 400,
+    "description" : "The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled."
+  }, {
     "code" : "wow.subscription.parked",
     "status" : 500,
     "description" : "A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes."
@@ -404,7 +426,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "name" ]
+      "required" : [ "name" ],
+      "description" : "A brand was added to the catalog"
     },
     "me.ahoo.wow.example.eshop.catalog.api.brand.BrandRenamed" : {
       "type" : "object",
@@ -413,7 +436,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "name" ]
+      "required" : [ "name" ],
+      "description" : "A brand was renamed"
     },
     "me.ahoo.wow.example.eshop.catalog.api.brand.CreateBrand" : {
       "type" : "object",
@@ -422,7 +446,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "name" ]
+      "required" : [ "name" ],
+      "description" : "Create a brand"
     },
     "me.ahoo.wow.example.eshop.catalog.api.brand.RenameBrand" : {
       "type" : "object",
@@ -431,7 +456,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "name" ]
+      "required" : [ "name" ],
+      "description" : "Rename a brand"
     },
     "me.ahoo.wow.example.eshop.catalog.api.category.CategoryCreated" : {
       "type" : "object",
@@ -440,7 +466,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "name" ]
+      "required" : [ "name" ],
+      "description" : "A category was added to the catalog"
     },
     "me.ahoo.wow.example.eshop.catalog.api.category.CategoryRenamed" : {
       "type" : "object",
@@ -449,7 +476,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "name" ]
+      "required" : [ "name" ],
+      "description" : "A category was renamed"
     },
     "me.ahoo.wow.example.eshop.catalog.api.category.CreateCategory" : {
       "type" : "object",
@@ -458,7 +486,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "name" ]
+      "required" : [ "name" ],
+      "description" : "Create a category"
     },
     "me.ahoo.wow.example.eshop.catalog.api.category.RenameCategory" : {
       "type" : "object",
@@ -467,7 +496,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "name" ]
+      "required" : [ "name" ],
+      "description" : "Rename a category"
     },
     "me.ahoo.wow.example.eshop.catalog.api.product.ChangeProductPrice" : {
       "type" : "object",
@@ -476,7 +506,8 @@
           "type" : "number"
         }
       },
-      "required" : [ "price" ]
+      "required" : [ "price" ],
+      "description" : "Change a product's price"
     },
     "me.ahoo.wow.example.eshop.catalog.api.product.CreateProduct" : {
       "type" : "object",
@@ -497,7 +528,8 @@
           "type" : "number"
         }
       },
-      "required" : [ "name", "price" ]
+      "required" : [ "name", "price" ],
+      "description" : "Create a product"
     },
     "me.ahoo.wow.example.eshop.catalog.api.product.DelistProduct" : {
       "type" : "object",
@@ -505,7 +537,8 @@
         "reason" : {
           "type" : "string"
         }
-      }
+      },
+      "description" : "Delist a product"
     },
     "me.ahoo.wow.example.eshop.catalog.api.product.ProductCreated" : {
       "type" : "object",
@@ -526,7 +559,8 @@
           "type" : "number"
         }
       },
-      "required" : [ "name", "price" ]
+      "required" : [ "name", "price" ],
+      "description" : "A product was added to the catalog"
     },
     "me.ahoo.wow.example.eshop.catalog.api.product.ProductDelisted" : {
       "type" : "object",
@@ -535,7 +569,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "reason" ]
+      "required" : [ "reason" ],
+      "description" : "A product was taken off the storefront"
     },
     "me.ahoo.wow.example.eshop.catalog.api.product.ProductPriceChanged" : {
       "type" : "object",
@@ -547,10 +582,12 @@
           "type" : "number"
         }
       },
-      "required" : [ "previous", "price" ]
+      "required" : [ "previous", "price" ],
+      "description" : "A product's price changed"
     },
     "me.ahoo.wow.example.eshop.catalog.api.product.ProductPublished" : {
-      "type" : "object"
+      "type" : "object",
+      "description" : "A product was published on the storefront"
     },
     "me.ahoo.wow.example.eshop.catalog.api.product.ProductUpdated" : {
       "type" : "object",
@@ -568,10 +605,12 @@
           "type" : "string"
         }
       },
-      "required" : [ "description", "name" ]
+      "required" : [ "description", "name" ],
+      "description" : "A product's name, description, brand or category changed"
     },
     "me.ahoo.wow.example.eshop.catalog.api.product.PublishProduct" : {
-      "type" : "object"
+      "type" : "object",
+      "description" : "Publish a product"
     },
     "me.ahoo.wow.example.eshop.catalog.api.product.UpdateProduct" : {
       "type" : "object",
@@ -589,7 +628,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "name" ]
+      "required" : [ "name" ],
+      "description" : "Update a product"
     },
     "me.ahoo.wow.example.eshop.catalog.domain.brand.BrandState" : {
       "type" : "object",
@@ -597,7 +637,8 @@
         "name" : {
           "type" : "string"
         }
-      }
+      },
+      "required" : [ "name" ]
     },
     "me.ahoo.wow.example.eshop.catalog.domain.category.CategoryState" : {
       "type" : "object",
@@ -605,7 +646,8 @@
         "name" : {
           "type" : "string"
         }
-      }
+      },
+      "required" : [ "name" ]
     },
     "me.ahoo.wow.example.eshop.catalog.domain.product.ProductState" : {
       "type" : "object",
@@ -630,6 +672,7 @@
           "enum" : [ "DRAFT", "PUBLISHED", "DELISTED" ]
         }
       },
+      "required" : [ "description", "name", "price", "status" ],
       "x-wow-index" : [ {
         "name" : "ix_product_state_brand_id_state_status_state_price",
         "keys" : [ "state.brandId", "state.status", "state.price" ]
@@ -643,6 +686,40 @@
         "name" : "ix_product_state_status_state_price",
         "keys" : [ "state.status", "state.price" ]
       } ]
+    },
+    "wow.lifecycle.ApplyTags" : {
+      "type" : "object",
+      "properties" : {
+        "tags" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "required" : [ "tags" ],
+      "description" : "Sets the aggregate's tags, replacing the ones it had; empty tags clear them."
+    },
+    "wow.lifecycle.DeleteAggregate" : {
+      "type" : "object",
+      "description" : "Marks the aggregate deleted; its events stay in the log."
+    },
+    "wow.lifecycle.RestoreAggregate" : {
+      "type" : "object",
+      "description" : "Takes back the deletion of a deleted aggregate."
+    },
+    "wow.lifecycle.TransferSpace" : {
+      "type" : "object",
+      "properties" : {
+        "spaceId" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "spaceId" ],
+      "description" : "Moves the aggregate to the space spaceId."
     }
   }
 }
