@@ -58,8 +58,10 @@ class CatalogNode(val context: ConfigurableApplicationContext) : AutoCloseable {
         .responseTimeout(Duration.ofSeconds(30))
         .build()
 
-    fun post(path: String, body: String = "{}"): Answer =
-        client.post().uri(path).contentType(MediaType.APPLICATION_JSON).bodyValue(body).answer()
+    fun post(path: String, body: String = "{}", headers: Map<String, String> = emptyMap()): Answer =
+        client.post().uri(path).contentType(MediaType.APPLICATION_JSON)
+            .headers { http -> headers.forEach { (name, value) -> http.set(name, value) } }
+            .bodyValue(body).answer()
 
     fun get(path: String, headers: Map<String, String> = emptyMap()): Answer =
         client.get().uri(path).headers { http -> headers.forEach { (name, value) -> http.set(name, value) } }.answer()
@@ -78,10 +80,16 @@ class CatalogNode(val context: ConfigurableApplicationContext) : AutoCloseable {
     }
 }
 
+/** An employee of the default tenant, a tenant-level caller ([CatalogCallers]): it changes the catalog. */
+val EMPLOYEE: Map<String, String> = mapOf(CatalogCallers.USER to "erin", CatalogCallers.ROLE to CatalogCallers.EMPLOYEE)
+
+/** A buyer of the default tenant, an owner-level caller ([CatalogCallers]): it reads the catalog. */
+val BUYER: Map<String, String> = mapOf(CatalogCallers.USER to "alice")
+
 /**
  * Starts the catalog server on random ports of the loopback interface, with [properties] over its `application.yaml`,
- * in [profiles] and with the further configuration [sources]. Every request is the anonymous caller: the catalog has no `CallerResolver`, so its products belong to
- * the default tenant and every shopper sees them (example/eshop/README.md).
+ * in [profiles] and with the further configuration [sources]. A request without headers is the anonymous caller; one
+ * with [EMPLOYEE]'s or [BUYER]'s is an employee or a buyer ([CatalogCallers], decision D189).
  */
 fun startCatalog(
     vararg properties: Pair<String, Any>,

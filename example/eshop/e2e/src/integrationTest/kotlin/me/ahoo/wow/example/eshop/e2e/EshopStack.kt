@@ -95,12 +95,7 @@ class EshopStack(
     val ordering: MutableMap<String, EshopService> = (1..orderingNodes).associateTo(linkedMapOf()) { n ->
         "ordering-$n" to startOrdering("ordering-$n")
     }
-    val basket: EshopService = start(
-        "basket",
-        BASKET_MAIN,
-        // The checkout's wait follows the order as far as the chain allows (decision D62).
-        arguments(BASKET_DATABASE) + "--wow.wait.max-hops=$MAX_HOPS",
-    )
+    val basket: EshopService = start("basket", BASKET_MAIN, arguments(BASKET_DATABASE))
     val payment: EshopService = start(
         "payment",
         PAYMENT_MAIN,
@@ -154,12 +149,19 @@ class EshopStack(
             }
         }
 
-    /** The state of the aggregate at [path] of [service], or null while it has none. */
-    fun state(service: EshopService, path: String): JsonNode? {
-        val answer = service.get(path)
+    /** The state of the aggregate at [path] of [service], read with [headers], or null while it has none. */
+    fun state(service: EshopService, path: String, headers: Map<String, String> = emptyMap()): JsonNode? =
+        view(service, path, headers)?.get("state")
+
+    /** The owner of the aggregate at [path] of [service] (decision D189), or null when it has none. */
+    fun ownerOf(service: EshopService, path: String): String? =
+        checkNotNull(view(service, path)) { "No state at $path." }["scope"]?.get("ownerId")?.asString()
+
+    private fun view(service: EshopService, path: String, headers: Map<String, String> = emptyMap()): JsonNode? {
+        val answer = service.get(path, headers)
         if (answer.status == NOT_FOUND) return null
         check(answer.status == OK) { "GET $path answered ${answer.status}: ${answer.body}" }
-        return json.readTree(answer.body)["state"]
+        return json.readTree(answer.body)
     }
 
     fun order(id: String): JsonNode? = state(anyOrdering, "/eshop-ordering/order/$id/state")
@@ -236,16 +238,16 @@ class EshopStack(
         const val INVENTORY_DATABASE = "eshop_inventory"
         const val PAYMENT_DATABASE = "eshop_payment"
         const val PARTITIONS = 4
-        const val MAX_HOPS = 16
 
         /** A checkout's `Wow-Wait` until the order is committed in the ordering context. */
         const val CHECKOUT_TO_ORDER =
             "committed > handled(eshop-basket/BasketCheckoutSaga.onBasketCheckedOut) > committed(eshop-ordering)"
 
         /**
-         * A checkout's `Wow-Wait` until the payment's `PayOrder` is committed: 15 hops, through every saga on the way,
-         * the ordering's on the inventory's stock stream included. The basket takes the inventory's and the payment's
-         * Manifests as peers only for this chain (DX gap G30), and allows [MAX_HOPS] hops.
+         * A checkout's `Wow-Wait` until the payment's `PayOrder` is committed: 15 hops, through every saga on the way
+         * (each adds its own hop and the next commit), the ordering's on the inventory's stock stream included. The
+         * basket knows only the ordering's Manifest: it lets the hops of the inventory and the payment through, and
+         * each is checked where the chain arrives (decision D190); the default of 16 hops holds it.
          */
         const val CHECKOUT_TO_PAID = CHECKOUT_TO_ORDER +
             " > handled(eshop-ordering/OrderProcessSaga.onOrderSubmitted) > committed(eshop-ordering)" +
@@ -258,6 +260,12 @@ class EshopStack(
         const val NOT_FOUND = 404
         const val TAIL = 4_000
         val ORDER = AggregateType("eshop-ordering", "order")
+
+        /** An employee: a tenant-level caller of the catalog, basket and ordering services (decision D189). */
+        val EMPLOYEE: Map<String, String> = mapOf("X-User" to "erin", "X-Role" to "employee")
+
+        /** The headers of the buyer [id]: an owner-level caller whose owner is [id]. */
+        fun buyer(id: String): Map<String, String> = mapOf("X-User" to id)
         val DEADLINE: Duration = Duration.ofSeconds(60)
         val POLL: Duration = Duration.ofMillis(100)
     }

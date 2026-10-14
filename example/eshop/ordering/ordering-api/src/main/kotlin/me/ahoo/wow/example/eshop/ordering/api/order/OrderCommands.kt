@@ -23,16 +23,13 @@ import java.math.BigDecimal
  */
 
 /**
- * Submits an order of [items] for the buyer [buyerId]. The basket context sends it when its buyer checks out, with
- * the order's id fixed by the basket.
- *
- * The buyer travels in the body because a saga's command carries no caller scope: the order a basket's checkout
- * creates has no owner of its own (see `example/eshop/DX-GAPS.md`).
+ * Submits an order of [items]. The basket context sends it when its buyer checks out, with the order's id fixed by the
+ * basket. The order belongs to the buyer: a saga's command carries the scope of the basket it is derived from, whose
+ * owner is its buyer (decision D189), and the order takes its owner from the command that creates it.
  */
 @CreateAggregate
 @Summary("Submit an order")
 data class SubmitOrder(
-    val buyerId: String,
     val items: List<OrderItem>,
 )
 

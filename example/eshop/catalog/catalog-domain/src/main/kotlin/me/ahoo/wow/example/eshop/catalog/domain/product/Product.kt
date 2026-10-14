@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.eshop.catalog.domain.product
 
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.ErrorCode
@@ -49,8 +50,12 @@ object ProductRejections {
 /**
  * A product of the catalog: a draft until it is published on the storefront, which takes a brand and a category; it
  * can be delisted and published again. Its name, description, brand, category and price change at any time.
+ *
+ * Every shopper of the tenant reads the products, and an employee changes them: a product belongs to its tenant
+ * (`Ownership.TENANT`, decision D189), so neither its reads nor its writes are restricted by an owner. The catalog
+ * server's action-level authorization lets only an employee send its commands.
  */
-@AggregateRoot
+@AggregateRoot(ownership = Ownership.TENANT)
 @Description("A product of the catalog")
 class Product(private val state: ProductState) {
     @OnCommand(produces = [ProductCreated::class])

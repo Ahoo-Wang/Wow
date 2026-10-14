@@ -15,12 +15,13 @@ package me.ahoo.wow.example.eshop.basket.server
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.kernel.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.runtime.cluster.CommandWire
+import me.ahoo.wow.runtime.command.CommandMessages
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
+import me.ahoo.wow.spi.transport.EnvelopeCodec
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
@@ -36,8 +37,8 @@ import java.net.http.HttpResponse
 import java.time.Duration
 
 /**
- * The test's command transport in place of Kafka, as the guide gives it, and its callers: the user the `X-User` header
- * names owns what it creates; a request without it is anonymous.
+ * The test's command transport in place of Kafka, as the guide gives it. The callers are the server's own
+ * ([BasketCallers]): the user the `X-User` header names owns what it creates.
  */
 @Configuration(proxyBeanMethods = false)
 class BasketTestBeans {
@@ -46,17 +47,6 @@ class BasketTestBeans {
 
     @Bean
     fun sourceTopics(topics: InMemoryTopics): SourceTopics = SourceTopics(topics, producer = topics)
-
-    @Bean
-    fun callerResolver(): CallerResolver = CallerResolver { request ->
-        request.headers().firstHeader(USER)?.let { user ->
-            Caller(tenantId = Caller.DEFAULT_TENANT, scope = Scope(ownerId = user), subject = user)
-        }
-    }
-
-    companion object {
-        const val USER = "X-User"
-    }
 }
 
 /** The basket service as its `application.yaml` configures it, on random ports, with its topics in memory. */
@@ -118,6 +108,8 @@ class BasketServerTest {
         checkedOut.first.assert().describedAs(checkedOut.second.toString()).isEqualTo(OK)
         checkedOut.second["results"]["orderId"].asString().assert().isEqualTo("alice-1")
         state("alice")["items"].isEmpty.assert().isTrue()
+        // The order belongs to the buyer: the saga's SubmitOrder carries the basket's scope (decision D189).
+        submitted("alice-1").scope.assert().isEqualTo(Scope(ownerId = "alice"))
 
         val empty = post("/eshop-basket/basket/alice/checkout-basket", "{}", "alice")
         empty.first.assert().isEqualTo(UNPROCESSABLE)
@@ -135,11 +127,31 @@ class BasketServerTest {
         other.second["code"].asString().assert().isEqualTo("eshop-basket.basket.not-owner")
     }
 
+    @Test
+    fun `an employee should read every buyer's basket, and the anonymous caller too`() {
+        post(
+            "/eshop-basket/basket/erin-buyer/add-basket-item",
+            """{"productId":"mug","unitPrice":8.50,"quantity":1}""",
+            "erin-buyer",
+        ).first.assert().isEqualTo(OK)
+        val employee = mapOf(BasketCallers.USER to "erin", BasketCallers.ROLE to BasketCallers.EMPLOYEE)
+        read("erin-buyer", employee).first.assert().isEqualTo(OK)
+        read("erin-buyer", emptyMap()).first.assert().isEqualTo(OK)
+        read("erin-buyer", mapOf(BasketCallers.USER to "dave")).first.assert().isEqualTo(FORBIDDEN)
+    }
+
+    private fun read(id: String, headers: Map<String, String>): Pair<Int, String> {
+        val request = HttpRequest.newBuilder(uri("/eshop-basket/basket/$id/state")).timeout(TIMEOUT).GET()
+        headers.forEach { (name, value) -> request.header(name, value) }
+        val response = http.send(request.build(), HttpResponse.BodyHandlers.ofString())
+        return response.statusCode() to response.body()
+    }
+
     private fun state(id: String): JsonNode {
         val response = http.send(
             HttpRequest.newBuilder(
                 uri("/eshop-basket/basket/$id/state")
-            ).header(BasketTestBeans.USER, id).timeout(TIMEOUT).GET().build(),
+            ).header(BasketCallers.USER, id).timeout(TIMEOUT).GET().build(),
             HttpResponse.BodyHandlers.ofString(),
         )
         check(response.statusCode() == OK) { "The state of $id answered ${response.statusCode()}: ${response.body()}" }
@@ -151,7 +163,7 @@ class BasketServerTest {
             HttpRequest.newBuilder(uri(path))
                 .timeout(TIMEOUT)
                 .header("Content-Type", "application/json")
-                .header(BasketTestBeans.USER, user)
+                .header(BasketCallers.USER, user)
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build(),
             HttpResponse.BodyHandlers.ofString(),
@@ -161,10 +173,28 @@ class BasketServerTest {
 
     private fun uri(path: String): URI = URI.create("http://127.0.0.1:$port$path")
 
+    /** The SubmitOrder of the order [id] the checkout saga sent to the ordering context's command topic. */
+    private fun submitted(id: String): CommandWire {
+        val topics = context.getBean(InMemoryTopics::class.java)
+        val until = System.nanoTime() + TIMEOUT.toNanos()
+        while (true) {
+            val wire = runCatching { topics.messages(ORDERING_COMMANDS) }.getOrDefault(emptyList())
+                .map { CommandMessages.commandOf(EnvelopeCodec.decode(it.value)) }
+                .firstOrNull { it.ref.id == id }
+            if (wire != null) {
+                return wire
+            }
+            check(System.nanoTime() < until) { "No SubmitOrder of $id was sent." }
+            Thread.sleep(POLL)
+        }
+    }
+
     private companion object {
         const val OK = 200
         const val FORBIDDEN = 403
         const val UNPROCESSABLE = 422
+        const val ORDERING_COMMANDS = "wow.eshop-ordering.commands"
+        const val POLL = 50L
         val TIMEOUT: Duration = Duration.ofSeconds(30)
     }
 }

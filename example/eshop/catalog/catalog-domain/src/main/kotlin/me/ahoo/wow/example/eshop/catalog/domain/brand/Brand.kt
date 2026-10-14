@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.eshop.catalog.domain.brand
 
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.ErrorCode
@@ -51,8 +52,10 @@ class BrandState(val id: String) {
 /**
  * A brand of the catalog's products. Its name is unique among the brands, ignoring case and surrounding blanks: the
  * brand reserves it (`DecideScope.reserve`) as it takes it.
+ *
+ * Like a product, a brand belongs to its tenant (`Ownership.TENANT`, decision D189): every shopper reads it.
  */
-@AggregateRoot
+@AggregateRoot(ownership = Ownership.TENANT)
 @Description("A brand of the catalog's products")
 class Brand(private val state: BrandState) {
     @OnCommand(produces = [BrandCreated::class])

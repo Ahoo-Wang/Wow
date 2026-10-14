@@ -124,7 +124,7 @@ class EshopPaymentFlowTest {
     }
 
     private fun submit(order: String, items: String) {
-        val submitted = ordering.post("/eshop-ordering/order/$order/submit-order", """{"buyerId":"buyer","items":[$items]}""")
+        val submitted = ordering.post("/eshop-ordering/order/$order/submit-order", """{"items":[$items]}""")
         submitted.status.assert().describedAs(submitted.body).isEqualTo(OK)
     }
 
