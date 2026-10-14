@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.http
 
+import kotlinx.coroutines.flow.Flow
+import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Command
@@ -48,7 +51,9 @@ import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.id.IdGenerators
+import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.wait.Origin
 import org.springframework.http.HttpHeaders
@@ -194,16 +199,35 @@ class HttpNode(
     tenants: TenantPolicy = TenantPolicy.CALLERS,
     defaultWaitTimeout: kotlin.time.Duration = WaitPlan.DEFAULT_TIMEOUT,
     ids: IdGenerators = IdGenerators.DEFAULT,
-    queries: (InMemoryEventLog) -> HttpQueries = { HttpQueries.NONE },
+    queries: (EventLog) -> HttpQueries = { HttpQueries.NONE },
 ) {
     val log = InMemoryEventLog(partitions = 2)
+
+    /** While set, every read of [log] by the kernel, the state reads and the queries fails as a store that is down. */
+    @Volatile
+    var unavailable: Boolean = false
+
+    /** [log] as the node reads it: unavailable while [unavailable] is set. */
+    private val store: EventLog = object : EventLog by log {
+        override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> {
+            ensureAvailable()
+            return log.read(ref, fromVersion, toVersion)
+        }
+
+        override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String) =
+            ensureAvailable().let { log.findByRequestId(type, tenantId, requestId) }
+
+        private fun ensureAvailable() {
+            if (unavailable) throw StorageUnavailableException("The log is unavailable; retry later.")
+        }
+    }
 
     /** The commands the node decided, in order. */
     val commands: MutableList<Command<*>> = CopyOnWriteArrayList()
 
     /** The commit times of the kernel: the system clock unless a test sets it. */
     var now: () -> Long = System::currentTimeMillis
-    val kernel = Kernel(log, clock = { now() })
+    val kernel = Kernel(store, clock = { now() })
     val snapshots = InMemorySnapshotStore()
     private val registry = WaitRegistry()
     private val origin = Origin("node-1", "127.0.0.1:9090", "shop-service")
@@ -226,7 +250,7 @@ class HttpNode(
     val reads = KernelStateReads(models, mapOf(CONTEXT to KernelStateReads.ContextReads(kernel, snapshots)))
     val client: WebTestClient = WebTestClient
         .bindToRouterFunction(
-            wowRoutes(manifest ?: cartManifest(mounted = mounted), gateway, reads, callers, options, queries(log)),
+            wowRoutes(manifest ?: cartManifest(mounted = mounted), gateway, reads, callers, options, queries(store)),
         )
         .build()
         .mutate()

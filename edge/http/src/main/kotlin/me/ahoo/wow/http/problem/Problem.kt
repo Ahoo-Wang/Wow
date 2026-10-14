@@ -16,6 +16,7 @@ package me.ahoo.wow.http.problem
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.http.HttpJson
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -36,6 +37,8 @@ data class Problem(
     val code: String?,
     val violations: List<Violation> = emptyList(),
     val result: CommandResult? = null,
+    /** The seconds after which the request may be retried, written as `Retry-After`; not a member of the body. */
+    val retryAfter: Long? = null,
 ) {
     /** `urn:wow:error:<code>`, or `about:blank` without a code. */
     val type: String get() = code?.let { TYPE_PREFIX + it } ?: ABOUT_BLANK
@@ -53,11 +56,12 @@ data class Problem(
         result?.let { put("result", it) }
     }
 
-    /** This problem as a response. */
-    suspend fun respond(): ServerResponse =
-        ServerResponse.status(status).contentType(MediaType.APPLICATION_PROBLEM_JSON).bodyValueAndAwait(
-            HttpJson.write(members()),
-        )
+    /** This problem as a response, with `Retry-After` when it has [retryAfter]. */
+    suspend fun respond(): ServerResponse {
+        val response = ServerResponse.status(status).contentType(MediaType.APPLICATION_PROBLEM_JSON)
+        retryAfter?.let { response.header(HttpHeaders.RETRY_AFTER, it.toString()) }
+        return response.bodyValueAndAwait(HttpJson.write(members()))
+    }
 
     companion object {
         const val TYPE_PREFIX: String = "urn:wow:error:"

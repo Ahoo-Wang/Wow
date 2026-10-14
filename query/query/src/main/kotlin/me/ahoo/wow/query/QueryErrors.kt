@@ -22,7 +22,9 @@ import me.ahoo.wow.manifest.FrameworkErrors
  * - [INVALID] (400): the query breaks a rule; each violation carries its stable code, such as `UNKNOWN_FIELD`
  *   (`me.ahoo.wow.api.query.QueryErrorCodes`);
  * - [FAILED] (500): a query the caller got right that the server failed to run;
- * - [TIMEOUT] (503): the query ran out of its execution time.
+ * - [TIMEOUT] (503): the query ran out of its execution time;
+ * - [STORAGE_UNAVAILABLE] (503): the storage could not be reached or did not answer in time; the same query may pass
+ *   later.
  *
  * They are the codes of [FrameworkErrors], whose table gives each its HTTP status; a caller the query scope does not
  * admit is answered with [FORBIDDEN].
@@ -32,6 +34,7 @@ object QueryErrors {
     const val INVALID: String = FrameworkErrors.QUERY_INVALID
     const val FAILED: String = FrameworkErrors.QUERY_FAILED
     const val TIMEOUT: String = FrameworkErrors.QUERY_TIMEOUT
+    const val STORAGE_UNAVAILABLE: String = FrameworkErrors.STORAGE_UNAVAILABLE
 
     /** The caller may not run this query. */
     const val FORBIDDEN: String = FrameworkErrors.AUTH_FORBIDDEN

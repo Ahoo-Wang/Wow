@@ -44,9 +44,11 @@ import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.id.IdGenerators
+import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -571,7 +573,7 @@ class CommandGatewayTest {
 
     @Test
     fun `the framework codes are listed once each, in the wow namespace`() {
-        FrameworkCodes.ALL.size.assert().isEqualTo(18)
+        FrameworkCodes.ALL.size.assert().isEqualTo(19)
         FrameworkCodes.ALL.forEach { it.assert().startsWith("wow.") }
         FrameworkCodes.ALL.assert().contains(
             FrameworkCodes.MALFORMED,
@@ -581,7 +583,57 @@ class CommandGatewayTest {
             FrameworkCodes.AGGREGATE_FORBIDDEN,
             FrameworkCodes.BUSY,
             FrameworkCodes.NODE_CLOSING,
+            FrameworkCodes.STORAGE_UNAVAILABLE,
         )
+    }
+
+    @Test
+    fun `a store unavailable while a command runs fails it as retryable, its retry commits (F2)`(): Unit = runBlocking {
+        var down = true
+        val failing = object : EventLog by log {
+            override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String) =
+                if (down) {
+                    throw StorageUnavailableException("The log is unavailable.", IllegalStateException("reset"))
+                } else {
+                    log.findByRequestId(type, tenantId, requestId)
+                }
+        }
+        val coordinator = WaitCoordinator(
+            Executor(Kernel(failing)),
+            registry,
+            SubscriptionDirectory.NONE,
+            LocalSignalSender(origin.node, registry),
+            WaitOptions(origin),
+        )
+        val gateway = gateway(coordinator = coordinator)
+
+        val failed = gateway.execute(request(requestId = "add-1"))
+        failed.status.assert().isEqualTo(CommandResult.Status.FAILED)
+        failed.error!!.code.assert().isEqualTo(FrameworkCodes.STORAGE_UNAVAILABLE)
+        failed.error!!.message.assert().isEqualTo("The log is unavailable.")
+        failed.hop.assert().isEqualTo(Hop.committed(CONTEXT))
+        failed.requestId.assert().isEqualTo("add-1")
+        decided.assert().isEmpty()
+
+        down = false
+        val retried = gateway.execute(request(requestId = "add-1"))
+        retried.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        retried.version.assert().isEqualTo(1)
+        gateway.execute(request(requestId = "add-1")).duplicate.assert().isTrue()
+        decided.assert().hasSize(1)
+    }
+
+    @Test
+    fun `a store unavailable at admission refuses the request as retryable, before it runs (F2)`(): Unit = runBlocking {
+        val committed = CommittedRequests { _, _, _ -> throw StorageUnavailableException("The log is unavailable.") }
+        val result = gateway(committed = committed).execute(
+            request(command = "OpenCart", body = "{}", aggregateId = null, requestId = "open-1"),
+        )
+        result.status.assert().isEqualTo(CommandResult.Status.FAILED)
+        result.error!!.code.assert().isEqualTo(FrameworkCodes.STORAGE_UNAVAILABLE)
+        result.hop.assert().isEqualTo(Hop.accepted(CONTEXT))
+        result.requestId.assert().isEqualTo("open-1")
+        decided.assert().isEmpty()
     }
 
     @Test

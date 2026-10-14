@@ -22,7 +22,6 @@ import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
@@ -33,6 +32,7 @@ import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.MongoRules
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
+import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.bson.Document
@@ -86,7 +86,7 @@ class MongoSnapshotStore(
 
     private fun ensure(aggregate: String): MongoCollection<Document> = ensure(database, context, aggregate)
 
-    override suspend fun save(snapshot: SnapshotRecord): Boolean = withContext(dispatcher) {
+    override suspend fun save(snapshot: SnapshotRecord): Boolean = dispatcher.mongo {
         require(snapshot.ref.type.context == context) { "${snapshot.ref} is not in context $context." }
         val snapshots = collectionOf(snapshot.ref.type.name)
         val guarded = Filters.and(keyFilter(snapshot.ref), Filters.lt(VERSION, snapshot.version))
@@ -110,7 +110,7 @@ class MongoSnapshotStore(
         }
     }
 
-    override suspend fun load(ref: AggregateRef): SnapshotRecord? = withContext(dispatcher) {
+    override suspend fun load(ref: AggregateRef): SnapshotRecord? = dispatcher.mongo {
         require(ref.type.context == context) { "$ref is not in context $context." }
         collectionOf(ref.type.name).find(keyFilter(ref)).firstOrNull()?.let { snapshotOf(ref.type, it) }
     }

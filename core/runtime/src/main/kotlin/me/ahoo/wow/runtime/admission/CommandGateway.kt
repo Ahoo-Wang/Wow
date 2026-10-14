@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.admission
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -43,6 +44,7 @@ import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.admissionRejected
 import me.ahoo.wow.runtime.wait.isAcceptedOnly
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.id.IdGenerators
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.json.JsonMapper
@@ -145,7 +147,7 @@ class CommandGateway(
      * admitted when the flow is collected.
      */
     fun send(request: CommandRequest): Flow<CommandResult> = flow {
-        when (val admission = admit(request)) {
+        when (val admission = admitting(request)) {
             is Admission.Refused -> emit(admission.result)
             is Admission.Admitted -> {
                 val coordinator = coordinators.getValue(admission.command.ref.type.context)
@@ -190,9 +192,23 @@ class CommandGateway(
         detached.cancel()
     }
 
-    @Suppress("ReturnCount", "CyclomaticComplexMethod", "LongMethod") // One early return per refusing step.
-    private suspend fun admit(request: CommandRequest): Admission {
+    /**
+     * [admit]s [request]; a store that admission reads (the stream its request id committed, decision D191) and that
+     * is unavailable refuses it, FAILED with [FrameworkCodes.STORAGE_UNAVAILABLE]: nothing ran, so a retry with the
+     * same request id is safe.
+     */
+    private suspend fun admitting(request: CommandRequest): Admission {
         val facts = Facts(request, ids.global.next())
+        return try {
+            admit(request, facts)
+        } catch (unavailable: StorageUnavailableException) {
+            logger.warn(unavailable) { "Request ${facts.requestId} was not admitted: a store is unavailable." }
+            facts.refuse(FrameworkCodes.STORAGE_UNAVAILABLE, unavailable.message!!, CommandResult.Status.FAILED)
+        }
+    }
+
+    @Suppress("ReturnCount", "CyclomaticComplexMethod", "LongMethod") // One early return per refusing step.
+    private suspend fun admit(request: CommandRequest, facts: Facts): Admission {
         if (closed) {
             return facts.refuse(FrameworkCodes.NODE_CLOSING, "The node is closing.", CommandResult.Status.FAILED)
         }
@@ -399,6 +415,8 @@ class CommandGateway(
     companion object {
         /** The aggregate id a refusal's ref names when admission had decided none. */
         const val UNADDRESSED: String = AggregateRef.UNASSIGNED
+
+        private val logger = KotlinLogging.logger {}
 
         private val CommandType.shortName: String get() = name.substringAfterLast('.')
 

@@ -50,3 +50,14 @@ class QueryTimeoutException(
     override val errorCode: String
         get() = QueryErrors.TIMEOUT
 }
+
+/**
+ * A query the storage could not run because it was unreachable or did not answer in time, a backend's
+ * [me.ahoo.wow.spi.StorageUnavailableException] as [cause]: [QueryErrors.STORAGE_UNAVAILABLE] (HTTP 503). The same
+ * query may pass once the storage is back.
+ */
+class QueryStorageUnavailableException(cause: Throwable? = null) :
+    QueryExecutionException("Query storage is unavailable; retry later.", cause) {
+    override val errorCode: String
+        get() = QueryErrors.STORAGE_UNAVAILABLE
+}

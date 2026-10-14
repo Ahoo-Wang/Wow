@@ -22,9 +22,9 @@ import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
+import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.reservation.Reservation
 import me.ahoo.wow.spi.reservation.ReservationStore
 import org.bson.Document
@@ -62,7 +62,7 @@ class MongoReservationStore(
 
     override suspend fun reserve(namespace: String, key: String, owner: String, ttl: Duration): Reservation? {
         require(ttl.isPositive()) { "A reservation's time to live is positive." }
-        return withContext(dispatcher) {
+        return dispatcher.mongo {
             val now = clock.millis()
             val takeable = Filters.and(
                 keyFilter(namespace, key),
@@ -91,15 +91,15 @@ class MongoReservationStore(
         }
     }
 
-    override suspend fun confirm(namespace: String, key: String, owner: String): Boolean = withContext(dispatcher) {
+    override suspend fun confirm(namespace: String, key: String, owner: String): Boolean = dispatcher.mongo {
         reservations.updateOne(ownedBy(namespace, key, owner), Updates.set(EXPIRES_AT, null)).matchedCount == 1L
     }
 
-    override suspend fun release(namespace: String, key: String, owner: String): Boolean = withContext(dispatcher) {
+    override suspend fun release(namespace: String, key: String, owner: String): Boolean = dispatcher.mongo {
         reservations.deleteOne(ownedBy(namespace, key, owner)).deletedCount == 1L
     }
 
-    override suspend fun find(namespace: String, key: String): Reservation? = withContext(dispatcher) {
+    override suspend fun find(namespace: String, key: String): Reservation? = dispatcher.mongo {
         reservations.find(
             Filters.and(
                 keyFilter(namespace, key),
