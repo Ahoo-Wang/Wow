@@ -25,23 +25,30 @@ import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 
 /**
- * Submits a checked-out basket to the ordering context as an order, the classic eShop's checkout: the command goes to
- * the ordering context's command topic, `wow.eshop-ordering.commands`, and the saga's hop is done once the broker has
- * it. Its id is fixed by the basket's commit, so handling the commit again sends the same request, which the ordering
- * context decides once.
+ * Submits a checked-out basket to the ordering context as an order, the classic eShop's checkout, synchronously
+ * (decision D193): the checkout is done only once the ordering context has the order, so the saga calls the ordering
+ * service's command gateway (`wow.calls.contexts.eshop-ordering.url`) instead of sending to its command topic, the
+ * default for the rest of the shop (decision D33). The order's number is the checkout's (`alice-1`), fixed by the
+ * basket's commit, and the request id comes from the commit too, so handling the commit again, after a retry or a
+ * replay, is the same request: the ordering context decides it once and answers with the same order.
  *
- * The order belongs to the buyer: the command carries the basket's scope, whose owner is its buyer, as every command a
- * saga derives carries the scope of the commit it handles (decision D189).
+ * The order belongs to the buyer: the call carries the basket's scope, whose owner is its buyer, and the buyer as its
+ * operator (decisions D163, D189), which the ordering service trusts because the basket service presents its service
+ * credential. While the ordering service is down the call fails: the saga is retried within its subscription's budget,
+ * then the basket parks until an operator resumes it.
  */
 @Saga
 class BasketCheckoutSaga {
     @OnEvent
-    fun onBasketCheckedOut(event: StateEvent<BasketState>, context: SagaContext): Command<SubmitOrder>? {
-        val checkedOut = event.events.filterIsInstance<BasketCheckedOut>().firstOrNull() ?: return null
-        return context.command(
-            ORDER.ref(event.ref.tenantId, checkedOut.orderId),
-            SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) }),
+    suspend fun onBasketCheckedOut(event: StateEvent<BasketState>, context: SagaContext): List<Command<*>> {
+        val checkedOut = event.events.filterIsInstance<BasketCheckedOut>().firstOrNull() ?: return emptyList()
+        context.call(
+            context.command(
+                ORDER.ref(event.ref.tenantId, checkedOut.orderId),
+                SubmitOrder(checkedOut.items.map { OrderItem(it.productId, it.unitPrice, it.quantity) }),
+            ),
         )
+        return emptyList()
     }
 
     private companion object {

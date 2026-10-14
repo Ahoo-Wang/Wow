@@ -37,6 +37,13 @@ object WowHeaders {
     /** The space, among the caller's own, to act in (decision D96); the caller resolver checks the membership. */
     const val SPACE: String = "Wow-Space"
 
+    /**
+     * The root command a service's synchronous call acts for (decision D193), in the form of
+     * [me.ahoo.wow.http.command.CallHeader]: taken on the internal port alone, from a service identity
+     * ([me.ahoo.wow.http.callRoutes]); refused (403) on the public port whatever the credential.
+     */
+    const val CALL: String = "Wow-Call"
+
     /** The expected version of the aggregate, as an entity tag: `If-Match: "3"`. */
     const val IF_MATCH: String = "If-Match"
 

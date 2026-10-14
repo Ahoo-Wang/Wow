@@ -16,21 +16,27 @@ package me.ahoo.wow.example.eshop.basket.domain.basket
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.subscribe.CallFailedException
+import me.ahoo.wow.api.subscribe.CallRejectedException
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketCleared
 import me.ahoo.wow.example.eshop.basket.api.basket.BasketItem
 import me.ahoo.wow.example.eshop.ordering.api.order.OrderItem
 import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
 import me.ahoo.wow.kernel.Dependencies
+import me.ahoo.wow.kernel.test.rejectedResult
 import me.ahoo.wow.kernel.test.sagaSpec
 import me.ahoo.wow.kernel.test.stateEvent
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 
-/** The checkout saga: a checked-out basket becomes an order in the ordering context. */
+/** The checkout saga: a checked-out basket becomes an order in the ordering context, through a synchronous call. */
 class BasketCheckoutSagaTest {
     private val basket = AggregateType("eshop-basket", "basket").ref("tenant", "alice")
+    private val order = AggregateType("eshop-ordering", "order").ref("tenant", "alice-1")
     private val handlers = basketCheckoutSagaHandlers(Dependencies.NONE)
+    private val checkedOut = BasketCheckedOut("alice-1", listOf(BasketItem("mug", BigDecimal("8.50"), 2)))
 
     private fun event(vararg events: Any) =
         stateEvent(
@@ -40,24 +46,43 @@ class BasketCheckoutSagaTest {
             version = 3,
             commandType = "eshop-basket.basket.CheckoutBasket",
             scope = Scope(ownerId = "alice"),
+            operator = Operator("alice", "tenant"),
         )
 
     @Test
-    fun `a checked-out basket should submit its order to the ordering context`() = sagaSpec(handlers) {
-        whenEvent(event(BasketCheckedOut("alice-1", listOf(BasketItem("mug", BigDecimal("8.50"), 2))))) {
-            val submit = expectCommand(
-                SubmitOrder(listOf(OrderItem("mug", BigDecimal("8.50"), 2))),
-                to = AggregateType("eshop-ordering", "order").ref("tenant", "alice-1"),
-            )
-            // In the basket's scope: the order belongs to its buyer (decision D189).
+    fun `a checked-out basket should submit its order to the ordering context synchronously`() = sagaSpec(handlers) {
+        whenEvent(event(checkedOut)) {
+            expectCalls(SubmitOrder(listOf(OrderItem("mug", BigDecimal("8.50"), 2))))
+            expectNoCommand()
+            val submit = calls.single()
+            submit.ref.assert().isEqualTo(order)
+            // In the basket's scope, for its buyer: the order belongs to the buyer (decisions D163, D189).
             submit.scope.assert().isEqualTo(Scope(ownerId = "alice"))
-            // Handling the commit again derives the same request, which the ordering context decides once.
+            submit.operator.assert().isEqualTo(Operator("alice", "tenant"))
+            // Handling the commit again calls with the same request, which the ordering context decides once.
             expectDeterministic()
         }
     }
 
     @Test
+    fun `an order the ordering context refuses should reach the saga as a rejection`() = sagaSpec(handlers) {
+        answerCalls { rejectedResult(it, "eshop-ordering.order.wrong-status") }
+        whenEvent(event(checkedOut)) {
+            expectError<CallRejectedException> { code.assert().isEqualTo("eshop-ordering.order.wrong-status") }
+        }
+    }
+
+    @Test
+    fun `an ordering context that is down should fail the handling`() = sagaSpec(handlers) {
+        answerCalls { throw CallFailedException("eshop-ordering is down") }
+        whenEvent(event(checkedOut)) { expectError<CallFailedException>() }
+    }
+
+    @Test
     fun `another event of the basket should submit nothing`() = sagaSpec(handlers) {
-        whenEvent(event(BasketCleared)) { expectNoCommand() }
+        whenEvent(event(BasketCleared)) {
+            expectNoCommand()
+            expectNoCall()
+        }
     }
 }

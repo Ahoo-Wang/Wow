@@ -30,7 +30,8 @@ import java.time.Duration
  * `application.yaml` configures it with the `postgres` and `kafka` profiles, each on a PostgreSQL database of its own,
  * talking over Kafka:
  *
- * - **Checkout.** The basket's checkout saga sends `eshop-ordering.order.SubmitOrder` to `wow.eshop-ordering.commands`.
+ * - **Checkout.** The basket's checkout saga calls the ordering's command gateway with `eshop-ordering.order.SubmitOrder`
+ *   synchronously (decision D193), with the basket service's credential, for the buyer.
  * - **Stock.** The ordering's order-process saga sends `eshop-inventory.stock.ReserveStock` to
  *   `wow.eshop-inventory.commands`; the inventory sends the receipt of each reservation it commits to
  *   `wow.eshop-ordering.receipts`, and the saga's `@OnCommitted` confirms the order's product (decision D192).
@@ -80,7 +81,11 @@ class EshopOrderFlowTest {
             "--wow.timers.poll-interval=200ms",
         ),
     )
-    private val basket = EshopService.start("basket", BASKET_MAIN, arguments(BASKET_DATABASE))
+    private val basket = EshopService.start(
+        "basket",
+        BASKET_MAIN,
+        arguments(BASKET_DATABASE) + EshopStack.callOrdering(ordering.internalPort),
+    )
 
     @AfterAll
     fun close() {
@@ -107,7 +112,7 @@ class EshopOrderFlowTest {
         basketItems("alice").assert().isEmpty()
 
         eventually("alice-1 confirmed") { orderStatus("alice-1") == "STOCK_CONFIRMED" }
-        // The order belongs to its buyer (decision D189): the checkout saga's command carried the basket's scope.
+        // The order belongs to its buyer (decision D189): the checkout saga's call carried the basket's scope.
         val view = json.readTree(ordering.get("/eshop-ordering/order/alice-1/state", buyer("alice")).body)
         view["scope"]["ownerId"].asString().assert().isEqualTo("alice")
         ordering.get("/eshop-ordering/order/alice-1/state", buyer("bob")).status.assert().isEqualTo(FORBIDDEN)

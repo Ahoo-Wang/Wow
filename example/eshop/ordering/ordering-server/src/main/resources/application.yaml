@@ -11,6 +11,17 @@ wow:
   backend: memory
   internal:
     port: 9093
+    # On this machine only, for trying the shop out: the basket service calls the order gateway here.
+    host: 127.0.0.1
+  http:
+    # The basket service's checkout calls this command gateway synchronously (decision D193), on the internal port
+    # alone: a request with its service token is that service's identity, which alone may name the buyer the order is
+    # for. The token is for
+    # trying the shop out on one machine; a deployment sets ESHOP_SERVICE_TOKEN, here and in the basket service.
+    services:
+      eshop-basket-service:
+        tokens:
+          - ${ESHOP_SERVICE_TOKEN:eshop-local-service-token-not-a-secret}
 eshop:
   ordering:
     # How long an order whose stock is confirmed waits for its payment before it cancels itself.
@@ -38,8 +49,8 @@ wow:
     topics:
       ddl: auto
     bootstrap-servers: localhost:9092
-    # Execute the orders the basket context sends to wow.eshop-ordering.commands, which has as many partitions as the
-    # context's log (wow.log.partitions, 64 by default).
+    # Execute the commands other contexts send to wow.eshop-ordering.commands (the payment's), which has as many
+    # partitions as the context's log (wow.log.partitions, 64 by default).
     command-intake: true
 ---
 spring:

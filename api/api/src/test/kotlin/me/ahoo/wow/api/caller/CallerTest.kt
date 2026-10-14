@@ -56,4 +56,11 @@ class CallerTest {
         assertThrownBy<IllegalArgumentException> { Operator(" ", "t1") }
         assertThrownBy<IllegalArgumentException> { Operator("alice", "") }
     }
+
+    @Test
+    fun `a service identity names its subject, and no other caller is one`() {
+        Caller.ANONYMOUS.service.assert().isFalse()
+        Caller(subject = "service:basket", service = true).service.assert().isTrue()
+        assertThrownBy<IllegalArgumentException> { Caller(service = true) }
+    }
 }

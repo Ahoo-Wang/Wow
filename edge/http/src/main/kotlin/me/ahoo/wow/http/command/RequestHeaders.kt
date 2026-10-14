@@ -13,12 +13,14 @@
 
 package me.ahoo.wow.http.command
 
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.runtime.FrameworkCodes
+import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.TargetScope
 import org.springframework.http.HttpStatus
 import org.springframework.http.InvalidMediaTypeException
@@ -71,6 +73,35 @@ internal class RequestHeaders(private val statuses: ErrorStatuses) {
         val tag = value.removeSurrounding("\"")
         return tag.toIntOrNull()?.takeIf { it >= 0 }
             ?: throw problem(FrameworkCodes.MALFORMED, "If-Match is one version as an entity tag, such as \"3\".")
+    }
+
+    /**
+     * The synchronous call of `Wow-Call` (decision D193). On the public port ([internal] false) a request that carries
+     * it is answered 403 `wow.auth.forbidden` whatever its credential: a call is taken on the internal port alone
+     * (decision D173). On the internal port every request is a call: one without it, or from a caller that is not a
+     * [service][Caller.service] identity, is answered 403 too. One that does not parse is a problem with
+     * [FrameworkCodes.MALFORMED]; null on the public port without it.
+     */
+    fun call(request: ServerRequest, caller: Caller, internal: Boolean): CallContext? {
+        val value = request.header(WowHeaders.CALL)
+        val refusal = when {
+            !internal && value != null ->
+                "${WowHeaders.CALL} is taken on the internal port alone, never on the public one (decision D193)."
+
+            !internal -> return null
+            value == null || !caller.service ->
+                "The internal port takes only a service identity's call with ${WowHeaders.CALL} (decision D193)."
+
+            else -> null
+        }
+        refusal?.let { throw problem(FrameworkCodes.AUTH_FORBIDDEN, it) }
+        return parseCall(checkNotNull(value))
+    }
+
+    private fun parseCall(value: String): CallContext = try {
+        CallHeader.parse(value)
+    } catch (invalid: IllegalArgumentException) {
+        throw problem(FrameworkCodes.MALFORMED, invalid.message ?: "${WowHeaders.CALL} does not parse.")
     }
 
     /** The request id of `Wow-Request-Id`, or null without it. */

@@ -28,6 +28,7 @@ import java.sql.Connection
 import java.sql.DriverManager
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -46,6 +47,19 @@ class SoakStack(private val config: SoakConfig, private val log: (String) -> Uni
     val kafka = WowContainers.newKafka()
     private val nodes = ConcurrentHashMap<String, CopyOnWriteArrayList<SoakNode>>()
     private val numbers = ConcurrentHashMap<String, AtomicInteger>()
+
+    /**
+     * The public ports of each context's killed nodes, which their replacements take: the basket calls the ordering's
+     * command gateway synchronously (decision D193) at the first ordering node's port, a stable address as a
+     * deployment's load balancer gives one.
+     */
+    private val freedPorts = ConcurrentHashMap<String, ConcurrentLinkedQueue<Int>>()
+
+    /** The internal ports of each context's killed nodes, which their replacements take. */
+    private val freedInternalPorts = ConcurrentHashMap<String, ConcurrentLinkedQueue<Int>>()
+
+    /** The internal port the basket calls the ordering at: the first ordering node's, kept by its replacements. */
+    private var orderingPort: Int = 0
 
     fun start() {
         startBound(postgres, POSTGRES_PORT)
@@ -110,9 +124,23 @@ class SoakStack(private val config: SoakConfig, private val log: (String) -> Uni
     /** Starts a node of [context], named `<context>-<n>` with the next n, and waits until it serves. */
     fun start(context: String): SoakNode {
         val id = "$context-${numbers.computeIfAbsent(context) { AtomicInteger() }.incrementAndGet()}"
+        // A first node binds ports the system chooses; a replacement takes the ports of a killed node.
+        val port = freedPorts[context]?.poll() ?: 0
+        val internalPort = freedInternalPorts[context]?.poll() ?: 0
+        val calls = if (context == "basket") listOf(EshopStack.callOrdering(orderingPort)) else emptyList()
         val arguments = backendArguments(postgres, kafka, DATABASES.getValue(context), config.partitions) +
-            "--wow.node.id=$id"
-        val service = EshopService.start(context, MAINS.getValue(context), arguments, listOf("-Xmx${config.heap}"))
+            "--wow.node.id=$id" + calls
+        val service = EshopService.start(
+            context,
+            MAINS.getValue(context),
+            arguments,
+            listOf("-Xmx${config.heap}"),
+            publicPort = port,
+            internalPort = internalPort,
+        )
+        if (context == "ordering" && orderingPort == 0) {
+            orderingPort = service.internalPort
+        }
         return SoakNode(context, id, service).also { node ->
             nodes.computeIfAbsent(context) { CopyOnWriteArrayList() }.add(node)
             log("node $id started on port ${service.publicPort}")
@@ -123,6 +151,8 @@ class SoakStack(private val config: SoakConfig, private val log: (String) -> Uni
     fun kill(node: SoakNode) {
         nodes[node.context]?.remove(node)
         node.service.kill()
+        freedPorts.computeIfAbsent(node.context) { ConcurrentLinkedQueue() }.add(node.service.publicPort)
+        freedInternalPorts.computeIfAbsent(node.context) { ConcurrentLinkedQueue() }.add(node.service.internalPort)
         log("node ${node.id} killed")
     }
 
