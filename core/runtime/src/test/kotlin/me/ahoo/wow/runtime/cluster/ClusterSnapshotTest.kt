@@ -30,9 +30,14 @@ class ClusterSnapshotTest {
     /**
      * The test asserts that the owner decides the forwarded command, so the forward must not time out and degrade to
      * running here (D71): the first forward of a cold JVM (class loading, the codec's first use) under CPU load took
-     * longer than the fixtures' one second. The command's own wait, ten seconds, still caps it.
+     * longer than the fixtures' one second. The command's own wait, ten seconds, still caps it. Nor may a stall of
+     * the JVM expire the leases and leave the partition without a known owner ([FROZEN_LEASES]).
      */
-    private val cluster = TestCluster(options = fastOptions(forwardTimeout = 10.seconds), snapshots = snapshots)
+    private val cluster = TestCluster(
+        options = fastOptions(forwardTimeout = 10.seconds),
+        snapshots = snapshots,
+        leaseClock = FROZEN_LEASES,
+    )
 
     @AfterEach
     fun close(): Unit = runBlocking {
