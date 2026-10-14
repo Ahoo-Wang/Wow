@@ -36,7 +36,6 @@ import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.api.schedule.SetSchedule
 import me.ahoo.wow.api.snapshot.SnapshotRebuilds
 
-
 /**
  * The kernel's side of the lifecycle commands (design 01 §6) and of the schedule system commands (decision D198): their
  * decide functions, which read the aggregate's metadata rather than its state, and how their events evolve that

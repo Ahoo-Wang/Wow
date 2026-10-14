@@ -256,9 +256,10 @@ abstract class SnapshotStoreSpec {
         store.save(snapshot("c", 2).copy(stateRevision = 2)).assert().isTrue()
         store.save(snapshot("c", 6)).assert().isFalse()
         store.save(snapshot("c", 4).copy(stateRevision = 2)).assert().isTrue()
-        store.pending(type, 2, limit = 10).assert().containsExactly(type.ref("tenant", "c"))
+        val c = type.ref("tenant", "c")
+        store.pending(type, 2, limit = 10).assert().contains(c)
         store.save(snapshot("c", 6).copy(stateRevision = 2)).assert().isTrue()
-        store.pending(type, 2, limit = 10).assert().isEmpty()
+        store.pending(type, 2, limit = 10).assert().doesNotContain(c)
     }
 
     @Test

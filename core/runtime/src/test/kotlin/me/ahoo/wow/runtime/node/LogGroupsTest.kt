@@ -19,6 +19,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.snapshot.SnapshotRebuilds
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
@@ -125,7 +126,7 @@ class LogGroupsTest {
         eventually { projected.containsAll(listOf("order:o-1@1", "invoice:i-1@1")) }
         val groups = node.context(CONTEXT).logGroups
         groups.map { it.store }.assert().containsExactly(DEFAULT_STORE, INVOICE_STORE)
-        groups.map { it.types }.assert().containsExactly(setOf(ORDER), setOf(INVOICE))
+        groups.map { it.types }.assert().containsExactly(setOf(ORDER, SnapshotRebuilds.typeOf(CONTEXT)), setOf(INVOICE))
         groups.last().subscriptions.group.assert().isEqualTo("$SERVICE/$CONTEXT#$INVOICE_STORE")
         groups.forEach { it.subscriptions.subscriptionNames.assert().contains(PROJECTOR) }
         eventually { invoices.checkpoints.load("$SERVICE/$CONTEXT#$INVOICE_STORE", PROJECTOR, invoicePartition) == 1L }

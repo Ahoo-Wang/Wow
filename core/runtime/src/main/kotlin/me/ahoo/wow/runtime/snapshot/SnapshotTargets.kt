@@ -65,7 +65,6 @@ class SnapshotTargets(
         this.placements.mapValues { (_, placement) -> stores.getValue(placement.primary) },
     )
 
-
     /** The subscription of the store [store]: `snapshot` for the [default] store, `snapshot:<store>` for another. */
     fun subscriptionOf(store: String): String =
         if (store == default) Hop.SNAPSHOT_SUBSCRIPTION else "${Hop.SNAPSHOT_SUBSCRIPTION}:$store"

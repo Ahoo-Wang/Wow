@@ -55,7 +55,6 @@ data class SnapshotRecord(
     init {
         require(version >= 1) { "A snapshot's version starts at 1: it folds at least one event stream." }
         require(stateRevision >= 1) { "A snapshot's state revision starts at 1." }
-
         require(schemaFingerprint.isNotBlank()) { "A snapshot needs its state's schema fingerprint." }
         require(state.isNotBlank()) { "A snapshot needs a state." }
         require(firstEventTime <= lastEventTime) { "The first event is not committed after the last one." }

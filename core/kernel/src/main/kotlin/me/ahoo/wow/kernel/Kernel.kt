@@ -576,8 +576,8 @@ class Kernel(
     /**
      * The state of [snapshot] evolved with the log's tail after it, or null when the snapshot does not fit: written
      * at another state revision (decision D172) or for another state schema, not decodable, or newer than the log.
- The tail is read from the snapshot's own
-     * version, so the same read proves the log holds that version; that stream is already folded and is skipped. The
+     * The tail is read from the snapshot's own version, so the same read proves the log holds that version; that
+     * stream is already folded and is skipped. The
      * tail stops at [until], and before the first stream committed after [committedBy] (epoch milliseconds): a
      * snapshot whose own stream committed after it does not fit either.
      */

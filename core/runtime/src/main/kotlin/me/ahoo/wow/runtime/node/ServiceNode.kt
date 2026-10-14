@@ -66,14 +66,12 @@ import me.ahoo.wow.runtime.manifest.ManifestCheck
 import me.ahoo.wow.runtime.reservation.ReservationSubscription
 import me.ahoo.wow.runtime.schedule.ScheduleJobRuntime
 import me.ahoo.wow.runtime.snapshot.LogProgress
-import me.ahoo.wow.runtime.snapshot.RebuildState
 import me.ahoo.wow.runtime.snapshot.SnapshotHops
 import me.ahoo.wow.runtime.snapshot.SnapshotMaintenance
 import me.ahoo.wow.runtime.snapshot.SnapshotRebuildModel
 import me.ahoo.wow.runtime.snapshot.SnapshotStatus
 import me.ahoo.wow.runtime.snapshot.SnapshotSubscription
 import me.ahoo.wow.runtime.snapshot.SnapshotTargets
-
 import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.state.StateViewReader
 import me.ahoo.wow.runtime.state.StateViews
@@ -1045,7 +1043,7 @@ class ServiceNode(
     private fun snapshotEnabled(model: AggregateModel<*>): Boolean = manifest.contexts
         .firstOrNull { it.name == model.type.context }?.aggregates
         ?.firstOrNull { it.name == model.type.name }?.snapshot?.enabled
-        ?: (model.stateType != RebuildState::class.java)
+        ?: !SnapshotRebuildModel.isRebuild(model)
 
     /** A context's parts before the node's router exists. */
     private inner class Parts(
@@ -1111,7 +1109,6 @@ class ServiceNode(
                 snapshots,
                 maintenance,
             )
-
         }
     }
 

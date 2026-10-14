@@ -121,7 +121,6 @@ class SnapshotSubscription(
             reader.pass(ref, version)
             return
         }
-
         val held = written[ref]
         if (held != null && held.version >= version) {
             // A view recorded after this subscription wrote its version, without one, is never written again.

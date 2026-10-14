@@ -43,7 +43,6 @@ import javax.sql.DataSource
  * guard (see [PostgresSnapshotTables.save]); a save refused for a higher state revision then marks the row stale. The
  * claimed state revision of each table (decision D172) is a row of [PostgresSnapshotTables.TABLES], claimed with one
  * statement.
-
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29). A failure of the database is a
  * defect and is thrown: a snapshot is a cache, so the caller may drop it and rebuild later.

@@ -166,7 +166,6 @@ enum class Routing {
  * - [snapshots]: the snapshot maintenance of each context (decision D172): how often it claims the state revisions,
  *   rebuilds in place and checks the backfills, and the bounds of a rebuild.
  * - [kafkaRouted]: the aggregate types whose commands the `Kafka` router takes (design 02 §2, decision D143): an
-
  *   admitted command of one of them is written to its context's command topic, accepted once the broker acknowledged
  *   it, and executed by the owner of its log partition from there. Each must be a type the node serves, the node
  *   needs a producer ([SourceTopics.producer]), and each of their contexts takes the commands of its command topic

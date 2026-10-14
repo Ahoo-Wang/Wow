@@ -182,7 +182,7 @@ class ServiceNodeTest {
         backends.opened.getValue(LEDGER).leases.owners("$NODE_SERVICE/$LEDGER").size.assert().isEqualTo(8)
 
         // A forward reaches the endpoint of its command's context; one of a context not hosted here is refused.
-        val model = node.context(LEDGER).models.single()
+        val model = node.context(LEDGER).models.first()
         val command = Command("c-1", "r-1", model.type.ref(TENANT, "a-2"), Deposit())
         val wire = ClusterCodec.wire(model, command)
         val later = System.currentTimeMillis() + 10_000
@@ -286,7 +286,7 @@ class ServiceNodeTest {
 
             // The executor refuses, and the append queue takes nothing.
             val bank = node.context(BANK)
-            val model = bank.models.single()
+            val model = bank.models.first()
             val late = Command("c-late", "r-late", model.type.ref(TENANT, "a-2"), Deposit())
             bank.coordinator.executeHere(model, late, null).committed.error!!.code
                 .assert().isEqualTo(FrameworkCodes.NODE_CLOSING)

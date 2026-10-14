@@ -61,7 +61,6 @@ import java.util.concurrent.ConcurrentHashMap
  * stored `state_revision` not above the new one): no transaction, and concurrent saves leave the highest version (see
  * [conditionalUpsert]). A save refused for a higher state revision then marks the document stale (`stale_version`,
  * decision D172). The claimed state revision of each collection is a document of [TABLES], keyed by the collection.
-
  *
  * Calls run on [dispatcher], virtual threads by default (decision D29). A failure of the database is a defect and is
  * thrown: a snapshot is a cache, so the caller may drop it and rebuild later.

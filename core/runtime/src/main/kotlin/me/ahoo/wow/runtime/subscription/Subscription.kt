@@ -182,7 +182,6 @@ class Subscription private constructor(
             kind: FunctionKind,
             decoder: EntryDecoder = EntryDecoder.RECORDS,
             answers: ((AggregateType) -> String?)? = null,
-
             handler: suspend (SubscribedEntry) -> Unit,
         ): Subscription = Subscription(
             name,

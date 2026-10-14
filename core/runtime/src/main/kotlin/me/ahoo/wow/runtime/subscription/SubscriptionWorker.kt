@@ -191,7 +191,6 @@ internal class SubscriptionWorker(
         val hop = entry.transport?.wait?.nextHandled ?: return false
         return hop.subscription == subscription.hopOf(entry.stream.ref.type) &&
             (hop.context ?: subscription.context) == subscription.context
-
     }
 
     /**

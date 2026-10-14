@@ -37,6 +37,10 @@ class RebuildState {
  * type of the context is rejected with [FrameworkCodes.INVALID].
  */
 object SnapshotRebuildModel {
+    /** Whether [model] is a context's built-in rebuild aggregate. */
+    @JvmStatic
+    fun isRebuild(model: AggregateModel<*>): Boolean = model.stateType == RebuildState::class.java
+
     /** The model of [context]'s rebuild aggregate, taking the requests of its snapshotted [aggregates], by name. */
     @JvmStatic
     fun model(context: String, aggregates: Set<String>): AggregateModel<RebuildState> =
