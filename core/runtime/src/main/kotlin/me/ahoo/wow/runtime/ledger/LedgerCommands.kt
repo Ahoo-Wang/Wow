@@ -86,7 +86,9 @@ internal class LedgerCommands(
         if (authorization is Authorization.Denied) {
             return ErrorInfo(authorization.code, authorization.message)
         }
-        return run(command, ref)
+        // The scans leave the entry to the action, which publishes what came of it.
+        val publisher = publisher() ?: return run(command, ref)
+        return publisher.acting(command.subscription, ref) { run(command, ref) }
     }
 
     private suspend fun run(command: LedgerCommand, ref: AggregateRef): ErrorInfo? {
