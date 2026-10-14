@@ -39,6 +39,8 @@ import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -117,6 +119,9 @@ import kotlin.time.Duration.Companion.seconds
  *
  * A decide function takes its ids from [ids] ([DecideScope.ids], decision D171): the node's generators, fixed ids in
  * the test DSL.
+ *
+ * [observer] sees each execution, decision and append (decision D174); what an append carries for delivery holds the
+ * append's trace ([Transport.trace]), so the subscriptions that handle it continue the command's trace.
  */
 class Kernel(
     private val log: EventLog,
@@ -130,6 +135,7 @@ class Kernel(
     private val snapshots: SnapshotStore? = null,
     private val commandTypes: CommandTypes = CommandTypes.NONE,
     private val ids: Ids = IdGenerators.DEFAULT,
+    private val observer: Observer = Observer.NONE,
 ) {
     init {
         require(maxAttempts >= 1) { "At least one attempt." }
@@ -151,6 +157,15 @@ class Kernel(
     ): CommandOutcome {
         require(admitted.ref.type == model.type) { "${admitted.ref} is not a ${model.type}." }
         require(admitted.ref.isAssigned) { "${admitted.ref} names no aggregate: admission assigns its id (D191)." }
+        val executing = observer.executing(admitted)
+        return executing.observe { executeAdmitted(model, admitted, wait).also { executing.outcome(it.observedName) } }
+    }
+
+    private suspend fun <S : Any> executeAdmitted(
+        model: AggregateModel<S>,
+        admitted: Command<*>,
+        wait: WaitContext?,
+    ): CommandOutcome {
         // A tenant's aggregate (decision D189) neither records nor checks an owner: only that part of the scope counts.
         val scope = model.ownership.scopeOf(admitted.scope)
         val command = if (scope == admitted.scope) admitted else admitted.copy(scope = scope)
@@ -185,7 +200,12 @@ class Kernel(
 
                 is Prepared.Append -> prepared.stream to prepared.evolved
             }
-            val appended = withContext(NonCancellable) { append(stream, attempt.transport()) }
+            val appending = observer.appending(stream)
+            val appended = withContext(NonCancellable) {
+                appending.observe {
+                    append(stream, attempt.transport(appending.trace)).also { appending.outcome(it.observedName) }
+                }
+            }
             settleAppend(appended, stream, evolved, attempt, commandType)?.let { return it }
             attempts++
         }
@@ -252,12 +272,13 @@ class Kernel(
         val state = loaded.state as S
         val version = loaded.version
         val before = if (verifyDecidePurity) codec.stateText(state) else null
-        val decided = when (val decision = decide(decider, scope, state, command.body)) {
+        val domain = when (
+            val decision = observer.deciding(command).observe { decideAll(model, decider, scope, state, command.body) }
+        ) {
             is Decision.Events -> decision.events
             Decision.NoOp -> emptyList()
             is Decision.Rejected -> return Prepared.Done(CommandOutcome.Rejected(decision.rejection))
         }
-        val domain = decided + model.afterFunctions(command.body.javaClass).flatMap { after(it, scope, state, command.body) }
         if (before != null) {
             check(codec.stateText(state) == before) {
                 "Deciding ${command.body.javaClass.name} changed the state of ${command.ref}: only events may change it."
@@ -629,6 +650,28 @@ class Kernel(
         }
     }
 
+    /** The decision of [decider] on [state], its events followed by those of [model]'s after hooks (D39). */
+    private suspend fun <S : Any> decideAll(
+        model: AggregateModel<S>,
+        decider: DecideFunction<S>,
+        scope: DecideScope,
+        state: S,
+        body: Any,
+    ): Decision {
+        val decision = decide(decider, scope, state, body)
+        val decided = when (decision) {
+            is Decision.Events -> decision.events
+            Decision.NoOp -> emptyList()
+            is Decision.Rejected -> return decision
+        }
+        val afters = model.afterFunctions(body.javaClass)
+        if (afters.isEmpty()) {
+            return decision
+        }
+        val domain = decided + afters.flatMap { after(it, scope, state, body) }
+        return if (domain.isEmpty()) Decision.NoOp else Decision.Events(domain)
+    }
+
     private suspend fun <S : Any> decide(
         decider: DecideFunction<S>,
         scope: DecideScope,
@@ -751,13 +794,13 @@ class Kernel(
         fun results(): Map<String, Any> = results ?: emptyMap()
 
         /**
-         * What the append carries for delivery: the wait context when the caller waits beyond COMMITTED (D25), and
-         * the keys this attempt reserved pending (D50); null when there is neither.
+         * What the append carries for delivery: the wait context when the caller waits beyond COMMITTED (D25), the
+         * keys this attempt reserved pending (D50) and the append's [trace] (D174); null when there is none of them.
          */
-        fun transport(): Transport? = if (wait == null && reserved == null) {
+        fun transport(trace: Map<String, String>): Transport? = if (wait == null && reserved == null && trace.isEmpty()) {
             null
         } else {
-            Transport(wait = wait, reservations = reserved?.toList().orEmpty())
+            Transport(wait = wait, reservations = reserved?.toList().orEmpty(), trace = trace)
         }
 
         override suspend fun reserve(namespace: String, key: String): Boolean {
@@ -848,3 +891,23 @@ fun interface CommandTypes {
  * belongs to a chain, so it carries a [Command.causation]; admission gives a caller's none (it is its own root).
  */
 val Command<*>.isDerived: Boolean get() = causation != null
+
+/** How an execution ended, as its observation names it (decision D174). */
+internal val CommandOutcome.observedName: String
+    get() = when (this) {
+        is CommandOutcome.Committed -> "committed"
+        is CommandOutcome.AlreadyCommitted -> "duplicate"
+        is CommandOutcome.Unchanged -> "unchanged"
+        is CommandOutcome.Rejected -> "rejected"
+        is CommandOutcome.Contended -> "contended"
+        is CommandOutcome.Unknown -> "unknown"
+    }
+
+/** How an append ended, as its observation names it (decision D174). */
+internal val AppendOutcome.observedName: String
+    get() = when (this) {
+        is AppendOutcome.Committed -> "committed"
+        is AppendOutcome.AlreadyCommitted -> "duplicate"
+        is AppendOutcome.Conflict -> "conflict"
+        is AppendOutcome.Unknown -> "unknown"
+    }

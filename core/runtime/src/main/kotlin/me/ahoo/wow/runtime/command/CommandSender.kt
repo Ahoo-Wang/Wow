@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.command
 
+import kotlinx.coroutines.currentCoroutineContext
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.schedule.Schedules
@@ -23,6 +24,7 @@ import me.ahoo.wow.runtime.cluster.ReplyTo
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.transport.TopicProducer
 import me.ahoo.wow.spi.wait.WaitContext
 import java.util.concurrent.ConcurrentHashMap
@@ -41,6 +43,7 @@ import java.util.concurrent.ConcurrentHashMap
  *   topic; a topic without partitions fails the send.
  * - **Durable ACCEPTED**: [send] returns once the broker has acknowledged the message (decision D33); it throws when
  *   it has not, and the caller retries with the same command, which the target does not decide twice.
+ * - **Trace**: the message carries the trace the sender runs in (decision D174), which the target's intake continues.
  */
 class CommandSender(private val contracts: ContractDirectory, private val topics: SourceTopics) {
     private val producer: TopicProducer = requireNotNull(topics.producer) { "Commands are sent through a producer." }
@@ -58,7 +61,12 @@ class CommandSender(private val contracts: ContractDirectory, private val topics
         val topic = topics.commandsOf(wire.ref.type.context)
         producer.send(
             topic,
-            CommandMessages.command(wire, Partitioner.partitionOf(wire.ref, partitionsOf(topic)), wait)
+            CommandMessages.command(
+                wire,
+                Partitioner.partitionOf(wire.ref, partitionsOf(topic)),
+                wait,
+                currentCoroutineContext().trace,
+            ),
         )
     }
 

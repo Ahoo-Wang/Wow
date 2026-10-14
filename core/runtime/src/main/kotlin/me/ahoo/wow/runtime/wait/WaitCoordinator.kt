@@ -21,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -45,6 +46,7 @@ import me.ahoo.wow.runtime.ExecutorClosedException
 import me.ahoo.wow.runtime.cluster.CommandRouter
 import me.ahoo.wow.runtime.cluster.TopicRouter
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.observation.traceContext
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import java.util.UUID
@@ -322,7 +324,8 @@ class WaitCoordinator(
         val hop = Hop.accepted(command.ref.type.context)
         val topic = topicRouter?.takeIf { it.routes(command.ref.type) }
         if (topic == null) {
-            scope.launch { runDetached(model, command) }
+            // In the admission's trace (decision D174), which the detached execution continues.
+            scope.launch(currentCoroutineContext().traceContext) { runDetached(model, command) }
             return reachedResult(command, function, hop, clock())
         }
         val deadline = clock() + minOf(command.wait.timeout, options.maxTimeout).inWholeMilliseconds
@@ -395,7 +398,9 @@ class WaitCoordinator(
         waiting: Waiting,
     ): Settlement? {
         val taken = AtomicBoolean()
-        val execution: Deferred<Settlement> = executions.async { routeReporting(model, command, wait, taken) }
+        val execution: Deferred<Settlement> = executions.async(currentCoroutineContext().traceContext) {
+            routeReporting(model, command, wait, taken)
+        }
         try {
             val settlement = select {
                 execution.onAwait { it }
