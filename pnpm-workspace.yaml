@@ -2,6 +2,7 @@ packages:
   - typescript/*
   - compensation/dashboard
   - analytics/console
+  - platform/ops/console
   - documentation
 
 allowBuilds:
