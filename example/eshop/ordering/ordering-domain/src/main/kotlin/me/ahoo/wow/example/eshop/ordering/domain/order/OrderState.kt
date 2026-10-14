@@ -29,9 +29,6 @@ import java.math.BigDecimal
  * the kernel serializes the state as it is.
  */
 class OrderState(val id: String) {
-    var buyerId: String = ""
-        private set
-
     var items: List<OrderItem> = emptyList()
         private set
 
@@ -61,7 +58,6 @@ class OrderState(val id: String) {
     ) { total, item -> total + item.quantity }
 
     fun onSourcing(event: OrderSubmitted) {
-        buyerId = event.buyerId
         items = event.items
         totalAmount = event.items.fold(BigDecimal.ZERO) { total, item ->
             total + item.unitPrice.multiply(BigDecimal(item.quantity))

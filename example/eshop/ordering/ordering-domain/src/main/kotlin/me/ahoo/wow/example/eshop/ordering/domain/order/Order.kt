@@ -41,7 +41,8 @@ import me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder
  *     \______________\_____________________\__________-> CANCELLED
  * ```
  *
- * - [SubmitOrder] creates it; the basket context sends it on checkout.
+ * - [SubmitOrder] creates it; the basket context sends it on checkout. The order belongs to its buyer: its owner is the
+ *   owner of the checkout's basket, whose scope the basket's saga carries on (decision D189).
  * - [AwaitStockValidation] moves it on, and [OrderProcessSaga] then reserves its stock in the inventory context.
  * - [ConfirmOrderStock] confirms one product, read from the inventory's stock stream by [StockConfirmationSaga]. The
  *   last one confirms the order's stock and schedules its cancellation once the payment grace period of the
@@ -60,7 +61,7 @@ class Order(private val state: OrderState) {
         if (invalid) {
             return Decision.reject(OrderRejections.INVALID_ITEMS, "The order's items are not valid: ${command.items}.")
         }
-        return Decision.events(OrderSubmitted(command.buyerId, command.items))
+        return Decision.events(OrderSubmitted(command.items))
     }
 
     /** Moving on an order that is no longer submitted, one cancelled meanwhile say, changes nothing. */

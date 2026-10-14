@@ -62,7 +62,9 @@ import kotlin.time.Duration.Companion.seconds
  *
  * - [origin] is this node, as signals address it (decision D65).
  * - [maxTimeout] caps the timeout a caller asks for (decision D64).
- * - [maxHops] is the longest chain a wait may follow (decision D62).
+ * - [maxHops] is the longest chain a wait may follow (decisions D62, D190): [DEFAULT_MAX_HOPS] by default, at most
+ *   [MAX_HOPS_CAP]. Each saga a chain follows adds two hops, its `handled` and the next `committed`.
+ * - [unknownContexts] is what a chain may name of a context this node knows no Manifest of (decision D190).
  * - [defaultTimeout] is the timeout of a command whose caller names no wait plan (decision D64), capped by
  *   [maxTimeout] as any other; [me.ahoo.wow.runtime.admission.CommandGateway] applies it to every entry.
  */
@@ -71,17 +73,38 @@ data class WaitOptions(
     val maxTimeout: Duration = DEFAULT_MAX_TIMEOUT,
     val maxHops: Int = DEFAULT_MAX_HOPS,
     val defaultTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT,
+    val unknownContexts: UnknownContexts = UnknownContexts.ALLOW,
 ) {
     init {
         require(maxTimeout.isPositive()) { "The maximum wait timeout is positive." }
         require(maxHops >= 1) { "A wait chain has at least one hop." }
+        require(maxHops <= MAX_HOPS_CAP) { "A wait chain has at most $MAX_HOPS_CAP hops, not $maxHops." }
         require(defaultTimeout.isPositive()) { "The default wait timeout is positive." }
     }
 
     companion object {
         val DEFAULT_MAX_TIMEOUT: Duration = 60.seconds
-        const val DEFAULT_MAX_HOPS = 4
+        const val DEFAULT_MAX_HOPS = 16
+
+        /** The most hops a node lets a wait chain have, whatever it is configured with (decision D190). */
+        const val MAX_HOPS_CAP = 32
     }
+}
+
+/**
+ * What the node a wait starts on does with a hop of a context it knows no Manifest of, its own or a peer's (decision
+ * D190).
+ */
+enum class UnknownContexts {
+    /**
+     * The default: a context with a legal name (decision D169) is let through, and the hop is checked where the chain
+     * arrives; a context or a subscription that is not there is never signalled, so the wait times out at the last
+     * hop it reached (decision D64).
+     */
+    ALLOW,
+
+    /** A hop of a context the node does not know makes the plan invalid ([ResultCodes.WAIT_INVALID]). */
+    REJECT,
 }
 
 /**
@@ -207,7 +230,8 @@ class WaitCoordinator(
     fun stream(model: AggregateModel<*>, command: Command<*>): Flow<CommandResult> = flow {
         val function = commandFunction(model, command)
         val context = command.ref.type.context
-        val chain = when (val checked = WaitChain.of(command.wait, command.ref.type, directory, options.maxHops)) {
+        val checked = WaitChain.of(command.wait, command.ref.type, directory, options.maxHops, options.unknownContexts)
+        val chain = when (checked) {
             is WaitChain.Invalid -> {
                 emit(admissionRejected(command, function, ResultCodes.WAIT_INVALID, checked.reason, clock()))
                 return@flow
@@ -457,7 +481,7 @@ class WaitCoordinator(
      * Returns the [Settlement]: its [Settlement.outcome] is the kernel's when this node executed it.
      */
     suspend fun forward(model: AggregateModel<*>, command: Command<*>, wait: WaitContext?): Settlement {
-        if (wait == null || wait.expiredAt(clock())) {
+        if (wait == null || wait.expiredAt(clock()) || !arrived(command, wait)) {
             return router.route(model, command, null) { executeHere(model, command, null) }
         }
         val function = commandFunction(model, command)
@@ -472,6 +496,33 @@ class WaitCoordinator(
         // A command that changed nothing, or a duplicate whose subscription is past it (D63): no entry signals them.
         settlement.reached.forEach { signal(wait, it) }
         return settlement
+    }
+
+    /**
+     * Checks the hops of [wait] that [command] reaches on this node, of its context (decision D190): the node that
+     * started the wait may have let them through without knowing the context, so a wrong one is found only here. A
+     * wait whose next hops name another context is not followed (false): it times out at the last hop it reached
+     * (decision D64), as does one whose next subscription this context does not have; this logs why.
+     */
+    private fun arrived(command: Command<*>, wait: WaitContext): Boolean {
+        val context = command.ref.type.context
+        val leading = wait.remaining.takeWhile { it.stage != Stage.HANDLED }
+        leading.firstOrNull { it.context != null && it.context != context }?.let { elsewhere ->
+            logger.warn {
+                "Wait ${wait.waitId} of ${wait.origin.node} expects hop $elsewhere, but ${command.id} is a command of " +
+                    "context $context: the wait is not followed, and times out at the hop it reached last."
+            }
+            return false
+        }
+        val handled = wait.remaining.getOrNull(leading.size)
+        val subscription = handled?.subscription
+        if (subscription != null && handled.context == context && directory.kindOf(context, subscription) == null) {
+            logger.warn {
+                "Wait ${wait.waitId} of ${wait.origin.node} names hop $handled, a subscription context $context does " +
+                    "not have: it is never reached, and the wait times out at the hop it reached last."
+            }
+        }
+        return true
     }
 
     /**

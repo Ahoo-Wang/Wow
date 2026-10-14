@@ -255,7 +255,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Proposed fix**: Add `DecideScope.release(namespace, key)`, which releases the key once the events are appended, as `reserve` confirms one. Or document the saga that moves a key, with the API it calls.
 - **Blocks M7**: no.
 
-### G20. Nothing says how to serve aggregates every caller of a tenant may read
+### G20. Nothing says how to serve aggregates every caller of a tenant may read (resolved)
 
 - **Work package**: E.1
 - **Area**: host, edge, docs
@@ -267,6 +267,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: The catalog declares no `CallerResolver`. Every request is the anonymous caller of the default tenant, with no owner, so every product belongs to the tenant and every caller sees it. The host warns about the anonymous caller at startup.
 - **Proposed fix**: Document the pattern for tenant-wide aggregates: a resolver that leaves the owner unset, and how command authorization (CoSec) then protects the writes. Or add a per-aggregate scope setting that makes an aggregate's owner not apply to its reads.
 - **Blocks M7**: no for the eShop. Yes before M7 puts CoSec in front of users, since a reference catalog behind CoSec needs the answer.
+- **Resolved**: by work package P.10 (decision D189). An aggregate declares `@AggregateRoot(ownership = Ownership.TENANT)` when it belongs to its tenant alone: its owner is not recorded, its reads are not restricted by owner (query admission reads the ownership from the Manifest), and its writes are left to action-level authorization. Callers come at two levels: an owner-level caller (its scope has an owner) reads and writes its own aggregates, a tenant-level one (no owner) every aggregate of its tenant; `CoSecCallerResolver` makes the principals of `wow.cosec.tenant-level.roles` / `policies` tenant-level. The catalog's products, brands and categories are `TENANT`; the catalog server's `CatalogCallers` gives buyers and employees from headers, and its `CommandAuthorizer` lets only employees change the catalog. The guide's HTTP API page describes both.
 
 ### G21. Services on one class path read each other's peer Manifests (resolved)
 
@@ -280,7 +281,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Blocks M7**: no, but E.6 runs five services and will meet it again; the guide presents shared-JVM tests as supported.
 - **Resolved**: by #4385 (work package E.5). A node reads its peers without the contexts it serves (`PeerManifests.outside`): another server's copy of its own Manifest is no peer of those contexts, and a copy left with no context is dropped. Two peers of different services that claim one context still fail the startup. `EshopSharedJvmTest` starts the ordering and inventory services on one class path. The second trap stays as it is: services on one class path share the first `application.yaml` on it, so a shared-JVM test passes each service's configuration as arguments, and `EshopOrderFlowTest` keeps a JVM per service so that each reads its own.
 
-### G22. A saga's command cannot give the aggregate it creates an owner
+### G22. A saga's command cannot give the aggregate it creates an owner (resolved)
 
 - **Work package**: E.2
 - **Area**: kernel, docs
@@ -289,6 +290,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: `SubmitOrder` carries `buyerId` in its body, against the rule that a command carries no identity field, and the order keeps it in its state.
 - **Proposed fix**: Let a saga give a derived command a scope (`context.command(ref, body, scope = event.scope)`), at least for a creating command, or document the intended way (a `TransferOwner` after creation, a business field).
 - **Blocks M7**: no, but every checkout-like flow across contexts meets it.
+- **Resolved**: by work package P.10 (decision D189). A command a saga derives carries the scope (owner and space) of the commit it handles, as it carries the operator; so do a compensation and a timer's command. The checkout saga's `SubmitOrder` carries the basket's scope, so the order belongs to the buyer, and so does the payment the payment saga creates for it. `SubmitOrder`, `OrderSubmitted` and the order's state no longer carry `buyerId`; the sales dataset's buyer is its `owner_id`.
 
 ### G23. An accepted command to another context has no receipt
 
@@ -365,7 +367,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Proposed fix**: Accept classes in `derives` (`derives = [ConfirmPayment::class]`), or infer the commands from a sealed type in `Command<…>`; document whether a name that decides no command fails the build.
 - **Blocks M7**: no.
 
-### G30. A wait chain names only contexts the origin node has Manifests of, in 4 hops
+### G30. A wait chain names only contexts the origin node has Manifests of, in 4 hops (resolved)
 
 - **Work package**: E.6
 - **Area**: runtime, host, docs
@@ -374,6 +376,7 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Workaround**: The basket server takes `:eshop-inventory-server` and `:eshop-payment-server` as `wowPeers`, though it sends them nothing, and the test runs it with `--wow.wait.max-hops=16`.
 - **Proposed fix**: Say in the guide that a chain may name only contexts whose Manifests the origin node has, and that peers are the way to add them; or let the origin accept a hop of a context it does not know and leave the check to the node that reaches it. Say how many hops a saga adds, and whether 4 is meant as the practical limit.
 - **Blocks M7**: no.
+- **Resolved**: by work package P.10 (decision D190). The node a wait starts on checks only the contexts it knows; a hop of another context with a legal name is let through and checked where the chain arrives, and a wrong one times out at the last hop reached (`wow.wait.unknown-contexts: allow | reject`, `allow` by default). `wow.wait.max-hops` defaults to 16, at most 32, and the guide says that each saga adds two hops. The basket server takes only the ordering's Manifest as a peer, and the full chain's 15 hops run with the defaults.
 
 ### G31. A dataset query warns that the Manifest has no state schema of the dataset
 

@@ -26,7 +26,8 @@ package me.ahoo.wow.compiler.model
  *   `CommandRejected<C>` names (null for `*`), and passed to each of its handlers' bindings, whose derived commands'
  *   rejections they take. A handler names the aggregates of its `@OnEvent(aggregates)`, so one of another context's
  *   (decision D138) reads their published streams (decision D134), and says whether its state is nullable
- *   (`StateEvent<S?>`, `StateEvent<*>`; decision D140);
+ *   (`StateEvent<S?>`, `StateEvent<*>`; decision D140), and its `@Retry` budget, merged with its processor's
+ *   (`HandlerRetry`, roadmap P.3), which the runtime's per-subscription retry and timeout apply;
  * - per module, the model provider's `processors` lists them all ([ModelProviderSource]).
  */
 internal object SubscriptionSource {
@@ -90,19 +91,28 @@ internal object SubscriptionSource {
         val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
         val body = if (kind == SAGA) "$KERNEL.derivedOf($awaited)" else awaited
         val rejectionArgument = if (rejections) ", rejections = rejections" else ""
-        val aggregatesArgument = if (handler.aggregates.isEmpty()) {
-            ""
-        } else {
-            ", aggregates = listOf(${handler.aggregates.joinToString(", ") { "\"${escape(it)}\"" }})"
-        }
+        val optionalArguments = optionalArguments(handler, nullable)
         appendLine(
             "        $PROCESSOR_BINDING.$kind<$state>(\"${escape(binding.name)}\", \"${handler.function}\", " +
-                "$stateType, ${handler.blocking}$rejectionArgument$aggregatesArgument" +
-                "${if (nullable) ", nullableState = true" else ""}) {",
+                "$stateType, ${handler.blocking}$rejectionArgument$optionalArguments) {",
         )
         appendLine("                event: $STATE_EVENT<$state>, ${if (handler.context) "context" else "_"} ->")
         appendLine("            $body")
         appendLine("        },")
+    }
+
+    /**
+     * The arguments of [handler]'s binding that it gives only when it has them: the aggregates of its
+     * `@OnEvent(aggregates)`, whether its state is [nullable], and its `@Retry` budget.
+     */
+    private fun optionalArguments(handler: HandlerBinding, nullable: Boolean): String = buildString {
+        if (handler.aggregates.isNotEmpty()) {
+            append(", aggregates = listOf(${handler.aggregates.joinToString(", ") { "\"${escape(it)}\"" }})")
+        }
+        if (nullable) {
+            append(", nullableState = true")
+        }
+        handler.retry?.let { append(", retry = ${it.source()}") }
     }
 
     /** An `@OnRejected` handler of the saga [binding]: its call, read as the commands that compensate. */

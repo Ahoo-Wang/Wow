@@ -61,6 +61,20 @@ abstract class CatalogQueryContract {
     }
 
     @Test
+    fun `a buyer should see every product an employee filed, and change none of them (D189)`() {
+        val category = storefront.category()
+        val product = storefront.product(category, storefront.brand(), "3.00")
+        ids(storefront.query("""{"kind":"list","filter":${published(category)}}""").json)
+            .assert().containsExactly(product)
+        catalog.post("/eshop-catalog/product/$product/change-product-price", """{"price":1.00}""", BUYER)
+            .assertProblem(FORBIDDEN, "wow.auth.forbidden")
+        catalog.post("/eshop-catalog/product/$product/change-product-price", """{"price":4.00}""", EMPLOYEE)
+            .assertOk()
+        catalog.get("/eshop-catalog/product/$product/state", BUYER).assertOk()
+            .json["state"]["price"].decimalValue().assert().isEqualByComparingTo("4.00")
+    }
+
+    @Test
     fun `a category's products should be paged by price, with the total`() {
         val category = storefront.category()
         val brand = storefront.brand()
@@ -176,6 +190,7 @@ abstract class CatalogQueryContract {
         const val PRODUCTS = "/eshop-catalog/product/snapshot/query"
         const val BY_PRICE = """{"field":"state.price","direction":"ASC"}"""
         const val BAD_REQUEST = 400
+        const val FORBIDDEN = 403
         const val NOT_MODIFIED = 304
     }
 }
@@ -190,12 +205,14 @@ class Storefront(private val catalog: CatalogNode) {
     fun category(): String = catalog.post(
         "/eshop-catalog/category/create-category",
         """{"name":"Category ${UUID.randomUUID()}"}""",
+        EMPLOYEE,
     ).assertOk().json["ref"]["id"].asString()
 
     /** A new brand with a name of its own; its id. */
     fun brand(): String = catalog.post(
         "/eshop-catalog/brand/create-brand",
         """{"name":"Brand ${UUID.randomUUID()}"}""",
+        EMPLOYEE,
     ).assertOk().json["ref"]["id"].asString()
 
     /** A new product of [category] and [brand] at [price], published unless [publish] is false; its id. */
@@ -203,10 +220,12 @@ class Storefront(private val catalog: CatalogNode) {
         val id = catalog.post(
             "/eshop-catalog/product/create-product",
             """{"name":"Product at $price","price":$price,"brandId":"$brand","categoryId":"$category"}""",
+            EMPLOYEE,
         ).assertOk().json["ref"]["id"].asString()
-        if (publish) catalog.post("/eshop-catalog/product/$id/publish-product").assertOk()
+        if (publish) catalog.post("/eshop-catalog/product/$id/publish-product", headers = EMPLOYEE).assertOk()
         return id
     }
 
-    fun query(body: String): Answer = catalog.post(CatalogQueryContract.PRODUCTS, body).assertOk()
+    /** The answer to the products query [body], sent as a buyer: the shopper reads every product of the tenant. */
+    fun query(body: String): Answer = catalog.post(CatalogQueryContract.PRODUCTS, body, BUYER).assertOk()
 }

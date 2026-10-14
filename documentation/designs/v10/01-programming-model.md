@@ -128,6 +128,7 @@ H3 的基准分别测同步与 `suspend` 处理函数，作为这条快速路径
 
 - **after 钩子**（D39）：Decide 的一部分，用于在命令函数之后追加事件（例如对一组命令统一补一个事件）。按 include/exclude 匹配命令类型，按声明顺序执行；看到的状态与命令函数相同（尚未演化）；它的事件拼在命令函数的事件之后，组成**同一条**事件流，随后一起演化、一次追加。调用形态与 Decide 相同（§4），可以做 I/O；任何一个失败，整条命令失败，不写入。语义与 9.x 的 `@AfterCommand` 一致（`CommandEntry.invokeWithAfter`）。
 - **生命周期事件**：删除、恢复、转移所有者、转移空间、打标签，是每个聚合都有的系统命令与系统事件，由内核提供 decide 与 evolve，作用于快照元数据（[03](03-log-and-snapshot.md)）；用户可以覆盖。
+- **定时事件**（D198）：`wow.ScheduleSet`、`wow.ScheduleCancelled` 同为每个聚合都有的系统事件，由 `DecideScope.schedule` / `cancelSchedule` 或 Saga 发来的系统命令 `wow.schedule.Set` / `Cancel` 产生；规则 `at`、`after`、`cron`，周期由触发器推进；上下文级作业用 `@OnSchedule`，所属聚合为内置的 `<ctx>.schedule`（可按租户）。
 - **身份**：`AggregateRef(上下文, 聚合, 租户, ID)`，由准入决定一次（[02](02-write-path.md)）。
 - **授权**：在准入里，与查询准入共用策略接口；内核不做授权。
 

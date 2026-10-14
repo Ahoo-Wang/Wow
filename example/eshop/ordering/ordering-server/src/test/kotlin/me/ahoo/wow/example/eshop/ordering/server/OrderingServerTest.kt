@@ -125,35 +125,52 @@ class OrderingServerTest {
         late.second["code"].asString().assert().isEqualTo("eshop-ordering.order.wrong-status")
     }
 
-    private fun submit(id: String) {
+    @Test
+    fun `an order should be its buyer's to read, and every order an employee's`() {
+        submit("order-alice", mapOf(OrderingCallers.USER to "alice"))
+        read("order-alice", mapOf(OrderingCallers.USER to "alice")).let { (status, view) ->
+            status.assert().isEqualTo(OK)
+            view["scope"]["ownerId"].asString().assert().isEqualTo("alice")
+        }
+        read("order-alice", mapOf(OrderingCallers.USER to "bob")).first.assert().isEqualTo(FORBIDDEN)
+        val employee = mapOf(OrderingCallers.USER to "erin", OrderingCallers.ROLE to OrderingCallers.EMPLOYEE)
+        read("order-alice", employee).first.assert().isEqualTo(OK)
+        // A blank user is no user: the anonymous caller, of the whole tenant.
+        read("order-alice", mapOf(OrderingCallers.USER to " ")).first.assert().isEqualTo(OK)
+    }
+
+    private fun submit(id: String, headers: Map<String, String> = emptyMap()) {
         val submitted = post(
             "/eshop-ordering/order/$id/submit-order",
-            """{"buyerId":"alice","items":[{"productId":"mug","unitPrice":8.50,"quantity":2},""" +
+            """{"items":[{"productId":"mug","unitPrice":8.50,"quantity":2},""" +
                 """{"productId":"cap","unitPrice":12.00,"quantity":1}]}""",
+            headers,
         )
         submitted.first.assert().describedAs(submitted.second.toString()).isEqualTo(OK)
     }
 
+    private fun read(id: String, headers: Map<String, String> = emptyMap()): Pair<Int, JsonNode> {
+        val request = HttpRequest.newBuilder(uri("/eshop-ordering/order/$id/state")).timeout(TIMEOUT).GET()
+        headers.forEach { (name, value) -> request.header(name, value) }
+        val response = http.send(request.build(), HttpResponse.BodyHandlers.ofString())
+        return response.statusCode() to json.readTree(response.body().ifBlank { "{}" })
+    }
+
     private fun state(id: String): JsonNode {
-        val response = http.send(
-            HttpRequest.newBuilder(uri("/eshop-ordering/order/$id/state")).timeout(TIMEOUT).GET().build(),
-            HttpResponse.BodyHandlers.ofString(),
-        )
-        check(response.statusCode() == OK) { "The state of $id answered ${response.statusCode()}: ${response.body()}" }
-        return json.readTree(response.body())["state"]
+        val (status, view) = read(id)
+        check(status == OK) { "The state of $id answered $status: $view" }
+        return view["state"]
     }
 
     private fun status(id: String): String = state(id)["status"].asString()
 
-    private fun post(path: String, body: String): Pair<Int, JsonNode> {
-        val response = http.send(
-            HttpRequest.newBuilder(uri(path))
-                .timeout(TIMEOUT)
-                .header("Content-Type", "application/json")
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build(),
-            HttpResponse.BodyHandlers.ofString(),
-        )
+    private fun post(path: String, body: String, headers: Map<String, String> = emptyMap()): Pair<Int, JsonNode> {
+        val request = HttpRequest.newBuilder(uri(path))
+            .timeout(TIMEOUT)
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+        headers.forEach { (name, value) -> request.header(name, value) }
+        val response = http.send(request.build(), HttpResponse.BodyHandlers.ofString())
         return response.statusCode() to json.readTree(response.body().ifBlank { "{}" })
     }
 
@@ -170,6 +187,7 @@ class OrderingServerTest {
     private companion object {
         const val OK = 200
         const val CONFLICT = 409
+        const val FORBIDDEN = 403
         const val UNPROCESSABLE = 422
         val TIMEOUT: Duration = Duration.ofSeconds(30)
         val DEADLINE: Duration = Duration.ofSeconds(20)

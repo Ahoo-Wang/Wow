@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.manifest.ManifestTree
+import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import org.junit.jupiter.api.Test
@@ -85,6 +86,35 @@ class StateAndManifestRoutesTest {
         twoItems()
         node.get("/shop/cart/c-1/state", user = "bob").assertCode(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
         node.get("/shop/cart/c-1/state?version=1", user = "bob").assertCode(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
+    }
+
+    @Test
+    fun `a tenant-level caller reads and writes every owner's aggregate of its tenant (D94, D189)`() {
+        twoItems()
+        val employee = mapOf("X-Tenant-Level" to "true")
+        node.get("/shop/cart/c-1/state", user = "erin", headers = employee).status.assert().isEqualTo(200)
+        node.post("/shop/cart/c-1/add-item", """{"sku":"plum"}""", user = "erin", headers = employee)
+            .status.assert().isEqualTo(200)
+        // The owner is still the cart's: the tenant-level caller did not take it over.
+        node.get("/shop/cart/c-1/state?version=3", user = "alice").body!!["scope"]["ownerId"].asString()
+            .assert().isEqualTo("alice")
+        node.get("/shop/cart/c-1/state", user = "bob").assertCode(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
+    }
+
+    @Test
+    fun `a state of an aggregate of its tenant is read by every owner of the tenant (D189)`() {
+        val manifest = cartManifest().let { manifest ->
+            val context = manifest.contexts.single()
+            manifest.copy(
+                contexts = listOf(
+                    context.copy(aggregates = context.aggregates.map { it.copy(ownership = Ownership.TENANT) }),
+                ),
+            )
+        }
+        val tenantWide = HttpNode(manifest = manifest)
+        tenantWide.post("/shop/cart/c-1/add-item", """{"sku":"apple"}""").status.assert().isEqualTo(200)
+        tenantWide.get("/shop/cart/c-1/state?version=1", user = "bob").status.assert().isEqualTo(200)
+        tenantWide.get("/shop/cart/c-1/state/trace", user = "bob").status.assert().isEqualTo(200)
     }
 
     @Test

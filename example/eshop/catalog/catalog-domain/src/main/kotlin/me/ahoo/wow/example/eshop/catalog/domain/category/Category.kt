@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.example.eshop.catalog.domain.category
 
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.ErrorCode
@@ -51,8 +52,10 @@ class CategoryState(val id: String) {
 /**
  * A category of the catalog's products (the classic eShop's catalog type). Its name is unique among the categories,
  * ignoring case and surrounding blanks: the category reserves it (`DecideScope.reserve`) as it takes it.
+ *
+ * Like a product, a category belongs to its tenant (`Ownership.TENANT`, decision D189): every shopper reads it.
  */
-@AggregateRoot
+@AggregateRoot(ownership = Ownership.TENANT)
 @Description("A category of the catalog's products")
 class Category(private val state: CategoryState) {
     @OnCommand(produces = [CategoryCreated::class])

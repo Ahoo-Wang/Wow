@@ -70,6 +70,11 @@ class EshopFullChainTest {
         basketItems("alice").assert().isEmpty()
 
         stack.eventually("alice-1 paid") { stack.orderStatus("alice-1") == "PAID" }
+        // The order and its payment belong to the buyer (decision D189): each saga's command carried the scope on.
+        stack.ownerOf(stack.anyOrdering, "/eshop-ordering/order/alice-1/state").assert().isEqualTo("alice")
+        stack.ownerOf(stack.payment, "/eshop-payment/payment/alice-1/state").assert().isEqualTo("alice")
+        // The stock belongs to the tenant: the reservations made for alice took no owner.
+        stack.ownerOf(stack.inventory, "/eshop-inventory/stock/mug/state").assert().isNull()
         val paid = checkNotNull(stack.payment("alice-1"))
         paid["status"].asString().assert().isEqualTo("SUCCEEDED")
         paid["amount"].decimalValue().assert().isEqualByComparingTo("29.00")
@@ -206,7 +211,7 @@ class EshopFullChainTest {
     private fun submitProbe(service: EshopService, id: String, answers: MutableList<String> = mutableListOf()): Boolean {
         val submitted = service.post(
             "/eshop-ordering/order/$id/submit-order",
-            """{"buyerId":"probe","items":[{"productId":"none","unitPrice":1.00,"quantity":1}]}""",
+            """{"items":[{"productId":"none","unitPrice":1.00,"quantity":1}]}""",
             // Until it is committed only: the snapshot it would wait for by default is the lease owner's to write.
             mapOf(WAIT to "committed"),
         )
@@ -218,20 +223,23 @@ class EshopFullChainTest {
 
 
     private fun product(id: String, name: String, price: String) {
-        // The brand and the category exist after the first product: their second creation is refused, and ignored.
-        stack.catalog.post("/eshop-catalog/brand/wow/create-brand", """{"name":"Wow"}""")
-        stack.catalog.post("/eshop-catalog/category/goods/create-category", """{"name":"Goods"}""")
+        // An employee files the catalog. The brand and the category exist after the first product: their second
+        // creation is refused, and ignored.
+        stack.catalog.post("/eshop-catalog/brand/wow/create-brand", """{"name":"Wow"}""", EshopStack.EMPLOYEE)
+        stack.catalog.post("/eshop-catalog/category/goods/create-category", """{"name":"Goods"}""", EshopStack.EMPLOYEE)
         val created = stack.catalog.post(
             "/eshop-catalog/product/$id/create-product",
             """{"name":"$name","price":$price,"brandId":"wow","categoryId":"goods"}""",
+            EshopStack.EMPLOYEE,
         )
         created.status.assert().describedAs(created.body).isEqualTo(OK)
-        val published = stack.catalog.post("/eshop-catalog/product/$id/publish-product", "{}")
+        val published = stack.catalog.post("/eshop-catalog/product/$id/publish-product", "{}", EshopStack.EMPLOYEE)
         published.status.assert().describedAs(published.body).isEqualTo(OK)
     }
 
+    /** The price of [product], as a buyer reads it from the catalog: a product belongs to the tenant (D189). */
     private fun price(product: String): String {
-        val state = checkNotNull(stack.state(stack.catalog, "/eshop-catalog/product/$product/state"))
+        val state = checkNotNull(stack.state(stack.catalog, "/eshop-catalog/product/$product/state", EshopStack.buyer("dave")))
         state["status"].asString().assert().isEqualTo("PUBLISHED")
         return state["price"].decimalValue().toPlainString()
     }
@@ -245,12 +253,13 @@ class EshopFullChainTest {
         val added = stack.basket.post(
             "/eshop-basket/basket/$buyer/add-basket-item",
             """{"productId":"$product","unitPrice":$price,"quantity":$quantity}""",
+            EshopStack.buyer(buyer),
         )
         added.status.assert().describedAs(added.body).isEqualTo(OK)
     }
 
     private fun checkout(buyer: String, headers: Map<String, String> = emptyMap()): JsonNode {
-        val checkedOut = stack.basket.post("/eshop-basket/basket/$buyer/checkout-basket", "{}", headers)
+        val checkedOut = stack.basket.post("/eshop-basket/basket/$buyer/checkout-basket", "{}", headers + EshopStack.buyer(buyer))
         checkedOut.status.assert().describedAs(checkedOut.body).isEqualTo(OK)
         return json.readTree(checkedOut.body)
     }

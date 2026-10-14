@@ -70,6 +70,11 @@ internal data class HandlerBinding(
      * list of them); null when it does not say (`Command<*>`), and for a projection or a reactor.
      */
     val derived: List<String>? = null,
+    /**
+     * Its in-process retry budget (roadmap P.3): its own `@Retry`, each setting it does not give its processor's; null
+     * when neither gives any.
+     */
+    val retry: RetryBinding? = null,
 ) {
     /** The context of the aggregates it reads, when `@OnEvent(aggregates)` names them. */
     val sourceContext: String? get() = aggregates.firstOrNull()?.substringBefore('.')

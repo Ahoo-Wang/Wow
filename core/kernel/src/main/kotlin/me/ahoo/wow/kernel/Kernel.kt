@@ -87,9 +87,10 @@ import kotlin.time.Duration.Companion.seconds
  * aggregate refuses every command but [RestoreAggregate] ([KernelRejections.DELETED]).
  *
  * The aggregate's scope also guards it (D94): an existing aggregate refuses a command whose scope names another owner
- * or space ([KernelRejections.FORBIDDEN]). A part absent from the command's scope is not checked: a system command, a
- * saga's, or an administrator's acting across scopes carries none. Creating an aggregate is not guarded; it gives the
- * aggregate the creating command's scope. A transfer of the owner or the space is guarded like any other command: its
+ * or space ([KernelRejections.FORBIDDEN]). A part absent from the command's scope is not checked: a tenant-level
+ * caller's (decision D189), or an administrator's acting across scopes, carries no owner. Creating an aggregate is not
+ * guarded; it gives the aggregate the creating command's scope. An aggregate that belongs to its tenant
+ * ([AggregateModel.ownership], decision D189) neither records nor checks an owner: only the space of a command counts. A transfer of the owner or the space is guarded like any other command: its
  * scope is the caller's, so the current owner (or a member of the current space) transfers, and the new owner or space
  * is in its body.
  *
@@ -120,7 +121,8 @@ class Kernel(
     }
 
     /**
-     * Executes [command] on [model]'s aggregate.
+     * Executes [admitted] on [model]'s aggregate, its scope narrowed to what the model's ownership keeps
+     * ([me.ahoo.wow.api.aggregate.Ownership.scopeOf], decision D189).
      *
      * [wait] is the wait context the runtime built for the command's wait plan, if any: when it still has hops to
      * reach after COMMITTED, it is appended with the stream as transport (decision D25), so the subscription its next
@@ -129,10 +131,14 @@ class Kernel(
      */
     suspend fun <S : Any> execute(
         model: AggregateModel<S>,
-        command: Command<*>,
+        admitted: Command<*>,
         wait: WaitContext? = null,
     ): CommandOutcome {
-        require(command.ref.type == model.type) { "${command.ref} is not a ${model.type}." }
+        require(admitted.ref.type == model.type) { "${admitted.ref} is not a ${model.type}." }
+        require(admitted.ref.isAssigned) { "${admitted.ref} names no aggregate: admission assigns its id (D191)." }
+        // A tenant's aggregate (decision D189) neither records nor checks an owner: only that part of the scope counts.
+        val scope = model.ownership.scopeOf(admitted.scope)
+        val command = if (scope == admitted.scope) admitted else admitted.copy(scope = scope)
         val decider = model.decider(command.body.javaClass)
             ?: return rejected(KernelRejections.UNHANDLED, "${model.type} does not handle ${command.body.javaClass.name}.")
         val commandType = model.commandType(command.body.javaClass)

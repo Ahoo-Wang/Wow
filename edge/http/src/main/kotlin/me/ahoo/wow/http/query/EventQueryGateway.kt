@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withTimeout
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AndFilter
@@ -92,7 +93,7 @@ import java.util.Base64
  *
  * The caller's scope applies as on snapshots (decision D129): the tenant is [tenants]', and a stream whose scope (the
  * aggregate's owner and space after it, D56) is outside the caller's [principal][QueryCaller.principal] is not
- * returned. The HTTP entry runs under [entryPolicy]'s HTTP budget: its list, page and count limits and its timeout.
+ * returned; the principal's owner is not checked for an aggregate of its tenant ([ownership], decision D189). The HTTP entry runs under [entryPolicy]'s HTTP budget: its list, page and count limits and its timeout.
  *
  * A record is the stream: `aggregateId`, `tenantId`, `version`, `commitTime`, `commandId`, `requestId`,
  * `commandType`, `ownerId` and `spaceId` when set, `operator` (`{id, tenantId, crossScope}`, decision D163) when the
@@ -104,6 +105,8 @@ class EventQueryGateway(
     private val log: EventLog,
     private val tenants: QueryTenantPolicy = QueryTenantPolicy.CALLERS,
     val entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
+    /** Who the aggregate belongs to besides its tenant, as its Manifest says (decision D189). */
+    val ownership: Ownership = Ownership.OWNER,
 ) {
     /** The first stream [query] matches, or `null` when none does. */
     suspend fun single(query: ISingleQuery, caller: QueryCaller): ObjectNode? {
@@ -224,7 +227,7 @@ class EventQueryGateway(
             ).rejection()
         // A query that names another tenant than the caller's reads none.
         val scoped = if (range.tenantId != null && range.tenantId != tenantId) range.copy(empty = true) else range
-        return Admitted(scoped, tenantId, caller.principal, budget, entryPolicy.timeout(entry))
+        return Admitted(scoped, tenantId, ownership.scopeOf(caller.principal), budget, entryPolicy.timeout(entry))
     }
 
     /** Refuses a projection, and a sort other than the version ascending the streams come in. */

@@ -86,6 +86,19 @@ class CoSecCallerResolverTest {
     }
 
     @Test
+    fun `a configured role or policy makes the principal a tenant-level caller, without an owner`() {
+        val levels = CoSecCallerResolver(
+            CoSecCallerOptions(tenantRoles = setOf("employee"), tenantPolicies = setOf("wow-tenant")),
+        )
+        val employee = levels.callerOf(securityContext("erin", roles = setOf("employee", "editor@s1")))!!
+        employee.scope.assert().isEqualTo(Scope(spaceId = "s1"))
+        employee.subject.assert().isEqualTo("erin")
+        levels.callerOf(securityContext("erin", policies = setOf("wow-tenant")))!!.scope.ownerId.assert().isNull()
+        levels.callerOf(securityContext("bob", roles = setOf("employee@s1")))!!.scope.ownerId.assert().isEqualTo("bob")
+        resolver.callerOf(securityContext("erin", roles = setOf("employee")))!!.scope.ownerId.assert().isEqualTo("erin")
+    }
+
+    @Test
     fun `roles, policies and abac attributes are the caller's attributes`() {
         val context = securityContext(
             "alice",

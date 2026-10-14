@@ -65,8 +65,9 @@ import kotlin.time.Duration
  *      other, never ignored;
  *    - an aggregate type whose tenant [tenants] fixes (decision D116) is in that tenant whoever the caller is; a target
  *      that names another tenant for it is [FrameworkCodes.MALFORMED];
- *    - the aggregate id is the request's, or a new one from [ids]' generator of the aggregate type (decision D171)
- *      for a command that may create the aggregate. A
+ *    - the aggregate id is the request's; a command that may create the aggregate may name none (decision D191):
+ *      it takes the id of the aggregate its request id already created in [committed], within the caller's scope,
+ *      else a new one from [ids]' generator of the aggregate type (decision D171), so a retry keeps it. A
  *      request of a type one of [transformers] takes, a mounted command among them, may name none: its transformer
  *      finds the aggregate;
  *    - the command id is always a new global one from [ids]; the request id is the request's, or the command id;
@@ -80,7 +81,7 @@ import kotlin.time.Duration
  *    command it becomes must be decided by an aggregate this node serves ([FrameworkCodes.UNHANDLED] otherwise); its
  *    tenant is decided again for that aggregate type, and its scope, request id, expected version and wait plan are
  *    the request's. When the type or the aggregate changed, [authorizer] authorizes the result again. A result that
- *    names no aggregate gets a new id from [ids]' generator of its aggregate type when it creates its aggregate, and
+ *    names no aggregate gets an id as a creation without one does (decision D191) when it creates its aggregate, and
  *    is [FrameworkCodes.NOT_FOUND] otherwise. The command's headers then name the input
  *    ([CommandTransformer.TRANSFORMED_FROM]), and so does every result ([CommandResult.transformedFrom]).
  * 6. Validate the body with every one of [validators]: their violations, together, are [FrameworkCodes.INVALID].
@@ -114,7 +115,11 @@ class CommandGateway(
     private val mapper: JsonMapper = ClusterCodec.mapper,
     private val clock: () -> Long = System::currentTimeMillis,
     detachedContext: CoroutineContext = Dispatchers.Default,
+    /** The streams committed for a request, which a creation without an id looks up first (decision D191). */
+    committed: CommittedRequests = CommittedRequests.NONE,
 ) {
+    private val creations = CreationIds(ids, committed)
+
     private val coordinators: Map<String, WaitCoordinator> = coordinators.toMap()
     private val detached = CoroutineScope(SupervisorJob() + detachedContext)
 
@@ -218,7 +223,11 @@ class CommandGateway(
             return facts.refuse(FrameworkCodes.MALFORMED, conflict.message!!)
         }
         val scope = target?.scope ?: request.caller.scope
-        val inputId = request.aggregateId ?: if (transformer == null) ids.aggregates.next(facts.type) else UNADDRESSED
+        val inputId = request.aggregateId ?: if (transformer == null) {
+            creations.idOf(facts.type, tenantId, facts.requestId, scope, model.ownership)
+        } else {
+            UNADDRESSED
+        }
         facts.ref = facts.type.ref(tenantId, inputId)
         // 3. Action-level authorization.
         authorize(request, CommandAction(commandType, facts.ref, scope, creation))?.let { return facts.refuse(it) }
@@ -251,7 +260,7 @@ class CommandGateway(
                 return facts.refuse(FrameworkCodes.MALFORMED, conflict.message!!)
             }
             val aggregateId = result.aggregateId ?: if (targetDecider.creation != Creation.NONE) {
-                ids.aggregates.next(targetType)
+                creations.idOf(targetType, targetTenant, facts.requestId, scope, targetModel.ownership)
             } else {
                 facts.ref = targetType.ref(targetTenant, UNADDRESSED)
                 return facts.refuse(
@@ -389,7 +398,7 @@ class CommandGateway(
 
     companion object {
         /** The aggregate id a refusal's ref names when admission had decided none. */
-        const val UNADDRESSED: String = "(none)"
+        const val UNADDRESSED: String = AggregateRef.UNASSIGNED
 
         private val CommandType.shortName: String get() = name.substringAfterLast('.')
 

@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
@@ -107,6 +108,7 @@ class CommandMessagesTest {
             Causation("root", "o-1@3"),
             execution,
             Operator("alice", "t0"),
+            Scope("alice", "space-a"),
         )
         val message = CommandMessages.receipt(rejected)
         message.key.assert().isEqualTo(execution.ref.toString())

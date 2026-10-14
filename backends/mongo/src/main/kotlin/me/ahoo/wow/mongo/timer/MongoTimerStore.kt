@@ -25,6 +25,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
@@ -101,6 +102,8 @@ class MongoTimerStore(
             Updates.set(ATTEMPTS, 0),
             Updates.set(OUTCOME, null),
             Updates.set(OPERATOR, MongoOperators.document(timer.operator)),
+            Updates.set(OWNER_ID, timer.scope.ownerId),
+            Updates.set(SPACE_ID, timer.scope.spaceId),
         )
         conditionalUpsert { upsert ->
             val result = timers.updateOne(replaceable, write, UpdateOptions().upsert(upsert))
@@ -197,6 +200,7 @@ class MongoTimerStore(
         attempts = document.getInteger(ATTEMPTS),
         outcome = document.getString(OUTCOME),
         operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
+        scope = Scope(document.getString(OWNER_ID), document.getString(SPACE_ID)),
     )
 
     private companion object {
@@ -225,6 +229,8 @@ class MongoTimerStore(
         const val ATTEMPTS = "attempts"
         const val OUTCOME = "outcome"
         const val OPERATOR = "operator"
+        const val OWNER_ID = "owner_id"
+        const val SPACE_ID = "space_id"
         val DUE_ORDER: Bson = Sorts.ascending(DUE_AT, TIMER_ID)
     }
 }

@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.timer
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.subscribe.ExecutionId
@@ -32,7 +33,8 @@ import me.ahoo.wow.spi.log.ScheduleChange
  * - [partition] is the partition of the [target] among the scheduling context's log partitions: the owner of that
  *   partition fires the timer, so a target of the same context runs where its aggregate's commands run.
  * - [causation] links the command to the commit that scheduled it; [headers] and [operator] are the scheduling
- *   command's, which the command inherits (decisions D163, D166).
+ *   command's, which the command inherits (decisions D163, D166), and [scope] the scheduling commit's, the owner and
+ *   space the command is sent in (decision D189).
  * - [status], [attempts] and [outcome] record what the runner did: [outcome] is what the target answered
  *   ([TimerOutcomes]), or why a timer is parked.
  */
@@ -52,6 +54,7 @@ data class Timer(
     val status: TimerStatus = TimerStatus.PENDING,
     val attempts: Int = 0,
     val outcome: String? = null,
+    val scope: Scope = Scope.NONE,
 ) {
     init {
         require(id.isNotBlank()) { "A timer needs an id." }
@@ -135,5 +138,6 @@ object Timers {
         causation = Causation(stream.causation?.correlationId ?: stream.commandId, "${stream.ref}@${stream.version}"),
         headers = stream.headers,
         operator = stream.operator,
+        scope = stream.scope,
     )
 }

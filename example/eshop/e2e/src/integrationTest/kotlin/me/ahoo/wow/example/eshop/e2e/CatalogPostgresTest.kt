@@ -14,6 +14,7 @@
 package me.ahoo.wow.example.eshop.e2e
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.example.eshop.catalog.server.CatalogCallers
 import me.ahoo.wow.example.eshop.catalog.server.CatalogServer
 import me.ahoo.wow.example.eshop.catalog.server.PostgresDataSource
 import org.junit.jupiter.api.AfterAll
@@ -33,7 +34,8 @@ import java.util.UUID
 /**
  * The catalog service on PostgreSQL (work package E.1): the storefront's queries run on the PostgreSQL snapshot
  * backend, which builds the indexes the product's state declares with `@QueryIndex`. The same queries run on the
- * memory backend in `:eshop-catalog-server` (`CatalogQueryContract`).
+ * memory backend in `:eshop-catalog-server` (`CatalogQueryContract`). An employee files the products and a buyer
+ * queries them: the catalog's aggregates belong to the tenant (decision D189), so the buyer's owner restricts nothing.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class CatalogPostgresTest {
@@ -77,7 +79,7 @@ class CatalogPostgresTest {
             create(
                 "/eshop-catalog/product/create-product",
                 """{"name":"Mug at $price","price":$price,"brandId":"$brand","categoryId":"$category"}""",
-            ).also { post("/eshop-catalog/product/$it/publish-product", "{}").assertOk() }
+            ).also { post("/eshop-catalog/product/$it/publish-product", "{}", EMPLOYEE).assertOk() }
         }.toSortedMap(compareBy { it.toBigDecimal() }).values.toList()
         // A draft of the category stays off the storefront.
         create("/eshop-catalog/product/create-product", """{"name":"Draft","price":1,"categoryId":"$category"}""")
@@ -89,6 +91,7 @@ class CatalogPostgresTest {
                 PRODUCTS,
                 """{"kind":"paged","filter":$published,"sort":[{"field":"state.price","direction":"ASC"}],
                     "pagination":{"index":$index,"size":2}}""",
+                BUYER,
             ).assertOk().tree
         }
         pages.map { it["total"].asLong() }.assert().containsOnly(5L)
@@ -116,11 +119,13 @@ class CatalogPostgresTest {
         )
     }
 
-    private fun create(path: String, body: String): String = post(path, body).assertOk().tree["ref"]["id"].asString()
+    private fun create(path: String, body: String): String =
+        post(path, body, EMPLOYEE).assertOk().tree["ref"]["id"].asString()
 
-    private fun post(path: String, body: String): Answer {
+    private fun post(path: String, body: String, headers: Map<String, String>): Answer {
         val request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:$port$path"))
             .header("Content-Type", "application/json")
+            .also { builder -> headers.forEach { (name, value) -> builder.header(name, value) } }
             .POST(HttpRequest.BodyPublishers.ofString(body))
             .timeout(TIMEOUT)
             .build()
@@ -135,6 +140,8 @@ class CatalogPostgresTest {
     private companion object {
         const val OK = 200
         const val PRODUCTS = "/eshop-catalog/product/snapshot/query"
+        val EMPLOYEE = mapOf(CatalogCallers.USER to "erin", CatalogCallers.ROLE to CatalogCallers.EMPLOYEE)
+        val BUYER = mapOf(CatalogCallers.USER to "alice")
         val KEYS = listOf("categoryId", "brandId", "status", "price")
         val TIMEOUT: Duration = Duration.ofSeconds(30)
     }

@@ -44,7 +44,6 @@ import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.OnSourcing
 import me.ahoo.wow.api.annotation.Revision
-import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.manifest.ContextName
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
@@ -453,6 +452,7 @@ internal class ModelSymbolProcessor(
         problems += aliasProblems(aggregateName, commands, sourcing)
         val upgradeBindings = upgradeBindings(sourcing, problems)
         val mounted = mountedOf(aggregateName, commands, problems)
+        val ownership = AggregateRootArguments.ownership(root)
         return AggregateBinding(
             root = rootName,
             packageName = root.packageName.asString(),
@@ -469,26 +469,10 @@ internal class ModelSymbolProcessor(
             problems = problems,
             stateType = state.binaryName(),
             description = root.getAnnotationsByType(Description::class).firstOrNull()?.value,
-            lifecycle = lifecycle(root, problems),
-            publication = publication(root, problems),
+            lifecycle = AggregateRootArguments.lifecycle(root, ownership, problems),
+            publication = AggregateRootArguments.publication(root, problems),
+            ownership = ownership,
             mounted = mounted,
-        )
-    }
-
-    /**
-     * The aggregate's published stream as `@AggregateRoot(published, publishState, topic)` declares it (decision
-     * D156); a topic Kafka would refuse is a problem ([Publication.topicProblem]).
-     */
-    private fun publication(root: KSClassDeclaration, problems: MutableList<String>): Publication {
-        val arguments = root.annotations.firstOrNull {
-            it.annotationType.resolve().declaration.qualifiedName?.asString() == AGGREGATE_ROOT
-        }?.arguments.orEmpty().associate { it.name?.asString() to it.value }
-        val topic = (arguments[TOPIC] as? String).orEmpty().ifEmpty { null }
-        topic?.let(Publication::topicProblem)?.let { problems += it }
-        return Publication(
-            published = arguments[PUBLISHED] as? Boolean ?: true,
-            includeState = arguments[PUBLISH_STATE] as? Boolean ?: true,
-            topic = topic,
         )
     }
 
@@ -501,28 +485,6 @@ internal class ModelSymbolProcessor(
                     "of the aggregate: no sourcing function takes it"
             }
         }
-    }
-
-    /**
-     * The system names of the lifecycle commands `@AggregateRoot(lifecycle)` lists (decision D91), sorted; a class
-     * that is not a lifecycle command is a problem. Without the argument, every one.
-     */
-    private fun lifecycle(root: KSClassDeclaration, problems: MutableList<String>): List<String> {
-        val annotation = root.annotations.firstOrNull {
-            it.annotationType.resolve().declaration.qualifiedName?.asString() == AGGREGATE_ROOT
-        }
-        val listed = annotation?.arguments?.firstOrNull { it.name?.asString() == LIFECYCLE }?.value as? List<*>
-            ?: return AggregateBinding.ALL_LIFECYCLE_COMMANDS
-        val commands = LIFECYCLE_COMMANDS
-        return listed.filterIsInstance<KSType>().mapNotNull { type ->
-            val name = type.declaration.qualifiedName?.asString()
-            commands[name].also {
-                if (it == null) {
-                    problems += "@AggregateRoot(lifecycle) lists $name, which is not a lifecycle command: one of " +
-                        commands.keys.sorted().joinToString { command -> command.substringAfterLast('.') }
-                }
-            }
-        }.distinct().sorted()
     }
 
     /** The problems of the `@Alias` values of the aggregate's commands and events ([AliasCheck]). */
@@ -829,18 +791,10 @@ internal class ModelSymbolProcessor(
 
     private companion object {
         val AGGREGATE_ROOT = AggregateRoot::class.java.name
-        const val LIFECYCLE = "lifecycle"
-        const val PUBLISHED = "published"
-        const val PUBLISH_STATE = "publishState"
-        const val TOPIC = "topic"
         const val PRODUCES = "produces"
         const val SCHEDULES = "schedules"
         val COMMAND_NAME = Regex("[^.\\s]+\\.[^.\\s]+\\.[^.\\s]+")
 
-        /** The lifecycle commands' system names, by their classes' names. */
-        val LIFECYCLE_COMMANDS: Map<String, String> = Lifecycle.COMMANDS.entries.associate { (name, type) ->
-            type.name to name
-        }
         val BOUNDED_CONTEXT = BoundedContext::class.java.name
 
         // A plain tree needs no Kotlin module, whose reflection KSP's class loader does not provide.
