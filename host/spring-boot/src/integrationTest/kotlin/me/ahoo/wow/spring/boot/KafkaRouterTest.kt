@@ -138,16 +138,18 @@ class KafkaRouterTest {
 
         val survivor = Items()
         val second = node("node-2", survivor, stores).also { it.start() }
+        // A command is decided before its events are appended: wait for the commits, not for the decisions.
+        val log = stores.backends(STOCK).log
         withTimeout(60.seconds) {
-            while (survivor.decided.toSet() != accepted.map { it.commandId }.toSet()) {
+            while (accepted.any { log.read(it.ref).toList().isEmpty() }) {
                 delay(50.milliseconds)
             }
         }
-        doomed.decided.assert().isEmpty()
-        val log = stores.backends(STOCK).log
         accepted.forEach { result ->
             log.read(result.ref).toList().single().commandId.assert().isEqualTo(result.commandId)
         }
+        survivor.decided.toSet().assert().isEqualTo(accepted.map { it.commandId }.toSet())
+        doomed.decided.assert().isEmpty()
         second.stop()
         // The dead node's stop cannot hand anything off; it is only cut short.
         withTimeoutOrNull(5.seconds) { runCatching { first.stop() } }
