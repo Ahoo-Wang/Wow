@@ -28,7 +28,8 @@ package me.ahoo.wow.compiler.model
  *   their success receipts. A handler names the aggregates of its `@OnEvent(aggregates)`, so one of another context's
  *   (decision D138) reads their published streams (decision D134), and says whether its state is nullable
  *   (`StateEvent<S?>`, `StateEvent<*>`; decision D140), and its `@Retry` budget, merged with its processor's
- *   (`HandlerRetry`, roadmap P.3), which the runtime's per-subscription retry and timeout apply;
+ *   (`HandlerRetry`, roadmap P.3), which the runtime's per-subscription retry and timeout apply. A saga's
+ *   `@OnSchedule` handler (decision D198) is bound with `ProcessorBinding.schedule`, its job's rule as declared;
  * - per module, the model provider's `processors` lists them all ([ModelProviderSource]).
  */
 internal object SubscriptionSource {
