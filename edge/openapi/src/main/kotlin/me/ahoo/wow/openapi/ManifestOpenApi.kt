@@ -29,7 +29,8 @@ import me.ahoo.wow.manifest.Manifest
  *   as [OpenApiOptions] says the host serves them.
  * - Errors as RFC 9457 problems, one response per status listing the codes answered with it ([ErrorResponses]): the
  *   framework's table (`wow.storage.unavailable`, `wow.schedule.not-due`, ...) and each context's domain codes.
- * - `components.schemas`: the Manifest's JSON Schemas ([SchemaComponents]) and the framework's ([WowSchemas]).
+ * - `components.schemas`: the Manifest's JSON Schemas ([SchemaComponents]) and the framework's ([WowSchemas]); the
+ *   body of a lifecycle command is the Manifest's when its `$defs` holds it under the command's name (roadmap 5a.1c).
  *
  * The document is a tree of plain values, as [me.ahoo.wow.manifest.ManifestTree] writes the Manifest: any JSON library
  * writes it. The same Manifest and options always give the same document.
@@ -46,7 +47,9 @@ object ManifestOpenApi {
 
     /** The document of [manifest]'s routes, as the host serves them per [options]. */
     fun write(manifest: Manifest, options: OpenApiOptions = OpenApiOptions()): Map<String, Any?> {
-        val schemas = SchemaComponents(manifest.defs, WowSchemas.all().keys)
+        // A lifecycle command's body the Manifest holds (keyed by its name) is the Manifest's, in place of the framework's.
+        val framework = WowSchemas.all().filterKeys { it !in WowSchemas.LIFECYCLE || it !in manifest.defs }
+        val schemas = SchemaComponents(manifest.defs, framework.keys)
         val routes = OpenApiPaths(manifest, options, schemas)
         val paths = routes.write()
         return Json.obj(
@@ -62,7 +65,7 @@ object ManifestOpenApi {
             "tags" to tags(manifest),
             "paths" to paths,
             "components" to Json.obj(
-                Json.SCHEMAS to WowSchemas.all() + schemas.schemas,
+                Json.SCHEMAS to framework + schemas.schemas,
                 ErrorResponses.RESPONSES to routes.responses,
                 Json.PARAMETERS to OpenApiParameters.all(),
                 Json.HEADERS to OpenApiParameters.headers(),

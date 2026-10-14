@@ -26,7 +26,8 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-ordering/order/{id}/await-stock-validation"
-        } ]
+        } ],
+        "description" : "Await the stock validation"
       }, {
         "name" : "CancelOrder",
         "aliases" : [ ],
@@ -36,7 +37,8 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-ordering/order/{id}/cancel-order"
-        } ]
+        } ],
+        "description" : "Cancel the order"
       }, {
         "name" : "ConfirmOrderStock",
         "aliases" : [ ],
@@ -46,7 +48,8 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-ordering/order/{id}/confirm-order-stock"
-        } ]
+        } ],
+        "description" : "Confirm a product's stock"
       }, {
         "name" : "PayOrder",
         "aliases" : [ ],
@@ -56,7 +59,8 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-ordering/order/{id}/pay-order"
-        } ]
+        } ],
+        "description" : "Pay the order"
       }, {
         "name" : "ShipOrder",
         "aliases" : [ ],
@@ -66,7 +70,8 @@
         "routes" : [ {
           "method" : "POST",
           "path" : "/eshop-ordering/order/{id}/ship-order"
-        } ]
+        } ],
+        "description" : "Ship the order"
       }, {
         "name" : "SubmitOrder",
         "aliases" : [ ],
@@ -79,43 +84,51 @@
         }, {
           "method" : "POST",
           "path" : "/eshop-ordering/order/submit-order"
-        } ]
+        } ],
+        "description" : "Submit an order"
       } ],
       "events" : [ {
         "name" : "OrderAwaitingValidation",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.OrderAwaitingValidation"
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.OrderAwaitingValidation",
+        "description" : "The order awaits its stock validation"
       }, {
         "name" : "OrderCancelled",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.OrderCancelled"
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.OrderCancelled",
+        "description" : "The order was cancelled"
       }, {
         "name" : "OrderPaid",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.OrderPaid"
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.OrderPaid",
+        "description" : "The order was paid"
       }, {
         "name" : "OrderShipped",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.OrderShipped"
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.OrderShipped",
+        "description" : "The order was shipped"
       }, {
         "name" : "OrderStockConfirmed",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.OrderStockConfirmed"
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.OrderStockConfirmed",
+        "description" : "The inventory reserved every product of the order; it awaits its payment"
       }, {
         "name" : "OrderStockItemConfirmed",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.OrderStockItemConfirmed"
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.OrderStockItemConfirmed",
+        "description" : "The inventory reserved one of the order's products"
       }, {
         "name" : "OrderSubmitted",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted"
+        "schema" : "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted",
+        "description" : "An order was submitted"
       } ],
       "lifecycle" : [ "wow.lifecycle.ApplyTags", "wow.lifecycle.DeleteAggregate", "wow.lifecycle.RestoreAggregate", "wow.lifecycle.TransferOwner", "wow.lifecycle.TransferSpace" ],
       "queries" : [ {
@@ -341,6 +354,10 @@
     "status" : 503,
     "description" : "A scheduled command arrived too long before its due time on this node's clock; it is sent again later."
   }, {
+    "code" : "wow.schedule.job-invalid",
+    "status" : 400,
+    "description" : "The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled."
+  }, {
     "code" : "wow.subscription.parked",
     "status" : 500,
     "description" : "A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes."
@@ -373,7 +390,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "orderId" ]
+      "required" : [ "orderId" ],
+      "description" : "Commit an order's reservation"
     },
     "me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation" : {
       "type" : "object",
@@ -382,7 +400,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "orderId" ]
+      "required" : [ "orderId" ],
+      "description" : "Release an order's reservation"
     },
     "me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock" : {
       "type" : "object",
@@ -394,10 +413,12 @@
           "type" : "integer"
         }
       },
-      "required" : [ "orderId", "quantity" ]
+      "required" : [ "orderId", "quantity" ],
+      "description" : "Reserve stock for an order"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.AwaitStockValidation" : {
-      "type" : "object"
+      "type" : "object",
+      "description" : "Await the stock validation"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder" : {
       "type" : "object",
@@ -406,7 +427,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "reason" ]
+      "required" : [ "reason" ],
+      "description" : "Cancel the order"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.ConfirmOrderStock" : {
       "type" : "object",
@@ -415,10 +437,12 @@
           "type" : "string"
         }
       },
-      "required" : [ "productId" ]
+      "required" : [ "productId" ],
+      "description" : "Confirm a product's stock"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderAwaitingValidation" : {
-      "type" : "object"
+      "type" : "object",
+      "description" : "The order awaits its stock validation"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderCancelled" : {
       "type" : "object",
@@ -427,7 +451,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "reason" ]
+      "required" : [ "reason" ],
+      "description" : "The order was cancelled"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderItem" : {
       "type" : "object",
@@ -454,13 +479,16 @@
           "type" : "string"
         }
       },
-      "required" : [ "amount", "paymentId" ]
+      "required" : [ "amount", "paymentId" ],
+      "description" : "The order was paid"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderShipped" : {
-      "type" : "object"
+      "type" : "object",
+      "description" : "The order was shipped"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderStockConfirmed" : {
-      "type" : "object"
+      "type" : "object",
+      "description" : "The inventory reserved every product of the order; it awaits its payment"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderStockItemConfirmed" : {
       "type" : "object",
@@ -469,7 +497,8 @@
           "type" : "string"
         }
       },
-      "required" : [ "productId" ]
+      "required" : [ "productId" ],
+      "description" : "The inventory reserved one of the order's products"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted" : {
       "type" : "object",
@@ -481,7 +510,8 @@
           }
         }
       },
-      "required" : [ "items" ]
+      "required" : [ "items" ],
+      "description" : "An order was submitted"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.PayOrder" : {
       "type" : "object",
@@ -493,10 +523,12 @@
           "type" : "string"
         }
       },
-      "required" : [ "amount", "paymentId" ]
+      "required" : [ "amount", "paymentId" ],
+      "description" : "Pay the order"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.ShipOrder" : {
-      "type" : "object"
+      "type" : "object",
+      "description" : "Ship the order"
     },
     "me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder" : {
       "type" : "object",
@@ -508,7 +540,8 @@
           }
         }
       },
-      "required" : [ "items" ]
+      "required" : [ "items" ],
+      "description" : "Submit an order"
     },
     "me.ahoo.wow.example.eshop.ordering.domain.order.OrderState" : {
       "type" : "object",
@@ -538,7 +571,52 @@
         "totalAmount" : {
           "type" : "number"
         }
-      }
+      },
+      "required" : [ "confirmedProducts", "items", "status", "totalAmount" ]
+    },
+    "wow.lifecycle.ApplyTags" : {
+      "type" : "object",
+      "properties" : {
+        "tags" : {
+          "type" : "object",
+          "additionalProperties" : {
+            "type" : "array",
+            "items" : {
+              "type" : "string"
+            }
+          }
+        }
+      },
+      "required" : [ "tags" ],
+      "description" : "Sets the aggregate's tags, replacing the ones it had; empty tags clear them."
+    },
+    "wow.lifecycle.DeleteAggregate" : {
+      "type" : "object",
+      "description" : "Marks the aggregate deleted; its events stay in the log."
+    },
+    "wow.lifecycle.RestoreAggregate" : {
+      "type" : "object",
+      "description" : "Takes back the deletion of a deleted aggregate."
+    },
+    "wow.lifecycle.TransferOwner" : {
+      "type" : "object",
+      "properties" : {
+        "ownerId" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "ownerId" ],
+      "description" : "Gives the aggregate to the owner ownerId."
+    },
+    "wow.lifecycle.TransferSpace" : {
+      "type" : "object",
+      "properties" : {
+        "spaceId" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "spaceId" ],
+      "description" : "Moves the aggregate to the space spaceId."
     }
   }
 }

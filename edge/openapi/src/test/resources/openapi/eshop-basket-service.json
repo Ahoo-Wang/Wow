@@ -284,7 +284,7 @@
       "post" : {
         "tags" : [ "eshop-basket.basket" ],
         "summary" : "AddBasketItem",
-        "description" : "Sends `eshop-basket.basket.AddBasketItem`. Creates the aggregate when it does not exist. Produces `BasketItemAdded`.",
+        "description" : "Add an item to the basket. Sends `eshop-basket.basket.AddBasketItem`. Creates the aggregate when it does not exist. Produces `BasketItemAdded`.",
         "operationId" : "eshop-basket.basket.AddBasketItem",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -379,7 +379,7 @@
       "post" : {
         "tags" : [ "eshop-basket.basket" ],
         "summary" : "AddBasketItem",
-        "description" : "Sends `eshop-basket.basket.AddBasketItem`. Creates the aggregate when it does not exist. The request names no aggregate id: the server chooses it, or the transformer finds the aggregate. Produces `BasketItemAdded`.",
+        "description" : "Add an item to the basket. Sends `eshop-basket.basket.AddBasketItem`. Creates the aggregate when it does not exist. The request names no aggregate id: the server chooses it, or the transformer finds the aggregate. Produces `BasketItemAdded`.",
         "operationId" : "eshop-basket.basket.AddBasketItem.withoutId",
         "parameters" : [ {
           "$ref" : "#/components/parameters/Wow-Request-Id"
@@ -467,7 +467,7 @@
       "post" : {
         "tags" : [ "eshop-basket.basket" ],
         "summary" : "ChangeBasketItemQuantity",
-        "description" : "Sends `eshop-basket.basket.ChangeBasketItemQuantity`. Acts on an aggregate that exists. Produces `BasketItemQuantityChanged`.",
+        "description" : "Change an item's quantity. Sends `eshop-basket.basket.ChangeBasketItemQuantity`. Acts on an aggregate that exists. Produces `BasketItemQuantityChanged`.",
         "operationId" : "eshop-basket.basket.ChangeBasketItemQuantity",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -562,7 +562,7 @@
       "post" : {
         "tags" : [ "eshop-basket.basket" ],
         "summary" : "CheckoutBasket",
-        "description" : "Sends `eshop-basket.basket.CheckoutBasket`. Acts on an aggregate that exists. Produces `BasketCheckedOut`.",
+        "description" : "Check the basket out. Sends `eshop-basket.basket.CheckoutBasket`. Acts on an aggregate that exists. Produces `BasketCheckedOut`.",
         "operationId" : "eshop-basket.basket.CheckoutBasket",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -657,7 +657,7 @@
       "post" : {
         "tags" : [ "eshop-basket.basket" ],
         "summary" : "ClearBasket",
-        "description" : "Sends `eshop-basket.basket.ClearBasket`. Acts on an aggregate that exists. Produces `BasketCleared`.",
+        "description" : "Clear the basket. Sends `eshop-basket.basket.ClearBasket`. Acts on an aggregate that exists. Produces `BasketCleared`.",
         "operationId" : "eshop-basket.basket.ClearBasket",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -752,7 +752,7 @@
       "post" : {
         "tags" : [ "eshop-basket.basket" ],
         "summary" : "RemoveBasketItem",
-        "description" : "Sends `eshop-basket.basket.RemoveBasketItem`. Acts on an aggregate that exists. Produces `BasketItemRemoved`.",
+        "description" : "Remove an item from the basket. Sends `eshop-basket.basket.RemoveBasketItem`. Acts on an aggregate that exists. Produces `BasketItemRemoved`.",
         "operationId" : "eshop-basket.basket.RemoveBasketItem",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -2412,49 +2412,6 @@
         "type" : "object",
         "description" : "What the query model can do on the backend the node runs: operations, fields and limits."
       },
-      "wow.lifecycle.DeleteAggregate" : {
-        "type" : "object",
-        "description" : "Marks the aggregate deleted.",
-        "properties" : { }
-      },
-      "wow.lifecycle.RestoreAggregate" : {
-        "type" : "object",
-        "description" : "Restores a deleted aggregate.",
-        "properties" : { }
-      },
-      "wow.lifecycle.TransferOwner" : {
-        "type" : "object",
-        "properties" : {
-          "ownerId" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "ownerId" ]
-      },
-      "wow.lifecycle.TransferSpace" : {
-        "type" : "object",
-        "properties" : {
-          "spaceId" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "spaceId" ]
-      },
-      "wow.lifecycle.ApplyTags" : {
-        "type" : "object",
-        "properties" : {
-          "tags" : {
-            "type" : "object",
-            "additionalProperties" : {
-              "type" : "array",
-              "items" : {
-                "type" : "string"
-              }
-            }
-          }
-        },
-        "required" : [ "tags" ]
-      },
       "wow.schedule.Enable" : {
         "type" : "object",
         "description" : "Creates, or enables again, the job instance of the path's id, the job's name in the caller's tenant.",
@@ -2538,7 +2495,8 @@
             "type" : "number"
           }
         },
-        "required" : [ "productId", "quantity", "unitPrice" ]
+        "required" : [ "productId", "quantity", "unitPrice" ],
+        "description" : "Add an item to the basket"
       },
       "me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut" : {
         "type" : "object",
@@ -2553,10 +2511,12 @@
             "type" : "string"
           }
         },
-        "required" : [ "items", "orderId" ]
+        "required" : [ "items", "orderId" ],
+        "description" : "The basket was checked out"
       },
       "me.ahoo.wow.example.eshop.basket.api.basket.BasketCleared" : {
-        "type" : "object"
+        "type" : "object",
+        "description" : "The basket was cleared"
       },
       "me.ahoo.wow.example.eshop.basket.api.basket.BasketItem" : {
         "type" : "object",
@@ -2586,7 +2546,8 @@
             "type" : "number"
           }
         },
-        "required" : [ "productId", "quantity", "unitPrice" ]
+        "required" : [ "productId", "quantity", "unitPrice" ],
+        "description" : "An item was added to the basket"
       },
       "me.ahoo.wow.example.eshop.basket.api.basket.BasketItemQuantityChanged" : {
         "type" : "object",
@@ -2598,7 +2559,8 @@
             "type" : "integer"
           }
         },
-        "required" : [ "productId", "quantity" ]
+        "required" : [ "productId", "quantity" ],
+        "description" : "An item's quantity changed"
       },
       "me.ahoo.wow.example.eshop.basket.api.basket.BasketItemRemoved" : {
         "type" : "object",
@@ -2607,7 +2569,8 @@
             "type" : "string"
           }
         },
-        "required" : [ "productId" ]
+        "required" : [ "productId" ],
+        "description" : "An item was removed from the basket"
       },
       "me.ahoo.wow.example.eshop.basket.api.basket.ChangeBasketItemQuantity" : {
         "type" : "object",
@@ -2619,13 +2582,16 @@
             "type" : "integer"
           }
         },
-        "required" : [ "productId", "quantity" ]
+        "required" : [ "productId", "quantity" ],
+        "description" : "Change an item's quantity"
       },
       "me.ahoo.wow.example.eshop.basket.api.basket.CheckoutBasket" : {
-        "type" : "object"
+        "type" : "object",
+        "description" : "Check the basket out"
       },
       "me.ahoo.wow.example.eshop.basket.api.basket.ClearBasket" : {
-        "type" : "object"
+        "type" : "object",
+        "description" : "Clear the basket"
       },
       "me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem" : {
         "type" : "object",
@@ -2634,7 +2600,8 @@
             "type" : "string"
           }
         },
-        "required" : [ "productId" ]
+        "required" : [ "productId" ],
+        "description" : "Remove an item from the basket"
       },
       "me.ahoo.wow.example.eshop.basket.domain.basket.BasketState" : {
         "type" : "object",
@@ -2648,7 +2615,8 @@
               "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.basket.api.basket.BasketItem"
             }
           }
-        }
+        },
+        "required" : [ "checkouts", "items" ]
       },
       "me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder" : {
         "type" : "object",
@@ -2672,7 +2640,52 @@
             }
           }
         },
-        "required" : [ "items" ]
+        "required" : [ "items" ],
+        "description" : "Submit an order"
+      },
+      "wow.lifecycle.ApplyTags" : {
+        "type" : "object",
+        "properties" : {
+          "tags" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "required" : [ "tags" ],
+        "description" : "Sets the aggregate's tags, replacing the ones it had; empty tags clear them."
+      },
+      "wow.lifecycle.DeleteAggregate" : {
+        "type" : "object",
+        "description" : "Marks the aggregate deleted; its events stay in the log."
+      },
+      "wow.lifecycle.RestoreAggregate" : {
+        "type" : "object",
+        "description" : "Takes back the deletion of a deleted aggregate."
+      },
+      "wow.lifecycle.TransferOwner" : {
+        "type" : "object",
+        "properties" : {
+          "ownerId" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "ownerId" ],
+        "description" : "Gives the aggregate to the owner ownerId."
+      },
+      "wow.lifecycle.TransferSpace" : {
+        "type" : "object",
+        "properties" : {
+          "spaceId" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "spaceId" ],
+        "description" : "Moves the aggregate to the space spaceId."
       }
     },
     "responses" : {

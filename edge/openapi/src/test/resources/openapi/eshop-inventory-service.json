@@ -284,7 +284,7 @@
       "post" : {
         "tags" : [ "eshop-inventory.stock" ],
         "summary" : "CommitReservation",
-        "description" : "Sends `eshop-inventory.stock.CommitReservation`. Acts on an aggregate that exists. Produces `ReservationCommitted`.",
+        "description" : "Commit an order's reservation. Sends `eshop-inventory.stock.CommitReservation`. Acts on an aggregate that exists. Produces `ReservationCommitted`.",
         "operationId" : "eshop-inventory.stock.CommitReservation",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -379,7 +379,7 @@
       "post" : {
         "tags" : [ "eshop-inventory.stock" ],
         "summary" : "ReceiveStock",
-        "description" : "Sends `eshop-inventory.stock.ReceiveStock`. Creates the aggregate when it does not exist. Produces `StockReceived`.",
+        "description" : "Receive stock. Sends `eshop-inventory.stock.ReceiveStock`. Creates the aggregate when it does not exist. Produces `StockReceived`.",
         "operationId" : "eshop-inventory.stock.ReceiveStock",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -474,7 +474,7 @@
       "post" : {
         "tags" : [ "eshop-inventory.stock" ],
         "summary" : "ReceiveStock",
-        "description" : "Sends `eshop-inventory.stock.ReceiveStock`. Creates the aggregate when it does not exist. The request names no aggregate id: the server chooses it, or the transformer finds the aggregate. Produces `StockReceived`.",
+        "description" : "Receive stock. Sends `eshop-inventory.stock.ReceiveStock`. Creates the aggregate when it does not exist. The request names no aggregate id: the server chooses it, or the transformer finds the aggregate. Produces `StockReceived`.",
         "operationId" : "eshop-inventory.stock.ReceiveStock.withoutId",
         "parameters" : [ {
           "$ref" : "#/components/parameters/Wow-Request-Id"
@@ -562,7 +562,7 @@
       "post" : {
         "tags" : [ "eshop-inventory.stock" ],
         "summary" : "ReleaseReservation",
-        "description" : "Sends `eshop-inventory.stock.ReleaseReservation`. Acts on an aggregate that exists. Produces `ReservationReleased`.",
+        "description" : "Release an order's reservation. Sends `eshop-inventory.stock.ReleaseReservation`. Acts on an aggregate that exists. Produces `ReservationReleased`.",
         "operationId" : "eshop-inventory.stock.ReleaseReservation",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -657,7 +657,7 @@
       "post" : {
         "tags" : [ "eshop-inventory.stock" ],
         "summary" : "ReserveStock",
-        "description" : "Sends `eshop-inventory.stock.ReserveStock`. Acts on an aggregate that exists. Produces `StockReserved`.",
+        "description" : "Reserve stock for an order. Sends `eshop-inventory.stock.ReserveStock`. Acts on an aggregate that exists. Produces `StockReserved`.",
         "operationId" : "eshop-inventory.stock.ReserveStock",
         "parameters" : [ {
           "$ref" : "#/components/parameters/id"
@@ -2230,16 +2230,6 @@
         "type" : "object",
         "description" : "What the query model can do on the backend the node runs: operations, fields and limits."
       },
-      "wow.lifecycle.DeleteAggregate" : {
-        "type" : "object",
-        "description" : "Marks the aggregate deleted.",
-        "properties" : { }
-      },
-      "wow.lifecycle.RestoreAggregate" : {
-        "type" : "object",
-        "description" : "Restores a deleted aggregate.",
-        "properties" : { }
-      },
       "wow.lifecycle.TransferOwner" : {
         "type" : "object",
         "properties" : {
@@ -2248,30 +2238,6 @@
           }
         },
         "required" : [ "ownerId" ]
-      },
-      "wow.lifecycle.TransferSpace" : {
-        "type" : "object",
-        "properties" : {
-          "spaceId" : {
-            "type" : "string"
-          }
-        },
-        "required" : [ "spaceId" ]
-      },
-      "wow.lifecycle.ApplyTags" : {
-        "type" : "object",
-        "properties" : {
-          "tags" : {
-            "type" : "object",
-            "additionalProperties" : {
-              "type" : "array",
-              "items" : {
-                "type" : "string"
-              }
-            }
-          }
-        },
-        "required" : [ "tags" ]
       },
       "wow.schedule.Enable" : {
         "type" : "object",
@@ -2350,7 +2316,8 @@
             "type" : "string"
           }
         },
-        "required" : [ "orderId" ]
+        "required" : [ "orderId" ],
+        "description" : "Commit an order's reservation"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.ReceiveStock" : {
         "type" : "object",
@@ -2359,7 +2326,8 @@
             "type" : "integer"
           }
         },
-        "required" : [ "quantity" ]
+        "required" : [ "quantity" ],
+        "description" : "Receive stock"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation" : {
         "type" : "object",
@@ -2368,7 +2336,8 @@
             "type" : "string"
           }
         },
-        "required" : [ "orderId" ]
+        "required" : [ "orderId" ],
+        "description" : "Release an order's reservation"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.ReservationCommitted" : {
         "type" : "object",
@@ -2380,7 +2349,8 @@
             "type" : "integer"
           }
         },
-        "required" : [ "orderId", "quantity" ]
+        "required" : [ "orderId", "quantity" ],
+        "description" : "An order's reservation was committed"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.ReservationReleased" : {
         "type" : "object",
@@ -2392,7 +2362,8 @@
             "type" : "integer"
           }
         },
-        "required" : [ "orderId", "quantity" ]
+        "required" : [ "orderId", "quantity" ],
+        "description" : "An order's reservation was released"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock" : {
         "type" : "object",
@@ -2404,7 +2375,8 @@
             "type" : "integer"
           }
         },
-        "required" : [ "orderId", "quantity" ]
+        "required" : [ "orderId", "quantity" ],
+        "description" : "Reserve stock for an order"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.StockReceived" : {
         "type" : "object",
@@ -2413,7 +2385,8 @@
             "type" : "integer"
           }
         },
-        "required" : [ "quantity" ]
+        "required" : [ "quantity" ],
+        "description" : "Stock was received"
       },
       "me.ahoo.wow.example.eshop.inventory.api.stock.StockReserved" : {
         "type" : "object",
@@ -2425,7 +2398,8 @@
             "type" : "integer"
           }
         },
-        "required" : [ "orderId", "quantity" ]
+        "required" : [ "orderId", "quantity" ],
+        "description" : "Stock was reserved for an order"
       },
       "me.ahoo.wow.example.eshop.inventory.domain.stock.StockState" : {
         "type" : "object",
@@ -2442,7 +2416,42 @@
               "type" : "integer"
             }
           }
-        }
+        },
+        "required" : [ "available", "onHand", "reservations" ]
+      },
+      "wow.lifecycle.ApplyTags" : {
+        "type" : "object",
+        "properties" : {
+          "tags" : {
+            "type" : "object",
+            "additionalProperties" : {
+              "type" : "array",
+              "items" : {
+                "type" : "string"
+              }
+            }
+          }
+        },
+        "required" : [ "tags" ],
+        "description" : "Sets the aggregate's tags, replacing the ones it had; empty tags clear them."
+      },
+      "wow.lifecycle.DeleteAggregate" : {
+        "type" : "object",
+        "description" : "Marks the aggregate deleted; its events stay in the log."
+      },
+      "wow.lifecycle.RestoreAggregate" : {
+        "type" : "object",
+        "description" : "Takes back the deletion of a deleted aggregate."
+      },
+      "wow.lifecycle.TransferSpace" : {
+        "type" : "object",
+        "properties" : {
+          "spaceId" : {
+            "type" : "string"
+          }
+        },
+        "required" : [ "spaceId" ],
+        "description" : "Moves the aggregate to the space spaceId."
       }
     },
     "responses" : {
