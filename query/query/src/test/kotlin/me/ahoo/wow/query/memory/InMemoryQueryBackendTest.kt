@@ -18,8 +18,11 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.CountQuery
+import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.DefaultQueryGateway
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
@@ -60,6 +63,36 @@ class InMemoryQueryBackendTest : QueryBackendSpec() {
         storage.rewrite(snapshot("o1", """{"name":"rebuilt"}""", version = 2)).assert().isTrue()
         storage.rewrite(snapshot("o1", """{"name":"older"}""", version = 1)).assert().isFalse()
         storage.records(type).single().path("state").path("name").stringValue().assert().isEqualTo("rebuilt")
+    }
+
+    @Test
+    fun `a projection reaches into the elements of an array, and leaves the stored record whole`() {
+        runBlocking {
+            val fixture = given(orders())
+            val included = fixture.list(
+                ListQuery(
+                    IdFilter("o1"),
+                    projection = Projection(include = listOf(QueryField("state.lines.sku"), QueryField("state.name"))),
+                ),
+            ).single()
+            included.path("state").path("name").stringValue().assert().isEqualTo("Alpha")
+            included.path("state").path("lines").toList().map { it.path("sku").stringValue() }.assert()
+                .containsExactly("A", "B")
+            included.path("state").path("lines").first().has("price").assert().isFalse()
+            included.path("state").has("amount").assert().isFalse()
+            val excluded = fixture.list(
+                ListQuery(
+                    IdFilter("o1"),
+                    projection = Projection(
+                        exclude = listOf(QueryField("state.lines.price"), QueryField("state.name"))
+                    ),
+                ),
+            ).single()
+            excluded.path("state").has("name").assert().isFalse()
+            excluded.path("state").path("lines").first().has("price").assert().isFalse()
+            excluded.path("state").path("lines").first().path("sku").stringValue().assert().isEqualTo("A")
+            storage.records(type).first().path("state").path("lines").first().has("price").assert().isTrue()
+        }
     }
 
     @Test
