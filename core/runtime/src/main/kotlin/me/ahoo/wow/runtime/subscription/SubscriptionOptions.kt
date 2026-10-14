@@ -83,8 +83,9 @@ data class RetryPolicy(
  * - [checkpointInterval]: how often each subscription saves its checkpoint; [SubscriptionRuntime.stop] saves too.
  * - [stopTimeout]: how long a stop waits for the handlers in flight before abandoning them; an abandoned entry is
  *   above the saved checkpoint, so it is handled again after the restart.
- * - [readRetry]: the backoff of a log read or a store write that failed; they are retried until the runtime stops
- *   (its [RetryPolicy.maxAttempts] is not used).
+ * - [readRetry]: the backoff of a log read or a store write that failed; they are retried until the runtime stops.
+ *   Its [RetryPolicy.maxAttempts] is the attempts after which the failure is logged as an error and retried at the
+ *   maximum backoff (decision D195, [retryForever]).
  * - [starts]: by subscription name, where a subscription without a checkpoint in a partition starts instead of where
  *   its handler says (decision D154: a projection from the beginning, a reactor or a saga from the end), as
  *   `wow.subscriptions."<name>".start` configures it. A subscription with a checkpoint goes on from it.
@@ -99,7 +100,7 @@ data class SubscriptionOptions(
     val checkpointInterval: Duration = 1.seconds,
     val stopTimeout: Duration = 10.seconds,
     val readRetry: RetryPolicy = RetryPolicy(
-        maxAttempts = 1,
+        maxAttempts = 5,
         initialBackoff = 100.milliseconds,
         maxBackoff = 5.seconds
     ),
@@ -159,6 +160,11 @@ data class ParkedRetryOptions(
 /**
  * Calls [block] until it succeeds, waiting [policy]'s backoff between failures and logging each one as a failure
  * to [action]; cancellation stops it.
+ *
+ * [RetryPolicy.maxAttempts] is the budget of attempts before the failure is taken as lasting (decision D195,
+ * `wow.subscription.read-retry.max-attempts`): until it is spent, each failure is a warning and the backoff grows; once
+ * it is, each further failure is an error, for an operator to see, and the call is retried at the maximum backoff. It
+ * is never given up: nothing would read the partition again, and the node keeps its lease (decision D71).
  */
 @Suppress("TooGenericExceptionCaught") // Whatever failed is retried; only cancellation stops.
 internal suspend fun <T> retryForever(policy: RetryPolicy, action: () -> String, block: suspend () -> T): T {
@@ -170,11 +176,25 @@ internal suspend fun <T> retryForever(policy: RetryPolicy, action: () -> String,
             throw cancelled
         } catch (failure: Exception) {
             failures++
-            val backoff = policy.backoff(failures)
-            logger.warn(failure) { "Failed to ${action()} (attempt $failures); retrying in $backoff." }
+            val backoff = readBackoff(policy, failures)
+            if (failures < policy.maxAttempts) {
+                logger.warn(failure) { "Failed to ${action()} (attempt $failures); retrying in $backoff." }
+            } else {
+                logger.error(failure) {
+                    "Failed to ${action()} $failures times, spending its ${policy.maxAttempts} attempts; still " +
+                        "retrying, every $backoff."
+                }
+            }
             delay(backoff)
         }
     }
 }
+
+/**
+ * The wait after [failures] failed calls under [policy] in [retryForever]: its backoff while attempts are left, its
+ * maximum backoff once [RetryPolicy.maxAttempts] are spent.
+ */
+internal fun readBackoff(policy: RetryPolicy, failures: Int): Duration =
+    if (failures < policy.maxAttempts) policy.backoff(failures) else policy.maxBackoff
 
 private val logger = KotlinLogging.logger {}

@@ -232,7 +232,11 @@ class WowProperties {
         /** How a failing handler is retried before its entry is parked. */
         var retry: Retry = Retry.of(DEFAULT_SUBSCRIPTION.retry)
 
-        /** How a failing read of the log is retried. */
+        /**
+         * How a failing read of the log, or write of a store, is retried: until the node stops, the backoff growing
+         * for `max-attempts` (5) attempts, after which each failure is logged as an error and retried at
+         * `max-backoff` (decision D195).
+         */
         var readRetry: Retry = Retry.of(DEFAULT_SUBSCRIPTION.readRetry)
 
         /** How the parked entries are retried over the long horizon (roadmap P.1). */
