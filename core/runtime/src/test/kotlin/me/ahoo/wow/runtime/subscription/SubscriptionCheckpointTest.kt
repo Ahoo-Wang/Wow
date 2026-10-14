@@ -65,6 +65,34 @@ class SubscriptionCheckpointTest {
     }
 
     @Test
+    fun `the progress sums the watermarks read here and the checkpoints of the other partitions`(): Unit =
+        runBlocking {
+            val log = InMemoryEventLog(partitions = 2)
+            val appender = Appender(log)
+            val runtime = SubscriptionRuntime(
+                "group",
+                log,
+                checkpoints,
+                ledger,
+                listOf(Subscription("progress", SubscriptionFilter("shop")) {}),
+                testOptions(checkpointInterval = 1.hours),
+            )
+            runtime.progress("unknown", 2).assert().isNull()
+            runtime.progress("progress", 2).assert().isEqualTo(0L)
+            checkpoints.save("group", "progress", 1, 7)
+            runtime.progress("progress", 2).assert().isEqualTo(7L)
+
+            runtime.start(setOf(0))
+            repeat(10) { appender.append("a$it") }
+            val end = checkNotNull(appender.ends[0])
+            // Partition 0's watermark, not yet saved, and partition 1's saved checkpoint.
+            eventually { runtime.progress("progress", 2) == end + 7 }
+            checkpoints.load("group", "progress", 0).assert().isEqualTo(0L)
+            runtime.stop()
+            runtime.progress("progress", 2).assert().isEqualTo(end + 7)
+        }
+
+    @Test
     fun `stop waits for the entries in flight and saves the checkpoint`(): Unit = runBlocking {
         val handled = Handled()
         val runtime = runtime(
