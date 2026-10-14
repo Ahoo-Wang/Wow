@@ -35,7 +35,9 @@ class OpsDomainModelProviderTest {
         val model = provider.models(Dependencies.of()).single()
         model.findCommandType("ops.parked.${Ledger.RECORD_PARKED}").assert().isNotNull()
         model.findCommandType("ops.parked.${Ledger.RECORD_RESOLVED}").assert().isNotNull()
-        provider.processors(Dependencies.of()).map { it.name }.assert().containsExactly("ParkedOperationSaga.onParkedChanged")
+        provider.processors(
+            Dependencies.of()
+        ).map { it.name }.assert().containsExactly("ParkedOperationSaga.onParkedChanged")
     }
 
     @Test
@@ -44,8 +46,15 @@ class OpsDomainModelProviderTest {
             .use { JsonMapper.builder().build().readValue(it, Map::class.java) }
         val aggregate = ManifestTree.read(tree).contexts.single().aggregates.single()
         aggregate.name.assert().isEqualTo(Ledger.PARKED)
-        aggregate.commands.map { it.name }.assert().contains(Ledger.RECORD_PARKED, Ledger.RECORD_RESOLVED, "Resume", "Skip")
-        me.ahoo.wow.ops.api.parked.RecordParked::class.java.declaredFields.map { it.name }.assert().contains(Ledger.ENTRY)
+        aggregate.commands.map { it.name }.assert().contains(
+            Ledger.RECORD_PARKED,
+            Ledger.RECORD_RESOLVED,
+            "Resume",
+            "Skip"
+        )
+        me.ahoo.wow.ops.api.parked.RecordParked::class.java.declaredFields.map { it.name }.assert().contains(
+            Ledger.ENTRY
+        )
         me.ahoo.wow.ops.api.parked.RecordResolved::class.java.declaredFields.map { it.name }
             .assert().contains(Ledger.RESOLUTION)
     }

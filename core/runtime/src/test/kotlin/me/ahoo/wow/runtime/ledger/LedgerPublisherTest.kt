@@ -153,7 +153,10 @@ class LedgerPublisherTest {
         parkAll("x1")
         val entry = ledger.parked(NAME, cart("x1"))!!
         publisher.notifier.notify(ParkedNotice(ParkedNotice.Kind.EXHAUSTED, "group", entry, spec, 0))
-        ClusterCodec.mapper.treeToValue(sent.single().record, LedgerEntry::class.java).context.assert().isEqualTo("shop")
+        ClusterCodec.mapper.treeToValue(
+            sent.single().record,
+            LedgerEntry::class.java
+        ).context.assert().isEqualTo("shop")
         publisher.resolved(NAME, cart("x1"), null, LedgerResolution.RESUMED)
         val known = ClusterCodec.mapper.treeToValue(sent.last().record, LedgerResolution::class.java)
         known.failedAt.assert().isEqualTo(entry.failedAt)
@@ -165,7 +168,10 @@ class LedgerPublisherTest {
         unknown.failedAt.assert().isNull()
         unknown.context.assert().isEqualTo("shop")
         publisher.resolved(NAME, cart("y2"), "sales", LedgerResolution.SKIPPED, failedAt = 3)
-        ClusterCodec.mapper.treeToValue(sent.last().record, LedgerResolution::class.java).failedAt.assert().isEqualTo(3L)
+        ClusterCodec.mapper.treeToValue(
+            sent.last().record,
+            LedgerResolution::class.java
+        ).failedAt.assert().isEqualTo(3L)
         runtime.stop()
     }
 

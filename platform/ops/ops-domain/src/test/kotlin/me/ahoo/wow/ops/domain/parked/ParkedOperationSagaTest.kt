@@ -53,7 +53,10 @@ class ParkedOperationSagaTest {
     @Test
     fun `a mark and a retry spec carry what the operator asked`() = sagaSpec(handlers) {
         whenEvent(requested(MarkRecoverableRequested("RECOVERABLE"))) {
-            expectCommand(MarkParkedRecoverable(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE, "RECOVERABLE"), to = target)
+            expectCommand(
+                MarkParkedRecoverable(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE, "RECOVERABLE"),
+                to = target
+            )
         }
         whenEvent(requested(ApplyRetrySpecRequested(1, "PT1M", null))) {
             expectCommand(

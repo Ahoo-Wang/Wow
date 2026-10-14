@@ -19,8 +19,8 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerCommand
-import me.ahoo.wow.api.ledger.MarkParkedRecoverable
 import me.ahoo.wow.api.ledger.LedgerResolution
+import me.ahoo.wow.api.ledger.MarkParkedRecoverable
 import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.api.result.ErrorInfo
@@ -101,7 +101,13 @@ internal class LedgerCommands(
                 parked.resume(subscription, ref),
                 LedgerResolution.RESUMED
             )
-            is SkipParked -> settled(subscription, ref, context, parked.skip(subscription, ref), LedgerResolution.SKIPPED)
+            is SkipParked -> settled(
+                subscription,
+                ref,
+                context,
+                parked.skip(subscription, ref),
+                LedgerResolution.SKIPPED
+            )
             is MarkParkedRecoverable -> {
                 val recoverable = Recoverable.entries.firstOrNull { it.name.equals(command.recoverable, ignoreCase = true) }
                     ?: return ErrorInfo(
