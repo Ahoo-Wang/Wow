@@ -34,6 +34,7 @@ object V10Rules {
     val MONGO = V10Module("mongo", "backends/mongo")
     val KAFKA = V10Module("kafka", "backends/kafka")
     val CLICKHOUSE = V10Module("clickhouse", "backends/clickhouse")
+    val OPENAPI = V10Module("openapi", "edge/openapi")
     val HTTP = V10Module("http", "edge/http")
     val COSEC = V10Module("cosec", "edge/cosec")
     val OPENTELEMETRY = V10Module("opentelemetry", "edge/opentelemetry")
@@ -59,10 +60,19 @@ object V10Rules {
      */
     val TEST_MODULES = listOf(TEST_DSL, TCK, TCK_CONTAINERS)
 
+    /** The ops context's API: its commands and events (roadmap 6.3f, 7.1a; decision D141). */
+    val OPS_API = V10Module("ops-api", "platform/ops/ops-api")
+
+    /** The ops domain: the `parked` aggregate, the read model of every service's failure ledger (decision D141). */
+    val OPS_DOMAIN = V10Module("ops-domain", "platform/ops/ops-domain")
+
+    /** The platform modules (roadmap M7): domains of their own, built on the kernel as an application's domain is. */
+    val PLATFORM_MODULES = listOf(OPS_API, OPS_DOMAIN)
+
     val MODULES = listOf(
-        API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, HTTP,
+        API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, OPENAPI, HTTP,
         COSEC, OPENTELEMETRY, SPRING_BOOT, COSID, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
-    ) + TEST_MODULES
+    ) + TEST_MODULES + PLATFORM_MODULES
 
     /** The eShop's five contexts (decision D158), each an `-api`, a `-domain` and a `-server` project. */
     val ESHOP_CONTEXTS = listOf("catalog", "basket", "ordering", "inventory", "payment")
@@ -116,8 +126,10 @@ object V10Rules {
         KAFKA to setOf("spi"),
         // query for the dataset backend (decision D142).
         CLICKHOUSE to setOf("spi", "query"),
-        // query for the query routes (06 §3, decisions D118, D127).
-        HTTP to setOf("runtime", "query"),
+        // The Manifest only (roadmap 5a.2); the eShop's domains only for the snapshot tests, which document its services.
+        OPENAPI to setOf("manifest") + ESHOP_CONTEXTS.map { "eshop-$it-domain" },
+        // query for the query routes (06 §3, decisions D118, D127); openapi for GET /wow/openapi.
+        HTTP to setOf("runtime", "query", "openapi"),
         COSEC to setOf("http"),
         // The core's observation seams (decision D174) and the query engine's observer; http for the tests only, which
         // follow a trace from an HTTP request.
@@ -130,8 +142,9 @@ object V10Rules {
         MIGRATE_DATA to setOf("kernel"),
         // kernel and reactor only for the tests, which compile the generated models.
         COMPILER to setOf("api", "manifest", "kernel", "reactor"),
-        // compiler, kernel, manifest-tools and wow-dependencies only for the TestKit fixture and tests.
-        GRADLE_PLUGIN to setOf("manifest", "manifest-tools", "kernel", "compiler", "wow-dependencies"),
+        // compiler, kernel, manifest-tools and wow-dependencies only for the TestKit fixture and tests; openapi for
+        // generateWowOpenApi.
+        GRADLE_PLUGIN to setOf("manifest", "openapi", "manifest-tools", "kernel", "compiler", "wow-dependencies"),
         // kernel for the state fingerprint.
         MANIFEST_TOOLS to setOf("manifest", "kernel", "query-api"),
         // The test DSL runs a domain on the kernel, and only on it (06 §1).
@@ -139,6 +152,10 @@ object V10Rules {
         // The contract specs test the ports, and only them (06 §1).
         TCK to setOf("spi"),
         TCK_CONTAINERS to emptySet(),
+        // A platform domain is an application's domain (decision D149): its API on wow-api, its domain on the kernel,
+        // compiled by the compiler; never the runtime.
+        OPS_API to setOf("api"),
+        OPS_DOMAIN to setOf("ops-api", "kernel", "compiler"),
     )
 
     private val SPRING = listOf("org.springframework")
@@ -178,7 +195,7 @@ object V10Rules {
     /** The contract and core modules carry no runtime framework: no Spring, Reactor, HTTP or driver types. */
     val CORE_IS_FRAMEWORK_FREE = DependencyRule(
         name = "contract and core modules import no Spring, Reactor, HTTP or driver types",
-        modules = listOf(MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, QUERY).map { it.dir },
+        modules = listOf(MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, QUERY, OPENAPI).map { it.dir },
         forbidden = SPRING + REACTOR_TYPES + HTTP_TYPES + DRIVERS,
     )
 
@@ -300,6 +317,7 @@ object V10Rules {
         "compiler" to "wow-compiler",
         "mongo" to "wow-mongo",
         "cosec" to "wow-cosec",
+        "openapi" to "wow-openapi",
         "opentelemetry" to "wow-opentelemetry",
     )
 

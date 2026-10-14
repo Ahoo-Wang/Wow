@@ -36,16 +36,16 @@ node dist/cli.js generate -i <openapi-spec> -o <output-dir> -t tsconfig.json
   locally. Coverage thresholds (statements / branches / functions / lines): 97 / 92.5 / 98.5 / 98.
 - Tests live in `test/`, grouped by the behaviour they hold, not by the class that implements it:
 
-| Directory                     | Holds                                                                                                   |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `test/goldens/`               | Generated output byte for byte: the Wow documents, the OpenAI document, determinism across locales      |
-| `test/probes/`                | A small document through the CLI into a cold directory, then `tsc --strict` or a real run               |
-| `test/models/`                | What a generated model's types admit, checked by type-checking assignments against them                 |
-| `test/analysis/`              | The `GenerationModel` a document yields: names, files, parameter order, body and return kinds, warnings |
-| `test/emitters/`              | The code each emitter writes for a document                                                             |
-| `test/output/`                | `OutputStore`, and regenerating over earlier output on disk                                             |
-| `test/cli/`, `test/pipeline/` | The CLI (options, exit codes, Ctrl-C) and `CodeGenerator` end to end                                    |
-| the rest                      | The leaf modules they are named after (`openapi/`, `naming/`, `input/`, `types/`, `wow/`, `emit/`, …)   |
+| Directory                     | Holds                                                                                                                   |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `test/goldens/`               | Generated output byte for byte: the Wow documents, the eShop Manifests, the OpenAI document, determinism across locales |
+| `test/probes/`                | A small document through the CLI into a cold directory, then `tsc --strict` or a real run                               |
+| `test/models/`                | What a generated model's types admit, checked by type-checking assignments against them                                 |
+| `test/analysis/`              | The `GenerationModel` a document yields: names, files, parameter order, body and return kinds, warnings                 |
+| `test/emitters/`              | The code each emitter writes for a document                                                                             |
+| `test/output/`                | `OutputStore`, and regenerating over earlier output on disk                                                             |
+| `test/cli/`, `test/pipeline/` | The CLI (options, exit codes, Ctrl-C) and `CodeGenerator` end to end                                                    |
+| the rest                      | The leaf modules they are named after (`openapi/`, `naming/`, `input/`, `types/`, `wow/`, `emit/`, …)                   |
 
 - `test/support/` builds documents (`specs.ts`), runs the analysis and the emitters in memory
   (`emission.ts`), writes and type-checks models (`models.ts`), and generates through the CLI (`generation.ts`,
@@ -104,6 +104,7 @@ src/
     codeGenerator.ts          — CodeGenerator: configuration, document, Wow model, analysis, emit, finish, commit
     seams.ts                  — PROJECT_SEAM, SIGNAL_SEAM, Seams, SeamOptions
   input/                      — Loading: file and http resources, JSON/YAML, the configuration (warnings returned)
+  manifest/                   — A Wow V10 Manifest: reading and checking it (document.ts); Manifest → ManifestModel and its types (analyze.ts); no ts-morph
   openapi/                    — Reading the document: OpenApiDocument (endpoints listed once), components, references, operations, responses, schemas
   naming/                     — Identifiers and cases (naming.ts); the en-US order of names (order.ts); ModelInfo; file layout and combinePaths (paths.ts)
   wow/                        — Wow conventions (conventions.ts); the Wow model (model.ts); resolveWowModel, a pure function (resolveWowModel.ts)
@@ -118,7 +119,7 @@ src/
   types/
     typeResolver.ts           — Schema → type text and the imports it needs, as pure functions (no module writes)
   emit/                       — The writing kit: ModuleBuilder, ImportRegistry, import specifiers, JSDoc text
-  emitters/                   — GenerationModel → module statements: models, bounded contexts, query, command and API clients, index files
+  emitters/                   — GenerationModel → module statements: models, bounded contexts, query, command and API clients, index files; manifestClients.ts writes a ManifestModel's clients on @ahoo-wang/wow-client/v10
   finalize/
     finalize.ts               — finalizeSourceFiles: format, organize and type imports, verify, add the header
     typeOnlyImports.ts        — Rewrites imports of types to `import type`
@@ -129,9 +130,10 @@ src/
 
 Dependencies point one way. `eslint.config.js` holds it: `import-x/no-cycle` rejects a value import that
 closes a loop, `import-x/no-restricted-paths` keeps each layer from importing anything above it, types
-included (`api/` → `naming/` → `openapi/` → `wow/` → `analysis/`; `emit/` → `types/` → `emitters/`, which
-read `analysis/`), and only the entries reach `pipeline/` or `cli/`. `no-restricted-imports` keeps ts-morph
-out of `api/`, `input/`, `naming/`, `openapi/`, `wow/` and `analysis/`. There are no barrel files: import
+included (`api/` → `naming/` → `openapi/` → `wow/` → `analysis/`; `api/` → `naming/` → `manifest/`; `emit/` →
+`types/` → `emitters/`, which read `analysis/` and `manifest/`), and only the entries reach `pipeline/` or `cli/`.
+`no-restricted-imports` keeps ts-morph out of `api/`, `input/`, `naming/`, `openapi/`, `wow/`, `analysis/` and
+`manifest/`. There are no barrel files: import
 the module itself. Sort names with `compareNames` from `naming/order.ts`, never `localeCompare`, whose order
 follows the machine's locale.
 
@@ -151,6 +153,7 @@ its statements one at a time.
 - **GenerationModel**: What a document generates, decided before anything is written (`analysis/model.ts`)
 - **OutputStore**: One run's output directory: manifest `.wow-generator.json`, owned files, stale files
 - **OpenAPI 3.x**: Reads JSON/YAML/URL specs and generates TypeScript code
+- **Wow V10 Manifest**: An input with a numeric `format` and a `contexts` array (`GET /wow/manifest`, or the build's `manifest.json`) generates typed clients on `@ahoo-wang/wow-client/v10` instead (design §6)
 - **ts-morph**: Used for TypeScript AST manipulation and code generation
 - **commander**: CLI framework for the `wow-generator` command (`fetcher-generator` stays as an alias until v10)
 - **Generation modes**: API client classes, Wow CQRS clients (command/query), model types
@@ -172,13 +175,14 @@ its statements one at a time.
 
 Generated code is a public surface, so a change that is meant to keep it must keep every byte. These goldens hold it:
 
-| Golden                                               | Held by                               | Covers                                                                                                                                                                                               | Accept an intentional change                                                                    |
-| ---------------------------------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `expected/demo-spec/`, `expected/compensation-spec/` | `test/goldens/wowDocuments.test.ts`   | The two Wow documents, file by file                                                                                                                                                                  | `UPDATE_SNAPSHOTS=true pnpm --filter @ahoo-wang/wow-generator test`                             |
-| `expected/openai-spec/.wow-generator.json`           | `test/goldens/openaiDocument.test.ts` | `test/openai.spec.yml` (873 schemas, not Wow): the SHA-256 of every file, in the manifest's format; a failure names the files that differ                                                            | `pnpm --filter @ahoo-wang/wow-generator exec vitest run test/goldens/openaiDocument.test.ts -u` |
-| `expected/warnings/*.txt`                            | both suites                           | The warnings of each of the three documents, word for word                                                                                                                                           | `vitest run -u` on the suite                                                                    |
-| `expected/type-resolver.json`                        | `test/types/typeResolver.test.ts`     | The text and imports `types/typeResolver.ts` gives each case of `test/types/typeResolverCases.ts`                                                                                                    | `vitest run test/types/typeResolver.test.ts -u`                                                 |
-| `expected/wow-model/*.json`                          | `test/wow/wowModelContract.test.ts`   | The Wow model of the two Wow documents (aggregates, commands, events, state, fields, resource names, lent doc comments, warnings), and the hash of each file they generate with `schemaDocs: 'full'` | `vitest run test/wow/wowModelContract.test.ts -u`                                               |
+| Golden                                               | Held by                                  | Covers                                                                                                                                                                                               | Accept an intentional change                                                                    |
+| ---------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `expected/demo-spec/`, `expected/compensation-spec/` | `test/goldens/wowDocuments.test.ts`      | The two Wow documents, file by file                                                                                                                                                                  | `UPDATE_SNAPSHOTS=true pnpm --filter @ahoo-wang/wow-generator test`                             |
+| `expected/openai-spec/.wow-generator.json`           | `test/goldens/openaiDocument.test.ts`    | `test/openai.spec.yml` (873 schemas, not Wow): the SHA-256 of every file, in the manifest's format; a failure names the files that differ                                                            | `pnpm --filter @ahoo-wang/wow-generator exec vitest run test/goldens/openaiDocument.test.ts -u` |
+| `expected/warnings/*.txt`                            | both suites                              | The warnings of each of the three documents, word for word                                                                                                                                           | `vitest run -u` on the suite                                                                    |
+| `expected/type-resolver.json`                        | `test/types/typeResolver.test.ts`        | The text and imports `types/typeResolver.ts` gives each case of `test/types/typeResolverCases.ts`                                                                                                    | `vitest run test/types/typeResolver.test.ts -u`                                                 |
+| `expected/eshop-manifest/<service>/`                 | `test/goldens/manifestDocuments.test.ts` | The clients the eShop Manifests (`test/manifests/`) generate, file by file; type-checked and run against a stub fetch                                                                                | `UPDATE_SNAPSHOTS=true pnpm --filter @ahoo-wang/wow-generator test`                             |
+| `expected/wow-model/*.json`                          | `test/wow/wowModelContract.test.ts`      | The Wow model of the two Wow documents (aggregates, commands, events, state, fields, resource names, lent doc comments, warnings), and the hash of each file they generate with `schemaDocs: 'full'` | `vitest run test/wow/wowModelContract.test.ts -u`                                               |
 
 `test/goldens/determinism.test.ts` runs the built CLI (build first) under `tr_TR.UTF-8` and `en_US.UTF-8`, from
 two working directories, and holds the output to `expected/demo-spec/` and to itself: the output must not depend

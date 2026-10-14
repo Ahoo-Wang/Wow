@@ -279,6 +279,9 @@ class SubscriptionRuntime internal constructor(
     /** The names of the subscriptions registered, read from any thread. */
     val subscriptionNames: Set<String> get() = directory.keys.toSet()
 
+    /** The bounded context [subscription] belongs to ([Subscription.context]), null when it is not registered. */
+    fun contextOf(subscription: String): String? = directory[subscription]?.context
+
     /**
      * Whether the runtime runs [subscription] in [ref]'s partition here now: [resume] and [skip] act on the aggregate
      * at once. Otherwise its owner is another node, which takes an operator's request from the ledger (decision D141).
@@ -308,6 +311,28 @@ class SubscriptionRuntime internal constructor(
             ?: checkpoints.load(group, subscription, position.partition)
             ?: 0L
         return progress >= position.sequence && !ledger.isParked(subscription, stream.ref)
+    }
+
+    /**
+     * How far [subscription] has come over all [partitions] of its source: the sum, over each partition, of its
+     * progress there. In a partition this node runs, the worker's [SubscriptionWorker.progress], which grows the
+     * moment an entry completes, even above an entry still running; in the others, the saved checkpoint (else 0),
+     * which another node moves forward. The sum changes when the subscription completed an entry: the snapshot
+     * subscription's is the validator of the cached counts (decision D152), so a count after a write this node
+     * completed sees the write. Null when [subscription] is not registered.
+     */
+    suspend fun progress(subscription: String, partitions: Int): Long? {
+        if (!directory.containsKey(subscription)) {
+            return null
+        }
+        val workers = running?.workers
+        var total = 0L
+        for (partition in 0 until partitions) {
+            total += workers?.get(subscription to partition)?.progress
+                ?: checkpoints.load(group, subscription, partition)
+                ?: 0L
+        }
+        return total
     }
 
     /** Where [subscription] starts without a checkpoint: as the host overrides it (decision D154), else as it says. */

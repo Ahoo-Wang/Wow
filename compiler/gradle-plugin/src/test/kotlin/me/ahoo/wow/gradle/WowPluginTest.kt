@@ -14,11 +14,13 @@
 package me.ahoo.wow.gradle
 
 import com.google.devtools.ksp.gradle.KspExtension
+import groovy.json.JsonSlurper
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.ErrorManifest
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PeerManifests
 import me.ahoo.wow.manifest.ServiceInfo
@@ -203,6 +205,25 @@ class WowPluginTest {
         merge.classpath.setFrom(generate.outputDirectory)
         merge.submit(queue)
         ManifestJson.read(File(directory, "build/wow/manifest.json")).service?.name.assert().isEqualTo("shop")
+    }
+
+    @Test
+    fun `the OpenAPI task should write the document of the merged Manifest`() {
+        val project = project()
+        val openApi = project.tasks.getByName(WowPlugin.OPENAPI_TASK) as GenerateOpenApi
+        openApi.group.assert().isEqualTo("wow")
+        val manifest = File(project.projectDir, "build/wow/manifest.json")
+        openApi.manifestFile.get().asFile.assert().isEqualTo(manifest)
+        val output = File(project.projectDir, "build/wow/openapi.json")
+        openApi.outputFile.get().asFile.assert().isEqualTo(output)
+        ManifestJson.write(Manifest(service = ServiceInfo("shop", "1.0.0"), errors = FrameworkErrors.ALL), manifest)
+
+        openApi.generate()
+
+        val document = JsonSlurper().parse(output) as Map<*, *>
+        document["openapi"].assert().isEqualTo("3.1.0")
+        (document["info"] as Map<*, *>)["title"].assert().isEqualTo("shop")
+        (document["paths"] as Map<*, *>).keys.assert().contains("/wow/openapi")
     }
 
     @Test

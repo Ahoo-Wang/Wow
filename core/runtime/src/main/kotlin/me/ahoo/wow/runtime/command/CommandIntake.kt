@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.currentCoroutineContext
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.subscribe.CommandCommitted
@@ -26,6 +27,8 @@ import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
+import me.ahoo.wow.runtime.ledger.LedgerCommands
+import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.wait.WaitCoordinator
@@ -64,6 +67,9 @@ import me.ahoo.wow.spi.wait.WaitContext
  * The checkpoint is the offset after the last command whose outcome is settled, every command before it settled too
  * (the subscription's contiguous low watermark), so a handover or a restart executes again at most what was in
  * flight, which the kernel deduplicates.
+ *
+ * The ledger's system commands (`wow.ledger.*`, decision D141), which the ops context sends for an entry of this
+ * service, are not the kernel's: [ledger] runs them on the node's parked entries, and settles them as above.
  */
 class CommandIntake internal constructor(
     private val context: String,
@@ -71,6 +77,7 @@ class CommandIntake internal constructor(
     private val coordinator: WaitCoordinator,
     private val topics: SourceTopics,
     private val creations: CreationIds = CreationIds(),
+    private val ledger: LedgerCommands = LedgerCommands(ParkedOps { emptyList() }),
 ) {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val producer: TopicProducer = requireNotNull(topics.producer) { "An intake sends receipts." }
@@ -82,6 +89,10 @@ class CommandIntake internal constructor(
 
     /** Executes [wire] with [wait] and settles its outcome, or throws a technical failure. */
     internal suspend fun execute(wire: CommandWire, wait: WaitContext?) {
+        if (wire.type.startsWith(LEDGER_PREFIX)) {
+            ledger.execute(wire)?.let { reply(wire, it, null) }
+            return
+        }
         val model = checkNotNull(models[wire.ref.type]) {
             "Context $context has no aggregate ${wire.ref.type}, which the command ${wire.id} is sent to."
         }
@@ -156,6 +167,8 @@ class CommandIntake internal constructor(
     companion object {
         /** The intake's subscription in each context: its checkpoints and its parked aggregates are under it. */
         const val NAME: String = "wow.commands"
+
+        private const val LEDGER_PREFIX: String = "${Ledger.NAMESPACE}."
 
         private val logger = KotlinLogging.logger {}
 

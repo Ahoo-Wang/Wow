@@ -305,7 +305,10 @@ class CommandRoutesTest {
 
     @Test
     fun `an aggregate that exists is 409 for a command that creates it`() {
-        node.post("/shop/cart/c-1/open-cart").assertSucceeded()
+        // The client names the id of the aggregate it creates (decisions D176, D195).
+        val created = node.post("/shop/cart/c-1/open-cart").assertSucceeded().body!!
+        created["ref"]["id"].asString().assert().isEqualTo("c-1")
+        created["version"].asInt().assert().isEqualTo(1)
         node.post("/shop/cart/c-1/open-cart").assertProblem(409, FrameworkCodes.EXISTS, withResult = true)
     }
 

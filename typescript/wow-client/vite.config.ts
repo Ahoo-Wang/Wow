@@ -22,6 +22,7 @@ export default defineConfig({
         index: 'src/index.ts',
         dsl: 'src/dsl.ts',
         legacy: 'src/legacy/index.ts',
+        v10: 'src/v10/index.ts',
       },
       name: 'WowClient',
       fileName: (format, entryName) => {

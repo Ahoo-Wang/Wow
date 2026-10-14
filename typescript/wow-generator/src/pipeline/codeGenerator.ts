@@ -23,7 +23,14 @@ import { emitIndexFiles } from '../emitters/indexFiles';
 import { documentTypeContext } from '../emitters/models';
 import { finalizeSourceFiles } from '../finalize/finalize';
 import { resolveConfiguration } from '../input/configuration';
-import { parseOpenAPI } from '../input/parsers';
+import { loadDocument, validateOpenAPIDocument } from '../input/parsers';
+import { analyzeManifest } from '../manifest/analyze';
+import {
+  isManifestDocument,
+  type ManifestDocument,
+  validateManifest,
+} from '../manifest/document';
+import { emitManifestGeneration } from '../emitters/manifestClients';
 import { openApiDocument } from '../openapi/document';
 import { findDanglingReferences } from '../openapi/references';
 import { OutputStore } from '../output/outputStore';
@@ -133,9 +140,18 @@ export class CodeGenerator {
     warn(configuration.warnings);
     signal?.throwIfAborted();
 
-    logger.debug('Parsing OpenAPI specification');
-    const openAPI = await parseOpenAPI(options.inputPath, loadOptions);
+    logger.debug('Parsing the input document');
+    const input = await loadDocument(options.inputPath, loadOptions);
     signal?.throwIfAborted();
+    if (isManifestDocument(input)) {
+      return this.generateFromManifest(
+        validateManifest(input, options.inputPath),
+        configuration.origin,
+        warn,
+        () => warnings,
+      );
+    }
+    const openAPI = validateOpenAPIDocument(input, options.inputPath);
     logger.debug('OpenAPI specification parsed successfully');
     const dangling = findDanglingReferences(openAPI);
     if (dangling.length > 0) {
@@ -201,6 +217,55 @@ export class CodeGenerator {
       files: [...output.files].sort(),
       configPath: configuration.origin,
       warnings,
+    };
+  }
+
+  /**
+   * Generates the clients of a Wow V10 service from its Manifest (decision
+   * D74, roadmap 5a.3): the types of its schemas, and for each aggregate its
+   * command, query and state clients on `@ahoo-wang/wow-client/v10`. The
+   * configuration's API clients are an OpenAPI document's and do not apply.
+   */
+  private async generateFromManifest(
+    manifest: ManifestDocument,
+    configPath: string | undefined,
+    warn: (lines: readonly string[]) => void,
+    warnings: () => number,
+  ): Promise<GenerationResult> {
+    const { logger, signal, options } = this;
+    const output = OutputStore.open(
+      this.project,
+      options.outputDir,
+      this.output,
+    );
+    this.output = output;
+    logger.debug('Analysing the Manifest');
+    const analysis = analyzeManifest(manifest);
+    warn(analysis.warnings);
+    const modules = new ModuleSet(filePath => output.claim(filePath));
+    emitManifestGeneration(analysis.model, modules, options.outputDir);
+    modules.build();
+    output.forgetStale();
+    const outputDirectory = this.project.getDirectory(options.outputDir);
+    if (outputDirectory) {
+      warn(
+        emitIndexFiles(outputDirectory, directory =>
+          output.claim('index.ts', directory),
+        ),
+      );
+      finalizeSourceFiles(
+        outputDirectory
+          .getDescendantSourceFiles()
+          .filter(file => output.files.has(file.getFilePath())),
+        logger,
+      );
+    }
+    await output.commit(signal);
+    logger.debug('Code generation from the Manifest completed successfully');
+    return {
+      files: [...output.files].sort(),
+      configPath,
+      warnings: warnings(),
     };
   }
 }

@@ -57,12 +57,13 @@ object WowHeaders {
  *   framework reserves (`Wow-*`, `wow.*`) cannot be one.
  * - [errorStatuses] overrides the HTTP status of an error code, a domain rejection's (422 by default) or a framework
  *   one's.
- * - [manifestEndpoint] serves `GET /wow/manifest`.
+ * - [manifestEndpoint] serves `GET /wow/manifest`; [openApiEndpoint] serves `GET /wow/openapi`.
  */
 data class WowHttpOptions(
     val requestFacts: Set<String> = emptySet(),
     val errorStatuses: Map<String, Int> = emptyMap(),
     val manifestEndpoint: Boolean = true,
+    val openApiEndpoint: Boolean = true,
 ) {
     init {
         val reserved = requestFacts.filter { it.startsWith("wow-", ignoreCase = true) || it.startsWith("wow.") }
@@ -82,6 +83,9 @@ data class WowHttpOptions(
 object WowPaths {
     /** Serves the Manifest the routes were built from. */
     const val MANIFEST: String = "/wow/manifest"
+
+    /** Serves the OpenAPI 3.1 document of the routes (roadmap 5a.2), from the Manifest they were built from. */
+    const val OPENAPI: String = "/wow/openapi"
 
     /** Answers a new global id (09 §13 #15, decision D171), as 9.x did. */
     const val GLOBAL_ID: String = "/wow/id/global"

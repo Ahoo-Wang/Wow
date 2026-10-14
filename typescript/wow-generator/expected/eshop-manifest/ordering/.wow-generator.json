@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "files": {
+    "eshop-ordering/boundedContext.ts": "4ebe0763c8e1dbc958364b7e45bbc9ff75c112f73e0f21e9627fa9248f480997",
+    "eshop-ordering/index.ts": "f7fad565224a5b8f77faf6ba88b5af3bfb1c2c92f59d88382690bdb9a501c139",
+    "eshop-ordering/order/aggregate.ts": "821d804769e50b1f8870e4476c500e722b5f2563dcb5b57e666c93d3ff4bd676",
+    "eshop-ordering/order/commandClient.ts": "0e8a443ea66802f55edd696077a9744c609601c488cb261da546ef5eda5cd810",
+    "eshop-ordering/order/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
+    "eshop-ordering/order/queryClient.ts": "607f96ac8bf784ce4c0477a75deb3114bcb88eb42a6bb0240502f9bc5341700b",
+    "eshop-ordering/types.ts": "ba7b4efe449a8d5a1638d471d59c52a62e17f2d60cfe7eed67074b57061a07b1",
+    "index.ts": "502f8adf40ef0a48b03fa0dfdf1aff2e47d030196e214b0911ac087c74273a4a"
+  }
+}

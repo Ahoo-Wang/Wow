@@ -1,0 +1,440 @@
+{
+  "format": 1,
+  "service": { "name": "eshop-basket-service" },
+  "contexts": [
+    {
+      "name": "eshop-basket",
+      "description": "The eShop basket: a buyer's basket before checkout",
+      "aggregates": [
+        {
+          "name": "basket",
+          "description": "A buyer's basket before checkout; its id is the buyer's user id",
+          "state": {
+            "schema": "#/$defs/me.ahoo.wow.example.eshop.basket.domain.basket.BasketState",
+            "fingerprint": "4a27b0fa6932b1fe903ca9e1f93a37e84f3530cb337eb3b39933ff613c714db7"
+          },
+          "snapshot": { "enabled": true },
+          "commands": [
+            {
+              "name": "AddBasketItem",
+              "aliases": [],
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.basket.api.basket.AddBasketItem",
+              "creation": "ALLOWED",
+              "produces": ["BasketItemAdded"],
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-basket/basket/{id}/add-basket-item"
+                },
+                {
+                  "method": "POST",
+                  "path": "/eshop-basket/basket/add-basket-item"
+                }
+              ]
+            },
+            {
+              "name": "ChangeBasketItemQuantity",
+              "aliases": [],
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.basket.api.basket.ChangeBasketItemQuantity",
+              "creation": "NONE",
+              "produces": ["BasketItemQuantityChanged"],
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-basket/basket/{id}/change-basket-item-quantity"
+                }
+              ]
+            },
+            {
+              "name": "CheckoutBasket",
+              "aliases": [],
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.basket.api.basket.CheckoutBasket",
+              "creation": "NONE",
+              "produces": ["BasketCheckedOut"],
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-basket/basket/{id}/checkout-basket"
+                }
+              ]
+            },
+            {
+              "name": "ClearBasket",
+              "aliases": [],
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.basket.api.basket.ClearBasket",
+              "creation": "NONE",
+              "produces": ["BasketCleared"],
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-basket/basket/{id}/clear-basket"
+                }
+              ]
+            },
+            {
+              "name": "RemoveBasketItem",
+              "aliases": [],
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem",
+              "creation": "NONE",
+              "produces": ["BasketItemRemoved"],
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-basket/basket/{id}/remove-basket-item"
+                }
+              ]
+            }
+          ],
+          "events": [
+            {
+              "name": "BasketCheckedOut",
+              "aliases": [],
+              "revision": 1,
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut"
+            },
+            {
+              "name": "BasketCleared",
+              "aliases": [],
+              "revision": 1,
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.basket.api.basket.BasketCleared"
+            },
+            {
+              "name": "BasketItemAdded",
+              "aliases": [],
+              "revision": 1,
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.basket.api.basket.BasketItemAdded"
+            },
+            {
+              "name": "BasketItemQuantityChanged",
+              "aliases": [],
+              "revision": 1,
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.basket.api.basket.BasketItemQuantityChanged"
+            },
+            {
+              "name": "BasketItemRemoved",
+              "aliases": [],
+              "revision": 1,
+              "schema": "#/$defs/me.ahoo.wow.example.eshop.basket.api.basket.BasketItemRemoved"
+            }
+          ],
+          "lifecycle": [
+            "wow.lifecycle.ApplyTags",
+            "wow.lifecycle.DeleteAggregate",
+            "wow.lifecycle.RestoreAggregate",
+            "wow.lifecycle.TransferOwner",
+            "wow.lifecycle.TransferSpace"
+          ],
+          "queries": [
+            {
+              "model": "snapshot",
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-basket/basket/snapshot/query"
+                },
+                {
+                  "method": "GET",
+                  "path": "/eshop-basket/basket/snapshot/query"
+                }
+              ]
+            },
+            {
+              "model": "events",
+              "routes": [
+                {
+                  "method": "POST",
+                  "path": "/eshop-basket/basket/events/query"
+                },
+                { "method": "GET", "path": "/eshop-basket/basket/events/query" }
+              ]
+            }
+          ]
+        }
+      ],
+      "subscriptions": [
+        {
+          "name": "BasketCheckoutSaga.onBasketCheckedOut",
+          "kind": "SAGA",
+          "source": {
+            "context": "eshop-basket",
+            "aggregates": ["basket"],
+            "events": []
+          },
+          "function": {
+            "kind": "SAGA",
+            "context": "eshop-basket",
+            "processor": "BasketCheckoutSaga",
+            "name": "onBasketCheckedOut"
+          },
+          "derives": [
+            "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder"
+          ],
+          "start": "END"
+        }
+      ],
+      "published": [
+        {
+          "aggregate": "basket",
+          "topic": "wow.eshop-basket.basket.state",
+          "includeState": true
+        }
+      ],
+      "errors": [
+        {
+          "code": "eshop-basket.basket.empty",
+          "status": 422,
+          "description": "An empty basket cannot be checked out."
+        },
+        {
+          "code": "eshop-basket.basket.invalid-item",
+          "status": 422,
+          "description": "A basket's quantity is positive, and its price not negative."
+        },
+        {
+          "code": "eshop-basket.basket.item-not-found",
+          "status": 404,
+          "description": "The basket does not hold the product."
+        },
+        {
+          "code": "eshop-basket.basket.not-owner",
+          "status": 403,
+          "description": "A basket belongs to the buyer whose id it has."
+        }
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": "wow.auth.unauthenticated",
+      "status": 401,
+      "description": "The request carries no valid credentials."
+    },
+    {
+      "code": "wow.auth.forbidden",
+      "status": 403,
+      "description": "The caller may not send this command."
+    },
+    {
+      "code": "wow.aggregate.forbidden",
+      "status": 403,
+      "description": "The aggregate is outside the caller's scope."
+    },
+    {
+      "code": "wow.command.malformed",
+      "status": 400,
+      "description": "The command body cannot be read as the command type."
+    },
+    {
+      "code": "wow.command.invalid",
+      "status": 400,
+      "description": "The command failed validation; the problem lists the violations."
+    },
+    {
+      "code": "wow.wait.invalid",
+      "status": 400,
+      "description": "The wait is not a chain the runtime can follow; the command was not run."
+    },
+    {
+      "code": "wow.command.unhandled",
+      "status": 400,
+      "description": "The aggregate does not handle this command."
+    },
+    {
+      "code": "wow.aggregate.not-found",
+      "status": 404,
+      "description": "The aggregate does not exist."
+    },
+    {
+      "code": "wow.aggregate.exists",
+      "status": 409,
+      "description": "The aggregate already exists."
+    },
+    {
+      "code": "wow.aggregate.version-mismatch",
+      "status": 409,
+      "description": "The aggregate is not at the expected version (412 when the request carried If-Match)."
+    },
+    {
+      "code": "wow.command.request-id-reused",
+      "status": 409,
+      "description": "The request id was used by another command."
+    },
+    {
+      "code": "wow.command.contended",
+      "status": 409,
+      "description": "Concurrent writers kept winning the version; retrying with the same request id is safe."
+    },
+    {
+      "code": "wow.aggregate.deleted",
+      "status": 410,
+      "description": "The aggregate is deleted; only RestoreAggregate applies."
+    },
+    {
+      "code": "wow.command.busy",
+      "status": 429,
+      "description": "The node has too many commands in flight; retry later."
+    },
+    {
+      "code": "wow.command.unknown",
+      "status": 503,
+      "description": "Whether the command committed is unknown; retrying with the same request id is safe."
+    },
+    {
+      "code": "wow.node.closing",
+      "status": 503,
+      "description": "The node is shutting down; retry on another node."
+    },
+    {
+      "code": "wow.storage.unavailable",
+      "status": 503,
+      "description": "A store could not be reached or did not answer in time; retry later, a command with the same request id."
+    },
+    {
+      "code": "wow.schedule.not-due",
+      "status": 503,
+      "description": "A scheduled command arrived too long before its due time on this node's clock; it is sent again later."
+    },
+    {
+      "code": "wow.schedule.job-invalid",
+      "status": 400,
+      "description": "The job command does not fit its job or instance: an unknown job, another scope, or an instance not enabled."
+    },
+    {
+      "code": "wow.subscription.parked",
+      "status": 500,
+      "description": "A subscription on the wait chain parked the aggregate; the wait cannot be reached until it resumes."
+    },
+    {
+      "code": "wow.wait.timeout",
+      "status": 504,
+      "description": "The wait ran out of time; the command may have committed. The problem carries the last stage reached."
+    },
+    {
+      "code": "wow.query.malformed",
+      "status": 400,
+      "description": "The query body cannot be read as a query."
+    },
+    {
+      "code": "wow.query.invalid",
+      "status": 400,
+      "description": "The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...)."
+    },
+    {
+      "code": "wow.query.failed",
+      "status": 500,
+      "description": "The query backend failed to run the query."
+    },
+    {
+      "code": "wow.query.timeout",
+      "status": 503,
+      "description": "The query ran longer than its budget allows; narrow it, or retry later."
+    }
+  ],
+  "$defs": {
+    "me.ahoo.wow.example.eshop.basket.api.basket.AddBasketItem": {
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "quantity": { "type": "integer" },
+        "unitPrice": { "type": "number" }
+      },
+      "required": ["productId", "quantity", "unitPrice"]
+    },
+    "me.ahoo.wow.example.eshop.basket.api.basket.BasketCheckedOut": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/me.ahoo.wow.example.eshop.basket.api.basket.BasketItem"
+          }
+        },
+        "orderId": { "type": "string" }
+      },
+      "required": ["items", "orderId"]
+    },
+    "me.ahoo.wow.example.eshop.basket.api.basket.BasketCleared": {
+      "type": "object"
+    },
+    "me.ahoo.wow.example.eshop.basket.api.basket.BasketItem": {
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "quantity": { "type": "integer" },
+        "unitPrice": { "type": "number" }
+      },
+      "required": ["productId", "quantity", "unitPrice"]
+    },
+    "me.ahoo.wow.example.eshop.basket.api.basket.BasketItemAdded": {
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "quantity": { "type": "integer" },
+        "unitPrice": { "type": "number" }
+      },
+      "required": ["productId", "quantity", "unitPrice"]
+    },
+    "me.ahoo.wow.example.eshop.basket.api.basket.BasketItemQuantityChanged": {
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "quantity": { "type": "integer" }
+      },
+      "required": ["productId", "quantity"]
+    },
+    "me.ahoo.wow.example.eshop.basket.api.basket.BasketItemRemoved": {
+      "type": "object",
+      "properties": { "productId": { "type": "string" } },
+      "required": ["productId"]
+    },
+    "me.ahoo.wow.example.eshop.basket.api.basket.ChangeBasketItemQuantity": {
+      "type": "object",
+      "properties": {
+        "productId": { "type": "string" },
+        "quantity": { "type": "integer" }
+      },
+      "required": ["productId", "quantity"]
+    },
+    "me.ahoo.wow.example.eshop.basket.api.basket.CheckoutBasket": {
+      "type": "object"
+    },
+    "me.ahoo.wow.example.eshop.basket.api.basket.ClearBasket": {
+      "type": "object"
+    },
+    "me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem": {
+      "type": "object",
+      "properties": { "productId": { "type": "string" } },
+      "required": ["productId"]
+    },
+    "me.ahoo.wow.example.eshop.basket.domain.basket.BasketState": {
+      "type": "object",
+      "properties": {
+        "checkouts": { "type": "integer" },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/me.ahoo.wow.example.eshop.basket.api.basket.BasketItem"
+          }
+        }
+      }
+    },
+    "me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "productId": { "type": "string" },
+              "quantity": { "type": "integer" },
+              "unitPrice": { "type": "number" }
+            },
+            "required": ["productId", "quantity", "unitPrice"]
+          }
+        }
+      },
+      "required": ["items"]
+    }
+  }
+}

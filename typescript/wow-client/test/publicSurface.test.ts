@@ -41,6 +41,7 @@ const LISTS: Record<Entry, string> = {
   '@ahoo-wang/wow-client': 'surface/root.txt',
   '@ahoo-wang/wow-client/dsl': 'surface/dsl.txt',
   '@ahoo-wang/wow-client/legacy': 'surface/legacy.txt',
+  '@ahoo-wang/wow-client/v10': 'surface/v10.txt',
 };
 
 /** One entry's list as the file holds it: a heading, then `kind name`. */

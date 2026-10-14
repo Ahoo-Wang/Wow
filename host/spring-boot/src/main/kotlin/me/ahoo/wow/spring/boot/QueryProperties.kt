@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.query.AbacQueryOptions
 import me.ahoo.wow.query.QueryBudget
+import me.ahoo.wow.query.QueryCountCacheOptions
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.schema.QuerySensitivityPolicy
@@ -39,6 +40,8 @@ import java.time.Duration
  * - `wow.query.sensitivity.display-comparable` (true): whether filters and sorts may compare a `DISPLAY` value.
  * - `wow.query.index.ddl` (`auto`, `validate` or `none`; D151): how the snapshot backend manages the indexes of
  *   each aggregate's `x-wow-index` at startup.
+ * - `wow.query.count-cache.*` (D152): `enabled` (true), `max-entries` (10000), `ttl` (30s): the cache of the snapshot
+ *   counts and paged totals, valid while the type's snapshot write checkpoint holds and for at most `ttl`.
  * - `wow.query.dataset.config-directory` (`config`; D75, D145): the working directory whose `wow/dataset/` holds
  *   dataset files, `{context}.{dataset}.json`; each takes precedence over the classpath's `META-INF/wow/dataset/` file
  *   of the same dataset. The datasets of both are served when a dataset backend is wired (ClickHouse's, say).
@@ -54,6 +57,7 @@ class QueryProperties {
     var sensitivity: Sensitivity = Sensitivity()
     var index: Index = Index()
     var dataset: Dataset = Dataset()
+    var countCache: CountCache = CountCache()
 
     /** The entry policy these settings give every gateway. */
     fun entryPolicy(): QueryEntryPolicy = QueryEntryPolicy(
@@ -115,6 +119,14 @@ class QueryProperties {
 
     class Index {
         var ddl: QueryIndexDdl = QueryIndexDdl.AUTO
+    }
+
+    class CountCache {
+        var enabled: Boolean = true
+        var maxEntries: Int = QueryCountCacheOptions.DEFAULT_MAX_ENTRIES
+        var ttl: Duration = QueryCountCacheOptions.DEFAULT_TTL
+
+        fun options(): QueryCountCacheOptions = QueryCountCacheOptions(maxEntries, ttl)
     }
 
     class Dataset {

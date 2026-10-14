@@ -64,11 +64,11 @@ describe('CLI setup', () => {
     expect(result.command).toHaveBeenCalledWith('generate');
     expect(result.description).toHaveBeenNthCalledWith(
       2,
-      'Generate TypeScript code from OpenAPI specification',
+      'Generate TypeScript code from an OpenAPI specification or a Wow V10 Manifest',
     );
     expect(result.requiredOption).toHaveBeenCalledWith(
       '-i, --input <file>',
-      'Input OpenAPI specification file path or URL (http/https)',
+      'Input OpenAPI specification or Wow Manifest (GET /wow/manifest) file path or URL (http/https)',
     );
     expect(result.option).toHaveBeenCalledWith(
       '-o, --output <path>',

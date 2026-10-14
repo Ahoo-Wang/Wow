@@ -36,7 +36,14 @@ const readSource = (file: string) => readFileSync(new URL(file, root), 'utf8');
  */
 const FILES = readdirSync(new URL('src/', root), { recursive: true })
   .map(path => `src/${String(path).split(sep).join('/')}`)
-  .filter(file => file.endsWith('.ts') && !file.startsWith('src/legacy/'))
+  // The /v10 entry's examples name its own exports, not the root's; its
+  // tests (test/v10) run them.
+  .filter(
+    file =>
+      file.endsWith('.ts') &&
+      !file.startsWith('src/legacy/') &&
+      !file.startsWith('src/v10/'),
+  )
   .filter(file =>
     /\/\*\*(?:(?!\*\/)[\s\S])*```typescript/.test(readSource(file)),
   )

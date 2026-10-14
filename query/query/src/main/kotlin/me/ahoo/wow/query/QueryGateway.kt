@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorPage
+import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ICountQuery
 import me.ahoo.wow.api.query.ICursorQuery
 import me.ahoo.wow.api.query.IListQuery
@@ -27,12 +28,14 @@ import me.ahoo.wow.api.query.IPagedQuery
 import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.RewritableFilter
+import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.query.descriptor.QueryModelDescriptor
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.mask.SchemaMasker
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.describe
+import me.ahoo.wow.spi.observation.Observation
 import me.ahoo.wow.spi.observation.observe
 import tools.jackson.databind.node.ObjectNode
 import kotlin.coroutines.cancellation.CancellationException
@@ -80,6 +83,10 @@ interface QueryGateway {
  * The [QueryGateway] over one [backend]: [schemaProvider] supplies the schema every query is admitted against,
  * [filters] and [policies] run at admission steps 1 and 2, and [observer] sees every outcome. One instance serves
  * every caller.
+ *
+ * With [counts], the counts and paged totals are cached ([QueryCountCache], decision D152): admitted as ever, then
+ * served from the cache while the type's snapshot write checkpoint holds; a query served so ends its observation with
+ * the outcome [QueryCountCache.CACHED_OUTCOME].
  */
 class DefaultQueryGateway(
     override val aggregateType: AggregateType,
@@ -89,11 +96,12 @@ class DefaultQueryGateway(
     policies: List<QueryPolicy> = emptyList(),
     private val observer: QueryObserver = QueryObserver.NONE,
     override val entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
+    private val counts: QueryCountCache? = null,
 ) : QueryGateway {
     private val admission = QueryAdmission(aggregateType, filters, policies, entryPolicy)
 
     override suspend fun single(query: ISingleQuery, caller: QueryCaller): ObjectNode? =
-        run(QueryOperation.SINGLE, query, caller, rows = { if (it == null) 0 else 1 }) { admitted ->
+        run(QueryOperation.SINGLE, query, caller, rows = { if (it == null) 0 else 1 }) { admitted, _ ->
             backend.single(admitted)?.let(admitted.reader())
         }
 
@@ -101,19 +109,22 @@ class DefaultQueryGateway(
         stream(QueryOperation.LIST, query, caller) { admitted -> backend.list(admitted).map(admitted.reader()) }
 
     override suspend fun paged(query: IPagedQuery, caller: QueryCaller): PagedList<ObjectNode> =
-        run(QueryOperation.PAGED, query, caller, rows = { it.list.size.toLong() }) { admitted ->
-            val page = backend.paged(admitted, totalLimit(admitted.entry))
+        run(QueryOperation.PAGED, query, caller, rows = { it.list.size.toLong() }) { admitted, observation ->
+            val page = page(admitted, caller, observation)
             page.copy(list = page.list.map(admitted.reader()))
         }
 
     override suspend fun cursor(query: ICursorQuery, caller: QueryCaller): CursorPage<ObjectNode> =
-        run(QueryOperation.CURSOR, query, caller, rows = { it.list.size.toLong() }) { admitted ->
+        run(QueryOperation.CURSOR, query, caller, rows = { it.list.size.toLong() }) { admitted, _ ->
             val page = backend.cursor(admitted)
             page.copy(list = page.list.map(admitted.reader()))
         }
 
     override suspend fun count(query: ICountQuery, caller: QueryCaller): CountResult =
-        run(QueryOperation.COUNT, query, caller, rows = { 1 }) { backend.countBounded(it) }
+        run(QueryOperation.COUNT, query, caller, rows = { 1 }) { admitted, observation ->
+            val count = admitted.query
+            counted(count.filter, count.limit, caller, observation) { backend.countBounded(admitted) }
+        }
 
     override fun aggregate(query: AggregationQuery, caller: QueryCaller): Flow<ObjectNode> =
         stream(QueryOperation.AGGREGATION, query, caller) { admitted ->
@@ -127,6 +138,43 @@ class DefaultQueryGateway(
     private fun AdmittedQuery<*>.reader(): (ObjectNode) -> ObjectNode {
         val masker = SchemaMasker.create(schema) ?: return { it }
         return masker::mask
+    }
+
+    /**
+     * One page of [admitted] with its total, which [counts] gives while it holds a valid count of the page's filter
+     * and bound: the page's rows are then read without counting.
+     */
+    private suspend fun page(
+        admitted: AdmittedQuery<IPagedQuery>,
+        caller: QueryCaller,
+        observation: Observation,
+    ): PagedList<ObjectNode> {
+        val totalLimit = totalLimit(admitted.entry)
+        val mode = admitted.query.total
+        if (counts == null || mode == TotalMode.NONE) {
+            return backend.paged(admitted, totalLimit)
+        }
+        var counted: PagedList<ObjectNode>? = null
+        val bound = if (mode == TotalMode.BOUNDED) totalLimit else null
+        val total = counted(admitted.query.filter, bound, caller, observation) {
+            val page = backend.paged(admitted, totalLimit)
+            counted = page
+            CountResult(checkNotNull(page.total), page.exact)
+        }
+        return counted ?: backend.paged(admitted, totalLimit, known = total)
+    }
+
+    /** The count of [filter] bounded by [bound]: from [counts] while it holds a valid one, else [count]'s. */
+    private suspend fun counted(
+        filter: FilterExpression,
+        bound: Int?,
+        caller: QueryCaller,
+        observation: Observation,
+        count: suspend () -> CountResult,
+    ): CountResult {
+        val cache = counts ?: return count()
+        val cached = { observation.outcome(QueryCountCache.CACHED_OUTCOME) }
+        return cache.count(aggregateType, filter, bound, caller, cached, count)
     }
 
     /**
@@ -145,19 +193,22 @@ class DefaultQueryGateway(
         query: Q,
         caller: QueryCaller,
         rows: (T) -> Long,
-        execute: suspend (AdmittedQuery<Q>) -> T,
-    ): T = observer.started(aggregateType, operation.queryType).observe {
-        val trail = trail(operation.queryType, query, caller)
-        try {
-            val admitted = admission.admit(operation, query, caller, schemaProvider::schema, trail)
-            trail?.admitted(admitted.query)
-            execute(admitted).also { result ->
-                trail?.rows(rows(result))
-                finished(operation.queryType, trail, null)
+        execute: suspend (AdmittedQuery<Q>, Observation) -> T,
+    ): T {
+        val observation = observer.started(aggregateType, operation.queryType)
+        return observation.observe {
+            val trail = trail(operation.queryType, query, caller)
+            try {
+                val admitted = admission.admit(operation, query, caller, schemaProvider::schema, trail)
+                trail?.admitted(admitted.query)
+                execute(admitted, observation).also { result ->
+                    trail?.rows(rows(result))
+                    finished(operation.queryType, trail, null)
+                }
+            } catch (error: Throwable) {
+                finished(operation.queryType, trail, error)
+                throw error
             }
-        } catch (error: Throwable) {
-            finished(operation.queryType, trail, error)
-            throw error
         }
     }
 

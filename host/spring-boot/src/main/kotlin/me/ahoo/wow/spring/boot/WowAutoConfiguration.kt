@@ -271,6 +271,7 @@ class WowAutoConfiguration {
                 timers = properties.timers.options(),
                 schedules = properties.schedules.mapValues { it.value.options() },
                 kafkaRouted = kafkaRouted(properties, models.models),
+                ledger = properties.ops.publish.options(),
                 snapshots = properties.snapshot.options(),
             ),
             admission = AdmissionPlugins(
@@ -359,6 +360,7 @@ class WowAutoConfiguration {
         requestFacts = properties.http.requestFacts.toSet(),
         errorStatuses = properties.http.errors.mapValues { it.value.status },
         manifestEndpoint = properties.http.manifest.enabled,
+        openApiEndpoint = properties.http.openapi.enabled,
     )
 
     /** The public server keeps reading its HTTP/1.1 keep-alive connections ([KeepAliveReads]). */

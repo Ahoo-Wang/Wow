@@ -146,6 +146,25 @@ class LogGroupsTest {
     }
 
     @Test
+    fun `a type's snapshot write checkpoint should move with its group's snapshot writes only`(): Unit = runBlocking {
+        val node = node("node-1").also { it.start() }
+        val context = node.context(CONTEXT)
+        context.snapshotCheckpoint(AggregateType("elsewhere", "order")).assert().isNull()
+        context.snapshotCheckpoint(AggregateType(CONTEXT, "unknown")).assert().isNull()
+        val orders = checkNotNull(context.snapshotCheckpoint(ORDER))
+        val invoices = checkNotNull(context.snapshotCheckpoint(INVOICE))
+        node.send(INVOICE.ref(TENANT, "i-5"), Issue(delayMillis = 60_000), WaitPlan.SNAPSHOT).status.assert()
+            .isEqualTo(CommandResult.Status.SUCCEEDED)
+        eventually { checkNotNull(context.snapshotCheckpoint(INVOICE)) > invoices }
+        context.snapshotCheckpoint(ORDER).assert().isEqualTo(orders)
+        node.send(ORDER.ref(TENANT, "o-5"), Place(delayMillis = 60_000), WaitPlan.SNAPSHOT)
+        eventually { checkNotNull(context.snapshotCheckpoint(ORDER)) > orders }
+
+        val unsnapshotted = node("node-2", { stores.backends(it).copy(snapshots = null) }).also { it.start() }
+        unsnapshotted.context(CONTEXT).snapshotCheckpoint(ORDER).assert().isNull()
+    }
+
+    @Test
     fun `each group's timers are in its store, and sent`(): Unit = runBlocking {
         val node = node("node-1").also { it.start() }
         node.send(ORDER.ref(TENANT, "o-3"), Place(delayMillis = 100))

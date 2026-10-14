@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.gradle
 
+import groovy.json.JsonSlurper
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.lifecycle.Lifecycle
@@ -131,6 +132,7 @@ class WowPluginFunctionalTest {
             .withPluginClasspath()
             .withArguments(
                 ":shop:${WowPlugin.MERGE_TASK}",
+                ":shop:${WowPlugin.OPENAPI_TASK}",
                 ":shop:jar",
                 ":billing:jar",
                 ":shop:probeBuildClasspath",
@@ -362,6 +364,16 @@ class WowPluginFunctionalTest {
                 "shop" to listOf(ErrorManifest("shop.cart.full", 409, "The cart is full")),
             ),
         )
+    }
+
+    @Test
+    fun `the OpenAPI document should be written from the merged manifest`() {
+        val document = JsonSlurper().parse(File(projectDir, "shop/build/wow/openapi.json")) as Map<*, *>
+        document["openapi"].assert().isEqualTo("3.1.0")
+        val paths = (document["paths"] as Map<*, *>).keys
+        paths.assert().contains("/shop/cart/{id}/create-cart", "/billing/account/open-account")
+        val schemas = ((document["components"] as Map<*, *>)["schemas"] as Map<*, *>).keys.map { it.toString() }
+        schemas.assert().anyMatch { it.endsWith("CreateCart") }
     }
 
     @Test
