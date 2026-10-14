@@ -31,8 +31,15 @@ import kotlin.time.Duration.Companion.seconds
  * one node and its partition's owner is the other.
  */
 class ClusterWaitTest {
-    /** As in [ClusterSnapshotTest]: the forward must not degrade to running here on a cold JVM. */
-    private val cluster = TestCluster(options = fastOptions(forwardTimeout = 10.seconds), saga = true)
+    /**
+     * As in [ClusterSnapshotTest]: the forward must not degrade to running here on a cold JVM, nor after a stall of
+     * the JVM that expired the leases ([FROZEN_LEASES]).
+     */
+    private val cluster = TestCluster(
+        options = fastOptions(forwardTimeout = 10.seconds),
+        saga = true,
+        leaseClock = FROZEN_LEASES,
+    )
 
     @AfterEach
     fun close(): Unit = runBlocking {

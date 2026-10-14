@@ -59,6 +59,9 @@ import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
@@ -99,6 +102,15 @@ fun fastOptions(
     drainTimeout = 5.seconds,
 )
 
+/**
+ * A lease clock that never advances ([TestCluster]'s `leaseClock`): no lease or membership expires. With the wall
+ * clock, a stall of the JVM longer than `leaseTtl - renewInterval` (1.2 s in [fastOptions]), such as a pause while it
+ * is cold or the machine is loaded, may expire the leases and memberships, and past the TTL (1.5 s) it expires them
+ * all. Until the nodes renew and read the routes again the partitions have no known owner, and a command routed
+ * meanwhile runs locally (decision D71), not on its owner.
+ */
+val FROZEN_LEASES: Clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC)
+
 /** The Manifest of [TestNode]'s model: the account aggregate, its deposits, and every lifecycle command. */
 fun accountManifest(service: String? = SERVICE, context: String = CONTEXT): Manifest = Manifest(
     service = service?.let(::ServiceInfo),
@@ -135,18 +147,23 @@ fun accountManifest(service: String? = SERVICE, context: String = CONTEXT): Mani
  *
  * With [saga], every node also runs the saga [SAGA]: for a deposit into an account listed in [derives], it deposits
  * into that many other accounts (`<id>-d-<n>`), executed where the saga runs, passing the wait context on.
+ *
+ * The lease store reads [leaseClock]. The default is the wall clock, so leases and memberships expire, as a test of
+ * failover needs. A test of where a command runs passes [FROZEN_LEASES]: then nothing expires, whatever stalls the
+ * JVM, and the nodes still converge, since a released lease is free at once and a leaving member is removed.
  */
 class TestCluster(
     val partitions: Int = 16,
     val options: ClusterOptions = fastOptions(),
     val snapshots: SnapshotStore? = null,
     val saga: Boolean = false,
+    leaseClock: Clock = Clock.systemUTC(),
 ) : AutoCloseable {
     /** How many deposits the saga derives from a deposit into each account; none for an account not listed. */
     val derives = ConcurrentHashMap<String, Int>()
     val events = CopyOnWriteArrayList<String>()
     val log = RecordingLog(InMemoryEventLog(partitions), events)
-    val leases = RecordingLeases(InMemoryLeaseStore(), events)
+    val leases = RecordingLeases(InMemoryLeaseStore(leaseClock), events)
     val checkpoints = RecordingCheckpoints(EventCheckpoints(events))
     val ledger = InMemoryFailureLedger()
     val backends = ContextBackends(log, checkpoints, leases, ledger, snapshots)

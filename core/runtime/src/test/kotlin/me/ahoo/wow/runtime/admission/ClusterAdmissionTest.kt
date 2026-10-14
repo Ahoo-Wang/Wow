@@ -22,13 +22,21 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.cluster.CONTEXT
+import me.ahoo.wow.runtime.cluster.FROZEN_LEASES
 import me.ahoo.wow.runtime.cluster.Hrw
 import me.ahoo.wow.runtime.cluster.TestCluster
 import me.ahoo.wow.runtime.cluster.TestNode
 import me.ahoo.wow.runtime.cluster.fastOptions
+import me.ahoo.wow.runtime.subscription.eventually
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicLong
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -36,11 +44,15 @@ import kotlin.time.Duration.Companion.seconds
  * partition's owner, which executes it without admitting it again (decisions D71, D92).
  */
 class ClusterAdmissionTest {
-    /** A forward that is slow under load must not degrade to running locally: the test asserts where it ran. */
-    private val cluster = TestCluster(options = fastOptions(forwardTimeout = 10.seconds))
+    /**
+     * The test asserts where the command ran, so nothing may make it degrade to running locally (D71): a forward slow
+     * under load, nor a stall of the JVM that expires the leases, which [FROZEN_LEASES] rules out.
+     */
+    private val cluster = TestCluster(options = fastOptions(forwardTimeout = 10.seconds), leaseClock = FROZEN_LEASES)
 
     @AfterEach
-    fun close() {
+    fun close(): Unit = runBlocking {
+        cluster.nodes.values.forEach { it.kill() }
         cluster.close()
     }
 
@@ -89,4 +101,73 @@ class ClusterAdmissionTest {
             two.decided.size.assert().isEqualTo(1)
             one.decided.assert().isEmpty()
         }
+
+    /**
+     * Why the test above uses [FROZEN_LEASES]. A stall longer than the lease TTL (CPU starvation, a GC or class-loading
+     * pause) expires every lease and membership on the wall clock; until the nodes renew and the routes are read
+     * again, the partition has no known owner, so the command runs on the node it arrived at (D71) instead of on its
+     * owner. Its admitted identity is kept all the same: it was admitted once, and the kernel there guards its scope.
+     */
+    @Test
+    fun `while a stall has expired the leases a command runs where it arrived and keeps its admitted identity`(): Unit =
+        runBlocking {
+            val clock = StallingClock()
+            val stalling = TestCluster(options = fastOptions(forwardTimeout = 10.seconds), leaseClock = clock)
+            try {
+                val (one, two) = stalling.start("node-1", "node-2")
+                stalling.awaitStable()
+                val id = (0 until 64).map { "acc-$it" }
+                    .first { Hrw.owner(stalling.partitionOf(it), listOf("node-1", "node-2")) == "node-2" }
+                val alice = Caller("t", Scope("alice"), subject = "alice")
+
+                clock.stall()
+                eventually { one.ownership.routes.members.isEmpty() }
+                val result = gateway(one).execute(request(id, alice))
+                result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+                one.decided.assert().containsExactly(result.commandId)
+                two.decided.assert().isEmpty()
+                val bob = gateway(one).execute(request(id, Caller("t", Scope("bob"), subject = "bob")))
+                bob.error!!.code.assert().isEqualTo(FrameworkCodes.AGGREGATE_FORBIDDEN)
+                authorized.map { it.first }.assert().containsExactly("node-1", "node-1")
+
+                clock.resume()
+                stalling.awaitStable()
+                val after = gateway(one).execute(request(id, alice))
+                after.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+                two.decided.assert().containsExactly(after.commandId)
+                one.decided.size.assert().isEqualTo(1)
+            } finally {
+                stalling.nodes.values.forEach { it.kill() }
+                stalling.close()
+            }
+        }
+
+    /**
+     * A lease clock standing still, but while [stall]ed every reading leaps an hour on: whatever a node writes is
+     * expired at the next reading, as when a stall outlasts every TTL, for as long as the test needs.
+     */
+    private class StallingClock : Clock() {
+        private val start = Instant.parse("2026-01-01T00:00:00Z")
+        private val leaps = AtomicLong()
+
+        @Volatile
+        private var stalled = false
+
+        fun stall() {
+            stalled = true
+        }
+
+        fun resume() {
+            stalled = false
+        }
+
+        override fun instant(): Instant {
+            val leap = if (stalled) leaps.incrementAndGet() else leaps.get()
+            return start.plusMillis(leap * 1.hours.inWholeMilliseconds)
+        }
+
+        override fun getZone(): ZoneId = ZoneOffset.UTC
+
+        override fun withZone(zone: ZoneId): Clock = throw UnsupportedOperationException()
+    }
 }
