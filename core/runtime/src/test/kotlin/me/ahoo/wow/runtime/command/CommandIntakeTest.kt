@@ -156,7 +156,8 @@ class CommandIntakeTest {
             val unassigned = ITEM.unassigned(TENANT)
             val reserve = Command("new-1", "r-new-1", unassigned, Reserve(1))
             sender.send(reserve)
-            eventually { stock.decided.size == 1 }
+            // Decided is not yet committed: the intake's checkpoint moves once the commit is in the log.
+            eventually { checkpoint(stockNode, unassigned) == 1L }
             val created = checkNotNull(stockBackends.backends(STOCK).log.findByRequestId(ITEM, TENANT, "r-new-1"))
             created.ref.isAssigned.assert().isTrue()
             // Sent again (a saga that handled its commit again): the same request finds the item it created.
