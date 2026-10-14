@@ -81,14 +81,14 @@ class ContextSelectionTest {
 
     @Test
     fun `the host should serve the included context`() {
-        startHost("wow.contexts.include" to BANK, internalPort = 0).use { host ->
+        startHost("wow.contexts.include" to BANK).use { host ->
             host.node.contexts.keys.assert().containsExactly(BANK)
         }
     }
 
     @Test
     fun `the host should not start on a selection of a context not on the class path`() {
-        val failure = assertThrows<Exception> { startHost("wow.contexts.include" to "shop", internalPort = 0) }
+        val failure = assertThrows<Exception> { startHost("wow.contexts.include" to "shop") }
         generateSequence<Throwable>(failure) { it.cause }.last().message.assert()
             .contains("wow.contexts names shop, which no domain module on the class path declares")
     }

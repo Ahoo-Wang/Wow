@@ -36,13 +36,17 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.io.IOException
-import java.net.ServerSocket
+import java.net.InetSocketAddress
+import java.net.Socket
 import java.util.concurrent.TimeUnit
 
 /** A transient failure of MongoDB is the SPI's retryable [StorageUnavailableException]; a defect stays the driver's. */
 class MongoFailuresTest {
     private val cart = AggregateType("shop", "cart")
-    private val address = ServerAddress("127.0.0.1", ServerSocket(0).use { it.localPort })
+
+    /** A port no server listens on: bound without listening, so no other process takes it while the test runs. */
+    private val reserved = Socket().apply { bind(InetSocketAddress("127.0.0.1", 0)) }
+    private val address = ServerAddress("127.0.0.1", reserved.localPort)
 
     /** A client of a server nobody runs: every call fails to select a server within a short timeout. */
     private val unreachable: MongoClient = MongoClients.create(
@@ -57,6 +61,7 @@ class MongoFailuresTest {
     @AfterEach
     fun close() {
         unreachable.close()
+        reserved.close()
     }
 
     @Test

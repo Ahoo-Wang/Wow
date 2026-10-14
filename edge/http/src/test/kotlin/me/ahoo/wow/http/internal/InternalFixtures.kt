@@ -31,11 +31,16 @@ import reactor.netty.DisposableServer
 import reactor.netty.http.HttpProtocol
 import reactor.netty.http.server.HttpServer
 import tools.jackson.databind.node.JsonNodeFactory
+import java.net.InetSocketAddress
+import java.net.Socket
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
 const val TEST_CONTEXT = "bank"
+
+/** How many times a test binds a server at a port it released, another process taking it in between. */
+const val BIND_ATTEMPTS = 5
 
 /**
  * An internal port as the host serves it (decision D109): bare Reactor Netty taking HTTP/1.1 and h2c, serving
@@ -65,6 +70,15 @@ class InternalServer(
     override fun close() {
         server.disposeNow()
     }
+}
+
+/**
+ * Runs [block] with a loopback port no server listens on: a socket is bound to it without listening, so a connection
+ * to it is refused, and no other process can take the port while [block] runs.
+ */
+inline fun <T> withRefusingPort(block: (port: Int) -> T): T = Socket().use { socket ->
+    socket.bind(InetSocketAddress("127.0.0.1", 0))
+    block(socket.localPort)
 }
 
 fun ref(id: String, context: String = TEST_CONTEXT): AggregateRef = AggregateType(context, "account").ref("t", id)

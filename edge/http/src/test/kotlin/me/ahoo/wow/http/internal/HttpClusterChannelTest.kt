@@ -32,7 +32,7 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.buildAndAwait
 import org.springframework.web.reactive.function.server.coRouter
-import java.net.ServerSocket
+import reactor.netty.ChannelBindException
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.util.concurrent.CopyOnWriteArrayList
@@ -107,12 +107,27 @@ class HttpClusterChannelTest {
 
     @Test
     fun `a peer that cannot be connected to fails, and the next connect tries again`(): Unit = runBlocking {
-        val port = ServerSocket(0).use { it.localPort }
-        val address = "127.0.0.1:$port"
-        failsWith<ClusterChannelException> { channel.connect(address) }.message.assert().contains(address)
-        InternalServer(internalRoutes(bank, {}), port = port).use { started ->
-            channel.connect(started.address)
-            started.versions.assert().hasSize(1)
+        // The server binds the port once the reservation is released; another process may take it in between, so
+        // that is retried on a new port.
+        var started: InternalServer? = null
+        var attempts = 0
+        while (started == null) {
+            attempts++
+            val port = withRefusingPort { port ->
+                val address = "127.0.0.1:$port"
+                failsWith<ClusterChannelException> { channel.connect(address) }.message.assert().contains(address)
+                port
+            }
+            started = try {
+                InternalServer(internalRoutes(bank, {}), port = port)
+            } catch (taken: ChannelBindException) {
+                if (attempts == BIND_ATTEMPTS) throw taken
+                null
+            }
+        }
+        started.use {
+            channel.connect(it.address)
+            it.versions.assert().hasSize(1)
         }
     }
 
@@ -192,8 +207,9 @@ class HttpClusterChannelTest {
 
     @Test
     fun `a peer that is not listening fails the forward`(): Unit = runBlocking {
-        val port = ServerSocket(0).use { it.localPort }
-        failsWith<ClusterChannelException> { channel.forward("127.0.0.1:$port", forwardCommand()) }
+        withRefusingPort { port ->
+            failsWith<ClusterChannelException> { channel.forward("127.0.0.1:$port", forwardCommand()) }
+        }
     }
 
     @Test

@@ -100,7 +100,7 @@ class WowLifecyclesTest {
     @Test
     fun `the internal server should bind once and unbind`() {
         val node = node()
-        val server = InternalServer(freePort(), "127.0.0.1", internalRoutes(node.forwardHandler, node.waits))
+        val server = InternalServer(0, "127.0.0.1", internalRoutes(node.forwardHandler, node.waits))
         val lifecycle = InternalServerLifecycle(server)
         lifecycle.start()
         lifecycle.start()

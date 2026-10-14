@@ -20,6 +20,8 @@ import me.ahoo.wow.tck.containers.WowContainers
 import org.apache.kafka.clients.admin.Admin
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.admin.NewTopic
+import org.testcontainers.containers.ContainerLaunchException
+import org.testcontainers.containers.GenericContainer
 import java.io.File
 import java.net.ServerSocket
 import java.sql.Connection
@@ -35,17 +37,14 @@ import java.util.concurrent.atomic.AtomicInteger
  * The eShop's four services of the order flow (basket, ordering, inventory, payment), each on as many nodes as
  * [SoakConfig.nodes] says, every node a JVM of its own as [EshopStack] starts them, on one PostgreSQL (a database per
  * context) and one Kafka. Unlike [EshopStack], the containers are bound to fixed host ports, so `docker restart` keeps
- * the address every node was given; and the nodes come and go: [kill] one and [start] another in its place.
+ * the address every node was given: a port free when picked, and another one when a process took it before the
+ * container bound it. The nodes come and go: [kill] one and [start] another in its place.
  *
  * The catalog and ClickHouse are left out: no step of the order flow reads them.
  */
 class SoakStack(private val config: SoakConfig, private val log: (String) -> Unit) : AutoCloseable {
-    val postgres = WowContainers.newPostgres().withDatabaseName(ADMIN_DATABASE).apply {
-        portBindings = listOf("${freePort()}:$POSTGRES_PORT")
-    }
-    val kafka = WowContainers.newKafka().apply {
-        portBindings = listOf("${freePort()}:$KAFKA_PORT")
-    }
+    val postgres = WowContainers.newPostgres().withDatabaseName(ADMIN_DATABASE)
+    val kafka = WowContainers.newKafka()
     private val nodes = ConcurrentHashMap<String, CopyOnWriteArrayList<SoakNode>>()
     private val numbers = ConcurrentHashMap<String, AtomicInteger>()
 
@@ -63,8 +62,8 @@ class SoakStack(private val config: SoakConfig, private val log: (String) -> Uni
     private var orderingPort: Int = 0
 
     fun start() {
-        postgres.start()
-        kafka.start()
+        startBound(postgres, POSTGRES_PORT)
+        startBound(kafka, KAFKA_PORT)
         DATABASES.values.forEach { database ->
             val created = postgres.execInContainer(
                 "psql",
@@ -98,6 +97,25 @@ class SoakStack(private val config: SoakConfig, private val log: (String) -> Uni
         }
     }
 
+    /**
+     * Starts [container] with [containerPort] bound to a host port free when picked; when another process takes it
+     * before the container binds it, again on another one, at most [BIND_ATTEMPTS] times.
+     */
+    private fun startBound(container: GenericContainer<*>, containerPort: Int) {
+        repeat(BIND_ATTEMPTS) { attempt ->
+            val hostPort = freePort()
+            container.portBindings = listOf("$hostPort:$containerPort")
+            try {
+                container.start()
+                return
+            } catch (failure: ContainerLaunchException) {
+                container.stop()
+                if (attempt == BIND_ATTEMPTS - 1 || !portTaken(failure)) throw failure
+                log("host port $hostPort was taken before ${container.dockerImageName} bound it; trying another")
+            }
+        }
+    }
+
     /** The live nodes of [context]. */
     fun nodes(context: String): List<SoakNode> = nodes[context].orEmpty()
 
@@ -106,11 +124,9 @@ class SoakStack(private val config: SoakConfig, private val log: (String) -> Uni
     /** Starts a node of [context], named `<context>-<n>` with the next n, and waits until it serves. */
     fun start(context: String): SoakNode {
         val id = "$context-${numbers.computeIfAbsent(context) { AtomicInteger() }.incrementAndGet()}"
-        val port = freedPorts[context]?.poll() ?: EshopService.freePort()
-        val internalPort = freedInternalPorts[context]?.poll() ?: EshopService.freePort()
-        if (context == "ordering" && orderingPort == 0) {
-            orderingPort = internalPort
-        }
+        // A first node binds ports the system chooses; a replacement takes the ports of a killed node.
+        val port = freedPorts[context]?.poll() ?: 0
+        val internalPort = freedInternalPorts[context]?.poll() ?: 0
         val calls = if (context == "basket") listOf(EshopStack.callOrdering(orderingPort)) else emptyList()
         val arguments = backendArguments(postgres, kafka, DATABASES.getValue(context), config.partitions) +
             "--wow.node.id=$id" + calls
@@ -122,6 +138,9 @@ class SoakStack(private val config: SoakConfig, private val log: (String) -> Uni
             publicPort = port,
             internalPort = internalPort,
         )
+        if (context == "ordering" && orderingPort == 0) {
+            orderingPort = service.internalPort
+        }
         return SoakNode(context, id, service).also { node ->
             nodes.computeIfAbsent(context) { CopyOnWriteArrayList() }.add(node)
             log("node $id started on port ${service.publicPort}")
@@ -240,7 +259,14 @@ class SoakStack(private val config: SoakConfig, private val log: (String) -> Uni
             "payment" to EshopStack.PAYMENT_MAIN,
         )
 
+        private const val BIND_ATTEMPTS = 5
+
         private fun freePort(): Int = ServerSocket(0).use { it.localPort }
+
+        /** Whether [failure] is Docker's refusal to bind a host port another process holds. */
+        private fun portTaken(failure: Throwable): Boolean = generateSequence(failure) { it.cause }
+            .mapNotNull { it.message }
+            .any { "port is already allocated" in it || "address already in use" in it.lowercase() }
     }
 }
 

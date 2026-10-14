@@ -34,7 +34,6 @@ import org.springframework.web.reactive.function.server.buildAndAwait
 import org.springframework.web.reactive.function.server.coRouter
 import java.math.BigDecimal
 import java.math.BigInteger
-import java.net.ServerSocket
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.system.measureTimeMillis
@@ -138,10 +137,11 @@ class HttpSignalSenderTest {
                 sender.send(origin(failing.address), signal(1))
                 eventually { sender.dropped == 1L }
             }
-        val gone = ServerSocket(0).use { it.localPort }
-        val sender = sender()
-        sender.send(origin("127.0.0.1:$gone"), signal(2))
-        eventually { sender.dropped == 1L }
+        withRefusingPort { gone ->
+            val sender = sender()
+            sender.send(origin("127.0.0.1:$gone"), signal(2))
+            eventually { sender.dropped == 1L }
+        }
     }
 
     @Test

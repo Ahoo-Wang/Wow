@@ -18,7 +18,6 @@ import org.testcontainers.postgresql.PostgreSQLContainer
 import tools.jackson.databind.json.JsonMapper
 import java.io.File
 import java.io.IOException
-import java.net.ServerSocket
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -60,15 +59,16 @@ data class Answer(val status: Int, val body: String)
 /**
  * One eShop service in a JVM of its own, started from the runtime class path of its server project (the system
  * property `eshop.<context>.classpath`, which the build passes), with its public and internal ports on the loopback
- * interface. Its output goes to a log file, printed when it fails to start.
+ * interface, each at a port the system chooses unless given: the harness reads the ports from the service's log once
+ * they are bound. Its output goes to a log file, printed when it fails to start.
  */
 class EshopService private constructor(
     val name: String,
     private val process: Process,
     private val log: File,
     val publicPort: Int,
-    /** The internal port, where the other services call it synchronously (decision D193); 0 when the node chose it. */
-    val internalPort: Int = 0,
+    /** The internal port, where the other services call it synchronously (decision D193). */
+    val internalPort: Int,
 ) : AutoCloseable {
     private val http: HttpClient = HttpClient.newBuilder()
         .version(HttpClient.Version.HTTP_1_1)
@@ -138,21 +138,51 @@ class EshopService private constructor(
         private val STOP_TIMEOUT: Duration = Duration.ofSeconds(20)
         private val POLL_INTERVAL: Duration = Duration.ofMillis(200)
 
+        private const val BIND_ATTEMPTS = 5
+
+        /** The loggers of Spring Boot's Reactor Netty web server and of Wow's internal server, and what they log. */
+        private const val WEB_SERVER_LOGGER = "org.springframework.boot.reactor.netty.NettyWebServer"
+        private const val INTERNAL_SERVER_LOGGER = "me.ahoo.wow.spring.boot.InternalServer"
+        private val PUBLIC_BOUND = Regex("""Netty started on port (\d+) \(http\)""")
+        private val INTERNAL_BOUND = Regex("""Wow internal port bound at \S*:(\d+)\.""")
+        private val PORT_TAKEN = Regex("""(?i)already in use""")
+
         /**
          * Starts the service of [context] by its [mainClass], with the further command-line [arguments] and the JVM's
-         * own [jvmArguments] (a heap bound, say), on [publicPort] (a free one by default) and [internalPort] (one the
-         * node chooses by default; a replacement takes the one of the node it replaces, the address the other services
-         * call it at, decision D193), and waits until it serves its Manifest, asked with [readyHeaders] (the
-         * credentials of a service that answers no anonymous request).
+         * own [jvmArguments] (a heap bound, say), and waits until it serves its Manifest, asked with [readyHeaders] (the
+         * credentials of a service that answers no anonymous request). Its [publicPort] and [internalPort] are ones the
+         * system chooses by default, so no other process can take a port picked before the service binds it; a
+         * replacement takes the ports of the node it replaces, the address the other services call it at (decision
+         * D193), and is started again, at most [BIND_ATTEMPTS] times, while another process holds one.
          */
         fun start(
             context: String,
             mainClass: String,
             arguments: List<String> = emptyList(),
             jvmArguments: List<String> = emptyList(),
-            publicPort: Int = freePort(),
+            publicPort: Int = 0,
             internalPort: Int = 0,
             readyHeaders: Map<String, String> = emptyMap(),
+        ): EshopService {
+            var attempt = 1
+            while (true) {
+                try {
+                    return startOnce(context, mainClass, arguments, jvmArguments, publicPort, internalPort, readyHeaders)
+                } catch (taken: PortTakenException) {
+                    if (attempt == BIND_ATTEMPTS) throw taken
+                    attempt++
+                }
+            }
+        }
+
+        private fun startOnce(
+            context: String,
+            mainClass: String,
+            arguments: List<String>,
+            jvmArguments: List<String>,
+            publicPort: Int,
+            internalPort: Int,
+            readyHeaders: Map<String, String>,
         ): EshopService {
             val property = "eshop.$context.classpath"
             val classpath = requireNotNull(System.getProperty(property)) { "System property $property is not set." }
@@ -169,12 +199,19 @@ class EshopService private constructor(
                 "--spring.main.banner-mode=off",
                 "--server.address=127.0.0.1",
                 "--server.port=$publicPort",
+                "--logging.level.$WEB_SERVER_LOGGER=info",
+                "--logging.level.$INTERNAL_SERVER_LOGGER=info",
                 "--wow.internal.host=127.0.0.1",
-                // Unless given, the node learns its internal port once bound.
                 "--wow.internal.port=$internalPort",
                 *arguments.toTypedArray(),
             ).redirectErrorStream(true).redirectOutput(log).start()
-            val service = EshopService(context, process, log, publicPort, internalPort)
+            val service = try {
+                val bound = awaitPorts(context, process, log)
+                EshopService(context, process, log, bound.first, bound.second)
+            } catch (failure: Throwable) {
+                process.destroyForcibly().waitFor()
+                throw failure
+            }
             try {
                 service.awaitReady(readyHeaders)
             } catch (failure: Throwable) {
@@ -184,7 +221,27 @@ class EshopService private constructor(
             return service
         }
 
-        /** A port free on this machine now. */
-        fun freePort(): Int = ServerSocket(0).use { it.localPort }
+        /** The public and internal ports the service of [context] logged once it bound them. */
+        private fun awaitPorts(context: String, process: Process, log: File): Pair<Int, Int> {
+            val deadline = System.nanoTime() + START_TIMEOUT.toNanos()
+            while (System.nanoTime() < deadline) {
+                val output = log.readText()
+                val public = PUBLIC_BOUND.find(output)?.groupValues?.get(1)?.toInt()
+                val internal = INTERNAL_BOUND.find(output)?.groupValues?.get(1)?.toInt()
+                if (public != null && internal != null) {
+                    return public to internal
+                }
+                if (!process.isAlive) {
+                    val message = "The $context service exited with ${process.exitValue()}:\n$output"
+                    if (PORT_TAKEN.containsMatchIn(output)) throw PortTakenException(message)
+                    error(message)
+                }
+                Thread.sleep(POLL_INTERVAL.toMillis())
+            }
+            error("The $context service did not bind its ports in $START_TIMEOUT:\n${log.readText()}")
+        }
     }
+
+    /** A service that could not start because another process held a port it was given. */
+    private class PortTakenException(message: String) : IllegalStateException(message)
 }

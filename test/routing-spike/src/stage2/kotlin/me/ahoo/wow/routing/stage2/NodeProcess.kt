@@ -16,7 +16,6 @@ package me.ahoo.wow.routing.stage2
 import org.testcontainers.postgresql.PostgreSQLContainer
 import java.io.File
 import java.io.IOException
-import java.net.ServerSocket
 import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -24,7 +23,10 @@ import java.net.http.HttpResponse
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 
-/** One node of stage 2: an [H2Node] in a JVM of its own, on the driver's class path. */
+/**
+ * One node of stage 2: an [H2Node] in a JVM of its own, on the driver's class path, its public port the one the system
+ * chose, read from its log once bound.
+ */
 class NodeProcess private constructor(
     val id: String,
     val publicPort: Int,
@@ -79,6 +81,10 @@ class NodeProcess private constructor(
         private val STOP_TIMEOUT: Duration = Duration.ofSeconds(30)
         private val POLL: Duration = Duration.ofMillis(200)
 
+        /** The logger of Spring Boot's Reactor Netty web server, and the line it logs once bound. */
+        private const val WEB_SERVER_LOGGER = "org.springframework.boot.reactor.netty.NettyWebServer"
+        private val STARTED = Regex("""Netty started on port (\d+) \(http\)""")
+
         /**
          * Starts the nodes [ids] at once on [postgres] with [router], and waits until each serves its Manifest; each
          * one's output goes to `<run>-<id>.log` in [logs]. The cluster settings are the host's defaults (lease TTL 10 s,
@@ -93,8 +99,7 @@ class NodeProcess private constructor(
             run: String,
         ): List<NodeProcess> {
             val java = ProcessHandle.current().info().command().orElseThrow()
-            val nodes = ids.map { id ->
-                val publicPort = freePort()
+            val started = ids.map { id ->
                 val log = File(logs, "$run-$id.log")
                 val process = ProcessBuilder(
                     java,
@@ -106,7 +111,9 @@ class NodeProcess private constructor(
                     "--spring.main.banner-mode=off",
                     "--spring.application.name=$H2_SERVICE",
                     "--server.address=127.0.0.1",
-                    "--server.port=$publicPort",
+                    // Bound where the system chooses, so no other process can take a port picked up front.
+                    "--server.port=0",
+                    "--logging.level.$WEB_SERVER_LOGGER=info",
                     "--wow.service=$H2_SERVICE",
                     "--wow.node.id=$id",
                     "--wow.internal.host=127.0.0.1",
@@ -120,7 +127,13 @@ class NodeProcess private constructor(
                     "--h2.datasource.password=${postgres.password}",
                     "--h2.datasource.pool=${settings.nodePool}",
                 ).redirectErrorStream(true).redirectOutput(ProcessBuilder.Redirect.to(log)).start()
-                NodeProcess(id, publicPort, process, log)
+                Triple(id, process, log)
+            }
+            val nodes = try {
+                started.map { (id, process, log) -> NodeProcess(id, awaitPublicPort(id, process, log), process, log) }
+            } catch (failure: Throwable) {
+                started.forEach { (_, process, _) -> process.destroyForcibly().waitFor() }
+                throw failure
             }
             val http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build()
             try {
@@ -134,6 +147,17 @@ class NodeProcess private constructor(
             return nodes
         }
 
-        private fun freePort(): Int = ServerSocket(0).use { it.localPort }
+        /** The public port node [id] logged once its web server was bound. */
+        private fun awaitPublicPort(id: String, process: Process, log: File): Int {
+            val deadline = System.nanoTime() + START_TIMEOUT.toNanos()
+            while (System.nanoTime() < deadline) {
+                STARTED.find(log.readText())?.let { return it.groupValues[1].toInt() }
+                check(
+                    process.isAlive
+                ) { "Node $id exited with ${process.exitValue()}:\n${log.readText().takeLast(LOG_TAIL)}" }
+                Thread.sleep(POLL.toMillis())
+            }
+            error("Node $id did not bind its public port in $START_TIMEOUT:\n${log.readText().takeLast(LOG_TAIL)}")
+        }
     }
 }

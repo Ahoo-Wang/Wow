@@ -117,9 +117,9 @@ class EshopStack(
 
     /**
      * Starts the ordering node [nodeId] on the ordering's database, with the Sink and the sales dataset, on
-     * [internalPort]: a free one, or the internal port of the node it replaces, which the basket calls.
+     * [internalPort]: one the system chooses, or the internal port of the node it replaces, which the basket calls.
      */
-    fun startOrdering(nodeId: String, internalPort: Int = EshopService.freePort()): EshopService = start(
+    fun startOrdering(nodeId: String, internalPort: Int = 0): EshopService = start(
         "ordering",
         ORDERING_MAIN,
         arguments(ORDERING_DATABASE, listOf("clickhouse")) + listOf(

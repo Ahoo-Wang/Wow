@@ -48,9 +48,8 @@ class SharedClassPathPeersTest {
     private fun start(classLoader: ClassLoader): Host = Host(
         SpringApplicationBuilder(HostTestApp::class.java)
             .resourceLoader(DefaultResourceLoader(classLoader))
-            .properties(hostProperties(0) + ("wow.contexts.include" to BANK))
+            .properties(hostProperties + ("wow.contexts.include" to BANK))
             .run(),
-        0,
     )
 
     @Test

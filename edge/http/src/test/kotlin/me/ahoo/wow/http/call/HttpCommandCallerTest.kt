@@ -30,13 +30,13 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.subscribe.CallFailedException
 import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.command.CallHeader
+import me.ahoo.wow.http.internal.withRefusingPort
 import me.ahoo.wow.runtime.call.OutgoingCall
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.observation.TraceContext
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.net.InetSocketAddress
-import java.net.ServerSocket
 import java.net.URI
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration
@@ -171,12 +171,13 @@ class HttpCommandCallerTest {
 
     @Test
     fun `a target that is down or unknown should fail the call`() {
-        val closed = ServerSocket(0).use { it.localPort }
-        val down = HttpCommandCaller(
-            mapOf("mail" to URI.create("http://127.0.0.1:$closed")),
-            timeout = 500.milliseconds
-        )
-        assertThrownBy<CallFailedException> { runBlocking { down.call(call()) } }
+        withRefusingPort { closed ->
+            val down = HttpCommandCaller(
+                mapOf("mail" to URI.create("http://127.0.0.1:$closed")),
+                timeout = 500.milliseconds
+            )
+            assertThrownBy<CallFailedException> { runBlocking { down.call(call()) } }
+        }
         val unknown = HttpCommandCaller(emptyMap())
         assertThrownBy<CallFailedException> { runBlocking { unknown.call(call()) } }
     }
