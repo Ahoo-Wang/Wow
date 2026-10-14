@@ -219,6 +219,21 @@
       "derives" : [ "eshop-ordering.order.CancelOrder" ],
       "rejected" : [ "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation" ]
     }, {
+      "name" : "OrderProcessSaga.onReserveCommitted",
+      "kind" : "SAGA",
+      "source" : {
+        "aggregates" : [ ],
+        "events" : [ ]
+      },
+      "function" : {
+        "kind" : "SAGA",
+        "context" : "eshop-ordering",
+        "processor" : "OrderProcessSaga",
+        "name" : "onReserveCommitted"
+      },
+      "derives" : [ "eshop-ordering.order.ConfirmOrderStock" ],
+      "committed" : [ "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock" ]
+    }, {
       "name" : "OrderProcessSaga.onReserveRejected",
       "kind" : "SAGA",
       "source" : {
@@ -233,22 +248,6 @@
       },
       "derives" : [ "eshop-ordering.order.CancelOrder" ],
       "rejected" : [ "#/$defs/me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock" ]
-    }, {
-      "name" : "StockConfirmationSaga.onStockReserved",
-      "kind" : "SAGA",
-      "source" : {
-        "context" : "eshop-inventory",
-        "aggregates" : [ "stock" ],
-        "events" : [ ]
-      },
-      "function" : {
-        "kind" : "SAGA",
-        "context" : "eshop-ordering",
-        "processor" : "StockConfirmationSaga",
-        "name" : "onStockReserved"
-      },
-      "derives" : [ "eshop-ordering.order.ConfirmOrderStock" ],
-      "start" : "BEGINNING"
     } ],
     "published" : [ {
       "aggregate" : "order",

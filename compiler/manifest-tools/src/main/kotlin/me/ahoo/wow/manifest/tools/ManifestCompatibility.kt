@@ -97,7 +97,9 @@ data class CompatibilityReport(
  * - Command creation that accepts more (`NONE` or `REQUIRED` to `ALLOWED`) is additive, any other change breaking; a
  *   produced event removed breaks a client waiting for it.
  * - Disabling snapshots, changing the ownership, a published stream's topic, or dropping its state breaks; so does a
- *   subscription changing its kind, function or source stream, or no longer deriving a command.
+ *   subscription changing its kind, function or source stream, no longer deriving a command, or an `@OnRejected` /
+ *   `@OnCommitted` handler no longer taking a command's receipts; a removed `@OnCommitted` handler is a removed
+ *   subscription, and an added one additive.
  * - Descriptions, the state fingerprint (derived from the schema), query indexes, schedules, retry budgets and start
  *   positions are not contract and are not compared.
  */
@@ -336,6 +338,24 @@ private class Changes(val schemas: SchemaCompatibility) {
                 "$path.derives",
                 if (newDerives == null) "derived commands no longer declared" else "derived commands declared"
             )
+        }
+        compareReceipts("$path.rejected", baseline.rejected, current.rejected, "rejections")
+        compareReceipts("$path.committed", baseline.committed, current.committed, "commits")
+    }
+
+    /**
+     * The commands an `@OnRejected` or `@OnCommitted` handler takes the receipts of (decisions D136, D192): null when
+     * the handler takes none, empty for any command its saga derives. A handler that stops taking a kind of receipt,
+     * or a command's, breaks; one that starts, or widens to any command, is additive.
+     */
+    private fun compareReceipts(path: String, baseline: List<String>?, current: List<String>?, receipts: String) {
+        when {
+            baseline == current -> Unit
+            current == null -> breaking(path, "no longer handles $receipts")
+            baseline == null -> additive(path, "handles $receipts")
+            current.isEmpty() -> additive(path, "handles the $receipts of any derived command")
+            baseline.isEmpty() -> breaking(path, "handles the $receipts of $current only, not of any derived command")
+            else -> compareValues(path, baseline, current, "command with handled $receipts")
         }
     }
 

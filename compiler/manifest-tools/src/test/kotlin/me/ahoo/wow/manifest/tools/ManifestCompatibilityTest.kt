@@ -69,6 +69,14 @@ class ManifestCompatibilityTest {
             derives = listOf("shop.cart.Checkout"),
         )
 
+        private val COMMITTED = SubscriptionManifest(
+            name = "CheckoutSaga.onCommitted",
+            kind = SubscriptionKind.SAGA,
+            source = SubscriptionSource(),
+            function = FunctionManifest(FunctionKind.SAGA, "shop", "CheckoutSaga", "onCommitted"),
+            committed = listOf("shop.cart.Checkout", "shop.cart.Clear"),
+        )
+
         val BASELINE = Manifest(
             service = ServiceInfo("shop-service", "10.1.0"),
             contexts = listOf(
@@ -377,6 +385,23 @@ class ManifestCompatibilityTest {
                 "ADDITIVE $CONTEXT.subscriptions[CartProjector.onItemAdded].derives: derived commands no longer declared",
             ),
             row(
+                "committed handler added",
+                BASELINE.context {
+                    it.copy(subscriptions = it.subscriptions + COMMITTED)
+                },
+                "ADDITIVE $CONTEXT.subscriptions[CheckoutSaga.onCommitted]: subscription added",
+            ),
+            row(
+                "commits handled",
+                BASELINE.subscription { it.copy(committed = listOf("shop.cart.Checkout")) },
+                "ADDITIVE $CONTEXT.subscriptions[CartProjector.onItemAdded].committed: handles commits",
+            ),
+            row(
+                "rejections handled",
+                BASELINE.subscription { it.copy(rejected = emptyList()) },
+                "ADDITIVE $CONTEXT.subscriptions[CartProjector.onItemAdded].rejected: handles rejections",
+            ),
+            row(
                 "stream topic changed",
                 BASELINE.published { it.copy(topic = "cart") },
                 "BREAKING $CONTEXT.published[cart].topic: topic changed from wow.shop.cart.state to cart",
@@ -439,6 +464,35 @@ class ManifestCompatibilityTest {
         changes(BASELINE.context { it.copy(subscriptions = emptyList()) }, BASELINE)
             .assert().containsExactly("ADDITIVE $CONTEXT.subscriptions[CartProjector.onItemAdded]: subscription added")
         changes(BASELINE.copy(service = null), BASELINE).assert().isEmpty()
+    }
+
+    @Test
+    fun `a committed handler's receipts should be classified`() {
+        val saga = "$CONTEXT.subscriptions[CheckoutSaga.onCommitted]"
+        val baseline = BASELINE.context { it.copy(subscriptions = it.subscriptions + COMMITTED) }
+        fun changes(committed: List<String>?) = ManifestCompatibility.compare(
+            baseline,
+            baseline.subscription { if (it.name == COMMITTED.name) it.copy(committed = committed) else it },
+        ).changes.map { it.toString() }
+
+        ManifestCompatibility.compare(baseline, BASELINE).changes.map { it.toString() }
+            .assert().containsExactly("BREAKING $saga: subscription removed")
+        changes(COMMITTED.committed).assert().isEmpty()
+        changes(listOf("shop.cart.Checkout", "shop.cart.Pay")).assert().containsExactlyInAnyOrder(
+            "BREAKING $saga.committed: command with handled commits shop.cart.Clear removed",
+            "ADDITIVE $saga.committed: command with handled commits shop.cart.Pay added",
+        )
+        changes(
+            emptyList()
+        ).assert().containsExactly("ADDITIVE $saga.committed: handles the commits of any derived command")
+        changes(null).assert().containsExactly("BREAKING $saga.committed: no longer handles commits")
+        ManifestCompatibility.compare(
+            baseline.subscription { if (it.name == COMMITTED.name) it.copy(committed = emptyList()) else it },
+            baseline,
+        ).changes.map { it.toString() }.assert().containsExactly(
+            "BREAKING $saga.committed: handles the commits of [shop.cart.Checkout, shop.cart.Clear] only, not of " +
+                "any derived command",
+        )
     }
 
     @Test
