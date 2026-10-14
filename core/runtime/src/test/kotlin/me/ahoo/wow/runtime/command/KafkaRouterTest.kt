@@ -186,13 +186,15 @@ class KafkaRouterTest {
         // the checkpoint the dead node never moved.
         val survivor = StockItems().apply { broken = false }
         stockNode("stock-2", survivor).start()
-        eventually(30.seconds) { survivor.decided.toSet() == accepted.map { it.commandId }.toSet() }
-        doomed.decided.assert().isEmpty()
+        // A command is decided before its events are appended: wait for the commits, not for the decisions.
         val log = backends.backends(STOCK).log
+        eventually(30.seconds) { accepted.none { log.read(it.ref).toList().isEmpty() } }
         accepted.forEach { result ->
             val streams = log.read(result.ref).toList()
             streams.single().commandId.assert().isEqualTo(result.commandId)
         }
+        survivor.decided.toSet().assert().isEqualTo(accepted.map { it.commandId }.toSet())
+        doomed.decided.assert().isEmpty()
     }
 
     @Test
