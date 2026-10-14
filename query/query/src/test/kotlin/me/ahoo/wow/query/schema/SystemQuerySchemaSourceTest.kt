@@ -93,6 +93,7 @@ class SystemQuerySchemaSourceTest {
             SnapshotFields.LAST_EVENT_TIME,
             SnapshotFields.OPERATOR,
             SnapshotFields.FIRST_OPERATOR,
+            SnapshotFields.SCHEDULES,
             SnapshotFields.STATE,
         )
         fields.forEach { (field, declaration) ->

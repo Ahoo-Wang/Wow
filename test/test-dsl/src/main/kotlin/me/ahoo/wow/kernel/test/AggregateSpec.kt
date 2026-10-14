@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.schedule.ScheduleCancelled
@@ -31,6 +32,7 @@ import me.ahoo.wow.kernel.InMemoryReservationStore
 import me.ahoo.wow.kernel.InMemoryTimerStore
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.StateCache
+import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -61,7 +63,9 @@ import kotlin.time.Duration
  * Time stands still at [start] until [AggregateSpec.advanceTime] moves it: the commit times, and the due times of
  * the commands the aggregate schedules (decision D198), are read from it. Advancing the time sends the aggregate the
  * commands it scheduled for itself that are then due, as the runtime would, each with its timer's request id
- * (`timer#slot`) and its slot ([me.ahoo.wow.api.decide.Command.schedule]):
+ * (`timer#slot`) and its slot ([me.ahoo.wow.api.decide.Command.schedule]). A cron rule steps through its slots as the
+ * runtime's firing loop does: advancing past several of them sends only the latest, the others counted as skipped,
+ * unless the rule catches up ([me.ahoo.wow.api.schedule.Misfire.CATCH_UP]), which sends each in turn:
  *
  * ```kotlin
  * aggregateSpec(orderModel) {
@@ -165,7 +169,9 @@ class AggregateSpec<S : Any>(
         val fired = ArrayList<Result<CommandOutcome>>()
         runBlocking {
             while (true) {
-                val timer = dueTimers(millis).firstOrNull() ?: break
+                val loaded = dueTimers(millis).firstOrNull() ?: break
+                // A recurring slot past due by more than one time of its rule is caught up as its misfire policy says.
+                val timer = ScheduleSlots.caughtUp(loaded, millis)
                 val type = requireNotNull(model.findCommandType(timer.commandType)) {
                     "${model.type} has no command ${timer.commandType}, which the timer ${timer.id} sends."
                 }
@@ -179,7 +185,9 @@ class AggregateSpec<S : Any>(
                     headers = timer.headers + timer.context.headers(),
                 )
                 val outcome = execute(command)
-                timers.settle(listOf(TimerChange(timer, timer.copy(status = TimerStatus.FIRED, attempts = 1))))
+                // A recurring timer moves on to its next slot; one due once is done.
+                val next = ScheduleSlots.afterFired(timer, millis) ?: timer.copy(status = TimerStatus.FIRED, attempts = 1)
+                timers.settle(listOf(TimerChange(loaded, next)))
                 fired += outcome
             }
         }
@@ -208,7 +216,7 @@ class AggregateSpec<S : Any>(
         }
         stream.events.filter { it.name in Schedules.EVENTS }.forEach { record ->
             when (val event = codec.decode(model, record)) {
-                is ScheduleSet -> timers.put(Timers.of(stream, event, PARTITIONS))
+                is ScheduleSet -> timers.put(ScheduleSlots.timerOf(stream, event, PARTITIONS))
                 is ScheduleCancelled -> timers.cancel(owner, event.key, stream.version.toLong())
             }
         }
@@ -258,8 +266,9 @@ class AggregateSpec<S : Any>(
     }
 
     /**
-     * Sends [command], from a caller in [scope], through the kernel and checks its outcome in [expect]. An exception
-     * the decide function throws fails the specification, unless [expect] checks it with
+     * Sends [command], from a caller in [scope], with the request facts [headers] (a scheduled command's
+     * [me.ahoo.wow.api.schedule.ScheduleContext.headers], say), through the kernel and checks its outcome in [expect].
+     * An exception the decide function throws fails the specification, unless [expect] checks it with
      * [Expectations.expectError].
      */
     fun whenCommand(
@@ -267,11 +276,30 @@ class AggregateSpec<S : Any>(
         requestId: String = "request-${++sequence}",
         expectedVersion: Int? = null,
         scope: Scope = Scope.NONE,
+        headers: Map<String, String> = emptyMap(),
         expect: Expectations<S>.() -> Unit,
     ) {
-        val result = send(Command("command-${++sequence}", requestId, ref, command, expectedVersion, scope))
+        val result = send(
+            Command("command-${++sequence}", requestId, ref, command, expectedVersion, scope, headers = headers),
+        )
         verify(result, expect)
     }
+
+    /**
+     * Sends [body] as a command of [operator], and gives back its outcome unchecked: for the specifications built on
+     * this one, such as [ScheduleSpec].
+     */
+    internal fun sendCommand(body: Any, operator: Operator? = null): Result<CommandOutcome> =
+        send(Command("command-${++sequence}", "request-$sequence", ref, body, operator = operator))
+
+    /** Moves the time on by [duration] as [advanceTime] does, and gives back the outcome of each command sent. */
+    internal fun advanceAndSend(duration: Duration): List<Result<CommandOutcome>> = tick(duration)
+
+    /** The aggregate's committed state now. */
+    internal fun stateOf(): S = currentState(currentVersion())
+
+    /** The events of [stream], one of this aggregate's, decoded. */
+    internal fun decoded(stream: EventStreamRecord): List<Any> = stream.events.map { codec.decode(model, it) }
 
     private fun send(command: Command<*>): Result<CommandOutcome> {
         steps += { send(command) }

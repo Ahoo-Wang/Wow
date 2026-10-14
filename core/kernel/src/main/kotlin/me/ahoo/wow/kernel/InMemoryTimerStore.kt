@@ -68,6 +68,7 @@ class InMemoryTimerStore : TimerStore {
                 status = next.status,
                 slot = next.slot,
                 slotDueAt = next.slotDueAt,
+                skipped = next.skipped,
                 dueAt = next.dueAt,
                 attempts = next.attempts,
                 outcome = next.outcome,

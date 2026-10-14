@@ -13,10 +13,14 @@
 
 package me.ahoo.wow.postgres.timer
 
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.postgres.PostgresFormat
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.postgres.PostgresFixture
+import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerStore
 import me.ahoo.wow.spi.timer.TimerStoreSpec
 import org.junit.jupiter.api.Test
@@ -50,6 +54,34 @@ class PostgresTimerStoreTest : TimerStoreSpec() {
             }
         }
         assertThrownBy<IllegalStateException> { PostgresTimerStore(PostgresFixture.dataSource, context).createSchema() }
+    }
+
+    @Test
+    fun `a table created before the skipped count gets it, each timer having skipped none`(): Unit = runBlocking {
+        val context = PostgresFixture.newContext("timer")
+        val tables = PostgresTimerTables(context)
+        PostgresTimerStore(PostgresFixture.dataSource, context).createSchema()
+        PostgresFixture.dataSource.connection.use { connection ->
+            connection.createStatement().use { it.execute("ALTER TABLE ${tables.table} DROP COLUMN skipped") }
+        }
+        val store = PostgresTimerStore(PostgresFixture.dataSource, context).also { it.createSchema() }
+        val ref = AggregateType("shop", "order").ref("t", "o-1")
+        val timer = Timer(
+            id = "$ref#k@1",
+            owner = ref.toString(),
+            key = "k",
+            version = 1,
+            partition = 0,
+            rule = ScheduleRule.Cron("0 0 0 1 * *"),
+            dueAt = 5,
+            target = ref,
+            commandType = "shop.order.Invoice",
+            body = "{}",
+            slot = 4,
+            skipped = 3,
+        )
+        store.put(timer).assert().isTrue()
+        store.find(timer.owner, "k")?.skipped.assert().isEqualTo(3L)
     }
 
     private companion object {

@@ -32,6 +32,7 @@ import me.ahoo.wow.kernel.RejectionBinding
 import me.ahoo.wow.kernel.committedContextOf
 import me.ahoo.wow.kernel.contextOf
 import me.ahoo.wow.kernel.rejectionContextOf
+import me.ahoo.wow.kernel.schedule.JobState
 import kotlin.reflect.KClass
 
 /**
@@ -242,6 +243,21 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
         verify(ProcessorExpectations(listOf(onCommitted.name), call(), call), expect)
     }
 
+    /**
+     * Hands each of [events] to the handlers that read it, in order, as [whenEvent] does, and checks what they did
+     * together in [expect]: the commands of every handling, in order. [ScheduleSpec] hands the ticks of a time step so.
+     */
+    internal fun whenEvents(events: List<StateEvent<*>>, expect: ProcessorExpectations.() -> Unit) {
+        val called = events.map { event -> event to handlers.filter { reads(it, event) } }
+        val call = {
+            runCatchingAll {
+                Handled(called.flatMap { (event, readers) -> handle(readers, event).getOrThrow().commands })
+            }
+        }
+        val names = called.flatMap { (_, readers) -> readers.map { it.name } }.distinct()
+        verify(ProcessorExpectations(names, call(), call), expect)
+    }
+
     private fun verify(expectations: ProcessorExpectations, expect: ProcessorExpectations.() -> Unit) {
         expectations.expect()
         expectations.verify()
@@ -283,8 +299,12 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
     internal data class Handled(val commands: List<Command<*>>)
 
     private companion object {
-        /** Whether [handler]'s subscription hands it [event]. */
+        /** Whether [handler]'s subscription hands it [event]; a job's handler only its own job's ticks. */
         fun reads(handler: ProcessorBinding<*>, event: StateEvent<*>): Boolean {
+            val job = handler.job
+            if (job != null) {
+                return (event.state as? JobState)?.job == job.name
+            }
             if (handler.aggregates.isNotEmpty()) {
                 return event.ref.type.toString() in handler.aggregates
             }

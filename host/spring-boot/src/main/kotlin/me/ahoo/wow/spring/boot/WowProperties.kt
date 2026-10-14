@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.http.ops.WebhookNotifier
@@ -23,6 +24,7 @@ import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
+import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RetryPolicy
@@ -79,6 +81,9 @@ import kotlin.time.toKotlinDuration
  * - `wow.timers.poll-interval` (1s), `lookahead` (30s), `max-attempts` (10), `expires-after` (none), `parallelism`
  *   (64), `max-fire-rate` (none, per partition and second), `claim-timeout` (30s), `max-early-wait` (5s): the
  *   node's firing loop of the scheduled commands (decision D166), see [Timers].
+ * - `wow.schedules.<job>.expression`, `zone`, `misfire` (`coalesce` or `catch-up`), `enabled` (true): the host's
+ *   override of an `@OnSchedule` job's rule (decision D198), see [Schedule]; a job no handler of the node runs fails
+ *   its start.
  * - `wow.tenant.default`: the tenant of a caller that has none (D97).
  * - `wow.http.request-facts`, `wow.http.errors.[<code>].status`, `wow.http.manifest.enabled`.
  * - `wow.aggregates.[<context>.<aggregate>].tenant`: a fixed tenant per aggregate type (decision D116);
@@ -105,6 +110,9 @@ class WowProperties {
     /** Per subscription, by its name (bracketed in a property name: `wow.subscriptions.[CartSaga.onOrderCreated]`). */
     var subscriptions: MutableMap<String, SubscriptionSettings> = LinkedHashMap()
     var timers: Timers = Timers()
+
+    /** Per `@OnSchedule` job, by its name: `wow.schedules.<job>.*` (decision D198). */
+    var schedules: MutableMap<String, Schedule> = LinkedHashMap()
     var tenant: Tenant = Tenant()
     var http: Http = Http()
     var ops: Ops = Ops()
@@ -441,6 +449,20 @@ class WowProperties {
             claimTimeout = claimTimeout.toKotlinDuration(),
             maxEarlyWait = maxEarlyWait.toKotlinDuration(),
         )
+    }
+
+    /**
+     * The host's override of an `@OnSchedule` job's default rule (decision D198): its cron [expression], its time
+     * [zone] and its [misfire] policy, each unset to keep the annotation's; [enabled] false disables a SYSTEM job's
+     * instances at startup. A tenant's own rule of a TENANT job comes before it.
+     */
+    class Schedule {
+        var expression: String? = null
+        var zone: String? = null
+        var misfire: Misfire? = null
+        var enabled: Boolean = true
+
+        fun options(): JobOptions = JobOptions(expression, zone, misfire, enabled)
     }
 
     /**

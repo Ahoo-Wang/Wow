@@ -98,12 +98,22 @@ open class SnapshotProperties protected constructor() {
     @JvmField
     val FIRST_OPERATOR__CROSS_SCOPE: QueryField = QueryField("firstOperator.crossScope")
 
+    /**
+     * The schedules the aggregate keeps (decision D198): each rule by its key, `{type, ...}` as Wow's JSON writes it
+     * (`{type: "cron", expression, zone, misfire}`); [schedule] names one.
+     */
+    @JvmField
+    val SCHEDULES: QueryField = QueryField("schedules")
+
     /** The aggregate's state. */
     @JvmField
     val STATE: QueryField = QueryField("state")
 
     /** The tag [name] of [TAGS]: `tags.<name>`. */
     fun tag(name: String): QueryField = TAGS.append(QueryField(name))
+
+    /** The schedule [key] of [SCHEDULES]: `schedules.<key>`, its rule. */
+    fun schedule(key: String): QueryField = SCHEDULES.append(QueryField(key))
 
     /** The system fields alone. */
     companion object : SnapshotProperties()

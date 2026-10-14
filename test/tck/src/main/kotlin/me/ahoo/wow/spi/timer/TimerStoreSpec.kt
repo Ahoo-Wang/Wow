@@ -277,6 +277,70 @@ abstract class TimerStoreSpec {
     private fun Timer.claimed(deadline: Long = DUE + CLAIM) = copy(status = TimerStatus.FIRING, dueAt = deadline)
 
     @Test
+    fun `a monthly timer advances slot after slot, each written from the claim of the one before`(): Unit =
+        runBlocking {
+            val timer = timer(key = "invoice", dueAt = FEBRUARY, rule = MONTHLY)
+            store.put(timer)
+            var loaded = store.due(partitions, FEBRUARY, LIMIT).single()
+            listOf(MARCH, APRIL, MAY).forEachIndexed { index, nextDue ->
+                val claimed = loaded.claimed(loaded.slotDueAt + CLAIM)
+                settle(loaded, claimed).assert().isTrue()
+                val advanced = claimed.copy(
+                    status = TimerStatus.PENDING,
+                    slot = claimed.slot + 1,
+                    slotDueAt = nextDue,
+                    dueAt = nextDue,
+                    attempts = 0,
+                    outcome = TimerOutcomes.COMMITTED,
+                )
+                settle(claimed, advanced).assert().isTrue()
+                // The slot sent is not sent again: a second outcome of its claim does nothing.
+                settle(claimed, advanced.copy(slot = advanced.slot + 1)).assert().isFalse()
+                store.due(partitions, nextDue - 1, LIMIT).assert().isEmpty()
+                loaded = store.due(partitions, nextDue, LIMIT).single()
+                loaded.assert().isEqualTo(advanced)
+                loaded.slot.assert().isEqualTo(index + 2L)
+                loaded.requestId.assert().isEqualTo("${timer.id}#${index + 2}")
+                loaded.context.due.assert().isEqualTo(nextDue)
+            }
+            loaded.status.assert().isEqualTo(TimerStatus.PENDING)
+        }
+
+    @Test
+    fun `a claim long past due coalesces the missed slots, and the skipped count holds through retries`(): Unit =
+        runBlocking {
+            val timer = timer(key = "invoice", dueAt = FEBRUARY, rule = MONTHLY)
+            store.put(timer)
+            // Claimed on May 2nd: February to April are skipped, May's slot is sent.
+            val coalesced = timer.copy(slot = 4, slotDueAt = MAY, skipped = 3).claimed(MAY + DAY + CLAIM)
+            settle(timer, coalesced).assert().isTrue()
+            store.find(owner, "invoice").assert().isEqualTo(coalesced)
+            val retried = coalesced.copy(status = TimerStatus.PENDING, attempts = 1, dueAt = MAY + DAY + 5)
+            settle(coalesced, retried).assert().isTrue()
+            val loaded = store.due(partitions, MAY + DAY + 5, LIMIT).single()
+            loaded.skipped.assert().isEqualTo(3L)
+            loaded.context.skipped.assert().isEqualTo(3L)
+            loaded.context.slot.assert().isEqualTo(4L)
+            val reclaimed = loaded.claimed(MAY + DAY + 2 * CLAIM)
+            settle(loaded, reclaimed).assert().isTrue()
+            val june = reclaimed.copy(
+                status = TimerStatus.PENDING,
+                slot = 5,
+                slotDueAt = JUNE,
+                dueAt = JUNE,
+                skipped = 0,
+                attempts = 0,
+                outcome = TimerOutcomes.COMMITTED,
+            )
+            settle(reclaimed, june).assert().isTrue()
+            store.find(owner, "invoice").assert().isEqualTo(june)
+            // A timer put with skipped slots, as a rebuilt store writes it, reads back so.
+            val rebuilt = timer(key = "rebuilt", rule = MONTHLY).copy(slot = 7, skipped = 2)
+            store.put(rebuilt).assert().isTrue()
+            store.find(owner, "rebuilt").assert().isEqualTo(rebuilt)
+        }
+
+    @Test
     fun `a timer cancelled between the poll and its claim is not claimed`(): Unit = runBlocking {
         val timer = timer()
         store.put(timer)
@@ -409,5 +473,14 @@ abstract class TimerStoreSpec {
         const val DUE = 1_700_000_000_000L
         const val HOUR = 3_600_000L
         const val CLAIM = 30_000L
+        const val DAY = 86_400_000L
+        val MONTHLY = ScheduleRule.Cron("0 0 0 1 * *")
+
+        /** The first of each month of 2026, 00:00 UTC: the slots of [MONTHLY]. */
+        const val FEBRUARY = 1_769_904_000_000L
+        const val MARCH = 1_772_323_200_000L
+        const val APRIL = 1_775_001_600_000L
+        const val MAY = 1_777_593_600_000L
+        const val JUNE = 1_780_272_000_000L
     }
 }

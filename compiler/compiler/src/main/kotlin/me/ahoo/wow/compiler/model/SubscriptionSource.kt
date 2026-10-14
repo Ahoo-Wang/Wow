@@ -28,7 +28,8 @@ package me.ahoo.wow.compiler.model
  *   their success receipts. A handler names the aggregates of its `@OnEvent(aggregates)`, so one of another context's
  *   (decision D138) reads their published streams (decision D134), and says whether its state is nullable
  *   (`StateEvent<S?>`, `StateEvent<*>`; decision D140), and its `@Retry` budget, merged with its processor's
- *   (`HandlerRetry`, roadmap P.3), which the runtime's per-subscription retry and timeout apply;
+ *   (`HandlerRetry`, roadmap P.3), which the runtime's per-subscription retry and timeout apply. A saga's
+ *   `@OnSchedule` handler (decision D198) is bound with `ProcessorBinding.schedule`, its job's rule as declared;
  * - per module, the model provider's `processors` lists them all ([ModelProviderSource]).
  */
 internal object SubscriptionSource {
@@ -36,6 +37,7 @@ internal object SubscriptionSource {
     private const val PROCESSOR_BINDING = "$KERNEL.ProcessorBinding"
     private const val DEPENDENCIES = "$KERNEL.Dependencies"
     private const val STATE_EVENT = "me.ahoo.wow.api.subscribe.StateEvent"
+    private const val SCHEDULE = "me.ahoo.wow.api.schedule"
 
     /** The handlers of [binding], a processor without problems. */
     fun render(binding: SubscriptionBinding): String = buildString {
@@ -88,6 +90,11 @@ internal object SubscriptionSource {
         rejections: Boolean,
         commits: Boolean,
     ) {
+        val job = handler.job
+        if (job != null) {
+            renderJob(binding, handler, job, rejections, commits)
+            return
+        }
         // A star projection's state is nullable by default; a named state says so only when it is.
         val nullable = handler.state != null && handler.nullableState
         val state = handler.state?.let { if (nullable) "$it?" else it } ?: "Any"
@@ -122,6 +129,36 @@ internal object SubscriptionSource {
         }
         handler.retry?.let { append(", retry = ${it.source()}") }
         handler.start?.let { append(", startFrom = $KERNEL.StartFrom.$it") }
+    }
+
+    /**
+     * A saga's `@OnSchedule` handler (decision D198): `ProcessorBinding.schedule` of its [job], whose handle calls the
+     * function with the tick and, if it takes it, the saga's context.
+     */
+    private fun StringBuilder.renderJob(
+        binding: SubscriptionBinding,
+        handler: HandlerBinding,
+        job: JobBinding,
+        rejections: Boolean,
+        commits: Boolean,
+    ) {
+        val arguments = if (handler.context) "tick, context" else "tick"
+        val call = "processor.${handler.function}($arguments)"
+        val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
+        val rule = "$SCHEDULE.ScheduleRule.Cron(\"${escape(job.cron)}\", \"${escape(job.zone)}\", " +
+            "$SCHEDULE.Misfire.${job.misfire})"
+        val definition = "$KERNEL.schedule.ScheduleJob(\"${escape(job.name)}\", $rule, " +
+            "$SCHEDULE.JobScope.${job.scope}, ${job.sharded})"
+        val receipts = (if (rejections) ", rejections = rejections" else "") +
+            if (commits) ", commits = commits" else ""
+        val retry = handler.retry?.let { ", retry = ${it.source()}" }.orEmpty()
+        appendLine(
+            "        $PROCESSOR_BINDING.schedule(\"${escape(binding.name)}\", \"${handler.function}\", $definition, " +
+                "${handler.blocking}$receipts$retry) {",
+        )
+        appendLine("                tick: $SCHEDULE.ScheduleTick, ${if (handler.context) "context" else "_"} ->")
+        appendLine("            $KERNEL.derivedOf($awaited)")
+        appendLine("        },")
     }
 
     /**

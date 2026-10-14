@@ -29,6 +29,7 @@ import me.ahoo.wow.api.lifecycle.TransferOwner
 import me.ahoo.wow.api.lifecycle.TransferSpace
 import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.schedule.ScheduleCancelled
+import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleSet
 import me.ahoo.wow.api.schedule.Schedules
@@ -59,12 +60,17 @@ internal object KernelLifecycle {
         ) { _, body -> decide((this as MetadataScope).loaded, body, command.ref) }
     }
 
-    /** The system name of [type], a lifecycle or schedule command or event, or null when it is none of them. */
-    fun systemNameOf(type: Class<*>): String? = Lifecycle.nameOf(type) ?: Schedules.nameOf(type)
+    /**
+     * The system name of [type], a lifecycle, schedule or job command or event (the jobs' only the built-in job
+     * aggregate takes, decision D198), or null when it is none of them.
+     */
+    fun systemNameOf(type: Class<*>): String? =
+        Lifecycle.nameOf(type) ?: Schedules.nameOf(type) ?: ScheduleJobs.nameOf(type)
 
-    /** Whether [name] is in the system namespace, which only the lifecycle and schedule types take. */
+    /** Whether [name] is in the system namespace, which only the lifecycle, schedule and job types take. */
     fun isSystemName(name: String): Boolean =
-        name.startsWith("${Lifecycle.NAMESPACE}.") || name in Schedules.COMMANDS || name in Schedules.EVENTS
+        name.startsWith("${Lifecycle.NAMESPACE}.") || name in Schedules.COMMANDS || name in Schedules.EVENTS ||
+            name in ScheduleJobs.COMMANDS || name in ScheduleJobs.EVENTS
 
     /**
      * Decides lifecycle command [body] on the metadata of [loaded]. A command that would change nothing is a no-op;

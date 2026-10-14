@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.command.CommandHandler
@@ -61,6 +62,7 @@ import org.springframework.web.reactive.function.server.coRouter
  *   does `POST /{context}/{aggregate}/{command}` for each command that [gateway] transforms (decision D182) and the
  *   Manifest gives no route without an id: its transformer finds the aggregate. The Manifest the node serves lists
  *   that route too;
+ * - the job commands of each context whose Manifest has jobs (decision D198): `POST /{context}/schedule/{id}/wow.schedule.<kebab>`;
  * - the lifecycle commands each aggregate lists (decision D113): `DELETE /{context}/{aggregate}/{id}` sends
  *   `DeleteAggregate`, `POST /{context}/{aggregate}/{id}/wow.lifecycle.<kebab>` the others;
  * - `GET /{context}/{aggregate}/{id}/state`, `?version=`, `?at=` and `GET …/{id}/state/trace` read [reads]
@@ -133,6 +135,9 @@ fun wowRoutes(
                 GET("$state/${WowPaths.TRACE}") { request -> statuses.answering { states.trace(request, type) } }
                 queryRoutes(type, aggregate, queries, queryHandler)
             }
+            if (context.subscriptions.any { it.job != null }) {
+                jobRoutes(context.name, commands, statuses)
+            }
         }
         manifest.contexts.map { it.name }.distinct().forEach { context ->
             path("/$context/**").invoke { request ->
@@ -190,6 +195,21 @@ private fun CoRouterFunctionDsl.commandRoutes(
             POST("$base/${CommandRoutes.segment(name)}") { request ->
                 statuses.answering { handler.handle(request, target) }
             }
+        }
+    }
+}
+
+/**
+ * The routes of the job commands of [context]'s built-in job aggregate (decision D198), when its Manifest has jobs:
+ * `POST /{context}/schedule/{id}/wow.schedule.enable`, `.../wow.schedule.reschedule` and `.../wow.schedule.disable`,
+ * the instance's id being the job's name. They are sent through the gateway like any command, so its authorizer
+ * (CoSec's, by the action of the route) decides who may enable, reschedule or disable a job in their tenant.
+ */
+private fun CoRouterFunctionDsl.jobRoutes(context: String, handler: CommandHandler, statuses: ErrorStatuses) {
+    listOf(ScheduleJobs.ENABLE, ScheduleJobs.RESCHEDULE, ScheduleJobs.DISABLE).forEach { name ->
+        val target = CommandTarget(context, ScheduleJobs.AGGREGATE, name, byId = true)
+        POST(CommandRoutes.byIdPath(context, ScheduleJobs.AGGREGATE, name)) { request ->
+            statuses.answering { handler.handle(request, target) }
         }
     }
 }
