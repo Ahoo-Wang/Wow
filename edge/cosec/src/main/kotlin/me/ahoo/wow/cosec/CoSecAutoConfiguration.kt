@@ -34,8 +34,9 @@ import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
  * that this module imports no Spring Boot type (only the host does).
  *
  * - [CoSecCallerResolver] is the host's [CallerResolver] unless the application has one: the host's anonymous
- *   default steps aside. Its options are `wow.tenant.default` and `wow.cosec.cross-scope.roles` /
- *   `wow.cosec.cross-scope.policies` (comma-separated or indexed lists).
+ *   default steps aside. Its options are `wow.tenant.default`, `wow.cosec.cross-scope.roles` /
+ *   `wow.cosec.cross-scope.policies` and `wow.cosec.tenant-level.roles` / `wow.cosec.tenant-level.policies` (the
+ *   tenant-level callers, decision D189), comma-separated or indexed lists.
  * - The CoSec request facts ([CoSecRequestFacts]) join the edge's request-fact list (`wow.http.request-facts`).
  * - [CoSecCommandAuthorizer] is the host's [CommandAuthorizer] when `wow.cosec.authorizer.enabled` is true, the
  *   application has CoSec's `Authorization` and no authorizer of its own. On the public port CoSec's WebFilter
@@ -73,6 +74,8 @@ class CoSecAutoConfiguration {
         const val PREFIX: String = "wow.cosec"
         const val CROSS_SCOPE_ROLES: String = "$PREFIX.cross-scope.roles"
         const val CROSS_SCOPE_POLICIES: String = "$PREFIX.cross-scope.policies"
+        const val TENANT_ROLES: String = "$PREFIX.tenant-level.roles"
+        const val TENANT_POLICIES: String = "$PREFIX.tenant-level.policies"
         const val AUTHORIZER_ENABLED: String = "$PREFIX.authorizer.enabled"
         const val DEFAULT_TENANT: String = "wow.tenant.default"
 
@@ -88,6 +91,8 @@ class CoSecAutoConfiguration {
             defaultTenant = defaultTenant(environment),
             crossScopeRoles = environment.list(CROSS_SCOPE_ROLES),
             crossScopePolicies = environment.list(CROSS_SCOPE_POLICIES),
+            tenantRoles = environment.list(TENANT_ROLES),
+            tenantPolicies = environment.list(TENANT_POLICIES),
         )
 
         private fun defaultTenant(environment: Environment): String =

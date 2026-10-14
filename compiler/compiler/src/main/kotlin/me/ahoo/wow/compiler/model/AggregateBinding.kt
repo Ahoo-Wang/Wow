@@ -48,6 +48,8 @@ internal data class AggregateBinding(
     val publication: Publication = Publication(),
     /** The `@MountedCommand`s mounted under it (decision D182). */
     val mounted: List<MountedBinding> = emptyList(),
+    /** `@AggregateRoot(ownership)`: the name of its `Ownership` entry (decision D189), `OWNER` by default. */
+    val ownership: String = "OWNER",
 ) {
     /** Whether `@AggregateRoot(lifecycle)` narrows the lifecycle commands, which the generated model then says. */
     val narrowsLifecycle: Boolean get() = lifecycle != ALL_LIFECYCLE_COMMANDS

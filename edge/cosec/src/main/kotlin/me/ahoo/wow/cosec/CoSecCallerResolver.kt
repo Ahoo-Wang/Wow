@@ -30,6 +30,9 @@ import org.springframework.web.reactive.function.server.ServerRequest
  * - [defaultTenant] is the tenant of a principal in CoSec's default tenant, `(0)` (decision D97).
  * - A principal acts across scopes ([Caller.crossScope], decision D95) when it has one of [crossScopeRoles] or one of
  *   [crossScopePolicies], compared whole (`admin@s1`, a role in space `s1`, is not `admin`).
+ * - A principal is a tenant-level caller (decision D189) when it has one of [tenantRoles] or one of
+ *   [tenantPolicies], compared whole: its caller has no owner, so it reads and writes every aggregate of its tenant,
+ *   each action still authorized by CoSec. Any other principal is an owner-level caller, its own owner.
  * - The principal's attributes whose key starts with [attributePrefix] are its ABAC attributes.
  */
 data class CoSecCallerOptions(
@@ -37,6 +40,8 @@ data class CoSecCallerOptions(
     val crossScopeRoles: Set<String> = emptySet(),
     val crossScopePolicies: Set<String> = emptySet(),
     val attributePrefix: String = ABAC_PREFIX,
+    val tenantRoles: Set<String> = emptySet(),
+    val tenantPolicies: Set<String> = emptySet(),
 ) {
     init {
         require(defaultTenant.isNotBlank()) { "The default tenant is not blank." }
@@ -55,7 +60,10 @@ data class CoSecCallerOptions(
  *
  * - **Unauthenticated**: no security context, or an anonymous principal, is no caller: the edge answers 401.
  * - **Tenant**: the security context's; CoSec's default tenant `(0)` is [CoSecCallerOptions.defaultTenant].
- * - **Owner and subject**: the principal's id.
+ * - **Owner and subject**: the principal's id, the subject always. The owner is the principal's id for an owner-level
+ *   caller, and none for a tenant-level one ([CoSecCallerOptions.tenantRoles], [CoSecCallerOptions.tenantPolicies];
+ *   decision D189), such as an employee who ships every buyer's orders: the parts absent from a caller's scope are
+ *   not checked (decisions D94, D129).
  * - **Space** (decision D96): CoSec has no list of a principal's spaces; its spaced roles (`role@space`) are the
  *   spaces it belongs to. `Wow-Space` selects one of them; without it, the principal acts in its only space, or in
  *   none when it belongs to none or to several. A `Wow-Space` the principal does not belong to leaves the caller in
@@ -77,9 +85,14 @@ class CoSecCallerResolver(private val options: CoSecCallerOptions = CoSecCallerO
             return null
         }
         val tenant = context.tenant.tenantId.takeUnless { Tenant.isDefault(it) } ?: options.defaultTenant
+        val tenantLevel = principal.roles.any { it in options.tenantRoles } ||
+            principal.policies.any { it in options.tenantPolicies }
         return Caller(
             tenantId = tenant,
-            scope = Scope(ownerId = principal.id, spaceId = spaceOf(principal, requestedSpace?.trim())),
+            scope = Scope(
+                ownerId = principal.id.takeUnless { tenantLevel },
+                spaceId = spaceOf(principal, requestedSpace?.trim()),
+            ),
             subject = principal.id,
             crossScope = principal.roles.any { it in options.crossScopeRoles } ||
                 principal.policies.any { it in options.crossScopePolicies },

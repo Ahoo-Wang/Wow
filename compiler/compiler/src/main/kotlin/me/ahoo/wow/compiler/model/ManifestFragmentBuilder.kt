@@ -23,6 +23,7 @@ import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.FunctionKind
 import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.SnapshotManifest
@@ -173,6 +174,7 @@ internal object ManifestFragmentBuilder {
             lifecycle = binding.lifecycle,
             queries = QueryRoutes.queries(context, binding.aggregateName, snapshot.enabled),
             schedules = binding.commands.flatMap { it.schedules }.distinct().sorted().ifEmpty { null },
+            ownership = Ownership.valueOf(binding.ownership),
         )
     }
 

@@ -162,6 +162,42 @@ class ManifestTreeTest {
     }
 
     @Test
+    fun `a tenant-owned aggregate and a retry budget should come back, and the defaults be left out`() {
+        val aggregate = AggregateManifest(
+            "product",
+            state = StateManifest(Manifest.schemaRef("sample.Product")),
+            ownership = Ownership.TENANT,
+        )
+        val retry = RetryManifest(maxAttempts = 3, timeout = "PT2S")
+        val subscription = SubscriptionManifest(
+            "Notifier.onEvent",
+            SubscriptionKind.REACTOR,
+            SubscriptionSource(),
+            FunctionManifest(FunctionKind.REACT, "shop", "Notifier", "onEvent"),
+            retry = retry,
+        )
+        val manifest = Manifest(
+            contexts = listOf(
+                ContextManifest(
+                    "shop",
+                    aggregates = listOf(aggregate, aggregate.copy(name = "cart", ownership = Ownership.OWNER)),
+                    subscriptions = listOf(subscription, subscription.copy(name = "Notifier.other", retry = null)),
+                ),
+            ),
+        )
+        val tree = ManifestTree.write(manifest)
+        val context = (tree["contexts"] as List<*>).single() as Map<*, *>
+        val aggregates = (context["aggregates"] as List<*>).map { it as Map<*, *> }
+        aggregates[0]["ownership"].assert().isEqualTo("TENANT")
+        aggregates[1].containsKey("ownership").assert().isFalse()
+        val subscriptions = (context["subscriptions"] as List<*>).map { it as Map<*, *> }
+        subscriptions[0]["retry"].assert().isEqualTo(mapOf("maxAttempts" to 3, "timeout" to "PT2S"))
+        subscriptions[1].containsKey("retry").assert().isFalse()
+        val json = mapper.writeValueAsString(tree)
+        ManifestTree.read(mapper.readValue(json, Map::class.java)).assert().isEqualTo(manifest)
+    }
+
+    @Test
     fun `an error without a description should leave it out`() {
         val tree = ManifestTree.write(Manifest(errors = listOf(ErrorManifest("wow.x", 400))))
         tree["errors"].assert().isEqualTo(listOf(mapOf("code" to "wow.x", "status" to 400)))

@@ -103,6 +103,10 @@ data class ContextManifest(
  *
  * [schedules] names the commands the aggregate's decide functions may schedule (decision D166), each by its full type
  * name (`context.aggregate.Command`), as their `@OnCommand(schedules)` declare; null when none declares any.
+ *
+ * [ownership] is who the aggregate belongs to besides its tenant, as `@AggregateRoot(ownership)` declares it (decision
+ * D189): query admission restricts an owner-level caller's queries of an [Ownership.OWNER] aggregate to its owner, and
+ * not those of an [Ownership.TENANT] one.
  */
 data class AggregateManifest(
     val name: String,
@@ -114,7 +118,17 @@ data class AggregateManifest(
     val lifecycle: List<String> = emptyList(),
     val queries: List<QueryManifest> = emptyList(),
     val schedules: List<String>? = null,
+    val ownership: Ownership = Ownership.OWNER,
 )
+
+/** Who an aggregate belongs to besides its tenant (`me.ahoo.wow.api.aggregate.Ownership`, decision D189). */
+enum class Ownership {
+    /** The owner of the command that creates it, when that command has one. */
+    OWNER,
+
+    /** Its tenant alone: no owner is recorded, and no read is restricted by owner. */
+    TENANT,
+}
 
 /**
  * The aggregate's state: its [schema], and the [fingerprint] a snapshot written under it carries (design 03 §3);
@@ -204,6 +218,8 @@ data class EventManifest(
  *   unless the host configures another. Null on an `@OnRejected` handler, which reads no log.
  * - [schedules] names the commands a saga's handler may schedule (decision D166), each by its full type name, as its
  *   `@OnEvent(schedules)` declares; null when it declares none, and always for a projection or a reactor.
+ * - [retry] is the handler's own in-process retry budget, as its `@Retry` and its processor's declare it (roadmap
+ *   P.3): null when neither does. The host's `wow.subscriptions.[<name>].retry.*` overrides it, setting by setting.
  */
 data class SubscriptionManifest(
     val name: String,
@@ -214,6 +230,18 @@ data class SubscriptionManifest(
     val rejected: List<String>? = null,
     val start: SubscriptionStart? = null,
     val schedules: List<String>? = null,
+    val retry: RetryManifest? = null,
+)
+
+/**
+ * A subscription handler's in-process retry budget as `@Retry` declares it (roadmap P.3): each setting null when it
+ * is not given. Durations are ISO-8601 (`PT2S`).
+ */
+data class RetryManifest(
+    val maxAttempts: Int? = null,
+    val initialBackoff: String? = null,
+    val maxBackoff: String? = null,
+    val timeout: String? = null,
 )
 
 enum class SubscriptionKind { PROJECTION, REACTOR, SAGA }

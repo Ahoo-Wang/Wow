@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregateIdFilter
@@ -33,6 +34,10 @@ import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.query.filter.QueryContext
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
@@ -45,6 +50,7 @@ import me.ahoo.wow.query.schema.objectFixture
 import me.ahoo.wow.query.schema.scalarFixture
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
+import me.ahoo.wow.manifest.Ownership as ManifestOwnership
 
 class ScopeQueryPolicyTest {
     private suspend fun context(filter: FilterExpression = MatchAllFilter, schema: QueryModelSchema? = null) =
@@ -86,6 +92,36 @@ class ScopeQueryPolicyTest {
             // Trusted in-process code is restricted by nothing but the deletion default.
             policy.evaluate(QueryCaller.IN_PROCESS, context()).assert().isEqualTo(DeletionFilter(DeletionState.ACTIVE))
         }
+    }
+
+    @Test
+    fun `an aggregate of its tenant is not restricted by the caller's owner, but by its space`() {
+        runTest {
+            val caller = QueryCaller(Caller(tenantId = "t1", scope = Scope("o1", "s1")), entry = QueryEntry.HTTP)
+            val tenants = QueryOwnership { if (it == ManifestFixtures.ORDER) Ownership.TENANT else Ownership.OWNER }
+            ScopeQueryPolicy(ownerships = tenants).evaluate(caller, context()).assert().isEqualTo(
+                AndFilter(
+                    listOf(TenantIdFilter("t1"), SpaceIdFilter("s1"), DeletionFilter(DeletionState.ACTIVE)),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `the ownerships of a Manifest are its aggregates'`() {
+        val product = AggregateManifest(
+            "product",
+            state = StateManifest(Manifest.schemaRef("Product")),
+            ownership = ManifestOwnership.TENANT,
+        )
+        val order = product.copy(name = "order", ownership = ManifestOwnership.OWNER)
+        val manifest = Manifest(contexts = listOf(ContextManifest("shop", aggregates = listOf(product, order))))
+        val ownerships = QueryOwnership.of(manifest)
+        ownerships.ownershipOf(AggregateType("shop", "product")).assert().isEqualTo(Ownership.TENANT)
+        ownerships.ownershipOf(AggregateType("shop", "order")).assert().isEqualTo(Ownership.OWNER)
+        ownerships.ownershipOf(AggregateType("other", "product")).assert().isEqualTo(Ownership.OWNER)
+        QueryOwnership.of(Manifest()).assert().isSameAs(QueryOwnership.OWNERS)
+        QueryOwnership.OWNERS.ownershipOf(AggregateType("shop", "product")).assert().isEqualTo(Ownership.OWNER)
     }
 
     @Test

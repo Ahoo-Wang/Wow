@@ -20,8 +20,8 @@ package me.ahoo.wow.manifest
  * none.
  *
  * Absent optional values (a null description, unknown `produces`, `derives`, `schedules` or `transformsTo`, a fragment's
- * service) are left out, not written as null, and so are a subscription source's `nullableState` and a command's
- * `mounted` when false.
+ * service, a subscription's `retry`) are left out, not written as null, and so are a subscription source's
+ * `nullableState` and a command's `mounted` when false, and an aggregate's `ownership` when it is `OWNER`, the default.
  */
 object ManifestTree {
     private const val DEFS = "\$defs"
@@ -73,6 +73,7 @@ object ManifestTree {
             obj("model" to it.model, "routes" to it.routes.map(::writeRoute))
         },
         "schedules" to aggregate.schedules,
+        "ownership" to aggregate.ownership.takeIf { it != Ownership.OWNER }?.name,
     )
 
     private fun writeRoute(route: RouteManifest): Map<String, Any?> =
@@ -97,6 +98,14 @@ object ManifestTree {
         "rejected" to subscription.rejected,
         "start" to subscription.start?.name,
         "schedules" to subscription.schedules,
+        "retry" to subscription.retry?.let {
+            obj(
+                "maxAttempts" to it.maxAttempts,
+                "initialBackoff" to it.initialBackoff,
+                "maxBackoff" to it.maxBackoff,
+                "timeout" to it.timeout,
+            )
+        },
     )
 
     /** A JSON object of the non-null [entries], in their order. */
@@ -176,6 +185,7 @@ object ManifestTree {
                 QueryManifest(it.string("model"), it.objects("routes").map(::readRoute))
             },
             schedules = if (node.has("schedules")) node.strings("schedules") else null,
+            ownership = node.stringOrNull("ownership")?.let(Ownership::valueOf) ?: Ownership.OWNER,
         )
     }
 
@@ -201,6 +211,14 @@ object ManifestTree {
             rejected = if (node.has("rejected")) node.strings("rejected") else null,
             start = node.stringOrNull("start")?.let(SubscriptionStart::valueOf),
             schedules = if (node.has("schedules")) node.strings("schedules") else null,
+            retry = node.objOrNull("retry")?.let {
+                RetryManifest(
+                    maxAttempts = it.intOrNull("maxAttempts"),
+                    initialBackoff = it.stringOrNull("initialBackoff"),
+                    maxBackoff = it.stringOrNull("maxBackoff"),
+                    timeout = it.stringOrNull("timeout"),
+                )
+            },
         )
     }
 
@@ -219,7 +237,8 @@ object ManifestTree {
 
         fun stringOrNull(field: String): String? = typed<String>(field, "a string")
         fun string(field: String): String = required(field, stringOrNull(field))
-        fun int(field: String): Int = required(field, typed<Number>(field, "a number")).toInt()
+        fun intOrNull(field: String): Int? = typed<Number>(field, "a number")?.toInt()
+        fun int(field: String): Int = required(field, intOrNull(field))
         fun booleanOrNull(field: String): Boolean? = typed<Boolean>(field, "a boolean")
         fun objOrNull(field: String): Node? = typed<Map<*, *>>(field, "an object")?.let { Node(it, "$path.$field") }
         fun obj(field: String): Node = required(field, objOrNull(field))

@@ -15,6 +15,7 @@ package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
@@ -50,6 +51,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     private val aliases = HashMap<Class<*>, MutableSet<String>>()
     private var lifecycle: Set<Class<*>> = Lifecycle.COMMANDS.values.toSet()
     private val mounted = LinkedHashMap<Class<*>, String>()
+    private var ownership: Ownership = Ownership.OWNER
 
     /** The state of an aggregate that has no event yet. */
     fun initial(factory: (AggregateRef) -> S) {
@@ -156,6 +158,14 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     /**
+     * Who the aggregate belongs to besides its tenant (decision D189): [Ownership.OWNER] unless this is called.
+     * `@AggregateRoot(ownership)` calls it in a generated model.
+     */
+    fun ownership(ownership: Ownership) {
+        this.ownership = ownership
+    }
+
+    /**
      * The name of a command or event type declared without one: `context.aggregate.SimpleName`, or the system name of
      * a lifecycle command or event ([Lifecycle]).
      */
@@ -221,6 +231,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         mountedCommandTypes = mounted.map { (commandClass, name) ->
             CommandType(name, commandClass, aliases[commandClass].orEmpty().toSet())
         },
+        ownership = ownership,
     )
 
     private fun applies(include: Set<Class<*>>, exclude: Set<Class<*>>): (Class<*>) -> Boolean =

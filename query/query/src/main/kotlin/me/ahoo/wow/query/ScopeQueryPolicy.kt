@@ -14,6 +14,7 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
@@ -21,7 +22,10 @@ import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.OwnerIdFilter
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.filter.QueryContext
+import me.ahoo.wow.manifest.Ownership as ManifestOwnership
 
 /**
  * Which tenant a caller's queries of an aggregate type are restricted to (decision D129): the port through which the
@@ -41,11 +45,41 @@ fun interface QueryTenantPolicy {
 }
 
 /**
+ * Who each aggregate type belongs to besides its tenant (decision D189), as the Manifest's
+ * [AggregateManifest.ownership] says: [ScopeQueryPolicy] restricts a caller's queries by its owner only for an
+ * [Ownership.OWNER] aggregate.
+ */
+fun interface QueryOwnership {
+    /** The ownership of [type]; [Ownership.OWNER] for a type no Manifest declares. */
+    fun ownershipOf(type: AggregateType): Ownership
+
+    companion object {
+        /** Every aggregate belongs to its owner, the default. */
+        @JvmField
+        val OWNERS: QueryOwnership = QueryOwnership { Ownership.OWNER }
+
+        /** The ownership of every aggregate [manifest] declares, the others [Ownership.OWNER]. */
+        @JvmStatic
+        fun of(manifest: Manifest): QueryOwnership {
+            val tenants = manifest.contexts.flatMap { context ->
+                context.aggregates.filter { it.ownership == ManifestOwnership.TENANT }
+                    .map { AggregateType(context.name, it.name) }
+            }.toSet()
+            if (tenants.isEmpty()) {
+                return OWNERS
+            }
+            return QueryOwnership { type -> if (type in tenants) Ownership.TENANT else Ownership.OWNER }
+        }
+    }
+}
+
+/**
  * The caller's scope as a [QueryPolicy] (decision D129), appended at admission step 2 to every query:
  *
  * - the tenant [tenants] gives the caller, when it gives one;
- * - an owner equality when the caller's [principal][QueryCaller.principal] names an owner, and a space equality when
- *   it names a space;
+ * - an owner equality when the caller's [principal][QueryCaller.principal] names an owner (an owner-level caller,
+ *   decision D189) and [ownerships] says the aggregate type belongs to its owner, and a space equality when it names
+ *   a space: a tenant-level caller, whose principal names no owner, reads every aggregate of its tenant;
  * - the deletion scope the model defaults to (a snapshot query sees active aggregates) unless the query states its
  *   own deletion filter. Admission's step 3 would add the same default; stating it here keeps the whole scope one
  *   audited policy.
@@ -56,11 +90,13 @@ fun interface QueryTenantPolicy {
 class ScopeQueryPolicy(
     private val tenants: QueryTenantPolicy = QueryTenantPolicy.CALLERS,
     override val order: Int = ORDER,
+    private val ownerships: QueryOwnership = QueryOwnership.OWNERS,
 ) : QueryPolicy {
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
+        val owned = ownerships.ownershipOf(context.aggregateType) == Ownership.OWNER
         val restrictions = listOfNotNull(
             tenants.tenantOf(context.aggregateType, caller)?.let(::TenantIdFilter),
-            caller.principal.ownerId?.let(::OwnerIdFilter),
+            caller.principal.ownerId?.takeIf { owned }?.let(::OwnerIdFilter),
             caller.principal.spaceId?.let(::SpaceIdFilter),
             context.schema.profile?.defaultScope(context.filter)?.takeUnless { it === MatchAllFilter },
         )

@@ -15,9 +15,11 @@ package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.lifecycle.TransferOwner
 import tools.jackson.databind.JsonNode
 
 /**
@@ -123,6 +125,10 @@ data class CommandType(val name: String, val type: Class<*>, val aliases: Set<St
  * function for one overrides the kernel's. The lifecycle events are always known, so a log written while a command was
  * enabled still reads; they leave the state as it is unless the model declares an evolve function for them. Only the
  * lifecycle types may take a name in the system namespace.
+ *
+ * [ownership] is who the aggregate belongs to besides its tenant (decision D189): an [Ownership.TENANT] aggregate
+ * records no owner and checks no command's owner (the kernel keeps only [Ownership.scopeOf] of a command's scope), so
+ * it has no owner to transfer: it never handles [TransferOwner].
  */
 class AggregateModel<S : Any>(
     val type: AggregateType,
@@ -135,9 +141,13 @@ class AggregateModel<S : Any>(
     private val afterFunctions: List<AfterFunction<S>> = emptyList(),
     lifecycle: Set<Class<*>> = Lifecycle.COMMANDS.values.toSet(),
     mountedCommandTypes: Collection<CommandType> = emptyList(),
+    val ownership: Ownership = Ownership.OWNER,
 ) {
+    private val lifecycle: Set<Class<*>> =
+        if (ownership == Ownership.TENANT) lifecycle - TransferOwner::class.java else lifecycle
+
     private val deciders: Map<Class<*>, DecideFunction<S>> =
-        lifecycle.filterNot { it in deciders }.associateWith { KernelLifecycle.decider<S>(it) } + deciders
+        this.lifecycle.filterNot { it in deciders }.associateWith { KernelLifecycle.decider<S>(it) } + deciders
     private val evolvers: Map<Class<*>, (S, Any) -> S> =
         Lifecycle.EVENTS.values.filterNot { it in evolvers }.associateWith { { state: S, _: Any -> state } } +
             evolvers
@@ -149,7 +159,7 @@ class AggregateModel<S : Any>(
      * The command types this model decides, each under its name and former names: those of its decide functions,
      * then the lifecycle commands the kernel decides for it ([lifecycleCommands]) under their system names.
      */
-    val commandTypes: List<CommandType> = commandTypes + lifecycle
+    val commandTypes: List<CommandType> = commandTypes + this.lifecycle
         .filter { command -> commandTypes.none { it.type == command } }
         .map { CommandType(Lifecycle.nameOf(it)!!, it) }
     private val eventsByType: Map<Class<*>, EventType> = this.eventTypes.associateBy { it.type }
@@ -176,6 +186,9 @@ class AggregateModel<S : Any>(
     val lifecycleCommands: Set<Class<*>> = this.deciders.keys.filter { it in KernelLifecycle.COMMANDS }.toSet()
 
     init {
+        require(ownership == Ownership.OWNER || TransferOwner::class.java !in deciders) {
+            "$type belongs to its tenant (Ownership.TENANT): it has no owner to transfer, so it decides no TransferOwner."
+        }
         require(KernelLifecycle.COMMANDS.containsAll(lifecycle)) {
             "Not lifecycle commands: ${lifecycle - KernelLifecycle.COMMANDS}"
         }
