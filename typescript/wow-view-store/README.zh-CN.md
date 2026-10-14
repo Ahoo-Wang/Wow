@@ -89,6 +89,62 @@ await datasets.refresh();
 `set(dataset, wording, revision, { requestId })` 按期望版本整份写入（从没写过的是 `'0'`），`clear` 清掉；谁能写由网关
 按放行 `…/owner/(shared)/datasets/{dataset}/wording` 的角色决定。
 
+### 在 Wow V10 服务上
+
+`@ahoo-wang/wow-view-store/v10` 是同一个端口在 **V10** 视图存储服务（Wow 仓库的 `platform/view-store`）上的实现：同名、同选项的 `WowViewStore` 与 `WowDatasetWordings`，建在由服务的 Manifest 生成的客户端（`@ahoo-wang/wow-client/v10`）之上；`viewSourceOf`／`datasetCatalogOf` 把引擎的查询放到 V10 的查询路由上。根入口仍是 9.x 的 store，宿主按导入的入口二选一。
+
+<!-- typecheck-context
+import type { ViewDefinition, ViewPermissions } from '@ahoo-wang/wow-view-engine';
+declare const orders: ViewDefinition;
+declare const permissionsFromRoles: (definitionId: string) => ViewPermissions;
+-->
+
+```ts
+import { Fetcher } from '@ahoo-wang/fetcher';
+import { DatasetClient, SnapshotQueryClient } from '@ahoo-wang/wow-client/v10';
+import { DatasetResources, ViewEngine } from '@ahoo-wang/wow-view-engine';
+import {
+  WowDatasetWordings,
+  WowViewStore,
+  datasetCatalogOf,
+  viewSourceOf,
+} from '@ahoo-wang/wow-view-store/v10';
+
+// V10 服务从主体取租户与所有者：fetcher 的拦截器带上认证与 `CoSec-App-Id`，
+// 路径里不出现两者。
+const fetcher = new Fetcher({ baseURL: 'https://api.example.com' });
+
+const engine = new ViewEngine({
+  store: new WowViewStore({ fetcher, permissions: permissionsFromRoles }),
+  resources: [
+    {
+      definition: orders,
+      // 任意 V10 查询路由；生成的 `…SnapshotQueryClient` 同样可以。
+      source: viewSourceOf(
+        new SnapshotQueryClient(
+          { context: 'sales', name: 'order' },
+          { fetcher },
+        ),
+      ),
+    },
+  ],
+});
+
+// 服务的数据集（`GET /wow/dataset`），措辞由租户自己定。
+const datasets = new DatasetResources(engine, {
+  ...datasetCatalogOf(new DatasetClient({ fetcher })),
+  wordings: new WowDatasetWordings({ fetcher }),
+});
+await datasets.refresh();
+```
+
+与 9.x 的 store 不同的是服务端，不是端口：
+
+- **谁在问**取自主体；共享视图以保留所有者 `(shared)` 写入，存储的系统视图以 `(platform)` 的 `(system)` 写入，由 store 自己用 `Wow-Scope` 说明。每次写入由服务端鉴权：按写 `(shared)` 的角色（出厂为 `view-store.shared-writer`）给 `createShared` 与 `changeAudience`，按写 `(system)` 的角色给 `editSystem`。
+- **写入**把端口的请求 id 作为 `Wow-Request-Id`、revision 作为 `If-Match` 发出；服务端按请求 id 对每次写入去重（创建也是），所以任何标签页的重试都答第一次的结果。设为共享／设为个人会等服务端把视图移到新所有者的 saga。
+- **错误**按 problem 的 `code` 读：`ViewStoreError` 把它放在 `detail.code`（视图存储自己的码见 `WowViewStoreErrorCodes`），服务端不提供的路由（不带码的 `404`）是 `UNSUPPORTED`。
+- **一页的总数**是服务端缺省的 `BOUNDED` 计数：V10 服务不允许经 HTTP 要精确总数。
+
 ## 文档
 
 | 想做的事                                                          | 读                                                                                                             |
@@ -101,6 +157,7 @@ await datasets.refresh();
 
 - `pnpm --filter @ahoo-wang/wow-view-store test`——对着假服务端的单元测试、公开面与 API 报告。
 - 端口的一致性测试套件在 `typescript/integration-test`（`test/view-store/`）里对着视图存储服务端跑
-  `WowViewStore`，另有租户与应用的隔离测试。
+  `WowViewStore`，另有租户与应用的隔离测试；V10 的 `WowViewStore` 对着 V10 视图存储服务跑，
+  `pnpm --dir typescript/integration-test test:v10` 把服务起在绑定 0 的端口上（`test/view-store-v10/`）。
 
 以 Apache License 2.0 许可。

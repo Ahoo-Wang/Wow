@@ -171,6 +171,35 @@ Start the example server with the same four `--wow.view-store.system-views[0].â€
 arguments. `test` waits for both servers, and warms the view store's two
 aggregates up on each first.
 
+## The V10 store against the V10 view store service
+
+`test/view-store-v10/` holds `@ahoo-wang/wow-view-store/v10` and the view
+engine on it to the V10 view store service (`platform/view-store`, roadmap
+7.3a): the port's conformance suite, tenant and application isolation, the
+stored and configured system views, the service's writer roles, the
+tenant's dataset wording, the errors, `viewSourceOf` over a V10 query route,
+and the engine end to end (saves, conflicts, an unknown outcome retried,
+share and claim, preferences, a record view and an analysis through the V10
+query routes). It runs apart from the rest, with a setup of its own
+(`vitest.v10.config.ts`), and needs neither the example server nor MongoDB.
+
+The setup starts the service in a JVM on the memory backend, every port
+bound to 0, and stops it at the end. The memory backend serves no snapshot
+query on its own (the eShop's DX gap G14), so the service starts with the
+in-memory query backend its own tests use. Build it first, with JDK 21:
+
+```bash
+./gradlew -Pwow.scope=v10 :view-store-server:installDist \
+  :view-store-server:testClasses :query:testFixturesJar
+pnpm --filter @ahoo-wang/wow-view-store... build
+pnpm --dir typescript/integration-test test:v10
+```
+
+`JAVA_HOME` picks the JVM (`java` on the path otherwise). With
+`WOW_V10_VIEW_STORE_URL` set, the suites use a service already running
+instead; it must serve snapshot queries and the configured system view of
+`conformance-system` that `test/view-store-v10/globalSetup.ts` configures.
+
 ## On Elasticsearch
 
 `test/view-engine/` and `test/view-store/` also run against an example server
