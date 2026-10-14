@@ -1,0 +1,240 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.runtime.ledger
+
+import kotlinx.coroutines.runBlocking
+import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.ledger.Ledger
+import me.ahoo.wow.api.ledger.LedgerAggregate
+import me.ahoo.wow.api.ledger.LedgerEntry
+import me.ahoo.wow.api.ledger.LedgerResolution
+import me.ahoo.wow.kernel.InMemoryCheckpointStore
+import me.ahoo.wow.kernel.InMemoryEventLog
+import me.ahoo.wow.kernel.InMemoryFailureLedger
+import me.ahoo.wow.runtime.cluster.ClusterCodec
+import me.ahoo.wow.runtime.cluster.CommandWire
+import me.ahoo.wow.runtime.node.ParkedOps
+import me.ahoo.wow.runtime.subscription.Appender
+import me.ahoo.wow.runtime.subscription.ParkedNotice
+import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
+import me.ahoo.wow.runtime.subscription.Subscription
+import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
+import me.ahoo.wow.runtime.subscription.cart
+import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.runtime.subscription.testOptions
+import me.ahoo.wow.spi.ledger.ParkedRetrySpec
+import me.ahoo.wow.spi.ledger.Recoverable
+import org.junit.jupiter.api.Test
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicLong
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
+
+/** Publishing the failure ledger to the ops context (decision D141): what a scan, a notice and an action send. */
+class LedgerPublisherTest {
+    private val log = InMemoryEventLog(partitions = 2)
+    private val appender = Appender(log)
+    private val ledger = InMemoryFailureLedger()
+    private val subscription = Subscription(NAME, SubscriptionFilter("shop")) { entry ->
+        error("${entry.ref.id} is broken")
+    }
+    private val spec = ParkedRetrySpec(maxRetries = 2, minBackoff = 1.hours, executionTimeout = 1.seconds)
+    private val runtime = SubscriptionRuntime(
+        "group",
+        log,
+        InMemoryCheckpointStore(),
+        ledger,
+        listOf(subscription),
+        testOptions(maxAttempts = 1).copy(parked = ParkedRetryOptions(spec, scanInterval = 1.hours)),
+    )
+    private val ops = ParkedOps { listOf(ParkedOps.Scope.of(runtime)) }
+    private val sent = CopyOnWriteArrayList<CommandWire>()
+    private val clock = TickingClock()
+    private val publisher = LedgerPublisher(SERVICE, LedgerPublishing(), ops, { sent += it }, clock)
+
+    private suspend fun parkAll(vararg ids: String) {
+        ids.forEach { appender.append(it) }
+        runtime.start(setOf(0, 1))
+        eventually { ledger.list(NAME).size == ids.size }
+    }
+
+    @Test
+    fun `a scan publishes each entry of the partitions this node runs as a command of its ops aggregate`(): Unit =
+        runBlocking {
+            parkAll("x1")
+            publisher.scan()
+            val wire = sent.single()
+            val target = Ledger.parkedId(SERVICE, NAME, cart("x1"))
+            wire.type.assert().isEqualTo("ops.parked.RecordParked")
+            wire.ref.assert().isEqualTo(
+                me.ahoo.wow.api.aggregate.AggregateType("ops", "parked").ref(Caller.DEFAULT_TENANT, target)
+            )
+            wire.operator.assert().isEqualTo(LedgerPublisher.OPERATOR)
+            wire.requestId.assert().startsWith("wow.ledger:")
+            val record = ClusterCodec.mapper.treeToValue(wire.record, LedgerEntry::class.java)
+            record.service.assert().isEqualTo(SERVICE)
+            record.context.assert().isEqualTo("shop")
+            record.subscription.assert().isEqualTo(NAME)
+            record.aggregate.assert().isEqualTo(LedgerAggregate.of(cart("x1")))
+            record.fromVersion.assert().isEqualTo(1)
+            record.reason.assert().contains("x1 is broken")
+            record.status.assert().isEqualTo("SCHEDULED")
+            record.recoverable.assert().isEqualTo("UNKNOWN")
+            record.request.assert().isNull()
+            record.retrySpec.maxRetries.assert().isEqualTo(2)
+            record.retrySpec.minBackoff.assert().isEqualTo("PT1H")
+            record.retrySpec.applied.assert().isFalse()
+            record.nextRetryAt.assert().isEqualTo(record.failedAt + 1.hours.inWholeMilliseconds)
+            runtime.stop()
+        }
+
+    @Test
+    fun `an entry sent again is the same request, and one back to an earlier content a new one`(): Unit = runBlocking {
+        parkAll("x1")
+        publisher.scan()
+        publisher.scan()
+        val (first, again) = sent
+        again.requestId.assert().isEqualTo(first.requestId)
+        again.id.assert().isNotEqualTo(first.id)
+        ops.markRecoverable(NAME, cart("x1"), Recoverable.UNRECOVERABLE)
+        publisher.scan()
+        ClusterCodec.mapper.treeToValue(sent.last().record, LedgerEntry::class.java).status
+            .assert().isEqualTo("UNRECOVERABLE")
+        ops.markRecoverable(NAME, cart("x1"), Recoverable.UNKNOWN)
+        publisher.scan()
+        sent.map { it.requestId }.toSet().size.assert().isEqualTo(3)
+        runtime.stop()
+    }
+
+    @Test
+    fun `an entry that left the ledger is published resolved, one another node runs now is not`(): Unit = runBlocking {
+        parkAll("x1", "x2")
+        publisher.scan()
+        sent.clear()
+        ops.skip(NAME, cart("x1")).assert().isEqualTo(ParkedOps.Outcome.RESOLVED)
+        publisher.scan()
+        val resolved = sent.single { it.type == "ops.parked.RecordResolved" }
+        val record = ClusterCodec.mapper.treeToValue(resolved.record, LedgerResolution::class.java)
+        record.outcome.assert().isEqualTo(LedgerResolution.RESOLVED)
+        record.aggregate.id.assert().isEqualTo("x1")
+        record.context.assert().isEqualTo("shop")
+        record.failedAt.assert().isNotNull()
+        // The node hands the partitions off: x2 is still parked, and its new owner publishes it.
+        runtime.stop()
+        sent.clear()
+        publisher.scan()
+        sent.assert().isEmpty()
+        publisher.scan()
+        sent.assert().isEmpty()
+    }
+
+    @Test
+    fun `a notice and an action publish at once`(): Unit = runBlocking {
+        parkAll("x1")
+        val entry = ledger.parked(NAME, cart("x1"))!!
+        publisher.notifier.notify(ParkedNotice(ParkedNotice.Kind.EXHAUSTED, "group", entry, spec, 0))
+        ClusterCodec.mapper.treeToValue(
+            sent.single().record,
+            LedgerEntry::class.java
+        ).context.assert().isEqualTo("shop")
+        publisher.resolved(NAME, cart("x1"), null, LedgerResolution.RESUMED)
+        val known = ClusterCodec.mapper.treeToValue(sent.last().record, LedgerResolution::class.java)
+        known.failedAt.assert().isEqualTo(entry.failedAt)
+        known.context.assert().isEqualTo("shop")
+        known.outcome.assert().isEqualTo(LedgerResolution.RESUMED)
+        // An entry it never published: what the caller says, else the aggregate's context.
+        publisher.resolved(NAME, cart("y1"), null, LedgerResolution.NOT_PARKED)
+        val unknown = ClusterCodec.mapper.treeToValue(sent.last().record, LedgerResolution::class.java)
+        unknown.failedAt.assert().isNull()
+        unknown.context.assert().isEqualTo("shop")
+        publisher.resolved(NAME, cart("y2"), "sales", LedgerResolution.SKIPPED, failedAt = 3)
+        ClusterCodec.mapper.treeToValue(
+            sent.last().record,
+            LedgerResolution::class.java
+        ).failedAt.assert().isEqualTo(3L)
+        runtime.stop()
+    }
+
+    @Test
+    fun `a record the broker refuses is logged, and the others are still sent`(): Unit = runBlocking {
+        parkAll("x1", "x2")
+        val attempts = AtomicLong()
+        val failing = LedgerPublisher(SERVICE, LedgerPublishing(), ops, { wire ->
+            attempts.incrementAndGet()
+            if (wire.record["aggregate"]["id"].asString() == "x1") error("The broker is down.")
+            sent += wire
+        }, clock)
+        failing.scan()
+        attempts.get().assert().isEqualTo(2L)
+        sent.single().record["aggregate"]["id"].asString().assert().isEqualTo("x2")
+        runtime.stop()
+    }
+
+    @Test
+    fun `the reconciliation loop scans until it is stopped, a failed scan logged`(): Unit = runBlocking {
+        parkAll("x1")
+        val looping = LedgerPublisher(SERVICE, LedgerPublishing(interval = 10.milliseconds), ops, { sent += it }, clock)
+        looping.start()
+        assertThrownBy<IllegalStateException> { looping.start() }
+        eventually { sent.size >= 2 }
+        looping.stop()
+        looping.stop()
+        val scans = AtomicLong()
+        val broken = LedgerPublisher(
+            SERVICE,
+            LedgerPublishing(interval = 10.milliseconds),
+            ParkedOps {
+                scans.incrementAndGet()
+                error("The ledger is unreachable.")
+            },
+            { sent += it },
+            clock
+        )
+        broken.start()
+        eventually { scans.get() >= 2 }
+        broken.stop()
+        runtime.stop()
+    }
+
+    @Test
+    fun `publishing names a context and scans at a positive interval`() {
+        LedgerPublishing().context.assert().isEqualTo(Ledger.OPS_CONTEXT)
+        LedgerPublishing().interval.assert().isEqualTo(LedgerPublishing.DEFAULT_INTERVAL)
+        assertThrownBy<IllegalArgumentException> { LedgerPublishing(" ") }
+        assertThrownBy<IllegalArgumentException> { LedgerPublishing(interval = Duration.ZERO) }
+    }
+
+    /** A clock that moves a millisecond each time it is read. */
+    private class TickingClock(private val now: AtomicLong = AtomicLong(1_000)) : Clock() {
+        override fun getZone(): ZoneId = ZoneOffset.UTC
+
+        override fun withZone(zone: ZoneId): Clock = this
+
+        override fun instant(): Instant = Instant.ofEpochMilli(now.incrementAndGet())
+    }
+
+    private companion object {
+        const val SERVICE = "shop-service"
+        const val NAME = "Projector.onCart"
+    }
+}

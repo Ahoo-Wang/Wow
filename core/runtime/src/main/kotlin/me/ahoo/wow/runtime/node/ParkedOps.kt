@@ -110,6 +110,15 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
         return request(scope, subscription, ref, LedgerRequest.SKIP)
     }
 
+    /**
+     * Whether this node runs [subscription]'s partition of [ref] now: it acts on the entry at once, and publishes it
+     * (decision D141). False when the aggregate is not parked by it.
+     */
+    suspend fun owns(subscription: String, ref: AggregateRef): Boolean {
+        val (scope, _) = locate(subscription, ref) ?: return false
+        return scope.runtime()?.runsPartitionOf(subscription, ref) == true
+    }
+
     /** Marks [subscription]'s parked [ref] [recoverable]; null when it is not parked. */
     suspend fun markRecoverable(subscription: String, ref: AggregateRef, recoverable: Recoverable): ParkedView? =
         amend(subscription, ref, ParkedAmendment.MarkRecoverable(recoverable))
@@ -160,7 +169,8 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
 
     /**
      * Where a node's subscriptions keep their entries: the [ledger] of the subscriptions [names] lists, retried by
-     * [options], run by [runtime] when this node runs it, [covers] telling whether a subscription takes a type.
+     * [options], run by [runtime] when this node runs it, [covers] telling whether a subscription takes a type and
+     * [contextOf] the context a subscription belongs to.
      */
     internal class Scope(
         val names: () -> Set<String>,
@@ -168,8 +178,10 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
         val options: ParkedRetryOptions,
         val runtime: () -> SubscriptionRuntime?,
         val covers: (String, AggregateType) -> Boolean,
+        val contextOf: (String) -> String? = { null },
     ) {
-        fun view(entry: ParkedAggregate): ParkedView = ParkedView(entry, options.specOf(entry))
+        fun view(entry: ParkedAggregate): ParkedView =
+            ParkedView(entry, options.specOf(entry), contextOf(entry.subscription))
 
         companion object {
             fun of(runtime: SubscriptionRuntime): Scope = Scope(
@@ -178,6 +190,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
                 runtime.options.parked,
                 { runtime },
                 runtime::covers,
+                runtime::contextOf,
             )
 
             fun of(topic: TopicSubscriptions, options: ParkedRetryOptions): Scope {
@@ -188,6 +201,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
                     options,
                     { topic.runtime },
                     { name, type -> topic.subscriptions.any { it.name == name && it.filter.context == type.context } },
+                    { name -> topic.subscriptions.firstOrNull { it.name == name }?.context },
                 )
             }
         }
@@ -234,8 +248,11 @@ data class ParkedKey(val subscription: String, val ref: AggregateRef)
 /** One page of [ParkedOps.list]: its [entries], and the key the [next] page starts after (null at the end). */
 data class ParkedPage(val entries: List<ParkedView>, val next: ParkedKey?)
 
-/** A parked [entry] as an operator sees it, with the [spec] it is retried by. */
-data class ParkedView(val entry: ParkedAggregate, val spec: ParkedRetrySpec) {
+/**
+ * A parked [entry] as an operator sees it, with the [spec] it is retried by and the [context] its subscription belongs
+ * to, whose command topic takes the entry's ledger commands (decision D141); null when the node does not know it.
+ */
+data class ParkedView(val entry: ParkedAggregate, val spec: ParkedRetrySpec, val context: String? = null) {
     /** When the next automatic retry is due (epoch milliseconds), null when there is none. */
     val nextRetryAt: Long? get() = entry.nextRetryAt(spec)
 

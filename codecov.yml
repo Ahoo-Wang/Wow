@@ -42,6 +42,7 @@ flag_management:
         - edge/**
         - host/**
         - migration/**
+        - platform/**
         - example/eshop/**
         - test/architecture/**
         - test/kernel-benchmarks/**
@@ -368,6 +369,18 @@ component_management:
       name: v10-migrate-data
       paths:
         - migration/migrate-data/src/main/**
+      flag_regexes:
+        - "^v10$"
+    - component_id: v10-ops-api
+      name: v10-ops-api
+      paths:
+        - platform/ops/ops-api/src/main/**
+      flag_regexes:
+        - "^v10$"
+    - component_id: v10-ops-domain
+      name: v10-ops-domain
+      paths:
+        - platform/ops/ops-domain/src/main/**
       flag_regexes:
         - "^v10$"
     - component_id: wow-client

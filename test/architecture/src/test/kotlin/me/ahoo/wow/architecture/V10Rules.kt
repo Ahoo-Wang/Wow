@@ -59,10 +59,19 @@ object V10Rules {
      */
     val TEST_MODULES = listOf(TEST_DSL, TCK, TCK_CONTAINERS)
 
+    /** The ops context's API: its commands and events (roadmap 6.3f, 7.1a; decision D141). */
+    val OPS_API = V10Module("ops-api", "platform/ops/ops-api")
+
+    /** The ops domain: the `parked` aggregate, the read model of every service's failure ledger (decision D141). */
+    val OPS_DOMAIN = V10Module("ops-domain", "platform/ops/ops-domain")
+
+    /** The platform modules (roadmap M7): domains of their own, built on the kernel as an application's domain is. */
+    val PLATFORM_MODULES = listOf(OPS_API, OPS_DOMAIN)
+
     val MODULES = listOf(
         API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, HTTP,
         COSEC, OPENTELEMETRY, SPRING_BOOT, COSID, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
-    ) + TEST_MODULES
+    ) + TEST_MODULES + PLATFORM_MODULES
 
     /** The eShop's five contexts (decision D158), each an `-api`, a `-domain` and a `-server` project. */
     val ESHOP_CONTEXTS = listOf("catalog", "basket", "ordering", "inventory", "payment")
@@ -139,6 +148,10 @@ object V10Rules {
         // The contract specs test the ports, and only them (06 §1).
         TCK to setOf("spi"),
         TCK_CONTAINERS to emptySet(),
+        // A platform domain is an application's domain (decision D149): its API on wow-api, its domain on the kernel,
+        // compiled by the compiler; never the runtime.
+        OPS_API to setOf("api"),
+        OPS_DOMAIN to setOf("ops-api", "kernel", "compiler"),
     )
 
     private val SPRING = listOf("org.springframework")

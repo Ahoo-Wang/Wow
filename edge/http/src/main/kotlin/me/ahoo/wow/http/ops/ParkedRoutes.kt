@@ -16,6 +16,7 @@ package me.ahoo.wow.http.ops
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.Authenticator
@@ -110,13 +111,13 @@ object OpsPaths {
  * [CommandAction] of one of these types on the parked aggregate.
  */
 object OpsCommands {
-    const val RESUME: String = "wow.ledger.Resume"
-    const val SKIP: String = "wow.ledger.Skip"
-    const val MARK_RECOVERABLE: String = "wow.ledger.MarkRecoverable"
-    const val APPLY_RETRY_SPEC: String = "wow.ledger.ApplyRetrySpec"
+    const val RESUME: String = Ledger.RESUME
+    const val SKIP: String = Ledger.SKIP
+    const val MARK_RECOVERABLE: String = Ledger.MARK_RECOVERABLE
+    const val APPLY_RETRY_SPEC: String = Ledger.APPLY_RETRY_SPEC
 
-    /** The command type of [name], one of these. */
-    fun typeOf(name: String): CommandType = CommandType(name, OpsCommands::class.java)
+    /** The command type of [name], one of these: the class of its ledger command, as the intakes authorize it. */
+    fun typeOf(name: String): CommandType = CommandType(name, Ledger.COMMANDS.getValue(name))
 }
 
 private const val SUBSCRIPTION = "subscription"

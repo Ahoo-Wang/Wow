@@ -16,6 +16,8 @@ description = "Wow V10 eShop: end-to-end tests across the eShop's services"
 // - EshopFullChainTest runs all five services the same way through EshopStack, with ClickHouse for the ordering's
 //   sales dataset (work package E.6): the full chain with one Wow-Wait from the checkout to the paid order, the short
 //   stock's cancellation, the sales dataset, and an ordering node killed mid-flow and replaced.
+// - EshopLedgerOpsTest runs the ordering, inventory and payment services the same way and a minimal ops service in
+//   the test's JVM: a payment the gateway fails parks, the ops view shows it, and a resume from ops resolves it (6.3f).
 // - EshopLoad, the load script, starts the same EshopStack (the task eshopLoad below; README.md holds its baseline).
 val servers = listOf("catalog", "basket", "ordering", "inventory", "payment").associateWith { context ->
     configurations.create("eshop${context.replaceFirstChar { it.uppercase() }}Server") {
@@ -61,6 +63,8 @@ dependencies {
     // EshopSharedJvmTest: a request's trace through a service (decision D174), its spans exported to memory.
     integrationTestImplementation(project(":opentelemetry"))
     integrationTestImplementation("io.opentelemetry:opentelemetry-sdk-testing")
+    // EshopLedgerOpsTest: a minimal ops service in the test's JVM, over the ops domain (work package 6.3f, D141).
+    integrationTestImplementation(project(":ops-domain"))
 }
 
 /** The class paths of the servers, and the directory of their output, as the services' JVMs take them. */
