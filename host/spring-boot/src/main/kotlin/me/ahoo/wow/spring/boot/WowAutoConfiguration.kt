@@ -352,6 +352,7 @@ class WowAutoConfiguration {
         requestFacts = properties.http.requestFacts.toSet(),
         errorStatuses = properties.http.errors.mapValues { it.value.status },
         manifestEndpoint = properties.http.manifest.enabled,
+        openApiEndpoint = properties.http.openapi.enabled,
     )
 
     /** The public server keeps reading its HTTP/1.1 keep-alive connections ([KeepAliveReads]). */

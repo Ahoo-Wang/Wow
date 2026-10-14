@@ -195,6 +195,7 @@ class WowPropertiesTest {
         properties.wait.maxHops.assert().isEqualTo(16)
         properties.wait.unknownContexts.assert().isEqualTo(UnknownContexts.ALLOW)
         properties.http.manifest.enabled.assert().isTrue()
+        properties.http.openapi.enabled.assert().isTrue()
         properties.mongo.database.assert().isEqualTo("wow")
     }
 

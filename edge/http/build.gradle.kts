@@ -4,6 +4,8 @@ dependencies {
     api(project(":runtime"))
     // The query routes (decision D127) run the query engine's gateways and read its protocol with QueryJson.
     api(project(":query"))
+    // GET /wow/openapi: the OpenAPI document of the routes, from the same Manifest (roadmap 5a.2).
+    implementation(project(":openapi"))
     api("org.springframework:spring-webflux")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-reactor")
     // The wait signal's wire form on the internal port, read like the cluster messages (decision D105).
@@ -21,4 +23,6 @@ dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     // The in-memory reference query backend, behind the snapshot query routes.
     testImplementation(testFixtures(project(":query")))
+    // The answers of the routes, checked against the schemas of the document GET /wow/openapi serves.
+    testImplementation(libs.json.schema.validator)
 }

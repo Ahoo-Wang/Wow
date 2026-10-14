@@ -177,6 +177,15 @@ class HostTest {
     }
 
     @Test
+    fun `the OpenAPI document of the routes should be served at wow-openapi`() {
+        val answer = host.get("/wow/openapi")
+        answer.status.assert().isEqualTo(200)
+        answer.body!!["openapi"].asString().assert().isEqualTo("3.1.0")
+        answer.body["info"]["title"].asString().assert().isEqualTo("bank-service")
+        answer.body["paths"].propertyNames().assert().anyMatch { it.startsWith("/$BANK/") }
+    }
+
+    @Test
     fun `the internal routes should not be served on the public port`() {
         host.post("/wow/internal/signals", "{}").status.assert().isEqualTo(404)
         host.post("/wow/internal/forward", "{}").status.assert().isEqualTo(404)
