@@ -224,6 +224,82 @@ describe('Manifest clients', () => {
     expect(context).toContain("export type ProbeSubscription = 'P.f';");
   });
 
+  it('types lifecycle bodies from $defs and documents what the Manifest describes', async () => {
+    const { read } = await generateCompiling(
+      manifest(
+        {
+          lifecycle: [
+            'wow.lifecycle.ApplyTags',
+            'wow.lifecycle.DeleteAggregate',
+            'wow.lifecycle.TransferSpace',
+          ],
+          commands: [
+            {
+              name: 'Rename',
+              schema: schema('a.Rename'),
+              description: 'Renames the thing',
+              routes: [{ method: 'POST', path: '/probe/thing/{id}/rename' }],
+            },
+          ],
+        },
+        {
+          'a.Rename': {
+            type: 'object',
+            properties: { name: { type: 'string' } },
+            required: ['name'],
+            description: 'Renames the thing',
+          },
+          'wow.lifecycle.ApplyTags': {
+            type: 'object',
+            properties: {
+              tags: {
+                type: 'object',
+                additionalProperties: {
+                  type: 'array',
+                  items: { type: 'string' },
+                },
+              },
+            },
+            required: ['tags'],
+            description: 'Sets the tags',
+          },
+          'wow.lifecycle.DeleteAggregate': {
+            type: 'object',
+            description: 'Marks it deleted',
+          },
+        },
+      ),
+      `import { ThingCommandClient } from './out/index.js';
+       import type { ApplyTags } from './out/probe/types.js';
+       const tags: ApplyTags = { tags: { color: ['red'] } };
+       void [new ThingCommandClient().applyTags('1', tags)];`,
+    );
+    const client = read('probe/thing/commandClient.ts');
+    expect(client).toContain(
+      "import type { ApplyTags, Rename } from '../types.js';",
+    );
+    expect(client).toMatch(
+      /import \{[^}]*type TransferSpace[^}]*\} from '@ahoo-wang\/wow-client\/v10'/,
+    );
+    expect(client).not.toMatch(
+      /type ApplyTags[^}]*\} from '@ahoo-wang\/wow-client\/v10'/,
+    );
+    expect(client).toContain('   * Renames the thing\n   * `Rename`:');
+    expect(client).toContain(
+      '   * Sets the tags\n   * The lifecycle command `wow.lifecycle.ApplyTags`.',
+    );
+    expect(client).toContain(
+      '   * Marks it deleted\n   * The lifecycle command `wow.lifecycle.DeleteAggregate`.',
+    );
+    expect(client).toContain('deleteAggregate(id: string, options?');
+    expect(client).toContain(
+      '/** The lifecycle command `wow.lifecycle.TransferSpace`. */',
+    );
+    const types = read('probe/types.ts');
+    expect(types).toContain('export interface ApplyTags {');
+    expect(types).not.toContain('DeleteAggregate');
+  });
+
   it('qualifies type names that clash', async () => {
     const { read } = await generateCompiling(
       manifest(
