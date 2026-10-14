@@ -1,6 +1,6 @@
 description = "Wow V10 eShop: end-to-end tests across the eShop's services"
 
-// Test-only and never published (decision D159), like :example-e2e.
+// Test-only and never published (decision D159).
 //
 // - EshopE2eTest runs the catalog and inventory services each in a JVM of its own, on the runtime class path of its
 //   server project alone; the class paths reach the tests as system properties (`eshop.<context>.classpath`).

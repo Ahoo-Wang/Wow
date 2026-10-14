@@ -63,14 +63,6 @@ object V10Rules {
         COSEC, SPRING_BOOT, COSID, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
     ) + TEST_MODULES
 
-    val SHOP_API = V10Module("shop-api", "example/shop/shop-api")
-    val SHOP_DOMAIN = V10Module("shop-domain", "example/shop/shop-domain")
-    val SHOP_SERVER = V10Module("shop-server", "example/shop/shop-server")
-    val INVENTORY_API = V10Module("inventory-api", "example/inventory/inventory-api")
-    val INVENTORY_DOMAIN = V10Module("inventory-domain", "example/inventory/inventory-domain")
-    val INVENTORY_SERVER = V10Module("inventory-server", "example/inventory/inventory-server")
-    val EXAMPLE_E2E = V10Module("example-e2e", "example/e2e")
-
     /** The eShop's five contexts (decision D158), each an `-api`, a `-domain` and a `-server` project. */
     val ESHOP_CONTEXTS = listOf("catalog", "basket", "ordering", "inventory", "payment")
 
@@ -80,22 +72,13 @@ object V10Rules {
     } + V10Module("eshop-e2e", "example/eshop/e2e")
 
     /**
-     * The V10 examples (decisions D111, D144, D159): applications of the V10 modules, not ones of them, and the
+     * The V10 example, the eShop (decisions D159, D204): applications of the V10 modules, not ones of them, and the
      * end-to-end tests across them.
      */
-    val EXAMPLES =
-        listOf(SHOP_API, SHOP_DOMAIN, SHOP_SERVER, INVENTORY_API, INVENTORY_DOMAIN, INVENTORY_SERVER, EXAMPLE_E2E) + ESHOP
+    val EXAMPLES = ESHOP
 
-    /** Whether [project] belongs to the eShop (decision D159). */
-    fun isEshop(project: String): Boolean = project.startsWith("eshop-")
-
-    /**
-     * Whether [project] belongs to a V10 example: the shop, the inventory context (decision D144), their e2e tests, or
-     * the eShop (decision D159).
-     */
-    fun isExample(project: String): Boolean =
-        project.startsWith("shop-") || project.startsWith("inventory-") || project == EXAMPLE_E2E.name ||
-            isEshop(project)
+    /** Whether [project] belongs to the V10 example, the eShop (decisions D159, D204). */
+    fun isExample(project: String): Boolean = project.startsWith("eshop-")
 
     /**
      * Whether [project] is one of the examples' domain or API modules: an example project that is neither a server
@@ -382,17 +365,16 @@ object V10Rules {
     }
 
     /**
-     * The examples build on the V10 modules only (decisions D118, D144, D159), directly or transitively: they show V10
-     * as an application uses it, with no 9.x module, spike or test project on its classpath. The shop's example is
-     * `:shop-*`, `:inventory-*` and `:example-e2e`, the eShop is `:eshop-*` ([isExample]); the projects of one may
-     * build on each other, never on the other's.
+     * The example builds on the V10 modules only (decisions D118, D159), directly or transitively: it shows V10 as an
+     * application uses it, with no 9.x module, spike or test project on its classpath. Its projects, `:eshop-*`
+     * ([isExample]), may build on each other.
      */
     fun exampleOutsideV10Violations(repositoryRoot: File): List<String> {
         val graph = projectGraph(repositoryRoot)
         val examples = graph.keys.filter(::isExample).sorted()
         val modules = MODULES.map { it.name }.toSet()
         return examples.flatMap { example ->
-            val allowed = modules + examples.filter { isEshop(it) == isEshop(example) }
+            val allowed = modules + examples
             reachable(graph, example).filterNot { it in allowed }.sorted().map { "$example reaches :$it" }
         }
     }

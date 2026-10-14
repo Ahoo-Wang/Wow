@@ -5,7 +5,7 @@ A multi-service shop on Wow V10, modelled on the classic eShop reference applica
 - that everything from M1 to M6 works together across several services;
 - that the developer experience holds up for someone who knows Wow only from the public documentation and the Skills. Each gap goes into [DX-GAPS.md](DX-GAPS.md).
 
-The eShop builds on the V10 modules only, and is never published. `example/shop` stays as the minimal example and as the reference for 9.x-to-V10 migration.
+The eShop builds on the V10 modules only, and is never published. It is the V10 example: the shop (`example/shop`), its inventory (`example/inventory`) and their end-to-end tests (`example/e2e`) came before it and were folded into it (decision D204), each scenario they alone tested now covered here (see [Tests](#tests)).
 
 > **Status: E.1 to E.6 done.** The catalog has its products, brands and categories, and its storefront queries. The basket, ordering, inventory and payment contexts and the order flow between them work end to end on PostgreSQL and Kafka, the payment over a simulated gateway. All five services run together on PostgreSQL, Kafka and ClickHouse, with the sales dataset, a node killed mid-flow, and a load script with its baseline ([e2e/README.md](e2e/README.md)). The ordering runs on two nodes in the suite.
 
@@ -78,10 +78,10 @@ A declined payment's CancelOrder, and the grace period's scheduled one for an or
 
 ### Naming
 
-- **Context names.** Each context is named `eshop-<context>` (`@BoundedContext` in each `-domain`), so it does not clash with the shop's `example`.
+- **Context names.** Each context is named `eshop-<context>` (`@BoundedContext` in each `-domain`), so it does not clash with the 9.x example's `example`.
 - **No dots.** A context name holds no dot, because Wow writes a type as `<context>.<aggregate>`.
 - **Commands and routes.** Commands and events are named `eshop-catalog.product.CreateProduct`. Routes start with `/eshop-catalog/product/`.
-- **Gradle projects.** Every Gradle project is named `eshop-*`, so none clashes with the shop's projects, `:inventory-*` included.
+- **Gradle projects.** Every Gradle project is named `eshop-*`, so none clashes with a 9.x example's projects.
 
 ### Dependencies
 

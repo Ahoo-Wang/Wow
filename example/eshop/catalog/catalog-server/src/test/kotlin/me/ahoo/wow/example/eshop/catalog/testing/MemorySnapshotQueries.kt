@@ -23,7 +23,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 
 /**
- * The snapshot queries on the memory backend, copied from the shop's tests (`example/shop`). The guide says the
+ * The snapshot queries on the memory backend, as the first V10 example's tests wired them. The guide says the
  * in-memory reference query backend on the test class path is enough; it is not: without this wiring the query
  * routes answer 404 (DX gap G14). It lives outside the server's package, so the application's component scan does not
  * pick it up for every test.

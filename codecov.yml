@@ -42,9 +42,6 @@ flag_management:
         - edge/**
         - host/**
         - migration/**
-        - example/shop/**
-        - example/inventory/**
-        - example/e2e/**
         - example/eshop/**
         - test/architecture/**
         - test/kernel-benchmarks/**

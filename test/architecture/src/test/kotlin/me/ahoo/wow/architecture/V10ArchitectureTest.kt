@@ -299,80 +299,34 @@ class V10ArchitectureTest {
                 "api" to "api/api",
                 "spring-boot" to "host/spring-boot",
                 "routing-spike" to "test/routing-spike",
-                "shop-api" to "example/shop/shop-api",
-                "shop-domain" to "example/shop/shop-domain",
-                "shop-server" to "example/shop/shop-server",
-                "inventory-domain" to "example/inventory/inventory-domain",
-                "example-e2e" to "example/e2e",
+                "eshop-catalog-api" to "example/eshop/catalog/catalog-api",
+                "eshop-catalog-domain" to "example/eshop/catalog/catalog-domain",
+                "eshop-catalog-server" to "example/eshop/catalog/catalog-server",
+                "eshop-inventory-domain" to "example/eshop/inventory/inventory-domain",
+                "eshop-e2e" to "example/eshop/e2e",
                 "wow-core" to "wow-core",
                 "lease-spike" to "test/lease-spike",
             ),
             mapOf(
                 "spring-boot" to listOf("wow-spring"),
-                "shop-api" to listOf("api"),
-                "shop-domain" to listOf("shop-api", "routing-spike"),
-                "shop-server" to listOf("shop-api", "spring-boot"),
-                "inventory-domain" to listOf("api", "wow-core"),
-                "example-e2e" to listOf("shop-api", "inventory-domain", "lease-spike"),
+                "eshop-catalog-api" to listOf("api"),
+                "eshop-catalog-domain" to listOf("eshop-catalog-api", "routing-spike"),
+                "eshop-catalog-server" to listOf("eshop-catalog-api", "spring-boot"),
+                "eshop-inventory-domain" to listOf("api", "wow-core"),
+                "eshop-e2e" to listOf("eshop-catalog-api", "eshop-inventory-domain", "lease-spike"),
             ),
             v10 = setOf(
-                "api", "spring-boot", "routing-spike", "lease-spike", "shop-api", "shop-domain", "shop-server",
-                "inventory-domain", "example-e2e",
+                "api", "spring-boot", "routing-spike", "lease-spike", "eshop-catalog-api", "eshop-catalog-domain",
+                "eshop-catalog-server", "eshop-inventory-domain", "eshop-e2e",
             ),
         )
         V10Rules.exampleOutsideV10Violations(root).assert().containsExactly(
-            "example-e2e reaches :lease-spike",
-            "example-e2e reaches :wow-core",
-            "inventory-domain reaches :wow-core",
-            "shop-domain reaches :routing-spike",
-            "shop-server reaches :wow-spring",
+            "eshop-catalog-domain reaches :routing-spike",
+            "eshop-catalog-server reaches :wow-spring",
+            "eshop-e2e reaches :lease-spike",
+            "eshop-e2e reaches :wow-core",
+            "eshop-inventory-domain reaches :wow-core",
         )
-    }
-
-    @Test
-    fun `example domain rule should catch a domain or API module reaching the runtime transitively`(
-        @TempDir root: File
-    ) {
-        root.writeBuild(
-            mapOf(
-                "kernel" to "core/kernel",
-                "runtime" to "core/runtime",
-                "reactor" to "core/reactor",
-                "spring-boot" to "host/spring-boot",
-                "shop-api" to "example/shop/shop-api",
-                "shop-domain" to "example/shop/shop-domain",
-                "shop-server" to "example/shop/shop-server",
-                "inventory-api" to "example/inventory/inventory-api",
-                "inventory-domain" to "example/inventory/inventory-domain",
-                "inventory-server" to "example/inventory/inventory-server",
-                "example-e2e" to "example/e2e",
-            ),
-            mapOf(
-                "runtime" to listOf("kernel"),
-                "reactor" to listOf("runtime"),
-                "spring-boot" to listOf("runtime"),
-                "shop-domain" to listOf("shop-api", "kernel"),
-                "shop-server" to listOf("shop-domain", "spring-boot"),
-                "inventory-api" to listOf("runtime"),
-                "inventory-domain" to listOf("inventory-api", "reactor"),
-                "inventory-server" to listOf("inventory-domain", "spring-boot"),
-                "example-e2e" to listOf("shop-server", "runtime"),
-            ),
-        )
-        V10Rules.exampleDomainOnRuntimeViolations(root).assert().containsExactly(
-            "inventory-api reaches :runtime",
-            "inventory-domain reaches :runtime",
-        )
-    }
-
-    @Test
-    fun `example domain modules should be the example's projects other than its servers and e2e tests`() {
-        listOf("shop-api", "shop-domain", "inventory-api", "inventory-domain").forEach {
-            V10Rules.isExampleDomain(it).assert().describedAs(it).isTrue()
-        }
-        listOf("shop-server", "inventory-server", "example-e2e", "runtime", "wow-core").forEach {
-            V10Rules.isExampleDomain(it).assert().describedAs(it).isFalse()
-        }
     }
 
     @Test
@@ -399,39 +353,6 @@ class V10ArchitectureTest {
             V10Rules.isExample(it).assert().describedAs(it).isTrue()
             V10Rules.isExampleDomain(it).assert().describedAs(it).isFalse()
         }
-    }
-
-    @Test
-    fun `example rule should keep the eShop and the shop apart and on V10 modules`(@TempDir root: File) {
-        root.writeBuild(
-            mapOf(
-                "api" to "api/api",
-                "kernel" to "core/kernel",
-                "spring-boot" to "host/spring-boot",
-                "wow-core" to "wow-core",
-                "routing-spike" to "test/routing-spike",
-                "shop-api" to "example/shop/shop-api",
-                "eshop-catalog-api" to "example/eshop/catalog/catalog-api",
-                "eshop-catalog-domain" to "example/eshop/catalog/catalog-domain",
-                "eshop-catalog-server" to "example/eshop/catalog/catalog-server",
-                "eshop-basket-domain" to "example/eshop/basket/basket-domain",
-                "eshop-e2e" to "example/eshop/e2e",
-            ),
-            mapOf(
-                "shop-api" to listOf("api", "eshop-catalog-api"),
-                "eshop-catalog-api" to listOf("api"),
-                "eshop-catalog-domain" to listOf("eshop-catalog-api", "kernel"),
-                "eshop-catalog-server" to listOf("eshop-catalog-domain", "spring-boot"),
-                "eshop-basket-domain" to listOf("shop-api", "wow-core"),
-                "eshop-e2e" to listOf("eshop-catalog-server", "routing-spike"),
-            ),
-        )
-        V10Rules.exampleOutsideV10Violations(root).assert().containsExactly(
-            "eshop-basket-domain reaches :shop-api",
-            "eshop-basket-domain reaches :wow-core",
-            "eshop-e2e reaches :routing-spike",
-            "shop-api reaches :eshop-catalog-api",
-        )
     }
 
     @Test
