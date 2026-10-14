@@ -200,12 +200,7 @@ class Kernel(
 
                 is Prepared.Append -> prepared.stream to prepared.evolved
             }
-            val appending = observer.appending(stream)
-            val appended = withContext(NonCancellable) {
-                appending.observe {
-                    append(stream, attempt.transport(appending.trace)).also { appending.outcome(it.observedName) }
-                }
-            }
+            val appended = withContext(NonCancellable) { appendObserved(stream, attempt) }
             settleAppend(appended, stream, evolved, attempt, commandType)?.let { return it }
             attempts++
         }
@@ -220,6 +215,14 @@ class Kernel(
         val early = (command.schedule ?: return).due - clock()
         if (early > 0) {
             delay(early)
+        }
+    }
+
+    /** Appends [stream] of [attempt], observed: what it carries for delivery holds the append's trace (D174). */
+    private suspend fun appendObserved(stream: EventStreamRecord, attempt: AttemptScope): AppendOutcome {
+        val appending = observer.appending(stream)
+        return appending.observe {
+            append(stream, attempt.transport(appending.trace)).also { appending.outcome(it.observedName) }
         }
     }
 
@@ -797,7 +800,9 @@ class Kernel(
          * What the append carries for delivery: the wait context when the caller waits beyond COMMITTED (D25), the
          * keys this attempt reserved pending (D50) and the append's [trace] (D174); null when there is none of them.
          */
-        fun transport(trace: Map<String, String>): Transport? = if (wait == null && reserved == null && trace.isEmpty()) {
+        fun transport(
+            trace: Map<String, String>
+        ): Transport? = if (wait == null && reserved == null && trace.isEmpty()) {
             null
         } else {
             Transport(wait = wait, reservations = reserved?.toList().orEmpty(), trace = trace)

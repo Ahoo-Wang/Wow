@@ -14,7 +14,6 @@
 package me.ahoo.wow.spring.boot
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import jakarta.validation.Validator as JakartaValidator
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.WowHttpOptions
@@ -79,6 +78,7 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import tools.jackson.databind.json.JsonMapper
 import java.net.http.HttpClient
 import kotlin.time.toKotlinDuration
+import jakarta.validation.Validator as JakartaValidator
 
 /**
  * The Wow V10 host (roadmap 5b.3; decisions D30, D44, D89, D105–D110, D114): by what the classpath and the
