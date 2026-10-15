@@ -19,6 +19,7 @@ import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
@@ -396,6 +397,63 @@ class KernelTest {
         }
         Kernel(earlier).execute(cartModel, command(AddItem("apple", 1)))
             .assert().isInstanceOf(CommandOutcome.AlreadyCommitted::class.java)
+    }
+
+    @Test
+    fun `a conflict whose request is committed is a duplicate, not decided again`() = runTest {
+        val log = InMemoryEventLog()
+        Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
+        var appends = 0
+        // Another attempt of the request committed the same version first; the backend compared the version first.
+        val racing = object : EventLog by log {
+            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+                appends++
+                log.append(stream.copy(commandId = "elsewhere"), transport)
+                return AppendOutcome.Conflict(stream.version)
+            }
+        }
+        val outcome = Kernel(racing).execute(cartModel, command(AddItem("apple", 1))) as CommandOutcome.AlreadyCommitted
+        outcome.stream.commandId.assert().isEqualTo("elsewhere")
+        appends.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `a conflict whose request is this very append is its commit`() = runTest {
+        val log = InMemoryEventLog()
+        Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
+        val retrying = object : EventLog by log {
+            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+                log.append(stream, transport)
+                return AppendOutcome.Conflict(stream.version)
+            }
+        }
+        val committed = Kernel(retrying).execute(cartModel, command(AddItem("apple", 1))) as CommandOutcome.Committed
+        committed.position.assert().isEqualTo(log.positionOf(ref, 2))
+    }
+
+    @Test
+    fun `a conflict whose request cannot be looked up again is decided again`() = runTest {
+        val log = InMemoryEventLog()
+        Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
+        var raced = false
+        val racing = object : EventLog by log {
+            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+                if (raced) {
+                    return log.append(stream, transport)
+                }
+                raced = true
+                Kernel(log).execute(cartModel, command(AddItem("pear", 1)))
+                return log.append(stream, transport)
+            }
+
+            override suspend fun findByRequestId(
+                type: AggregateType,
+                tenantId: String,
+                requestId: String,
+            ): EventStreamRecord? = if (raced) throw IllegalStateException("down") else null
+        }
+        val outcome = Kernel(racing).execute(cartModel, command(AddItem("apple", 1))) as CommandOutcome.Committed
+        outcome.stream.version.assert().isEqualTo(3)
     }
 
     @Test

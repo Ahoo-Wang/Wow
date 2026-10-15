@@ -386,15 +386,38 @@ class Kernel(
      * which only one stream can ever hold (the 9.3 rule), decides it (ours means committed, another stream of the
      * request a duplicate, another request a conflict, none stays unknown); and a duplicate the backend reports may be
      * its own retry of this append. Treating either as a duplicate would compensate what is a fact (finding A1-1).
+     * A conflict is checked against the request key before the command is decided again (finding A2-1): a backend that
+     * compares the version first reports a retry of the request at the same version as a conflict, and deciding it
+     * again would run the decision's I/O twice (decision D46).
      */
     private suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
         when (val outcome = log.append(stream, transport)) {
             is AppendOutcome.Unknown -> settleUnknown(stream, outcome)
-            is AppendOutcome.AlreadyCommitted ->
-                if (outcome.existing.isAppendOf(stream)) committedAt(stream, outcome) else outcome
-
+            is AppendOutcome.AlreadyCommitted -> duplicateOf(stream, outcome)
+            is AppendOutcome.Conflict -> settleConflict(stream, outcome)
             else -> outcome
         }
+
+    /** [duplicate] of [stream]: [stream] itself committed when it names this very append (finding A1-1). */
+    private suspend fun duplicateOf(stream: EventStreamRecord, duplicate: AppendOutcome.AlreadyCommitted): AppendOutcome =
+        if (duplicate.existing.isAppendOf(stream)) committedAt(stream, duplicate) else duplicate
+
+    /**
+     * The [conflict] of [stream], unless its request is committed: then a duplicate, or this append itself. A failing
+     * lookup leaves the conflict, decided again as before.
+     */
+    private suspend fun settleConflict(stream: EventStreamRecord, conflict: AppendOutcome.Conflict): AppendOutcome {
+        val existing = try {
+            log.findByRequestId(stream.ref.type, stream.ref.tenantId, stream.requestId)
+        } catch (
+            @Suppress("TooGenericExceptionCaught") // Whatever stops the lookup, the conflict stands.
+            failure: Exception,
+        ) {
+            logger.debug(failure) { "The request of ${stream.ref}@${stream.version} could not be looked up again." }
+            null
+        }
+        return existing?.let { duplicateOf(stream, AppendOutcome.AlreadyCommitted(it)) } ?: conflict
+    }
 
     /** Reads the version slot an [unknown] append of [stream] targeted; a failing read leaves it unknown. */
     private suspend fun settleUnknown(stream: EventStreamRecord, unknown: AppendOutcome.Unknown): AppendOutcome {

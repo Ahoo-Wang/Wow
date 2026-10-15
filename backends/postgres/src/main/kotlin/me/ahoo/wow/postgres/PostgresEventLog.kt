@@ -243,13 +243,13 @@ class PostgresEventLog(
                 append.executeQuery().use { rows -> if (rows.next()) rows.getLong(1) else null }
             }
             return if (sequence == null) {
-                AppendOutcome.Conflict(currentVersion(connection, table, stream.ref))
+                conflictOf(connection, table, stream)
             } else {
                 AppendOutcome.Committed(LogPosition(partition, sequence))
             }
         } catch (failure: PSQLException) {
             return when (failure.serverErrorMessage?.constraint) {
-                table.versionKey -> AppendOutcome.Conflict(currentVersion(connection, table, stream.ref))
+                table.versionKey -> conflictOf(connection, table, stream)
                 table.requestKey -> findByRequestIdIn(connection, table, stream.ref.tenantId, stream.requestId)
                     ?.let { AppendOutcome.AlreadyCommitted(it) }
                     ?: AppendOutcome.Unknown(failure)
@@ -415,6 +415,16 @@ class PostgresEventLog(
         query.setString(2, requestId)
         query.executeQuery().use { rows -> if (rows.next()) streamOf(table.aggregate, rows) else null }
     }
+
+    /**
+     * The outcome of [stream] refused for its version: [AppendOutcome.AlreadyCommitted] when its request is committed
+     * (finding A2-1: a retry of one request at one version collides on both keys, and the version key is checked
+     * first), else the conflict, with the aggregate's current version.
+     */
+    private fun conflictOf(connection: Connection, table: AggregateLogTable, stream: EventStreamRecord): AppendOutcome =
+        findByRequestIdIn(connection, table, stream.ref.tenantId, stream.requestId)
+            ?.let { AppendOutcome.AlreadyCommitted(it) }
+            ?: AppendOutcome.Conflict(currentVersion(connection, table, stream.ref))
 
     private fun currentVersion(connection: Connection, table: AggregateLogTable, ref: AggregateRef): Int =
         connection.prepareStatement(table.currentVersion).use { query ->

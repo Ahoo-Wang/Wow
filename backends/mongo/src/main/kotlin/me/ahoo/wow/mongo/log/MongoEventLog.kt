@@ -224,7 +224,7 @@ class MongoEventLog(
         require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
         val collection = collectionOf(stream.ref.type)
         val partition = Partitioner.partitionOf(stream.ref, partitions)
-        return try {
+        val outcome = try {
             client.startSession().use { session ->
                 session.withTransaction({
                     val current = collection.log.find(session, refFilter(stream.ref))
@@ -257,7 +257,20 @@ class MongoEventLog(
                 else -> AppendOutcome.Conflict(currentVersion(collection, stream.ref))
             }
         }
+        return if (outcome is AppendOutcome.Conflict) duplicateOr(collection, stream, outcome) else outcome
     }
+
+    /**
+     * [AppendOutcome.AlreadyCommitted] when [stream]'s request is committed, else [conflict] (finding A2-1): a retry of
+     * one request at one version collides on both keys, and the version is compared first.
+     */
+    private fun duplicateOr(
+        collection: AggregateCollection,
+        stream: EventStreamRecord,
+        conflict: AppendOutcome.Conflict,
+    ): AppendOutcome =
+        findByRequestIdIn(collection, stream.ref.tenantId, stream.requestId)?.let { AppendOutcome.AlreadyCommitted(it) }
+            ?: conflict
 
     /**
      * Group commit: one transaction reads every aggregate's version (one aggregation per aggregate type), bumps the
@@ -285,6 +298,13 @@ class MongoEventLog(
             try {
                 client.startSession().use { session ->
                     session.withTransaction({ appendGroup(session, partition, collections, streams) }, transaction)
+                }.mapIndexed { index, outcome ->
+                    val stream = streams[index].first
+                    if (outcome is AppendOutcome.Conflict) {
+                        duplicateOr(collections.getValue(stream.ref.type), stream, outcome)
+                    } else {
+                        outcome
+                    }
                 }
             } catch (failure: MongoException) {
                 null
