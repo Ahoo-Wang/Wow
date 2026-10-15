@@ -20,6 +20,8 @@ import jakarta.validation.Path
 import jakarta.validation.Validator
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.metadata.ConstraintDescriptor
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.WaitPlan
@@ -326,6 +328,19 @@ class CommandRoutesTest {
         configured.post("/shop/cart/c-1/checkout", """{"note":"closed"}""")
             .assertProblem(451, CART_CLOSED, withResult = true)
         configured.post("/shop/cart/c-1/checkout").assertProblem(400, CART_EMPTY, withResult = true)
+    }
+
+    @Test
+    fun `a decide function that throws is a 500 problem with its result, saying nothing of the cause`() {
+        // Review A3-6: never Spring's bare 500.
+        node.post("/shop/cart/c-1/open-cart").assertSucceeded()
+        val failed = node.post("/shop/cart/c-1/checkout", """{"note":"throw"}""")
+            .assertProblem(500, FrameworkCodes.FAILED, withResult = true).body!!
+        failed["result"]["status"].asString().assert().isEqualTo("FAILED")
+        failed["result"]["requestId"].asString().assert().isNotBlank()
+        failed.toString().assert().doesNotContain("secret")
+        // It committed nothing: the cart is still at version 1.
+        runBlocking { node.log.read(cartType.ref(TENANT, "c-1"), 1, Int.MAX_VALUE).toList() }.size.assert().isEqualTo(1)
     }
 
     @Test

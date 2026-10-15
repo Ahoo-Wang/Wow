@@ -53,6 +53,7 @@ object FrameworkCodes {
     const val DELETED = KernelRejections.DELETED
     const val CONTENDED = ResultCodes.CONTENDED
     const val UNKNOWN = ResultCodes.UNKNOWN
+    const val FAILED = ResultCodes.FAILED
     const val BUSY = ResultCodes.BUSY
     const val NODE_CLOSING = ResultCodes.NODE_CLOSING
     const val STORAGE_UNAVAILABLE = ResultCodes.STORAGE_UNAVAILABLE
@@ -77,6 +78,7 @@ object FrameworkCodes {
         DELETED,
         CONTENDED,
         UNKNOWN,
+        FAILED,
         BUSY,
         NODE_CLOSING,
         STORAGE_UNAVAILABLE,

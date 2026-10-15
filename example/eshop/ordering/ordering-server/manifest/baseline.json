@@ -342,6 +342,10 @@
     "status" : 503,
     "description" : "Whether the command committed is unknown; retrying with the same request id is safe."
   }, {
+    "code" : "wow.command.failed",
+    "status" : 500,
+    "description" : "The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike."
+  }, {
     "code" : "wow.node.closing",
     "status" : 503,
     "description" : "The node is shutting down; retry on another node."

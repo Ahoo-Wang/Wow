@@ -35,6 +35,12 @@ object ResultCodes {
     /** Whether the command committed is unknown; retrying with the same request id is safe (D46). */
     const val UNKNOWN = "wow.command.unknown"
 
+    /**
+     * The command's handling threw an unexpected error (a bug in a decide function or an after hook, a missing
+     * dependency): it committed nothing, and a retry fails the same way until the service is fixed (review A3-6).
+     */
+    const val FAILED = "wow.command.failed"
+
     /** The wait ran out of time. It says only that the wait gave up, not that the command failed (D64). */
     const val WAIT_TIMEOUT = "wow.wait.timeout"
 

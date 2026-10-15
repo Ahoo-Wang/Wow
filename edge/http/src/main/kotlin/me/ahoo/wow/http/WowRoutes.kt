@@ -14,6 +14,7 @@
 package me.ahoo.wow.http
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -383,8 +384,10 @@ private suspend fun noDataset(request: ServerRequest): ServerResponse =
 
 /**
  * [block]'s response, or the problem it was answered with: a store that is unavailable where no result carries it
- * (a state read, say) is `wow.storage.unavailable`, as a command's result would be.
+ * (a state read, say) is `wow.storage.unavailable`, as a command's result would be. Any other failure is a 500
+ * problem that says nothing of its cause, which is logged (review A3-6): never Spring's bare error page.
  */
+@Suppress("TooGenericExceptionCaught") // Whatever else a route throws is answered as a problem, not a bare 500.
 private suspend inline fun ErrorStatuses.answering(block: () -> ServerResponse): ServerResponse = try {
     block()
 } catch (problem: ProblemException) {
@@ -392,6 +395,11 @@ private suspend inline fun ErrorStatuses.answering(block: () -> ServerResponse):
 } catch (unavailable: StorageUnavailableException) {
     logger.warn(unavailable) { "A request failed: a store is unavailable." }
     problemOf(FrameworkErrors.STORAGE_UNAVAILABLE, unavailable.message!!).respond()
+} catch (cancelled: CancellationException) {
+    throw cancelled
+} catch (failure: Exception) {
+    logger.error(failure) { "A request failed with an unexpected error." }
+    Problem.ofStatus(HttpStatus.INTERNAL_SERVER_ERROR, "The request failed with an unexpected error.").respond()
 }
 
 private val logger = KotlinLogging.logger {}

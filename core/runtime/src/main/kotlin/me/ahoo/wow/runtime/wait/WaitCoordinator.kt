@@ -484,8 +484,12 @@ class WaitCoordinator(
      * the kernel deduplicates it. So is a scheduled command due longer from now than the kernel waits for one
      * ([ScheduleNotDueException], decision D198): [ResultCodes.SCHEDULE_NOT_DUE], logged with the clock skew, which
      * its firing runner sends again later. An append whose outcome is unknown is [ResultCodes.UNKNOWN], from the
-     * kernel.
+     * kernel. Any other failure of its handling (a decide function or an after hook that throws, a missing
+     * dependency), which the kernel compensated, is [ResultCodes.FAILED], logged with its cause and answered without
+     * it: the owner of a forwarded command answers it so, not with an error the sender could not tell from a lost
+     * reply (review A3-6).
      */
+    @Suppress("TooGenericExceptionCaught") // Whatever else the handling throws, the command committed nothing.
     suspend fun executeHere(model: AggregateModel<*>, command: Command<*>, wait: WaitContext?): Settlement {
         val function = commandFunction(model, command)
         val hop = Hop.committed(command.ref.type.context)
@@ -507,6 +511,18 @@ class WaitCoordinator(
             logger.warn { "Clock skew at node ${options.origin.node}: ${early.message}" }
             return Settlement(
                 reachedResult(command, function, hop, clock()).failed(ResultCodes.SCHEDULE_NOT_DUE, early.message!!),
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            logger.error(failure) { "Command ${command.id} on ${command.ref} failed: its handling threw." }
+            return Settlement(
+                reachedResult(command, function, hop, clock()).failed(
+                    ResultCodes.FAILED,
+                    "The command failed with an unexpected error in ${function.processor}.${function.name}; " +
+                        "it committed nothing.",
+                ),
+                cause = failure,
             )
         }
         val committed = outcome.toResult(command, function, hop, clock())
@@ -645,7 +661,12 @@ data class Settlement(
     val committed: CommandResult,
     val reached: List<CommandResult> = emptyList(),
     val outcome: CommandOutcome? = null,
+    /** What failed the handling of a [ResultCodes.FAILED] command here: for this node's logs and ledger only. */
+    val cause: Throwable? = null,
 ) {
+    /** What made [committed] FAILED, when this node knows it: the handling's [cause], or an unknown append's. */
+    val failure: Throwable? get() = cause ?: (outcome as? CommandOutcome.Unknown)?.cause
+
     /** The rejection [committed] ends with, when it is REJECTED (a business outcome, decision D153). */
     val rejection: Rejection?
         get() = committed.error?.takeIf { committed.status == CommandResult.Status.REJECTED }

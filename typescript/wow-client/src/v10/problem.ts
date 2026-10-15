@@ -50,6 +50,8 @@ export const FrameworkErrorCodes = {
   COMMAND_BUSY: 'wow.command.busy',
   /** 503: whether the command committed is unknown; retrying with the same request id is safe. */
   COMMAND_UNKNOWN: 'wow.command.unknown',
+  /** 500: the command's handling failed with an unexpected error; it committed nothing, and a retry fails alike. */
+  COMMAND_FAILED: 'wow.command.failed',
   /** 503: the node is shutting down; retry on another node. */
   NODE_CLOSING: 'wow.node.closing',
   /** 503, with `Retry-After`: a store could not be reached in time; retry later. */

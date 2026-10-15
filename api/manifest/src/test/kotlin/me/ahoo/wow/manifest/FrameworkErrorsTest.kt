@@ -36,6 +36,7 @@ class FrameworkErrorsTest {
                 "wow.aggregate.deleted" to 410,
                 "wow.command.busy" to 429,
                 "wow.command.unknown" to 503,
+                "wow.command.failed" to 500,
                 "wow.node.closing" to 503,
                 "wow.storage.unavailable" to 503,
                 "wow.schedule.not-due" to 503,

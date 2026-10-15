@@ -111,6 +111,22 @@ class HttpClusterTest {
     }
 
     @Test
+    fun `an owner whose decide function throws answers the failure, which the sender relays as it is`(): Unit =
+        runBlocking {
+            // Review A3-6: the owner answered, so the outcome is known: failed, not unknown.
+            val cluster = cluster()
+            val (one, two, id) = cluster.forwarded()
+            two.failing = true
+
+            val result = one.deposit(id)
+            result.status.assert().isEqualTo(CommandResult.Status.FAILED)
+            result.error!!.code.assert().isEqualTo(ResultCodes.FAILED)
+            result.error!!.message.assert().doesNotContain("secret")
+            two.decided.assert().containsExactly(result.commandId)
+            one.decided.assert().isEmpty()
+        }
+
+    @Test
     fun `an owner whose internal port is down degrades the command to running here`(): Unit = runBlocking {
         val cluster = cluster()
         val (one, two, id) = cluster.forwarded()
@@ -190,11 +206,16 @@ class HttpNode(val name: String, private val cluster: HttpCluster) {
     @Volatile
     var hold: CompletableDeferred<Unit>? = null
 
+    /** While set, this node's decide function throws. */
+    @Volatile
+    var failing: Boolean = false
+
     val model = aggregate<Account>(CONTEXT, "account") {
         initial { Account() }
         decideSuspending<Deposit>(Creation.ALLOWED) { _, body ->
             decided += command.id
             hold?.await()
+            check(!failing) { "secret jdbc:postgresql://db-internal:5432" }
             Decision.events(Deposited(body.amount))
         }
         evolve<Deposited> { balance += it.amount }
