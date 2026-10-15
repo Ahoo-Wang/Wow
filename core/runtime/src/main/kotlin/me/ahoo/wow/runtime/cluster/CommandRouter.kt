@@ -21,9 +21,14 @@ import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.Settlement
 import me.ahoo.wow.runtime.wait.WaitCoordinator
+import me.ahoo.wow.runtime.wait.commandFunction
+import me.ahoo.wow.runtime.wait.failed
+import me.ahoo.wow.runtime.wait.reachedResult
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.trace
@@ -68,13 +73,17 @@ fun interface CommandRouter {
  *   [ClusterOptions.forwardTimeout], capped by the command's own wait deadline (decision D80). The timeout is the
  *   request's: the channel [connects][ClusterChannel.connect] to the peer first, within the wait's deadline, so the
  *   first forward to a peer that started a moment ago does not spend its second opening a connection.
- * - Every failure of a forward degrades to running locally, without retrying it (D71): no known owner, the peer's
- *   [ClusterOptions.maxInFlightPerPeer] reached, the peer unreachable or not connected by the wait's deadline, no
- *   reply in time, or a refusal. A failed forward also refreshes the routes.
+ * - A forward the owner surely did not receive degrades to running locally, without retrying it (D71, D223): no
+ *   known owner, the peer's [ClusterOptions.maxInFlightPerPeer] reached, the peer unreachable or not connected by the
+ *   wait's deadline ([ClusterChannelException.unsent]), or a refusal ([Refusal.NOT_OWNER], [Refusal.EXPIRED], or a
+ *   type the peer does not know): the peer did not run it.
+ * - A forward that was sent and got no reply by its deadline, or failed after it was sent, does not degrade (decision
+ *   D223, revising D80): the owner may be deciding it still, and deciding it here too would run a decide that does
+ *   I/O twice (D46). Its outcome is [ResultCodes.UNKNOWN]; a retry with the same request id is answered from the
+ *   owner's commit, if any. The forward timeout only says when to report that.
  *
- * Degrading is safe without fencing: the kernel deduplicates by request id, so a command the owner did commit before
- * its reply was lost settles here as a duplicate, and version-unique keys turn concurrent writers into conflicts that
- * are decided again (D45).
+ * A failed forward also refreshes the routes. Degrading is safe without fencing: the kernel deduplicates by request
+ * id, and version-unique keys turn concurrent writers into conflicts that are decided again (D45).
  */
 @InternalWowApi
 class PartitionedRouter(
@@ -103,8 +112,11 @@ class PartitionedRouter(
         return forward(ownership, peer, model, command, wait) ?: local()
     }
 
-    /** The settlement [peer] replied with, or null when the forward failed. */
-    @Suppress("TooGenericExceptionCaught") // Every failure of a forward degrades to Local (D71).
+    /**
+     * The settlement [peer] replied with; null when the forward surely did not reach it, so the command runs here; an
+     * unknown outcome when it may have (decision D223).
+     */
+    @Suppress("TooGenericExceptionCaught") // Whatever fails before the send degrades to Local (D71); after it, unknown.
     private suspend fun forward(
         ownership: PartitionOwnership,
         peer: Member,
@@ -119,38 +131,76 @@ class PartitionedRouter(
             return null
         }
         try {
-            val waitLeft = wait?.let { (it.deadline - clock()).coerceAtLeast(0).milliseconds } ?: Duration.INFINITE
-            withTimeoutOrNull(waitLeft) { channel.connect(peer.address) }
-                ?: return failed(ownership, command, peer, "not connected by the wait's deadline")
-            val now = clock()
-            val deadline = minOf(now + options.forwardTimeout.inWholeMilliseconds, wait?.deadline ?: Long.MAX_VALUE)
-            val request = ForwardCommand(
-                command = ClusterCodec.wire(model, command),
-                wait = wait?.let(WaitWire::of),
-                deadline = deadline,
-                trace = currentCoroutineContext().trace,
-            )
-            val reply = withTimeoutOrNull((deadline - now).coerceAtLeast(0).milliseconds) {
-                channel.forward(peer.address, request)
+            val request = try {
+                val waitLeft = wait?.let { (it.deadline - clock()).coerceAtLeast(0).milliseconds } ?: Duration.INFINITE
+                withTimeoutOrNull(waitLeft) { channel.connect(peer.address) }
+                    ?: return unsent(ownership, command, peer, "not connected by the wait's deadline")
+                ForwardCommand(
+                    command = ClusterCodec.wire(model, command),
+                    wait = wait?.let(WaitWire::of),
+                    deadline = minOf(
+                        clock() + options.forwardTimeout.inWholeMilliseconds,
+                        wait?.deadline ?: Long.MAX_VALUE,
+                    ),
+                    trace = currentCoroutineContext().trace,
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                return unsent(ownership, command, peer, failure.toString())
+            }
+            val reply = try {
+                withTimeoutOrNull((request.deadline - clock()).coerceAtLeast(0).milliseconds) {
+                    channel.forward(peer.address, request)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                if (failure is ClusterChannelException && failure.unsent) {
+                    return unsent(ownership, command, peer, failure.toString())
+                }
+                return unknown(ownership, model, command, peer, failure.toString())
             }
             return when {
-                reply == null -> failed(ownership, command, peer, "no reply by the deadline")
+                reply == null -> unknown(ownership, model, command, peer, "no reply by the deadline")
                 reply.result != null -> Settlement(reply.result, reply.reached)
-                else -> failed(ownership, command, peer, "refused: ${reply.refused}")
+                // A refusal is the peer's answer that it did not run the command.
+                else -> unsent(ownership, command, peer, "refused: ${reply.refused}")
             }
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (failure: Exception) {
-            return failed(ownership, command, peer, failure.toString())
         } finally {
             permits.decrementAndGet()
         }
     }
 
-    private fun failed(ownership: PartitionOwnership, command: Command<*>, peer: Member, why: String): Settlement? {
+    /** The forward surely did not reach [peer], or [peer] refused it: the command runs here (D71). */
+    private fun unsent(ownership: PartitionOwnership, command: Command<*>, peer: Member, why: String): Settlement? {
         logger.debug { "Forwarding ${command.id} to ${peer.node} at ${peer.address} failed ($why); it runs here." }
         ownership.refreshSoon()
         return null
+    }
+
+    /**
+     * The forward reached [peer], or may have, and no reply came (decision D223): the peer may be deciding the command
+     * still, so it does not run here too, where a decide doing I/O would run twice. Its outcome is unknown, which a
+     * retry with the same request id settles: the kernel answers it from the commit, if any.
+     */
+    private fun unknown(
+        ownership: PartitionOwnership,
+        model: AggregateModel<*>,
+        command: Command<*>,
+        peer: Member,
+        why: String,
+    ): Settlement {
+        logger.info { "Forwarding ${command.id} to ${peer.node} at ${peer.address} got no reply ($why); its outcome is unknown." }
+        ownership.refreshSoon()
+        val committed = reachedResult(command, commandFunction(model, command), Hop.committed(command.ref.type.context), clock())
+        return Settlement(
+            committed.failed(
+                ResultCodes.UNKNOWN,
+                "The owner ${peer.node} of ${command.ref} did not reply in time ($why); whether the command committed " +
+                    "is unknown. Retry it with the same request id.",
+            ),
+        )
     }
 
     private companion object {

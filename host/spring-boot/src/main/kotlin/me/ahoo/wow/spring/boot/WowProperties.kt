@@ -276,6 +276,11 @@ class WowProperties {
         var heartbeatInterval: Duration = DEFAULT_CLUSTER.heartbeatInterval.toJavaDuration()
         var reconcileInterval: Duration = DEFAULT_CLUSTER.reconcileInterval.toJavaDuration()
         var routeRefreshInterval: Duration = DEFAULT_CLUSTER.routeRefreshInterval.toJavaDuration()
+        /**
+         * How long a forward waits for the owner's reply, capped by the command's own deadline. A forward the owner
+         * received and did not answer by then is reported unknown (`wow.command.unknown`), not run here, so a retry
+         * with the same request id is safe (decision D223).
+         */
         var forwardTimeout: Duration = DEFAULT_CLUSTER.forwardTimeout.toJavaDuration()
         var maxInFlightPerPeer: Int = DEFAULT_CLUSTER.maxInFlightPerPeer
         var drainTimeout: Duration = DEFAULT_CLUSTER.drainTimeout.toJavaDuration()

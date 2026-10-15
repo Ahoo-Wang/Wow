@@ -155,7 +155,7 @@ class ClusterTest {
         }
 
     @Test
-    fun `a forward that times out after the owner committed settles as a duplicate, not a second commit`(): Unit =
+    fun `a forward whose reply comes too late is unknown, not decided here, and a retry gets the owner's commit`(): Unit =
         runBlocking {
             cluster.close()
             cluster = TestCluster(options = fastOptions(forwardTimeout = 300.milliseconds))
@@ -166,14 +166,48 @@ class ClusterTest {
 
             val result = one.deposit(id)
 
-            result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-            result.duplicate.assert().isTrue()
-            result.version.assert().isEqualTo(1)
+            // Decision D223: the owner received it, so it does not run here too.
+            result.status.assert().isEqualTo(CommandResult.Status.FAILED)
+            result.error!!.code.assert().isEqualTo(ResultCodes.UNKNOWN)
+            result.hop.assert().isEqualTo(Hop.committed(CONTEXT))
+            one.decided.assert().isEmpty()
+            eventually { cluster.events.contains("append $id") }
+            cluster.latencies.clear()
+            val retry = one.deposit(id, commandId = result.commandId)
+            retry.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            retry.duplicate.assert().isTrue()
+            retry.version.assert().isEqualTo(1)
             two.decided.assert().containsExactly(result.commandId)
             one.decided.assert().isEmpty()
             cluster.log.positionOf(TestNode.ref(id), 2).assert().isNull()
             cluster.events.count { it == "append $id" }.assert().isEqualTo(1)
         }
+
+    @Test
+    fun `an owner deciding longer than the forward timeout decides the request exactly once`(): Unit = runBlocking {
+        cluster.close()
+        cluster = TestCluster(options = fastOptions(forwardTimeout = 300.milliseconds))
+        val (one, two) = cluster.start("node-1", "node-2")
+        cluster.awaitStable()
+        val id = (0 until 64).map { "acc-$it" }.first { ownerOf(it) == "node-2" }
+        // The owner's decide is slow, as one calling a payment service is (finding A1-6).
+        val decide = CompletableDeferred<Unit>().also { two.hold = it }
+
+        val result = one.deposit(id)
+
+        result.status.assert().isEqualTo(CommandResult.Status.FAILED)
+        result.error!!.code.assert().isEqualTo(ResultCodes.UNKNOWN)
+        two.decided.assert().containsExactly(result.commandId)
+        one.decided.assert().isEmpty()
+        decide.complete(Unit)
+        eventually { cluster.events.contains("append $id") }
+        two.hold = null
+        val retry = one.deposit(id, commandId = result.commandId)
+        retry.duplicate.assert().isTrue()
+        retry.version.assert().isEqualTo(1)
+        two.decided.assert().containsExactly(result.commandId)
+        one.decided.assert().isEmpty()
+    }
 
     @Test
     fun `a forward waits no longer than the command's own deadline`(): Unit = runBlocking {
@@ -188,16 +222,14 @@ class ClusterTest {
 
         // The default forward timeout is one second; the wait had 300 ms, which bound the forward too (D64).
         elapsed.assert().isBetween(250L, 900L)
-        // The router gives up the forward at the deadline and runs the command here, a duplicate of the owner's
-        // commit; whether that settles just before the wait's own deadline or not, the answer comes in time.
-        if (result.status == CommandResult.Status.FAILED) {
-            result.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
-            result.hop.assert().isEqualTo(Hop.accepted(CONTEXT))
-        } else {
-            result.duplicate.assert().isTrue()
-        }
+        // The router gives up the forward at the deadline without running the command here (decision D223): its
+        // outcome is unknown, or the wait times out first; either way the answer comes in time.
+        result.status.assert().isEqualTo(CommandResult.Status.FAILED)
+        listOf(ResultCodes.UNKNOWN, ResultCodes.WAIT_TIMEOUT).assert().contains(result.error!!.code)
+        one.decided.assert().isEmpty()
         // The forward went on apart from the wait: the owner committed it, and a retry is answered from that commit.
-        eventually { two.decided.contains(result.commandId) }
+        eventually { cluster.events.contains("append $id") }
+        cluster.latencies.clear()
         val retry = one.deposit(id, commandId = result.commandId)
         retry.duplicate.assert().isTrue()
         retry.version.assert().isEqualTo(1)
@@ -330,5 +362,32 @@ class ClusterTest {
         asked.assert().isEqualTo(1)
         settlement.committed.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         one.decided.assert().containsExactly(command.id)
+    }
+
+    @Test
+    fun `only a forward the owner surely did not receive runs locally`(): Unit = runBlocking {
+        // Decision D223: a refusal or an unsent request runs here; a failure after the send is unknown.
+        val (one) = cluster.start("node-1", "node-2")
+        cluster.awaitStable()
+        val id = (0 until 64).map { "acc-$it" }.first { ownerOf(it) == "node-2" }
+        val answers = listOf<suspend () -> ForwardReply>(
+            { ForwardReply.refused(Refusal.EXPIRED) },
+            { ForwardReply.refused(Refusal.UNKNOWN_TYPE) },
+            { throw ClusterChannelException("Connection refused", unsent = true) },
+            { throw ClusterChannelException("Stream reset") },
+            { throw IllegalStateException("The reply does not decode.") },
+        )
+        val outcomes = answers.map { answer ->
+            val router = PartitionedRouter(listOf(one.ownership), { _, _ -> answer() }, cluster.options)
+            val command = one.command(id)
+            router.route(one.model, command, null) { one.coordinator.executeHere(one.model, command, null) }
+        }
+        outcomes.take(3).forEach { it.committed.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED) }
+        outcomes.drop(3).forEach {
+            it.committed.status.assert().isEqualTo(CommandResult.Status.FAILED)
+            it.committed.error!!.code.assert().isEqualTo(ResultCodes.UNKNOWN)
+            it.outcome.assert().isNull()
+        }
+        one.decided.assert().hasSize(3)
     }
 }

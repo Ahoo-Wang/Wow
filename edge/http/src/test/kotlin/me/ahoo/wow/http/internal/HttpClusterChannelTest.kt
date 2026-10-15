@@ -115,7 +115,10 @@ class HttpClusterChannelTest {
             attempts++
             val port = withRefusingPort { port ->
                 val address = "127.0.0.1:$port"
-                failsWith<ClusterChannelException> { channel.connect(address) }.message.assert().contains(address)
+                failsWith<ClusterChannelException> { channel.connect(address) }.let { failure ->
+                    failure.message.assert().contains(address)
+                    failure.unsent.assert().isTrue()
+                }
                 port
             }
             started = try {
@@ -190,8 +193,11 @@ class HttpClusterChannelTest {
     fun `a status other than 200 fails the forward`(): Unit = runBlocking {
         InternalServer(coRouter { POST(InternalHttp.FORWARD_PATH) { ServerResponse.status(503).buildAndAwait() } })
             .use { failing ->
-                failsWith<ClusterChannelException> { channel.forward(failing.address, forwardCommand()) }
-                    .message.assert().contains("503")
+                failsWith<ClusterChannelException> { channel.forward(failing.address, forwardCommand()) }.let { failure ->
+                    failure.message.assert().contains("503")
+                    // The peer answered: the request may have run there (decision D223).
+                    failure.unsent.assert().isFalse()
+                }
             }
         InternalServer(
             coRouter {
@@ -209,13 +215,14 @@ class HttpClusterChannelTest {
     fun `a peer that is not listening fails the forward`(): Unit = runBlocking {
         withRefusingPort { port ->
             failsWith<ClusterChannelException> { channel.forward("127.0.0.1:$port", forwardCommand()) }
+                .unsent.assert().isTrue()
         }
     }
 
     @Test
     fun `a forward past its deadline fails by itself`(): Unit = runBlocking {
         val request = forwardCommand(context = "slow", deadline = System.currentTimeMillis() + 200)
-        failsWith<ClusterChannelException> { channel.forward(server.address, request) }
+        failsWith<ClusterChannelException> { channel.forward(server.address, request) }.unsent.assert().isFalse()
     }
 
     @Test

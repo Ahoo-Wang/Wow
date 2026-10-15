@@ -45,7 +45,7 @@ data class LeaseGroup(val service: String, val context: String) {
 }
 
 /**
- * The tuning of partition ownership and the cluster channel on one node (design 02 §3; decisions D70–D72, D80).
+ * The tuning of partition ownership and the cluster channel on one node (design 02 §3; decisions D70–D72, D80, D223).
  *
  * - [leaseTtl], renewed every [renewInterval]: how long a partition stays with a node that stopped renewing. A
  *   renewal round renews the held leases concurrently, at most [leaseParallelism] at a time, and acquisitions are
@@ -57,7 +57,8 @@ data class LeaseGroup(val service: String, val context: String) {
  * - [routeRefreshInterval]: how often the route table is read from the leases and members; a failed forward refreshes
  *   it at once.
  * - [forwardTimeout]: how long a forward waits for the owner's reply, capped by the command's own deadline (D80);
- *   then the command runs locally (D71).
+ *   a forward sent and not answered by then is reported unknown, not run locally (decision D223). Only a forward the
+ *   owner surely did not receive runs locally (D71).
  * - [maxInFlightPerPeer]: the forwards one peer may have outstanding; one more runs locally instead.
  * - [drainTimeout]: how long a hand-off waits for the partition's commands in flight before it moves on.
  * - [reconcileTimeout]: how long one reconcile may run before the node takes itself as stuck: it stops heartbeating
