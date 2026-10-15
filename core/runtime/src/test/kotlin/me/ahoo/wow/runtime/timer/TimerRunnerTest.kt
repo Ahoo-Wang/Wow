@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.timer
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -191,6 +192,36 @@ class TimerRunnerTest {
         status("remind").status.assert().isEqualTo(TimerStatus.CANCELLED)
         status("remind").outcome.assert().isEqualTo(TimerOutcomes.SKIPPED)
         ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")).assert().isNull()
+    }
+
+    @Test
+    fun `an error or a cancellation the sending throws itself is a failed attempt, retried`(): Unit = runBlocking {
+        // Finding A1-12: neither may leave the timer stuck as being sent.
+        answers["pay"] = NoClassDefFoundError("shop/CancelOrder")
+        answers["remind"] = CancellationException("the target's own timeout")
+        store.put(timer("pay"))
+        store.put(timer("remind"))
+        runner().startPartition(0)
+        eventually { status("pay").attempts == 1 && status("remind").attempts == 1 }
+        status("pay").status.assert().isEqualTo(TimerStatus.PENDING)
+        status("pay").outcome.assert().isEqualTo("java.lang.NoClassDefFoundError: shop/CancelOrder")
+        status("remind").status.assert().isEqualTo(TimerStatus.PENDING)
+        answers.clear()
+        clock.advance(1.seconds)
+        eventually { status("pay").status == TimerStatus.FIRED && status("remind").status == TimerStatus.FIRED }
+    }
+
+    @Test
+    fun `a fatal error leaves the claim to lapse and the timer to be sent again`(): Unit = runBlocking {
+        answers["pay"] = OutOfMemoryError("not really")
+        store.put(timer("pay"))
+        runner().startPartition(0)
+        eventually { fired.size == 1 }
+        status("pay").status.assert().isEqualTo(TimerStatus.FIRING)
+        answers.clear()
+        clock.advance(CLAIM)
+        eventually { status("pay").status == TimerStatus.FIRED }
+        fired.size.assert().isEqualTo(2)
     }
 
     @Test

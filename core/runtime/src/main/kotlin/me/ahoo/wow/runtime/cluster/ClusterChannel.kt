@@ -27,8 +27,9 @@ import java.util.concurrent.ConcurrentHashMap
  * [address][me.ahoo.wow.spi.subscription.Member.address].
  *
  * [forward] sends a command to its partition's owner and returns the owner's reply. It throws a
- * [ClusterChannelException] when the peer cannot be reached; it does not time out by itself: the caller bounds it,
- * and a cancelled call leaves the peer's execution running, as a dropped connection would.
+ * [ClusterChannelException] when the peer cannot be reached, [unsent][ClusterChannelException.unsent] when the
+ * request surely did not reach it (decision D223); it does not time out by itself: the caller bounds it, and a
+ * cancelled call leaves the peer's execution running, as a dropped connection would.
  *
  * [connect] makes the channel ready to forward to a peer: a transport whose first message to a peer pays for setting
  * up a connection opens it there, so that cost is not counted against a forward's own timeout (decision D80). A node
@@ -53,9 +54,17 @@ fun interface ClusterChannelHandler {
     suspend fun forward(request: ForwardCommand): ForwardReply
 }
 
-/** A peer could not be reached over the cluster channel. */
+/**
+ * A peer could not be reached over the cluster channel. [unsent] says the request surely did not reach the peer (no
+ * connection to it, refused or not opened in time), so the sender may run the command itself (decision D223); any
+ * other failure of a forward may have come after the peer received it.
+ */
 @InternalWowApi
-class ClusterChannelException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
+class ClusterChannelException(
+    message: String,
+    cause: Throwable? = null,
+    val unsent: Boolean = false,
+) : RuntimeException(message, cause)
 
 /**
  * A [ClusterChannel] within one process, for tests and single-process samples: nodes [bind] their handlers to their
@@ -82,7 +91,7 @@ class LoopbackClusterChannel(
     }
 
     override suspend fun forward(address: String, request: ForwardCommand): ForwardReply {
-        val handler = handlers[address] ?: throw ClusterChannelException("Connection refused: $address")
+        val handler = handlers[address] ?: throw ClusterChannelException("Connection refused: $address", unsent = true)
         val sent = ClusterCodec.encode(request)
         val reply = scope.async {
             val bytes = ClusterCodec.encode(handler.forward(ClusterCodec.decodeCommand(sent)))

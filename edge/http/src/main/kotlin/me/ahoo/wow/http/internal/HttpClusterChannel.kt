@@ -22,8 +22,10 @@ import me.ahoo.wow.runtime.cluster.ForwardCommand
 import me.ahoo.wow.runtime.cluster.ForwardReply
 import tools.jackson.core.JacksonException
 import java.io.IOException
+import java.net.ConnectException
 import java.net.HttpURLConnection
 import java.net.http.HttpClient
+import java.net.http.HttpConnectTimeoutException
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.net.http.HttpTimeoutException
@@ -47,8 +49,9 @@ import kotlin.time.toJavaDuration
  * The caller bounds a forward ([me.ahoo.wow.runtime.cluster.PartitionedRouter], decision D80) and cancelling it
  * aborts the request; the request also times out by itself at the forward's deadline, so a forward never outlives it.
  * Whatever keeps a reply from arriving (no connection, a timeout, a reset stream, a status other than 200, a body that
- * is not a reply) is a [ClusterChannelException], which the router degrades to running the command locally (D71,
- * D78).
+ * is not a reply) is a [ClusterChannelException]. Only one raised before the request was sent (no connection to the
+ * peer, refused or not opened in time) is [unsent][ClusterChannelException.unsent], which the router degrades to
+ * running the command locally (D71); after the send, its outcome is unknown (decision D223).
  */
 @InternalWowApi
 class HttpClusterChannel(
@@ -66,7 +69,7 @@ class HttpClusterChannel(
             opening.copy().await()
         } catch (failure: IOException) {
             connections.remove(address, opening)
-            throw ClusterChannelException("Connecting to $address failed: $failure", failure)
+            throw ClusterChannelException("Connecting to $address failed: $failure", failure, unsent = true)
         }
     }
 
@@ -87,10 +90,18 @@ class HttpClusterChannel(
             .build()
         val response = try {
             client.sendAsync(http, HttpResponse.BodyHandlers.ofByteArray()).await()
+        } catch (unconnected: HttpConnectTimeoutException) {
+            // No connection was opened in time: the request was not sent (decision D223).
+            connections.remove(address)
+            throw ClusterChannelException("Forwarding to $address failed: $unconnected", unconnected, unsent = true)
         } catch (timeout: HttpTimeoutException) {
             throw ClusterChannelException("Forwarding to $address failed: $timeout", timeout)
+        } catch (refused: ConnectException) {
+            // No connection could be opened: the request was not sent (decision D223).
+            connections.remove(address)
+            throw ClusterChannelException("Forwarding to $address failed: $refused", refused, unsent = true)
         } catch (failure: IOException) {
-            // The connection may be gone: the next forward opens one first.
+            // The connection may be gone: the next forward opens one first. The request may have reached the peer.
             connections.remove(address)
             throw ClusterChannelException("Forwarding to $address failed: $failure", failure)
         }

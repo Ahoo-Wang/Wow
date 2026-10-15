@@ -41,6 +41,7 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.wait.LocalSignalSender
+import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
@@ -89,18 +90,24 @@ class HttpClusterTest {
         }
 
     @Test
-    fun `an owner that does not reply in time degrades the command to running here`(): Unit = runBlocking {
+    fun `an owner that does not reply in time leaves the outcome unknown, not run here`(): Unit = runBlocking {
+        // Decision D223: the owner received the forward, and decides it alone.
         val cluster = cluster(forwardTimeout = 300.milliseconds)
         val (one, two, id) = cluster.forwarded()
         val hold = CompletableDeferred<Unit>()
         two.hold = hold
 
         val result = one.deposit(id)
-        result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-        one.decided.assert().containsExactly(result.commandId)
+        result.status.assert().isEqualTo(CommandResult.Status.FAILED)
+        result.error!!.code.assert().isEqualTo(ResultCodes.UNKNOWN)
+        one.decided.assert().isEmpty()
 
         hold.complete(Unit)
         eventually { two.decided.contains(result.commandId) }
+        two.hold = null
+        eventually { one.deposit(id, commandId = result.commandId).duplicate }
+        one.decided.assert().isEmpty()
+        two.decided.assert().containsExactly(result.commandId)
     }
 
     @Test
@@ -229,10 +236,11 @@ class HttpNode(val name: String, private val cluster: HttpCluster) {
         router = PartitionedRouter(listOf(ownership), HttpClusterChannel(client), cluster.options),
     )
 
-    suspend fun deposit(id: String, wait: WaitPlan = WaitPlan.COMMITTED): CommandResult {
-        val commandId = cluster.nextId()
-        return coordinator.execute(model, Command(commandId, "r-$commandId", ref(id), Deposit(), wait = wait))
-    }
+    suspend fun deposit(
+        id: String,
+        wait: WaitPlan = WaitPlan.COMMITTED,
+        commandId: String = cluster.nextId(),
+    ): CommandResult = coordinator.execute(model, Command(commandId, "r-$commandId", ref(id), Deposit(), wait = wait))
 
     suspend fun close() {
         hold?.complete(Unit)
