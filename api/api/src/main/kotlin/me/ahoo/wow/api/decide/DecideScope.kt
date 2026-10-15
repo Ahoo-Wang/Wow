@@ -24,7 +24,8 @@ import me.ahoo.wow.api.schedule.ScheduleRule
  * A decide function may act on other systems, such as reserving a unique key. [onAppendFailure] undoes such an act
  * when the command's events are surely not appended: the decision rejects, the version conflicts and the command is
  * decided again, or deciding fails. It does not run when whether the append committed is unknown, and it cannot run
- * if the process dies; an act that must not leak then needs its own expiry.
+ * if the process dies; an act that must not leak then needs its own expiry. Reserved keys ([reserve], [release]) are
+ * unique within the aggregate's bounded context and tenant unless reserved with [ReservationTenancy.SYSTEM].
  *
  * A decide function may also schedule a command for later (decisions D166, D198): [schedule] and [cancelSchedule] add
  * the system events `wow.ScheduleSet` and `wow.ScheduleCancelled` to the events the command commits, atomically with
@@ -51,12 +52,36 @@ interface DecideScope {
 
     /**
      * Reserves [key] in [namespace] for this command's aggregate, such as a unique user name (decision D38); false
-     * when another aggregate holds it. The reservation is pending, with an expiry, until the events are appended; then
-     * it is confirmed. When they are surely not appended it is released, and if the process dies first it expires
-     * (finding R8). A key the aggregate already holds confirmed stays held whatever this attempt does. Releasing or
-     * moving a confirmed key, as a rename does, is a saga's work.
+     * when another aggregate holds it. The key is unique within the aggregate's bounded context and tenant
+     * ([ReservationTenancy.TENANT]): another tenant may hold the same key.
+     *
+     * The reservation is pending, with an expiry, until the events are appended; then it is confirmed. When they are
+     * surely not appended this attempt gives its reservation up, without touching another attempt's of the same
+     * aggregate, and if the process dies first it expires (finding R8). A key the aggregate already holds confirmed
+     * stays held whatever this attempt does. A rename reserves the new key and [release]s the old one in one
+     * decision.
      */
     suspend fun reserve(namespace: String, key: String): Boolean
+
+    /**
+     * Reserves [key] in [namespace] for this command's aggregate as [reserve] does, unique among the aggregates
+     * [tenancy] says: [ReservationTenancy.SYSTEM] makes it unique across the context's tenants.
+     */
+    suspend fun reserve(namespace: String, key: String, tenancy: ReservationTenancy): Boolean
+
+    /**
+     * Releases [key] in [namespace], which this command's aggregate holds, once the events are appended (finding
+     * A2-4): another aggregate may then reserve it. The release commits with the events: it is recorded with them and
+     * applied again after a crash, as a confirmation is (decision D50); nothing is released when they are not
+     * appended, or by a decision that appends no event. A key the aggregate does not hold stays as it is.
+     *
+     * Deleting an aggregate releases none of its keys, so a restored aggregate still holds them: its delete command
+     * releases the keys it should give up.
+     */
+    fun release(namespace: String, key: String)
+
+    /** Releases [key] in [namespace] as [release] does, the key reserved with [tenancy]. */
+    fun release(namespace: String, key: String, tenancy: ReservationTenancy)
 
     /**
      * Schedules [command] to be sent to [target], this aggregate by default, as [rule] says (decision D198): at an

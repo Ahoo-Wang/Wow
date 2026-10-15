@@ -29,6 +29,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.decide.ReservationTenancy
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.lifecycle.RestoreAggregate
@@ -42,13 +43,16 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
+import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.ReservationKey
+import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.wait.WaitContext
 import tools.jackson.core.JacksonException
 import java.time.Instant
+import java.util.UUID
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -83,9 +87,11 @@ import kotlin.time.Duration.Companion.seconds
  * state schema (03-log-and-snapshot.md §3), else from replaying the whole log. A snapshot is only a cache: one that
  * does not fit, or a store that fails, is logged and costs a full replay, never the command.
  *
- * [reservations] backs [DecideScope.reserve]; a pending reservation lives for [reservationTtl] unless the append
- * confirms it first. The keys an attempt reserved pending go into the appended entry's transport (D50), so the
- * `reservation` subscription confirms them even when the after-append confirmation never runs.
+ * [reservations] backs [DecideScope.reserve] and [DecideScope.release]; a pending reservation lives for
+ * [reservationTtl] unless the append confirms it first. Each attempt reserves by a hold of its own, so an attempt
+ * surely not appended abandons only its own hold (finding A1-2). The keys an attempt reserved pending, and those it
+ * released, go into the appended entry's transport (D50), so the `reservation` subscription confirms and releases
+ * them even when the after-append actions never run.
  *
  * Every stream carries the aggregate's scope after it (D56): the creating command's scope, carried forward by every
  * later command and changed only by the lifecycle commands transferring the owner or the space (see [metadataAfter]).
@@ -828,6 +834,8 @@ class Kernel(
         private var afterAppendActions: MutableList<suspend () -> Unit>? = null
         private var results: MutableMap<String, Any>? = null
         private var reserved: MutableList<ReservationKey>? = null
+        private var released: MutableList<ReservationKey>? = null
+        private var hold: String? = null
         private var scheduled: LinkedHashMap<String, Any>? = null
 
         override fun schedule(key: String, rule: ScheduleRule, command: Any, target: AggregateRef) {
@@ -863,28 +871,67 @@ class Kernel(
 
         /**
          * What the append carries for delivery: the wait context when the caller waits beyond COMMITTED (D25), the
-         * keys this attempt reserved pending (D50) and the append's [trace] (D174); null when there is none of them.
+         * keys this attempt reserved pending (D50) and released (A2-4), and the append's [trace] (D174); null when
+         * there is none of them.
          */
         fun transport(
             trace: Map<String, String>
-        ): Transport? = if (wait == null && reserved == null && trace.isEmpty()) {
-            null
+        ): Transport? = if (wait == null && reserved == null && released == null) {
+            trace.takeIf { it.isNotEmpty() }?.let { Transport(trace = it) }
         } else {
-            Transport(wait = wait, reservations = reserved?.toList().orEmpty(), trace = trace)
+            Transport(
+                wait = wait,
+                reservations = reserved?.toList().orEmpty(),
+                trace = trace,
+                releases = released?.toList().orEmpty(),
+            )
         }
 
-        override suspend fun reserve(namespace: String, key: String): Boolean {
+        override suspend fun reserve(namespace: String, key: String): Boolean =
+            reserve(namespace, key, ReservationTenancy.TENANT)
+
+        override suspend fun reserve(namespace: String, key: String, tenancy: ReservationTenancy): Boolean {
             val store = checkNotNull(reservations) { "Reserving a key needs a kernel with a ReservationStore." }
-            // The aggregate owns the key, so a saga can release or move it. Commands of one aggregate are serialized by
-            // its partition owner, so two attempts sharing a pending reservation do not overlap in practice.
-            val owner = command.ref.toString()
-            val reservation = store.reserve(namespace, key, owner, reservationTtl) ?: return false
-            if (!reservation.confirmed) {
-                (reserved ?: ArrayList<ReservationKey>().also { reserved = it }) += ReservationKey(namespace, key)
-                onAppendFailure { store.release(namespace, key, owner) }
-                afterAppend { store.confirm(namespace, key, owner) }
+            val reservation = ReservationKey(namespace, key, tenancy == ReservationTenancy.SYSTEM)
+            if (reserved?.contains(reservation) == true) {
+                return true
+            }
+            // The aggregate owns the key, field by field (finding A1-10), within its context and tenant (A1-3). The
+            // attempt holds a pending reservation by a hold of its own, so its compensation gives up its hold only and
+            // never another attempt's of the same aggregate, nor a confirmed key (A1-2).
+            val owner = command.ref
+            val scope = ReservationScope.of(owner, reservation)
+            val hold = hold ?: UUID.randomUUID().toString().also { hold = it }
+            val held = store.reserve(scope, key, owner, hold, reservationTtl) ?: return false
+            if (!held.confirmed) {
+                (reserved ?: ArrayList<ReservationKey>().also { reserved = it }) += reservation
+                onAppendFailure { store.abandon(scope, key, owner, hold) }
+                afterAppend { confirmed(store.confirm(scope, key, owner), scope, key) }
             }
             return true
+        }
+
+        override fun release(namespace: String, key: String) = release(namespace, key, ReservationTenancy.TENANT)
+
+        override fun release(namespace: String, key: String, tenancy: ReservationTenancy) {
+            val store = checkNotNull(reservations) { "Releasing a key needs a kernel with a ReservationStore." }
+            val reservation = ReservationKey(namespace, key, tenancy == ReservationTenancy.SYSTEM)
+            if (released?.contains(reservation) == true) {
+                return
+            }
+            (released ?: ArrayList<ReservationKey>().also { released = it }) += reservation
+            val owner = command.ref
+            val scope = ReservationScope.of(owner, reservation)
+            afterAppend { store.release(scope, key, owner) }
+        }
+
+        /** Logs a key the committed fact lost to another owner: confirming cannot get it back. */
+        private fun confirmed(outcome: ConfirmOutcome, scope: ReservationScope, key: String) {
+            if (outcome is ConfirmOutcome.Taken) {
+                logger.error {
+                    "${command.ref} committed with $key in $scope, which ${outcome.by.owner} holds: the key is lost."
+                }
+            }
         }
 
         override fun onAppendFailure(compensation: suspend () -> Unit) {

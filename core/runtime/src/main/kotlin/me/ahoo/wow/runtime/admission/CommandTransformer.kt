@@ -15,7 +15,9 @@ package me.ahoo.wow.runtime.admission
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.decide.ReservationTenancy
 import me.ahoo.wow.kernel.CommandType
+import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 
 /**
@@ -56,8 +58,8 @@ interface CommandTransformer {
 
 /**
  * A request as a transformer sees it: decoded, before the command is built. Its identity may be incomplete:
- * [aggregateId] is null when the request named none. The [requestId] and the [caller] are only read: the command that
- * runs keeps both.
+ * [aggregateId] is null when the request named none. The [requestId], the [caller] and the [tenantId] the command runs
+ * in (the caller's, or the one the request targets) are only read: the command that runs keeps them.
  */
 data class CommandInput(
     val type: CommandType,
@@ -66,6 +68,7 @@ data class CommandInput(
     val headers: Map<String, String>,
     val requestId: String,
     val caller: Caller,
+    val tenantId: String = caller.tenantId,
 )
 
 /**
@@ -95,13 +98,16 @@ data class CommandTarget(
  * an aggregate keeps it; one whose key no aggregate of [aggregate] holds names none, which the gateway refuses as
  * `wow.aggregate.not-found`.
  *
- * The aggregate's tenant is decided as for any command, so a key held in another tenant finds no aggregate there.
+ * The key is looked up in the command's tenant (finding A1-3), or across tenants when it was reserved with
+ * [ReservationTenancy.SYSTEM]; either way only an owner of [aggregate] in the command's tenant is found, its id
+ * read from the owner's fields (finding A1-10), so a key held in another tenant finds no aggregate.
  */
 internal class ReservationTargetResolver(
     override val input: CommandType,
     private val aggregate: AggregateType,
     private val namespace: String,
     private val reservations: ReservationStore,
+    private val tenancy: ReservationTenancy = ReservationTenancy.TENANT,
     private val key: (CommandInput) -> String?,
 ) : CommandTransformer {
     init {
@@ -109,13 +115,13 @@ internal class ReservationTargetResolver(
     }
 
     override suspend fun transform(input: CommandInput): CommandTarget {
-        val id = input.aggregateId ?: key(input)?.let { reservations.find(namespace, it) }?.owner?.let(::idOf)
+        val id = input.aggregateId ?: key(input)?.let { key ->
+            val tenantId = if (tenancy == ReservationTenancy.SYSTEM) ReservationScope.SYSTEM_TENANT else input.tenantId
+            reservations.find(ReservationScope(aggregate.context, tenantId, namespace), key)?.owner
+                ?.takeIf { it.type == aggregate && it.tenantId == input.tenantId }?.id
+        }
         return CommandTarget(input.type, id, input.body, input.headers)
     }
-
-    /** The aggregate id of [owner], a reservation's owner (`context.aggregate/tenant/id`), when it is of [aggregate]. */
-    private fun idOf(owner: String): String? =
-        owner.removePrefix("$aggregate/").takeIf { it != owner }?.substringAfter('/', "")?.ifEmpty { null }
 }
 
 private val RESERVED_HEADER_PREFIXES = listOf("wow-", "wow.")
