@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.postgres.ledger
 
-/** The failure ledger's table and statements. The column layout is part of the format. */
-internal class PostgresFailureLedgerTables(name: String) {
+/** The failure ledger's table and statements. The column layout is part of the format ([FORMAT]). */
+internal class PostgresFailureLedgerTables(val name: String) {
     init {
         require(IDENTIFIER.matches(name)) { "A ledger table name is a lower-case SQL identifier: $name." }
     }
@@ -23,6 +23,7 @@ internal class PostgresFailureLedgerTables(name: String) {
 
     val ddl = """
         CREATE TABLE IF NOT EXISTS $table (
+            service text COLLATE "C" NOT NULL,
             subscription text COLLATE "C" NOT NULL,
             context text COLLATE "C" NOT NULL,
             aggregate_name text COLLATE "C" NOT NULL,
@@ -38,20 +39,13 @@ internal class PostgresFailureLedgerTables(name: String) {
     """.trimIndent()
 
     /**
-     * Adds the columns of later formats to a table created before them: the source position (decision D134), then
-     * the retry state (roadmap P.1), with which an entry parked before reads as never retried.
-     */
-    val migrations = listOf("from_position bigint", *RETRY_COLUMNS.split(",\n").map { it.trim() }.toTypedArray())
-        .map { "ALTER TABLE $table ADD COLUMN IF NOT EXISTS $it" }
-
-    /**
      * Inserts the entry, or replaces where the parked one is parked and why only when this entry's from version is
      * earlier. The conflict update locks the row and re-checks its condition against the latest committed row, so
      * concurrent parks keep the earliest. Returns a row only when the ledger changed.
      */
     val park = """
         INSERT INTO $table AS parked ($KEY, from_version, reason, failed_at, from_position, $RETRY_STATE)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT ($KEY) DO UPDATE
         SET from_version = excluded.from_version, reason = excluded.reason, failed_at = excluded.failed_at,
             from_position = excluded.from_position
@@ -64,9 +58,10 @@ internal class PostgresFailureLedgerTables(name: String) {
 
     val parked = "SELECT * FROM $table WHERE $MATCH"
 
-    val listFirst = "SELECT * FROM $table WHERE subscription = ? ORDER BY $ORDER LIMIT ?"
+    val listFirst = "SELECT * FROM $table WHERE service = ? AND subscription = ? ORDER BY $ORDER LIMIT ?"
 
-    val listAfter = "SELECT * FROM $table WHERE subscription = ? AND ($ORDER) > (?, ?, ?, ?) ORDER BY $ORDER LIMIT ?"
+    val listAfter =
+        "SELECT * FROM $table WHERE service = ? AND subscription = ? AND ($ORDER) > (?, ?, ?, ?) ORDER BY $ORDER LIMIT ?"
 
     val resolve = "DELETE FROM $table WHERE $MATCH RETURNING *"
 
@@ -85,13 +80,16 @@ internal class PostgresFailureLedgerTables(name: String) {
     /** Takes a request: the key, then the request read. */
     val takeRequest = "UPDATE $table SET request = NULL WHERE $MATCH AND request = ? RETURNING *"
 
-    private companion object {
+    companion object {
+        /** The layout version of the table (decision D59); format 1 keys entries by service (finding A2-13). */
+        const val FORMAT = 1
+
         /**
          * The retry state (roadmap P.1): the automatic retries made and the start of the last one; the retry spec an
          * operator applied (null for the subscription's), its durations in milliseconds; what an operator marked it
          * and the request left for the owner of its partition (decision D141), by their names.
          */
-        val RETRY_COLUMNS = """
+        private val RETRY_COLUMNS = """
             retries integer NOT NULL DEFAULT 0,
             retry_at bigint,
             retry_max_retries integer,
@@ -100,12 +98,12 @@ internal class PostgresFailureLedgerTables(name: String) {
             recoverable text NOT NULL DEFAULT 'UNKNOWN',
             request text
         """.trimIndent()
-        const val RETRY_STATE = "retries, retry_at, retry_max_retries, retry_min_backoff_millis, " +
+        private const val RETRY_STATE = "retries, retry_at, retry_max_retries, retry_min_backoff_millis, " +
             "retry_execution_timeout_millis, recoverable, request"
-        val IDENTIFIER = Regex("[a-z_][a-z0-9_]{0,62}")
-        const val ORDER = "context, aggregate_name, tenant_id, aggregate_id"
-        const val KEY = "subscription, $ORDER"
-        const val MATCH =
-            "subscription = ? AND context = ? AND aggregate_name = ? AND tenant_id = ? AND aggregate_id = ?"
+        private val IDENTIFIER = Regex("[a-z_][a-z0-9_]{0,62}")
+        private const val ORDER = "context, aggregate_name, tenant_id, aggregate_id"
+        private const val KEY = "service, subscription, $ORDER"
+        private const val MATCH = "service = ? AND subscription = ? AND context = ? AND aggregate_name = ? AND " +
+            "tenant_id = ? AND aggregate_id = ?"
     }
 }

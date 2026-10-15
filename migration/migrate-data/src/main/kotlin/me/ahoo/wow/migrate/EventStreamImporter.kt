@@ -217,6 +217,7 @@ class EventStreamImporter(
      * Appends [record], converted from [stream]; returns null when the log now holds it (appended or already there),
      * or the version the instance's import resumes from.
      */
+    @Suppress("CyclomaticComplexMethod") // One branch per append outcome, each settled where it is read.
     private suspend fun append(
         plan: AggregatePlan,
         record: EventStreamRecord,
@@ -261,6 +262,10 @@ class EventStreamImporter(
                 }
 
                 is AppendOutcome.Unknown -> unknowns = retry(unknowns, stream, outcome.cause)
+                is AppendOutcome.Rejected -> throw MigrationException(
+                    "9.x stream ${stream.id}: the log refuses ${attempt.ref} v${attempt.version}: " +
+                        "${outcome.cause.message}",
+                ).apply { initCause(outcome.cause) }
             }
         }
     }

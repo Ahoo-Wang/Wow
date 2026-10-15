@@ -76,17 +76,26 @@ class PostgresSnapshotQueryBackend internal constructor(
     private val records = PostgresSnapshotSqlCompiler(tables.snapshot)
     private val aggregations = PostgresAggregationCompiler(tables.snapshot)
 
+    /**
+     * The records of [query], read in full in their transaction, which then ends and gives its connection back, and
+     * only then emitted (finding A2-9): a consumer as slow as an SSE client's never holds a connection of the pool the
+     * log appends through. The admission bounds the list (`maxListSize`); a budget without that bound
+     * (`maxListSize = 0`) holds a whole unbounded list in memory.
+     */
     override fun stream(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> = flow {
         val statement = records.list(query)
         val state = query.query.projection.keepsState()
-        transaction(query.timeout, {}) { connection ->
+        val read = transaction(query.timeout, { emptyList() }) { connection ->
             statement.prepare(connection).use { prepared ->
                 prepared.fetchSize = options.fetchSize
                 prepared.executeQuery().use { rows ->
-                    while (rows.next()) emit(project(query, record(rows, state)))
+                    val result = ArrayList<ObjectNode>()
+                    while (rows.next()) result += project(query, record(rows, state))
+                    result
                 }
             }
         }
+        read.forEach { emit(it) }
     }.flowOn(dispatcher)
 
     override suspend fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow): BackendPage =
@@ -138,13 +147,11 @@ class PostgresSnapshotQueryBackend internal constructor(
         val statement = aggregations.compile(query, window)
         val groups = query.query.groupBy.map { it.alias }
         val metrics = query.query.metrics.map { it.alias }
-        transaction(query.timeout, {}) { connection ->
-            statement.prepare(connection).use { prepared ->
-                prepared.executeQuery().use { rows ->
-                    while (rows.next()) emit(group(rows, groups, metrics))
-                }
-            }
+        // Read in full before any is emitted, as stream reads (finding A2-9): the groups are bounded by the window.
+        val read = transaction(query.timeout, { emptyList() }) { connection ->
+            read(connection, statement) { group(it, groups, metrics) }
         }
+        read.forEach { emit(it) }
     }.flowOn(dispatcher)
 
     /** One group's row: its keys under their aliases, then each metric, in the query's order. */

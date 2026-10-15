@@ -20,7 +20,6 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.postgres.PostgresFixture
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
-import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.tck.ledger.FailureLedgerSpec
 import org.junit.jupiter.api.Test
 
@@ -35,38 +34,38 @@ class PostgresFailureLedgerTest : FailureLedgerSpec() {
     }
 
     @Test
-    fun `a table created before the retry state reads its entries as never retried, and amends them`(): Unit =
-        runBlocking {
-            PostgresFixture.dataSource.connection.use { connection ->
-                connection.createStatement().use { statement ->
-                    statement.execute("DROP TABLE IF EXISTS ledger_before_retries")
-                    statement.execute(
-                        """
-                        CREATE TABLE ledger_before_retries (
-                            subscription text COLLATE "C" NOT NULL,
-                            context text COLLATE "C" NOT NULL,
-                            aggregate_name text COLLATE "C" NOT NULL,
-                            tenant_id text COLLATE "C" NOT NULL,
-                            aggregate_id text COLLATE "C" NOT NULL,
-                            from_version integer NOT NULL,
-                            reason text NOT NULL,
-                            failed_at bigint NOT NULL,
-                            PRIMARY KEY (subscription, context, aggregate_name, tenant_id, aggregate_id)
-                        )
-                        """.trimIndent(),
-                    )
-                    statement.execute(
-                        "INSERT INTO ledger_before_retries VALUES ('old', 'ledger', 'order', 't', 'a', 3, 'boom', 7)",
-                    )
-                }
-            }
-            val ledger = PostgresFailureLedger(PostgresFixture.dataSource, "ledger_before_retries")
-            ledger.createSchema()
-            val ref = AggregateType("ledger", "order").ref("t", "a")
-            ledger.parked("old", ref).assert().isEqualTo(ParkedAggregate("old", ref, 3, "boom", 7))
-            ledger.amend("old", ref, ParkedAmendment.ClaimRetry(0, 9))!!.retries.assert().isEqualTo(1)
-            ledger.parked("old", ref)!!.retryAt.assert().isEqualTo(9L)
+    fun `a ledger table created by a build without format records is refused`() {
+        // Finding A2-13: the old layout was accepted silently and failed on its first statement.
+        PostgresFixture.createUnrecorded("ledger_unrecorded")
+        assertThrownBy<IllegalStateException> {
+            PostgresFailureLedger(PostgresFixture.dataSource, "ledger_unrecorded").createSchema()
         }
+        PostgresFailureLedger(PostgresFixture.dataSource, "ledger_bumped").createSchema()
+        PostgresFixture.bumpFormat("ledger_bumped")
+        assertThrownBy<IllegalStateException> {
+            PostgresFailureLedger(PostgresFixture.dataSource, "ledger_bumped").createSchema()
+        }
+    }
+
+    @Test
+    fun `services sharing a database see and resolve their own entries only`(): Unit = runBlocking {
+        // Finding A2-13: the key had no service, so one service resolved another's parked entry.
+        val orders = PostgresFailureLedger(PostgresFixture.dataSource, "ledger_shared", service = "orders")
+        val billing = PostgresFailureLedger(PostgresFixture.dataSource, "ledger_shared", service = "billing")
+        orders.createSchema()
+        billing.createSchema()
+        val ref = AggregateType("shared", "order").ref("t", "a")
+        orders.park(ParkedAggregate("projection", ref, 3, "boom", 7)).assert().isTrue()
+        billing.parked("projection", ref).assert().isNull()
+        billing.list("projection").assert().isEmpty()
+        billing.resolve("projection", ref).assert().isNull()
+        billing.park(ParkedAggregate("projection", ref, 5, "other", 8)).assert().isTrue()
+        orders.parked("projection", ref)!!.fromVersion.assert().isEqualTo(3)
+        orders.list("projection").map { it.reason }.assert().containsExactly("boom")
+        orders.list("projection", after = AggregateType("shared", "a").ref("t", "a")).size.assert().isEqualTo(1)
+        orders.resolve("projection", ref)!!.reason.assert().isEqualTo("boom")
+        billing.parked("projection", ref)!!.reason.assert().isEqualTo("other")
+    }
 
     @Test
     fun `a table name that is not a plain identifier is refused`() {

@@ -15,6 +15,7 @@ package me.ahoo.wow.mongo
 
 import com.mongodb.MongoConnectionPoolClearedException
 import com.mongodb.MongoException
+import com.mongodb.MongoExecutionTimeoutException
 import com.mongodb.MongoNodeIsRecoveringException
 import com.mongodb.MongoNotPrimaryException
 import com.mongodb.MongoSocketException
@@ -47,6 +48,17 @@ internal object MongoFailures {
             failure is MongoNotPrimaryException ||
             failure is MongoNodeIsRecoveringException ||
             TRANSIENT_LABELS.any(failure::hasErrorLabel)
+
+    /**
+     * Whether a transaction that failed with [failure] may have committed all the same: the driver gave up on a commit
+     * whose result is unknown (`UnknownTransactionCommitResult`), or a timeout or a failed socket left it open. Any
+     * other failure aborted it for sure.
+     */
+    fun isCommitUnknown(failure: MongoException): Boolean =
+        failure.hasErrorLabel(MongoException.UNKNOWN_TRANSACTION_COMMIT_RESULT_LABEL) ||
+            failure is MongoTimeoutException ||
+            failure is MongoSocketException ||
+            failure is MongoExecutionTimeoutException
 
     /** [failure] as a [StorageUnavailableException] when it [isTransient], else as it is. */
     fun translate(failure: MongoException): RuntimeException =

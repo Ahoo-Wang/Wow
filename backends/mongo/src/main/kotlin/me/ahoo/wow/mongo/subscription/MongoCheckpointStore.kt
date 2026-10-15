@@ -21,10 +21,11 @@ import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
+import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -43,23 +44,24 @@ class MongoCheckpointStore(
     databaseName: String,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
 ) : CheckpointStore {
-    private val checkpoints: MongoCollection<Document> =
-        client.getDatabase(databaseName).getCollection(COLLECTION)
+    private val database = client.getDatabase(databaseName)
+    private val checkpoints: MongoCollection<Document> = database.getCollection(COLLECTION)
 
     /** Creates the key index when missing. */
     fun createSchema() {
+        MongoFormat.claim(database, COLLECTION, FORMAT)
         checkpoints.createIndex(
             Indexes.ascending(GROUP, SUBSCRIPTION, PARTITION),
             IndexOptions().unique(true).name(CHECKPOINT_KEY),
         )
     }
 
-    override suspend fun load(group: String, subscription: String, partition: Int): Long? = withContext(dispatcher) {
+    override suspend fun load(group: String, subscription: String, partition: Int): Long? = dispatcher.mongo {
         checkpoints.find(keyFilter(group, subscription, partition)).firstOrNull()?.getLong(POSITION)
     }
 
     override suspend fun save(group: String, subscription: String, partition: Int, position: Long) {
-        withContext(dispatcher) {
+        dispatcher.mongo {
             val guarded = Filters.and(keyFilter(group, subscription, partition), Filters.lt(POSITION, position))
             conditionalUpsert { upsert ->
                 checkpoints.updateOne(guarded, Updates.set(POSITION, position), UpdateOptions().upsert(upsert))
@@ -75,6 +77,9 @@ class MongoCheckpointStore(
 
     private companion object {
         const val COLLECTION = "wow_checkpoint"
+
+        /** The layout version of the collection (decision D59, finding A2-13). */
+        const val FORMAT = 1
         const val CHECKPOINT_KEY = "checkpoint_key"
         const val GROUP = "subscription_group"
         const val SUBSCRIPTION = "subscription"

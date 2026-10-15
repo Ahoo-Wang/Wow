@@ -28,6 +28,23 @@ class PostgresCheckpointStoreTest : CheckpointStoreSpec() {
         store.assert().isNotNull()
     }
 
+    @Test
+    fun `the checkpoint and lease tables record their format`() {
+        // Finding A2-13: a layout change went unnoticed until a statement failed on a missing column.
+        store.assert().isNotNull()
+        PostgresLeaseStore(PostgresFixture.dataSource).createSchema()
+        PostgresFixture.dataSource.connection.use { connection ->
+            connection.prepareStatement(
+                "SELECT structure, version FROM wow_format WHERE structure IN " +
+                    "('wow_checkpoint', 'wow_lease', 'wow_lease_member') ORDER BY structure",
+            ).use { query ->
+                query.executeQuery().use { rows ->
+                    buildList { while (rows.next()) add(rows.getString(1) to rows.getInt(2)) }
+                }
+            }
+        }.assert().containsExactly("wow_checkpoint" to 1, "wow_lease" to 1, "wow_lease_member" to 1)
+    }
+
     private companion object {
         val store by lazy { PostgresCheckpointStore(PostgresFixture.dataSource).also { it.createSchema() } }
     }

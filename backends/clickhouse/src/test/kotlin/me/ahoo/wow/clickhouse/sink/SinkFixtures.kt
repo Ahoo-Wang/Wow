@@ -103,11 +103,21 @@ internal class RecordingStatements : ClickHouseStatements {
     val tables = mutableMapOf<String, List<ClickHouseColumn>>()
     var failInsert: Throwable? = null
 
+    /** Awaited by each insert before it is recorded, when set: holds the inserts while writes queue. */
+    var gate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+
+    /** Completed by the first insert that waits on [gate]. */
+    val waiting = kotlinx.coroutines.CompletableDeferred<Unit>()
+
     override suspend fun execute(sql: String) {
         executed += sql
     }
 
     override suspend fun insert(table: String, body: ByteArray, token: String) {
+        gate?.let {
+            waiting.complete(Unit)
+            it.await()
+        }
         failInsert?.let { throw it }
         inserts += Triple(table, body.toString(Charsets.UTF_8), token)
     }

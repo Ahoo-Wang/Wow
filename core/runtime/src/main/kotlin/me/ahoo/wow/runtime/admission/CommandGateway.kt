@@ -92,7 +92,10 @@ import kotlin.time.Duration
  *    - a request header in the framework's namespace (`Wow-…`, `wow.…`) is refused: identity, ids and the wait have
  *      fields of their own.
  * 3. Authorize the action with [authorizer], before the body is decoded.
- * 4. Decode the body as the command type with [mapper]; one that does not decode is [FrameworkCodes.MALFORMED].
+ *    An id longer than 256 characters (a request, aggregate, tenant or space id) is [FrameworkCodes.MALFORMED]
+ *    ([AdmissionLimits]).
+ * 4. Decode the body as the command type with [mapper]; one that does not decode, or that writes `\u0000` in a string
+ *    or a key, which not every store keeps ([AdmissionLimits]), is [FrameworkCodes.MALFORMED].
  * 5. Transform the command with the one of [transformers] that takes its type, if any ([CommandTransformer]). The
  *    command it becomes must be decided by an aggregate this node serves ([FrameworkCodes.UNHANDLED] otherwise); its
  *    tenant is decided again for that aggregate type, and its scope, request id, expected version and wait plan are
@@ -315,9 +318,14 @@ class CommandGateway @InternalWowApi constructor(
             UNADDRESSED
         }
         facts.ref = facts.type.ref(tenantId, inputId)
+        AdmissionLimits.oversized(facts.requestId, inputId, tenantId, scope)
+            ?.let { return facts.refuse(FrameworkCodes.MALFORMED, it) }
         // 3. Action-level authorization.
         authorize(request, CommandAction(commandType, facts.ref, scope, creation))?.let { return facts.refuse(it) }
         // 4. The body.
+        if (writesNul(request.body)) {
+            return facts.refuse(FrameworkCodes.MALFORMED, "The body writes \\u0000 in a string, which no store keeps.")
+        }
         val decoded = decode(request.body, commandType)
             ?: return facts.refuse(FrameworkCodes.MALFORMED, "The body is not a ${commandType.name}.")
         // 5. The transformation.
@@ -356,6 +364,10 @@ class CommandGateway @InternalWowApi constructor(
                 )
             }
             val ref = targetType.ref(targetTenant, aggregateId)
+            AdmissionLimits.oversized(facts.requestId, aggregateId, targetTenant, scope)?.let {
+                facts.ref = ref
+                return facts.refuse(FrameworkCodes.MALFORMED, it)
+            }
             if (result.type != commandType || ref != facts.ref) {
                 facts.ref = ref
                 val action = CommandAction(result.type, ref, scope, targetDecider.creation)
@@ -434,6 +446,12 @@ class CommandGateway @InternalWowApi constructor(
             (request.expectedVersion ?: 0) < 0 -> "An expected version is never negative."
             else -> null
         }
+    }
+
+    /** Whether [body] writes `\u0000` in a string or a key ([AdmissionLimits]). */
+    private fun writesNul(body: CommandBody): Boolean = when (body) {
+        is CommandBody.Bytes -> AdmissionLimits.writesNul(body.bytes)
+        is CommandBody.Tree -> AdmissionLimits.holdsNul(body.node)
     }
 
     /** [body] read as [type], or null when it does not decode to one. */

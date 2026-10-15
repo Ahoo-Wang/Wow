@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.mongo.subscription
 
+import com.mongodb.client.model.Filters
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.tck.subscription.CheckpointStoreSpec
@@ -28,6 +30,17 @@ class MongoCheckpointStoreTest : CheckpointStoreSpec() {
         store.save("schema-twice", "projection", 0, 7)
         MongoCheckpointStore(MongoLogFixture.client, MongoLogFixture.DATABASE).createSchema()
         store.load("schema-twice", "projection", 0).assert().isEqualTo(7L)
+    }
+
+    @Test
+    fun `the checkpoint and lease collections record their format`() {
+        // Finding A2-13: a layout change went unnoticed until a read failed.
+        store.assert().isNotNull()
+        MongoLeaseStore(MongoLogFixture.client, MongoLogFixture.DATABASE).createSchema()
+        val formats = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(MongoFormat.COLLECTION)
+        listOf("wow_checkpoint", "wow_lease", "wow_lease_member").forEach { structure ->
+            formats.find(Filters.eq("_id", structure)).first()?.getInteger("version").assert().isEqualTo(1)
+        }
     }
 
     private companion object {

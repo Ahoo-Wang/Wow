@@ -37,6 +37,7 @@ import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import me.ahoo.wow.tck.ExactJson
+import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
 import java.util.UUID
 
@@ -54,6 +55,12 @@ abstract class EventLogSpec {
     private val other = AggregateType(context, "other")
 
     private fun createLog(partitions: Int = DEFAULT_PARTITIONS): EventLog = createLog(context, partitions)
+
+    /**
+     * [stream] changed so that this backend refuses it ([AppendOutcome.Rejected]): a value it cannot store. Null, the
+     * default, for a backend that stores every stream, which skips the cases of a refused stream.
+     */
+    protected open fun refused(stream: EventStreamRecord): EventStreamRecord? = null
 
     protected fun stream(
         id: String,
@@ -316,6 +323,44 @@ abstract class EventLogSpec {
     }
 
     @Test
+    fun `a retry of a request at the version it committed is a duplicate, not a conflict`(): Unit = runBlocking {
+        val log = createLog()
+        log.append(stream("a", 1))
+        val first = stream("a", 2, requestId = "request")
+        log.append(first).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        // Both keys collide: the request key decides (finding A2-1).
+        val retry = log.append(first.copy(commandId = "retry", commitTime = first.commitTime + 1))
+        (retry as AppendOutcome.AlreadyCommitted).existing.assertSameAs(first)
+    }
+
+    @Test
+    fun `appendAll reports a retry of a request at the version it committed as a duplicate`(): Unit = runBlocking {
+        val log = createLog(partitions = 4)
+        val (retried, fresh) = idsInPartitionZero(2, 4)
+        val first = stream(retried, 1, requestId = "request")
+        log.append(first)
+        val outcomes = log.appendAll(listOf(first.copy(commandId = "group") to null, stream(fresh, 1) to null))
+        (outcomes[0] as AppendOutcome.AlreadyCommitted).existing.assertSameAs(first)
+        outcomes[1].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+    }
+
+    @Test
+    fun `concurrent appends of one request at one version commit once, the others are duplicates`(): Unit =
+        runBlocking {
+            val log = createLog()
+            log.append(stream("a", 1))
+            val outcomes = coroutineScope {
+                (1..8).map { attempt ->
+                    async { log.append(stream("a", 2, requestId = "request").copy(commandId = "attempt-$attempt")) }
+                }.awaitAll()
+            }
+            outcomes.count { it is AppendOutcome.Committed }.assert().isEqualTo(1)
+            val duplicates = outcomes.filterIsInstance<AppendOutcome.AlreadyCommitted>()
+            duplicates.size.assert().isEqualTo(7)
+            duplicates.map { it.existing.commandId }.toSet().size.assert().isEqualTo(1)
+        }
+
+    @Test
     fun `an entry lands in its ref's partition, sequenced from 1`(): Unit = runBlocking {
         val log = createLog(partitions = 4)
         val positions = (1..20).map { (log.append(stream("a-$it", 1)) as AppendOutcome.Committed).position }
@@ -375,6 +420,43 @@ abstract class EventLogSpec {
         )
         withDuplicate[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
         (withDuplicate[1] as AppendOutcome.AlreadyCommitted).existing.ref.id.assert().isEqualTo(duplicate)
+    }
+
+    @Test
+    fun `a stream the backend refuses is rejected, and in appendAll fails alone`(): Unit = runBlocking {
+        val log = createLog(partitions = 4)
+        val (before, bad, after) = idsInPartitionZero(3, 4)
+        val probe = refused(stream(bad, 1))
+        Assumptions.assumeTrue(probe != null, "This backend stores every stream.")
+        val refused = checkNotNull(probe)
+        log.append(refused).assert().isInstanceOf(AppendOutcome.Rejected::class.java)
+        log.head(0).assert().isNull()
+        // Finding A2-5: the refused stream failed the whole group.
+        val outcomes = log.appendAll(listOf(stream(before, 1) to null, refused to null, stream(after, 1) to null))
+        outcomes[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        outcomes[1].assert().isInstanceOf(AppendOutcome.Rejected::class.java)
+        outcomes[2].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        log.read(refused.ref).toList().assert().isEmpty()
+        withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }.map { it.stream.ref.id }
+            .assert().containsExactlyInAnyOrder(before, after)
+    }
+
+    @Test
+    fun `a payload with a NUL character reads back as appended, or is rejected, never unknown`(): Unit = runBlocking {
+        // Finding A2-7: PostgreSQL's jsonb refuses it, and the append was answered as unknown, retried for ever.
+        val log = createLog(partitions = 1)
+        val appended = stream("a", 1).copy(
+            events = listOf(EventRecord("$context.aggregate.Named", 1, """{"name":"a\u0000b","n\u0000":1}""")),
+        )
+        when (val outcome = log.append(appended)) {
+            is AppendOutcome.Committed -> log.read(appended.ref).toList().single().assertSameAs(appended)
+            is AppendOutcome.Rejected -> {
+                outcome.cause.assert().isInstanceOf(IllegalArgumentException::class.java)
+                log.read(appended.ref).toList().assert().isEmpty()
+            }
+
+            else -> throw AssertionError("A payload with a NUL character is committed or rejected, not $outcome.")
+        }
     }
 
     @Test

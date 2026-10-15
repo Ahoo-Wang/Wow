@@ -37,6 +37,8 @@ import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.support.DefaultListableBeanFactory
 import org.springframework.beans.factory.support.RootBeanDefinition
 import javax.sql.DataSource
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /** The store instances of a node and where each aggregate's log and snapshots are (decision D177). */
 class HostStoresTest {
@@ -291,6 +293,31 @@ class HostStoresTest {
         )
         StoreInstances.open(properties(), beans, javaClass.classLoader).keys.assert()
             .containsExactly(ContextBackends.DEFAULT_STORE)
+    }
+
+    @Test
+    fun `the stores' logs poll as wow-log says`() {
+        // Finding A2-14: the tails polled every 50 ms, idle or not, whatever the host said.
+        val beans = DefaultListableBeanFactory()
+        val stores = StoreInstances.open(
+            properties {
+                log.pollInterval = java.time.Duration.ofMillis(20)
+                log.maxPollInterval = java.time.Duration.ofSeconds(2)
+                stores["a"] = WowProperties.Store().apply { type = BackendKind.MEMORY }
+            },
+            beans,
+            javaClass.classLoader,
+        )
+        stores.getValue("a").tailPolling.assert().isEqualTo(TailPolling(20.milliseconds, 2.seconds))
+        // Each store keeps the ledger of the service it was opened for (finding A2-13).
+        StoreInstances.open(properties(), beans, javaClass.classLoader, service = "orders").values.single().service
+            .assert().isEqualTo("orders")
+        StoreInstances.open(properties(), beans, javaClass.classLoader).values.single().tailPolling
+            .assert().isEqualTo(TailPolling.DEFAULT)
+        assertThrows<IllegalArgumentException> {
+            WowProperties.Log().apply { maxPollInterval = java.time.Duration.ofMillis(10) }.tailPolling()
+        }
+        assertThrows<IllegalArgumentException> { TailPolling(kotlin.time.Duration.ZERO, 1.seconds) }
     }
 
     @Test

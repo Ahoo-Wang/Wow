@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.spring.boot
 
+import io.micrometer.core.instrument.FunctionCounter
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Metrics
 import me.ahoo.wow.kafka.KafkaOptions
 import me.ahoo.wow.kafka.KafkaPartitionedSource
 import me.ahoo.wow.kafka.KafkaTopicAdmin
@@ -23,6 +26,7 @@ import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicAdmin
 import me.ahoo.wow.spi.transport.TopicProducer
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
@@ -52,6 +56,8 @@ import kotlin.time.toKotlinDuration
  *   `wow.kafka.command-intake=true`, each context the node hosts also executes the commands of its own command topic,
  *   which must have as many partitions as the context's log (`wow.log.partitions`): the node does not start otherwise.
  *   So does each context with an aggregate type routed through Kafka (decision D143).
+ *   A read whose partition no longer holds its offset (retention, a topic created again) is an offset gap, handled as
+ *   `wow.kafka.offset-gap` says and counted in [OFFSET_GAPS] (finding A2-11).
  * - **Topics** (decision D168): a [KafkaTopicAdmin], unless the application has a [TopicAdmin] bean of its own,
  *   through which the node validates or creates the topics its contexts own at its start, as `wow.kafka.topics.ddl`
  *   says. Closed with the context.
@@ -75,7 +81,7 @@ class KafkaAutoConfiguration {
         @Bean(destroyMethod = "close")
         @ConditionalOnMissingBean(PartitionedSource::class)
         fun wowKafkaPartitionedSource(properties: KafkaProperties): KafkaPartitionedSource =
-            KafkaPartitionedSource.create(options(properties))
+            KafkaPartitionedSource.create(options(properties), properties.offsetGap)
 
         @Bean(destroyMethod = "close")
         @ConditionalOnMissingBean(TopicAdmin::class)
@@ -103,7 +109,33 @@ class KafkaAutoConfiguration {
         )
     }
 
+    /**
+     * The offset gaps the Kafka source met (finding A2-11), as the counter [OFFSET_GAPS], when the application has
+     * Micrometer: each gap is an error to alert on, whatever `wow.kafka.offset-gap` does with it.
+     */
+    @Configuration(proxyBeanMethods = false)
+    @ConditionalOnClass(name = [MICROMETER])
+    @ConditionalOnProperty(prefix = KafkaProperties.PREFIX, name = ["bootstrap-servers"])
+    class KafkaMetrics {
+        /** Counts the gaps of the node's source when it is Kafka's; an application's own source counts none. */
+        @Bean
+        fun wowKafkaOffsetGaps(
+            sources: ObjectProvider<PartitionedSource>,
+            meters: ObjectProvider<MeterRegistry>,
+        ): FunctionCounter =
+            FunctionCounter.builder(OFFSET_GAPS, sources) {
+                (it.getIfUnique() as? KafkaPartitionedSource)?.offsetGaps?.toDouble() ?: 0.0
+            }
+                .description("Offsets a Kafka read was to start from that its partition no longer holds.")
+                .register(meters.getIfUnique { Metrics.globalRegistry })
+    }
+
     companion object {
+        /** The counter of the offset gaps the Kafka source met. */
+        const val OFFSET_GAPS: String = "wow.kafka.offset.gaps"
+
+        private const val MICROMETER = "io.micrometer.core.instrument.MeterRegistry"
+
         /** The name of the sinks' [PublishedSinks] bean. */
         const val KAFKA_SINKS: String = "wowKafkaSinks"
 

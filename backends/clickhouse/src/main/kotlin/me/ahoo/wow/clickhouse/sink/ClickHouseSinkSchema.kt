@@ -29,12 +29,13 @@ data class ClickHouseObject(val name: String, val columns: List<ClickHouseColumn
  * The tables and views of one aggregate [type] (design 08 §8, decisions D142, D164), in [database], named after the
  * type (`<ctx>_<agg>`, [prefixOf]):
  *
- * - `<ctx>_<agg>_state_events`, the base table the Sink inserts into: a MergeTree partitioned by the month of
- *   `commit_time`, ordered by `(tenant_id, aggregate_id, version)`, one row per commit ([ClickHouseRows]); with a TTL
+ * - `<ctx>_<agg>_state_events`, the base table the Sink inserts into: a ReplacingMergeTree partitioned by the month
+ *   of `commit_time`, ordered by `(tenant_id, aggregate_id, version)`, one row per commit ([ClickHouseRows]); with a TTL
  *   on `commit_time` when [AggregateSinkOptions.historyTtl] is set.
  * - `<ctx>_<agg>_state`, a ReplacingMergeTree(version) ordered by `(tenant_id, aggregate_id)`, the current state:
  *   filled by the materialized view `<ctx>_<agg>_state_mv` from the base table.
- * - `<ctx>_<agg>_events`, a MergeTree, one row per event: filled by `<ctx>_<agg>_events_mv`, which `ARRAY JOIN`s the
+ * - `<ctx>_<agg>_events`, a ReplacingMergeTree ordered by `(tenant_id, aggregate_id, version, sequence)`, one row
+ *   per event: filled by `<ctx>_<agg>_events_mv`, which `ARRAY JOIN`s the
  *   base table's `events`; under the same TTL.
  * - `<ctx>_<agg>_state_flat`, a view of `_state FINAL`: the system columns and the state schema's top-level scalars
  *   as typed columns ([FlatColumns]).
@@ -44,7 +45,10 @@ data class ClickHouseObject(val name: String, val columns: List<ClickHouseColumn
  *
  * Every table remembers the last [deduplicationWindow] insert blocks (`non_replicated_deduplication_window`), so an
  * insert retried with the same token is dropped from the base table and, the inserts setting
- * `deduplicate_blocks_in_dependent_materialized_views`, from the views' tables too.
+ * `deduplicate_blocks_in_dependent_materialized_views`, from the views' tables too. Beyond that window (a replay
+ * from an earlier checkpoint, an old owner beside the new one, a batch made up differently), the history tables'
+ * `ReplacingMergeTree` engine, keyed by `ref@version` (and the event's sequence), merges a replayed row away (finding
+ * A2-10): a read with `FINAL` counts every commit and event once.
  */
 @InternalWowApi
 class ClickHouseSinkSchema(
@@ -124,9 +128,12 @@ class ClickHouseSinkSchema(
             columns.joinToString(",\n") { "    ${identifier(it.name)} ${it.type}" } +
             "\n)\nENGINE = $engine"
 
-    /** A history table: by the month of its commits, kept for the history's TTL. */
+    /**
+     * A history table: by the month of its commits, kept for the history's TTL; a row of the same key, a replayed
+     * commit or event (the same facts), replaces the one before it.
+     */
     private fun mergeTree(order: String): String = buildString {
-        append("MergeTree\nPARTITION BY toYYYYMM(commit_time)\nORDER BY ($order)\n")
+        append("ReplacingMergeTree\nPARTITION BY toYYYYMM(commit_time)\nORDER BY ($order)\n")
         aggregate.historyTtl?.let {
             append("TTL toDateTime(commit_time) + toIntervalSecond(${it.inWholeSeconds})\n")
         }

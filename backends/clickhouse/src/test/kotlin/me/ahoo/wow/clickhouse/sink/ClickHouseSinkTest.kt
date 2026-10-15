@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.clickhouse.sink
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -60,6 +63,38 @@ class ClickHouseSinkTest {
         tokens[0].assert().startsWith("batch:").hasSize("batch:".length + 64)
         tokens[2].assert().isEqualTo("shop.order/tenant-1/order-1@5")
         ClickHouseSink.tokenOf(records.take(2)).assert().isNotEqualTo(ClickHouseSink.tokenOf(records.drop(1).take(2)))
+    }
+
+    @Test
+    fun `writes queued while an insert runs should go together in the next one, up to the batch size`(): Unit =
+        runTest {
+            // Finding A2-10: one INSERT per commit, three parts each with the views, overran ClickHouse's merges.
+            val sink = sinks(ClickHouseSinkOptions(ddl = DdlMode.NONE, batchSize = 3)).sinkOf("shop", "order")
+            val gate = CompletableDeferred<Unit>().also { statements.gate = it }
+            val first = async { sink.write(listOf(recordOf(version = 1))) }
+            statements.waiting.await()
+            val queued = (2..6).map { version -> async { sink.write(listOf(recordOf(version = version))) } }
+            testScheduler.runCurrent()
+            gate.complete(Unit)
+            (listOf(first) + queued).awaitAll()
+            statements.inserts.map { it.second.trimEnd().lines().size }.assert().containsExactly(1, 3, 2)
+            statements.inserts[1].third.assert().startsWith("batch:")
+        }
+
+    @Test
+    fun `a failed insert should fail every write it carried, and the next writes go on`(): Unit = runTest {
+        val sink = sinks(ClickHouseSinkOptions(ddl = DdlMode.NONE)).sinkOf("shop", "order")
+        val gate = CompletableDeferred<Unit>().also { statements.gate = it }
+        val first = async { runCatching { sink.write(listOf(recordOf(version = 1))) } }
+        statements.waiting.await()
+        val queued = (2..3).map { version -> async { runCatching { sink.write(listOf(recordOf(version = version))) } } }
+        testScheduler.runCurrent()
+        statements.failInsert = IllegalStateException("down")
+        gate.complete(Unit)
+        (listOf(first) + queued).awaitAll().forEach { it.exceptionOrNull()?.message.assert().isEqualTo("down") }
+        statements.failInsert = null
+        sink.write(listOf(recordOf(version = 4)))
+        statements.inserts.size.assert().isEqualTo(1)
     }
 
     @Test

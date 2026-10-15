@@ -23,7 +23,7 @@ class ClickHouseSinkSchemaTest {
     private val flat = listOf(FlatColumn("total", "Decimal(38, 2)", "toDecimal128OrZero(state_numbers['total'], 2)"))
 
     @Test
-    fun `the base table should be a monthly MergeTree by tenant, aggregate and version`() {
+    fun `the base table should be a monthly ReplacingMergeTree by tenant, aggregate and version`() {
         val schema = ClickHouseSinkSchema(ORDER, "analytics", AggregateSinkOptions(historyTtl = 30.days), flat)
         schema.target.assert().isEqualTo("shop_order_state_events")
         schema.ddl.first().assert().isEqualTo(
@@ -53,7 +53,7 @@ class ClickHouseSinkSchemaTest {
                 `state_fingerprint` String,
                 `state_numbers` Map(String, String)
             )
-            ENGINE = MergeTree
+            ENGINE = ReplacingMergeTree
             PARTITION BY toYYYYMM(commit_time)
             ORDER BY (tenant_id, aggregate_id, version)
             TTL toDateTime(commit_time) + toIntervalSecond(2592000)
@@ -73,7 +73,7 @@ class ClickHouseSinkSchemaTest {
         )
         ddl[2].assert().contains("`event_name` LowCardinality(String)")
         ddl[2].assert().endsWith(
-            "ENGINE = MergeTree\nPARTITION BY toYYYYMM(commit_time)\nORDER BY (tenant_id, aggregate_id, version, sequence)\n" +
+            "ENGINE = ReplacingMergeTree\nPARTITION BY toYYYYMM(commit_time)\nORDER BY (tenant_id, aggregate_id, version, sequence)\n" +
                 "TTL toDateTime(commit_time) + toIntervalSecond(86400)\nSETTINGS non_replicated_deduplication_window = 50",
         )
         ddl[3].assert().isEqualTo(

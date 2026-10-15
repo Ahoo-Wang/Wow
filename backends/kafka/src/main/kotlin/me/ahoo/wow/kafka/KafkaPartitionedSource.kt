@@ -22,11 +22,14 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.transport.PartitionOffsets
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.SourceMessage
 import org.apache.kafka.clients.consumer.Consumer
+import org.apache.kafka.clients.consumer.ConsumerRecords
 import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.clients.consumer.OffsetOutOfRangeException
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.utils.Utils
 import java.util.concurrent.ConcurrentHashMap
@@ -45,16 +48,32 @@ import kotlin.time.toJavaDuration
  *   (decision D134). A second read of a partition already joined, such as a subscription catching up, and a bounded
  *   read run a consumer of their own for as long as their flow is collected: assigned the one partition, it seeks to
  *   `from` and polls, each poll at most [pollTimeout] on a virtual thread, emitting what it got; the consumer closes
- *   when the flow ends or is cancelled. Either way, an offset no longer retained reads from the earliest one
- *   retained; one past the end waits for the messages to reach it.
+ *   when the flow ends or is cancelled.
+ *
+ * Either way, an offset the partition does not hold, before its earliest retained offset or past its end, is a gap
+ * (finding A2-11): the read never steps over it silently, but logs an error, counts it in [offsetGaps] and does what
+ * [offsetGap] says, by default failing with an [OffsetGapException].
  *
  * [close] closes the consumer of [partitions] and [offsets] and the shared consumers; the other reads close their own.
  */
-class KafkaPartitionedSource(
+class KafkaPartitionedSource @InternalWowApi constructor(
     private val consumers: () -> Consumer<String, ByteArray>,
-    private val pollTimeout: Duration = KafkaOptions.DEFAULT_POLL_TIMEOUT,
-    private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    private val pollTimeout: Duration,
+    private val dispatcher: CoroutineDispatcher,
+    /** What a read does when its partition does not hold the offset it is to read from. */
+    val offsetGap: OffsetGapPolicy,
 ) : PartitionedSource, AutoCloseable {
+    constructor(
+        consumers: () -> Consumer<String, ByteArray>,
+        pollTimeout: Duration = KafkaOptions.DEFAULT_POLL_TIMEOUT,
+        dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    ) : this(consumers, pollTimeout, dispatcher, OffsetGapPolicy.FAIL)
+
+    private val gaps = OffsetGaps(offsetGap)
+
+    /** The offset gaps this source's reads met (finding A2-11), each logged as an error: a counter to alert on. */
+    val offsetGaps: Long get() = gaps.count
+
     private val lock = Mutex()
     private var metadata: Consumer<String, ByteArray>? = null
     private val shared = ConcurrentHashMap<String, SharedTopicConsumer>()
@@ -84,7 +103,7 @@ class KafkaPartitionedSource(
     override fun read(topic: String, partition: Int, from: Long): Flow<SourceMessage> = flow {
         require(from >= 0) { "An offset is never negative." }
         val topicConsumer = shared.computeIfAbsent(topic) {
-            SharedTopicConsumer(it, consumers, pollTimeout, dispatcher)
+            SharedTopicConsumer(it, consumers, pollTimeout, dispatcher, gaps = gaps)
         }
         val reader = topicConsumer.join(partition, from)
         if (reader == null) {
@@ -109,22 +128,28 @@ class KafkaPartitionedSource(
         val target = TopicPartition(topic, partition)
         val consumer = withContext(dispatcher) { consumers() }
         try {
-            withContext(dispatcher) {
+            var next = withContext(dispatcher) {
                 consumer.assign(listOf(target))
-                // Past the end, Kafka would reset to the earliest offset: seek to the end and skip up to `from`.
-                consumer.seek(target, minOf(from, consumer.endOffsets(listOf(target)).values.single()))
+                place(consumer, target, from)
             }
             val timeout = pollTimeout.toJavaDuration()
             var position = 0L
             while (position < until) {
                 val records = withContext(dispatcher) {
-                    consumer.poll(timeout).also { position = consumer.position(target) }
+                    try {
+                        consumer.poll(timeout).also { position = consumer.position(target) }
+                    } catch (_: OffsetOutOfRangeException) {
+                        // The retention deleted what was still to be read, while it was being read.
+                        next = place(consumer, target, next)
+                        ConsumerRecords.empty<String, ByteArray>()
+                    }
                 }
                 for (record in records) {
                     if (record.offset() >= until) {
                         return@flow
                     }
-                    if (record.offset() >= from) {
+                    if (record.offset() >= next) {
+                        next = record.offset() + 1
                         emit(
                             SourceMessage(
                                 record.offset(),
@@ -139,6 +164,13 @@ class KafkaPartitionedSource(
         } finally {
             withContext(NonCancellable + dispatcher) { consumer.close() }
         }
+    }
+
+    /** Seeks [consumer] to [from] in [target], or where [offsetGap] says when the partition does not hold it. */
+    private fun place(consumer: Consumer<String, ByteArray>, target: TopicPartition, from: Long): Long {
+        val start = consumer.beginningOffsets(listOf(target)).values.single()
+        val end = consumer.endOffsets(listOf(target)).values.single()
+        return gaps.resolve(target.topic(), target.partition(), from, start, end).also { consumer.seek(target, it) }
     }
 
     private suspend fun <T> metadata(call: (Consumer<String, ByteArray>) -> T): T = lock.withLock {
@@ -156,9 +188,14 @@ class KafkaPartitionedSource(
 
     companion object {
         /** A source whose consumers have [options]' configuration ([KafkaOptions.consumerConfig]). */
-        fun create(options: KafkaOptions): KafkaPartitionedSource = KafkaPartitionedSource(
+        fun create(options: KafkaOptions): KafkaPartitionedSource = create(options, OffsetGapPolicy.FAIL)
+
+        /** A source whose consumers have [options]' configuration, its reads meeting an offset gap as [offsetGap] says. */
+        fun create(options: KafkaOptions, offsetGap: OffsetGapPolicy): KafkaPartitionedSource = KafkaPartitionedSource(
             { KafkaConsumer<String, ByteArray>(options.consumerConfig()) },
             options.pollTimeout,
+            VirtualThreads.dispatcher,
+            offsetGap,
         )
     }
 }

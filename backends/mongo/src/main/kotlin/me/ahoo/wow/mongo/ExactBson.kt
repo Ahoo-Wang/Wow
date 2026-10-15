@@ -45,6 +45,7 @@ internal object ExactBson {
 
     /** Decimal128 holds 34 significant digits. */
     private const val DECIMAL128_DIGITS = 34
+    private const val NUL = '\u0000'
 
     /** The JSON object [text] as a BSON document. */
     fun document(text: String): Document {
@@ -58,6 +59,8 @@ internal object ExactBson {
 
     private fun document(node: ObjectNode): Document = Document().apply {
         for ((name, value) in node.properties()) {
+            // A BSON key is a C string: refused here, as a value, not by the driver as it writes (finding A2-7).
+            require(NUL !in name) { "The key ${name.replace(NUL, '?')} holds \\u0000, which a BSON key cannot." }
             put(name, value(value))
         }
     }

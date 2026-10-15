@@ -43,13 +43,20 @@ internal class PostgresStore(name: String, val dataSource: DataSource) : HostSto
 
     override fun openLeases(): LeaseStore = PostgresLeaseStore(dataSource).also { schema(it::createSchema) }
 
-    override fun openLedger(): FailureLedger = PostgresFailureLedger(dataSource).also { schema(it::createSchema) }
+    override fun openLedger(): FailureLedger =
+        PostgresFailureLedger(dataSource, service = service).also { schema(it::createSchema) }
 
     override fun openReservations(): ReservationStore =
         PostgresReservationStore(dataSource).also { schema(it::createSchema) }
 
     override fun openLog(context: String, partitions: Int): EventLog =
-        PostgresEventLog(dataSource, context, partitions).also { schema(it::createSchema) }
+        PostgresEventLog(
+            dataSource,
+            context,
+            partitions,
+            pollInterval = tailPolling.interval,
+            maxPollInterval = tailPolling.maxInterval,
+        ).also { schema(it::createSchema) }
 
     override fun openSnapshots(context: String): SnapshotStore =
         PostgresSnapshotStore(dataSource, context).also { schema(it::createSchema) }

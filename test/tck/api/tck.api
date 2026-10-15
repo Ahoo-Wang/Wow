@@ -48,17 +48,22 @@ public abstract class me/ahoo/wow/tck/log/EventLogSpec {
 	public static final field DEFAULT_PARTITIONS I
 	public static final field TAIL_TIMEOUT_MS J
 	public fun <init> ()V
+	public final fun a payload with a NUL character reads back as appended, or is rejected, never unknown ()V
 	public final fun a request id is unique within its tenant ()V
 	public final fun a request id is unique within its tenant and aggregate type ()V
 	public final fun a request id reused by another command type finds the stream committed for it ()V
+	public final fun a retry of a request at the version it committed is a duplicate, not a conflict ()V
 	public final fun a stream reads back exactly as appended ()V
+	public final fun a stream the backend refuses is rejected, and in appendAll fails alone ()V
 	public final fun an aggregate's first stream is version 1 and each next one exactly one more ()V
 	public final fun an entry lands in its ref's partition, sequenced from 1 ()V
 	public final fun appendAll gives each stream the outcome append would ()V
 	public final fun appendAll keeps each stream's transport ()V
+	public final fun appendAll reports a retry of a request at the version it committed as a duplicate ()V
 	public final fun appendAll sequences a group of two aggregate types without gaps ()V
 	public final fun appendAll sequences a group without gaps ()V
 	public final fun appends of two aggregate types interleaved in one partition tail back in sequence order ()V
+	public final fun concurrent appends of one request at one version commit once, the others are duplicates ()V
 	public final fun concurrent appends to one version let exactly one win ()V
 	protected abstract fun createLog (Ljava/lang/String;I)Lme/ahoo/wow/spi/log/EventLog;
 	public final fun head is the last committed sequence of a partition, null when it is empty ()V
@@ -67,6 +72,7 @@ public abstract class me/ahoo/wow/tck/log/EventLogSpec {
 	public final fun positionOf finds where a version of an aggregate was committed ()V
 	public final fun read returns a version range in version order ()V
 	public final fun readEntries returns a version range in version order, each entry with its position and transport ()V
+	protected fun refused (Lme/ahoo/wow/spi/log/EventStreamRecord;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public final fun scope, causation, headers and operator read back as appended, absent ones too ()V
 	protected final fun stream (Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/spi/log/EventStreamRecord;
 	public static synthetic fun stream$default (Lme/ahoo/wow/tck/log/EventLogSpec;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/caller/Operator;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/EventStreamRecord;
@@ -133,6 +139,7 @@ public abstract class me/ahoo/wow/tck/snapshot/SnapshotStoreSpec {
 	public final fun a rewrite replaces the same version or a lower one whatever the revision ()V
 	public final fun a snapshot loads back as saved ()V
 	public final fun a stale mark keeps a snapshot pending until a rewrite reaches its version ()V
+	public final fun a state with a NUL character loads back as saved, or is refused as a value ()V
 	public final fun a table's first claim records it at the revision, not yet backfilled ()V
 	public final fun absent access facts and the deleted mark load back as saved ()V
 	public final fun concurrent claims leave one revision ()V

@@ -24,7 +24,6 @@ import com.mongodb.client.model.UpdateOneModel
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
@@ -36,6 +35,7 @@ import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.MongoRules
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
+import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus
@@ -94,7 +94,7 @@ class MongoTimerStore(
         )
     }
 
-    override suspend fun put(timer: Timer): Boolean = withContext(dispatcher) {
+    override suspend fun put(timer: Timer): Boolean = dispatcher.mongo {
         require(timer.owner.type.context == context) { "${timer.owner} keeps its timers in its own context." }
         val replaceable = Filters.and(
             keyFilter(timer.owner, timer.key),
@@ -132,19 +132,19 @@ class MongoTimerStore(
         }
     }
 
-    override suspend fun cancel(owner: AggregateRef, key: String, version: Long): Boolean = withContext(dispatcher) {
+    override suspend fun cancel(owner: AggregateRef, key: String, version: Long): Boolean = dispatcher.mongo {
         timers.updateOne(
             Filters.and(keyFilter(owner, key), cancellable(version)),
             cancelled(version),
         ).matchedCount == 1L
     }
 
-    override suspend fun cancelAll(owner: AggregateRef, version: Long): Int = withContext(dispatcher) {
+    override suspend fun cancelAll(owner: AggregateRef, version: Long): Int = dispatcher.mongo {
         timers.updateMany(Filters.and(ownerFilter(owner), cancellable(version)), cancelled(version))
             .matchedCount.toInt()
     }
 
-    override suspend fun find(owner: AggregateRef, key: String): Timer? = withContext(dispatcher) {
+    override suspend fun find(owner: AggregateRef, key: String): Timer? = dispatcher.mongo {
         timers.find(keyFilter(owner, key)).firstOrNull()?.let(::timerOf)
     }
 
@@ -153,7 +153,7 @@ class MongoTimerStore(
         if (partitions.isEmpty()) {
             return emptyList()
         }
-        return withContext(dispatcher) {
+        return dispatcher.mongo {
             timers.find(
                 Filters.and(
                     Filters.`in`(PARTITION, partitions),
@@ -168,7 +168,7 @@ class MongoTimerStore(
         if (changes.isEmpty()) {
             return 0
         }
-        return withContext(dispatcher) {
+        return dispatcher.mongo {
             val writes = changes.map { (loaded, next) ->
                 UpdateOneModel<Document>(
                     Filters.and(
@@ -195,7 +195,7 @@ class MongoTimerStore(
         }
     }
 
-    override suspend fun parked(target: AggregateRef): List<Timer> = withContext(dispatcher) {
+    override suspend fun parked(target: AggregateRef): List<Timer> = dispatcher.mongo {
         timers.find(
             Filters.and(
                 Filters.eq(TARGET_CONTEXT, target.type.context),

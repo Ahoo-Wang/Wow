@@ -46,13 +46,21 @@ internal class MongoStore(
 
     override fun openLeases(): LeaseStore = MongoLeaseStore(client, database).also { schema(it::createSchema) }
 
-    override fun openLedger(): FailureLedger = MongoFailureLedger(client, database).also { schema(it::createSchema) }
+    override fun openLedger(): FailureLedger =
+        MongoFailureLedger(client, database, service = service).also { schema(it::createSchema) }
 
     override fun openReservations(): ReservationStore =
         MongoReservationStore(client, database).also { schema(it::createSchema) }
 
     override fun openLog(context: String, partitions: Int): EventLog =
-        MongoEventLog(client, database, context, partitions).also { schema(it::createSchema) }
+        MongoEventLog(
+            client,
+            database,
+            context,
+            partitions,
+            pollInterval = tailPolling.interval,
+            maxPollInterval = tailPolling.maxInterval,
+        ).also { schema(it::createSchema) }
 
     override fun openSnapshots(context: String): SnapshotStore =
         MongoSnapshotStore(client, database, context).also { schema(it::createSchema) }

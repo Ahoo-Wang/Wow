@@ -13,7 +13,22 @@
 
 package me.ahoo.wow.mongo.log
 
+import com.mongodb.ConnectionString
+import com.mongodb.MongoClientSettings
+import com.mongodb.MongoException
+import com.mongodb.client.ClientSession
+import com.mongodb.client.MongoClient
+import com.mongodb.client.MongoClients
+import com.mongodb.client.TransactionBody
 import com.mongodb.client.model.Filters
+import com.mongodb.event.CommandListener
+import com.mongodb.event.CommandStartedEvent
+import io.mockk.every
+import io.mockk.spyk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -27,11 +42,21 @@ import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
+import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.tck.containers.WowContainers
 import me.ahoo.wow.tck.log.EventLogSpec
+import org.bson.BsonDocument
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CopyOnWriteArrayList
 
 class MongoEventLogTest : EventLogSpec() {
     override fun createLog(context: String, partitions: Int): EventLog = MongoLogFixture.log(partitions, context)
+
+    /** A decimal of 40 significant digits: MongoDB keeps at most 34 exactly. */
+    override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copy(
+        events = listOf(EventRecord("x.aggregate.Priced", 1, """{"amount":1.234567890123456789012345678901234567890}""")),
+    )
 
     private fun collection(context: String, aggregate: String) = "wow_log__${context.replace('-', '_')}__$aggregate"
 
@@ -132,15 +157,126 @@ class MongoEventLogTest : EventLogSpec() {
         val tooPrecise = valid.copy(
             events = listOf(EventRecord("x.aggregate.Priced", 1, """{"amount":1.2345678901234567890123456789012345}""")),
         )
-        assertThrownBy<IllegalArgumentException> { runBlocking { log.append(tooPrecise) } }
+        (log.append(tooPrecise) as AppendOutcome.Rejected).cause.assert().isInstanceOf(IllegalArgumentException::class.java)
         log.head(0).assert().isNull()
         log.read(tooPrecise.ref).toList().assert().isEmpty()
         // An integer of 35 digits has no exact Decimal128 of scale 0 either.
         val tooLarge = tooPrecise.copy(
             events = listOf(EventRecord("x.aggregate.Priced", 1, """{"amount":12345678901234567890123456789012345}""")),
         )
-        assertThrownBy<IllegalArgumentException> { runBlocking { log.append(tooLarge) } }
+        log.append(tooLarge).assert().isInstanceOf(AppendOutcome.Rejected::class.java)
         log.append(valid).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+    }
+
+    /** A client whose transactions run [transaction], given the commit they would make. */
+    private fun clientWith(transaction: (() -> Any?) -> Any?): MongoClient {
+        val real = MongoLogFixture.client
+        return object : MongoClient by real {
+            override fun startSession(): ClientSession = spyk(real.startSession()).also { session ->
+                every { session.withTransaction(any<TransactionBody<Any>>(), any()) } answers {
+                    transaction { callOriginal() }!!
+                }
+            }
+        }
+    }
+
+    private fun twoInPartitionZero(context: String): List<EventStreamRecord> {
+        val type = AggregateType(context, "order")
+        return generateSequence(1) { it + 1 }.map { "g-$it" }
+            .filter { Partitioner.partitionOf(type.ref("tenant", it), 4) == 0 }
+            .take(2)
+            .map { stream(it, 1, aggregate = type) }
+            .toList()
+    }
+
+    @Test
+    fun `a group whose commit is unknown is unknown for each stream, never appended again`(): Unit = runBlocking {
+        // Finding A2-6: the group committed, its result unknown; appended again one by one, each met a conflict.
+        val context = MongoLogFixture.newContext()
+        val committing = clientWith { commit ->
+            commit()
+            throw MongoException("commit result unknown").apply {
+                addLabel(MongoException.UNKNOWN_TRANSACTION_COMMIT_RESULT_LABEL)
+            }
+        }
+        val log = MongoEventLog(committing, MongoLogFixture.DATABASE, context, 4).also { it.createSchema() }
+        val streams = twoInPartitionZero(context)
+        log.appendAll(streams.map { it to null }).forEach { it.assert().isInstanceOf(AppendOutcome.Unknown::class.java) }
+        val committed = MongoLogFixture.log(4, context)
+        committed.head(0).assert().isEqualTo(2L)
+        streams.forEach { committed.read(it.ref).toList().single().version.assert().isEqualTo(1) }
+    }
+
+    @Test
+    fun `a group aborted for sure falls back to one append per stream`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        var aborted = false
+        val aborting = clientWith { commit ->
+            if (aborted) {
+                commit()
+            } else {
+                aborted = true
+                throw MongoException("aborted").apply { addLabel(MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL) }
+            }
+        }
+        val log = MongoEventLog(aborting, MongoLogFixture.DATABASE, context, 4).also { it.createSchema() }
+        log.appendAll(twoInPartitionZero(context).map { it to null })
+            .forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
+        log.head(0).assert().isEqualTo(2L)
+    }
+
+    @Test
+    fun `reads outside an append read what a majority committed`(): Unit = runBlocking {
+        // Finding A2-2: a tail reading `local` could deliver an entry a failover then rolls back.
+        val reads = CopyOnWriteArrayList<BsonDocument>()
+        val listener = object : CommandListener {
+            override fun commandStarted(event: CommandStartedEvent) {
+                val command = event.command.clone()
+                if (event.commandName in setOf("find", "aggregate") && !command.containsKey("txnNumber")) {
+                    reads += command
+                }
+            }
+        }
+        val settings = MongoClientSettings.builder()
+            .applyConnectionString(ConnectionString(WowContainers.mongo.replicaSetUrl))
+            .addCommandListener(listener)
+            .build()
+        MongoClients.create(settings).use { client ->
+            val context = MongoLogFixture.newContext()
+            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+            val appended = stream("a", 1, aggregate = AggregateType(context, "order"))
+            log.append(appended)
+            reads.clear()
+            withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).first() }
+            log.head(0)
+            log.read(appended.ref).toList()
+            log.readEntries(appended.ref).toList()
+            log.positionOf(appended.ref, 1)
+            log.findByRequestId(appended.ref.type, "tenant", appended.requestId)
+            log.findByRequestId("tenant", appended.requestId)
+            val logReads = reads.filter { (it["find"] ?: it["aggregate"])?.asString()?.value?.startsWith("wow_log__") == true }
+            logReads.size.assert().isGreaterThanOrEqualTo(7)
+            logReads.forEach { command ->
+                command.getDocument("readConcern")?.getString("level")?.value.assert().isEqualTo("majority")
+            }
+        }
+    }
+
+    @Test
+    fun `nodes creating a new log at once all succeed`(): Unit = runBlocking {
+        // Finding A2-8: the counters were inserted when none were found, and the later node hit a duplicate key.
+        // A node that came second also used to find the first one's counters half written and refuse the log.
+        repeat(RACES) {
+            val context = MongoLogFixture.newContext()
+            coroutineScope {
+                (1..8).map { async(Dispatchers.IO) { MongoLogFixture.log(64, context).partitions } }.awaitAll()
+            }.forEach { it.assert().isEqualTo(64) }
+            MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection(context, "partition"))
+                .countDocuments().assert().isEqualTo(64L)
+            assertThrownBy<IllegalStateException> { MongoLogFixture.log(32, context) }
+            MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection(context, "partition"))
+                .countDocuments().assert().isEqualTo(64L)
+        }
     }
 
     @Test
@@ -152,5 +288,6 @@ class MongoEventLogTest : EventLogSpec() {
 
     private companion object {
         const val TAIL_STALL_MS = 500L
+        const val RACES = 5
     }
 }

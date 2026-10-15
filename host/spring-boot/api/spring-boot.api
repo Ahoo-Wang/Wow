@@ -112,11 +112,17 @@ public final class me/ahoo/wow/spring/boot/InternalServer {
 public final class me/ahoo/wow/spring/boot/KafkaAutoConfiguration {
 	public static final field Companion Lme/ahoo/wow/spring/boot/KafkaAutoConfiguration$Companion;
 	public static final field KAFKA_SINKS Ljava/lang/String;
+	public static final field OFFSET_GAPS Ljava/lang/String;
 	public fun <init> ()V
 }
 
 public final class me/ahoo/wow/spring/boot/KafkaAutoConfiguration$Companion {
 	public final fun options (Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/kafka/KafkaOptions;
+}
+
+public final class me/ahoo/wow/spring/boot/KafkaAutoConfiguration$KafkaMetrics {
+	public fun <init> ()V
+	public final fun wowKafkaOffsetGaps (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lio/micrometer/core/instrument/FunctionCounter;
 }
 
 public final class me/ahoo/wow/spring/boot/KafkaAutoConfiguration$KafkaTransport {
@@ -134,12 +140,14 @@ public final class me/ahoo/wow/spring/boot/KafkaProperties {
 	public fun <init> ()V
 	public final fun getBootstrapServers ()Ljava/lang/String;
 	public final fun getCommandIntake ()Z
+	public final fun getOffsetGap ()Lme/ahoo/wow/kafka/OffsetGapPolicy;
 	public final fun getPollTimeout ()Ljava/time/Duration;
 	public final fun getProperties ()Ljava/util/Map;
 	public final fun getTopicPrefix ()Ljava/lang/String;
 	public final fun getTopics ()Lme/ahoo/wow/spring/boot/KafkaProperties$Topics;
 	public final fun setBootstrapServers (Ljava/lang/String;)V
 	public final fun setCommandIntake (Z)V
+	public final fun setOffsetGap (Lme/ahoo/wow/kafka/OffsetGapPolicy;)V
 	public final fun setPollTimeout (Ljava/time/Duration;)V
 	public final fun setProperties (Ljava/util/Map;)V
 	public final fun setTopicPrefix (Ljava/lang/String;)V
@@ -551,10 +559,14 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Internal {
 public final class me/ahoo/wow/spring/boot/WowProperties$Log {
 	public fun <init> ()V
 	public final fun getAppendQueue ()Lme/ahoo/wow/spring/boot/WowProperties$AppendQueue;
+	public final fun getMaxPollInterval ()Ljava/time/Duration;
 	public final fun getPartitions ()I
+	public final fun getPollInterval ()Ljava/time/Duration;
 	public final fun getStore ()Ljava/lang/String;
 	public final fun setAppendQueue (Lme/ahoo/wow/spring/boot/WowProperties$AppendQueue;)V
+	public final fun setMaxPollInterval (Ljava/time/Duration;)V
 	public final fun setPartitions (I)V
+	public final fun setPollInterval (Ljava/time/Duration;)V
 	public final fun setStore (Ljava/lang/String;)V
 }
 

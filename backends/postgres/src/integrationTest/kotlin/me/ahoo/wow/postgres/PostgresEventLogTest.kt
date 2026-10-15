@@ -24,13 +24,32 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.tck.log.EventLogSpec
 import org.junit.jupiter.api.Test
+import java.util.UUID
 
 class PostgresEventLogTest : EventLogSpec() {
     override fun createLog(context: String, partitions: Int): EventLog = PostgresFixture.log(partitions, context)
 
+    /** A `\u0000` in a payload string: PostgreSQL's `jsonb` does not take it (finding A2-7). */
+    override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copy(
+        events = listOf(EventRecord("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
+    )
+
     private fun table(context: String, aggregate: String) = "wow_log__${context.replace('-', '_')}__$aggregate"
+
+    @Test
+    fun `a key too long for its index is rejected, not unknown`(): Unit = runBlocking {
+        // Finding A3-10: SQLSTATE 54000 was answered as unknown, which the caller retries for ever.
+        // Random, so that compressing the index row does not bring it under the limit (about 2.7 KB).
+        val long = stream((1..LONG_ID_UUIDS).joinToString("") { UUID.randomUUID().toString() }, 1)
+        val log = createLog(long.ref.type.context, 1)
+        val outcome = log.append(long)
+        (outcome as AppendOutcome.Rejected).cause.message.assert().contains("SQLSTATE 54000")
+        log.head(0).assert().isNull()
+    }
 
     @Test
     fun `creating the schema twice is harmless`() {
@@ -129,5 +148,6 @@ class PostgresEventLogTest : EventLogSpec() {
 
     private companion object {
         const val TAIL_STALL_MS = 500L
+        const val LONG_ID_UUIDS = 300
     }
 }

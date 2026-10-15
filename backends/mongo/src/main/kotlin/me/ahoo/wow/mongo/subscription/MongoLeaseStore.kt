@@ -24,10 +24,11 @@ import com.mongodb.client.model.Sorts
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
+import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
@@ -62,12 +63,14 @@ class MongoLeaseStore(
 
     /** Creates the key indexes when missing. */
     fun createSchema() {
+        MongoFormat.claim(database, LEASES, FORMAT)
+        MongoFormat.claim(database, MEMBERS, FORMAT)
         leases.createIndex(Indexes.ascending(GROUP, PARTITION), IndexOptions().unique(true).name(LEASE_KEY))
         members.createIndex(Indexes.ascending(GROUP, NODE), IndexOptions().unique(true).name(MEMBER_KEY))
     }
 
     override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? =
-        withContext(dispatcher) {
+        dispatcher.mongo {
             val now = clock.millis()
             val takeable = Filters.and(
                 leaseFilter(group, partition),
@@ -95,7 +98,7 @@ class MongoLeaseStore(
         }
 
     override suspend fun renew(group: String, partition: Int, owner: String, ttl: Duration): Lease? =
-        withContext(dispatcher) {
+        dispatcher.mongo {
             val now = clock.millis()
             leases.findOneAndUpdate(
                 liveLeaseOf(group, partition, owner, now),
@@ -104,12 +107,12 @@ class MongoLeaseStore(
             )?.let { leaseOf(it) }
         }
 
-    override suspend fun release(group: String, partition: Int, owner: String): Boolean = withContext(dispatcher) {
+    override suspend fun release(group: String, partition: Int, owner: String): Boolean = dispatcher.mongo {
         leases.updateOne(liveLeaseOf(group, partition, owner, clock.millis()), Updates.set(EXPIRES_AT, 0L))
             .matchedCount == 1L
     }
 
-    override suspend fun owners(group: String): List<Lease> = withContext(dispatcher) {
+    override suspend fun owners(group: String): List<Lease> = dispatcher.mongo {
         leases.find(Filters.and(Filters.eq(GROUP, group), Filters.gt(EXPIRES_AT, clock.millis())))
             .sort(Sorts.ascending(PARTITION))
             .map { leaseOf(it) }
@@ -117,7 +120,7 @@ class MongoLeaseStore(
     }
 
     override suspend fun heartbeat(group: String, node: String, address: String, ttl: Duration): Member =
-        withContext(dispatcher) {
+        dispatcher.mongo {
             val expiresAt = clock.millis() + ttl.inWholeMilliseconds
             conditionalUpsert { upsert ->
                 members.updateOne(
@@ -129,7 +132,7 @@ class MongoLeaseStore(
             Member(group, node, address, expiresAt)
         }
 
-    override suspend fun members(group: String): List<Member> = withContext(dispatcher) {
+    override suspend fun members(group: String): List<Member> = dispatcher.mongo {
         // MongoDB compares strings by their UTF-8 bytes when no collation is set: node order is code point order.
         members.find(Filters.and(Filters.eq(GROUP, group), Filters.gt(EXPIRES_AT, clock.millis())))
             .sort(Sorts.ascending(NODE))
@@ -138,7 +141,7 @@ class MongoLeaseStore(
     }
 
     override suspend fun leave(group: String, node: String) {
-        withContext(dispatcher) { members.deleteOne(memberFilter(group, node)) }
+        dispatcher.mongo { members.deleteOne(memberFilter(group, node)) }
     }
 
     private fun leaseFilter(group: String, partition: Int): Bson =
@@ -166,6 +169,9 @@ class MongoLeaseStore(
 
     private companion object {
         const val LEASES = "wow_lease"
+
+        /** The layout version of both collections (decision D59, finding A2-13). */
+        const val FORMAT = 1
         const val MEMBERS = "wow_lease_member"
         const val LEASE_KEY = "lease_key"
         const val MEMBER_KEY = "member_key"

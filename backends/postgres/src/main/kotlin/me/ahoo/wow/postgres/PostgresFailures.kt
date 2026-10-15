@@ -35,6 +35,7 @@ import java.sql.SQLTransientException
 internal object PostgresFailures {
     private const val CONNECTION_EXCEPTION_CLASS = "08"
     private val TRANSIENT_STATES = setOf("57P01", "57P02", "57P03", "53300")
+    private val REFUSED_CLASSES = listOf("22", "54")
 
     /** Whether [failure], or an exception it was caused by, is a transient failure of the server or the connection. */
     fun isTransient(failure: SQLException): Boolean =
@@ -48,13 +49,30 @@ internal object PostgresFailures {
             sqlState?.startsWith(CONNECTION_EXCEPTION_CLASS) == true ||
             sqlState in TRANSIENT_STATES
 
-    /** [failure] as a [StorageUnavailableException] when it [isTransient], else as it is. */
-    fun translate(failure: SQLException): Exception =
-        if (isTransient(failure)) {
-            StorageUnavailableException("PostgreSQL is unavailable; retry later.", failure)
-        } else {
+    /**
+     * Whether PostgreSQL refused a value as it is, for good (findings A2-7, A3-10): class `22`, data exception (a
+     * `\u0000` its `jsonb` and `text` do not take, `22P05`; a value out of range), and class `54`, program limit
+     * exceeded (an index row too large, `54000`). Writing it again fails the same way.
+     */
+    fun isRefused(failure: SQLException): Boolean =
+        failure.sqlState?.let { state -> REFUSED_CLASSES.any { state.startsWith(it) } } == true
+
+    /** [failure], a refusal ([isRefused]), as the [IllegalArgumentException] every backend refuses a value with. */
+    fun refusal(failure: SQLException): IllegalArgumentException =
+        IllegalArgumentException(
+            "PostgreSQL refuses the value (SQLSTATE ${failure.sqlState}): ${failure.message}",
             failure
-        }
+        )
+
+    /**
+     * [failure] as a [StorageUnavailableException] when it [isTransient], as an [IllegalArgumentException] when
+     * PostgreSQL refused the value ([isRefused]), else as it is.
+     */
+    fun translate(failure: SQLException): Exception = when {
+        isTransient(failure) -> StorageUnavailableException("PostgreSQL is unavailable; retry later.", failure)
+        isRefused(failure) -> refusal(failure)
+        else -> failure
+    }
 }
 
 /** Runs [block] on this dispatcher, a transient [SQLException] thrown as a [StorageUnavailableException]. */

@@ -41,6 +41,9 @@ import org.springframework.util.ClassUtils
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 import javax.sql.DataSource
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * One store instance of the node, `wow.stores.<name>` (decision D177), of a [kind]: it opens each context's log,
@@ -51,6 +54,12 @@ import javax.sql.DataSource
  */
 @InternalWowApi
 abstract class HostStore internal constructor(val name: String, val kind: BackendKind) {
+    /** How the tails of the logs this store opens poll (`wow.log.poll-interval`, finding A2-14). */
+    internal var tailPolling: TailPolling = TailPolling.DEFAULT
+
+    /** The service whose failure ledger this store keeps: the key of its entries (finding A2-13). */
+    internal var service: String = ""
+
     private val schemas = CopyOnWriteArrayList<() -> Unit>()
     private val logs = ConcurrentHashMap<String, EventLog>()
     private val snapshotStores = ConcurrentHashMap<String, SnapshotStore>()
@@ -339,6 +348,20 @@ internal object StoreInstances {
         beanFactory: ListableBeanFactory,
         classLoader: ClassLoader?,
         memoryQueries: Boolean = false,
+        service: String = "",
+    ): Map<String, HostStore> {
+        val polling = properties.log.tailPolling()
+        return stores(properties, beanFactory, classLoader, memoryQueries).onEach { (_, store) ->
+            store.tailPolling = polling
+            store.service = service
+        }
+    }
+
+    private fun stores(
+        properties: WowProperties,
+        beanFactory: ListableBeanFactory,
+        classLoader: ClassLoader?,
+        memoryQueries: Boolean = false,
     ): Map<String, HostStore> {
         fun memory(name: String) = MemoryStore(name, queries = InMemoryQueryStorage().takeIf { memoryQueries })
         val postgresModule = ClassUtils.isPresent(POSTGRES_LOG, classLoader)
@@ -403,5 +426,20 @@ internal object StoreInstances {
             "$key names $name, which is no ${type.simpleName} bean."
         }
         return beanFactory.getBean(name)
+    }
+}
+
+/**
+ * How often the tails of a log on PostgreSQL or MongoDB poll (finding A2-14): every [interval] while they find
+ * entries, backing off up to [maxInterval] while they find none.
+ */
+internal data class TailPolling(val interval: Duration, val maxInterval: Duration) {
+    init {
+        require(interval.isPositive()) { "wow.log.poll-interval is positive." }
+        require(maxInterval >= interval) { "wow.log.max-poll-interval is at least wow.log.poll-interval." }
+    }
+
+    companion object {
+        val DEFAULT = TailPolling(50.milliseconds, 1.seconds)
     }
 }

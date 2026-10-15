@@ -67,7 +67,9 @@ import kotlin.time.toKotlinDuration
  *   several targets (decision D172, [Snapshot]): `wow.snapshot.targets` and `wow.snapshot.primary`, per aggregate type
  *   `.snapshot.store` as a list and `.snapshot.primary`; `wow.snapshot.interval`, `batch` and `pages` tune the
  *   snapshot maintenance.
- * - `wow.log.partitions` (64) and `wow.log.append-queue.*`, whose defaults are the backend's preset.
+ * - `wow.log.partitions` (64) and `wow.log.append-queue.*`, whose defaults are the backend's preset;
+ *   `wow.log.poll-interval` (50ms) and `wow.log.max-poll-interval` (1s), how often the tails of a PostgreSQL or MongoDB
+ *   log poll: at the first while they find entries, backing off to the second while they find none (finding A2-14).
  * - `wow.cluster.*` ([ClusterOptions]) and `wow.cluster.router`: `partitioned`, or `local` (the default on the memory
  *   backend, which cannot route across nodes).
  * - `wow.wait.default-timeout` (10s), `max-timeout` (60s), `max-hops` (16, at most 32), `unknown-contexts` (`allow`
@@ -191,6 +193,16 @@ class WowProperties {
         /** The partitions of each context's log: fixed once the log holds entries. */
         var partitions: Int = DEFAULT_PARTITIONS
         var appendQueue: AppendQueue = AppendQueue()
+
+        /** How often a tail polls while it finds entries (finding A2-14). */
+        var pollInterval: Duration = TailPolling.DEFAULT.interval.toJavaDuration()
+
+        /** The longest a tail waits between polls that find nothing: an idle tail backs off up to it. */
+        var maxPollInterval: Duration = TailPolling.DEFAULT.maxInterval.toJavaDuration()
+
+        /** The tails' polling these settings give. */
+        internal fun tailPolling(): TailPolling =
+            TailPolling(pollInterval.toKotlinDuration(), maxPollInterval.toKotlinDuration())
 
         /**
          * The store of every aggregate's log that `wow.aggregates.[<context>.<aggregate>].log.store` does not name
