@@ -112,8 +112,8 @@ class TagsTest {
             ),
         )
         result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
-        result.messages.assert()
-            .contains("the state ShipmentState marks tags(), more @Tags: a state has at most one member deriving its tags")
+        val problem = "the state ShipmentState marks tags(), more @Tags: a state has at most one member deriving its tags"
+        result.messages.assert().contains(problem)
     }
 
     @Test
