@@ -27,11 +27,14 @@ import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.command.CallHeader
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.runtime.admission.CallContext
+import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.spring.boot.InternalServer
 import org.junit.jupiter.api.Test
 import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.ApplicationContextException
 import org.springframework.context.ConfigurableApplicationContext
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
 import tools.jackson.databind.JsonNode
 import java.net.InetSocketAddress
 import java.net.URI
@@ -334,6 +337,10 @@ class EshopSyncCallTest {
             "--wow.calls.token=$TOKEN",
             "--wow.calls.timeout=5s",
             "--wow.ops.enabled=true",
+            // The operator's actions are refused without a CommandAuthorizer (review A3-3): the test's operator may act.
+            "--spring.main.sources=${OperatorActions::class.java.name}",
+            // The operator's actions are refused without a CommandAuthorizer (review A3-3): the test's operator may act.
+            "--spring.main.sources=${OperatorActions::class.java.name}",
             "--wow.subscriptions.[$CHECKOUT_SAGA].retry.max-attempts=$retries",
             "--wow.subscriptions.[$CHECKOUT_SAGA].retry.initial-backoff=50ms",
             "--wow.subscriptions.[$CHECKOUT_SAGA].retry.max-backoff=50ms",
@@ -389,4 +396,11 @@ class EshopSyncCallTest {
 
         const val POLL = 50L
     }
+}
+
+/** Lets every caller act on the basket's parked entries, the test's operator among them (review A3-3). */
+@Configuration(proxyBeanMethods = false)
+class OperatorActions {
+    @Bean
+    fun operatorActions(): CommandAuthorizer = CommandAuthorizer.ALLOW_ALL
 }

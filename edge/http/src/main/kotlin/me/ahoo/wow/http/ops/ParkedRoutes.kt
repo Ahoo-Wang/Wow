@@ -67,23 +67,25 @@ import kotlin.time.Duration.Companion.seconds
  *   `500ms`, `10s`, `3m`, ISO-8601 or a number of seconds as 9.x took it; a member left out keeps the value the
  *   entry is retried by now): 9.x's `MarkRecoverable` and `ApplyRetrySpec`, answering the entry.
  *
- * An entry that is not parked is a 404. Every route authenticates the caller with [callerResolver] (401 otherwise);
- * the four actions are then authorized by [authorizer] as the system commands [OpsCommands] names on the parked
- * aggregate (a [CommandAction] without creation, in the caller's scope), so a CoSec policy guards them as it guards
- * a command, and CoSec's WebFilter can guard the routes by their paths too. Errors are problems as on the other
- * public routes.
+ * An entry that is not parked is a 404. Every route authenticates the caller with [callerResolver] (401 otherwise),
+ * and keeps it in its own tenant: a caller that may not act across scopes ([Caller.crossScope]) lists only its
+ * tenant's entries, and an entry of another tenant is a 404 to it, as one that is not parked. The four actions are
+ * then authorized by [authorizer] as the system commands [OpsCommands] names on the parked aggregate (a
+ * [CommandAction] without creation, in the caller's scope), so a CoSec policy guards them as it guards a command, and
+ * CoSec's WebFilter can guard the routes by their paths too; without an [authorizer] every action is refused (403
+ * `wow.auth.forbidden`), never allowed by default. Errors are problems as on the other public routes.
  */
 @ExperimentalWowApi
 @InternalWowApi
 fun parkedRoutes(
     ops: ParkedOps,
     manifest: Manifest,
-    authorizer: CommandAuthorizer = CommandAuthorizer.ALLOW_ALL,
+    authorizer: CommandAuthorizer? = null,
     callerResolver: CallerResolver = CallerResolver.ANONYMOUS,
     options: WowHttpOptions = WowHttpOptions(),
 ): RouterFunction<ServerResponse> {
     val statuses = ErrorStatuses(manifest, options.errorStatuses)
-    val handler = ParkedHandler(ops, Authenticator(callerResolver, statuses), authorizer, statuses)
+    val handler = ParkedHandler(ops, Authenticator(callerResolver, statuses), authorizer ?: UNAUTHORIZED, statuses)
     val entry = "${OpsPaths.PARKED}/{$SUBSCRIPTION}/{$CONTEXT}/{$AGGREGATE}/{$TENANT}/{$ID}"
     return coRouter {
         GET(OpsPaths.PARKED) { request -> answering { handler.list(request) } }
@@ -126,6 +128,14 @@ internal object OpsCommands {
     fun typeOf(name: String): CommandType = CommandType(name, Ledger.COMMANDS.getValue(name))
 }
 
+/** The operator routes' authorizer when the application has none: every action is refused. */
+private val UNAUTHORIZED = CommandAuthorizer { _, action ->
+    Authorization.Denied(
+        "${action.type.name} is refused: the service has no CommandAuthorizer for the operator's actions " +
+            "(CoSec's, wow.cosec.authorizer.enabled, or the application's own).",
+    )
+}
+
 private const val SUBSCRIPTION = "subscription"
 private const val CONTEXT = "context"
 private const val AGGREGATE = "aggregate"
@@ -139,14 +149,14 @@ private class ParkedHandler(
     private val statuses: ErrorStatuses,
 ) {
     suspend fun list(request: ServerRequest): ServerResponse {
-        authenticate(request)
+        val caller = authenticate(request)
         val subscription = request.queryParam(OpsPaths.SUBSCRIPTION).orElse(null)?.takeIf { it.isNotBlank() }
         val after = request.queryParam(OpsPaths.AFTER).orElse(null)?.takeIf { it.isNotBlank() }?.let(::decodeCursor)
         val limit = request.queryParam(OpsPaths.LIMIT).orElse(null)?.let { value ->
             value.toIntOrNull()?.takeIf { it in 1..ParkedOps.MAX_LIMIT }
                 ?: throw badRequest("limit is a number from 1 to ${ParkedOps.MAX_LIMIT}: '$value'.")
         } ?: ParkedOps.DEFAULT_LIMIT
-        val page = ops.list(subscription, after, limit)
+        val page = ops.list(subscription, after, limit) { caller.sees(it) }
         return ok(
             mapOf(
                 "entries" to page.entries.map(::viewOf),
@@ -156,8 +166,7 @@ private class ParkedHandler(
     }
 
     suspend fun get(request: ServerRequest): ServerResponse {
-        authenticate(request)
-        val (subscription, ref) = target(request)
+        val (subscription, ref) = target(request, authenticate(request))
         return ok(viewOf(ops.get(subscription, ref) ?: throw notParked(subscription, ref)))
     }
 
@@ -233,7 +242,7 @@ private class ParkedHandler(
     /** The entry [request] names, once [command] on its aggregate is authorized for the caller. */
     private suspend fun authorized(request: ServerRequest, command: String): Pair<String, AggregateRef> {
         val caller = authenticate(request)
-        val target = target(request)
+        val target = target(request, caller)
         val action = CommandAction(OpsCommands.typeOf(command), target.second, caller.scope, Creation.NONE)
         val authorization = authorizer.authorize(caller, action)
         if (authorization is Authorization.Denied) {
@@ -242,12 +251,23 @@ private class ParkedHandler(
         return target
     }
 
-    private fun target(request: ServerRequest): Pair<String, AggregateRef> = try {
-        request.pathVariable(SUBSCRIPTION) to AggregateType(request.pathVariable(CONTEXT), request.pathVariable(AGGREGATE))
-            .ref(request.pathVariable(TENANT), request.pathVariable(ID))
-    } catch (invalid: IllegalArgumentException) {
-        throw badRequest(invalid.message ?: "Not a parked entry's path.")
+    /** The entry [request] names: one of [caller]'s tenant, else a 404 as for an entry that is not parked. */
+    private fun target(request: ServerRequest, caller: Caller): Pair<String, AggregateRef> {
+        val target = try {
+            request.pathVariable(SUBSCRIPTION) to
+                AggregateType(request.pathVariable(CONTEXT), request.pathVariable(AGGREGATE))
+                    .ref(request.pathVariable(TENANT), request.pathVariable(ID))
+        } catch (invalid: IllegalArgumentException) {
+            throw badRequest(invalid.message ?: "Not a parked entry's path.")
+        }
+        if (!caller.sees(target.second)) {
+            throw notParked(target.first, target.second)
+        }
+        return target
     }
+
+    /** Whether this caller sees the entry of [ref]: one of its own tenant, or any for a cross-scope caller. */
+    private fun Caller.sees(ref: AggregateRef): Boolean = crossScope || ref.tenantId == tenantId
 
     private suspend fun body(request: ServerRequest): JsonNode {
         Negotiation.checkJsonBody(request, "The body")

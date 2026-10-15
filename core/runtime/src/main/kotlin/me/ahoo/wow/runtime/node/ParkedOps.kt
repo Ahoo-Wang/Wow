@@ -43,20 +43,32 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
 
     /**
      * Up to [limit] entries, ordered by subscription name and then by aggregate as [FailureLedger.list] orders them:
-     * [subscription]'s only when given, after [after] (exclusive) when given. [ParkedPage.next] is where the next
+     * [subscription]'s only when given, after [after] (exclusive) when given, and only those whose aggregate [visible]
+     * admits (a caller's own tenant's, for one that may not act across tenants). [ParkedPage.next] is where the next
      * page starts, null when there is none.
      */
-    suspend fun list(subscription: String? = null, after: ParkedKey? = null, limit: Int = DEFAULT_LIMIT): ParkedPage {
+    suspend fun list(
+        subscription: String? = null,
+        after: ParkedKey? = null,
+        limit: Int = DEFAULT_LIMIT,
+        visible: (AggregateRef) -> Boolean = { true },
+    ): ParkedPage {
         require(limit in 1..MAX_LIMIT) { "A page holds 1 to $MAX_LIMIT entries." }
         val names = (subscription?.let(::listOf) ?: subscriptions).filter { after == null || it >= after.subscription }
         val entries = ArrayList<ParkedView>(limit)
         for (name in names) {
             var refAfter = after?.takeIf { it.subscription == name }?.ref
             while (entries.size < limit) {
-                val wanted = limit - entries.size
-                val page = page(name, refAfter, wanted)
-                entries += page
-                if (page.size < wanted) {
+                val page = page(name, refAfter, limit)
+                for (view in page) {
+                    if (visible(view.entry.ref)) {
+                        entries += view
+                        if (entries.size == limit) {
+                            break
+                        }
+                    }
+                }
+                if (page.size < limit) {
                     break
                 }
                 refAfter = page.last().entry.ref

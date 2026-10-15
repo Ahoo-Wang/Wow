@@ -477,7 +477,8 @@ class WowAutoConfiguration {
 
     /**
      * The operator's routes over the parked entries (roadmap P.1), when `wow.ops.enabled`: authenticated by the
-     * application's [CallerResolver], their actions authorized by its [CommandAuthorizer] (decision D141).
+     * application's [CallerResolver], each caller kept in its tenant, their actions authorized by its
+     * [CommandAuthorizer] (decision D141), and refused when it has none.
      */
     @Bean
     @ConditionalOnProperty(prefix = "${WowProperties.PREFIX}.ops", name = ["enabled"], havingValue = "true")
@@ -487,13 +488,16 @@ class WowAutoConfiguration {
         callers: CallerResolver,
         options: WowHttpOptions,
         authorizers: ObjectProvider<CommandAuthorizer>,
-    ): RouterFunction<ServerResponse> = parkedRoutes(
-        node.parked,
-        manifest,
-        authorizers.getIfAvailable { CommandAuthorizer.ALLOW_ALL },
-        callers,
-        options,
-    )
+    ): RouterFunction<ServerResponse> {
+        val authorizer = authorizers.ifAvailable
+        if (authorizer == null) {
+            logger.warn {
+                "wow.ops.enabled without a CommandAuthorizer bean: the operator's actions on parked entries are " +
+                    "refused (403) until the application gives one."
+            }
+        }
+        return parkedRoutes(node.parked, manifest, authorizer, callers, options)
+    }
 
     /** Tells `wow.ops.webhook.url` when an entry parks or spends its retries (roadmap P.1). */
     @Bean
