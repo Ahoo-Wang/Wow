@@ -41,7 +41,10 @@ import {
 // - A package whose version is already on npm is skipped, so a failed run can
 //   be re-run after Maven succeeded.
 // - The latest release line gets the `latest` dist-tag; a patch to an older
-//   line gets `release-<major>.<minor>` so it does not move `latest`.
+//   line gets `release-<major>.<minor>` so it does not move `latest`. A
+//   pre-release never gets `latest`: `x.y.z-alpha.n` goes out under `alpha`,
+//   `-beta.n` under `beta`, anything else (`-rc.n`) under `next` (D217), and
+//   publishArgs refuses `latest` for a version with a pre-release suffix.
 // - In CI, npm authenticates through OIDC trusted publishing and attaches
 //   provenance; no token is involved.
 
@@ -119,6 +122,24 @@ export function publishPlan(
   return plan;
 }
 
+/** The dist-tag of a pre-release, by its first identifier; the rest get `next`. */
+export const PRERELEASE_TAGS = { alpha: 'alpha', beta: 'beta' };
+
+/**
+ * Refuses a dist-tag that would point users at the wrong version: `latest`
+ * for a pre-release (`10.0.0-alpha.1`), or no tag at all.
+ */
+export function requireDistTag(version, tag) {
+  const release = parseVersion(version);
+  if (!release) throw new Error(`not a version: ${version}`);
+  if (!tag) throw new Error(`${version}: no dist-tag`);
+  if (release.prerelease !== undefined && tag === 'latest')
+    throw new Error(
+      `${version} is a pre-release: refusing the latest dist-tag (alpha, beta or next)`,
+    );
+  return tag;
+}
+
 /**
  * The dist-tag for a version, given the repository's tags. The highest x.y.z
  * `v*` tag is the latest line; releasing below it is a patch to an older line.
@@ -128,7 +149,8 @@ export function publishPlan(
 export function distTag(version, tags) {
   const release = parseVersion(version);
   if (!release) throw new Error(`not a version: ${version}`);
-  if (release.prerelease !== undefined) return 'next';
+  if (release.prerelease !== undefined)
+    return PRERELEASE_TAGS[release.prerelease.split('.')[0]] ?? 'next';
   const highest = tags
     .filter(tag => tag.startsWith('v'))
     .map(parseVersion)
@@ -161,7 +183,8 @@ export function isPublished(name, version, run = npm) {
   }
 }
 
-export function publishArgs(tarball, tag, { dryRun, provenance }) {
+export function publishArgs(tarball, tag, { version, dryRun, provenance }) {
+  requireDistTag(version, tag);
   return [
     'publish',
     tarball,
@@ -299,7 +322,11 @@ if (
         ? join(tarballs, tarballName(name, version))
         : pack(ROOT, dir, scratch);
       if (!existsSync(tarball)) throw new Error(`${tarball} does not exist`);
-      const publish = publishArgs(tarball, tag, { dryRun, provenance });
+      const publish = publishArgs(tarball, tag, {
+        version,
+        dryRun,
+        provenance,
+      });
       console.log(`npm ${publish.join(' ')}`);
       execFileSync('npm', publish, { stdio: 'inherit' });
     }

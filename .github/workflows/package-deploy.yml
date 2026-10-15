@@ -16,6 +16,15 @@
 # other ref is refused. Every action is pinned to a commit SHA: these jobs hold
 # the signing key, the Sonatype credentials and npm's OIDC identity.
 # typescript/RELEASING.md is the maintainer's checklist.
+#
+# On v10 (R.1, D217) it releases the 10.x pre-releases only (`v10.*-alpha.n`,
+# `-beta.n`, `-rc.n`; AGENTS.md "Releasing a V10 pre-release"): the gates and
+# the Maven publications run in the V10 build scope (`-Pwow.scope=v10`), so
+# they cover the V10 modules, the V10 BOM and wow-dependencies and never a 9.x
+# module (D90); npm publishes under `alpha`/`beta`/`next`, never `latest`
+# (publish-npm.mjs); v10-image-deploy.yml pushes the V10 server images under
+# the version alone; and the GitHub pre-release carries the notes of
+# .github/release-notes/v10-prerelease.md.
 name: Packages Deploy
 on:
   release:
@@ -49,7 +58,11 @@ jobs:
           REF: ${{ github.ref }}
         run: |
           case "$REF" in
-            refs/tags/v*) echo "Releasing $REF" ;;
+            refs/tags/v10.*-*) echo "Releasing $REF" ;;
+            refs/tags/v*)
+              echo "::error::v10 releases 10.x pre-releases only (v10.x.y-alpha.n, -beta.n, -rc.n), not $REF; 9.x releases from main."
+              exit 1
+              ;;
             *)
               echo "::error::Releases run from a v* tag, not $REF. Choose the tag under 'Use workflow from'."
               exit 1
@@ -146,13 +159,18 @@ jobs:
         with:
           cache-read-only: true
 
-      # Unit, contract and integration tests of the Gradle build, on the
-      # release commit itself.
+      # The V10 gates on the release commit itself: compile, unit tests,
+      # detekt and the ABI of the V10 modules (v10Check), and their
+      # container-backed tests.
       - name: Verify release build
-        run: ./gradlew build allIntegrationTest
+        run: ./gradlew -Pwow.scope=v10 v10Check v10IntegrationTest
 
+      # Builds and signs every publication the deploy jobs upload, publishes
+      # them into a scratch repository and checks them: jars, sources,
+      # javadoc, POMs, module metadata and signatures, the BOM against the
+      # published modules, and no 9.x module (v10PublicationCheck).
       - name: Verify release artifacts
-        run: ./gradlew publishToMavenLocal
+        run: ./gradlew -Pwow.scope=v10 -Pwow.publication.signed=true v10PublicationCheck
         env:
           SIGNING_KEYID: ${{ secrets.SIGNING_KEYID }}
           SIGNING_SECRETKEY: ${{ secrets.SIGNING_SECRETKEY }}
@@ -202,7 +220,7 @@ jobs:
 
       - name: Publish package
         run: |
-          ./gradlew publishAllPublicationsToGitHubPackagesRepository \
+          ./gradlew -Pwow.scope=v10 publishAllPublicationsToGitHubPackagesRepository \
             -x jar \
             -x sourcesJar \
             -x javadocJar \
@@ -211,7 +229,13 @@ jobs:
             -x generateMetadataFileForMavenLibraryPublication \
             -x generateMetadataFileForMavenBomPublication \
             -x signMavenLibraryPublication \
-            -x signMavenBomPublication
+            -x signMavenBomPublication \
+            -x generatePomFileForPluginMavenPublication \
+            -x generateMetadataFileForPluginMavenPublication \
+            -x signPluginMavenPublication \
+            -x generatePomFileForWowPluginMarkerMavenPublication \
+            -x generateMetadataFileForWowPluginMarkerMavenPublication \
+            -x signWowPluginMarkerMavenPublication
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -246,7 +270,7 @@ jobs:
 
       - name: Publish package
         run: |
-          ./gradlew publishToSonatype closeAndReleaseSonatypeStagingRepository \
+          ./gradlew -Pwow.scope=v10 publishToSonatype closeAndReleaseSonatypeStagingRepository \
             -x jar \
             -x sourcesJar \
             -x javadocJar \
@@ -255,7 +279,13 @@ jobs:
             -x generateMetadataFileForMavenLibraryPublication \
             -x generateMetadataFileForMavenBomPublication \
             -x signMavenLibraryPublication \
-            -x signMavenBomPublication
+            -x signMavenBomPublication \
+            -x generatePomFileForPluginMavenPublication \
+            -x generateMetadataFileForPluginMavenPublication \
+            -x signPluginMavenPublication \
+            -x generatePomFileForWowPluginMarkerMavenPublication \
+            -x generateMetadataFileForWowPluginMarkerMavenPublication \
+            -x signWowPluginMarkerMavenPublication
         env:
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}
@@ -342,3 +372,43 @@ jobs:
 
       - name: Smoke-test the published packages
         run: node .github/scripts/package-check.mjs --registry
+
+  # The V10 server images, under the release version alone (never `latest`),
+  # once the release is on Maven Central and npm.
+  images:
+    needs: npm-deploy
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/v10-image-deploy.yml
+    secrets: inherit
+
+  # The GitHub pre-release of the tag: created from
+  # .github/release-notes/v10-prerelease.md when the run was dispatched on the
+  # tag (a release created by hand started it otherwise). Either way it is
+  # marked a pre-release and never the latest release.
+  prerelease-notes:
+    needs: npm-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Create or mark the GitHub pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          version="${TAG#v}"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release edit "$TAG" --prerelease --latest=false
+          else
+            sed "s/VERSION/${version}/g" .github/release-notes/v10-prerelease.md > "$RUNNER_TEMP/notes.md"
+            gh release create "$TAG" --verify-tag --prerelease --latest=false \
+              --title "Wow ${version}" --notes-file "$RUNNER_TEMP/notes.md"
+          fi

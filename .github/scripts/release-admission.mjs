@@ -17,8 +17,9 @@ import {
 // 1. The commit is on main or on a maintenance branch (release-x.y), so a tag
 //    cannot ship a commit that no pull request brought in. A pre-release of
 //    the next major may also come from that major's development line (v10
-//    for 10.0.0-rc.0): it is published under npm's `next` dist-tag and leaves
-//    `latest` alone, so users try it before the line merges into main.
+//    for 10.0.0-alpha.1): it is published under npm's `alpha`, `beta` or
+//    `next` dist-tag (publish-npm.mjs) and leaves `latest` alone, so users
+//    try it before the line merges into main.
 // 2. Every workflow in REQUIRED has a successful full run on exactly this
 //    commit, and its gate job passed in it. Only manual dispatch runs count:
 //    a dispatch run has no base to diff against, so its scope job turns every
