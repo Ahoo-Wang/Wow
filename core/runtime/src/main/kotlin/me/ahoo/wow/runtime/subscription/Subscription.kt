@@ -139,9 +139,16 @@ class Subscription private constructor(
     /** Handles [entry]; returns what it did: a saga's derived commands and the rejection that ended its hop. */
     internal suspend fun handle(entry: SubscribedEntry): HandledEntry = handler.handle(entry)
 
-    /** Whether [stream] is this subscription's to handle: its [filter] matches it, or it takes every entry. */
-    internal fun takes(stream: EventStreamRecord): Boolean =
-        takesAll || (takesEventless || stream.events.any { it.name !in Schedules.EVENTS }) && filter.matches(stream)
+    /**
+     * Whether [stream] is this subscription's to handle: its [filter] matches it, or it takes every entry. The entry of
+     * an undecodable message ([UndecodableMessage]) is taken by the aggregate it names, whatever events it held.
+     */
+    internal fun takes(stream: EventStreamRecord): Boolean = takesAll ||
+        if (UndecodableMessage.isUndecodable(stream)) {
+            filter.copy(events = emptySet()).matches(stream)
+        } else {
+            (takesEventless || stream.events.any { it.name !in Schedules.EVENTS }) && filter.matches(stream)
+        }
 
     override fun toString(): String = "Subscription($name)"
 

@@ -30,6 +30,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.TopicMessage
 import org.junit.jupiter.api.AfterEach
@@ -51,6 +52,14 @@ class TopicSubscriptionsTest {
     private val ledger = InMemoryFailureLedger()
     private val handled = Handled()
     private val started = CopyOnWriteArrayList<TopicSubscriptions>()
+
+    /** The undecodable messages the observer heard of: offset and whether it was parked. */
+    private val undecodable = CopyOnWriteArrayList<Pair<Long, Boolean>>()
+    private val observer = object : Observer {
+        override fun undecodable(topic: String, partition: Int, offset: Long, parked: Boolean) {
+            undecodable += offset to parked
+        }
+    }
 
     /** While set, the handler fails for this aggregate at this version. */
     @Volatile
@@ -86,6 +95,7 @@ class TopicSubscriptionsTest {
         subscriptions = listOf(subscription),
         options = testOptions().copyWith(starts = starts),
         cluster = fastOptions(),
+        observer = observer,
     ).also {
         started += it
         it.start()
@@ -160,13 +170,41 @@ class TopicSubscriptionsTest {
     }
 
     @Test
-    fun `a message that holds no state event should be passed over`(): Unit = runBlocking {
+    fun `a message without a key that holds no state event should be passed over`(): Unit = runBlocking {
         start("node-1")
-        topics.send(ORDER_TOPIC, TopicMessage(order("o-1").toString(), "not an envelope".toByteArray()))
+        val partition = partitionOf("o-1")
+        topics.send(ORDER_TOPIC, TopicMessage("not a ref", "not an envelope".toByteArray(), partition = partition))
         topics.publish(orderRecord("o-1", 1))
         eventually { handled.size == 1 }
-        eventually { checkpoints.load(LeaseGroup.topic(SERVICE, ORDER_TOPIC).name, BOARD, partitionOf("o-1")) == 2L }
+        eventually { checkpoints.load(LeaseGroup.topic(SERVICE, ORDER_TOPIC).name, BOARD, partition) == 2L }
+        ledger.parked(BOARD, order("o-1")).assert().isNull()
+        undecodable.assert().containsExactly(0L to false)
     }
+
+    @Test
+    fun `a message of an aggregate that holds no state event should park the aggregate there`(): Unit =
+        runBlocking {
+            // Review A3-14: failure is data; the operator sees it and decides.
+            val subscriptions = start("node-1")
+            topics.publish(orderRecord("o-1", 1))
+            eventually { handled.versionsOf("o-1") == listOf(1) }
+            topics.send(ORDER_TOPIC, TopicMessage(order("o-1").toString(), BAD.toByteArray()))
+            topics.publish(orderRecord("o-1", 2))
+            eventually { ledger.parked(BOARD, order("o-1")) != null }
+            val parked = ledger.parked(BOARD, order("o-1"))!!
+            parked.reason.assert().contains("cannot be decoded")
+            undecodable.assert().containsExactly(parked.fromPosition!! to true)
+            parked.fromPosition.assert().isEqualTo(
+                topics.messages(ORDER_TOPIC).single { String(it.value) == BAD }.offset
+            )
+            // The aggregate's later record waits behind it; the checkpoint moves past both.
+            eventually { checkpoints.load(LeaseGroup.topic(SERVICE, ORDER_TOPIC).name, BOARD, partitionOf("o-1")) == 3L }
+            handled.versionsOf("o-1").assert().containsExactly(1)
+            // A resume meets it again; a skip resolves it.
+            subscriptions.resume(BOARD, order("o-1")).assert().isFalse()
+            subscriptions.skip(BOARD, order("o-1")).assert().isTrue()
+            ledger.parked(BOARD, order("o-1")).assert().isNull()
+        }
 
     @Test
     fun `a failing aggregate should be parked at its offset and resumed by re-scanning its partition`(): Unit =
@@ -339,5 +377,6 @@ class TopicSubscriptionsTest {
         const val SERVICE = "board-service"
         const val BOARD = "Board.onOrder"
         const val PARTITIONS = 4
+        const val BAD = "not an envelope"
     }
 }

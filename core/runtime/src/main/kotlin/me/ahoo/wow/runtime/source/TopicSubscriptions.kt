@@ -135,7 +135,7 @@ class TopicSubscriptions internal constructor(
         clock,
         context,
         signals,
-        { partitions -> TopicEntries(topic, source, partitions) },
+        { partitions -> TopicEntries(topic, source, partitions, observer) },
         notifier,
         partitionRefresh,
         observer,

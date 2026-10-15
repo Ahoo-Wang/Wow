@@ -97,6 +97,16 @@ class OtelObserver(
         }
     }
 
+    override fun undecodable(topic: String, partition: Int, offset: Long, parked: Boolean) {
+        meters.counter(
+            WowMetrics.UNDECODABLE,
+            WowMetrics.TOPIC,
+            topic,
+            WowMetrics.OUTCOME,
+            if (parked) WowMetrics.PARKED_OUTCOME else WowMetrics.SKIPPED_OUTCOME,
+        ).increment()
+    }
+
     override fun deciding(command: Command<*>): Observation =
         observation(Context.current(), commandSpan("decide", command))
 

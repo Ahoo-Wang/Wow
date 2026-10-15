@@ -880,7 +880,7 @@ class ServiceNode @InternalWowApi constructor(
                 context = Dispatchers.Default,
                 signals = signals,
                 notifier = notifiers,
-                entries = { partitions -> MessageEntries.receipts(topic, sources.source, partitions) },
+                entries = { partitions -> MessageEntries.receipts(topic, sources.source, partitions, observer) },
                 partitionRefresh = sources.partitionRefresh,
                 observer = observer,
             )
@@ -895,7 +895,7 @@ class ServiceNode @InternalWowApi constructor(
         topics?.takeIf { it.intake || context in kafkaRoutedContexts }?.let {
             SubscriptionRuntime(
                 group.name,
-                MessageEntries.commands(it.commandsOf(context), it.source, backends.log.partitions),
+                MessageEntries.commands(it.commandsOf(context), it.source, backends.log.partitions, observer),
                 backends.checkpoints,
                 backends.ledger,
                 options = options.subscription,
