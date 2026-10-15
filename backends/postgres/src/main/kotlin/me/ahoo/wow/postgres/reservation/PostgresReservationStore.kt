@@ -14,12 +14,18 @@
 package me.ahoo.wow.postgres.reservation
 
 import kotlinx.coroutines.CoroutineDispatcher
+import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.postgres.jdbc
+import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.Reservation
+import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 import java.sql.Connection
+import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.time.Clock
 import javax.sql.DataSource
@@ -27,11 +33,13 @@ import kotlin.time.Duration
 
 /**
  * The [ReservationStore] on PostgreSQL (documentation/designs/v10/01-programming-model.md §7, decision D38), in the
- * same database as the log: one row per reserved key.
+ * same database as the log: one row per reserved key, keyed by `(context, tenant_id, namespace, key)`, its owner in
+ * three columns and the holds of a pending reservation in a `text[]` ([PostgresReservationTables]).
  *
- * Every write is one autocommitted statement; a reserve is an upsert whose conflict condition admits only the key's
- * owner or an expired pending reservation (see [PostgresReservationTables.reserve]). Expiry is judged by [clock], not
- * by the database's clock, so it behaves the same in memory and here.
+ * A reserve, a confirm and a release are each one autocommitted statement; a reserve or a confirm is an upsert whose
+ * conflict condition admits only the key's owner or an expired pending reservation. An abandon removes its hold and
+ * frees a reservation left without holds in one short transaction, the row locked by the first statement. Expiry is
+ * judged by [clock], not by the database's clock, so it behaves the same in memory and here.
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29).
  */
@@ -44,64 +52,150 @@ class PostgresReservationStore(
 ) : ReservationStore {
     private val tables = PostgresReservationTables(table)
 
-    /** Creates the reservations' table when missing. */
+    /**
+     * Creates the reservations' table and its owner index when missing; refuses one recorded in another format, or
+     * one without a record ([PostgresFormat], decision D59).
+     */
     fun createSchema() {
         dataSource.connection.use { connection ->
-            connection.createStatement().use { statement -> statement.execute(tables.ddl) }
+            PostgresFormat.creating(connection) {
+                PostgresFormat.claim(connection, tables.name, PostgresReservationTables.FORMAT)
+                connection.createStatement().use { statement -> tables.ddl.forEach { statement.execute(it) } }
+            }
         }
     }
 
-    override suspend fun reserve(namespace: String, key: String, owner: String, ttl: Duration): Reservation? {
+    override suspend fun reserve(
+        scope: ReservationScope,
+        key: String,
+        owner: AggregateRef,
+        hold: String,
+        ttl: Duration,
+    ): Reservation? {
         require(ttl.isPositive()) { "A reservation's time to live is positive." }
+        require(hold.isNotBlank()) { "A reservation's hold is not blank." }
+        requireOwnContext(scope, owner)
         return jdbc { connection ->
             val now = clock.millis()
             connection.prepareStatement(tables.reserve).use { reserve ->
-                reserve.setString(1, namespace)
-                reserve.setString(2, key)
-                reserve.setString(3, owner)
-                reserve.setLong(4, now + ttl.inWholeMilliseconds)
-                reserve.setLong(5, now)
-                reserve.executeQuery().use { rows -> if (rows.next()) reservationOf(namespace, key, rows) else null }
+                var index = reserve.setKey(1, scope, key)
+                index = reserve.setOwner(index, owner)
+                reserve.setLong(index++, now + ttl.inWholeMilliseconds)
+                reserve.setString(index++, hold)
+                repeat(NOW_PARAMETERS) { reserve.setLong(index++, now) }
+                reserve.executeQuery().use { rows -> if (rows.next()) reservationOf(scope, key, rows) else null }
             }
         }
     }
 
-    override suspend fun confirm(namespace: String, key: String, owner: String): Boolean =
-        update(tables.confirm, namespace, key, owner)
-
-    override suspend fun release(namespace: String, key: String, owner: String): Boolean =
-        update(tables.release, namespace, key, owner)
-
-    override suspend fun find(namespace: String, key: String): Reservation? = jdbc { connection ->
-        connection.prepareStatement(tables.find).use { query ->
-            query.setString(1, namespace)
-            query.setString(2, key)
-            query.setLong(3, clock.millis())
-            query.executeQuery().use { rows -> if (rows.next()) reservationOf(namespace, key, rows) else null }
-        }
-    }
-
-    private suspend fun update(sql: String, namespace: String, key: String, owner: String): Boolean =
+    override suspend fun abandon(scope: ReservationScope, key: String, owner: AggregateRef, hold: String): Boolean =
         jdbc { connection ->
-            connection.prepareStatement(sql).use { update ->
-                update.setString(1, namespace)
-                update.setString(2, key)
-                update.setString(3, owner)
-                update.executeUpdate() == 1
+            connection.autoCommit = false
+            try {
+                val left = connection.prepareStatement(tables.abandon).use { abandon ->
+                    abandon.setString(1, hold)
+                    val index = abandon.setOwner(abandon.setKey(2, scope, key), owner)
+                    abandon.setString(index, hold)
+                    abandon.executeQuery().use { rows -> if (rows.next()) rows.getInt(1) else null }
+                }
+                if (left == 0) {
+                    connection.prepareStatement(tables.abandoned).use { free ->
+                        free.setOwner(free.setKey(1, scope, key), owner)
+                        free.executeUpdate()
+                    }
+                }
+                connection.commit()
+                left != null
+            } catch (
+                @Suppress("TooGenericExceptionCaught") // Rolls back whatever failed, then rethrows it unchanged.
+                failure: Throwable,
+            ) {
+                connection.rollback()
+                throw failure
+            } finally {
+                connection.autoCommit = true
             }
         }
+
+    override suspend fun confirm(scope: ReservationScope, key: String, owner: AggregateRef): ConfirmOutcome {
+        requireOwnContext(scope, owner)
+        return jdbc { connection ->
+            // A holder that went away between the upsert and the read is retried: the next upsert takes the key.
+            repeat(CONFIRM_ATTEMPTS) {
+                val now = clock.millis()
+                val confirmed = connection.prepareStatement(tables.confirm).use { confirm ->
+                    confirm.setLong(confirm.setOwner(confirm.setKey(1, scope, key), owner), now)
+                    confirm.executeQuery().use { it.next() }
+                }
+                if (confirmed) {
+                    return@jdbc ConfirmOutcome.Confirmed
+                }
+                val holder = connection.prepareStatement(tables.held).use { held ->
+                    held.setKey(1, scope, key)
+                    held.executeQuery().use { rows -> if (rows.next()) reservationOf(scope, key, rows) else null }
+                }
+                if (holder != null && holder.owner != owner && holder.isLive(now)) {
+                    return@jdbc ConfirmOutcome.Taken(holder)
+                }
+            }
+            error("Confirming $key in $scope for $owner kept racing other writers.")
+        }
+    }
+
+    override suspend fun release(scope: ReservationScope, key: String, owner: AggregateRef): Boolean =
+        jdbc { connection ->
+            connection.prepareStatement(tables.release).use { release ->
+                release.setOwner(release.setKey(1, scope, key), owner)
+                release.executeUpdate() == 1
+            }
+        }
+
+    override suspend fun find(scope: ReservationScope, key: String): Reservation? = jdbc { connection ->
+        connection.prepareStatement(tables.find).use { query ->
+            query.setLong(query.setKey(1, scope, key), clock.millis())
+            query.executeQuery().use { rows -> if (rows.next()) reservationOf(scope, key, rows) else null }
+        }
+    }
 
     private suspend fun <T> jdbc(block: (Connection) -> T): T =
         dispatcher.jdbc { dataSource.connection.use(block) }
 
     private companion object {
         const val DEFAULT_TABLE = "wow_reservation"
+        const val NOW_PARAMETERS = 3
+        const val CONFIRM_ATTEMPTS = 8
 
-        fun reservationOf(namespace: String, key: String, row: ResultSet) = Reservation(
-            namespace = namespace,
-            key = key,
-            owner = row.getString("owner"),
-            expiresAt = row.getObject("expires_at") as Long?,
-        )
+        fun requireOwnContext(scope: ReservationScope, owner: AggregateRef) =
+            require(owner.type.context == scope.context) { "$owner reserves keys of its own context only." }
+
+        /** Sets the key's four columns from [index]; the index after them. */
+        fun PreparedStatement.setKey(index: Int, scope: ReservationScope, key: String): Int {
+            setString(index, scope.context)
+            setString(index + 1, scope.tenantId)
+            setString(index + 2, scope.namespace)
+            setString(index + 3, key)
+            return index + 4
+        }
+
+        /** Sets the owner's three columns from [index]; the index after them. */
+        fun PreparedStatement.setOwner(index: Int, owner: AggregateRef): Int {
+            setString(index, owner.type.name)
+            setString(index + 1, owner.tenantId)
+            setString(index + 2, owner.id)
+            return index + 3
+        }
+
+        fun reservationOf(scope: ReservationScope, key: String, row: ResultSet): Reservation {
+            @Suppress("UNCHECKED_CAST") // A text[] column reads as a String array.
+            val holds = row.getArray("holds").array as Array<String>
+            return Reservation(
+                scope = scope,
+                key = key,
+                owner = AggregateType(scope.context, row.getString("owner_aggregate"))
+                    .ref(row.getString("owner_tenant_id"), row.getString("owner_id")),
+                expiresAt = row.getObject("expires_at") as Long?,
+                holds = holds.toSet(),
+            )
+        }
     }
 }

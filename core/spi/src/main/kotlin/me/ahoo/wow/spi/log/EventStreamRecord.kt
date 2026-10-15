@@ -91,9 +91,13 @@ data class LogEntry(val position: LogPosition, val stream: EventStreamRecord, va
  * - [reservations] are the keys this attempt reserved pending (D50): the `reservation` subscription confirms them
  *   from the log, so a key is confirmed even when the after-append fast path never ran.
  * - [trace] is tracing context such as the W3C `traceparent`.
+ * - [releases] are the keys this attempt released (finding A2-4): the kernel releases them once the append commits,
+ *   and the `reservation` subscription releases them again from the log, after the keys of [reservations] are
+ *   confirmed, so a release is not lost to a crash after the append.
  */
 data class Transport(
     val wait: WaitContext? = null,
     val reservations: List<ReservationKey> = emptyList(),
     val trace: Map<String, String> = emptyMap(),
+    val releases: List<ReservationKey> = emptyList(),
 )

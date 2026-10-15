@@ -15,53 +15,82 @@ package me.ahoo.wow.kernel.memory
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.Reservation
+import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 import java.time.Clock
 import kotlin.time.Duration
 
 /**
- * A [ReservationStore] in memory, for tests and samples. Every operation is serialized by one lock; expiry follows
- * [clock].
+ * A [ReservationStore] in memory, for tests and samples: one entry per `(context, tenant, namespace, key)`. Every
+ * operation is serialized by one lock; expiry follows [clock].
  */
 @InternalWowApi
 class InMemoryReservationStore(private val clock: Clock = Clock.systemUTC()) : ReservationStore {
     private val lock = Mutex()
-    private val reservations = HashMap<Pair<String, String>, Reservation>()
+    private val reservations = HashMap<Pair<ReservationScope, String>, Reservation>()
 
-    override suspend fun reserve(namespace: String, key: String, owner: String, ttl: Duration): Reservation? {
+    override suspend fun reserve(
+        scope: ReservationScope,
+        key: String,
+        owner: AggregateRef,
+        hold: String,
+        ttl: Duration,
+    ): Reservation? {
         require(ttl.isPositive()) { "A reservation's time to live is positive." }
+        require(hold.isNotBlank()) { "A reservation's hold is not blank." }
+        require(owner.type.context == scope.context) { "$owner reserves keys of its own context only." }
         return lock.withLock {
             val now = clock.millis()
-            val held = reservations[namespace to key]
+            val expiresAt = now + ttl.inWholeMilliseconds
+            val held = reservations[scope to key]
             when {
-                held != null && held.owner != owner && held.isLive(now) -> null
-                held != null && held.owner == owner && held.confirmed -> held
-                else -> Reservation(namespace, key, owner, now + ttl.inWholeMilliseconds)
-                    .also { reservations[namespace to key] = it }
+                held == null || !held.isLive(now) -> Reservation(scope, key, owner, expiresAt, setOf(hold))
+                held.owner != owner -> return@withLock null
+                held.confirmed -> return@withLock held
+                else -> held.copy(expiresAt = maxOf(held.expiresAt!!, expiresAt), holds = held.holds + hold)
+            }.also { reservations[scope to key] = it }
+        }
+    }
+
+    override suspend fun abandon(scope: ReservationScope, key: String, owner: AggregateRef, hold: String): Boolean =
+        lock.withLock {
+            val held = reservations[scope to key]?.takeIf { it.owner == owner && !it.confirmed }
+            if (held == null || hold !in held.holds) {
+                return@withLock false
             }
+            val left = held.holds - hold
+            if (left.isEmpty()) {
+                reservations.remove(scope to key)
+            } else {
+                reservations[scope to key] = held.copy(holds = left)
+            }
+            true
         }
-    }
 
-    override suspend fun confirm(namespace: String, key: String, owner: String): Boolean = lock.withLock {
-        val held = reservations[namespace to key]
-        if (held?.owner != owner) {
-            return false
+    override suspend fun confirm(scope: ReservationScope, key: String, owner: AggregateRef): ConfirmOutcome =
+        lock.withLock {
+            val held = reservations[scope to key]
+            if (held != null && held.owner != owner && held.isLive(clock.millis())) {
+                return@withLock ConfirmOutcome.Taken(held)
+            }
+            reservations[scope to key] = Reservation(scope, key, owner, null)
+            ConfirmOutcome.Confirmed
         }
-        reservations[namespace to key] = held.copy(expiresAt = null)
-        true
-    }
 
-    override suspend fun release(namespace: String, key: String, owner: String): Boolean = lock.withLock {
-        if (reservations[namespace to key]?.owner != owner) {
-            return false
+    override suspend fun release(scope: ReservationScope, key: String, owner: AggregateRef): Boolean =
+        lock.withLock {
+            if (reservations[scope to key]?.owner != owner) {
+                return@withLock false
+            }
+            reservations.remove(scope to key)
+            true
         }
-        reservations.remove(namespace to key)
-        true
-    }
 
-    override suspend fun find(namespace: String, key: String): Reservation? = lock.withLock {
-        reservations[namespace to key]?.takeIf { it.isLive(clock.millis()) }
+    override suspend fun find(scope: ReservationScope, key: String): Reservation? = lock.withLock {
+        reservations[scope to key]?.takeIf { it.isLive(clock.millis()) }
     }
 }

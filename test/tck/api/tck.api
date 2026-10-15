@@ -83,20 +83,37 @@ protected final class me/ahoo/wow/tck/log/EventLogSpec$Companion {
 
 public abstract class me/ahoo/wow/tck/reservation/ReservationStoreSpec {
 	public static final field CONTENDERS I
+	public static final field CONTEXT Ljava/lang/String;
 	protected static final field Companion Lme/ahoo/wow/tck/reservation/ReservationStoreSpec$Companion;
+	public static final field H1 Ljava/lang/String;
+	public static final field H2 Ljava/lang/String;
+	public static final field H3 Ljava/lang/String;
+	public static final field TENANT Ljava/lang/String;
 	public fun <init> ()V
 	public final fun a confirmed reservation never expires ()V
 	public final fun a live reservation keeps the key from another owner ()V
 	public final fun a reservation is pending until its time to live passes ()V
+	public final fun a reservation is refused a time to live that is not positive and an owner of another context ()V
+	public final fun a system key is unique across tenants and apart from the tenants' own keys ()V
+	public final fun abandoning never frees a confirmed key ()V
+	public final fun abandoning removes only the attempt's own hold ()V
 	public final fun an expired pending reservation is taken over by another owner ()V
+	public final fun an owner is its fields, not a joined name ()V
 	public final fun an owner may still confirm its expired reservation while no one took the key ()V
+	public final fun an unknown hold abandons nothing ()V
+	public final fun concurrent reservations and abandons of one owner keep the holds still in flight ()V
 	public final fun concurrent reservations of one key let exactly one owner win ()V
+	public final fun confirming a free key reinstates it for the committed fact ()V
+	public final fun confirming takes the key over from another owner's expired pending reservation only ()V
+	public final fun contexts are separate ()V
 	protected abstract fun createStore (Ljava/time/Clock;)Lme/ahoo/wow/spi/reservation/ReservationStore;
 	protected final fun getClock ()Lme/ahoo/wow/tck/MutableClock;
 	public final fun namespaces are separate ()V
-	public final fun only the owner confirms or releases a reservation ()V
+	public final fun only the owner abandons, confirms or releases a reservation ()V
 	public final fun releasing frees the key, pending or confirmed ()V
-	public final fun reserving again renews the owner's pending reservation and keeps a confirmed one ()V
+	public final fun reserving again adds the hold, keeps the later expiry and keeps a confirmed reservation ()V
+	public final fun reserving an own expired pending reservation again starts it afresh ()V
+	public final fun tenants are separate ()V
 }
 
 protected final class me/ahoo/wow/tck/reservation/ReservationStoreSpec$Companion {

@@ -192,8 +192,12 @@ abstract class EventLogSpec {
                 ),
                 deadline = 1_700_000_010_000L,
             ),
-            reservations = listOf(ReservationKey("user-name", "ahoo"), ReservationKey("email", "a@b.c ü")),
+            reservations = listOf(
+                ReservationKey("user-name", "ahoo"),
+                ReservationKey("email", "a@b.c ü", system = true)
+            ),
             trace = mapOf("traceparent" to "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"),
+            releases = listOf(ReservationKey("user-name", "old"), ReservationKey("login", "\$old.name", system = true)),
         )
         val carried = stream("a", 1)
         log.append(carried, transport)

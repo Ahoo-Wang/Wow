@@ -370,14 +370,16 @@ public final class me/ahoo/wow/spi/log/Partitioner {
 
 public final class me/ahoo/wow/spi/log/Transport {
 	public fun <init> ()V
-	public fun <init> (Lme/ahoo/wow/spi/wait/WaitContext;Ljava/util/List;Ljava/util/Map;)V
-	public synthetic fun <init> (Lme/ahoo/wow/spi/wait/WaitContext;Ljava/util/List;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/spi/wait/WaitContext;Ljava/util/List;Ljava/util/Map;Ljava/util/List;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spi/wait/WaitContext;Ljava/util/List;Ljava/util/Map;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Lme/ahoo/wow/spi/wait/WaitContext;
 	public final fun component2 ()Ljava/util/List;
 	public final fun component3 ()Ljava/util/Map;
-	public final fun copy (Lme/ahoo/wow/spi/wait/WaitContext;Ljava/util/List;Ljava/util/Map;)Lme/ahoo/wow/spi/log/Transport;
-	public static synthetic fun copy$default (Lme/ahoo/wow/spi/log/Transport;Lme/ahoo/wow/spi/wait/WaitContext;Ljava/util/List;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/Transport;
+	public final fun component4 ()Ljava/util/List;
+	public final fun copy (Lme/ahoo/wow/spi/wait/WaitContext;Ljava/util/List;Ljava/util/Map;Ljava/util/List;)Lme/ahoo/wow/spi/log/Transport;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/log/Transport;Lme/ahoo/wow/spi/wait/WaitContext;Ljava/util/List;Ljava/util/Map;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/Transport;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getReleases ()Ljava/util/List;
 	public final fun getReservations ()Ljava/util/List;
 	public final fun getTrace ()Ljava/util/Map;
 	public final fun getWait ()Lme/ahoo/wow/spi/wait/WaitContext;
@@ -428,43 +430,94 @@ public abstract class me/ahoo/wow/spi/observation/TraceContext : kotlin/coroutin
 public final class me/ahoo/wow/spi/observation/TraceContext$Key : kotlin/coroutines/CoroutineContext$Key {
 }
 
+public abstract interface class me/ahoo/wow/spi/reservation/ConfirmOutcome {
+}
+
+public final class me/ahoo/wow/spi/reservation/ConfirmOutcome$Confirmed : me/ahoo/wow/spi/reservation/ConfirmOutcome {
+	public static final field INSTANCE Lme/ahoo/wow/spi/reservation/ConfirmOutcome$Confirmed;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/reservation/ConfirmOutcome$Taken : me/ahoo/wow/spi/reservation/ConfirmOutcome {
+	public fun <init> (Lme/ahoo/wow/spi/reservation/Reservation;)V
+	public final fun component1 ()Lme/ahoo/wow/spi/reservation/Reservation;
+	public final fun copy (Lme/ahoo/wow/spi/reservation/Reservation;)Lme/ahoo/wow/spi/reservation/ConfirmOutcome$Taken;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/reservation/ConfirmOutcome$Taken;Lme/ahoo/wow/spi/reservation/Reservation;ILjava/lang/Object;)Lme/ahoo/wow/spi/reservation/ConfirmOutcome$Taken;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBy ()Lme/ahoo/wow/spi/reservation/Reservation;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/spi/reservation/Reservation {
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;)V
-	public final fun component1 ()Ljava/lang/String;
+	public fun <init> (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;Ljava/util/Set;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/spi/reservation/ReservationScope;
 	public final fun component2 ()Ljava/lang/String;
-	public final fun component3 ()Ljava/lang/String;
+	public final fun component3 ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun component4 ()Ljava/lang/Long;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;)Lme/ahoo/wow/spi/reservation/Reservation;
-	public static synthetic fun copy$default (Lme/ahoo/wow/spi/reservation/Reservation;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;ILjava/lang/Object;)Lme/ahoo/wow/spi/reservation/Reservation;
+	public final fun component5 ()Ljava/util/Set;
+	public final fun copy (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;Ljava/util/Set;)Lme/ahoo/wow/spi/reservation/Reservation;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/reservation/Reservation;Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Long;Ljava/util/Set;ILjava/lang/Object;)Lme/ahoo/wow/spi/reservation/Reservation;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getConfirmed ()Z
 	public final fun getExpiresAt ()Ljava/lang/Long;
+	public final fun getHolds ()Ljava/util/Set;
 	public final fun getKey ()Ljava/lang/String;
-	public final fun getNamespace ()Ljava/lang/String;
-	public final fun getOwner ()Ljava/lang/String;
+	public final fun getOwner ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getScope ()Lme/ahoo/wow/spi/reservation/ReservationScope;
 	public fun hashCode ()I
 	public final fun isLive (J)Z
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/spi/reservation/ReservationKey {
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Z)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/reservation/ReservationKey;
-	public static synthetic fun copy$default (Lme/ahoo/wow/spi/reservation/ReservationKey;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/spi/reservation/ReservationKey;
+	public final fun component3 ()Z
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Z)Lme/ahoo/wow/spi/reservation/ReservationKey;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/reservation/ReservationKey;Ljava/lang/String;Ljava/lang/String;ZILjava/lang/Object;)Lme/ahoo/wow/spi/reservation/ReservationKey;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getKey ()Ljava/lang/String;
 	public final fun getNamespace ()Ljava/lang/String;
+	public final fun getSystem ()Z
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/spi/reservation/ReservationScope {
+	public static final field Companion Lme/ahoo/wow/spi/reservation/ReservationScope$Companion;
+	public static final field SYSTEM_TENANT Ljava/lang/String;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/reservation/ReservationScope;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/spi/reservation/ReservationScope;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getContext ()Ljava/lang/String;
+	public final fun getNamespace ()Ljava/lang/String;
+	public final fun getTenantId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun isSystem ()Z
+	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/spi/reservation/ReservationKey;)Lme/ahoo/wow/spi/reservation/ReservationScope;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/reservation/ReservationScope$Companion {
+	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/spi/reservation/ReservationKey;)Lme/ahoo/wow/spi/reservation/ReservationScope;
+}
+
 public abstract interface class me/ahoo/wow/spi/reservation/ReservationStore {
-	public abstract fun confirm (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun find (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun release (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun reserve-zkXUZaI (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun abandon (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun confirm (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun find (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun release (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun reserve-myKFqkg (Lme/ahoo/wow/spi/reservation/ReservationScope;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public abstract interface class me/ahoo/wow/spi/sink/Sink {
