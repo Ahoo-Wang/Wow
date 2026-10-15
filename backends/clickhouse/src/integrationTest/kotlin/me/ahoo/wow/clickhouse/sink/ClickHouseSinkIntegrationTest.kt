@@ -110,6 +110,19 @@ class ClickHouseSinkIntegrationTest {
     }
 
     @Test
+    fun `a replay beyond the deduplication window should be counted once`(): Unit = runTest {
+        // Finding A2-10: the tokens only cover the window; a replay in other batches left duplicate history rows.
+        val sink = sinks(ClickHouseSinkOptions(database = database, batchSize = 3)).sinkOf("shop", "order")
+        val records = (1..3).map { recordOf(version = it) }
+        sink.write(records)
+        records.forEach { sink.write(listOf(it)) }
+        count("shop_order_state_events FINAL").assert().isEqualTo(3)
+        count("shop_order_events FINAL").assert().isEqualTo(6)
+        client.queryAll("OPTIMIZE TABLE $database.shop_order_state_events FINAL")
+        count("shop_order_state_events").assert().isEqualTo(3)
+    }
+
+    @Test
     fun `without the history only the current state should be kept`(): Unit = runTest {
         val options = ClickHouseSinkOptions(
             database = database,
