@@ -39,11 +39,16 @@ import kotlin.time.Duration.Companion.seconds
  * The gauges of a [node] that are read, not heard (decision D174), sampled every [interval] into [meters]:
  *
  * - [WowMetrics.PARKED]: how many entries each subscription has parked, as the node's ledgers list them
- *   ([ServiceNode.parked]), counted up to [maxParked] per subscription.
+ *   ([ServiceNode.parked]), counted up to [maxParked] per subscription. The ledgers are the service's, shared by its
+ *   nodes, so one node reports them ([reportsParked]): the one that runs partition 0 of the service's first log group
+ *   (by context name), or every node of a service without one. Summed across nodes, the count is the service's once.
  * - [WowMetrics.POSITION], [WowMetrics.BACKLOG] and [WowMetrics.PROGRESS]: for each subscription of each log group,
  *   in each partition it runs on this node ([me.ahoo.wow.runtime.subscription.SubscriptionRuntime.positions]), its
  *   watermark, the entries of the log after it, and the watermark over the log's head: how far a rebuild (a
  *   subscription under a new name, from the beginning) has come.
+ *
+ * A gauge a sample no longer takes (a partition handed off to another node, the parked count of a node that no
+ * longer reports it) is removed from [meters], so it does not report its last value forever (review A3-13).
  *
  * A sample that fails is logged; the next one is taken all the same. [start] starts sampling, [close] stops it.
  */
@@ -56,7 +61,7 @@ class NodeMetrics(
     context: CoroutineContext = Dispatchers.Default,
 ) : AutoCloseable {
     private val scope = CoroutineScope(SupervisorJob() + context)
-    private val gauges = ConcurrentHashMap<Pair<String, Tags>, AtomicReference<Double>>()
+    private val gauges = ConcurrentHashMap<Pair<String, Tags>, Pair<AtomicReference<Double>, Gauge>>()
 
     @Volatile
     private var sampling: Job? = null
@@ -83,14 +88,17 @@ class NodeMetrics(
         }
     }
 
-    /** Takes one sample of every gauge. */
+    /** Takes one sample of every gauge, and removes the gauges it no longer takes. */
     suspend fun sample() {
-        node.parked.subscriptions.forEach { subscription ->
-            gauge(
-                WowMetrics.PARKED,
-                Tags.of(WowMetrics.SUBSCRIPTION, subscription),
-                countParked(subscription).toDouble()
-            )
+        val taken = HashSet<Pair<String, Tags>>()
+        if (reportsParked()) {
+            node.parked.subscriptions.forEach { subscription ->
+                taken += gauge(
+                    WowMetrics.PARKED,
+                    Tags.of(WowMetrics.SUBSCRIPTION, subscription),
+                    countParked(subscription).toDouble()
+                )
+            }
         }
         node.contexts.values.flatMap { it.logGroups }.forEach { group ->
             val runtime = group.subscriptions
@@ -105,11 +113,22 @@ class NodeMetrics(
                     WowMetrics.PARTITION,
                     position.partition.toString(),
                 )
-                gauge(WowMetrics.POSITION, tags, position.watermark.toDouble())
-                gauge(WowMetrics.BACKLOG, tags, (head - position.watermark).coerceAtLeast(0).toDouble())
-                gauge(WowMetrics.PROGRESS, tags, progress(position.watermark, head))
+                taken += gauge(WowMetrics.POSITION, tags, position.watermark.toDouble())
+                taken += gauge(WowMetrics.BACKLOG, tags, (head - position.watermark).coerceAtLeast(0).toDouble())
+                taken += gauge(WowMetrics.PROGRESS, tags, progress(position.watermark, head))
             }
         }
+        (gauges.keys - taken).forEach { key -> gauges.remove(key)?.let { (_, gauge) -> meters.remove(gauge) } }
+    }
+
+    /**
+     * Whether this node reports the service's parked entries: it runs partition 0 of the service's first log group, by
+     * context name, so one node of the service does at a time; every node of a service without a log group does.
+     */
+    fun reportsParked(): Boolean {
+        val designated = node.contexts.toSortedMap().values.firstNotNullOfOrNull { it.logGroups.firstOrNull() }
+            ?: return true
+        return DESIGNATED_PARTITION in designated.subscriptions.partitions
     }
 
     /** How many entries [subscription] has parked, up to [maxParked]. */
@@ -135,12 +154,14 @@ class NodeMetrics(
         }
     }
 
-    private fun gauge(name: String, tags: Tags, value: Double) {
-        gauges.computeIfAbsent(name to tags) { _ ->
-            AtomicReference(value).also { holder ->
-                Gauge.builder(name, holder) { it.get() }.tags(tags).register(meters)
-            }
-        }.set(value)
+    /** Sets the gauge [name] of [tags] to [value], registering it the first time; its key. */
+    private fun gauge(name: String, tags: Tags, value: Double): Pair<String, Tags> {
+        val key = name to tags
+        gauges.computeIfAbsent(key) { _ ->
+            val holder = AtomicReference(value)
+            holder to Gauge.builder(name, holder) { it.get() }.tags(tags).register(meters)
+        }.first.set(value)
+        return key
     }
 
     /** Stops sampling. */
@@ -152,6 +173,9 @@ class NodeMetrics(
     companion object {
         val DEFAULT_INTERVAL: Duration = 15.seconds
         const val DEFAULT_MAX_PARKED: Int = 10_000
+
+        /** The partition of the service's first log group whose owner reports the parked entries. */
+        private const val DESIGNATED_PARTITION: Int = 0
         private val logger = KotlinLogging.logger {}
 
         /** The share of a log of [head] entries a subscription at [watermark] has handled: 1 for an empty log. */
