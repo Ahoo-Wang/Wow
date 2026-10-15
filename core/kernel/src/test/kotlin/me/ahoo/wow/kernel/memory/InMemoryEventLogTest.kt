@@ -14,7 +14,7 @@
 package me.ahoo.wow.kernel.memory
 
 import me.ahoo.wow.spi.log.EventLog
-import me.ahoo.wow.spi.log.EventLogSpec
+import me.ahoo.wow.tck.log.EventLogSpec
 
 class InMemoryEventLogTest : EventLogSpec() {
     override fun createLog(context: String, partitions: Int): EventLog = InMemoryEventLog(partitions)

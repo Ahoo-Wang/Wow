@@ -19,7 +19,7 @@ import me.ahoo.wow.example.eshop.catalog.api.brand.BrandCreated
 import me.ahoo.wow.example.eshop.catalog.api.brand.BrandRenamed
 import me.ahoo.wow.example.eshop.catalog.api.brand.CreateBrand
 import me.ahoo.wow.example.eshop.catalog.api.brand.RenameBrand
-import me.ahoo.wow.kernel.test.aggregateSpec
+import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 
 /** The brand on the kernel. Two brands competing for one name are the server's test, `CatalogEndToEndTest`. */

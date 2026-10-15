@@ -14,7 +14,7 @@
 package me.ahoo.wow.kernel.memory
 
 import me.ahoo.wow.spi.subscription.CheckpointStore
-import me.ahoo.wow.spi.subscription.CheckpointStoreSpec
+import me.ahoo.wow.tck.subscription.CheckpointStoreSpec
 
 class InMemoryCheckpointStoreTest : CheckpointStoreSpec() {
     override fun createStore(): CheckpointStore = InMemoryCheckpointStore()

@@ -28,8 +28,8 @@ import me.ahoo.wow.example.eshop.basket.api.basket.CheckoutBasket
 import me.ahoo.wow.example.eshop.basket.api.basket.ClearBasket
 import me.ahoo.wow.example.eshop.basket.api.basket.RemoveBasketItem
 import me.ahoo.wow.kernel.CommandOutcome
-import me.ahoo.wow.kernel.test.AggregateSpec
-import me.ahoo.wow.kernel.test.aggregateSpec
+import me.ahoo.wow.test.AggregateSpec
+import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 

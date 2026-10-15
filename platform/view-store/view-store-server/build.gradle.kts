@@ -8,7 +8,7 @@ plugins {
 }
 
 application {
-    mainClass.set("me.ahoo.wow.platform.viewstore.server.ViewStoreServerKt")
+    mainClass.set("me.ahoo.wow.viewstore.server.ViewStoreServerKt")
 }
 
 // The Manifest compatibility gate (decision D76, roadmap 5a.4): `check` compares the service's Manifest with

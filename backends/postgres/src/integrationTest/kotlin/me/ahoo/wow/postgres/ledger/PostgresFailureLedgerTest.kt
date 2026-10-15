@@ -17,11 +17,11 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.spi.ledger.ParkedAggregate
-import me.ahoo.wow.spi.ledger.ParkedAmendment
 import me.ahoo.wow.postgres.PostgresFixture
 import me.ahoo.wow.spi.ledger.FailureLedger
-import me.ahoo.wow.spi.ledger.FailureLedgerSpec
+import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.ledger.ParkedAmendment
+import me.ahoo.wow.tck.ledger.FailureLedgerSpec
 import org.junit.jupiter.api.Test
 
 class PostgresFailureLedgerTest : FailureLedgerSpec() {

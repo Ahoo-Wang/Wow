@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.ledger
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.WowSpi
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
@@ -36,6 +37,7 @@ import kotlin.time.Duration.Companion.minutes
  * an operator left for the owner of its partition (decision D141). [park] and [repark] write only where the aggregate
  * is parked and why (a new entry's retry state comes with it); the retry state changes only through [amend].
  */
+@WowSpi
 interface FailureLedger {
     /**
      * Parks [entry]'s aggregate for its subscription. When the aggregate is already parked, the entry with the

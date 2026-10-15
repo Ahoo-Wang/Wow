@@ -30,12 +30,12 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.ProjectContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
-import me.ahoo.wow.kernel.test.projectionSpec
-import me.ahoo.wow.kernel.test.publishedEvent
-import me.ahoo.wow.kernel.test.reactorSpec
-import me.ahoo.wow.kernel.test.sagaSpec
-import me.ahoo.wow.kernel.test.stateEvent
 import me.ahoo.wow.spi.state.StateEventPayload
+import me.ahoo.wow.test.projectionSpec
+import me.ahoo.wow.test.publishedEvent
+import me.ahoo.wow.test.reactorSpec
+import me.ahoo.wow.test.sagaSpec
+import me.ahoo.wow.test.stateEvent
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.minutes
 

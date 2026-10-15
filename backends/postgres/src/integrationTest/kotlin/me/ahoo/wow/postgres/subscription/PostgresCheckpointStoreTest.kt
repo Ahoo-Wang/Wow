@@ -16,7 +16,7 @@ package me.ahoo.wow.postgres.subscription
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.postgres.PostgresFixture
 import me.ahoo.wow.spi.subscription.CheckpointStore
-import me.ahoo.wow.spi.subscription.CheckpointStoreSpec
+import me.ahoo.wow.tck.subscription.CheckpointStoreSpec
 import org.junit.jupiter.api.Test
 
 class PostgresCheckpointStoreTest : CheckpointStoreSpec() {

@@ -23,8 +23,8 @@ import me.ahoo.wow.example.eshop.inventory.api.stock.ReservationReleased
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock
 import me.ahoo.wow.example.eshop.inventory.api.stock.StockReceived
 import me.ahoo.wow.example.eshop.inventory.api.stock.StockReserved
-import me.ahoo.wow.kernel.test.AggregateSpec
-import me.ahoo.wow.kernel.test.aggregateSpec
+import me.ahoo.wow.test.AggregateSpec
+import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 
 /** A product's stock on the kernel, through the model the compiler generated. */

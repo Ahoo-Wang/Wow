@@ -14,7 +14,7 @@
 package me.ahoo.wow.kernel.memory
 
 import me.ahoo.wow.spi.ledger.FailureLedger
-import me.ahoo.wow.spi.ledger.FailureLedgerSpec
+import me.ahoo.wow.tck.ledger.FailureLedgerSpec
 
 class InMemoryFailureLedgerTest : FailureLedgerSpec() {
     override fun createLedger(): FailureLedger = InMemoryFailureLedger()

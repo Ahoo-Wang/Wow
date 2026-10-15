@@ -75,11 +75,20 @@ val classesSharedWithNineX = mapOf(":api" to listOf("me/ahoo/wow/api/annotation/
 // where both declare `MongoCursorCodec`, so a report that covers both leaves out :mongo's query classes. The V10
 // ClickHouse dataset backend (:clickhouse, 6.4a) is the port of 9.x wow-clickhouse's, in its package
 // `me.ahoo.wow.clickhouse.query` and under many of its class names, so a report that covers both leaves out its classes.
+// D216: the V10 test DSL (:test-dsl) is in 9.x wow-test's package `me.ahoo.wow.test`, where both declare
+// `AggregateSpec`, and the V10 TCK (:tck) shares 9.x wow-tck's root `me.ahoo.wow.tck`, so a report that covers both
+// leaves out the V10 module's classes. The V10 view-store (D146, D216) keeps 9.x view-store's packages
+// `me.ahoo.wow.viewstore.*` and many of its class names, so a report that covers both leaves out the V10 module's.
 val classesSharedWithNineXWhenBoth = mapOf(
     ":query-api" to (":wow-api" to listOf("me/ahoo/wow/api/query/**")),
     ":query" to (":wow-query" to listOf("me/ahoo/wow/query/**")),
     ":mongo" to (":wow-mongo" to listOf("me/ahoo/wow/mongo/query/**")),
     ":clickhouse" to (":wow-clickhouse" to listOf("me/ahoo/wow/clickhouse/query/**")),
+    ":test-dsl" to (":wow-test" to listOf("me/ahoo/wow/test/**")),
+    ":tck" to (":wow-tck" to listOf("me/ahoo/wow/tck/**")),
+    ":view-store-api" to (":wow-view-store-api" to listOf("me/ahoo/wow/viewstore/**")),
+    ":view-store-domain" to (":wow-view-store-domain" to listOf("me/ahoo/wow/viewstore/**")),
+    ":view-store-server" to (":wow-view-store-server" to listOf("me/ahoo/wow/viewstore/**")),
 )
 
 /** A module of a report: its main source roots, and the class files the report covers of it. */

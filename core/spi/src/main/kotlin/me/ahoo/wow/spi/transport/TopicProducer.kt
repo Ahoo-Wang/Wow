@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spi.transport
 
+import me.ahoo.wow.api.annotation.WowSpi
+
 /**
  * A message to write to a topic: its [key], which picks its partition (the same key always lands in the same
  * partition, so the messages of one key keep their order), its [headers] and its [value] bytes.
@@ -46,6 +48,7 @@ class TopicMessage(
  * - **Partitions**: the producer chooses the partition of a message by its key, unless the message names its own
  *   ([TopicMessage.partition]); the topic must exist (or the broker creates it).
  */
+@WowSpi
 interface TopicProducer {
     suspend fun send(topic: String, messages: List<TopicMessage>)
 

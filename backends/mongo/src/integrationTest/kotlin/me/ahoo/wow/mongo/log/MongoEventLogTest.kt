@@ -26,8 +26,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
-import me.ahoo.wow.spi.log.EventLogSpec
 import me.ahoo.wow.spi.log.EventRecord
+import me.ahoo.wow.tck.log.EventLogSpec
 import org.junit.jupiter.api.Test
 
 class MongoEventLogTest : EventLogSpec() {

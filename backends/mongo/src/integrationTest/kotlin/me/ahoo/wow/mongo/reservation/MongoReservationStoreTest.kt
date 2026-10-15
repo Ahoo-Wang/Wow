@@ -18,7 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.spi.reservation.ReservationStore
-import me.ahoo.wow.spi.reservation.ReservationStoreSpec
+import me.ahoo.wow.tck.reservation.ReservationStoreSpec
 import org.junit.jupiter.api.Test
 import java.time.Clock
 import kotlin.time.Duration

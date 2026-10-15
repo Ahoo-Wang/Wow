@@ -14,7 +14,7 @@
 package me.ahoo.wow.kernel.memory
 
 import me.ahoo.wow.spi.subscription.LeaseStore
-import me.ahoo.wow.spi.subscription.LeaseStoreSpec
+import me.ahoo.wow.tck.subscription.LeaseStoreSpec
 import java.time.Clock
 
 class InMemoryLeaseStoreTest : LeaseStoreSpec() {

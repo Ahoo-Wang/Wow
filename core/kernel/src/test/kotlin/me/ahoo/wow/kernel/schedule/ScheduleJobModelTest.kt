@@ -38,8 +38,8 @@ import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
-import me.ahoo.wow.kernel.test.aggregateSpec
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import kotlin.time.Duration.Companion.days

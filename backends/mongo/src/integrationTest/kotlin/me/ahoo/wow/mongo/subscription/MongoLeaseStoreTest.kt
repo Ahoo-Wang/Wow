@@ -16,9 +16,9 @@ package me.ahoo.wow.mongo.subscription
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.mongo.log.MongoLogFixture
-import me.ahoo.wow.spi.MutableClock
 import me.ahoo.wow.spi.subscription.LeaseStore
-import me.ahoo.wow.spi.subscription.LeaseStoreSpec
+import me.ahoo.wow.tck.MutableClock
+import me.ahoo.wow.tck.subscription.LeaseStoreSpec
 import org.junit.jupiter.api.Test
 import java.time.Clock
 import kotlin.time.Duration.Companion.seconds

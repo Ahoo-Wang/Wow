@@ -14,7 +14,7 @@
 package me.ahoo.wow.kernel.memory
 
 import me.ahoo.wow.spi.reservation.ReservationStore
-import me.ahoo.wow.spi.reservation.ReservationStoreSpec
+import me.ahoo.wow.tck.reservation.ReservationStoreSpec
 import java.time.Clock
 
 class InMemoryReservationStoreTest : ReservationStoreSpec() {

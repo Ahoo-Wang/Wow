@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.timer
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.WowSpi
 
 /**
  * The timers of one bounded context's schedules (decisions D166, D198): a view derived from the log, rebuilt by
@@ -36,6 +37,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
  *   has a next time: its outcome moves it to that slot, PENDING; a claim of a slot long overdue may move it to the
  *   latest slot due, the ones between counted in [Timer.skipped] (decision D198).
  */
+@WowSpi
 interface TimerStore {
     /**
      * Writes [timer], PENDING, unless the store holds its owner's key at a later version, or holds this very timer

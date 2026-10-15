@@ -26,13 +26,13 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
-import me.ahoo.wow.kernel.test.SequentialIds
-import me.ahoo.wow.kernel.test.aggregateSpec
-import me.ahoo.wow.kernel.test.sagaSpec
-import me.ahoo.wow.kernel.test.stateEvent
 import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.id.IdGenerators
+import me.ahoo.wow.test.SequentialIds
+import me.ahoo.wow.test.aggregateSpec
+import me.ahoo.wow.test.sagaSpec
+import me.ahoo.wow.test.stateEvent
 import org.junit.jupiter.api.Test
 import java.util.UUID
 

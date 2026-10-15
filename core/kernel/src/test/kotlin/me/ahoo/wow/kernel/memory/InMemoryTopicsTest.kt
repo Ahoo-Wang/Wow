@@ -21,7 +21,7 @@ import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.SourceMessage
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
-import me.ahoo.wow.spi.transport.TopicTransportSpec
+import me.ahoo.wow.tck.transport.TopicTransportSpec
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.atomic.AtomicInteger

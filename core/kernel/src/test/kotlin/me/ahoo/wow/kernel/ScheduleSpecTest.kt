@@ -18,9 +18,9 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.kernel.test.DEFAULT_START
-import me.ahoo.wow.kernel.test.aggregateSpec
 import me.ahoo.wow.spi.timer.TimerStatus
+import me.ahoo.wow.test.DEFAULT_START
+import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import kotlin.time.Duration.Companion.minutes

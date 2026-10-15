@@ -16,7 +16,7 @@ package me.ahoo.wow.kernel
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.kernel.test.aggregateSpec
+import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 
 /** The test DSL (roadmap 2.6) on the sample cart. */

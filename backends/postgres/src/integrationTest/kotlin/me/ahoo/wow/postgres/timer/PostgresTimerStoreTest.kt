@@ -16,13 +16,13 @@ package me.ahoo.wow.postgres.timer
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.postgres.PostgresFixture
+import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerStore
-import me.ahoo.wow.spi.timer.TimerStoreSpec
+import me.ahoo.wow.tck.timer.TimerStoreSpec
 import org.junit.jupiter.api.Test
 
 class PostgresTimerStoreTest : TimerStoreSpec() {

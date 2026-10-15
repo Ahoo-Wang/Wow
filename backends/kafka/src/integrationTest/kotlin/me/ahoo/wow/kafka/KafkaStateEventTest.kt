@@ -20,7 +20,6 @@ import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.spi.ExactJson
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
@@ -28,6 +27,7 @@ import me.ahoo.wow.spi.state.StateView
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.EnvelopeHeaders
 import me.ahoo.wow.spi.transport.SourceMessage
+import me.ahoo.wow.tck.ExactJson
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.seconds

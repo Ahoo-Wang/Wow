@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spi.sink
 
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.spi.state.StateEventRecord
 
 /**
@@ -30,6 +31,7 @@ import me.ahoo.wow.spi.state.StateEventRecord
  * - **Failure**: [write] throws when not every record is durable; the subscription retries, then parks the
  *   aggregate. Some records of a failed batch may have been written already: the retry writes them again.
  */
+@WowSpi
 fun interface Sink {
     suspend fun write(records: List<StateEventRecord>)
 }
