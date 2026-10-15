@@ -432,6 +432,7 @@ test('V10 modules skip the TypeScript workflow jobs and the mixed-version test',
     'example/eshop/catalog/catalog-domain/src/main/kotlin/A.kt',
     'example/eshop/e2e/src/integrationTest/kotlin/A.kt',
     'example/eshop/README.md',
+    'example/quickstart/src/main/kotlin/A.kt',
   ]) {
     assert.ok(none([path]), path);
     assert.ok(!scopes([path]).mixedVersion, path);
@@ -511,6 +512,9 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'example/eshop/payment/payment-server/build.gradle.kts',
     'example/eshop/e2e/build.gradle.kts',
     'example/eshop/DX-GAPS.md',
+    'example/quickstart/build.gradle.kts',
+    'documentation/docs/en/guide/v10/quickstart.md',
+    'documentation/docs/zh/guide/v10/quickstart.md',
     'bom/bom/build.gradle.kts',
     'wow-dependencies/build.gradle.kts',
     'gradle/libs.versions.toml',
@@ -536,6 +540,7 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'example/example-domain/src/main/kotlin/A.kt',
     'typescript/wow-client/src/index.ts',
     'documentation/designs/v10/roadmap.md',
+    'documentation/docs/en/guide/v10/index.md',
     'README.md',
     'codecov.yml',
     '.github/workflows/local-test.yml',
