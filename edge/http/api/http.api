@@ -1,0 +1,145 @@
+public final class me/ahoo/wow/http/WowHeaders {
+	public static final field CALL Ljava/lang/String;
+	public static final field ETAG Ljava/lang/String;
+	public static final field IF_MATCH Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/http/WowHeaders;
+	public static final field REBUILDING Ljava/lang/String;
+	public static final field REQUEST_ID Ljava/lang/String;
+	public static final field SCOPE Ljava/lang/String;
+	public static final field SPACE Ljava/lang/String;
+	public static final field WAIT Ljava/lang/String;
+	public static final field WAIT_TIMEOUT Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/http/WowHttpOptions {
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getErrorStatuses ()Ljava/util/Map;
+	public final fun getManifestEndpoint ()Z
+	public final fun getOpenApiEndpoint ()Z
+	public final fun getRequestFacts ()Ljava/util/Set;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/http/caller/CallerResolver {
+	public static final field ANONYMOUS Lme/ahoo/wow/http/caller/CallerResolver;
+	public static final field Companion Lme/ahoo/wow/http/caller/CallerResolver$Companion;
+	public abstract fun resolve (Lorg/springframework/web/reactive/function/server/ServerRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/http/caller/CallerResolver$Companion {
+}
+
+public abstract interface class me/ahoo/wow/http/caller/InternalCallerResolver : me/ahoo/wow/http/caller/CallerResolver {
+}
+
+public final class me/ahoo/wow/http/command/CallHeader {
+	public static final field INSTANCE Lme/ahoo/wow/http/command/CallHeader;
+	public final fun format (Lme/ahoo/wow/runtime/admission/CallContext;)Ljava/lang/String;
+	public final fun parse (Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/CallContext;
+}
+
+public final class me/ahoo/wow/http/command/ScopeHeader {
+	public static final field INSTANCE Lme/ahoo/wow/http/command/ScopeHeader;
+	public static final field OWNER Ljava/lang/String;
+	public static final field SPACE Ljava/lang/String;
+	public static final field TENANT Ljava/lang/String;
+	public final fun format (Lme/ahoo/wow/runtime/admission/TargetScope;)Ljava/lang/String;
+	public final fun parse (Ljava/lang/String;)Lme/ahoo/wow/runtime/admission/TargetScope;
+}
+
+public final class me/ahoo/wow/http/ops/OpsPaths {
+	public static final field AFTER Ljava/lang/String;
+	public static final field APPLY_RETRY_SPEC Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/http/ops/OpsPaths;
+	public static final field LIMIT Ljava/lang/String;
+	public static final field MARK_RECOVERABLE Ljava/lang/String;
+	public static final field PARKED Ljava/lang/String;
+	public static final field RESUME Ljava/lang/String;
+	public static final field SKIP Ljava/lang/String;
+	public static final field SUBSCRIPTION Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/http/ops/WebhookNotifier : me/ahoo/wow/runtime/subscription/ParkedNotifier {
+	public static final field Companion Lme/ahoo/wow/http/ops/WebhookNotifier$Companion;
+	public synthetic fun <init> (Ljava/net/URI;Lme/ahoo/wow/http/ops/WebhookNotifier$Format;Ljava/util/Set;Ljava/lang/String;Ljava/util/Map;JLjava/net/http/HttpClient;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/net/URI;Lme/ahoo/wow/http/ops/WebhookNotifier$Format;Ljava/util/Set;Ljava/lang/String;Ljava/util/Map;JLjava/net/http/HttpClient;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun bodyOf (Lme/ahoo/wow/runtime/subscription/ParkedNotice;)Ljava/util/Map;
+	public fun notify (Lme/ahoo/wow/runtime/subscription/ParkedNotice;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun textOf (Lme/ahoo/wow/runtime/subscription/ParkedNotice;)Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/http/ops/WebhookNotifier$Companion {
+	public final fun getDEFAULT_TIMEOUT-UwyO8pc ()J
+}
+
+public final class me/ahoo/wow/http/ops/WebhookNotifier$Format : java/lang/Enum {
+	public static final field GENERIC Lme/ahoo/wow/http/ops/WebhookNotifier$Format;
+	public static final field WECOM Lme/ahoo/wow/http/ops/WebhookNotifier$Format;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/http/ops/WebhookNotifier$Format;
+	public static fun values ()[Lme/ahoo/wow/http/ops/WebhookNotifier$Format;
+}
+
+public final class me/ahoo/wow/http/problem/Problem {
+	public static final field ABOUT_BLANK Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/http/problem/Problem$Companion;
+	public static final field TYPE_PREFIX Ljava/lang/String;
+	public fun <init> (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Lme/ahoo/wow/api/result/CommandResult;Ljava/util/Map;Ljava/lang/Long;)V
+	public synthetic fun <init> (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Lme/ahoo/wow/api/result/CommandResult;Ljava/util/Map;Ljava/lang/Long;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/util/List;
+	public final fun component6 ()Lme/ahoo/wow/api/result/CommandResult;
+	public final fun component7 ()Ljava/util/Map;
+	public final fun component8 ()Ljava/lang/Long;
+	public final fun copy (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Lme/ahoo/wow/api/result/CommandResult;Ljava/util/Map;Ljava/lang/Long;)Lme/ahoo/wow/http/problem/Problem;
+	public static synthetic fun copy$default (Lme/ahoo/wow/http/problem/Problem;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Lme/ahoo/wow/api/result/CommandResult;Ljava/util/Map;Ljava/lang/Long;ILjava/lang/Object;)Lme/ahoo/wow/http/problem/Problem;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getDetail ()Ljava/lang/String;
+	public final fun getExtensions ()Ljava/util/Map;
+	public final fun getResult ()Lme/ahoo/wow/api/result/CommandResult;
+	public final fun getRetryAfter ()Ljava/lang/Long;
+	public final fun getStatus ()I
+	public final fun getTitle ()Ljava/lang/String;
+	public final fun getType ()Ljava/lang/String;
+	public final fun getViolations ()Ljava/util/List;
+	public fun hashCode ()I
+	public final fun members ()Ljava/util/Map;
+	public final fun respond (Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/http/problem/Problem$Companion {
+	public final fun ofStatus (Lorg/springframework/http/HttpStatus;Ljava/lang/String;)Lme/ahoo/wow/http/problem/Problem;
+	public static synthetic fun ofStatus$default (Lme/ahoo/wow/http/problem/Problem$Companion;Lorg/springframework/http/HttpStatus;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/http/problem/Problem;
+}
+
+public abstract interface class me/ahoo/wow/http/query/DatasetVisibility {
+	public static final field Companion Lme/ahoo/wow/http/query/DatasetVisibility$Companion;
+	public static final field DEFAULT Lme/ahoo/wow/http/query/DatasetVisibility;
+	public static fun of (Lme/ahoo/wow/query/AbacQueryOptions;)Lme/ahoo/wow/http/query/DatasetVisibility;
+	public abstract fun visible (Lme/ahoo/wow/query/dataset/QueryDataset;Lme/ahoo/wow/query/QueryCaller;)Z
+}
+
+public final class me/ahoo/wow/http/query/DatasetVisibility$Companion {
+	public final fun of (Lme/ahoo/wow/query/AbacQueryOptions;)Lme/ahoo/wow/http/query/DatasetVisibility;
+}
+
+public final class me/ahoo/wow/http/query/HttpQueries {
+	public static final field Companion Lme/ahoo/wow/http/query/HttpQueries$Companion;
+	public static final field DEFAULT_LIST_SIZE I
+	public static final field NONE Lme/ahoo/wow/http/query/HttpQueries;
+	public final fun getDatasetVisibility ()Lme/ahoo/wow/http/query/DatasetVisibility;
+	public final fun getDatasets ()Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
+	public final fun getDefaultListSize ()I
+	public final fun snapshots (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/QueryGateway;
+}
+
+public final class me/ahoo/wow/http/query/HttpQueries$Companion {
+}
+

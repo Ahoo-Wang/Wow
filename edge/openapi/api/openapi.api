@@ -1,0 +1,63 @@
+public final class me/ahoo/wow/openapi/ManifestOpenApi {
+	public static final field FRAMEWORK_TAG Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/openapi/ManifestOpenApi;
+	public static final field JSON_SCHEMA_DIALECT Ljava/lang/String;
+	public static final field OPENAPI_VERSION Ljava/lang/String;
+	public static final field UNVERSIONED Ljava/lang/String;
+	public final fun write (Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/openapi/OpenApiOptions;)Ljava/util/Map;
+	public static synthetic fun write$default (Lme/ahoo/wow/openapi/ManifestOpenApi;Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/openapi/OpenApiOptions;ILjava/lang/Object;)Ljava/util/Map;
+}
+
+public final class me/ahoo/wow/openapi/OpenApiOptions {
+	public static final field Companion Lme/ahoo/wow/openapi/OpenApiOptions$Companion;
+	public static final field DEFAULT_TITLE Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;Ljava/util/List;ZZZLjava/util/Map;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;ZZZLjava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDatasets ()Z
+	public final fun getErrorStatuses ()Ljava/util/Map;
+	public final fun getManifestEndpoint ()Z
+	public final fun getOpenApiEndpoint ()Z
+	public final fun getServers ()Ljava/util/List;
+	public final fun getTitle ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/OpenApiOptions$Companion {
+}
+
+public final class me/ahoo/wow/openapi/WowHttpContract {
+	public static final field AT_PARAMETER Ljava/lang/String;
+	public static final field BAGGAGE_HEADER Ljava/lang/String;
+	public static final field DATASETS_PATH Ljava/lang/String;
+	public static final field DEFAULT_TRACE_LIMIT I
+	public static final field ERROR_EVENT Ljava/lang/String;
+	public static final field ETAG_HEADER Ljava/lang/String;
+	public static final field FROM_PARAMETER Ljava/lang/String;
+	public static final field GLOBAL_ID_PATH Ljava/lang/String;
+	public static final field IF_MATCH_HEADER Ljava/lang/String;
+	public static final field IF_NONE_MATCH_HEADER Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/openapi/WowHttpContract;
+	public static final field LIMIT_PARAMETER Ljava/lang/String;
+	public static final field MANIFEST_PATH Ljava/lang/String;
+	public static final field MAX_TRACE_LIMIT I
+	public static final field OPENAPI_PATH Ljava/lang/String;
+	public static final field REQUEST_ID_HEADER Ljava/lang/String;
+	public static final field RETRY_AFTER_HEADER Ljava/lang/String;
+	public static final field ROW_EVENT Ljava/lang/String;
+	public static final field SCOPE_HEADER Ljava/lang/String;
+	public static final field SPACE_HEADER Ljava/lang/String;
+	public static final field STATE_SEGMENT Ljava/lang/String;
+	public static final field TO_PARAMETER Ljava/lang/String;
+	public static final field TRACEPARENT_HEADER Ljava/lang/String;
+	public static final field TRACESTATE_HEADER Ljava/lang/String;
+	public static final field TRACE_SEGMENT Ljava/lang/String;
+	public static final field VERSION_PARAMETER Ljava/lang/String;
+	public static final field WAIT_HEADER Ljava/lang/String;
+	public static final field WAIT_TIMEOUT_HEADER Ljava/lang/String;
+	public final fun getQUERY_KINDS ()Ljava/util/List;
+	public final fun getSTAGES ()Ljava/util/List;
+}
+

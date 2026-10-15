@@ -1,0 +1,16 @@
+public final class me/ahoo/wow/tck/containers/WowContainers {
+	public static final field CLICKHOUSE_IMAGE Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/tck/containers/WowContainers;
+	public static final field KAFKA_IMAGE Ljava/lang/String;
+	public static final field MONGO_IMAGE Ljava/lang/String;
+	public static final field POSTGRES_IMAGE Ljava/lang/String;
+	public final fun getClickHouse ()Lorg/testcontainers/clickhouse/ClickHouseContainer;
+	public final fun getKafka ()Lorg/testcontainers/kafka/ConfluentKafkaContainer;
+	public final fun getMongo ()Lorg/testcontainers/mongodb/MongoDBContainer;
+	public final fun getPostgres ()Lorg/testcontainers/postgresql/PostgreSQLContainer;
+	public final fun newClickHouse ()Lorg/testcontainers/clickhouse/ClickHouseContainer;
+	public final fun newKafka ()Lorg/testcontainers/kafka/ConfluentKafkaContainer;
+	public final fun newMongo ()Lorg/testcontainers/mongodb/MongoDBContainer;
+	public final fun newPostgres ()Lorg/testcontainers/postgresql/PostgreSQLContainer;
+}
+

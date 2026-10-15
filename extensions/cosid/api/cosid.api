@@ -1,0 +1,32 @@
+public final class me/ahoo/wow/cosid/CosIdAggregateIdGenerator : me/ahoo/wow/spi/id/AggregateIdGenerator, me/ahoo/wow/spi/id/AggregateIdGeneratorSource {
+	public static final field Companion Lme/ahoo/wow/cosid/CosIdAggregateIdGenerator$Companion;
+	public fun <init> (Lme/ahoo/cosid/provider/IdGeneratorProvider;Lkotlin/jvm/functions/Function0;)V
+	public fun find (Ljava/lang/String;)Lme/ahoo/wow/spi/id/AggregateIdGenerator;
+	public static final fun machineIdOf (Lme/ahoo/cosid/IdGenerator;)I
+	public fun next (Lme/ahoo/wow/api/aggregate/AggregateType;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/cosid/CosIdAggregateIdGenerator$Companion {
+	public final fun machineIdOf (Lme/ahoo/cosid/IdGenerator;)I
+}
+
+public final class me/ahoo/wow/cosid/CosIdGlobalIdGenerator : me/ahoo/wow/spi/id/GlobalIdGenerator {
+	public fun <init> (Lme/ahoo/cosid/provider/IdGeneratorProvider;Ljava/lang/String;)V
+	public synthetic fun <init> (Lme/ahoo/cosid/provider/IdGeneratorProvider;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getGenerator ()Lme/ahoo/cosid/IdGenerator;
+	public final fun getName ()Ljava/lang/String;
+	public fun next ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/cosid/WowCosIdAutoConfiguration {
+	public static final field AGGREGATE_ID_GENERATOR Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/cosid/WowCosIdAutoConfiguration$Companion;
+	public static final field GLOBAL_GENERATOR Ljava/lang/String;
+	public fun <init> ()V
+	public final fun wowCosIdAggregateIdGenerator (Lme/ahoo/cosid/provider/IdGeneratorProvider;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/cosid/CosIdAggregateIdGenerator;
+	public final fun wowCosIdGlobalIdGenerator (Lme/ahoo/cosid/provider/IdGeneratorProvider;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/cosid/CosIdGlobalIdGenerator;
+}
+
+public final class me/ahoo/wow/cosid/WowCosIdAutoConfiguration$Companion {
+}
+

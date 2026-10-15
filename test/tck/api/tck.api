@@ -1,0 +1,221 @@
+public final class me/ahoo/wow/tck/ExactJson {
+	public static final field INSTANCE Lme/ahoo/wow/tck/ExactJson;
+	public static final field NUMBERS Ljava/lang/String;
+	public final fun of (Ljava/lang/String;)Ljava/lang/Object;
+	public final fun valueOf (Ljava/lang/String;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/tck/MutableClock : java/time/Clock {
+	public fun <init> ()V
+	public fun <init> (J)V
+	public synthetic fun <init> (JILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun advance-LRDsOJo (J)V
+	public fun getZone ()Ljava/time/ZoneId;
+	public fun instant ()Ljava/time/Instant;
+	public fun millis ()J
+	public fun withZone (Ljava/time/ZoneId;)Ljava/time/Clock;
+}
+
+public abstract class me/ahoo/wow/tck/ledger/FailureLedgerSpec {
+	public static final field CONCURRENT_PARKS I
+	protected static final field Companion Lme/ahoo/wow/tck/ledger/FailureLedgerSpec$Companion;
+	public static final field FAILED_AT J
+	public fun <init> ()V
+	public final fun a new entry's retry state reads back with it, in its page and when resolved ()V
+	public final fun a parked aggregate reads back for its subscription only ()V
+	public final fun a request is left for the owner and taken once ()V
+	public final fun a retry is claimed only from the retries read, once among concurrent claims ()V
+	public final fun a source position reads back with its entry, and moves with the earlier version or a repark ()V
+	public final fun a subscription's parked aggregates are listed in pages, in aggregate order ()V
+	public final fun amending an aggregate that is not parked writes nothing ()V
+	public final fun an operator's retry spec and recoverability are applied and cleared ()V
+	public final fun concurrent parks of one aggregate keep the earliest from version ()V
+	protected abstract fun createLedger ()Lme/ahoo/wow/spi/ledger/FailureLedger;
+	public final fun parking an aggregate again keeps the earliest from version ()V
+	public final fun parking from an earlier version and reparking keep the retry state ()V
+	public final fun reparking an aggregate that is not parked writes nothing ()V
+	public final fun reparking replaces a parked entry, later or earlier, with its reason ()V
+	public final fun resolving removes the entry, after which the aggregate may be parked anew ()V
+}
+
+protected final class me/ahoo/wow/tck/ledger/FailureLedgerSpec$Companion {
+	public final fun getSPEC ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
+}
+
+public abstract class me/ahoo/wow/tck/log/EventLogSpec {
+	public static final field CONTEXT_SUFFIX I
+	protected static final field Companion Lme/ahoo/wow/tck/log/EventLogSpec$Companion;
+	public static final field DEFAULT_PARTITIONS I
+	public static final field TAIL_TIMEOUT_MS J
+	public fun <init> ()V
+	public final fun a request id is unique within its tenant ()V
+	public final fun a request id is unique within its tenant and aggregate type ()V
+	public final fun a request id reused by another command type finds the stream committed for it ()V
+	public final fun a stream reads back exactly as appended ()V
+	public final fun an aggregate's first stream is version 1 and each next one exactly one more ()V
+	public final fun an entry lands in its ref's partition, sequenced from 1 ()V
+	public final fun appendAll gives each stream the outcome append would ()V
+	public final fun appendAll keeps each stream's transport ()V
+	public final fun appendAll sequences a group of two aggregate types without gaps ()V
+	public final fun appendAll sequences a group without gaps ()V
+	public final fun appends of two aggregate types interleaved in one partition tail back in sequence order ()V
+	public final fun concurrent appends to one version let exactly one win ()V
+	protected abstract fun createLog (Ljava/lang/String;I)Lme/ahoo/wow/spi/log/EventLog;
+	public final fun head is the last committed sequence of a partition, null when it is empty ()V
+	public final fun one aggregate id under two aggregate types is two streams ()V
+	public final fun payload numbers read back exactly as appended ()V
+	public final fun positionOf finds where a version of an aggregate was committed ()V
+	public final fun read returns a version range in version order ()V
+	public final fun readEntries returns a version range in version order, each entry with its position and transport ()V
+	public final fun scope, causation, headers and operator read back as appended, absent ones too ()V
+	protected final fun stream (Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/spi/log/EventStreamRecord;
+	public static synthetic fun stream$default (Lme/ahoo/wow/tck/log/EventLogSpec;Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/caller/Operator;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/EventStreamRecord;
+	public final fun tail never skips a committed entry, however appends interleave ()V
+	public final fun tail resumes after a position with the same entries ()V
+	public final fun the lookup by aggregate type returns facts only, as appended ()V
+	public final fun the schedule system events read back as appended, alone or with the events ()V
+	public final fun transport is given back by tail and readEntries only ()V
+	public final fun two tenants may use the same aggregate id ()V
+}
+
+protected final class me/ahoo/wow/tck/log/EventLogSpec$Companion {
+}
+
+public abstract class me/ahoo/wow/tck/reservation/ReservationStoreSpec {
+	public static final field CONTENDERS I
+	protected static final field Companion Lme/ahoo/wow/tck/reservation/ReservationStoreSpec$Companion;
+	public fun <init> ()V
+	public final fun a confirmed reservation never expires ()V
+	public final fun a live reservation keeps the key from another owner ()V
+	public final fun a reservation is pending until its time to live passes ()V
+	public final fun an expired pending reservation is taken over by another owner ()V
+	public final fun an owner may still confirm its expired reservation while no one took the key ()V
+	public final fun concurrent reservations of one key let exactly one owner win ()V
+	protected abstract fun createStore (Ljava/time/Clock;)Lme/ahoo/wow/spi/reservation/ReservationStore;
+	protected final fun getClock ()Lme/ahoo/wow/tck/MutableClock;
+	public final fun namespaces are separate ()V
+	public final fun only the owner confirms or releases a reservation ()V
+	public final fun releasing frees the key, pending or confirmed ()V
+	public final fun reserving again renews the owner's pending reservation and keeps a confirmed one ()V
+}
+
+protected final class me/ahoo/wow/tck/reservation/ReservationStoreSpec$Companion {
+	public final fun getLONG_AFTER-UwyO8pc ()J
+	public final fun getTTL-UwyO8pc ()J
+}
+
+public abstract class me/ahoo/wow/tck/snapshot/SnapshotStoreSpec {
+	public static final field CONCURRENT_VERSIONS I
+	public static final field CONTEXT_SUFFIX I
+	protected static final field Companion Lme/ahoo/wow/tck/snapshot/SnapshotStoreSpec$Companion;
+	public static final field FIRST_EVENT_TIME J
+	public fun <init> ()V
+	public final fun a claim raises the revision, and lowers it only for a rollback ()V
+	public final fun a lower state revision never replaces a higher one but marks it stale ()V
+	public final fun a ref without a snapshot loads null ()V
+	public final fun a rewrite replaces the same version or a lower one whatever the revision ()V
+	public final fun a snapshot loads back as saved ()V
+	public final fun a stale mark keeps a snapshot pending until a rewrite reaches its version ()V
+	public final fun a table's first claim records it at the revision, not yet backfilled ()V
+	public final fun absent access facts and the deleted mark load back as saved ()V
+	public final fun concurrent claims leave one revision ()V
+	public final fun concurrent saves of different versions leave the highest ()V
+	protected abstract fun createStore (Ljava/lang/String;)Lme/ahoo/wow/spi/snapshot/SnapshotStore;
+	public final fun only a higher version replaces a snapshot ()V
+	public final fun pending snapshots come in key order, page by page, of one type ()V
+	protected final fun snapshot (Ljava/lang/String;ILjava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;)Lme/ahoo/wow/spi/snapshot/SnapshotRecord;
+	public static synthetic fun snapshot$default (Lme/ahoo/wow/tck/snapshot/SnapshotStoreSpec;Ljava/lang/String;ILjava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spi/snapshot/SnapshotRecord;
+	public final fun state numbers in exponent form load back with their value ()V
+	public final fun state numbers load back exactly as saved ()V
+	public final fun the state revision loads back as saved ()V
+	public final fun two tenants and two aggregates may use the same id ()V
+}
+
+protected final class me/ahoo/wow/tck/snapshot/SnapshotStoreSpec$Companion {
+}
+
+public abstract class me/ahoo/wow/tck/subscription/CheckpointStoreSpec {
+	public static final field CONCURRENT_SAVES J
+	protected static final field Companion Lme/ahoo/wow/tck/subscription/CheckpointStoreSpec$Companion;
+	public static final field GROUP_SUFFIX I
+	public fun <init> ()V
+	public final fun a checkpoint only moves forward ()V
+	public final fun a checkpoint saved at 0 is kept, and saved again changes nothing ()V
+	public final fun a subscription without a checkpoint loads null ()V
+	public final fun checkpoints are kept per group, subscription and partition ()V
+	public final fun concurrent saves leave the highest position ()V
+	protected abstract fun createStore ()Lme/ahoo/wow/spi/subscription/CheckpointStore;
+}
+
+protected final class me/ahoo/wow/tck/subscription/CheckpointStoreSpec$Companion {
+}
+
+public abstract class me/ahoo/wow/tck/subscription/LeaseStoreSpec {
+	public static final field CONTENDERS I
+	protected static final field Companion Lme/ahoo/wow/tck/subscription/LeaseStoreSpec$Companion;
+	public static final field GROUP_SUFFIX I
+	public fun <init> ()V
+	public final fun a free partition is acquired at epoch 1 until now plus the ttl ()V
+	public final fun a live lease cannot be taken, an expired one can ()V
+	public final fun a node that leaves is no longer a member but keeps its leases ()V
+	public final fun a released lease can be acquired at once ()V
+	public final fun an owner taking back its expired lease starts a new epoch ()V
+	public final fun concurrent acquisitions of a partition have exactly one winner ()V
+	public final fun concurrent acquisitions of an expired partition have exactly one winner ()V
+	protected abstract fun createStore (Ljava/time/Clock;)Lme/ahoo/wow/spi/subscription/LeaseStore;
+	public final fun members are the nodes whose heartbeat is live ()V
+	public final fun members carry the address of their last heartbeat ()V
+	public final fun only the owner renews, and only while the lease is live ()V
+	public final fun owners lists the live leases of one group in partition order ()V
+	public final fun the owner acquiring again extends its lease and keeps the epoch ()V
+}
+
+protected final class me/ahoo/wow/tck/subscription/LeaseStoreSpec$Companion {
+	public final fun address (Ljava/lang/String;)Ljava/lang/String;
+	public final fun getTTL-UwyO8pc ()J
+}
+
+public abstract class me/ahoo/wow/tck/timer/TimerStoreSpec {
+	public fun <init> ()V
+	public final fun a cancel leaves a fired timer as it is ()V
+	public final fun a cancel takes a claimed timer ()V
+	public final fun a cancel takes a pending timer held at its version or earlier ()V
+	public final fun a change is written only while the timer is as it was loaded ()V
+	public final fun a claim long past due coalesces the missed slots, and the skipped count holds through retries ()V
+	public final fun a claim that lapses is due again and claimed anew ()V
+	public final fun a later version reschedules, an earlier one is ignored ()V
+	public final fun a monthly timer advances slot after slot, each written from the claim of the one before ()V
+	public final fun a timer cancelled between the poll and its claim is not claimed ()V
+	public final fun a timer is claimed once, and its outcome is written from the claim ()V
+	public final fun a timer put is found and due once its time comes ()V
+	public final fun a timer without causation, headers, operator or scope is found as put ()V
+	public final fun a timer's rule and slot read back as written, whatever the rule ()V
+	public final fun a timer's slot keeps its due time through claims and retries ()V
+	public final fun cancelling all of an owner's timers takes the pending ones only ()V
+	public final fun changes are written together, each on its own condition ()V
+	public final fun concurrent puts of one key keep the latest version ()V
+	protected abstract fun createStore ()Lme/ahoo/wow/spi/timer/TimerStore;
+	public final fun due timers of every partition asked come earliest first, within the limit ()V
+	public final fun due timers of one time come by id ()V
+	public final fun firing a slot moves the timer to its next slot in one write ()V
+	public final fun parked timers are found by their target and leave the due ones ()V
+	public final fun putting the same timer again changes nothing, and never revives it ()V
+	public final fun two writers of one loaded timer change it once ()V
+}
+
+public abstract class me/ahoo/wow/tck/transport/TopicTransportSpec {
+	public fun <init> ()V
+	public final fun a bounded read should complete after the messages before its bound ()V
+	public final fun a key's partition should be the one its messages land in ()V
+	public final fun a message naming its partition should land in it whatever its key ()V
+	public final fun a read should start at the offset given ()V
+	public final fun a read should wait for the messages sent after it started ()V
+	public final fun a topic should list its partitions ()V
+	protected abstract fun getProducer ()Lme/ahoo/wow/spi/transport/TopicProducer;
+	protected fun getReadTimeout-UwyO8pc ()J
+	protected abstract fun getSource ()Lme/ahoo/wow/spi/transport/PartitionedSource;
+	protected abstract fun newTopic (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun the messages of a key should be read back from one partition in the order sent ()V
+	public final fun the offsets should run from the first message retained to the next one written ()V
+}
+

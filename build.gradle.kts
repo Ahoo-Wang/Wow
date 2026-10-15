@@ -92,10 +92,9 @@ val v10PublishedProjects = includedProjects(
 // use below): every V10 POM imports it.
 val v10PublishedLibraries = v10PublishedProjects + includedProjects(":migrate-data", ":manifest-tools")
 val v10ReleaseProjects = v10PublishedLibraries + v10BomProject
-// The V10 modules whose ABI is checked now: none until their first dumps are committed (D216, after the API is
-// narrowed); `-Pwow.abi.v10=true` turns the check on for `v10PublishedProjects`.
-val v10AbiProjects =
-    if (providers.gradleProperty("wow.abi.v10").orNull.toBoolean()) v10PublishedProjects else emptySet()
+// The V10 modules whose ABI is checked: every published one but :migrate-data and :manifest-tools, frozen at the M7
+// exit (D216 F.5, which committed their first dumps).
+val v10AbiProjects = v10PublishedProjects
 // V10 modules that use Wow the way an application does (D216): the eShop, the platform services' domains and servers,
 // and :architecture. They do not opt in to `@InternalWowApi` or `@ExperimentalWowApi`, so the compiler shows where
 // they reach past the public API.
@@ -411,8 +410,8 @@ tasks.register("benchmarkSmoke") {
 // The V10 checks (v10.yml), in either build scope; `-Pwow.scope=v10` configures no 9.x module. `check` of every V10
 // module compiles it and runs its unit tests (`:architecture:test` holds the V10 dependency rules); detekt covers
 // the same modules. The ABI of the published V10 modules is checked from the API freeze at the M7 exit (D88, D147,
-// D216): `checkKotlinAbi` of `v10AbiProjects`, which stays empty until their first dumps are committed. The full
-// build also compiles the JMH sources of :kernel-benchmarks, which the v10 scope leaves out.
+// D216): `checkKotlinAbi` of `v10AbiProjects` against their `api/<module>.api`. The full build also compiles the JMH
+// sources of :kernel-benchmarks, which the v10 scope leaves out.
 tasks.register("v10Check") {
     description = "Compiles, unit-tests and runs detekt over the V10 modules."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
@@ -632,14 +631,18 @@ tasks.register("v10PublicationCheck") {
 
 // The JVM ABI of every published library is kept in its `api/<module>.api`; `check` runs `checkKotlinAbi`
 // against it, so a 9.x patch cannot change a public signature unnoticed. `./gradlew updateKotlinAbi` rewrites
-// the dumps; AGENTS.md ("Binary Compatibility") says when that is allowed. The published V10 modules join from the
-// API freeze (D216); until their first dumps are committed, only `-Pwow.abi.v10=true` adds them, as in
-// `./gradlew -Pwow.scope=v10 -Pwow.abi.v10=true updateKotlinAbi`, which records them.
+// the dumps; AGENTS.md ("Binary Compatibility") says when that is allowed. The published V10 modules joined at the
+// API freeze (D216); `./gradlew -Pwow.scope=v10 updateKotlinAbi` rewrites their dumps, and between the M7 exit and
+// 10.0.0 GA a removed or changed line there takes the `breaking-change` label.
 configure(publishProjects - bomProjects - v10PublishedLibraries + v10AbiProjects) {
     configure<KotlinJvmProjectExtension> {
         @OptIn(ExperimentalAbiValidation::class)
         abiValidation {
-            // Declarations Wow's own modules share but promise nothing about (see its KDoc).
+            // Declarations Wow's own modules share but promise nothing about (see its KDoc). Known gap (KGP 2.4.21):
+            // a class whose `@InternalWowApi` primary constructor takes a value class (`kotlin.time.Duration`) and has
+            // default arguments keeps its synthetic default-argument constructor
+            // (`<init>(…, I, DefaultConstructorMarker)`) in the dump, since only the constructor itself carries the
+            // annotation (WaitPlan and the *Options, D216 F.5). Those lines are accepted; Wow's users never call them.
             filters.exclude.annotatedWith.add("me.ahoo.wow.api.annotation.InternalWowApi")
         }
     }

@@ -1,0 +1,86 @@
+public abstract class me/ahoo/wow/gradle/CheckManifestCompatibility : org/gradle/api/DefaultTask {
+	public fun <init> (Lorg/gradle/workers/WorkerExecutor;)V
+	public final fun check ()V
+	public abstract fun getBaseline ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getManifest ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getReport ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getTools ()Lorg/gradle/api/file/ConfigurableFileCollection;
+}
+
+public abstract class me/ahoo/wow/gradle/CollectPeerManifests : org/gradle/api/DefaultTask {
+	public fun <init> ()V
+	public final fun collect ()V
+	public abstract fun getClasspath ()Lorg/gradle/api/file/ConfigurableFileCollection;
+	public abstract fun getOutputDirectory ()Lorg/gradle/api/file/DirectoryProperty;
+	public abstract fun getPeers ()Lorg/gradle/api/file/ConfigurableFileCollection;
+	public abstract fun getServiceName ()Lorg/gradle/api/provider/Property;
+}
+
+public abstract class me/ahoo/wow/gradle/GenerateManifestFragment : org/gradle/api/DefaultTask {
+	public fun <init> (Lorg/gradle/workers/WorkerExecutor;)V
+	public final fun generate ()V
+	public abstract fun getClasspath ()Lorg/gradle/api/file/ConfigurableFileCollection;
+	public abstract fun getFragments ()Lorg/gradle/api/file/ConfigurableFileCollection;
+	public abstract fun getOutputDirectory ()Lorg/gradle/api/file/DirectoryProperty;
+	public abstract fun getSchemaOverrides ()Lorg/gradle/api/provider/MapProperty;
+	public abstract fun getTools ()Lorg/gradle/api/file/ConfigurableFileCollection;
+}
+
+public abstract class me/ahoo/wow/gradle/GenerateOpenApi : org/gradle/api/DefaultTask {
+	public fun <init> ()V
+	public final fun generate ()V
+	public abstract fun getManifestFile ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getOutputFile ()Lorg/gradle/api/file/RegularFileProperty;
+}
+
+public abstract class me/ahoo/wow/gradle/MergeManifest : org/gradle/api/DefaultTask {
+	public fun <init> (Lorg/gradle/workers/WorkerExecutor;)V
+	public abstract fun getClasspath ()Lorg/gradle/api/file/ConfigurableFileCollection;
+	public abstract fun getOutputFile ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getServiceName ()Lorg/gradle/api/provider/Property;
+	public abstract fun getServiceVersion ()Lorg/gradle/api/provider/Property;
+	public abstract fun getTools ()Lorg/gradle/api/file/ConfigurableFileCollection;
+	public final fun merge ()V
+}
+
+public abstract class me/ahoo/wow/gradle/UpdateManifestBaseline : org/gradle/api/DefaultTask {
+	public fun <init> ()V
+	public abstract fun getBaseline ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getManifest ()Lorg/gradle/api/file/RegularFileProperty;
+	public final fun update ()V
+}
+
+public abstract class me/ahoo/wow/gradle/WowExtension {
+	public fun <init> ()V
+	public abstract fun getAddCompilerDependency ()Lorg/gradle/api/provider/Property;
+	public abstract fun getContext ()Lorg/gradle/api/provider/Property;
+	public abstract fun getManifestBaseline ()Lorg/gradle/api/file/RegularFileProperty;
+	public abstract fun getSchemaOverrides ()Lorg/gradle/api/provider/MapProperty;
+	public abstract fun getServiceName ()Lorg/gradle/api/provider/Property;
+	public abstract fun getServiceVersion ()Lorg/gradle/api/provider/Property;
+}
+
+public final class me/ahoo/wow/gradle/WowPlugin : org/gradle/api/Plugin {
+	public static final field BASELINE_FILE Ljava/lang/String;
+	public static final field CHECK_COMPATIBILITY_TASK Ljava/lang/String;
+	public static final field COLLECT_PEERS_TASK Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/gradle/WowPlugin$Companion;
+	public static final field EXTENSION Ljava/lang/String;
+	public static final field GENERATE_FRAGMENT_TASK Ljava/lang/String;
+	public static final field MANIFEST_CLASSIFIER Ljava/lang/String;
+	public static final field MANIFEST_DOCS_TYPE Ljava/lang/String;
+	public static final field MANIFEST_ELEMENTS Ljava/lang/String;
+	public static final field MERGE_TASK Ljava/lang/String;
+	public static final field OPENAPI_TASK Ljava/lang/String;
+	public static final field PEERS_CONFIGURATION Ljava/lang/String;
+	public static final field TOOLS_CONFIGURATION Ljava/lang/String;
+	public static final field UPDATE_BASELINE_TASK Ljava/lang/String;
+	public fun <init> ()V
+	public synthetic fun apply (Ljava/lang/Object;)V
+	public fun apply (Lorg/gradle/api/Project;)V
+}
+
+public final class me/ahoo/wow/gradle/WowPlugin$Companion {
+	public final fun getVersion ()Ljava/lang/String;
+}
+

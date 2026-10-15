@@ -1,0 +1,503 @@
+public final class me/ahoo/wow/manifest/AggregateManifest {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/manifest/StateManifest;Lme/ahoo/wow/manifest/SnapshotManifest;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/manifest/Ownership;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/manifest/StateManifest;Lme/ahoo/wow/manifest/SnapshotManifest;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/manifest/Ownership;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()Lme/ahoo/wow/manifest/Ownership;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Lme/ahoo/wow/manifest/StateManifest;
+	public final fun component4 ()Lme/ahoo/wow/manifest/SnapshotManifest;
+	public final fun component5 ()Ljava/util/List;
+	public final fun component6 ()Ljava/util/List;
+	public final fun component7 ()Ljava/util/List;
+	public final fun component8 ()Ljava/util/List;
+	public final fun component9 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/manifest/StateManifest;Lme/ahoo/wow/manifest/SnapshotManifest;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/manifest/Ownership;)Lme/ahoo/wow/manifest/AggregateManifest;
+	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/AggregateManifest;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/manifest/StateManifest;Lme/ahoo/wow/manifest/SnapshotManifest;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/manifest/Ownership;ILjava/lang/Object;)Lme/ahoo/wow/manifest/AggregateManifest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCommands ()Ljava/util/List;
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getEvents ()Ljava/util/List;
+	public final fun getLifecycle ()Ljava/util/List;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getOwnership ()Lme/ahoo/wow/manifest/Ownership;
+	public final fun getQueries ()Ljava/util/List;
+	public final fun getSchedules ()Ljava/util/List;
+	public final fun getSnapshot ()Lme/ahoo/wow/manifest/SnapshotManifest;
+	public final fun getState ()Lme/ahoo/wow/manifest/StateManifest;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/CommandManifest {
+	public fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lme/ahoo/wow/manifest/Creation;Ljava/util/List;Ljava/util/List;ZLjava/util/List;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lme/ahoo/wow/manifest/Creation;Ljava/util/List;Ljava/util/List;ZLjava/util/List;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Lme/ahoo/wow/manifest/Creation;
+	public final fun component5 ()Ljava/util/List;
+	public final fun component6 ()Ljava/util/List;
+	public final fun component7 ()Z
+	public final fun component8 ()Ljava/util/List;
+	public final fun component9 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lme/ahoo/wow/manifest/Creation;Ljava/util/List;Ljava/util/List;ZLjava/util/List;Ljava/lang/String;)Lme/ahoo/wow/manifest/CommandManifest;
+	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/CommandManifest;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lme/ahoo/wow/manifest/Creation;Ljava/util/List;Ljava/util/List;ZLjava/util/List;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/CommandManifest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAliases ()Ljava/util/List;
+	public final fun getCreation ()Lme/ahoo/wow/manifest/Creation;
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getMounted ()Z
+	public final fun getName ()Ljava/lang/String;
+	public final fun getProduces ()Ljava/util/List;
+	public final fun getRoutes ()Ljava/util/List;
+	public final fun getSchema ()Ljava/lang/String;
+	public final fun getTransformsTo ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/CommandRoutes {
+	public static final field ID Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/manifest/CommandRoutes;
+	public static final field POST Ljava/lang/String;
+	public static final field RESERVED_CONTEXT Ljava/lang/String;
+	public static final field SYSTEM_SEGMENT_PREFIX Ljava/lang/String;
+	public final fun byIdPath (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+	public final fun getRESERVED_SEGMENTS ()Ljava/util/Set;
+	public final fun isReserved (Ljava/lang/String;)Z
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/manifest/Creation;Z)Ljava/util/List;
+	public static synthetic fun of$default (Lme/ahoo/wow/manifest/CommandRoutes;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/manifest/Creation;ZILjava/lang/Object;)Ljava/util/List;
+	public final fun segment (Ljava/lang/String;)Ljava/lang/String;
+	public final fun unaddressed (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/RouteManifest;
+}
+
+public final class me/ahoo/wow/manifest/ContextManifest {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Ljava/util/List;
+	public final fun component5 ()Ljava/util/List;
+	public final fun component6 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/manifest/ContextManifest;
+	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/ContextManifest;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/manifest/ContextManifest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAggregates ()Ljava/util/List;
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getErrors ()Ljava/util/List;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getPublished ()Ljava/util/List;
+	public final fun getSubscriptions ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/ContextName {
+	public static final field INSTANCE Lme/ahoo/wow/manifest/ContextName;
+	public final fun getPATTERN ()Lkotlin/text/Regex;
+	public final fun isValid (Ljava/lang/String;)Z
+	public final fun problem (Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/Creation : java/lang/Enum {
+	public static final field ALLOWED Lme/ahoo/wow/manifest/Creation;
+	public static final field NONE Lme/ahoo/wow/manifest/Creation;
+	public static final field REQUIRED Lme/ahoo/wow/manifest/Creation;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/manifest/Creation;
+	public static fun values ()[Lme/ahoo/wow/manifest/Creation;
+}
+
+public final class me/ahoo/wow/manifest/ErrorManifest {
+	public fun <init> (Ljava/lang/String;ILjava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;ILjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()I
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;ILjava/lang/String;)Lme/ahoo/wow/manifest/ErrorManifest;
+	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/ErrorManifest;Ljava/lang/String;ILjava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/ErrorManifest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getStatus ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/EventManifest {
+	public fun <init> (Ljava/lang/String;Ljava/util/List;ILjava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;ILjava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()I
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/util/List;ILjava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/EventManifest;
+	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/EventManifest;Ljava/lang/String;Ljava/util/List;ILjava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/EventManifest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAliases ()Ljava/util/List;
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getRevision ()I
+	public final fun getSchema ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/FrameworkErrors {
+	public static final field AGGREGATE_DELETED Ljava/lang/String;
+	public static final field AGGREGATE_EXISTS Ljava/lang/String;
+	public static final field AGGREGATE_FORBIDDEN Ljava/lang/String;
+	public static final field AGGREGATE_NOT_FOUND Ljava/lang/String;
+	public static final field AGGREGATE_VERSION_MISMATCH Ljava/lang/String;
+	public static final field AUTH_FORBIDDEN Ljava/lang/String;
+	public static final field AUTH_UNAUTHENTICATED Ljava/lang/String;
+	public static final field COMMAND_BUSY Ljava/lang/String;
+	public static final field COMMAND_CONTENDED Ljava/lang/String;
+	public static final field COMMAND_INVALID Ljava/lang/String;
+	public static final field COMMAND_MALFORMED Ljava/lang/String;
+	public static final field COMMAND_REQUEST_ID_REUSED Ljava/lang/String;
+	public static final field COMMAND_UNHANDLED Ljava/lang/String;
+	public static final field COMMAND_UNKNOWN Ljava/lang/String;
+	public static final field DOMAIN_REJECTION_STATUS I
+	public static final field INSTANCE Lme/ahoo/wow/manifest/FrameworkErrors;
+	public static final field NODE_CLOSING Ljava/lang/String;
+	public static final field PRECONDITION_FAILED_STATUS I
+	public static final field PREFIX Ljava/lang/String;
+	public static final field QUERY_FAILED Ljava/lang/String;
+	public static final field QUERY_INVALID Ljava/lang/String;
+	public static final field QUERY_MALFORMED Ljava/lang/String;
+	public static final field QUERY_TIMEOUT Ljava/lang/String;
+	public static final field SCHEDULE_JOB_INVALID Ljava/lang/String;
+	public static final field SCHEDULE_NOT_DUE Ljava/lang/String;
+	public static final field STORAGE_UNAVAILABLE Ljava/lang/String;
+	public static final field SUBSCRIPTION_PARKED Ljava/lang/String;
+	public static final field WAIT_INVALID Ljava/lang/String;
+	public static final field WAIT_TIMEOUT Ljava/lang/String;
+	public final fun getALL ()Ljava/util/List;
+	public final fun getBY_CODE ()Ljava/util/Map;
+}
+
+public final class me/ahoo/wow/manifest/FunctionKind : java/lang/Enum {
+	public static final field COMMAND Lme/ahoo/wow/manifest/FunctionKind;
+	public static final field PROJECT Lme/ahoo/wow/manifest/FunctionKind;
+	public static final field REACT Lme/ahoo/wow/manifest/FunctionKind;
+	public static final field SAGA Lme/ahoo/wow/manifest/FunctionKind;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/manifest/FunctionKind;
+	public static fun values ()[Lme/ahoo/wow/manifest/FunctionKind;
+}
+
+public final class me/ahoo/wow/manifest/FunctionManifest {
+	public fun <init> (Lme/ahoo/wow/manifest/FunctionKind;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Lme/ahoo/wow/manifest/FunctionKind;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Lme/ahoo/wow/manifest/FunctionKind;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/FunctionManifest;
+	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/FunctionManifest;Lme/ahoo/wow/manifest/FunctionKind;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/FunctionManifest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getContext ()Ljava/lang/String;
+	public final fun getKind ()Lme/ahoo/wow/manifest/FunctionKind;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getProcessor ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/JobManifest {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Z
+	public final fun component6 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;)Lme/ahoo/wow/manifest/JobManifest;
+	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/JobManifest;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/JobManifest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCron ()Ljava/lang/String;
+	public final fun getMisfire ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getScope ()Ljava/lang/String;
+	public final fun getSharded ()Z
+	public final fun getZone ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/Manifest {
+	public static final field Companion Lme/ahoo/wow/manifest/Manifest$Companion;
+	public static final field FORMAT I
+	public static final field FRAGMENT_DIRECTORY Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (ILme/ahoo/wow/manifest/ServiceInfo;Ljava/util/List;Ljava/util/List;Ljava/util/Map;)V
+	public synthetic fun <init> (ILme/ahoo/wow/manifest/ServiceInfo;Ljava/util/List;Ljava/util/List;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component2 ()Lme/ahoo/wow/manifest/ServiceInfo;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Ljava/util/List;
+	public final fun component5 ()Ljava/util/Map;
+	public final fun copy (ILme/ahoo/wow/manifest/ServiceInfo;Ljava/util/List;Ljava/util/List;Ljava/util/Map;)Lme/ahoo/wow/manifest/Manifest;
+	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/Manifest;ILme/ahoo/wow/manifest/ServiceInfo;Ljava/util/List;Ljava/util/List;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/manifest/Manifest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getContexts ()Ljava/util/List;
+	public final fun getDefs ()Ljava/util/Map;
+	public final fun getErrors ()Ljava/util/List;
+	public final fun getFormat ()I
+	public final fun getSchemaRefs ()Ljava/util/List;
+	public final fun getService ()Lme/ahoo/wow/manifest/ServiceInfo;
+	public final fun getUnresolvedSchemaRefs ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/Manifest$Companion {
+	public final fun schemaKey (Ljava/lang/String;)Ljava/lang/String;
+	public final fun schemaRef (Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/ManifestConflictException : java/lang/IllegalStateException {
+	public fun <init> (Ljava/util/List;)V
+	public final fun getConflicts ()Ljava/util/List;
+}
+
+public final class me/ahoo/wow/manifest/ManifestFragment {
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/manifest/Manifest;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lme/ahoo/wow/manifest/Manifest;
+	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/manifest/Manifest;)Lme/ahoo/wow/manifest/ManifestFragment;
+	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/ManifestFragment;Ljava/lang/String;Lme/ahoo/wow/manifest/Manifest;ILjava/lang/Object;)Lme/ahoo/wow/manifest/ManifestFragment;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getManifest ()Lme/ahoo/wow/manifest/Manifest;
+	public final fun getSource ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/ManifestMerger {
+	public static final field INSTANCE Lme/ahoo/wow/manifest/ManifestMerger;
+	public final fun merge (Ljava/util/List;Lme/ahoo/wow/manifest/ServiceInfo;)Lme/ahoo/wow/manifest/Manifest;
+	public static synthetic fun merge$default (Lme/ahoo/wow/manifest/ManifestMerger;Ljava/util/List;Lme/ahoo/wow/manifest/ServiceInfo;ILjava/lang/Object;)Lme/ahoo/wow/manifest/Manifest;
+}
+
+public final class me/ahoo/wow/manifest/ManifestTree {
+	public static final field INSTANCE Lme/ahoo/wow/manifest/ManifestTree;
+	public final fun read (Ljava/util/Map;)Lme/ahoo/wow/manifest/Manifest;
+	public final fun write (Lme/ahoo/wow/manifest/Manifest;)Ljava/util/Map;
+}
+
+public final class me/ahoo/wow/manifest/Ownership : java/lang/Enum {
+	public static final field OWNER Lme/ahoo/wow/manifest/Ownership;
+	public static final field TENANT Lme/ahoo/wow/manifest/Ownership;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/manifest/Ownership;
+	public static fun values ()[Lme/ahoo/wow/manifest/Ownership;
+}
+
+public final class me/ahoo/wow/manifest/PeerManifests {
+	public static final field DIRECTORY Ljava/lang/String;
+	public static final field INDEX Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/manifest/PeerManifests;
+	public final fun conflicts (Ljava/lang/String;Ljava/util/Collection;Ljava/util/List;)Ljava/util/List;
+	public final fun fileName (Ljava/lang/String;)Ljava/lang/String;
+	public final fun outside (Ljava/util/Collection;Ljava/util/List;)Ljava/util/List;
+	public final fun resource (Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/PublishedManifest {
+	public static final field Companion Lme/ahoo/wow/manifest/PublishedManifest$Companion;
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Z)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Z
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Z)Lme/ahoo/wow/manifest/PublishedManifest;
+	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/PublishedManifest;Ljava/lang/String;Ljava/lang/String;ZILjava/lang/Object;)Lme/ahoo/wow/manifest/PublishedManifest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAggregate ()Ljava/lang/String;
+	public final fun getIncludeState ()Z
+	public final fun getTopic ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/PublishedManifest$Companion {
+	public final fun defaultTopic (Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/QueryManifest {
+	public fun <init> (Ljava/lang/String;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun copy (Ljava/lang/String;Ljava/util/List;)Lme/ahoo/wow/manifest/QueryManifest;
+	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/QueryManifest;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/manifest/QueryManifest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getModel ()Ljava/lang/String;
+	public final fun getRoutes ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/QueryRoutes {
+	public static final field EVENTS Ljava/lang/String;
+	public static final field GET Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/manifest/QueryRoutes;
+	public static final field SEGMENT Ljava/lang/String;
+	public static final field SNAPSHOT Ljava/lang/String;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Ljava/util/List;
+	public final fun queries (Ljava/lang/String;Ljava/lang/String;Z)Ljava/util/List;
+}
+
+public final class me/ahoo/wow/manifest/RetryManifest {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/Integer;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/RetryManifest;
+	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/RetryManifest;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/RetryManifest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getInitialBackoff ()Ljava/lang/String;
+	public final fun getMaxAttempts ()Ljava/lang/Integer;
+	public final fun getMaxBackoff ()Ljava/lang/String;
+	public final fun getTimeout ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/RouteManifest {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/RouteManifest;
+	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/RouteManifest;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/RouteManifest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMethod ()Ljava/lang/String;
+	public final fun getPath ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/ServiceInfo {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/ServiceInfo;
+	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/ServiceInfo;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/ServiceInfo;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getName ()Ljava/lang/String;
+	public final fun getVersion ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/SnapshotManifest {
+	public fun <init> ()V
+	public fun <init> (ZI)V
+	public synthetic fun <init> (ZIILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Z
+	public final fun component2 ()I
+	public final fun copy (ZI)Lme/ahoo/wow/manifest/SnapshotManifest;
+	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/SnapshotManifest;ZIILjava/lang/Object;)Lme/ahoo/wow/manifest/SnapshotManifest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEnabled ()Z
+	public final fun getStateRevision ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/StateManifest {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/StateManifest;
+	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/StateManifest;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/StateManifest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFingerprint ()Ljava/lang/String;
+	public final fun getSchema ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/SubscriptionKind : java/lang/Enum {
+	public static final field PROJECTION Lme/ahoo/wow/manifest/SubscriptionKind;
+	public static final field REACTOR Lme/ahoo/wow/manifest/SubscriptionKind;
+	public static final field SAGA Lme/ahoo/wow/manifest/SubscriptionKind;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/manifest/SubscriptionKind;
+	public static fun values ()[Lme/ahoo/wow/manifest/SubscriptionKind;
+}
+
+public final class me/ahoo/wow/manifest/SubscriptionManifest {
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/manifest/SubscriptionKind;Lme/ahoo/wow/manifest/SubscriptionSource;Lme/ahoo/wow/manifest/FunctionManifest;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/manifest/SubscriptionStart;Ljava/util/List;Lme/ahoo/wow/manifest/RetryManifest;Ljava/util/List;Lme/ahoo/wow/manifest/JobManifest;)V
+	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/manifest/SubscriptionKind;Lme/ahoo/wow/manifest/SubscriptionSource;Lme/ahoo/wow/manifest/FunctionManifest;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/manifest/SubscriptionStart;Ljava/util/List;Lme/ahoo/wow/manifest/RetryManifest;Ljava/util/List;Lme/ahoo/wow/manifest/JobManifest;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()Ljava/util/List;
+	public final fun component11 ()Lme/ahoo/wow/manifest/JobManifest;
+	public final fun component2 ()Lme/ahoo/wow/manifest/SubscriptionKind;
+	public final fun component3 ()Lme/ahoo/wow/manifest/SubscriptionSource;
+	public final fun component4 ()Lme/ahoo/wow/manifest/FunctionManifest;
+	public final fun component5 ()Ljava/util/List;
+	public final fun component6 ()Ljava/util/List;
+	public final fun component7 ()Lme/ahoo/wow/manifest/SubscriptionStart;
+	public final fun component8 ()Ljava/util/List;
+	public final fun component9 ()Lme/ahoo/wow/manifest/RetryManifest;
+	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/manifest/SubscriptionKind;Lme/ahoo/wow/manifest/SubscriptionSource;Lme/ahoo/wow/manifest/FunctionManifest;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/manifest/SubscriptionStart;Ljava/util/List;Lme/ahoo/wow/manifest/RetryManifest;Ljava/util/List;Lme/ahoo/wow/manifest/JobManifest;)Lme/ahoo/wow/manifest/SubscriptionManifest;
+	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/SubscriptionManifest;Ljava/lang/String;Lme/ahoo/wow/manifest/SubscriptionKind;Lme/ahoo/wow/manifest/SubscriptionSource;Lme/ahoo/wow/manifest/FunctionManifest;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/manifest/SubscriptionStart;Ljava/util/List;Lme/ahoo/wow/manifest/RetryManifest;Ljava/util/List;Lme/ahoo/wow/manifest/JobManifest;ILjava/lang/Object;)Lme/ahoo/wow/manifest/SubscriptionManifest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCommitted ()Ljava/util/List;
+	public final fun getDerives ()Ljava/util/List;
+	public final fun getFunction ()Lme/ahoo/wow/manifest/FunctionManifest;
+	public final fun getJob ()Lme/ahoo/wow/manifest/JobManifest;
+	public final fun getKind ()Lme/ahoo/wow/manifest/SubscriptionKind;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getRejected ()Ljava/util/List;
+	public final fun getRetry ()Lme/ahoo/wow/manifest/RetryManifest;
+	public final fun getSchedules ()Ljava/util/List;
+	public final fun getSource ()Lme/ahoo/wow/manifest/SubscriptionSource;
+	public final fun getStart ()Lme/ahoo/wow/manifest/SubscriptionStart;
+	public fun hashCode ()I
+	public final fun isReceiptHandler ()Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/SubscriptionSource {
+	public fun <init> ()V
+	public fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/util/List;Z)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/util/List;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()Z
+	public final fun copy (Ljava/lang/String;Ljava/util/List;Ljava/util/List;Z)Lme/ahoo/wow/manifest/SubscriptionSource;
+	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/SubscriptionSource;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ZILjava/lang/Object;)Lme/ahoo/wow/manifest/SubscriptionSource;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAggregates ()Ljava/util/List;
+	public final fun getContext ()Ljava/lang/String;
+	public final fun getEvents ()Ljava/util/List;
+	public final fun getNullableState ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/manifest/SubscriptionStart : java/lang/Enum {
+	public static final field BEGINNING Lme/ahoo/wow/manifest/SubscriptionStart;
+	public static final field Companion Lme/ahoo/wow/manifest/SubscriptionStart$Companion;
+	public static final field END Lme/ahoo/wow/manifest/SubscriptionStart;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/manifest/SubscriptionStart;
+	public static fun values ()[Lme/ahoo/wow/manifest/SubscriptionStart;
+}
+
+public final class me/ahoo/wow/manifest/SubscriptionStart$Companion {
+	public final fun defaultFor (Lme/ahoo/wow/manifest/SubscriptionKind;)Lme/ahoo/wow/manifest/SubscriptionStart;
+}
+

@@ -1,0 +1,156 @@
+public final class me/ahoo/wow/test/AggregateSpec {
+	public fun <init> (Lme/ahoo/wow/kernel/AggregateModel;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/time/Instant;)V
+	public synthetic fun <init> (Lme/ahoo/wow/kernel/AggregateModel;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/time/Instant;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun advanceTime-VtjQ1oo (JLkotlin/jvm/functions/Function1;)V
+	public static synthetic fun advanceTime-VtjQ1oo$default (Lme/ahoo/wow/test/AggregateSpec;JLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public final fun expectNothingDue-LRDsOJo (J)V
+	public final fun fork (Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun fork$default (Lme/ahoo/wow/test/AggregateSpec;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public final fun getNow ()Ljava/time/Instant;
+	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun given ([Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;)V
+	public static synthetic fun given$default (Lme/ahoo/wow/test/AggregateSpec;[Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;ILjava/lang/Object;)V
+	public final fun givenState (ILme/ahoo/wow/api/aggregate/Scope;Lkotlin/jvm/functions/Function1;)V
+	public final fun givenState (Ljava/lang/Object;ILme/ahoo/wow/api/aggregate/Scope;)V
+	public static synthetic fun givenState$default (Lme/ahoo/wow/test/AggregateSpec;ILme/ahoo/wow/api/aggregate/Scope;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static synthetic fun givenState$default (Lme/ahoo/wow/test/AggregateSpec;Ljava/lang/Object;ILme/ahoo/wow/api/aggregate/Scope;ILjava/lang/Object;)V
+	public final fun ref (Ljava/lang/String;)V
+	public final fun timer (Ljava/lang/String;)Lme/ahoo/wow/spi/timer/Timer;
+	public final fun whenCommand (Ljava/lang/Object;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun whenCommand$default (Lme/ahoo/wow/test/AggregateSpec;Ljava/lang/Object;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+}
+
+public final class me/ahoo/wow/test/AggregateSpecKt {
+	public static final fun aggregateSpec (Lme/ahoo/wow/kernel/AggregateModel;Ljava/lang/String;Ljava/lang/String;Ljava/time/Instant;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun aggregateSpec$default (Lme/ahoo/wow/kernel/AggregateModel;Ljava/lang/String;Ljava/lang/String;Ljava/time/Instant;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static final fun getDEFAULT_START ()Ljava/time/Instant;
+}
+
+public final class me/ahoo/wow/test/CallResultsKt {
+	public static final fun committedResult (Lme/ahoo/wow/api/decide/Command;)Lme/ahoo/wow/api/result/CommandResult;
+	public static final fun committedResult (Lme/ahoo/wow/api/decide/Command;I)Lme/ahoo/wow/api/result/CommandResult;
+	public static final fun committedResult (Lme/ahoo/wow/api/decide/Command;ILjava/lang/String;)Lme/ahoo/wow/api/result/CommandResult;
+	public static final fun committedResult (Lme/ahoo/wow/api/decide/Command;ILjava/lang/String;Z)Lme/ahoo/wow/api/result/CommandResult;
+	public static synthetic fun committedResult$default (Lme/ahoo/wow/api/decide/Command;ILjava/lang/String;ZILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
+	public static final fun failedResult (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;)Lme/ahoo/wow/api/result/CommandResult;
+	public static final fun failedResult (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/result/CommandResult;
+	public static synthetic fun failedResult$default (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
+	public static final fun rejectedResult (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;)Lme/ahoo/wow/api/result/CommandResult;
+	public static final fun rejectedResult (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/result/CommandResult;
+	public static synthetic fun rejectedResult$default (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/result/CommandResult;
+}
+
+public final class me/ahoo/wow/test/Expectations {
+	public final fun expectError (Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;)Ljava/lang/Throwable;
+	public static synthetic fun expectError$default (Lme/ahoo/wow/test/Expectations;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Ljava/lang/Throwable;
+	public final fun expectEvent (Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;)Ljava/lang/Object;
+	public static synthetic fun expectEvent$default (Lme/ahoo/wow/test/Expectations;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun expectEventTypes ([Ljava/lang/Class;)V
+	public final fun expectEventTypes ([Lkotlin/reflect/KClass;)V
+	public final fun expectEvents ([Ljava/lang/Object;)V
+	public final fun expectNoError ()V
+	public final fun expectRejected (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun expectRejected$default (Lme/ahoo/wow/test/Expectations;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public final fun expectScheduleCancelled (Ljava/lang/String;)V
+	public final fun expectScheduled (Ljava/lang/String;Ljava/lang/Object;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/aggregate/AggregateRef;)V
+	public static synthetic fun expectScheduled$default (Lme/ahoo/wow/test/Expectations;Ljava/lang/String;Ljava/lang/Object;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/Object;)V
+	public final fun expectScope (Lme/ahoo/wow/api/aggregate/Scope;)V
+	public final fun expectState (Lkotlin/jvm/functions/Function1;)V
+	public final fun expectUnchanged ()V
+	public final fun getError ()Ljava/lang/Throwable;
+	public final fun getOutcome ()Lme/ahoo/wow/kernel/CommandOutcome;
+}
+
+public final class me/ahoo/wow/test/ForkAssertionError : java/lang/AssertionError {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
+}
+
+public final class me/ahoo/wow/test/ProcessorExpectations {
+	public final fun expectCalls ([Ljava/lang/Object;)V
+	public final fun expectCommand (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/decide/Command;
+	public final fun expectCommand (Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/api/decide/Command;
+	public static synthetic fun expectCommand$default (Lme/ahoo/wow/test/ProcessorExpectations;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
+	public static synthetic fun expectCommand$default (Lme/ahoo/wow/test/ProcessorExpectations;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
+	public final fun expectCommandTypes ([Lkotlin/reflect/KClass;)V
+	public final fun expectCommands ([Ljava/lang/Object;)V
+	public final fun expectDeterministic ()V
+	public final fun expectError (Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;)Ljava/lang/Throwable;
+	public static synthetic fun expectError$default (Lme/ahoo/wow/test/ProcessorExpectations;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Ljava/lang/Throwable;
+	public final fun expectHandledBy ([Ljava/lang/String;)V
+	public final fun expectNoCall ()V
+	public final fun expectNoCommand ()V
+	public final fun expectNoError ()V
+	public final fun expectNoSchedule ()V
+	public final fun expectScheduleCancelled (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)V
+	public static synthetic fun expectScheduleCancelled$default (Lme/ahoo/wow/test/ProcessorExpectations;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/Object;)V
+	public final fun expectScheduled (Ljava/lang/String;Ljava/lang/Object;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/aggregate/AggregateRef;)V
+	public static synthetic fun expectScheduled$default (Lme/ahoo/wow/test/ProcessorExpectations;Ljava/lang/String;Ljava/lang/Object;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/Object;)V
+	public final fun getCalls ()Ljava/util/List;
+	public final fun getCommands ()Ljava/util/List;
+	public final fun getError ()Ljava/lang/Throwable;
+	public final fun getHandled ()Ljava/util/List;
+	public final fun getSchedules ()Ljava/util/List;
+}
+
+public final class me/ahoo/wow/test/ProcessorSpec {
+	public fun <init> (Ljava/util/List;Lme/ahoo/wow/api/result/FunctionKind;)V
+	public final fun answerCalls (Lkotlin/jvm/functions/Function1;)V
+	public final fun getHandlers ()Ljava/util/List;
+	public final fun getProcessor ()Ljava/lang/String;
+	public final fun whenCommitted (Lme/ahoo/wow/api/decide/Command;ILjava/lang/String;ZLjava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public final fun whenCommitted (Lme/ahoo/wow/api/subscribe/CommandCommitted;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun whenCommitted$default (Lme/ahoo/wow/test/ProcessorSpec;Lme/ahoo/wow/api/decide/Command;ILjava/lang/String;ZLjava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public final fun whenEvent (Lme/ahoo/wow/api/subscribe/StateEvent;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun whenEvent$default (Lme/ahoo/wow/test/ProcessorSpec;Lme/ahoo/wow/api/subscribe/StateEvent;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public final fun whenRejected (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public final fun whenRejected (Lme/ahoo/wow/api/subscribe/CommandRejected;Lkotlin/reflect/KClass;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun whenRejected$default (Lme/ahoo/wow/test/ProcessorSpec;Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+}
+
+public final class me/ahoo/wow/test/ProcessorSpecKt {
+	public static final fun projectionSpec (Ljava/util/List;Lkotlin/jvm/functions/Function1;)V
+	public static final fun reactorSpec (Ljava/util/List;Lkotlin/jvm/functions/Function1;)V
+	public static final fun sagaSpec (Ljava/util/List;Lkotlin/jvm/functions/Function1;)V
+}
+
+public final class me/ahoo/wow/test/ScheduleSpec {
+	public fun <init> (Ljava/util/List;Ljava/lang/String;Ljava/time/Instant;I)V
+	public final fun advanceTime-VtjQ1oo (JLkotlin/jvm/functions/Function1;)V
+	public static synthetic fun advanceTime-VtjQ1oo$default (Lme/ahoo/wow/test/ScheduleSpec;JLkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public final fun disable (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;)V
+	public static synthetic fun disable$default (Lme/ahoo/wow/test/ScheduleSpec;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;ILjava/lang/Object;)V
+	public final fun enable (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/schedule/JobRule;Ljava/lang/Integer;)V
+	public static synthetic fun enable$default (Lme/ahoo/wow/test/ScheduleSpec;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/schedule/JobRule;Ljava/lang/Integer;ILjava/lang/Object;)V
+	public final fun getHandlers ()Ljava/util/List;
+	public final fun getNow ()Ljava/time/Instant;
+	public final fun getTicks ()Ljava/util/List;
+	public final fun instanceOf (Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/kernel/schedule/JobState;
+	public static synthetic fun instanceOf$default (Lme/ahoo/wow/test/ScheduleSpec;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Integer;ILjava/lang/Object;)Lme/ahoo/wow/kernel/schedule/JobState;
+	public final fun reschedule (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/schedule/JobRule;Ljava/lang/Integer;)V
+	public static synthetic fun reschedule$default (Lme/ahoo/wow/test/ScheduleSpec;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/schedule/JobRule;Ljava/lang/Integer;ILjava/lang/Object;)V
+	public final fun whenTick (Lme/ahoo/wow/api/schedule/ScheduleTick;Lkotlin/jvm/functions/Function1;)V
+}
+
+public final class me/ahoo/wow/test/ScheduleSpecKt {
+	public static final fun scheduleSpec (Ljava/util/List;Ljava/lang/String;Ljava/time/Instant;ILkotlin/jvm/functions/Function1;)V
+	public static synthetic fun scheduleSpec$default (Ljava/util/List;Ljava/lang/String;Ljava/time/Instant;ILkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+}
+
+public final class me/ahoo/wow/test/SequentialIds : me/ahoo/wow/api/id/Ids {
+	public static final field Companion Lme/ahoo/wow/test/SequentialIds$Companion;
+	public static final field GLOBAL Ljava/lang/String;
+	public fun <init> ()V
+	public fun next ()Ljava/lang/String;
+	public fun next (Lme/ahoo/wow/api/aggregate/AggregateType;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/test/SequentialIds$Companion {
+}
+
+public final class me/ahoo/wow/test/StateEventsKt {
+	public static final fun publishedEvent (Ljava/lang/String;Ljava/lang/Object;I)Lme/ahoo/wow/spi/state/StateEventPayload;
+	public static synthetic fun publishedEvent$default (Ljava/lang/String;Ljava/lang/Object;IILjava/lang/Object;)Lme/ahoo/wow/spi/state/StateEventPayload;
+	public static final fun stateEvent (Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;[Ljava/lang/Object;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/api/subscribe/StateEvent;
+	public static synthetic fun stateEvent$default (Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;[Ljava/lang/Object;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/StateEvent;
+}
+
