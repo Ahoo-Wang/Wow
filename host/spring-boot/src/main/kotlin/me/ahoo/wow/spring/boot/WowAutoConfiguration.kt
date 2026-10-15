@@ -41,6 +41,7 @@ import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
+import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.TenantPolicy
@@ -399,6 +400,13 @@ class WowAutoConfiguration {
         events: ApplicationEventPublisher,
         availability: ObjectProvider<ApplicationAvailability>,
     ): ServiceNodeLifecycle = ServiceNodeLifecycle(node, events) { availability.ifAvailable }
+
+    /**
+     * The node's command gateway (decision D92), through which the application sends commands in process. The node
+     * closes it when it stops.
+     */
+    @Bean(destroyMethod = "")
+    fun wowCommandGateway(node: ServiceNode): CommandGateway = node.gateway
 
     @Bean
     @ConditionalOnMissingBean

@@ -488,7 +488,6 @@ class ServiceNode @InternalWowApi constructor(
     }
 
     /** Admits the commands of every context. */
-    @InternalWowApi
     val gateway: CommandGateway = CommandGateway(
         registry,
         contexts.mapValues { it.value.coordinator },

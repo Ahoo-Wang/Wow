@@ -14,7 +14,6 @@
 package me.ahoo.wow.runtime.admission
 
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
@@ -39,7 +38,6 @@ import tools.jackson.databind.JsonNode
  * [call] is the root command a service identity's synchronous call acts for (decision D193, the `Wow-Call` header):
  * admission takes it only from a caller that is a [service][Caller.service] identity.
  */
-@InternalWowApi
 data class CommandRequest(
     val context: String,
     val aggregate: String,
@@ -63,19 +61,15 @@ data class CommandRequest(
 }
 
 /** The undecoded body of a [CommandRequest]: JSON [Bytes] as received, or a JSON [Tree] already parsed. */
-@InternalWowApi
 sealed interface CommandBody {
     /** A JSON document as received; decoding it is admission's job, so a malformed one is answered as such. */
-    @InternalWowApi
     class Bytes(val bytes: ByteArray) : CommandBody {
         override fun toString(): String = "Bytes(${bytes.size})"
     }
 
     /** A parsed JSON document. */
-    @InternalWowApi
     data class Tree(val node: JsonNode) : CommandBody
 
-    @InternalWowApi
     companion object {
         /** [json] as a body. */
         @JvmStatic
