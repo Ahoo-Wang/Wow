@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spring.boot
 
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -21,6 +23,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kafka.KafkaPartitionedSource
 import me.ahoo.wow.kafka.KafkaTopicAdmin
 import me.ahoo.wow.kafka.KafkaTopicProducer
+import me.ahoo.wow.kafka.OffsetGapPolicy
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PublishedManifest
@@ -108,14 +111,20 @@ class HostKafkaSinkTest {
                 "wow.kafka.topics.replication-factor=3",
                 "wow.kafka.topics.configs.retention.ms=600000",
                 "wow.kafka.topics.partition-refresh=5s",
+                "wow.kafka.offset-gap=earliest",
             )
             .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
+            .withBean(MeterRegistry::class.java, { SimpleMeterRegistry() })
             .run { context ->
                 context.getBean(TopicProducer::class.java).assert().isInstanceOf(KafkaTopicProducer::class.java)
                 val sinks = context.getBean(PublishedSinks::class.java)
                 sinks.factory.assert().isNotNull()
                 val topics = context.getBean(SourceTopics::class.java)
-                topics.source.assert().isInstanceOf(KafkaPartitionedSource::class.java)
+                val source = topics.source as KafkaPartitionedSource
+                // An offset gap reads on from the earliest offset, as configured, and is counted (finding A2-11).
+                source.offsetGap.assert().isEqualTo(OffsetGapPolicy.EARLIEST)
+                context.getBean(MeterRegistry::class.java).get(KafkaAutoConfiguration.OFFSET_GAPS).functionCounter()
+                    .count().assert().isEqualTo(0.0)
                 topics.topicOf("wow.order.order.state").assert().isEqualTo("test.wow.order.order.state")
                 // Commands across contexts go through the same producer; the intake is off unless asked for.
                 topics.producer.assert().isSameAs(context.getBean(TopicProducer::class.java))

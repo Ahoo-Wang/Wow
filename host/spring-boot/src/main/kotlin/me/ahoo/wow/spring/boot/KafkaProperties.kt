@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.kafka.OffsetGapPolicy
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.TopicDdl
 import org.springframework.boot.context.properties.ConfigurationProperties
@@ -32,6 +33,11 @@ import kotlin.time.toJavaDuration
  *   write under it and the subscriptions of other contexts' streams read under it.
  * - `wow.kafka.poll-timeout`: the longest a consumer's poll waits (200 ms by default); a read that is cancelled, and
  *   a partition that joins or leaves a topic's shared consumer, take effect within it.
+ * - `wow.kafka.offset-gap` (finding A2-11): what a read of another context's topic does when its partition no longer
+ *   holds the offset it is to read from (the retention deleted it, or the topic was created again): `fail` (the
+ *   default) fails the read, so the subscription stays where it is, logging errors, until an operator moves its
+ *   checkpoint; `earliest` reads on from the earliest offset retained. Either way the gap is logged as an error and
+ *   counted (`wow.kafka.offset.gaps`).
  * - `wow.kafka.command-intake`: whether each context the node hosts executes the commands other contexts send to its
  *   command topic, `wow.<context>.commands` (decisions D135, D137); off by default. The topic must exist with as
  *   many partitions as the context's log, and the node checks it at start. Sending commands to other contexts and
@@ -54,6 +60,7 @@ class KafkaProperties {
     var topicPrefix: String = ""
     var pollTimeout: Duration = Duration.ofMillis(DEFAULT_POLL_TIMEOUT_MILLIS)
     var commandIntake: Boolean = false
+    var offsetGap: OffsetGapPolicy = OffsetGapPolicy.FAIL
     var topics: Topics = Topics()
 
     /** The topics the node's contexts own (decision D168): their DDL, and how `auto` creates them. */

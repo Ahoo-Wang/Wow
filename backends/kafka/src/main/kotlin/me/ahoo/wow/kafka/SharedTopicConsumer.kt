@@ -26,6 +26,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.wow.spi.transport.SourceMessage
 import org.apache.kafka.clients.consumer.Consumer
 import org.apache.kafka.clients.consumer.ConsumerRecords
+import org.apache.kafka.clients.consumer.OffsetOutOfRangeException
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.errors.WakeupException
 import org.slf4j.LoggerFactory
@@ -42,6 +43,10 @@ import kotlin.time.toJavaDuration
  * runs while some partition is joined: the last [leave] stops it and closes the consumer. A consumer that fails closes
  * every joined channel with the failure; their readers read again.
  *
+ * A partition that does not hold the offset its reader is to read from, when it joins or later (the retention deleted
+ * what a paused partition had yet to read; the consumers reset no offset on their own), is handled by [gaps]' policy
+ * (finding A2-11): that reader alone fails with an [OffsetGapException], or reads on from the earliest offset retained.
+ *
  * Each run of the coroutine is a [Session] of its own: the last [leave] ends the session at once, so a partition that
  * joins right after it starts a new session, with a consumer of its own, instead of reviving the one stopping, which
  * the leave waits for (finding C.1 F1).
@@ -52,6 +57,7 @@ internal class SharedTopicConsumer(
     private val pollTimeout: Duration,
     dispatcher: CoroutineDispatcher,
     private val buffer: Int = DEFAULT_BUFFER,
+    private val gaps: OffsetGaps = OffsetGaps(),
 ) : AutoCloseable {
     private val scope = CoroutineScope(dispatcher + SupervisorJob())
 
@@ -152,16 +158,22 @@ internal class SharedTopicConsumer(
                     flush(consumer, assigned)
                 } catch (_: WakeupException) {
                     // Another join or leave woke the consumer: the next round applies it.
+                } catch (outOfRange: OffsetOutOfRangeException) {
+                    place(consumer, assigned, outOfRange.partitions().mapNotNull { assigned[it.partition()] })
+                }
+                if (endedEmpty(session)) {
+                    return
                 }
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (failure: Throwable) {
+        } catch (failure: Exception) {
             logger.warn("The consumer of {} failed; its tails read again.", topic, failure)
             end(session, failure)
-            if (failure is Error) {
-                throw failure
-            }
+        } catch (failure: Error) {
+            // Fails the readers too, which would wait forever otherwise, then goes on failing.
+            end(session, failure)
+            throw failure
         } finally {
             consumer?.let { withContext(NonCancellable) { it.close() } }
         }
@@ -177,8 +189,8 @@ internal class SharedTopicConsumer(
     }
 
     /**
-     * Assigns the joined partitions and seeks each one to its next offset: a new one to the offset it joined at (past
-     * the end, to the end, the records before the offset then skipped), a kept one to where it was.
+     * Assigns the joined partitions and seeks each one to its next offset: a new one to the offset it joined at, a kept
+     * one to where it was ([place]).
      */
     private fun reassign(consumer: Consumer<String, ByteArray>, assigned: HashMap<Int, Reader>, changed: List<Reader>) {
         changed.forEach { reader ->
@@ -188,15 +200,55 @@ internal class SharedTopicConsumer(
                 assigned[reader.partition] = reader
             }
         }
-        val partitions = assigned.keys.map { TopicPartition(topic, it) }
-        consumer.assign(partitions)
-        if (partitions.isEmpty()) {
+        consumer.assign(assigned.keys.map { TopicPartition(topic, it) })
+        place(consumer, assigned, assigned.values.toList())
+    }
+
+    /**
+     * Seeks each of [placing] to its next offset, when its partition holds it; otherwise [gaps] decides (finding A2-11):
+     * the reader reads on from the earliest offset retained, or fails alone and leaves the assignment.
+     */
+    private fun place(consumer: Consumer<String, ByteArray>, assigned: HashMap<Int, Reader>, placing: List<Reader>) {
+        if (placing.isEmpty()) {
             return
         }
+        val partitions = placing.map { TopicPartition(topic, it.partition) }
+        val starts = consumer.beginningOffsets(partitions)
         val ends = consumer.endOffsets(partitions)
-        assigned.values.forEach { reader ->
+        val failed = ArrayList<Pair<Reader, OffsetGapException>>()
+        placing.forEach { reader ->
             val partition = TopicPartition(topic, reader.partition)
-            consumer.seek(partition, minOf(reader.next, ends.getValue(partition)))
+            try {
+                reader.next = gaps.resolve(
+                    topic,
+                    reader.partition,
+                    reader.next,
+                    starts.getValue(partition),
+                    ends.getValue(partition),
+                )
+                consumer.seek(partition, reader.next)
+            } catch (gap: OffsetGapException) {
+                failed += reader to gap
+            }
+        }
+        if (failed.isEmpty()) {
+            return
+        }
+        failed.forEach { (reader, gap) ->
+            assigned.remove(reader.partition, reader)
+            synchronized(lock) { readers.remove(reader.partition, reader) }
+            reader.channel.close(gap)
+        }
+        consumer.assign(assigned.keys.map { TopicPartition(topic, it) })
+    }
+
+    /** Ends [session] when its readers have all failed alone ([place]): nothing is left to poll for. */
+    private fun endedEmpty(session: Session): Boolean = synchronized(lock) {
+        if (this.session === session && readers.isEmpty() && session.changes.isEmpty()) {
+            this.session = null
+            true
+        } else {
+            false
         }
     }
 

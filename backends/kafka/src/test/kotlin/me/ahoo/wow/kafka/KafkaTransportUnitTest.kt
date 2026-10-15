@@ -29,6 +29,7 @@ import me.ahoo.wow.spi.transport.TopicMessage
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.consumer.MockConsumer
+import org.apache.kafka.clients.consumer.OffsetOutOfRangeException
 import org.apache.kafka.clients.producer.MockProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.PartitionInfo
@@ -63,7 +64,7 @@ class KafkaTransportUnitTest {
         val consumer = options.consumerConfig()
         consumer.containsKey(ConsumerConfig.GROUP_ID_CONFIG).assert().isFalse()
         consumer[ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG].assert().isEqualTo(false)
-        consumer[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG].assert().isEqualTo("earliest")
+        consumer[ConsumerConfig.AUTO_OFFSET_RESET_CONFIG].assert().isEqualTo("none")
         consumer[ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG].assert().isEqualTo(false)
         consumer[ConsumerConfig.METADATA_MAX_AGE_CONFIG].assert().isEqualTo(30_000L)
         KafkaOptions("broker:9092", mapOf("metadata.max.age.ms" to "1000")).consumerConfig()["metadata.max.age.ms"]
@@ -148,8 +149,8 @@ class KafkaTransportUnitTest {
             val mock = MockConsumer<String, ByteArray>("earliest")
             val partition = TopicPartition(topic, 0)
             mock.updateBeginningOffsets(mapOf(partition to 0L))
-            mock.updateEndOffsets(mapOf(partition to 2L))
-            // Past the end: the read seeks to the end and skips what lies before the offset asked for.
+            mock.updateEndOffsets(mapOf(partition to 4L))
+            // At the end: the read waits for the messages to reach it.
             mock.schedulePollTask { (2L..4L).forEach { mock.addRecord(record(it, "v$it")) } }
             mock.schedulePollTask { (5L..6L).forEach { mock.addRecord(record(it, "v$it")) } }
             val source = KafkaPartitionedSource({ mock }, pollTimeout = 1.milliseconds)
@@ -178,7 +179,9 @@ class KafkaTransportUnitTest {
             val zero = TopicPartition(topic, 0)
             val one = TopicPartition(topic, 1)
             shared.updateEndOffsets(mapOf(zero to 0L, one to 0L))
-            own.updateEndOffsets(mapOf(zero to 0L))
+            shared.updateBeginningOffsets(mapOf(zero to 0L, one to 0L))
+            own.updateEndOffsets(mapOf(zero to 5L))
+            own.updateBeginningOffsets(mapOf(zero to 0L))
             val made = ArrayDeque(listOf(shared, own))
             val source = KafkaPartitionedSource({ made.removeFirst() }, pollTimeout = 1.milliseconds)
             val first = async(Dispatchers.Default) { source.read(topic, 0, 0).take(2).toList() }
@@ -214,7 +217,9 @@ class KafkaTransportUnitTest {
             val next = MockConsumer<String, ByteArray>("earliest")
             val zero = TopicPartition(topic, 0)
             stopping.updateEndOffsets(mapOf(zero to 0L, TopicPartition(topic, 1) to 0L))
+            stopping.updateBeginningOffsets(mapOf(zero to 0L, TopicPartition(topic, 1) to 0L))
             next.updateEndOffsets(mapOf(zero to 0L))
+            next.updateBeginningOffsets(mapOf(zero to 0L))
             val made = ArrayDeque(listOf(stopping, next))
             // The first coroutine makes its consumer only once the leave and the join below are done.
             val making = CountDownLatch(1)
@@ -256,6 +261,7 @@ class KafkaTransportUnitTest {
             val mock = MockConsumer<String, ByteArray>("earliest")
             val zero = TopicPartition(topic, 0)
             mock.updateEndOffsets(mapOf(zero to 0L))
+            mock.updateBeginningOffsets(mapOf(zero to 0L))
             val source = KafkaPartitionedSource({ mock }, pollTimeout = 1.milliseconds)
             val gate = CompletableDeferred<Unit>()
             val reading = async(Dispatchers.Default) {
@@ -279,6 +285,7 @@ class KafkaTransportUnitTest {
         val mock = MockConsumer<String, ByteArray>("earliest")
         val zero = TopicPartition(topic, 0)
         mock.updateEndOffsets(mapOf(zero to 0L))
+        mock.updateBeginningOffsets(mapOf(zero to 0L))
         var attempts = 0
         val source = KafkaPartitionedSource(
             {
@@ -298,12 +305,91 @@ class KafkaTransportUnitTest {
         source.close()
     }
 
+    private fun consumerWith(start: Long, end: Long, vararg partitions: Int) =
+        MockConsumer<String, ByteArray>("earliest").apply {
+            updateBeginningOffsets(partitions.associate { TopicPartition(topic, it) to start })
+            updateEndOffsets(partitions.associate { TopicPartition(topic, it) to end })
+        }
+
+    @Test
+    fun `a tail from an offset no longer retained should fail by default, and read from the earliest if asked`(): Unit =
+        runBlocking {
+            // Finding A2-11: the consumer reset to the earliest offset on its own and skipped what was deleted.
+            val failing = KafkaPartitionedSource({ consumerWith(5, 8, 0) }, 1.milliseconds)
+            val gap = runCatching { withTimeout(10.seconds) { failing.read(topic, 0, 2).toList() } }.exceptionOrNull()
+            (gap as OffsetGapException).offset.assert().isEqualTo(2L)
+            gap.start.assert().isEqualTo(5L)
+            gap.message.assert().contains("no longer retains offset 2")
+            failing.offsetGaps.assert().isEqualTo(1L)
+            failing.offsetGap.assert().isEqualTo(OffsetGapPolicy.FAIL)
+            failing.close()
+
+            val mock = consumerWith(5, 8, 0)
+            val earliest = KafkaPartitionedSource({ mock }, 1.milliseconds, Dispatchers.IO, OffsetGapPolicy.EARLIEST)
+            val reading = async(Dispatchers.Default) { earliest.read(topic, 0, 2).take(2).toList() }
+            eventually { mock.assignment().isNotEmpty() }
+            mock.addRecord(record(5, "v5"))
+            mock.addRecord(record(6, "v6"))
+            withTimeout(10.seconds) { reading.await() }.map { it.offset }.assert().containsExactly(5L, 6L)
+            earliest.offsetGaps.assert().isEqualTo(1L)
+            earliest.close()
+        }
+
+    @Test
+    fun `a read past the end of its partition should fail after the topic is created again`(): Unit = runBlocking {
+        val made = ArrayDeque(listOf(consumerWith(0, 3, 0), consumerWith(0, 3, 0)))
+        val source = KafkaPartitionedSource({ made.removeFirst() }, pollTimeout = 1.milliseconds)
+        val tail = runCatching { withTimeout(10.seconds) { source.read(topic, 0, 10).toList() } }.exceptionOrNull()
+        (tail as OffsetGapException).message.assert().contains("ends at 3, before offset 10")
+        val bounded = runCatching { withTimeout(10.seconds) { source.read(topic, 0, 10, 20).toList() } }
+        bounded.exceptionOrNull().assert().isInstanceOf(OffsetGapException::class.java)
+        source.offsetGaps.assert().isEqualTo(2L)
+        source.close()
+    }
+
+    @Test
+    fun `a tail whose offset the retention deletes while it reads should fail alone`(): Unit = runBlocking {
+        val mock = consumerWith(0, 0, 0, 1)
+        val source = KafkaPartitionedSource({ mock }, pollTimeout = 1.milliseconds)
+        val zero = TopicPartition(topic, 0)
+        val failing = async(Dispatchers.Default) { runCatching { source.read(topic, 0, 0).toList() }.exceptionOrNull() }
+        val other = async(Dispatchers.Default) { source.read(topic, 1, 0).take(1).toList() }
+        eventually { mock.assignment().size == 2 }
+        mock.updateBeginningOffsets(mapOf(zero to 4L))
+        mock.updateEndOffsets(mapOf(zero to 6L))
+        mock.setPollException(OffsetOutOfRangeException("deleted", mapOf(zero to 0L)))
+        withTimeout(10.seconds) { failing.await() }.assert().isInstanceOf(OffsetGapException::class.java)
+        eventually { mock.assignment() == setOf(TopicPartition(topic, 1)) }
+        mock.addRecord(record(0, "b0", partition = 1))
+        withTimeout(10.seconds) { other.await() }.map { String(it.value) }.assert().containsExactly("b0")
+        source.offsetGaps.assert().isEqualTo(1L)
+        source.close()
+    }
+
+    @Test
+    fun `a bounded read whose offset the retention deletes while it reads should go on from the earliest if asked`():
+        Unit = runBlocking {
+        val mock = consumerWith(0, 6, 0)
+        val zero = TopicPartition(topic, 0)
+        mock.schedulePollTask {
+            mock.updateBeginningOffsets(mapOf(zero to 4L))
+            mock.setPollException(OffsetOutOfRangeException("deleted", mapOf(zero to 0L)))
+        }
+        mock.schedulePollTask { (4L..5L).forEach { mock.addRecord(record(it, "v$it")) } }
+        val source = KafkaPartitionedSource({ mock }, 1.milliseconds, Dispatchers.IO, OffsetGapPolicy.EARLIEST)
+        withTimeout(10.seconds) { source.read(topic, 0, 0, 6).toList() }.map { it.offset }
+            .assert().containsExactly(4L, 5L)
+        source.offsetGaps.assert().isEqualTo(1L)
+        source.close()
+    }
+
     @Test
     fun `a bounded read should complete once its consumer passed the bound, and a key map to its partition`(): Unit =
         runBlocking {
             val mock = MockConsumer<String, ByteArray>("earliest")
             val zero = TopicPartition(topic, 0)
             mock.updateEndOffsets(mapOf(zero to 3L))
+            mock.updateBeginningOffsets(mapOf(zero to 0L))
             mock.schedulePollTask { (0L..2L).forEach { mock.addRecord(record(it, "v$it")) } }
             val metadata = MockConsumer<String, ByteArray>("earliest")
             metadata.updatePartitions(topic, listOf(0, 1, 2).map { PartitionInfo(topic, it, null, null, null) })

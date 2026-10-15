@@ -22,6 +22,8 @@ public final class me/ahoo/wow/kafka/KafkaPartitionedSource : java/lang/AutoClos
 	public synthetic fun <init> (Lkotlin/jvm/functions/Function0;JLkotlinx/coroutines/CoroutineDispatcher;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (Lkotlin/jvm/functions/Function0;JLkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun close ()V
+	public final fun getOffsetGap ()Lme/ahoo/wow/kafka/OffsetGapPolicy;
+	public final fun getOffsetGaps ()J
 	public fun offsets (Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun partitionOf (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun partitions (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -31,6 +33,7 @@ public final class me/ahoo/wow/kafka/KafkaPartitionedSource : java/lang/AutoClos
 
 public final class me/ahoo/wow/kafka/KafkaPartitionedSource$Companion {
 	public final fun create (Lme/ahoo/wow/kafka/KafkaOptions;)Lme/ahoo/wow/kafka/KafkaPartitionedSource;
+	public final fun create (Lme/ahoo/wow/kafka/KafkaOptions;Lme/ahoo/wow/kafka/OffsetGapPolicy;)Lme/ahoo/wow/kafka/KafkaPartitionedSource;
 }
 
 public final class me/ahoo/wow/kafka/KafkaTopicAdmin : java/lang/AutoCloseable, me/ahoo/wow/spi/transport/TopicAdmin {
@@ -58,5 +61,22 @@ public final class me/ahoo/wow/kafka/KafkaTopicProducer : java/lang/AutoCloseabl
 
 public final class me/ahoo/wow/kafka/KafkaTopicProducer$Companion {
 	public final fun create (Lme/ahoo/wow/kafka/KafkaOptions;)Lme/ahoo/wow/kafka/KafkaTopicProducer;
+}
+
+public final class me/ahoo/wow/kafka/OffsetGapException : java/lang/IllegalStateException {
+	public fun <init> (Ljava/lang/String;IJJJ)V
+	public final fun getEnd ()J
+	public final fun getOffset ()J
+	public final fun getPartition ()I
+	public final fun getStart ()J
+	public final fun getTopic ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/kafka/OffsetGapPolicy : java/lang/Enum {
+	public static final field EARLIEST Lme/ahoo/wow/kafka/OffsetGapPolicy;
+	public static final field FAIL Lme/ahoo/wow/kafka/OffsetGapPolicy;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/kafka/OffsetGapPolicy;
+	public static fun values ()[Lme/ahoo/wow/kafka/OffsetGapPolicy;
 }
 
