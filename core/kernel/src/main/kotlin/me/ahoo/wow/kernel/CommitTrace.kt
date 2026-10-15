@@ -19,7 +19,8 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import tools.jackson.databind.JsonNode
 
 /**
- * One commit of an aggregate's history ([Kernel.trace], decision D40): its [stream], the stream's [events] read as the
+ * One commit of an aggregate's history ([Kernel.trace], decision D40): its [stream], the stream's [events] (but the
+ * retired ones, decision D219) read as the
  * model's current schema (upgraded, D82), and the aggregate after it: its [state] as the event codec writes it (a
  * tree, so a mutable state evolving further does not change it), its [deleted] mark and its [tags].
  */
