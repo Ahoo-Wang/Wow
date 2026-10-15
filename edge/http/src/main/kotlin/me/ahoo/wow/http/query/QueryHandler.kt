@@ -16,7 +16,6 @@ package me.ahoo.wow.http.query
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.flow.Flow
@@ -35,6 +34,7 @@ import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.WowPaths
+import me.ahoo.wow.http.receiveFirst
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.command.Negotiation
 import me.ahoo.wow.http.command.RequestHeaders
@@ -315,11 +315,7 @@ internal class QueryHandler(
     ): ServerResponse {
         if (!eventStream) return json(records.toList(), rebuilding)
         val rows = scope.produce { records.collect { send(it) } }
-        val first = try {
-            rows.receive()
-        } catch (_: ClosedReceiveChannelException) {
-            null
-        }
+        val first = rows.receiveFirst()
         val events = flow {
             if (first == null) return@flow
             var index = 0L

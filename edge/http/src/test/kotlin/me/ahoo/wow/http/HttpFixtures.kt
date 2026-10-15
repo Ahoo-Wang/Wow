@@ -67,6 +67,8 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.wait.Origin
 import org.springframework.http.HttpHeaders
 import org.springframework.test.web.reactive.server.WebTestClient
+import org.springframework.web.reactive.function.server.RouterFunction
+import org.springframework.web.reactive.function.server.ServerResponse
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
@@ -266,17 +268,17 @@ class HttpNode(
         tenants = tenants,
     )
     val reads = KernelStateReads(models, mapOf(CONTEXT to KernelStateReads.ContextReads(kernel, snapshots)))
+    /** The node's public routes, which [client] calls and a test may serve on a real server. */
+    val routes: RouterFunction<ServerResponse> = wowRoutes(
+        (manifest ?: cartManifest(mounted = mounted)).withJobs(jobs),
+        gateway,
+        reads,
+        callers,
+        options,
+        queries(store),
+    )
     val client: WebTestClient = WebTestClient
-        .bindToRouterFunction(
-            wowRoutes(
-                (manifest ?: cartManifest(mounted = mounted)).withJobs(jobs),
-                gateway,
-                reads,
-                callers,
-                options,
-                queries(store),
-            ),
-        )
+        .bindToRouterFunction(routes)
         .build()
         .mutate()
         .responseTimeout(Duration.ofSeconds(10))
