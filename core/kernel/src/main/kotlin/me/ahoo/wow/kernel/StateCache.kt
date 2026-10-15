@@ -49,7 +49,8 @@ interface StateCache {
 /**
  * An aggregate's [state] after its event stream [version], with the metadata the kernel keeps beside it: its [scope],
  * the owner and space it has after that stream (decision D56), which the next stream carries forward; whether it is
- * [deleted]; and its [tags]. Only the lifecycle commands change them (design 01 §6). Its [schedules] are the rules
+ * [deleted]; and its [tags]. Only the lifecycle commands change them (design 01 §6), but for the tag keys the state
+ * derives, which follow the state (decision D220): [tags] are the effective tags. Its [schedules] are the rules
  * of the schedules it keeps, by key (decision D198): those its streams set and did not cancel.
  */
 @InternalWowApi

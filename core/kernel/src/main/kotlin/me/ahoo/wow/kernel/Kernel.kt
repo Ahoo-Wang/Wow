@@ -90,7 +90,10 @@ import kotlin.time.Duration.Companion.seconds
  * Every stream carries the aggregate's scope after it (D56): the creating command's scope, carried forward by every
  * later command and changed only by the lifecycle commands transferring the owner or the space (see [metadataAfter]).
  * The kernel keeps the deleted mark and the tags beside the state too, evolved by the lifecycle events: a deleted
- * aggregate refuses every command but [RestoreAggregate] ([KernelRejections.DELETED]).
+ * aggregate refuses every command but [RestoreAggregate] ([KernelRejections.DELETED]). The keys of the tags the state
+ * derives ([AggregateModel.tagsOf], `@Tags`, decision D220) override the applied ones; the kernel derives them after
+ * each stream it evolves, decides or commits, and on every state it loads from a snapshot or is handed, so the tags
+ * of every state it gives out (a commit's, a snapshot's, a trace's, a state event's) follow the state.
  *
  * The aggregate's scope also guards it (D94): an existing aggregate refuses a command whose scope names another owner
  * or space ([KernelRejections.FORBIDDEN]). A part absent from the command's scope is not checked: a tenant-level
@@ -309,7 +312,9 @@ class Kernel(
         }
         val commitTime = clock()
         val evolved = events.fold(state) { current, event -> model.evolve(current, event) }
-        val metadata = metadataAfter(loaded, command, events)
+        val applied = metadataAfter(loaded, command, events)
+        // The keys the state derives override the applied tags (decision D220), derived again from the evolved state.
+        val metadata = applied.copy(tags = model.tagsOf(evolved, applied.tags))
         val stream = EventStreamRecord(
             ref = command.ref,
             version = version + 1,
@@ -480,7 +485,7 @@ class Kernel(
         require(ref.type == model.type) { "$ref is not a ${model.type}." }
         require(base.version in 0..version) { "The base at version ${base.version} is past $version." }
         if (base.version == version) {
-            return base
+            return derived(model, base)
         }
         val streams = log.read(ref, base.version + 1, version).toList()
         if (streams.firstOrNull()?.version != base.version + 1 || streams.last().version != version) {
@@ -621,7 +626,8 @@ class Kernel(
         }
         val restored =
             CachedState(state, snapshot.version, snapshot.scope, snapshot.deleted, snapshot.tags, snapshot.schedules)
-        return replay(model, restored, streams.subList(1, streams.size))
+        // Its stored tags are the effective ones it was written with: the keys the state derives are derived anew.
+        return replay(model, derived(model, restored), streams.subList(1, streams.size))
     }
 
     /**
@@ -655,7 +661,28 @@ class Kernel(
             state = model.evolve(state, event)
             metadata = KernelLifecycle.evolve(metadata, event)
         }
-        return current.with(state, stream.version, metadata.copy(scope = stream.scope))
+        return current.with(
+            state,
+            stream.version,
+            metadata.copy(scope = stream.scope, tags = model.tagsOf(state, metadata.tags)),
+        )
+    }
+
+    /**
+     * [cached] with the tags its state derives (decision D220) overriding its own: a state the kernel did not evolve
+     * itself, read from a snapshot or handed over, whose stored tags may predate the model's tags function.
+     */
+    private fun <S : Any> derived(model: AggregateModel<S>, cached: CachedState): CachedState {
+        if (cached.version == 0) {
+            return cached
+        }
+        @Suppress("UNCHECKED_CAST") // The state is built by this model, or read as its state type.
+        val tags = model.tagsOf(cached.state as S, cached.tags)
+        return if (tags == cached.tags) {
+            cached
+        } else {
+            cached.with(cached.state, cached.version, cached.metadata.copy(tags = tags))
+        }
     }
 
     /**

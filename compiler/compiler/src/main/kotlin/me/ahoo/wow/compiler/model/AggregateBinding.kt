@@ -62,6 +62,8 @@ internal data class AggregateBinding(
      * without a dot within the aggregate.
      */
     val retiredEvents: List<String> = emptyList(),
+    /** The state member marked `@Tags`, which derives the aggregate's tags (decision D220); null when none is. */
+    val tags: TagsBinding? = null,
 ) {
     /** Whether `@AggregateRoot(lifecycle)` narrows the lifecycle commands, which the generated model then says. */
     val narrowsLifecycle: Boolean get() = lifecycle != ALL_LIFECYCLE_COMMANDS
