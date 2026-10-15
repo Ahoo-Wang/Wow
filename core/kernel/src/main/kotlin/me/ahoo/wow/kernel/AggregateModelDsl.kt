@@ -53,6 +53,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     private val mounted = LinkedHashMap<Class<*>, String>()
     private var ownership: Ownership = Ownership.OWNER
     private var stateRevision: Int = 1
+    private val retired = ArrayList<String>()
 
     /** The state of an aggregate that has no event yet. */
     fun initial(factory: (AggregateRef) -> S) {
@@ -175,6 +176,20 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     /**
+     * Retires the events stored under [names] (decision D219, 9.x `DroppedEvent`): the aggregate no longer has them,
+     * and their records left in the log are skipped, never decoded. Each is a full stored name,
+     * `context.aggregate.Event`; none may name a current event or command type, or be one of their former names.
+     * `@AggregateRoot(retiredEvents)` calls it in a generated model.
+     */
+    fun retired(vararg names: String) {
+        names.forEach { name ->
+            require(name.isNotBlank()) { "$type retires an event with a blank name." }
+            require(name !in retired) { "$type retires the event $name twice." }
+            retired += name
+        }
+    }
+
+    /**
      * The name of a command or event type declared without one: `context.aggregate.SimpleName`, or the system name of
      * a lifecycle command or event ([Lifecycle]).
      */
@@ -242,6 +257,7 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         },
         ownership = ownership,
         stateRevision = stateRevision,
+        retiredEvents = retired.toList(),
     )
 
     private fun applies(include: Set<Class<*>>, exclude: Set<Class<*>>): (Class<*>) -> Boolean =

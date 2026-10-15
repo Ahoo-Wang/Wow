@@ -56,7 +56,8 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
     /**
      * The event [record] holds, read as [model]'s current schema of its type: a record of an older revision goes
      * through the type's upgrades one revision at a time (D22), as a tree that keeps its numbers exact, and is then
-     * read as a record of the current revision is; a record named by a former name is still found.
+     * read as a record of the current revision is; a record named by a former name is still found. A record of a
+     * retired event (decision D219) fails, as one of a name the model does not know: skip it ([decodeUnlessRetired]).
      */
     fun decode(model: AggregateModel<*>, record: EventRecord): Any {
         val type = model.eventType(record.name)
@@ -75,6 +76,17 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
         // way, whatever nodes an upgrade put in the tree.
         return mapper.readValue(mapper.writeValueAsString(payload), type.type)
     }
+
+    /**
+     * The event [record] holds, as [decode] reads it, or null when [model] retired its name
+     * ([AggregateModel.isRetired], decision D219): a retired record is skipped, never decoded.
+     */
+    fun decodeUnlessRetired(model: AggregateModel<*>, record: EventRecord): Any? =
+        if (model.isRetired(record.name)) null else decode(model, record)
+
+    /** The events [records] hold, in order, as [decode] reads them, without those [model] retired (decision D219). */
+    fun decodeEvents(model: AggregateModel<*>, records: List<EventRecord>): List<Any> =
+        records.mapNotNull { decodeUnlessRetired(model, it) }
 
     /** [command] as JSON: the body of a scheduled command (decision D166), read back by its type when it is due. */
     fun commandText(command: Any): String = mapper.writeValueAsString(command)

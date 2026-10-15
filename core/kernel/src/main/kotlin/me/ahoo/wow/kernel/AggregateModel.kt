@@ -134,6 +134,12 @@ data class CommandType(val name: String, val type: Class<*>, val aliases: Set<St
  *
  * [stateRevision] is the revision of the state's structure its snapshots are written at (decision D172): a snapshot
  * of another revision is not read back, and the service rebuilds the stored ones in place when it is raised.
+ *
+ * [retiredEvents] are the stored names of events the aggregate no longer has (decision D219, 9.x `DroppedEvent`): the
+ * class is gone, but the log still holds records under the name. Such a record is skipped, never decoded: replaying
+ * the stream applies nothing for it, though the stream still counts as a version, and a subscription passes over it.
+ * A name that is neither an event's nor retired still fails to read. A retired name is not blank, is listed once, and
+ * is none of the model's event or command names, current or former.
  */
 class AggregateModel<S : Any> @InternalWowApi constructor(
     val type: AggregateType,
@@ -148,7 +154,11 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
     mountedCommandTypes: Collection<CommandType> = emptyList(),
     val ownership: Ownership = Ownership.OWNER,
     val stateRevision: Int = 1,
+    retiredEvents: Collection<String> = emptyList(),
 ) {
+    /** The stored names of the events this aggregate retired (decision D219): their records are skipped. */
+    val retiredEvents: Set<String> = retiredEvents.toSet()
+
     private val lifecycle: Set<Class<*>> =
         if (ownership == Ownership.TENANT) lifecycle - TransferOwner::class.java else lifecycle
 
@@ -215,6 +225,14 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
         require(commandNames.size == commandNames.toSet().size) {
             "Two command types of $type share a name or an alias."
         }
+        retiredEvents.groupBy { it }.filterValues { it.size > 1 }.keys.let { twice ->
+            require(twice.isEmpty()) { "$type retires the events $twice twice." }
+        }
+        require(retiredEvents.none { it.isBlank() }) { "$type retires an event with a blank name." }
+        val known = this.retiredEvents.filter { it in names || it in commandNames }
+        require(known.isEmpty()) {
+            "$type retires $known, which name its current event or command types (or name them formerly)."
+        }
         val decidedAndMounted = this.mountedCommandTypes.map { it.type }.filter { it in this.deciders }
         require(decidedAndMounted.isEmpty()) { "Command types of $type both decided and mounted: $decidedAndMounted" }
         require(
@@ -254,9 +272,20 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
     fun eventType(eventClass: Class<*>): EventType =
         requireNotNull(eventsByType[eventClass]) { "${eventClass.name} is not an event of $type." }
 
-    /** The event type named [name] (or formerly named so) in the log. */
-    fun eventType(name: String): EventType =
-        requireNotNull(findEventType(name)) { "$type has no event named $name." }
+    /**
+     * The event type named [name] (or formerly named so) in the log. A retired name ([isRetired]) has none: its
+     * records are skipped, not read.
+     */
+    fun eventType(name: String): EventType = requireNotNull(findEventType(name)) {
+        if (isRetired(name)) {
+            "$type retired the event $name (decision D219): its records are skipped, never read."
+        } else {
+            "$type has no event named $name."
+        }
+    }
+
+    /** Whether [name] is the stored name of an event this aggregate retired ([retiredEvents], decision D219). */
+    fun isRetired(name: String): Boolean = name in retiredEvents
 
     /** The event type named [name] (or formerly named so) in the log, or null when this aggregate has none. */
     fun findEventType(name: String): EventType? = eventsByName[name]

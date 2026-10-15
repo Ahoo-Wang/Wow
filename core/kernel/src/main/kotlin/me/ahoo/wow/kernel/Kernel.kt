@@ -649,7 +649,8 @@ class Kernel(
         var state = current.state as S
         var metadata = current.metadata
         stream.events.forEach { record ->
-            val event = codec.decode(model, record)
+            // A retired event (D219) is skipped: the stream still counts as a version, the state stays as it is.
+            val event = codec.decodeUnlessRetired(model, record) ?: return@forEach
             events?.add(event)
             state = model.evolve(state, event)
             metadata = KernelLifecycle.evolve(metadata, event)
