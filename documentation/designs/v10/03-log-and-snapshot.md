@@ -7,21 +7,27 @@
 ```kotlin
 @WowSpi
 interface EventLog {
-    suspend fun append(request: AppendRequest): AppendOutcome   // 原子；版本与请求 ID 唯一
-    fun read(ref: AggregateRef, versions: VersionRange = VersionRange.ALL): Flow<EventStream>
-    fun read(ref: AggregateRef, until: Instant): Flow<EventStream>   // 按事件时间截止
-    fun tail(partition: LogPartition, from: LogPosition?): Flow<LogEntry>   // 有序、可续读、不跳过
     val partitions: Int
+    suspend fun append(stream: EventStreamRecord, transport: Transport? = null): AppendOutcome   // 原子；版本与请求 ID 唯一
+    suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome>   // 分区属主的分组提交，逐条结果
+    fun read(ref: AggregateRef, fromVersion: Int = 1, toVersion: Int = Int.MAX_VALUE): Flow<EventStreamRecord>
+    fun readEntries(ref: AggregateRef, fromVersion: Int = 1, toVersion: Int = Int.MAX_VALUE): Flow<LogEntry>
+    suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition?
+    suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord?
+    fun tail(partition: Int, after: Long? = null): Flow<LogEntry>   // 有序、可续读、不跳过
+    suspend fun head(partition: Int): Long?
 }
 
 sealed interface AppendOutcome {
-    data class Committed(val stream: EventStream, val position: LogPosition) : AppendOutcome
-    data class AlreadyCommitted(val stream: EventStream) : AppendOutcome
-    data class Conflict(val currentVersion: Version) : AppendOutcome
-    data class DuplicateAggregate(val ref: AggregateRef) : AppendOutcome
-    data class Unknown(val cause: Throwable) : AppendOutcome
+    data class Committed(val position: LogPosition) : AppendOutcome
+    data class AlreadyCommitted(val existing: EventStreamRecord) : AppendOutcome   // 同一请求已提交（含版本与请求 ID 同时冲突，审查 A2-1）
+    data class Conflict(val currentVersion: Int) : AppendOutcome
+    data class Unknown(val cause: Throwable) : AppendOutcome   // 内核按版本槽查明（审查 A1-1）
+    data class Rejected(val cause: Throwable) : AppendOutcome   // 后端确定拒绝这条流（审查 A2-5）
 }
 ```
+
+按时间读（`stateAt` 按时间）由内核在 `read` 上截止，不是后端合同的一部分；没有单独的「聚合已存在」结果，创建冲突就是版本 1 的 `Conflict`。
 
 由 TCK 对每个后端强制。**合同里没有可选能力**：9.x 的 Redis 不支持按时间读、Elasticsearch 的请求 ID 去重有跳过点，统一接口掩盖了能力差异（KaeX 的研究结论）；V10 的后端要么完整实现合同，要么不是日志后端。
 
@@ -35,7 +41,7 @@ sealed interface AppendOutcome {
 
 | 后端 | 分区序号的分配 | 说明 |
 |---|---|---|
-| PostgreSQL（D10） | 一条自动提交的语句：CTE 读当前版本，版本恰好落后一位时才给分区计数行加一（行锁持有到提交），再插入；冲突时整条回滚，不留空洞 | JDBC 加虚拟线程（D27）；`LISTEN/NOTIFY` 只做通知；H1：64 分区约 3 万次/秒 |
+| PostgreSQL（D10） | 一条自动提交的语句：CTE 读当前版本，版本恰好落后一位时才给分区计数行加一（行锁持有到提交），再插入；冲突时整条回滚，不留空洞 | JDBC 加虚拟线程（D27）；尾随读按可配置的间隔轮询、空闲时退避（审查 A2-14），`LISTEN/NOTIFY` 未实现；H1：64 分区约 3 万次/秒 |
 | MongoDB（D11，必须支持） | 多文档事务内递增分区计数文档；由分区属主在本地串行分配（见下），吞吐不足时分组提交 | 需要副本集；变更流只做通知，不作为位置来源（受 oplog 窗口限制）；吞吐约为 PostgreSQL 的六分之一，且依赖 Partitioned，高吞吐场景推荐 PostgreSQL（D52） |
 | 内存 | 分区内数组 | 测试与示例 |
 | Redis（D12） | — | V10 不提供；社区可按本合同与 TCK 自行实现 |
@@ -44,7 +50,7 @@ sealed interface AppendOutcome {
 
 **串行放在属主本地，而不是数据库锁上**（对抗验证 F1）：MongoDB 事务遇到同一文档的并发修改时不排队，而是以写冲突中止，由客户端重试；多个节点同时向一个分区追加，计数文档上会出现中止风暴，吞吐塌缩而不是排队。所以分区序号的分配依赖 Partitioned 路由（D6）：稳态下一个分区只有它的属主在追加，属主用一个本地的分区追加队列串行提交，数据库上没有争用；只在属主交接或降级为 Local 时才有冲突，此时靠重试保证正确。这让 D11 依赖 D6：H2 若推翻 Partitioned 默认值，MongoDB 后端的吞吐必须重新评估。H1 的实测（`wow-benchmarks/results/reports/v10-h1-mongo-partition-sequence.md`）：同一分区 32 个写者并发追加只有约 100 次/秒、p99 1.4 秒；同样的负载交给属主排队、一次事务提交一批（`EventLog.appendAll`），约 5.6 千次/秒。
 
-**分组提交要逐条隔离**（对抗验证 F2）：PostgreSQL 的唯一约束冲突、MongoDB 的重复键都会中止整个事务。分组提交里一条事件流的版本冲突不能拖垮同组其他流：PostgreSQL 每条用保存点，MongoDB 在冲突时把该组拆回逐条提交。改变 P 需要一次离线重分区，由数据工具完成，不是运行时功能。一个上下文只有一个日志后端；KaeX mvp 允许每个聚合选不同的事件存储（ADR-0003），V10 不支持，需要不同存储的聚合应拆到不同上下文。Elasticsearch 不再作为日志后端（D13）。
+**分组提交要逐条隔离**（对抗验证 F2）：PostgreSQL 的唯一约束冲突、MongoDB 的重复键都会中止整个事务。分组提交里一条事件流的版本冲突不能拖垮同组其他流：PostgreSQL 不做分组提交（逐条自动提交的语句已够快，没有用保存点）；MongoDB 在事务前为每条流编码，编码失败的流单独以 `Rejected` 结束，事务确定中止时把该组拆回逐条提交，提交结局未知时每条都返回 `Unknown`（审查 A2-5、A2-6）。改变 P 需要一次离线重分区，由数据工具完成，不是运行时功能。日志存储可以按聚合配置为不同的日志组（D177，`LogGroupRouter`）；每个日志组内分区数固定。Elasticsearch 不再作为日志后端（D13）。
 
 ## 3. 快照：状态即读模型
 
