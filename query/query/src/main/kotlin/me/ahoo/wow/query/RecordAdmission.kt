@@ -52,7 +52,9 @@ import java.math.BigDecimal
  * whatever its level, is replaced by its mask in every response, whoever the caller is (9.x semantics; the level only
  * decides what a query may do with the raw value).
  */
-fun QueryModelSchema.maskRecord(record: ObjectNode): ObjectNode = SchemaMasker.create(this)?.mask(record) ?: record
+internal fun QueryModelSchema.maskRecord(
+    record: ObjectNode
+): ObjectNode = SchemaMasker.create(this)?.mask(record) ?: record
 
 /**
  * The in-memory evaluation of a point read's restriction on one snapshot-shaped record ([QueryAdmission.admitRecord]).

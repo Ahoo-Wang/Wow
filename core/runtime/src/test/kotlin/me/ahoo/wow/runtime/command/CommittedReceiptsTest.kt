@@ -26,7 +26,7 @@ import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
-import me.ahoo.wow.kernel.InMemoryTopics
+import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.cluster.ReplyTo

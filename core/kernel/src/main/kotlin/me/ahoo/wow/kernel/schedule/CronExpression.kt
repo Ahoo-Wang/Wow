@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel.schedule
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
@@ -39,6 +40,7 @@ import java.util.BitSet
  * instant it would have been, later by the length of the gap (02:30 in a spring-forward gap runs at 03:30), unless an
  * earlier time already ran at that instant; a local time that an overlap repeats runs once, at its earlier offset.
  */
+@InternalWowApi
 class CronExpression private constructor(
     /** The expression as given. */
     val expression: String,
@@ -131,6 +133,7 @@ class CronExpression private constructor(
             bits[date.dayOfWeek.value] || specials.any { it(date) }
     }
 
+    @InternalWowApi
     companion object {
         /** How many years ahead [next] looks for a time before it gives up. */
         const val MAX_YEARS: Int = 400

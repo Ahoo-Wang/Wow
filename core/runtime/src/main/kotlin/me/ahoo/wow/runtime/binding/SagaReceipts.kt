@@ -55,7 +55,7 @@ import me.ahoo.wow.spi.wait.WaitContext
  * compensate itself): it fails the handling with [DerivedCommandRejectedException], which parks the aggregate. A
  * technical failure throws, for the caller to retry.
  */
-class SagaReceipts(
+internal class SagaReceipts(
     sagas: Collection<ProcessorBinding<*>>,
     private val derived: DerivedCommands,
     /** The ids the handlers take (decision D171): the node's generators. */

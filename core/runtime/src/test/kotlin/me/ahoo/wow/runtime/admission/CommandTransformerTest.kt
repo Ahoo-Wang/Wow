@@ -26,10 +26,10 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.kernel.Creation
-import me.ahoo.wow.kernel.InMemoryEventLog
-import me.ahoo.wow.kernel.InMemoryReservationStore
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemoryReservationStore
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.wait.LocalSignalSender

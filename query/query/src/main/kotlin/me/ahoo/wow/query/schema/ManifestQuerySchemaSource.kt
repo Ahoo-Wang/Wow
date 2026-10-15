@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
@@ -33,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap
  * Custom mask strategies (`x-wow-mask.strategy`) are resolved through [strategies]: the runtime does not load classes
  * by name, so an unregistered one fails the schema build.
  */
+@InternalWowApi
 class ManifestQuerySchemaSource(
     private val manifest: Manifest,
     private val strategies: MaskStrategyResolver = MaskStrategyResolver.NONE,

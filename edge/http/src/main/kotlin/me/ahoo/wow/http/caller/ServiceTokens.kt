@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.http.caller
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import org.springframework.web.reactive.function.server.ServerRequest
 import java.security.MessageDigest
@@ -29,6 +30,7 @@ import java.security.MessageDigest
  * digests in constant time, every token each time, so the comparison tells nothing of a token by its timing; a token
  * is at least [MIN_TOKEN_LENGTH] characters.
  */
+@InternalWowApi
 class ServiceTokens(tokens: Map<String, Collection<String>>, private val tenantId: String = Caller.DEFAULT_TENANT) {
     private val digests: List<Pair<String, ByteArray>> = tokens.flatMap { (service, serviceTokens) ->
         require(service.isNotBlank()) { "A trusted service is named." }
@@ -75,6 +77,7 @@ class ServiceTokens(tokens: Map<String, Collection<String>>, private val tenantI
     fun resolver(delegate: CallerResolver): CallerResolver =
         if (isEmpty) delegate else CallerResolver { request -> callerOf(request) ?: delegate.resolve(request) }
 
+    @InternalWowApi
     companion object {
         /** The prefix of a service identity's subject, and of the operator it would record on a command of its own. */
         const val SUBJECT_PREFIX: String = "service:"

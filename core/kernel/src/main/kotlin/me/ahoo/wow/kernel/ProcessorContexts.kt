@@ -14,6 +14,7 @@
 package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.id.Ids
@@ -55,14 +56,18 @@ data class ExecutionReactContext(override val executionId: ExecutionId) : ReactC
  * Its synchronous [call]s (decision D193) go through [calls]: the node's client of the other contexts' command
  * gateways, an answer in a domain module's test.
  */
-class ExecutionSagaContext(
+class ExecutionSagaContext @InternalWowApi constructor(
     override val executionId: ExecutionId,
     private val event: StateEvent<*>,
-    override val ids: Ids = IdGenerators.DEFAULT,
-    private val commandTypes: CommandTypes = CommandTypes.SIMPLE_NAMES,
+    override val ids: Ids,
+    private val commandTypes: CommandTypes,
     private val codec: EventCodec = EventCodec(),
     private val calls: CommandCalls = CommandCalls.NONE,
 ) : SagaContext {
+    /** The context of the execution [executionId] of the commit [event], deriving its ids from [ids]. */
+    constructor(executionId: ExecutionId, event: StateEvent<*>, ids: Ids = IdGenerators.DEFAULT) :
+        this(executionId, event, ids, CommandTypes.SIMPLE_NAMES)
+
     private val derived = AtomicInteger()
 
     init {
@@ -136,6 +141,7 @@ class ExecutionSagaContext(
  * [ExecutionId] is (subscription, aggregate, version); a saga's takes its ids from [ids], names the commands it
  * schedules by [commandTypes] and makes its synchronous calls through [calls] (decision D193).
  */
+@InternalWowApi
 fun contextOf(
     kind: FunctionKind,
     subscription: String,

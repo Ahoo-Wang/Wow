@@ -18,6 +18,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
 import me.ahoo.wow.runtime.cluster.ClusterCodec
@@ -47,6 +48,7 @@ import tools.jackson.core.JacksonException
  * only inside the cluster (D35). A node's [forward] is its [me.ahoo.wow.runtime.node.ServiceNode.forwardHandler],
  * which hands a command to the endpoint of its context.
  */
+@InternalWowApi
 fun internalRoutes(
     forward: ClusterChannelHandler,
     signals: (WaitSignal) -> Unit,
@@ -65,6 +67,7 @@ fun internalRoutes(
 }
 
 /** The routes of the internal port, its signals taken by [registry], the waits started on this node. */
+@InternalWowApi
 fun internalRoutes(
     forward: ClusterChannelHandler,
     registry: WaitRegistry,

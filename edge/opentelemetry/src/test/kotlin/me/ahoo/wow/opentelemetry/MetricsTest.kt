@@ -18,7 +18,7 @@ import io.opentelemetry.api.trace.StatusCode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.kernel.InMemoryTopics
+import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.spi.ledger.ParkedAggregate

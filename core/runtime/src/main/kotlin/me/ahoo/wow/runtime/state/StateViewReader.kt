@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.EventCodec
@@ -45,6 +46,7 @@ import tools.jackson.core.JacksonException
  * [codec] must be the kernel's, so a view decodes as it was encoded. It runs inside the subscription's retries: a
  * state that cannot be read is retried, then parks the aggregate like a failing handler.
  */
+@InternalWowApi
 class StateViewReader(
     val reader: String,
     models: Collection<AggregateModel<*>>,
@@ -60,12 +62,12 @@ class StateViewReader(
         checkNotNull(models[type]) { "No model of $type to read its state with." }
 
     /** The state after [stream]. */
-    suspend fun read(stream: EventStreamRecord): StateView =
+    suspend fun read(stream: EventStreamRecord): SerializedState =
         views.get(stream.ref, stream.version)?.also { pass(stream.ref, stream.version) }
             ?: rebuild(stream, loadSnapshot(stream.ref))
 
     /** The state after [stream], with [snapshot], the aggregate's snapshot the caller already loaded, if any. */
-    suspend fun read(stream: EventStreamRecord, snapshot: SnapshotRecord?): StateView =
+    suspend fun read(stream: EventStreamRecord, snapshot: SnapshotRecord?): SerializedState =
         views.get(stream.ref, stream.version)?.also { pass(stream.ref, stream.version) } ?: rebuild(stream, snapshot)
 
     /** This reader is done with [ref] up to [version] ([StateViews.pass]). */
@@ -73,7 +75,7 @@ class StateViewReader(
         views.pass(reader, ref, version)
     }
 
-    private suspend fun rebuild(stream: EventStreamRecord, snapshot: SnapshotRecord?): StateView {
+    private suspend fun rebuild(stream: EventStreamRecord, snapshot: SnapshotRecord?): SerializedState {
         val ref = stream.ref
         val version = stream.version
         val model = modelOf(ref.type)
@@ -83,7 +85,14 @@ class StateViewReader(
             ?: kernel.stateAt(model, ref, version, usable)
         checkNotNull(state) { "The log does not hold $ref@$version." }
         val view =
-            StateView(version, codec.stateText(state.state), state.scope, state.deleted, state.tags, state.schedules)
+            SerializedState(
+                version,
+                codec.stateText(state.state),
+                state.scope,
+                state.deleted,
+                state.tags,
+                state.schedules
+            )
         views.put(ref, view)
         pass(ref, version)
         return view
@@ -93,7 +102,7 @@ class StateViewReader(
      * [view] as a state the kernel may evolve: decoded afresh, so the view itself never changes; null when it does
      * not decode whole ([EventCodec.decodeState]), as a snapshot that does not fit: the reader then goes without it.
      */
-    private fun baseOf(model: AggregateModel<*>, view: StateView): CachedState? = try {
+    private fun baseOf(model: AggregateModel<*>, view: SerializedState): CachedState? = try {
         CachedState(
             codec.decodeState(model, view.state),
             view.version,

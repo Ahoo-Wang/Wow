@@ -28,10 +28,10 @@ import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.read.KernelStateReads
 import me.ahoo.wow.kernel.Creation
-import me.ahoo.wow.kernel.InMemoryEventLog
-import me.ahoo.wow.kernel.InMemorySnapshotStore
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.kernel.schedule.ScheduleJobModel
 import me.ahoo.wow.manifest.AggregateManifest

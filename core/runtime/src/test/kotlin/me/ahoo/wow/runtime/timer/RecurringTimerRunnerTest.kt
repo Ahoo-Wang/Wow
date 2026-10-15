@@ -19,8 +19,8 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.schedule.ScheduleContext
 import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.kernel.InMemoryFailureLedger
-import me.ahoo.wow.kernel.InMemoryTimerStore
+import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
+import me.ahoo.wow.kernel.memory.InMemoryTimerStore
 import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.eventually

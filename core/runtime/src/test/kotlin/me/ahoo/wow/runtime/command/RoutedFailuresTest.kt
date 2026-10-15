@@ -17,9 +17,9 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.schedule.ScheduleRule
-import me.ahoo.wow.kernel.InMemoryEventLog
-import me.ahoo.wow.kernel.InMemoryTopics
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.binding.AddItems
 import me.ahoo.wow.runtime.binding.CART

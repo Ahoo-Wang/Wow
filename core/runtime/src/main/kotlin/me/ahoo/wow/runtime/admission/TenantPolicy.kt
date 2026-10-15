@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.admission
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 
 /**
@@ -22,6 +23,7 @@ import me.ahoo.wow.api.caller.Caller
  * then holds whoever the caller is. Admission ([CommandGateway]) and the state reads of the edge both decide the
  * tenant through [tenantOf]; the cross-scope rules are unchanged.
  */
+@InternalWowApi
 fun interface TenantPolicy {
     /** The tenant every aggregate of [type] is in, or null when it is the caller's. */
     fun fixedTenant(type: AggregateType): String?
@@ -40,6 +42,7 @@ fun interface TenantPolicy {
         return fixed
     }
 
+    @InternalWowApi
     companion object {
         /** Every aggregate is in its caller's tenant. */
         @JvmField
@@ -59,5 +62,6 @@ fun interface TenantPolicy {
 }
 
 /** A cross-scope target named [named] as the tenant of [type], whose tenant is fixed to [fixed] (decision D116). */
+@InternalWowApi
 class TenantConflictException(val type: AggregateType, val fixed: String, val named: String) :
     IllegalArgumentException("The tenant of $type is fixed to $fixed; the request names $named.")

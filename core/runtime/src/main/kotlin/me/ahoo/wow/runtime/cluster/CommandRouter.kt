@@ -19,6 +19,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.runtime.wait.Settlement
@@ -38,6 +39,7 @@ import kotlin.time.Duration.Companion.milliseconds
  * Decides where a command runs (design 02 §2): here, through [local], or on another node. Whatever runs it, the
  * answer is the [Settlement] of its execution.
  */
+@InternalWowApi
 fun interface CommandRouter {
     suspend fun route(
         model: AggregateModel<*>,
@@ -46,6 +48,7 @@ fun interface CommandRouter {
         local: suspend () -> Settlement,
     ): Settlement
 
+    @InternalWowApi
     companion object {
         /**
          * The `Local` router: every command runs on the node it arrived at, with optimistic concurrency. For a single
@@ -73,6 +76,7 @@ fun interface CommandRouter {
  * its reply was lost settles here as a duplicate, and version-unique keys turn concurrent writers into conflicts that
  * are decided again (D45).
  */
+@InternalWowApi
 class PartitionedRouter(
     groups: Collection<PartitionOwnership>,
     private val channel: ClusterChannel,
@@ -167,6 +171,7 @@ class PartitionedRouter(
  * The command executes in the trace it was forwarded with ([ForwardCommand.trace]), which [observer] resumes
  * (decision D174).
  */
+@InternalWowApi
 class ForwardEndpoint(
     private val coordinator: WaitCoordinator,
     models: Collection<AggregateModel<*>>,

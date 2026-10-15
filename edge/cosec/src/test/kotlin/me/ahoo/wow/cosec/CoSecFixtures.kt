@@ -25,9 +25,9 @@ import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.wowRoutes
 import me.ahoo.wow.kernel.Creation
-import me.ahoo.wow.kernel.InMemoryEventLog
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.CommandRoutes

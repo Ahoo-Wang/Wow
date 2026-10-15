@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.clickhouse.sink
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import java.util.Currency
 
 /** A column of a view: its [name], its ClickHouse [type] as `system.columns` reads it, and the [expression] it is. */
+@InternalWowApi
 data class FlatColumn(val name: String, val type: String, val expression: String)
 
 /**
@@ -39,7 +41,7 @@ data class FlatColumn(val name: String, val type: String, val expression: String
  *
  * A property named as a system column of the view gets the prefix `state_`.
  */
-object FlatColumns {
+internal object FlatColumns {
     /** The scale of a decimal that declares none and whose currency, if it is a money, is another field. */
     const val DEFAULT_SCALE: Int = 18
     private const val DECIMAL_PRECISION = 38

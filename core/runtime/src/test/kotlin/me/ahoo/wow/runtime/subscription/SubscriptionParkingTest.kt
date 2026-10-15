@@ -21,8 +21,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.ErrorInfo
-import me.ahoo.wow.kernel.InMemoryEventLog
-import me.ahoo.wow.kernel.InMemoryFailureLedger
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import org.junit.jupiter.api.Test
 import java.time.Clock

@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.node
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
@@ -35,6 +36,7 @@ import me.ahoo.wow.spi.ledger.Recoverable
  * owner takes on its next scan of the parked entries (decision D141), and answer [Outcome.REQUESTED]. Marking an entry
  * and applying a spec write the ledger directly: the owner reads them on its next scan.
  */
+@InternalWowApi
 class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
     /** The names of the subscriptions whose entries this node reads, in order. */
     val subscriptions: List<String> get() = scopes().flatMapTo(sortedSetOf()) { it.names() }.toList()
@@ -153,6 +155,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
     }
 
     /** What [resume] or [skip] came to. */
+    @InternalWowApi
     enum class Outcome {
         /** Handled (or skipped) here: the entry is resolved. */
         RESOLVED,
@@ -207,6 +210,7 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
         }
     }
 
+    @InternalWowApi
     companion object {
         const val DEFAULT_LIMIT: Int = 100
         const val MAX_LIMIT: Int = 1_000
@@ -243,15 +247,18 @@ class ParkedOps internal constructor(private val scopes: () -> List<Scope>) {
 }
 
 /** Where a listing of parked entries stands: an entry of [subscription] parking [ref]. */
+@InternalWowApi
 data class ParkedKey(val subscription: String, val ref: AggregateRef)
 
 /** One page of [ParkedOps.list]: its [entries], and the key the [next] page starts after (null at the end). */
+@InternalWowApi
 data class ParkedPage(val entries: List<ParkedView>, val next: ParkedKey?)
 
 /**
  * A parked [entry] as an operator sees it, with the [spec] it is retried by and the [context] its subscription belongs
  * to, whose command topic takes the entry's ledger commands (decision D141); null when the node does not know it.
  */
+@InternalWowApi
 data class ParkedView(val entry: ParkedAggregate, val spec: ParkedRetrySpec, val context: String? = null) {
     /** When the next automatic retry is due (epoch milliseconds), null when there is none. */
     val nextRetryAt: Long? get() = entry.nextRetryAt(spec)
@@ -264,6 +271,7 @@ data class ParkedView(val entry: ParkedAggregate, val spec: ParkedRetrySpec, val
         }
 
     /** Whether an entry is retried automatically. */
+    @InternalWowApi
     enum class Status {
         /** Retried automatically, at [nextRetryAt]. */
         SCHEDULED,

@@ -28,7 +28,7 @@ import java.time.Duration
  * (`wow.cluster.drain-timeout`). Unless the application sets the timeout, it becomes their sum ([required]); a smaller
  * one the application sets is kept, and the host warns of it when it starts.
  */
-class ShutdownTimeoutEnvironmentPostProcessor : EnvironmentPostProcessor {
+internal class ShutdownTimeoutEnvironmentPostProcessor : EnvironmentPostProcessor {
     override fun postProcessEnvironment(environment: ConfigurableEnvironment, application: SpringApplication) {
         if (environment.containsProperty(TIMEOUT_PER_SHUTDOWN_PHASE)) {
             return

@@ -14,6 +14,7 @@ package me.ahoo.wow.query
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 
@@ -26,7 +27,9 @@ import me.ahoo.wow.query.schema.QuerySchemaValidationException
  *   driver echoes the query), so only each cause's class name and stack trace reach the log;
  * - any other failure at ERROR with its stack trace.
  */
+@InternalWowApi
 class QueryLogObserver : QueryObserver {
+    @InternalWowApi
     companion object {
         private val log = KotlinLogging.logger { }
     }

@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.snapshot
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
@@ -23,6 +24,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotTable
  * The snapshots of a context whose aggregate types keep them on different stores (decisions D172, D177): each
  * aggregate's snapshot is in the store [stores] names for its type, else in [default].
  */
+@InternalWowApi
 class SnapshotStoreRouter(
     private val default: SnapshotStore,
     private val stores: Map<AggregateType, SnapshotStore>,
@@ -57,6 +59,7 @@ class SnapshotStoreRouter(
         backfilled: Boolean?,
     ): SnapshotTable? = storeOf(type).mark(type, revision, rebuilding, backfilled)
 
+    @InternalWowApi
     companion object {
         /** [default] alone when no type keeps its snapshots elsewhere, else the router over them. */
         @JvmStatic

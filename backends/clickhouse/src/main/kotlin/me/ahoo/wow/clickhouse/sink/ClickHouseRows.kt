@@ -42,7 +42,7 @@ import java.time.format.DateTimeFormatter
  *
  * The transport is not a fact and is not kept.
  */
-object ClickHouseRows {
+internal object ClickHouseRows {
     private val COMMIT_TIME: DateTimeFormatter =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneOffset.UTC)
 

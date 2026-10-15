@@ -29,7 +29,7 @@ import java.net.URI
  *
  * Fails with a [ContractException] listing every peer that is missing or does not read as a Manifest.
  */
-class PeerManifestReader(
+internal class PeerManifestReader(
     private val classLoader: ClassLoader = Thread.currentThread().contextClassLoader,
     private val mapper: JsonMapper = JsonMapper.builder().build(),
 ) {

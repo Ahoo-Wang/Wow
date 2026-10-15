@@ -24,7 +24,7 @@ import me.ahoo.wow.api.ledger.LedgerEntry
 import me.ahoo.wow.api.ledger.LedgerResolution
 import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.api.ledger.SkipParked
-import me.ahoo.wow.kernel.InMemoryTopics
+import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.cluster.ClusterCodec

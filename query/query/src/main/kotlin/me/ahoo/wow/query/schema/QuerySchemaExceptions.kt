@@ -47,7 +47,7 @@ class QuerySchemaValidationException(
 }
 
 /** Declarations or storage facts that contradict each other: a server fault ([QueryErrors.FAILED]). */
-class QuerySchemaConflictException(
+internal class QuerySchemaConflictException(
     message: String,
     cause: Throwable? = null,
 ) : QuerySchemaException(message, cause) {

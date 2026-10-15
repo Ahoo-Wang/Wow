@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.call.HttpCommandCaller
@@ -40,6 +41,7 @@ import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
+import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.TenantPolicy
@@ -55,6 +57,7 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.SubscriptionFactory
+import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.id.AggregateIdGenerator
@@ -117,9 +120,9 @@ import jakarta.validation.Validator as JakartaValidator
  *   calls ([callRoutes]) to the service identities of `wow.http.services`, by their tokens ([ServiceTokens]), or of
  *   the [InternalCallerResolver] bean (CoSec's service principals); the public port refuses `Wow-Call`.
  * - **Subscriptions**: the annotated processors' handlers the binding indexes list ([ModelProvider.processors], built
- *   from the application's beans), then every [SubscriptionFactory] bean, the application's and the modules' (such
- *   as the Kafka Sink), in their order. Those that read other contexts' published streams read them from the
- *   [SourceTopics] bean (wow-kafka's, decision D134).
+ *   from the application's beans), then every [SubscriptionFactory] bean, the application's and the modules', in their order,
+ *   and every [PublishedSinks] bean (such as the Kafka Sink). Those that read other contexts' published streams read
+ *   them from the [SourceTopics] bean (wow-kafka's, decision D134).
  * - **Parked entries** (roadmap P.1): retried over the long horizon by `wow.subscription.parked.*`; every
  *   [me.ahoo.wow.runtime.subscription.ParkedNotifier] bean, the webhook of `wow.ops.webhook.*` among them, hears when
  *   one parks or spends its retries; `wow.ops.enabled` serves the operator's routes ([parkedRoutes]).
@@ -142,6 +145,7 @@ class WowAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @InternalWowApi
     fun wowNodeIdentity(properties: WowProperties, environment: Environment): NodeIdentity =
         NodeIdentity.of(properties, environment)
 
@@ -152,6 +156,7 @@ class WowAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @InternalWowApi
     fun wowModels(
         properties: WowProperties,
         beanFactory: ConfigurableListableBeanFactory,
@@ -163,11 +168,13 @@ class WowAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @InternalWowApi
     fun wowManifestLoader(beanFactory: ConfigurableListableBeanFactory): ManifestLoader =
         ManifestLoader(beanFactory.beanClassLoader ?: ClassUtils.getDefaultClassLoader()!!, WowJson.mapper)
 
     @Bean
     @ConditionalOnMissingBean
+    @InternalWowApi
     fun wowManifest(loader: ManifestLoader, models: WowModels, identity: NodeIdentity): Manifest =
         loader.load(ServiceInfo(identity.service), models.providers)
 
@@ -183,6 +190,7 @@ class WowAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @InternalWowApi
     fun wowBackends(
         properties: WowProperties,
         beanFactory: ConfigurableListableBeanFactory,
@@ -221,11 +229,13 @@ class WowAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    @InternalWowApi
     fun wowClusterChannel(@Qualifier(INTERNAL_HTTP_CLIENT) client: HttpClient): ClusterChannel =
         HttpClusterChannel(client)
 
     @Bean
     @ConditionalOnMissingBean
+    @InternalWowApi
     fun wowSignalSender(
         @Qualifier(INTERNAL_HTTP_CLIENT) client: HttpClient,
         properties: WowProperties,
@@ -234,12 +244,14 @@ class WowAutoConfiguration {
     /** The credential of the node's synchronous calls (decision D193): `wow.calls.token` as a bearer, else none. */
     @Bean
     @ConditionalOnMissingBean
+    @InternalWowApi
     fun wowServiceCredential(properties: WowProperties): ServiceCredential =
         properties.calls.token?.takeIf { it.isNotBlank() }?.let(ServiceCredential::bearer) ?: ServiceCredential.NONE
 
     /** The client of the other contexts' command gateways the sagas call (decision D193), at `wow.calls.contexts`. */
     @Bean
     @ConditionalOnMissingBean
+    @InternalWowApi
     fun wowCommandCaller(properties: WowProperties, credential: ServiceCredential): CommandCaller {
         val calls = properties.calls
         return HttpCommandCaller(
@@ -255,6 +267,7 @@ class WowAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @Suppress("LongParameterList") // One parameter per part of the node, each a bean the application may replace.
+    @InternalWowApi
     fun wowServiceNode(
         properties: WowProperties,
         environment: Environment,
@@ -274,6 +287,7 @@ class WowAutoConfiguration {
         transformers: ObjectProvider<CommandTransformer>,
         validators: ObjectProvider<CommandValidator>,
         subscriptions: ObjectProvider<SubscriptionFactory>,
+        sinks: ObjectProvider<PublishedSinks>,
         listeners: ObjectProvider<ServiceNodeListener>,
         topics: ObjectProvider<SourceTopics>,
         notifiers: ObjectProvider<ParkedNotifier>,
@@ -324,7 +338,11 @@ class WowAutoConfiguration {
                 ),
                 tenants = tenants(properties, models.models),
             ),
-            subscriptions = bindings(models.providers, dependencies, subscriptions.orderedStream().toList()),
+            subscriptions = bindings(
+                models.providers,
+                dependencies,
+                subscriptions.orderedStream().toList() + sinks.orderedStream().map { it.factory }.toList(),
+            ),
             listener = { step -> stepListeners.forEach { it.onStep(step) } },
             contracts = contracts,
             topics = topics.ifAvailable,
@@ -335,10 +353,12 @@ class WowAutoConfiguration {
     }
 
     @Bean
+    @InternalWowApi
     fun wowBackendsLifecycle(backends: HostBackends): BackendsLifecycle = BackendsLifecycle(backends)
 
     @Bean
     @ConditionalOnMissingBean
+    @InternalWowApi
     fun wowInternalServer(
         properties: WowProperties,
         node: ServiceNode,
@@ -362,6 +382,7 @@ class WowAutoConfiguration {
 
     /** Binds the internal port, then gives a node without a configured address the one it is bound at. */
     @Bean
+    @InternalWowApi
     fun wowInternalServerLifecycle(
         server: InternalServer,
         node: ServiceNode,
@@ -373,14 +394,23 @@ class WowAutoConfiguration {
     }
 
     @Bean
+    @InternalWowApi
     fun wowServiceNodeLifecycle(
         node: ServiceNode,
         events: ApplicationEventPublisher,
         availability: ObjectProvider<ApplicationAvailability>,
     ): ServiceNodeLifecycle = ServiceNodeLifecycle(node, events) { availability.ifAvailable }
 
+    /**
+     * The node's command gateway (decision D92), through which the application sends commands in process. The node
+     * closes it when it stops.
+     */
+    @Bean(destroyMethod = "")
+    fun wowCommandGateway(node: ServiceNode): CommandGateway = node.gateway
+
     @Bean
     @ConditionalOnMissingBean
+    @InternalWowApi
     fun wowStateReads(node: ServiceNode, backends: HostBackends): StateReads {
         val opened = backends.contexts
         val contexts = node.contexts.mapNotNull { (name, context) ->
@@ -421,6 +451,7 @@ class WowAutoConfiguration {
 
     /** The public routes, served by the application's WebFlux server; the query routes when [QueryAutoConfiguration] gives them. */
     @Bean
+    @InternalWowApi
     fun wowRouterFunction(
         manifest: Manifest,
         node: ServiceNode,
@@ -460,6 +491,7 @@ class WowAutoConfiguration {
     /** Tells `wow.ops.webhook.url` when an entry parks or spends its retries (roadmap P.1). */
     @Bean
     @ConditionalOnProperty(prefix = "${WowProperties.PREFIX}.ops.webhook", name = ["url"])
+    @InternalWowApi
     fun wowWebhookNotifier(properties: WowProperties, identity: NodeIdentity): WebhookNotifier {
         val webhook = properties.ops.webhook
         return WebhookNotifier(
@@ -479,6 +511,7 @@ class WowAutoConfiguration {
         @Bean
         @ConditionalOnBean(type = [JAKARTA_VALIDATOR])
         @ConditionalOnMissingBean
+        @InternalWowApi
         fun wowJakartaCommandValidator(validator: ObjectProvider<JakartaValidator>): JakartaCommandValidator =
             JakartaCommandValidator(validator.getObject())
     }

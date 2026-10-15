@@ -195,7 +195,7 @@ class AbacQueryPolicy(
 
 /** An HTTP query rejected because its caller has no ABAC tags; see [AbacQueryOptions.requirePrincipalTags]. */
 @ExperimentalWowApi
-class AbacPrincipalTagsRequiredException :
+internal class AbacPrincipalTagsRequiredException :
     RuntimeException(MESSAGE),
     QueryError {
     override val errorCode: String

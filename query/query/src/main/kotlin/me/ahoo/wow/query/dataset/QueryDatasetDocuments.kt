@@ -65,7 +65,7 @@ import tools.jackson.databind.node.ObjectNode
  * sensitivity (`sensitive`: `level`, `keepPrefix`, `keepSuffix`). `storage` is the backend's opaque binding.
  */
 @ExperimentalWowApi
-object QueryDatasetProperties {
+internal object QueryDatasetProperties {
     const val TITLE = "title"
     const val IDENTITY = "identity"
     const val EVENT_TIME = "eventTime"

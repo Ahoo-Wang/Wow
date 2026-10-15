@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.command
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.currentCoroutineContext
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.result.CommandResult
@@ -72,6 +73,7 @@ import me.ahoo.wow.spi.wait.WaitContext
  * The ledger's system commands (`wow.ledger.*`, decision D141), which the ops context sends for an entry of this
  * service, are not the kernel's: [ledger] runs them on the node's parked entries, and settles them as above.
  */
+@InternalWowApi
 class CommandIntake internal constructor(
     private val context: String,
     models: Collection<AggregateModel<*>>,
@@ -165,6 +167,7 @@ class CommandIntake internal constructor(
         producer.send(topics.receiptsOf(replyTo.context), CommandMessages.receipt(rejected, trace, wait))
     }
 
+    @InternalWowApi
     companion object {
         /** The intake's subscription in each context: its checkpoints and its parked aggregates are under it. */
         const val NAME: String = "wow.commands"

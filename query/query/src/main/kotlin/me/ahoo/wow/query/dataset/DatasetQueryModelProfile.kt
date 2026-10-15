@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.dataset
 
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelProfile
@@ -51,6 +52,7 @@ class DatasetQueryModelProfile internal constructor(val dataset: QueryDataset) :
     override val systemDeclaration: QuerySchemaDeclaration
         get() = EMPTY_DECLARATION
 
+    @InternalWowApi
     override fun systemField(field: SystemField): QueryField? = when (field) {
         SystemField.IDENTITY -> dataset.identity
         SystemField.TENANT_ID -> dataset.scope.tenant

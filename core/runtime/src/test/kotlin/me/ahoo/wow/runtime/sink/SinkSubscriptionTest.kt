@@ -29,9 +29,9 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.EventCodec
-import me.ahoo.wow.kernel.InMemoryEventLog
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.TestTrace
 import me.ahoo.wow.runtime.state.StateViewReader

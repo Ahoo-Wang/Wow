@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.cluster
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.log.Partitioner
 
 /**
@@ -25,6 +26,7 @@ import me.ahoo.wow.spi.log.Partitioner
  * keys differing only in their last characters still spread over all bits. Weights compare as unsigned numbers; a
  * tie goes to the smaller node id.
  */
+@InternalWowApi
 object Hrw {
     private const val MIX_1 = -0xae502812aa7333L // 0xff51afd7ed558ccd
     private const val MIX_2 = -0x3b314601e57a13adL // 0xc4ceb9fe1a85ec53

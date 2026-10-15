@@ -30,6 +30,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
@@ -65,6 +66,7 @@ import java.util.concurrent.ConcurrentHashMap
  * Calls run on [dispatcher], virtual threads by default (decision D29). A failure of the database is a defect and is
  * thrown: a snapshot is a cache, so the caller may drop it and rebuild later.
  */
+@InternalWowApi
 class MongoSnapshotStore(
     client: MongoClient,
     databaseName: String,

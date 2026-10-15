@@ -21,9 +21,9 @@ import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerAggregate
 import me.ahoo.wow.api.ledger.LedgerEntry
 import me.ahoo.wow.api.ledger.LedgerResolution
-import me.ahoo.wow.kernel.InMemoryCheckpointStore
-import me.ahoo.wow.kernel.InMemoryEventLog
-import me.ahoo.wow.kernel.InMemoryFailureLedger
+import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.node.ParkedOps

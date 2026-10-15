@@ -112,8 +112,8 @@ class HostKafkaSinkTest {
             .withBean(Manifest::class.java, { Manifest(service = ServiceInfo("bank-service")) })
             .run { context ->
                 context.getBean(TopicProducer::class.java).assert().isInstanceOf(KafkaTopicProducer::class.java)
-                val factory = context.getBean(SubscriptionFactory::class.java)
-                factory.assert().isInstanceOf(PublishedSinks::class.java)
+                val sinks = context.getBean(PublishedSinks::class.java)
+                sinks.factory.assert().isNotNull()
                 val topics = context.getBean(SourceTopics::class.java)
                 topics.source.assert().isInstanceOf(KafkaPartitionedSource::class.java)
                 topics.topicOf("wow.order.order.state").assert().isEqualTo("test.wow.order.order.state")
@@ -133,7 +133,7 @@ class HostKafkaSinkTest {
                 KafkaAutoConfiguration.options(context.getBean(KafkaProperties::class.java))
                     .pollTimeout.assert().isEqualTo(50.milliseconds)
                 // The Manifest publishes nothing: no sink reads any state.
-                factory.viewTypes(BANK, emptyList()).assert().isEmpty()
+                sinks.factory.viewTypes(BANK, emptyList()).assert().isEmpty()
                 context.getBean(KafkaProperties::class.java).properties.assert().isEqualTo(mapOf("client.id" to "bank"))
             }
         KafkaAutoConfiguration.options(KafkaProperties().apply { bootstrapServers = "b:9092" })

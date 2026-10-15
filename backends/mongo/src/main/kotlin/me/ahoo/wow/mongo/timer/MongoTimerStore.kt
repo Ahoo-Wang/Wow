@@ -28,6 +28,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
@@ -57,6 +58,7 @@ import org.bson.conversions.Bson
  *
  * Calls run on [dispatcher], virtual threads by default (decision D29).
  */
+@InternalWowApi
 class MongoTimerStore(
     client: MongoClient,
     databaseName: String,

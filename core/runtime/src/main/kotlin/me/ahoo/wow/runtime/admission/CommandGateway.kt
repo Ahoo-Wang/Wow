@@ -29,6 +29,7 @@ import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
@@ -114,15 +115,17 @@ import kotlin.time.Duration
  * supervised scope this gateway owns (decision D100); it is not durable: [close] waits for the ones running, and a
  * node that stops before running one loses it.
  */
-class CommandGateway(
+class CommandGateway @InternalWowApi constructor(
     private val registry: ModelRegistry,
     coordinators: Map<String, WaitCoordinator>,
     private val authorizer: CommandAuthorizer = CommandAuthorizer.ALLOW_ALL,
     transformers: List<CommandTransformer> = emptyList(),
     private val validators: List<CommandValidator> = emptyList(),
     /** The node's id generators (decision D171): command ids from the global one, new aggregate ids per type. */
+    @InternalWowApi
     val ids: IdGenerators = IdGenerators.DEFAULT,
     /** The tenant of each aggregate type: the caller's, unless fixed for the type (decision D116). */
+    @InternalWowApi
     val tenants: TenantPolicy = TenantPolicy.CALLERS,
     private val mapper: JsonMapper = ClusterCodec.mapper,
     private val clock: () -> Long = System::currentTimeMillis,
@@ -196,6 +199,7 @@ class CommandGateway(
      * Whether a request of [command] to [type] (its model name, or the part of it after the aggregate type) is
      * transformed: an edge then accepts it without an aggregate id, as it accepts a creation command.
      */
+    @InternalWowApi
     fun transforms(type: AggregateType, command: String): Boolean =
         registry.find(type)?.resolve(type, command)?.let { it.name in transformers } ?: false
 
@@ -205,6 +209,7 @@ class CommandGateway(
      * for a context this gateway does not admit. An edge whose request names a plan but no timeout gives the plan
      * this timeout.
      */
+    @InternalWowApi
     fun defaultWaitTimeout(context: String): Duration =
         coordinators[context]?.options?.let { minOf(it.defaultTimeout, it.maxTimeout) } ?: WaitPlan.DEFAULT_TIMEOUT
 
@@ -215,6 +220,7 @@ class CommandGateway(
      * Refuses new requests from now on ([FrameworkCodes.NODE_CLOSING]), waits for the detached commands that are
      * running, and closes their scope.
      */
+    @InternalWowApi
     suspend fun close() {
         closed = true
         detached.coroutineContext.job.children.toList().joinAll()
@@ -469,8 +475,10 @@ class CommandGateway(
         val observedName: String get() = if (this is Refused) "refused" else "admitted"
     }
 
+    @InternalWowApi
     companion object {
         /** The aggregate id a refusal's ref names when admission had decided none. */
+        @InternalWowApi
         const val UNADDRESSED: String = AggregateRef.UNASSIGNED
 
         private val logger = KotlinLogging.logger {}

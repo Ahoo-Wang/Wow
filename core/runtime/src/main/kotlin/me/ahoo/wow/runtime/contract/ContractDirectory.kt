@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.contract
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
@@ -313,5 +314,6 @@ class ContractDirectory(
 }
 
 /** The contracts of a service and its peers do not hold together; [problems] lists each problem. */
+@InternalWowApi
 class ContractException(val problems: List<String>) :
     IllegalStateException("The service's contracts do not hold together:\n" + problems.joinToString("\n") { "- $it" })

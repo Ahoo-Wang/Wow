@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kernel
+package me.ahoo.wow.kernel.memory
 
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.tck.log.EventLogSpec

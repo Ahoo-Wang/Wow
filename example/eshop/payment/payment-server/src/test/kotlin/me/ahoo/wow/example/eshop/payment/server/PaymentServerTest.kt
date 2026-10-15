@@ -15,7 +15,7 @@ package me.ahoo.wow.example.eshop.payment.server
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.kernel.InMemoryTopics
+import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -80,7 +80,7 @@ class PaymentServerTest {
         val node = context.getBean(ServiceNode::class.java)
         node.service.assert().isEqualTo("eshop-payment-service")
         node.isReady.assert().isTrue()
-        node.contexts.keys.assert().containsExactly("eshop-payment")
+        node.hostedContexts.assert().containsExactly("eshop-payment")
         context.getBean(Manifest::class.java).contexts.single().aggregates.map { it.name }
             .assert().containsExactly("payment")
         context.getBean(ContractDirectory::class.java).serviceOf("eshop-ordering")

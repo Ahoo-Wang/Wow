@@ -58,7 +58,7 @@ fun interface CommandCaller {
  * as [CommandCalls.NONE] does, naming the configuration it lacks. A command built without a causation is its own root,
  * as one a saga derives so ([me.ahoo.wow.runtime.binding.DerivedCommands]).
  */
-class SagaCalls(
+internal class SagaCalls(
     private val caller: CommandCaller?,
     private val contexts: Set<String>,
     private val commandTypes: CommandTypes,

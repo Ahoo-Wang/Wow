@@ -21,7 +21,7 @@ import me.ahoo.wow.query.schema.QueryModel
  * [QueryEntryPolicy.requireAuthenticatedScope] is on: [QueryErrors.FORBIDDEN]. A declared scope for [field] does not
  * count.
  */
-class QueryScopeRequiredException(
+internal class QueryScopeRequiredException(
     val model: QueryModel,
     val field: QueryField,
 ) : RuntimeException("Query on [$model] requires an authenticated [${field.path}] scope."), QueryError {

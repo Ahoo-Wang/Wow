@@ -23,6 +23,7 @@ Status: first draft. V10 is still moving: verify every annotation, signature, ro
 | `wow-redis`, `wow-bi` | Removed (no Redis backend; ClickHouse sink replaces BI sync) |
 | `ksp("me.ahoo.wow:wow-compiler")` by hand | Gradle plugin `id("me.ahoo.wow")`: applies KSP with `wow-compiler` of its own version, excludes the 9.x processors, and adds `generateWowManifestFragment` and `mergeWowManifest` |
 | `wow-test` (`AggregateSpec<A, S>`) | The functional `aggregateSpec` and `sagaSpec` DSL (`me.ahoo.wow.test`), still the artifact `wow-test` (the project `:test-dsl` in the Wow repository): `testImplementation("me.ahoo.wow:wow-test:<version>")` |
+| In-memory stores and buses (`InMemoryEventStore`, `InMemorySnapshotStore`, ..., `wow-mock`) | No public in-memory store class: domain tests use `wow-test` (`aggregateSpec`, `sagaSpec` run on in-memory stores), a host uses `wow.backend: memory`, and a test without Kafka gives an `InMemoryTopics` bean (`me.ahoo.wow.kernel.memory`). The kernel's other `InMemory*` stores are `@InternalWowApi` |
 | Domain handlers returning `Mono`/`Flux` | `suspend`, or keep Reactor through `wow-reactor` (compile error without it) |
 
 Artifact ids keep the `wow-` prefix (`me.ahoo.wow:wow-kernel`); V10 Gradle project names in the Wow repository do not. No module may depend on both a 9.x and a V10 module.
@@ -493,7 +494,7 @@ V10 host keys live under `wow.*` but none of the 9.x keys carry over: `wow.servi
 
 Framework codes and statuses: `wow.auth.unauthenticated` 401; `wow.auth.forbidden` and `wow.aggregate.forbidden` 403; `wow.command.malformed`, `wow.command.invalid`, `wow.wait.invalid`, `wow.command.unhandled` 400; `wow.aggregate.not-found` 404; `wow.aggregate.exists`, `wow.command.request-id-reused`, `wow.command.contended` 409; `wow.aggregate.version-mismatch` 409, or 412 with `If-Match`; `wow.aggregate.deleted` 410; `wow.command.busy` 429; `wow.command.unknown`, `wow.node.closing` 503; `wow.subscription.parked` 500; `wow.wait.timeout` 504; domain rejections 422 unless their `@ErrorCode` says otherwise.
 
-Kotlin callers of 9.x `CommandGateway` move to the V10 gateway (`suspend`), or to `ReactiveCommandGateway` from `wow-reactor` to keep Reactor. TypeScript clients are regenerated from the V10 Manifest and rewritten with the `wow-client` skill; do not hand-patch generated clients.
+Kotlin callers of 9.x `CommandGateway` move to the V10 `CommandGateway` (`me.ahoo.wow.runtime.admission`, a bean of the host): `send(CommandRequest)` returns a `Flow<CommandResult>` and `execute` the last result, both `suspend`-friendly. A Reactor caller collects the flow with `.asFlux()` (`kotlinx-coroutines-reactor`) or becomes `suspend`; a `ReactiveCommandGateway` is planned on demand (D149) and does not exist yet. TypeScript clients are regenerated from the V10 Manifest and rewritten with the `wow-client` skill; do not hand-patch generated clients.
 
 ## Tests
 

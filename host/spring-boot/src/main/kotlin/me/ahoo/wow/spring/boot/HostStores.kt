@@ -14,14 +14,15 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.kernel.InMemoryCheckpointStore
-import me.ahoo.wow.kernel.InMemoryEventLog
-import me.ahoo.wow.kernel.InMemoryFailureLedger
-import me.ahoo.wow.kernel.InMemoryLeaseStore
-import me.ahoo.wow.kernel.InMemoryReservationStore
-import me.ahoo.wow.kernel.InMemorySnapshotStore
-import me.ahoo.wow.kernel.InMemoryTimerStore
+import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
+import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
+import me.ahoo.wow.kernel.memory.InMemoryReservationStore
+import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
+import me.ahoo.wow.kernel.memory.InMemoryTimerStore
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.LogGroupBackends
@@ -48,6 +49,7 @@ import javax.sql.DataSource
  *
  * Its location is the database it writes in: two stores whose logs share one would share their partition sequences.
  */
+@InternalWowApi
 abstract class HostStore internal constructor(val name: String, val kind: BackendKind) {
     private val schemas = CopyOnWriteArrayList<() -> Unit>()
     private val logs = ConcurrentHashMap<String, EventLog>()
@@ -103,7 +105,7 @@ abstract class HostStore internal constructor(val name: String, val kind: Backen
  * [InMemorySnapshotStore] unless a test wraps it. With [queries] (`wow.query.memory.enabled`, decision D209), every
  * snapshot written is also written there, the in-memory reference query backend the snapshot queries read.
  */
-class MemoryStore(
+internal class MemoryStore(
     name: String,
     val queries: InMemoryQueryStorage? = null,
     private val snapshotsOf: (context: String) -> SnapshotStore = { InMemorySnapshotStore() },
@@ -143,6 +145,7 @@ internal class QueriedSnapshotStore(private val store: SnapshotStore, private va
  * (`wow.snapshot.targets`, `wow.snapshot.primary`, the [snapshot] store alone by default). The [snapshot] store
  * (`wow.snapshot.store`) is each context's default one, whose subscription is `snapshot`.
  */
+@InternalWowApi
 class StoreLayout(
     val log: String,
     val snapshot: String = log,
@@ -214,6 +217,7 @@ class StoreLayout(
         )
     }
 
+    @InternalWowApi
     companion object {
         /** The store types a log can be on, and those snapshots can. */
         private val LOG_KINDS = setOf(BackendKind.MEMORY, BackendKind.POSTGRES, BackendKind.MONGO)

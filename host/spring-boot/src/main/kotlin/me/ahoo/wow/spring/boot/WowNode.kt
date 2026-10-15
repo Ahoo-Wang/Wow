@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -29,6 +30,7 @@ import java.util.UUID
  * (`0.0.0.0` or `::` for every interface), else the host the node advertises to its members, that of
  * `wow.node.address` or [host], so the unauthenticated internal port is not open on every interface by default.
  */
+@InternalWowApi
 data class NodeIdentity(
     val service: String,
     val node: String,
@@ -39,6 +41,7 @@ data class NodeIdentity(
     /** The address of the internal port bound at [port]: [address] when configured, else [host] and [port]. */
     fun addressAt(port: Int): String = address ?: "$host:$port"
 
+    @InternalWowApi
     companion object {
         private const val SUFFIX_LENGTH = 8
 
@@ -79,6 +82,7 @@ data class NodeIdentity(
  * The aggregate models the node serves and the [providers] they come from (the binding index, decision D107), with
  * their factories' parameters from the application's beans.
  */
+@InternalWowApi
 class WowModels(val providers: List<ModelProvider>, val models: List<AggregateModel<*>>)
 
 /** Hears each step of [ServiceNode.stop] once it is done, in order: a bean of the application's. */

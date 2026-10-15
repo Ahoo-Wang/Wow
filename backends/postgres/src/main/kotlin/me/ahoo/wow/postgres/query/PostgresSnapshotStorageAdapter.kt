@@ -55,7 +55,7 @@ import me.ahoo.wow.query.schema.storageFamilies
  * path its collection's validator did not declare. Indexes prove no capability: PostgreSQL sorts, ranges and
  * aggregates every typed expression with or without one; an index only makes it fast (D151, [PostgresQueryIndexes]).
  */
-object PostgresSnapshotStorageAdapter : QueryStorageAdapter {
+internal object PostgresSnapshotStorageAdapter : QueryStorageAdapter {
     /** The storage-family rules of this storage: a date string is no operand (see the class). */
     val RULES: QueryStorageFamilyRules = QueryStorageFamilyRules(dateOperands = false)
 

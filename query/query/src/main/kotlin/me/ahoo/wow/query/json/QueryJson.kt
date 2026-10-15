@@ -15,6 +15,7 @@ package me.ahoo.wow.query.json
 
 import com.fasterxml.jackson.annotation.JsonInclude
 import com.fasterxml.jackson.annotation.JsonPropertyOrder
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AfterNowFilter
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationGroup
@@ -52,6 +53,7 @@ import tools.jackson.databind.module.SimpleModule
  * - The capability descriptor ([QueryModelDescriptor][me.ahoo.wow.query.descriptor.QueryModelDescriptor], the `GET`
  *   of the query route) as 9.x wrote it: models and value types as strings, semantic types discriminated by `type`.
  */
+@InternalWowApi
 object QueryJson {
     /** The Jackson module of the query protocol, to register into a WowJson builder: `WowJson.builder().addModule(QueryJson.module)`. */
     val module: JacksonModule = QueryJsonModule()

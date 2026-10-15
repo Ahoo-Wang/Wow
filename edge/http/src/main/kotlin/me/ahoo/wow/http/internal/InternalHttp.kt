@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.http.internal
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.WaitSignal
 import java.net.URI
 import java.net.http.HttpClient
@@ -24,6 +25,7 @@ import kotlin.time.toJavaDuration
  * The internal port (decisions D89, D109): the cluster channel and the wait signal entry of a node, served apart from
  * its public port, over HTTP/1.1 and h2c, and trusted without authentication (D35).
  */
+@InternalWowApi
 object InternalHttp {
     /** Takes a [me.ahoo.wow.runtime.cluster.ForwardCommand] and answers its [me.ahoo.wow.runtime.cluster.ForwardReply]. */
     const val FORWARD_PATH: String = "/wow/internal/forward"

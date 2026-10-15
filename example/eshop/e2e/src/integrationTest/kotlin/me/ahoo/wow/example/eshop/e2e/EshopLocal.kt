@@ -18,7 +18,7 @@ import me.ahoo.wow.example.eshop.catalog.server.CatalogServer
 import me.ahoo.wow.example.eshop.inventory.server.InventoryServer
 import me.ahoo.wow.example.eshop.ordering.server.OrderingServer
 import me.ahoo.wow.example.eshop.payment.server.PaymentServer
-import me.ahoo.wow.kernel.InMemoryTopics
+import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.TopicDdl

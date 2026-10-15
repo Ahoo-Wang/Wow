@@ -21,7 +21,7 @@ import me.ahoo.wow.http.WowHttpOptions
  * The CoSec request headers a command keeps as request facts, as 9.x wow-cosec appended them: the app and the device
  * the request came from. The edge copies them through its request-fact list ([WowHttpOptions.requestFacts]).
  */
-object CoSecRequestFacts {
+internal object CoSecRequestFacts {
     const val APP_ID: String = AppIdCapable.APP_ID_KEY
     const val DEVICE_ID: String = DeviceIdCapable.DEVICE_ID_KEY
 

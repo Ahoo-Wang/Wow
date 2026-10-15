@@ -50,7 +50,7 @@ sealed interface Temporal : QuerySemanticType {
  * display and totalling semantics for query consumers, never inferred from the JVM type, and it does not change how
  * the field is queried.
  */
-sealed interface NumericFormat : QuerySemanticType {
+internal sealed interface NumericFormat : QuerySemanticType {
     /** The number of digits after the decimal point. */
     val scale: Int
 
@@ -128,7 +128,7 @@ sealed interface NumericFormat : QuerySemanticType {
  * as a duration. Declared on the model (`@QueryDuration`), never inferred: an `Int` does not tell its unit. It does
  * not change how the field is queried.
  */
-data class TimeSpan(val timeUnit: TimeUnit) : QuerySemanticType
+internal data class TimeSpan(val timeUnit: TimeUnit) : QuerySemanticType
 
 /**
  * A value that is the id of an aggregate: the one named by [contextName] and [aggregateName], or, per record, the one
@@ -136,7 +136,7 @@ data class TimeSpan(val timeUnit: TimeUnit) : QuerySemanticType
  * them). Exactly one of the two pairs is given. Query consumers use it to look up and link to the aggregate; it does
  * not change how the field is queried.
  */
-data class Reference(
+internal data class Reference(
     val contextName: String? = null,
     val aggregateName: String? = null,
     val contextNameField: String? = null,

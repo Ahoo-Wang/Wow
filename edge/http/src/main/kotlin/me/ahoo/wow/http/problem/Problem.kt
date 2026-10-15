@@ -84,4 +84,6 @@ data class Problem(
  * Answers a request with [problem] from wherever it is found out, before the command has a ref; caught by the route
  * and written as its response.
  */
-class ProblemException(val problem: Problem) : RuntimeException(problem.detail ?: problem.title, null, false, false)
+internal class ProblemException(
+    val problem: Problem
+) : RuntimeException(problem.detail ?: problem.title, null, false, false)

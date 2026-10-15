@@ -39,7 +39,7 @@ import java.util.ArrayDeque
  * Whether this single filter node (children are not inspected) is costly for a backend to evaluate, as the
  * operator's [me.ahoo.wow.query.spec.FilterOperatorSpec] states.
  */
-fun FilterExpression.isExpensive(): Boolean = spec.cost(this) == OperatorCost.EXPENSIVE
+internal fun FilterExpression.isExpensive(): Boolean = spec.cost(this) == OperatorCost.EXPENSIVE
 
 /**
  * Whether this filter provably matches every document, as its operator's
@@ -47,28 +47,34 @@ fun FilterExpression.isExpensive(): Boolean = spec.cost(this) == OperatorCost.EX
  * [DeletionState.ALL], an [AndFilter] whose operands all match everything, or an [OrFilter] with at least one
  * operand that matches everything. Any other filter is treated as restrictive.
  */
-fun FilterExpression.isMatchAll(): Boolean = spec.matchesAll(this)
+internal fun FilterExpression.isMatchAll(): Boolean = spec.matchesAll(this)
 
 /**
  * The number of literal values carried by a multi-value filter node (`IN`, `NOT_IN`, `CONTAINS_ALL`, `IDS`,
  * `AGGREGATE_IDS`: the operators whose [value arity][me.ahoo.wow.query.spec.Arity.values] is a list), or `null`
  * for nodes that do not carry a value list.
  */
-fun FilterExpression.valueCount(): Int? = if (spec.arity.values == ValueArity.LIST) spec.valueCount(this) else null
+internal fun FilterExpression.valueCount(): Int? = if (spec.arity.values == ValueArity.LIST) {
+    spec.valueCount(
+        this
+    )
+} else {
+    null
+}
 
 /**
  * Lazily walks every node of these filter trees (roots included) depth-first without recursion, so arbitrarily
  * deep trees cannot overflow the stack. Nodes are visited last-in-first-out: the last root first, and each node
  * before its children. Consumers can stop early, e.g. once a node budget is exceeded.
  */
-fun List<FilterExpression>.walkFilterNodes(): Sequence<FilterExpression> =
+internal fun List<FilterExpression>.walkFilterNodes(): Sequence<FilterExpression> =
     walkTree(this, FilterExpression::childFilters)
 
 /**
  * The number of literal values carried by this having node: one for `CONDITION`, two for `BETWEEN`, the list
  * size for `IN`, and zero for `IS_NULL` and the logical `AND` / `OR` nodes.
  */
-fun HavingExpression.valueCount(): Int = when (this) {
+internal fun HavingExpression.valueCount(): Int = when (this) {
     is HavingExpression.Condition -> 1
     is HavingExpression.Between -> 2
     is HavingExpression.In -> values.size
@@ -89,7 +95,7 @@ internal fun HavingExpression.childExpressions(): List<HavingExpression> = when 
 }
 
 /** Lazily walks every node of this having tree, the root included, in the same order as [walkFilterNodes]. */
-fun HavingExpression.walkHavingNodes(): Sequence<HavingExpression> =
+internal fun HavingExpression.walkHavingNodes(): Sequence<HavingExpression> =
     walkTree(listOf(this), HavingExpression::childExpressions)
 
 /**
@@ -97,7 +103,7 @@ fun HavingExpression.walkHavingNodes(): Sequence<HavingExpression> =
  * (arithmetic or a constant) on `NUMERIC` / `DISTINCT_COUNT` / `PERCENTILE`, or any `DERIVED` metric.
  * `COUNT`, `ANY`, `FIRST` and `LAST` never carry an expression.
  */
-fun AggregationMetric.hasArithmeticExpression(): Boolean = when (this) {
+internal fun AggregationMetric.hasArithmeticExpression(): Boolean = when (this) {
     is AggregationMetric.Numeric -> expression !is AggregationExpression.Field
     is AggregationMetric.DistinctCount -> expression !is AggregationExpression.Field
     is AggregationMetric.Percentile -> expression !is AggregationExpression.Field

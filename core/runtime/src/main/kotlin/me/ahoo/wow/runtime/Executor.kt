@@ -19,6 +19,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
@@ -45,6 +46,7 @@ import java.util.concurrent.atomic.AtomicInteger
  * so failing to take one never fails the committed command: the failure is logged, and the consumers rebuild the
  * state instead.
  */
+@InternalWowApi
 class Executor(
     private val kernel: Kernel,
     private val laneCapacity: Int = DEFAULT_LANE_CAPACITY,
@@ -154,8 +156,9 @@ class Executor(
 }
 
 /** The executor is closed: the command was not taken. */
-class ExecutorClosedException : IllegalStateException("The executor is closed.")
+internal class ExecutorClosedException : IllegalStateException("The executor is closed.")
 
 /** [ref] already has [capacity] commands waiting: the command was not taken. */
+@InternalWowApi
 class ExecutorBusyException(val ref: AggregateRef, val capacity: Int) :
     IllegalStateException("$ref already has $capacity commands waiting.")

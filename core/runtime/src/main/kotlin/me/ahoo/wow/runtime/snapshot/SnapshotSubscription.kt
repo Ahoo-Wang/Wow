@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.snapshot
 import kotlinx.coroutines.flow.firstOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
@@ -69,6 +70,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotStore
  * [capacity]. [capacity] also bounds the versions, first event times and first operators kept per aggregate.
  */
 @Suppress("LongParameterList")
+@InternalWowApi
 class SnapshotSubscription(
     context: String,
     models: Collection<AggregateModel<*>>,

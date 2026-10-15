@@ -26,10 +26,10 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.EventCodec
-import me.ahoo.wow.kernel.InMemoryEventLog
-import me.ahoo.wow.kernel.InMemorySnapshotStore
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.binding.AddItems
 import me.ahoo.wow.runtime.binding.CART
@@ -81,7 +81,7 @@ class StateViewReaderTest {
 
     private suspend fun stream(version: Int): EventStreamRecord = log.read(ref, version, version).toList().single()
 
-    private fun StateView.items(): List<String> = codec.decodeState(cart, state).items
+    private fun SerializedState.items(): List<String> = codec.decodeState(cart, state).items
 
     /** A cart whose state reads back whole: its items keep their order. */
     class ListCart {
@@ -150,7 +150,7 @@ class StateViewReaderTest {
     fun `a snapshot nearer than the latest view should be the base`(): Unit = runBlocking {
         val elsewhere = Executor(kernel)
         repeat(4) { add("item-$it", executor = elsewhere) }
-        views.put(ref, StateView(1, codec.stateText(ListCart().apply { items = listOf("view") })))
+        views.put(ref, SerializedState(1, codec.stateText(ListCart().apply { items = listOf("view") })))
         snapshots.save(
             codec.snapshotOf(cart, ref, ListCart().apply { items = listOf("snapshot") }, 3, Scope.NONE, 0, 0)
         )
@@ -163,10 +163,10 @@ class StateViewReaderTest {
         val elsewhere = Executor(kernel)
         repeat(3) { add("item-$it", executor = elsewhere) }
         // One that does not parse.
-        views.put(ref, StateView(2, """{"items":"""))
+        views.put(ref, SerializedState(2, """{"items":"""))
         reader().read(stream(3)).items().assert().containsExactly("item-0", "item-1", "item-2")
         // One that parses but does not write back the same.
-        views.put(ref, StateView(4, """{"items":["view"],"unknown":1}"""))
+        views.put(ref, SerializedState(4, """{"items":["view"],"unknown":1}"""))
         add("item-3", executor = elsewhere)
         add("item-4", executor = elsewhere)
         reader().read(stream(5)).items().assert().hasSize(5)

@@ -17,7 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.ledger.LedgerEntry
 import me.ahoo.wow.api.ledger.LedgerResolution
-import me.ahoo.wow.kernel.InMemoryTopics
+import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.ops.testing.InMemoryOpsTopics
 import me.ahoo.wow.ops.testing.LedgerSimulator

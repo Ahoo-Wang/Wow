@@ -32,7 +32,10 @@ import me.ahoo.wow.spi.log.Transport
  * Every group has the context's partitions; an append of streams of several groups appends each group's streams to
  * its own log, and the outcomes come back in the order of the streams.
  */
-class LogGroupRouter(private val default: EventLog, private val groups: Map<AggregateType, EventLog>) : EventLog {
+internal class LogGroupRouter(
+    private val default: EventLog,
+    private val groups: Map<AggregateType, EventLog>
+) : EventLog {
     init {
         groups.values.forEach {
             require(it.partitions == default.partitions) {

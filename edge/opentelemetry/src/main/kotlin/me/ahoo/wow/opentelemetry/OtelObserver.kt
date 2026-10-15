@@ -19,6 +19,7 @@ import io.opentelemetry.api.trace.Span
 import io.opentelemetry.api.trace.SpanBuilder
 import io.opentelemetry.api.trace.SpanKind
 import io.opentelemetry.context.Context
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.opentelemetry.WowAttributes.AGGREGATE
 import me.ahoo.wow.opentelemetry.WowAttributes.AGGREGATE_ID
@@ -58,6 +59,7 @@ import kotlin.coroutines.EmptyCoroutineContext
  * is the child of the span those propagation fields name, as [openTelemetry]'s propagators extract them; any other is
  * the child of the current span. [clock] is the wall clock the lag and the timer delay are measured by.
  */
+@InternalWowApi
 class OtelObserver(
     openTelemetry: OpenTelemetry,
     private val meters: MeterRegistry,

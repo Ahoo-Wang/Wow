@@ -25,9 +25,9 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.StateEvent
-import me.ahoo.wow.kernel.InMemoryTopics
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.StartFrom
+import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PublishedManifest
@@ -202,7 +202,7 @@ class CrossContextWaitTest {
         remoteSignals = signals,
         options = fastNodeOptions(),
         subscriptions = SubscriptionBindings(mapOf(SALES to listOf(orderSaga(rejections)))) +
-            PublishedSinks.topics(salesManifest, topics, PREFIX),
+            PublishedSinks.topics(salesManifest, topics, PREFIX).factory,
         contracts = ContractDirectory(salesManifest, listOf(peer(stockManifest))),
         topics = SourceTopics(topics, PREFIX, topics),
     ).also {

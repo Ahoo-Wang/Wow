@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import me.ahoo.wow.api.annotation.InternalWowApi
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -34,6 +35,7 @@ import java.util.concurrent.ConcurrentHashMap
  * connects to each peer as soon as its routes learn the peer's address, and [PartitionedRouter] once more before
  * each forward, which costs nothing once connected.
  */
+@InternalWowApi
 fun interface ClusterChannel {
     suspend fun forward(address: String, request: ForwardCommand): ForwardReply
 
@@ -46,11 +48,13 @@ fun interface ClusterChannel {
 }
 
 /** What a node serves on the cluster channel: the forwarded commands it executes. */
+@InternalWowApi
 fun interface ClusterChannelHandler {
     suspend fun forward(request: ForwardCommand): ForwardReply
 }
 
 /** A peer could not be reached over the cluster channel. */
+@InternalWowApi
 class ClusterChannelException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
 
 /**
@@ -60,6 +64,7 @@ class ClusterChannelException(message: String, cause: Throwable? = null) : Runti
  *
  * [latency] runs after the handler and before the reply is returned, to delay replies from an address.
  */
+@InternalWowApi
 class LoopbackClusterChannel(
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
     private val latency: suspend (address: String) -> Unit = {},

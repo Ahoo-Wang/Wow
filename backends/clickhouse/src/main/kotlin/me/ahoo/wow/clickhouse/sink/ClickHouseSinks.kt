@@ -15,6 +15,7 @@ package me.ahoo.wow.clickhouse.sink
 
 import com.clickhouse.client.api.Client
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
 
 /**
@@ -26,6 +27,7 @@ import me.ahoo.wow.manifest.Manifest
  * stream -> sinks.sinkOf(context, stream.aggregate) }`, so each is a sink subscription named
  * `clickhouse-sink.<aggregate>`.
  */
+@InternalWowApi
 class ClickHouseSinks internal constructor(
     private val statements: ClickHouseStatements,
     private val manifest: Manifest,
@@ -57,6 +59,7 @@ class ClickHouseSinks internal constructor(
 
     override fun toString(): String = "ClickHouseSinks(${options.database})"
 
+    @InternalWowApi
     companion object {
         /** The processor name of the ClickHouse Sink's subscriptions: `clickhouse-sink.<aggregate>`. */
         const val PROCESSOR: String = "clickhouse-sink"

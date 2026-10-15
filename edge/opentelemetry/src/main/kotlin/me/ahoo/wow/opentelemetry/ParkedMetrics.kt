@@ -14,6 +14,7 @@
 package me.ahoo.wow.opentelemetry
 
 import io.micrometer.core.instrument.MeterRegistry
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 
@@ -22,6 +23,7 @@ import me.ahoo.wow.runtime.subscription.ParkedNotifier
  * counter of [meters], by subscription and kind (`parked`, an entry parked; `exhausted`, one whose automatic retries
  * are spent). How many are parked now is [NodeMetrics]'s gauge.
  */
+@InternalWowApi
 class ParkedMetrics(private val meters: MeterRegistry) : ParkedNotifier {
     override suspend fun notify(notice: ParkedNotice) {
         meters.counter(

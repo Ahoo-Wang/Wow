@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
@@ -82,6 +83,7 @@ import kotlin.time.Duration.Companion.milliseconds
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29).
  */
+@InternalWowApi
 class PostgresEventLog(
     private val dataSource: DataSource,
     private val context: String,

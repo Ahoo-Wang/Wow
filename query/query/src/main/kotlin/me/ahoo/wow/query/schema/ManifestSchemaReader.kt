@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit
  * | `x-wow-reference` `{aggregateName, contextName?}` | [Reference] (the declaring context when omitted) |
  * | `x-wow-index` (state root) | informational: the storage's index DDL reads it (D151), the query schema does not |
  */
-object ManifestQueryKeywords {
+internal object ManifestQueryKeywords {
     const val SENSITIVE: String = "x-wow-sensitive"
     const val MASK: String = "x-wow-mask"
     const val ALIAS: String = "x-wow-alias"

@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.node
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
@@ -211,6 +212,7 @@ data class ServiceNodeOptions(
  * [tenants] of its aggregate types (decision D116). [ids] are the node's id generators (decision D171): admission's
  * command and aggregate ids, the wait ids, and the ids its decide functions and sagas take.
  */
+@InternalWowApi
 data class AdmissionPlugins(
     val authorizer: CommandAuthorizer = CommandAuthorizer.ALLOW_ALL,
     val transformers: List<CommandTransformer> = emptyList(),
@@ -229,6 +231,7 @@ data class AdmissionPlugins(
  * [sourced] are the context's subscriptions of other contexts' published streams (decision D134): the node reads
  * each stream's topic ([SourceTopics]) for them instead of the log.
  */
+@InternalWowApi
 fun interface SubscriptionFactory {
     fun subscriptions(context: ContextNode): List<Subscription>
 
@@ -324,6 +327,7 @@ fun interface SubscriptionFactory {
         }
     }
 
+    @InternalWowApi
     companion object {
         val NONE: SubscriptionFactory = SubscriptionFactory { emptyList() }
 
@@ -338,6 +342,7 @@ fun interface SubscriptionFactory {
  * A [subscription] that reads the published streams of [types], aggregates of another context (decision D134): its
  * filter is of that context, and it handles the records read from each type's topic.
  */
+@InternalWowApi
 data class SourcedSubscription(val subscription: Subscription, val types: Set<AggregateType>) {
     init {
         require(types.isNotEmpty()) { "${subscription.name} reads no published stream." }

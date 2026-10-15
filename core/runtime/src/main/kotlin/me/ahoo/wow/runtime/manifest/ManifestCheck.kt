@@ -37,7 +37,7 @@ import me.ahoo.wow.manifest.Manifest
  * - an event of the Manifest the model does not name so, or of another revision;
  * - a different set of lifecycle commands.
  */
-object ManifestCheck {
+internal object ManifestCheck {
     /** Every difference between [manifest] and [models]; empty when they agree. */
     fun differences(manifest: Manifest, models: Collection<AggregateModel<*>>): List<String> {
         val declared = manifest.contexts.flatMap { context ->
@@ -131,7 +131,7 @@ object ManifestCheck {
 }
 
 /** A service's Manifest and its models disagree; [differences] lists each difference. */
-class ManifestMismatchException(val differences: List<String>) :
+internal class ManifestMismatchException(val differences: List<String>) :
     IllegalStateException(
         "The Manifest and the aggregate models disagree:\n" + differences.joinToString("\n") { "- $it" },
     )

@@ -30,8 +30,8 @@ import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.schedule.ScheduleTick
-import me.ahoo.wow.kernel.InMemoryTimerStore
 import me.ahoo.wow.kernel.ProcessorBinding
+import me.ahoo.wow.kernel.memory.InMemoryTimerStore
 import me.ahoo.wow.kernel.schedule.JobState
 import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.kernel.schedule.ScheduleJobModel

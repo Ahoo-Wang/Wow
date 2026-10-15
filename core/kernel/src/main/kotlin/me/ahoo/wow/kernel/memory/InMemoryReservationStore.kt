@@ -11,10 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kernel
+package me.ahoo.wow.kernel.memory
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.reservation.Reservation
 import me.ahoo.wow.spi.reservation.ReservationStore
 import java.time.Clock
@@ -24,6 +25,7 @@ import kotlin.time.Duration
  * A [ReservationStore] in memory, for tests and samples. Every operation is serialized by one lock; expiry follows
  * [clock].
  */
+@InternalWowApi
 class InMemoryReservationStore(private val clock: Clock = Clock.systemUTC()) : ReservationStore {
     private val lock = Mutex()
     private val reservations = HashMap<Pair<String, String>, Reservation>()

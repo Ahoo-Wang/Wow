@@ -15,6 +15,7 @@ package me.ahoo.wow.http.command
 
 import jakarta.validation.ConstraintViolation
 import jakarta.validation.Validator
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.runtime.admission.CommandValidator
@@ -29,6 +30,7 @@ import me.ahoo.wow.runtime.admission.CommandValidator
  * `jakarta.validation-api` is a compile-only dependency of this module: the host constructs this validator only when
  * the application provides a [Validator] (a Bean Validation provider on its classpath).
  */
+@InternalWowApi
 class JakartaCommandValidator(private val validator: Validator) : CommandValidator {
     override fun validate(type: CommandType, body: Any): List<Violation> =
         validator.validate(body).map(::violationOf).sortedWith(compareBy({ it.path }, { it.code }))

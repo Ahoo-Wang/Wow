@@ -42,7 +42,7 @@ import java.time.Duration as JavaDuration
  *
  * [format] prints a plan as [parse] reads it, the inverse of [parse].
  */
-object WaitHeader {
+internal object WaitHeader {
     private val HOP = Regex("""^([A-Za-z]+)\s*(?:\(\s*([^()]*?)\s*\))?$""")
     private val NAME = Regex("""^[A-Za-z0-9_.\-]+$""")
     private val SHORT_TIMEOUT = Regex("""^(\d{1,9})\s*(ms|s|m)$""")

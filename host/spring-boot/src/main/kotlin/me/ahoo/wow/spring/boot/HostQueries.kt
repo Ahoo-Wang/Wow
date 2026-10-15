@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryBackendFactory
@@ -40,7 +41,7 @@ import java.util.concurrent.ConcurrentHashMap
  * `wow.aggregates.[<context>.<aggregate>].tenant` fixes is restricted to that tenant, any other to its caller's, as a
  * command or a state read of it is.
  */
-class HostQueryTenants(private val tenants: TenantPolicy) : QueryTenantPolicy {
+internal class HostQueryTenants(private val tenants: TenantPolicy) : QueryTenantPolicy {
     override fun tenantOf(type: AggregateType, caller: QueryCaller): String? =
         tenants.fixedTenant(type) ?: caller.tenantId
 }
@@ -51,7 +52,7 @@ class HostQueryTenants(private val tenants: TenantPolicy) : QueryTenantPolicy {
  * (decision D73). An aggregate without one, from a module built with the compiler alone, is queried by its system
  * fields only, and a warning says so once.
  */
-class ManifestStateSchemas(
+internal class ManifestStateSchemas(
     private val manifest: Manifest,
     strategies: MaskStrategyResolver = MaskStrategyResolver.NONE,
 ) : QuerySchemaSource {
@@ -88,6 +89,7 @@ class ManifestStateSchemas(
  * facts (null when no backend serves the node's snapshots), and, for a backend the host manages, how it [prepare]s an aggregate's storage and [manages][manageIndexes]
  * its `x-wow-index` indexes at startup (decision D151).
  */
+@InternalWowApi
 class SnapshotQueryBackend(
     val factory: QueryBackendFactory<*>?,
     private val prepare: (AggregateType) -> Unit = {},
@@ -111,6 +113,7 @@ class SnapshotQueryBackend(
         declarations: List<QueryIndexDeclaration>,
     ): QueryIndexReport = indexes?.invoke(type, schema, declarations) ?: QueryIndexReport()
 
+    @InternalWowApi
     companion object {
         /** No backend: the node's snapshots are not queried. */
         @JvmField
@@ -145,6 +148,7 @@ class SnapshotQueryBackend(
 }
 
 /** What managing one aggregate's indexes did: the indexes it created, and those it found missing or broken. */
+@InternalWowApi
 data class QueryIndexReport(
     val created: List<String> = emptyList(),
     val missing: List<String> = emptyList(),
@@ -171,6 +175,7 @@ internal fun queryTypes(manifest: Manifest, contexts: Set<String>, model: String
  * compiled from [catalog], and its Manifest's `x-wow-index` planned and managed by [backend] as [ddl] says. A key
  * the model cannot index fails the start.
  */
+@InternalWowApi
 class QueryIndexesLifecycle(
     private val manifest: Manifest,
     private val types: List<AggregateType>,

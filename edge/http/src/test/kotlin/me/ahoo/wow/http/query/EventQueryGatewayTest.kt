@@ -37,7 +37,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
-import me.ahoo.wow.kernel.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry

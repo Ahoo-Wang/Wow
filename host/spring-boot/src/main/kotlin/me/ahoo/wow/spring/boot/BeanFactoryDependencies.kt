@@ -22,7 +22,7 @@ import org.springframework.beans.factory.ListableBeanFactory
  * is the only bean of its type, or its primary bean when there are several. Several without a primary are ambiguous:
  * the parameter needs a qualifier.
  */
-class BeanFactoryDependencies(private val beanFactory: ListableBeanFactory) : Dependencies {
+internal class BeanFactoryDependencies(private val beanFactory: ListableBeanFactory) : Dependencies {
     override fun find(type: Class<*>, qualifier: String?): Any? {
         if (qualifier != null) {
             return if (beanFactory.containsBean(qualifier) && beanFactory.isTypeMatch(qualifier, type)) {

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.result.WaitPlan
@@ -177,6 +178,7 @@ class WowProperties {
         var include: MutableSet<String> = LinkedHashSet()
         var exclude: MutableSet<String> = LinkedHashSet()
 
+        @InternalWowApi
         fun selection(): ContextSelection = ContextSelection(include.toSet(), exclude.toSet())
     }
 

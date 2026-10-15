@@ -22,6 +22,7 @@ import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.spi.subscription.CheckpointStore
@@ -36,6 +37,7 @@ import org.bson.conversions.Bson
  * highest and a lower one changes nothing (decision D45; see [conditionalUpsert]). Calls run on [dispatcher], virtual
  * threads by default (decision D29).
  */
+@InternalWowApi
 class MongoCheckpointStore(
     client: MongoClient,
     databaseName: String,

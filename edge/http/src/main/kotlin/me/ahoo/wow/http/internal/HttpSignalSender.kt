@@ -24,6 +24,7 @@ import kotlinx.coroutines.future.await
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withTimeoutOrNull
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.wait.SignalSender
@@ -53,6 +54,7 @@ import kotlin.time.toJavaDuration
  * An origin's queue goes away after [idleTimeout] without signals, so the origins of nodes long gone do not
  * accumulate. [close] stops sending; what is queued then is dropped.
  */
+@InternalWowApi
 class HttpSignalSender(
     private val client: HttpClient = InternalHttp.client(),
     private val queueCapacity: Int = DEFAULT_QUEUE_CAPACITY,
@@ -156,6 +158,7 @@ class HttpSignalSender(
         }
     }
 
+    @InternalWowApi
     companion object {
         const val DEFAULT_QUEUE_CAPACITY: Int = 1_024
         const val DEFAULT_CONCURRENCY: Int = 16

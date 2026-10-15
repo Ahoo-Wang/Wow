@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.StateCache
 import java.util.concurrent.locks.ReentrantLock
@@ -23,6 +24,7 @@ import kotlin.concurrent.withLock
  * A [StateCache] of at most [capacity] aggregates, evicting the least recently used. Taking a state out (for a
  * command) frees its slot until the command puts it back.
  */
+@InternalWowApi
 class LruStateCache(private val capacity: Int) : StateCache {
     private val lock = ReentrantLock()
     private val states = object : LinkedHashMap<AggregateRef, CachedState>(INITIAL, LOAD_FACTOR, true) {

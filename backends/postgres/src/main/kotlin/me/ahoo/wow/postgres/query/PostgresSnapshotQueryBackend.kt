@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.ICountQuery
 import me.ahoo.wow.api.query.IListQuery
@@ -62,6 +63,7 @@ import javax.sql.DataSource
  * holds no records: every primitive answers as over an empty table, as the provisional facts of
  * [PostgresQuerySchemaAdapter] describe it.
  */
+@InternalWowApi
 class PostgresSnapshotQueryBackend internal constructor(
     override val aggregateType: AggregateType,
     private val dataSource: DataSource,

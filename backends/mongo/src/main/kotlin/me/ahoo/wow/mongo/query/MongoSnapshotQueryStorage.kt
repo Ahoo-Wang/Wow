@@ -16,6 +16,7 @@ package me.ahoo.wow.mongo.query
 import com.mongodb.client.MongoClient
 import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.query.AbstractQueryBackendFactory
@@ -27,6 +28,7 @@ import me.ahoo.wow.query.QueryBackendBinding
  * with the facts [MongoQuerySchemaAdapter] reads from the collection; and the management of its query indexes
  * ([manageIndexes], decision D151).
  */
+@InternalWowApi
 class MongoSnapshotQueryStorage @JvmOverloads constructor(
     client: MongoClient,
     databaseName: String,

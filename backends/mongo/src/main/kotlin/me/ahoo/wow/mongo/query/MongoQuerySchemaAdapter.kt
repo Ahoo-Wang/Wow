@@ -46,7 +46,7 @@ import org.bson.Document
  * that does not exist yet, before the aggregate type's first snapshot, yields provisional facts of the collection it
  * will be created as, so the Catalog asks again on the next load.
  */
-class MongoQuerySchemaAdapter internal constructor(
+internal class MongoQuerySchemaAdapter internal constructor(
     private val database: MongoDatabase,
     private val collection: String,
     private val dispatcher: CoroutineDispatcher,

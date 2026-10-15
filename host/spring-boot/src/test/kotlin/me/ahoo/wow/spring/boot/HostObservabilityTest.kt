@@ -27,7 +27,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.kernel.InMemoryTopics
+import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.opentelemetry.NodeMetrics
 import me.ahoo.wow.opentelemetry.OtelObserver
 import me.ahoo.wow.opentelemetry.OtelQueryObserver

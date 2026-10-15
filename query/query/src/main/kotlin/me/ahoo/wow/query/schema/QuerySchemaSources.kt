@@ -29,7 +29,7 @@ class BeanQuerySchemaSource(
 }
 
 /** The system fields of [QuerySchemaContext.model]'s profile: the source every built-in model starts from. */
-object SystemQuerySchemaSource : QuerySchemaSource {
+internal object SystemQuerySchemaSource : QuerySchemaSource {
     override val priority: Int = Int.MIN_VALUE
 
     override suspend fun load(context: QuerySchemaContext): List<QuerySchemaDeclaration> =

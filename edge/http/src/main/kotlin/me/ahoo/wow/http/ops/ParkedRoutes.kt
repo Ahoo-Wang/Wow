@@ -16,6 +16,7 @@ package me.ahoo.wow.http.ops
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.http.HttpJson
@@ -73,6 +74,7 @@ import kotlin.time.Duration.Companion.seconds
  * public routes.
  */
 @ExperimentalWowApi
+@InternalWowApi
 fun parkedRoutes(
     ops: ParkedOps,
     manifest: Manifest,
@@ -114,7 +116,7 @@ object OpsPaths {
  * [CommandAction] of one of these types on the parked aggregate.
  */
 @ExperimentalWowApi
-object OpsCommands {
+internal object OpsCommands {
     const val RESUME: String = Ledger.RESUME
     const val SKIP: String = Ledger.SKIP
     const val MARK_RECOVERABLE: String = Ledger.MARK_RECOVERABLE

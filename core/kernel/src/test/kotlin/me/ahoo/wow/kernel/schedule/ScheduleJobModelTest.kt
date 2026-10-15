@@ -36,8 +36,8 @@ import me.ahoo.wow.api.schedule.TickJob
 import me.ahoo.wow.api.schedule.Ticked
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
-import me.ahoo.wow.kernel.InMemoryEventLog
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test

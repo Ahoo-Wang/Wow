@@ -32,6 +32,7 @@ import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.spi.id.IdGenerators
 import org.junit.jupiter.api.Test
 
 /** Decision D193: a saga's synchronous call goes through the context's [CommandCalls], its failures typed. */
@@ -98,6 +99,8 @@ class SagaCallTest {
         val context = ExecutionSagaContext(
             execution,
             event,
+            IdGenerators.DEFAULT,
+            CommandTypes.SIMPLE_NAMES,
             calls = CommandCalls { result(it, CommandResult.Status.REJECTED) },
         )
         val command = context.command(stock.ref("t", "mug"), "reserve")
@@ -112,6 +115,8 @@ class SagaCallTest {
         val failing = ExecutionSagaContext(
             execution,
             event,
+            IdGenerators.DEFAULT,
+            CommandTypes.SIMPLE_NAMES,
             calls = CommandCalls { result(it, CommandResult.Status.FAILED) },
         )
         val failed = thrown<CallFailedException> {

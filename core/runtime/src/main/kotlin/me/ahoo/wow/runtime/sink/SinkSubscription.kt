@@ -51,7 +51,7 @@ import me.ahoo.wow.spi.state.StateView
  *   returned, which is once the records are durable (the broker acknowledged them). A crash, a retry or an old owner
  *   beside the new one writes a record again; a reader drops it by [StateEventRecord.id].
  */
-class SinkSubscription(
+internal class SinkSubscription(
     val name: String,
     val type: AggregateType,
     private val sink: Sink,

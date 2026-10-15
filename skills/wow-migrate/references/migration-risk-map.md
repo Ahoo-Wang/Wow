@@ -96,7 +96,7 @@ Pin the exact V9 tag or commit first. When that target contains the V9 query spl
 | `QueryType.isDynamic` | Deleted; typed and node paths share operation types |
 | `SnapshotRepository` | `SnapshotStore` |
 | `NoOpSnapshotRepository` | `NoOpSnapshotStore` |
-| `InMemorySnapshotRepository` | `InMemorySnapshotStore` |
+| `InMemorySnapshotRepository` | `InMemorySnapshotStore` (9.x `me.ahoo.wow.eventsourcing.snapshot`; V10 has no public in-memory store class, see `v9-to-v10.md`) |
 | `DelaySnapshotRepository` | `DelaySnapshotStore` |
 | `ElasticsearchSnapshotRepository` | `ElasticsearchSnapshotStore` |
 | `TracingSnapshotRepository` | `TracingSnapshotStore` |

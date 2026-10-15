@@ -20,7 +20,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.kernel.InMemoryTopics
+import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.runtime.admission.CommandBody
@@ -84,7 +84,7 @@ class PublishedSinksTest {
             backends,
             LoopbackClusterChannel(),
             options = fastNodeOptions(),
-            subscriptions = PublishedSinks.topics(manifest, producer, topicPrefix = "dev."),
+            subscriptions = PublishedSinks.topics(manifest, producer, topicPrefix = "dev.").factory,
         ).also { nodes += it }
 
     @AfterEach
@@ -137,10 +137,10 @@ class PublishedSinksTest {
     fun `each sink should be a state reader of the type it publishes`(): Unit = runBlocking {
         val sinks = PublishedSinks.topics(manifest, topics)
         val models = listOf(orderModel(), cartModel())
-        sinks.stateReaders(SHOP, models).assert()
+        sinks.factory.stateReaders(SHOP, models).assert()
             .isEqualTo(mapOf("kafka-sink.order" to setOf(ORDER), "kafka-sink.cart" to setOf(CART)))
-        sinks.viewTypes(SHOP, models).assert().containsExactly(ORDER, CART)
-        sinks.stateReaders("other", models).assert().isEmpty()
+        sinks.factory.viewTypes(SHOP, models).assert().containsExactly(ORDER, CART)
+        sinks.factory.stateReaders("other", models).assert().isEmpty()
         sinks.toString().assert().isEqualTo("PublishedSinks(kafka-sink)")
         val node = node()
         node.context(SHOP).views.readers.keys.assert().contains("kafka-sink.order", "kafka-sink.cart")
@@ -214,7 +214,7 @@ class PublishedSinksTest {
                 PublishedSinks.publishedOf(wrong),
                 PublishedSinks.KAFKA_SINK
             ) { _, _ -> TopicSink(topics, "t") }
-        assertThrows<IllegalArgumentException> { sinks.stateReaders(SHOP, listOf(orderModel())) }
+        assertThrows<IllegalArgumentException> { sinks.factory.stateReaders(SHOP, listOf(orderModel())) }
         assertThrows<IllegalArgumentException> { PublishedSinks(emptyMap(), " ") { _, _ -> TopicSink(topics, "t") } }
         PublishedSinks.publishedOf(shopManifest()).assert().isEmpty()
     }

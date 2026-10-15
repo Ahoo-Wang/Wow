@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.snapshot
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -50,9 +51,11 @@ data class SnapshotOptions(
  * Whether the snapshots of an aggregate type are being rebuilt or backfilled (decision D172): its primary target is
  * not caught up, so a query of them answers with `rebuilding`.
  */
+@InternalWowApi
 fun interface SnapshotStatus {
     fun rebuilding(type: AggregateType): Boolean
 
+    @InternalWowApi
     companion object {
         /** Nothing is rebuilding. */
         @JvmField

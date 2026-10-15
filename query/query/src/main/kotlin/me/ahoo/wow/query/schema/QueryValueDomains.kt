@@ -59,7 +59,7 @@ internal val Temporal?.encodesInstant: Boolean
     get() = this == Temporal.Date || this is Temporal.Epoch
 
 /** Whether any alternative of this value is an array, so storage may flatten it into multiple values. */
-fun QueryValueSchema.hasArrayBranch(): Boolean = alternativesOrSelf().any { it.kind == QueryValueKind.ARRAY }
+internal fun QueryValueSchema.hasArrayBranch(): Boolean = alternativesOrSelf().any { it.kind == QueryValueKind.ARRAY }
 
 internal fun QueryValueSchema.accepts(values: Iterable<Any?>): Boolean {
     val domains = if (kind == QueryValueKind.SCALAR || kind == QueryValueKind.OBJECT) {

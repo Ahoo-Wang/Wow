@@ -27,6 +27,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
@@ -61,6 +62,7 @@ import kotlin.coroutines.CoroutineContext
  * through one shared tail per partition, its checkpoints (the offset after the last record completed) kept in the
  * same store, and its parked aggregates in the same ledger, each with the offset to re-scan from.
  */
+@InternalWowApi
 class SubscriptionRuntime internal constructor(
     val group: String,
     private val source: EntrySource,
@@ -440,6 +442,7 @@ class SubscriptionRuntime internal constructor(
  * Where [subscription] stands in [partition] of its source: every entry up to the sequence [watermark] is complete
  * (decision D174).
  */
+@InternalWowApi
 data class SubscriptionPosition(val subscription: String, val partition: Int, val watermark: Long)
 
 private val logger = KotlinLogging.logger {}

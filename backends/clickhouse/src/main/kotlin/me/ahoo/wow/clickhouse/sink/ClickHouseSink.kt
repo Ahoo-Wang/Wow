@@ -15,6 +15,7 @@ package me.ahoo.wow.clickhouse.sink
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.state.StateEventRecord
 import java.security.MessageDigest
@@ -32,6 +33,7 @@ import java.security.MessageDigest
  * - **DDL**: before its first write, the Sink creates or validates its tables as [ddl] says; a failure fails the write,
  *   which the subscription retries.
  */
+@InternalWowApi
 class ClickHouseSink internal constructor(
     val schema: ClickHouseSinkSchema,
     private val statements: ClickHouseStatements,
@@ -97,6 +99,7 @@ class ClickHouseSink internal constructor(
 
     override fun toString(): String = "ClickHouseSink(${schema.database}.${schema.target})"
 
+    @InternalWowApi
     companion object {
         /** The deduplication token of [batch]: its record's `ref@version`, or a digest of its records' ids. */
         fun tokenOf(batch: List<StateEventRecord>): String {

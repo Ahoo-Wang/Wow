@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.LedgerRequest
@@ -45,6 +46,7 @@ import kotlin.time.Duration.Companion.milliseconds
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29).
  */
+@InternalWowApi
 class PostgresFailureLedger(
     private val dataSource: DataSource,
     table: String = DEFAULT_TABLE,

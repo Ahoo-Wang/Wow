@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.query.DatasetVisibility
 import me.ahoo.wow.http.query.EventQueryGateway
 import me.ahoo.wow.http.query.HttpQueries
@@ -91,10 +92,12 @@ class QueryAutoConfiguration {
 
         @Bean
         @ConditionalOnMissingBean
+        @InternalWowApi
         fun wowQueryTenantPolicy(node: ServiceNode): QueryTenantPolicy = HostQueryTenants(node.gateway.tenants)
 
         @Bean
         @ConditionalOnMissingBean
+        @InternalWowApi
         fun wowSnapshotQueryBackend(
             manifest: Manifest,
             node: ServiceNode,
@@ -143,6 +146,7 @@ class QueryAutoConfiguration {
         @Bean
         @ConditionalOnMissingBean
         @Suppress("LongParameterList") // One parameter per part of the Catalog, each a bean the application may give.
+        @InternalWowApi
         fun wowQuerySchemaCatalog(
             manifest: Manifest,
             node: ServiceNode,
@@ -174,6 +178,7 @@ class QueryAutoConfiguration {
         @Bean
         @ConditionalOnMissingBean
         @Suppress("LongParameterList") // One parameter per part of a gateway, each a bean the application may give.
+        @InternalWowApi
         fun wowDatasetQueryGateways(
             manifest: Manifest,
             properties: QueryProperties,
@@ -225,6 +230,7 @@ class QueryAutoConfiguration {
         @Bean
         @ConditionalOnMissingBean
         @Suppress("LongParameterList") // One parameter per part of a gateway, each a bean the application may give.
+        @InternalWowApi
         fun wowHttpQueries(
             manifest: Manifest,
             node: ServiceNode,
@@ -280,6 +286,7 @@ class QueryAutoConfiguration {
         }
 
         @Bean
+        @InternalWowApi
         fun wowQueryIndexesLifecycle(
             manifest: Manifest,
             node: ServiceNode,

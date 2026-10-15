@@ -11,12 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kernel
+package me.ahoo.wow.kernel.memory
 
-import me.ahoo.wow.spi.reservation.ReservationStore
-import me.ahoo.wow.tck.reservation.ReservationStoreSpec
-import java.time.Clock
+import me.ahoo.wow.spi.timer.TimerStore
+import me.ahoo.wow.tck.timer.TimerStoreSpec
 
-class InMemoryReservationStoreTest : ReservationStoreSpec() {
-    override fun createStore(clock: Clock): ReservationStore = InMemoryReservationStore(clock)
+class InMemoryTimerStoreTest : TimerStoreSpec() {
+    override fun createStore(): TimerStore = InMemoryTimerStore()
 }

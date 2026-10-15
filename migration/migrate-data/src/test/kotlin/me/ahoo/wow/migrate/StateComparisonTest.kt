@@ -15,7 +15,7 @@ package me.ahoo.wow.migrate
 
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.kernel.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test

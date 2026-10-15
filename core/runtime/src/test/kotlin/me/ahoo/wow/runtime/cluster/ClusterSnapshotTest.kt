@@ -18,7 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
-import me.ahoo.wow.kernel.InMemorySnapshotStore
+import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.seconds

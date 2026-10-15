@@ -68,6 +68,8 @@ class DependencyQualifierTest {
     private val scenario = SourceFile.kotlin(
         "Scenario.kt",
         """
+        @file:OptIn(me.ahoo.wow.api.annotation.InternalWowApi::class)
+
         package sample.fx
 
         import kotlinx.coroutines.runBlocking
@@ -75,7 +77,7 @@ class DependencyQualifierTest {
         import me.ahoo.wow.kernel.AggregateModel
         import me.ahoo.wow.kernel.CommandOutcome
         import me.ahoo.wow.kernel.Dependencies
-        import me.ahoo.wow.kernel.InMemoryEventLog
+        import me.ahoo.wow.kernel.memory.InMemoryEventLog
         import me.ahoo.wow.kernel.Kernel
         import me.ahoo.wow.kernel.ModelProvider
 

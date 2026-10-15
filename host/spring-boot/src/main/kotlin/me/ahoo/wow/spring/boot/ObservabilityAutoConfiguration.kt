@@ -17,6 +17,7 @@ import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Metrics
 import io.opentelemetry.api.GlobalOpenTelemetry
 import io.opentelemetry.api.OpenTelemetry
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.opentelemetry.NodeMetrics
 import me.ahoo.wow.opentelemetry.OtelObserver
 import me.ahoo.wow.opentelemetry.OtelQueryObserver
@@ -80,6 +81,7 @@ class ObservabilityAutoConfiguration {
 
     @Bean(initMethod = "start", destroyMethod = "close")
     @ConditionalOnBean(ServiceNode::class)
+    @InternalWowApi
     fun wowNodeMetrics(
         node: ServiceNode,
         meters: ObjectProvider<MeterRegistry>,

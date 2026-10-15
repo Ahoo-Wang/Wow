@@ -139,6 +139,7 @@ enum class MetricSpec(
         return if (expression != null && expression !is AggregationExpression.Field) OperatorCost.EXPENSIVE else baseCost
     }
 
+    @InternalWowApi
     companion object {
         @JvmStatic
         fun of(metric: AggregationMetric): MetricSpec = when (metric) {

@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kernel
+package me.ahoo.wow.kernel.memory
 
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.tck.subscription.CheckpointStoreSpec

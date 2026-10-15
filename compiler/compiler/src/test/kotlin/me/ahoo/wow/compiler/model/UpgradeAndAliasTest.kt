@@ -88,6 +88,8 @@ class UpgradeAndAliasTest {
         val scenario = SourceFile.kotlin(
             "LedgerScenario.kt",
             """
+            @file:OptIn(me.ahoo.wow.api.annotation.InternalWowApi::class)
+
             package sample
 
             import me.ahoo.wow.kernel.EventCodec
@@ -225,12 +227,14 @@ class UpgradeAndAliasTest {
         val scenario = SourceFile.kotlin(
             "LedgerScenario.kt",
             """
+            @file:OptIn(me.ahoo.wow.api.annotation.InternalWowApi::class)
+
             package sample
 
             import kotlinx.coroutines.runBlocking
             import me.ahoo.wow.api.decide.Command
             import me.ahoo.wow.kernel.CommandOutcome
-            import me.ahoo.wow.kernel.InMemoryEventLog
+            import me.ahoo.wow.kernel.memory.InMemoryEventLog
             import me.ahoo.wow.kernel.Kernel
             import me.ahoo.wow.kernel.aggregate
 

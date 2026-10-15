@@ -55,6 +55,7 @@ enum class GroupSpec(
         return if (dense || group.inputExpression != null) OperatorCost.EXPENSIVE else baseCost
     }
 
+    @InternalWowApi
     companion object {
         @JvmStatic
         fun of(group: AggregationGroup): GroupSpec = when (group) {

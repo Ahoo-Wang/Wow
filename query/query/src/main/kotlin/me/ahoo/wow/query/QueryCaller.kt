@@ -19,7 +19,7 @@ import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.MatchAllFilter
 
 /** Where a caller's scope came from. Only [AUTHENTICATED] scope is a security boundary. */
-enum class QueryScopeProvenance {
+internal enum class QueryScopeProvenance {
     /** Taken from the caller's credentials, or checked against them by a trusted component. */
     AUTHENTICATED,
 

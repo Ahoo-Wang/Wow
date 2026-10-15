@@ -133,11 +133,13 @@ sealed interface Lowering {
      * Rewrites a node on its own field into operators every backend implements, independently of the schema or the
      * clock; a node that needs no rewrite is returned as it is.
      */
+    @InternalWowApi
     fun interface Rewrite : Lowering {
         fun lower(node: FilterExpression): FilterExpression
     }
 
     /** A relative time window, lowered to a range at admission's moment, encoded as the field stores time. */
+    @InternalWowApi
     data object RelativeTime : Lowering
 }
 
@@ -202,6 +204,7 @@ class FilterOperatorSpec private constructor(
 
     override fun toString(): String = "FilterOperatorSpec($operator)"
 
+    @InternalWowApi
     companion object {
         fun of(operator: FilterOperator): FilterOperatorSpec = SPECS[operator.ordinal]
 

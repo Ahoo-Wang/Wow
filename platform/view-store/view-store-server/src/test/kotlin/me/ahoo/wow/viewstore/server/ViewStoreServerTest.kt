@@ -31,7 +31,7 @@ class ViewStoreServerTest {
             val node = store.context.getBean(ServiceNode::class.java)
             node.service.assert().isEqualTo("view-store-service")
             node.isReady.assert().isTrue()
-            node.contexts.keys.assert().containsExactly(ViewStoreContext.NAME)
+            node.hostedContexts.assert().containsExactly(ViewStoreContext.NAME)
             val manifest = store.context.getBean(Manifest::class.java)
             manifest.contexts.single().aggregates.map { it.name }.assert().containsExactlyInAnyOrder(
                 ViewStoreContext.VIEW,

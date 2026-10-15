@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.runBlocking
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.node.ServiceNode
 import org.springframework.boot.availability.ApplicationAvailability
 import org.springframework.boot.availability.AvailabilityChangeEvent
@@ -38,7 +39,7 @@ import kotlin.concurrent.thread
  * Spring Boot bounds each phase's stop by `spring.lifecycle.timeout-per-shutdown-phase`, which the host raises to
  * `wow.wait.max-timeout + wow.cluster.drain-timeout` ([ShutdownTimeoutEnvironmentPostProcessor]).
  */
-object WowLifecycles {
+internal object WowLifecycles {
     /** The phase of Spring Boot's web server start and stop (`WebServerStartStopLifecycle`). */
     const val PUBLIC_SERVER_PHASE: Int = SmartLifecycle.DEFAULT_PHASE - 2048
 
@@ -56,6 +57,7 @@ object WowLifecycles {
 }
 
 /** Creates the schemas of the backends the node opened, where they are missing, before anything uses them. */
+@InternalWowApi
 class BackendsLifecycle(private val backends: HostBackends) : SmartLifecycle {
     @Volatile
     private var running = false
@@ -78,6 +80,7 @@ class BackendsLifecycle(private val backends: HostBackends) : SmartLifecycle {
  * Serves the internal port from before the node starts until after it stops; once the port is bound, tells [bound]
  * the port it is bound at, so a node whose port the system chose learns its address ([ServiceNode.bind]).
  */
+@InternalWowApi
 class InternalServerLifecycle(
     private val server: InternalServer,
     private val bound: (port: Int) -> Unit = {},
@@ -101,6 +104,7 @@ class InternalServerLifecycle(
  * a stop reports the application not ready first, when nothing did (a host without a public server), then runs
  * [ServiceNode.stop] apart from the thread that closes the context, which waits for it at most the phase's timeout.
  */
+@InternalWowApi
 class ServiceNodeLifecycle(
     private val node: ServiceNode,
     private val events: ApplicationEventPublisher,

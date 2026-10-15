@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import me.ahoo.wow.api.annotation.InternalWowApi
 import java.time.Clock
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.atomic.AtomicLong
@@ -52,6 +53,7 @@ import kotlin.time.TimeSource
  *
  * [rounds] counts the rounds that read the stores, for the tests of the one query per round.
  */
+@InternalWowApi
 class TimerLoop(
     internal val options: TimerOptions = TimerOptions(),
     internal val clock: Clock = Clock.systemUTC(),

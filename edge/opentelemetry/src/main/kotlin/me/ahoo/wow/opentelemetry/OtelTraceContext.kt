@@ -27,7 +27,7 @@ import kotlin.coroutines.CoroutineContext
  * the thread's current one, so the application's own instrumentation in a decide function or a handler continues the
  * same trace. Its [fields] are what [propagator] injects of it, computed once, when the work first sends them on.
  */
-class OtelTraceContext(val context: Context, private val propagator: TextMapPropagator) :
+internal class OtelTraceContext(val context: Context, private val propagator: TextMapPropagator) :
     TraceContext(),
     ThreadContextElement<Scope> {
     override val fields: Map<String, String> by lazy {

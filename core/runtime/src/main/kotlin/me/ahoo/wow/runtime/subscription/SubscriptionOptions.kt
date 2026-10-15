@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.subscription
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
@@ -118,6 +119,7 @@ data class SubscriptionOptions(
      * How [subscription]'s failing handler is retried before its aggregate is parked (roadmap P.3): the host's
      * [retries] for its name, over its handler's own [Subscription.retry], over [retry].
      */
+    @InternalWowApi
     fun retryOf(subscription: Subscription): RetryPolicy {
         val configured = retries[subscription.name]
         val own = configured?.over(subscription.retry) ?: subscription.retry

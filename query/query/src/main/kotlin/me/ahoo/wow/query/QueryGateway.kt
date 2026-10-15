@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorPage
@@ -88,6 +89,7 @@ interface QueryGateway {
  * served from the cache while the type's snapshot write checkpoint holds; a query served so ends its observation with
  * the outcome [QueryCountCache.CACHED_OUTCOME].
  */
+@InternalWowApi
 class DefaultQueryGateway(
     override val aggregateType: AggregateType,
     private val backend: QueryBackend,

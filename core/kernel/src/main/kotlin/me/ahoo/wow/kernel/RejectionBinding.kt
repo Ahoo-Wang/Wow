@@ -15,6 +15,7 @@ package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
@@ -135,6 +136,7 @@ internal fun <B : Any> nearestHandlerOf(handlers: List<B>, command: Class<*>, ty
  * command's [causation][Command.causation] is the command [receiptOf], in the chain of its root ([causation]), and
  * its operator and scope are that command's (decisions D163, D189).
  */
+@InternalWowApi
 class ReceiptSagaContext(
     override val executionId: ExecutionId,
     /** The command whose receipt the handler takes. */
@@ -170,6 +172,7 @@ class ReceiptSagaContext(
         "An @OnRejected or @OnCommitted handler derives commands; it does not schedule them.",
     )
 
+    @InternalWowApi
     companion object {
         /**
          * The id, and request id, of the [index]-th command (from 0) derived by [execution] for the receipt of

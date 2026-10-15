@@ -46,7 +46,7 @@ private val AggregationQuery.denseDatePart: AggregationGroup.DatePart?
     get() = (groupBy.singleOrNull() as? AggregationGroup.DatePart)?.takeIf { it.dense }
 
 /** Whether the effective sort orders groups by a metric, which only a complete set of groups can answer. */
-val AggregationQuery.metricSorted: Boolean
+internal val AggregationQuery.metricSorted: Boolean
     get() {
         val metrics = metrics.mapTo(hashSetOf(), AggregationMetric::alias)
         return sort.any { it.field.path in metrics }

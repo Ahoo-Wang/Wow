@@ -11,12 +11,14 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kernel
+package me.ahoo.wow.kernel.memory
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.util.concurrent.ConcurrentHashMap
 
 /** A [CheckpointStore] in memory, for tests and samples. */
+@InternalWowApi
 class InMemoryCheckpointStore : CheckpointStore {
     private val checkpoints = ConcurrentHashMap<Key, Long>()
 

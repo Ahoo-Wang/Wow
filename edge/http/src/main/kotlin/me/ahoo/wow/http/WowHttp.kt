@@ -87,7 +87,7 @@ data class WowHttpOptions(
 }
 
 /** The paths of the framework's own public endpoints, under the reserved context `wow` (decision D104). */
-object WowPaths {
+internal object WowPaths {
     /** Serves the Manifest the routes were built from. */
     const val MANIFEST: String = "/wow/manifest"
 

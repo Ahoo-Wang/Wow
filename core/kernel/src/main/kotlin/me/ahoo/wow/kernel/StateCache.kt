@@ -15,6 +15,7 @@ package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.schedule.ScheduleRule
 
 /**
@@ -28,6 +29,7 @@ import me.ahoo.wow.api.schedule.ScheduleRule
  * Commands of one aggregate must not run concurrently on one cache (the executor serializes them); across nodes, a
  * stale state only costs a version conflict and a reload.
  */
+@InternalWowApi
 interface StateCache {
     /** Removes and returns the state of [ref], or null when none is cached. */
     fun take(ref: AggregateRef): CachedState?
@@ -36,6 +38,7 @@ interface StateCache {
     fun put(ref: AggregateRef, state: CachedState)
 
     /** Caches nothing. */
+    @InternalWowApi
     object None : StateCache {
         override fun take(ref: AggregateRef): CachedState? = null
 
@@ -49,6 +52,7 @@ interface StateCache {
  * [deleted]; and its [tags]. Only the lifecycle commands change them (design 01 §6). Its [schedules] are the rules
  * of the schedules it keeps, by key (decision D198): those its streams set and did not cancel.
  */
+@InternalWowApi
 class CachedState(
     val state: Any,
     val version: Int,

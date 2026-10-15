@@ -14,6 +14,7 @@
 package me.ahoo.wow.postgres.reservation
 
 import kotlinx.coroutines.CoroutineDispatcher
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.reservation.Reservation
@@ -34,6 +35,7 @@ import kotlin.time.Duration
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29).
  */
+@InternalWowApi
 class PostgresReservationStore(
     private val dataSource: DataSource,
     table: String = DEFAULT_TABLE,

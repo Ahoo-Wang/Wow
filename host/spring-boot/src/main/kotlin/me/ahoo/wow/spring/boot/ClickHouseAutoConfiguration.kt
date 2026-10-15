@@ -23,7 +23,6 @@ import me.ahoo.wow.clickhouse.sink.ClickHouseSinks
 import me.ahoo.wow.clickhouse.sink.DdlMode
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
-import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
@@ -42,7 +41,7 @@ import kotlin.time.toKotlinDuration
  *   closed with the context.
  * - **Sink** (unless `wow.clickhouse.sink.enabled=false`): one [ClickHouseSinks] sink per stream the Manifest
  *   publishes (`ContextManifest.published`), as subscriptions named `clickhouse-sink.<aggregate>`: a
- *   [SubscriptionFactory] bean ([PublishedSinks]), which the node takes with every other one. Each sink creates or
+ *   [PublishedSinks] bean, which the node takes with every subscription factory. Each sink creates or
  *   validates its tables before its first write, as `wow.clickhouse.sink.ddl` says.
  * - **Datasets** (unless `wow.clickhouse.query.enabled=false` or the application has a [DatasetQueryBackendFactory]
  *   of its own): a [ClickHouseDatasetQueryBackendFactory] over the same client, a dataset's bare `table` in
@@ -92,7 +91,7 @@ class ClickHouseAutoConfiguration {
     }
 
     companion object {
-        /** The name of the ClickHouse Sink's [SubscriptionFactory] bean. */
+        /** The name of the ClickHouse Sink's [PublishedSinks] bean. */
         const val CLICKHOUSE_SINKS: String = "wowClickHouseSinks"
 
         /** The dataset backend's options from [properties]. */

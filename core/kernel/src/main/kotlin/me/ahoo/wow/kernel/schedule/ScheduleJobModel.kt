@@ -15,6 +15,7 @@ package me.ahoo.wow.kernel.schedule
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Ownership
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
@@ -91,6 +92,7 @@ class JobState {
  * instance's id, or an invalid rule, and a Reschedule of an instance that is not enabled, are rejected with
  * [JOB_INVALID].
  */
+@InternalWowApi
 object ScheduleJobModel {
     /** The rejection of a job command that does not fit its job or instance. */
     const val JOB_INVALID: String = "wow.schedule.job-invalid"

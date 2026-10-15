@@ -11,11 +11,11 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.kernel
+package me.ahoo.wow.kernel.memory
 
-import me.ahoo.wow.spi.timer.TimerStore
-import me.ahoo.wow.tck.timer.TimerStoreSpec
+import me.ahoo.wow.spi.ledger.FailureLedger
+import me.ahoo.wow.tck.ledger.FailureLedgerSpec
 
-class InMemoryTimerStoreTest : TimerStoreSpec() {
-    override fun createStore(): TimerStore = InMemoryTimerStore()
+class InMemoryFailureLedgerTest : FailureLedgerSpec() {
+    override fun createLedger(): FailureLedger = InMemoryFailureLedger()
 }

@@ -16,6 +16,7 @@ package me.ahoo.wow.kernel
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Ownership
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.DecideScope
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
@@ -134,7 +135,7 @@ data class CommandType(val name: String, val type: Class<*>, val aliases: Set<St
  * [stateRevision] is the revision of the state's structure its snapshots are written at (decision D172): a snapshot
  * of another revision is not read back, and the service rebuilds the stored ones in place when it is raised.
  */
-class AggregateModel<S : Any>(
+class AggregateModel<S : Any> @InternalWowApi constructor(
     val type: AggregateType,
     val stateType: Class<S>,
     private val initial: (AggregateRef) -> S,

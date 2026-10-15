@@ -23,7 +23,7 @@ import java.sql.Connection
  * it does not know. An incompatible layout changes only in a major version, through the migration tool
  * (D22); adding an optional column with a default does not change the version.
  */
-object PostgresFormat {
+internal object PostgresFormat {
     /** The table of format versions, shared by every structure in the database. */
     const val TABLE = "wow_format"
 

@@ -68,7 +68,7 @@ import me.ahoo.wow.spi.wait.WaitContext
  *   aggregate type its own context does not have. The subscription retries the handling, which derives the same
  *   requests again, then parks the aggregate.
  */
-class DerivedCommands(
+internal class DerivedCommands(
     models: Collection<AggregateModel<*>>,
     private val coordinator: WaitCoordinator,
     private val sender: CommandSender? = null,
@@ -214,7 +214,7 @@ class DerivedCommands(
  * command its handler derived to compensate was rejected in turn: the aggregate parks at once, without a retry, and a
  * wait at the saga's hop ends REJECTED with the rejection.
  */
-class DerivedCommandRejectedException(val command: Command<*>, val rejection: Rejection) :
+internal class DerivedCommandRejectedException(val command: Command<*>, val rejection: Rejection) :
     HandlingRejectedException(
         rejection.toError(),
         "The derived command ${command.id} on ${command.ref} was rejected: ${rejection.code} ${rejection.message}",
@@ -225,5 +225,5 @@ class DerivedCommandRejectedException(val command: Command<*>, val rejection: Re
  * aggregate parks at once, without a retry, as for a derived command's rejection no `@OnRejected` handler takes
  * (decision D153), and a wait at the saga's hop ends REJECTED with the target's error.
  */
-class CallRejectedHandlingException(val rejected: CallRejectedException) :
+internal class CallRejectedHandlingException(val rejected: CallRejectedException) :
     HandlingRejectedException(rejected.result.error!!, rejected.message!!)

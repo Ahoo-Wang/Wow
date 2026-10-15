@@ -53,12 +53,11 @@ class HostClickHouseSinkTest {
     fun `with an endpoint the client and the sinks should be wired`() {
         runner.withPropertyValues("wow.clickhouse.endpoint=http://127.0.0.1:1").run { context ->
             context.getBean(Client::class.java).assert().isNotNull()
-            val factory = context.getBean(ClickHouseAutoConfiguration.CLICKHOUSE_SINKS, SubscriptionFactory::class.java)
-            factory.assert().isInstanceOf(PublishedSinks::class.java)
-            (factory as PublishedSinks).nameOf(PublishedManifest("account", "t")).assert()
+            val sinks = context.getBean(ClickHouseAutoConfiguration.CLICKHOUSE_SINKS, PublishedSinks::class.java)
+            sinks.nameOf(PublishedManifest("account", "t")).assert()
                 .isEqualTo("clickhouse-sink.account")
             // The Manifest publishes nothing: no sink reads any state.
-            factory.viewTypes(BANK, emptyList()).assert().isEmpty()
+            sinks.factory.viewTypes(BANK, emptyList()).assert().isEmpty()
         }
     }
 

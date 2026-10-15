@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.wait
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.spi.wait.Origin
 
@@ -25,9 +26,11 @@ import me.ahoo.wow.spi.wait.Origin
  * that executed a derived command): a sender that crosses the network queues and returns, and drops what it cannot
  * deliver instead of retrying.
  */
+@InternalWowApi
 fun interface SignalSender {
     suspend fun send(origin: Origin, signal: WaitSignal)
 
+    @InternalWowApi
     companion object {
         /** Sends nothing: no one waits on this node's signals. */
         val NONE: SignalSender = SignalSender { _, _ -> }
@@ -38,6 +41,7 @@ fun interface SignalSender {
  * The in-process [SignalSender]: a signal whose origin is this [node] goes straight to its [registry]; any other goes
  * to [remote], the sender to other nodes' internal signal entries (roadmap 4.2 and 6.6), which drops it by default.
  */
+@InternalWowApi
 class LocalSignalSender(
     private val node: String,
     private val registry: WaitRegistry,

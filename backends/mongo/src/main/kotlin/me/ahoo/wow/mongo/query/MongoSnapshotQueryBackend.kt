@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.ICountQuery
@@ -64,6 +65,7 @@ import java.util.concurrent.TimeUnit
  * which admission ended with the identity. Driver calls run on [dispatcher], virtual threads by default (decision
  * D29). A collection not created yet holds no documents, so every primitive answers as over an empty collection.
  */
+@InternalWowApi
 class MongoSnapshotQueryBackend internal constructor(
     override val aggregateType: AggregateType,
     private val collection: MongoCollection<Document>,
