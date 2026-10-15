@@ -333,7 +333,7 @@ class AggregateSpec<S : Any>(
     }
 
     private fun verify(result: Result<CommandOutcome>, expect: Expectations<S>.() -> Unit) {
-        val expectations = Expectations(model, codec, result, currentVersion(), ::currentState)
+        val expectations = Expectations(model, codec, result, currentVersion(), ::currentState, ::currentTags)
         expectations.expect()
         expectations.verify()
     }
@@ -389,15 +389,22 @@ class AggregateSpec<S : Any>(
 
     /** The aggregate's committed state: its initial state before the first commit. */
     private fun currentState(version: Int): S {
+        @Suppress("UNCHECKED_CAST")
+        return (committedAt(version)?.state ?: model.initialState(ref)) as S
+    }
+
+    /** The aggregate's tags at [version] (decision D220): none before the first commit. */
+    private fun currentTags(version: Int): Map<String, List<String>> = committedAt(version)?.tags.orEmpty()
+
+    /** The aggregate's committed state and metadata at [version]; null before the first commit. */
+    private fun committedAt(version: Int): CachedState? {
         val base = given
         if (base == null && version == 0) {
-            return model.initialState(ref)
+            return null
         }
-        val committed = runBlocking {
+        return runBlocking {
             if (base == null) kernel.stateAt(model, ref, version) else kernel.stateAt(model, ref, version, base.fresh())
         } ?: throw AssertionError("The log does not hold version $version of $ref.")
-        @Suppress("UNCHECKED_CAST")
-        return committed.state as S
     }
 
     /** The state [givenState] started the aggregate in: its JSON, read anew for each use, as states are mutable. */
