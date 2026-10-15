@@ -24,12 +24,12 @@ import com.mongodb.client.model.Sorts
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
+import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.LedgerRequest
 import me.ahoo.wow.spi.ledger.ParkedAggregate
@@ -74,7 +74,7 @@ class MongoFailureLedger(
         )
     }
 
-    override suspend fun park(entry: ParkedAggregate): Boolean = withContext(dispatcher) {
+    override suspend fun park(entry: ParkedAggregate): Boolean = dispatcher.mongo {
         val earlier = Filters.and(keyFilter(entry.subscription, entry.ref), Filters.gt(FROM_VERSION, entry.fromVersion))
         val update = Updates.combine(
             Updates.set(FROM_VERSION, entry.fromVersion),
@@ -93,7 +93,7 @@ class MongoFailureLedger(
         }
     }
 
-    override suspend fun repark(entry: ParkedAggregate): Boolean = withContext(dispatcher) {
+    override suspend fun repark(entry: ParkedAggregate): Boolean = dispatcher.mongo {
         val update = Updates.combine(
             Updates.set(FROM_VERSION, entry.fromVersion),
             Updates.set(REASON, entry.reason),
@@ -103,7 +103,7 @@ class MongoFailureLedger(
         ledger.updateOne(keyFilter(entry.subscription, entry.ref), update).matchedCount > 0
     }
 
-    override suspend fun parked(subscription: String, ref: AggregateRef): ParkedAggregate? = withContext(dispatcher) {
+    override suspend fun parked(subscription: String, ref: AggregateRef): ParkedAggregate? = dispatcher.mongo {
         ledger.find(keyFilter(subscription, ref)).firstOrNull()?.let { entryOf(it) }
     }
 
@@ -114,7 +114,7 @@ class MongoFailureLedger(
         } else {
             Filters.and(Filters.eq(SUBSCRIPTION, subscription), after(after))
         }
-        return withContext(dispatcher) {
+        return dispatcher.mongo {
             ledger.find(filter)
                 .sort(Sorts.ascending(CONTEXT, AGGREGATE_NAME, TENANT_ID, AGGREGATE_ID))
                 .limit(limit)
@@ -123,7 +123,7 @@ class MongoFailureLedger(
         }
     }
 
-    override suspend fun resolve(subscription: String, ref: AggregateRef): ParkedAggregate? = withContext(dispatcher) {
+    override suspend fun resolve(subscription: String, ref: AggregateRef): ParkedAggregate? = dispatcher.mongo {
         ledger.findOneAndDelete(keyFilter(subscription, ref))?.let { entryOf(it) }
     }
 
@@ -148,7 +148,7 @@ class MongoFailureLedger(
             is ParkedAmendment.TakeRequest ->
                 Filters.and(key, Filters.eq(REQUEST, amendment.request.name)) to Updates.set(REQUEST, null)
         }
-        return withContext(dispatcher) {
+        return dispatcher.mongo {
             ledger.findOneAndUpdate(filter, update, FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER))
                 ?.let { entryOf(it) }
         }

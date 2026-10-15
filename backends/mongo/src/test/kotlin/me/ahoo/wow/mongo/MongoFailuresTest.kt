@@ -15,6 +15,7 @@ package me.ahoo.wow.mongo
 
 import com.mongodb.MongoClientSettings
 import com.mongodb.MongoException
+import com.mongodb.MongoExecutionTimeoutException
 import com.mongodb.MongoNodeIsRecoveringException
 import com.mongodb.MongoNotPrimaryException
 import com.mongodb.MongoSocketOpenException
@@ -27,9 +28,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.mongo.ledger.MongoFailureLedger
 import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.query.MongoSnapshotQueryBackend
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
+import me.ahoo.wow.mongo.subscription.MongoCheckpointStore
+import me.ahoo.wow.mongo.subscription.MongoLeaseStore
+import me.ahoo.wow.mongo.timer.MongoTimerStore
 import me.ahoo.wow.spi.StorageUnavailableException
 import org.bson.BsonDocument
 import org.junit.jupiter.api.AfterEach
@@ -120,7 +125,41 @@ class MongoFailuresTest {
         }.assert().isSameAs(duplicate)
     }
 
+    @Test
+    fun `the leases, checkpoints, ledger and timers on an unreachable server should throw the retryable error`() {
+        // Review A.5: they ran on withContext, so a server that could not be selected stayed the driver's exception.
+        val calls: List<suspend () -> Any?> = listOf(
+            { MongoLeaseStore(unreachable, "wow", dispatcher = Dispatchers.IO).owners("shop") },
+            { MongoCheckpointStore(unreachable, "wow", Dispatchers.IO).load("shop", "projection", 0) },
+            {
+                MongoFailureLedger(unreachable, "wow", dispatcher = Dispatchers.IO)
+                    .parked("projection", cart.ref("t", "c"))
+            },
+            { MongoTimerStore(unreachable, "wow", "shop", Dispatchers.IO).find(cart.ref("t", "c"), "remind") },
+        )
+        calls.forEach { call ->
+            assertThrows<StorageUnavailableException> { runBlocking { call() } }
+                .causes().filterIsInstance<MongoTimeoutException>().assert().isNotEmpty()
+        }
+    }
+
+    @Test
+    fun `a commit may have happened after an unknown commit result, a timeout or a failed socket`() {
+        // Finding A2-6: only a definite abort is appended again one stream at a time.
+        listOf(
+            MongoException("commit").apply { addLabel(MongoException.UNKNOWN_TRANSACTION_COMMIT_RESULT_LABEL) },
+            MongoTimeoutException("Timed out while waiting for a server"),
+            MongoSocketReadException("Prematurely reached end of stream", address),
+            MongoExecutionTimeoutException(MAX_TIME_EXPIRED, "operation exceeded time limit"),
+        ).forEach { MongoFailures.isCommitUnknown(it).assert().describedAs("$it").isTrue() }
+        listOf(
+            MongoException(DUPLICATE_KEY, "E11000 duplicate key error"),
+            MongoException("aborted").apply { addLabel(MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL) },
+        ).forEach { MongoFailures.isCommitUnknown(it).assert().describedAs("$it").isFalse() }
+    }
+
     private companion object {
+        const val MAX_TIME_EXPIRED = 50
         const val SELECTION_TIMEOUT_MS = 200L
         const val SHUTDOWN_IN_PROGRESS = 91
         const val DUPLICATE_KEY = 11000

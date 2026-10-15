@@ -21,9 +21,13 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.postgres.ledger.PostgresFailureLedger
 import me.ahoo.wow.postgres.query.PostgresSnapshotQueryStorage
 import me.ahoo.wow.postgres.query.QueryTestSchemas
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
+import me.ahoo.wow.postgres.subscription.PostgresCheckpointStore
+import me.ahoo.wow.postgres.subscription.PostgresLeaseStore
+import me.ahoo.wow.postgres.timer.PostgresTimerStore
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.spi.StorageUnavailableException
 import org.junit.jupiter.api.Test
@@ -108,6 +112,40 @@ class PostgresFailuresTest {
         assertThrows<SQLException> {
             runBlocking { log.findByRequestId(cart, "tenant", "request-1") }
         }.causes().assert().contains(defect).noneMatch { it is StorageUnavailableException }
+    }
+
+    @Test
+    fun `the leases, checkpoints, ledger and timers on an unreachable server should throw the retryable error`() {
+        // Review A.5: they ran on withContext, so a connection that failed stayed the driver's exception.
+        val refused = PSQLException("Connection refused.", PSQLState.CONNECTION_UNABLE_TO_CONNECT)
+        val down = failing(refused)
+        val calls: List<suspend () -> Any?> = listOf(
+            { PostgresLeaseStore(down, dispatcher = Dispatchers.IO).owners("shop") },
+            { PostgresCheckpointStore(down, Dispatchers.IO).load("shop", "projection", 0) },
+            { PostgresFailureLedger(down, dispatcher = Dispatchers.IO).parked("projection", cart.ref("t", "c")) },
+            { PostgresTimerStore(down, "shop", Dispatchers.IO).find(cart.ref("t", "c"), "remind") },
+        )
+        calls.forEach { call ->
+            assertThrows<StorageUnavailableException> { runBlocking { call() } }.causes().assert().contains(refused)
+        }
+    }
+
+    @Test
+    fun `a value PostgreSQL refuses should be a definite refusal, not a defect or unknown`() {
+        // Findings A2-7 and A3-10: a NUL in jsonb (22P05) and an index row too large (54000).
+        listOf(
+            PSQLException("unsupported Unicode escape sequence", PSQLState.DATA_ERROR),
+            SQLException("unsupported Unicode escape sequence", "22P05"),
+            SQLException("index row size 3000 exceeds btree version 4 maximum 2704", "54000"),
+        ).forEach { failure ->
+            PostgresFailures.isRefused(failure).assert().describedAs("$failure").isTrue()
+            val translated = PostgresFailures.translate(failure)
+            translated.assert().isInstanceOf(IllegalArgumentException::class.java)
+            translated.cause.assert().isSameAs(failure)
+            translated.message.assert().contains("SQLSTATE ${failure.sqlState}")
+        }
+        PostgresFailures.isRefused(SQLException("syntax error", "42601")).assert().isFalse()
+        PostgresFailures.isRefused(SQLException("no state")).assert().isFalse()
     }
 
     private fun failing(failure: SQLException): DataSource = mockk {

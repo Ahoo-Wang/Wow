@@ -14,9 +14,9 @@
 package me.ahoo.wow.postgres.subscription
 
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.VirtualThreads
+import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import javax.sql.DataSource
 
@@ -39,7 +39,7 @@ class PostgresCheckpointStore(
         }
     }
 
-    override suspend fun load(group: String, subscription: String, partition: Int): Long? = withContext(dispatcher) {
+    override suspend fun load(group: String, subscription: String, partition: Int): Long? = dispatcher.jdbc {
         dataSource.connection.use { connection ->
             connection.prepareStatement(LOAD).use { query ->
                 query.setString(1, group)
@@ -51,7 +51,7 @@ class PostgresCheckpointStore(
     }
 
     override suspend fun save(group: String, subscription: String, partition: Int, position: Long) {
-        withContext(dispatcher) {
+        dispatcher.jdbc {
             dataSource.connection.use { connection ->
                 connection.prepareStatement(SAVE).use { save ->
                     save.setString(1, group)

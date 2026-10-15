@@ -21,10 +21,10 @@ import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
+import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -54,12 +54,12 @@ class MongoCheckpointStore(
         )
     }
 
-    override suspend fun load(group: String, subscription: String, partition: Int): Long? = withContext(dispatcher) {
+    override suspend fun load(group: String, subscription: String, partition: Int): Long? = dispatcher.mongo {
         checkpoints.find(keyFilter(group, subscription, partition)).firstOrNull()?.getLong(POSITION)
     }
 
     override suspend fun save(group: String, subscription: String, partition: Int, position: Long) {
-        withContext(dispatcher) {
+        dispatcher.mongo {
             val guarded = Filters.and(keyFilter(group, subscription, partition), Filters.lt(POSITION, position))
             conditionalUpsert { upsert ->
                 checkpoints.updateOne(guarded, Updates.set(POSITION, position), UpdateOptions().upsert(upsert))

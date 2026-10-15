@@ -14,11 +14,11 @@
 package me.ahoo.wow.postgres.ledger
 
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.VirtualThreads
+import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.LedgerRequest
 import me.ahoo.wow.spi.ledger.ParkedAggregate
@@ -173,7 +173,7 @@ class PostgresFailureLedger(
     }
 
     private suspend fun <T> jdbc(block: (Connection) -> T): T =
-        withContext(dispatcher) { dataSource.connection.use(block) }
+        dispatcher.jdbc { dataSource.connection.use(block) }
 
     private companion object {
         const val DEFAULT_TABLE = "wow_failure_ledger"

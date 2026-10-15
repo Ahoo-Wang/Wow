@@ -14,7 +14,6 @@
 package me.ahoo.wow.postgres.timer
 
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
@@ -24,6 +23,7 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
+import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
@@ -213,7 +213,7 @@ class PostgresTimerStore(
     )
 
     private suspend fun <T> jdbc(block: (Connection) -> T): T =
-        withContext(dispatcher) { dataSource.connection.use(block) }
+        dispatcher.jdbc { dataSource.connection.use(block) }
 
     private companion object {
         val json = WowJson.mapper

@@ -14,9 +14,9 @@
 package me.ahoo.wow.postgres.subscription
 
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.VirtualThreads
+import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
@@ -115,7 +115,7 @@ class PostgresLeaseStore(
         }
     }
 
-    private suspend fun <T> execute(sql: String, block: PreparedStatement.() -> T): T = withContext(dispatcher) {
+    private suspend fun <T> execute(sql: String, block: PreparedStatement.() -> T): T = dispatcher.jdbc {
         dataSource.connection.use { connection: Connection -> connection.prepareStatement(sql).use { it.block() } }
     }
 
