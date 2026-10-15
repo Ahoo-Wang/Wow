@@ -17,7 +17,9 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
@@ -292,7 +294,7 @@ internal class SubscriptionWorker(
         } else {
             handle(entry)
         }
-        handled.exceptionOrNull()?.let { park(entry, it as Exception) }
+        handled.exceptionOrNull()?.let { park(entry, it) }
         synchronized(this) {
             if (!skipped && handled.isSuccess) {
                 remember(entry)
@@ -319,7 +321,7 @@ internal class SubscriptionWorker(
         }
         val handled = batch.filterNot { it.skipped }
         val result = handled.lastOrNull()?.let { latest -> handle(latest.item.entry) } ?: Result.success(HandledEntry.NOTHING)
-        result.exceptionOrNull()?.let { park(handled.first().item.entry, it as Exception) }
+        result.exceptionOrNull()?.let { park(handled.first().item.entry, it) }
         synchronized(this) {
             if (result.isSuccess) {
                 handled.forEach { remember(it.item.entry) }
@@ -381,23 +383,36 @@ internal class SubscriptionWorker(
         }
     }
 
-    @Suppress("TooGenericExceptionCaught") // A handler may fail with anything; only cancellation stops the retries.
+    /**
+     * A handler may fail with anything (finding A1-4): a [CancellationException] that is not this lane's own, such as
+     * the handler's own `withTimeout` firing, or an [Error] such as `TODO()`, is a failure like any other, retried and
+     * then parked, so the lane goes on and the checkpoint moves. Only the cancellation of the lane itself stops the
+     * retries, and a [VirtualMachineError] (out of memory, say) propagates, logged first.
+     */
+    @Suppress("TooGenericExceptionCaught")
     private suspend fun retried(sourced: SourcedEntry): Result<HandledEntry> {
         var failures = 0
         while (true) {
-            try {
+            val failure = try {
                 return Result.success(attempt(sourced))
-            } catch (cancelled: CancellationException) {
-                throw cancelled
             } catch (rejected: HandlingRejectedException) {
                 return Result.failure(rejected)
-            } catch (failure: Exception) {
-                failures++
-                if (failures >= retry.maxAttempts) {
-                    return Result.failure(failure)
+            } catch (fatal: VirtualMachineError) {
+                logger.error(fatal) {
+                    "Subscription ${subscription.name} met a fatal error handling ${sourced.stream.ref}@" +
+                        "${sourced.stream.version}; its lane stops."
                 }
-                delay(retry.backoff(failures))
+                throw fatal
+            } catch (failure: Throwable) {
+                // The lane's own cancellation propagates; any other is the handler's failure.
+                currentCoroutineContext().ensureActive()
+                failure
             }
+            failures++
+            if (failures >= retry.maxAttempts) {
+                return Result.failure(failure)
+            }
+            delay(retry.backoff(failures))
         }
     }
 
@@ -424,7 +439,7 @@ internal class SubscriptionWorker(
      * Parks the aggregate at [sourced]'s version, and at its position in a topic; its later entries are skipped until
      * the ledger entry is resolved.
      */
-    private suspend fun park(sourced: SourcedEntry, failure: Exception) {
+    private suspend fun park(sourced: SourcedEntry, failure: Throwable) {
         val stream = sourced.stream
         val entry = ParkedAggregate(
             subscription.name,
@@ -520,7 +535,7 @@ internal class SubscriptionWorker(
                     continue
                 }
                 val failure = if (subscription.takes(entry.stream)) {
-                    handle(entry).exceptionOrNull() as Exception?
+                    handle(entry).exceptionOrNull()
                 } else {
                     null
                 }
@@ -560,7 +575,7 @@ internal class SubscriptionWorker(
      * Records in the ledger that a resume failed again at [sourced], from where the aggregate is now parked; returns
      * the entry.
      */
-    private suspend fun repark(sourced: SourcedEntry, failure: Exception): ParkedAggregate {
+    private suspend fun repark(sourced: SourcedEntry, failure: Throwable): ParkedAggregate {
         val stream = sourced.stream
         logger.warn(failure) {
             "Subscription ${subscription.name} keeps ${stream.ref} parked, now from version ${stream.version}."

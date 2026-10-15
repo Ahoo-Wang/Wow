@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.subscription
 
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
@@ -36,6 +37,7 @@ class SubscriptionRetryTest {
     private val log = InMemoryEventLog(partitions = 2)
     private val appender = Appender(log)
     private val ledger = InMemoryFailureLedger()
+    private val checkpoints = RecordingCheckpoints()
 
     private fun runtime(
         subscriptions: List<Subscription>,
@@ -43,7 +45,7 @@ class SubscriptionRetryTest {
             maxAttempts = 3
         )
     ) =
-        SubscriptionRuntime("group", log, RecordingCheckpoints(), ledger, subscriptions, options, Clock.systemUTC())
+        SubscriptionRuntime("group", log, checkpoints, ledger, subscriptions, options, Clock.systemUTC())
 
     @Test
     fun `a slow handler times out and parks after its own budget while another keeps the global one`(): Unit =
@@ -81,6 +83,65 @@ class SubscriptionRetryTest {
             ledger.isParked("slow", cart("y")).assert().isFalse()
             ledger.isParked("failing", cart("y")).assert().isFalse()
         }
+
+    @Test
+    fun `a handler's own timeout or an error parks its aggregate and the checkpoint moves on`(): Unit = runBlocking {
+        // Finding A1-4: neither is the lane's cancellation, so neither may end the lane silently.
+        val timeouts = AtomicInteger()
+        val errors = AtomicInteger()
+        val handled = Handled()
+        val timingOut = Subscription("timing-out", SubscriptionFilter("shop")) { entry ->
+            if (entry.ref.id == "x") {
+                timeouts.incrementAndGet()
+                withTimeout(1.milliseconds) { delay(1.minutes) }
+            }
+            handled.record(entry)
+        }
+        val erring = Subscription("erring", SubscriptionFilter("shop")) { entry ->
+            if (entry.ref.id == "x") {
+                errors.incrementAndGet()
+                TODO("x is not handled yet")
+            }
+        }
+        val runtime = runtime(listOf(timingOut, erring))
+        listOf("x", "y", "x", "y").forEach { appender.append(it) }
+        runtime.start(setOf(0, 1))
+        eventually { ledger.isParked("timing-out", cart("x")) && ledger.isParked("erring", cart("x")) }
+        eventually { reachedEnd("timing-out") && reachedEnd("erring") }
+        runtime.stop()
+
+        timeouts.get().assert().isEqualTo(3)
+        errors.get().assert().isEqualTo(3)
+        ledger.parked("timing-out", cart("x"))!!.reason.assert().contains("TimeoutCancellationException")
+        ledger.parked("erring", cart("x"))!!.reason.assert().contains(NotImplementedError::class.java.name)
+        handled.versionsOf("y").assert().containsExactly(1, 2)
+    }
+
+    @Test
+    fun `a fatal virtual machine error is not taken for a handler failure`(): Unit = runBlocking {
+        val attempts = AtomicInteger()
+        val handled = Handled()
+        val fatal = Subscription("fatal", SubscriptionFilter("shop")) { entry ->
+            if (entry.ref.id == "x") {
+                attempts.incrementAndGet()
+                throw OutOfMemoryError("not really")
+            }
+            handled.record(entry)
+        }
+        val runtime = runtime(listOf(fatal), testOptions(stopTimeout = 100.milliseconds))
+        listOf("x", "y").forEach { appender.append(it) }
+        runtime.start(setOf(0, 1))
+        eventually { handled.size == 1 && attempts.get() == 1 }
+        runtime.stop()
+
+        attempts.get().assert().isEqualTo(1)
+        ledger.isParked("fatal", cart("x")).assert().isFalse()
+    }
+
+    private suspend fun reachedEnd(subscription: String): Boolean = setOf(0, 1).all { partition ->
+        val end = appender.ends[partition] ?: 0L
+        end == 0L || checkpoints.load("group", subscription, partition) == end
+    }
 
     @Test
     fun `an attempt within its timeout succeeds`(): Unit = runBlocking {
