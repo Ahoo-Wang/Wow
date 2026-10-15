@@ -25,6 +25,8 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.w3c.dom.Element
+import java.io.IOException
+import java.nio.file.Files
 import javax.xml.parsers.DocumentBuilderFactory
 
 plugins {
@@ -432,9 +434,57 @@ tasks.register("v10IntegrationTest") {
 }
 
 // Signatures: a release signs in CI with the key in SIGNING_*; elsewhere the signing.* properties of
-// ~/.gradle/gradle.properties sign. A V10 publication requires them only with `-Pwow.publication.signed=true` (the
-// release's preflight), so `v10PublicationCheck` also runs in a pull request, which has no key.
+// ~/.gradle/gradle.properties sign. A V10 publication requires them with `-Pwow.publication.signed=true` (the
+// release's preflight). Without it, `v10PublicationCheck` signs the V10 publications with a throwaway key it generates
+// (GnuPG, in a home of its own), so a pull request, which has no key, checks the signatures a release publishes too.
 val requireV10Signatures = providers.gradleProperty("wow.publication.signed").orNull.toBoolean()
+val prebuiltPublication = providers.gradleProperty("wow.publication.prebuilt").orNull.toBoolean()
+val v10PublicationProjects = v10ReleaseProjects + dependenciesProject
+
+fun runProcess(command: List<String>, stdin: String? = null): String {
+    val errors = File.createTempFile("wow-process", ".log")
+    try {
+        val process = try {
+            ProcessBuilder(command).redirectError(errors).start()
+        } catch (e: IOException) {
+            throw GradleException("Cannot run ${command.first()}: ${e.message}", e)
+        }
+        process.outputStream.use { input -> stdin?.let { input.write(it.toByteArray()) } }
+        val output = process.inputStream.bufferedReader().readText()
+        if (process.waitFor() != 0) {
+            throw GradleException("${command.joinToString(" ")} failed:\n${errors.readText()}")
+        }
+        return output
+    } finally {
+        errors.delete()
+    }
+}
+
+// A GnuPG home of its own (a short temporary path: gpg-agent's socket lives in it), so no check touches a keyring.
+class GnupgHome {
+    val directory: File = Files.createTempDirectory("wow-gnupg").toFile()
+
+    fun gpg(vararg args: String, stdin: String? = null) =
+        runProcess(listOf("gpg", "--homedir", directory.path, "--batch", "--quiet") + args, stdin)
+
+    fun close() {
+        runCatching { runProcess(listOf("gpgconf", "--homedir", directory.path, "--kill", "gpg-agent")) }
+        directory.deleteRecursively()
+    }
+}
+
+val v10PublicationCheckRequested =
+    gradle.startParameter.taskNames.any { it.substringAfterLast(':') == "v10PublicationCheck" }
+val v10ThrowawaySigning: GnupgHome? = if (v10PublicationCheckRequested && !requireV10Signatures) {
+    GnupgHome().apply {
+        val unprotected = arrayOf("--pinentry-mode", "loopback", "--passphrase", "")
+        gpg(*unprotected, "--quick-gen-key", "Wow v10PublicationCheck (throwaway)", "rsa3072", "sign", "1d")
+    }
+} else {
+    null
+}
+val v10ThrowawaySigningKey: String? = v10ThrowawaySigning
+    ?.gpg("--pinentry-mode", "loopback", "--passphrase", "", "--armor", "--export-secret-keys")
 
 configure(publishProjects) {
     val isBom = bomProjects.contains(this)
@@ -512,14 +562,21 @@ configure(publishProjects) {
         }
     }
     configure<SigningExtension> {
-        if (isInCI) {
+        val v10Publication = project in v10PublicationProjects
+        if (v10Publication && v10ThrowawaySigningKey != null) {
+            useInMemoryPgpKeys(v10ThrowawaySigningKey, "")
+        } else if (isInCI) {
             val signingKeyId = System.getenv("SIGNING_KEYID")
             val signingKey = System.getenv("SIGNING_SECRETKEY")
             val signingPassword = System.getenv("SIGNING_PASSWORD")
             useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
         }
-        if (project in v10ReleaseProjects || project == dependenciesProject) {
-            isRequired = requireV10Signatures
+        // A signature artifact of a publication is published only while its Sign task is required or has a signatory
+        // (the signing plugin's `shouldBePublished`). The deploy jobs (`-Pwow.publication.prebuilt=true`) have no key
+        // and leave the Sign tasks out (settings.gradle.kts), so they require the signatures: the publications then
+        // upload the `.asc` files the preflight made beside the files it signed, and a missing one fails the publish.
+        if (v10Publication) {
+            isRequired = requireV10Signatures || v10ThrowawaySigningKey != null || prebuiltPublication
         }
         sign(extensions.getByType(PublishingExtension::class).publications)
     }
@@ -545,12 +602,13 @@ configure(v10ReleaseProjects) {
     }
 }
 
-// The release rehearsal of the V10 publications (R.1): `./gradlew -Pwow.scope=v10 v10PublicationCheck` publishes
-// every V10 release module and :wow-dependencies into build/v10-publication-check/repo, then checks that each library
-// has its jar, sources and javadoc jars, POM and Gradle module metadata (and their signatures, with
-// `-Pwow.publication.signed=true`); that every POM carries what Maven Central requires; that no published POM depends
-// on a Wow module the release leaves out, or on another version; that the V10 BOM constrains exactly the published
-// libraries; and that nothing else (no 9.x module) was published.
+// The release rehearsal of the V10 publications (R.1): `./gradlew -Pwow.scope=v10 v10PublicationCheck` builds and
+// signs every V10 release module and :wow-dependencies as the release's preflight does (with the release key and
+// `-Pwow.publication.signed=true` there, with a throwaway key elsewhere, see Signatures), publishes them into
+// build/v10-publication-check/repo, then checks that each library has its jar, sources and javadoc jars, POM and
+// Gradle module metadata, each with its signature; that every POM carries what Maven Central requires; that no
+// published POM depends on a Wow module the release leaves out, or on another version; that the V10 BOM constrains
+// exactly the published libraries; and that nothing else (no 9.x module) was published.
 //
 // A release's deploy jobs (package-deploy.yml) publish again with `-Pwow.publication.prebuilt=true`
 // (settings.gradle.kts): they upload the files the preflight's run of this check built and signed, and leave out every
@@ -558,11 +616,14 @@ configure(v10ReleaseProjects) {
 // (any repository's publish depends on the same tasks: `publishToSonatype`'s and the GitHub Packages publish's too),
 // and requires that only publish tasks remain: a published variant whose files the left-out tasks do not make (as
 // `:query`'s test fixtures did, compiled against the left-out `jar`) would be rebuilt there, or fail as 10.0.0-alpha.1's
-// deploy jobs did, so it fails here first.
+// deploy jobs did, so it fails here first. Then it runs that publish: a Gradle build of its own, as the deploy jobs run
+// it (`-Pwow.publication.prebuilt=true`, CI set, no SIGNING_* key), into build/v10-publication-check/deploy, and
+// requires that it uploads exactly the files this build published, byte for byte, and that every signature verifies.
+// 10.0.0-alpha.2's deploy jobs uploaded no signature at all, which Maven Central refused.
 val v10PublicationCheckRepository: Provider<Directory> = layout.buildDirectory.dir("v10-publication-check/repo")
-val v10PublicationProjects = v10ReleaseProjects + dependenciesProject
+val v10DeployCheckRepository: Provider<Directory> = layout.buildDirectory.dir("v10-publication-check/deploy")
 val cleanV10PublicationCheck = tasks.register<Delete>("cleanV10PublicationCheck") {
-    delete(v10PublicationCheckRepository)
+    delete(v10PublicationCheckRepository, v10DeployCheckRepository)
 }
 configure(v10PublicationProjects) {
     configure<PublishingExtension> {
@@ -570,6 +631,10 @@ configure(v10PublicationProjects) {
             maven {
                 name = "v10PublicationCheck"
                 url = uri(v10PublicationCheckRepository)
+            }
+            maven {
+                name = "v10DeployCheck"
+                url = uri(v10DeployCheckRepository)
             }
         }
     }
@@ -610,7 +675,21 @@ tasks.register("v10PublicationCheck") {
     val platforms = v10PublicationProjects.filter { it in bomProjects }.map { it.artifactName() }.toSortedSet()
     val bomArtifactId = v10BomProject.artifactName()
     val bomConstrained = v10BomConstrainedProjects.map { it.artifactName() }.toSortedSet()
-    val signed = requireV10Signatures
+    val deployRepository = v10DeployCheckRepository.get().asFile
+    val rootDirectory = rootDir
+    val offline = gradle.startParameter.isOffline
+    val throwawaySigning = v10ThrowawaySigning
+    // The release key, to verify its signatures with, from where this build's signatory takes it.
+    val releaseKey = if (isInCI) {
+        System.getenv("SIGNING_SECRETKEY")
+    } else {
+        providers.gradleProperty("signing.secretKeyRingFile").orNull
+    }
+    val releaseKeyPassword = if (isInCI) {
+        System.getenv("SIGNING_PASSWORD")
+    } else {
+        providers.gradleProperty("signing.password").orNull
+    }
     // The marker java-gradle-plugin publishes beside wow-gradle-plugin.
     val pluginMarker = "me.ahoo.wow.gradle.plugin"
     doLast {
@@ -619,7 +698,7 @@ tasks.register("v10PublicationCheck") {
         fun file(artifactId: String, suffix: String) =
             File(groupDir, "$artifactId/$releaseVersion/$artifactId-$releaseVersion$suffix")
         fun requireFiles(artifactId: String, suffixes: List<String>) {
-            suffixes.flatMap { if (signed) listOf(it, "$it.asc") else listOf(it) }.forEach { suffix ->
+            suffixes.flatMap { listOf(it, "$it.asc") }.forEach { suffix ->
                 if (!file(artifactId, suffix).isFile) problems += "$artifactId: no $artifactId-$releaseVersion$suffix"
             }
         }
@@ -641,6 +720,58 @@ tasks.register("v10PublicationCheck") {
                 .forEach { problems += "$artifactId: publishes $it, which a release does not ship" }
         }
         problems += deployGraphProblems
+
+        // The deploy jobs' publish, run as package-deploy.yml runs it: a build of its own, with the prebuilt files,
+        // CI set and no SIGNING_* key (github-deploy and central-deploy have none).
+        val deploy = ProcessBuilder(
+            listOf(
+                File(rootDirectory, "gradlew").path, "--no-daemon", "--quiet",
+                "-Pwow.scope=v10", "-Pwow.publication.prebuilt=true", "-Pversion=$releaseVersion",
+                "publishAllPublicationsToV10DeployCheckRepository",
+            ) + listOfNotNull("--offline".takeIf { offline }),
+        ).directory(rootDirectory).inheritIO()
+        deploy.environment().keys.removeAll { it.startsWith("SIGNING_") }
+        deploy.environment()["CI"] = "true"
+        if (deploy.start().waitFor() != 0) {
+            problems += "the deploy jobs' publish (-Pwow.publication.prebuilt=true) failed: see its output above"
+        }
+        fun repositoryFiles(root: File) = root.walkTopDown()
+            .filter { it.isFile && !it.name.startsWith("maven-metadata") }
+            .associateBy { it.relativeTo(root).invariantSeparatorsPath }
+        val built = repositoryFiles(repository)
+        val uploaded = repositoryFiles(deployRepository)
+        (built.keys - uploaded.keys).sorted()
+            .forEach { problems += "$it: built and signed here, but a deploy job would not upload it" }
+        (uploaded.keys - built.keys).sorted()
+            .forEach { problems += "$it: a deploy job would upload it, but this build did not publish it" }
+        built.keys.intersect(uploaded.keys).sorted()
+            .filter { !built.getValue(it).readBytes().contentEquals(uploaded.getValue(it).readBytes()) }
+            .forEach { problems += "$it: a deploy job would upload other bytes than this build published" }
+
+        // Every signature a deploy job uploads verifies against the key this build signed with.
+        val verifying = throwawaySigning ?: releaseKey?.let { key ->
+            GnupgHome().apply {
+                val keyFile = File(key).takeIf { it.isFile } ?: File(directory, "key.asc").apply { writeText(key) }
+                gpg(
+                    "--pinentry-mode", "loopback", "--passphrase-fd", "0", "--import", keyFile.path,
+                    stdin = releaseKeyPassword.orEmpty(),
+                )
+            }
+        }
+        try {
+            val signatures = uploaded.filterKeys { it.endsWith(".asc") }.toSortedMap()
+            if (verifying == null) {
+                problems += "no key to verify the signatures with (SIGNING_SECRETKEY or signing.secretKeyRingFile)"
+            }
+            signatures.forEach { (path, signature) ->
+                val signed = File(signature.path.removeSuffix(".asc"))
+                verifying?.runCatching { gpg("--verify", signature.path, signed.path) }?.onFailure {
+                    problems += "$path: does not verify: ${it.message.orEmpty().trim().lines().last()}"
+                }
+            }
+        } finally {
+            verifying?.close()
+        }
 
         val expected = (libraries + platforms + pluginMarker).toSortedSet()
         val published = groupDir.listFiles().orEmpty().filter { it.isDirectory }.map { it.name }.toSortedSet()

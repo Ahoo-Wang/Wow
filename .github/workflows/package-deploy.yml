@@ -168,7 +168,9 @@ jobs:
       # Builds and signs every publication the deploy jobs upload, publishes
       # them into a scratch repository and checks them: jars, sources,
       # javadoc, POMs, module metadata and signatures, the BOM against the
-      # published modules, and no 9.x module (v10PublicationCheck).
+      # published modules, and no 9.x module. Then runs the deploy jobs'
+      # prebuilt publish without the key and requires the same files, every
+      # signature verifying (v10PublicationCheck).
       - name: Verify release artifacts
         run: ./gradlew -Pwow.scope=v10 -Pwow.publication.signed=true v10PublicationCheck
         env:
@@ -218,10 +220,11 @@ jobs:
           name: release-artifacts
           path: .
 
-      # Uploads the files the preflight built, signed and checked: the
-      # wow.publication.prebuilt property (settings.gradle.kts) leaves out every
-      # task that makes one, and v10PublicationCheck fails when such a publish
-      # would still run anything but the publish tasks.
+      # Uploads the files the preflight built, signed and checked, with their
+      # signatures: the wow.publication.prebuilt property (settings.gradle.kts)
+      # leaves out every task that makes one, Sign tasks included (no key
+      # here), and requires the preflight's .asc files. The preflight's
+      # v10PublicationCheck ran this publish and checked what it uploads.
       - name: Publish package
         run: |
           ./gradlew -Pwow.scope=v10 -Pwow.publication.prebuilt=true \
@@ -258,10 +261,11 @@ jobs:
           name: release-artifacts
           path: .
 
-      # Uploads the files the preflight built, signed and checked: the
-      # wow.publication.prebuilt property (settings.gradle.kts) leaves out every
-      # task that makes one, and v10PublicationCheck fails when such a publish
-      # would still run anything but the publish tasks.
+      # Uploads the files the preflight built, signed and checked, with their
+      # signatures: the wow.publication.prebuilt property (settings.gradle.kts)
+      # leaves out every task that makes one, Sign tasks included (no key
+      # here), and requires the preflight's .asc files. The preflight's
+      # v10PublicationCheck ran this publish and checked what it uploads.
       - name: Publish package
         run: |
           ./gradlew -Pwow.scope=v10 -Pwow.publication.prebuilt=true \

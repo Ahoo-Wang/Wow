@@ -37,8 +37,11 @@ val nineX = wowScope == "all"
  * `-Pwow.publication.prebuilt=true`: publish the files an earlier build made instead of building them. A release's
  * deploy jobs (package-deploy.yml) download what the preflight built, signed and checked (`build/libs`,
  * `build/publications`) and publish it with this property, which leaves every task that makes a published file out of
- * the task graph, as `-x` would. `v10PublicationCheck` (build.gradle.kts) checks that such a publish runs nothing but
- * the publish tasks, so a published file no listed task makes fails a pull request, not a release.
+ * the task graph, as `-x` would. The Sign tasks are left out too: the deploy jobs have no key, and the publications
+ * upload the preflight's signatures, which the V10 signing configuration then requires (build.gradle.kts).
+ * `v10PublicationCheck` (build.gradle.kts) runs such a publish and checks that it runs nothing but the publish tasks
+ * and uploads every file, signed, so a published file no listed task makes, or a missing signature, fails a pull
+ * request, not a release.
  */
 val prebuiltPublicationTasks = listOf("jar", "sourcesJar", "javadocJar") +
     listOf("MavenLibrary", "MavenBom", "PluginMaven", "WowPluginMarkerMaven").flatMap { publication ->
