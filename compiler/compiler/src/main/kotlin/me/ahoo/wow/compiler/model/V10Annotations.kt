@@ -57,6 +57,7 @@ internal object V10Annotations {
         "ErrorCode",
         "Retry",
         "WowSpi",
+        "Tags",
         // Not a domain annotation: it marks the framework's own internals.
         "InternalWowApi",
     )
@@ -88,6 +89,9 @@ internal object V10Annotations {
      */
     private val PROCESSOR_NAMES = setOf("Retry", "OnSchedule")
 
+    /** The annotations only a member of an aggregate's state takes: `@Tags` (decision D220). */
+    private val STATE_NAMES = setOf("Tags")
+
     /** The identity annotations a command body no longer carries (decision D68). */
     private val IDENTITY_NAMES = setOf("AggregateId", "TenantId", "OwnerId", "AggregateVersion")
 
@@ -99,9 +103,15 @@ internal object V10Annotations {
 
     /**
      * The problems of the annotations on [annotated], described as [where]. A command's identity annotations get the
-     * D68 message. Only a subscription [processor] or its handler takes `@Retry`.
+     * D68 message. Only a subscription [processor] or its handler takes `@Retry`, and only a member of an aggregate's
+     * [state] takes `@Tags`.
      */
-    fun problems(annotated: KSAnnotated, where: String, processor: Boolean = false): List<String> =
+    fun problems(
+        annotated: KSAnnotated,
+        where: String,
+        processor: Boolean = false,
+        state: Boolean = false,
+    ): List<String> =
         annotated.annotations.mapNotNull { annotation ->
             val declaration = annotation.annotationType.resolve().declaration
             val qualifiedName = declaration.qualifiedName?.asString() ?: return@mapNotNull null
@@ -113,6 +123,9 @@ internal object V10Annotations {
                 return@mapNotNull "$where is annotated @$simpleName, which only a subscription processor " +
                     "(@Projection, @Reactor, @Saga) or its @OnEvent handler takes"
             }
+            if (simpleName in STATE_NAMES && !state) {
+                return@mapNotNull "$where is annotated @$simpleName, which only a member of an aggregate's state takes"
+            }
             if (simpleName in NAMES) {
                 return@mapNotNull null
             }
@@ -123,9 +136,10 @@ internal object V10Annotations {
 
     /**
      * The problems of the annotations on [type] and on its members: its fields (properties, constructor parameters,
-     * getters) and its functions with their parameters. [role] says what the type is to the model, such as "command".
+     * getters) and its functions with their parameters. [role] says what the type is to the model, such as "command";
+     * an aggregate's [state] may mark a member `@Tags`.
      */
-    fun problemsOfType(type: KSClassDeclaration, role: String): List<String> {
+    fun problemsOfType(type: KSClassDeclaration, role: String, state: Boolean = false): List<String> {
         val name = type.simpleName.asString()
         val where = "$role $name"
         val constructorParameters = (type.primaryConstructor?.parameters.orEmpty()).flatMap {
@@ -133,19 +147,24 @@ internal object V10Annotations {
         }
         val properties = type.getDeclaredProperties().flatMap {
             val field = "$where's field ${it.simpleName.asString()}"
-            problems(it, field) + listOfNotNull(it.getter).flatMap { getter -> problems(getter, field) }
+            problems(it, field, state = state) + listOfNotNull(it.getter).flatMap { getter -> problems(getter, field) }
         }
-        val functions = type.getDeclaredFunctions().flatMap { problemsOfFunction(it, where) }
+        val functions = type.getDeclaredFunctions().flatMap { problemsOfFunction(it, where, state = state) }
         return (problems(type, where) + constructorParameters + properties + functions).distinct()
     }
 
     /**
      * The problems of the annotations on [function] of the type described as [owner], and on its parameters; a
-     * [processor]'s function may take `@Retry`.
+     * [processor]'s function may take `@Retry`, and a [state]'s `@Tags`.
      */
-    fun problemsOfFunction(function: KSFunctionDeclaration, owner: String, processor: Boolean = false): List<String> {
+    fun problemsOfFunction(
+        function: KSFunctionDeclaration,
+        owner: String,
+        processor: Boolean = false,
+        state: Boolean = false,
+    ): List<String> {
         val where = "$owner's function ${function.simpleName.asString()}"
-        return problems(function, where, processor) + function.parameters.flatMap {
+        return problems(function, where, processor, state) + function.parameters.flatMap {
             problems(it, "$where's parameter ${it.name?.asString()}")
         }
     }
