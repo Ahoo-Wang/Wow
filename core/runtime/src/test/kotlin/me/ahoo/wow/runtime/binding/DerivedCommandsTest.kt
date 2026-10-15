@@ -122,7 +122,7 @@ class DerivedCommandsTest {
         executed.executed.assert().containsExactly("c-2")
         val rejection = executed.rejected!!
         // A command built without a causation is derived as its own root (decision D199).
-        rejection.command.assert().isEqualTo(rejected.copy(causation = Causation("c-2", "c-2")))
+        rejection.command.assert().isEqualTo(rejected.copyWith(causation = Causation("c-2", "c-2")))
         rejection.rejection.code.assert().isEqualTo(FORBIDDEN)
         rejection.error.code.assert().isEqualTo(FORBIDDEN)
         rejection.commandType.assert().isEqualTo("shop.cart.RemoveItems")

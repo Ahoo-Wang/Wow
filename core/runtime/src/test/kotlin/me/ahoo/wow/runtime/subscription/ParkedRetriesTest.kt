@@ -73,7 +73,7 @@ class ParkedRetriesTest {
         checkpoints,
         ledger,
         listOf(subscription),
-        testOptions(maxAttempts = 1).copy(parked = ParkedRetryOptions(spec, scanInterval = 5.milliseconds)),
+        testOptions(maxAttempts = 1).copyWith(parked = ParkedRetryOptions(spec, scanInterval = 5.milliseconds)),
         clock,
         notifier = notifier,
     )

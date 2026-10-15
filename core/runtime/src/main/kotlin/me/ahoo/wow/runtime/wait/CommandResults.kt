@@ -119,10 +119,10 @@ internal fun CommandOutcome.toResult(command: Command<*>, function: FunctionInfo
         signalTime = now,
     )
     return when (this) {
-        is CommandOutcome.Committed -> result.copy(version = stream.version, results = results)
-        is CommandOutcome.AlreadyCommitted -> result.copy(version = stream.version, duplicate = true)
-        is CommandOutcome.Unchanged -> result.copy(version = version)
-        is CommandOutcome.Rejected -> result.copy(
+        is CommandOutcome.Committed -> result.copyWith(version = stream.version, results = results)
+        is CommandOutcome.AlreadyCommitted -> result.copyWith(version = stream.version, duplicate = true)
+        is CommandOutcome.Unchanged -> result.copyWith(version = version)
+        is CommandOutcome.Rejected -> result.copyWith(
             status = CommandResult.Status.REJECTED,
             error = rejection.toError(),
         )
@@ -166,7 +166,7 @@ internal fun Rejection.toError(): ErrorInfo = ErrorInfo(code, message, extension
 
 /** This result, failed with [code] and [message]. */
 internal fun CommandResult.failed(code: String, message: String): CommandResult =
-    copy(status = CommandResult.Status.FAILED, error = ErrorInfo(code, message))
+    copyWith(status = CommandResult.Status.FAILED, error = ErrorInfo(code, message))
 
 /** The result of [command] reaching [hop] without an outcome of the kernel to report, such as ACCEPTED. */
 internal fun reachedResult(command: Command<*>, function: FunctionInfo, hop: Hop, now: Long) = CommandResult(

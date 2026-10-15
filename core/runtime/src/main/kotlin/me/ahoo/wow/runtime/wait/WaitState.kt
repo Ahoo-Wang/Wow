@@ -92,7 +92,7 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
         if (result.hop.stage != Stage.HANDLED || result.results.isNotEmpty()) {
             return result
         }
-        return committedResults[result.commandId]?.let { result.copy(results = it) } ?: result
+        return committedResults[result.commandId]?.let { result.copyWith(results = it) } ?: result
     }
 
     /** Ends the wait with [result], unless it already ended; returns it as the final result. */
@@ -177,7 +177,7 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
         val results = reached.values.toList()
         val saga = isSaga(index)
         val derived = if (saga) results.flatMapTo(LinkedHashSet()) { it.derived } else emptySet()
-        val result = results.last().let { if (saga) it.copy(derived = derived.toList()) else it }
+        val result = results.last().let { if (saga) it.copyWith(derived = derived.toList()) else it }
         lastReached = result
         hopCompleted = true
         reached.clear()
@@ -189,7 +189,7 @@ internal class WaitState(private val hops: List<Hop>, rootCommandId: String) {
         if (index == hops.size) {
             outcome = result
         } else if (saga && derived.isEmpty()) {
-            return result.copy(chainEnded = true, pending = hops.subList(index, hops.size).toList()).also {
+            return result.copyWith(chainEnded = true, pending = hops.subList(index, hops.size).toList()).also {
                 outcome = it
             }
         }

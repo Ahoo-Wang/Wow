@@ -87,8 +87,8 @@ Saga 派生的命令被拒绝不算失败：不重试、不停放，交给 Saga 
 ### 6.2 数据形状（[08](08-data-protocols.md)）
 
 ```kotlin
-data class WaitPlan(val hops: List<Hop>, val timeout: Duration)       // 调用方声明，只留在发起节点
-data class Hop(val stage: Stage, val context: String? = null, val subscription: String? = null)
+class WaitPlan(val hops: List<Hop>, val timeout: Duration)            // 调用方声明，只留在发起节点
+class Hop(val stage: Stage, val context: String? = null, val subscription: String? = null)
 data class WaitContext(                                               // 传输段，随消息流转（D25）
     val waitId: String,
     val origin: Origin,          // 发起节点：内部地址（实例 IP:内部端口）与服务名

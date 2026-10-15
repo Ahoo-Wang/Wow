@@ -80,7 +80,7 @@ class HttpSignalSenderTest {
         val sender = sender()
         val signal = WaitSignal(
             waitId = "w-exact",
-            result = committed("c-exact").copy(
+            result = committed("c-exact").copyWith(
                 hop = Hop.handled("order.saga", "order"),
                 status = CommandResult.Status.FAILED,
                 duplicate = true,

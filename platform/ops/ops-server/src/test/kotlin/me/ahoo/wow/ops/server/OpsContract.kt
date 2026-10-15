@@ -59,19 +59,23 @@ abstract class OpsContract {
         subscription: String = SAGA,
         failedAt: Long = FAILED_AT,
         reason: String = "The gateway is unreachable.",
-    ): LedgerEntry = LedgerEntry(
-        service = "$context-service",
-        context = context,
-        subscription = subscription,
-        aggregate = LedgerAggregate(context, "payment", Caller.DEFAULT_TENANT, id),
-        fromVersion = 2,
-        fromPosition = null,
-        reason = reason,
-        failedAt = failedAt,
-        retries = 3,
-        retrySpec = LedgerRetrySpec(3, "PT1M", "PT2M"),
-        status = status,
-        recordedAt = failedAt + 1,
+    ): LedgerEntry = WowJson.mapper.convertValue(
+        // A ledger entry is a wire record whose constructor is Wow's own (decision D216): read it from its JSON.
+        mapOf(
+            "service" to "$context-service",
+            "context" to context,
+            "subscription" to subscription,
+            "aggregate" to LedgerAggregate(context, "payment", Caller.DEFAULT_TENANT, id),
+            "fromVersion" to 2,
+            "fromPosition" to null,
+            "reason" to reason,
+            "failedAt" to failedAt,
+            "retries" to 3,
+            "retrySpec" to LedgerRetrySpec(3, "PT1M", "PT2M"),
+            "status" to status,
+            "recordedAt" to failedAt + 1,
+        ),
+        LedgerEntry::class.java,
     )
 
     /** The snapshot of entry [id], or null while ops has none. */

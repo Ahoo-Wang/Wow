@@ -178,18 +178,18 @@ class CommandGateway @InternalWowApi constructor(
                     } else {
                         withContext(trace) { coordinator.forward(admission.model, admission.command, call.wait) }
                     }
-                    emit(if (from == null) settled.committed else settled.committed.copy(transformedFrom = from))
+                    emit(if (from == null) settled.committed else settled.committed.copyWith(transformedFrom = from))
                 } else if (admission.command.wait.isAcceptedOnly) {
                     val accepted = if (trace === EmptyCoroutineContext) {
                         coordinator.accept(admission.model, admission.command, detached)
                     } else {
                         withContext(trace) { coordinator.accept(admission.model, admission.command, detached) }
                     }
-                    emit(if (from == null) accepted else accepted.copy(transformedFrom = from))
+                    emit(if (from == null) accepted else accepted.copyWith(transformedFrom = from))
                 } else {
                     val streamed = coordinator.stream(admission.model, admission.command)
                     val results = if (trace === EmptyCoroutineContext) streamed else streamed.flowOn(trace)
-                    emitAll(if (from == null) results else results.map { it.copy(transformedFrom = from) })
+                    emitAll(if (from == null) results else results.map { it.copyWith(transformedFrom = from) })
                 }
             }
         }
@@ -456,7 +456,7 @@ class CommandGateway @InternalWowApi constructor(
                 error = ErrorInfo(code, message, violations),
                 now = clock(),
             )
-            return Admission.Refused(rejected.copy(status = status, transformedFrom = transformedFrom))
+            return Admission.Refused(rejected.copyWith(status = status, transformedFrom = transformedFrom))
         }
     }
 

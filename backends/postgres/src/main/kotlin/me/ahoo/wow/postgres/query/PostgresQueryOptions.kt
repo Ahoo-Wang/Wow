@@ -13,10 +13,14 @@
 
 package me.ahoo.wow.postgres.query
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.index.QueryIndexDdl
 
-/** The options of the PostgreSQL snapshot query backend. The host maps its configuration onto them (6.2c). */
-data class PostgresQueryOptions(
+/** The options of the PostgreSQL snapshot query backend. The host maps its configuration onto them (6.2c).  *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
+ */
+class PostgresQueryOptions @InternalWowApi constructor(
     /** How the expression indexes are managed: [QueryIndexDdl.AUTO] by default. */
     val indexDdl: QueryIndexDdl = QueryIndexDdl.AUTO,
     /** How many rows a streamed list fetches at a time. */
@@ -25,6 +29,15 @@ data class PostgresQueryOptions(
     init {
         require(fetchSize >= 1) { "fetchSize must be at least 1." }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is PostgresQueryOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "PostgresQueryOptions(indexDdl=$indexDdl, fetchSize=$fetchSize)"
+
+    private fun valueFields(): List<Any?> = listOf(indexDdl, fetchSize)
 
     companion object {
         const val DEFAULT_FETCH_SIZE: Int = 256

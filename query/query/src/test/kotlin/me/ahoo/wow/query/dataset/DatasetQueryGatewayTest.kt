@@ -186,7 +186,7 @@ class DatasetQueryGatewayTest {
         condition(mapOf("region" to listOf("*"), "dept" to listOf("*"))).assert().isEqualTo(
             AndFilter(listOf(NotEqualFilter(region, ""), NorFilter(listOf(IsEmptyFilter(depts))))),
         )
-        val strict = ENABLED.copy(matchMissingTagKey = false)
+        val strict = ENABLED.copyWith(matchMissingTagKey = false)
         condition(mapOf("region" to listOf("east")), strict).assert().isEqualTo(InFilter(region, listOf("east")))
         condition(mapOf("dept" to listOf("eng"), "role" to listOf("admin")), strict).assert().isEqualTo(
             AndFilter(listOf(InFilter(depts, listOf("eng")), MatchNoneFilter)),
@@ -196,7 +196,7 @@ class DatasetQueryGatewayTest {
         condition(emptyMap()).assert().isSameAs(MatchAllFilter)
         condition(mapOf("region" to listOf("east")), AbacQueryOptions()).assert().isSameAs(MatchAllFilter)
         assertThrows<me.ahoo.wow.query.AbacPrincipalTagsRequiredException> {
-            condition(emptyMap(), ENABLED.copy(requirePrincipalTags = true))
+            condition(emptyMap(), ENABLED.copyWith(requirePrincipalTags = true))
         }
     }
 
@@ -206,7 +206,7 @@ class DatasetQueryGatewayTest {
         val caller = caller(mapOf("region" to listOf("east"), "dept" to listOf("*")))
         gateway(backend, tagged(), listOf(AbacQueryPolicy(ENABLED)))
             .list(ListQuery(MatchAllFilter, limit = 10), caller).toList().assert().hasSize(1)
-        gateway(backend, tagged(), listOf(AbacQueryPolicy(ENABLED.copy(matchMissingTagKey = false))))
+        gateway(backend, tagged(), listOf(AbacQueryPolicy(ENABLED.copyWith(matchMissingTagKey = false))))
             .count(CountQuery(MatchAllFilter), caller).assert().isEqualTo(CountResult(1, exact = true))
         backend.admitted.size.assert().isEqualTo(2)
     }
@@ -214,7 +214,7 @@ class DatasetQueryGatewayTest {
     @Test
     fun `ABAC leaves a dataset without tag columns unrestricted`() = runTest {
         val schema = catalog(orders).schema(orders.name, QueryModel.DATASET)
-        val required = AbacQueryPolicy(ENABLED.copy(requirePrincipalTags = true))
+        val required = AbacQueryPolicy(ENABLED.copyWith(requirePrincipalTags = true))
         required.evaluate(caller(emptyMap()), context(schema)).assert().isSameAs(MatchAllFilter)
         required.evaluate(caller(mapOf("region" to listOf("east"))), context(schema)).assert().isSameAs(MatchAllFilter)
     }

@@ -66,10 +66,10 @@ class WaitStateTest {
         val done = result("root", snapshot, snapshotFunction)
         // The snapshot's signal ends the wait before the commit's own result is offered, as a fast subscription may.
         state.offer(done)!!.assert().containsExactly(done)
-        state.offer(result("root", committed).copy(results = mapOf("price" to 5)))
+        state.offer(result("root", committed).copyWith(results = mapOf("price" to 5)))
         state.carry(done).results.assert().isEqualTo(mapOf("price" to 5))
         // Its own results, a result at COMMITTED, and another command's are left as they are.
-        val own = done.copy(results = mapOf("price" to 6))
+        val own = done.copyWith(results = mapOf("price" to 6))
         state.carry(own).assert().isSameAs(own)
         val atCommitted = result("root", committed)
         state.carry(atCommitted).assert().isSameAs(atCommitted)
@@ -90,8 +90,8 @@ class WaitStateTest {
         val first = result("d-1", reserved, reserve)
         state.offer(first)!!.assert().containsExactly(first)
         // The same signal again, another delivery of it: dropped.
-        state.offer(first.copy(signalTime = 2L)).assert().isNull()
-        SignalKey.of(first.copy(signalTime = 2L)).assert().isEqualTo(SignalKey.of(first))
+        state.offer(first.copyWith(signalTime = 2L)).assert().isNull()
+        SignalKey.of(first.copyWith(signalTime = 2L)).assert().isEqualTo(SignalKey.of(first))
         // The same hop of the same command from another source is not taken for a copy of it.
         val elsewhere = result("d-1", reserved, reserve.copy(context = "shop"))
         SignalKey.of(elsewhere).assert().isNotEqualTo(SignalKey.of(first))

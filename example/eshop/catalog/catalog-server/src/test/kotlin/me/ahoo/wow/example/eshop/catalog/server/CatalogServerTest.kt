@@ -53,7 +53,7 @@ class CatalogServerTest {
     fun `the application should send a command through the command gateway`() {
         start().use { context ->
             val gateway = context.getBean(CommandGateway::class.java)
-            val request = CommandRequest(
+            val request = CommandRequest.of(
                 context = "eshop-catalog",
                 aggregate = "brand",
                 command = "CreateBrand",

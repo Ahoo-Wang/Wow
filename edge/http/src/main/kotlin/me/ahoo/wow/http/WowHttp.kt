@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.http
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.json.JsonMapper
 import tools.jackson.module.kotlin.kotlinModule
@@ -65,8 +66,11 @@ object WowHeaders {
  * - [errorStatuses] overrides the HTTP status of an error code, a domain rejection's (422 by default) or a framework
  *   one's.
  * - [manifestEndpoint] serves `GET /wow/manifest`; [openApiEndpoint] serves `GET /wow/openapi`.
+ *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
  */
-data class WowHttpOptions(
+class WowHttpOptions @InternalWowApi constructor(
     val requestFacts: Set<String> = emptySet(),
     val errorStatuses: Map<String, Int> = emptyMap(),
     val manifestEndpoint: Boolean = true,
@@ -84,6 +88,26 @@ data class WowHttpOptions(
         const val MIN_ERROR_STATUS = 400
         const val MAX_ERROR_STATUS = 599
     }
+
+    /** This WowHttpOptions with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        requestFacts: Set<String> = this.requestFacts,
+        errorStatuses: Map<String, Int> = this.errorStatuses,
+        manifestEndpoint: Boolean = this.manifestEndpoint,
+        openApiEndpoint: Boolean = this.openApiEndpoint,
+    ): WowHttpOptions = WowHttpOptions(requestFacts, errorStatuses, manifestEndpoint, openApiEndpoint)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is WowHttpOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "WowHttpOptions(requestFacts=$requestFacts, errorStatuses=$errorStatuses, " +
+            "manifestEndpoint=$manifestEndpoint, openApiEndpoint=$openApiEndpoint)"
+
+    private fun valueFields(): List<Any?> = listOf(requestFacts, errorStatuses, manifestEndpoint, openApiEndpoint)
 }
 
 /** The paths of the framework's own public endpoints, under the reserved context `wow` (decision D104). */

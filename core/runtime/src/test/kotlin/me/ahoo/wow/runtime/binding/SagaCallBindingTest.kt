@@ -211,7 +211,12 @@ class SagaCallBindingTest {
         val wait = WaitContext("w", Origin("n", "a:1", "s"), listOf(Hop.committed("mail")), 1L)
         OutgoingCall("mail.box.Deliver", command, wait).name.assert().isEqualTo("Deliver")
         assertThrownBy<IllegalArgumentException> { OutgoingCall("mail.other.Deliver", command) }
-        assertThrownBy<IllegalArgumentException> { OutgoingCall("mail.box.Deliver", command.copy(causation = null)) }
+        assertThrownBy<IllegalArgumentException> {
+            OutgoingCall(
+                "mail.box.Deliver",
+                command.copyWith(causation = null)
+            )
+        }
     }
 
     private companion object {

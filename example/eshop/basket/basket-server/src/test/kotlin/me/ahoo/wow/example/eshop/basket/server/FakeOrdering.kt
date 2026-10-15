@@ -47,14 +47,13 @@ class FakeOrdering : AutoCloseable {
                     call,
                     exchange.requestBody.readAllBytes(),
                 )
-                val result = CommandResult(
+                val result = CommandResult.succeeded(
                     commandId = call.commandId,
                     requestId = exchange.requestHeaders.getFirst(WowHeaders.REQUEST_ID),
                     correlationId = call.causation.correlationId,
                     ref = ORDER.ref(call.tenantId, exchange.requestURI.path.split('/')[ID_SEGMENT]),
                     hop = Hop.committed(ORDER.context),
                     function = FunctionInfo(FunctionKind.COMMAND, ORDER.context, ORDER.name, "SubmitOrder"),
-                    status = CommandResult.Status.SUCCEEDED,
                     version = 1,
                     signalTime = System.currentTimeMillis(),
                 )

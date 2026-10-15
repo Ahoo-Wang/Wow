@@ -23,8 +23,11 @@ import kotlin.time.Duration.Companion.seconds
  * rewrites [batch] snapshots a page, at most [pages] pages a run, under a lease of [leaseTtl]; a node stays a member of
  * its state revision for [memberTtl] after its last run, so a rollback waits that long after the last node of the
  * higher revision is gone (none when it leaves gracefully).
+ *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
  */
-data class SnapshotOptions(
+class SnapshotOptions @InternalWowApi constructor(
     val interval: Duration = DEFAULT_INTERVAL,
     val batch: Int = DEFAULT_BATCH,
     val pages: Int = DEFAULT_PAGES,
@@ -38,6 +41,17 @@ data class SnapshotOptions(
         require(leaseTtl > interval) { "The rebuild lease outlives the interval between runs." }
         require(memberTtl > interval) { "A revision membership outlives the interval between runs." }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is SnapshotOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "SnapshotOptions(interval=$interval, batch=$batch, pages=$pages, leaseTtl=$leaseTtl, " +
+            "memberTtl=$memberTtl)"
+
+    private fun valueFields(): List<Any?> = listOf(interval, batch, pages, leaseTtl, memberTtl)
 
     companion object {
         val DEFAULT_INTERVAL: Duration = 5.seconds

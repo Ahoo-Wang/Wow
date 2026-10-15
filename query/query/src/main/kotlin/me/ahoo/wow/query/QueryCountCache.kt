@@ -16,6 +16,7 @@ package me.ahoo.wow.query
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.FilterExpression
 import java.time.Duration
@@ -37,8 +38,11 @@ fun interface SnapshotWriteCheckpoint {
  * for at most [ttl] after it was counted, however long its checkpoint holds. The [ttl] bounds what the checkpoint
  * cannot see: a snapshot written but not yet checkpointed (on another node, up to the checkpoint interval), or
  * written outside the snapshot subscription.
+ *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
  */
-data class QueryCountCacheOptions(
+class QueryCountCacheOptions @InternalWowApi constructor(
     val maxEntries: Int = DEFAULT_MAX_ENTRIES,
     val ttl: Duration = DEFAULT_TTL,
 ) {
@@ -46,6 +50,15 @@ data class QueryCountCacheOptions(
         require(maxEntries > 0) { "maxEntries must be positive." }
         require(ttl > Duration.ZERO) { "ttl must be positive." }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is QueryCountCacheOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "QueryCountCacheOptions(maxEntries=$maxEntries, ttl=$ttl)"
+
+    private fun valueFields(): List<Any?> = listOf(maxEntries, ttl)
 
     companion object {
         const val DEFAULT_MAX_ENTRIES: Int = 10_000

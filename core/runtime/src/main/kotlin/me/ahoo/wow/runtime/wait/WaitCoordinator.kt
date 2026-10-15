@@ -72,8 +72,11 @@ import kotlin.time.Duration.Companion.seconds
  * - [unknownContexts] is what a chain may name of a context this node knows no Manifest of (decision D190).
  * - [defaultTimeout] is the timeout of a command whose caller names no wait plan (decision D64), capped by
  *   [maxTimeout] as any other; [me.ahoo.wow.runtime.admission.CommandGateway] applies it to every entry.
+ *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
  */
-data class WaitOptions(
+class WaitOptions @InternalWowApi constructor(
     val origin: Origin,
     val maxTimeout: Duration = DEFAULT_MAX_TIMEOUT,
     val maxHops: Int = DEFAULT_MAX_HOPS,
@@ -86,6 +89,27 @@ data class WaitOptions(
         require(maxHops <= MAX_HOPS_CAP) { "A wait chain has at most $MAX_HOPS_CAP hops, not $maxHops." }
         require(defaultTimeout.isPositive()) { "The default wait timeout is positive." }
     }
+
+    /** This WaitOptions with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        origin: Origin = this.origin,
+        maxTimeout: Duration = this.maxTimeout,
+        maxHops: Int = this.maxHops,
+        defaultTimeout: Duration = this.defaultTimeout,
+        unknownContexts: UnknownContexts = this.unknownContexts,
+    ): WaitOptions = WaitOptions(origin, maxTimeout, maxHops, defaultTimeout, unknownContexts)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is WaitOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "WaitOptions(origin=$origin, maxTimeout=$maxTimeout, maxHops=$maxHops, " +
+            "defaultTimeout=$defaultTimeout, unknownContexts=$unknownContexts)"
+
+    private fun valueFields(): List<Any?> = listOf(origin, maxTimeout, maxHops, defaultTimeout, unknownContexts)
 
     companion object {
         val DEFAULT_MAX_TIMEOUT: Duration = 60.seconds
@@ -488,7 +512,12 @@ class WaitCoordinator(
         val committed = outcome.toResult(command, function, hop, clock())
         val after = wait?.afterCommitted()?.remaining.orEmpty()
         val reached = when (outcome) {
-            is CommandOutcome.Unchanged -> after.firstOrNull()?.let { committed.copy(hop = it, signalTime = clock()) }
+            is CommandOutcome.Unchanged -> after.firstOrNull()?.let {
+                committed.copyWith(
+                    hop = it,
+                    signalTime = clock()
+                )
+            }
             is CommandOutcome.AlreadyCommitted -> handledBefore(command, outcome, after.firstOrNull(), after.size == 1)
             else -> null
         }
@@ -520,7 +549,7 @@ class WaitCoordinator(
         }
         val settlement = router.route(model, command, wait) { executeHere(model, command, wait) }
         val hop = leading.firstOrNull { it.stage == Stage.COMMITTED } ?: Hop.committed(context)
-        signal(wait, settlement.committed.copy(hop = hop))
+        signal(wait, settlement.committed.copyWith(hop = hop))
         // A command that changed nothing, or a duplicate whose subscription is past it (D63): no entry signals them.
         settlement.reached.forEach { signal(wait, it) }
         return settlement
@@ -571,7 +600,7 @@ class WaitCoordinator(
         }
         val kind = directory.kindOf(context, subscription) ?: return null
         return handledResult(outcome.stream, handled, subscriptionFunction(kind, context, subscription), clock())
-            .copy(commandId = command.id, duplicate = true)
+            .copyWith(commandId = command.id, duplicate = true)
     }
 
     /**

@@ -203,7 +203,7 @@ class ProcessorSpecTest {
         whenRejected(rejected, Reserve::class) { expectCommands(Cancel("None.")) }
         assertThrownBy<AssertionError> { whenRejected(rejected, Release::class) { } }
         assertThrownBy<IllegalArgumentException> {
-            whenRejected(rejected.copy(executionId = ExecutionId("Other.onOrder", order, 1)), Reserve::class) { }
+            whenRejected(rejected.copyWith(executionId = ExecutionId("Other.onOrder", order, 1)), Reserve::class) { }
         }
         assertThrownBy<IllegalArgumentException> {
             whenRejected(Command("x", "x", stock, Reserve("order-1", 1)), code = "c") { }
@@ -249,7 +249,7 @@ class ProcessorSpecTest {
         // A saga without a handler of the command's receipts, or a receipt of another saga's command, fails.
         assertThrownBy<AssertionError> { whenCommitted(committed, Release::class) { } }
         assertThrownBy<IllegalArgumentException> {
-            whenCommitted(committed.copy(executionId = ExecutionId("Other.onOrder", order, 1)), Reserve::class) { }
+            whenCommitted(committed.copyWith(executionId = ExecutionId("Other.onOrder", order, 1)), Reserve::class) { }
         }
         assertThrownBy<IllegalArgumentException> {
             whenCommitted(Command("x", "x", stock, Reserve("order-1", 1))) { }

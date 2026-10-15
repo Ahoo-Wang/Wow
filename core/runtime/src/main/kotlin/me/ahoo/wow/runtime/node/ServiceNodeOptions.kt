@@ -175,8 +175,11 @@ enum class Routing {
  * - [ledger]: where the node publishes its failure ledger (decision D141): the ops context whose `parked` aggregate
  *   records each entry, through its command topic, which needs a producer ([SourceTopics.producer]). Not published by
  *   default.
+ *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
  */
-data class ServiceNodeOptions(
+class ServiceNodeOptions @InternalWowApi constructor(
     val cluster: ClusterOptions = ClusterOptions(),
     val routing: Routing = Routing.PARTITIONED,
     val maxWaitTimeout: Duration = WaitOptions.DEFAULT_MAX_TIMEOUT,
@@ -200,6 +203,62 @@ data class ServiceNodeOptions(
         require(laneCapacity >= 1) { "A lane takes at least one command." }
         require(stateCacheCapacity >= 0) { "The state cache capacity is never negative." }
     }
+
+    /** This ServiceNodeOptions with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        cluster: ClusterOptions = this.cluster,
+        routing: Routing = this.routing,
+        maxWaitTimeout: Duration = this.maxWaitTimeout,
+        maxWaitHops: Int = this.maxWaitHops,
+        subscription: SubscriptionOptions = this.subscription,
+        appendQueue: AppendQueueOptions = this.appendQueue,
+        laneCapacity: Int = this.laneCapacity,
+        stateCacheCapacity: Int = this.stateCacheCapacity,
+        defaultWaitTimeout: Duration = this.defaultWaitTimeout,
+        stateViews: StateViewOptions = this.stateViews,
+        timers: TimerOptions = this.timers,
+        schedules: Map<String, JobOptions> = this.schedules,
+        kafkaRouted: Set<AggregateType> = this.kafkaRouted,
+        unknownWaitContexts: UnknownContexts = this.unknownWaitContexts,
+        ledger: LedgerPublishing? = this.ledger,
+        snapshots: SnapshotOptions = this.snapshots,
+    ): ServiceNodeOptions = ServiceNodeOptions(
+        cluster,
+        routing,
+        maxWaitTimeout,
+        maxWaitHops,
+        subscription,
+        appendQueue,
+        laneCapacity,
+        stateCacheCapacity,
+        defaultWaitTimeout,
+        stateViews,
+        timers,
+        schedules,
+        kafkaRouted,
+        unknownWaitContexts,
+        ledger,
+        snapshots,
+    )
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ServiceNodeOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "ServiceNodeOptions(cluster=$cluster, routing=$routing, maxWaitTimeout=$maxWaitTimeout, " +
+            "maxWaitHops=$maxWaitHops, subscription=$subscription, appendQueue=$appendQueue, " +
+            "laneCapacity=$laneCapacity, stateCacheCapacity=$stateCacheCapacity, " +
+            "defaultWaitTimeout=$defaultWaitTimeout, stateViews=$stateViews, timers=$timers, " +
+            "schedules=$schedules, kafkaRouted=$kafkaRouted, unknownWaitContexts=$unknownWaitContexts, " +
+            "ledger=$ledger, snapshots=$snapshots)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        cluster, routing, maxWaitTimeout, maxWaitHops, subscription, appendQueue, laneCapacity, stateCacheCapacity,
+        defaultWaitTimeout, stateViews, timers, schedules, kafkaRouted, unknownWaitContexts, ledger, snapshots
+    )
 
     companion object {
         const val DEFAULT_LANE_CAPACITY: Int = 1_024

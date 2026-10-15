@@ -244,7 +244,7 @@ class CommittedReceiptsTest {
         stockNode = stockNode().also { it.start() }
         val committed = Command("c-n", "r-c-n", ITEM.ref(TENANT, "i-n"), Reserve(1))
         send(committed, replyTo.copy(committed = false))
-        send(committed.copy(id = "c-none", requestId = "r-c-none"), reply = null)
+        send(committed.copyWith(id = "c-none", requestId = "r-c-none"), reply = null)
         eventually { checkpoint(committed.ref) == 2L }
         stock.decided.assert().containsExactly("c-n", "c-none")
         topics.messages(RECEIPTS).assert().isEmpty()

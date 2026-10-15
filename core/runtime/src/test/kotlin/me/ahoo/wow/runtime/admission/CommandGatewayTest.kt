@@ -368,7 +368,7 @@ class CommandGatewayTest {
         gateway.execute(request(headers = mapOf("wow.owner" to "bob"))).assertRefused(FrameworkCodes.MALFORMED)
         gateway.execute(request(requestId = " ")).assertRefused(FrameworkCodes.MALFORMED)
         gateway.execute(request(aggregateId = " ")).assertRefused(FrameworkCodes.MALFORMED)
-        gateway.execute(request().copy(expectedVersion = -1)).assertRefused(FrameworkCodes.MALFORMED)
+        gateway.execute(request().copyWith(expectedVersion = -1)).assertRefused(FrameworkCodes.MALFORMED)
         val missing = gateway.execute(request(command = "Checkout", body = "{}", aggregateId = null))
         missing.assertRefused(FrameworkCodes.MALFORMED)
         missing.ref.id.assert().isEqualTo(CommandGateway.UNADDRESSED)
@@ -407,7 +407,7 @@ class CommandGatewayTest {
         gateway.execute(request(body = "null")).assertRefused(FrameworkCodes.MALFORMED)
         decided.assert().isEmpty()
         val tree = JsonMapper.builder().build().readTree("""{"sku":"pear","quantity":3}""")
-        gateway.execute(request().copy(body = CommandBody.Tree(tree))).status
+        gateway.execute(request().copyWith(body = CommandBody.Tree(tree))).status
             .assert().isEqualTo(CommandResult.Status.SUCCEEDED)
     }
 
@@ -415,7 +415,7 @@ class CommandGatewayTest {
     fun `an unknown aggregate or command is unhandled`(): Unit = runBlocking {
         val gateway = gateway()
         gateway.execute(request(command = "RemoveItem")).assertRefused(FrameworkCodes.UNHANDLED)
-        val unknown = gateway.execute(request().copy(aggregate = "wishlist", aggregateId = null))
+        val unknown = gateway.execute(request().copyWith(aggregate = "wishlist", aggregateId = null))
         unknown.assertRefused(FrameworkCodes.UNHANDLED)
         unknown.ref.id.assert().isEqualTo(CommandGateway.UNADDRESSED)
         unknown.function.name.assert().isEqualTo("AddItem")

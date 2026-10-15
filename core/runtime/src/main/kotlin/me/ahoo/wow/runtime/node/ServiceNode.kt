@@ -650,7 +650,7 @@ class ServiceNode @InternalWowApi constructor(
         check(bound == null) { "Node $node already has the address $bound." }
         bound = address
         val origin = Origin(node, address, service)
-        contexts.values.forEach { it.coordinator.options = it.coordinator.options.copy(origin = origin) }
+        contexts.values.forEach { it.coordinator.options = it.coordinator.options.copyWith(origin = origin) }
     }
 
     /**

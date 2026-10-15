@@ -100,7 +100,7 @@ class ScheduledCommandsTest {
         shopManifest(),
         backends,
         channel,
-        options = fastNodeOptions().copy(timers = timers),
+        options = fastNodeOptions().copyWith(timers = timers),
         subscriptions = subscriptions,
         contracts = ContractDirectory(shopManifest(), listOf(peer(stockManifest()))),
         topics = topics,

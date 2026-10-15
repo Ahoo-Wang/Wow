@@ -218,7 +218,7 @@ class SnapshotSubscriptionTest {
     fun `the default wait answers once the snapshot holds the commit`(): Unit = runBlocking {
         runtime.start(setOf(0))
         val owned = Scope("alice", "space")
-        val first = coordinator.execute(counter, add("a").copy(scope = owned, operator = ALICE))
+        val first = coordinator.execute(counter, add("a").copyWith(scope = owned, operator = ALICE))
         first.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         first.hop.assert().isEqualTo(Hop.snapshot("shop"))
         val created = store.load(ref("a"))!!
@@ -229,7 +229,7 @@ class SnapshotSubscriptionTest {
         created.operator.assert().isEqualTo(ALICE)
         created.firstOperator.assert().isEqualTo(ALICE)
 
-        coordinator.execute(counter, add("a").copy(operator = BOB)).hop.assert().isEqualTo(Hop.snapshot("shop"))
+        coordinator.execute(counter, add("a").copyWith(operator = BOB)).hop.assert().isEqualTo(Hop.snapshot("shop"))
         val updated = store.load(ref("a"))!!
         updated.version.assert().isEqualTo(2)
         updated.state.assert().isEqualTo("""{"total":2}""")
@@ -331,11 +331,11 @@ class SnapshotSubscriptionTest {
     fun `without a state view the snapshot and the log's tail give the state`(): Unit = runBlocking {
         // Commands run outside the executor that records views: as on another node, or before an ownership change.
         val elsewhere = Executor(kernel)
-        repeat(2) { elsewhere.execute(counter, add("a", WaitPlan.COMMITTED).copy(operator = ALICE)) }
+        repeat(2) { elsewhere.execute(counter, add("a", WaitPlan.COMMITTED).copyWith(operator = ALICE)) }
         runtime.start(setOf(0))
         eventually { store.load(ref("a"))?.version == 2 }
         runtime.stop()
-        repeat(3) { elsewhere.execute(counter, add("a", WaitPlan.COMMITTED).copy(operator = BOB)) }
+        repeat(3) { elsewhere.execute(counter, add("a", WaitPlan.COMMITTED).copyWith(operator = BOB)) }
         val fifth = log.read(ref("a"), 5, 5).toList().single()
         log.reads.clear()
 
@@ -438,7 +438,7 @@ class SnapshotSubscriptionTest {
     @Test
     fun `the snapshot holds the scope and the tags the lifecycle commands gave`(): Unit = runBlocking {
         runtime.start(setOf(0))
-        coordinator.execute(counter, add("a").copy(scope = Scope("alice", "space-a")))
+        coordinator.execute(counter, add("a").copyWith(scope = Scope("alice", "space-a")))
         val tags = mapOf("region" to listOf("eu", "us"))
         listOf(TransferOwner("bob"), TransferSpace("space-b"), ApplyTags(tags)).forEach { body ->
             coordinator.execute(counter, command("a", body, WaitPlan.SNAPSHOT)).hop

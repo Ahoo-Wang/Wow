@@ -308,13 +308,13 @@ class SagaReceiptsTest {
         )
         rejections.rejected(rejected, RemoveItems::class.java).assert().isNull()
         rejections.rejected(
-            rejected.copy(executionId = rejected.executionId.copy(subscription = SAGA)),
+            rejected.copyWith(executionId = rejected.executionId.copy(subscription = SAGA)),
             String::class.java
         )
             .assert().isNull()
         // The entry point of a receipt from another context (decision D136) takes the same rejection.
         rejections.rejected(
-            rejected.copy(executionId = rejected.executionId.copy(subscription = SAGA)),
+            rejected.copyWith(executionId = rejected.executionId.copy(subscription = SAGA)),
             RemoveItems::class.java
         )
             .assert().hasSize(1)

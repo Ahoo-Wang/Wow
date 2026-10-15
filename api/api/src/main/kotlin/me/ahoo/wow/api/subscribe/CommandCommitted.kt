@@ -15,6 +15,7 @@ package me.ahoo.wow.api.subscribe
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.CommandResult
@@ -31,9 +32,12 @@ import me.ahoo.wow.api.result.CommandResult
  * The receipt carries no state: the contract across contexts is the command's result (decisions D33, D192); a saga
  * that follows the target's later state reads its published stream. [C] says which commands' receipts a handler
  * takes; `CommandCommitted<*>` takes them all. The runtime hands each receipt over once per [commandId].
+ *
+ * Fields may be added (decision D59): the runtime builds it, and a test hands one to a saga with the test DSL's
+ * `whenCommitted`; the constructor is internal to Wow.
  */
 @Suppress("unused") // C selects the handler by the command's type.
-data class CommandCommitted<C : Any>(
+class CommandCommitted<C : Any> @InternalWowApi constructor(
     val commandId: String,
     val commandType: String,
     val ref: AggregateRef,
@@ -53,4 +57,41 @@ data class CommandCommitted<C : Any>(
 
     /** The id of the aggregate the command was committed on: the target's, when the command named none (D191). */
     val aggregateId: String get() = ref.id
+
+    /** This CommandCommitted with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        commandId: String = this.commandId,
+        commandType: String = this.commandType,
+        ref: AggregateRef = this.ref,
+        version: Int = this.version,
+        result: CommandResult = this.result,
+        causation: Causation = this.causation,
+        executionId: ExecutionId = this.executionId,
+        operator: Operator? = this.operator,
+        scope: Scope = this.scope,
+    ): CommandCommitted<C> = CommandCommitted(
+        commandId,
+        commandType,
+        ref,
+        version,
+        result,
+        causation,
+        executionId,
+        operator,
+        scope,
+    )
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is CommandCommitted<*> && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "CommandCommitted(commandId=$commandId, commandType=$commandType, ref=$ref, version=$version, " +
+            "result=$result, causation=$causation, executionId=$executionId, operator=$operator, scope=$scope)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        commandId, commandType, ref, version, result, causation, executionId, operator, scope
+    )
 }

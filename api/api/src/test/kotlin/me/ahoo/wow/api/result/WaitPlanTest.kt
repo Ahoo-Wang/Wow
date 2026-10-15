@@ -50,7 +50,7 @@ class WaitPlanTest {
 
     @Test
     fun `a timeout may be a java time Duration`() {
-        val plan = WaitPlan(listOf(Hop.committed()), java.time.Duration.ofMillis(1_500))
+        val plan = WaitPlan.COMMITTED.within(java.time.Duration.ofMillis(1_500))
         plan.timeout.assert().isEqualTo(1_500.milliseconds)
         plan.within(java.time.Duration.ofSeconds(2)).timeout.assert().isEqualTo(2.seconds)
         WaitPlan.DEFAULT.javaTimeout.assert().isEqualTo(java.time.Duration.ofSeconds(10))
@@ -103,13 +103,13 @@ class WaitPlanTest {
         succeeded.format.assert().isEqualTo(CommandResult.FORMAT)
         succeeded.duplicate.assert().isFalse()
         succeeded.derived.assert().isEmpty()
-        val rejected = succeeded.copy(
+        val rejected = succeeded.copyWith(
             status = CommandResult.Status.REJECTED,
             error = ErrorInfo("sales.order.closed", "closed", listOf(Violation("items[0]", "min", "too few"))),
         )
         rejected.error!!.violations.single().path.assert().isEqualTo("items[0]")
-        assertThrownBy<IllegalArgumentException> { succeeded.copy(status = CommandResult.Status.FAILED) }
-        assertThrownBy<IllegalArgumentException> { rejected.copy(status = CommandResult.Status.SUCCEEDED) }
+        assertThrownBy<IllegalArgumentException> { succeeded.copyWith(status = CommandResult.Status.FAILED) }
+        assertThrownBy<IllegalArgumentException> { rejected.copyWith(status = CommandResult.Status.SUCCEEDED) }
         WaitSignal(waitId = "w-1", result = succeeded).format.assert().isEqualTo(WaitSignal.FORMAT)
         assertThrownBy<IllegalArgumentException> { WaitSignal(waitId = "", result = succeeded) }
         assertThrownBy<IllegalArgumentException> { FunctionInfo(FunctionKind.SAGA, "sales", " ", "x") }

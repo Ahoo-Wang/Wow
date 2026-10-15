@@ -173,7 +173,7 @@ class Kernel(
     ): CommandOutcome {
         // A tenant's aggregate (decision D189) neither records nor checks an owner: only that part of the scope counts.
         val scope = model.ownership.scopeOf(admitted.scope)
-        val command = if (scope == admitted.scope) admitted else admitted.copy(scope = scope)
+        val command = if (scope == admitted.scope) admitted else admitted.copyWith(scope = scope)
         val decider = model.decider(command.body.javaClass)
             ?: return rejected(KernelRejections.UNHANDLED, "${model.type} does not handle ${command.body.javaClass.name}.")
         val commandType = model.commandType(command.body.javaClass)

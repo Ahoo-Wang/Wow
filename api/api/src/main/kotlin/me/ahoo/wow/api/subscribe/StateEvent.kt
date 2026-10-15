@@ -15,6 +15,7 @@ package me.ahoo.wow.api.subscribe
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 
@@ -35,8 +36,11 @@ import me.ahoo.wow.api.decide.Causation
  * handler of another context's published stream declares a nullable state, `StateEvent<OrderView?>`, when the
  * upstream publishes the stream without it (decision D140): [state] is then null. `S` is covariant, so a
  * `StateEvent<OrderView>` is a `StateEvent<OrderView?>`.
+ *
+ * Fields may be added (decision D59): the runtime builds it, and a test builds one with the test DSL's `stateEvent`;
+ * the constructor is internal to Wow.
  */
-data class StateEvent<out S>(
+class StateEvent<out S> @InternalWowApi constructor(
     val ref: AggregateRef,
     val version: Int,
     val commandId: String,
@@ -62,4 +66,49 @@ data class StateEvent<out S>(
 
     /** The id of the root command of the chain: this commit's own command when it has no causation. */
     val correlationId: String get() = causation?.correlationId ?: commandId
+
+    /** This StateEvent with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        ref: AggregateRef = this.ref,
+        version: Int = this.version,
+        commandId: String = this.commandId,
+        requestId: String = this.requestId,
+        commandType: String = this.commandType,
+        commitTime: Long = this.commitTime,
+        events: List<Any> = this.events,
+        state: @UnsafeVariance S = this.state,
+        scope: Scope = this.scope,
+        causation: Causation? = this.causation,
+        headers: Map<String, String> = this.headers,
+        operator: Operator? = this.operator,
+    ): StateEvent<S> = StateEvent(
+        ref,
+        version,
+        commandId,
+        requestId,
+        commandType,
+        commitTime,
+        events,
+        state,
+        scope,
+        causation,
+        headers,
+        operator,
+    )
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is StateEvent<*> && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "StateEvent(ref=$ref, version=$version, commandId=$commandId, requestId=$requestId, " +
+            "commandType=$commandType, commitTime=$commitTime, events=$events, state=$state, scope=$scope, " +
+            "causation=$causation, headers=$headers, operator=$operator)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        ref, version, commandId, requestId, commandType, commitTime, events, state, scope, causation, headers,
+        operator
+    )
 }

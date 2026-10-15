@@ -31,7 +31,7 @@ fun committedResult(
     version: Int = 1,
     aggregateId: String = if (command.ref.isAssigned) command.ref.id else "${command.ref.type.name}-1",
     duplicate: Boolean = false,
-): CommandResult = resultOf(command, aggregateId, CommandResult.Status.SUCCEEDED).copy(
+): CommandResult = resultOf(command, aggregateId, CommandResult.Status.SUCCEEDED).copyWith(
     version = version,
     duplicate = duplicate,
 )
@@ -39,7 +39,7 @@ fun committedResult(
 /** The result a target answers a synchronous call of [command] with when it refused it with [code] (decision D193). */
 @JvmOverloads
 fun rejectedResult(command: Command<*>, code: String, message: String = code): CommandResult =
-    resultOf(command, command.ref.id, CommandResult.Status.REJECTED).copy(error = ErrorInfo(code, message))
+    resultOf(command, command.ref.id, CommandResult.Status.REJECTED).copyWith(error = ErrorInfo(code, message))
 
 /**
  * The result a target answers a synchronous call of [command] with when it failed for a technical reason [code]
@@ -47,7 +47,7 @@ fun rejectedResult(command: Command<*>, code: String, message: String = code): C
  */
 @JvmOverloads
 fun failedResult(command: Command<*>, code: String, message: String = code): CommandResult =
-    resultOf(command, command.ref.id, CommandResult.Status.FAILED).copy(error = ErrorInfo(code, message))
+    resultOf(command, command.ref.id, CommandResult.Status.FAILED).copyWith(error = ErrorInfo(code, message))
 
 private fun resultOf(command: Command<*>, aggregateId: String, status: CommandResult.Status): CommandResult {
     val type = command.ref.type

@@ -50,7 +50,9 @@ class ParkedOpsTest {
         handled += "${entry.ref.id}@${entry.version}"
     }
     private val spec = ParkedRetrySpec(maxRetries = 2, minBackoff = 1.hours, executionTimeout = 1.seconds)
-    private val options = testOptions(maxAttempts = 1).copy(parked = ParkedRetryOptions(spec, scanInterval = 1.hours))
+    private val options = testOptions(
+        maxAttempts = 1
+    ).copyWith(parked = ParkedRetryOptions(spec, scanInterval = 1.hours))
     private val runtime = SubscriptionRuntime(
         "group",
         log,

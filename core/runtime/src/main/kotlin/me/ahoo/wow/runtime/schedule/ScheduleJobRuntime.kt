@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.schedule.DisableJob
@@ -35,8 +36,11 @@ import me.ahoo.wow.runtime.wait.Settlement
  * The host's override of a job's default rule, `wow.schedules.<job>.*` (decision D198): each part that is null keeps
  * the annotation's; [enabled] false disables a [JobScope.SYSTEM] job's instances at startup (a [JobScope.TENANT] job's
  * instances are each tenant's to enable or disable).
+ *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
  */
-data class JobOptions(
+class JobOptions @InternalWowApi constructor(
     val expression: String? = null,
     val zone: String? = null,
     val misfire: Misfire? = null,
@@ -44,6 +48,16 @@ data class JobOptions(
 ) {
     /** The parts it overrides, as a rule over the annotation's. */
     val rule: JobRule get() = JobRule(expression, zone, misfire)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is JobOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "JobOptions(expression=$expression, zone=$zone, misfire=$misfire, enabled=$enabled)"
+
+    private fun valueFields(): List<Any?> = listOf(expression, zone, misfire, enabled)
 }
 
 /**

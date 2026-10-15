@@ -64,7 +64,7 @@ internal class WaitChain private constructor(val hops: List<Hop>) : CheckedPlan 
             if (plan.isDefault && !snapshots) {
                 return WaitChain(listOf(Hop.committed(context)))
             }
-            val hops = plan.hops.map { if (it.context == null) it.copy(context = context) else it }
+            val hops = plan.hops.map { if (it.context == null) it.copyWith(context = context) else it }
             val own = hops.firstOrNull { it.stage == Stage.HANDLED }
             if (!snapshots && own == Hop.snapshot(context)) {
                 return Invalid("Hop $own waits for a snapshot, but $type has no snapshot subscription.")

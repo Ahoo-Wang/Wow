@@ -165,7 +165,7 @@ class ProcessorBindingTest {
         assertThrownBy<IllegalArgumentException> { ExecutionSagaContext.derivedId(execution, -1) }
         assertThrownBy<IllegalArgumentException> { ExecutionSagaContext(execution.copy(version = 2), event) }
         // A command a user sends directly is its own root: its derived commands' root is that command.
-        val root = event.copy(causation = null)
+        val root = event.copyWith(causation = null)
         ExecutionSagaContext(execution, root).command(cart.ref("t", "alice"), "x").causation!!.correlationId
             .assert().isEqualTo("c-3")
     }

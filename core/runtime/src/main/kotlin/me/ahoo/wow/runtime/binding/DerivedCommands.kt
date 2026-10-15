@@ -92,7 +92,7 @@ internal class DerivedCommands(
         for (returned in commands) {
             // A derived command belongs to a chain; one a handler built without a causation is its own root.
             val derived = if (returned.causation == null) {
-                returned.copy(causation = Causation(returned.id, returned.id))
+                returned.copyWith(causation = Causation(returned.id, returned.id))
             } else {
                 returned
             }
