@@ -1,0 +1,783 @@
+public final class me/ahoo/wow/spring/boot/BackendKind : java/lang/Enum {
+	public static final field AUTO Lme/ahoo/wow/spring/boot/BackendKind;
+	public static final field MEMORY Lme/ahoo/wow/spring/boot/BackendKind;
+	public static final field MONGO Lme/ahoo/wow/spring/boot/BackendKind;
+	public static final field POSTGRES Lme/ahoo/wow/spring/boot/BackendKind;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spring/boot/BackendKind;
+	public static fun values ()[Lme/ahoo/wow/spring/boot/BackendKind;
+}
+
+public final class me/ahoo/wow/spring/boot/ClickHouseAutoConfiguration {
+	public static final field CLICKHOUSE_SINKS Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/spring/boot/ClickHouseAutoConfiguration$Companion;
+	public fun <init> ()V
+}
+
+public final class me/ahoo/wow/spring/boot/ClickHouseAutoConfiguration$ClickHouseEndpoint {
+	public fun <init> ()V
+	public final fun wowClickHouseClient (Lme/ahoo/wow/spring/boot/ClickHouseProperties;)Lcom/clickhouse/client/api/Client;
+	public final fun wowClickHouseDatasets (Lcom/clickhouse/client/api/Client;Lme/ahoo/wow/spring/boot/ClickHouseProperties;)Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetQueryBackendFactory;
+	public final fun wowClickHouseSinks (Lme/ahoo/wow/manifest/Manifest;Lcom/clickhouse/client/api/Client;Lme/ahoo/wow/spring/boot/ClickHouseProperties;)Lme/ahoo/wow/runtime/sink/PublishedSinks;
+}
+
+public final class me/ahoo/wow/spring/boot/ClickHouseAutoConfiguration$Companion {
+	public final fun datasetOptions (Lme/ahoo/wow/spring/boot/ClickHouseProperties;)Lme/ahoo/wow/clickhouse/query/ClickHouseDatasetOptions;
+	public final fun options (Lme/ahoo/wow/spring/boot/ClickHouseProperties;)Lme/ahoo/wow/clickhouse/sink/ClickHouseSinkOptions;
+}
+
+public final class me/ahoo/wow/spring/boot/ClickHouseProperties {
+	public static final field Companion Lme/ahoo/wow/spring/boot/ClickHouseProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public final fun getDatabase ()Ljava/lang/String;
+	public final fun getEndpoint ()Ljava/lang/String;
+	public final fun getPassword ()Ljava/lang/String;
+	public final fun getQuery ()Lme/ahoo/wow/spring/boot/ClickHouseProperties$Query;
+	public final fun getSink ()Lme/ahoo/wow/spring/boot/ClickHouseProperties$Sink;
+	public final fun getUsername ()Ljava/lang/String;
+	public final fun setDatabase (Ljava/lang/String;)V
+	public final fun setEndpoint (Ljava/lang/String;)V
+	public final fun setPassword (Ljava/lang/String;)V
+	public final fun setQuery (Lme/ahoo/wow/spring/boot/ClickHouseProperties$Query;)V
+	public final fun setSink (Lme/ahoo/wow/spring/boot/ClickHouseProperties$Sink;)V
+	public final fun setUsername (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/spring/boot/ClickHouseProperties$Aggregate {
+	public fun <init> ()V
+	public final fun getHistory ()Lme/ahoo/wow/spring/boot/ClickHouseProperties$History;
+	public final fun setHistory (Lme/ahoo/wow/spring/boot/ClickHouseProperties$History;)V
+}
+
+public final class me/ahoo/wow/spring/boot/ClickHouseProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/ClickHouseProperties$History {
+	public fun <init> ()V
+	public final fun getEnabled ()Z
+	public final fun getTtl ()Ljava/time/Duration;
+	public final fun setEnabled (Z)V
+	public final fun setTtl (Ljava/time/Duration;)V
+}
+
+public final class me/ahoo/wow/spring/boot/ClickHouseProperties$Query {
+	public fun <init> ()V
+	public final fun getEnabled ()Z
+	public final fun getMetadataTtl ()Ljava/time/Duration;
+	public final fun getSettings ()Ljava/util/Map;
+	public final fun setEnabled (Z)V
+	public final fun setMetadataTtl (Ljava/time/Duration;)V
+	public final fun setSettings (Ljava/util/Map;)V
+}
+
+public final class me/ahoo/wow/spring/boot/ClickHouseProperties$Sink {
+	public fun <init> ()V
+	public final fun getAggregates ()Ljava/util/Map;
+	public final fun getBatchSize ()I
+	public final fun getDdl ()Ljava/lang/String;
+	public final fun getDeduplicationWindow ()I
+	public final fun getEnabled ()Z
+	public final fun setAggregates (Ljava/util/Map;)V
+	public final fun setBatchSize (I)V
+	public final fun setDdl (Ljava/lang/String;)V
+	public final fun setDeduplicationWindow (I)V
+	public final fun setEnabled (Z)V
+}
+
+public final class me/ahoo/wow/spring/boot/HostBackends {
+	public static final field Companion Lme/ahoo/wow/spring/boot/HostBackends$Companion;
+	public final fun createSchemas ()V
+	public final fun getAppendQueue ()Lme/ahoo/wow/runtime/log/AppendQueueOptions;
+	public final fun getContexts ()Ljava/util/Map;
+	public final fun getFactory ()Lme/ahoo/wow/runtime/node/BackendFactory;
+	public final fun getKind ()Lme/ahoo/wow/spring/boot/BackendKind;
+	public final fun getStores ()Ljava/util/Map;
+}
+
+public final class me/ahoo/wow/spring/boot/HostBackends$Companion {
+	public final fun memory (ILkotlin/jvm/functions/Function1;)Lme/ahoo/wow/spring/boot/HostBackends;
+	public static synthetic fun memory$default (Lme/ahoo/wow/spring/boot/HostBackends$Companion;ILkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/HostBackends;
+	public final fun of (Lme/ahoo/wow/runtime/node/BackendFactory;)Lme/ahoo/wow/spring/boot/HostBackends;
+}
+
+public final class me/ahoo/wow/spring/boot/InternalServer {
+	public fun <init> (ILjava/lang/String;Lorg/springframework/web/reactive/function/server/RouterFunction;)V
+	public final fun getBoundPort ()I
+	public final fun isRunning ()Z
+	public final fun start ()V
+	public final fun stop ()V
+}
+
+public final class me/ahoo/wow/spring/boot/KafkaAutoConfiguration {
+	public static final field Companion Lme/ahoo/wow/spring/boot/KafkaAutoConfiguration$Companion;
+	public static final field KAFKA_SINKS Ljava/lang/String;
+	public fun <init> ()V
+}
+
+public final class me/ahoo/wow/spring/boot/KafkaAutoConfiguration$Companion {
+	public final fun options (Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/kafka/KafkaOptions;
+}
+
+public final class me/ahoo/wow/spring/boot/KafkaAutoConfiguration$KafkaTransport {
+	public fun <init> ()V
+	public final fun wowKafkaPartitionedSource (Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/kafka/KafkaPartitionedSource;
+	public final fun wowKafkaSinks (Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/runtime/sink/PublishedSinks;
+	public final fun wowKafkaSourceTopics (Lme/ahoo/wow/spi/transport/PartitionedSource;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/runtime/node/SourceTopics;
+	public final fun wowKafkaTopicAdmin (Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/kafka/KafkaTopicAdmin;
+	public final fun wowKafkaTopicProducer (Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/kafka/KafkaTopicProducer;
+}
+
+public final class me/ahoo/wow/spring/boot/KafkaProperties {
+	public static final field Companion Lme/ahoo/wow/spring/boot/KafkaProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public final fun getBootstrapServers ()Ljava/lang/String;
+	public final fun getCommandIntake ()Z
+	public final fun getPollTimeout ()Ljava/time/Duration;
+	public final fun getProperties ()Ljava/util/Map;
+	public final fun getTopicPrefix ()Ljava/lang/String;
+	public final fun getTopics ()Lme/ahoo/wow/spring/boot/KafkaProperties$Topics;
+	public final fun setBootstrapServers (Ljava/lang/String;)V
+	public final fun setCommandIntake (Z)V
+	public final fun setPollTimeout (Ljava/time/Duration;)V
+	public final fun setProperties (Ljava/util/Map;)V
+	public final fun setTopicPrefix (Ljava/lang/String;)V
+	public final fun setTopics (Lme/ahoo/wow/spring/boot/KafkaProperties$Topics;)V
+}
+
+public final class me/ahoo/wow/spring/boot/KafkaProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/KafkaProperties$Topics {
+	public fun <init> ()V
+	public final fun getConfigs ()Ljava/util/Map;
+	public final fun getDdl ()Lme/ahoo/wow/runtime/node/TopicDdl;
+	public final fun getPartitionRefresh ()Ljava/time/Duration;
+	public final fun getReplicationFactor ()Ljava/lang/Short;
+	public final fun setConfigs (Ljava/util/Map;)V
+	public final fun setDdl (Lme/ahoo/wow/runtime/node/TopicDdl;)V
+	public final fun setPartitionRefresh (Ljava/time/Duration;)V
+	public final fun setReplicationFactor (Ljava/lang/Short;)V
+}
+
+public final class me/ahoo/wow/spring/boot/ObservabilityAutoConfiguration {
+	public static final field Companion Lme/ahoo/wow/spring/boot/ObservabilityAutoConfiguration$Companion;
+	public fun <init> ()V
+	public final fun wowObserver (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/spi/observation/Observer;
+	public final fun wowOtelQueryObserver (Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/query/QueryObserver;
+	public final fun wowParkedMetrics (Lorg/springframework/beans/factory/ObjectProvider;)Lme/ahoo/wow/runtime/subscription/ParkedNotifier;
+	public static final fun wowTracingTopicProducers (Lorg/springframework/beans/factory/ObjectProvider;)Lorg/springframework/beans/factory/config/BeanPostProcessor;
+}
+
+public final class me/ahoo/wow/spring/boot/ObservabilityAutoConfiguration$Companion {
+	public final fun wowTracingTopicProducers (Lorg/springframework/beans/factory/ObjectProvider;)Lorg/springframework/beans/factory/config/BeanPostProcessor;
+}
+
+public final class me/ahoo/wow/spring/boot/ObservabilityProperties {
+	public static final field Companion Lme/ahoo/wow/spring/boot/ObservabilityProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public final fun getEnabled ()Z
+	public final fun getSampleInterval ()Ljava/time/Duration;
+	public final fun setEnabled (Z)V
+	public final fun setSampleInterval (Ljava/time/Duration;)V
+}
+
+public final class me/ahoo/wow/spring/boot/ObservabilityProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/QueryAutoConfiguration {
+	public fun <init> ()V
+}
+
+public final class me/ahoo/wow/spring/boot/QueryAutoConfiguration$NodeQueries {
+	public fun <init> ()V
+	public final fun wowQueryCountCache (Lme/ahoo/wow/runtime/node/ServiceNode;Lme/ahoo/wow/spring/boot/QueryProperties;)Lme/ahoo/wow/query/QueryCountCache;
+	public final fun wowQueryDatasets (Lme/ahoo/wow/spring/boot/QueryProperties;Lorg/springframework/beans/factory/config/ConfigurableListableBeanFactory;)Lme/ahoo/wow/query/dataset/QueryDatasets;
+	public final fun wowQueryEntryPolicy (Lme/ahoo/wow/spring/boot/QueryProperties;)Lme/ahoo/wow/query/QueryEntryPolicy;
+}
+
+public final class me/ahoo/wow/spring/boot/QueryProperties {
+	public static final field Companion Lme/ahoo/wow/spring/boot/QueryProperties$Companion;
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public final fun entryPolicy ()Lme/ahoo/wow/query/QueryEntryPolicy;
+	public final fun getAbac ()Lme/ahoo/wow/spring/boot/QueryProperties$Abac;
+	public final fun getCountCache ()Lme/ahoo/wow/spring/boot/QueryProperties$CountCache;
+	public final fun getDataset ()Lme/ahoo/wow/spring/boot/QueryProperties$Dataset;
+	public final fun getEnabled ()Z
+	public final fun getHttp ()Lme/ahoo/wow/spring/boot/QueryProperties$Http;
+	public final fun getInProcessTimeout ()Ljava/time/Duration;
+	public final fun getIndex ()Lme/ahoo/wow/spring/boot/QueryProperties$Index;
+	public final fun getMemory ()Lme/ahoo/wow/spring/boot/QueryProperties$Memory;
+	public final fun getRequireAuthenticatedScope ()Z
+	public final fun getRequireExplicitEntry ()Z
+	public final fun getSensitivity ()Lme/ahoo/wow/spring/boot/QueryProperties$Sensitivity;
+	public final fun setAbac (Lme/ahoo/wow/spring/boot/QueryProperties$Abac;)V
+	public final fun setCountCache (Lme/ahoo/wow/spring/boot/QueryProperties$CountCache;)V
+	public final fun setDataset (Lme/ahoo/wow/spring/boot/QueryProperties$Dataset;)V
+	public final fun setEnabled (Z)V
+	public final fun setHttp (Lme/ahoo/wow/spring/boot/QueryProperties$Http;)V
+	public final fun setInProcessTimeout (Ljava/time/Duration;)V
+	public final fun setIndex (Lme/ahoo/wow/spring/boot/QueryProperties$Index;)V
+	public final fun setMemory (Lme/ahoo/wow/spring/boot/QueryProperties$Memory;)V
+	public final fun setRequireAuthenticatedScope (Z)V
+	public final fun setRequireExplicitEntry (Z)V
+	public final fun setSensitivity (Lme/ahoo/wow/spring/boot/QueryProperties$Sensitivity;)V
+}
+
+public final class me/ahoo/wow/spring/boot/QueryProperties$Abac {
+	public fun <init> ()V
+	public final fun getAttributePrefix ()Ljava/lang/String;
+	public final fun getEnabled ()Z
+	public final fun getMatchMissingTagKey ()Z
+	public final fun getRequirePrincipalTags ()Z
+	public final fun options ()Lme/ahoo/wow/query/AbacQueryOptions;
+	public final fun setAttributePrefix (Ljava/lang/String;)V
+	public final fun setEnabled (Z)V
+	public final fun setMatchMissingTagKey (Z)V
+	public final fun setRequirePrincipalTags (Z)V
+}
+
+public final class me/ahoo/wow/spring/boot/QueryProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/QueryProperties$CountCache {
+	public fun <init> ()V
+	public final fun getEnabled ()Z
+	public final fun getMaxEntries ()I
+	public final fun getTtl ()Ljava/time/Duration;
+	public final fun options ()Lme/ahoo/wow/query/QueryCountCacheOptions;
+	public final fun setEnabled (Z)V
+	public final fun setMaxEntries (I)V
+	public final fun setTtl (Ljava/time/Duration;)V
+}
+
+public final class me/ahoo/wow/spring/boot/QueryProperties$Dataset {
+	public fun <init> ()V
+	public final fun getConfigDirectory ()Ljava/lang/String;
+	public final fun setConfigDirectory (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/spring/boot/QueryProperties$Http {
+	public fun <init> ()V
+	public final fun budget ()Lme/ahoo/wow/query/QueryBudget;
+	public final fun getAllowExactCount ()Z
+	public final fun getAllowExpensiveOperators ()Z
+	public final fun getCountLimit ()I
+	public final fun getDefaultListSize ()I
+	public final fun getMaxFilterNodes ()I
+	public final fun getMaxFilterValues ()I
+	public final fun getMaxListSize ()I
+	public final fun getMaxPageSize ()I
+	public final fun getMaxPageWindow ()J
+	public final fun getMaxResidualGroups ()I
+	public final fun getTimeout ()Ljava/time/Duration;
+	public final fun getUnindexedSortExpensive ()Z
+	public final fun setAllowExactCount (Z)V
+	public final fun setAllowExpensiveOperators (Z)V
+	public final fun setCountLimit (I)V
+	public final fun setDefaultListSize (I)V
+	public final fun setMaxFilterNodes (I)V
+	public final fun setMaxFilterValues (I)V
+	public final fun setMaxListSize (I)V
+	public final fun setMaxPageSize (I)V
+	public final fun setMaxPageWindow (J)V
+	public final fun setMaxResidualGroups (I)V
+	public final fun setTimeout (Ljava/time/Duration;)V
+	public final fun setUnindexedSortExpensive (Z)V
+}
+
+public final class me/ahoo/wow/spring/boot/QueryProperties$Index {
+	public fun <init> ()V
+	public final fun getDdl ()Lme/ahoo/wow/query/index/QueryIndexDdl;
+	public final fun setDdl (Lme/ahoo/wow/query/index/QueryIndexDdl;)V
+}
+
+public final class me/ahoo/wow/spring/boot/QueryProperties$Memory {
+	public fun <init> ()V
+	public final fun getEnabled ()Z
+	public final fun setEnabled (Z)V
+}
+
+public final class me/ahoo/wow/spring/boot/QueryProperties$Sensitivity {
+	public fun <init> ()V
+	public final fun getDisplayComparable ()Z
+	public final fun policy ()Lme/ahoo/wow/query/schema/QuerySensitivityPolicy;
+	public final fun setDisplayComparable (Z)V
+}
+
+public abstract interface class me/ahoo/wow/spring/boot/ServiceNodeListener {
+	public abstract fun onStep (Lme/ahoo/wow/runtime/node/ServiceNode$Step;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowAutoConfiguration {
+	public static final field Companion Lme/ahoo/wow/spring/boot/WowAutoConfiguration$Companion;
+	public static final field INTERNAL_HTTP_CLIENT Ljava/lang/String;
+	public static final field WOW_AGGREGATE_ID_GENERATOR Ljava/lang/String;
+	public static final field WOW_JSON_MAPPER Ljava/lang/String;
+	public fun <init> ()V
+	public final fun wowAggregateIdGenerator (Lme/ahoo/wow/spi/id/GlobalIdGenerator;)Lme/ahoo/wow/spi/id/AggregateIdGenerator;
+	public final fun wowCallerResolver (Lme/ahoo/wow/spring/boot/WowProperties;)Lme/ahoo/wow/http/caller/CallerResolver;
+	public final fun wowCommandGateway (Lme/ahoo/wow/runtime/node/ServiceNode;)Lme/ahoo/wow/runtime/admission/CommandGateway;
+	public final fun wowContractDirectory (Lme/ahoo/wow/manifest/Manifest;Lorg/springframework/beans/factory/config/ConfigurableListableBeanFactory;)Lme/ahoo/wow/runtime/contract/ContractDirectory;
+	public final fun wowDependencies (Lorg/springframework/beans/factory/config/ConfigurableListableBeanFactory;)Lme/ahoo/wow/kernel/Dependencies;
+	public final fun wowGlobalIdGenerator ()Lme/ahoo/wow/spi/id/GlobalIdGenerator;
+	public final fun wowHttpOptions (Lme/ahoo/wow/spring/boot/WowProperties;)Lme/ahoo/wow/http/WowHttpOptions;
+	public final fun wowInternalHttpClient (Lme/ahoo/wow/spring/boot/WowProperties;)Ljava/net/http/HttpClient;
+	public final fun wowJsonMapper ()Ltools/jackson/databind/json/JsonMapper;
+	public final fun wowKeepAliveReads ()Lorg/springframework/boot/reactor/netty/NettyServerCustomizer;
+	public final fun wowParkedRouterFunction (Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/runtime/node/ServiceNode;Lme/ahoo/wow/http/caller/CallerResolver;Lme/ahoo/wow/http/WowHttpOptions;Lorg/springframework/beans/factory/ObjectProvider;)Lorg/springframework/web/reactive/function/server/RouterFunction;
+}
+
+public final class me/ahoo/wow/spring/boot/WowAutoConfiguration$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/WowAutoConfiguration$JakartaValidation {
+	public fun <init> ()V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties {
+	public static final field Companion Lme/ahoo/wow/spring/boot/WowProperties$Companion;
+	public static final field DEFAULT_INTERNAL_PORT I
+	public static final field DEFAULT_MONGO_DATABASE Ljava/lang/String;
+	public static final field DEFAULT_PARTITIONS I
+	public static final field PREFIX Ljava/lang/String;
+	public fun <init> ()V
+	public final fun getAggregates ()Ljava/util/Map;
+	public final fun getBackend ()Lme/ahoo/wow/spring/boot/BackendKind;
+	public final fun getCalls ()Lme/ahoo/wow/spring/boot/WowProperties$Calls;
+	public final fun getCluster ()Lme/ahoo/wow/spring/boot/WowProperties$Cluster;
+	public final fun getContexts ()Lme/ahoo/wow/spring/boot/WowProperties$Contexts;
+	public final fun getExecutor ()Lme/ahoo/wow/spring/boot/WowProperties$Executor;
+	public final fun getHttp ()Lme/ahoo/wow/spring/boot/WowProperties$Http;
+	public final fun getInternal ()Lme/ahoo/wow/spring/boot/WowProperties$Internal;
+	public final fun getLog ()Lme/ahoo/wow/spring/boot/WowProperties$Log;
+	public final fun getMongo ()Lme/ahoo/wow/spring/boot/WowProperties$Mongo;
+	public final fun getNode ()Lme/ahoo/wow/spring/boot/WowProperties$Node;
+	public final fun getOps ()Lme/ahoo/wow/spring/boot/WowProperties$Ops;
+	public final fun getSchedules ()Ljava/util/Map;
+	public final fun getService ()Ljava/lang/String;
+	public final fun getSnapshot ()Lme/ahoo/wow/spring/boot/WowProperties$Snapshot;
+	public final fun getStateCache ()Lme/ahoo/wow/spring/boot/WowProperties$StateCache;
+	public final fun getStores ()Ljava/util/Map;
+	public final fun getSubscription ()Lme/ahoo/wow/spring/boot/WowProperties$Subscription;
+	public final fun getSubscriptions ()Ljava/util/Map;
+	public final fun getTenant ()Lme/ahoo/wow/spring/boot/WowProperties$Tenant;
+	public final fun getTimers ()Lme/ahoo/wow/spring/boot/WowProperties$Timers;
+	public final fun getWait ()Lme/ahoo/wow/spring/boot/WowProperties$Wait;
+	public final fun setAggregates (Ljava/util/Map;)V
+	public final fun setBackend (Lme/ahoo/wow/spring/boot/BackendKind;)V
+	public final fun setCalls (Lme/ahoo/wow/spring/boot/WowProperties$Calls;)V
+	public final fun setCluster (Lme/ahoo/wow/spring/boot/WowProperties$Cluster;)V
+	public final fun setContexts (Lme/ahoo/wow/spring/boot/WowProperties$Contexts;)V
+	public final fun setExecutor (Lme/ahoo/wow/spring/boot/WowProperties$Executor;)V
+	public final fun setHttp (Lme/ahoo/wow/spring/boot/WowProperties$Http;)V
+	public final fun setInternal (Lme/ahoo/wow/spring/boot/WowProperties$Internal;)V
+	public final fun setLog (Lme/ahoo/wow/spring/boot/WowProperties$Log;)V
+	public final fun setMongo (Lme/ahoo/wow/spring/boot/WowProperties$Mongo;)V
+	public final fun setNode (Lme/ahoo/wow/spring/boot/WowProperties$Node;)V
+	public final fun setOps (Lme/ahoo/wow/spring/boot/WowProperties$Ops;)V
+	public final fun setSchedules (Ljava/util/Map;)V
+	public final fun setService (Ljava/lang/String;)V
+	public final fun setSnapshot (Lme/ahoo/wow/spring/boot/WowProperties$Snapshot;)V
+	public final fun setStateCache (Lme/ahoo/wow/spring/boot/WowProperties$StateCache;)V
+	public final fun setStores (Ljava/util/Map;)V
+	public final fun setSubscription (Lme/ahoo/wow/spring/boot/WowProperties$Subscription;)V
+	public final fun setSubscriptions (Ljava/util/Map;)V
+	public final fun setTenant (Lme/ahoo/wow/spring/boot/WowProperties$Tenant;)V
+	public final fun setTimers (Lme/ahoo/wow/spring/boot/WowProperties$Timers;)V
+	public final fun setWait (Lme/ahoo/wow/spring/boot/WowProperties$Wait;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Aggregate {
+	public fun <init> ()V
+	public final fun getIdGenerator ()Ljava/lang/String;
+	public final fun getLog ()Lme/ahoo/wow/spring/boot/WowProperties$AggregateStore;
+	public final fun getRouting ()Lme/ahoo/wow/spring/boot/WowProperties$AggregateRouting;
+	public final fun getSnapshot ()Lme/ahoo/wow/spring/boot/WowProperties$AggregateSnapshot;
+	public final fun getTenant ()Ljava/lang/String;
+	public final fun setIdGenerator (Ljava/lang/String;)V
+	public final fun setLog (Lme/ahoo/wow/spring/boot/WowProperties$AggregateStore;)V
+	public final fun setRouting (Lme/ahoo/wow/spring/boot/WowProperties$AggregateRouting;)V
+	public final fun setSnapshot (Lme/ahoo/wow/spring/boot/WowProperties$AggregateSnapshot;)V
+	public final fun setTenant (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$AggregateRouting : java/lang/Enum {
+	public static final field CLUSTER Lme/ahoo/wow/spring/boot/WowProperties$AggregateRouting;
+	public static final field KAFKA Lme/ahoo/wow/spring/boot/WowProperties$AggregateRouting;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spring/boot/WowProperties$AggregateRouting;
+	public static fun values ()[Lme/ahoo/wow/spring/boot/WowProperties$AggregateRouting;
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$AggregateSnapshot {
+	public fun <init> ()V
+	public final fun getPrimary ()Ljava/lang/String;
+	public final fun getStore ()Ljava/util/List;
+	public final fun setPrimary (Ljava/lang/String;)V
+	public final fun setStore (Ljava/util/List;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$AggregateStore {
+	public fun <init> ()V
+	public final fun getStore ()Ljava/lang/String;
+	public final fun setStore (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$AppendQueue {
+	public fun <init> ()V
+	public final fun getEnabled ()Ljava/lang/Boolean;
+	public final fun getMaxBatch ()Ljava/lang/Integer;
+	public final fun options (Lme/ahoo/wow/runtime/log/AppendQueueOptions;)Lme/ahoo/wow/runtime/log/AppendQueueOptions;
+	public final fun setEnabled (Ljava/lang/Boolean;)V
+	public final fun setMaxBatch (Ljava/lang/Integer;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Calls {
+	public fun <init> ()V
+	public final fun getConnectTimeout ()Ljava/time/Duration;
+	public final fun getContexts ()Ljava/util/Map;
+	public final fun getTimeout ()Ljava/time/Duration;
+	public final fun getToken ()Ljava/lang/String;
+	public final fun setConnectTimeout (Ljava/time/Duration;)V
+	public final fun setContexts (Ljava/util/Map;)V
+	public final fun setTimeout (Ljava/time/Duration;)V
+	public final fun setToken (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Calls$CallTarget {
+	public fun <init> ()V
+	public final fun getUrl ()Ljava/net/URI;
+	public final fun setUrl (Ljava/net/URI;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Cluster {
+	public fun <init> ()V
+	public final fun getDrainTimeout ()Ljava/time/Duration;
+	public final fun getForwardTimeout ()Ljava/time/Duration;
+	public final fun getHeartbeatInterval ()Ljava/time/Duration;
+	public final fun getLeaseParallelism ()I
+	public final fun getLeaseTtl ()Ljava/time/Duration;
+	public final fun getMaxInFlightPerPeer ()I
+	public final fun getMemberTtl ()Ljava/time/Duration;
+	public final fun getReconcileInterval ()Ljava/time/Duration;
+	public final fun getRenewInterval ()Ljava/time/Duration;
+	public final fun getRouteRefreshInterval ()Ljava/time/Duration;
+	public final fun getRouter ()Lme/ahoo/wow/runtime/node/Routing;
+	public final fun options ()Lme/ahoo/wow/runtime/cluster/ClusterOptions;
+	public final fun setDrainTimeout (Ljava/time/Duration;)V
+	public final fun setForwardTimeout (Ljava/time/Duration;)V
+	public final fun setHeartbeatInterval (Ljava/time/Duration;)V
+	public final fun setLeaseParallelism (I)V
+	public final fun setLeaseTtl (Ljava/time/Duration;)V
+	public final fun setMaxInFlightPerPeer (I)V
+	public final fun setMemberTtl (Ljava/time/Duration;)V
+	public final fun setReconcileInterval (Ljava/time/Duration;)V
+	public final fun setRenewInterval (Ljava/time/Duration;)V
+	public final fun setRouteRefreshInterval (Ljava/time/Duration;)V
+	public final fun setRouter (Lme/ahoo/wow/runtime/node/Routing;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Companion {
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Contexts {
+	public fun <init> ()V
+	public final fun getExclude ()Ljava/util/Set;
+	public final fun getInclude ()Ljava/util/Set;
+	public final fun setExclude (Ljava/util/Set;)V
+	public final fun setInclude (Ljava/util/Set;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Executor {
+	public fun <init> ()V
+	public final fun getLaneCapacity ()I
+	public final fun setLaneCapacity (I)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Http {
+	public fun <init> ()V
+	public final fun getErrors ()Ljava/util/Map;
+	public final fun getManifest ()Lme/ahoo/wow/spring/boot/WowProperties$Http$Manifest;
+	public final fun getOpenapi ()Lme/ahoo/wow/spring/boot/WowProperties$Http$OpenApi;
+	public final fun getRequestFacts ()Ljava/util/Set;
+	public final fun getServices ()Ljava/util/Map;
+	public final fun setErrors (Ljava/util/Map;)V
+	public final fun setManifest (Lme/ahoo/wow/spring/boot/WowProperties$Http$Manifest;)V
+	public final fun setOpenapi (Lme/ahoo/wow/spring/boot/WowProperties$Http$OpenApi;)V
+	public final fun setRequestFacts (Ljava/util/Set;)V
+	public final fun setServices (Ljava/util/Map;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Http$Error {
+	public fun <init> ()V
+	public final fun getStatus ()I
+	public final fun setStatus (I)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Http$Manifest {
+	public fun <init> ()V
+	public final fun getEnabled ()Z
+	public final fun setEnabled (Z)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Http$OpenApi {
+	public fun <init> ()V
+	public final fun getEnabled ()Z
+	public final fun setEnabled (Z)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Http$Service {
+	public fun <init> ()V
+	public final fun getTokens ()Ljava/util/List;
+	public final fun setTokens (Ljava/util/List;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Internal {
+	public fun <init> ()V
+	public final fun getConnectTimeout ()Ljava/time/Duration;
+	public final fun getHost ()Ljava/lang/String;
+	public final fun getPort ()I
+	public final fun getSignalQueueCapacity ()I
+	public final fun setConnectTimeout (Ljava/time/Duration;)V
+	public final fun setHost (Ljava/lang/String;)V
+	public final fun setPort (I)V
+	public final fun setSignalQueueCapacity (I)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Log {
+	public fun <init> ()V
+	public final fun getAppendQueue ()Lme/ahoo/wow/spring/boot/WowProperties$AppendQueue;
+	public final fun getPartitions ()I
+	public final fun getStore ()Ljava/lang/String;
+	public final fun setAppendQueue (Lme/ahoo/wow/spring/boot/WowProperties$AppendQueue;)V
+	public final fun setPartitions (I)V
+	public final fun setStore (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Mongo {
+	public fun <init> ()V
+	public final fun getDatabase ()Ljava/lang/String;
+	public final fun setDatabase (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Node {
+	public fun <init> ()V
+	public final fun getAddress ()Ljava/lang/String;
+	public final fun getId ()Ljava/lang/String;
+	public final fun setAddress (Ljava/lang/String;)V
+	public final fun setId (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Ops {
+	public fun <init> ()V
+	public final fun getEnabled ()Z
+	public final fun getPublish ()Lme/ahoo/wow/spring/boot/WowProperties$Publish;
+	public final fun getWebhook ()Lme/ahoo/wow/spring/boot/WowProperties$Webhook;
+	public final fun setEnabled (Z)V
+	public final fun setPublish (Lme/ahoo/wow/spring/boot/WowProperties$Publish;)V
+	public final fun setWebhook (Lme/ahoo/wow/spring/boot/WowProperties$Webhook;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Parked {
+	public fun <init> ()V
+	public final fun getExecutionTimeout ()Ljava/time/Duration;
+	public final fun getMaxRetries ()I
+	public final fun getMinBackoff ()Ljava/time/Duration;
+	public final fun getScanInterval ()Ljava/time/Duration;
+	public final fun setExecutionTimeout (Ljava/time/Duration;)V
+	public final fun setMaxRetries (I)V
+	public final fun setMinBackoff (Ljava/time/Duration;)V
+	public final fun setScanInterval (Ljava/time/Duration;)V
+	public final fun spec ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$ParkedSpec {
+	public fun <init> ()V
+	public final fun getExecutionTimeout ()Ljava/time/Duration;
+	public final fun getMaxRetries ()Ljava/lang/Integer;
+	public final fun getMinBackoff ()Ljava/time/Duration;
+	public final fun setExecutionTimeout (Ljava/time/Duration;)V
+	public final fun setMaxRetries (Ljava/lang/Integer;)V
+	public final fun setMinBackoff (Ljava/time/Duration;)V
+	public final fun specOver (Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Publish {
+	public fun <init> ()V
+	public final fun getContext ()Ljava/lang/String;
+	public final fun getEnabled ()Z
+	public final fun getInterval ()Ljava/time/Duration;
+	public final fun options ()Lme/ahoo/wow/runtime/ledger/LedgerPublishing;
+	public final fun setContext (Ljava/lang/String;)V
+	public final fun setEnabled (Z)V
+	public final fun setInterval (Ljava/time/Duration;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Retry {
+	public static final field Companion Lme/ahoo/wow/spring/boot/WowProperties$Retry$Companion;
+	public fun <init> ()V
+	public final fun getInitialBackoff ()Ljava/time/Duration;
+	public final fun getMaxAttempts ()I
+	public final fun getMaxBackoff ()Ljava/time/Duration;
+	public final fun getMultiplier ()D
+	public final fun getTimeout ()Ljava/time/Duration;
+	public final fun policy ()Lme/ahoo/wow/runtime/subscription/RetryPolicy;
+	public final fun setInitialBackoff (Ljava/time/Duration;)V
+	public final fun setMaxAttempts (I)V
+	public final fun setMaxBackoff (Ljava/time/Duration;)V
+	public final fun setMultiplier (D)V
+	public final fun setTimeout (Ljava/time/Duration;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Retry$Companion {
+	public final fun of (Lme/ahoo/wow/runtime/subscription/RetryPolicy;)Lme/ahoo/wow/spring/boot/WowProperties$Retry;
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$RetrySpec {
+	public fun <init> ()V
+	public final fun getInitialBackoff ()Ljava/time/Duration;
+	public final fun getMaxAttempts ()Ljava/lang/Integer;
+	public final fun getMaxBackoff ()Ljava/time/Duration;
+	public final fun getMultiplier ()Ljava/lang/Double;
+	public final fun getTimeout ()Ljava/time/Duration;
+	public final fun handlerRetry ()Lme/ahoo/wow/kernel/HandlerRetry;
+	public final fun setInitialBackoff (Ljava/time/Duration;)V
+	public final fun setMaxAttempts (Ljava/lang/Integer;)V
+	public final fun setMaxBackoff (Ljava/time/Duration;)V
+	public final fun setMultiplier (Ljava/lang/Double;)V
+	public final fun setTimeout (Ljava/time/Duration;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Schedule {
+	public fun <init> ()V
+	public final fun getEnabled ()Z
+	public final fun getExpression ()Ljava/lang/String;
+	public final fun getMisfire ()Lme/ahoo/wow/api/schedule/Misfire;
+	public final fun getZone ()Ljava/lang/String;
+	public final fun options ()Lme/ahoo/wow/runtime/schedule/JobOptions;
+	public final fun setEnabled (Z)V
+	public final fun setExpression (Ljava/lang/String;)V
+	public final fun setMisfire (Lme/ahoo/wow/api/schedule/Misfire;)V
+	public final fun setZone (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Snapshot {
+	public fun <init> ()V
+	public final fun getBatch ()I
+	public final fun getInterval ()Ljava/time/Duration;
+	public final fun getPages ()I
+	public final fun getPrimary ()Ljava/lang/String;
+	public final fun getStore ()Ljava/lang/String;
+	public final fun getTargets ()Ljava/util/List;
+	public final fun options ()Lme/ahoo/wow/runtime/snapshot/SnapshotOptions;
+	public final fun setBatch (I)V
+	public final fun setInterval (Ljava/time/Duration;)V
+	public final fun setPages (I)V
+	public final fun setPrimary (Ljava/lang/String;)V
+	public final fun setStore (Ljava/lang/String;)V
+	public final fun setTargets (Ljava/util/List;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$StateCache {
+	public fun <init> ()V
+	public final fun getCapacity ()I
+	public final fun setCapacity (I)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Store {
+	public fun <init> ()V
+	public final fun getClient ()Ljava/lang/String;
+	public final fun getDataSource ()Ljava/lang/String;
+	public final fun getDatabase ()Ljava/lang/String;
+	public final fun getType ()Lme/ahoo/wow/spring/boot/BackendKind;
+	public final fun setClient (Ljava/lang/String;)V
+	public final fun setDataSource (Ljava/lang/String;)V
+	public final fun setDatabase (Ljava/lang/String;)V
+	public final fun setType (Lme/ahoo/wow/spring/boot/BackendKind;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Subscription {
+	public fun <init> ()V
+	public final fun getCheckpointInterval ()Ljava/time/Duration;
+	public final fun getMaxInFlight ()I
+	public final fun getParked ()Lme/ahoo/wow/spring/boot/WowProperties$Parked;
+	public final fun getReadRetry ()Lme/ahoo/wow/spring/boot/WowProperties$Retry;
+	public final fun getRetry ()Lme/ahoo/wow/spring/boot/WowProperties$Retry;
+	public final fun getStopTimeout ()Ljava/time/Duration;
+	public final fun options (Ljava/util/Map;)Lme/ahoo/wow/runtime/subscription/SubscriptionOptions;
+	public static synthetic fun options$default (Lme/ahoo/wow/spring/boot/WowProperties$Subscription;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/runtime/subscription/SubscriptionOptions;
+	public final fun setCheckpointInterval (Ljava/time/Duration;)V
+	public final fun setMaxInFlight (I)V
+	public final fun setParked (Lme/ahoo/wow/spring/boot/WowProperties$Parked;)V
+	public final fun setReadRetry (Lme/ahoo/wow/spring/boot/WowProperties$Retry;)V
+	public final fun setRetry (Lme/ahoo/wow/spring/boot/WowProperties$Retry;)V
+	public final fun setStopTimeout (Ljava/time/Duration;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$SubscriptionSettings {
+	public fun <init> ()V
+	public final fun getParked ()Lme/ahoo/wow/spring/boot/WowProperties$ParkedSpec;
+	public final fun getRetry ()Lme/ahoo/wow/spring/boot/WowProperties$RetrySpec;
+	public final fun getStart ()Ljava/lang/String;
+	public final fun setParked (Lme/ahoo/wow/spring/boot/WowProperties$ParkedSpec;)V
+	public final fun setRetry (Lme/ahoo/wow/spring/boot/WowProperties$RetrySpec;)V
+	public final fun setStart (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Tenant {
+	public fun <init> ()V
+	public final fun getDefault ()Ljava/lang/String;
+	public final fun setDefault (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Timers {
+	public fun <init> ()V
+	public final fun getClaimTimeout ()Ljava/time/Duration;
+	public final fun getExpiresAfter ()Ljava/time/Duration;
+	public final fun getLookahead ()Ljava/time/Duration;
+	public final fun getMaxAttempts ()I
+	public final fun getMaxEarlyWait ()Ljava/time/Duration;
+	public final fun getMaxFireRate ()Ljava/lang/Double;
+	public final fun getParallelism ()I
+	public final fun getPollInterval ()Ljava/time/Duration;
+	public final fun options ()Lme/ahoo/wow/runtime/timer/TimerOptions;
+	public final fun setClaimTimeout (Ljava/time/Duration;)V
+	public final fun setExpiresAfter (Ljava/time/Duration;)V
+	public final fun setLookahead (Ljava/time/Duration;)V
+	public final fun setMaxAttempts (I)V
+	public final fun setMaxEarlyWait (Ljava/time/Duration;)V
+	public final fun setMaxFireRate (Ljava/lang/Double;)V
+	public final fun setParallelism (I)V
+	public final fun setPollInterval (Ljava/time/Duration;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Wait {
+	public fun <init> ()V
+	public final fun getDefaultTimeout ()Ljava/time/Duration;
+	public final fun getMaxHops ()I
+	public final fun getMaxTimeout ()Ljava/time/Duration;
+	public final fun getUnknownContexts ()Lme/ahoo/wow/runtime/wait/UnknownContexts;
+	public final fun setDefaultTimeout (Ljava/time/Duration;)V
+	public final fun setMaxHops (I)V
+	public final fun setMaxTimeout (Ljava/time/Duration;)V
+	public final fun setUnknownContexts (Lme/ahoo/wow/runtime/wait/UnknownContexts;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Webhook {
+	public fun <init> ()V
+	public final fun getEvents ()Ljava/util/Set;
+	public final fun getFormat ()Lme/ahoo/wow/http/ops/WebhookNotifier$Format;
+	public final fun getHeaders ()Ljava/util/Map;
+	public final fun getTimeout ()Ljava/time/Duration;
+	public final fun getUrl ()Ljava/net/URI;
+	public final fun setEvents (Ljava/util/Set;)V
+	public final fun setFormat (Lme/ahoo/wow/http/ops/WebhookNotifier$Format;)V
+	public final fun setHeaders (Ljava/util/Map;)V
+	public final fun setTimeout (Ljava/time/Duration;)V
+	public final fun setUrl (Ljava/net/URI;)V
+}
+

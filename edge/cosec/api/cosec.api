@@ -1,0 +1,82 @@
+public final class me/ahoo/wow/cosec/CoSecAutoConfiguration {
+	public static final field AUTHORIZER_ENABLED Ljava/lang/String;
+	public static final field CROSS_SCOPE_POLICIES Ljava/lang/String;
+	public static final field CROSS_SCOPE_ROLES Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/cosec/CoSecAutoConfiguration$Companion;
+	public static final field DEFAULT_TENANT Ljava/lang/String;
+	public static final field PREFIX Ljava/lang/String;
+	public static final field SERVICE_POLICIES Ljava/lang/String;
+	public static final field SERVICE_ROLES Ljava/lang/String;
+	public static final field TENANT_POLICIES Ljava/lang/String;
+	public static final field TENANT_ROLES Ljava/lang/String;
+	public fun <init> ()V
+	public final fun wowCoSecCallerResolver (Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/cosec/CoSecCallerResolver;
+	public final fun wowCoSecCommandAuthorizer (Lme/ahoo/cosec/api/authorization/Authorization;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/cosec/CoSecCommandAuthorizer;
+	public final fun wowCoSecInternalCallerResolver (Lme/ahoo/cosec/context/request/RequestParser;Lme/ahoo/cosec/context/SecurityContextParser;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/cosec/CoSecInternalCallerResolver;
+	public static final fun wowCoSecRequestFacts ()Lorg/springframework/beans/factory/config/BeanPostProcessor;
+}
+
+public final class me/ahoo/wow/cosec/CoSecAutoConfiguration$Companion {
+	public final fun wowCoSecRequestFacts ()Lorg/springframework/beans/factory/config/BeanPostProcessor;
+}
+
+public final class me/ahoo/wow/cosec/CoSecCallerOptions {
+	public static final field ABAC_PREFIX Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/cosec/CoSecCallerOptions$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAttributePrefix ()Ljava/lang/String;
+	public final fun getCrossScopePolicies ()Ljava/util/Set;
+	public final fun getCrossScopeRoles ()Ljava/util/Set;
+	public final fun getDefaultTenant ()Ljava/lang/String;
+	public final fun getServicePolicies ()Ljava/util/Set;
+	public final fun getServiceRoles ()Ljava/util/Set;
+	public final fun getTenantPolicies ()Ljava/util/Set;
+	public final fun getTenantRoles ()Ljava/util/Set;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/cosec/CoSecCallerOptions$Companion {
+}
+
+public final class me/ahoo/wow/cosec/CoSecCallerResolver : me/ahoo/wow/http/caller/CallerResolver {
+	public static final field Companion Lme/ahoo/wow/cosec/CoSecCallerResolver$Companion;
+	public static final field POLICIES Ljava/lang/String;
+	public static final field ROLES Ljava/lang/String;
+	public fun <init> ()V
+	public fun <init> (Lme/ahoo/wow/cosec/CoSecCallerOptions;)V
+	public synthetic fun <init> (Lme/ahoo/wow/cosec/CoSecCallerOptions;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun callerOf (Lme/ahoo/cosec/api/context/SecurityContext;Ljava/lang/String;)Lme/ahoo/wow/api/caller/Caller;
+	public static synthetic fun callerOf$default (Lme/ahoo/wow/cosec/CoSecCallerResolver;Lme/ahoo/cosec/api/context/SecurityContext;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/caller/Caller;
+	public fun resolve (Lorg/springframework/web/reactive/function/server/ServerRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun spacesOf (Lme/ahoo/cosec/api/principal/CoSecPrincipal;)Ljava/util/Set;
+}
+
+public final class me/ahoo/wow/cosec/CoSecCallerResolver$Companion {
+	public final fun spacesOf (Lme/ahoo/cosec/api/principal/CoSecPrincipal;)Ljava/util/Set;
+}
+
+public final class me/ahoo/wow/cosec/CoSecCommandAuthorizer : me/ahoo/wow/runtime/admission/CommandAuthorizer {
+	public static final field AGGREGATE_ID Ljava/lang/String;
+	public static final field COMMAND Ljava/lang/String;
+	public static final field CREATION Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/cosec/CoSecCommandAuthorizer$Companion;
+	public static final field OWNER Ljava/lang/String;
+	public static final field SPACE Ljava/lang/String;
+	public static final field TENANT Ljava/lang/String;
+	public fun <init> (Lme/ahoo/cosec/api/authorization/Authorization;Ljava/lang/String;)V
+	public synthetic fun <init> (Lme/ahoo/cosec/api/authorization/Authorization;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun authorize (Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/runtime/admission/CommandAction;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static final fun requestOf (Lme/ahoo/wow/runtime/admission/CommandAction;)Lme/ahoo/cosec/api/context/request/Request;
+	public final fun securityContextOf (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/cosec/api/context/SecurityContext;
+}
+
+public final class me/ahoo/wow/cosec/CoSecCommandAuthorizer$Companion {
+	public final fun requestOf (Lme/ahoo/wow/runtime/admission/CommandAction;)Lme/ahoo/cosec/api/context/request/Request;
+}
+
+public final class me/ahoo/wow/cosec/CoSecInternalCallerResolver : me/ahoo/wow/http/caller/InternalCallerResolver {
+	public fun <init> (Lme/ahoo/cosec/context/request/RequestParser;Lme/ahoo/cosec/context/SecurityContextParser;Lme/ahoo/wow/cosec/CoSecCallerResolver;)V
+	public fun resolve (Lorg/springframework/web/reactive/function/server/ServerRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+

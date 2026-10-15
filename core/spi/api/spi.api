@@ -1,0 +1,920 @@
+public final class me/ahoo/wow/spi/StorageUnavailableException : java/lang/RuntimeException {
+	public fun <init> (Ljava/lang/String;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+}
+
+public abstract interface class me/ahoo/wow/spi/id/AggregateIdGenerator {
+	public static final field Companion Lme/ahoo/wow/spi/id/AggregateIdGenerator$Companion;
+	public static final field UUID_V7 Lme/ahoo/wow/spi/id/AggregateIdGenerator;
+	public abstract fun next (Lme/ahoo/wow/api/aggregate/AggregateType;)Ljava/lang/String;
+	public static fun of (Lme/ahoo/wow/spi/id/AggregateIdGenerator;Ljava/util/Map;)Lme/ahoo/wow/spi/id/AggregateIdGenerator;
+	public static fun of (Lme/ahoo/wow/spi/id/GlobalIdGenerator;)Lme/ahoo/wow/spi/id/AggregateIdGenerator;
+}
+
+public final class me/ahoo/wow/spi/id/AggregateIdGenerator$Companion {
+	public final fun of (Lme/ahoo/wow/spi/id/AggregateIdGenerator;Ljava/util/Map;)Lme/ahoo/wow/spi/id/AggregateIdGenerator;
+	public final fun of (Lme/ahoo/wow/spi/id/GlobalIdGenerator;)Lme/ahoo/wow/spi/id/AggregateIdGenerator;
+}
+
+public abstract interface class me/ahoo/wow/spi/id/AggregateIdGeneratorSource {
+	public abstract fun find (Ljava/lang/String;)Lme/ahoo/wow/spi/id/AggregateIdGenerator;
+}
+
+public abstract interface class me/ahoo/wow/spi/id/GlobalIdGenerator {
+	public static final field Companion Lme/ahoo/wow/spi/id/GlobalIdGenerator$Companion;
+	public static final field UUID_V7 Lme/ahoo/wow/spi/id/GlobalIdGenerator;
+	public abstract fun next ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/id/GlobalIdGenerator$Companion {
+}
+
+public final class me/ahoo/wow/spi/id/IdGenerators : me/ahoo/wow/api/id/Ids {
+	public static final field Companion Lme/ahoo/wow/spi/id/IdGenerators$Companion;
+	public static final field DEFAULT Lme/ahoo/wow/spi/id/IdGenerators;
+	public fun <init> ()V
+	public fun <init> (Lme/ahoo/wow/spi/id/GlobalIdGenerator;Lme/ahoo/wow/spi/id/AggregateIdGenerator;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spi/id/GlobalIdGenerator;Lme/ahoo/wow/spi/id/AggregateIdGenerator;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/spi/id/GlobalIdGenerator;
+	public final fun component2 ()Lme/ahoo/wow/spi/id/AggregateIdGenerator;
+	public final fun copy (Lme/ahoo/wow/spi/id/GlobalIdGenerator;Lme/ahoo/wow/spi/id/AggregateIdGenerator;)Lme/ahoo/wow/spi/id/IdGenerators;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/id/IdGenerators;Lme/ahoo/wow/spi/id/GlobalIdGenerator;Lme/ahoo/wow/spi/id/AggregateIdGenerator;ILjava/lang/Object;)Lme/ahoo/wow/spi/id/IdGenerators;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAggregates ()Lme/ahoo/wow/spi/id/AggregateIdGenerator;
+	public final fun getGlobal ()Lme/ahoo/wow/spi/id/GlobalIdGenerator;
+	public fun hashCode ()I
+	public fun next ()Ljava/lang/String;
+	public fun next (Lme/ahoo/wow/api/aggregate/AggregateType;)Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/id/IdGenerators$Companion {
+}
+
+public final class me/ahoo/wow/spi/json/WowJson {
+	public static final field INSTANCE Lme/ahoo/wow/spi/json/WowJson;
+	public final fun builder ()Ltools/jackson/databind/json/JsonMapper$Builder;
+	public final fun getMapper ()Ltools/jackson/databind/json/JsonMapper;
+}
+
+public abstract interface class me/ahoo/wow/spi/ledger/FailureLedger {
+	public static final field Companion Lme/ahoo/wow/spi/ledger/FailureLedger$Companion;
+	public static final field DEFAULT_PAGE I
+	public abstract fun amend (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/spi/ledger/ParkedAmendment;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun isParked (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun list (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun list$default (Lme/ahoo/wow/spi/ledger/FailureLedger;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public abstract fun park (Lme/ahoo/wow/spi/ledger/ParkedAggregate;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun parked (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun repark (Lme/ahoo/wow/spi/ledger/ParkedAggregate;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun resolve (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/spi/ledger/FailureLedger$Companion {
+	public static final field DEFAULT_PAGE I
+}
+
+public final class me/ahoo/wow/spi/ledger/FailureLedgerKt {
+	public static final fun amended (Lme/ahoo/wow/spi/ledger/ParkedAggregate;Lme/ahoo/wow/spi/ledger/ParkedAmendment;)Lme/ahoo/wow/spi/ledger/ParkedAggregate;
+}
+
+public final class me/ahoo/wow/spi/ledger/LedgerRequest : java/lang/Enum {
+	public static final field RESUME Lme/ahoo/wow/spi/ledger/LedgerRequest;
+	public static final field SKIP Lme/ahoo/wow/spi/ledger/LedgerRequest;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spi/ledger/LedgerRequest;
+	public static fun values ()[Lme/ahoo/wow/spi/ledger/LedgerRequest;
+}
+
+public final class me/ahoo/wow/spi/ledger/ParkedAggregate {
+	public static final field Companion Lme/ahoo/wow/spi/ledger/ParkedAggregate$Companion;
+	public static final field UNRECOVERABLE Ljava/lang/String;
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;JLjava/lang/Long;ILjava/lang/Long;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;Lme/ahoo/wow/spi/ledger/Recoverable;Lme/ahoo/wow/spi/ledger/LedgerRequest;)V
+	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;JLjava/lang/Long;ILjava/lang/Long;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;Lme/ahoo/wow/spi/ledger/Recoverable;Lme/ahoo/wow/spi/ledger/LedgerRequest;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()Lme/ahoo/wow/spi/ledger/Recoverable;
+	public final fun component11 ()Lme/ahoo/wow/spi/ledger/LedgerRequest;
+	public final fun component2 ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun component3 ()I
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()J
+	public final fun component6 ()Ljava/lang/Long;
+	public final fun component7 ()I
+	public final fun component8 ()Ljava/lang/Long;
+	public final fun component9 ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
+	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;JLjava/lang/Long;ILjava/lang/Long;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;Lme/ahoo/wow/spi/ledger/Recoverable;Lme/ahoo/wow/spi/ledger/LedgerRequest;)Lme/ahoo/wow/spi/ledger/ParkedAggregate;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/ledger/ParkedAggregate;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;JLjava/lang/Long;ILjava/lang/Long;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;Lme/ahoo/wow/spi/ledger/Recoverable;Lme/ahoo/wow/spi/ledger/LedgerRequest;ILjava/lang/Object;)Lme/ahoo/wow/spi/ledger/ParkedAggregate;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun exhausted (Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;)Z
+	public final fun getFailedAt ()J
+	public final fun getFromPosition ()Ljava/lang/Long;
+	public final fun getFromVersion ()I
+	public final fun getReason ()Ljava/lang/String;
+	public final fun getRecoverable ()Lme/ahoo/wow/spi/ledger/Recoverable;
+	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getRequest ()Lme/ahoo/wow/spi/ledger/LedgerRequest;
+	public final fun getRetries ()I
+	public final fun getRetryAt ()Ljava/lang/Long;
+	public final fun getRetrySpec ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
+	public final fun getSubscription ()Ljava/lang/String;
+	public final fun getUnrecoverable ()Z
+	public fun hashCode ()I
+	public final fun nextRetryAt (Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;)Ljava/lang/Long;
+	public final fun retryable (Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;)Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/ledger/ParkedAggregate$Companion {
+}
+
+public abstract interface class me/ahoo/wow/spi/ledger/ParkedAmendment {
+}
+
+public final class me/ahoo/wow/spi/ledger/ParkedAmendment$ApplyRetrySpec : me/ahoo/wow/spi/ledger/ParkedAmendment {
+	public fun <init> (Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;)V
+	public final fun component1 ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
+	public final fun copy (Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$ApplyRetrySpec;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/ledger/ParkedAmendment$ApplyRetrySpec;Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;ILjava/lang/Object;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$ApplyRetrySpec;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getSpec ()Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/ledger/ParkedAmendment$ClaimRetry : me/ahoo/wow/spi/ledger/ParkedAmendment {
+	public fun <init> (IJ)V
+	public final fun component1 ()I
+	public final fun component2 ()J
+	public final fun copy (IJ)Lme/ahoo/wow/spi/ledger/ParkedAmendment$ClaimRetry;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/ledger/ParkedAmendment$ClaimRetry;IJILjava/lang/Object;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$ClaimRetry;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAt ()J
+	public final fun getRetries ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/ledger/ParkedAmendment$MarkRecoverable : me/ahoo/wow/spi/ledger/ParkedAmendment {
+	public fun <init> (Lme/ahoo/wow/spi/ledger/Recoverable;)V
+	public final fun component1 ()Lme/ahoo/wow/spi/ledger/Recoverable;
+	public final fun copy (Lme/ahoo/wow/spi/ledger/Recoverable;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$MarkRecoverable;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/ledger/ParkedAmendment$MarkRecoverable;Lme/ahoo/wow/spi/ledger/Recoverable;ILjava/lang/Object;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$MarkRecoverable;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getRecoverable ()Lme/ahoo/wow/spi/ledger/Recoverable;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/ledger/ParkedAmendment$Request : me/ahoo/wow/spi/ledger/ParkedAmendment {
+	public fun <init> (Lme/ahoo/wow/spi/ledger/LedgerRequest;)V
+	public final fun component1 ()Lme/ahoo/wow/spi/ledger/LedgerRequest;
+	public final fun copy (Lme/ahoo/wow/spi/ledger/LedgerRequest;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$Request;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/ledger/ParkedAmendment$Request;Lme/ahoo/wow/spi/ledger/LedgerRequest;ILjava/lang/Object;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$Request;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getRequest ()Lme/ahoo/wow/spi/ledger/LedgerRequest;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/ledger/ParkedAmendment$TakeRequest : me/ahoo/wow/spi/ledger/ParkedAmendment {
+	public fun <init> (Lme/ahoo/wow/spi/ledger/LedgerRequest;)V
+	public final fun component1 ()Lme/ahoo/wow/spi/ledger/LedgerRequest;
+	public final fun copy (Lme/ahoo/wow/spi/ledger/LedgerRequest;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$TakeRequest;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/ledger/ParkedAmendment$TakeRequest;Lme/ahoo/wow/spi/ledger/LedgerRequest;ILjava/lang/Object;)Lme/ahoo/wow/spi/ledger/ParkedAmendment$TakeRequest;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getRequest ()Lme/ahoo/wow/spi/ledger/LedgerRequest;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/ledger/ParkedRetrySpec {
+	public static final field Companion Lme/ahoo/wow/spi/ledger/ParkedRetrySpec$Companion;
+	public static final field DEFAULT_MAX_RETRIES I
+	public fun <init> ()V
+	public synthetic fun <init> (IJJILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (IJJLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun backoff-5sfh64U (I)J
+	public final fun component1 ()I
+	public final fun component2-UwyO8pc ()J
+	public final fun component3-UwyO8pc ()J
+	public final fun copy-5qebJ5I (IJJ)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
+	public static synthetic fun copy-5qebJ5I$default (Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;IJJILjava/lang/Object;)Lme/ahoo/wow/spi/ledger/ParkedRetrySpec;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getExecutionTimeout-UwyO8pc ()J
+	public final fun getMaxRetries ()I
+	public final fun getMinBackoff-UwyO8pc ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/ledger/ParkedRetrySpec$Companion {
+	public final fun getDEFAULT_EXECUTION_TIMEOUT-UwyO8pc ()J
+	public final fun getDEFAULT_MIN_BACKOFF-UwyO8pc ()J
+}
+
+public final class me/ahoo/wow/spi/ledger/Recoverable : java/lang/Enum {
+	public static final field RECOVERABLE Lme/ahoo/wow/spi/ledger/Recoverable;
+	public static final field UNKNOWN Lme/ahoo/wow/spi/ledger/Recoverable;
+	public static final field UNRECOVERABLE Lme/ahoo/wow/spi/ledger/Recoverable;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spi/ledger/Recoverable;
+	public static fun values ()[Lme/ahoo/wow/spi/ledger/Recoverable;
+}
+
+public abstract interface class me/ahoo/wow/spi/log/AppendOutcome {
+}
+
+public final class me/ahoo/wow/spi/log/AppendOutcome$AlreadyCommitted : me/ahoo/wow/spi/log/AppendOutcome {
+	public fun <init> (Lme/ahoo/wow/spi/log/EventStreamRecord;)V
+	public final fun component1 ()Lme/ahoo/wow/spi/log/EventStreamRecord;
+	public final fun copy (Lme/ahoo/wow/spi/log/EventStreamRecord;)Lme/ahoo/wow/spi/log/AppendOutcome$AlreadyCommitted;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/log/AppendOutcome$AlreadyCommitted;Lme/ahoo/wow/spi/log/EventStreamRecord;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/AppendOutcome$AlreadyCommitted;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getExisting ()Lme/ahoo/wow/spi/log/EventStreamRecord;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/log/AppendOutcome$Committed : me/ahoo/wow/spi/log/AppendOutcome {
+	public fun <init> (Lme/ahoo/wow/spi/log/LogPosition;)V
+	public final fun component1 ()Lme/ahoo/wow/spi/log/LogPosition;
+	public final fun copy (Lme/ahoo/wow/spi/log/LogPosition;)Lme/ahoo/wow/spi/log/AppendOutcome$Committed;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/log/AppendOutcome$Committed;Lme/ahoo/wow/spi/log/LogPosition;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/AppendOutcome$Committed;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPosition ()Lme/ahoo/wow/spi/log/LogPosition;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/log/AppendOutcome$Conflict : me/ahoo/wow/spi/log/AppendOutcome {
+	public fun <init> (I)V
+	public final fun component1 ()I
+	public final fun copy (I)Lme/ahoo/wow/spi/log/AppendOutcome$Conflict;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/log/AppendOutcome$Conflict;IILjava/lang/Object;)Lme/ahoo/wow/spi/log/AppendOutcome$Conflict;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCurrentVersion ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/log/AppendOutcome$Unknown : me/ahoo/wow/spi/log/AppendOutcome {
+	public fun <init> (Ljava/lang/Throwable;)V
+	public final fun component1 ()Ljava/lang/Throwable;
+	public final fun copy (Ljava/lang/Throwable;)Lme/ahoo/wow/spi/log/AppendOutcome$Unknown;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/log/AppendOutcome$Unknown;Ljava/lang/Throwable;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/AppendOutcome$Unknown;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCause ()Ljava/lang/Throwable;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/spi/log/EventLog {
+	public abstract fun append (Lme/ahoo/wow/spi/log/EventStreamRecord;Lme/ahoo/wow/spi/log/Transport;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun append$default (Lme/ahoo/wow/spi/log/EventLog;Lme/ahoo/wow/spi/log/EventStreamRecord;Lme/ahoo/wow/spi/log/Transport;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public fun appendAll (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun findByRequestId (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun findByRequestId (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun getPartitions ()I
+	public abstract fun head (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun positionOf (Lme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun read (Lme/ahoo/wow/api/aggregate/AggregateRef;II)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun read$default (Lme/ahoo/wow/spi/log/EventLog;Lme/ahoo/wow/api/aggregate/AggregateRef;IIILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+	public abstract fun readEntries (Lme/ahoo/wow/api/aggregate/AggregateRef;II)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun readEntries$default (Lme/ahoo/wow/spi/log/EventLog;Lme/ahoo/wow/api/aggregate/AggregateRef;IIILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+	public abstract fun tail (ILjava/lang/Long;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun tail$default (Lme/ahoo/wow/spi/log/EventLog;ILjava/lang/Long;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+}
+
+public final class me/ahoo/wow/spi/log/EventRecord {
+	public fun <init> (Ljava/lang/String;ILjava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()I
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;ILjava/lang/String;)Lme/ahoo/wow/spi/log/EventRecord;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/log/EventRecord;Ljava/lang/String;ILjava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/EventRecord;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getName ()Ljava/lang/String;
+	public final fun getPayload ()Ljava/lang/String;
+	public final fun getRevision ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/log/EventStreamRecord {
+	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun component10 ()Ljava/util/Map;
+	public final fun component11 ()Lme/ahoo/wow/api/caller/Operator;
+	public final fun component2 ()I
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()J
+	public final fun component7 ()Ljava/util/List;
+	public final fun component8 ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun component9 ()Lme/ahoo/wow/api/decide/Causation;
+	public final fun copy (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/spi/log/EventStreamRecord;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/log/EventStreamRecord;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/EventStreamRecord;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCausation ()Lme/ahoo/wow/api/decide/Causation;
+	public final fun getCommandId ()Ljava/lang/String;
+	public final fun getCommandType ()Ljava/lang/String;
+	public final fun getCommitTime ()J
+	public final fun getEvents ()Ljava/util/List;
+	public final fun getHeaders ()Ljava/util/Map;
+	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
+	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getRequestId ()Ljava/lang/String;
+	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun getVersion ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/log/LogEntry {
+	public fun <init> (Lme/ahoo/wow/spi/log/LogPosition;Lme/ahoo/wow/spi/log/EventStreamRecord;Lme/ahoo/wow/spi/log/Transport;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spi/log/LogPosition;Lme/ahoo/wow/spi/log/EventStreamRecord;Lme/ahoo/wow/spi/log/Transport;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/spi/log/LogPosition;
+	public final fun component2 ()Lme/ahoo/wow/spi/log/EventStreamRecord;
+	public final fun component3 ()Lme/ahoo/wow/spi/log/Transport;
+	public final fun copy (Lme/ahoo/wow/spi/log/LogPosition;Lme/ahoo/wow/spi/log/EventStreamRecord;Lme/ahoo/wow/spi/log/Transport;)Lme/ahoo/wow/spi/log/LogEntry;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/log/LogEntry;Lme/ahoo/wow/spi/log/LogPosition;Lme/ahoo/wow/spi/log/EventStreamRecord;Lme/ahoo/wow/spi/log/Transport;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/LogEntry;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPosition ()Lme/ahoo/wow/spi/log/LogPosition;
+	public final fun getStream ()Lme/ahoo/wow/spi/log/EventStreamRecord;
+	public final fun getTransport ()Lme/ahoo/wow/spi/log/Transport;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/log/LogPosition {
+	public fun <init> (IJ)V
+	public final fun component1 ()I
+	public final fun component2 ()J
+	public final fun copy (IJ)Lme/ahoo/wow/spi/log/LogPosition;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/log/LogPosition;IJILjava/lang/Object;)Lme/ahoo/wow/spi/log/LogPosition;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPartition ()I
+	public final fun getSequence ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/log/Partitioner {
+	public static final field INSTANCE Lme/ahoo/wow/spi/log/Partitioner;
+	public final fun hash (Ljava/lang/String;)J
+	public final fun key (Lme/ahoo/wow/api/aggregate/AggregateRef;)Ljava/lang/String;
+	public final fun partitionOf (Lme/ahoo/wow/api/aggregate/AggregateRef;I)I
+}
+
+public final class me/ahoo/wow/spi/log/Transport {
+	public fun <init> ()V
+	public fun <init> (Lme/ahoo/wow/spi/wait/WaitContext;Ljava/util/List;Ljava/util/Map;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spi/wait/WaitContext;Ljava/util/List;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/spi/wait/WaitContext;
+	public final fun component2 ()Ljava/util/List;
+	public final fun component3 ()Ljava/util/Map;
+	public final fun copy (Lme/ahoo/wow/spi/wait/WaitContext;Ljava/util/List;Ljava/util/Map;)Lme/ahoo/wow/spi/log/Transport;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/log/Transport;Lme/ahoo/wow/spi/wait/WaitContext;Ljava/util/List;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/spi/log/Transport;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getReservations ()Ljava/util/List;
+	public final fun getTrace ()Ljava/util/Map;
+	public final fun getWait ()Lme/ahoo/wow/spi/wait/WaitContext;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/spi/observation/Observation {
+	public static final field Companion Lme/ahoo/wow/spi/observation/Observation$Companion;
+	public static final field NONE Lme/ahoo/wow/spi/observation/Observation;
+	public fun end ()V
+	public fun failed (Ljava/lang/Throwable;)V
+	public fun getContext ()Lkotlin/coroutines/CoroutineContext;
+	public fun getTrace ()Ljava/util/Map;
+	public fun outcome (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/spi/observation/Observation$Companion {
+}
+
+public abstract interface class me/ahoo/wow/spi/observation/Observer {
+	public static final field Companion Lme/ahoo/wow/spi/observation/Observer$Companion;
+	public static final field NONE Lme/ahoo/wow/spi/observation/Observer;
+	public fun admitting (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/spi/observation/Observation;
+	public fun appending (Lme/ahoo/wow/spi/log/EventStreamRecord;)Lme/ahoo/wow/spi/observation/Observation;
+	public fun deciding (Lme/ahoo/wow/api/decide/Command;)Lme/ahoo/wow/spi/observation/Observation;
+	public fun executing (Lme/ahoo/wow/api/decide/Command;)Lme/ahoo/wow/spi/observation/Observation;
+	public fun firing (Lme/ahoo/wow/spi/timer/Timer;)Lme/ahoo/wow/spi/observation/Observation;
+	public fun handling (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/log/EventStreamRecord;Ljava/util/Map;Ljava/lang/String;)Lme/ahoo/wow/spi/observation/Observation;
+	public fun resuming (Ljava/util/Map;)Lkotlin/coroutines/CoroutineContext;
+}
+
+public final class me/ahoo/wow/spi/observation/Observer$Companion {
+}
+
+public final class me/ahoo/wow/spi/observation/ObserverKt {
+	public static final fun getTrace (Lkotlin/coroutines/CoroutineContext;)Ljava/util/Map;
+	public static final fun getTraceContext (Lkotlin/coroutines/CoroutineContext;)Lkotlin/coroutines/CoroutineContext;
+	public static final fun observe (Lme/ahoo/wow/spi/observation/Observation;Lkotlin/jvm/functions/Function1;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public abstract class me/ahoo/wow/spi/observation/TraceContext : kotlin/coroutines/AbstractCoroutineContextElement {
+	public static final field Key Lme/ahoo/wow/spi/observation/TraceContext$Key;
+	public fun <init> ()V
+	public abstract fun getFields ()Ljava/util/Map;
+}
+
+public final class me/ahoo/wow/spi/observation/TraceContext$Key : kotlin/coroutines/CoroutineContext$Key {
+}
+
+public final class me/ahoo/wow/spi/reservation/Reservation {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/Long;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;)Lme/ahoo/wow/spi/reservation/Reservation;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/reservation/Reservation;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/Long;ILjava/lang/Object;)Lme/ahoo/wow/spi/reservation/Reservation;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getConfirmed ()Z
+	public final fun getExpiresAt ()Ljava/lang/Long;
+	public final fun getKey ()Ljava/lang/String;
+	public final fun getNamespace ()Ljava/lang/String;
+	public final fun getOwner ()Ljava/lang/String;
+	public fun hashCode ()I
+	public final fun isLive (J)Z
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/reservation/ReservationKey {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/reservation/ReservationKey;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/reservation/ReservationKey;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/spi/reservation/ReservationKey;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getKey ()Ljava/lang/String;
+	public final fun getNamespace ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/spi/reservation/ReservationStore {
+	public abstract fun confirm (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun find (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun release (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun reserve-zkXUZaI (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public abstract interface class me/ahoo/wow/spi/sink/Sink {
+	public abstract fun write (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/spi/snapshot/SnapshotRecord {
+	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ZJJLjava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;I)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ZJJLjava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun component10 ()Lme/ahoo/wow/api/caller/Operator;
+	public final fun component11 ()Lme/ahoo/wow/api/caller/Operator;
+	public final fun component12 ()Ljava/util/Map;
+	public final fun component13 ()I
+	public final fun component2 ()I
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun component6 ()Z
+	public final fun component7 ()J
+	public final fun component8 ()J
+	public final fun component9 ()Ljava/util/Map;
+	public final fun copy (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ZJJLjava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;I)Lme/ahoo/wow/spi/snapshot/SnapshotRecord;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/snapshot/SnapshotRecord;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ZJJLjava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;IILjava/lang/Object;)Lme/ahoo/wow/spi/snapshot/SnapshotRecord;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getDeleted ()Z
+	public final fun getFirstEventTime ()J
+	public final fun getFirstOperator ()Lme/ahoo/wow/api/caller/Operator;
+	public final fun getLastEventTime ()J
+	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
+	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getSchedules ()Ljava/util/Map;
+	public final fun getSchemaFingerprint ()Ljava/lang/String;
+	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun getState ()Ljava/lang/String;
+	public final fun getStateRevision ()I
+	public final fun getTags ()Ljava/util/Map;
+	public final fun getVersion ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/spi/snapshot/SnapshotStore {
+	public abstract fun claim (Lme/ahoo/wow/api/aggregate/AggregateType;IZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun claim$default (Lme/ahoo/wow/spi/snapshot/SnapshotStore;Lme/ahoo/wow/api/aggregate/AggregateType;IZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public abstract fun load (Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun mark (Lme/ahoo/wow/api/aggregate/AggregateType;ILjava/lang/Boolean;Ljava/lang/Boolean;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun mark$default (Lme/ahoo/wow/spi/snapshot/SnapshotStore;Lme/ahoo/wow/api/aggregate/AggregateType;ILjava/lang/Boolean;Ljava/lang/Boolean;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public abstract fun markStale (Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun pending (Lme/ahoo/wow/api/aggregate/AggregateType;ILme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun pending$default (Lme/ahoo/wow/spi/snapshot/SnapshotStore;Lme/ahoo/wow/api/aggregate/AggregateType;ILme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public abstract fun rewrite (Lme/ahoo/wow/spi/snapshot/SnapshotRecord;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun save (Lme/ahoo/wow/spi/snapshot/SnapshotRecord;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun table (Lme/ahoo/wow/api/aggregate/AggregateType;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/spi/snapshot/SnapshotTable {
+	public fun <init> (IZZ)V
+	public synthetic fun <init> (IZZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()I
+	public final fun component2 ()Z
+	public final fun component3 ()Z
+	public final fun copy (IZZ)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/snapshot/SnapshotTable;IZZILjava/lang/Object;)Lme/ahoo/wow/spi/snapshot/SnapshotTable;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBackfilled ()Z
+	public final fun getCatchingUp ()Z
+	public final fun getRebuilding ()Z
+	public final fun getRevision ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/state/StateEventPayload {
+	public fun <init> (Ljava/lang/String;ILtools/jackson/databind/JsonNode;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()I
+	public final fun component3 ()Ltools/jackson/databind/JsonNode;
+	public final fun copy (Ljava/lang/String;ILtools/jackson/databind/JsonNode;)Lme/ahoo/wow/spi/state/StateEventPayload;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/state/StateEventPayload;Ljava/lang/String;ILtools/jackson/databind/JsonNode;ILjava/lang/Object;)Lme/ahoo/wow/spi/state/StateEventPayload;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getName ()Ljava/lang/String;
+	public final fun getPayload ()Ltools/jackson/databind/JsonNode;
+	public final fun getRevision ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/state/StateEventRecord {
+	public static final field Companion Lme/ahoo/wow/spi/state/StateEventRecord$Companion;
+	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/spi/state/StateView;Lme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/log/Transport;)V
+	public synthetic fun <init> (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/spi/state/StateView;Lme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/log/Transport;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun component10 ()Z
+	public final fun component11 ()Ljava/util/Map;
+	public final fun component12 ()Lme/ahoo/wow/api/decide/Causation;
+	public final fun component13 ()Ljava/util/Map;
+	public final fun component14 ()Lme/ahoo/wow/api/caller/Operator;
+	public final fun component15 ()Lme/ahoo/wow/spi/log/Transport;
+	public final fun component2 ()I
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ljava/lang/String;
+	public final fun component5 ()Ljava/lang/String;
+	public final fun component6 ()J
+	public final fun component7 ()Ljava/util/List;
+	public final fun component8 ()Lme/ahoo/wow/spi/state/StateView;
+	public final fun component9 ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun copy (Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/spi/state/StateView;Lme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/log/Transport;)Lme/ahoo/wow/spi/state/StateEventRecord;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/state/StateEventRecord;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;JLjava/util/List;Lme/ahoo/wow/spi/state/StateView;Lme/ahoo/wow/api/aggregate/Scope;ZLjava/util/Map;Lme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/log/Transport;ILjava/lang/Object;)Lme/ahoo/wow/spi/state/StateEventRecord;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCausation ()Lme/ahoo/wow/api/decide/Causation;
+	public final fun getCommandId ()Ljava/lang/String;
+	public final fun getCommandType ()Ljava/lang/String;
+	public final fun getCommitTime ()J
+	public final fun getDeleted ()Z
+	public final fun getEvents ()Ljava/util/List;
+	public final fun getHeaders ()Ljava/util/Map;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
+	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getRequestId ()Ljava/lang/String;
+	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun getState ()Lme/ahoo/wow/spi/state/StateView;
+	public final fun getTags ()Ljava/util/Map;
+	public final fun getTransport ()Lme/ahoo/wow/spi/log/Transport;
+	public final fun getVersion ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/state/StateEventRecord$Companion {
+	public final fun idOf (Lme/ahoo/wow/api/aggregate/AggregateRef;I)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/state/StateView {
+	public fun <init> (ILjava/lang/String;Ltools/jackson/databind/JsonNode;)V
+	public final fun component1 ()I
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ltools/jackson/databind/JsonNode;
+	public final fun copy (ILjava/lang/String;Ltools/jackson/databind/JsonNode;)Lme/ahoo/wow/spi/state/StateView;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/state/StateView;ILjava/lang/String;Ltools/jackson/databind/JsonNode;ILjava/lang/Object;)Lme/ahoo/wow/spi/state/StateView;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getSchemaFingerprint ()Ljava/lang/String;
+	public final fun getState ()Ltools/jackson/databind/JsonNode;
+	public final fun getVersion ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/spi/subscription/CheckpointStore {
+	public abstract fun load (Ljava/lang/String;Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun save (Ljava/lang/String;Ljava/lang/String;IJLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/spi/subscription/Lease {
+	public fun <init> (Ljava/lang/String;ILjava/lang/String;JJ)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()I
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()J
+	public final fun component5 ()J
+	public final fun copy (Ljava/lang/String;ILjava/lang/String;JJ)Lme/ahoo/wow/spi/subscription/Lease;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/subscription/Lease;Ljava/lang/String;ILjava/lang/String;JJILjava/lang/Object;)Lme/ahoo/wow/spi/subscription/Lease;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEpoch ()J
+	public final fun getExpiresAt ()J
+	public final fun getGroup ()Ljava/lang/String;
+	public final fun getOwner ()Ljava/lang/String;
+	public final fun getPartition ()I
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/spi/subscription/LeaseStore {
+	public abstract fun acquire-zkXUZaI (Ljava/lang/String;ILjava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun heartbeat-zkXUZaI (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun leave (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun members (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun owners (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun release (Ljava/lang/String;ILjava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun renew-zkXUZaI (Ljava/lang/String;ILjava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/spi/subscription/Member {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()J
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;J)Lme/ahoo/wow/spi/subscription/Member;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/subscription/Member;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JILjava/lang/Object;)Lme/ahoo/wow/spi/subscription/Member;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAddress ()Ljava/lang/String;
+	public final fun getExpiresAt ()J
+	public final fun getGroup ()Ljava/lang/String;
+	public final fun getNode ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/timer/Timer {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JILme/ahoo/wow/api/schedule/ScheduleRule;JLme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Ljava/lang/String;JLme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/timer/TimerStatus;ILjava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;JJ)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JILme/ahoo/wow/api/schedule/ScheduleRule;JLme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Ljava/lang/String;JLme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/timer/TimerStatus;ILjava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;JJILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component10 ()Ljava/lang/String;
+	public final fun component11 ()J
+	public final fun component12 ()Lme/ahoo/wow/api/decide/Causation;
+	public final fun component13 ()Ljava/util/Map;
+	public final fun component14 ()Lme/ahoo/wow/api/caller/Operator;
+	public final fun component15 ()Lme/ahoo/wow/spi/timer/TimerStatus;
+	public final fun component16 ()I
+	public final fun component17 ()Ljava/lang/String;
+	public final fun component18 ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun component19 ()J
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component20 ()J
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()J
+	public final fun component5 ()I
+	public final fun component6 ()Lme/ahoo/wow/api/schedule/ScheduleRule;
+	public final fun component7 ()J
+	public final fun component8 ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun component9 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JILme/ahoo/wow/api/schedule/ScheduleRule;JLme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Ljava/lang/String;JLme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/timer/TimerStatus;ILjava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;JJ)Lme/ahoo/wow/spi/timer/Timer;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/timer/Timer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JILme/ahoo/wow/api/schedule/ScheduleRule;JLme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Ljava/lang/String;JLme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/timer/TimerStatus;ILjava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;JJILjava/lang/Object;)Lme/ahoo/wow/spi/timer/Timer;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAttempts ()I
+	public final fun getBody ()Ljava/lang/String;
+	public final fun getCausation ()Lme/ahoo/wow/api/decide/Causation;
+	public final fun getCommandType ()Ljava/lang/String;
+	public final fun getContext ()Lme/ahoo/wow/api/schedule/ScheduleContext;
+	public final fun getDueAt ()J
+	public final fun getHeaders ()Ljava/util/Map;
+	public final fun getId ()Ljava/lang/String;
+	public final fun getKey ()Ljava/lang/String;
+	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
+	public final fun getOutcome ()Ljava/lang/String;
+	public final fun getOwner ()Ljava/lang/String;
+	public final fun getPartition ()I
+	public final fun getRequestId ()Ljava/lang/String;
+	public final fun getRule ()Lme/ahoo/wow/api/schedule/ScheduleRule;
+	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun getSkipped ()J
+	public final fun getSlot ()J
+	public final fun getSlotDueAt ()J
+	public final fun getStatus ()Lme/ahoo/wow/spi/timer/TimerStatus;
+	public final fun getTarget ()Lme/ahoo/wow/api/aggregate/AggregateRef;
+	public final fun getVersion ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/timer/TimerChange {
+	public fun <init> (Lme/ahoo/wow/spi/timer/Timer;Lme/ahoo/wow/spi/timer/Timer;)V
+	public final fun component1 ()Lme/ahoo/wow/spi/timer/Timer;
+	public final fun component2 ()Lme/ahoo/wow/spi/timer/Timer;
+	public final fun copy (Lme/ahoo/wow/spi/timer/Timer;Lme/ahoo/wow/spi/timer/Timer;)Lme/ahoo/wow/spi/timer/TimerChange;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/timer/TimerChange;Lme/ahoo/wow/spi/timer/Timer;Lme/ahoo/wow/spi/timer/Timer;ILjava/lang/Object;)Lme/ahoo/wow/spi/timer/TimerChange;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getLoaded ()Lme/ahoo/wow/spi/timer/Timer;
+	public final fun getNext ()Lme/ahoo/wow/spi/timer/Timer;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/timer/TimerOutcomes {
+	public static final field ALREADY_COMMITTED Ljava/lang/String;
+	public static final field COMMITTED Ljava/lang/String;
+	public static final field EXPIRED Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/spi/timer/TimerOutcomes;
+	public static final field REJECTED Ljava/lang/String;
+	public static final field SENT Ljava/lang/String;
+	public static final field SKIPPED Ljava/lang/String;
+	public static final field UNCHANGED Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/timer/TimerStatus : java/lang/Enum {
+	public static final field CANCELLED Lme/ahoo/wow/spi/timer/TimerStatus;
+	public static final field FIRED Lme/ahoo/wow/spi/timer/TimerStatus;
+	public static final field FIRING Lme/ahoo/wow/spi/timer/TimerStatus;
+	public static final field PARKED Lme/ahoo/wow/spi/timer/TimerStatus;
+	public static final field PENDING Lme/ahoo/wow/spi/timer/TimerStatus;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spi/timer/TimerStatus;
+	public static fun values ()[Lme/ahoo/wow/spi/timer/TimerStatus;
+}
+
+public abstract interface class me/ahoo/wow/spi/timer/TimerStore {
+	public abstract fun cancel (Ljava/lang/String;Ljava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun cancelAll (Ljava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun due (Ljava/util/Set;JILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun find (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun parked (Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun put (Lme/ahoo/wow/spi/timer/Timer;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun settle (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/spi/timer/Timers {
+	public static final field INSTANCE Lme/ahoo/wow/spi/timer/Timers;
+	public static final field NOT_EVALUATED J
+	public static final fun idOf (Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;I)Ljava/lang/String;
+	public static final fun of (Lme/ahoo/wow/spi/log/EventStreamRecord;Lme/ahoo/wow/api/schedule/ScheduleSet;I)Lme/ahoo/wow/spi/timer/Timer;
+	public static final fun ownerOf (Lme/ahoo/wow/api/aggregate/AggregateRef;)Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/transport/Envelope {
+	public static final field Companion Lme/ahoo/wow/spi/transport/Envelope$Companion;
+	public static final field FORMAT I
+	public fun <init> (Lme/ahoo/wow/spi/transport/EnvelopeKind;Ljava/lang/String;Ljava/lang/String;Ltools/jackson/databind/JsonNode;Lme/ahoo/wow/spi/log/Transport;I)V
+	public synthetic fun <init> (Lme/ahoo/wow/spi/transport/EnvelopeKind;Ljava/lang/String;Ljava/lang/String;Ltools/jackson/databind/JsonNode;Lme/ahoo/wow/spi/log/Transport;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/spi/transport/EnvelopeKind;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun component4 ()Ltools/jackson/databind/JsonNode;
+	public final fun component5 ()Lme/ahoo/wow/spi/log/Transport;
+	public final fun component6 ()I
+	public final fun copy (Lme/ahoo/wow/spi/transport/EnvelopeKind;Ljava/lang/String;Ljava/lang/String;Ltools/jackson/databind/JsonNode;Lme/ahoo/wow/spi/log/Transport;I)Lme/ahoo/wow/spi/transport/Envelope;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/transport/Envelope;Lme/ahoo/wow/spi/transport/EnvelopeKind;Ljava/lang/String;Ljava/lang/String;Ltools/jackson/databind/JsonNode;Lme/ahoo/wow/spi/log/Transport;IILjava/lang/Object;)Lme/ahoo/wow/spi/transport/Envelope;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFormat ()I
+	public final fun getId ()Ljava/lang/String;
+	public final fun getKind ()Lme/ahoo/wow/spi/transport/EnvelopeKind;
+	public final fun getPayload ()Ltools/jackson/databind/JsonNode;
+	public final fun getTransport ()Lme/ahoo/wow/spi/log/Transport;
+	public final fun getType ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/transport/Envelope$Companion {
+}
+
+public final class me/ahoo/wow/spi/transport/EnvelopeCodec {
+	public static final field INSTANCE Lme/ahoo/wow/spi/transport/EnvelopeCodec;
+	public final fun decode ([B)Lme/ahoo/wow/spi/transport/Envelope;
+	public final fun encode (Lme/ahoo/wow/spi/transport/Envelope;)[B
+	public final fun headers (Lme/ahoo/wow/spi/transport/Envelope;)Ljava/util/Map;
+	public final fun message (Ljava/lang/String;Lme/ahoo/wow/spi/transport/Envelope;)Lme/ahoo/wow/spi/transport/TopicMessage;
+	public final fun message (Lme/ahoo/wow/spi/state/StateEventRecord;)Lme/ahoo/wow/spi/transport/TopicMessage;
+	public final fun stateEvent (Lme/ahoo/wow/spi/state/StateEventRecord;)Lme/ahoo/wow/spi/transport/Envelope;
+	public final fun stateEventOf (Lme/ahoo/wow/spi/transport/Envelope;)Lme/ahoo/wow/spi/state/StateEventRecord;
+	public final fun stateEventOf ([B)Lme/ahoo/wow/spi/state/StateEventRecord;
+}
+
+public final class me/ahoo/wow/spi/transport/EnvelopeHeaders {
+	public static final field FORMAT Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/spi/transport/EnvelopeHeaders;
+	public static final field KIND Ljava/lang/String;
+	public static final field TYPE Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/transport/EnvelopeKind : java/lang/Enum {
+	public static final field COMMAND Lme/ahoo/wow/spi/transport/EnvelopeKind;
+	public static final field COMMAND_RECEIPT Lme/ahoo/wow/spi/transport/EnvelopeKind;
+	public static final field Companion Lme/ahoo/wow/spi/transport/EnvelopeKind$Companion;
+	public static final field STATE_EVENT Lme/ahoo/wow/spi/transport/EnvelopeKind;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public final fun getWire ()Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spi/transport/EnvelopeKind;
+	public static fun values ()[Lme/ahoo/wow/spi/transport/EnvelopeKind;
+}
+
+public final class me/ahoo/wow/spi/transport/EnvelopeKind$Companion {
+	public final fun of (Ljava/lang/String;)Lme/ahoo/wow/spi/transport/EnvelopeKind;
+}
+
+public final class me/ahoo/wow/spi/transport/PartitionOffsets {
+	public fun <init> (JJ)V
+	public final fun component1 ()J
+	public final fun component2 ()J
+	public final fun copy (JJ)Lme/ahoo/wow/spi/transport/PartitionOffsets;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/transport/PartitionOffsets;JJILjava/lang/Object;)Lme/ahoo/wow/spi/transport/PartitionOffsets;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEnd ()J
+	public final fun getStart ()J
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/spi/transport/PartitionedSource {
+	public abstract fun offsets (Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun partitionOf (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun partitions (Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun read (Ljava/lang/String;IJ)Lkotlinx/coroutines/flow/Flow;
+	public fun read (Ljava/lang/String;IJJ)Lkotlinx/coroutines/flow/Flow;
+}
+
+public final class me/ahoo/wow/spi/transport/SourceMessage {
+	public fun <init> (JLjava/lang/String;Ljava/util/Map;[B)V
+	public final fun getHeaders ()Ljava/util/Map;
+	public final fun getKey ()Ljava/lang/String;
+	public final fun getOffset ()J
+	public final fun getValue ()[B
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/spi/transport/TopicAdmin {
+	public abstract fun create (Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun partitions (Ljava/util/Set;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/spi/transport/TopicMessage {
+	public fun <init> (Ljava/lang/String;[BLjava/util/Map;Ljava/lang/Integer;)V
+	public synthetic fun <init> (Ljava/lang/String;[BLjava/util/Map;Ljava/lang/Integer;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getHeaders ()Ljava/util/Map;
+	public final fun getKey ()Ljava/lang/String;
+	public final fun getPartition ()Ljava/lang/Integer;
+	public final fun getValue ()[B
+	public fun toString ()Ljava/lang/String;
+}
+
+public abstract interface class me/ahoo/wow/spi/transport/TopicProducer {
+	public abstract fun send (Ljava/lang/String;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun send (Ljava/lang/String;Lme/ahoo/wow/spi/transport/TopicMessage;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/spi/wait/Origin {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/wait/Origin;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/wait/Origin;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/spi/wait/Origin;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAddress ()Ljava/lang/String;
+	public final fun getNode ()Ljava/lang/String;
+	public final fun getService ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/wait/WaitContext {
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/spi/wait/Origin;Ljava/util/List;J)V
+	public final fun afterCommitted ()Lme/ahoo/wow/spi/wait/WaitContext;
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Lme/ahoo/wow/spi/wait/Origin;
+	public final fun component3 ()Ljava/util/List;
+	public final fun component4 ()J
+	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/spi/wait/Origin;Ljava/util/List;J)Lme/ahoo/wow/spi/wait/WaitContext;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/wait/WaitContext;Ljava/lang/String;Lme/ahoo/wow/spi/wait/Origin;Ljava/util/List;JILjava/lang/Object;)Lme/ahoo/wow/spi/wait/WaitContext;
+	public final fun derived ()Lme/ahoo/wow/spi/wait/WaitContext;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun expiredAt (J)Z
+	public final fun getDeadline ()J
+	public final fun getNextHandled ()Lme/ahoo/wow/api/result/Hop;
+	public final fun getOrigin ()Lme/ahoo/wow/spi/wait/Origin;
+	public final fun getRemaining ()Ljava/util/List;
+	public final fun getWaitId ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+

@@ -220,7 +220,7 @@ class KafkaCommandIntakeTest {
             ).all().get()
             // The first stock node never saves a checkpoint: it crashes after each receipt, before the save.
             val stockBackends = InMemoryContexts()
-            val crashing = BackendFactory { stockBackends.backends(it).copy(checkpoints = DroppedCheckpoints) }
+            val crashing = BackendFactory { stockBackends.backends(it).copyWith(checkpoints = DroppedCheckpoints) }
             val first = node(STOCK_SERVICE, stockModel(), stockManifest(), topics(prefix, intake = true), backends = crashing)
             first.start()
             val sales = salesNode(topics(prefix), committed = true).also { it.start() }

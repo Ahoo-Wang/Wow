@@ -286,7 +286,7 @@ class CommandIntakeTest {
             val sales = salesNode().also { it.start() }
             // The first stock node never saves a checkpoint: it crashes after the receipt, before the save.
             val crashing = BackendFactory { context ->
-                stockBackends.backends(context).copy(checkpoints = DroppedCheckpoints)
+                stockBackends.backends(context).copyWith(checkpoints = DroppedCheckpoints)
             }
             val first = stockNode("stock-1", backends = crashing).also { it.start() }
             sales.place("o-3", AVAILABLE + 1)

@@ -120,21 +120,48 @@ class LedgerEntry @InternalWowApi constructor(
  * The retry spec a parked entry is retried by: at most [maxRetries] automatic retries, the first [minBackoff] after the
  * failure, each allowed [executionTimeout] (ISO-8601 durations); [applied] when an operator applied it, rather than
  * the subscription's.
+ *
+ * Fields may be added (decision D216): construct it with [of]; the constructor is internal to Wow.
  */
-data class LedgerRetrySpec(
+class LedgerRetrySpec @InternalWowApi constructor(
     val maxRetries: Int,
     val minBackoff: String,
     val executionTimeout: String,
     val applied: Boolean = false,
-)
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is LedgerRetrySpec && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "LedgerRetrySpec(maxRetries=$maxRetries, minBackoff=$minBackoff, executionTimeout=$executionTimeout, " +
+            "applied=$applied)"
+
+    private fun valueFields(): List<Any?> = listOf(maxRetries, minBackoff, executionTimeout, applied)
+
+    companion object {
+        /** At most [maxRetries] retries, the first [minBackoff] after the failure, each allowed [executionTimeout]. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            maxRetries: Int,
+            minBackoff: String,
+            executionTimeout: String,
+            applied: Boolean = false,
+        ): LedgerRetrySpec = LedgerRetrySpec(maxRetries, minBackoff, executionTimeout, applied)
+    }
+}
 
 /**
  * [subscription] of [service] no longer parks [aggregate], as of [resolvedAt] (epoch milliseconds): the parking that
  * failed at [failedAt] (null when the service did not know it) came to [outcome]: [RESUMED] (handled again),
  * [SKIPPED], [RESOLVED] (gone from the ledger, by an automatic retry or another node's action) or [NOT_PARKED] (an
  * operator's action found nothing parked).
+ *
+ * Fields may be added (decision D216): construct it with [of]; the constructor is internal to Wow.
  */
-data class LedgerResolution(
+class LedgerResolution @InternalWowApi constructor(
     val service: String,
     val context: String,
     val subscription: String,
@@ -143,10 +170,37 @@ data class LedgerResolution(
     val outcome: String,
     val resolvedAt: Long,
 ) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is LedgerResolution && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "LedgerResolution(service=$service, context=$context, subscription=$subscription, aggregate=$aggregate, " +
+            "failedAt=$failedAt, outcome=$outcome, resolvedAt=$resolvedAt)"
+
+    private fun valueFields(): List<Any?> =
+        listOf(service, context, subscription, aggregate, failedAt, outcome, resolvedAt)
+
     companion object {
         const val RESUMED: String = "RESUMED"
         const val SKIPPED: String = "SKIPPED"
         const val RESOLVED: String = "RESOLVED"
         const val NOT_PARKED: String = "NOT_PARKED"
+
+        /**
+         * [subscription] of [service] in [context] no longer parks [aggregate], as of [resolvedAt]: the parking that
+         * failed at [failedAt] (null when unknown) came to [outcome].
+         */
+        @JvmStatic
+        fun of(
+            service: String,
+            context: String,
+            subscription: String,
+            aggregate: LedgerAggregate,
+            failedAt: Long?,
+            outcome: String,
+            resolvedAt: Long,
+        ): LedgerResolution = LedgerResolution(service, context, subscription, aggregate, failedAt, outcome, resolvedAt)
     }
 }

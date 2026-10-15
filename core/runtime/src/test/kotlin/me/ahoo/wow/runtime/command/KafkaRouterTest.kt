@@ -245,7 +245,7 @@ class KafkaRouterTest {
 
         override fun backends(context: String): ContextBackends {
             val stores = backends.backends(context)
-            return stores.copy(
+            return stores.copyWith(
                 log = killable(stores.log, EventLog::class.java),
                 checkpoints = killable(stores.checkpoints, CheckpointStore::class.java),
                 leases = killable(stores.leases, LeaseStore::class.java),

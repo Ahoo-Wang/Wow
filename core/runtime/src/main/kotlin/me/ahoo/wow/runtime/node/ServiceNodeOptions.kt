@@ -64,8 +64,11 @@ import kotlin.time.Duration.Companion.seconds
  * named [store]: every aggregate type of the context that no other group names. Each of [groups] is another store's,
  * with the aggregate types it holds. Partitions and leases stay per context: every group has the context's partitions,
  * and the owner of a partition reads it in every group. One store, no [groups]: one group, as before D177.
+ *
+ * Fields may be added (decision D216): construct it with [of]; the constructor, which also takes the log groups and
+ * snapshot targets the host configures, is internal to Wow.
  */
-data class ContextBackends(
+class ContextBackends @InternalWowApi constructor(
     val log: EventLog,
     val checkpoints: CheckpointStore,
     val leases: LeaseStore,
@@ -108,9 +111,64 @@ data class ContextBackends(
         }
     }
 
+    /** These ContextBackends with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        log: EventLog = this.log,
+        checkpoints: CheckpointStore = this.checkpoints,
+        leases: LeaseStore = this.leases,
+        ledger: FailureLedger = this.ledger,
+        snapshots: SnapshotStore? = this.snapshots,
+        reservations: ReservationStore? = this.reservations,
+        timers: TimerStore? = this.timers,
+        store: String = this.store,
+        groups: List<LogGroupBackends> = this.groups,
+        snapshotTargets: SnapshotTargets? = this.snapshotTargets,
+    ): ContextBackends = ContextBackends(
+        log,
+        checkpoints,
+        leases,
+        ledger,
+        snapshots,
+        reservations,
+        timers,
+        store,
+        groups,
+        snapshotTargets,
+    )
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ContextBackends && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "ContextBackends(log=$log, checkpoints=$checkpoints, leases=$leases, ledger=$ledger, snapshots=$snapshots, " +
+            "reservations=$reservations, timers=$timers, store=$store, groups=$groups, " +
+            "snapshotTargets=$snapshotTargets)"
+
+    private fun valueFields(): List<Any?> =
+        listOf(log, checkpoints, leases, ledger, snapshots, reservations, timers, store, groups, snapshotTargets)
+
     companion object {
         /** The name of the store of a context's default log group when the host names none. */
         const val DEFAULT_STORE: String = "default"
+
+        /**
+         * The stores of a context with one log group, on the store [DEFAULT_STORE]: its [log], [checkpoints],
+         * [leases] and failure [ledger], and optionally its [snapshots], [reservations] and [timers].
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            log: EventLog,
+            checkpoints: CheckpointStore,
+            leases: LeaseStore,
+            ledger: FailureLedger,
+            snapshots: SnapshotStore? = null,
+            reservations: ReservationStore? = null,
+            timers: TimerStore? = null,
+        ): ContextBackends = ContextBackends(log, checkpoints, leases, ledger, snapshots, reservations, timers)
     }
 }
 
@@ -118,8 +176,11 @@ data class ContextBackends(
  * One log group of a context other than its default one (decision D177): the aggregate [types] whose log is [log], on
  * the store instance [store]; the checkpoints, parked entries and timers of the subscriptions reading it are in
  * [checkpoints], [ledger] and [timers], on the same store.
+ *
+ * Fields may be added (decision D216): Wow builds the groups from the host's configuration, so the constructor is
+ * internal to Wow.
  */
-data class LogGroupBackends(
+class LogGroupBackends @InternalWowApi constructor(
     val store: String,
     val types: Set<AggregateType>,
     val log: EventLog,
@@ -131,6 +192,28 @@ data class LogGroupBackends(
         require(store.isNotBlank()) { "A log group names its store." }
         require(types.isNotEmpty()) { "A log group holds at least one aggregate type." }
     }
+
+    /** This LogGroupBackends with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        store: String = this.store,
+        types: Set<AggregateType> = this.types,
+        log: EventLog = this.log,
+        checkpoints: CheckpointStore = this.checkpoints,
+        ledger: FailureLedger = this.ledger,
+        timers: TimerStore? = this.timers,
+    ): LogGroupBackends = LogGroupBackends(store, types, log, checkpoints, ledger, timers)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is LogGroupBackends && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "LogGroupBackends(store=$store, types=$types, log=$log, checkpoints=$checkpoints, ledger=$ledger, " +
+            "timers=$timers)"
+
+    private fun valueFields(): List<Any?> = listOf(store, types, log, checkpoints, ledger, timers)
 }
 
 /** Opens the [ContextBackends] of each bounded context the node hosts; the host closes what it opened. */

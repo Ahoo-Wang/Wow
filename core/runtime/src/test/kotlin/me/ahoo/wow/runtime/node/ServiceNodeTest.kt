@@ -235,7 +235,7 @@ class ServiceNodeTest {
             val events = CopyOnWriteArrayList<String>()
             val inMemory = InMemoryBackends()
             val backends = BackendFactory { context ->
-                inMemory.backends(context).let { it.copy(leases = RecordingLeases(it.leases, events)) }
+                inMemory.backends(context).let { it.copyWith(leases = RecordingLeases(it.leases, events)) }
             }
             val entered = CompletableDeferred<Unit>()
             val stuck = SubscriptionFactory { context ->
@@ -512,7 +512,7 @@ class ServiceNodeTest {
             BANK,
             LEDGER,
             backends = { context ->
-                inMemory.backends(context).let { if (context == LEDGER) it.copy(leases = down) else it }
+                inMemory.backends(context).let { if (context == LEDGER) it.copyWith(leases = down) else it }
             },
         )
         assertThrows<IllegalStateException> { runBlocking { node.start() } }

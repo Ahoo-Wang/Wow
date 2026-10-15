@@ -230,7 +230,7 @@ class EshopSyncCallTest {
             internal: Boolean = true,
         ): Answer {
             val id = ExecutionSagaContext.derivedId(execution, 0)
-            val call = CallContext(
+            val call = CallContext.of(
                 commandId = id,
                 tenantId = Caller.DEFAULT_TENANT,
                 scope = scope,

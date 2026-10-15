@@ -1,0 +1,13 @@
+public final class me/ahoo/wow/mongo/query/MongoQueryOptions {
+	public static final field Companion Lme/ahoo/wow/mongo/query/MongoQueryOptions$Companion;
+	public static final field DEFAULT_FETCH_SIZE I
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFetchSize ()I
+	public final fun getIndexDdl ()Lme/ahoo/wow/query/index/QueryIndexDdl;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/mongo/query/MongoQueryOptions$Companion {
+}
+

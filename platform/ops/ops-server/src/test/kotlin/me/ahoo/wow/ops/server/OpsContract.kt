@@ -71,7 +71,7 @@ abstract class OpsContract {
             "reason" to reason,
             "failedAt" to failedAt,
             "retries" to 3,
-            "retrySpec" to LedgerRetrySpec(3, "PT1M", "PT2M"),
+            "retrySpec" to LedgerRetrySpec.of(3, "PT1M", "PT2M"),
             "status" to status,
             "recordedAt" to failedAt + 1,
         ),
@@ -143,7 +143,7 @@ abstract class OpsContract {
 
         // The owning service resumed it and publishes that it is resolved.
         ops.resolve(
-            LedgerResolution(
+            LedgerResolution.of(
                 "$context-service",
                 context,
                 SAGA,

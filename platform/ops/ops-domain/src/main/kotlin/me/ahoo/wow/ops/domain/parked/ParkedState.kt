@@ -69,7 +69,7 @@ class ParkedState {
     var retryAt: Long? = null
         private set
 
-    var retrySpec: LedgerRetrySpec = LedgerRetrySpec(0, "PT0S", "PT0S")
+    var retrySpec: LedgerRetrySpec = LedgerRetrySpec.of(0, "PT0S", "PT0S")
         private set
     var recoverable: String = LedgerEntry.UNKNOWN
         private set
