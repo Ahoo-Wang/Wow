@@ -131,8 +131,54 @@ class LeaseRenewalTest {
 
                 val margin = ClusterOptions().leaseTtl - ClusterOptions().renewInterval
                 rounds.any { it.duration > margin }.assert().isTrue()
-                rounds.sumOf { it.lost }.assert().isEqualTo(store.lost.get())
-                (store.lost.get() > 0).assert().isTrue()
+                // Lost in the store, or taken as lost here first, unrenewed for the margin (finding A1-8).
+                (rounds.sumOf { it.lost } >= store.lost.get()).assert().isTrue()
+                (rounds.sumOf { it.lost } > 0).assert().isTrue()
+            } finally {
+                ownership.stop()
+            }
+        }
+
+    @Test
+    fun `a lease the store cannot renew stops the partition before it may expire, and comes back after`(): Unit =
+        runTest(timeout = 1.minutes) {
+            // Finding A1-8: the lease store is unreachable, so every renewal throws, while the node runs on.
+            val delegate = InMemoryLeaseStore(virtualClock())
+            var down = false
+            val store = object : LeaseStore by delegate {
+                override suspend fun renew(group: String, partition: Int, owner: String, ttl: Duration): Lease? {
+                    check(!down) { "The lease store is unreachable." }
+                    return delegate.renew(group, partition, owner, ttl)
+                }
+
+                override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? {
+                    check(!down) { "The lease store is unreachable." }
+                    return delegate.acquire(group, partition, owner, ttl)
+                }
+            }
+            val rounds = CopyOnWriteArrayList<RenewalRound>()
+            val ownership = ownership(store, rounds)
+            val limit = ClusterOptions().leaseTtl - ClusterOptions().renewInterval
+            try {
+                ownership.start()
+                delay(1.seconds)
+                ownership.owned.size.assert().isEqualTo(PARTITIONS)
+                down = true
+                // Within the margin the partitions still run: a lease renewed a moment ago is live.
+                delay(limit - 2.seconds)
+                ownership.owned.size.assert().isEqualTo(PARTITIONS)
+                ownership.runIfAccepting(0) { "ran" }.assert().isEqualTo("ran")
+                delay(3.seconds)
+                ownership.owned.assert().isEmpty()
+                ownership.accepts(0).assert().isFalse()
+                ownership.runIfAccepting(0) { "ran" }.assert().isNull()
+                rounds.filter { it.failed == PARTITIONS }.assert().isNotEmpty()
+                // Not released: the store still names this node until the leases expire.
+                delegate.owners(GROUP.name).map { it.owner }.toSet().assert().containsExactly(NODE)
+
+                down = false
+                delay(5.seconds)
+                ownership.owned.size.assert().isEqualTo(PARTITIONS)
             } finally {
                 ownership.stop()
             }
