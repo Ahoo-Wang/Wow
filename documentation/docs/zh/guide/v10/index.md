@@ -1,12 +1,12 @@
 ---
-title: V10 快速开始
-description: 从零写一个 Wow V10 服务：从 Gradle 构建到一个能回答第一条命令的运行节点。
+title: 编写 V10 服务
+description: 按三个模块从零写一个 Wow V10 服务：从 Gradle 构建到一个能回答第一条命令的运行节点。
 outline: deep
 ---
 
-# V10 快速开始
+# 编写 V10 服务
 
-本页从一个空的 Gradle 构建开始，写出一个新的 Wow V10 服务，直到节点通过 HTTP 接收第一条命令。V10 指南的其余页面逐步展开每一步：
+本页按真实服务的方式把一个新的 Wow V10 服务分成三个模块，从一个空的 Gradle 构建开始，直到节点通过 HTTP 接收第一条命令。想先在一个模块里试用 V10，请从[快速开始](./quickstart.md)读起。V10 指南的其余页面逐步展开每一步：
 
 | 页面 | 内容 |
 | --- | --- |
@@ -17,8 +17,8 @@ outline: deep
 | [配置项](./configuration.md) | 全部 `wow.*` 配置项及默认值 |
 | [部署](./deployment.md) | PostgreSQL 或 MongoDB、内部端口、Kafka、ClickHouse、个人信息、租户 |
 
-::: warning V10 尚未发布
-V10 在 [`v10` 分支](https://github.com/Ahoo-Wang/Wow/tree/v10) 上开发，没有任何发布，也没有预发布；它的模块尚未发布到任何仓库。下文的坐标（`me.ahoo.wow:wow-*` 与 Gradle 插件 `me.ahoo.wow`）就是 10.0 发布时使用的坐标。在那之前，请按 Wow 仓库内示例的方式在仓库内构建（见[不用插件](#不用插件)）。本 V10 栏目之外的指南描述的是 9.x。
+::: warning V10 处于预发布
+V10 在 [`v10` 分支](https://github.com/Ahoo-Wang/Wow/tree/v10) 上开发。第一个预发布 `10.0.0-alpha.1` 只用于试用与评估：它不做兼容性承诺，9.x 数据的迁移也尚未完成（见[快速开始](./quickstart.md)）。它的模块以 `me.ahoo.wow:wow-*` 发布在 Maven Central，BOM 为 `me.ahoo.wow:wow-bom`，Gradle 插件为 `me.ahoo.wow`。本 V10 栏目之外的指南描述的是 9.x。
 :::
 
 ## 前提
@@ -51,7 +51,7 @@ pluginManagement {
     }
     plugins {
         kotlin("jvm") version "2.4.21"
-        id("me.ahoo.wow") version "<V10 version>"
+        id("me.ahoo.wow") version "10.0.0-alpha.1"
     }
 }
 
@@ -68,7 +68,7 @@ include("catalog-api", "catalog-domain", "catalog-server")
 `gradle.properties` 只写一次 Wow 版本：
 
 ```properties
-wowVersion=<V10 version>
+wowVersion=10.0.0-alpha.1
 ```
 
 `catalog-api/build.gradle.kts`：
@@ -107,8 +107,8 @@ dependencies {
     api(project(":catalog-api"))
     // 生成的模型与绑定索引只依赖内核。
     api("me.ahoo.wow:wow-kernel:$wowVersion")
-    // 聚合测试 DSL 在内核的 test fixtures 里。
-    testImplementation(testFixtures("me.ahoo.wow:wow-kernel:$wowVersion"))
+    // 聚合测试 DSL，包名 me.ahoo.wow.test。
+    testImplementation("me.ahoo.wow:wow-test:$wowVersion")
     testImplementation(platform("org.junit:junit-bom:6.1.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -190,7 +190,7 @@ dependencies {
     api(project(":catalog-api"))
     api(project(":kernel"))
     ksp(project(":compiler"))
-    testImplementation(testFixtures(project(":kernel")))
+    testImplementation(project(":test-dsl"))
 }
 ```
 
@@ -322,7 +322,7 @@ import com.example.catalog.api.ChangePrice
 import com.example.catalog.api.ListProduct
 import com.example.catalog.api.PriceChanged
 import com.example.catalog.api.ProductListed
-import me.ahoo.wow.kernel.test.aggregateSpec
+import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 

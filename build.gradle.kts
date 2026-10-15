@@ -57,7 +57,10 @@ val analyticsServerProject = findProject(":wow-analytics-server")
 val eshopProjects = listOf("catalog", "basket", "ordering", "inventory", "payment").flatMap { context ->
     listOf("api", "domain", "server").map { "eshop-$context-$it" }
 } + "eshop-e2e"
-val v10ExampleProjects = includedProjects(*eshopProjects.map { ":$it" }.toTypedArray())
+// The V10 quickstart (D217): the sample of documentation/docs/{en,zh}/guide/v10/quickstart.md, one module that is its
+// domain and its server, built and tested like the eShop, never published.
+val v10ExampleNames = eshopProjects + "quickstart"
+val v10ExampleProjects = includedProjects(*v10ExampleNames.map { ":$it" }.toTypedArray())
 val exampleProjects =
     exampleLibraries + includedProjects(":example-server", ":example-transfer-server", ":wow-compensation-server") +
         viewStoreServerProject + listOfNotNull(analyticsServerProject) + v10ExampleProjects
@@ -66,7 +69,7 @@ val codeCoverageReportProject = project(":code-coverage-report")
 val benchmarksProject = includedProjects(":wow-benchmarks")
 // The V10 modules (documentation/designs/v10/06-modules.md). Every module builds on JDK 21 (decision D29); these stay
 // incubating until their API settles; :architecture (V10's dependency rules), :kernel-benchmarks (spike H3),
-// :routing-spike (spike H2), :lease-spike (spike H6) and the example (:eshop-*) are never published.
+// :routing-spike (spike H2), :lease-spike (spike H6) and the examples (:eshop-*, :quickstart) are never published.
 val v10Projects = listOf(
     "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query",
     "postgres", "mongo", "kafka", "clickhouse", "openapi", "http", "cosec", "opentelemetry", "spring-boot", "cosid",
@@ -75,7 +78,7 @@ val v10Projects = listOf(
     "view-store-api", "view-store-domain", "view-store-server",
     "kernel-benchmarks", "compiler", "gradle-plugin", "manifest-tools",
     "routing-spike", "lease-spike",
-).plus(eshopProjects).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
+).plus(v10ExampleNames).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
 
 // The V10 modules a 10.x release publishes (06-modules.md §6; R.1 turns their publication on). Their ABI is kept in
 // `api/<module>.api` like a 9.x module's (D88, D147, D216; see `abiValidation` below). :migrate-data (a CLI

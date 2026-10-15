@@ -1,12 +1,12 @@
 ---
-title: V10 Quick Start
-description: Write a new Wow V10 service from zero, from the Gradle build to a running node that answers its first command.
+title: Write a V10 Service
+description: Write a new Wow V10 service in its three modules, from the Gradle build to a running node that answers its first command.
 outline: deep
 ---
 
-# V10 Quick Start
+# Write a V10 Service
 
-This page walks through a new Wow V10 service, from an empty Gradle build to a node that takes its first command over HTTP. The rest of the V10 guide goes deeper into each step:
+This page walks through a new Wow V10 service laid out as a real one is, in three modules, from an empty Gradle build to a node that takes its first command over HTTP. To try V10 in one module first, start with the [Quick Start](./quickstart.md). The rest of the V10 guide goes deeper into each step:
 
 | Page | Covers |
 | --- | --- |
@@ -17,8 +17,8 @@ This page walks through a new Wow V10 service, from an empty Gradle build to a n
 | [Configuration Keys](./configuration.md) | Every `wow.*` key with its default |
 | [Deployment](./deployment.md) | PostgreSQL or MongoDB, the internal port, Kafka, ClickHouse, personal data, tenants |
 
-::: warning V10 is not released yet
-V10 is developed on the [`v10` branch](https://github.com/Ahoo-Wang/Wow/tree/v10) and has no release, not even a pre-release. Its modules are not published to any repository yet. The coordinates below (`me.ahoo.wow:wow-*` and the Gradle plugin `me.ahoo.wow`) are the ones the 10.0 release uses. Until then, build inside the Wow repository the way its examples do ([Without the plugin](#without-the-plugin)). The rest of this guide (outside this V10 section) describes 9.x.
+::: warning V10 is a pre-release
+V10 is developed on the [`v10` branch](https://github.com/Ahoo-Wang/Wow/tree/v10). Its first pre-release, `10.0.0-alpha.1`, is for evaluation only: it carries no compatibility promise, and migrating 9.x data is unfinished (see the [Quick Start](./quickstart.md)). Its modules are on Maven Central as `me.ahoo.wow:wow-*`, with the BOM `me.ahoo.wow:wow-bom` and the Gradle plugin `me.ahoo.wow`. The rest of this guide (outside this V10 section) describes 9.x.
 :::
 
 ## What you need
@@ -51,7 +51,7 @@ pluginManagement {
     }
     plugins {
         kotlin("jvm") version "2.4.21"
-        id("me.ahoo.wow") version "<V10 version>"
+        id("me.ahoo.wow") version "10.0.0-alpha.1"
     }
 }
 
@@ -68,7 +68,7 @@ include("catalog-api", "catalog-domain", "catalog-server")
 `gradle.properties` names the Wow version once:
 
 ```properties
-wowVersion=<V10 version>
+wowVersion=10.0.0-alpha.1
 ```
 
 `catalog-api/build.gradle.kts`:
@@ -107,8 +107,8 @@ dependencies {
     api(project(":catalog-api"))
     // The generated models and the binding index build on the kernel only.
     api("me.ahoo.wow:wow-kernel:$wowVersion")
-    // The aggregate test DSL lives in the kernel's test fixtures.
-    testImplementation(testFixtures("me.ahoo.wow:wow-kernel:$wowVersion"))
+    // The aggregate test DSL, package me.ahoo.wow.test.
+    testImplementation("me.ahoo.wow:wow-test:$wowVersion")
     testImplementation(platform("org.junit:junit-bom:6.1.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
@@ -190,7 +190,7 @@ dependencies {
     api(project(":catalog-api"))
     api(project(":kernel"))
     ksp(project(":compiler"))
-    testImplementation(testFixtures(project(":kernel")))
+    testImplementation(project(":test-dsl"))
 }
 ```
 
@@ -322,7 +322,7 @@ import com.example.catalog.api.ChangePrice
 import com.example.catalog.api.ListProduct
 import com.example.catalog.api.PriceChanged
 import com.example.catalog.api.ProductListed
-import me.ahoo.wow.kernel.test.aggregateSpec
+import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 

@@ -1,6 +1,6 @@
 ---
 title: 测试 V10 服务
-description: Wow V10 内核 test fixtures 中的 aggregateSpec、sagaSpec、projectionSpec 与 reactorSpec 测试 DSL、绑定索引测试与服务端测试。
+description: Wow V10 的 wow-test 中的 aggregateSpec、sagaSpec、projectionSpec 与 reactorSpec 测试 DSL、绑定索引测试与服务端测试。
 outline: deep
 ---
 
@@ -8,16 +8,16 @@ outline: deep
 
 ## 测试 DSL 在哪里
 
-测试 DSL 随**内核的 test fixtures** 发布，包名为 `me.ahoo.wow.kernel.test`：
+测试 DSL 随 V10 模块 **`wow-test`** 发布，包名为 `me.ahoo.wow.test`：
 
 ```kotlin
 dependencies {
-    testImplementation(testFixtures("me.ahoo.wow:wow-kernel:$wowVersion"))
-    // 在 Wow 仓库内：testImplementation(testFixtures(project(":kernel")))
+    testImplementation("me.ahoo.wow:wow-test:$wowVersion")
+    // 在 Wow 仓库内：testImplementation(project(":test-dsl"))
 }
 ```
 
-它不是 9.x 的 `wow-test` 模块，API 也不是 9.x 那种要继承的 `AggregateSpec<A, S>` 类：它是一组由 JUnit 测试调用的函数，聚合用 `aggregateSpec`，处理器用 `sagaSpec`、`projectionSpec` 与 `reactorSpec`。
+它沿用 9.x `wow-test` 模块的构件名，但不沿用它的 API：它不是 9.x 那种要继承的 `AggregateSpec<A, S>` 类，它是一组由 JUnit 测试调用的函数，聚合用 `aggregateSpec`，处理器用 `sagaSpec`、`projectionSpec` 与 `reactorSpec`。
 
 ## `aggregateSpec`
 
@@ -244,7 +244,7 @@ val context = SpringApplicationBuilder(CatalogServer::class.java, TestCallers::c
 ```
 
 - 给测试一个读取测试请求头的 `CallerResolver` Bean，让每个请求都有所有者（示例的 `HeaderCallers` 读取 `X-User`）。
-- 内存后端上没有查询后端提供快照查询，它们的路由返回 404。要查询快照的测试，把内存参考后端放到类路径上：`testImplementation(testFixtures("me.ahoo.wow:wow-query:$wowVersion"))`。
+- 内存后端上，除非 `wow.query.memory.enabled` 为 `true`，没有查询后端提供快照查询，它们的路由返回 404。
 - Saga 向其他上下文发送命令的服务，没有命令传输就无法启动：给测试提供容器中的 Kafka，或内存主题（见[向其他上下文发送命令](./programming-model.md#向其他上下文发送命令)）。
 - 调低 `wow.cluster.drain-timeout`、`wow.subscription.stop-timeout` 与 `wow.wait.max-timeout`，让上下文更快关闭。
 - 针对 PostgreSQL、MongoDB、Kafka 或 ClickHouse 的测试在容器中运行（Testcontainers），放在模块的 `integrationTest` 源集里。

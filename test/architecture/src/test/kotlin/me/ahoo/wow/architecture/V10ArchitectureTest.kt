@@ -371,7 +371,7 @@ class V10ArchitectureTest {
         listOf("eshop-catalog-api", "eshop-catalog-domain", "eshop-payment-api", "eshop-payment-domain").forEach {
             V10Rules.isExampleDomain(it).assert().describedAs(it).isTrue()
         }
-        listOf("eshop-catalog-server", "eshop-payment-server", "eshop-e2e").forEach {
+        listOf("eshop-catalog-server", "eshop-payment-server", "eshop-e2e", "quickstart").forEach {
             V10Rules.isExample(it).assert().describedAs(it).isTrue()
             V10Rules.isExampleDomain(it).assert().describedAs(it).isFalse()
         }

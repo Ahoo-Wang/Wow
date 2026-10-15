@@ -246,4 +246,7 @@ include(":eshop-payment-server")
 project(":eshop-payment-server").projectDir = file("example/eshop/payment/payment-server")
 include(":eshop-e2e")
 project(":eshop-e2e").projectDir = file("example/eshop/e2e")
+// The V10 quickstart (decision D217): the sample the quickstart page shows, one module, its domain and its server.
+include(":quickstart")
+project(":quickstart").projectDir = file("example/quickstart")
 //endregion

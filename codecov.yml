@@ -44,6 +44,7 @@ flag_management:
         - migration/**
         - platform/**
         - example/eshop/**
+        - example/quickstart/**
         - test/architecture/**
         - test/kernel-benchmarks/**
         - test/routing-spike/**
