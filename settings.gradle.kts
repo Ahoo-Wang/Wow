@@ -192,6 +192,9 @@ project(":spring-boot").projectDir = file("host/spring-boot")
 // Optional extensions an application adds beside the host (decision D171: CosId's id generators).
 include(":cosid")
 project(":cosid").projectDir = file("extensions/cosid")
+// 9.x wow-models' capabilities and reusable Tree aggregate, ported (decision D187, P.8); artifact wow-models, beside 9.x's.
+include(":models")
+project(":models").projectDir = file("extensions/models")
 include(":migrate-data")
 project(":migrate-data").projectDir = file("migration/migrate-data")
 include(":architecture")

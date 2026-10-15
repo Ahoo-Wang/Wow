@@ -372,6 +372,12 @@ component_management:
         - extensions/cosid/src/main/**
       flag_regexes:
         - "^v10$"
+    - component_id: v10-models
+      name: v10-models
+      paths:
+        - extensions/models/src/main/**
+      flag_regexes:
+        - "^v10$"
     - component_id: v10-migrate-data
       name: v10-migrate-data
       paths:
