@@ -184,6 +184,9 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/Summary : 
 	public abstract fun value ()Ljava/lang/String;
 }
 
+public abstract interface annotation class me/ahoo/wow/api/annotation/Tags : java/lang/annotation/Annotation {
+}
+
 public abstract interface annotation class me/ahoo/wow/api/annotation/Unaddressed : java/lang/annotation/Annotation {
 }
 

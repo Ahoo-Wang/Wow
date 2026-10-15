@@ -56,6 +56,7 @@ public final class me/ahoo/wow/kernel/AggregateModelBuilder {
 	public final fun ownership (Lme/ahoo/wow/api/aggregate/Ownership;)V
 	public final fun retired ([Ljava/lang/String;)V
 	public final fun stateRevision (I)V
+	public final fun tags (Lkotlin/jvm/functions/Function1;)V
 }
 
 public final class me/ahoo/wow/kernel/AggregateModelDslKt {
