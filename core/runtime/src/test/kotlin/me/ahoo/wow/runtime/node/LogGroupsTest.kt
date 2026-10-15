@@ -227,7 +227,8 @@ class LogGroupsTest {
     fun `a group that holds a type of no model of its context is refused`() {
         val wrong = object : BackendFactory {
             override fun backends(context: String): ContextBackends = stores.backends(context).let {
-                it.copyWith(groups = listOf(it.groups.single().copyWith(types = setOf(AggregateType(CONTEXT, "ghost")))))
+                val ghost = it.groups.single().copyWith(types = setOf(AggregateType(CONTEXT, "ghost")))
+                it.copyWith(groups = listOf(ghost))
             }
         }
         assertThrows<IllegalArgumentException> { node("node-1", wrong) }.message.assert().contains("ghost")
@@ -238,8 +239,10 @@ class LogGroupsTest {
         val base = stores.backends(CONTEXT)
         val group = base.groups.single()
         assertThrows<IllegalArgumentException> { base.copyWith(groups = listOf(group, group.copyWith(store = "c"))) }
-        assertThrows<IllegalArgumentException> { base.copyWith(groups = listOf(group.copyWith(store = DEFAULT_STORE))) }
-        assertThrows<IllegalArgumentException> { base.copyWith(groups = listOf(group.copyWith(log = InMemoryEventLog(2)))) }
+        val onDefaultStore = group.copyWith(store = DEFAULT_STORE)
+        assertThrows<IllegalArgumentException> { base.copyWith(groups = listOf(onDefaultStore)) }
+        val otherPartitions = group.copyWith(log = InMemoryEventLog(2))
+        assertThrows<IllegalArgumentException> { base.copyWith(groups = listOf(otherPartitions)) }
         assertThrows<IllegalArgumentException> { base.copyWith(groups = listOf(group.copyWith(timers = null))) }
         assertThrows<IllegalArgumentException> { group.copyWith(types = emptySet()) }
         assertThrows<IllegalArgumentException> { group.copyWith(store = " ") }
