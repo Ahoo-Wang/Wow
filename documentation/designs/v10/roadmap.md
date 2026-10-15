@@ -233,7 +233,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | P.4 | V10 的 K8s 部署清单：内部端口、PostgreSQL、Kafka | S | M7 前 | 清单可在本地集群起 eShop 一个服务 |
 | P.5 | 测试 DSL：`SagaSpec`、投影与反应器测试、`fork`/`ref` 分叉、`givenState`、按类型 `expectError` | M | M7 前 | eShop 与 shop 的 Saga 测试改用它 |
 | P.6 | 升级时丢弃过时事件（9.x `DroppedEvent`）：`@AggregateRoot(retiredEvents)` 声明退役的事件名，读取时跳过（D219）；导入时丢弃已由 8b.1 的 `drop` 映射完成 | S | M8 前 | 含已退役事件类型的历史可导入、可加载，订阅越过不停放 |
-| P.7 | 从状态提取 ABAC 标签（9.x `StateAggregateTagsExtractor`） | S～M | M8 前 | 标签随状态变化的查询策略测试 |
+| P.7 | 从状态提取 ABAC 标签（9.x `StateAggregateTagsExtractor`）：状态上的 `@Tags` 成员，推导出的键按键覆盖应用的标签（D220） | S～M | M8 前 | 标签随状态变化的查询策略测试 |
 | P.8 | `wow-models` 迁到 V10（`EnumText`、`StatusCapable`、`Tree` 聚合） | M | M8 前 | 各自的 V10 测试 |
 | P.9 | 测试模块与门禁（D196，原「`TestValidator`、Testcontainers 夹具、发布 `wow-tck`」，提前）：`:test`（测试 DSL，从 `:kernel` 测试夹具移出）、`:tck`（SPI 规格从 `:spi` 测试夹具移出，加 `TestValidator`、Testcontainers 夹具）；各模块改依赖它们；CI 门禁写明 | M | M7 前（核心阶段） | 各后端经 `:tck` 跑全部规格；eShop 与 shop 的测试只依赖 `:test`；发布在 M8 |
 | P.10 | 聚合归属与作用域继承（D189）：`Ownership` 声明、Manifest、查询准入；派生、补偿、定时命令继承根命令作用域；指南写两级调用方与 CoSec 解析；等待链放宽（D190）；创建类命令不带 ID 时由目标生成器分配、准入先按请求 ID 查（D191，含 Saga 派生的创建命令）；编译器支持 `@Retry`（P.3 的后续） | M | M7 前 | catalog 接上带所有者的解析器后买家能读商品、员工能改；结账产生的订单属于买家（去掉 `buyerId` 绕行）；eShop 结账等待不再需要多余 peer 与跳数配置 |
