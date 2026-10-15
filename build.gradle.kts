@@ -75,7 +75,7 @@ val benchmarksProject = includedProjects(":wow-benchmarks")
 val v10Projects = listOf(
     "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query",
     "postgres", "mongo", "kafka", "clickhouse", "openapi", "http", "cosec", "opentelemetry", "spring-boot", "cosid",
-    "migrate-data", "architecture",
+    "models", "migrate-data", "architecture",
     "test-dsl", "tck", "tck-containers", "ops-api", "ops-domain", "ops-server",
     "view-store-api", "view-store-domain", "view-store-server",
     "kernel-benchmarks", "compiler", "gradle-plugin", "manifest-tools",
@@ -89,7 +89,7 @@ val v10Projects = listOf(
 val v10PublishedProjects = includedProjects(
     ":api", ":manifest", ":query-api", ":spi", ":kernel", ":runtime", ":reactor", ":query",
     ":postgres", ":mongo", ":kafka", ":clickhouse", ":openapi", ":http", ":cosec", ":opentelemetry", ":spring-boot",
-    ":cosid", ":test-dsl", ":tck", ":tck-containers", ":ops-api", ":view-store-api",
+    ":cosid", ":models", ":test-dsl", ":tck", ":tck-containers", ":ops-api", ":view-store-api",
     ":compiler", ":gradle-plugin",
 )
 // What a 10.x release publishes to Maven (R.1, D205): the published modules above, :migrate-data and :manifest-tools
