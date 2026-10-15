@@ -52,7 +52,14 @@ internal class MongoStore(
         MongoReservationStore(client, database).also { schema(it::createSchema) }
 
     override fun openLog(context: String, partitions: Int): EventLog =
-        MongoEventLog(client, database, context, partitions).also { schema(it::createSchema) }
+        MongoEventLog(
+            client,
+            database,
+            context,
+            partitions,
+            pollInterval = tailPolling.interval,
+            maxPollInterval = tailPolling.maxInterval,
+        ).also { schema(it::createSchema) }
 
     override fun openSnapshots(context: String): SnapshotStore =
         MongoSnapshotStore(client, database, context).also { schema(it::createSchema) }

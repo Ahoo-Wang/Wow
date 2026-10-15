@@ -34,7 +34,6 @@ import com.mongodb.client.model.Sorts
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -49,6 +48,7 @@ import me.ahoo.wow.mongo.MongoFailures
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoOperators
+import me.ahoo.wow.mongo.TailPacer
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
@@ -68,6 +68,7 @@ import org.bson.conversions.Bson
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The [EventLog] of one bounded context on MongoDB, a first-class log backend (decision D11;
@@ -113,6 +114,11 @@ import kotlin.time.Duration.Companion.milliseconds
  * decimals are `Decimal128`, exact ([ExactBson]); an append whose payload holds a number MongoDB cannot store exactly
  * is refused with an [IllegalArgumentException].
  *
+ * **Polling** (finding A2-14). A tail polls every `pollInterval` (50 ms by default) while it finds entries; each poll
+ * that finds none doubles the wait, up to `maxPollInterval` (1 s). A commit this log makes wakes the partition's
+ * tails at once; an entry another node appends is read within `maxPollInterval`. A change stream could wake the tails
+ * of every node; it is not used, the backoff keeping an idle cluster cheap without a cursor per partition and node.
+ *
  * Calls run on [dispatcher], virtual threads by default.
  */
 @InternalWowApi
@@ -122,9 +128,12 @@ class MongoEventLog(
     private val context: String,
     override val partitions: Int,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
-    private val pollInterval: Duration = DEFAULT_POLL_INTERVAL,
+    pollInterval: Duration = DEFAULT_POLL_INTERVAL,
     private val tailBatch: Int = DEFAULT_TAIL_BATCH,
+    maxPollInterval: Duration = DEFAULT_MAX_POLL_INTERVAL,
 ) : EventLog {
+    private val pacer = TailPacer(partitions, pollInterval, maxPollInterval)
+
     private val database = client.getDatabase(databaseName)
     private val countersName = MongoNames.of(PREFIX, context, PARTITION_COUNTERS)
     private val counters: MongoCollection<Document> = database.getCollection(countersName)
@@ -246,7 +255,9 @@ class MongoEventLog(
             .also { registered = it }
 
     override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
-        dispatcher.mongo { appendNow(stream, transport) }
+        dispatcher.mongo { appendNow(stream, transport) }.also { outcome ->
+            if (outcome is AppendOutcome.Committed) pacer.committed(outcome.position.partition)
+        }
 
     private fun appendNow(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
         require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
@@ -353,6 +364,8 @@ class MongoEventLog(
             streams.indices.map { index ->
                 outcomes[index] ?: AppendOutcome.Rejected(checkNotNull(encoded[index].exceptionOrNull()))
             }
+        }.also { outcomes ->
+            if (outcomes.any { it is AppendOutcome.Committed }) pacer.committed(partition)
         }
     }
 
@@ -503,14 +516,16 @@ class MongoEventLog(
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> = flow {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         var last = after ?: 0L
+        var idle = pacer.interval
         while (true) {
+            val mark = pacer.mark(partition)
             val batch = dispatcher.mongo { readTail(partition, last) }
             batch.entries.forEach {
                 emit(it)
                 last = it.position.sequence
             }
             if (!batch.again) {
-                delay(pollInterval)
+                idle = pacer.await(partition, mark, batch.entries.isNotEmpty(), idle)
             }
         }
     }
@@ -695,6 +710,7 @@ class MongoEventLog(
 
     private companion object {
         val DEFAULT_POLL_INTERVAL = 50.milliseconds
+        val DEFAULT_MAX_POLL_INTERVAL = 1.seconds
         const val DEFAULT_TAIL_BATCH = 500
 
         /** The registry of aggregate collections, shared by the logs of every context. */

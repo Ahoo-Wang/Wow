@@ -14,7 +14,6 @@
 package me.ahoo.wow.postgres
 
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -51,6 +50,7 @@ import java.util.concurrent.ConcurrentHashMap
 import javax.sql.DataSource
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The [EventLog] of one bounded context on PostgreSQL (documentation/designs/v10/03-log-and-snapshot.md §2).
@@ -81,6 +81,13 @@ import kotlin.time.Duration.Companion.milliseconds
  * [findByRequestId] taking the aggregate type, reads that type's table alone; the context-wide one searches every
  * aggregate table this log knows.
  *
+ * **Polling** (finding A2-14). A tail polls every `pollInterval` (50 ms by default) while it finds entries; each poll
+ * that finds none doubles the wait, up to `maxPollInterval` (1 s), so an idle cluster's partitions cost a statement a
+ * second each rather than twenty. A commit this log makes wakes the partition's tails at once; an entry another node
+ * appends is read within `maxPollInterval`. `LISTEN/NOTIFY` (design 03 §2) would wake the tails of every node; it is
+ * not implemented: the bounded backoff and the wake on this log's commits keep an idle cluster cheap without a
+ * listening connection per node.
+ *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29).
  */
 @InternalWowApi
@@ -89,10 +96,13 @@ class PostgresEventLog(
     private val context: String,
     override val partitions: Int,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
-    private val pollInterval: Duration = DEFAULT_POLL_INTERVAL,
+    pollInterval: Duration = DEFAULT_POLL_INTERVAL,
     private val tailBatch: Int = DEFAULT_TAIL_BATCH,
+    maxPollInterval: Duration = DEFAULT_MAX_POLL_INTERVAL,
 ) : EventLog {
     private val tables = PostgresEventLogTables(context)
+
+    private val pacer = TailPacer(partitions, pollInterval, maxPollInterval)
 
     /** The aggregate tables whose creation and registration this log has made sure of. */
     private val ensured = ConcurrentHashMap<String, AggregateLogTable>()
@@ -205,7 +215,7 @@ class PostgresEventLog(
                 }
             } catch (failure: SQLException) {
                 outcomeOf(failure)
-            }
+            }.also { if (it is AppendOutcome.Committed) pacer.committed(partition) }
         }
 
     private fun appendIn(
@@ -351,14 +361,16 @@ class PostgresEventLog(
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> = flow {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         var last = after ?: 0L
+        var idle = pacer.interval
         while (true) {
+            val mark = pacer.mark(partition)
             val batch = dispatcher.jdbc { dataSource.connection.use { readTail(it, partition, last) } }
             batch.entries.forEach {
                 emit(it)
                 last = it.position.sequence
             }
             if (!batch.again) {
-                delay(pollInterval)
+                idle = pacer.await(partition, mark, batch.entries.isNotEmpty(), idle)
             }
         }
     }
@@ -484,6 +496,7 @@ class PostgresEventLog(
 
     private companion object {
         val DEFAULT_POLL_INTERVAL = 50.milliseconds
+        val DEFAULT_MAX_POLL_INTERVAL = 1.seconds
         const val DEFAULT_TAIL_BATCH = 500
 
         /** The entries of [entries], in sequence order, that continue `last` without a gap. */
