@@ -523,6 +523,34 @@ class CommandGatewayTest {
     }
 
     @Test
+    fun `closing waits for a detached command whose admission was under way`(): Unit = runBlocking {
+        // Finding A1-9: the request passed the closed check before close() and launches only after it began.
+        val authorizing = CompletableDeferred<Unit>()
+        val authorized = CompletableDeferred<Unit>()
+        val gateway = gateway(authorizer = { _, _ ->
+            authorizing.complete(Unit)
+            authorized.await()
+            Authorization.Allowed
+        })
+        val decide = CompletableDeferred<Unit>().also { hold = it }
+        val sending = async(Dispatchers.Default) { gateway.execute(request(wait = WaitPlan.ACCEPTED)) }
+        authorizing.await()
+        val closing = async(Dispatchers.Default) { gateway.close() }
+        delay(50)
+        closing.isCompleted.assert().isFalse()
+        authorized.complete(Unit)
+        val accepted = withTimeout(5.seconds) { sending.await() }
+        accepted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        eventually { decided.contains(accepted.commandId) }
+        delay(50)
+        closing.isCompleted.assert().isFalse()
+        decide.complete(Unit)
+        withTimeout(5.seconds) { closing.await() }
+        hold = null
+        gateway().execute(request()).version.assert().isEqualTo(2)
+    }
+
+    @Test
     fun `a plan the runtime cannot follow is still rejected`(): Unit = runBlocking {
         val gateway = gateway()
         val result = gateway.execute(request(wait = WaitPlan.of(Hop.accepted(), Hop.accepted())))

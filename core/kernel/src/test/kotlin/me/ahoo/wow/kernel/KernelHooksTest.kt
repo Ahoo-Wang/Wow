@@ -56,10 +56,12 @@ class KernelHooksTest {
         }
         decide<Refuse> { _, command ->
             onAppendFailure { trail += "undo ${command.reason}" }
+            onAppendFailure { check(command.reason != "fragile") { "undo failed" } }
             Decision.reject("refused", command.reason)
         }
         decide<Boom> { _, command ->
             onAppendFailure { trail += "undo ${command.reason}" }
+            onAppendFailure { check(command.reason != "fragile") { "undo failed" } }
             error("boom")
         }
         after(exclude = setOf(Open::class.java)) { _, command -> listOf(Audited(command.javaClass.simpleName)) }
@@ -126,6 +128,17 @@ class KernelHooksTest {
         runCatching { Kernel(log).execute(model, command(Boom("b"))) }.exceptionOrNull()
             .assert().isInstanceOf(IllegalStateException::class.java)
         trail.assert().containsExactly("undo b")
+    }
+
+    @Test
+    fun `a failing compensation does not stop the others, and joins the failure it undoes`() = runTest {
+        val log = opened()
+        Kernel(log).execute(model, command(Refuse("fragile")))
+            .assert().isInstanceOf(CommandOutcome.Rejected::class.java)
+        val failure = runCatching { Kernel(log).execute(model, command(Boom("fragile"))) }.exceptionOrNull()
+        failure?.message.assert().isEqualTo("boom")
+        failure?.suppressed?.single()?.message.assert().isEqualTo("undo failed")
+        trail.assert().containsExactly("undo fragile", "undo fragile")
     }
 
     @Test

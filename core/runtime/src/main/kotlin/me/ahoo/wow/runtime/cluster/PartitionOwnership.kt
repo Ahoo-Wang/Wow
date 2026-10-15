@@ -62,9 +62,9 @@ data class RouteTable(val owners: Map<Int, Member> = emptyMap(), val members: Li
 }
 
 /**
- * One renewal round of [node] in [group]: the [leases] it renewed, of which [lost] were found already expired or
- * taken and [failed] threw, and how long the round took. A round longer than `leaseTtl − renewInterval` lets the
- * node's own leases expire between renewals (spike H6).
+ * One renewal round of [node] in [group]: the [leases] it held, of which [lost] were found already expired or
+ * taken, or went unrenewed for `leaseTtl − renewInterval` (finding A1-8), and [failed] threw, and how long the round
+ * took. A round longer than `leaseTtl − renewInterval` lets the node's own leases expire between renewals (spike H6).
  */
 @InternalWowApi
 data class RenewalRound(
@@ -93,7 +93,8 @@ data class RenewalRound(
  *   held leases of a round concurrently, at most [ClusterOptions.leaseParallelism] at a time, so a round does not
  *   grow with the number held times the store's latency (spike H6). Renewing starts before the first acquisition.
  *   Each round is reported to [renewalRounds] and logged, as a warning when it took more than half the margin
- *   `leaseTtl − renewInterval`. A lease lost to expiry stops the partition here.
+ *   `leaseTtl − renewInterval`. A lease lost to expiry stops the partition here, and so does one left unrenewed for
+ *   `leaseTtl − renewInterval` (the store unreachable, say), without a release; the next reconcile acquires it anew.
  * - **Hand-off** of a partition goes in this order: stop accepting new commands for it, stop its command intake
  *   (decision D137), which settles the commands it took and saves its checkpoint, wait for its other commands in
  *   flight for at most [ClusterOptions.drainTimeout], stop its subscriptions, which saves their checkpoints
@@ -186,6 +187,9 @@ class PartitionOwnership internal constructor(
     private val acquisitions = Semaphore(options.leaseParallelism)
     private val reconcileLock = Mutex()
     private val gates = ConcurrentHashMap<Int, Gate>()
+
+    /** How long a lease may go unrenewed before this node takes it as lost: the margin before the next round. */
+    private val unrenewedLimit: Duration = options.leaseTtl - options.renewInterval
     private val wakeReconcile = Channel<Unit>(Channel.CONFLATED)
     private val wakeRefresh = Channel<Unit>(Channel.CONFLATED)
 
@@ -222,7 +226,7 @@ class PartitionOwnership internal constructor(
         private set
 
     /** The partitions this node holds and accepts commands for. */
-    val owned: Set<Int> get() = gates.filterValues { it.accepting }.keys.toSortedSet()
+    val owned: Set<Int> get() = gates.filterValues { it.open }.keys.toSortedSet()
 
     /** Whether the node takes part in the group. */
     val isRunning: Boolean get() = running != null
@@ -311,18 +315,18 @@ class PartitionOwnership internal constructor(
      * running here.
      */
     suspend fun <T : Any> runIfAccepting(partition: Int, command: suspend () -> T): T? {
-        val gate = gates[partition]?.takeIf { it.accepting } ?: return null
+        val gate = gates[partition]?.takeIf { it.open } ?: return null
         gate.inFlight.update { it + 1 }
         try {
             // A hand-off may have stopped accepting meanwhile and seen nothing in flight: back out.
-            return if (gate.accepting) command() else null
+            return if (gate.open) command() else null
         } finally {
             gate.inFlight.update { it - 1 }
         }
     }
 
     /** Whether this node holds [partition] and accepts commands for it. */
-    fun accepts(partition: Int): Boolean = gates[partition]?.accepting == true
+    fun accepts(partition: Int): Boolean = gates[partition]?.open == true
 
     /** Whether this node is about to own [partition]: it is in its target, but not acquired yet. */
     fun pending(partition: Int): Boolean = partition in target && !gates.containsKey(partition)
@@ -415,8 +419,9 @@ class PartitionOwnership internal constructor(
 
     /** Not cancellable: a lease acquired is either tracked by a gate or released. */
     private suspend fun acquire(partition: Int) = withContext(NonCancellable) {
+        val asked = timeSource.markNow()
         leases.acquire(group.name, partition, node, options.leaseTtl) ?: return@withContext
-        val gate = Gate()
+        val gate = Gate(asked)
         try {
             runtimes.forEach { it.startPartition(partition) }
             intake?.startPartition(partition)
@@ -459,8 +464,10 @@ class PartitionOwnership internal constructor(
      */
     private suspend fun renew() {
         val started = timeSource.markNow()
+        // A lease left unrenewed too long is taken as lost here, not renewed (finding A1-8).
+        val overdue = loseOverdue()
         val held = gates.entries.filter { !it.value.lost }.map { it.key to it.value }
-        val lost = AtomicInteger()
+        val lost = AtomicInteger(overdue)
         val failed = AtomicInteger()
         coroutineScope {
             held.forEach { (partition, gate) ->
@@ -475,21 +482,23 @@ class PartitionOwnership internal constructor(
                 }
             }
         }
-        val round = RenewalRound(group, node, held.size, lost.get(), failed.get(), started.elapsedNow())
+        val round = RenewalRound(group, node, held.size + overdue, lost.get(), failed.get(), started.elapsedNow())
         report(round)
     }
 
     @Suppress("TooGenericExceptionCaught") // A failed renewal is retried on the next round.
     private suspend fun renewOne(partition: Int, gate: Gate): Renewal {
+        val asked = timeSource.markNow()
         val renewed = try {
             leases.renew(group.name, partition, node, options.leaseTtl)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
             logger.warn(failure) { "$node failed to renew partition $partition of $group; retrying on the next round." }
-            return Renewal.FAILED
+            return if (loseIfOverdue(partition, gate)) Renewal.LOST else Renewal.FAILED
         }
         if (renewed != null) {
+            gate.renewedAt = asked
             return Renewal.RENEWED
         }
         if (gates[partition] !== gate) {
@@ -522,8 +531,32 @@ class PartitionOwnership internal constructor(
         }
     }
 
+    /**
+     * Takes the leases left unrenewed for `leaseTtl − renewInterval` as lost here (finding A1-8, design 02 §3): the
+     * store may be unreachable while the log is not, and the lease may expire before the next round renews it. The
+     * partition stops as if its lease were lost, without a release the store would not take either; once renewals
+     * work again, the next reconcile acquires it anew.
+     */
+    private fun loseOverdue(): Int = gates.count { (partition, gate) -> loseIfOverdue(partition, gate) }
+
+    /** Takes [gate]'s lease as lost when it is overdue (see [loseOverdue]); whether it did now. */
+    private fun loseIfOverdue(partition: Int, gate: Gate): Boolean {
+        if (gate.lost || !gate.accepting || !gate.overdue) {
+            return false
+        }
+        logger.error {
+            "$node has not renewed the lease of partition $partition of $group for $unrenewedLimit; it stops the " +
+                "partition before the lease may expire."
+        }
+        gate.lost = true
+        gate.accepting = false
+        wakeReconcile.trySend(Unit)
+        return true
+    }
+
     /** Stops the partitions whose lease expired before it was renewed; another node may own them now. */
     private suspend fun dropLost() {
+        loseOverdue()
         gates.filterValues { it.lost }.forEach { (partition, gate) ->
             stopTimers(partition)
             quietly("stop the command intake of partition $partition") { intake?.stopPartition(partition) }
@@ -558,14 +591,25 @@ class PartitionOwnership internal constructor(
         }
     }
 
-    /** A partition this node holds: whether it takes commands, and the commands in flight. */
-    private class Gate {
+    /**
+     * A partition this node holds: whether it takes commands, and the commands in flight. [renewedAt] marks when the
+     * lease was last acquired or renewed, taken before the call: once longer ago than `leaseTtl − renewInterval`, the
+     * lease is [overdue] and the gate no longer [open], since the lease may expire before the next round renews it.
+     */
+    private inner class Gate(
+        @Volatile var renewedAt: TimeMark,
+    ) {
         @Volatile
         var accepting = true
 
         @Volatile
         var lost = false
         val inFlight = MutableStateFlow(0)
+
+        val overdue: Boolean get() = renewedAt.elapsedNow() >= unrenewedLimit
+
+        /** Whether the partition takes commands here: accepting, and its lease renewed recently enough. */
+        val open: Boolean get() = accepting && !overdue
     }
 
     private enum class Renewal { RENEWED, LOST, FAILED }

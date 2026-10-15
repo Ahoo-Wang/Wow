@@ -16,7 +16,9 @@ package me.ahoo.wow.kernel
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
@@ -172,7 +174,19 @@ class Kernel(
         require(admitted.ref.type == model.type) { "${admitted.ref} is not a ${model.type}." }
         require(admitted.ref.isAssigned) { "${admitted.ref} names no aggregate: admission assigns its id (D191)." }
         val executing = observer.executing(admitted)
-        return executing.observe { executeAdmitted(model, admitted, wait).also { executing.outcome(it.observedName) } }
+        var committed: CommandOutcome.Committed? = null
+        return try {
+            executing.observe {
+                executeAdmitted(model, admitted, wait).also {
+                    committed = it as? CommandOutcome.Committed
+                    executing.outcome(it.observedName)
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            // An observation's context returns through a cancellable switch (finding A1-11): a commit that switch
+            // dropped for a caller cancelled meanwhile is still answered, so its state view is recorded.
+            committed ?: throw cancelled
+        }
     }
 
     private suspend fun <S : Any> executeAdmitted(
@@ -276,6 +290,8 @@ class Kernel(
 
         is AppendOutcome.Conflict -> {
             attempt.compensate()
+            // Decided again only once compensated, and only while the caller still waits.
+            currentCoroutineContext().ensureActive()
             null
         }
 
@@ -365,29 +381,67 @@ class Kernel(
     }
 
     /**
-     * Appends [stream] with [transport]; when the outcome is unknown, reads the version slot it targeted, which only
-     * one stream can ever hold (the 9.3 rule): ours means committed, another means a conflict, none stays unknown.
+     * Appends [stream] with [transport]. An outcome that names this very append (the same command, request and commit
+     * time at the same version) is this append committed: when the outcome is unknown, the version slot it targeted,
+     * which only one stream can ever hold (the 9.3 rule), decides it (ours means committed, another stream of the
+     * request a duplicate, another request a conflict, none stays unknown); and a duplicate the backend reports may be
+     * its own retry of this append. Treating either as a duplicate would compensate what is a fact (finding A1-1).
      */
-    private suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
-        val outcome = log.append(stream, transport)
-        if (outcome !is AppendOutcome.Unknown) {
-            return outcome
+    private suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+        when (val outcome = log.append(stream, transport)) {
+            is AppendOutcome.Unknown -> settleUnknown(stream, outcome)
+            is AppendOutcome.AlreadyCommitted ->
+                if (outcome.existing.isAppendOf(stream)) committedAt(stream, outcome) else outcome
+
+            else -> outcome
         }
+
+    /** Reads the version slot an [unknown] append of [stream] targeted; a failing read leaves it unknown. */
+    private suspend fun settleUnknown(stream: EventStreamRecord, unknown: AppendOutcome.Unknown): AppendOutcome {
         val slot = try {
-            log.read(stream.ref, stream.version, stream.version).firstOrNull()
+            log.readEntries(stream.ref, stream.version, stream.version).firstOrNull()
         } catch (
             @Suppress("TooGenericExceptionCaught") // Whatever stops the read, the outcome stays unknown.
             failure: Exception,
         ) {
-            outcome.cause.addSuppressed(failure)
-            return outcome
+            unknown.cause.addSuppressed(failure)
+            return unknown
         }
         return when {
-            slot == null -> outcome
-            slot.requestId == stream.requestId -> AppendOutcome.AlreadyCommitted(slot)
+            slot == null -> unknown
+            slot.stream.isAppendOf(stream) -> AppendOutcome.Committed(slot.position)
+            slot.stream.requestId == stream.requestId -> AppendOutcome.AlreadyCommitted(slot.stream)
             else -> AppendOutcome.Conflict(stream.version)
         }
     }
+
+    /**
+     * [stream], which the backend reported [duplicate] of itself, committed at its position. Committed it is, so it is
+     * never compensated: when its position cannot be read, the outcome is unknown, which compensates nothing either.
+     */
+    @Suppress("TooGenericExceptionCaught") // Whatever stops the read, the commit stands; its outcome is unknown.
+    private suspend fun committedAt(
+        stream: EventStreamRecord,
+        duplicate: AppendOutcome.AlreadyCommitted
+    ): AppendOutcome {
+        val position = try {
+            log.positionOf(stream.ref, stream.version)
+        } catch (failure: Exception) {
+            return AppendOutcome.Unknown(failure)
+        }
+        val existing = duplicate.existing
+        return position?.let { AppendOutcome.Committed(it) } ?: AppendOutcome.Unknown(
+            IllegalStateException("${existing.ref}@${existing.version} is committed without a position."),
+        )
+    }
+
+    /** Whether this committed stream is the append of [stream] itself, not another append of its request. */
+    private fun EventStreamRecord.isAppendOf(stream: EventStreamRecord): Boolean =
+        ref == stream.ref &&
+            version == stream.version &&
+            commandId == stream.commandId &&
+            requestId == stream.requestId &&
+            commitTime == stream.commitTime
 
     /**
      * The aggregate's committed state, version and scope: cached, else from its snapshot and tail, else replayed; and
@@ -942,14 +996,21 @@ class Kernel(
             (afterAppendActions ?: ArrayList<suspend () -> Unit>().also { afterAppendActions = it }) += action
         }
 
-        /** Runs the compensations, latest first; their failures join [cause] when there is one, else they are logged. */
+        /**
+         * Runs the compensations, latest first; their failures join [cause] when there is one, else they are logged.
+         * They run whether or not the attempt is cancelled (finding A1-5): an attempt cancelled while deciding, say a
+         * saga's lane stopped by a handover, must still undo what its decide functions did outside the log.
+         */
         @Suppress("TooGenericExceptionCaught")
         suspend fun compensate(cause: Throwable? = null) {
-            compensations?.asReversed()?.forEach { compensation ->
-                try {
-                    compensation()
-                } catch (failure: Throwable) {
-                    cause?.addSuppressed(failure) ?: logger.warn(failure) { "A compensation failed." }
+            val registered = compensations ?: return
+            withContext(NonCancellable) {
+                registered.asReversed().forEach { compensation ->
+                    try {
+                        compensation()
+                    } catch (failure: Throwable) {
+                        cause?.addSuppressed(failure) ?: logger.warn(failure) { "A compensation failed." }
+                    }
                 }
             }
         }
