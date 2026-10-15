@@ -33,6 +33,26 @@ val wowScope = providers.gradleProperty("wow.scope").getOrElse("all")
 require(wowScope in setOf("all", "v10")) { "Unknown wow.scope '$wowScope': use 'all' or 'v10'." }
 val nineX = wowScope == "all"
 
+/*
+ * `-Pwow.publication.prebuilt=true`: publish the files an earlier build made instead of building them. A release's
+ * deploy jobs (package-deploy.yml) download what the preflight built, signed and checked (`build/libs`,
+ * `build/publications`) and publish it with this property, which leaves every task that makes a published file out of
+ * the task graph, as `-x` would. `v10PublicationCheck` (build.gradle.kts) checks that such a publish runs nothing but
+ * the publish tasks, so a published file no listed task makes fails a pull request, not a release.
+ */
+val prebuiltPublicationTasks = listOf("jar", "sourcesJar", "javadocJar") +
+    listOf("MavenLibrary", "MavenBom", "PluginMaven", "WowPluginMarkerMaven").flatMap { publication ->
+        listOf(
+            "generatePomFileFor${publication}Publication",
+            "generateMetadataFileFor${publication}Publication",
+            "sign${publication}Publication",
+        )
+    }
+gradle.extensions.extraProperties["wowPublicationPrebuiltTasks"] = prebuiltPublicationTasks
+if (providers.gradleProperty("wow.publication.prebuilt").orNull.toBoolean()) {
+    gradle.startParameter.setExcludedTaskNames(gradle.startParameter.excludedTaskNames + prebuiltPublicationTasks)
+}
+
 include(":wow-dependencies")
 include(":code-coverage-report")
 project(":code-coverage-report").projectDir = file("test/code-coverage-report")

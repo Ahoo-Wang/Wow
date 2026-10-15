@@ -218,24 +218,14 @@ jobs:
           name: release-artifacts
           path: .
 
+      # Uploads the files the preflight built, signed and checked: the
+      # wow.publication.prebuilt property (settings.gradle.kts) leaves out every
+      # task that makes one, and v10PublicationCheck fails when such a publish
+      # would still run anything but the publish tasks.
       - name: Publish package
         run: |
-          ./gradlew -Pwow.scope=v10 publishAllPublicationsToGitHubPackagesRepository \
-            -x jar \
-            -x sourcesJar \
-            -x javadocJar \
-            -x generatePomFileForMavenLibraryPublication \
-            -x generatePomFileForMavenBomPublication \
-            -x generateMetadataFileForMavenLibraryPublication \
-            -x generateMetadataFileForMavenBomPublication \
-            -x signMavenLibraryPublication \
-            -x signMavenBomPublication \
-            -x generatePomFileForPluginMavenPublication \
-            -x generateMetadataFileForPluginMavenPublication \
-            -x signPluginMavenPublication \
-            -x generatePomFileForWowPluginMarkerMavenPublication \
-            -x generateMetadataFileForWowPluginMarkerMavenPublication \
-            -x signWowPluginMarkerMavenPublication
+          ./gradlew -Pwow.scope=v10 -Pwow.publication.prebuilt=true \
+            publishAllPublicationsToGitHubPackagesRepository
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -268,24 +258,14 @@ jobs:
           name: release-artifacts
           path: .
 
+      # Uploads the files the preflight built, signed and checked: the
+      # wow.publication.prebuilt property (settings.gradle.kts) leaves out every
+      # task that makes one, and v10PublicationCheck fails when such a publish
+      # would still run anything but the publish tasks.
       - name: Publish package
         run: |
-          ./gradlew -Pwow.scope=v10 publishToSonatype closeAndReleaseSonatypeStagingRepository \
-            -x jar \
-            -x sourcesJar \
-            -x javadocJar \
-            -x generatePomFileForMavenLibraryPublication \
-            -x generatePomFileForMavenBomPublication \
-            -x generateMetadataFileForMavenLibraryPublication \
-            -x generateMetadataFileForMavenBomPublication \
-            -x signMavenLibraryPublication \
-            -x signMavenBomPublication \
-            -x generatePomFileForPluginMavenPublication \
-            -x generateMetadataFileForPluginMavenPublication \
-            -x signPluginMavenPublication \
-            -x generatePomFileForWowPluginMarkerMavenPublication \
-            -x generateMetadataFileForWowPluginMarkerMavenPublication \
-            -x signWowPluginMarkerMavenPublication
+          ./gradlew -Pwow.scope=v10 -Pwow.publication.prebuilt=true \
+            publishToSonatype closeAndReleaseSonatypeStagingRepository
         env:
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}
           SONATYPE_PASSWORD: ${{ secrets.SONATYPE_PASSWORD }}

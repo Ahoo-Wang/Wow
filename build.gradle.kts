@@ -533,12 +533,32 @@ configure(publishProjects - v10ReleaseProjects - dependenciesProject) {
     tasks.withType<PublishToMavenLocal>().configureEach { enabled = false }
 }
 
+// A V10 module's test fixtures (`:query`'s `QueryBackendSpec`) are for Wow's own modules and stay unpublished
+// (09-capability-parity.md, "端口 TCK"); the published TCK is `:tck`. `java-test-fixtures` would add them to the `java`
+// component, so the release would build and ship a `-test-fixtures` jar.
+configure(v10ReleaseProjects) {
+    pluginManager.withPlugin("java-test-fixtures") {
+        val java = components["java"] as AdhocComponentWithVariants
+        listOf("testFixturesApiElements", "testFixturesRuntimeElements").forEach {
+            java.withVariantsFromConfiguration(configurations[it]) { skip() }
+        }
+    }
+}
+
 // The release rehearsal of the V10 publications (R.1): `./gradlew -Pwow.scope=v10 v10PublicationCheck` publishes
 // every V10 release module and :wow-dependencies into build/v10-publication-check/repo, then checks that each library
 // has its jar, sources and javadoc jars, POM and Gradle module metadata (and their signatures, with
 // `-Pwow.publication.signed=true`); that every POM carries what Maven Central requires; that no published POM depends
 // on a Wow module the release leaves out, or on another version; that the V10 BOM constrains exactly the published
 // libraries; and that nothing else (no 9.x module) was published.
+//
+// A release's deploy jobs (package-deploy.yml) publish again with `-Pwow.publication.prebuilt=true`
+// (settings.gradle.kts): they upload the files the preflight's run of this check built and signed, and leave out every
+// task that makes one. The check walks this build's task graph the way that exclusion does, from each publish task
+// (any repository's publish depends on the same tasks: `publishToSonatype`'s and the GitHub Packages publish's too),
+// and requires that only publish tasks remain: a published variant whose files the left-out tasks do not make (as
+// `:query`'s test fixtures did, compiled against the left-out `jar`) would be rebuilt there, or fail as 10.0.0-alpha.1's
+// deploy jobs did, so it fails here first.
 val v10PublicationCheckRepository: Provider<Directory> = layout.buildDirectory.dir("v10-publication-check/repo")
 val v10PublicationProjects = v10ReleaseProjects + dependenciesProject
 val cleanV10PublicationCheck = tasks.register<Delete>("cleanV10PublicationCheck") {
@@ -557,6 +577,9 @@ configure(v10PublicationProjects) {
         if (name.endsWith("ToV10PublicationCheckRepository")) mustRunAfter(cleanV10PublicationCheck)
     }
 }
+@Suppress("UNCHECKED_CAST")
+val prebuiltPublicationTasks = gradle.extensions.extraProperties["wowPublicationPrebuiltTasks"] as List<String>
+val deployGraphProblems = mutableListOf<String>()
 tasks.register("v10PublicationCheck") {
     description = "Publishes the V10 release modules into a scratch repository and checks what a release would ship."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
@@ -566,6 +589,21 @@ tasks.register("v10PublicationCheck") {
     dependsOn(cleanV10PublicationCheck)
     dependsOn(publishTasks)
     val repository = v10PublicationCheckRepository.get().asFile
+    // The deploy jobs' graph: the publish tasks' dependencies, minus the left-out tasks and what only they need.
+    gradle.taskGraph.whenReady {
+        if (!hasTask(this@register)) return@whenReady
+        val graph = this
+        val deployed = mutableSetOf<Task>()
+        fun visit(task: Task) {
+            if (task.name in prebuiltPublicationTasks || !deployed.add(task)) return
+            graph.getDependencies(task).forEach(::visit)
+        }
+        allTasks.filter { it is PublishToMavenRepository && it.name.endsWith("ToV10PublicationCheckRepository") }
+            .forEach(::visit)
+        deployed.filter { it !is PublishToMavenRepository && !it.name.startsWith("publishAllPublicationsTo") }
+            .map { it.path }.sorted()
+            .forEach { deployGraphProblems += "$it: a deploy job (-Pwow.publication.prebuilt=true) would run it" }
+    }
     val groupId = project.group.toString()
     val releaseVersion = project.version.toString()
     val libraries = v10PublicationProjects.filter { it !in bomProjects }.map { it.artifactName() }.toSortedSet()
@@ -585,9 +623,24 @@ tasks.register("v10PublicationCheck") {
                 if (!file(artifactId, suffix).isFile) problems += "$artifactId: no $artifactId-$releaseVersion$suffix"
             }
         }
-        libraries.forEach { requireFiles(it, listOf(".jar", "-sources.jar", "-javadoc.jar", ".pom", ".module")) }
-        platforms.forEach { requireFiles(it, listOf(".pom", ".module")) }
+        val librarySuffixes = listOf(".jar", "-sources.jar", "-javadoc.jar", ".pom", ".module")
+        val platformSuffixes = listOf(".pom", ".module")
+        libraries.forEach { requireFiles(it, librarySuffixes) }
+        platforms.forEach { requireFiles(it, platformSuffixes) }
         requireFiles(pluginMarker, listOf(".pom"))
+        // Nothing else: no further classifier (a `-test-fixtures` jar), only these files, their signatures and checksums.
+        val checksums = listOf("", ".md5", ".sha1", ".sha256", ".sha512")
+        fun allowedFiles(artifactId: String, suffixes: List<String>) = suffixes
+            .flatMap { listOf(it, "$it.asc") }
+            .flatMap { suffix -> checksums.map { "$artifactId-$releaseVersion$suffix$it" } }
+        (libraries.associateWith { allowedFiles(it, librarySuffixes) } +
+            platforms.associateWith { allowedFiles(it, platformSuffixes) } +
+            (pluginMarker to allowedFiles(pluginMarker, listOf(".pom")))).forEach { (artifactId, allowed) ->
+            File(groupDir, "$artifactId/$releaseVersion").listFiles().orEmpty().map { it.name }
+                .filter { it !in allowed }.sorted()
+                .forEach { problems += "$artifactId: publishes $it, which a release does not ship" }
+        }
+        problems += deployGraphProblems
 
         val expected = (libraries + platforms + pluginMarker).toSortedSet()
         val published = groupDir.listFiles().orEmpty().filter { it.isDirectory }.map { it.name }.toSortedSet()
