@@ -20,9 +20,9 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.http.Answer
+import me.ahoo.wow.http.TENANT
 import me.ahoo.wow.http.answer
 import me.ahoo.wow.http.cartManifest
-import me.ahoo.wow.http.TENANT
 import me.ahoo.wow.http.headerCallers
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
@@ -318,11 +318,17 @@ class ParkedRoutesTest {
             actions.assert().isEmpty()
 
             val admin = client.get().uri("${OpsPaths.PARKED}?limit=10")
-                .headers { it.set("X-User", "root"); it.set("X-Admin", "true") }.answer()
+                .headers {
+                    it.set("X-User", "root")
+                    it.set("X-Admin", "true")
+                }.answer()
             admin.body!!["entries"].toList().map { it["aggregate"]["id"].asString() }.assert()
                 .containsExactly("a", "b", "c")
             client.post().uri("$foreign/${OpsPaths.SKIP}")
-                .headers { it.set("X-User", "root"); it.set("X-Admin", "true") }.answer().status.assert().isEqualTo(202)
+                .headers {
+                    it.set("X-User", "root")
+                    it.set("X-Admin", "true")
+                }.answer().status.assert().isEqualTo(202)
         }
 
     private fun Answer.assertMalformed() {

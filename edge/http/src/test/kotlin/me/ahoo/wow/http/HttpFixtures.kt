@@ -269,6 +269,7 @@ class HttpNode(
         tenants = tenants,
     )
     val reads = KernelStateReads(models, mapOf(CONTEXT to KernelStateReads.ContextReads(kernel, snapshots)))
+
     /** The node's public routes, which [client] calls and a test may serve on a real server. */
     val routes: RouterFunction<ServerResponse> = wowRoutes(
         (manifest ?: cartManifest(mounted = mounted)).withJobs(jobs),

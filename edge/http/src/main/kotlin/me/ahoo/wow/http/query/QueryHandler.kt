@@ -34,7 +34,6 @@ import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.WowPaths
-import me.ahoo.wow.http.receiveFirst
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.command.Negotiation
 import me.ahoo.wow.http.command.RequestHeaders
@@ -42,6 +41,7 @@ import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.problem.tooLargeProblem
+import me.ahoo.wow.http.receiveFirst
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryBudget
