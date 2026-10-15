@@ -95,7 +95,7 @@ class SubscriptionStartTest {
             append(10)
             val fromStart = Handled()
             val fromInstant = Handled()
-            val options = testOptions().copy(
+            val options = testOptions().copyWith(
                 starts = mapOf("saga" to SubscriptionStart.Beginning, "reactor" to SubscriptionStart.At(second(7))),
             )
             val runtime = SubscriptionRuntime(
@@ -126,7 +126,7 @@ class SubscriptionStartTest {
                 checkpoints,
                 ledger,
                 listOf(Subscription("reactor", SubscriptionFilter("shop"), StartFrom.END) { again.record(it) }),
-                testOptions().copy(starts = mapOf("reactor" to SubscriptionStart.Beginning)),
+                testOptions().copyWith(starts = mapOf("reactor" to SubscriptionStart.Beginning)),
             )
             restarted.start(setOf(0))
             eventually { again.size == 2 }

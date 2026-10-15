@@ -65,7 +65,7 @@ class LedgerPublisherTest {
         InMemoryCheckpointStore(),
         ledger,
         listOf(subscription),
-        testOptions(maxAttempts = 1).copy(parked = ParkedRetryOptions(spec, scanInterval = 1.hours)),
+        testOptions(maxAttempts = 1).copyWith(parked = ParkedRetryOptions(spec, scanInterval = 1.hours)),
     )
     private val ops = ParkedOps { listOf(ParkedOps.Scope.of(runtime)) }
     private val sent = CopyOnWriteArrayList<CommandWire>()

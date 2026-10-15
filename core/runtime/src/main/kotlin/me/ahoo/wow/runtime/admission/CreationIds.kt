@@ -94,7 +94,7 @@ class CreationIds(
                 "leave its id to admission (decision D191)."
         }
         val id = idOf(ref.type, ref.tenantId, command.requestId, command.scope, model.ownership)
-        return command.copy(ref = ref.type.ref(ref.tenantId, id))
+        return command.copyWith(ref = ref.type.ref(ref.tenantId, id))
     }
 
     private companion object {

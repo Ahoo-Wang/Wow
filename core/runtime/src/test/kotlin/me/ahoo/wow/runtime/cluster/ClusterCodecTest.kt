@@ -103,7 +103,7 @@ class ClusterCodecTest {
         read.assert().isEqualTo(request)
         read.wait!!.toContext().assert().isEqualTo(wait)
         val decoded = ClusterCodec.command(model, read.command)!!
-        decoded.assert().isEqualTo(command.copy())
+        decoded.assert().isEqualTo(command.copyWith())
     }
 
     @Test
@@ -139,9 +139,9 @@ class ClusterCodecTest {
 
     @Test
     fun `a reply round-trips its wire form`() {
-        val reply = ForwardReply(result = result, reached = listOf(result.copy(hop = Hop.handled("p", "bank"))))
+        val reply = ForwardReply(result = result, reached = listOf(result.copyWith(hop = Hop.handled("p", "bank"))))
         ClusterCodec.decodeReply(ClusterCodec.encode(reply)).assert().isEqualTo(reply)
-        val rejected = result.copy(status = CommandResult.Status.REJECTED, error = ErrorInfo("bank.no", "No."))
+        val rejected = result.copyWith(status = CommandResult.Status.REJECTED, error = ErrorInfo("bank.no", "No."))
         ClusterCodec.decodeReply(
             ClusterCodec.encode(ForwardReply(result = rejected))
         ).result.assert().isEqualTo(rejected)
@@ -153,7 +153,7 @@ class ClusterCodecTest {
     fun `a wait signal round-trips its wire form, its numbers exact (D122)`() {
         val signal = WaitSignal(
             waitId = "w-1",
-            result = result.copy(results = mapOf("price" to BigDecimal("2.50"), "count" to Long.MAX_VALUE)),
+            result = result.copyWith(results = mapOf("price" to BigDecimal("2.50"), "count" to Long.MAX_VALUE)),
         )
         val decoded = ClusterCodec.decodeSignal(ClusterCodec.encode(signal))
         decoded.assert().isEqualTo(signal)

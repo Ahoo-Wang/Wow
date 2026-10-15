@@ -100,12 +100,18 @@ class ParkedState {
     val resolved: Boolean get() = status == ParkedStatus.RESOLVED
 
     /** Whether [record] says what this state holds already, whenever it was published. */
-    fun holds(record: LedgerEntry): Boolean = !resolved && toRecord(record.recordedAt) == record
-
-    private fun toRecord(recordedAt: Long): LedgerEntry = LedgerEntry(
+    fun holds(record: LedgerEntry): Boolean = !resolved && heldFields(record) == listOf(
         service, context, subscription, aggregate, fromVersion, fromPosition, reason, failedAt, retries, retryAt,
-        retrySpec, recoverable, request, status, nextRetryAt, recordedAt,
+        retrySpec, recoverable, request, status, nextRetryAt,
     )
+
+    /** The fields of [record] this state keeps, in the order [holds] compares them; it never builds an entry. */
+    private fun heldFields(record: LedgerEntry): List<Any?> = with(record) {
+        listOf(
+            service, context, subscription, aggregate, fromVersion, fromPosition, reason, failedAt, retries, retryAt,
+            retrySpec, recoverable, request, status, nextRetryAt,
+        )
+    }
 
     fun onSourcing(event: ParkedRecorded) {
         val entry = event.entry

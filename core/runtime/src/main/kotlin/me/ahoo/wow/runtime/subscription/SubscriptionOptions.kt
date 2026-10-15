@@ -94,8 +94,11 @@ data class RetryPolicy(
  * - [retries]: by subscription name, the in-process retry budget the host gives it (roadmap P.3), as
  *   `wow.subscriptions.[<name>].retry.*` configures it: each setting given replaces the handler's own (`@Retry`,
  *   [Subscription.retry]), each one not given is the handler's, else [retry]'s.
+ *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
  */
-data class SubscriptionOptions(
+class SubscriptionOptions @InternalWowApi constructor(
     val maxInFlight: Int = 1_024,
     val retry: RetryPolicy = RetryPolicy(),
     val checkpointInterval: Duration = 1.seconds,
@@ -132,6 +135,48 @@ data class SubscriptionOptions(
             )
         }
     }
+
+    /** This SubscriptionOptions with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        maxInFlight: Int = this.maxInFlight,
+        retry: RetryPolicy = this.retry,
+        checkpointInterval: Duration = this.checkpointInterval,
+        stopTimeout: Duration = this.stopTimeout,
+        readRetry: RetryPolicy = this.readRetry,
+        starts: Map<String, SubscriptionStart> = this.starts,
+        parked: ParkedRetryOptions = this.parked,
+        retries: Map<String, HandlerRetry> = this.retries,
+    ): SubscriptionOptions = SubscriptionOptions(
+        maxInFlight,
+        retry,
+        checkpointInterval,
+        stopTimeout,
+        readRetry,
+        starts,
+        parked,
+        retries,
+    )
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is SubscriptionOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "SubscriptionOptions(maxInFlight=$maxInFlight, retry=$retry, checkpointInterval=$checkpointInterval, " +
+            "stopTimeout=$stopTimeout, readRetry=$readRetry, starts=$starts, parked=$parked, retries=$retries)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        maxInFlight,
+        retry,
+        checkpointInterval,
+        stopTimeout,
+        readRetry,
+        starts,
+        parked,
+        retries
+    )
 }
 
 /**
@@ -142,8 +187,11 @@ data class SubscriptionOptions(
  *
  * An entry's retry spec is the one an operator applied to it, else its subscription's in [specs] (by name, as
  * `wow.subscriptions.[<name>].parked.*` configures it), else [spec] (`wow.subscription.parked.*`).
+ *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
  */
-data class ParkedRetryOptions(
+class ParkedRetryOptions @InternalWowApi constructor(
     val spec: ParkedRetrySpec = ParkedRetrySpec(),
     val specs: Map<String, ParkedRetrySpec> = emptyMap(),
     val scanInterval: Duration = 10.seconds,
@@ -157,6 +205,15 @@ data class ParkedRetryOptions(
 
     /** The retry spec [entry] is retried by: its own, else its subscription's. */
     fun specOf(entry: ParkedAggregate): ParkedRetrySpec = entry.retrySpec ?: specOf(entry.subscription)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ParkedRetryOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "ParkedRetryOptions(spec=$spec, specs=$specs, scanInterval=$scanInterval)"
+
+    private fun valueFields(): List<Any?> = listOf(spec, specs, scanInterval)
 }
 
 /**

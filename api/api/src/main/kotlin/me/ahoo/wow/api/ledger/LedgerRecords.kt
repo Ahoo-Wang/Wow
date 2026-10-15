@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.api.ledger
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /*
  * The records a service publishes of its failure ledger (decision D141), in the wire format of a command body (design
  * 08 §3): the ops context's `parked` aggregate takes a [LedgerEntry] as the member [Ledger.ENTRY] of its command
@@ -33,8 +35,11 @@ package me.ahoo.wow.api.ledger
  *   `SKIP` while an operator's request waits for the owner of its partition, else null.
  * - [status]: `SCHEDULED` (retried automatically), `EXHAUSTED` (its retries spent) or `UNRECOVERABLE`.
  * - [recordedAt]: when the service published it (epoch milliseconds).
+ *
+ * Fields may be added: the runtime's ledger publisher builds it, and a reader reads it from its JSON; the
+ * constructor is internal to Wow (decision D216).
  */
-data class LedgerEntry(
+class LedgerEntry @InternalWowApi constructor(
     val service: String,
     val context: String,
     val subscription: String,
@@ -52,6 +57,60 @@ data class LedgerEntry(
     val nextRetryAt: Long? = null,
     val recordedAt: Long,
 ) {
+    /** This LedgerEntry with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        service: String = this.service,
+        context: String = this.context,
+        subscription: String = this.subscription,
+        aggregate: LedgerAggregate = this.aggregate,
+        fromVersion: Int = this.fromVersion,
+        fromPosition: Long? = this.fromPosition,
+        reason: String = this.reason,
+        failedAt: Long = this.failedAt,
+        retries: Int = this.retries,
+        retryAt: Long? = this.retryAt,
+        retrySpec: LedgerRetrySpec = this.retrySpec,
+        recoverable: String = this.recoverable,
+        request: String? = this.request,
+        status: String = this.status,
+        nextRetryAt: Long? = this.nextRetryAt,
+        recordedAt: Long = this.recordedAt,
+    ): LedgerEntry = LedgerEntry(
+        service,
+        context,
+        subscription,
+        aggregate,
+        fromVersion,
+        fromPosition,
+        reason,
+        failedAt,
+        retries,
+        retryAt,
+        retrySpec,
+        recoverable,
+        request,
+        status,
+        nextRetryAt,
+        recordedAt,
+    )
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is LedgerEntry && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "LedgerEntry(service=$service, context=$context, subscription=$subscription, aggregate=$aggregate, " +
+            "fromVersion=$fromVersion, fromPosition=$fromPosition, reason=$reason, failedAt=$failedAt, " +
+            "retries=$retries, retryAt=$retryAt, retrySpec=$retrySpec, recoverable=$recoverable, " +
+            "request=$request, status=$status, nextRetryAt=$nextRetryAt, recordedAt=$recordedAt)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        service, context, subscription, aggregate, fromVersion, fromPosition, reason, failedAt, retries, retryAt,
+        retrySpec, recoverable, request, status, nextRetryAt, recordedAt
+    )
+
     companion object {
         const val UNKNOWN: String = "UNKNOWN"
     }

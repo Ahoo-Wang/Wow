@@ -34,6 +34,6 @@ internal object CoSecRequestFacts {
         if (options.requestFacts.containsAll(NAMES)) {
             return options
         }
-        return options.copy(requestFacts = options.requestFacts + NAMES)
+        return options.copyWith(requestFacts = options.requestFacts + NAMES)
     }
 }

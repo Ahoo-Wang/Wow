@@ -23,8 +23,10 @@ package me.ahoo.wow.openapi
  *   backend; [manifestEndpoint] `GET /wow/manifest`; [openApiEndpoint] `GET /wow/openapi`.
  * - [errorStatuses] are the statuses the host configures for error codes (`wow.http.errors.[<code>].status`, decision
  *   D102), which win over the Manifest's tables as they do at the edge.
+ *
+ * Fields may be added (decision D216): pass the constructor's arguments by name.
  */
-data class OpenApiOptions(
+class OpenApiOptions(
     val title: String = DEFAULT_TITLE,
     val servers: List<String> = emptyList(),
     val datasets: Boolean = true,
@@ -32,6 +34,24 @@ data class OpenApiOptions(
     val openApiEndpoint: Boolean = true,
     val errorStatuses: Map<String, Int> = emptyMap(),
 ) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is OpenApiOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "OpenApiOptions(title=$title, servers=$servers, datasets=$datasets, " +
+            "manifestEndpoint=$manifestEndpoint, openApiEndpoint=$openApiEndpoint, errorStatuses=$errorStatuses)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        title,
+        servers,
+        datasets,
+        manifestEndpoint,
+        openApiEndpoint,
+        errorStatuses
+    )
+
     companion object {
         /** The title of a document whose Manifest names no service. */
         const val DEFAULT_TITLE: String = "Wow service"

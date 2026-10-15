@@ -80,7 +80,7 @@ class KafkaRouterTest {
         stockManifest(),
         stores,
         channel,
-        options = fastNodeOptions().copy(kafkaRouted = setOf(ITEM)),
+        options = fastNodeOptions().copyWith(kafkaRouted = setOf(ITEM)),
         topics = SourceTopics(topics, PREFIX, producer),
     ).also {
         nodes += it
@@ -208,7 +208,7 @@ class KafkaRouterTest {
                 stockManifest(),
                 backends,
                 channel,
-                options = fastNodeOptions().copy(kafkaRouted = setOf(ORDER)),
+                options = fastNodeOptions().copyWith(kafkaRouted = setOf(ORDER)),
                 topics = SourceTopics(topics, PREFIX, topics),
             )
         }.message.assert().contains("does not serve")
@@ -221,7 +221,7 @@ class KafkaRouterTest {
                 stockManifest(),
                 backends,
                 channel,
-                options = fastNodeOptions().copy(kafkaRouted = setOf(ITEM)),
+                options = fastNodeOptions().copyWith(kafkaRouted = setOf(ITEM)),
                 topics = SourceTopics(topics, PREFIX),
             )
         }.message.assert().contains("no command transport")

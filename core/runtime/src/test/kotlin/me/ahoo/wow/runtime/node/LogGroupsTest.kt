@@ -83,7 +83,9 @@ class LogGroupsTest {
         manifest(),
         backends,
         channel,
-        options = fastNodeOptions().copy(timers = TimerOptions(pollInterval = 20.milliseconds, lookahead = 1.seconds)),
+        options = fastNodeOptions().copyWith(
+            timers = TimerOptions(pollInterval = 20.milliseconds, lookahead = 1.seconds)
+        ),
         subscriptions = SubscriptionFactory { context ->
             listOf(
                 Subscription(PROJECTOR, SubscriptionFilter(context.context)) { entry ->

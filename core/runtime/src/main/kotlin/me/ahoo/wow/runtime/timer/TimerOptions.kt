@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.timer
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -40,8 +41,11 @@ import kotlin.time.Duration.Companion.seconds
  *   node's clock (`wow.timers.max-early-wait`, decision D198), holding the aggregate's queue meanwhile. One that
  *   arrives earlier than that, its firing node's clock that far ahead, fails at once as a technical failure
  *   ([me.ahoo.wow.runtime.wait.ResultCodes.SCHEDULE_NOT_DUE]), and the runner sends it again after its backoff.
+ *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
  */
-data class TimerOptions(
+class TimerOptions @InternalWowApi constructor(
     val pollInterval: Duration = 1.seconds,
     val lookahead: Duration = 30.seconds,
     val retry: RetryPolicy = RetryPolicy(maxAttempts = 10, initialBackoff = 1.seconds, maxBackoff = 5.minutes),
@@ -62,6 +66,44 @@ data class TimerOptions(
         require(claimTimeout.isPositive()) { "A claim holds for a positive time." }
         require(!maxEarlyWait.isNegative()) { "The maximum early wait is never negative." }
     }
+
+    /** This TimerOptions with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        pollInterval: Duration = this.pollInterval,
+        lookahead: Duration = this.lookahead,
+        retry: RetryPolicy = this.retry,
+        expiresAfter: Duration? = this.expiresAfter,
+        batch: Int = this.batch,
+        parallelism: Int = this.parallelism,
+        maxFireRate: Double? = this.maxFireRate,
+        claimTimeout: Duration = this.claimTimeout,
+        maxEarlyWait: Duration = this.maxEarlyWait,
+    ): TimerOptions = TimerOptions(
+        pollInterval,
+        lookahead,
+        retry,
+        expiresAfter,
+        batch,
+        parallelism,
+        maxFireRate,
+        claimTimeout,
+        maxEarlyWait,
+    )
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is TimerOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "TimerOptions(pollInterval=$pollInterval, lookahead=$lookahead, retry=$retry, " +
+            "expiresAfter=$expiresAfter, batch=$batch, parallelism=$parallelism, maxFireRate=$maxFireRate, " +
+            "claimTimeout=$claimTimeout, maxEarlyWait=$maxEarlyWait)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        pollInterval, lookahead, retry, expiresAfter, batch, parallelism, maxFireRate, claimTimeout, maxEarlyWait
+    )
 
     companion object {
         /** The subscription name a parked timer's target is recorded under in the failure ledger. */

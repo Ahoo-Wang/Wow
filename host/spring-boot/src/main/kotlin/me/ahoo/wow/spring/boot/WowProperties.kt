@@ -504,7 +504,7 @@ class WowProperties {
         var claimTimeout: Duration = DEFAULT_TIMERS.claimTimeout.toJavaDuration()
         var maxEarlyWait: Duration = DEFAULT_TIMERS.maxEarlyWait.toJavaDuration()
 
-        fun options(): TimerOptions = DEFAULT_TIMERS.copy(
+        fun options(): TimerOptions = DEFAULT_TIMERS.copyWith(
             pollInterval = pollInterval.toKotlinDuration(),
             lookahead = lookahead.toKotlinDuration(),
             retry = DEFAULT_TIMERS.retry.copy(maxAttempts = maxAttempts),

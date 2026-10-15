@@ -87,7 +87,7 @@ class CreationIdsTest {
         unnamed.ref.isAssigned.assert().isFalse()
         val assigned = creations.assign(model, unnamed)
         assigned.ref.assert().isEqualTo(type.ref("t", "order-n1"))
-        assigned.copy(ref = unnamed.ref).assert().isEqualTo(unnamed)
+        assigned.copyWith(ref = unnamed.ref).assert().isEqualTo(unnamed)
         runCatching { creations.assign(model, Command("c-3", "r-3", type.unassigned("t"), Touch())) }
             .exceptionOrNull()!!.message.assert().contains("names no shop.order to act on")
         runCatching { creations.assign(model, Command("c-4", "r-4", type.unassigned("t"), "unknown")) }

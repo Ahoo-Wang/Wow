@@ -16,7 +16,6 @@ package me.ahoo.wow.api.result;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
-import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -29,17 +28,17 @@ class WaitPlanJavaTest {
         WaitPlan plan = WaitPlan.of(Hop.committed(), Hop.handled("order.saga"), Hop.committed("stock"))
             .within(Duration.ofSeconds(3));
         assertThat(plan.getHops()).containsExactly(
-            new Hop(Stage.COMMITTED),
-            new Hop(Stage.HANDLED, null, "order.saga"),
-            new Hop(Stage.COMMITTED, "stock")
+            Hop.committed(),
+            Hop.handled("order.saga", null),
+            Hop.committed("stock")
         );
         assertThat(plan.getJavaTimeout()).isEqualTo(Duration.ofSeconds(3));
         assertThat(plan.isDefault()).isFalse();
     }
 
     @Test
-    void constructsAPlanWithAJavaTimeout() {
-        WaitPlan plan = new WaitPlan(List.of(Hop.snapshot()), Duration.ofMillis(1500));
+    void givesAPlanAJavaTimeout() {
+        WaitPlan plan = WaitPlan.of(Hop.snapshot()).within(Duration.ofMillis(1500));
         assertThat(plan.getJavaTimeout()).isEqualTo(Duration.ofMillis(1500));
         assertThat(plan.getHops()).containsExactly(Hop.snapshot(null));
         assertThatThrownBy(() -> WaitPlan.COMMITTED.within(Duration.ZERO))

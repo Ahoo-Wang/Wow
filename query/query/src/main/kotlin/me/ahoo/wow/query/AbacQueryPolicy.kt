@@ -14,6 +14,7 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.FilterExpression
@@ -43,9 +44,12 @@ import me.ahoo.wow.query.schema.SnapshotFields
  * public resource. Off, a resource matches only when it carries every non-wildcard key with a value the caller holds.
  * @property attributePrefix the prefix of the caller attributes ([QueryCaller.attributes]) that are ABAC tags: the
  * attribute `abac.region` with the values `east` and `north` is the tag `region`.
+ *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
  */
 @ExperimentalWowApi
-data class AbacQueryOptions(
+class AbacQueryOptions @InternalWowApi constructor(
     val enabled: Boolean = false,
     val requirePrincipalTags: Boolean = false,
     val matchMissingTagKey: Boolean = true,
@@ -54,6 +58,26 @@ data class AbacQueryOptions(
     init {
         require(attributePrefix.isNotBlank()) { "attributePrefix must not be blank." }
     }
+
+    /** This AbacQueryOptions with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        enabled: Boolean = this.enabled,
+        requirePrincipalTags: Boolean = this.requirePrincipalTags,
+        matchMissingTagKey: Boolean = this.matchMissingTagKey,
+        attributePrefix: String = this.attributePrefix,
+    ): AbacQueryOptions = AbacQueryOptions(enabled, requirePrincipalTags, matchMissingTagKey, attributePrefix)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is AbacQueryOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "AbacQueryOptions(enabled=$enabled, requirePrincipalTags=$requirePrincipalTags, " +
+            "matchMissingTagKey=$matchMissingTagKey, attributePrefix=$attributePrefix)"
+
+    private fun valueFields(): List<Any?> = listOf(enabled, requirePrincipalTags, matchMissingTagKey, attributePrefix)
 
     companion object {
         const val DEFAULT_ATTRIBUTE_PREFIX: String = "abac."

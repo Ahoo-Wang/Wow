@@ -84,7 +84,7 @@ class TopicSubscriptionsTest {
         leases = leases,
         ledger = ledger,
         subscriptions = listOf(subscription),
-        options = testOptions().copy(starts = starts),
+        options = testOptions().copyWith(starts = starts),
         cluster = fastOptions(),
     ).also {
         started += it

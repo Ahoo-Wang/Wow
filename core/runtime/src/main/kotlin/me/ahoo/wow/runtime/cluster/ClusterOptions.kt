@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.runtime.cluster
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
@@ -62,8 +63,11 @@ data class LeaseGroup(val service: String, val context: String) {
  * - [reconcileTimeout]: how long one reconcile may run before the node takes itself as stuck: it stops heartbeating
  *   and leaves the members until the reconcile ends, so the others take the partitions it cannot run (finding C.1
  *   F1). Well above what a hand-off takes: the drain, then the stop of each runtime.
+ *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
  */
-data class ClusterOptions(
+class ClusterOptions @InternalWowApi constructor(
     val leaseTtl: Duration = 10.seconds,
     val renewInterval: Duration = 3.seconds,
     val memberTtl: Duration = 10.seconds,
@@ -89,4 +93,21 @@ data class ClusterOptions(
         require(leaseParallelism >= 1) { "At least one lease call runs at a time." }
         require(reconcileTimeout.isPositive()) { "The reconcile timeout is positive." }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ClusterOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "ClusterOptions(leaseTtl=$leaseTtl, renewInterval=$renewInterval, memberTtl=$memberTtl, " +
+            "heartbeatInterval=$heartbeatInterval, reconcileInterval=$reconcileInterval, " +
+            "routeRefreshInterval=$routeRefreshInterval, forwardTimeout=$forwardTimeout, " +
+            "maxInFlightPerPeer=$maxInFlightPerPeer, drainTimeout=$drainTimeout, " +
+            "leaseParallelism=$leaseParallelism, reconcileTimeout=$reconcileTimeout)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        leaseTtl, renewInterval, memberTtl, heartbeatInterval, reconcileInterval, routeRefreshInterval,
+        forwardTimeout, maxInFlightPerPeer, drainTimeout, leaseParallelism, reconcileTimeout
+    )
 }

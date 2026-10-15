@@ -79,7 +79,7 @@ internal class SagaCalls(
             "No Manifest of the service or its peers declares the command ${command.body.javaClass.name} called on " +
                 "${command.ref}: add the service of $context to wowPeers (decision D139)."
         }
-        val derived = command.causation?.let { command } ?: command.copy(causation = Causation(command.id, command.id))
+        val derived = command.causation?.let { command } ?: command.copyWith(causation = Causation(command.id, command.id))
         val result = client.call(OutgoingCall(type, derived, wait))
         if (result.status != CommandResult.Status.FAILED) {
             answered += derived.id

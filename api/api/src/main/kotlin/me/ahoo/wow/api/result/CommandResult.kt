@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.result
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.InternalWowApi
 
 /** The kind of function that produced a result. */
 enum class FunctionKind {
@@ -58,8 +59,10 @@ data class Violation(val path: String, val code: String, val message: String)
 /**
  * Why a command was rejected or failed: an error [code] (`wow.*` or a domain's own), a [message], [violations], and the
  * rejection's structured [extensions] (decision D211), which an HTTP problem writes as its extension members.
+ *
+ * Fields may be added (decision D59): construct one with [of]; the constructor is internal to Wow.
  */
-data class ErrorInfo(
+class ErrorInfo @InternalWowApi constructor(
     val code: String,
     val message: String,
     val violations: List<Violation> = emptyList(),
@@ -67,6 +70,28 @@ data class ErrorInfo(
 ) {
     init {
         require(code.isNotBlank()) { "An error needs a code." }
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ErrorInfo && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "ErrorInfo(code=$code, message=$message, violations=$violations, extensions=$extensions)"
+
+    private fun valueFields(): List<Any?> = listOf(code, message, violations, extensions)
+
+    companion object {
+        /** The error [code] with [message], the field-level [violations] and the structured [extensions]. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            code: String,
+            message: String,
+            violations: List<Violation> = emptyList(),
+            extensions: Map<String, Any?> = emptyMap(),
+        ): ErrorInfo = ErrorInfo(code, message, violations, extensions)
     }
 }
 
@@ -87,8 +112,11 @@ data class ErrorInfo(
  *   as a saga's that derived no command (a declined payment, say), left nothing to reach the plan's later hops. The
  *   result stays at that hop, with its own status: it is not the plan's last hop reached. [pending] lists the hops of
  *   the plan that were not reached, in order; it is empty unless [chainEnded].
+ *
+ * Fields may be added (decision D59): construct a result with [succeeded], [rejected] or [failed], such as a fake of
+ * a command gateway answers in a test; the constructor is internal to Wow.
  */
-data class CommandResult(
+class CommandResult @InternalWowApi constructor(
     val format: Int = FORMAT,
     val commandId: String,
     val requestId: String,
@@ -125,9 +153,151 @@ data class CommandResult(
         FAILED,
     }
 
+    /** This CommandResult with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        format: Int = this.format,
+        commandId: String = this.commandId,
+        requestId: String = this.requestId,
+        correlationId: String = this.correlationId,
+        ref: AggregateRef = this.ref,
+        hop: Hop = this.hop,
+        function: FunctionInfo = this.function,
+        status: Status = this.status,
+        version: Int? = this.version,
+        duplicate: Boolean = this.duplicate,
+        error: ErrorInfo? = this.error,
+        results: Map<String, Any> = this.results,
+        derived: List<String> = this.derived,
+        signalTime: Long = this.signalTime,
+        transformedFrom: TransformedFrom? = this.transformedFrom,
+        chainEnded: Boolean = this.chainEnded,
+        pending: List<Hop> = this.pending,
+    ): CommandResult = CommandResult(
+        format,
+        commandId,
+        requestId,
+        correlationId,
+        ref,
+        hop,
+        function,
+        status,
+        version,
+        duplicate,
+        error,
+        results,
+        derived,
+        signalTime,
+        transformedFrom,
+        chainEnded,
+        pending,
+    )
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is CommandResult && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "CommandResult(format=$format, commandId=$commandId, requestId=$requestId, " +
+            "correlationId=$correlationId, ref=$ref, hop=$hop, function=$function, status=$status, " +
+            "version=$version, duplicate=$duplicate, error=$error, results=$results, derived=$derived, " +
+            "signalTime=$signalTime, transformedFrom=$transformedFrom, chainEnded=$chainEnded, pending=$pending)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        format, commandId, requestId, correlationId, ref, hop, function, status, version, duplicate, error, results,
+        derived, signalTime, transformedFrom, chainEnded, pending
+    )
+
     companion object {
         /** The format version of this structure (decision D59). */
         const val FORMAT: Int = 1
+
+        /**
+         * The result of command [commandId] (of request [requestId], in the chain [correlationId]) that reached [hop] on
+         * [ref], produced by [function] at [signalTime] (epoch milliseconds), the aggregate then at [version].
+         */
+        @JvmStatic
+        @Suppress("LongParameterList")
+        fun succeeded(
+            commandId: String,
+            requestId: String,
+            correlationId: String,
+            ref: AggregateRef,
+            hop: Hop,
+            function: FunctionInfo,
+            version: Int?,
+            signalTime: Long,
+        ): CommandResult = CommandResult(
+            commandId = commandId,
+            requestId = requestId,
+            correlationId = correlationId,
+            ref = ref,
+            hop = hop,
+            function = function,
+            status = Status.SUCCEEDED,
+            version = version,
+            signalTime = signalTime,
+        )
+
+        /** The result of a command a rule refused at [hop] with [error]; the other fields are [succeeded]'s. */
+        @JvmStatic
+        @Suppress("LongParameterList")
+        fun rejected(
+            commandId: String,
+            requestId: String,
+            correlationId: String,
+            ref: AggregateRef,
+            hop: Hop,
+            function: FunctionInfo,
+            version: Int?,
+            error: ErrorInfo,
+            signalTime: Long,
+        ): CommandResult = notSucceeded(
+            commandId, requestId, correlationId, ref, hop, function, version, Status.REJECTED, error, signalTime,
+        )
+
+        /** The result of a command that did not reach [hop] for a technical reason, [error]; see [succeeded]. */
+        @JvmStatic
+        @Suppress("LongParameterList")
+        fun failed(
+            commandId: String,
+            requestId: String,
+            correlationId: String,
+            ref: AggregateRef,
+            hop: Hop,
+            function: FunctionInfo,
+            version: Int?,
+            error: ErrorInfo,
+            signalTime: Long,
+        ): CommandResult = notSucceeded(
+            commandId, requestId, correlationId, ref, hop, function, version, Status.FAILED, error, signalTime,
+        )
+
+        @Suppress("LongParameterList")
+        private fun notSucceeded(
+            commandId: String,
+            requestId: String,
+            correlationId: String,
+            ref: AggregateRef,
+            hop: Hop,
+            function: FunctionInfo,
+            version: Int?,
+            status: Status,
+            error: ErrorInfo,
+            signalTime: Long,
+        ) = CommandResult(
+            commandId = commandId,
+            requestId = requestId,
+            correlationId = correlationId,
+            ref = ref,
+            hop = hop,
+            function = function,
+            status = status,
+            version = version,
+            error = error,
+            signalTime = signalTime,
+        )
     }
 }
 
@@ -146,11 +316,26 @@ data class TransformedFrom(val command: String, val aggregateId: String? = null)
  * A wait signal (design 08 §8): the [result] one hop reached for the wait [waitId], sent to the node that waits.
  * Signals are deduplicated by ([waitId], the result's hop and command, its source): the source is the result's
  * [CommandResult.function], the context and function that signalled it.
+ *
+ * Fields may be added (decision D59); only Wow builds a signal.
  */
-data class WaitSignal(val format: Int = FORMAT, val waitId: String, val result: CommandResult) {
+class WaitSignal @InternalWowApi constructor(
+    val format: Int = FORMAT,
+    val waitId: String,
+    val result: CommandResult,
+) {
     init {
         require(waitId.isNotBlank()) { "A wait signal names its wait." }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is WaitSignal && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "WaitSignal(format=$format, waitId=$waitId, result=$result)"
+
+    private fun valueFields(): List<Any?> = listOf(format, waitId, result)
 
     companion object {
         /** The format version of this structure (decision D59). */

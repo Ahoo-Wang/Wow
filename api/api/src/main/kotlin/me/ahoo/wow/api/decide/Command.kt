@@ -15,6 +15,7 @@ package me.ahoo.wow.api.decide
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.ScheduleContext
@@ -40,8 +41,11 @@ import me.ahoo.wow.api.schedule.ScheduleContext
  *
  * [wait] is what the caller waits for before it is answered (design 04 §6), by default until the snapshot holds the
  * commit (decision D69). It stays on the node that took the command: only a wait context travels with it.
+ *
+ * Fields may be added (decision D59): admission builds a command, and the test DSL builds one for a test; the
+ * constructor is internal to Wow.
  */
-data class Command<C : Any>(
+class Command<C : Any> @InternalWowApi constructor(
     val id: String,
     val requestId: String,
     val ref: AggregateRef,
@@ -64,4 +68,43 @@ data class Command<C : Any>(
      * sent by a schedule.
      */
     val schedule: ScheduleContext? get() = ScheduleContext.of(headers)
+
+    /** This Command with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        id: String = this.id,
+        requestId: String = this.requestId,
+        ref: AggregateRef = this.ref,
+        body: C = this.body,
+        expectedVersion: Int? = this.expectedVersion,
+        scope: Scope = this.scope,
+        headers: Map<String, String> = this.headers,
+        causation: Causation? = this.causation,
+        operator: Operator? = this.operator,
+        wait: WaitPlan = this.wait,
+    ): Command<C> = Command(
+        id,
+        requestId,
+        ref,
+        body,
+        expectedVersion,
+        scope,
+        headers,
+        causation,
+        operator,
+        wait,
+    )
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is Command<*> && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "Command(id=$id, requestId=$requestId, ref=$ref, body=$body, expectedVersion=$expectedVersion, " +
+            "scope=$scope, headers=$headers, causation=$causation, operator=$operator, wait=$wait)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, wait
+    )
 }

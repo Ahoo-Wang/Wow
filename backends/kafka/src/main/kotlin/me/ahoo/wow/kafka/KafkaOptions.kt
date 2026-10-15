@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kafka
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerConfig
@@ -40,8 +41,11 @@ import kotlin.time.Duration.Companion.seconds
  * [pollTimeout] bounds one poll of a source's read, so a cancelled read stops within it. [metadataMaxAge] is the
  * consumers' `metadata.max.age.ms` unless [properties] set it: the longest before a consumer sees partitions added to
  * a topic it reads (decision D168), 30 seconds instead of Kafka's 5 minutes.
+ *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
  */
-data class KafkaOptions(
+class KafkaOptions @InternalWowApi constructor(
     val bootstrapServers: String,
     val properties: Map<String, String> = emptyMap(),
     val pollTimeout: Duration = DEFAULT_POLL_TIMEOUT,
@@ -75,6 +79,17 @@ data class KafkaOptions(
         put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java)
         put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer::class.java)
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is KafkaOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "KafkaOptions(bootstrapServers=$bootstrapServers, properties=$properties, pollTimeout=$pollTimeout, " +
+            "metadataMaxAge=$metadataMaxAge)"
+
+    private fun valueFields(): List<Any?> = listOf(bootstrapServers, properties, pollTimeout, metadataMaxAge)
 
     companion object {
         val DEFAULT_POLL_TIMEOUT: Duration = 200.milliseconds

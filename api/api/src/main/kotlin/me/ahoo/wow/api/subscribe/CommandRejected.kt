@@ -15,6 +15,7 @@ package me.ahoo.wow.api.subscribe
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.ErrorInfo
@@ -30,9 +31,12 @@ import me.ahoo.wow.api.result.ErrorInfo
  * The command's body is not here: a rejection from another context comes back as a receipt (design 08 §8), which
  * carries the outcome only. [C] says which commands' rejections a handler takes; `CommandRejected<*>` takes them all.
  * The runtime hands each rejection over once per [commandId].
+ *
+ * Fields may be added (decision D59): the runtime builds it, and a test hands one to a saga with the test DSL's
+ * `whenRejected`; the constructor is internal to Wow.
  */
 @Suppress("unused") // C selects the handler by the command's type.
-data class CommandRejected<C : Any>(
+class CommandRejected<C : Any> @InternalWowApi constructor(
     val commandId: String,
     val commandType: String,
     val ref: AggregateRef,
@@ -46,4 +50,46 @@ data class CommandRejected<C : Any>(
         require(commandId.isNotBlank()) { "A rejection names its command." }
         require(commandType.isNotBlank()) { "A rejection names the type of its command." }
     }
+
+    /** This CommandRejected with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        commandId: String = this.commandId,
+        commandType: String = this.commandType,
+        ref: AggregateRef = this.ref,
+        error: ErrorInfo = this.error,
+        causation: Causation = this.causation,
+        executionId: ExecutionId = this.executionId,
+        operator: Operator? = this.operator,
+        scope: Scope = this.scope,
+    ): CommandRejected<C> = CommandRejected(
+        commandId,
+        commandType,
+        ref,
+        error,
+        causation,
+        executionId,
+        operator,
+        scope,
+    )
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is CommandRejected<*> && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "CommandRejected(commandId=$commandId, commandType=$commandType, ref=$ref, error=$error, " +
+            "causation=$causation, executionId=$executionId, operator=$operator, scope=$scope)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        commandId,
+        commandType,
+        ref,
+        error,
+        causation,
+        executionId,
+        operator,
+        scope
+    )
 }

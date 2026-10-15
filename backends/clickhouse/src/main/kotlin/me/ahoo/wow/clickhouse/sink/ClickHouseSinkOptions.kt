@@ -14,6 +14,7 @@
 package me.ahoo.wow.clickhouse.sink
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import kotlin.time.Duration
 
 /** What the Sink does with its tables before it writes (`wow.clickhouse.sink.ddl`, decision D142). */
@@ -34,12 +35,27 @@ enum class DdlMode {
  * - [history]: whether it keeps every commit in `<ctx>_<agg>_state_events` (and every event in `<ctx>_<agg>_events`);
  *   when false only the current state is kept, written to `<ctx>_<agg>_state` directly.
  * - [historyTtl]: how long the history is kept, by commit time; forever when null. Only with [history].
+ *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
  */
-data class AggregateSinkOptions(val history: Boolean = true, val historyTtl: Duration? = null) {
+class AggregateSinkOptions @InternalWowApi constructor(
+    val history: Boolean = true,
+    val historyTtl: Duration? = null,
+) {
     init {
         require(historyTtl == null || history) { "A history TTL needs the history kept." }
         require(historyTtl == null || historyTtl.inWholeSeconds > 0) { "A history TTL is at least a second." }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is AggregateSinkOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "AggregateSinkOptions(history=$history, historyTtl=$historyTtl)"
+
+    private fun valueFields(): List<Any?> = listOf(history, historyTtl)
 }
 
 /**
@@ -51,8 +67,11 @@ data class AggregateSinkOptions(val history: Boolean = true, val historyTtl: Dur
  * - [deduplicationWindow]: the `non_replicated_deduplication_window` of the tables it creates: how many recent insert
  *   blocks each remembers, so that a retried insert (the same `ref@version` token) is dropped.
  * - [aggregates]: per aggregate type, how its commits are kept; [AggregateSinkOptions] defaults else.
+ *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
  */
-data class ClickHouseSinkOptions(
+class ClickHouseSinkOptions @InternalWowApi constructor(
     val database: String = DEFAULT_DATABASE,
     val ddl: DdlMode = DdlMode.AUTO,
     val batchSize: Int = DEFAULT_BATCH_SIZE,
@@ -67,6 +86,17 @@ data class ClickHouseSinkOptions(
 
     /** How the commits of [type] are kept. */
     fun aggregate(type: AggregateType): AggregateSinkOptions = aggregates[type] ?: AggregateSinkOptions()
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ClickHouseSinkOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "ClickHouseSinkOptions(database=$database, ddl=$ddl, batchSize=$batchSize, " +
+            "deduplicationWindow=$deduplicationWindow, aggregates=$aggregates)"
+
+    private fun valueFields(): List<Any?> = listOf(database, ddl, batchSize, deduplicationWindow, aggregates)
 
     companion object {
         const val DEFAULT_DATABASE: String = "default"

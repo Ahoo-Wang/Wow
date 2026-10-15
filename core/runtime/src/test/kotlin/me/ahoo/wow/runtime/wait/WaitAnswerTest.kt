@@ -143,7 +143,7 @@ class WaitAnswerTest {
     fun `a duplicate request answers no results, which are not persisted`(): Unit = runBlocking {
         val first = command(Place(6))
         coordinator.execute(order, first).results.assert().isEqualTo(mapOf(ITEMS to 6))
-        val retry = coordinator.execute(order, first.copy(id = "c-retry"))
+        val retry = coordinator.execute(order, first.copyWith(id = "c-retry"))
         retry.duplicate.assert().isTrue()
         retry.results.assert().isEmpty()
     }

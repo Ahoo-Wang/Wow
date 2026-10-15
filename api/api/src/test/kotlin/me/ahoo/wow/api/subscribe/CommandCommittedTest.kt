@@ -64,11 +64,11 @@ class CommandCommittedTest {
 
     @Test
     fun `a receipt names its command, its type, a version and a result that succeeded`() {
-        assertThrownBy<IllegalArgumentException> { committed().copy(commandId = " ") }
-        assertThrownBy<IllegalArgumentException> { committed().copy(commandType = "") }
-        assertThrownBy<IllegalArgumentException> { committed().copy(version = -1) }
+        assertThrownBy<IllegalArgumentException> { committed().copyWith(commandId = " ") }
+        assertThrownBy<IllegalArgumentException> { committed().copyWith(commandType = "") }
+        assertThrownBy<IllegalArgumentException> { committed().copyWith(version = -1) }
         assertThrownBy<IllegalArgumentException> {
-            committed().copy(result = result(CommandResult.Status.REJECTED))
+            committed().copyWith(result = result(CommandResult.Status.REJECTED))
         }
     }
 }

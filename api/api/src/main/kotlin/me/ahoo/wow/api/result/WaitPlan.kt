@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.api.result
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
@@ -38,9 +39,10 @@ enum class Stage {
  * One hop of a wait chain (decision D62): a [stage], in a bounded [context], of a [subscription] when the stage is
  * [Stage.HANDLED].
  *
- * A null [context] means the context of the command the wait started with.
+ * A null [context] means the context of the command the wait started with. Build one with [accepted], [committed],
+ * [handled] or [snapshot]; fields may be added (decision D59), so the constructor is internal to Wow.
  */
-data class Hop @JvmOverloads constructor(
+class Hop @InternalWowApi constructor(
     val stage: Stage,
     val context: String? = null,
     val subscription: String? = null
@@ -68,6 +70,21 @@ data class Hop @JvmOverloads constructor(
         }
         return if (argument == null) keyword else "$keyword($argument)"
     }
+
+    /** This Hop with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        stage: Stage = this.stage,
+        context: String? = this.context,
+        subscription: String? = this.subscription,
+    ): Hop = Hop(stage, context, subscription)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is Hop && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    private fun valueFields(): List<Any?> = listOf(stage, context, subscription)
 
     companion object {
         /** The name of the built-in subscription that writes snapshots. */
@@ -116,27 +133,38 @@ data class Hop @JvmOverloads constructor(
  * taken as asked, so a snapshot hop the aggregate cannot reach is rejected at admission rather than left to time out.
  * [within] keeps the mark.
  *
- * From Java, build a plan with [of] and give it a timeout with the `java.time.Duration` overloads of the constructor
- * and [within]; read it back with [javaTimeout].
+ * Build a plan with [of] or take one of the constants, and give it a timeout with [within] (from Java, its
+ * `java.time.Duration` overload); read it back with [javaTimeout]. Fields may be added (decision D59), so the
+ * constructor is internal to Wow.
  */
-data class WaitPlan(val hops: List<Hop>, val timeout: Duration = DEFAULT_TIMEOUT, val isDefault: Boolean = false) {
+class WaitPlan @InternalWowApi constructor(
+    val hops: List<Hop>,
+    val timeout: Duration = DEFAULT_TIMEOUT,
+    val isDefault: Boolean = false,
+) {
     init {
         require(hops.isNotEmpty()) { "A wait plan has at least one hop." }
         require(timeout.isPositive()) { "A wait timeout is positive." }
         require(!isDefault || hops == DEFAULT_HOPS) { "Only the snapshot plan is the default." }
     }
 
-    /** Until [hops] are reached, in order, within [timeout]. */
-    constructor(hops: List<Hop>, timeout: JavaDuration) : this(hops, timeout.toKotlinDuration())
-
     /** [timeout] as a `java.time.Duration`. */
     val javaTimeout: JavaDuration get() = timeout.toJavaDuration()
 
     /** This plan waiting at most [timeout]. */
-    fun within(timeout: Duration): WaitPlan = copy(timeout = timeout)
+    fun within(timeout: Duration): WaitPlan = WaitPlan(hops, timeout, isDefault)
 
     /** This plan waiting at most [timeout]. */
     fun within(timeout: JavaDuration): WaitPlan = within(timeout.toKotlinDuration())
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is WaitPlan && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "WaitPlan(hops=$hops, timeout=$timeout, isDefault=$isDefault)"
+
+    private fun valueFields(): List<Any?> = listOf(hops, timeout, isDefault)
 
     companion object {
         private val DEFAULT_HOPS = listOf(Hop.snapshot())

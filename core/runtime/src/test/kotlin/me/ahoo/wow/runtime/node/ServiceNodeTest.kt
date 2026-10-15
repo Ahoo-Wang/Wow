@@ -196,7 +196,7 @@ class ServiceNodeTest {
     @Test
     fun `two nodes forward a command to its owner, which signals the node it arrived at`(): Unit = runBlocking {
         val backends = InMemoryBackends(partitions = 16)
-        val options = fastNodeOptions().copy(cluster = fastOptions(forwardTimeout = 10.seconds))
+        val options = fastNodeOptions().copyWith(cluster = fastOptions(forwardTimeout = 10.seconds))
         val decided = mapOf("node-1" to CopyOnWriteArrayList<String>(), "node-2" to CopyOnWriteArrayList())
         val projected = CopyOnWriteArrayList<String>()
         val projector = SubscriptionFactory { context ->
@@ -250,7 +250,7 @@ class ServiceNodeTest {
             node = node(
                 "node-1",
                 backends = backends,
-                options = fastNodeOptions().copy(subscription = testOptions(stopTimeout = 100.milliseconds)),
+                options = fastNodeOptions().copyWith(subscription = testOptions(stopTimeout = 100.milliseconds)),
                 subscriptions = stuck,
                 listener = { step -> events += "$step ${node.waits.size} ${node.state}" },
             )
@@ -295,7 +295,7 @@ class ServiceNodeTest {
     @Test
     fun `a node stops only once the commands still executing have settled`(): Unit = runBlocking {
         val backends = InMemoryBackends(partitions = 16)
-        val options = fastNodeOptions().copy(cluster = fastOptions(forwardTimeout = 10.seconds))
+        val options = fastNodeOptions().copyWith(cluster = fastOptions(forwardTimeout = 10.seconds))
         val decided = CopyOnWriteArrayList<String>()
         val steps = CopyOnWriteArrayList<ServiceNode.Step>()
         val one = node("node-1", backends = backends, options = options, listener = { steps += it })
@@ -364,7 +364,9 @@ class ServiceNodeTest {
     fun `a start configured for a subscription the node does not have is refused`() {
         val plain = SubscriptionFactory { listOf(Subscription("plain", SubscriptionFilter(BANK)) {}) }
         fun starts(vararg names: String) = fastNodeOptions().let {
-            it.copy(subscription = it.subscription.copy(starts = names.associateWith { SubscriptionStart.Beginning }))
+            it.copyWith(
+                subscription = it.subscription.copyWith(starts = names.associateWith { SubscriptionStart.Beginning })
+            )
         }
         // The application's subscriptions and the built-in ones may be configured (decision D154).
         node("node-1", options = starts("plain", "snapshot"), subscriptions = plain)
@@ -378,7 +380,7 @@ class ServiceNodeTest {
         val plain = SubscriptionFactory { listOf(Subscription("plain", SubscriptionFilter(BANK)) {}) }
         fun specs(vararg names: String) = fastNodeOptions().let {
             val parked = ParkedRetryOptions(specs = names.associateWith { ParkedRetrySpec(maxRetries = 1) })
-            it.copy(subscription = it.subscription.copy(parked = parked))
+            it.copyWith(subscription = it.subscription.copyWith(parked = parked))
         }
         val node = node("node-1", options = specs("plain", "snapshot"), subscriptions = plain)
         node.parked.subscriptions.assert().contains("snapshot")
@@ -391,8 +393,8 @@ class ServiceNodeTest {
     fun `a retry budget configured for a subscription the node does not have is refused (P3)`() {
         val plain = SubscriptionFactory { listOf(Subscription("plain", SubscriptionFilter(BANK)) {}) }
         fun retries(vararg names: String) = fastNodeOptions().let {
-            it.copy(
-                subscription = it.subscription.copy(retries = names.associateWith { HandlerRetry(maxAttempts = 1) })
+            it.copyWith(
+                subscription = it.subscription.copyWith(retries = names.associateWith { HandlerRetry(maxAttempts = 1) })
             )
         }
         node("node-1", options = retries("plain", "snapshot"), subscriptions = plain)
@@ -403,9 +405,9 @@ class ServiceNodeTest {
 
     @Test
     fun `the node's default wait timeout is its gateway's`() {
-        val options = fastNodeOptions().copy(defaultWaitTimeout = 3.seconds)
+        val options = fastNodeOptions().copyWith(defaultWaitTimeout = 3.seconds)
         node("node-1", options = options).gateway.defaultWaitTimeout(BANK).assert().isEqualTo(3.seconds)
-        assertThrows<IllegalArgumentException> { fastNodeOptions().copy(defaultWaitTimeout = Duration.ZERO) }
+        assertThrows<IllegalArgumentException> { fastNodeOptions().copyWith(defaultWaitTimeout = Duration.ZERO) }
     }
 
     @Test
@@ -430,13 +432,13 @@ class ServiceNodeTest {
     @Test
     fun `a creation without an id keeps the id its request created in the context's log (D191)`(): Unit = runBlocking {
         val node = node("node-1").also { it.start() }
-        val request = deposit().copy(requestId = "deposit-1")
+        val request = deposit().copyWith(requestId = "deposit-1")
         val first = node.gateway.execute(request)
         first.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         val again = node.gateway.execute(request)
         again.ref.assert().isEqualTo(first.ref)
         again.duplicate.assert().isTrue()
-        node.gateway.execute(deposit(context = "nowhere").copy(requestId = "deposit-1"))
+        node.gateway.execute(deposit(context = "nowhere").copyWith(requestId = "deposit-1"))
             .error!!.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
         node.stop()
     }
@@ -452,7 +454,7 @@ class ServiceNodeTest {
         unheard.hop.assert().isEqualTo(Hop.committed(BANK))
         alone.stop()
         // Unless it rejects the contexts it does not know.
-        val strict = node("node-3", options = fastNodeOptions().copy(unknownWaitContexts = UnknownContexts.REJECT))
+        val strict = node("node-3", options = fastNodeOptions().copyWith(unknownWaitContexts = UnknownContexts.REJECT))
         strict.start()
         val refused = strict.gateway.execute(deposit(id = "a-1", wait = peer))
         refused.error!!.code.assert().isEqualTo(ResultCodes.WAIT_INVALID)

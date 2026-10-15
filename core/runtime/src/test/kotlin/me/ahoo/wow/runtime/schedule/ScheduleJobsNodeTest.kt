@@ -93,7 +93,7 @@ class ScheduleJobsNodeTest {
         shopManifest(),
         backends,
         channel,
-        options = fastNodeOptions().copy(
+        options = fastNodeOptions().copyWith(
             timers = TimerOptions(pollInterval = 20.milliseconds, lookahead = 2.seconds, claimTimeout = 1.seconds),
             schedules = schedules,
         ),

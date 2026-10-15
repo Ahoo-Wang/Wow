@@ -136,8 +136,8 @@ class RejectionBindingTest {
             handler.invoke(rejected, rejectionContextOf(handler, rejected)).map { it.id }
                 .assert().isEqualTo(commands.map { it.id })
             handler.invoke(
-                rejected.copy(commandId = "c-2"),
-                rejectionContextOf(handler, rejected.copy(commandId = "c-2"))
+                rejected.copyWith(commandId = "c-2"),
+                rejectionContextOf(handler, rejected.copyWith(commandId = "c-2"))
             )
                 .map { it.id }.assert().doesNotContainAnyElementsOf(commands.map { it.id })
             // Not the ids the saga's execution derives itself.

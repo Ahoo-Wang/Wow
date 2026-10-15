@@ -229,7 +229,7 @@ class LedgerPublisher internal constructor(
             nextRetryAt = view.nextRetryAt,
             recordedAt = now,
         )
-        val content = record.copy(recordedAt = 0)
+        val content = record.copyWith(recordedAt = 0)
         val observed = published[key]?.takeIf { it.record == content } ?: Observed(content, now)
         published[key] = observed
         val requestId = digest(key, ClusterCodec.mapper.writeValueAsString(content), observed.at)

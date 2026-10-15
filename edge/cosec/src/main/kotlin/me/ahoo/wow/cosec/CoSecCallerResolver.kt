@@ -19,6 +19,7 @@ import me.ahoo.cosec.api.principal.SpacedRoleId
 import me.ahoo.cosec.api.tenant.Tenant
 import me.ahoo.cosec.webflux.ServerWebExchanges.getSecurityContext
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.caller.CallerResolver
@@ -37,8 +38,11 @@ import org.springframework.web.reactive.function.server.ServerRequest
  * - A principal is a service identity (decision D193) when it has one of [serviceRoles] or one of [servicePolicies],
  *   compared whole: another service of the system, authenticated by the token CoSec issued to its service account,
  *   which alone may assert the root command of a synchronous call (`Wow-Call`).
+ *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
  */
-data class CoSecCallerOptions(
+class CoSecCallerOptions @InternalWowApi constructor(
     val defaultTenant: String = Caller.DEFAULT_TENANT,
     val crossScopeRoles: Set<String> = emptySet(),
     val crossScopePolicies: Set<String> = emptySet(),
@@ -52,6 +56,27 @@ data class CoSecCallerOptions(
         require(defaultTenant.isNotBlank()) { "The default tenant is not blank." }
         require(attributePrefix.isNotBlank()) { "The ABAC attribute prefix is not blank." }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is CoSecCallerOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "CoSecCallerOptions(defaultTenant=$defaultTenant, crossScopeRoles=$crossScopeRoles, " +
+            "crossScopePolicies=$crossScopePolicies, attributePrefix=$attributePrefix, tenantRoles=$tenantRoles, " +
+            "tenantPolicies=$tenantPolicies, serviceRoles=$serviceRoles, servicePolicies=$servicePolicies)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        defaultTenant,
+        crossScopeRoles,
+        crossScopePolicies,
+        attributePrefix,
+        tenantRoles,
+        tenantPolicies,
+        serviceRoles,
+        servicePolicies
+    )
 
     companion object {
         /** The prefix of the principal attributes that are ABAC attributes, as 9.x wow-cosec reads them. */

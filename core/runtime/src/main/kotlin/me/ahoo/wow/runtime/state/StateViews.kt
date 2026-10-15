@@ -54,8 +54,11 @@ class SerializedState(
     override fun toString(): String = "SerializedState(version=$version)"
 }
 
-/** The bounds of a context's [StateViews]: at most [capacity] views, none older than [maxAge]. */
-data class StateViewOptions(
+/** The bounds of a context's [StateViews]: at most [capacity] views, none older than [maxAge].  *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
+ */
+class StateViewOptions @InternalWowApi constructor(
     val capacity: Int = DEFAULT_CAPACITY,
     val maxAge: Duration = DEFAULT_MAX_AGE,
 ) {
@@ -63,6 +66,15 @@ data class StateViewOptions(
         require(capacity >= 1) { "The state views hold at least one view." }
         require(maxAge.isPositive()) { "The maximum age of a state view is positive." }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is StateViewOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "StateViewOptions(capacity=$capacity, maxAge=$maxAge)"
+
+    private fun valueFields(): List<Any?> = listOf(capacity, maxAge)
 
     companion object {
         const val DEFAULT_CAPACITY: Int = 4_096

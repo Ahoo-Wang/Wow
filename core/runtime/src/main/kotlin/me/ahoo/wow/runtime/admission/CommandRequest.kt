@@ -14,6 +14,7 @@
 package me.ahoo.wow.runtime.admission
 
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
@@ -37,8 +38,10 @@ import tools.jackson.databind.JsonNode
  *
  * [call] is the root command a service identity's synchronous call acts for (decision D193, the `Wow-Call` header):
  * admission takes it only from a caller that is a [service][Caller.service] identity.
+ *
+ * Fields may be added (decision D59): construct a request with [of] or [builder]; the constructor is internal to Wow.
  */
-data class CommandRequest(
+class CommandRequest @InternalWowApi constructor(
     val context: String,
     val aggregate: String,
     val command: String,
@@ -57,6 +60,115 @@ data class CommandRequest(
         require(context.isNotBlank()) { "A command request names its context." }
         require(aggregate.isNotBlank()) { "A command request names its aggregate." }
         require(command.isNotBlank()) { "A command request names its command." }
+    }
+
+    /** This CommandRequest with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        context: String = this.context,
+        aggregate: String = this.aggregate,
+        command: String = this.command,
+        body: CommandBody = this.body,
+        caller: Caller = this.caller,
+        aggregateId: String? = this.aggregateId,
+        target: TargetScope? = this.target,
+        requestId: String? = this.requestId,
+        expectedVersion: Int? = this.expectedVersion,
+        headers: Map<String, String> = this.headers,
+        wait: WaitPlan? = this.wait,
+        trace: Map<String, String> = this.trace,
+        call: CallContext? = this.call,
+    ): CommandRequest = CommandRequest(
+        context,
+        aggregate,
+        command,
+        body,
+        caller,
+        aggregateId,
+        target,
+        requestId,
+        expectedVersion,
+        headers,
+        wait,
+        trace,
+        call,
+    )
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is CommandRequest && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "CommandRequest(context=$context, aggregate=$aggregate, command=$command, body=$body, " +
+            "caller=$caller, aggregateId=$aggregateId, target=$target, requestId=$requestId, " +
+            "expectedVersion=$expectedVersion, headers=$headers, wait=$wait, trace=$trace, call=$call)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        context, aggregate, command, body, caller, aggregateId, target, requestId, expectedVersion, headers, wait,
+        trace, call
+    )
+
+    /**
+     * Builds a [CommandRequest] from what [of] takes and any of the request's facts, each setter replacing the fact it
+     * names; [build] checks the request. A fact added to the request later comes with a setter of its own.
+     */
+    class Builder internal constructor(
+        private val context: String,
+        private val aggregate: String,
+        private val command: String,
+        private val body: CommandBody,
+    ) {
+        private var caller: Caller = Caller.ANONYMOUS
+        private var aggregateId: String? = null
+        private var target: TargetScope? = null
+        private var requestId: String? = null
+        private var expectedVersion: Int? = null
+        private var headers: Map<String, String> = emptyMap()
+        private var wait: WaitPlan? = null
+        private var trace: Map<String, String> = emptyMap()
+
+        /** Who sends the command; anonymous by default. */
+        fun caller(caller: Caller): Builder = apply { this.caller = caller }
+
+        /** The aggregate the command targets; none for a command that creates one with an id it is given. */
+        fun aggregateId(aggregateId: String?): Builder = apply { this.aggregateId = aggregateId }
+
+        /** The scope a cross-scope caller acts in (`Wow-Scope`). */
+        fun target(target: TargetScope?): Builder = apply { this.target = target }
+
+        /** The request id that makes the command idempotent (`Wow-Request-Id`); a new one by default. */
+        fun requestId(requestId: String?): Builder = apply { this.requestId = requestId }
+
+        /** The version the caller believes the aggregate is at (`If-Match`). */
+        fun expectedVersion(expectedVersion: Int?): Builder = apply { this.expectedVersion = expectedVersion }
+
+        /** The request facts admission may keep on the command. */
+        fun headers(headers: Map<String, String>): Builder = apply { this.headers = headers }
+
+        /** What the caller waits for (`Wow-Wait`); the default plan when none is given. */
+        fun wait(wait: WaitPlan?): Builder = apply { this.wait = wait }
+
+        /** The trace context the request arrived with (decision D174). */
+        fun trace(trace: Map<String, String>): Builder = apply { this.trace = trace }
+
+        /** The request. */
+        fun build(): CommandRequest = CommandRequest(
+            context, aggregate, command, body, caller, aggregateId, target, requestId, expectedVersion, headers, wait,
+            trace,
+        )
+    }
+
+    companion object {
+        /** A request for [command] of [aggregate] in [context] with [body], from an anonymous caller, with no other fact. */
+        @JvmStatic
+        fun of(context: String, aggregate: String, command: String, body: CommandBody): CommandRequest =
+            CommandRequest(context, aggregate, command, body)
+
+        /** A [Builder] of a request for [command] of [aggregate] in [context] with [body]. */
+        @JvmStatic
+        fun builder(context: String, aggregate: String, command: String, body: CommandBody): Builder =
+            Builder(context, aggregate, command, body)
     }
 }
 

@@ -32,6 +32,7 @@ import me.ahoo.wow.ops.api.parked.Resume
 import me.ahoo.wow.ops.api.parked.ResumeRequested
 import me.ahoo.wow.ops.api.parked.Skip
 import me.ahoo.wow.ops.api.parked.SkipRequested
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.test.AggregateSpec
 import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
@@ -68,10 +69,10 @@ class ParkedSpec {
                 }
             }
             // A scan sends it again later.
-            whenCommand(RecordParked(ENTRY.copy(recordedAt = 200))) { expectUnchanged() }
+            whenCommand(RecordParked(entry("recordedAt" to 200))) { expectUnchanged() }
             // A record published before the one the entry holds.
-            whenCommand(RecordParked(ENTRY.copy(retries = 5, recordedAt = 50))) { expectUnchanged() }
-            val exhausted = ENTRY.copy(retries = 10, status = ParkedStatus.EXHAUSTED, recordedAt = 300)
+            whenCommand(RecordParked(entry("retries" to 5, "recordedAt" to 50))) { expectUnchanged() }
+            val exhausted = entry("retries" to 10, "status" to ParkedStatus.EXHAUSTED, "recordedAt" to 300)
             whenCommand(RecordParked(exhausted)) {
                 expectEvents(ParkedRecorded(exhausted))
                 expectState { status.assert().isEqualTo(ParkedStatus.EXHAUSTED) }
@@ -95,10 +96,10 @@ class ParkedSpec {
                 }
             }
             whenCommand(RecordResolved(RESOLUTION.copy(outcome = LedgerResolution.RESOLVED))) { expectUnchanged() }
-            whenCommand(RecordParked(ENTRY.copy(recordedAt = 500))) { expectUnchanged() }
+            whenCommand(RecordParked(entry("recordedAt" to 500))) { expectUnchanged() }
             whenCommand(Resume()) { expectRejected(ParkedRejections.RESOLVED) }
             // The aggregate parks again: a new parking.
-            val again = ENTRY.copy(failedAt = 600, recordedAt = 610)
+            val again = entry("failedAt" to 600, "recordedAt" to 610)
             whenCommand(RecordParked(again)) {
                 expectEvents(ParkedRecorded(again))
                 expectState {
@@ -118,7 +119,7 @@ class ParkedSpec {
         ParkedState.errorTypeOf("The gateway is down.").assert().isEqualTo("The gateway is down.")
         parkedSpec {
             given(ParkedRecorded(ENTRY))
-            val other = ENTRY.copy(reason = "The gateway is down again.", recordedAt = 300)
+            val other = entry("reason" to "The gateway is down again.", "recordedAt" to 300)
             whenCommand(RecordParked(other)) {
                 expectState { errorType.assert().isEqualTo("The gateway is down again.") }
             }
@@ -162,7 +163,7 @@ class ParkedSpec {
             whenCommand(ApplyRetrySpec(executionTimeout = "-1m")) { expectRejected(ParkedRejections.INVALID) }
             whenCommand(ApplyRetrySpec(executionTimeout = "INFINITE")) { expectRejected(ParkedRejections.INVALID) }
             // The service's next record answers the request.
-            whenCommand(RecordParked(ENTRY.copy(request = "RESUME", recordedAt = 700))) {
+            whenCommand(RecordParked(entry("request" to "RESUME", "recordedAt" to 700))) {
                 expectState { requested.assert().isNull() }
             }
         }
@@ -172,19 +173,30 @@ class ParkedSpec {
         const val SUBSCRIPTION = "PaymentGatewaySaga.onPaymentRequested"
         val AGGREGATE = LedgerAggregate("eshop-payment", "payment", "(0)", "alice-1")
         const val ID = "eshop-payment-service:$SUBSCRIPTION:eshop-payment.payment:(0):alice-1"
-        val ENTRY = LedgerEntry(
-            service = "eshop-payment-service",
-            context = "eshop-payment",
-            subscription = SUBSCRIPTION,
-            aggregate = AGGREGATE,
-            fromVersion = 1,
-            reason = "java.net.ConnectException: The gateway is down.",
-            failedAt = 100,
-            retrySpec = LedgerRetrySpec(10, "PT3M", "PT2M"),
-            status = ParkedStatus.SCHEDULED,
-            nextRetryAt = 280,
-            recordedAt = 110,
+
+        /**
+         * The fields of the entry the tests record. A [LedgerEntry] is a wire record whose constructor is Wow's own
+         * (decision D216): the tests read it from its JSON, as the ops context receives it.
+         */
+        private val ENTRY_FIELDS: Map<String, Any?> = mapOf(
+            "service" to "eshop-payment-service",
+            "context" to "eshop-payment",
+            "subscription" to SUBSCRIPTION,
+            "aggregate" to AGGREGATE,
+            "fromVersion" to 1,
+            "reason" to "java.net.ConnectException: The gateway is down.",
+            "failedAt" to 100,
+            "retrySpec" to LedgerRetrySpec(10, "PT3M", "PT2M"),
+            "status" to ParkedStatus.SCHEDULED,
+            "nextRetryAt" to 280,
+            "recordedAt" to 110,
         )
+
+        /** The entry with [changes] to its fields. */
+        fun entry(vararg changes: Pair<String, Any?>): LedgerEntry =
+            WowJson.mapper.convertValue(ENTRY_FIELDS + changes, LedgerEntry::class.java)
+
+        val ENTRY = entry()
         val RESOLUTION = LedgerResolution(
             service = "eshop-payment-service",
             context = "eshop-payment",

@@ -133,7 +133,7 @@ data class StateView(val version: Int, val schemaFingerprint: String, val state:
 内核的 `CommandOutcome` 是内部结局。对外（HTTP 响应、SSE、等待信号、`wow-client`）用一个结构：
 
 ```kotlin
-data class CommandResult(
+class CommandResult(
     val format: Int,
     val commandId: String,
     val requestId: String,
@@ -152,6 +152,8 @@ data class CommandResult(
     val pending: List<Hop> = emptyList(), // chainEnded 时，计划里未到达的跳，按顺序
 )
 ```
+
+它在 Kotlin 里是普通类，不是 data 类（D216 ⑤）：构造函数标 `@InternalWowApi`，用户用 `CommandResult.succeeded`、`rejected`、`failed` 构造，Wow 自己用不进 ABI 的 `copyWith`。这样按 D59 在格式 1 内加字段时，公开的签名不变。其他线上信封（`Command`、`ErrorInfo`、`Rejection`、`StateEvent`、`CommandCommitted`、`CommandRejected`、`WaitPlan`、`Hop`、`WaitSignal`、`LedgerEntry`、`CommandRequest`）与运行时的 `*Options` 同样处理。
 
 | 内核结局 | `status` | 说明 |
 |---|---|---|

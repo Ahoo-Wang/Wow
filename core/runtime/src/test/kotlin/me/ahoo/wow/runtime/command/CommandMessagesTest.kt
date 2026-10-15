@@ -284,7 +284,7 @@ class CommandMessagesTest {
             receipts.handle(committed("c-2"))
             handled.size.assert().isEqualTo(2)
             assertThrows<IllegalStateException> {
-                runBlocking { receipts.handle(committed("c-3").copy(commandType = "stock.item.Gone")) }
+                runBlocking { receipts.handle(committed("c-3").copyWith(commandType = "stock.item.Gone")) }
             }.message.assert().contains("stock.item.Gone")
         }
 
@@ -375,11 +375,11 @@ class CommandMessagesTest {
         handled.assert().containsExactly("c-1" to Reserve::class.java)
         // No handler takes it: logged and passed over, once.
         answer = null
-        receipts.handle(rejected.copy(commandId = "c-2"))
-        receipts.handle(rejected.copy(commandId = "c-2"))
+        receipts.handle(rejected.copyWith(commandId = "c-2"))
+        receipts.handle(rejected.copyWith(commandId = "c-2"))
         handled.size.assert().isEqualTo(2)
         assertThrows<IllegalStateException> {
-            runBlocking { receipts.handle(rejected.copy(commandId = "c-3", commandType = "stock.item.Gone")) }
+            runBlocking { receipts.handle(rejected.copyWith(commandId = "c-3", commandType = "stock.item.Gone")) }
         }
             .message.assert().contains("stock.item.Gone")
     }
@@ -409,7 +409,10 @@ class CommandMessagesTest {
         val committed = { id: String -> committed(id) }
         val combined = (first + second).receipts(context)!!
         combined.rejected(rejected, Reserve::class.java).assert().containsExactly("first")
-        combined.rejected(rejected.copy(commandId = "theirs"), Reserve::class.java).assert().containsExactly("second")
+        combined.rejected(
+            rejected.copyWith(commandId = "theirs"),
+            Reserve::class.java
+        ).assert().containsExactly("second")
         combined.committed(committed("mine"), Reserve::class.java).assert().containsExactly("first")
         combined.committed(committed("theirs"), Reserve::class.java).assert().containsExactly("second")
         (SubscriptionFactory.NONE + second).receipts(context).assert().isNotNull()

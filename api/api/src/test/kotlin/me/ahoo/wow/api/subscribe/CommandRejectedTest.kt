@@ -46,7 +46,7 @@ class CommandRejectedTest {
 
     @Test
     fun `a rejection names its command and the command's type`() {
-        assertThrownBy<IllegalArgumentException> { rejected().copy(commandId = " ") }
-        assertThrownBy<IllegalArgumentException> { rejected().copy(commandType = "") }
+        assertThrownBy<IllegalArgumentException> { rejected().copyWith(commandId = " ") }
+        assertThrownBy<IllegalArgumentException> { rejected().copyWith(commandType = "") }
     }
 }

@@ -38,11 +38,26 @@ import kotlin.coroutines.CoroutineContext
 /**
  * Whether a [PartitionAppendQueue] queues appends ([enabled]), and the most appends one [EventLog.appendAll] takes
  * ([maxBatch]). A node's log backend picks its default: [MONGO] or [POSTGRES].
+ *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
  */
-data class AppendQueueOptions(val enabled: Boolean = true, val maxBatch: Int = DEFAULT_MAX_BATCH) {
+class AppendQueueOptions @InternalWowApi constructor(
+    val enabled: Boolean = true,
+    val maxBatch: Int = DEFAULT_MAX_BATCH,
+) {
     init {
         require(maxBatch >= 1) { "A batch takes at least one append." }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is AppendQueueOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "AppendQueueOptions(enabled=$enabled, maxBatch=$maxBatch)"
+
+    private fun valueFields(): List<Any?> = listOf(enabled, maxBatch)
 
     companion object {
         private const val DEFAULT_MAX_BATCH = 64

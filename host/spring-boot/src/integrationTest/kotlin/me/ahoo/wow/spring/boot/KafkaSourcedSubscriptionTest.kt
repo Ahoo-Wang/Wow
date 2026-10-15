@@ -113,7 +113,9 @@ class KafkaSourcedSubscriptionTest {
             }
             handled += Triple(node, entry.ref, entry.version)
         }
-        val source = KafkaPartitionedSource.create(options.copy(metadataMaxAge = 200.milliseconds))
+        val source = KafkaPartitionedSource.create(
+            KafkaOptions(options.bootstrapServers, options.properties, options.pollTimeout, 200.milliseconds),
+        )
         return TopicSubscriptions(
             service = SERVICE,
             topic = topic,

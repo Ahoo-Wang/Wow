@@ -58,10 +58,10 @@ class StateEventTest {
 
     @Test
     fun `a state event holds a committed stream`() {
-        assertThrownBy<IllegalArgumentException> { stateEvent().copy(version = 0) }
-        assertThrownBy<IllegalArgumentException> { stateEvent().copy(commandId = " ") }
-        assertThrownBy<IllegalArgumentException> { stateEvent().copy(commandType = "") }
-        assertThrownBy<IllegalArgumentException> { stateEvent().copy(events = emptyList()) }
+        assertThrownBy<IllegalArgumentException> { stateEvent().copyWith(version = 0) }
+        assertThrownBy<IllegalArgumentException> { stateEvent().copyWith(commandId = " ") }
+        assertThrownBy<IllegalArgumentException> { stateEvent().copyWith(commandType = "") }
+        assertThrownBy<IllegalArgumentException> { stateEvent().copyWith(events = emptyList()) }
     }
 
     @Test

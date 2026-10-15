@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.api.decide
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /**
  * What a decide function concluded about a command: the events it produces, that it changes nothing, or that it
  * rejects the command. A rejection is a value, not an exception: it is a business outcome the caller is told about,
@@ -51,9 +53,33 @@ sealed interface Decision {
  * string, a number, a boolean, a list, a map, or a data class of them), such as the ids and titles of what blocks the
  * command: the command's result carries them ([me.ahoo.wow.api.result.ErrorInfo.extensions]), and an HTTP answer
  * writes each as an extension member of its problem.
+ *
+ * Fields may be added (decision D59): a decide function rejects with [Decision.reject]; construct a rejection itself
+ * with [of]. The constructor is internal to Wow.
  */
-data class Rejection(val code: String, val message: String, val extensions: Map<String, Any?> = emptyMap()) {
+class Rejection @InternalWowApi constructor(
+    val code: String,
+    val message: String,
+    val extensions: Map<String, Any?> = emptyMap(),
+) {
     init {
         require(code.isNotBlank()) { "A rejection needs a code." }
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is Rejection && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "Rejection(code=$code, message=$message, extensions=$extensions)"
+
+    private fun valueFields(): List<Any?> = listOf(code, message, extensions)
+
+    companion object {
+        /** The rejection [code] with [message] and the structured [extensions]. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(code: String, message: String, extensions: Map<String, Any?> = emptyMap()): Rejection =
+            Rejection(code, message, extensions)
     }
 }

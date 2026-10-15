@@ -459,7 +459,7 @@ class WaitCoordinatorTest {
     /** A retry of [command], with its request id: the kernel answers it from the commit, if there is one. */
     private suspend fun retried(coordinator: WaitCoordinator, command: Command<*>): CommandResult {
         eventually { log.findByRequestId("t", command.requestId) != null }
-        return coordinator.execute(order, command.copy(id = "${command.id}-retry", wait = WaitPlan.COMMITTED))
+        return coordinator.execute(order, command.copyWith(id = "${command.id}-retry", wait = WaitPlan.COMMITTED))
     }
 
     @Test
@@ -672,7 +672,7 @@ class WaitCoordinatorTest {
         val answered = coordinator.execute(order, first)
         answered.hop.assert().isEqualTo(Hop.snapshot("shop"))
         answered.results.assert().isEqualTo(mapOf(ITEMS to 0))
-        val retry = first.copy(id = "c-retry")
+        val retry = first.copyWith(id = "c-retry")
         val result = coordinator.execute(order, retry)
         result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         result.duplicate.assert().isTrue()
@@ -691,7 +691,7 @@ class WaitCoordinatorTest {
             coordinator.execute(order, first)
             val result = withTimeout(
                 2.seconds
-            ) { coordinator.execute(order, first.copy(id = "c-retry", wait = WaitPlan.SNAPSHOT)) }
+            ) { coordinator.execute(order, first.copyWith(id = "c-retry", wait = WaitPlan.SNAPSHOT)) }
             result.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             result.duplicate.assert().isTrue()
             result.hop.assert().isEqualTo(Hop.committed("shop"))
@@ -704,7 +704,7 @@ class WaitCoordinatorTest {
         val first = place(wait = WaitPlan.of(Hop.handled("order.failing")))
         coordinator.execute(order, first).status.assert().isEqualTo(CommandResult.Status.FAILED)
         eventually { runtime.hasHandled("order.failing", log.findByRequestId("t", first.requestId)!!).not() }
-        val result = coordinator.execute(order, first.copy(id = "c-retry"))
+        val result = coordinator.execute(order, first.copyWith(id = "c-retry"))
         result.duplicate.assert().isTrue()
         result.hop.assert().isEqualTo(Hop.committed("shop"))
     }

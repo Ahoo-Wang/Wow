@@ -82,7 +82,7 @@ class LedgerNodeTest {
         stockManifest(),
         backends,
         channel,
-        options = fastNodeOptions().copy(ledger = LedgerPublishing(interval = 20.milliseconds)),
+        options = fastNodeOptions().copyWith(ledger = LedgerPublishing(interval = 20.milliseconds)),
         admission = AdmissionPlugins(authorizer = authorizer),
         contracts = ContractDirectory(stockManifest()),
         topics = SourceTopics(topics, PREFIX, topics, intake = true),
@@ -169,7 +169,7 @@ class LedgerNodeTest {
                 stockManifest(),
                 InMemoryBackends(PARTITIONS),
                 channel,
-                options = fastNodeOptions().copy(ledger = LedgerPublishing()),
+                options = fastNodeOptions().copyWith(ledger = LedgerPublishing()),
                 contracts = ContractDirectory(stockManifest()),
             )
         }

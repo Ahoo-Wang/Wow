@@ -14,6 +14,7 @@
 package me.ahoo.wow.clickhouse.query
 
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.dataset.QueryDataset
 import java.time.Duration
 
@@ -69,9 +70,12 @@ internal data class ClickHouseDatasetStorage(
     }
 }
 
-/** How a [ClickHouseDatasetQueryBackendFactory] reaches and runs its datasets. */
+/** How a [ClickHouseDatasetQueryBackendFactory] reaches and runs its datasets.  *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
+ */
 @ExperimentalWowApi
-data class ClickHouseDatasetOptions(
+class ClickHouseDatasetOptions @InternalWowApi constructor(
     /** The database of a dataset whose `table` names none: `wow.clickhouse.database`, as the Sink writes there. */
     val database: String = "default",
     /** How long a table's columns and engine are reused before `system.columns` is read again. */
@@ -90,4 +94,14 @@ data class ClickHouseDatasetOptions(
             "The execution time comes from each query's budget, not from settings."
         }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ClickHouseDatasetOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "ClickHouseDatasetOptions(database=$database, metadataTtl=$metadataTtl, settings=$settings)"
+
+    private fun valueFields(): List<Any?> = listOf(database, metadataTtl, settings)
 }

@@ -78,7 +78,9 @@ internal class Waiting(private val state: WaitState) {
         synchronized(this) {
             if (state.outcome == null) {
                 val last = checkNotNull(state.lastReached) { "A registered wait has reached ACCEPTED." }
-                publish(state.finish(last.failed(ResultCodes.WAIT_TIMEOUT, message(last.hop)).copy(signalTime = now)))
+                publish(
+                    state.finish(last.failed(ResultCodes.WAIT_TIMEOUT, message(last.hop)).copyWith(signalTime = now))
+                )
             }
         }
         deadlinePassed.complete(Unit)
