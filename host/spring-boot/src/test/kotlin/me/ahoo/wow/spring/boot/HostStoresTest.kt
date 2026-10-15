@@ -309,6 +309,9 @@ class HostStoresTest {
             javaClass.classLoader,
         )
         stores.getValue("a").tailPolling.assert().isEqualTo(TailPolling(20.milliseconds, 2.seconds))
+        // Each store keeps the ledger of the service it was opened for (finding A2-13).
+        StoreInstances.open(properties(), beans, javaClass.classLoader, service = "orders").values.single().service
+            .assert().isEqualTo("orders")
         StoreInstances.open(properties(), beans, javaClass.classLoader).values.single().tailPolling
             .assert().isEqualTo(TailPolling.DEFAULT)
         assertThrows<IllegalArgumentException> {

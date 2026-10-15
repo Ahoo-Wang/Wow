@@ -27,6 +27,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.mongo
@@ -42,8 +43,10 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The [FailureLedger] of one service on MongoDB (documentation/designs/v10/04-subscriptions.md §2), in the service's
- * own database: one document per parked (subscription, aggregate), keyed by a unique index on (subscription, context,
- * aggregate name, tenant, id).
+ * own database: one document per parked (subscription, aggregate), keyed by a unique index on (service, subscription,
+ * context, aggregate name, tenant, id). The key starts with [service], the service the ledger is of (finding A2-13):
+ * services that share a database, and subscriptions of one name, see and resolve only their own entries. The
+ * collection's layout is recorded as format [FORMAT] ([MongoFormat], decision D59).
  *
  * Every write is one single-document operation. A park is a conditional upsert (see [conditionalUpsert]) whose filter
  * admits only a later stored from version, so concurrent or replayed parks converge on the earliest (decision D45)
@@ -61,15 +64,22 @@ import kotlin.time.Duration.Companion.milliseconds
 class MongoFailureLedger(
     client: MongoClient,
     databaseName: String,
-    collection: String = DEFAULT_COLLECTION,
+    private val collection: String = DEFAULT_COLLECTION,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    /** The service whose ledger this is: its entries alone are seen. */
+    private val service: String = DEFAULT_SERVICE,
 ) : FailureLedger {
-    private val ledger: MongoCollection<Document> = client.getDatabase(databaseName).getCollection(collection)
+    private val database = client.getDatabase(databaseName)
+    private val ledger: MongoCollection<Document> = database.getCollection(collection)
 
-    /** Creates the key index, which also serves [list]'s order, when missing. */
+    /**
+     * Claims the collection's format ([MongoFormat]) and creates the key index, which also serves [list]'s order,
+     * when missing.
+     */
     fun createSchema() {
+        MongoFormat.claim(database, collection, FORMAT)
         ledger.createIndex(
-            Indexes.ascending(SUBSCRIPTION, CONTEXT, AGGREGATE_NAME, TENANT_ID, AGGREGATE_ID),
+            Indexes.ascending(SERVICE, SUBSCRIPTION, CONTEXT, AGGREGATE_NAME, TENANT_ID, AGGREGATE_ID),
             IndexOptions().unique(true).name(LEDGER_KEY),
         )
     }
@@ -110,9 +120,9 @@ class MongoFailureLedger(
     override suspend fun list(subscription: String, after: AggregateRef?, limit: Int): List<ParkedAggregate> {
         require(limit >= 1) { "A page holds at least one entry." }
         val filter = if (after == null) {
-            Filters.eq(SUBSCRIPTION, subscription)
+            Filters.and(Filters.eq(SERVICE, service), Filters.eq(SUBSCRIPTION, subscription))
         } else {
-            Filters.and(Filters.eq(SUBSCRIPTION, subscription), after(after))
+            Filters.and(Filters.eq(SERVICE, service), Filters.eq(SUBSCRIPTION, subscription), after(after))
         }
         return dispatcher.mongo {
             ledger.find(filter)
@@ -155,6 +165,7 @@ class MongoFailureLedger(
     }
 
     private fun keyFilter(subscription: String, ref: AggregateRef): Bson = Filters.and(
+        Filters.eq(SERVICE, service),
         Filters.eq(SUBSCRIPTION, subscription),
         Filters.eq(CONTEXT, ref.type.context),
         Filters.eq(AGGREGATE_NAME, ref.type.name),
@@ -208,7 +219,14 @@ class MongoFailureLedger(
 
     private companion object {
         const val DEFAULT_COLLECTION = "wow_failure_ledger"
+
+        /** The service of a ledger built without one: a database of one service. */
+        const val DEFAULT_SERVICE = ""
+
+        /** The layout version of the collection (decision D59); format 1 keys entries by service (finding A2-13). */
+        const val FORMAT = 1
         const val LEDGER_KEY = "ledger_key"
+        const val SERVICE = "service"
         const val SUBSCRIPTION = "subscription"
         const val CONTEXT = "context"
         const val AGGREGATE_NAME = "aggregate_name"

@@ -15,6 +15,7 @@ package me.ahoo.wow.postgres.subscription
 
 import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.subscription.Lease
@@ -45,10 +46,14 @@ class PostgresLeaseStore(
     private val clock: Clock = Clock.systemUTC(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
 ) : LeaseStore {
-    /** Creates the tables when missing. */
+    /** Claims the tables' format ([PostgresFormat], decision D59) and creates them when missing. */
     fun createSchema() {
         dataSource.connection.use { connection ->
-            connection.createStatement().use { statement -> DDL.forEach { statement.execute(it) } }
+            PostgresFormat.creating(connection) {
+                PostgresFormat.claim(connection, LEASES, FORMAT)
+                PostgresFormat.claim(connection, MEMBERS_TABLE, FORMAT)
+                connection.createStatement().use { statement -> DDL.forEach { statement.execute(it) } }
+            }
         }
     }
 
@@ -151,6 +156,9 @@ class PostgresLeaseStore(
     private companion object {
         const val LEASES = "wow_lease"
         const val MEMBERS_TABLE = "wow_lease_member"
+
+        /** The layout version of both tables (finding A2-13). */
+        const val FORMAT = 1
         const val LEASE_COLUMNS = "subscription_group, partition, owner, epoch, expires_at"
 
         val DDL = listOf(

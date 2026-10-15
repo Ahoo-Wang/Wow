@@ -46,7 +46,8 @@ internal class MongoStore(
 
     override fun openLeases(): LeaseStore = MongoLeaseStore(client, database).also { schema(it::createSchema) }
 
-    override fun openLedger(): FailureLedger = MongoFailureLedger(client, database).also { schema(it::createSchema) }
+    override fun openLedger(): FailureLedger =
+        MongoFailureLedger(client, database, service = service).also { schema(it::createSchema) }
 
     override fun openReservations(): ReservationStore =
         MongoReservationStore(client, database).also { schema(it::createSchema) }

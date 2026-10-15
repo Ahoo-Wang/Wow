@@ -15,6 +15,7 @@ package me.ahoo.wow.postgres.subscription
 
 import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.subscription.CheckpointStore
@@ -32,10 +33,13 @@ class PostgresCheckpointStore(
     private val dataSource: DataSource,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
 ) : CheckpointStore {
-    /** Creates the table when missing. */
+    /** Claims the table's format ([PostgresFormat], decision D59) and creates it when missing. */
     fun createSchema() {
         dataSource.connection.use { connection ->
-            connection.createStatement().use { it.execute(DDL) }
+            PostgresFormat.creating(connection) {
+                PostgresFormat.claim(connection, TABLE, FORMAT)
+                connection.createStatement().use { it.execute(DDL) }
+            }
         }
     }
 
@@ -66,6 +70,9 @@ class PostgresCheckpointStore(
 
     private companion object {
         const val TABLE = "wow_checkpoint"
+
+        /** The layout version of the table (finding A2-13). */
+        const val FORMAT = 1
 
         val DDL = """
             CREATE TABLE IF NOT EXISTS $TABLE (

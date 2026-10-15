@@ -15,6 +15,7 @@ package me.ahoo.wow.mongo.ledger
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.spi.ledger.FailureLedger
@@ -27,8 +28,9 @@ import org.junit.jupiter.api.Test
 class MongoFailureLedgerTest : FailureLedgerSpec() {
     override fun createLedger(): FailureLedger = ledger()
 
-    private fun ledger(collection: String = "wow_failure_ledger") =
-        MongoFailureLedger(MongoLogFixture.client, MongoLogFixture.DATABASE, collection).also { it.createSchema() }
+    private fun ledger(collection: String = "wow_failure_ledger", service: String = "") =
+        MongoFailureLedger(MongoLogFixture.client, MongoLogFixture.DATABASE, collection, service = service)
+            .also { it.createSchema() }
 
     @Test
     fun `creating the schema twice is harmless`() {
@@ -42,7 +44,8 @@ class MongoFailureLedgerTest : FailureLedgerSpec() {
         val ledger = ledger(collection)
         val subscription = "old-" + System.nanoTime()
         MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection).insertOne(
-            Document("subscription", subscription)
+            Document("service", "")
+                .append("subscription", subscription)
                 .append("context", "ledger")
                 .append("aggregate_name", "order")
                 .append("tenant_id", "t")
@@ -56,6 +59,34 @@ class MongoFailureLedgerTest : FailureLedgerSpec() {
         ledger.amend(subscription, ref, ParkedAmendment.ClaimRetry(1, 9)).assert().isNull()
         ledger.amend(subscription, ref, ParkedAmendment.ClaimRetry(0, 9))!!.retries.assert().isEqualTo(1)
         ledger.amend(subscription, ref, ParkedAmendment.ClaimRetry(1, 10))!!.retries.assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `a ledger collection created by a build without format records is refused`() {
+        // Finding A2-13: the old layout was accepted silently.
+        MongoLogFixture.createUnrecorded("ledger_unrecorded")
+        assertThrownBy<IllegalStateException> { ledger("ledger_unrecorded") }
+        ledger("ledger_bumped")
+        MongoLogFixture.bumpFormat("ledger_bumped")
+        assertThrownBy<IllegalStateException> { ledger("ledger_bumped") }
+    }
+
+    @Test
+    fun `services sharing a database see and resolve their own entries only`(): Unit = runBlocking {
+        // Finding A2-13: the key had no service, so one service resolved another's parked entry.
+        val orders = ledger("ledger_shared", service = "orders")
+        val billing = ledger("ledger_shared", service = "billing")
+        val subscription = "projection-" + System.nanoTime()
+        val ref = AggregateType("shared", "order").ref("t", "a")
+        orders.park(ParkedAggregate(subscription, ref, 3, "boom", 7)).assert().isTrue()
+        billing.parked(subscription, ref).assert().isNull()
+        billing.list(subscription).assert().isEmpty()
+        billing.resolve(subscription, ref).assert().isNull()
+        billing.park(ParkedAggregate(subscription, ref, 5, "other", 8)).assert().isTrue()
+        orders.parked(subscription, ref)!!.fromVersion.assert().isEqualTo(3)
+        orders.list(subscription, after = AggregateType("shared", "a").ref("t", "a")).size.assert().isEqualTo(1)
+        orders.resolve(subscription, ref)!!.reason.assert().isEqualTo("boom")
+        billing.parked(subscription, ref)!!.reason.assert().isEqualTo("other")
     }
 
     /** "￿" sorts before "😀" (U+1F600) by code point but after it by UTF-16 unit, as Java orders strings. */

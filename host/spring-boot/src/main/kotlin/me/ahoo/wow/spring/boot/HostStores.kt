@@ -57,6 +57,9 @@ abstract class HostStore internal constructor(val name: String, val kind: Backen
     /** How the tails of the logs this store opens poll (`wow.log.poll-interval`, finding A2-14). */
     internal var tailPolling: TailPolling = TailPolling.DEFAULT
 
+    /** The service whose failure ledger this store keeps: the key of its entries (finding A2-13). */
+    internal var service: String = ""
+
     private val schemas = CopyOnWriteArrayList<() -> Unit>()
     private val logs = ConcurrentHashMap<String, EventLog>()
     private val snapshotStores = ConcurrentHashMap<String, SnapshotStore>()
@@ -345,9 +348,13 @@ internal object StoreInstances {
         beanFactory: ListableBeanFactory,
         classLoader: ClassLoader?,
         memoryQueries: Boolean = false,
+        service: String = "",
     ): Map<String, HostStore> {
         val polling = properties.log.tailPolling()
-        return stores(properties, beanFactory, classLoader, memoryQueries).onEach { it.value.tailPolling = polling }
+        return stores(properties, beanFactory, classLoader, memoryQueries).onEach { (_, store) ->
+            store.tailPolling = polling
+            store.service = service
+        }
     }
 
     private fun stores(

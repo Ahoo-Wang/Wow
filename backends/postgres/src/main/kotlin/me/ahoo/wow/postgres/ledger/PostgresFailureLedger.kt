@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.ledger.FailureLedger
@@ -34,7 +35,9 @@ import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * The [FailureLedger] of one service on PostgreSQL (documentation/designs/v10/04-subscriptions.md §2), in the
- * service's own database: one row per parked (subscription, aggregate).
+ * service's own database: one row per parked (subscription, aggregate). The key starts with [service], the service the
+ * ledger is of (finding A2-13): services that share a database, and subscriptions of one name, see and resolve only
+ * their own entries. The table's layout is recorded as format 1 ([PostgresFormat], decision D59).
  *
  * Every write is one autocommitted statement. A park is an upsert that replaces the row's where and why only with an
  * earlier from version, so concurrent or replayed parks converge on the earliest (decision D45) without a
@@ -51,15 +54,17 @@ class PostgresFailureLedger(
     private val dataSource: DataSource,
     table: String = DEFAULT_TABLE,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    /** The service whose ledger this is: its entries alone are seen. */
+    private val service: String = DEFAULT_SERVICE,
 ) : FailureLedger {
     private val tables = PostgresFailureLedgerTables(table)
 
-    /** Creates the ledger's table when missing, and the columns of later formats when it lacks them. */
+    /** Claims the table's format ([PostgresFormat]) and creates it when missing. */
     fun createSchema() {
         dataSource.connection.use { connection ->
-            connection.createStatement().use { statement ->
-                statement.execute(tables.ddl)
-                tables.migrations.forEach { statement.execute(it) }
+            PostgresFormat.creating(connection) {
+                PostgresFormat.claim(connection, tables.name, PostgresFailureLedgerTables.FORMAT)
+                connection.createStatement().use { it.execute(tables.ddl) }
             }
         }
     }
@@ -104,8 +109,9 @@ class PostgresFailureLedger(
             val sql = if (after == null) tables.listFirst else tables.listAfter
             connection.prepareStatement(sql).use { query ->
                 if (after == null) {
-                    query.setString(1, subscription)
-                    query.setInt(2, limit)
+                    query.setString(1, service)
+                    query.setString(2, subscription)
+                    query.setInt(3, limit)
                 } else {
                     query.setKey(subscription, after)
                     query.setInt(KEY_COLUMNS + 1, limit)
@@ -172,25 +178,33 @@ class PostgresFailureLedger(
         }
     }
 
+    /**
+     * Binds the key (service, subscription, context, aggregate name, tenant, id) to the [KEY_COLUMNS] parameters from
+     * [first].
+     */
+    private fun PreparedStatement.setKey(subscription: String, ref: AggregateRef, first: Int = 1) =
+        bindKey(service, subscription, ref, first)
+
     private suspend fun <T> jdbc(block: (Connection) -> T): T =
         dispatcher.jdbc { dataSource.connection.use(block) }
 
     private companion object {
         const val DEFAULT_TABLE = "wow_failure_ledger"
-        const val KEY_COLUMNS = 5
+
+        /** The service of a ledger built without one: a database of one service. */
+        const val DEFAULT_SERVICE = ""
+        const val KEY_COLUMNS = 6
         const val REPARK_VALUES = 4
         const val SPEC_COLUMNS = 3
 
-        /**
-         * Binds the key (subscription, context, aggregate name, tenant, id) to the [KEY_COLUMNS] parameters from
-         * [first].
-         */
-        fun PreparedStatement.setKey(subscription: String, ref: AggregateRef, first: Int = 1) {
-            setString(first, subscription)
-            setString(first + 1, ref.type.context)
-            setString(first + 2, ref.type.name)
-            setString(first + 3, ref.tenantId)
-            setString(first + 4, ref.id)
+        /** Binds [service]'s key of [subscription] and [ref] to the [KEY_COLUMNS] parameters from [first]. */
+        fun PreparedStatement.bindKey(service: String, subscription: String, ref: AggregateRef, first: Int) {
+            setString(first, service)
+            setString(first + 1, subscription)
+            setString(first + 2, ref.type.context)
+            setString(first + 3, ref.type.name)
+            setString(first + 4, ref.tenantId)
+            setString(first + 5, ref.id)
         }
 
         fun PreparedStatement.setNullableLong(index: Int, value: Long?) {

@@ -25,6 +25,7 @@ import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.mongo
@@ -62,6 +63,8 @@ class MongoLeaseStore(
 
     /** Creates the key indexes when missing. */
     fun createSchema() {
+        MongoFormat.claim(database, LEASES, FORMAT)
+        MongoFormat.claim(database, MEMBERS, FORMAT)
         leases.createIndex(Indexes.ascending(GROUP, PARTITION), IndexOptions().unique(true).name(LEASE_KEY))
         members.createIndex(Indexes.ascending(GROUP, NODE), IndexOptions().unique(true).name(MEMBER_KEY))
     }
@@ -166,6 +169,9 @@ class MongoLeaseStore(
 
     private companion object {
         const val LEASES = "wow_lease"
+
+        /** The layout version of both collections (decision D59, finding A2-13). */
+        const val FORMAT = 1
         const val MEMBERS = "wow_lease_member"
         const val LEASE_KEY = "lease_key"
         const val MEMBER_KEY = "member_key"

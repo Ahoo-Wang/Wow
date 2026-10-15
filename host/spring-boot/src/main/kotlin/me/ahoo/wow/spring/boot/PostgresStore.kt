@@ -43,7 +43,8 @@ internal class PostgresStore(name: String, val dataSource: DataSource) : HostSto
 
     override fun openLeases(): LeaseStore = PostgresLeaseStore(dataSource).also { schema(it::createSchema) }
 
-    override fun openLedger(): FailureLedger = PostgresFailureLedger(dataSource).also { schema(it::createSchema) }
+    override fun openLedger(): FailureLedger =
+        PostgresFailureLedger(dataSource, service = service).also { schema(it::createSchema) }
 
     override fun openReservations(): ReservationStore =
         PostgresReservationStore(dataSource).also { schema(it::createSchema) }
