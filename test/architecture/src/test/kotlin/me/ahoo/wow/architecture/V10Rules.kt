@@ -101,21 +101,27 @@ object V10Rules {
     } + V10Module("eshop-e2e", "example/eshop/e2e")
 
     /**
-     * The V10 example, the eShop (decisions D159, D204): applications of the V10 modules, not ones of them, and the
-     * end-to-end tests across them.
+     * The quickstart (decision D217): the sample of the V10 quickstart page, one module that is both the domain and the
+     * server of a tiny service.
      */
-    val EXAMPLES = ESHOP
+    val QUICKSTART = V10Module("quickstart", "example/quickstart")
 
-    /** Whether [project] belongs to the V10 example, the eShop (decisions D159, D204). */
-    fun isExample(project: String): Boolean = project.startsWith("eshop-")
+    /**
+     * The V10 examples, the eShop (decisions D159, D204) and the quickstart (D217): applications of the V10 modules,
+     * not ones of them, and the end-to-end tests across them.
+     */
+    val EXAMPLES = ESHOP + QUICKSTART
+
+    /** Whether [project] belongs to a V10 example, the eShop (decisions D159, D204) or the quickstart (D217). */
+    fun isExample(project: String): Boolean = project.startsWith("eshop-") || project == QUICKSTART.name
 
     /**
      * Whether [project] is one of the examples' domain or API modules: an example project that is neither a server
-     * (`*-server`) nor end-to-end tests (`*-e2e`). Such a module is what an application's domain is, and builds on the
-     * kernel only (decision D149).
+     * (`*-server`), end-to-end tests (`*-e2e`) nor the quickstart, whose one module is its server too. Such a module is
+     * what an application's domain is, and builds on the kernel only (decision D149).
      */
     fun isExampleDomain(project: String): Boolean =
-        isExample(project) && !project.endsWith("-server") && !project.endsWith("-e2e")
+        isExample(project) && !project.endsWith("-server") && !project.endsWith("-e2e") && project != QUICKSTART.name
 
     /**
      * The modules an application runs with; the compiler, the Gradle plugin and its tools run in the build only, the

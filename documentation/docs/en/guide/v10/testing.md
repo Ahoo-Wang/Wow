@@ -1,6 +1,6 @@
 ---
 title: Testing a V10 Service
-description: The aggregateSpec, sagaSpec, projectionSpec and reactorSpec test DSL in the kernel's test fixtures, binding index tests and server tests for Wow V10.
+description: The aggregateSpec, sagaSpec, projectionSpec and reactorSpec test DSL of wow-test, binding index tests and server tests for Wow V10.
 outline: deep
 ---
 
@@ -8,16 +8,16 @@ outline: deep
 
 ## Where the test DSL lives
 
-The test DSL ships in the **test fixtures of the kernel**, in the package `me.ahoo.wow.kernel.test`:
+The test DSL ships in the V10 module **`wow-test`**, in the package `me.ahoo.wow.test`:
 
 ```kotlin
 dependencies {
-    testImplementation(testFixtures("me.ahoo.wow:wow-kernel:$wowVersion"))
-    // Inside the Wow repository: testImplementation(testFixtures(project(":kernel")))
+    testImplementation("me.ahoo.wow:wow-test:$wowVersion")
+    // Inside the Wow repository: testImplementation(project(":test-dsl"))
 }
 ```
 
-It is not the 9.x `wow-test` module, and its API is not 9.x's `AggregateSpec<A, S>` class to extend: it is a set of functions a JUnit test calls, `aggregateSpec` for an aggregate, and `sagaSpec`, `projectionSpec` and `reactorSpec` for a processor.
+It keeps the artifact name of the 9.x `wow-test` module, but not its API: it is not 9.x's `AggregateSpec<A, S>` class to extend, it is a set of functions a JUnit test calls, `aggregateSpec` for an aggregate, and `sagaSpec`, `projectionSpec` and `reactorSpec` for a processor.
 
 ## `aggregateSpec`
 
@@ -244,7 +244,7 @@ val context = SpringApplicationBuilder(CatalogServer::class.java, TestCallers::c
 ```
 
 - Give the test a `CallerResolver` bean that reads a test header, so each request has an owner (the shop's `HeaderCallers` reads `X-User`).
-- On the memory backend no query backend serves the snapshots, so their query routes answer 404. A test that queries them puts the in-memory reference backend on its class path: `testImplementation(testFixtures("me.ahoo.wow:wow-query:$wowVersion"))`.
+- On the memory backend no query backend serves the snapshots unless `wow.query.memory.enabled` is `true`; without it their query routes answer 404.
 - A service whose sagas send commands to another context does not start without a command transport: give the test Kafka in a container, or in-memory topics (see [Sending a command to another context](./programming-model.md#sending-a-command-to-another-context)).
 - Lower `wow.cluster.drain-timeout`, `wow.subscription.stop-timeout` and `wow.wait.max-timeout` to make the context close quickly.
 - Tests against PostgreSQL, MongoDB, Kafka or ClickHouse run in containers (Testcontainers), in the module's `integrationTest` source set.

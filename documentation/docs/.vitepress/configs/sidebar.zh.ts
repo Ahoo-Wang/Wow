@@ -216,12 +216,13 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             ],
         },
         {
-            // V10 尚未发布（v10 分支）；它的页面与 9.x 指南分开。
+            // V10 处于预发布（10.0.0-alpha.1，v10 分支）；它的页面与 9.x 指南分开。
             base: '/zh/guide/v10/',
             text: 'V10（预览）',
             collapsed: true,
             items: [
-                {text: 'V10 快速开始', link: 'index.html'},
+                {text: 'V10 快速开始', link: 'quickstart'},
+                {text: '编写 V10 服务', link: 'index.html'},
                 {text: '编程模型', link: 'programming-model'},
                 {text: '编译器生成什么', link: 'generated-code'},
                 {text: '测试', link: 'testing'},

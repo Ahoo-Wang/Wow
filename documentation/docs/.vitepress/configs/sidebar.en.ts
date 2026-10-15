@@ -215,12 +215,13 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             ],
         },
         {
-            // V10 is unreleased (the v10 branch); its pages stay apart from the 9.x guide.
+            // V10 is in pre-release (10.0.0-alpha.1, the v10 branch); its pages stay apart from the 9.x guide.
             base: '/guide/v10/',
             text: 'V10 (Preview)',
             collapsed: true,
             items: [
-                {text: 'V10 Quick Start', link: 'index.html'},
+                {text: 'V10 Quick Start', link: 'quickstart'},
+                {text: 'Write a V10 Service', link: 'index.html'},
                 {text: 'Programming Model', link: 'programming-model'},
                 {text: 'What the Compiler Generates', link: 'generated-code'},
                 {text: 'Testing', link: 'testing'},
