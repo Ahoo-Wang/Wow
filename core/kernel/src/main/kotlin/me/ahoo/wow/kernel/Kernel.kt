@@ -296,6 +296,11 @@ class Kernel(
         }
 
         is AppendOutcome.Unknown -> CommandOutcome.Unknown(appended.cause)
+        is AppendOutcome.Rejected -> {
+            // Nothing was committed and nothing will be: compensated, and failed as a refusing backend always failed.
+            attempt.compensate()
+            throw appended.cause
+        }
     }
 
     /** Decides, runs the after hooks and evolves: either an outcome needing no append, or the stream to append. */
@@ -399,7 +404,10 @@ class Kernel(
         }
 
     /** [duplicate] of [stream]: [stream] itself committed when it names this very append (finding A1-1). */
-    private suspend fun duplicateOf(stream: EventStreamRecord, duplicate: AppendOutcome.AlreadyCommitted): AppendOutcome =
+    private suspend fun duplicateOf(
+        stream: EventStreamRecord,
+        duplicate: AppendOutcome.AlreadyCommitted
+    ): AppendOutcome =
         if (duplicate.existing.isAppendOf(stream)) committedAt(stream, duplicate) else duplicate
 
     /**
@@ -1115,4 +1123,5 @@ internal val AppendOutcome.observedName: String
         is AppendOutcome.AlreadyCommitted -> "duplicate"
         is AppendOutcome.Conflict -> "conflict"
         is AppendOutcome.Unknown -> "unknown"
+        is AppendOutcome.Rejected -> "rejected"
     }

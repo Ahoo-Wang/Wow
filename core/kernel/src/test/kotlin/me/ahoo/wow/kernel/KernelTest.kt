@@ -457,6 +457,19 @@ class KernelTest {
     }
 
     @Test
+    fun `a stream the backend refuses fails the command, nothing appended`() = runTest {
+        val log = InMemoryEventLog()
+        Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
+        val refusing = object : EventLog by log {
+            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+                AppendOutcome.Rejected(IllegalArgumentException("unsupported Unicode escape sequence"))
+        }
+        runCatching { Kernel(refusing).execute(cartModel, command(AddItem("apple", 1))) }.exceptionOrNull()
+            .assert().isInstanceOf(IllegalArgumentException::class.java)
+        log.read(ref).toList().size.assert().isEqualTo(1)
+    }
+
+    @Test
     fun `a duplicate of this very append whose position cannot be read is unknown`() = runTest {
         val log = InMemoryEventLog()
         Kernel(log).execute(cartModel, command(CreateCart("ahoo")))

@@ -44,8 +44,10 @@ interface EventLog {
     /**
      * Appends [streams] of one partition, each atomically with its transport, and returns their outcomes in the same
      * order. A partition's owner calls it with the appends it has queued (group commit, finding F1): a backend may
-     * commit them together to share the round trips, as long as every outcome is what [append] would have returned.
-     * The streams target distinct aggregates. By default they are appended one by one.
+     * commit them together to share the round trips, as long as every outcome is what [append] would have returned:
+     * a stream the backend refuses ([AppendOutcome.Rejected]) fails alone, and a group whose commit is unknown is
+     * [AppendOutcome.Unknown] for each stream, never appended again one by one. The streams target distinct aggregates.
+     * By default they are appended one by one.
      */
     suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> =
         streams.map { (stream, transport) -> append(stream, transport) }

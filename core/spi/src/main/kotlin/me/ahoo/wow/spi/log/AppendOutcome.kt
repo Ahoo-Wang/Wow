@@ -31,4 +31,12 @@ sealed interface AppendOutcome {
      * stream at the appended version before deciding again.
      */
     data class Unknown(val cause: Throwable) : AppendOutcome
+
+    /**
+     * The backend refuses the stream as it is, for good, and nothing was committed: a value it cannot store (a decimal
+     * MongoDB cannot keep exactly, a `\u0000` PostgreSQL's `jsonb` does not take), an identifier too long for its
+     * index. Appending it again is refused the same way, so it is neither retried nor read back; [cause] says why. In
+     * a group ([EventLog.appendAll]) it fails that stream alone (findings A2-5, A2-7).
+     */
+    data class Rejected(val cause: Throwable) : AppendOutcome
 }

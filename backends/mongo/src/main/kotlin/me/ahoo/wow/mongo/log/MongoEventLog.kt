@@ -44,6 +44,7 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.mongo.ExactBson
+import me.ahoo.wow.mongo.MongoFailures
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoOperators
@@ -224,6 +225,7 @@ class MongoEventLog(
         require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
         val collection = collectionOf(stream.ref.type)
         val partition = Partitioner.partitionOf(stream.ref, partitions)
+        val document = encode(partition, stream, transport).getOrElse { return AppendOutcome.Rejected(it) }
         val outcome = try {
             client.startSession().use { session ->
                 session.withTransaction({
@@ -241,7 +243,7 @@ class MongoEventLog(
                             Updates.inc(SEQUENCE, 1L),
                             FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER),
                         )!!.getLong(SEQUENCE)
-                        collection.log.insertOne(session, documentOf(partition, sequence, stream, transport))
+                        collection.log.insertOne(session, document.append(SEQUENCE, sequence))
                         AppendOutcome.Committed(LogPosition(partition, sequence))
                     }
                 }, transaction)
@@ -261,6 +263,16 @@ class MongoEventLog(
     }
 
     /**
+     * [stream]'s document in [partition], its sequence still to be set: encoded before any transaction, so a stream
+     * MongoDB cannot store ([ExactBson]'s [IllegalArgumentException]) is refused alone (finding A2-5).
+     */
+    private fun encode(partition: Int, stream: EventStreamRecord, transport: Transport?): Result<Document> = try {
+        Result.success(documentOf(partition, stream, transport))
+    } catch (refused: IllegalArgumentException) {
+        Result.failure(refused)
+    }
+
+    /**
      * [AppendOutcome.AlreadyCommitted] when [stream]'s request is committed, else [conflict] (finding A2-1): a retry of
      * one request at one version collides on both keys, and the version is compared first.
      */
@@ -275,8 +287,13 @@ class MongoEventLog(
     /**
      * Group commit: one transaction reads every aggregate's version (one aggregation per aggregate type), bumps the
      * partition counter once by the number of streams that fit, and inserts them with one `insertMany` per aggregate
-     * type; streams whose version does not fit get their conflict without a write. A duplicate key aborts the whole
-     * transaction, so the batch then falls back to one append per stream, which gives each its own outcome.
+     * type; streams whose version does not fit get their conflict without a write.
+     *
+     * Each stream is encoded first, outside the transaction: one MongoDB cannot store is [AppendOutcome.Rejected] and
+     * left out, the others commit together (finding A2-5). When the transaction fails, a definite abort (a duplicate
+     * key, a transient error retried to the driver's limit) falls back to one append per stream, which gives each its
+     * own outcome; a commit whose result is unknown, or a timeout, is [AppendOutcome.Unknown] for every stream of the
+     * group, since the group may have committed (finding A2-6): the kernel reads each version slot to settle it.
      */
     override suspend fun appendAll(streams: List<Pair<EventStreamRecord, Transport?>>): List<AppendOutcome> {
         if (streams.size <= 1) {
@@ -293,37 +310,62 @@ class MongoEventLog(
         require(streams.map { it.first.ref }.toSet().size == streams.size) {
             "A group commit appends distinct aggregates."
         }
-        val grouped = dispatcher.mongo {
-            val collections = streams.map { it.first.ref.type }.distinct().associateWith { collectionOf(it) }
-            try {
-                client.startSession().use { session ->
-                    session.withTransaction({ appendGroup(session, partition, collections, streams) }, transaction)
-                }.mapIndexed { index, outcome ->
-                    val stream = streams[index].first
-                    if (outcome is AppendOutcome.Conflict) {
-                        duplicateOr(collections.getValue(stream.ref.type), stream, outcome)
-                    } else {
-                        outcome
+        return dispatcher.mongo {
+            val encoded = streams.map { (stream, transport) -> encode(partition, stream, transport) }
+            val members = streams.indices.filter { encoded[it].isSuccess }
+            val outcomes: Map<Int, AppendOutcome> = when (members.size) {
+                0 -> emptyMap()
+                1 -> members.associateWith { appendNow(streams[it].first, streams[it].second) }
+                else -> {
+                    val grouped = commitGroup(partition, members.map { streams[it].first to encoded[it].getOrThrow() })
+                    members.zip(grouped).associate { (index, outcome) ->
+                        index to (outcome ?: appendNow(streams[index].first, streams[index].second))
                     }
                 }
-            } catch (failure: MongoException) {
-                null
+            }
+            streams.indices.map { index ->
+                outcomes[index] ?: AppendOutcome.Rejected(checkNotNull(encoded[index].exceptionOrNull()))
             }
         }
-        return grouped ?: streams.map { (stream, transport) -> append(stream, transport) }
+    }
+
+    /**
+     * Commits [members], streams with their documents, in one transaction: their outcomes, each null when the
+     * transaction was aborted for sure and the stream is to be appended alone.
+     */
+    private fun commitGroup(partition: Int, members: List<Pair<EventStreamRecord, Document>>): List<AppendOutcome?> {
+        val collections = members.map { it.first.ref.type }.distinct().associateWith { collectionOf(it) }
+        return try {
+            client.startSession().use { session ->
+                session.withTransaction({ appendGroup(session, partition, collections, members) }, transaction)
+            }.mapIndexed { index, outcome ->
+                val stream = members[index].first
+                if (outcome is AppendOutcome.Conflict) {
+                    duplicateOr(collections.getValue(stream.ref.type), stream, outcome)
+                } else {
+                    outcome
+                }
+            }
+        } catch (failure: MongoException) {
+            if (MongoFailures.isCommitUnknown(failure)) {
+                members.map { AppendOutcome.Unknown(failure) }
+            } else {
+                members.map { null }
+            }
+        }
     }
 
     private fun appendGroup(
         session: ClientSession,
         partition: Int,
         collections: Map<AggregateType, AggregateCollection>,
-        appends: List<Pair<EventStreamRecord, Transport?>>,
+        members: List<Pair<EventStreamRecord, Document>>,
     ): List<AppendOutcome> {
-        val streams = appends.map { it.first }
+        val streams = members.map { it.first }
         val versions = streams.groupBy { it.ref.type }
             .flatMap { (type, ofType) -> currentVersions(session, collections.getValue(type), ofType.map { it.ref }) }
             .toMap()
-        val fits = appends.filter { (stream) -> versions.getOrDefault(stream.ref, 0) == stream.version - 1 }
+        val fits = members.filter { (stream) -> versions.getOrDefault(stream.ref, 0) == stream.version - 1 }
         if (fits.isEmpty()) {
             return streams.map { AppendOutcome.Conflict(versions.getOrDefault(it.ref, 0)) }
         }
@@ -334,13 +376,11 @@ class MongoEventLog(
             FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER),
         )!!.getLong(SEQUENCE)
         val first = last - fits.size + 1
-        val sequences = fits.withIndex().associate { (index, append) -> append.first.ref to first + index }
+        val sequences = fits.withIndex().associate { (index, member) -> member.first.ref to first + index }
         fits.groupBy { it.first.ref.type }.forEach { (type, ofType) ->
             collections.getValue(type).log.insertMany(
                 session,
-                ofType.map { (stream, transport) ->
-                    documentOf(partition, sequences.getValue(stream.ref), stream, transport)
-                },
+                ofType.map { (stream, document) -> document.append(SEQUENCE, sequences.getValue(stream.ref)) },
             )
         }
         return streams.map { stream ->
@@ -515,9 +555,10 @@ class MongoEventLog(
         Filters.eq(TENANT_ID, ref.tenantId),
     )
 
-    private fun documentOf(partition: Int, sequence: Long, stream: EventStreamRecord, transport: Transport?) = Document()
+    /** [stream]'s document, its sequence set when it is inserted. */
+    private fun documentOf(partition: Int, stream: EventStreamRecord, transport: Transport?) = Document()
         .append(PARTITION, partition)
-        .append(SEQUENCE, sequence)
+        .append(SEQUENCE, 0L)
         .append(TENANT_ID, stream.ref.tenantId)
         .append(AGGREGATE_ID, stream.ref.id)
         .append(VERSION, stream.version)

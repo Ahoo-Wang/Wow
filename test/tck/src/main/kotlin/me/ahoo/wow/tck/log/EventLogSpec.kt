@@ -37,6 +37,7 @@ import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import me.ahoo.wow.tck.ExactJson
+import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
 import java.util.UUID
 
@@ -54,6 +55,12 @@ abstract class EventLogSpec {
     private val other = AggregateType(context, "other")
 
     private fun createLog(partitions: Int = DEFAULT_PARTITIONS): EventLog = createLog(context, partitions)
+
+    /**
+     * [stream] changed so that this backend refuses it ([AppendOutcome.Rejected]): a value it cannot store. Null, the
+     * default, for a backend that stores every stream, which skips the cases of a refused stream.
+     */
+    protected open fun refused(stream: EventStreamRecord): EventStreamRecord? = null
 
     protected fun stream(
         id: String,
@@ -413,6 +420,25 @@ abstract class EventLogSpec {
         )
         withDuplicate[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
         (withDuplicate[1] as AppendOutcome.AlreadyCommitted).existing.ref.id.assert().isEqualTo(duplicate)
+    }
+
+    @Test
+    fun `a stream the backend refuses is rejected, and in appendAll fails alone`(): Unit = runBlocking {
+        val log = createLog(partitions = 4)
+        val (before, bad, after) = idsInPartitionZero(3, 4)
+        val probe = refused(stream(bad, 1))
+        Assumptions.assumeTrue(probe != null, "This backend stores every stream.")
+        val refused = checkNotNull(probe)
+        log.append(refused).assert().isInstanceOf(AppendOutcome.Rejected::class.java)
+        log.head(0).assert().isNull()
+        // Finding A2-5: the refused stream failed the whole group.
+        val outcomes = log.appendAll(listOf(stream(before, 1) to null, refused to null, stream(after, 1) to null))
+        outcomes[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        outcomes[1].assert().isInstanceOf(AppendOutcome.Rejected::class.java)
+        outcomes[2].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        log.read(refused.ref).toList().assert().isEmpty()
+        withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }.map { it.stream.ref.id }
+            .assert().containsExactlyInAnyOrder(before, after)
     }
 
     @Test

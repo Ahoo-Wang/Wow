@@ -243,6 +243,18 @@ class EventStreamImporterTest {
     }
 
     @Test
+    fun `a stream the log refuses stops the import with the log's reason`(): Unit = runTest {
+        val first = NineXExample.stream("order-stream-v1.json")
+        val refusing = mockk<EventLog>()
+        val cause = IllegalArgumentException("unsupported Unicode escape sequence")
+        coEvery { refusing.append(any(), any()) } returns AppendOutcome.Rejected(cause)
+        val failure = assertThrows<MigrationException> {
+            importer(InMemoryNineXEventSource(listOf(first)), target = refusing).importAll(order)
+        }
+        failure.message!!.assert().contains("refuses").contains(cause.message)
+    }
+
+    @Test
     fun `a request id still taken after the rewrite stops the import`(): Unit = runTest {
         val first = NineXExample.stream("order-stream-v1.json")
         val record = StreamConverter(NineXExample.plan).convert(first)
