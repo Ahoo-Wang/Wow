@@ -1,6 +1,6 @@
 ---
 title: V10 快速开始
-description: 在一个模块里试用 Wow 10.0.0-alpha.1：从 Gradle 构建到一个接收命令、回答查询的运行服务。
+description: 在一个模块里试用 Wow 10.0.0-alpha.2：从 Gradle 构建到一个接收命令、回答查询的运行服务。
 outline: deep
 ---
 
@@ -8,7 +8,7 @@ outline: deep
 
 Wow V10 是 Wow 的下一个大版本：领域用普通的 Kotlin 类编写（命令、事件、状态，以及做决定的聚合），编译器把它们变成模型与 Manifest，由 Spring Boot 主机通过 HTTP 提供服务。它在新的内核、日志与集群上重写，API、配置与存储都与 9.x 不同。
 
-::: danger 10.0.0-alpha.1 只用于评估
+::: danger 10.0.0-alpha.2 只用于评估
 
 - **不做兼容性承诺。** 一个 alpha 可以改变上一个 alpha 的 API、配置、HTTP 路由，以及存储与线上格式。
 - **还不能从 9.x 迁移。** 导入 9.x 事件流的工作尚未完成（里程碑 M8）：不要把生产数据迁移到 alpha。
@@ -50,7 +50,7 @@ rootProject.name = "bank"
 plugins {
     kotlin("jvm") version "2.4.21"
     // 应用 KSP 与同版本的 wow-compiler，并汇总服务的 Manifest。
-    id("me.ahoo.wow") version "10.0.0-alpha.1"
+    id("me.ahoo.wow") version "10.0.0-alpha.2"
     application
 }
 
@@ -64,7 +64,7 @@ application {
 
 dependencies {
     // V10 BOM：所有 Wow 模块用同一个版本。
-    implementation(platform("me.ahoo.wow:wow-bom:10.0.0-alpha.1"))
+    implementation(platform("me.ahoo.wow:wow-bom:10.0.0-alpha.2"))
     // 生成的模型所依赖的内核。
     implementation("me.ahoo.wow:wow-kernel")
     // Spring Boot 主机：自动配置、HTTP 路由、内存后端。
@@ -82,7 +82,7 @@ tasks.test {
 }
 ```
 
-插件连同插件标记发布在 Maven Central，所以 `pluginManagement` 需要 `mavenCentral()`。Maven Central 上的 alpha 只有明确的版本号：写 `10.0.0-alpha.1`，不要写版本范围。真实的服务分成 `-api`、`-domain` 与 `-server` 三个模块（[编写 V10 服务](./index.md#划分模块)）；试用 V10，一个模块就够了。
+插件连同插件标记发布在 Maven Central，所以 `pluginManagement` 需要 `mavenCentral()`。Maven Central 上的 alpha 只有明确的版本号：写 `10.0.0-alpha.2`，不要写版本范围。真实的服务分成 `-api`、`-domain` 与 `-server` 三个模块（[编写 V10 服务](./index.md#划分模块)）；试用 V10，一个模块就够了。
 
 ## 编写命令与事件
 

@@ -18,7 +18,7 @@ outline: deep
 | [部署](./deployment.md) | PostgreSQL 或 MongoDB、内部端口、Kafka、ClickHouse、个人信息、租户 |
 
 ::: warning V10 处于预发布
-V10 在 [`v10` 分支](https://github.com/Ahoo-Wang/Wow/tree/v10) 上开发。第一个预发布 `10.0.0-alpha.1` 只用于试用与评估：它不做兼容性承诺，9.x 数据的迁移也尚未完成（见[快速开始](./quickstart.md)）。它的模块以 `me.ahoo.wow:wow-*` 发布在 Maven Central，BOM 为 `me.ahoo.wow:wow-bom`，Gradle 插件为 `me.ahoo.wow`。本 V10 栏目之外的指南描述的是 9.x。
+V10 在 [`v10` 分支](https://github.com/Ahoo-Wang/Wow/tree/v10) 上开发。第一个预发布 `10.0.0-alpha.2` 只用于试用与评估：它不做兼容性承诺，9.x 数据的迁移也尚未完成（见[快速开始](./quickstart.md)）。它的模块以 `me.ahoo.wow:wow-*` 发布在 Maven Central，BOM 为 `me.ahoo.wow:wow-bom`，Gradle 插件为 `me.ahoo.wow`。本 V10 栏目之外的指南描述的是 9.x。
 :::
 
 ## 前提
@@ -51,7 +51,7 @@ pluginManagement {
     }
     plugins {
         kotlin("jvm") version "2.4.21"
-        id("me.ahoo.wow") version "10.0.0-alpha.1"
+        id("me.ahoo.wow") version "10.0.0-alpha.2"
     }
 }
 
@@ -68,7 +68,7 @@ include("catalog-api", "catalog-domain", "catalog-server")
 `gradle.properties` 只写一次 Wow 版本：
 
 ```properties
-wowVersion=10.0.0-alpha.1
+wowVersion=10.0.0-alpha.2
 ```
 
 `catalog-api/build.gradle.kts`：

@@ -18,7 +18,7 @@ This page walks through a new Wow V10 service laid out as a real one is, in thre
 | [Deployment](./deployment.md) | PostgreSQL or MongoDB, the internal port, Kafka, ClickHouse, personal data, tenants |
 
 ::: warning V10 is a pre-release
-V10 is developed on the [`v10` branch](https://github.com/Ahoo-Wang/Wow/tree/v10). Its first pre-release, `10.0.0-alpha.1`, is for evaluation only: it carries no compatibility promise, and migrating 9.x data is unfinished (see the [Quick Start](./quickstart.md)). Its modules are on Maven Central as `me.ahoo.wow:wow-*`, with the BOM `me.ahoo.wow:wow-bom` and the Gradle plugin `me.ahoo.wow`. The rest of this guide (outside this V10 section) describes 9.x.
+V10 is developed on the [`v10` branch](https://github.com/Ahoo-Wang/Wow/tree/v10). Its first pre-release, `10.0.0-alpha.2`, is for evaluation only: it carries no compatibility promise, and migrating 9.x data is unfinished (see the [Quick Start](./quickstart.md)). Its modules are on Maven Central as `me.ahoo.wow:wow-*`, with the BOM `me.ahoo.wow:wow-bom` and the Gradle plugin `me.ahoo.wow`. The rest of this guide (outside this V10 section) describes 9.x.
 :::
 
 ## What you need
@@ -51,7 +51,7 @@ pluginManagement {
     }
     plugins {
         kotlin("jvm") version "2.4.21"
-        id("me.ahoo.wow") version "10.0.0-alpha.1"
+        id("me.ahoo.wow") version "10.0.0-alpha.2"
     }
 }
 
@@ -68,7 +68,7 @@ include("catalog-api", "catalog-domain", "catalog-server")
 `gradle.properties` names the Wow version once:
 
 ```properties
-wowVersion=10.0.0-alpha.1
+wowVersion=10.0.0-alpha.2
 ```
 
 `catalog-api/build.gradle.kts`:
