@@ -14,6 +14,7 @@ import {
   isPublished,
   PUBLISHED,
   publishArgs,
+  requireDistTag,
   publishedNames,
   publishPlan,
   publishRefusal,
@@ -138,8 +139,55 @@ test('only the latest line gets the latest dist-tag', () => {
   assert.equal(distTag('9.0.19', tags), 'release-9.0');
   assert.equal(distTag('8.11.6', tags), 'release-8.11');
   assert.equal(distTag('9.1.6', []), 'latest');
-  assert.equal(distTag('9.3.0-beta.1', tags), 'next');
   assert.throws(() => distTag('latest', tags));
+});
+
+test('a pre-release never gets the latest dist-tag', () => {
+  const tags = ['v9.9.0', 'v10.0.0-alpha.1'];
+  assert.equal(distTag('10.0.0-alpha.1', tags), 'alpha');
+  assert.equal(distTag('10.0.0-alpha.2', []), 'alpha');
+  assert.equal(distTag('9.3.0-beta.1', tags), 'beta');
+  assert.equal(distTag('10.0.0-rc.0', tags), 'next');
+  assert.equal(distTag('10.0.0-preview', tags), 'next');
+  // Even above every stable tag, and with no tags at all.
+  for (const version of ['10.0.0-alpha.1', '10.0.0-rc.0', '99.0.0-x'])
+    assert.notEqual(distTag(version, []), 'latest');
+  assert.throws(
+    () =>
+      publishArgs('/t/a.tgz', 'latest', {
+        version: '10.0.0-alpha.1',
+        dryRun: true,
+        provenance: true,
+      }),
+    /pre-release: refusing the latest dist-tag/,
+  );
+  assert.throws(
+    () => requireDistTag('10.0.0-beta.1', 'latest'),
+    /refusing the latest dist-tag/,
+  );
+  assert.throws(() => requireDistTag('10.0.0-alpha.1', ''), /no dist-tag/);
+  assert.throws(
+    () => requireDistTag('not-a-version', 'alpha'),
+    /not a version/,
+  );
+  assert.equal(requireDistTag('10.0.0-alpha.1', 'alpha'), 'alpha');
+  assert.equal(requireDistTag('9.9.0', 'latest'), 'latest');
+  assert.deepEqual(
+    publishArgs('/t/a.tgz', 'alpha', {
+      version: '10.0.0-alpha.1',
+      dryRun: false,
+      provenance: true,
+    }),
+    [
+      'publish',
+      '/t/a.tgz',
+      '--access',
+      'public',
+      '--tag',
+      'alpha',
+      '--provenance',
+    ],
+  );
 });
 
 test('an existing version is skipped; a missing version or package is published', () => {
@@ -173,7 +221,11 @@ test('an existing version is skipped; a missing version or package is published'
 
 test('CI publishes with provenance; a dry run neither signs nor uploads', () => {
   assert.deepEqual(
-    publishArgs('/t/a.tgz', 'latest', { dryRun: false, provenance: true }),
+    publishArgs('/t/a.tgz', 'latest', {
+      version: '9.9.0',
+      dryRun: false,
+      provenance: true,
+    }),
     [
       'publish',
       '/t/a.tgz',
@@ -185,7 +237,11 @@ test('CI publishes with provenance; a dry run neither signs nor uploads', () => 
     ],
   );
   assert.deepEqual(
-    publishArgs('/t/a.tgz', 'release-9.0', { dryRun: true, provenance: true }),
+    publishArgs('/t/a.tgz', 'release-9.0', {
+      version: '9.0.19',
+      dryRun: true,
+      provenance: true,
+    }),
     [
       'publish',
       '/t/a.tgz',
@@ -197,7 +253,11 @@ test('CI publishes with provenance; a dry run neither signs nor uploads', () => 
     ],
   );
   assert.deepEqual(
-    publishArgs('/t/a.tgz', 'latest', { dryRun: false, provenance: false }),
+    publishArgs('/t/a.tgz', 'latest', {
+      version: '9.9.0',
+      dryRun: false,
+      provenance: false,
+    }),
     ['publish', '/t/a.tgz', '--access', 'public', '--tag', 'latest'],
   );
 });

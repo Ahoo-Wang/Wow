@@ -237,8 +237,21 @@ test('the release workflow smoke-tests npm after npm-deploy, with pinned actions
   assert.match(job, /^ {4}needs: npm-deploy$/m);
   assert.match(job, /node \.github\/scripts\/package-check\.mjs --registry/);
   assert.doesNotMatch(job, /id-token|secrets\./);
-  for (const [, action] of workflow.matchAll(/uses: (\S+)/g))
+  // A local reusable workflow (`./.github/workflows/…`) runs from the
+  // release commit itself; its own actions are pinned in turn.
+  for (const [, action] of workflow.matchAll(/uses: (\S+)/g)) {
+    if (action.startsWith('./.github/workflows/')) {
+      const called = readFileSync(join(ROOT, action), 'utf8');
+      for (const [, inner] of called.matchAll(/uses: (\S+)/g))
+        assert.match(
+          inner,
+          /@[0-9a-f]{40}$/,
+          `${inner} is not pinned to a SHA`,
+        );
+      continue;
+    }
     assert.match(action, /@[0-9a-f]{40}$/, `${action} is not pinned to a SHA`);
+  }
 });
 
 test('npm-deploy publishes only after both Maven publications succeed', () => {

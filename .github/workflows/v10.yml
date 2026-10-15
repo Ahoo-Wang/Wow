@@ -76,6 +76,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
       - name: Check the V10 modules with coverage
         run: ./gradlew -Pwow.scope=v10 v10Check :code-coverage-report:v10CoverageReport --stacktrace
+      # The release rehearsal of the Maven publications (R.1), unsigned: every
+      # V10 release module has its jar, sources, javadoc, POM and metadata, the
+      # BOM constrains exactly them, and no 9.x module is published.
+      - name: Check the V10 publications
+        run: ./gradlew -Pwow.scope=v10 v10PublicationCheck --stacktrace
       - name: Upload V10 coverage
         uses: codecov/codecov-action@v7
         with:

@@ -51,7 +51,7 @@ const MIXED_VERSION = 'mixedVersion';
 // import, and the root build and Gradle configuration every module reads.
 const V10 = 'v10';
 const V10_PATH =
-  /^(?:(?:api|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|kernel-benchmarks|routing-spike|lease-spike|test-dsl|tck|tck-containers)|example\/eshop|wow-dependencies|gradle|build-logic|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/v10\.yml$)/;
+  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|kernel-benchmarks|routing-spike|lease-spike|test-dsl|tck|tck-containers)|example\/eshop|wow-dependencies|gradle|build-logic|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/v10\.yml$)/;
 // typescript-contract.yml (v10 branch): `test:v10` of integration-test, the
 // V10 store (`@ahoo-wang/wow-view-store/v10`) and the view engine on it
 // against the V10 view store service (platform/view-store) built from this

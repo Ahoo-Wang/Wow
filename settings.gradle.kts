@@ -128,6 +128,9 @@ if (nineX) {
 }
 
 //region v10 (documentation/designs/v10/06-modules.md)
+// The V10 BOM (artifact wow-bom, D87; release configuration R.1); 9.x's keeps :wow-bom in wow-bom/.
+include(":bom")
+project(":bom").projectDir = file("bom/bom")
 include(":api")
 project(":api").projectDir = file("api/api")
 include(":manifest")

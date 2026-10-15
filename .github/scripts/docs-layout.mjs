@@ -51,6 +51,8 @@ export const MARKDOWN_LOCATIONS = [
   /^typescript\/[^/]+\/THIRD_PARTY_NOTICES\.md$/,
   // GitHub issue and pull request templates.
   /^\.github\/(?:ISSUE_TEMPLATE\/[^/]+|PULL_REQUEST_TEMPLATE(?:\/[^/]+)?)\.md$/,
+  // Release notes templates the release workflow fills (package-deploy.yml).
+  /^\.github\/release-notes\/[^/]+\.md$/,
 ];
 
 const PLANTUML = new Set(['.puml', '.plantuml', '.pu', '.iuml']);
