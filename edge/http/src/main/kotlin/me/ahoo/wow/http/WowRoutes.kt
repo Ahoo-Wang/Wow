@@ -33,6 +33,7 @@ import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
+import me.ahoo.wow.http.problem.tooLargeProblem
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.query.QueryHandler
 import me.ahoo.wow.http.query.QueryTarget
@@ -398,8 +399,12 @@ private suspend inline fun ErrorStatuses.answering(block: () -> ServerResponse):
 } catch (cancelled: CancellationException) {
     throw cancelled
 } catch (failure: Exception) {
-    logger.error(failure) { "A request failed with an unexpected error." }
-    Problem.ofStatus(HttpStatus.INTERNAL_SERVER_ERROR, "The request failed with an unexpected error.").respond()
+    // A body larger than the codecs take is the client's (413, review A3-9); anything else is a 500.
+    val problem = tooLargeProblem(failure) ?: run {
+        logger.error(failure) { "A request failed with an unexpected error." }
+        Problem.ofStatus(HttpStatus.INTERNAL_SERVER_ERROR, "The request failed with an unexpected error.")
+    }
+    problem.respond()
 }
 
 private val logger = KotlinLogging.logger {}

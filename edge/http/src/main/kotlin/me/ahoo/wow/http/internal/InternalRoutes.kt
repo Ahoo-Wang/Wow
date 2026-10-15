@@ -24,7 +24,9 @@ import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.ForwardCommand
 import me.ahoo.wow.runtime.cluster.ForwardReply
+import me.ahoo.wow.runtime.cluster.Refusal
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import org.springframework.core.io.buffer.DataBufferLimitException
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -44,7 +46,9 @@ import tools.jackson.core.JacksonException
  * - `POST` [InternalHttp.SIGNALS_PATH] reads a [WaitSignal] ([ClusterCodec]), hands it to [signals] and answers 204, whether or not a
  *   wait took it: a signal is an observation, its sender does not act on the answer (design 04 §6.3).
  *
- * A body that is not such a message is answered 400. The routes are not authenticated: the internal port is reachable
+ * A body that is not such a message is answered 400. A forward larger than the port's codecs take is refused
+ * ([Refusal.TOO_LARGE]): this node surely did not run it, so its sender runs it (review A3-9); such a signal is
+ * answered 413. The routes are not authenticated: the internal port is reachable
  * only inside the cluster (D35). A node's [forward] is its [me.ahoo.wow.runtime.node.ServiceNode.forwardHandler],
  * which hands a command to the endpoint of its context.
  */
@@ -55,12 +59,22 @@ fun internalRoutes(
     scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ): RouterFunction<ServerResponse> = coRouter {
     POST(InternalHttp.FORWARD_PATH) { request ->
-        val command = request.decode(ClusterCodec::decodeCommand) ?: return@POST malformed()
+        val command = try {
+            request.decode(ClusterCodec::decodeCommand) ?: return@POST malformed()
+        } catch (tooLarge: DataBufferLimitException) {
+            logger.warn { "A forward on ${request.path()} is larger than the internal port takes: ${tooLarge.message}" }
+            return@POST ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
+                .bodyValueAndAwait(ClusterCodec.encode(ForwardReply.refused(Refusal.TOO_LARGE)))
+        }
         val reply = scope.async { forward.forward(command) }.await()
         ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(ClusterCodec.encode(reply))
     }
     POST(InternalHttp.SIGNALS_PATH) { request ->
-        val signal = request.decode(ClusterCodec::decodeSignal) ?: return@POST malformed()
+        val signal = try {
+            request.decode(ClusterCodec::decodeSignal) ?: return@POST malformed()
+        } catch (_: DataBufferLimitException) {
+            return@POST ServerResponse.status(CONTENT_TOO_LARGE).buildAndAwait()
+        }
         signals(signal)
         ServerResponse.noContent().buildAndAwait()
     }
@@ -92,3 +106,5 @@ private suspend fun <T : Any> ServerRequest.decode(decode: (ByteArray) -> T): T?
 }
 
 private suspend fun malformed(): ServerResponse = ServerResponse.badRequest().buildAndAwait()
+
+private const val CONTENT_TOO_LARGE = 413

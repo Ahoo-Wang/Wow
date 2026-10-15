@@ -160,6 +160,12 @@ object Refusal {
 
     /** The node does not know the command's aggregate or command type, such as a node of an older version. */
     const val UNKNOWN_TYPE = "unknown-type"
+
+    /**
+     * The forward is larger than the node's internal port takes (`wow.internal.max-message-size`, review A3-9): the
+     * node did not read it, so the sender runs the command itself.
+     */
+    const val TOO_LARGE = "too-large"
 }
 
 /**

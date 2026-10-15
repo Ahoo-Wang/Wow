@@ -17,6 +17,7 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.http.HttpJson
 import org.springframework.http.HttpHeaders
+import org.springframework.core.io.buffer.DataBufferLimitException
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -79,6 +80,18 @@ data class Problem(
             Problem(status.value(), status.reasonPhrase, detail, null)
     }
 }
+
+/**
+ * The 413 problem of a request whose body is larger than the codecs take in memory
+ * (`spring.http.codecs.max-in-memory-size`, review A3-9), when [failure] is that ([DataBufferLimitException], or caused
+ * by one); null for any other failure.
+ */
+internal fun tooLargeProblem(failure: Throwable): Problem? =
+    generateSequence(failure) { it.cause }.firstOrNull { it is DataBufferLimitException }?.let {
+        Problem.ofStatus(HttpStatus.valueOf(CONTENT_TOO_LARGE), "The request body is larger than this server takes.")
+    }
+
+private const val CONTENT_TOO_LARGE = 413
 
 /**
  * Answers a request with [problem] from wherever it is found out, before the command has a ref; caught by the route

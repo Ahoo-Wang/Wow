@@ -103,6 +103,7 @@ public final class me/ahoo/wow/spring/boot/HostBackends$Companion {
 
 public final class me/ahoo/wow/spring/boot/InternalServer {
 	public fun <init> (ILjava/lang/String;Lorg/springframework/web/reactive/function/server/RouterFunction;)V
+	public fun <init> (ILjava/lang/String;Lorg/springframework/web/reactive/function/server/RouterFunction;I)V
 	public final fun getBoundPort ()I
 	public final fun isRunning ()Z
 	public final fun start ()V

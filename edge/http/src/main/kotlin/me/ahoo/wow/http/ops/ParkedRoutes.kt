@@ -28,6 +28,7 @@ import me.ahoo.wow.http.command.WaitHeader
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
+import me.ahoo.wow.http.problem.tooLargeProblem
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.manifest.Manifest
@@ -40,6 +41,7 @@ import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.ParkedView
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.ledger.Recoverable
+import org.springframework.core.io.buffer.DataBufferLimitException
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.RouterFunction
@@ -369,9 +371,11 @@ private fun decodeCursor(cursor: String): ParkedKey {
 private const val SEPARATOR = "\u0000"
 private const val CURSOR_PARTS = 5
 
-/** [block]'s response, or the problem it was answered with. */
+/** [block]'s response, or the problem it was answered with: 413 for a body larger than the codecs take. */
 private suspend inline fun answering(block: () -> ServerResponse): ServerResponse = try {
     block()
 } catch (problem: ProblemException) {
     problem.problem.respond()
+} catch (tooLarge: DataBufferLimitException) {
+    tooLargeProblem(tooLarge)!!.respond()
 }

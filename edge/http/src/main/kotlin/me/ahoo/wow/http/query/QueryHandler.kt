@@ -41,6 +41,7 @@ import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
+import me.ahoo.wow.http.problem.tooLargeProblem
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryBudget
@@ -351,6 +352,7 @@ internal class QueryHandler(
     /** The problem a query that failed with [failure] answers. */
     private fun problemOf(failure: Throwable, context: String?): Problem {
         if (failure is ProblemException) return failure.problem
+        tooLargeProblem(failure)?.let { return it }
         // From a backend primitive through the core, or from a read of the log (the events model).
         if (failure is QueryStorageUnavailableException || failure is StorageUnavailableException) {
             logger.warn(failure) { "A query failed: its storage is unavailable." }

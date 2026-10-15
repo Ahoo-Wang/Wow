@@ -344,6 +344,19 @@ class CommandRoutesTest {
     }
 
     @Test
+    fun `a body larger than the codecs take is a 413 problem`() {
+        // Review A3-9: WebFlux's default in-memory limit is 256 KB.
+        val large = """{"sku":"${"a".repeat(300 * 1024)}"}"""
+        val answer = node.post("/shop/cart/c-1/add-item", large)
+        answer.status.assert().isEqualTo(413)
+        answer.contentType.assert().isEqualTo("application/problem+json")
+        answer.body!!["status"].asInt().assert().isEqualTo(413)
+        val query = QueryNode().query("""{"kind":"list","filter":{"op":"EQ","field":"state.note","value":"$large"}}""")
+        query.status.assert().isEqualTo(413)
+        query.contentType.assert().isEqualTo("application/problem+json")
+    }
+
+    @Test
     fun `a body that is not the command is malformed`() {
         node.post("/shop/cart/c-1/add-item", """{"quantity":1}""")
             .assertProblem(400, FrameworkCodes.MALFORMED, withResult = true)
