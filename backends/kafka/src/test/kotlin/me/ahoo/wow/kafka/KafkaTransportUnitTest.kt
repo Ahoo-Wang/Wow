@@ -274,6 +274,31 @@ class KafkaTransportUnitTest {
         }
 
     @Test
+    fun `a consumer that cannot be made should fail the tails, and the next read get a new one`(): Unit = runBlocking {
+        // Finding A2-3: the bootstrap address did not resolve; the session died and its readers waited forever.
+        val mock = MockConsumer<String, ByteArray>("earliest")
+        val zero = TopicPartition(topic, 0)
+        mock.updateEndOffsets(mapOf(zero to 0L))
+        var attempts = 0
+        val source = KafkaPartitionedSource(
+            {
+                attempts++
+                if (attempts == 1) throw org.apache.kafka.common.KafkaException("Failed to construct kafka consumer")
+                mock
+            },
+            pollTimeout = 1.milliseconds,
+        )
+        val failed = withTimeout(10.seconds) { runCatching { source.read(topic, 0, 0).toList() }.exceptionOrNull() }
+        failed.assert().isInstanceOf(org.apache.kafka.common.KafkaException::class.java)
+        val reading = async(Dispatchers.Default) { source.read(topic, 0, 0).take(1).toList() }
+        eventually { mock.assignment() == setOf(zero) }
+        mock.addRecord(record(0, "v0"))
+        withTimeout(10.seconds) { reading.await() }.map { it.offset }.assert().containsExactly(0L)
+        attempts.assert().isEqualTo(2)
+        source.close()
+    }
+
+    @Test
     fun `a bounded read should complete once its consumer passed the bound, and a key map to its partition`(): Unit =
         runBlocking {
             val mock = MockConsumer<String, ByteArray>("earliest")

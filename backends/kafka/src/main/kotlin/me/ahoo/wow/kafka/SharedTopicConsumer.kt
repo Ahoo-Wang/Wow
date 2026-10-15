@@ -28,6 +28,7 @@ import org.apache.kafka.clients.consumer.Consumer
 import org.apache.kafka.clients.consumer.ConsumerRecords
 import org.apache.kafka.common.TopicPartition
 import org.apache.kafka.common.errors.WakeupException
+import org.slf4j.LoggerFactory
 import kotlin.time.Duration
 import kotlin.time.toJavaDuration
 
@@ -120,14 +121,20 @@ internal class SharedTopicConsumer(
         withContext(NonCancellable) { stopping.join() }
     }
 
+    /**
+     * Polls for [session] until it ends. Whatever fails, making the consumer included (a bootstrap address that does
+     * not resolve yet, finding A2-3), ends the session: every joined reader fails with it and reads again, which joins
+     * a new session with a new consumer.
+     */
     @Suppress("TooGenericExceptionCaught") // Whatever the consumer throws ends every read, which reads again.
     private suspend fun run(session: Session) {
-        val consumer = consumers()
-        synchronized(lock) { session.consumer = consumer }
+        var consumer: Consumer<String, ByteArray>? = null
         val assigned = HashMap<Int, Reader>()
         // Whether the assignment is to be applied again: a wakeup interrupted it.
         var reassigning = false
         try {
+            consumer = consumers()
+            synchronized(lock) { session.consumer = consumer }
             while (true) {
                 val changed = synchronized(lock) {
                     if (this.session !== session) {
@@ -149,16 +156,23 @@ internal class SharedTopicConsumer(
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (failure: Exception) {
-            synchronized(lock) {
-                if (this.session === session) {
-                    readers.values.forEach { it.channel.close(failure) }
-                    readers.clear()
-                    this.session = null
-                }
+        } catch (failure: Throwable) {
+            logger.warn("The consumer of {} failed; its tails read again.", topic, failure)
+            end(session, failure)
+            if (failure is Error) {
+                throw failure
             }
         } finally {
-            withContext(NonCancellable) { consumer.close() }
+            consumer?.let { withContext(NonCancellable) { it.close() } }
+        }
+    }
+
+    /** Ends [session], if it is still the current one: every joined reader fails with [failure]. */
+    private fun end(session: Session, failure: Throwable) = synchronized(lock) {
+        if (this.session === session) {
+            readers.values.forEach { it.channel.close(failure) }
+            readers.clear()
+            this.session = null
         }
     }
 
@@ -232,5 +246,6 @@ internal class SharedTopicConsumer(
 
     private companion object {
         const val DEFAULT_BUFFER = 512
+        val logger = LoggerFactory.getLogger(SharedTopicConsumer::class.java)
     }
 }
