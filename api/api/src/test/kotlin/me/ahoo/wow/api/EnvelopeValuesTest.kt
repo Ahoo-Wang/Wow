@@ -170,6 +170,11 @@ class EnvelopeValuesTest {
         TransformedFrom.of("sales.order.Import", "o-1").toString().assert()
             .isEqualTo("TransformedFrom(command=sales.order.Import, aggregateId=o-1)")
         (TransformedFrom.of("a.b.C") == TransformedFrom.of("a.b.D")).assert().isFalse()
+        TransformedFrom.of("a.b.C", "1").hashCode().assert().isEqualTo(TransformedFrom.of("a.b.C", "1").hashCode())
+        LedgerResolution("s", "c", "p", LedgerAggregate("c", "a", "t", "1"), outcome = "SKIPPED", resolvedAt = 2)
+            .assert().isEqualTo(
+                LedgerResolution.of("s", "c", "p", LedgerAggregate("c", "a", "t", "1"), null, "SKIPPED", 2),
+            )
     }
 
     private fun valueSemantics(value: Any, same: Any, other: Any) {
