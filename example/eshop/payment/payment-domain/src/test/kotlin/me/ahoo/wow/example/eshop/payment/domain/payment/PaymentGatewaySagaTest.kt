@@ -21,8 +21,8 @@ import me.ahoo.wow.example.eshop.payment.api.payment.FailPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentRequested
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded
 import me.ahoo.wow.kernel.Dependencies
-import me.ahoo.wow.kernel.test.sagaSpec
-import me.ahoo.wow.kernel.test.stateEvent
+import me.ahoo.wow.test.sagaSpec
+import me.ahoo.wow.test.stateEvent
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.math.BigDecimal

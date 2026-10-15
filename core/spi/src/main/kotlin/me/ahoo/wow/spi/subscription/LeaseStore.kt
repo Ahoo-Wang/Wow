@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spi.subscription
 
+import me.ahoo.wow.api.annotation.WowSpi
 import kotlin.time.Duration
 
 /**
@@ -59,6 +60,7 @@ data class Member(
  * the nodes' clock skew being small against the TTL. Since V10 does not fence (D45), a short overlap of two owners
  * during a handover is only duplicate work, never a wrong result.
  */
+@WowSpi
 interface LeaseStore {
     /**
      * Acquires [partition] of [group] for [owner] for [ttl]: the lease is free, expired or released, or [owner]

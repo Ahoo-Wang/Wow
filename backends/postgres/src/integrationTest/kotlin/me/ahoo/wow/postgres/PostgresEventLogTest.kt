@@ -24,7 +24,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
-import me.ahoo.wow.spi.log.EventLogSpec
+import me.ahoo.wow.tck.log.EventLogSpec
 import org.junit.jupiter.api.Test
 
 class PostgresEventLogTest : EventLogSpec() {

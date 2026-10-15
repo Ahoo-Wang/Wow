@@ -17,7 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.spi.subscription.CheckpointStore
-import me.ahoo.wow.spi.subscription.CheckpointStoreSpec
+import me.ahoo.wow.tck.subscription.CheckpointStoreSpec
 import org.junit.jupiter.api.Test
 
 class MongoCheckpointStoreTest : CheckpointStoreSpec() {

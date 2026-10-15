@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spi.reservation
 
+import me.ahoo.wow.api.annotation.WowSpi
 import kotlin.time.Duration
 
 /**
@@ -29,6 +30,7 @@ import kotlin.time.Duration
  * the implementation's clock, so the nodes sharing a store need clocks that agree within a small fraction of the
  * time to live.
  */
+@WowSpi
 interface ReservationStore {
     /**
      * Reserves [key] in [namespace] for [owner], pending for [ttl]. A key held by no one, or only by an expired

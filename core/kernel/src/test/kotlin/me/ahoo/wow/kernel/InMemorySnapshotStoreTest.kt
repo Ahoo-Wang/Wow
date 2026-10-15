@@ -14,7 +14,7 @@
 package me.ahoo.wow.kernel
 
 import me.ahoo.wow.spi.snapshot.SnapshotStore
-import me.ahoo.wow.spi.snapshot.SnapshotStoreSpec
+import me.ahoo.wow.tck.snapshot.SnapshotStoreSpec
 
 class InMemorySnapshotStoreTest : SnapshotStoreSpec() {
     override fun createStore(context: String): SnapshotStore = InMemorySnapshotStore()

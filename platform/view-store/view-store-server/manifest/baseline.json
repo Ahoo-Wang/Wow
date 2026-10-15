@@ -11,7 +11,7 @@
       "name" : "dataset_wording",
       "description" : "A tenant's wording over one dataset in one application",
       "state" : {
-        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.domain.wording.DatasetWordingState",
+        "schema" : "#/$defs/me.ahoo.wow.viewstore.domain.wording.DatasetWordingState",
         "fingerprint" : "1abd5abba062140c3915e36794eeaf4ed4594a9b34198a2ed17671e202c14a52"
       },
       "snapshot" : {
@@ -20,7 +20,7 @@
       "commands" : [ {
         "name" : "ClearDatasetWording",
         "aliases" : [ ],
-        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.wording.ClearDatasetWording",
+        "schema" : "#/$defs/me.ahoo.wow.viewstore.api.wording.ClearDatasetWording",
         "creation" : "NONE",
         "produces" : [ "DatasetWordingCleared" ],
         "routes" : [ {
@@ -34,7 +34,7 @@
       }, {
         "name" : "SetDatasetWording",
         "aliases" : [ ],
-        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.wording.SetDatasetWording",
+        "schema" : "#/$defs/me.ahoo.wow.viewstore.api.wording.SetDatasetWording",
         "creation" : "ALLOWED",
         "produces" : [ "DatasetWordingSet" ],
         "routes" : [ {
@@ -50,13 +50,13 @@
         "name" : "DatasetWordingCleared",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.wording.DatasetWordingCleared",
+        "schema" : "#/$defs/me.ahoo.wow.viewstore.api.wording.DatasetWordingCleared",
         "description" : "A dataset's wording was cleared"
       }, {
         "name" : "DatasetWordingSet",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.wording.DatasetWordingSet",
+        "schema" : "#/$defs/me.ahoo.wow.viewstore.api.wording.DatasetWordingSet",
         "description" : "A dataset's wording was set"
       } ],
       "lifecycle" : [ ],
@@ -84,7 +84,7 @@
       "name" : "view",
       "description" : "A saved view of the view engine: a record view, an analysis view or a dashboard",
       "state" : {
-        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.domain.view.ViewState",
+        "schema" : "#/$defs/me.ahoo.wow.viewstore.domain.view.ViewState",
         "fingerprint" : "2c9c6bb78603b6724c2326a5ca43a0bfb25ded34996087a5a642de66dc38ba95"
       },
       "snapshot" : {
@@ -93,7 +93,7 @@
       "commands" : [ {
         "name" : "ClaimView",
         "aliases" : [ ],
-        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.view.ClaimView",
+        "schema" : "#/$defs/me.ahoo.wow.viewstore.api.view.ClaimView",
         "creation" : "NONE",
         "produces" : [ "ViewClaimed" ],
         "routes" : [ {
@@ -104,7 +104,7 @@
       }, {
         "name" : "CreateView",
         "aliases" : [ ],
-        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.view.CreateView",
+        "schema" : "#/$defs/me.ahoo.wow.viewstore.api.view.CreateView",
         "creation" : "REQUIRED",
         "produces" : [ "ViewCreated" ],
         "routes" : [ {
@@ -118,7 +118,7 @@
       }, {
         "name" : "RenameView",
         "aliases" : [ ],
-        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.view.RenameView",
+        "schema" : "#/$defs/me.ahoo.wow.viewstore.api.view.RenameView",
         "creation" : "NONE",
         "produces" : [ "ViewRenamed" ],
         "routes" : [ {
@@ -129,7 +129,7 @@
       }, {
         "name" : "SaveView",
         "aliases" : [ ],
-        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.view.SaveView",
+        "schema" : "#/$defs/me.ahoo.wow.viewstore.api.view.SaveView",
         "creation" : "NONE",
         "produces" : [ "ViewSaved" ],
         "routes" : [ {
@@ -140,7 +140,7 @@
       }, {
         "name" : "ShareView",
         "aliases" : [ ],
-        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.view.ShareView",
+        "schema" : "#/$defs/me.ahoo.wow.viewstore.api.view.ShareView",
         "creation" : "NONE",
         "produces" : [ "ViewShared" ],
         "routes" : [ {
@@ -153,31 +153,31 @@
         "name" : "ViewClaimed",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.view.ViewClaimed",
+        "schema" : "#/$defs/me.ahoo.wow.viewstore.api.view.ViewClaimed",
         "description" : "A shared view was made personal to toOwnerId, who becomes its owner"
       }, {
         "name" : "ViewCreated",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.view.ViewCreated",
+        "schema" : "#/$defs/me.ahoo.wow.viewstore.api.view.ViewCreated",
         "description" : "A view was saved"
       }, {
         "name" : "ViewRenamed",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.view.ViewRenamed",
+        "schema" : "#/$defs/me.ahoo.wow.viewstore.api.view.ViewRenamed",
         "description" : "A view was renamed"
       }, {
         "name" : "ViewSaved",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.view.ViewSaved",
+        "schema" : "#/$defs/me.ahoo.wow.viewstore.api.view.ViewSaved",
         "description" : "A view's config was overwritten"
       }, {
         "name" : "ViewShared",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.view.ViewShared",
+        "schema" : "#/$defs/me.ahoo.wow.viewstore.api.view.ViewShared",
         "description" : "A view was made shared; its owner becomes (shared)"
       } ],
       "lifecycle" : [ "wow.lifecycle.DeleteAggregate", "wow.lifecycle.TransferOwner" ],
@@ -204,7 +204,7 @@
       "name" : "view_preferences",
       "description" : "One owner's view preferences for one definition in one application",
       "state" : {
-        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.domain.preferences.ViewPreferencesState",
+        "schema" : "#/$defs/me.ahoo.wow.viewstore.domain.preferences.ViewPreferencesState",
         "fingerprint" : "0b644bb159eb53116cd5041f82bcc53d4ded98b8c52f6f05156af56410836dbf"
       },
       "snapshot" : {
@@ -213,7 +213,7 @@
       "commands" : [ {
         "name" : "SetViewPreferences",
         "aliases" : [ ],
-        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.preferences.SetViewPreferences",
+        "schema" : "#/$defs/me.ahoo.wow.viewstore.api.preferences.SetViewPreferences",
         "creation" : "ALLOWED",
         "produces" : [ "ViewPreferencesSet" ],
         "routes" : [ {
@@ -229,7 +229,7 @@
         "name" : "ViewPreferencesSet",
         "aliases" : [ ],
         "revision" : 1,
-        "schema" : "#/$defs/me.ahoo.wow.platform.viewstore.api.preferences.ViewPreferencesSet",
+        "schema" : "#/$defs/me.ahoo.wow.viewstore.api.preferences.ViewPreferencesSet",
         "description" : "A definition's view preferences were set"
       } ],
       "lifecycle" : [ ],
@@ -437,15 +437,15 @@
       "required" : [ "ownerId" ],
       "description" : "Gives the aggregate to the owner ownerId."
     },
-    "me.ahoo.wow.platform.viewstore.api.ViewAudience" : {
+    "me.ahoo.wow.viewstore.api.ViewAudience" : {
       "type" : "string",
       "enum" : [ "personal", "shared", "system" ]
     },
-    "me.ahoo.wow.platform.viewstore.api.ViewKind" : {
+    "me.ahoo.wow.viewstore.api.ViewKind" : {
       "type" : "string",
       "enum" : [ "record", "analysis", "dashboard" ]
     },
-    "me.ahoo.wow.platform.viewstore.api.preferences.SetViewPreferences" : {
+    "me.ahoo.wow.viewstore.api.preferences.SetViewPreferences" : {
       "type" : "object",
       "properties" : {
         "autoRun" : {
@@ -470,7 +470,7 @@
       "required" : [ "definitionId" ],
       "description" : "Set the view preferences of a definition"
     },
-    "me.ahoo.wow.platform.viewstore.api.preferences.ViewPreferencesSet" : {
+    "me.ahoo.wow.viewstore.api.preferences.ViewPreferencesSet" : {
       "type" : "object",
       "properties" : {
         "appId" : {
@@ -498,11 +498,11 @@
       "required" : [ "appId", "definitionId", "order" ],
       "description" : "A definition's view preferences were set"
     },
-    "me.ahoo.wow.platform.viewstore.api.view.ClaimView" : {
+    "me.ahoo.wow.viewstore.api.view.ClaimView" : {
       "type" : "object",
       "description" : "Make a shared view personal"
     },
-    "me.ahoo.wow.platform.viewstore.api.view.CreateView" : {
+    "me.ahoo.wow.viewstore.api.view.CreateView" : {
       "type" : "object",
       "properties" : {
         "config" : {
@@ -518,7 +518,7 @@
       "required" : [ "config", "definitionId", "title" ],
       "description" : "Create a view"
     },
-    "me.ahoo.wow.platform.viewstore.api.view.RenameView" : {
+    "me.ahoo.wow.viewstore.api.view.RenameView" : {
       "type" : "object",
       "properties" : {
         "title" : {
@@ -528,7 +528,7 @@
       "required" : [ "title" ],
       "description" : "Rename a view"
     },
-    "me.ahoo.wow.platform.viewstore.api.view.SaveView" : {
+    "me.ahoo.wow.viewstore.api.view.SaveView" : {
       "type" : "object",
       "properties" : {
         "config" : {
@@ -538,11 +538,11 @@
       "required" : [ "config" ],
       "description" : "Save a view's config"
     },
-    "me.ahoo.wow.platform.viewstore.api.view.ShareView" : {
+    "me.ahoo.wow.viewstore.api.view.ShareView" : {
       "type" : "object",
       "description" : "Make a view shared"
     },
-    "me.ahoo.wow.platform.viewstore.api.view.ViewClaimed" : {
+    "me.ahoo.wow.viewstore.api.view.ViewClaimed" : {
       "type" : "object",
       "properties" : {
         "toOwnerId" : {
@@ -552,14 +552,14 @@
       "required" : [ "toOwnerId" ],
       "description" : "A shared view was made personal to toOwnerId, who becomes its owner"
     },
-    "me.ahoo.wow.platform.viewstore.api.view.ViewCreated" : {
+    "me.ahoo.wow.viewstore.api.view.ViewCreated" : {
       "type" : "object",
       "properties" : {
         "appId" : {
           "type" : "string"
         },
         "audience" : {
-          "$ref" : "#/$defs/me.ahoo.wow.platform.viewstore.api.ViewAudience"
+          "$ref" : "#/$defs/me.ahoo.wow.viewstore.api.ViewAudience"
         },
         "config" : {
           "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
@@ -568,7 +568,7 @@
           "type" : "string"
         },
         "kind" : {
-          "$ref" : "#/$defs/me.ahoo.wow.platform.viewstore.api.ViewKind"
+          "$ref" : "#/$defs/me.ahoo.wow.viewstore.api.ViewKind"
         },
         "title" : {
           "type" : "string"
@@ -577,7 +577,7 @@
       "required" : [ "appId", "audience", "config", "definitionId", "kind", "title" ],
       "description" : "A view was saved"
     },
-    "me.ahoo.wow.platform.viewstore.api.view.ViewRenamed" : {
+    "me.ahoo.wow.viewstore.api.view.ViewRenamed" : {
       "type" : "object",
       "properties" : {
         "title" : {
@@ -587,24 +587,24 @@
       "required" : [ "title" ],
       "description" : "A view was renamed"
     },
-    "me.ahoo.wow.platform.viewstore.api.view.ViewSaved" : {
+    "me.ahoo.wow.viewstore.api.view.ViewSaved" : {
       "type" : "object",
       "properties" : {
         "config" : {
           "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
         },
         "kind" : {
-          "$ref" : "#/$defs/me.ahoo.wow.platform.viewstore.api.ViewKind"
+          "$ref" : "#/$defs/me.ahoo.wow.viewstore.api.ViewKind"
         }
       },
       "required" : [ "config", "kind" ],
       "description" : "A view's config was overwritten"
     },
-    "me.ahoo.wow.platform.viewstore.api.view.ViewShared" : {
+    "me.ahoo.wow.viewstore.api.view.ViewShared" : {
       "type" : "object",
       "description" : "A view was made shared; its owner becomes (shared)"
     },
-    "me.ahoo.wow.platform.viewstore.api.wording.ClearDatasetWording" : {
+    "me.ahoo.wow.viewstore.api.wording.ClearDatasetWording" : {
       "type" : "object",
       "properties" : {
         "dataset" : {
@@ -614,11 +614,11 @@
       "required" : [ "dataset" ],
       "description" : "Clear the wording of a dataset"
     },
-    "me.ahoo.wow.platform.viewstore.api.wording.DatasetWordingCleared" : {
+    "me.ahoo.wow.viewstore.api.wording.DatasetWordingCleared" : {
       "type" : "object",
       "description" : "A dataset's wording was cleared"
     },
-    "me.ahoo.wow.platform.viewstore.api.wording.DatasetWordingSet" : {
+    "me.ahoo.wow.viewstore.api.wording.DatasetWordingSet" : {
       "type" : "object",
       "properties" : {
         "appId" : {
@@ -640,7 +640,7 @@
       "required" : [ "appId", "dataset" ],
       "description" : "A dataset's wording was set"
     },
-    "me.ahoo.wow.platform.viewstore.api.wording.SetDatasetWording" : {
+    "me.ahoo.wow.viewstore.api.wording.SetDatasetWording" : {
       "type" : "object",
       "properties" : {
         "dataset" : {
@@ -659,7 +659,7 @@
       "required" : [ "dataset" ],
       "description" : "Set the wording of a dataset"
     },
-    "me.ahoo.wow.platform.viewstore.domain.preferences.ViewPreferencesState" : {
+    "me.ahoo.wow.viewstore.domain.preferences.ViewPreferencesState" : {
       "type" : "object",
       "properties" : {
         "appId" : {
@@ -686,14 +686,14 @@
       },
       "required" : [ "appId", "definitionId", "order" ]
     },
-    "me.ahoo.wow.platform.viewstore.domain.view.ViewState" : {
+    "me.ahoo.wow.viewstore.domain.view.ViewState" : {
       "type" : "object",
       "properties" : {
         "appId" : {
           "type" : "string"
         },
         "audience" : {
-          "$ref" : "#/$defs/me.ahoo.wow.platform.viewstore.api.ViewAudience"
+          "$ref" : "#/$defs/me.ahoo.wow.viewstore.api.ViewAudience"
         },
         "config" : {
           "$ref" : "#/$defs/java.util.Map(java.lang.String,java.lang.Object)"
@@ -702,7 +702,7 @@
           "type" : "string"
         },
         "kind" : {
-          "$ref" : "#/$defs/me.ahoo.wow.platform.viewstore.api.ViewKind"
+          "$ref" : "#/$defs/me.ahoo.wow.viewstore.api.ViewKind"
         },
         "title" : {
           "type" : "string"
@@ -710,7 +710,7 @@
       },
       "required" : [ "appId", "audience", "config", "definitionId", "kind", "title" ]
     },
-    "me.ahoo.wow.platform.viewstore.domain.wording.DatasetWordingState" : {
+    "me.ahoo.wow.viewstore.domain.wording.DatasetWordingState" : {
       "type" : "object",
       "properties" : {
         "appId" : {

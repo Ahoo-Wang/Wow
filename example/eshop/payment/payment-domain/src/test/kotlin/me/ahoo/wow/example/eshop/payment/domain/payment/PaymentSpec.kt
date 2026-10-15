@@ -24,8 +24,8 @@ import me.ahoo.wow.example.eshop.payment.api.payment.PaymentStatus
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded
 import me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment
-import me.ahoo.wow.kernel.test.AggregateSpec
-import me.ahoo.wow.kernel.test.aggregateSpec
+import me.ahoo.wow.test.AggregateSpec
+import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
 

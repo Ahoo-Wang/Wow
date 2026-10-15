@@ -26,8 +26,8 @@ import me.ahoo.wow.api.schedule.ScheduleTick
 import me.ahoo.wow.api.schedule.Ticked
 import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.contextOf
-import me.ahoo.wow.kernel.test.scheduleSpec
-import me.ahoo.wow.kernel.test.stateEvent
+import me.ahoo.wow.test.scheduleSpec
+import me.ahoo.wow.test.stateEvent
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import kotlin.time.Duration.Companion.days

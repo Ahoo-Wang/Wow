@@ -21,11 +21,11 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.subscribe.CallFailedException
 import me.ahoo.wow.api.subscribe.CallRejectedException
-import me.ahoo.wow.kernel.test.committedResult
-import me.ahoo.wow.kernel.test.failedResult
-import me.ahoo.wow.kernel.test.rejectedResult
-import me.ahoo.wow.kernel.test.sagaSpec
-import me.ahoo.wow.kernel.test.stateEvent
+import me.ahoo.wow.test.committedResult
+import me.ahoo.wow.test.failedResult
+import me.ahoo.wow.test.rejectedResult
+import me.ahoo.wow.test.sagaSpec
+import me.ahoo.wow.test.stateEvent
 import org.junit.jupiter.api.Test
 import java.util.concurrent.atomic.AtomicInteger
 

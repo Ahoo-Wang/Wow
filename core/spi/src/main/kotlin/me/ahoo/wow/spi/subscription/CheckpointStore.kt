@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spi.subscription
 
+import me.ahoo.wow.api.annotation.WowSpi
+
 /**
  * The checkpoints of subscriptions (documentation/designs/v10/04-subscriptions.md §1): one per (subscription group,
  * subscription, partition), the lowest log sequence up to which every entry of the partition is completed.
@@ -24,6 +26,7 @@ package me.ahoo.wow.spi.subscription
  * from a zombie owner is harmless. Replaying from an earlier position is not a backward save: it is a new subscription
  * (04 §3).
  */
+@WowSpi
 interface CheckpointStore {
     /** The checkpoint of [subscription] in [group] for [partition], or null when it has none yet. */
     suspend fun load(group: String, subscription: String, partition: Int): Long?

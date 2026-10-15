@@ -15,7 +15,7 @@ package me.ahoo.wow.postgres.subscription
 
 import me.ahoo.wow.postgres.PostgresFixture
 import me.ahoo.wow.spi.subscription.LeaseStore
-import me.ahoo.wow.spi.subscription.LeaseStoreSpec
+import me.ahoo.wow.tck.subscription.LeaseStoreSpec
 import java.time.Clock
 
 class PostgresLeaseStoreTest : LeaseStoreSpec() {

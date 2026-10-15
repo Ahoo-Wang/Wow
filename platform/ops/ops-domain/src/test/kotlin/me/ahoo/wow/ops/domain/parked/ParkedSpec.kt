@@ -18,8 +18,6 @@ import me.ahoo.wow.api.ledger.LedgerAggregate
 import me.ahoo.wow.api.ledger.LedgerEntry
 import me.ahoo.wow.api.ledger.LedgerResolution
 import me.ahoo.wow.api.ledger.LedgerRetrySpec
-import me.ahoo.wow.kernel.test.AggregateSpec
-import me.ahoo.wow.kernel.test.aggregateSpec
 import me.ahoo.wow.ops.api.OpsContext
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpec
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
@@ -34,6 +32,8 @@ import me.ahoo.wow.ops.api.parked.Resume
 import me.ahoo.wow.ops.api.parked.ResumeRequested
 import me.ahoo.wow.ops.api.parked.Skip
 import me.ahoo.wow.ops.api.parked.SkipRequested
+import me.ahoo.wow.test.AggregateSpec
+import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 
 /** The ops view of one parked entry (decision D141): the records of its service, and an operator's actions. */

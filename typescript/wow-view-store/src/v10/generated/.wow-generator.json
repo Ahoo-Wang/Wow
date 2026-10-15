@@ -8,7 +8,7 @@
     "view-store/dataset_wording/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "view-store/dataset_wording/queryClient.ts": "66867702bd942c456c8dbb19ad14a5a2cc5be30c536f1427e7c75579078d5bec",
     "view-store/index.ts": "52de570d94e95e46cdaa1128eb7911400d6ea83f955c1cf6ac123c03fb1a942f",
-    "view-store/types.ts": "196065d758440ab33bc56d01c23f061e0678fdaa1c17fe7a06be00ac94e0d277",
+    "view-store/types.ts": "2a06ae9f23b63a3696d5874a89bb9daf143ef754f421157dc9ce3dc30d83766f",
     "view-store/view/aggregate.ts": "0bee393d121abfdf1db4ef18da9e77d5a97f7e3b9ef61d8a782f47e365b19bea",
     "view-store/view/commandClient.ts": "55995f83a14133d4ad8756dc242a12338ba1eced2398a8caad08225c3331f01e",
     "view-store/view/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
