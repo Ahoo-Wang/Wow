@@ -25,6 +25,10 @@ import com.mongodb.event.CommandListener
 import com.mongodb.event.CommandStartedEvent
 import io.mockk.every
 import io.mockk.spyk
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -256,6 +260,17 @@ class MongoEventLogTest : EventLogSpec() {
                 command.getDocument("readConcern")?.getString("level")?.value.assert().isEqualTo("majority")
             }
         }
+    }
+
+    @Test
+    fun `nodes creating a new log at once all succeed`(): Unit = runBlocking {
+        // Finding A2-8: the counters were inserted when none were found, and the later node hit a duplicate key.
+        val context = MongoLogFixture.newContext()
+        coroutineScope {
+            (1..8).map { async(Dispatchers.IO) { MongoLogFixture.log(16, context).partitions } }.awaitAll()
+        }.forEach { it.assert().isEqualTo(16) }
+        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection(context, "partition"))
+            .countDocuments().assert().isEqualTo(16L)
     }
 
     @Test

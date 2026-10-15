@@ -31,6 +31,7 @@ import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Sorts
+import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.delay
@@ -162,8 +163,19 @@ class MongoEventLog(
     fun createSchema() {
         MongoFormat.claim(database, countersName, FORMAT)
         MongoFormat.claim(database, REGISTRY, FORMAT)
-        if (counters.countDocuments() == 0L) {
-            counters.insertMany((0 until partitions).map { Document(ID, it).append(SEQUENCE, 0L) })
+        // Idempotent, so nodes creating a new log at once all succeed (finding A2-8); an existing log is left as it is.
+        for (partition in if (counters.countDocuments() == 0L) 0 until partitions else IntRange.EMPTY) {
+            try {
+                counters.updateOne(
+                    Filters.eq(ID, partition),
+                    Updates.setOnInsert(SEQUENCE, 0L),
+                    UpdateOptions().upsert(true),
+                )
+            } catch (raced: MongoWriteException) {
+                if (!raced.isDuplicateKey()) {
+                    throw raced
+                }
+            }
         }
         val existing = counters.countDocuments()
         check(existing == partitions.toLong()) {
