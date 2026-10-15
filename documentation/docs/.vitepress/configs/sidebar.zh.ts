@@ -216,7 +216,7 @@ export const sidebarZh: DefaultTheme.Sidebar = {
             ],
         },
         {
-            // V10 处于预发布（10.0.0-alpha.2，v10 分支）；它的页面与 9.x 指南分开。
+            // V10 处于预发布（10.0.0-alpha.3，v10 分支）；它的页面与 9.x 指南分开。
             base: '/zh/guide/v10/',
             text: 'V10（预览）',
             collapsed: true,

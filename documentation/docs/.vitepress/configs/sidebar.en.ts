@@ -215,7 +215,7 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             ],
         },
         {
-            // V10 is in pre-release (10.0.0-alpha.2, the v10 branch); its pages stay apart from the 9.x guide.
+            // V10 is in pre-release (10.0.0-alpha.3, the v10 branch); its pages stay apart from the 9.x guide.
             base: '/guide/v10/',
             text: 'V10 (Preview)',
             collapsed: true,

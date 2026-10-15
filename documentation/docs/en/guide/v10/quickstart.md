@@ -1,6 +1,6 @@
 ---
 title: V10 Quick Start
-description: Try Wow 10.0.0-alpha.2 in one module, from the Gradle build to a running service that takes commands and answers queries.
+description: Try Wow 10.0.0-alpha.3 in one module, from the Gradle build to a running service that takes commands and answers queries.
 outline: deep
 ---
 
@@ -8,7 +8,7 @@ outline: deep
 
 Wow V10 is the next major version of Wow: you write the domain as plain Kotlin classes (commands, events, a state and an aggregate that decides), and the compiler turns them into models and a Manifest that a Spring Boot host serves over HTTP. It is a rewrite on a new kernel, log and cluster, so its API, configuration and storage differ from 9.x.
 
-::: danger 10.0.0-alpha.2 is for evaluation only
+::: danger 10.0.0-alpha.3 is for evaluation only
 
 - **No compatibility promise.** An alpha may change the API, the configuration, the HTTP routes and the storage and wire formats of the alpha before it.
 - **No migration from 9.x yet.** Importing 9.x event streams is unfinished (milestone M8): do not migrate production data to an alpha.
@@ -50,7 +50,7 @@ rootProject.name = "bank"
 plugins {
     kotlin("jvm") version "2.4.21"
     // Applies KSP with wow-compiler of the same version, and assembles the service's Manifest.
-    id("me.ahoo.wow") version "10.0.0-alpha.2"
+    id("me.ahoo.wow") version "10.0.0-alpha.3"
     application
 }
 
@@ -64,7 +64,7 @@ application {
 
 dependencies {
     // The V10 BOM: one version for every Wow module.
-    implementation(platform("me.ahoo.wow:wow-bom:10.0.0-alpha.2"))
+    implementation(platform("me.ahoo.wow:wow-bom:10.0.0-alpha.3"))
     // The kernel the generated models build on.
     implementation("me.ahoo.wow:wow-kernel")
     // The Spring Boot host: auto-configuration, the HTTP routes, the memory backend.
@@ -82,7 +82,7 @@ tasks.test {
 }
 ```
 
-The plugin is published to Maven Central with its marker, so `pluginManagement` needs `mavenCentral()`. Maven Central has only exact versions of an alpha: write `10.0.0-alpha.2`, not a range. A real service splits into an `-api`, a `-domain` and a `-server` module ([Write a V10 Service](./index.md#lay-out-the-service)); one module is enough to try V10.
+The plugin is published to Maven Central with its marker, so `pluginManagement` needs `mavenCentral()`. Maven Central has only exact versions of an alpha: write `10.0.0-alpha.3`, not a range. A real service splits into an `-api`, a `-domain` and a `-server` module ([Write a V10 Service](./index.md#lay-out-the-service)); one module is enough to try V10.
 
 ## Write the commands and events
 

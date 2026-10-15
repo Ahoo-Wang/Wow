@@ -2,7 +2,7 @@
   "format" : 1,
   "service" : {
     "name" : "eshop-inventory-service",
-    "version" : "10.0.0-alpha.2"
+    "version" : "10.0.0-alpha.3"
   },
   "contexts" : [ {
     "name" : "eshop-inventory",
