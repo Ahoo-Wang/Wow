@@ -265,12 +265,18 @@ class MongoEventLogTest : EventLogSpec() {
     @Test
     fun `nodes creating a new log at once all succeed`(): Unit = runBlocking {
         // Finding A2-8: the counters were inserted when none were found, and the later node hit a duplicate key.
-        val context = MongoLogFixture.newContext()
-        coroutineScope {
-            (1..8).map { async(Dispatchers.IO) { MongoLogFixture.log(16, context).partitions } }.awaitAll()
-        }.forEach { it.assert().isEqualTo(16) }
-        MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection(context, "partition"))
-            .countDocuments().assert().isEqualTo(16L)
+        // A node that came second also used to find the first one's counters half written and refuse the log.
+        repeat(RACES) {
+            val context = MongoLogFixture.newContext()
+            coroutineScope {
+                (1..8).map { async(Dispatchers.IO) { MongoLogFixture.log(64, context).partitions } }.awaitAll()
+            }.forEach { it.assert().isEqualTo(64) }
+            MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection(context, "partition"))
+                .countDocuments().assert().isEqualTo(64L)
+            assertThrownBy<IllegalStateException> { MongoLogFixture.log(32, context) }
+            MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(collection(context, "partition"))
+                .countDocuments().assert().isEqualTo(64L)
+        }
     }
 
     @Test
@@ -282,5 +288,6 @@ class MongoEventLogTest : EventLogSpec() {
 
     private companion object {
         const val TAIL_STALL_MS = 500L
+        const val RACES = 5
     }
 }

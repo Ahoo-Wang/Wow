@@ -172,23 +172,33 @@ class MongoEventLog(
     fun createSchema() {
         MongoFormat.claim(database, countersName, FORMAT)
         MongoFormat.claim(database, REGISTRY, FORMAT)
-        // Idempotent, so nodes creating a new log at once all succeed (finding A2-8); an existing log is left as it is.
-        for (partition in if (counters.countDocuments() == 0L) 0 until partitions else IntRange.EMPTY) {
-            try {
-                counters.updateOne(
-                    Filters.eq(ID, partition),
-                    Updates.setOnInsert(SEQUENCE, 0L),
-                    UpdateOptions().upsert(true),
-                )
-            } catch (raced: MongoWriteException) {
-                if (!raced.isDuplicateKey()) {
-                    throw raced
-                }
-            }
+        // Every step is idempotent, so nodes creating a new log at once all succeed (finding A2-8). The partition count
+        // is recorded before any counter, so a node that finds counters also finds the count the log was created with
+        // and refuses another one before it adds a counter.
+        val existingCounters = counters.countDocuments()
+        val marker = "$countersName$PARTITIONS_MARKER"
+        upsertOnce(registry, marker, PARTITIONS, if (existingCounters > 0) existingCounters.toInt() else partitions)
+        val recorded = registry.find(Filters.eq(ID, marker)).first()!!.getInteger(PARTITIONS)
+        check(recorded == partitions) {
+            "The log of $context has $recorded partitions, not $partitions: changing it is a repartition."
+        }
+        for (partition in 0 until partitions) {
+            upsertOnce(counters, partition, SEQUENCE, 0L)
         }
         val existing = counters.countDocuments()
         check(existing == partitions.toLong()) {
             "The log of $context has $existing partitions, not $partitions: changing it is a repartition."
+        }
+    }
+
+    /** Inserts [field] = [value] into the document [id] of [collection] unless it exists; a concurrent insert wins. */
+    private fun upsertOnce(collection: MongoCollection<Document>, id: Any, field: String, value: Any) {
+        try {
+            collection.updateOne(Filters.eq(ID, id), Updates.setOnInsert(field, value), UpdateOptions().upsert(true))
+        } catch (raced: MongoWriteException) {
+            if (!raced.isDuplicateKey()) {
+                throw raced
+            }
         }
     }
 
@@ -717,6 +727,10 @@ class MongoEventLog(
         const val REGISTRY = "wow_log_aggregate"
         const val PREFIX = "wow_log"
         const val PARTITION_COUNTERS = "partition"
+
+        /** The registry document recording a log's partition count: its counters' name, then this. */
+        const val PARTITIONS_MARKER = "#partitions"
+        const val PARTITIONS = "partitions"
         const val AGGREGATE = "aggregate"
         const val BRANCH = "branch"
         const val HEAD = "head"
