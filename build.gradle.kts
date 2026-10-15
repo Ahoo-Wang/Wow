@@ -685,8 +685,11 @@ tasks.register("v10PublicationCheck") {
     } else {
         providers.gradleProperty("signing.secretKeyRingFile").orNull
     }
-    val releaseKeyPassword = if (isInCI) System.getenv("SIGNING_PASSWORD") else
+    val releaseKeyPassword = if (isInCI) {
+        System.getenv("SIGNING_PASSWORD")
+    } else {
         providers.gradleProperty("signing.password").orNull
+    }
     // The marker java-gradle-plugin publishes beside wow-gradle-plugin.
     val pluginMarker = "me.ahoo.wow.gradle.plugin"
     doLast {
