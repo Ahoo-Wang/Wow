@@ -19,6 +19,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -242,16 +244,23 @@ class TimerRunner(
             }
             val outcome = try {
                 firer.fire(claimed)
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (failure: Exception) {
+            } catch (fatal: VirtualMachineError) {
+                throw fatal
+            } catch (failure: Throwable) {
+                // Only this runner's own cancellation stops the attempt (finding A1-12): a cancellation the sending
+                // threw itself, or an Error such as a missing class, is a failed attempt, retried and then parked.
+                currentCoroutineContext().ensureActive()
                 failed(part, claimed, failure, now)
                 return
             }
             settle(part, claimed, fired(claimed, outcome, loop.clock.millis()))
-        } catch (cancelled: CancellationException) {
+        } catch (escaped: Throwable) {
+            // Whatever ends the attempt unsettled leaves the timer to the next load, not stuck as being sent.
             part.sending.remove(timer.id)
-            throw cancelled
+            if (escaped is VirtualMachineError) {
+                logger.error(escaped) { "Sending the timer ${timer.id} met a fatal error." }
+            }
+            throw escaped
         }
     }
 
@@ -277,7 +286,7 @@ class TimerRunner(
      * One more failed attempt of [timer], as claimed: PENDING again, due after the backoff, or parked once its attempts
      * are spent.
      */
-    private suspend fun failed(part: Part, timer: Timer, failure: Exception, now: Long) {
+    private suspend fun failed(part: Part, timer: Timer, failure: Throwable, now: Long) {
         val attempts = timer.attempts + 1
         val reason = "${failure.javaClass.name}: ${failure.message}"
         if (attempts < options.retry.maxAttempts) {
