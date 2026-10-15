@@ -442,6 +442,24 @@ abstract class EventLogSpec {
     }
 
     @Test
+    fun `a payload with a NUL character reads back as appended, or is rejected, never unknown`(): Unit = runBlocking {
+        // Finding A2-7: PostgreSQL's jsonb refuses it, and the append was answered as unknown, retried for ever.
+        val log = createLog(partitions = 1)
+        val appended = stream("a", 1).copy(
+            events = listOf(EventRecord("$context.aggregate.Named", 1, """{"name":"a\u0000b","n\u0000":1}""")),
+        )
+        when (val outcome = log.append(appended)) {
+            is AppendOutcome.Committed -> log.read(appended.ref).toList().single().assertSameAs(appended)
+            is AppendOutcome.Rejected -> {
+                outcome.cause.assert().isInstanceOf(IllegalArgumentException::class.java)
+                log.read(appended.ref).toList().assert().isEmpty()
+            }
+
+            else -> throw AssertionError("A payload with a NUL character is committed or rejected, not $outcome.")
+        }
+    }
+
+    @Test
     fun `appendAll sequences a group without gaps`(): Unit = runBlocking {
         val log = createLog(partitions = 4)
         val ids = idsInPartitionZero(10, 4)

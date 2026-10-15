@@ -412,6 +412,56 @@ class CommandGatewayTest {
     }
 
     @Test
+    fun `a body that writes a NUL character in a string or a key is malformed`(): Unit = runBlocking {
+        // Finding A2-7: PostgreSQL's jsonb refuses it and MongoDB keeps it; no backend sees it now.
+        val gateway = gateway()
+        gateway.execute(request(body = """{"sku":"a\u0000b"}""")).assertRefused(FrameworkCodes.MALFORMED)
+        gateway.execute(request(body = """{"sku":"apple","x\u0000":1}""")).assertRefused(FrameworkCodes.MALFORMED)
+        val mapper = JsonMapper.builder().build()
+        val nested = mapper.readTree("""{"sku":"apple","tags":[{"k":"\u0000"}]}""")
+        gateway.execute(request().copyWith(body = CommandBody.Tree(nested))).assertRefused(FrameworkCodes.MALFORMED)
+        val key = mapper.readTree("""{"sku":"apple","meta":{"\u0000":1}}""")
+        gateway.execute(request().copyWith(body = CommandBody.Tree(key))).assertRefused(FrameworkCodes.MALFORMED)
+        decided.assert().isEmpty()
+        // An escaped backslash before u0000 is the text "\u0000", not the character.
+        gateway.execute(request(body = """{"sku":"a\\u0000b"}""", wait = WaitPlan.COMMITTED)).status
+            .assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        val text = mapper.readTree("""{"sku":"a\\u0000b","quantity":1,"more":[1,true,null,{"k":"v"}]}""")
+        gateway.execute(request(wait = WaitPlan.COMMITTED).copyWith(body = CommandBody.Tree(text))).status
+            .assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        AdmissionLimits.writesNul("\\u000".toByteArray()).assert().isFalse()
+    }
+
+    @Test
+    fun `an id longer than 256 characters is malformed`(): Unit = runBlocking {
+        // Finding A3-10: PostgreSQL's index refused it, and the append was answered as unknown, retried for ever.
+        val gateway = gateway()
+        val long = "x".repeat(AdmissionLimits.MAX_ID_LENGTH + 1)
+        gateway.execute(request(requestId = long)).assertRefused(FrameworkCodes.MALFORMED)
+        gateway.execute(request(aggregateId = long)).error!!.message.assert().contains("aggregate id")
+        val tenant = Caller(long, Scope("eve"), subject = "eve")
+        gateway.execute(request(caller = tenant)).error!!.message.assert().contains("tenant id")
+        val space = Caller(TENANT, Scope("eve", long), subject = "eve")
+        gateway.execute(request(caller = space)).error!!.message.assert().contains("space id")
+        decided.assert().isEmpty()
+        val longest = "y".repeat(AdmissionLimits.MAX_ID_LENGTH)
+        gateway.execute(request(requestId = longest, aggregateId = longest, wait = WaitPlan.COMMITTED)).status
+            .assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+    }
+
+    @Test
+    fun `a transformer that names an aggregate id longer than 256 characters is malformed`(): Unit = runBlocking {
+        val long = object : CommandTransformer {
+            override val input = model.commandType(AddItem::class.java)
+
+            override suspend fun transform(input: CommandInput): CommandTarget =
+                CommandTarget(input.type, "z".repeat(AdmissionLimits.MAX_ID_LENGTH + 1), input.body, input.headers)
+        }
+        gateway(transformers = listOf(long)).execute(request()).assertRefused(FrameworkCodes.MALFORMED)
+        decided.assert().isEmpty()
+    }
+
+    @Test
     fun `an unknown aggregate or command is unhandled`(): Unit = runBlocking {
         val gateway = gateway()
         gateway.execute(request(command = "RemoveItem")).assertRefused(FrameworkCodes.UNHANDLED)

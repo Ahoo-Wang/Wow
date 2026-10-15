@@ -204,7 +204,7 @@ class PostgresEventLog(
                     appendIn(connection, tableOf(connection, stream.ref.type), partition, stream, transport)
                 }
             } catch (failure: SQLException) {
-                AppendOutcome.Unknown(failure)
+                outcomeOf(failure)
             }
         }
 
@@ -254,10 +254,22 @@ class PostgresEventLog(
                     ?.let { AppendOutcome.AlreadyCommitted(it) }
                     ?: AppendOutcome.Unknown(failure)
 
-                else -> AppendOutcome.Unknown(failure)
+                else -> outcomeOf(failure)
             }
         }
     }
+
+    /**
+     * The outcome of an append that failed with [failure]: [AppendOutcome.Rejected] when PostgreSQL refused a value of
+     * the stream, for good and committing nothing (findings A2-7, A3-10: a `\u0000`, a key too long for its index);
+     * otherwise whether it committed is unknown.
+     */
+    private fun outcomeOf(failure: SQLException): AppendOutcome =
+        if (PostgresFailures.isRefused(failure)) {
+            AppendOutcome.Rejected(PostgresFailures.refusal(failure))
+        } else {
+            AppendOutcome.Unknown(failure)
+        }
 
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = flow {
         val streams = dispatcher.jdbc {

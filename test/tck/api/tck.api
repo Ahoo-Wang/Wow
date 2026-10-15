@@ -48,6 +48,7 @@ public abstract class me/ahoo/wow/tck/log/EventLogSpec {
 	public static final field DEFAULT_PARTITIONS I
 	public static final field TAIL_TIMEOUT_MS J
 	public fun <init> ()V
+	public final fun a payload with a NUL character reads back as appended, or is rejected, never unknown ()V
 	public final fun a request id is unique within its tenant ()V
 	public final fun a request id is unique within its tenant and aggregate type ()V
 	public final fun a request id reused by another command type finds the stream committed for it ()V
@@ -138,6 +139,7 @@ public abstract class me/ahoo/wow/tck/snapshot/SnapshotStoreSpec {
 	public final fun a rewrite replaces the same version or a lower one whatever the revision ()V
 	public final fun a snapshot loads back as saved ()V
 	public final fun a stale mark keeps a snapshot pending until a rewrite reaches its version ()V
+	public final fun a state with a NUL character loads back as saved, or is refused as a value ()V
 	public final fun a table's first claim records it at the revision, not yet backfilled ()V
 	public final fun absent access facts and the deleted mark load back as saved ()V
 	public final fun concurrent claims leave one revision ()V

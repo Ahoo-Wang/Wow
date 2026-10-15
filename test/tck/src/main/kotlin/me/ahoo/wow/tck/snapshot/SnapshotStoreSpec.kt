@@ -92,6 +92,23 @@ abstract class SnapshotStoreSpec {
     }
 
     @Test
+    fun `a state with a NUL character loads back as saved, or is refused as a value`(): Unit = runBlocking {
+        // Finding A2-7: PostgreSQL's jsonb refuses it with a driver exception, MongoDB keeps it. Admission refuses it
+        // first; a store that sees it all the same keeps it or refuses it as a value, never as another failure.
+        val store = createStore()
+        val saved = snapshot("a", 1).copy(state = """{"name":"a\u0000b","n\u0000":1}""")
+        val outcome = runCatching { store.save(saved) }
+        val refused = outcome.exceptionOrNull()
+        if (refused == null) {
+            outcome.getOrNull().assert().isEqualTo(true)
+            store.load(saved.ref).assertSameAs(saved)
+        } else {
+            refused.assert().isInstanceOf(IllegalArgumentException::class.java)
+            store.load(saved.ref).assert().isNull()
+        }
+    }
+
+    @Test
     fun `state numbers load back exactly as saved`(): Unit = runBlocking {
         val store = createStore()
         val saved = snapshot("a", 1).copy(state = ExactJson.NUMBERS)
