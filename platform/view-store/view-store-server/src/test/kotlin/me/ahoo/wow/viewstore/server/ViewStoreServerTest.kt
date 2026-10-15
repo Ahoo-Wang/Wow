@@ -55,6 +55,16 @@ class ViewStoreServerTest {
     }
 
     @Test
+    fun `without the header switch no request is served on its headers' word`() {
+        startViewStore(ViewStoreConfiguration.TRUST_IDENTITY_HEADERS to false).use { store ->
+            store.context.getBean(me.ahoo.wow.http.caller.CallerResolver::class.java).assert()
+                .isSameAs(ViewStoreConfiguration.REFUSED)
+            store.get("/view-store/view/v-1/state", Who.user("alice")).status.assert().isEqualTo(UNAUTHORIZED)
+            store.get("/view-store/view/v-1/state", Who.ANONYMOUS).status.assert().isEqualTo(UNAUTHORIZED)
+        }
+    }
+
+    @Test
     fun `the Manifest baseline should list every command route the server serves`() {
         startViewStore().use { store ->
             val served = commandRoutes(store.get("/wow/manifest", Who.user("a")).assertOk().json)
@@ -92,5 +102,6 @@ class ViewStoreServerTest {
 
     private companion object {
         const val NOT_FOUND = 404
+        const val UNAUTHORIZED = 401
     }
 }

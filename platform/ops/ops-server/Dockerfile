@@ -1,6 +1,9 @@
 # The V10 ops service image (R.1): `./gradlew -Pwow.scope=v10 :ops-server:installDist` after
 # `pnpm --filter wow-ops-console... build`, which puts the console in the distribution's ui/. v10-image-deploy.yml
 # builds it and tags only the release version: a pre-release never moves `latest`.
+# Callers: the image trusts no identity header. Without wow-cosec on its class path every request is answered 401
+# until a deployment gives it an identity provider; WOW_PLATFORM_TRUSTIDENTITYHEADERS=true (the property
+# wow.platform.trust-identity-headers) takes them from X-User, X-Tenant and X-Role instead, for a local demo only.
 ARG APP_NAME=ops-server
 ARG WORK_HOME=/opt/${APP_NAME}
 
