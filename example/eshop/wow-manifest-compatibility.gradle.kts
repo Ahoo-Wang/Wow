@@ -10,6 +10,9 @@
  *   (`ManifestTools.checkCompatibility`): a change that breaks the contract within the baseline's major version fails
  *   the build with each breaking change and its path; `build/wow/manifest-compatibility.txt` lists every change.
  * - `updateManifestBaseline` records the merged Manifest as the baseline; commit it.
+ * - `checkManifestBaseline`, part of `check`, fails when the merged Manifest is not byte for byte the committed
+ *   baseline, so a change the compatibility check only reports (an additive one, a dropped `derives`) cannot leave
+ *   the baseline, and the clients generated from it, behind.
  *
  * As the plugin's workers do, the tools run in a class loader of their own over `:manifest-tools` and its runtime class
  * path, with the JDK's platform class loader as parent, so none of them reaches the build script's class path.
@@ -99,6 +102,28 @@ val checkManifestCompatibility = tasks.register("checkManifestCompatibility") {
     }
 }
 
+val checkManifestBaseline = tasks.register("checkManifestBaseline") {
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    description = "Fails when the merged Manifest differs from the committed baseline: run updateManifestBaseline."
+    val manifest = mergeWowManifestWithSchemas.map { manifestFile.get() }
+    val baseline = baselineFile
+    val path = rootDir.toPath().relativize(baselineFile.asFile.toPath()).toString()
+    val update = "${project.path}:updateManifestBaseline"
+    inputs.file(manifest).withPathSensitivity(PathSensitivity.NONE).withPropertyName("manifest")
+    inputs.files(baseline).withPathSensitivity(PathSensitivity.NONE).withPropertyName("baseline")
+    mustRunAfter(updateManifestBaseline)
+    doLast {
+        val recorded = baseline.asFile
+        if (!recorded.isFile || !recorded.readBytes().contentEquals(manifest.get().asFile.readBytes())) {
+            throw GradleException(
+                "$path does not record the Manifest this build produces: run $update, review the diff and " +
+                    "commit it.",
+            )
+        }
+    }
+}
+
 tasks.named(LifecycleBasePlugin.CHECK_TASK_NAME) {
     dependsOn(checkManifestCompatibility)
+    dependsOn(checkManifestBaseline)
 }
