@@ -16,6 +16,8 @@ public final class me/ahoo/wow/test/AggregateSpec {
 	public final fun givenState (Ljava/lang/Object;ILme/ahoo/wow/api/aggregate/Scope;)V
 	public static synthetic fun givenState$default (Lme/ahoo/wow/test/AggregateSpec;ILme/ahoo/wow/api/aggregate/Scope;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public static synthetic fun givenState$default (Lme/ahoo/wow/test/AggregateSpec;Ljava/lang/Object;ILme/ahoo/wow/api/aggregate/Scope;ILjava/lang/Object;)V
+	public final fun holds (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/decide/ReservationTenancy;)Z
+	public static synthetic fun holds$default (Lme/ahoo/wow/test/AggregateSpec;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/decide/ReservationTenancy;ILjava/lang/Object;)Z
 	public final fun ref (Ljava/lang/String;)V
 	public final fun timer (Ljava/lang/String;)Lme/ahoo/wow/spi/timer/Timer;
 	public final fun whenCommand (Ljava/lang/Object;Ljava/lang/String;Ljava/lang/Integer;Lme/ahoo/wow/api/aggregate/Scope;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lkotlin/jvm/functions/Function1;)V

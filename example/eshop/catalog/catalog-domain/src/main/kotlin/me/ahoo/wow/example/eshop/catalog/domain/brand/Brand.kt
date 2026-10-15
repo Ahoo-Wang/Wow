@@ -51,7 +51,8 @@ class BrandState {
 
 /**
  * A brand of the catalog's products. Its name is unique among the brands, ignoring case and surrounding blanks: the
- * brand reserves it (`DecideScope.reserve`) as it takes it.
+ * brand reserves it (`DecideScope.reserve`) as it takes it. A rename releases the old name (`DecideScope.release`)
+ * once it commits, so another brand may take it then.
  *
  * Like a product, a brand belongs to its tenant (`Ownership.TENANT`, decision D189): every shopper reads it.
  */
@@ -65,7 +66,12 @@ class Brand(private val state: BrandState) {
     @OnCommand(produces = [BrandRenamed::class])
     suspend fun onCommand(command: RenameBrand, scope: DecideScope): Decision {
         if (command.name.trim() == state.name) return Decision.NoOp
-        return take(command.name, scope) ?: Decision.events(BrandRenamed(command.name.trim()))
+        take(command.name, scope)?.let { return it }
+        // A new spelling of the same name keeps its key.
+        if (CatalogNames.key(command.name) != CatalogNames.key(state.name)) {
+            scope.release(CatalogNames.BRAND_NAMES, CatalogNames.key(state.name))
+        }
+        return Decision.events(BrandRenamed(command.name.trim()))
     }
 
     /** Rejects a blank name or one another brand holds; null when this brand may take [name]. */
