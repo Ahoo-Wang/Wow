@@ -273,7 +273,7 @@ class QueryAutoConfiguration {
             }
             val byType = snapshots.associateBy { it.aggregateType }
             // An aggregate the snapshot queries hide is hidden from the events model too (review A3-11).
-            val visibility: suspend (AggregateRef, QueryCaller) -> Boolean = { ref, caller ->
+            val visible: suspend (AggregateRef, QueryCaller) -> Boolean = { ref, caller ->
                 val latest = reads.ifAvailable?.latest(ref)
                 latest == null || StateVisibility.visible(byType[ref.type], caller, latest)
             }
@@ -284,7 +284,7 @@ class QueryAutoConfiguration {
                     tenants,
                     entryPolicy,
                     QueryOwnership.of(manifest).ownershipOf(type),
-                    visibility,
+                    visible,
                 )
             }
             return HttpQueries(
