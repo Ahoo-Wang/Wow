@@ -116,7 +116,7 @@ class PartitionedRouter(
      * The settlement [peer] replied with; null when the forward surely did not reach it, so the command runs here; an
      * unknown outcome when it may have (decision D223).
      */
-    @Suppress("TooGenericExceptionCaught") // Whatever fails before the send degrades to Local (D71); after it, unknown.
+    @Suppress("TooGenericExceptionCaught") // Whatever fails before the send degrades to Local (D71).
     private suspend fun forward(
         ownership: PartitionOwnership,
         peer: Member,
@@ -132,43 +132,64 @@ class PartitionedRouter(
         }
         try {
             val request = try {
-                val waitLeft = wait?.let { (it.deadline - clock()).coerceAtLeast(0).milliseconds } ?: Duration.INFINITE
-                withTimeoutOrNull(waitLeft) { channel.connect(peer.address) }
-                    ?: return unsent(ownership, command, peer, "not connected by the wait's deadline")
-                ForwardCommand(
-                    command = ClusterCodec.wire(model, command),
-                    wait = wait?.let(WaitWire::of),
-                    deadline = minOf(
-                        clock() + options.forwardTimeout.inWholeMilliseconds,
-                        wait?.deadline ?: Long.MAX_VALUE,
-                    ),
-                    trace = currentCoroutineContext().trace,
-                )
+                request(peer, model, command, wait)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
                 return unsent(ownership, command, peer, failure.toString())
-            }
-            val reply = try {
-                withTimeoutOrNull((request.deadline - clock()).coerceAtLeast(0).milliseconds) {
-                    channel.forward(peer.address, request)
-                }
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (failure: Exception) {
-                if (failure is ClusterChannelException && failure.unsent) {
-                    return unsent(ownership, command, peer, failure.toString())
-                }
-                return unknown(ownership, model, command, peer, failure.toString())
-            }
-            return when {
-                reply == null -> unknown(ownership, model, command, peer, "no reply by the deadline")
-                reply.result != null -> Settlement(reply.result, reply.reached)
-                // A refusal is the peer's answer that it did not run the command.
-                else -> unsent(ownership, command, peer, "refused: ${reply.refused}")
-            }
+            } ?: return unsent(ownership, command, peer, "not connected by the wait's deadline")
+            return send(ownership, peer, model, command, request)
         } finally {
             permits.decrementAndGet()
+        }
+    }
+
+    /** The forward of [command] to [peer], once connected to it; null when not connected by [wait]'s deadline. */
+    private suspend fun request(
+        peer: Member,
+        model: AggregateModel<*>,
+        command: Command<*>,
+        wait: WaitContext?,
+    ): ForwardCommand? {
+        val waitLeft = wait?.let { (it.deadline - clock()).coerceAtLeast(0).milliseconds } ?: Duration.INFINITE
+        withTimeoutOrNull(waitLeft) { channel.connect(peer.address) } ?: return null
+        return ForwardCommand(
+            command = ClusterCodec.wire(model, command),
+            wait = wait?.let(WaitWire::of),
+            deadline = minOf(clock() + options.forwardTimeout.inWholeMilliseconds, wait?.deadline ?: Long.MAX_VALUE),
+            trace = currentCoroutineContext().trace,
+        )
+    }
+
+    /** Sends [request] to [peer]: its settlement; null when it surely did not arrive or was refused; else unknown. */
+    @Suppress("TooGenericExceptionCaught") // A failure after the send leaves the outcome unknown (D223).
+    private suspend fun send(
+        ownership: PartitionOwnership,
+        peer: Member,
+        model: AggregateModel<*>,
+        command: Command<*>,
+        request: ForwardCommand,
+    ): Settlement? {
+        val reply = try {
+            withTimeoutOrNull((request.deadline - clock()).coerceAtLeast(0).milliseconds) {
+                channel.forward(peer.address, request)
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: ClusterChannelException) {
+            return if (failure.unsent) {
+                unsent(ownership, command, peer, failure.toString())
+            } else {
+                unknown(ownership, model, command, peer, failure.toString())
+            }
+        } catch (failure: Exception) {
+            return unknown(ownership, model, command, peer, failure.toString())
+        }
+        return when {
+            reply == null -> unknown(ownership, model, command, peer, "no reply by the deadline")
+            reply.result != null -> Settlement(reply.result, reply.reached)
+            // A refusal is the peer's answer that it did not run the command.
+            else -> unsent(ownership, command, peer, "refused: ${reply.refused}")
         }
     }
 
@@ -191,9 +212,16 @@ class PartitionedRouter(
         peer: Member,
         why: String,
     ): Settlement {
-        logger.info { "Forwarding ${command.id} to ${peer.node} at ${peer.address} got no reply ($why); its outcome is unknown." }
+        logger.info {
+            "Forwarding ${command.id} to ${peer.node} at ${peer.address} got no reply ($why); its outcome is unknown."
+        }
         ownership.refreshSoon()
-        val committed = reachedResult(command, commandFunction(model, command), Hop.committed(command.ref.type.context), clock())
+        val committed = reachedResult(
+            command,
+            commandFunction(model, command),
+            Hop.committed(command.ref.type.context),
+            clock()
+        )
         return Settlement(
             committed.failed(
                 ResultCodes.UNKNOWN,

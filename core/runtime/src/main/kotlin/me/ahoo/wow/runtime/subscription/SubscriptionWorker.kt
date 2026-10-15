@@ -385,7 +385,7 @@ internal class SubscriptionWorker(
 
     /**
      * A handler may fail with anything (finding A1-4): a [CancellationException] that is not this lane's own, such as
-     * the handler's own `withTimeout` firing, or an [Error] such as `TODO()`, is a failure like any other, retried and
+     * the handler's own `withTimeout` firing, or an [Error] such as [NotImplementedError], is a failure like any other, retried and
      * then parked, so the lane goes on and the checkpoint moves. Only the cancellation of the lane itself stops the
      * retries, and a [VirtualMachineError] (out of memory, say) propagates, logged first.
      */

@@ -413,17 +413,19 @@ class Kernel(
      * [stream], which the backend reported [duplicate] of itself, committed at its position. Committed it is, so it is
      * never compensated: when its position cannot be read, the outcome is unknown, which compensates nothing either.
      */
-    private suspend fun committedAt(stream: EventStreamRecord, duplicate: AppendOutcome.AlreadyCommitted): AppendOutcome {
+    @Suppress("TooGenericExceptionCaught") // Whatever stops the read, the commit stands; its outcome is unknown.
+    private suspend fun committedAt(
+        stream: EventStreamRecord,
+        duplicate: AppendOutcome.AlreadyCommitted
+    ): AppendOutcome {
         val position = try {
             log.positionOf(stream.ref, stream.version)
-        } catch (
-            @Suppress("TooGenericExceptionCaught") // Whatever stops the read, the commit stands; its outcome is unknown.
-            failure: Exception,
-        ) {
+        } catch (failure: Exception) {
             return AppendOutcome.Unknown(failure)
         }
+        val existing = duplicate.existing
         return position?.let { AppendOutcome.Committed(it) } ?: AppendOutcome.Unknown(
-            IllegalStateException("${stream.ref}@${stream.version} is committed (${duplicate.existing.commandId}) without a position."),
+            IllegalStateException("${existing.ref}@${existing.version} is committed without a position."),
         )
     }
 

@@ -193,11 +193,10 @@ class HttpClusterChannelTest {
     fun `a status other than 200 fails the forward`(): Unit = runBlocking {
         InternalServer(coRouter { POST(InternalHttp.FORWARD_PATH) { ServerResponse.status(503).buildAndAwait() } })
             .use { failing ->
-                failsWith<ClusterChannelException> { channel.forward(failing.address, forwardCommand()) }.let { failure ->
-                    failure.message.assert().contains("503")
-                    // The peer answered: the request may have run there (decision D223).
-                    failure.unsent.assert().isFalse()
-                }
+                val failure = failsWith<ClusterChannelException> { channel.forward(failing.address, forwardCommand()) }
+                failure.message.assert().contains("503")
+                // The peer answered: the request may have run there (decision D223).
+                failure.unsent.assert().isFalse()
             }
         InternalServer(
             coRouter {

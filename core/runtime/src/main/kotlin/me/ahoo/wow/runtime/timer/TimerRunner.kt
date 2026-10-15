@@ -218,50 +218,58 @@ class TimerRunner(
     /** How many timers of [partition] are loaded and not sent yet. */
     internal fun loaded(partition: Int): Int = parts[partition]?.let { synchronized(it) { it.wheel.size } } ?: 0
 
-    /** Claims [timer], due, sends it once claimed, and queues its outcome for the next [flush]. */
-    @Suppress("TooGenericExceptionCaught") // Whatever fails is a technical failure of this attempt.
+    /**
+     * Claims [timer], due, sends it once claimed, and queues its outcome for the next [flush]. Whatever ends the attempt
+     * unsettled leaves the timer to the next load, not stuck as being sent (finding A1-12).
+     */
+    @Suppress("TooGenericExceptionCaught") // Rethrown once the timer is no longer marked as being sent.
     private suspend fun fire(part: Part, timer: Timer) {
         try {
-            val now = loop.clock.millis()
-            // A recurring slot long past due moves on to the latest one due, as its rule's misfire policy says.
-            val current = ScheduleSlots.caughtUp(timer, now)
-            val expiry = options.expiresAfter
-            if (expiry != null && now - current.dueAt > expiry.inWholeMilliseconds) {
-                logger.warn { "The timer ${timer.id} was due ${(now - current.dueAt).milliseconds} ago; it expired." }
-                val next = ScheduleSlots.afterFired(current, now)?.copy(outcome = TimerOutcomes.EXPIRED)
-                    ?: current.copy(status = TimerStatus.CANCELLED, outcome = TimerOutcomes.EXPIRED)
-                settle(part, timer, next)
-                return
-            }
-            // Claimed before it is sent, from the row as loaded: one cancelled or rescheduled since is not sent.
-            val claimed = current.copy(
-                status = TimerStatus.FIRING,
-                dueAt = now + options.claimTimeout.inWholeMilliseconds
-            )
-            if (quietly("claim the timer ${timer.id}") { store.settle(listOf(TimerChange(timer, claimed))) } != 1) {
-                part.sending.remove(timer.id)
-                return
-            }
-            val outcome = try {
-                firer.fire(claimed)
-            } catch (fatal: VirtualMachineError) {
-                throw fatal
-            } catch (failure: Throwable) {
-                // Only this runner's own cancellation stops the attempt (finding A1-12): a cancellation the sending
-                // threw itself, or an Error such as a missing class, is a failed attempt, retried and then parked.
-                currentCoroutineContext().ensureActive()
-                failed(part, claimed, failure, now)
-                return
-            }
-            settle(part, claimed, fired(claimed, outcome, loop.clock.millis()))
-        } catch (escaped: Throwable) {
-            // Whatever ends the attempt unsettled leaves the timer to the next load, not stuck as being sent.
+            attempt(part, timer)
+        } catch (fatal: VirtualMachineError) {
             part.sending.remove(timer.id)
-            if (escaped is VirtualMachineError) {
-                logger.error(escaped) { "Sending the timer ${timer.id} met a fatal error." }
-            }
+            logger.error(fatal) { "Sending the timer ${timer.id} met a fatal error." }
+            throw fatal
+        } catch (escaped: Throwable) {
+            part.sending.remove(timer.id)
             throw escaped
         }
+    }
+
+    @Suppress("TooGenericExceptionCaught") // Whatever fails is a technical failure of this attempt.
+    private suspend fun attempt(part: Part, timer: Timer) {
+        val now = loop.clock.millis()
+        // A recurring slot long past due moves on to the latest one due, as its rule's misfire policy says.
+        val current = ScheduleSlots.caughtUp(timer, now)
+        val expiry = options.expiresAfter
+        if (expiry != null && now - current.dueAt > expiry.inWholeMilliseconds) {
+            logger.warn { "The timer ${timer.id} was due ${(now - current.dueAt).milliseconds} ago; it expired." }
+            val next = ScheduleSlots.afterFired(current, now)?.copy(outcome = TimerOutcomes.EXPIRED)
+                ?: current.copy(status = TimerStatus.CANCELLED, outcome = TimerOutcomes.EXPIRED)
+            settle(part, timer, next)
+            return
+        }
+        // Claimed before it is sent, from the row as loaded: one cancelled or rescheduled since is not sent.
+        val claimed = current.copy(
+            status = TimerStatus.FIRING,
+            dueAt = now + options.claimTimeout.inWholeMilliseconds
+        )
+        if (quietly("claim the timer ${timer.id}") { store.settle(listOf(TimerChange(timer, claimed))) } != 1) {
+            part.sending.remove(timer.id)
+            return
+        }
+        val outcome = try {
+            firer.fire(claimed)
+        } catch (fatal: VirtualMachineError) {
+            throw fatal
+        } catch (failure: Throwable) {
+            // Only this runner's own cancellation stops the attempt (finding A1-12): a cancellation the sending
+            // threw itself, or an Error such as a missing class, is a failed attempt, retried and then parked.
+            currentCoroutineContext().ensureActive()
+            failed(part, claimed, failure, now)
+            return
+        }
+        settle(part, claimed, fired(claimed, outcome, loop.clock.millis()))
     }
 
     /**
