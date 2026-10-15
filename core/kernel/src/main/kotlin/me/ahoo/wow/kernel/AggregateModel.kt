@@ -140,6 +140,9 @@ data class CommandType(val name: String, val type: Class<*>, val aliases: Set<St
  * the stream applies nothing for it, though the stream still counts as a version, and a subscription passes over it.
  * A name that is neither an event's nor retired still fails to read. A retired name is not blank, is listed once, and
  * is none of the model's event or command names, current or former.
+ *
+ * [tags] derives tags from the state (`@Tags`, decision D220; 9.x `StateAggregateTagsExtractor`): the keys it returns
+ * override the applied tags ([tagsOf]), and the kernel derives them again after every commit and every load.
  */
 class AggregateModel<S : Any> @InternalWowApi constructor(
     val type: AggregateType,
@@ -155,6 +158,7 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
     val ownership: Ownership = Ownership.OWNER,
     val stateRevision: Int = 1,
     retiredEvents: Collection<String> = emptyList(),
+    private val tags: ((S) -> Map<String, Collection<String>>)? = null,
 ) {
     /** The stored names of the events this aggregate retired (decision D219): their records are skipped. */
     val retiredEvents: Set<String> = retiredEvents.toSet()
@@ -166,7 +170,7 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
     private val systemCommands: Set<Class<*>> = this.lifecycle + KernelLifecycle.SCHEDULE_COMMANDS
 
     private val deciders: Map<Class<*>, DecideFunction<S>> =
-        systemCommands.filterNot { it in deciders }.associateWith { KernelLifecycle.decider<S>(it) } + deciders
+        systemCommands.filterNot { it in deciders }.associateWith { KernelLifecycle.decider(it, ::tagsOf) } + deciders
     private val evolvers: Map<Class<*>, (S, Any) -> S> =
         SYSTEM_EVENTS.values.filterNot { it in evolvers }.associateWith { { state: S, _: Any -> state } } +
             evolvers
@@ -261,6 +265,24 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
 
     /** The after hooks that run for [commandType], in declaration order. */
     fun afterFunctions(commandType: Class<*>): List<AfterFunction<S>> = afterByCommand[commandType].orEmpty()
+
+    /**
+     * The aggregate's tags in [state] with the tags [applied] (decision D220): [applied], each key the state derives
+     * replaced by its derived values, or removed when it derives none. Without a tags function, [applied] as is. The
+     * derived values are copied, so a mutable state evolving further does not change them.
+     */
+    internal fun tagsOf(state: S, applied: Map<String, List<String>>): Map<String, List<String>> {
+        val derive = tags ?: return applied
+        val derived = derive(state)
+        if (derived.isEmpty()) {
+            return applied
+        }
+        val effective = LinkedHashMap(applied)
+        derived.forEach { (key, values) ->
+            if (values.isEmpty()) effective.remove(key) else effective[key] = values.toList()
+        }
+        return effective
+    }
 
     /** Applies [event] to [state]. */
     fun evolve(state: S, event: Any): S {

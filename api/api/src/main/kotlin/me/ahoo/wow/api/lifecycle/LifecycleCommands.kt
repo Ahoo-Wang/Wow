@@ -45,6 +45,9 @@ data class TransferSpace(val spaceId: String) {
 /**
  * Sets the aggregate's tags to [tags], replacing the ones it had: each tag name with its values, the attributes
  * query authorization (ABAC) reads; see [TagsApplied]. Empty [tags] clear them.
+ *
+ * The keys the aggregate's state derives (`@Tags`, decision D220) are not the command's to set: they override the
+ * applied ones. The command is a no-op when the tags it would leave are the aggregate's already.
  */
 @Description("Sets the aggregate's tags, replacing the ones it had; empty tags clear them.")
 data class ApplyTags(val tags: Map<String, List<String>>) {

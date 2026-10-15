@@ -51,14 +51,20 @@ internal object KernelLifecycle {
     /** The schedule system commands (decision D198), which every model decides. */
     val SCHEDULE_COMMANDS: Set<Class<*>> = Schedules.COMMANDS.values.toSet()
 
-    /** The kernel's decide function for the lifecycle or schedule command [commandType]. */
-    fun <S : Any> decider(commandType: Class<*>): DecideFunction<S> {
+    /**
+     * The kernel's decide function for the lifecycle or schedule command [commandType]. [tagsOf] gives the tags of a
+     * state with the applied tags it is given ([AggregateModel.tagsOf], decision D220): what `ApplyTags` would leave.
+     */
+    fun <S : Any> decider(
+        commandType: Class<*>,
+        tagsOf: (S, Map<String, List<String>>) -> Map<String, List<String>> = { _, applied -> applied },
+    ): DecideFunction<S> {
         require(commandType in COMMANDS || commandType in SCHEDULE_COMMANDS) {
             "${commandType.name} is not a lifecycle command."
         }
-        return DecideFunction.Sync(
-            Creation.NONE
-        ) { _, body -> decide((this as MetadataScope).loaded, body, command.ref) }
+        return DecideFunction.Sync(Creation.NONE) { state, body ->
+            decide((this as MetadataScope).loaded, body, command.ref) { applied -> tagsOf(state, applied) }
+        }
     }
 
     /**
@@ -78,19 +84,31 @@ internal object KernelLifecycle {
     /**
      * Decides lifecycle command [body] on the metadata of [loaded]. A command that would change nothing is a no-op;
      * one to a deleted aggregate never gets here unless it restores it.
+     *
+     * `ApplyTags` is a no-op when the tags it would leave, [tagsOf] its tags (the keys the state derives overriding
+     * them, decision D220), are the aggregate's tags already. The loaded tags are the effective ones: comparing them
+     * with the applied set alone would commit an event that changes nothing whenever the state derives a key.
      */
-    fun decide(loaded: CachedState, body: Any, ref: AggregateRef): Decision = when (body) {
+    fun decide(
+        loaded: CachedState,
+        body: Any,
+        ref: AggregateRef,
+        tagsOf: (Map<String, List<String>>) -> Map<String, List<String>> = { it },
+    ): Decision = when (body) {
         is SetSchedule -> Decision.events(ScheduleSet(body.key, body.rule, ref, body.commandType, body.command))
         is CancelSchedule -> changeOrNoOp(body.key !in loaded.schedules) { ScheduleCancelled(body.key) }
         DeleteAggregate -> Decision.events(AggregateDeleted)
         RestoreAggregate -> if (loaded.deleted) Decision.events(AggregateRestored) else Decision.NoOp
         is TransferOwner -> changeOrNoOp(loaded.scope.ownerId == body.ownerId) { OwnerTransferred(body.ownerId) }
         is TransferSpace -> changeOrNoOp(loaded.scope.spaceId == body.spaceId) { SpaceTransferred(body.spaceId) }
-        is ApplyTags -> changeOrNoOp(loaded.tags == body.tags) { TagsApplied(body.tags) }
+        is ApplyTags -> changeOrNoOp(loaded.tags == tagsOf(body.tags)) { TagsApplied(body.tags) }
         else -> throw IllegalArgumentException("${body.javaClass.name} is not a lifecycle command.")
     }
 
-    /** [metadata] after [event]: only the lifecycle events change it. */
+    /**
+     * [metadata] after [event]: only the lifecycle events change it. `TagsApplied` sets the applied tags; the kernel
+     * then overrides the keys the state derives ([AggregateModel.tagsOf], decision D220).
+     */
     fun evolve(metadata: Metadata, event: Any): Metadata = when (event) {
         // Deleting cancels the aggregate's schedules; restoring does not bring them back.
         AggregateDeleted -> metadata.copy(deleted = true, schedules = emptyMap())
