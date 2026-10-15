@@ -16,7 +16,9 @@ package me.ahoo.wow.kernel
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
@@ -270,6 +272,8 @@ class Kernel(
 
         is AppendOutcome.Conflict -> {
             attempt.compensate()
+            // Decided again only once compensated, and only while the caller still waits.
+            currentCoroutineContext().ensureActive()
             null
         }
 
@@ -931,14 +935,21 @@ class Kernel(
             (afterAppendActions ?: ArrayList<suspend () -> Unit>().also { afterAppendActions = it }) += action
         }
 
-        /** Runs the compensations, latest first; their failures join [cause] when there is one, else they are logged. */
+        /**
+         * Runs the compensations, latest first; their failures join [cause] when there is one, else they are logged.
+         * They run whether or not the attempt is cancelled (finding A1-5): an attempt cancelled while deciding, say a
+         * saga's lane stopped by a handover, must still undo what its decide functions did outside the log.
+         */
         @Suppress("TooGenericExceptionCaught")
         suspend fun compensate(cause: Throwable? = null) {
-            compensations?.asReversed()?.forEach { compensation ->
-                try {
-                    compensation()
-                } catch (failure: Throwable) {
-                    cause?.addSuppressed(failure) ?: logger.warn(failure) { "A compensation failed." }
+            val registered = compensations ?: return
+            withContext(NonCancellable) {
+                registered.asReversed().forEach { compensation ->
+                    try {
+                        compensation()
+                    } catch (failure: Throwable) {
+                        cause?.addSuppressed(failure) ?: logger.warn(failure) { "A compensation failed." }
+                    }
                 }
             }
         }
