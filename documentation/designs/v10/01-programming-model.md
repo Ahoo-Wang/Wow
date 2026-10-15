@@ -86,6 +86,8 @@ class CartState(val id: String) {
 | `@OnEvent` | 订阅处理函数，唯一一个；种类由所在类的注解决定，每个函数编成一个订阅（[04](04-subscriptions.md) §1）；`aggregates = ["ctx.agg"]` 可指向其他上下文，Saga 可选 `derives = [...]` 声明派生的命令（D138） | `@OnEvent`、`@OnStateEvent`、`@OnMessage` |
 | `@OnRejected` | Saga 处理跨上下文命令被拒绝的回执，参数 `CommandRejected<C>` 与 `SagaContext`（D136） | — |
 | `@Upgrade` | 事件的升级函数：`@Upgrade(event = X::class, from = n)`，把 revision n 的 JSON 升到 n + 1；KSP 校验链从 1 到当前 revision 不断档、不重复（§8，D82） | 9.x 的 `EventUpgrader` |
+| `@AggregateRoot(retiredEvents)` | 已删去类的事件名（日志里存的名字；不带点为聚合内的名字，带点为完整名 `context.aggregate.Name`），读取时跳过：溯源不因它改变状态，订阅越过、不停放（D219） | 9.x 的 `DroppedEvent` |
+| `@Tags` | 状态上返回 `Map<String, List<String>>` 的成员，从状态推导 ABAC 标签：推导出的键按键覆盖 `ApplyTags` 应用的标签，空列表删去该键，每次溯源后重算（D220） | 9.x 的 `StateAggregateTagsExtractor` |
 | `@Blocking` | 阻塞调用，派发到虚拟线程（§4） | 同名 |
 | `@Description`、`@Summary` | 写进 Manifest 的说明 | 同名 |
 | `@WowSpi` | 标注可替换的端口 | 同名 |
@@ -154,6 +156,7 @@ H3 的基准分别测同步与 `suspend` 处理函数，作为这条快速路径
 - 事件类型声明 `revision`（`@Revision`）；结构变化时，用户写一个从上一个 revision 到当前 revision 的升级函数（`@Upgrade`，D82），由 KSP 串成链，读日志时按 revision 升级。
 - **事件类型的身份是名字，不是类名**：`上下文.聚合.事件名`（可用注解指定），所以重命名或移动类不影响读取历史事件（KaeX 检查表 C9）。
 - Manifest 记录每个事件类型的 revision 历史。
+- 退役的事件类型（删去了类）在 `@AggregateRoot(retiredEvents)` 里声明，读取时跳过，不解码（D219）；未声明的未知事件名照旧报错。一个改过名（`@Alias`）又退役的事件，新旧名字都要列出。Manifest 不列退役事件，退役时照常刷新兼容基线。
 - 与迁移层的分工（D22）：**框架**格式的不兼容变化只在迁移层处理；**领域**事件的 revision 属于用户模型。
 - **加法不是格式变化**（R5-1）：「运行时只读当前格式」若理解为任何改动都要迁移，框架格式在主版本之间就冻结了。所以只有不兼容的变化才升格式版本、进迁移层；新增带默认值的可选字段、新增枚举值之外的扩展点，是同一格式版本内的加法，新旧代码都能读。
 
