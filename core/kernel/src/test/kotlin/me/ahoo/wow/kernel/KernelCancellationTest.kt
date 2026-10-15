@@ -18,6 +18,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
@@ -29,10 +30,14 @@ import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.observation.Observation
+import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.observation.TraceContext
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.coroutines.CoroutineContext
 
-/** What a cancelled caller still gets done: compensations (A1-5). */
+/** What a cancelled caller still gets done: compensations (A1-5) and a commit's answer (A1-11). */
 class KernelCancellationTest {
     data class Hold(val name: String)
     data class Add(val name: String)
@@ -94,5 +99,49 @@ class KernelCancellationTest {
         caller = launch { kernel.execute(model, Command("c-1", "r-1", ref, Add("x"))) }
         caller.join()
         trail.assert().containsExactly("decide x", "undo x")
+    }
+
+    @Test
+    fun `a commit is answered to a caller cancelled meanwhile when the execution is observed`(): Unit = runBlocking {
+        val log = InMemoryEventLog()
+        val observer = object : Observer {
+            override fun executing(command: Command<*>): Observation = object : Observation {
+                override val context: CoroutineContext = Trace()
+            }
+        }
+        lateinit var caller: Job
+        val cancelling = object : EventLog by log {
+            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+                caller.cancel()
+                return log.append(stream, transport)
+            }
+        }
+        val kernel = Kernel(cancelling, observer = observer)
+        var outcome: CommandOutcome? = null
+        caller = launch { outcome = kernel.execute(model, Command("c-1", "r-1", ref, Add("x"))) }
+        caller.join()
+        outcome.assert().isInstanceOf(CommandOutcome.Committed::class.java)
+        log.read(ref).toList().single().version.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `a caller cancelled before anything commits still sees its cancellation when observed`(): Unit = runBlocking {
+        val observer = object : Observer {
+            override fun executing(command: Command<*>): Observation = object : Observation {
+                override val context: CoroutineContext = Trace()
+            }
+        }
+        val kernel = Kernel(InMemoryEventLog(), observer = observer)
+        var outcome: CommandOutcome? = null
+        val caller = launch { outcome = kernel.execute(model, Command("c-1", "r-1", ref, Hold("x"))) }
+        deciding.await()
+        caller.cancelAndJoin()
+        caller.isCancelled.assert().isTrue()
+        outcome.assert().isNull()
+        trail.assert().containsExactly("undo x")
+    }
+
+    private class Trace : TraceContext() {
+        override val fields: Map<String, String> = mapOf("traceparent" to "execute")
     }
 }

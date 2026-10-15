@@ -168,7 +168,19 @@ class Kernel(
         require(admitted.ref.type == model.type) { "${admitted.ref} is not a ${model.type}." }
         require(admitted.ref.isAssigned) { "${admitted.ref} names no aggregate: admission assigns its id (D191)." }
         val executing = observer.executing(admitted)
-        return executing.observe { executeAdmitted(model, admitted, wait).also { executing.outcome(it.observedName) } }
+        var committed: CommandOutcome.Committed? = null
+        return try {
+            executing.observe {
+                executeAdmitted(model, admitted, wait).also {
+                    committed = it as? CommandOutcome.Committed
+                    executing.outcome(it.observedName)
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            // An observation's context returns through a cancellable switch (finding A1-11): a commit that switch
+            // dropped for a caller cancelled meanwhile is still answered, so its state view is recorded.
+            committed ?: throw cancelled
+        }
     }
 
     private suspend fun <S : Any> executeAdmitted(
