@@ -197,7 +197,7 @@ class KafkaRouterTest {
         }
 
         override fun backends(context: String): ContextBackends = backends.backends(context).let {
-            it.copy(
+            it.copyWith(
                 log = killable(it.log, EventLog::class.java),
                 checkpoints = killable(it.checkpoints, CheckpointStore::class.java),
                 leases = killable(it.leases, LeaseStore::class.java),

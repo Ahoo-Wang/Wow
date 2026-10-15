@@ -162,7 +162,7 @@ class LogGroupsTest {
         node.send(ORDER.ref(TENANT, "o-5"), Place(delayMillis = 60_000), WaitPlan.SNAPSHOT)
         eventually { checkNotNull(context.snapshotCheckpoint(ORDER)) > orders }
 
-        val unsnapshotted = node("node-2", { stores.backends(it).copy(snapshots = null) }).also { it.start() }
+        val unsnapshotted = node("node-2", { stores.backends(it).copyWith(snapshots = null) }).also { it.start() }
         unsnapshotted.context(CONTEXT).snapshotCheckpoint(ORDER).assert().isNull()
     }
 
@@ -227,7 +227,7 @@ class LogGroupsTest {
     fun `a group that holds a type of no model of its context is refused`() {
         val wrong = object : BackendFactory {
             override fun backends(context: String): ContextBackends = stores.backends(context).let {
-                it.copy(groups = listOf(it.groups.single().copy(types = setOf(AggregateType(CONTEXT, "ghost")))))
+                it.copyWith(groups = listOf(it.groups.single().copyWith(types = setOf(AggregateType(CONTEXT, "ghost")))))
             }
         }
         assertThrows<IllegalArgumentException> { node("node-1", wrong) }.message.assert().contains("ghost")
@@ -237,13 +237,13 @@ class LogGroupsTest {
     fun `the context's backends refuse groups that do not add up`() {
         val base = stores.backends(CONTEXT)
         val group = base.groups.single()
-        assertThrows<IllegalArgumentException> { base.copy(groups = listOf(group, group.copy(store = "c"))) }
-        assertThrows<IllegalArgumentException> { base.copy(groups = listOf(group.copy(store = DEFAULT_STORE))) }
-        assertThrows<IllegalArgumentException> { base.copy(groups = listOf(group.copy(log = InMemoryEventLog(2)))) }
-        assertThrows<IllegalArgumentException> { base.copy(groups = listOf(group.copy(timers = null))) }
-        assertThrows<IllegalArgumentException> { group.copy(types = emptySet()) }
-        assertThrows<IllegalArgumentException> { group.copy(store = " ") }
-        assertThrows<IllegalArgumentException> { base.copy(store = "") }
+        assertThrows<IllegalArgumentException> { base.copyWith(groups = listOf(group, group.copyWith(store = "c"))) }
+        assertThrows<IllegalArgumentException> { base.copyWith(groups = listOf(group.copyWith(store = DEFAULT_STORE))) }
+        assertThrows<IllegalArgumentException> { base.copyWith(groups = listOf(group.copyWith(log = InMemoryEventLog(2)))) }
+        assertThrows<IllegalArgumentException> { base.copyWith(groups = listOf(group.copyWith(timers = null))) }
+        assertThrows<IllegalArgumentException> { group.copyWith(types = emptySet()) }
+        assertThrows<IllegalArgumentException> { group.copyWith(store = " ") }
+        assertThrows<IllegalArgumentException> { base.copyWith(store = "") }
     }
 
     /** One store's parts, in memory. */

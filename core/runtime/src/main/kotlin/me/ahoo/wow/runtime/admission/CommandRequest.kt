@@ -198,8 +198,10 @@ sealed interface CommandBody {
  * Admission trusts it only from a [service][Caller.service] identity, and then acts as for a command another context
  * sent through its command topic: the command is in [tenantId] and [scope], an aggregate it creates belongs to them, an
  * existing one is not checked against them, and its result is the one at COMMITTED.
+ *
+ * Fields may be added (decision D216): construct it with [of]; the constructor is internal to Wow.
  */
-data class CallContext(
+class CallContext @InternalWowApi constructor(
     val commandId: String,
     val tenantId: String,
     val scope: Scope,
@@ -210,5 +212,33 @@ data class CallContext(
     init {
         require(commandId.isNotBlank()) { "A call names its command id." }
         require(tenantId.isNotBlank()) { "A call names its tenant." }
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is CallContext && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "CallContext(commandId=$commandId, tenantId=$tenantId, scope=$scope, causation=$causation, " +
+            "operator=$operator, wait=$wait)"
+
+    private fun valueFields(): List<Any?> = listOf(commandId, tenantId, scope, causation, operator, wait)
+
+    companion object {
+        /**
+         * The call [commandId] acting for a root command in [tenantId] and [scope], derived by [causation], with the
+         * root command's [operator] and the [wait] context a wait that follows the calling saga goes on with.
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            commandId: String,
+            tenantId: String,
+            scope: Scope,
+            causation: Causation,
+            operator: Operator? = null,
+            wait: WaitContext? = null,
+        ): CallContext = CallContext(commandId, tenantId, scope, causation, operator, wait)
     }
 }

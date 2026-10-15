@@ -85,7 +85,7 @@ class ParkedSpec {
         parkedSpec {
             given(ParkedRecorded(ENTRY))
             // The resolution of an earlier parking of the aggregate.
-            whenCommand(RecordResolved(RESOLUTION.copy(failedAt = 50))) { expectUnchanged() }
+            whenCommand(RecordResolved(resolution(failedAt = 50))) { expectUnchanged() }
             whenCommand(RecordResolved(RESOLUTION)) {
                 expectEvents(ParkedResolved(LedgerResolution.RESUMED, 100, 400))
                 expectState {
@@ -95,7 +95,7 @@ class ParkedSpec {
                     resolvedAt.assert().isEqualTo(400L)
                 }
             }
-            whenCommand(RecordResolved(RESOLUTION.copy(outcome = LedgerResolution.RESOLVED))) { expectUnchanged() }
+            whenCommand(RecordResolved(resolution(outcome = LedgerResolution.RESOLVED))) { expectUnchanged() }
             whenCommand(RecordParked(entry("recordedAt" to 500))) { expectUnchanged() }
             whenCommand(Resume()) { expectRejected(ParkedRejections.RESOLVED) }
             // The aggregate parks again: a new parking.
@@ -130,7 +130,7 @@ class ParkedSpec {
     fun `a resolution its service did not date resolves the entry`() {
         parkedSpec {
             given(ParkedRecorded(ENTRY))
-            whenCommand(RecordResolved(RESOLUTION.copy(failedAt = null, outcome = LedgerResolution.NOT_PARKED))) {
+            whenCommand(RecordResolved(resolution(failedAt = null, outcome = LedgerResolution.NOT_PARKED))) {
                 expectEvents(ParkedResolved(LedgerResolution.NOT_PARKED, null, 400))
             }
         }
@@ -186,7 +186,7 @@ class ParkedSpec {
             "fromVersion" to 1,
             "reason" to "java.net.ConnectException: The gateway is down.",
             "failedAt" to 100,
-            "retrySpec" to LedgerRetrySpec(10, "PT3M", "PT2M"),
+            "retrySpec" to LedgerRetrySpec.of(10, "PT3M", "PT2M"),
             "status" to ParkedStatus.SCHEDULED,
             "nextRetryAt" to 280,
             "recordedAt" to 110,
@@ -197,14 +197,17 @@ class ParkedSpec {
             WowJson.mapper.convertValue(ENTRY_FIELDS + changes, LedgerEntry::class.java)
 
         val ENTRY = entry()
-        val RESOLUTION = LedgerResolution(
-            service = "eshop-payment-service",
-            context = "eshop-payment",
-            subscription = SUBSCRIPTION,
-            aggregate = AGGREGATE,
-            failedAt = 100,
-            outcome = LedgerResolution.RESUMED,
-            resolvedAt = 400,
-        )
+        fun resolution(failedAt: Long? = 100, outcome: String = LedgerResolution.RESUMED): LedgerResolution =
+            LedgerResolution.of(
+                service = "eshop-payment-service",
+                context = "eshop-payment",
+                subscription = SUBSCRIPTION,
+                aggregate = AGGREGATE,
+                failedAt = failedAt,
+                outcome = outcome,
+                resolvedAt = 400,
+            )
+
+        val RESOLUTION = resolution()
     }
 }

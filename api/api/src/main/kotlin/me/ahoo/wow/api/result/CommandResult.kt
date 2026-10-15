@@ -304,11 +304,27 @@ class CommandResult @InternalWowApi constructor(
 /**
  * The command a request named before a transformer turned it into the one that ran (decision D182): its full type
  * name [command] (`context.aggregate.Command`) and the aggregate id the request gave, null when it gave none.
+ *
+ * Fields may be added (decision D216): construct it with [of]; the constructor is internal to Wow.
  */
-data class TransformedFrom(val command: String, val aggregateId: String? = null) {
+class TransformedFrom @InternalWowApi constructor(val command: String, val aggregateId: String? = null) {
     init {
         require(command.isNotBlank()) { "A transformed command names the command it came from." }
         require(aggregateId == null || aggregateId.isNotBlank()) { "An aggregate id, when given, is not blank." }
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is TransformedFrom && command == other.command && aggregateId == other.aggregateId
+
+    override fun hashCode(): Int = 31 * command.hashCode() + (aggregateId?.hashCode() ?: 0)
+
+    override fun toString(): String = "TransformedFrom(command=$command, aggregateId=$aggregateId)"
+
+    companion object {
+        /** The request named [command] (its full type name), and gave [aggregateId], null when it gave none. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(command: String, aggregateId: String? = null): TransformedFrom = TransformedFrom(command, aggregateId)
     }
 }
 

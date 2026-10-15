@@ -45,7 +45,7 @@ class NodeMetricsTest {
     private val backends = BackendFactory { context ->
         val opened = memory.backends(context)
         val ledger = opened.ledger
-        opened.copy(
+        opened.copyWith(
             ledger = object : FailureLedger by ledger {
                 override suspend fun list(
                     subscription: String,
