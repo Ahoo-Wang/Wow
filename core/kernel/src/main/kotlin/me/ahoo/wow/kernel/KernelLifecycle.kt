@@ -57,7 +57,7 @@ internal object KernelLifecycle {
      */
     fun <S : Any> decider(
         commandType: Class<*>,
-        tagsOf: (S, Map<String, List<String>>) -> Map<String, List<String>> = { _, applied -> applied },
+        tagsOf: (S, Map<String, List<String>>) -> Map<String, List<String>>,
     ): DecideFunction<S> {
         require(commandType in COMMANDS || commandType in SCHEDULE_COMMANDS) {
             "${commandType.name} is not a lifecycle command."
@@ -93,7 +93,7 @@ internal object KernelLifecycle {
         loaded: CachedState,
         body: Any,
         ref: AggregateRef,
-        tagsOf: (Map<String, List<String>>) -> Map<String, List<String>> = { it },
+        tagsOf: (Map<String, List<String>>) -> Map<String, List<String>>,
     ): Decision = when (body) {
         is SetSchedule -> Decision.events(ScheduleSet(body.key, body.rule, ref, body.commandType, body.command))
         is CancelSchedule -> changeOrNoOp(body.key !in loaded.schedules) { ScheduleCancelled(body.key) }

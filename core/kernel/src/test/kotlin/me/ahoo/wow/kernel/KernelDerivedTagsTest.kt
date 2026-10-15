@@ -172,6 +172,13 @@ class KernelDerivedTagsTest {
     }
 
     @Test
+    fun `an aggregate not created yet derives no tags`(): Unit = runTest {
+        val initial = ShipmentState().apply { country = "CN" }
+
+        kernel.stateAt(shipmentModel, ref, 0, CachedState(initial, 0))!!.tags.assert().isEmpty()
+    }
+
+    @Test
     fun `a key no longer derived keeps its last derived value until ApplyTags leaves it out`(): Unit = runTest {
         send(Ship("CN"))
         send(ApplyTags(mapOf("region" to listOf("eu"))))

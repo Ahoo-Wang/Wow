@@ -141,6 +141,14 @@ class TagsTest {
     }
 
     @Test
+    fun `a Tags extension property is a compile error`() {
+        val (_, result) =
+            compileModel("generate", shipment("@Tags val Int.tags: Map<String, List<String>> get() = mapOf()"))
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains("@Tags property tags is an extension")
+    }
+
+    @Test
     fun `a Tags member of another return type is a compile error`() {
         listOf(
             "Map<String, String>" to "mapOf()",
@@ -149,6 +157,11 @@ class TagsTest {
             "Map<Int, List<String>>" to "mapOf()",
             "List<String>" to "listOf()",
             "Map<String, List<String?>>" to "mapOf()",
+            "Map<String?, List<String>>" to "mapOf()",
+            "Map<String, List<String>?>" to "mapOf()",
+            "Map<*, List<String>>" to "mapOf<String, List<String>>()",
+            "Map<String, *>" to "mapOf<String, String>()",
+            "Map<String, List<*>>" to "mapOf()",
         ).forEach { (type, value) ->
             val (_, result) = compileModel("generate", shipment("@Tags fun tags(): $type = $value"))
             result.exitCode.assert().withFailMessage { type }.isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)

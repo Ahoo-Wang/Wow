@@ -97,17 +97,19 @@ internal object TagsResolver {
         if (type == null || !type.isTagsMap()) "$where returns ${type?.render() ?: "nothing"}, not $RETURNS" else null
 
     private fun KSType.isTagsMap(): Boolean {
-        if (isMarkedNullable || declaration.qualifiedName?.asString() !in MAPS || arguments.size != 2) {
+        if (isMarkedNullable || qualifiedName !in MAPS || arguments.size != 2) {
             return false
         }
         val key = arguments[0].type?.resolve() ?: return false
         val values = arguments[1].type?.resolve() ?: return false
         val element = values.arguments.singleOrNull()?.type?.resolve() ?: return false
         return key.isString() && !values.isMarkedNullable &&
-            values.declaration.qualifiedName?.asString() in COLLECTIONS && element.isString()
+            values.qualifiedName in COLLECTIONS && element.isString()
     }
 
-    private fun KSType.isString(): Boolean = !isMarkedNullable && declaration.qualifiedName?.asString() in STRINGS
+    private fun KSType.isString(): Boolean = !isMarkedNullable && qualifiedName in STRINGS
+
+    private val KSType.qualifiedName: String? get() = declaration.qualifiedName?.asString()
 
     private fun KSType.render(): String {
         val name = declaration.simpleName.asString()
@@ -120,6 +122,6 @@ internal object TagsResolver {
     }
 
     private fun KSAnnotated.isTags(): Boolean = annotations.any {
-        it.annotationType.resolve().declaration.qualifiedName?.asString() == TAGS
+        it.annotationType.resolve().qualifiedName == TAGS
     }
 }
