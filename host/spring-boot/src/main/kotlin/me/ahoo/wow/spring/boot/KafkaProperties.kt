@@ -47,8 +47,11 @@ import kotlin.time.toJavaDuration
  *   [Topics]: `validate` (the default) fails the start when one is missing or a command topic does not have exactly
  *   `wow.log.partitions` partitions; `auto` creates the missing ones first; `none` checks only the command topics the
  *   node reads, whose partitions must still be the log's.
- * - `wow.kafka.topics.replication-factor` (the broker's default) and `wow.kafka.topics.configs.*` (`retention.ms`,
- *   `min.insync.replicas`, ...): what `auto` creates a topic with.
+ * - `wow.kafka.topics.replication-factor` (the broker's default), `wow.kafka.topics.min-insync-replicas` (the
+ *   broker's default) and `wow.kafka.topics.configs.*` (`retention.ms`, ...): what `auto` creates a topic with. A
+ *   command accepted on a command topic is durable only when both are at least 2 (decision D143, review A3-15): at
+ *   start the node warns when they are below that, as configured or as the command topics of its contexts are, unless a
+ *   profile of [Topics.devProfiles] is active (`dev`, `local`, `test`, `demo`).
  * - `wow.kafka.topics.partition-refresh` (30s): how often the node looks for partitions added to the topics it reads
  *   (other contexts' streams, its receipts), and its consumers' `metadata.max.age.ms`; the new partitions are read
  *   within about twice this.
@@ -67,12 +70,23 @@ class KafkaProperties {
     class Topics {
         var ddl: TopicDdl = TopicDdl.VALIDATE
         var replicationFactor: Short? = null
+        var minInsyncReplicas: Int? = null
         var configs: MutableMap<String, String> = LinkedHashMap()
+
+        /** The profiles that run without durable topics, a single broker: no warning about it. */
+        var devProfiles: MutableSet<String> = linkedSetOf("dev", "local", "test", "demo")
+
+        /** The configs `auto` creates a topic with: [configs], and [minInsyncReplicas] when it is set. */
+        fun creationConfigs(): Map<String, String> = buildMap {
+            putAll(configs)
+            minInsyncReplicas?.let { put(MIN_INSYNC_REPLICAS, it.toString()) }
+        }
         var partitionRefresh: Duration = SourceTopics.DEFAULT_PARTITION_REFRESH.toJavaDuration()
     }
 
     companion object {
         const val PREFIX: String = "wow.kafka"
+        private const val MIN_INSYNC_REPLICAS = "min.insync.replicas"
         private const val DEFAULT_POLL_TIMEOUT_MILLIS = 200L
     }
 }

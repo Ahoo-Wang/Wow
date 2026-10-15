@@ -75,6 +75,20 @@ class KafkaTopicAdminTest {
         }
 
     @Test
+    fun `the durability of a topic should be its replication factor and min insync replicas`(): Unit = runBlocking {
+        // Review A3-15: a single broker gives one replica; the topic's own config is read, else the broker's 1.
+        val durable = "wow.it.admin.durable.commands"
+        KafkaTopicAdmin.create(KafkaFixture.options, 1, mapOf(KafkaTopicAdmin.MIN_INSYNC_REPLICAS to "1")).use {
+            it.create(mapOf(durable to 1))
+        }
+        val plain = KafkaFixture.newTopic(2, "wow.it.admin")
+        val read = admin.durability(setOf(durable, plain, "wow.it.admin.missing.commands"))
+        read.assert().isEqualTo(mapOf(durable to TopicDurability(1, 1), plain to TopicDurability(1, 1)))
+        read.getValue(durable).survivesOneBroker.assert().isFalse()
+        admin.durability(emptySet()).assert().isEmpty()
+    }
+
+    @Test
     fun `a replication factor below one should be refused`() {
         runCatching { KafkaTopicAdmin(KafkaFixture.admin, 0) }.exceptionOrNull()
             .assert().isInstanceOf(IllegalArgumentException::class.java)

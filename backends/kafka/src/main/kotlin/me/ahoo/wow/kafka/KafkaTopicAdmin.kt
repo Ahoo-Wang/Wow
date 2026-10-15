@@ -20,6 +20,7 @@ import me.ahoo.wow.spi.transport.TopicAdmin
 import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.admin.Admin
 import org.apache.kafka.clients.admin.NewTopic
+import org.apache.kafka.common.config.ConfigResource
 import org.apache.kafka.common.errors.TopicExistsException
 import org.apache.kafka.common.errors.UnknownTopicOrPartitionException
 import java.util.Optional
@@ -37,6 +38,8 @@ import kotlin.time.TimeSource
  *   null) and the topic [configs] (`retention.ms`, `min.insync.replicas`, ...); a topic that exists already is left
  *   as it is. It then waits, at most [visibleWithin], until every topic can be described, as metadata reaches the
  *   brokers a moment after the controller created it.
+ * - [durability] reads what a topic's writes survive (decision D143, review A3-15): its replication factor and its
+ *   `min.insync.replicas`, which an `acks=all` producer's acknowledgement rests on.
  *
  * The admin's blocking futures are awaited on virtual threads. [close] closes the admin client.
  */
@@ -90,6 +93,35 @@ class KafkaTopicAdmin(
         awaitVisible(topics.keys)
     }
 
+    /**
+     * The replication factor and `min.insync.replicas` of each of [topics] the broker knows (decision D143): what an
+     * `acks=all` write to it survives. A topic the broker does not know is left out.
+     */
+    suspend fun durability(topics: Set<String>): Map<String, TopicDurability> {
+        if (topics.isEmpty()) {
+            return emptyMap()
+        }
+        return withContext(dispatcher) {
+            val replicas = admin.describeTopics(topics).topicNameValues().mapNotNull { (topic, description) ->
+                try {
+                    topic to description.get().partitions().minOf { it.replicas().size }
+                } catch (failure: ExecutionException) {
+                    if (failure.cause !is UnknownTopicOrPartitionException) {
+                        throw failure.cause ?: failure
+                    }
+                    null
+                }
+            }.toMap()
+            val resources = replicas.keys.map { ConfigResource(ConfigResource.Type.TOPIC, it) }
+            val configs = if (resources.isEmpty()) emptyMap() else admin.describeConfigs(resources).all().get()
+            replicas.mapValues { (topic, factor) ->
+                val minInsync = configs[ConfigResource(ConfigResource.Type.TOPIC, topic)]
+                    ?.get(MIN_INSYNC_REPLICAS)?.value()?.toIntOrNull()
+                TopicDurability(factor, minInsync ?: 1)
+            }
+        }
+    }
+
     private suspend fun awaitVisible(topics: Set<String>) {
         val deadline = TimeSource.Monotonic.markNow() + visibleWithin
         while (partitions(topics).keys != topics && deadline.hasNotPassedNow()) {
@@ -102,6 +134,9 @@ class KafkaTopicAdmin(
     }
 
     companion object {
+        /** The topic config an `acks=all` write waits for that many replicas by. */
+        const val MIN_INSYNC_REPLICAS: String = "min.insync.replicas"
+
         val DEFAULT_VISIBLE_WITHIN: Duration = 30.seconds
         private val VISIBLE_POLL = 100.milliseconds
 
@@ -123,5 +158,21 @@ class KafkaTopicAdmin(
             replicationFactor,
             configs,
         )
+    }
+}
+
+/**
+ * What a write to a topic survives (decision D143): its partitions' fewest replicas ([replicationFactor]) and the
+ * replicas an `acks=all` write waits for ([minInsyncReplicas], the broker's 1 when the topic sets none). A command
+ * accepted on a topic is durable once acknowledged only when both are at least 2: then losing one broker loses no
+ * acknowledged write.
+ */
+data class TopicDurability(val replicationFactor: Int, val minInsyncReplicas: Int) {
+    /** Whether an acknowledged write survives the loss of one broker. */
+    val survivesOneBroker: Boolean get() = replicationFactor >= DURABLE && minInsyncReplicas >= DURABLE
+
+    companion object {
+        /** The replication factor and `min.insync.replicas` decision D143 rests on, at least. */
+        const val DURABLE: Int = 2
     }
 }
