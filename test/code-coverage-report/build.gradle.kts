@@ -79,6 +79,7 @@ val classesSharedWithNineX = mapOf(":api" to listOf("me/ahoo/wow/api/annotation/
 // `AggregateSpec`, and the V10 TCK (:tck) shares 9.x wow-tck's root `me.ahoo.wow.tck`, so a report that covers both
 // leaves out the V10 module's classes. The V10 view-store (D146, D216) keeps 9.x view-store's packages
 // `me.ahoo.wow.viewstore.*` and many of its class names, so a report that covers both leaves out the V10 module's.
+// The V10 models (:models, D187) keep 9.x wow-models' package `me.ahoo.wow.models` and its class names, likewise.
 val classesSharedWithNineXWhenBoth = mapOf(
     ":query-api" to (":wow-api" to listOf("me/ahoo/wow/api/query/**")),
     ":query" to (":wow-query" to listOf("me/ahoo/wow/query/**")),
@@ -89,6 +90,7 @@ val classesSharedWithNineXWhenBoth = mapOf(
     ":view-store-api" to (":wow-view-store-api" to listOf("me/ahoo/wow/viewstore/**")),
     ":view-store-domain" to (":wow-view-store-domain" to listOf("me/ahoo/wow/viewstore/**")),
     ":view-store-server" to (":wow-view-store-server" to listOf("me/ahoo/wow/viewstore/**")),
+    ":models" to (":wow-models" to listOf("me/ahoo/wow/models/**")),
 )
 
 /** A module of a report: its main source roots, and the class files the report covers of it. */

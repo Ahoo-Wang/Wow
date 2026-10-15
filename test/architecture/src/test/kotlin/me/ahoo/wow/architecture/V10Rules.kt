@@ -40,6 +40,9 @@ object V10Rules {
     val OPENTELEMETRY = V10Module("opentelemetry", "edge/opentelemetry")
     val SPRING_BOOT = V10Module("spring-boot", "host/spring-boot")
     val COSID = V10Module("cosid", "extensions/cosid")
+
+    /** 9.x wow-models ported (decision D187): capability interfaces and the reusable Tree aggregate. */
+    val MODELS = V10Module("models", "extensions/models")
     val MIGRATE_DATA = V10Module("migrate-data", "migration/migrate-data")
     val COMPILER = V10Module("compiler", "compiler/compiler")
     val GRADLE_PLUGIN = V10Module("gradle-plugin", "compiler/gradle-plugin")
@@ -89,7 +92,7 @@ object V10Rules {
 
     val MODULES = listOf(
         API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, OPENAPI, HTTP,
-        COSEC, OPENTELEMETRY, SPRING_BOOT, COSID, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
+        COSEC, OPENTELEMETRY, SPRING_BOOT, COSID, MODELS, MIGRATE_DATA, COMPILER, GRADLE_PLUGIN, MANIFEST_TOOLS,
     ) + TEST_MODULES + PLATFORM_MODULES
 
     /** The eShop's five contexts (decision D158), each an `-api`, a `-domain` and a `-server` project. */
@@ -163,6 +166,8 @@ object V10Rules {
         SPRING_BOOT to setOf("runtime", "http", "postgres", "mongo", "query", "kafka", "clickhouse", "opentelemetry"),
         // CosId's generators as the node's (decision D171): the id SPIs only; it wires itself before the host.
         COSID to setOf("spi"),
+        // Domain code's API only (decision D187); the compiler only for the tests, which compile a sample tree.
+        MODELS to setOf("api", "compiler"),
         // The V10 log on either first-class backend, which the import writes to (roadmap 8b.1).
         MIGRATE_DATA to setOf("kernel", "postgres", "mongo"),
         // kernel and reactor only for the tests, which compile the generated models.
@@ -371,6 +376,7 @@ object V10Rules {
         "cosec" to "wow-cosec",
         "openapi" to "wow-openapi",
         "opentelemetry" to "wow-opentelemetry",
+        "models" to "wow-models",
     )
 
     /**
