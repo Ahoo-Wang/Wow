@@ -13,11 +13,16 @@
 
 package me.ahoo.wow.mongo.log
 
+import com.mongodb.ConnectionString
+import com.mongodb.MongoClientSettings
 import com.mongodb.MongoException
 import com.mongodb.client.ClientSession
 import com.mongodb.client.MongoClient
+import com.mongodb.client.MongoClients
 import com.mongodb.client.TransactionBody
 import com.mongodb.client.model.Filters
+import com.mongodb.event.CommandListener
+import com.mongodb.event.CommandStartedEvent
 import io.mockk.every
 import io.mockk.spyk
 import kotlinx.coroutines.flow.first
@@ -35,8 +40,11 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.tck.containers.WowContainers
 import me.ahoo.wow.tck.log.EventLogSpec
+import org.bson.BsonDocument
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CopyOnWriteArrayList
 
 class MongoEventLogTest : EventLogSpec() {
     override fun createLog(context: String, partitions: Int): EventLog = MongoLogFixture.log(partitions, context)
@@ -211,6 +219,43 @@ class MongoEventLogTest : EventLogSpec() {
         log.appendAll(twoInPartitionZero(context).map { it to null })
             .forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
         log.head(0).assert().isEqualTo(2L)
+    }
+
+    @Test
+    fun `reads outside an append read what a majority committed`(): Unit = runBlocking {
+        // Finding A2-2: a tail reading `local` could deliver an entry a failover then rolls back.
+        val reads = CopyOnWriteArrayList<BsonDocument>()
+        val listener = object : CommandListener {
+            override fun commandStarted(event: CommandStartedEvent) {
+                val command = event.command.clone()
+                if (event.commandName in setOf("find", "aggregate") && !command.containsKey("txnNumber")) {
+                    reads += command
+                }
+            }
+        }
+        val settings = MongoClientSettings.builder()
+            .applyConnectionString(ConnectionString(WowContainers.mongo.replicaSetUrl))
+            .addCommandListener(listener)
+            .build()
+        MongoClients.create(settings).use { client ->
+            val context = MongoLogFixture.newContext()
+            val log = MongoEventLog(client, MongoLogFixture.DATABASE, context, 1).also { it.createSchema() }
+            val appended = stream("a", 1, aggregate = AggregateType(context, "order"))
+            log.append(appended)
+            reads.clear()
+            withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).first() }
+            log.head(0)
+            log.read(appended.ref).toList()
+            log.readEntries(appended.ref).toList()
+            log.positionOf(appended.ref, 1)
+            log.findByRequestId(appended.ref.type, "tenant", appended.requestId)
+            log.findByRequestId("tenant", appended.requestId)
+            val logReads = reads.filter { (it["find"] ?: it["aggregate"])?.asString()?.value?.startsWith("wow_log__") == true }
+            logReads.size.assert().isGreaterThanOrEqualTo(7)
+            logReads.forEach { command ->
+                command.getDocument("readConcern")?.getString("level")?.value.assert().isEqualTo("majority")
+            }
+        }
     }
 
     @Test

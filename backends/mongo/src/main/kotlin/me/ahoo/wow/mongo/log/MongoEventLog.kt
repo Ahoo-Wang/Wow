@@ -92,6 +92,15 @@ import kotlin.time.Duration.Companion.milliseconds
  * again and retries) or one read before a commit landed (it retries after the poll interval): it never steps over a
  * missing sequence.
  *
+ * **Read concern.** Every read outside an append's transaction, the tail, [head], the version slot reads
+ * ([readEntries], [positionOf]) and the request lookups included, reads what a majority of the replica set has
+ * committed (`readConcern: majority`, finding A2-2). With the default (`local`), a tail could deliver an entry the
+ * primary committed and lost in a failover before it replicated, which is then rolled back: its subscriptions would
+ * have acted on a fact that never was, and the next append, taking its sequence again, would be skipped for good,
+ * the checkpoints past it. The cost is latency: an entry reaches the tail once a majority has it, about one
+ * replication round trip after its commit (appends already wait for it, `w: majority`). The backend so needs a
+ * replica set whose majority can commit: an arbiter that makes a majority unreachable stalls the tail.
+ *
  * **Request ids.** The request key is `(tenant_id, request_id)` within each aggregate collection: a request id reused
  * by two aggregate types commits twice (decision D55 makes the reuse the caller's error). The kernel's pre-check, the
  * [findByRequestId] taking the aggregate type, reads that type's collection alone; the context-wide one searches
@@ -118,6 +127,9 @@ class MongoEventLog(
     private val database = client.getDatabase(databaseName)
     private val countersName = MongoNames.of(PREFIX, context, PARTITION_COUNTERS)
     private val counters: MongoCollection<Document> = database.getCollection(countersName)
+
+    /** The counters as a majority has committed them: what the tail and [head] read (finding A2-2). */
+    private val committedCounters: MongoCollection<Document> = counters.withReadConcern(ReadConcern.MAJORITY)
     private val registry: MongoCollection<Document> = database.getCollection(REGISTRY)
     private val transaction = TransactionOptions.builder()
         .readConcern(ReadConcern.SNAPSHOT)
@@ -134,6 +146,9 @@ class MongoEventLog(
     /** The log collection of one aggregate type. */
     private inner class AggregateCollection(val aggregate: String, val name: String) {
         val log: MongoCollection<Document> = database.getCollection(name)
+
+        /** The entries a majority has committed: every read outside an append's transaction (finding A2-2). */
+        val committed: MongoCollection<Document> = log.withReadConcern(ReadConcern.MAJORITY)
     }
 
     init {
@@ -413,7 +428,7 @@ class MongoEventLog(
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = flow {
         val streams = dispatcher.mongo {
             val collection = collectionOf(ref.type)
-            collection.log.find(
+            collection.committed.find(
                 Filters.and(refFilter(ref), Filters.gte(VERSION, fromVersion), Filters.lte(VERSION, toVersion)),
             )
                 .projection(FACTS)
@@ -427,7 +442,7 @@ class MongoEventLog(
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = flow {
         val entries = dispatcher.mongo {
             val collection = collectionOf(ref.type)
-            collection.log.find(
+            collection.committed.find(
                 Filters.and(refFilter(ref), Filters.gte(VERSION, fromVersion), Filters.lte(VERSION, toVersion)),
             )
                 .sort(Sorts.ascending(VERSION))
@@ -438,7 +453,7 @@ class MongoEventLog(
     }
 
     override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = dispatcher.mongo {
-        collectionOf(ref.type).log.find(Filters.and(refFilter(ref), Filters.eq(VERSION, version)))
+        collectionOf(ref.type).committed.find(Filters.and(refFilter(ref), Filters.eq(VERSION, version)))
             .projection(Projections.include(PARTITION, SEQUENCE))
             .firstOrNull()
             ?.let { LogPosition(it.getInteger(PARTITION), it.getLong(SEQUENCE)) }
@@ -469,7 +484,7 @@ class MongoEventLog(
                     Aggregates.limit(1),
                     Aggregates.project(FACTS),
                 )
-            known.first().log.aggregate(pipeline).firstOrNull()
+            known.first().committed.aggregate(pipeline).firstOrNull()
                 ?.let { streamOf(known[it.getInteger(BRANCH)].aggregate, it) }
         }
 
@@ -512,7 +527,7 @@ class MongoEventLog(
         }
         var head = 0L
         val entries = ArrayList<LogEntry>()
-        counters.aggregate(pipeline).forEach { document ->
+        committedCounters.aggregate(pipeline).forEach { document ->
             val branch = document.getInteger(BRANCH)
             if (branch == null) {
                 head = document.getLong(HEAD)
@@ -536,18 +551,18 @@ class MongoEventLog(
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         return dispatcher.mongo {
             // The counter is bumped in the transaction that inserts the entry, so it is the last committed sequence.
-            counters.find(Filters.eq(ID, partition)).firstOrNull()?.getLong(SEQUENCE)?.takeIf { it > 0 }
+            committedCounters.find(Filters.eq(ID, partition)).firstOrNull()?.getLong(SEQUENCE)?.takeIf { it > 0 }
         }
     }
 
     private fun findByRequestIdIn(collection: AggregateCollection, tenantId: String, requestId: String) =
-        collection.log.find(Filters.and(Filters.eq(TENANT_ID, tenantId), Filters.eq(REQUEST_ID, requestId)))
+        collection.committed.find(Filters.and(Filters.eq(TENANT_ID, tenantId), Filters.eq(REQUEST_ID, requestId)))
             .projection(FACTS)
             .firstOrNull()
             ?.let { streamOf(collection.aggregate, it) }
 
     private fun currentVersion(collection: AggregateCollection, ref: AggregateRef): Int =
-        collection.log.find(refFilter(ref)).sort(Sorts.descending(VERSION)).limit(1).firstOrNull()
+        collection.committed.find(refFilter(ref)).sort(Sorts.descending(VERSION)).limit(1).firstOrNull()
             ?.getInteger(VERSION) ?: 0
 
     private fun refFilter(ref: AggregateRef): Bson = Filters.and(
