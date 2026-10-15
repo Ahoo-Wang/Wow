@@ -24,6 +24,8 @@ import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.abi.ExperimentalAbiValidation
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.w3c.dom.Element
+import javax.xml.parsers.DocumentBuilderFactory
 
 plugins {
     alias(libs.plugins.test.retry)
@@ -40,7 +42,10 @@ plugins {
 fun includedProjects(vararg paths: String): Set<Project> = paths.mapNotNull { findProject(it) }.toSet()
 
 val dependenciesProject = project(":wow-dependencies")
-val bomProjects = includedProjects(":wow-bom") + dependenciesProject
+// The V10 BOM (`:bom` in bom/bom, artifact wow-bom per D87) replaces 9.x's `:wow-bom` on this line; v10 publishes only
+// the V10 one (D90), so the two never go out under the same version.
+val v10BomProject = project(":bom")
+val bomProjects = includedProjects(":wow-bom") + dependenciesProject + v10BomProject
 
 val exampleLibraries =
     includedProjects(":example-api", ":example-domain", ":example-transfer-api", ":example-transfer-domain")
@@ -82,6 +87,11 @@ val v10PublishedProjects = includedProjects(
     ":cosid", ":test-dsl", ":tck", ":tck-containers", ":ops-api", ":view-store-api",
     ":compiler", ":gradle-plugin",
 )
+// What a 10.x release publishes to Maven (R.1, D205): the published modules above, :migrate-data and :manifest-tools
+// (published, without a dump), and the V10 BOM. :wow-dependencies goes out with them (see `v10ReleaseProjects`'
+// use below): every V10 POM imports it.
+val v10PublishedLibraries = v10PublishedProjects + includedProjects(":migrate-data", ":manifest-tools")
+val v10ReleaseProjects = v10PublishedLibraries + v10BomProject
 // The V10 modules whose ABI is checked now: none until their first dumps are committed (D216, after the API is
 // narrowed); `-Pwow.abi.v10=true` turns the check on for `v10PublishedProjects`.
 val v10AbiProjects =
@@ -98,16 +108,23 @@ val v10UserProjects = v10ExampleProjects + includedProjects(
 // artifact minus the prefix (a Gradle task name, such as the test DSL's `:test-dsl`) is mapped here.
 val v10ArtifactIds = mapOf("test-dsl" to "wow-test")
 fun Project.artifactName(): String =
-    if (this in v10Projects && this !in v10ExampleProjects) v10ArtifactIds[name] ?: "wow-$name" else name
+    if (this == v10BomProject || this in v10Projects && this !in v10ExampleProjects) {
+        v10ArtifactIds[name] ?: "wow-$name"
+    } else {
+        name
+    }
 // Libraries that build and test like the others but are not published yet. The dataset registry (dataset platform
-// design R1b) left with the analytics service (R5d).
-val incubatingProjects = v10Projects
+// design R1b) left with the analytics service (R5d). On v10: the V10 modules a release does not publish (the platform's
+// domains and servers, :architecture, the spikes and the eShop).
+val incubatingProjects = v10Projects - v10PublishedLibraries
 val publishProjects =
     subprojects - exampleProjects - codeCoverageReportProject - benchmarksProject - incubatingProjects
 val libraryProjects = publishProjects - bomProjects + exampleLibraries + benchmarksProject + incubatingProjects
-// What wow-bom constrains: the published libraries only, never an example, the benchmarks or an incubating module,
-// whose coordinates are not on Maven Central.
-val bomConstrainedProjects = publishProjects - bomProjects
+// What 9.x's wow-bom constrains: the published 9.x libraries only, never an example, the benchmarks, an incubating
+// module, whose coordinates are not on Maven Central, or a V10 module (the V10 BOM constrains those).
+val bomConstrainedProjects = publishProjects - bomProjects - v10PublishedLibraries
+// What the V10 BOM constrains: exactly the V10 libraries a 10.x release publishes.
+val v10BomConstrainedProjects = v10PublishedLibraries
 // Modules whose main code implements or wires a `@WowSpi` (the query backend SPI and its registration, the transport SPI
 // and its Kafka and Redis implementations, the command aggregate SPI in wow-core and the aggregate test DSL that drives
 // it). Every other module's main code opts in where
@@ -127,6 +144,7 @@ val wowSpiProjects = includedProjects(
 val isInCI = !System.getenv("CI").isNullOrEmpty()
 ext.set("libraryProjects", libraryProjects)
 ext.set("bomConstrainedProjects", bomConstrainedProjects)
+ext.set("v10BomConstrainedProjects", v10BomConstrainedProjects)
 
 enum class WowTestLayer(
     val sourceSetName: String,
@@ -411,8 +429,16 @@ tasks.register("v10IntegrationTest") {
     dependsOn(v10IntegrationTestProjects.map { it.tasks.named(WowTestLayer.INTEGRATION.taskName) })
 }
 
+// Signatures: a release signs in CI with the key in SIGNING_*; elsewhere the signing.* properties of
+// ~/.gradle/gradle.properties sign. A V10 publication requires them only with `-Pwow.publication.signed=true` (the
+// release's preflight), so `v10PublicationCheck` also runs in a pull request, which has no key.
+val requireV10Signatures = providers.gradleProperty("wow.publication.signed").orNull.toBoolean()
+
 configure(publishProjects) {
     val isBom = bomProjects.contains(this)
+    // java-gradle-plugin creates the plugin's publications itself: `pluginMaven` (the jar) and the plugin marker
+    // (`me.ahoo.wow:me.ahoo.wow.gradle.plugin`, which resolves `plugins { id("me.ahoo.wow") }` from Maven Central).
+    val isGradlePlugin = path == ":gradle-plugin"
     apply<MavenPublishPlugin>()
     apply<SigningPlugin>()
     configure<PublishingExtension> {
@@ -439,11 +465,18 @@ configure(publishProjects) {
             }
         }
         publications {
-            val publishName = if (isBom) "mavenBom" else "mavenLibrary"
-            val publishComponentName = if (isBom) "javaPlatform" else "java"
-            create<MavenPublication>(publishName) {
-                from(components[publishComponentName])
-                artifactId = project.artifactName()
+            if (!isGradlePlugin) {
+                val publishName = if (isBom) "mavenBom" else "mavenLibrary"
+                val publishComponentName = if (isBom) "javaPlatform" else "java"
+                create<MavenPublication>(publishName) {
+                    from(components[publishComponentName])
+                }
+            }
+            withType<MavenPublication>().configureEach {
+                // The plugin marker's coordinates are the plugin id's; every other publication is the module's artifact.
+                if (name in setOf("mavenBom", "mavenLibrary", "pluginMaven")) {
+                    artifactId = project.artifactName()
+                }
                 pom {
                     name.set(rootProject.name)
                     description.set(getPropertyOf("description"))
@@ -483,20 +516,118 @@ configure(publishProjects) {
             val signingPassword = System.getenv("SIGNING_PASSWORD")
             useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
         }
-
-        if (isBom) {
-            sign(extensions.getByType(PublishingExtension::class).publications["mavenBom"])
-        } else {
-            sign(extensions.getByType(PublishingExtension::class).publications["mavenLibrary"])
+        if (project in v10ReleaseProjects || project == dependenciesProject) {
+            isRequired = requireV10Signatures
         }
+        sign(extensions.getByType(PublishingExtension::class).publications)
     }
 }
 
 // D90: v10 does not publish the 9.x modules; main does. A 10.0 pre-release from v10 would otherwise publish them as
-// 10.x. Their publications are still built (and signed), and their ABI is still checked below.
-configure(publishProjects - v10Projects) {
+// 10.x. Their publications are still built (and signed), and their ABI is still checked below. A 10.x release
+// publishes the V10 modules, the V10 BOM and :wow-dependencies, which every V10 POM imports (R.1).
+configure(publishProjects - v10ReleaseProjects - dependenciesProject) {
     tasks.withType<PublishToMavenRepository>().configureEach { enabled = false }
     tasks.withType<PublishToMavenLocal>().configureEach { enabled = false }
+}
+
+// The release rehearsal of the V10 publications (R.1): `./gradlew -Pwow.scope=v10 v10PublicationCheck` publishes
+// every V10 release module and :wow-dependencies into build/v10-publication-check/repo, then checks that each library
+// has its jar, sources and javadoc jars, POM and Gradle module metadata (and their signatures, with
+// `-Pwow.publication.signed=true`); that every POM carries what Maven Central requires; that no published POM depends
+// on a Wow module the release leaves out, or on another version; that the V10 BOM constrains exactly the published
+// libraries; and that nothing else (no 9.x module) was published.
+val v10PublicationCheckRepository: Provider<Directory> = layout.buildDirectory.dir("v10-publication-check/repo")
+val v10PublicationProjects = v10ReleaseProjects + dependenciesProject
+val cleanV10PublicationCheck = tasks.register<Delete>("cleanV10PublicationCheck") {
+    delete(v10PublicationCheckRepository)
+}
+configure(v10PublicationProjects) {
+    configure<PublishingExtension> {
+        repositories {
+            maven {
+                name = "v10PublicationCheck"
+                url = uri(v10PublicationCheckRepository)
+            }
+        }
+    }
+    tasks.withType<PublishToMavenRepository>().configureEach {
+        if (name.endsWith("ToV10PublicationCheckRepository")) mustRunAfter(cleanV10PublicationCheck)
+    }
+}
+tasks.register("v10PublicationCheck") {
+    description = "Publishes the V10 release modules into a scratch repository and checks what a release would ship."
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    val publishTasks = v10PublicationProjects.map {
+        it.tasks.named("publishAllPublicationsToV10PublicationCheckRepository")
+    }
+    dependsOn(cleanV10PublicationCheck)
+    dependsOn(publishTasks)
+    val repository = v10PublicationCheckRepository.get().asFile
+    val groupId = project.group.toString()
+    val releaseVersion = project.version.toString()
+    val libraries = v10PublicationProjects.filter { it !in bomProjects }.map { it.artifactName() }.toSortedSet()
+    val platforms = v10PublicationProjects.filter { it in bomProjects }.map { it.artifactName() }.toSortedSet()
+    val bomArtifactId = v10BomProject.artifactName()
+    val bomConstrained = v10BomConstrainedProjects.map { it.artifactName() }.toSortedSet()
+    val signed = requireV10Signatures
+    // The marker java-gradle-plugin publishes beside wow-gradle-plugin.
+    val pluginMarker = "me.ahoo.wow.gradle.plugin"
+    doLast {
+        val problems = mutableListOf<String>()
+        val groupDir = File(repository, groupId.replace('.', '/'))
+        fun file(artifactId: String, suffix: String) =
+            File(groupDir, "$artifactId/$releaseVersion/$artifactId-$releaseVersion$suffix")
+        fun requireFiles(artifactId: String, suffixes: List<String>) {
+            suffixes.flatMap { if (signed) listOf(it, "$it.asc") else listOf(it) }.forEach { suffix ->
+                if (!file(artifactId, suffix).isFile) problems += "$artifactId: no $artifactId-$releaseVersion$suffix"
+            }
+        }
+        libraries.forEach { requireFiles(it, listOf(".jar", "-sources.jar", "-javadoc.jar", ".pom", ".module")) }
+        platforms.forEach { requireFiles(it, listOf(".pom", ".module")) }
+        requireFiles(pluginMarker, listOf(".pom"))
+
+        val expected = (libraries + platforms + pluginMarker).toSortedSet()
+        val published = groupDir.listFiles().orEmpty().filter { it.isDirectory }.map { it.name }.toSortedSet()
+        (published - expected).forEach { problems += "$it: published, but not a V10 release module" }
+
+        val documents = DocumentBuilderFactory.newInstance().newDocumentBuilder()
+        fun Element.children(tag: String): List<Element> =
+            (0 until childNodes.length).map(childNodes::item).filterIsInstance<Element>().filter { it.tagName == tag }
+        fun Element.text(tag: String): String? = children(tag).firstOrNull()?.textContent?.trim()
+        fun Element?.dependencies(): List<Element> =
+            this?.children("dependencies")?.flatMap { it.children("dependency") }.orEmpty()
+        expected.intersect(published).forEach { artifactId ->
+            val pomFile = file(artifactId, ".pom")
+            if (!pomFile.isFile) return@forEach
+            val pom = documents.parse(pomFile).documentElement
+            listOf("name", "description", "url").filter { pom.text(it).isNullOrEmpty() }
+                .forEach { problems += "$artifactId: the POM has no <$it>" }
+            listOf("licenses", "developers", "scm").filter { pom.children(it).isEmpty() }
+                .forEach { problems += "$artifactId: the POM has no <$it>" }
+            val managed = pom.children("dependencyManagement").firstOrNull().dependencies()
+            (pom.dependencies() + managed).filter { it.text("groupId") == groupId }.forEach { dependency ->
+                val dependencyId = dependency.text("artifactId")
+                val dependencyVersion = dependency.text("version")
+                if (dependencyId !in expected) {
+                    problems += "$artifactId: depends on $groupId:$dependencyId, which the release does not publish"
+                }
+                if (dependencyVersion != releaseVersion) {
+                    problems += "$artifactId: depends on $groupId:$dependencyId:$dependencyVersion, not $releaseVersion"
+                }
+            }
+            if (artifactId == bomArtifactId) {
+                val constrained = managed.mapNotNull { it.text("artifactId") }.toSortedSet()
+                if (constrained != bomConstrained) {
+                    problems += "$artifactId: constrains $constrained, not the published libraries $bomConstrained"
+                }
+            }
+        }
+        check(problems.isEmpty()) {
+            "The V10 publications of $releaseVersion are not ready to release:\n" + problems.joinToString("\n")
+        }
+        logger.lifecycle("Checked the V10 publications of $releaseVersion in $repository: ${expected.joinToString()}")
+    }
 }
 
 // The JVM ABI of every published library is kept in its `api/<module>.api`; `check` runs `checkKotlinAbi`
@@ -504,7 +635,7 @@ configure(publishProjects - v10Projects) {
 // the dumps; AGENTS.md ("Binary Compatibility") says when that is allowed. The published V10 modules join from the
 // API freeze (D216); until their first dumps are committed, only `-Pwow.abi.v10=true` adds them, as in
 // `./gradlew -Pwow.scope=v10 -Pwow.abi.v10=true updateKotlinAbi`, which records them.
-configure(publishProjects - bomProjects + v10AbiProjects) {
+configure(publishProjects - bomProjects - v10PublishedLibraries + v10AbiProjects) {
     configure<KotlinJvmProjectExtension> {
         @OptIn(ExperimentalAbiValidation::class)
         abiValidation {
