@@ -19,11 +19,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.job
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.withContext
@@ -151,6 +154,9 @@ class CommandGateway @InternalWowApi constructor(
     @Volatile
     private var closed = false
 
+    /** The requests between their check of [closed] and the launch of their detached command, if any. */
+    private val admissions = MutableStateFlow(0)
+
     init {
         val missing = registry.contexts - this.coordinators.keys
         require(missing.isEmpty()) { "Contexts without a wait coordinator: $missing" }
@@ -163,14 +169,27 @@ class CommandGateway @InternalWowApi constructor(
      */
     fun send(request: CommandRequest): Flow<CommandResult> = flow {
         val observed = observer.admitting(request.context, request.aggregate, request.command, request.trace)
-        val admission = observed.observe { admitting(request).also { observed.outcome(it.observedName) } }
+        // The command executes in the admission's trace (decision D174).
+        val trace = observed.context
+        // Counted until a detached command is launched, so close() waits for it (finding A1-9).
+        val (admission, accepted) = counted {
+            val admission = observed.observe { admitting(request).also { observed.outcome(it.observedName) } }
+            admission to (admission as? Admission.Admitted)
+                ?.takeIf { it.call == null && it.command.wait.isAcceptedOnly }
+                ?.let { admitted ->
+                    val coordinator = coordinators.getValue(admitted.command.ref.type.context)
+                    if (trace === EmptyCoroutineContext) {
+                        coordinator.accept(admitted.model, admitted.command, detached)
+                    } else {
+                        withContext(trace) { coordinator.accept(admitted.model, admitted.command, detached) }
+                    }
+                }
+        }
         when (admission) {
             is Admission.Refused -> emit(admission.result)
             is Admission.Admitted -> {
                 val coordinator = coordinators.getValue(admission.command.ref.type.context)
                 val from = admission.transformedFrom
-                // The command executes in the admission's trace (decision D174).
-                val trace = observed.context
                 val call = admission.call
                 if (call != null) {
                     val settled = if (trace === EmptyCoroutineContext) {
@@ -179,12 +198,7 @@ class CommandGateway @InternalWowApi constructor(
                         withContext(trace) { coordinator.forward(admission.model, admission.command, call.wait) }
                     }
                     emit(if (from == null) settled.committed else settled.committed.copyWith(transformedFrom = from))
-                } else if (admission.command.wait.isAcceptedOnly) {
-                    val accepted = if (trace === EmptyCoroutineContext) {
-                        coordinator.accept(admission.model, admission.command, detached)
-                    } else {
-                        withContext(trace) { coordinator.accept(admission.model, admission.command, detached) }
-                    }
+                } else if (accepted != null) {
                     emit(if (from == null) accepted else accepted.copyWith(transformedFrom = from))
                 } else {
                     val streamed = coordinator.stream(admission.model, admission.command)
@@ -217,14 +231,32 @@ class CommandGateway @InternalWowApi constructor(
     suspend fun execute(request: CommandRequest): CommandResult = send(request).last()
 
     /**
-     * Refuses new requests from now on ([FrameworkCodes.NODE_CLOSING]), waits for the detached commands that are
-     * running, and closes their scope.
+     * Refuses new requests from now on ([FrameworkCodes.NODE_CLOSING]), waits for the detached commands accepted
+     * before, those whose admission was still under way included, and closes their scope.
      */
     @InternalWowApi
     suspend fun close() {
         closed = true
-        detached.coroutineContext.job.children.toList().joinAll()
+        // A request counted before it read `closed` launches its detached command, if any, before it is uncounted.
+        admissions.first { it == 0 }
+        while (true) {
+            val running = detached.coroutineContext.job.children.toList()
+            if (running.isEmpty()) {
+                break
+            }
+            running.joinAll()
+        }
         detached.cancel()
+    }
+
+    /** Runs [block], an admission and the launch of its detached command, counted in [admissions]. */
+    private inline fun <T> counted(block: () -> T): T {
+        admissions.update { it + 1 }
+        try {
+            return block()
+        } finally {
+            admissions.update { it - 1 }
+        }
     }
 
     /**
