@@ -15,7 +15,7 @@ V10 在长期分支 `v10` 上开发，全部完成后一次合入 main（D2）�
 | 分支保护 | `v10` 要求经 PR 合入，不要求审批，禁止强制推送与删除；`enforce_admins` 关闭（与 main 一致），所以管理员仍能直接推送前向合并。M0 的 0.1 让 CI 覆盖 `v10` 之后，再把与 main 相同的门禁设为必需检查 |
 | main 上的分工 | V10 要替换的 JVM 运行时模块（wow-core 运行时、总线、存储、补偿）在 main 上只修缺陷；V10 沿用的部分（查询协议、view-engine、数据集、TS 包）照常开发，经前向合并进入 `v10` |
 | CI | `local-test`、`contract-test`、`integration-test`、`typescript*` 覆盖 `v10`；9 → 10 不混部，由迁移演练取代 `mixed-version`；但 10.x 内相邻次版本必须能滚动升级（D48），所以 `mixed-version` 在 10.0 GA 后以「上一个 10.x 次版本 + 当前构建」重新启用 |
-| 预发布 | 不发（D124、D147）：全部目标完成前不从 `v10` 发 `alpha` / `beta` / `rc`；里程碑出口只作 CI 门槛，版本号与发布范围在 M9 一次性准备 |
+| 预发布 | 第一个预发布提前到 M7 之后（D217，修订 D124、D147）：`10.0.0-alpha.3` 已发布（alpha.1、alpha.2 未完整发布，D218），不做兼容性承诺；之后的 alpha、beta 自行发布，rc 与 GA 须用户确认（D202） |
 | 合入 | M9 的出口满足后：先从 main 切出 `release-9.x`，再把 `v10` 合入 main，从 main 发 `10.0.0` |
 
 ## 2. 里程碑总览
@@ -41,7 +41,7 @@ flowchart LR
     M8c --> M9[M9 发布]
 ```
 
-里程碑出口只作 CI 门槛，不发预发布（D124、D147）；原先的预发布一栏（`alpha.1`～`rc.1`）已删去。
+里程碑出口只作 CI 门槛；第一个预发布按 D217 在 M7 之后发出，之后的预发布不绑定里程碑（D202）。
 
 | 里程碑 | 目标 | 出口门槛 | 必须先拍板的决定 |
 |---|---|---|---|
@@ -232,7 +232,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | P.3 | 按订阅的重试与超时（9.x `@Retry`），注解与 `wow.subscriptions.[…]` 配置 | S | M7 前 | 预算耗尽后停放的测试 |
 | P.4 | V10 的 K8s 部署清单：内部端口、PostgreSQL、Kafka | S | M7 前 | 清单可在本地集群起 eShop 一个服务 |
 | P.5 | 测试 DSL：`SagaSpec`、投影与反应器测试、`fork`/`ref` 分叉、`givenState`、按类型 `expectError` | M | M7 前 | eShop 与 shop 的 Saga 测试改用它 |
-| P.6 | 升级时丢弃过时事件（9.x `DroppedEvent`） | S | M8 前 | 含已退役事件类型的历史可导入 |
+| P.6 | 升级时丢弃过时事件（9.x `DroppedEvent`）：`@AggregateRoot(retiredEvents)` 声明退役的事件名，读取时跳过（D219）；导入时丢弃已由 8b.1 的 `drop` 映射完成 | S | M8 前 | 含已退役事件类型的历史可导入、可加载，订阅越过不停放 |
 | P.7 | 从状态提取 ABAC 标签（9.x `StateAggregateTagsExtractor`） | S～M | M8 前 | 标签随状态变化的查询策略测试 |
 | P.8 | `wow-models` 迁到 V10（`EnumText`、`StatusCapable`、`Tree` 聚合） | M | M8 前 | 各自的 V10 测试 |
 | P.9 | 测试模块与门禁（D196，原「`TestValidator`、Testcontainers 夹具、发布 `wow-tck`」，提前）：`:test`（测试 DSL，从 `:kernel` 测试夹具移出）、`:tck`（SPI 规格从 `:spi` 测试夹具移出，加 `TestValidator`、Testcontainers 夹具）；各模块改依赖它们；CI 门禁写明 | M | M7 前（核心阶段） | 各后端经 `:tck` 跑全部规格；eShop 与 shop 的测试只依赖 `:test`；发布在 M8 |
