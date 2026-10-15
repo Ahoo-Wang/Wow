@@ -119,7 +119,8 @@ fun wowRoutes(
     )
     val queryHandler = QueryHandler(queries, authenticator, headers, statuses, gateway.tenants, scope)
     val ownerships = QueryOwnership.of(manifest)
-    val states = StateHandler(reads, authenticator, headers, statuses, gateway.tenants, ownerships::ownershipOf)
+    val states =
+        StateHandler(reads, authenticator, headers, statuses, gateway.tenants, ownerships::ownershipOf, queries)
     val served = withTransformedRoutes(manifest, gateway)
     return coRouter {
         if (options.manifestEndpoint) {

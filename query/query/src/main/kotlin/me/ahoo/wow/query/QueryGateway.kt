@@ -78,6 +78,16 @@ interface QueryGateway {
      * [version][QueryModelDescriptor.version] is the route's `ETag`.
      */
     suspend fun describe(entry: QueryEntry, defaultListSize: Int? = null): QueryModelDescriptor
+
+    /**
+     * The single-aggregate visibility check of the policy chain (review A3-11): [record], the snapshot-shaped record of
+     * one aggregate a point read chose by [selection] (a state read by id, its version or its trace, or the aggregate
+     * of an events query), as [caller] may read it: admitted by the same caller scope and [QueryPolicy] restrictions
+     * (ABAC's among them) and the model's default scope as a query, evaluated in memory, and masked; null when the
+     * caller may not read it, so a row a query hides is hidden from a read by id too. A gateway without policies
+     * admits every record.
+     */
+    suspend fun admitRecord(selection: FilterExpression, record: ObjectNode, caller: QueryCaller): ObjectNode? = record
 }
 
 /**
@@ -132,6 +142,9 @@ class DefaultQueryGateway(
         stream(QueryOperation.AGGREGATION, query, caller) { admitted ->
             backend.aggregate(admitted, entryPolicy.budget(admitted.entry))
         }
+
+    override suspend fun admitRecord(selection: FilterExpression, record: ObjectNode, caller: QueryCaller): ObjectNode? =
+        admission.admitRecord(selection, record, schemaProvider.schema(), caller)
 
     override suspend fun describe(entry: QueryEntry, defaultListSize: Int?): QueryModelDescriptor =
         schemaProvider.schema().describe(entryPolicy.budget(entryPolicy.admit(entry)), defaultListSize)

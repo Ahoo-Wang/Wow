@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.http.query.EventQueryGateway
 import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.http.read.StateVisibility
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.DefaultQueryGateway
@@ -24,6 +25,7 @@ import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.QueryBackendStorages
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.ScopeQueryPolicy
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
@@ -66,6 +68,7 @@ fun cartSnapshots(
     storage: QueryBackendFactory<*>,
     entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
     tenants: QueryTenantPolicy = QueryTenantPolicy.CALLERS,
+    policies: List<QueryPolicy> = emptyList(),
 ): QueryGateway {
     val catalog = QuerySchemaCatalog(
         QueryBackendStorages(storage),
@@ -75,7 +78,7 @@ fun cartSnapshots(
         cartType,
         storage.create(cartType).backend,
         catalog.provider(cartType, QueryModel.SNAPSHOT),
-        policies = listOf(ScopeQueryPolicy(tenants)),
+        policies = listOf(ScopeQueryPolicy(tenants)) + policies,
         entryPolicy = entryPolicy,
     )
 }
@@ -91,11 +94,19 @@ class QueryNode(
     tenants: TenantPolicy = TenantPolicy.CALLERS,
     snapshots: (QueryGateway) -> QueryGateway? = { it },
     snapshotStatus: SnapshotStatus = SnapshotStatus.NONE,
+    /** The application's query policies of the cart's snapshots, beside the scope policy. */
+    policies: List<QueryPolicy> = emptyList(),
 ) {
-    val http = HttpNode(manifest = queryManifest(), tenants = tenants) { log ->
+    private val gateway = snapshots(cartSnapshots(storage, entryPolicy, policies = policies))
+    val http: HttpNode = HttpNode(manifest = queryManifest(), tenants = tenants) { log ->
         HttpQueries(
-            snapshots = listOfNotNull(snapshots(cartSnapshots(storage, entryPolicy))),
-            events = listOf(EventQueryGateway(cartType, log, entryPolicy = entryPolicy)),
+            snapshots = listOfNotNull(gateway),
+            events = listOf(
+                EventQueryGateway(cartType, log, entryPolicy = entryPolicy) { ref, caller ->
+                    // As the host wires it: the latest state, visible through the snapshot queries (review A3-11).
+                    http.reads.latest(ref)?.let { StateVisibility.visible(gateway, caller, it) } ?: true
+                },
+            ),
             defaultListSize = defaultListSize,
             snapshotStatus = snapshotStatus,
         )

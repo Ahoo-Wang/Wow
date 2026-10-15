@@ -16,6 +16,7 @@ package me.ahoo.wow.http.query
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.firstOrNull
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withTimeout
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
@@ -94,7 +96,9 @@ import java.util.Base64
  *
  * The caller's scope applies as on snapshots (decision D129): the tenant is [tenants]', and a stream whose scope (the
  * aggregate's owner and space after it, D56) is outside the caller's [principal][QueryCaller.principal] is not
- * returned; the principal's owner is not checked for an aggregate of its tenant ([ownership], decision D189). The HTTP entry runs under [entryPolicy]'s HTTP budget: its list, page and count limits and its timeout.
+ * returned; the principal's owner is not checked for an aggregate of its tenant ([ownership], decision D189). The HTTP entry runs under [entryPolicy]'s HTTP budget: its list, page and count limits and its timeout. An aggregate
+ * the snapshot queries of its type hide from the caller ([visibility]: ABAC and the application's query policies on its
+ * latest state, review A3-11) has no streams for it.
  *
  * A record is the stream: `aggregateId`, `tenantId`, `version`, `commitTime`, `commandId`, `requestId`,
  * `commandType`, `ownerId` and `spaceId` when set, `operator` (`{id, tenantId, crossScope}`, decision D163) when the
@@ -109,6 +113,8 @@ class EventQueryGateway(
     val entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
     /** Who the aggregate belongs to besides its tenant, as its Manifest says (decision D189). */
     val ownership: Ownership = Ownership.OWNER,
+    /** Whether a caller sees an aggregate ([StateVisibility]); every one by default. */
+    private val visibility: suspend (AggregateRef, QueryCaller) -> Boolean = { _, _ -> true },
 ) {
     /** The first stream [query] matches, or `null` when none does. */
     suspend fun single(query: ISingleQuery, caller: QueryCaller): ObjectNode? {
@@ -214,6 +220,7 @@ class EventQueryGateway(
         val principal: Scope,
         val budget: QueryBudget?,
         val timeout: Duration?,
+        val caller: QueryCaller,
     )
 
     private fun admit(query: FilterCapable<*>, caller: QueryCaller, check: (QueryBudget) -> Unit): Admitted {
@@ -229,7 +236,14 @@ class EventQueryGateway(
             ).rejection()
         // A query that names another tenant than the caller's reads none.
         val scoped = if (range.tenantId != null && range.tenantId != tenantId) range.copy(empty = true) else range
-        return Admitted(scoped, tenantId, ownership.scopeOf(caller.principal), budget, entryPolicy.timeout(entry))
+        return Admitted(
+            scoped,
+            tenantId,
+            ownership.scopeOf(caller.principal),
+            budget,
+            entryPolicy.timeout(entry),
+            caller
+        )
     }
 
     /** Refuses a projection, and a sort other than the version ascending the streams come in. */
@@ -248,9 +262,15 @@ class EventQueryGateway(
     private fun Admitted.streams(): Flow<EventStreamRecord> {
         if (range.empty || range.fromVersion > range.toVersion) return emptyFlow()
         val ref = aggregateType.ref(tenantId, range.aggregateId)
-        return log.read(ref, range.fromVersion, range.toVersion)
-            .takeWhile { it.commitTime <= range.toTime }
-            .filter { it.commitTime >= range.fromTime && principal.covers(it.scope) }
+        return flow {
+            if (visibility(ref, caller)) {
+                emitAll(
+                    log.read(ref, range.fromVersion, range.toVersion)
+                        .takeWhile { it.commitTime <= range.toTime }
+                        .filter { it.commitTime >= range.fromTime && principal.covers(it.scope) },
+                )
+            }
+        }
     }
 
     private suspend fun <T> bounded(admitted: Admitted, block: suspend () -> T): T {
