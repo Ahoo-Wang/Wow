@@ -215,6 +215,8 @@ public abstract class me/ahoo/wow/tck/timer/TimerStoreSpec {
 	public final fun due timers of every partition asked come earliest first, within the limit ()V
 	public final fun due timers of one time come by id ()V
 	public final fun firing a slot moves the timer to its next slot in one write ()V
+	protected fun getContext ()Ljava/lang/String;
+	public final fun owners whose tenant and id join alike keep their timers apart ()V
 	public final fun parked timers are found by their target and leave the due ones ()V
 	public final fun putting the same timer again changes nothing, and never revives it ()V
 	public final fun two writers of one loaded timer change it once ()V

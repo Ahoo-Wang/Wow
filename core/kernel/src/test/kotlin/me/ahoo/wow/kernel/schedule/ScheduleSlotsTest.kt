@@ -37,7 +37,7 @@ class ScheduleSlotsTest {
 
     private fun timer(rule: ScheduleRule, due: Long, slot: Long = 1, skipped: Long = 0) = Timer(
         id = "$ref#k@1",
-        owner = ref.toString(),
+        owner = ref,
         key = "k",
         version = 1,
         partition = 0,

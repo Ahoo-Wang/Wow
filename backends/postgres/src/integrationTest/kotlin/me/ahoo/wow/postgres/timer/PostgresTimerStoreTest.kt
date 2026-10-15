@@ -28,6 +28,8 @@ import org.junit.jupiter.api.Test
 class PostgresTimerStoreTest : TimerStoreSpec() {
     override fun createStore(): TimerStore = store
 
+    override val context: String = CONTEXT
+
     @Test
     fun `creating the schema twice is harmless`() {
         PostgresTimerStore(PostgresFixture.dataSource, "timer-twice").createSchema()
@@ -43,12 +45,12 @@ class PostgresTimerStoreTest : TimerStoreSpec() {
     }
 
     @Test
-    fun `a table of format 2, without the slot's due time, is refused`() {
+    fun `a table of format 3, its owner a joined name, is refused`() {
         val context = PostgresFixture.newContext("timer")
         val base = PostgresTimerTables(context).base
         PostgresTimerStore(PostgresFixture.dataSource, context).createSchema()
         PostgresFixture.dataSource.connection.use { connection ->
-            connection.prepareStatement("UPDATE ${PostgresFormat.TABLE} SET version = 2 WHERE structure = ?").use {
+            connection.prepareStatement("UPDATE ${PostgresFormat.TABLE} SET version = 3 WHERE structure = ?").use {
                 it.setString(1, base)
                 it.executeUpdate().assert().isEqualTo(1)
             }
@@ -65,10 +67,10 @@ class PostgresTimerStoreTest : TimerStoreSpec() {
             connection.createStatement().use { it.execute("ALTER TABLE ${tables.table} DROP COLUMN skipped") }
         }
         val store = PostgresTimerStore(PostgresFixture.dataSource, context).also { it.createSchema() }
-        val ref = AggregateType("shop", "order").ref("t", "o-1")
+        val ref = AggregateType(context, "order").ref("t", "o-1")
         val timer = Timer(
             id = "$ref#k@1",
-            owner = ref.toString(),
+            owner = ref,
             key = "k",
             version = 1,
             partition = 0,
@@ -84,10 +86,19 @@ class PostgresTimerStoreTest : TimerStoreSpec() {
         store.find(timer.owner, "k")?.skipped.assert().isEqualTo(3L)
     }
 
+    @Test
+    fun `a timer of an aggregate of another context is refused`() {
+        val ref = AggregateType("elsewhere", "order").ref("t", "o-1")
+        val timer = Timer("$ref#k@1", ref, "k", 1, 0, ScheduleRule.At(5), 5, ref, "elsewhere.order.Cancel", "{}")
+        assertThrownBy<IllegalArgumentException> { runBlocking { store.put(timer) } }
+    }
+
     private companion object {
+        const val CONTEXT = "timer-tck"
+
         /** One store for every test: they keep to timers of their own. */
         val store: PostgresTimerStore by lazy {
-            PostgresTimerStore(PostgresFixture.dataSource, "timer-tck").also { it.createSchema() }
+            PostgresTimerStore(PostgresFixture.dataSource, CONTEXT).also { it.createSchema() }
         }
     }
 }

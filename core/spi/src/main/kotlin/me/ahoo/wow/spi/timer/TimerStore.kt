@@ -22,8 +22,9 @@ import me.ahoo.wow.api.annotation.WowSpi
  * `wow.ScheduleSet` and `wow.ScheduleCancelled` the aggregates commit. The node's firing loop reads the timers [due]
  * in the partitions it owns, one query for all of them, sends their commands and records each outcome with [settle].
  *
- * - **Key**: a timer is unique by its owner and key ([Timer.owner], [Timer.key]); its [Timer.id] changes with each
- *   reschedule, so a write of the same timer again is recognised, and a change of an old one does nothing.
+ * - **Key**: a timer is unique by its owner and key ([Timer.owner], [Timer.key]), the owner compared field by field
+ *   (its type, tenant and id; finding A2-12); its [Timer.id] changes with each reschedule, so a write of the same
+ *   timer again is recognised, and a change of an old one does nothing.
  * - **Order**: each change carries the owner's [Timer.version]. A change older than what the store holds for the key
  *   does nothing, so a replay, or an old partition owner running beside the new one (decision D45), never moves a
  *   timer back nor revives one that fired or was cancelled.
@@ -53,7 +54,7 @@ interface TimerStore {
      *
      * @return true when a timer was cancelled.
      */
-    suspend fun cancel(owner: String, key: String, version: Long): Boolean
+    suspend fun cancel(owner: AggregateRef, key: String, version: Long): Boolean
 
     /**
      * Cancels every PENDING (or FIRING, or PARKED) timer of [owner] held at [version] or earlier: the owner aggregate
@@ -61,10 +62,10 @@ interface TimerStore {
      *
      * @return how many timers were cancelled.
      */
-    suspend fun cancelAll(owner: String, version: Long): Int
+    suspend fun cancelAll(owner: AggregateRef, version: Long): Int
 
     /** The timer [owner] keeps under [key], in whatever status, or null. */
-    suspend fun find(owner: String, key: String): Timer?
+    suspend fun find(owner: AggregateRef, key: String): Timer?
 
     /**
      * Up to [limit] PENDING timers of any of [partitions] due at or before [until] (epoch milliseconds), and FIRING ones

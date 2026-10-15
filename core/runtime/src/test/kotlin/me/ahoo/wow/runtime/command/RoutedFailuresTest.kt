@@ -92,7 +92,7 @@ class RoutedFailuresTest {
 
     private fun timer(id: String, command: String = "AddItems", body: String = """{"items":["apple"]}""") = Timer(
         id = id,
-        owner = "owner",
+        owner = CART.ref(TENANT, "owner"),
         key = "key",
         version = 1,
         partition = 0,

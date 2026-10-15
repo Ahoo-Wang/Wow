@@ -26,7 +26,7 @@ import me.ahoo.wow.spi.timer.TimerStore
 @InternalWowApi
 class InMemoryTimerStore : TimerStore {
     private val lock = Mutex()
-    private val timers = HashMap<Pair<String, String>, Timer>()
+    private val timers = HashMap<Pair<AggregateRef, String>, Timer>()
 
     override suspend fun put(timer: Timer): Boolean = lock.withLock {
         val key = timer.owner to timer.key
@@ -38,19 +38,19 @@ class InMemoryTimerStore : TimerStore {
         true
     }
 
-    override suspend fun cancel(owner: String, key: String, version: Long): Boolean = lock.withLock {
+    override suspend fun cancel(owner: AggregateRef, key: String, version: Long): Boolean = lock.withLock {
         val held = timers[owner to key]?.takeIf { it.cancellable(version) } ?: return false
         timers[owner to key] = held.cancelled(version)
         true
     }
 
-    override suspend fun cancelAll(owner: String, version: Long): Int = lock.withLock {
+    override suspend fun cancelAll(owner: AggregateRef, version: Long): Int = lock.withLock {
         val cancelled = timers.filter { (key, timer) -> key.first == owner && timer.cancellable(version) }
         cancelled.forEach { (key, timer) -> timers[key] = timer.cancelled(version) }
         cancelled.size
     }
 
-    override suspend fun find(owner: String, key: String): Timer? = lock.withLock { timers[owner to key] }
+    override suspend fun find(owner: AggregateRef, key: String): Timer? = lock.withLock { timers[owner to key] }
 
     override suspend fun due(partitions: Set<Int>, until: Long, limit: Int): List<Timer> {
         require(limit >= 1) { "A page holds at least one timer." }

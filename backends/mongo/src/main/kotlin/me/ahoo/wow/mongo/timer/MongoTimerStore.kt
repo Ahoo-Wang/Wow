@@ -45,7 +45,8 @@ import org.bson.conversions.Bson
 
 /**
  * The [TimerStore] of one bounded context on MongoDB (decisions D166, D198): the collection `wow_timer__<context>`,
- * named by the rule of the log's collections, one document per timer, keyed by a unique index on `(owner, key)`.
+ * named by the rule of the log's collections, one document per timer, keyed by a unique index on its owner
+ * (`owner: {aggregate, tenant_id, id}`, its context the collection's; finding A2-12) and `key`.
  *
  * Every write is one single-document operation, but for [cancelAll] and [settle]. A put is a conditional upsert (see
  * [conditionalUpsert]) whose filter admits only another timer at the same or a later version; a cancel is a
@@ -54,7 +55,9 @@ import org.bson.conversions.Bson
  * partition asked, one on the target of the PARKED timers a resume. The body is kept as the command's JSON text, the
  * rule as a subdocument (`{type, ...}`, as Wow's JSON writes it). Format 2 added the rule and the slot, format 3 the
  * slot's due time (`slot_due_at`), kept apart from `due_at`, which a claim or a retry moves, and, within format 3, the
- * count of the slots a recurring timer coalesced before its current one (`skipped`, absent read as none).
+ * count of the slots a recurring timer coalesced before its current one (`skipped`, absent read as none), format 4
+ * the structured owner instead of its joined name. The timers are a view rebuilt from the log: a collection of format
+ * 3 is refused, dropped and rebuilt.
  *
  * Calls run on [dispatcher], virtual threads by default (decision D29).
  */
@@ -62,7 +65,7 @@ import org.bson.conversions.Bson
 class MongoTimerStore(
     client: MongoClient,
     databaseName: String,
-    context: String,
+    private val context: String,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
 ) : TimerStore {
     /** The collection's name, `wow_timer__<context>`. */
@@ -77,7 +80,10 @@ class MongoTimerStore(
      */
     fun createSchema() {
         MongoFormat.claim(database, collectionName, FORMAT)
-        timers.createIndex(Indexes.ascending(OWNER, KEY), IndexOptions().unique(true).name(TIMER_KEY))
+        timers.createIndex(
+            Indexes.ascending(OWNER_AGGREGATE, OWNER_TENANT_ID, OWNER_AGGREGATE_ID, KEY),
+            IndexOptions().unique(true).name(TIMER_KEY),
+        )
         timers.createIndex(
             Indexes.ascending(PARTITION, DUE_AT, TIMER_ID),
             IndexOptions().name(DUE_INDEX).partialFilterExpression(Filters.`in`(STATUS, DUE_STATUSES)),
@@ -89,6 +95,7 @@ class MongoTimerStore(
     }
 
     override suspend fun put(timer: Timer): Boolean = withContext(dispatcher) {
+        require(timer.owner.type.context == context) { "${timer.owner} keeps its timers in its own context." }
         val replaceable = Filters.and(
             keyFilter(timer.owner, timer.key),
             Filters.ne(TIMER_ID, timer.id),
@@ -125,19 +132,19 @@ class MongoTimerStore(
         }
     }
 
-    override suspend fun cancel(owner: String, key: String, version: Long): Boolean = withContext(dispatcher) {
+    override suspend fun cancel(owner: AggregateRef, key: String, version: Long): Boolean = withContext(dispatcher) {
         timers.updateOne(
             Filters.and(keyFilter(owner, key), cancellable(version)),
             cancelled(version),
         ).matchedCount == 1L
     }
 
-    override suspend fun cancelAll(owner: String, version: Long): Int = withContext(dispatcher) {
-        timers.updateMany(Filters.and(Filters.eq(OWNER, owner), cancellable(version)), cancelled(version))
+    override suspend fun cancelAll(owner: AggregateRef, version: Long): Int = withContext(dispatcher) {
+        timers.updateMany(Filters.and(ownerFilter(owner), cancellable(version)), cancelled(version))
             .matchedCount.toInt()
     }
 
-    override suspend fun find(owner: String, key: String): Timer? = withContext(dispatcher) {
+    override suspend fun find(owner: AggregateRef, key: String): Timer? = withContext(dispatcher) {
         timers.find(keyFilter(owner, key)).firstOrNull()?.let(::timerOf)
     }
 
@@ -200,8 +207,14 @@ class MongoTimerStore(
         ).sort(DUE_ORDER).map(::timerOf).toList()
     }
 
-    private fun keyFilter(owner: String, key: String): Bson = Filters.and(
-        Filters.eq(OWNER, owner),
+    private fun ownerFilter(owner: AggregateRef): Bson = Filters.and(
+        Filters.eq(OWNER_AGGREGATE, owner.type.name),
+        Filters.eq(OWNER_TENANT_ID, owner.tenantId),
+        Filters.eq(OWNER_AGGREGATE_ID, owner.id),
+    )
+
+    private fun keyFilter(owner: AggregateRef, key: String): Bson = Filters.and(
+        ownerFilter(owner),
         Filters.eq(KEY, key)
     )
 
@@ -215,7 +228,9 @@ class MongoTimerStore(
 
     private fun timerOf(document: Document) = Timer(
         id = document.getString(TIMER_ID),
-        owner = document.getString(OWNER),
+        owner = document.get(OWNER, Document::class.java).let { owner ->
+            AggregateType(context, owner.getString(AGGREGATE)).ref(owner.getString(TENANT_ID), owner.getString(ID))
+        },
         key = document.getString(KEY),
         version = document.getLong(VERSION),
         partition = document.getInteger(PARTITION),
@@ -242,13 +257,19 @@ class MongoTimerStore(
 
     private companion object {
         /** The version of this layout (decision D59). */
-        const val FORMAT = 3
+        const val FORMAT = 4
         const val PREFIX = "wow_timer"
         const val TIMER_KEY = "timer_key"
         const val DUE_INDEX = "timer_due"
         const val PARKED_INDEX = "timer_parked"
         val DUE_STATUSES = listOf(TimerStatus.PENDING.name, TimerStatus.FIRING.name)
         const val OWNER = "owner"
+        const val AGGREGATE = "aggregate"
+        const val TENANT_ID = "tenant_id"
+        const val ID = "id"
+        const val OWNER_AGGREGATE = "$OWNER.$AGGREGATE"
+        const val OWNER_TENANT_ID = "$OWNER.$TENANT_ID"
+        const val OWNER_AGGREGATE_ID = "$OWNER.$ID"
         const val KEY = "key"
         const val TIMER_ID = "timer_id"
         const val VERSION = "version"

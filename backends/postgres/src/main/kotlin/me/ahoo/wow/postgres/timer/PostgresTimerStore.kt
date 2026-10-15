@@ -52,6 +52,7 @@ class PostgresTimerStore(
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
 ) : TimerStore {
     private val tables = PostgresTimerTables(context)
+    private val ownerContext = context
 
     /** Creates the context's timer table and its indexes when missing; refuses one recorded in another format. */
     fun createSchema() {
@@ -63,56 +64,60 @@ class PostgresTimerStore(
         }
     }
 
-    override suspend fun put(timer: Timer): Boolean = jdbc { connection ->
-        connection.prepareStatement(tables.put).use { put ->
-            put.setString(1, timer.owner)
-            put.setString(2, timer.key)
-            put.setString(3, timer.id)
-            put.setLong(4, timer.version)
-            put.setInt(5, timer.partition)
-            put.setString(6, json.writeValueAsString(timer.rule))
-            put.setLong(7, timer.slot)
-            put.setLong(8, timer.dueAt)
-            put.setString(9, timer.target.type.context)
-            put.setString(10, timer.target.type.name)
-            put.setString(11, timer.target.tenantId)
-            put.setString(12, timer.target.id)
-            put.setString(13, timer.commandType)
-            put.setString(14, timer.body)
-            put.setNullableString(15, timer.causation?.correlationId)
-            put.setNullableString(16, timer.causation?.causationId)
-            put.setString(17, json.writeValueAsString(timer.headers))
-            put.setNullableString(18, timer.operator?.let(json::writeValueAsString))
-            put.setNullableString(19, timer.scope.takeUnless { it == Scope.NONE }?.let(json::writeValueAsString))
-            put.setLong(20, timer.slotDueAt)
-            put.setLong(21, timer.skipped)
-            put.executeUpdate() == 1
-        }
+    override suspend fun put(timer: Timer): Boolean {
+        require(timer.owner.type.context == ownerContext) { "${timer.owner} keeps its timers in its own context." }
+        return jdbc { connection -> put(connection, timer) }
     }
 
-    override suspend fun cancel(owner: String, key: String, version: Long): Boolean = jdbc { connection ->
+    private fun put(connection: Connection, timer: Timer): Boolean =
+        connection.prepareStatement(tables.put).use { put ->
+            put.setOwner(1, timer.owner)
+            put.setString(4, timer.key)
+            put.setString(5, timer.id)
+            put.setLong(6, timer.version)
+            put.setInt(7, timer.partition)
+            put.setString(8, json.writeValueAsString(timer.rule))
+            put.setLong(9, timer.slot)
+            put.setLong(10, timer.dueAt)
+            put.setString(11, timer.target.type.context)
+            put.setString(12, timer.target.type.name)
+            put.setString(13, timer.target.tenantId)
+            put.setString(14, timer.target.id)
+            put.setString(15, timer.commandType)
+            put.setString(16, timer.body)
+            put.setNullableString(17, timer.causation?.correlationId)
+            put.setNullableString(18, timer.causation?.causationId)
+            put.setString(19, json.writeValueAsString(timer.headers))
+            put.setNullableString(20, timer.operator?.let(json::writeValueAsString))
+            put.setNullableString(21, timer.scope.takeUnless { it == Scope.NONE }?.let(json::writeValueAsString))
+            put.setLong(22, timer.slotDueAt)
+            put.setLong(23, timer.skipped)
+            put.executeUpdate() == 1
+        }
+
+    override suspend fun cancel(owner: AggregateRef, key: String, version: Long): Boolean = jdbc { connection ->
         connection.prepareStatement(tables.cancel).use { cancel ->
             cancel.setLong(1, version)
-            cancel.setString(2, owner)
-            cancel.setString(3, key)
-            cancel.setLong(4, version)
+            cancel.setOwner(2, owner)
+            cancel.setString(5, key)
+            cancel.setLong(6, version)
             cancel.executeUpdate() == 1
         }
     }
 
-    override suspend fun cancelAll(owner: String, version: Long): Int = jdbc { connection ->
+    override suspend fun cancelAll(owner: AggregateRef, version: Long): Int = jdbc { connection ->
         connection.prepareStatement(tables.cancelAll).use { cancel ->
             cancel.setLong(1, version)
-            cancel.setString(2, owner)
-            cancel.setLong(3, version)
+            cancel.setOwner(2, owner)
+            cancel.setLong(5, version)
             cancel.executeUpdate()
         }
     }
 
-    override suspend fun find(owner: String, key: String): Timer? = jdbc { connection ->
+    override suspend fun find(owner: AggregateRef, key: String): Timer? = jdbc { connection ->
         connection.prepareStatement(tables.find).use { query ->
-            query.setString(1, owner)
-            query.setString(2, key)
+            query.setOwner(1, owner)
+            query.setString(4, key)
             query.executeQuery().use { rows -> if (rows.next()) timerOf(rows) else null }
         }
     }
@@ -147,14 +152,14 @@ class PostgresTimerStore(
                     settle.setLong(5, next.dueAt)
                     settle.setInt(6, next.attempts)
                     settle.setNullableString(7, next.outcome)
-                    settle.setString(8, loaded.owner)
-                    settle.setString(9, loaded.key)
-                    settle.setString(10, loaded.id)
-                    settle.setString(11, loaded.status.name)
-                    settle.setLong(12, loaded.slot)
-                    settle.setLong(13, loaded.slotDueAt)
-                    settle.setInt(14, loaded.attempts)
-                    settle.setLong(15, loaded.dueAt)
+                    settle.setOwner(8, loaded.owner)
+                    settle.setString(11, loaded.key)
+                    settle.setString(12, loaded.id)
+                    settle.setString(13, loaded.status.name)
+                    settle.setLong(14, loaded.slot)
+                    settle.setLong(15, loaded.slotDueAt)
+                    settle.setInt(16, loaded.attempts)
+                    settle.setLong(17, loaded.dueAt)
                     settle.addBatch()
                 }
                 settle.executeBatch().sum()
@@ -172,48 +177,56 @@ class PostgresTimerStore(
         }
     }
 
+    private fun timersOf(rows: ResultSet): List<Timer> = buildList {
+        while (rows.next()) {
+            add(timerOf(rows))
+        }
+    }
+
+    private fun timerOf(row: ResultSet) = Timer(
+        id = row.getString("timer_id"),
+        owner = AggregateType(ownerContext, row.getString("owner_aggregate"))
+            .ref(row.getString("owner_tenant_id"), row.getString("owner_id")),
+        key = row.getString("key"),
+        version = row.getLong("version"),
+        partition = row.getInt("partition"),
+        rule = json.readValue(row.getString("rule"), ScheduleRule::class.java),
+        slot = row.getLong("slot"),
+        dueAt = row.getLong("due_at"),
+        target = AggregateType(row.getString("target_context"), row.getString("target_aggregate"))
+            .ref(row.getString("target_tenant_id"), row.getString("target_id")),
+        commandType = row.getString("command_type"),
+        body = row.getString("body"),
+        causation = row.getString("correlation_id")?.let { Causation(it, row.getString("causation_id")) },
+        headers = buildMap {
+            for ((name, value) in json.readTree(row.getString("headers")).properties()) {
+                put(name, value.asString())
+            }
+        },
+        status = TimerStatus.valueOf(row.getString("status")),
+        attempts = row.getInt("attempts"),
+        outcome = row.getString("outcome"),
+        operator = row.getString("operator")?.let { json.readValue(it, Operator::class.java) },
+        scope = row.getString("scope")?.let { json.readValue(it, Scope::class.java) } ?: Scope.NONE,
+        slotDueAt = row.getLong("slot_due_at"),
+        skipped = row.getLong("skipped"),
+    )
+
     private suspend fun <T> jdbc(block: (Connection) -> T): T =
         withContext(dispatcher) { dataSource.connection.use(block) }
 
     private companion object {
         val json = WowJson.mapper
 
+        /** Sets the owner's three columns from [index]: its context is the table's. */
+        fun PreparedStatement.setOwner(index: Int, owner: AggregateRef) {
+            setString(index, owner.type.name)
+            setString(index + 1, owner.tenantId)
+            setString(index + 2, owner.id)
+        }
+
         fun PreparedStatement.setNullableString(index: Int, value: String?) {
             if (value == null) setNull(index, Types.VARCHAR) else setString(index, value)
         }
-
-        fun timersOf(rows: ResultSet): List<Timer> = buildList {
-            while (rows.next()) {
-                add(timerOf(rows))
-            }
-        }
-
-        fun timerOf(row: ResultSet) = Timer(
-            id = row.getString("timer_id"),
-            owner = row.getString("owner"),
-            key = row.getString("key"),
-            version = row.getLong("version"),
-            partition = row.getInt("partition"),
-            rule = json.readValue(row.getString("rule"), ScheduleRule::class.java),
-            slot = row.getLong("slot"),
-            dueAt = row.getLong("due_at"),
-            target = AggregateType(row.getString("target_context"), row.getString("target_aggregate"))
-                .ref(row.getString("target_tenant_id"), row.getString("target_id")),
-            commandType = row.getString("command_type"),
-            body = row.getString("body"),
-            causation = row.getString("correlation_id")?.let { Causation(it, row.getString("causation_id")) },
-            headers = buildMap {
-                for ((name, value) in json.readTree(row.getString("headers")).properties()) {
-                    put(name, value.asString())
-                }
-            },
-            status = TimerStatus.valueOf(row.getString("status")),
-            attempts = row.getInt("attempts"),
-            outcome = row.getString("outcome"),
-            operator = row.getString("operator")?.let { json.readValue(it, Operator::class.java) },
-            scope = row.getString("scope")?.let { json.readValue(it, Scope::class.java) } ?: Scope.NONE,
-            slotDueAt = row.getLong("slot_due_at"),
-            skipped = row.getLong("skipped"),
-        )
     }
 }

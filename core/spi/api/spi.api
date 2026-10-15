@@ -719,8 +719,8 @@ public final class me/ahoo/wow/spi/subscription/Member {
 }
 
 public final class me/ahoo/wow/spi/timer/Timer {
-	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JILme/ahoo/wow/api/schedule/ScheduleRule;JLme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Ljava/lang/String;JLme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/timer/TimerStatus;ILjava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;JJ)V
-	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JILme/ahoo/wow/api/schedule/ScheduleRule;JLme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Ljava/lang/String;JLme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/timer/TimerStatus;ILjava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;JJILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;JILme/ahoo/wow/api/schedule/ScheduleRule;JLme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Ljava/lang/String;JLme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/timer/TimerStatus;ILjava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;JJ)V
+	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;JILme/ahoo/wow/api/schedule/ScheduleRule;JLme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Ljava/lang/String;JLme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/timer/TimerStatus;ILjava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;JJILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component10 ()Ljava/lang/String;
 	public final fun component11 ()J
@@ -732,7 +732,7 @@ public final class me/ahoo/wow/spi/timer/Timer {
 	public final fun component17 ()Ljava/lang/String;
 	public final fun component18 ()Lme/ahoo/wow/api/aggregate/Scope;
 	public final fun component19 ()J
-	public final fun component2 ()Ljava/lang/String;
+	public final fun component2 ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun component20 ()J
 	public final fun component3 ()Ljava/lang/String;
 	public final fun component4 ()J
@@ -741,8 +741,8 @@ public final class me/ahoo/wow/spi/timer/Timer {
 	public final fun component7 ()J
 	public final fun component8 ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun component9 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JILme/ahoo/wow/api/schedule/ScheduleRule;JLme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Ljava/lang/String;JLme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/timer/TimerStatus;ILjava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;JJ)Lme/ahoo/wow/spi/timer/Timer;
-	public static synthetic fun copy$default (Lme/ahoo/wow/spi/timer/Timer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;JILme/ahoo/wow/api/schedule/ScheduleRule;JLme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Ljava/lang/String;JLme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/timer/TimerStatus;ILjava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;JJILjava/lang/Object;)Lme/ahoo/wow/spi/timer/Timer;
+	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;JILme/ahoo/wow/api/schedule/ScheduleRule;JLme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Ljava/lang/String;JLme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/timer/TimerStatus;ILjava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;JJ)Lme/ahoo/wow/spi/timer/Timer;
+	public static synthetic fun copy$default (Lme/ahoo/wow/spi/timer/Timer;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;JILme/ahoo/wow/api/schedule/ScheduleRule;JLme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Ljava/lang/String;JLme/ahoo/wow/api/decide/Causation;Ljava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/timer/TimerStatus;ILjava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;JJILjava/lang/Object;)Lme/ahoo/wow/spi/timer/Timer;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAttempts ()I
 	public final fun getBody ()Ljava/lang/String;
@@ -755,7 +755,7 @@ public final class me/ahoo/wow/spi/timer/Timer {
 	public final fun getKey ()Ljava/lang/String;
 	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
 	public final fun getOutcome ()Ljava/lang/String;
-	public final fun getOwner ()Ljava/lang/String;
+	public final fun getOwner ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun getPartition ()I
 	public final fun getRequestId ()Ljava/lang/String;
 	public final fun getRule ()Lme/ahoo/wow/api/schedule/ScheduleRule;
@@ -806,10 +806,10 @@ public final class me/ahoo/wow/spi/timer/TimerStatus : java/lang/Enum {
 }
 
 public abstract interface class me/ahoo/wow/spi/timer/TimerStore {
-	public abstract fun cancel (Ljava/lang/String;Ljava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun cancelAll (Ljava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun cancel (Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun cancelAll (Lme/ahoo/wow/api/aggregate/AggregateRef;JLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun due (Ljava/util/Set;JILkotlin/coroutines/Continuation;)Ljava/lang/Object;
-	public abstract fun find (Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public abstract fun find (Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun parked (Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun put (Lme/ahoo/wow/spi/timer/Timer;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun settle (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -820,7 +820,7 @@ public final class me/ahoo/wow/spi/timer/Timers {
 	public static final field NOT_EVALUATED J
 	public static final fun idOf (Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/String;I)Ljava/lang/String;
 	public static final fun of (Lme/ahoo/wow/spi/log/EventStreamRecord;Lme/ahoo/wow/api/schedule/ScheduleSet;I)Lme/ahoo/wow/spi/timer/Timer;
-	public static final fun ownerOf (Lme/ahoo/wow/api/aggregate/AggregateRef;)Ljava/lang/String;
+	public static final fun ownerOf (Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/aggregate/AggregateRef;
 }
 
 public final class me/ahoo/wow/spi/transport/Envelope {

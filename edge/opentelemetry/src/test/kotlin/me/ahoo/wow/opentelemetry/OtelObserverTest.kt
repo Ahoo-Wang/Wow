@@ -165,7 +165,7 @@ class OtelObserverTest {
     fun `a timer's firing should be a span, its delay past the due time timed`(): Unit = runBlocking {
         fun timer(dueAt: Long) = Timer(
             id = "$ref#expire@2",
-            owner = ref.toString(),
+            owner = ref,
             key = "expire",
             version = 2,
             partition = 0,
