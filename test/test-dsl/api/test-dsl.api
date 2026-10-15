@@ -58,6 +58,7 @@ public final class me/ahoo/wow/test/Expectations {
 	public static synthetic fun expectScheduled$default (Lme/ahoo/wow/test/Expectations;Ljava/lang/String;Ljava/lang/Object;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/Object;)V
 	public final fun expectScope (Lme/ahoo/wow/api/aggregate/Scope;)V
 	public final fun expectState (Lkotlin/jvm/functions/Function1;)V
+	public final fun expectTags (Ljava/util/Map;)V
 	public final fun expectUnchanged ()V
 	public final fun getError ()Ljava/lang/Throwable;
 	public final fun getOutcome ()Lme/ahoo/wow/kernel/CommandOutcome;

@@ -158,6 +158,40 @@ class HostQueryTest {
     }
 
     @Test
+    fun `a tag-based query policy should follow the tags the state derives`() {
+        startHost(
+            "wow.query.abac.enabled" to true,
+            "wow.query.abac.match-missing-tag-key" to false,
+            sources = listOf(HostTestApp::class.java, MemorySnapshotQueries::class.java),
+        ).use { host ->
+            val id = host.openAccount("mona")
+            val snapshots = host.context.getBean(HttpQueries::class.java).snapshots(ACCOUNT)!!
+            fun visibleTo(tier: String): Boolean = runBlocking {
+                val caller = QueryCaller(Caller(attributes = mapOf("abac.$TIER" to listOf(tier))))
+                snapshots.list(ListQuery(AggregateIdFilter(id)), caller).toList().isNotEmpty()
+            }
+            eventually { visibleTo("standard") }
+            visibleTo("gold").assert().isFalse()
+
+            host.post("/bank/account/$id/deposit", """{"amount":$GOLD_BALANCE}""").status.assert().isEqualTo(200)
+
+            // The deposit flips the derived tier: the account leaves the standard callers' view for the gold ones'.
+            eventually { visibleTo("gold") }
+            visibleTo("standard").assert().isFalse()
+            host.context.getBean(InMemoryQueryStorage::class.java).records(ACCOUNT).single()["tags"][TIER]
+                .values().map { it.asString() }.assert().containsExactly("gold")
+        }
+    }
+
+    private fun eventually(condition: () -> Boolean) {
+        val deadline = System.nanoTime() + Duration.ofSeconds(20).toNanos()
+        while (!condition()) {
+            check(System.nanoTime() < deadline) { "The condition did not hold in time." }
+            Thread.sleep(20)
+        }
+    }
+
+    @Test
     fun `wow-query-memory-enabled should serve the snapshots of the memory backend`() {
         startHost("wow.query.memory.enabled" to true).use { host ->
             listOf("mona", "lisa").forEach { host.openAccount(it) }

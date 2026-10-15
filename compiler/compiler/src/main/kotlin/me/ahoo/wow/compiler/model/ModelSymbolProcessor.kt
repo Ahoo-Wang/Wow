@@ -488,6 +488,7 @@ internal class ModelSymbolProcessor(
             snapshot = AggregateRootArguments.snapshot(root),
             stateRevision = AggregateRootArguments.stateRevision(root, problems),
             retiredEvents = retiredEvents,
+            tags = TagsResolver.of(state, problems),
         )
     }
 
@@ -559,8 +560,8 @@ internal class ModelSymbolProcessor(
         commands: List<KSClassDeclaration>,
         events: List<KSClassDeclaration>,
     ): List<String> = (
-        V10Annotations.problemsOfType(root, "aggregate root") +
-            (if (state != root) V10Annotations.problemsOfType(state, "state") else emptyList()) +
+        V10Annotations.problemsOfType(root, "aggregate root", state = state == root) +
+            (if (state != root) V10Annotations.problemsOfType(state, "state", state = true) else emptyList()) +
             commands.distinct().filterNot { it.isFramework() }.flatMap { V10Annotations.problemsOfType(it, "command") } +
             events.distinct().filterNot { it.isFramework() }.flatMap { V10Annotations.problemsOfType(it, "event") }
         ).distinct()
