@@ -19,6 +19,7 @@ import me.ahoo.wow.example.eshop.catalog.api.brand.BrandCreated
 import me.ahoo.wow.example.eshop.catalog.api.brand.BrandRenamed
 import me.ahoo.wow.example.eshop.catalog.api.brand.CreateBrand
 import me.ahoo.wow.example.eshop.catalog.api.brand.RenameBrand
+import me.ahoo.wow.example.eshop.catalog.domain.CatalogNames
 import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 
@@ -45,10 +46,14 @@ class BrandSpec {
             whenCommand(CreateBrand("Contoso")) { expectEventTypes(BrandCreated::class.java) }
             whenCommand(RenameBrand("Contoso")) { expectUnchanged() }
             whenCommand(RenameBrand("contoso")) { expectEvents(BrandRenamed("contoso")) }
+            // A new spelling keeps the key; a new name takes its key and releases the old one.
+            holds(CatalogNames.BRAND_NAMES, "contoso").assert().isTrue()
             whenCommand(RenameBrand("Fabrikam")) {
                 expectEvents(BrandRenamed("Fabrikam"))
                 expectState { name.assert().isEqualTo("Fabrikam") }
             }
+            holds(CatalogNames.BRAND_NAMES, "fabrikam").assert().isTrue()
+            holds(CatalogNames.BRAND_NAMES, "contoso").assert().isFalse()
             whenCommand(RenameBrand("")) { expectRejected(BrandRejections.BLANK_NAME) }
         }
 }

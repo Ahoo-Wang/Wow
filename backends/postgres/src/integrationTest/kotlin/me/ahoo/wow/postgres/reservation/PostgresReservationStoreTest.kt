@@ -31,6 +31,20 @@ class PostgresReservationStoreTest : ReservationStoreSpec() {
     }
 
     @Test
+    fun `a table of an earlier layout or another format is refused`() {
+        // Format 1 had no record: its table must be dropped (decision D59).
+        PostgresFixture.createUnrecorded("reservation_unrecorded")
+        assertThrownBy<IllegalStateException> {
+            PostgresReservationStore(PostgresFixture.dataSource, "reservation_unrecorded").createSchema()
+        }
+        PostgresReservationStore(PostgresFixture.dataSource, "reservation_newer").createSchema()
+        PostgresFixture.bumpFormat("reservation_newer")
+        assertThrownBy<IllegalStateException> {
+            PostgresReservationStore(PostgresFixture.dataSource, "reservation_newer").createSchema()
+        }
+    }
+
+    @Test
     fun `a table name that is not a plain identifier is refused`() {
         assertThrownBy<IllegalArgumentException> { PostgresReservationStore(PostgresFixture.dataSource, "Reserve") }
     }

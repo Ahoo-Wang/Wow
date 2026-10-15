@@ -29,8 +29,9 @@ import me.ahoo.wow.spi.log.Partitioner
  *
  * - [id] is `ref#key@version`, the schedule as the owner's stream at [version] set it ([Timers.idOf]); the command of
  *   each slot is sent with the request id `id#slot` ([requestId]), so sending it again is deduplicated by its target.
- * - [owner] and [key] name the schedule: the aggregate that set it ([Timers.ownerOf]); [version] orders the owner's
- *   changes ([TimerStore]).
+ * - [owner] and [key] name the schedule: the aggregate that set it ([Timers.ownerOf]), compared field by field, never
+ *   by its joined name, so two aggregates whose tenant and id join alike keep their timers apart (finding A2-12);
+ *   [version] orders the owner's changes ([TimerStore]).
  * - [slot] counts the times the schedule is due, from 1: firing a slot marks it fired and moves [dueAt] to the next
  *   one in one write; a rule due once has one slot, after which the timer is FIRED. A recurring rule's slot is the
  *   number of its times since it was set, so slots it [skipped] (missed and coalesced, [me.ahoo.wow.api.schedule.Misfire])
@@ -49,7 +50,7 @@ import me.ahoo.wow.spi.log.Partitioner
  */
 data class Timer(
     val id: String,
-    val owner: String,
+    val owner: AggregateRef,
     val key: String,
     val version: Long,
     val partition: Int,
@@ -71,7 +72,6 @@ data class Timer(
 ) {
     init {
         require(id.isNotBlank()) { "A timer needs an id." }
-        require(owner.isNotBlank()) { "A timer needs an owner." }
         require(key.isNotBlank()) { "A timer needs a key." }
         require(partition >= 0) { "A partition is never negative." }
         require(commandType.isNotBlank()) { "A timer names the type of its command." }
@@ -136,7 +136,7 @@ object Timers {
 
     /** The owner of an aggregate's timers: the aggregate. */
     @JvmStatic
-    fun ownerOf(ref: AggregateRef): String = ref.toString()
+    fun ownerOf(ref: AggregateRef): AggregateRef = ref
 
     /**
      * The timer [set] makes, an event of [stream], in [partitions] log partitions: its first slot due as its rule says

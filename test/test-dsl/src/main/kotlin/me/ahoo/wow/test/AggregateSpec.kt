@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.ReservationTenancy
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.schedule.ScheduleCancelled
 import me.ahoo.wow.api.schedule.ScheduleSet
@@ -37,6 +38,8 @@ import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.reservation.ReservationKey
+import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus
@@ -106,12 +109,13 @@ class AggregateSpec<S : Any>(
     private val log = GivenStateLog(InMemoryEventLog(partitions = 1))
     private var millis = start.toEpochMilli()
     private var given: GivenState? = null
+    private val reservations = InMemoryReservationStore()
     private val kernel = Kernel(
         log,
         codec,
         clock = { millis },
         verifyDecidePurity = true,
-        reservations = InMemoryReservationStore(),
+        reservations = reservations,
         states = GivenStates(),
         ids = SequentialIds(),
     )
@@ -128,6 +132,17 @@ class AggregateSpec<S : Any>(
 
     /** The timers the aggregate keeps (decision D166), in whatever status, by key. */
     fun timer(key: String): Timer? = runBlocking { timers.find(Timers.ownerOf(ref), key) }
+
+    /**
+     * Whether the aggregate holds [key] in [namespace] (decision D38), reserved with [tenancy]: reserved by a command
+     * that committed and not released since ([me.ahoo.wow.api.decide.DecideScope.release]), as a rename releases its
+     * old key.
+     */
+    fun holds(namespace: String, key: String, tenancy: ReservationTenancy = ReservationTenancy.TENANT): Boolean =
+        runBlocking {
+            val scope = ReservationScope.of(ref, ReservationKey(namespace, key, tenancy == ReservationTenancy.SYSTEM))
+            reservations.find(scope, key)?.owner == ref
+        }
 
     /**
      * Moves the time on by [duration], then sends the aggregate each command it scheduled for itself that is due by

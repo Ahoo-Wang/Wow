@@ -37,16 +37,20 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.random.Random
 
 /**
- * The [TimerStore] contract (decisions D166, D198) every backend passes. A backend's test extends it and supplies a
- * store from [createStore]. Stores may share storage: each test uses owners, targets and partitions of its own.
+ * The [TimerStore] contract (decisions D166, D198; finding A2-12) every backend passes. A backend's test extends it
+ * and supplies a store of the bounded context [context] from [createStore]. Stores may share storage: each test uses
+ * owners, targets and partitions of its own.
  */
 abstract class TimerStoreSpec {
     protected abstract fun createStore(): TimerStore
 
+    /** The context of the store [createStore] gives, and so of the aggregates owning its timers. */
+    protected open val context: String = "shop"
+
     private val store: TimerStore by lazy { createStore() }
 
     private val run = UUID.randomUUID().toString()
-    private val owner = "shop.order/tenant/o-$run"
+    private val owner: AggregateRef by lazy { ownerOf("tenant", "o-$run") }
     private val target = AggregateType("shop", "order").ref("tenant", "o-$run")
 
     /** Partitions of this test's own, so [TimerStore.due] sees only its timers in a shared store. */
@@ -57,7 +61,7 @@ abstract class TimerStoreSpec {
         key: String = "pay",
         version: Long = 1,
         dueAt: Long = DUE,
-        owner: String = this.owner,
+        owner: AggregateRef = this.owner,
         target: AggregateRef = this.target,
         partition: Int = this.partition,
         rule: ScheduleRule = ScheduleRule.At(dueAt),
@@ -196,7 +200,8 @@ abstract class TimerStoreSpec {
         val remind = timer(key = "remind", version = 2)
         val fired = timer(key = "fired")
         val later = timer(key = "later", version = 9)
-        val others = timer(owner = "$owner-other")
+        val other = ownerOf("tenant", "o-$run-other")
+        val others = timer(owner = other)
         listOf(pay, remind, fired, later, others).forEach { store.put(it) }
         settle(fired, fired.fired())
         store.cancelAll(owner, 5).assert().isEqualTo(2)
@@ -204,8 +209,30 @@ abstract class TimerStoreSpec {
         store.find(owner, "remind")?.status.assert().isEqualTo(TimerStatus.CANCELLED)
         store.find(owner, "fired")?.status.assert().isEqualTo(TimerStatus.FIRED)
         store.find(owner, "later")?.status.assert().isEqualTo(TimerStatus.PENDING)
-        store.find("$owner-other", "pay")?.status.assert().isEqualTo(TimerStatus.PENDING)
+        store.find(other, "pay")?.status.assert().isEqualTo(TimerStatus.PENDING)
     }
+
+    @Test
+    fun `owners whose tenant and id join alike keep their timers apart`(): Unit = runBlocking {
+        // `t` / `x/y` and `t/x` / `y` both join to `context.order/t/x/y` (finding A2-12).
+        val slashedId = ownerOf("t-$run", "x/y")
+        val slashedTenant = ownerOf("t-$run/x", "y")
+        val first = timer(owner = slashedId, version = 2)
+        val second = timer(owner = slashedTenant, version = 1)
+        store.put(first).assert().isTrue()
+        store.put(second).assert().isTrue()
+        store.find(slashedId, "pay").assert().isEqualTo(first)
+        store.find(slashedTenant, "pay").assert().isEqualTo(second)
+        store.cancel(slashedTenant, "pay", 1).assert().isTrue()
+        store.find(slashedId, "pay")?.status.assert().isEqualTo(TimerStatus.PENDING)
+        store.put(timer(owner = slashedTenant, key = "remind")).assert().isTrue()
+        store.cancelAll(slashedTenant, 9).assert().isEqualTo(1)
+        store.find(slashedId, "pay")?.status.assert().isEqualTo(TimerStatus.PENDING)
+        settle(first, first.fired()).assert().isTrue()
+        store.find(slashedTenant, "pay")?.status.assert().isEqualTo(TimerStatus.CANCELLED)
+    }
+
+    private fun ownerOf(tenant: String, id: String): AggregateRef = AggregateType(context, "order").ref(tenant, id)
 
     @Test
     fun `a change is written only while the timer is as it was loaded`(): Unit = runBlocking {

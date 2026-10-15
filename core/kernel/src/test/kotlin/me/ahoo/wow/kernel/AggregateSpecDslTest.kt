@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.ReservationTenancy
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.test.ForkAssertionError
 import me.ahoo.wow.test.aggregateSpec
@@ -266,6 +267,37 @@ class AggregateSpecDslTest {
                 whenCommand(Open(100)) { }
                 advanceTime(1.minutes) { }
             }
+        }
+    }
+
+    data class Claim(val handle: String, val system: Boolean)
+    data class Claimed(val handle: String, val system: Boolean)
+
+    @Test
+    fun `holds tells which keys the aggregate holds, by tenancy`() {
+        val handles = aggregate<Account>("bank", "handle") {
+            initial { Account(it.id) }
+            decideSuspending<Claim>(Creation.ALLOWED) { _, body ->
+                val tenancy = if (body.system) ReservationTenancy.SYSTEM else ReservationTenancy.TENANT
+                if (!reserve("handle", body.handle, tenancy)) {
+                    Decision.reject("handle.taken", body.handle)
+                } else {
+                    release("handle", "old", tenancy)
+                    Decision.events(Claimed(body.handle, body.system))
+                }
+            }
+            evolve<Claimed> { }
+        }
+        aggregateSpec(handles) {
+            holds("handle", "ahoo").assert().isFalse()
+            whenCommand(Claim("old", system = false)) { expectNoError() }
+            holds("handle", "old").assert().isFalse()
+            whenCommand(Claim("ahoo", system = false)) { expectNoError() }
+            holds("handle", "ahoo").assert().isTrue()
+            holds("handle", "ahoo", ReservationTenancy.SYSTEM).assert().isFalse()
+            whenCommand(Claim("root", system = true)) { expectNoError() }
+            holds("handle", "root", ReservationTenancy.SYSTEM).assert().isTrue()
+            holds("handle", "root").assert().isFalse()
         }
     }
 }

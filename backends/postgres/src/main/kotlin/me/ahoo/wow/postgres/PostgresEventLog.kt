@@ -489,23 +489,45 @@ class PostgresEventLog(
         fun encodeTransport(transport: Transport): String {
             val node = json.createObjectNode()
             transport.wait?.let { wait -> encodeWait(node.putObject(WAIT), wait) }
-            val reservations = node.putArray(RESERVATIONS)
-            transport.reservations.forEach { reservations.addObject().put(NAMESPACE, it.namespace).put(KEY, it.key) }
+            encodeKeys(node.putArray(RESERVATIONS), transport.reservations)
             node.set(TRACE, json.valueToTree(transport.trace))
+            // Added within format 1 (finding A2-4): left out when empty, so an older reader never meets it.
+            if (transport.releases.isNotEmpty()) {
+                encodeKeys(node.putArray(RELEASES), transport.releases)
+            }
             return json.writeValueAsString(node)
+        }
+
+        /** Reserved keys as objects; a system key (added within format 1) is marked, a tenant's is not. */
+        private fun encodeKeys(array: ArrayNode, keys: List<ReservationKey>) {
+            keys.forEach { key ->
+                val node = array.addObject().put(NAMESPACE, key.namespace).put(KEY, key.key)
+                if (key.system) {
+                    node.put(SYSTEM, true)
+                }
+            }
+        }
+
+        private fun decodeKeys(array: JsonNode?): List<ReservationKey> {
+            val keys = ArrayList<ReservationKey>()
+            // ArrayNode has a map member of its own, so iterate rather than map.
+            for (key in array ?: return keys) {
+                keys += ReservationKey(
+                    key.get(NAMESPACE).asString(),
+                    key.get(KEY).asString(),
+                    key.get(SYSTEM)?.asBoolean() ?: false,
+                )
+            }
+            return keys
         }
 
         fun decodeTransport(text: String): Transport {
             val node = json.readTree(text)
-            val reservations = ArrayList<ReservationKey>()
-            // ArrayNode has a map member of its own, so iterate rather than map.
-            for (reservation in node.get(RESERVATIONS)) {
-                reservations += ReservationKey(reservation.get(NAMESPACE).asString(), reservation.get(KEY).asString())
-            }
             return Transport(
                 wait = node.get(WAIT)?.let(::decodeWait),
-                reservations = reservations,
+                reservations = decodeKeys(node.get(RESERVATIONS)),
                 trace = decodeStrings(json.writeValueAsString(node.get(TRACE))),
+                releases = decodeKeys(node.get(RELEASES)),
             )
         }
 
@@ -566,6 +588,8 @@ class PostgresEventLog(
         const val SUBSCRIPTION = "subscription"
         const val DEADLINE = "deadline"
         const val RESERVATIONS = "reservations"
+        const val RELEASES = "releases"
+        const val SYSTEM = "system"
         const val NAMESPACE = "namespace"
         const val KEY = "key"
         const val TRACE = "trace"

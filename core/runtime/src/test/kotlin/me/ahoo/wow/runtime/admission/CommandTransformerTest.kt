@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.ReservationTenancy
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.TransformedFrom
 import me.ahoo.wow.api.result.WaitPlan
@@ -39,6 +40,7 @@ import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.IdGenerators
+import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
@@ -336,15 +338,46 @@ class CommandTransformerTest {
     }
 
     @Test
-    fun `the resolver finds only an aggregate of its type`(): Unit = runBlocking {
-        reservations.reserve(USERNAMES, "frank", "$CONTEXT.other/$TENANT/x", 10.seconds)
-        reservations.reserve(USERNAMES, "grace", "$TYPE/$TENANT/", 10.seconds)
+    fun `the resolver finds only an aggregate of its type in the command's tenant`(): Unit = runBlocking {
+        val scope = ReservationScope(CONTEXT, TENANT, USERNAMES)
+        reservations.reserve(scope, "frank", AggregateType(CONTEXT, "other").ref(TENANT, "x"), "h", 10.seconds)
         val input = CommandInput(changePassword, ChangePassword("frank", "x"), null, emptyMap(), "r", alice)
+        input.tenantId.assert().isEqualTo(TENANT)
         byUsername.transform(input).aggregateId.assert().isNull()
+        // Another tenant's key is not found (finding A1-3); an id with a slash is read as it is (finding A1-10).
+        reservations.reserve(
+            scope.copy(tenantId = "elsewhere"),
+            "grace",
+            TYPE.ref("elsewhere", "acc-9"),
+            "h",
+            10.seconds
+        )
         byUsername.transform(input.copy(body = ChangePassword("grace", "x"))).aggregateId.assert().isNull()
-        val held = reservations.reserve(USERNAMES, "heidi", "$TYPE/$TENANT/acc-1", 10.seconds)
-        held.assert().isNotNull()
-        byUsername.transform(input.copy(body = ChangePassword("heidi", "x"))).aggregateId.assert().isEqualTo("acc-1")
+        reservations.reserve(scope, "heidi", TYPE.ref(TENANT, "acc/1"), "h", 10.seconds).assert().isNotNull()
+        byUsername.transform(input.copy(body = ChangePassword("heidi", "x"))).aggregateId.assert().isEqualTo("acc/1")
+        // The tenant the command runs in, not the caller's.
+        byUsername.transform(input.copy(body = ChangePassword("grace", "x"), tenantId = "elsewhere"))
+            .aggregateId.assert().isEqualTo("acc-9")
+    }
+
+    @Test
+    fun `a system key resolves only to an aggregate of the command's tenant`(): Unit = runBlocking {
+        val system = ReservationScope(CONTEXT, ReservationScope.SYSTEM_TENANT, USERNAMES)
+        val bySystemName = ReservationTargetResolver(
+            changePassword,
+            TYPE,
+            USERNAMES,
+            reservations,
+            ReservationTenancy.SYSTEM
+        ) {
+            (it.body as ChangePassword).username
+        }
+        reservations.reserve(system, "ivan", TYPE.ref(TENANT, "acc-2"), "h", 10.seconds)
+        reservations.reserve(system, "judy", TYPE.ref("elsewhere", "acc-3"), "h", 10.seconds)
+        val input = CommandInput(changePassword, ChangePassword("ivan", "x"), null, emptyMap(), "r", alice)
+        bySystemName.transform(input).aggregateId.assert().isEqualTo("acc-2")
+        bySystemName.transform(input.copy(body = ChangePassword("judy", "x"))).aggregateId.assert().isNull()
+        byUsername.transform(input).aggregateId.assert().isNull()
     }
 
     private fun transformer(input: CommandType, transform: suspend (CommandInput) -> CommandTarget) =

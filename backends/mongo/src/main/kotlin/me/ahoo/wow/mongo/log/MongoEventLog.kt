@@ -523,15 +523,24 @@ class MongoEventLog(
 
     private fun transportDocument(transport: Transport) = Document()
         .apply { transport.wait?.let { append(WAIT, waitDocument(it)) } }
-        .append(RESERVATIONS, transport.reservations.map { Document(NAMESPACE, it.namespace).append(KEY, it.key) })
+        .append(RESERVATIONS, transport.reservations.map(::keyDocument))
         .append(TRACE, Document(transport.trace))
+        // Added within format 1 (finding A2-4): left out when empty, so an older reader never meets it.
+        .apply { if (transport.releases.isNotEmpty()) append(RELEASES, transport.releases.map(::keyDocument)) }
+
+    /** A reserved key; a system key (added within format 1) is marked, a tenant's is not. */
+    private fun keyDocument(key: ReservationKey) = Document(NAMESPACE, key.namespace).append(KEY, key.key)
+        .apply { if (key.system) append(SYSTEM, true) }
+
+    private fun keysOf(documents: List<Document>?) = documents.orEmpty().map {
+        ReservationKey(it.getString(NAMESPACE), it.getString(KEY), it.getBoolean(SYSTEM) ?: false)
+    }
 
     private fun transportOf(document: Document) = Transport(
         wait = document.get(WAIT, Document::class.java)?.let(::waitOf),
-        reservations = document.getList(RESERVATIONS, Document::class.java).map {
-            ReservationKey(it.getString(NAMESPACE), it.getString(KEY))
-        },
+        reservations = keysOf(document.getList(RESERVATIONS, Document::class.java)),
         trace = strings(document.get(TRACE, Document::class.java)),
+        releases = keysOf(document.getList(RELEASES, Document::class.java)),
     )
 
     private fun waitDocument(wait: WaitContext) = Document(WAIT_ID, wait.waitId)
@@ -644,6 +653,8 @@ class MongoEventLog(
         const val SUBSCRIPTION = "subscription"
         const val DEADLINE = "deadline"
         const val RESERVATIONS = "reservations"
+        const val RELEASES = "releases"
+        const val SYSTEM = "system"
         const val NAMESPACE = "namespace"
         const val KEY = "key"
         const val TRACE = "trace"

@@ -18,9 +18,11 @@ import me.ahoo.wow.postgres.PostgresIdentifiers
 /**
  * The timer table of one context, `wow_timer__<context>` (decisions D166, D198), and its statements. The column layout
  * is part of the format, version [FORMAT] (decision D59): format 2 added the rule and the slot, format 3 the slot's due
- * time (`slot_due_at`), kept apart from `due_at`, which a claim or a retry moves.
+ * time (`slot_due_at`), kept apart from `due_at`, which a claim or a retry moves, format 4 the owner in three columns
+ * (`owner_aggregate`, `owner_tenant_id`, `owner_id`; its context is the table's) instead of its joined name (finding
+ * A2-12). The timers are a view rebuilt from the log: a table of format 3 is refused, dropped and rebuilt.
  *
- * One row per timer, keyed by `(owner, key)`; `timer_id` is the timer's id, its command sent with the request id
+ * One row per timer, keyed by its owner and `key`; `timer_id` is the timer's id, its command sent with the request id
  * `timer_id#slot`; the rule is a `jsonb` object (`{type, ...}`, as Wow's JSON writes it) and the slot a counter from 1.
  * The target takes four columns; the body is the command's JSON as text, given back as written; the causation is two
  * nullable columns, both null or both set; the operator (decision D163) is a nullable `jsonb` object, `{id, tenantId,
@@ -38,7 +40,9 @@ internal class PostgresTimerTables(context: String) {
     fun ddl(): List<String> = listOf(
         """
         CREATE TABLE IF NOT EXISTS $table (
-            owner text NOT NULL,
+            owner_aggregate text NOT NULL,
+            owner_tenant_id text NOT NULL,
+            owner_id text NOT NULL,
             key text NOT NULL,
             timer_id text NOT NULL,
             version bigint NOT NULL,
@@ -62,7 +66,7 @@ internal class PostgresTimerTables(context: String) {
             operator jsonb,
             scope jsonb,
             skipped bigint NOT NULL DEFAULT 0,
-            PRIMARY KEY (owner, key)
+            PRIMARY KEY (owner_aggregate, owner_tenant_id, owner_id, key)
         )
         """.trimIndent(),
         // Added within format 3 (decision D198): a table created before it gets it on its next ensure.
@@ -80,9 +84,9 @@ internal class PostgresTimerTables(context: String) {
      * the skipped slots.
      */
     val put = """
-        INSERT INTO $table AS held ($COLUMNS) VALUES (?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb,
-            'PENDING', 0, NULL, ?::jsonb, ?::jsonb, ?, ?)
-        ON CONFLICT (owner, key) DO UPDATE
+        INSERT INTO $table AS held ($COLUMNS) VALUES (?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            ?::jsonb, 'PENDING', 0, NULL, ?::jsonb, ?::jsonb, ?, ?)
+        ON CONFLICT (owner_aggregate, owner_tenant_id, owner_id, key) DO UPDATE
         SET timer_id = excluded.timer_id, version = excluded.version, partition = excluded.partition,
             rule = excluded.rule, slot = excluded.slot, due_at = excluded.due_at, target_context = excluded.target_context,
             target_aggregate = excluded.target_aggregate, target_tenant_id = excluded.target_tenant_id,
@@ -94,15 +98,16 @@ internal class PostgresTimerTables(context: String) {
         WHERE held.timer_id <> excluded.timer_id AND held.version <= excluded.version
     """.trimIndent()
 
-    /** Parameters: version, owner, key, version. */
+    /** Parameters: version, the owner's three columns, key, version. */
     val cancel = "UPDATE $table SET status = 'CANCELLED', version = greatest(version, ?) " +
-        "WHERE owner = ? AND key = ? AND status IN ('PENDING', 'FIRING', 'PARKED') AND version <= ?"
+        "WHERE $OWNER AND key = ? AND status IN ('PENDING', 'FIRING', 'PARKED') AND version <= ?"
 
-    /** Parameters: version, owner, version. */
+    /** Parameters: version, the owner's three columns, version. */
     val cancelAll = "UPDATE $table SET status = 'CANCELLED', version = greatest(version, ?) " +
-        "WHERE owner = ? AND status IN ('PENDING', 'FIRING', 'PARKED') AND version <= ?"
+        "WHERE $OWNER AND status IN ('PENDING', 'FIRING', 'PARKED') AND version <= ?"
 
-    val find = "SELECT $COLUMNS FROM $table WHERE owner = ? AND key = ?"
+    /** Parameters: the owner's three columns, key. */
+    val find = "SELECT $COLUMNS FROM $table WHERE $OWNER AND key = ?"
 
     /** Parameters: the partitions (an `integer[]`), until, limit. */
     val due = "SELECT $COLUMNS FROM $table WHERE partition = ANY(?) AND status IN ('PENDING', 'FIRING') " +
@@ -110,12 +115,12 @@ internal class PostgresTimerTables(context: String) {
         "ORDER BY due_at, timer_id LIMIT ?"
 
     /**
-     * Parameters: the next status, slot, slot's due at, skipped slots, due at, attempts and outcome; then the owner, key,
-     * timer id, status, slot, slot's due at, attempts and due at the row must still hold.
+     * Parameters: the next status, slot, slot's due at, skipped slots, due at, attempts and outcome; then the owner's
+     * three columns, key, timer id, status, slot, slot's due at, attempts and due at the row must still hold.
      */
     val settle = "UPDATE $table SET status = ?, slot = ?, slot_due_at = ?, skipped = ?, due_at = ?, attempts = ?, " +
         "outcome = ? " +
-        "WHERE owner = ? AND key = ? AND timer_id = ? AND status = ? AND slot = ? AND slot_due_at = ? " +
+        "WHERE $OWNER AND key = ? AND timer_id = ? AND status = ? AND slot = ? AND slot_due_at = ? " +
         "AND attempts = ? AND due_at = ?"
 
     /** Parameters: the target's context, aggregate, tenant and id. */
@@ -124,10 +129,11 @@ internal class PostgresTimerTables(context: String) {
 
     companion object {
         /** The version of this layout. */
-        const val FORMAT = 3
+        const val FORMAT = 4
         const val PREFIX = "wow_timer"
+        const val OWNER = "owner_aggregate = ? AND owner_tenant_id = ? AND owner_id = ?"
 
-        const val COLUMNS = "owner, key, timer_id, version, partition, rule, slot, due_at, target_context, target_aggregate, " +
+        const val COLUMNS = "owner_aggregate, owner_tenant_id, owner_id, key, timer_id, version, partition, rule, slot, due_at, target_context, target_aggregate, " +
             "target_tenant_id, target_id, command_type, body, correlation_id, causation_id, headers, status, " +
             "attempts, outcome, operator, scope, slot_due_at, skipped"
     }

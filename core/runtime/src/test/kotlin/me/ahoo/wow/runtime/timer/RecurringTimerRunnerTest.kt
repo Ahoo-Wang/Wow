@@ -83,7 +83,7 @@ class RecurringTimerRunnerTest {
         val due = ScheduleSlots.firstDue(rule, clock.millis())
         return Timer(
             id = "${order("o-1")}#$key@1",
-            owner = order("o-1").toString(),
+            owner = order("o-1"),
             key = key,
             version = 1,
             partition = partition,
@@ -95,7 +95,7 @@ class RecurringTimerRunnerTest {
         )
     }
 
-    private suspend fun held(key: String = "invoice"): Timer = checkNotNull(store.find(order("o-1").toString(), key))
+    private suspend fun held(key: String = "invoice"): Timer = checkNotNull(store.find(order("o-1"), key))
 
     private fun moveTo(text: String) {
         clock.advance((at(text) - clock.millis()).milliseconds)

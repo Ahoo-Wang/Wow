@@ -330,6 +330,7 @@ class CommandGateway @InternalWowApi constructor(
                 request.headers,
                 facts.requestId,
                 request.caller,
+                tenantId,
             )
             val result = transformer.transform(input)
             facts.transformedFrom = TransformedFrom(commandType.name, request.aggregateId)

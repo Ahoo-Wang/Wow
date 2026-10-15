@@ -56,7 +56,7 @@ class ObserverTest {
         val ref = AggregateType("shop", "cart").ref("t", "c-1")
         val stream =
             EventStreamRecord(ref, 1, "c", "r", "shop.cart.Open", 0, listOf(EventRecord("e", 1, "{}")), Scope.NONE)
-        val timer = Timer("i", "o", "k", 1, 0, ScheduleRule.At(0), 0, ref, "shop.cart.Close", "{}")
+        val timer = Timer("i", ref, "k", 1, 0, ScheduleRule.At(0), 0, ref, "shop.cart.Close", "{}")
         val observer = Observer.NONE
         listOf(
             observer.admitting("shop", "cart", "Open", emptyMap()),

@@ -32,7 +32,7 @@ class TimerTest {
 
     private fun timer(slot: Long = 1) = Timer(
         id = "$ref#pay@1",
-        owner = ref.toString(),
+        owner = ref,
         key = "pay",
         version = 1,
         partition = 0,
@@ -71,7 +71,9 @@ class TimerTest {
         TimerChange(timer(), timer().copy(status = TimerStatus.FIRED)).next.status.assert().isEqualTo(TimerStatus.FIRED)
         assertThrownBy<IllegalArgumentException> { TimerChange(timer(), timer().copy(id = "other")) }
         assertThrownBy<IllegalArgumentException> { TimerChange(timer(), timer().copy(key = "other")) }
-        assertThrownBy<IllegalArgumentException> { TimerChange(timer(), timer().copy(owner = "other")) }
+        assertThrownBy<IllegalArgumentException> {
+            TimerChange(timer(), timer().copy(owner = ref.type.ref(ref.tenantId, "other")))
+        }
     }
 
     @Test

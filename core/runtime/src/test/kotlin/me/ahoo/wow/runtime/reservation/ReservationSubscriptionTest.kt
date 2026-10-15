@@ -32,6 +32,8 @@ import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.spi.ledger.FailureLedger
+import me.ahoo.wow.spi.reservation.ConfirmOutcome
+import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import org.junit.jupiter.api.AfterEach
@@ -50,6 +52,7 @@ class ReservationSubscriptionTest {
     data class Registered(val name: String)
     data class Rename(val name: String)
     data class Renamed(val name: String)
+    data class Move(val name: String)
 
     class User {
         var name: String? = null
@@ -64,6 +67,16 @@ class ReservationSubscriptionTest {
             }
         }
         decide<Rename> { _, body -> Decision.events(Renamed(body.name)) }
+        decideSuspending<Move> { state, body ->
+            when {
+                reserve(NAMES, body.name) -> {
+                    state.name?.let { release(NAMES, it) }
+                    Decision.events(Renamed(body.name))
+                }
+
+                else -> Decision.reject("taken", body.name)
+            }
+        }
         evolve<Registered> { name = it.name }
         evolve<Renamed> { name = it.name }
     }
@@ -87,21 +100,30 @@ class ReservationSubscriptionTest {
      * [failing] is set.
      */
     private class RecordingStore(private val delegate: ReservationStore) : ReservationStore by delegate {
-        val confirms = CopyOnWriteArrayList<Pair<String, String>>()
+        val confirms = CopyOnWriteArrayList<Pair<String, AggregateRef>>()
+        val releases = CopyOnWriteArrayList<Pair<String, AggregateRef>>()
 
         @Volatile
         var failing = false
 
-        override suspend fun confirm(namespace: String, key: String, owner: String): Boolean {
+        override suspend fun confirm(scope: ReservationScope, key: String, owner: AggregateRef): ConfirmOutcome {
             confirms += key to owner
             check(!failing) { "The reservation store is down." }
-            return delegate.confirm(namespace, key, owner)
+            return delegate.confirm(scope, key, owner)
+        }
+
+        override suspend fun release(scope: ReservationScope, key: String, owner: AggregateRef): Boolean {
+            releases += key to owner
+            return delegate.release(scope, key, owner)
         }
     }
 
-    /** The kernel's view of the store: its after-append confirmation never happens, as when the node crashed. */
+    /** The kernel's view of the store: its after-append actions never happen, as when the node crashed. */
     private class CrashBeforeConfirm(private val delegate: ReservationStore) : ReservationStore by delegate {
-        override suspend fun confirm(namespace: String, key: String, owner: String): Boolean = true
+        override suspend fun confirm(scope: ReservationScope, key: String, owner: AggregateRef): ConfirmOutcome =
+            ConfirmOutcome.Confirmed
+
+        override suspend fun release(scope: ReservationScope, key: String, owner: AggregateRef): Boolean = true
     }
 
     private val clock = TestClock()
@@ -135,8 +157,10 @@ class ReservationSubscriptionTest {
 
     private suspend fun register(id: String, name: String): CommandOutcome = execute(id, Register(name))
 
+    private suspend fun find(name: String) = reservations.find(SCOPE, name)
+
     private suspend fun confirmedBy(name: String, id: String): Boolean =
-        reservations.find(NAMES, name)?.let { it.confirmed && it.owner == user(id).toString() } == true
+        find(name)?.let { it.confirmed && it.owner == user(id) } == true
 
     @AfterEach
     fun stop(): Unit = runBlocking {
@@ -162,16 +186,16 @@ class ReservationSubscriptionTest {
         confirmedBy("ahoo", "u-1").assert().isTrue()
         register("u-2", "ahoo").assert().isInstanceOf(CommandOutcome.Rejected::class.java)
         // Only the entry that reserved asked the store; the rename and the rejection carried no keys.
-        store.confirms.toList().assert().containsExactly("ahoo" to user("u-1").toString())
+        store.confirms.toList().assert().containsExactly("ahoo" to user("u-1"))
     }
 
     @Test
     fun `a crash between the append and the confirmation is recovered from the log`(): Unit = runBlocking {
         // The node commits and crashes before confirming: the key is left pending, and expires.
         register("u-1", "ahoo").assert().isInstanceOf(CommandOutcome.Committed::class.java)
-        reservations.find(NAMES, "ahoo")!!.confirmed.assert().isFalse()
+        find("ahoo")!!.confirmed.assert().isFalse()
         clock.now += (TTL * 2).inWholeMilliseconds
-        reservations.find(NAMES, "ahoo").assert().isNull()
+        find("ahoo").assert().isNull()
 
         // The partition's next owner reads the entry from its checkpoint and confirms the key, expired or not.
         runtime().start(setOf(0, 1))
@@ -188,7 +212,7 @@ class ReservationSubscriptionTest {
         eventually { confirmedBy("ahoo", "u-1") && confirmedBy("kept", "u-3") }
         first.stop()
         // A saga moved the key: u-1 released it and u-2 holds it now.
-        reservations.release(NAMES, "ahoo", user("u-1").toString()).assert().isTrue()
+        reservations.release(SCOPE, "ahoo", user("u-1")).assert().isTrue()
         register("u-2", "ahoo").assert().isInstanceOf(CommandOutcome.Committed::class.java)
 
         // A new checkpoint replays every entry from the beginning.
@@ -204,11 +228,11 @@ class ReservationSubscriptionTest {
     fun `a key taken after its pending reservation expired stays with whoever took it`(): Unit = runBlocking {
         register("u-1", "ahoo")
         clock.now += (TTL * 2).inWholeMilliseconds
-        reservations.reserve(NAMES, "ahoo", "someone-else", TTL).assert().isNotNull()
+        reservations.reserve(SCOPE, "ahoo", user("someone-else"), "hold", TTL).assert().isNotNull()
 
         runtime().start(setOf(0, 1))
         eventually { store.confirms.isNotEmpty() }
-        reservations.find(NAMES, "ahoo")!!.owner.assert().isEqualTo("someone-else")
+        find("ahoo")!!.owner.assert().isEqualTo(user("someone-else"))
         ledger.isParked(Hop.RESERVATION_SUBSCRIPTION, user("u-1")).assert().isFalse()
     }
 
@@ -220,7 +244,7 @@ class ReservationSubscriptionTest {
             runtime.start(setOf(0, 1))
             register("u-1", "ahoo")
             eventually { ledger.isParked(Hop.RESERVATION_SUBSCRIPTION, user("u-1")) }
-            reservations.find(NAMES, "ahoo")!!.confirmed.assert().isFalse()
+            find("ahoo")!!.confirmed.assert().isFalse()
 
             store.failing = false
             runtime.resume(Hop.RESERVATION_SUBSCRIPTION, user("u-1")).assert().isTrue()
@@ -228,8 +252,40 @@ class ReservationSubscriptionTest {
             ledger.isParked(Hop.RESERVATION_SUBSCRIPTION, user("u-1")).assert().isFalse()
         }
 
+    @Test
+    fun `a release lost to a crash after the append is applied from the log`(): Unit = runBlocking {
+        register("u-1", "old")
+        // The node commits the move and crashes before releasing: the old key is still held.
+        execute("u-1", Move("new")).assert().isInstanceOf(CommandOutcome.Committed::class.java)
+        find("old")?.owner.assert().isEqualTo(user("u-1"))
+
+        runtime().start(setOf(0, 1))
+        eventually { find("old") == null && confirmedBy("new", "u-1") }
+        store.releases.toList().assert().containsExactly("old" to user("u-1"))
+        register("u-2", "old").assert().isInstanceOf(CommandOutcome.Committed::class.java)
+    }
+
+    @Test
+    fun `a replayed release never frees a key another aggregate holds since`(): Unit = runBlocking {
+        register("u-1", "old")
+        execute("u-1", Move("new"))
+        val first = runtime()
+        first.start(setOf(0, 1))
+        eventually { find("old") == null }
+        first.stop()
+        register("u-2", "old").assert().isInstanceOf(CommandOutcome.Committed::class.java)
+
+        store.releases.clear()
+        store.confirms.clear()
+        runtime(InMemoryCheckpointStore()).start(setOf(0, 1))
+        eventually { store.releases.isNotEmpty() && store.confirms.size == 3 }
+        confirmedBy("old", "u-2").assert().isTrue()
+        confirmedBy("new", "u-1").assert().isTrue()
+    }
+
     private companion object {
         const val NAMES = "user.name"
+        val SCOPE = ReservationScope("shop", "t", NAMES)
         val TTL = 1.seconds
     }
 }

@@ -105,7 +105,7 @@ class TimerRunnerTest {
         val dueAt = clock.millis() + dueIn.inWholeMilliseconds
         return Timer(
             id = "${order("o-1")}#$key@1",
-            owner = order("o-1").toString(),
+            owner = order("o-1"),
             key = key,
             version = 1,
             partition = partition,
@@ -117,7 +117,7 @@ class TimerRunnerTest {
         )
     }
 
-    private suspend fun status(key: String): Timer = checkNotNull(store.find(order("o-1").toString(), key))
+    private suspend fun status(key: String): Timer = checkNotNull(store.find(order("o-1"), key))
 
     @Test
     fun `a timer is sent once it is due, and recorded fired with its outcome`(): Unit = runBlocking {
@@ -246,7 +246,7 @@ class TimerRunnerTest {
         // No poll before it is due: the wheel holds the timer as loaded.
         runner(loop = loop(pollInterval = 1.minutes)).startPartition(0)
         eventually { runners.single().loaded(0) == 1 }
-        store.cancel(order("o-1").toString(), "pay", 2).assert().isTrue()
+        store.cancel(order("o-1"), "pay", 2).assert().isTrue()
         clock.advance(500.milliseconds)
         runners.single().partitions.assert().containsExactly(0)
         loops.single().wakeUp()
@@ -365,7 +365,7 @@ class TimerRunnerTest {
             store.put(timer("pay", partition = 3))
             other.put(timer("remind", partition = 2))
             eventually { status("pay").status == TimerStatus.FIRED }
-            eventually { other.find(order("o-1").toString(), "remind")?.status == TimerStatus.FIRED }
+            eventually { other.find(order("o-1"), "remind")?.status == TimerStatus.FIRED }
             val rounds = loop.rounds
             rounds.assert().isGreaterThan(1)
             // Never more than one read of a store per round, each of all the partitions it owns there.

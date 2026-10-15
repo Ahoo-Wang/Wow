@@ -16,12 +16,14 @@ package me.ahoo.wow.mongo.reservation
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.mongo.log.MongoLogFixture
+import me.ahoo.wow.spi.reservation.ConfirmOutcome
+import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.tck.reservation.ReservationStoreSpec
 import org.junit.jupiter.api.Test
 import java.time.Clock
-import kotlin.time.Duration
 
 class MongoReservationStoreTest : ReservationStoreSpec() {
     override fun createStore(clock: Clock): ReservationStore = store("wow_reservation", clock)
@@ -37,19 +39,25 @@ class MongoReservationStoreTest : ReservationStoreSpec() {
     }
 
     @Test
-    fun `a time to live that is not positive is refused`() {
-        val store = store("wow_reservation")
-        assertThrownBy<IllegalArgumentException> {
-            runBlocking { store.reserve("ns-ttl", "alice", "user-1", Duration.ZERO) }
-        }
+    fun `a collection of an earlier layout or another format is refused`() {
+        // Format 1 had no record: its collection must be dropped (decision D59).
+        MongoLogFixture.createUnrecorded("reservation_unrecorded")
+        assertThrownBy<IllegalStateException> { store("reservation_unrecorded") }
+        store("reservation_newer")
+        MongoLogFixture.bumpFormat("reservation_newer")
+        assertThrownBy<IllegalStateException> { store("reservation_newer") }
     }
 
     @Test
-    fun `an owner name that looks like a field path is stored as is`(): Unit = runBlocking {
+    fun `an owner, a key and a hold that look like field paths are stored as they are`(): Unit = runBlocking {
         val store = store("wow_reservation")
-        val namespace = "field-path-" + System.nanoTime()
-        store.reserve(namespace, "alice", "\$owner", TTL)?.owner.assert().isEqualTo("\$owner")
-        store.confirm(namespace, "alice", "\$owner").assert().isTrue()
-        store.reserve(namespace, "alice", "\$owner", TTL)?.confirmed.assert().isEqualTo(true)
+        val scope = ReservationScope("ctx", "\$tenant", "field-path-" + System.nanoTime())
+        val owner = AggregateType("ctx", "\$aggregate").ref("\$tenant.x", "\$id")
+        store.reserve(scope, "\$key", owner, "\$hold", TTL)?.owner.assert().isEqualTo(owner)
+        store.reserve(scope, "\$key", owner, "\$hold.2", TTL)?.holds.assert().isEqualTo(setOf("\$hold", "\$hold.2"))
+        store.abandon(scope, "\$key", owner, "\$hold").assert().isTrue()
+        store.confirm(scope, "\$key", owner).assert().isEqualTo(ConfirmOutcome.Confirmed)
+        store.reserve(scope, "\$key", owner, "\$hold", TTL)?.confirmed.assert().isEqualTo(true)
+        store.find(scope, "\$key")?.owner.assert().isEqualTo(owner)
     }
 }

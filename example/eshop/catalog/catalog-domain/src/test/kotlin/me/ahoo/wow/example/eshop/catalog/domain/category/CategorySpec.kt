@@ -19,6 +19,7 @@ import me.ahoo.wow.example.eshop.catalog.api.category.CategoryCreated
 import me.ahoo.wow.example.eshop.catalog.api.category.CategoryRenamed
 import me.ahoo.wow.example.eshop.catalog.api.category.CreateCategory
 import me.ahoo.wow.example.eshop.catalog.api.category.RenameCategory
+import me.ahoo.wow.example.eshop.catalog.domain.CatalogNames
 import me.ahoo.wow.test.aggregateSpec
 import org.junit.jupiter.api.Test
 
@@ -48,6 +49,10 @@ class CategorySpec {
                 expectEvents(CategoryRenamed("Cups"))
                 expectState { name.assert().isEqualTo("Cups") }
             }
+            holds(CatalogNames.CATEGORY_NAMES, "cups").assert().isTrue()
+            whenCommand(RenameCategory("Plates")) { expectEvents(CategoryRenamed("Plates")) }
+            holds(CatalogNames.CATEGORY_NAMES, "plates").assert().isTrue()
+            holds(CatalogNames.CATEGORY_NAMES, "cups").assert().isFalse()
             whenCommand(RenameCategory(" ")) { expectRejected(CategoryRejections.BLANK_NAME) }
         }
 }

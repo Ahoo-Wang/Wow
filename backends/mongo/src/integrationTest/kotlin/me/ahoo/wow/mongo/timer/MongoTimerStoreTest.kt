@@ -30,6 +30,8 @@ import org.junit.jupiter.api.Test
 class MongoTimerStoreTest : TimerStoreSpec() {
     override fun createStore(): TimerStore = store
 
+    override val context: String = CONTEXT
+
     @Test
     fun `creating the schema twice is harmless`() {
         store("timer-twice").createSchema()
@@ -45,21 +47,21 @@ class MongoTimerStoreTest : TimerStoreSpec() {
     }
 
     @Test
-    fun `a collection of format 2, without the slot's due time, is refused`() {
+    fun `a collection of format 3, its owner a joined name, is refused`() {
         val context = MongoLogFixture.newContext("timer")
         val created = store(context).also { it.createSchema() }
         MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(MongoFormat.COLLECTION)
-            .updateOne(Filters.eq("_id", created.collectionName), Updates.set("version", 2))
+            .updateOne(Filters.eq("_id", created.collectionName), Updates.set("version", 3))
             .matchedCount.assert().isEqualTo(1L)
         assertThrownBy<IllegalStateException> { store(context).createSchema() }
     }
 
     @Test
     fun `a timer written before the skipped count reads as having skipped none`(): Unit = runBlocking {
-        val ref = AggregateType("shop", "order").ref("t", "skipped-${System.nanoTime()}")
+        val ref = AggregateType(CONTEXT, "order").ref("t", "skipped-${System.nanoTime()}")
         val timer = Timer(
             id = "$ref#k@1",
-            owner = ref.toString(),
+            owner = ref,
             key = "k",
             version = 1,
             partition = 0,
@@ -74,7 +76,7 @@ class MongoTimerStoreTest : TimerStoreSpec() {
         store.put(timer).assert().isTrue()
         store.find(timer.owner, "k")?.skipped.assert().isEqualTo(3L)
         MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE).getCollection(store.collectionName)
-            .updateOne(Filters.eq("owner", timer.owner), Updates.unset("skipped"))
+            .updateOne(Filters.eq("owner.id", ref.id), Updates.unset("skipped"))
             .matchedCount.assert().isEqualTo(1L)
         store.find(timer.owner, "k")?.skipped.assert().isEqualTo(0L)
     }
@@ -84,10 +86,25 @@ class MongoTimerStoreTest : TimerStoreSpec() {
         store("Shop.Orders").collectionName.assert().isEqualTo("wow_timer__shop_orders")
     }
 
+    @Test
+    fun `an owner that looks like a field path is stored as it is, and one of another context is refused`(): Unit =
+        runBlocking {
+            val ref = AggregateType(CONTEXT, "\$order").ref("\$t.x", "\$id-${System.nanoTime()}")
+            val timer = Timer("$ref#k@1", ref, "k", 1, 0, ScheduleRule.At(5), 5, ref, "c.order.Cancel", "{}")
+            store.put(timer).assert().isTrue()
+            store.find(ref, "k")?.owner.assert().isEqualTo(ref)
+            val elsewhere = AggregateType("elsewhere", "order").ref("t", "o-1")
+            assertThrownBy<IllegalArgumentException> {
+                runBlocking { store.put(timer.copy(owner = elsewhere, id = "$elsewhere#k@1")) }
+            }
+        }
+
     private companion object {
+        const val CONTEXT = "timer-tck"
+
         fun store(context: String) = MongoTimerStore(MongoLogFixture.client, MongoLogFixture.DATABASE, context)
 
         /** One store for every test: they keep to timers of their own. */
-        val store: MongoTimerStore by lazy { store("timer-tck").also { it.createSchema() } }
+        val store: MongoTimerStore by lazy { store(CONTEXT).also { it.createSchema() } }
     }
 }

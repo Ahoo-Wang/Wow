@@ -51,7 +51,8 @@ class CategoryState {
 
 /**
  * A category of the catalog's products (the classic eShop's catalog type). Its name is unique among the categories,
- * ignoring case and surrounding blanks: the category reserves it (`DecideScope.reserve`) as it takes it.
+ * ignoring case and surrounding blanks: the category reserves it (`DecideScope.reserve`) as it takes it. A rename releases the old name (`DecideScope.release`)
+ * once it commits, so another category may take it then.
  *
  * Like a product, a category belongs to its tenant (`Ownership.TENANT`, decision D189): every shopper reads it.
  */
@@ -65,7 +66,12 @@ class Category(private val state: CategoryState) {
     @OnCommand(produces = [CategoryRenamed::class])
     suspend fun onCommand(command: RenameCategory, scope: DecideScope): Decision {
         if (command.name.trim() == state.name) return Decision.NoOp
-        return take(command.name, scope) ?: Decision.events(CategoryRenamed(command.name.trim()))
+        take(command.name, scope)?.let { return it }
+        // A new spelling of the same name keeps its key.
+        if (CatalogNames.key(command.name) != CatalogNames.key(state.name)) {
+            scope.release(CatalogNames.CATEGORY_NAMES, CatalogNames.key(state.name))
+        }
+        return Decision.events(CategoryRenamed(command.name.trim()))
     }
 
     /** Rejects a blank name or one another category holds; null when this category may take [name]. */
