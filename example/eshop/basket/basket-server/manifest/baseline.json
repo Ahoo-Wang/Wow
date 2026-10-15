@@ -142,7 +142,6 @@
         "processor" : "BasketCheckoutSaga",
         "name" : "onBasketCheckedOut"
       },
-      "derives" : [ "#/$defs/me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder" ],
       "start" : "END"
     } ],
     "published" : [ {
@@ -405,31 +404,6 @@
         }
       },
       "required" : [ "checkouts", "items" ]
-    },
-    "me.ahoo.wow.example.eshop.ordering.api.order.SubmitOrder" : {
-      "type" : "object",
-      "properties" : {
-        "items" : {
-          "type" : "array",
-          "items" : {
-            "type" : "object",
-            "properties" : {
-              "productId" : {
-                "type" : "string"
-              },
-              "quantity" : {
-                "type" : "integer"
-              },
-              "unitPrice" : {
-                "type" : "number"
-              }
-            },
-            "required" : [ "productId", "quantity", "unitPrice" ]
-          }
-        }
-      },
-      "required" : [ "items" ],
-      "description" : "Submit an order"
     },
     "wow.lifecycle.ApplyTags" : {
       "type" : "object",
