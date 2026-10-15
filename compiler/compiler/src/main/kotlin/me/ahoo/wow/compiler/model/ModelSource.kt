@@ -73,7 +73,7 @@ internal object ModelSource {
 
     /**
      * The aggregate's ownership when it is not the default (decision D189), its state revision when it is not 1
-     * (decision D172), then its lifecycle commands when
+     * (decision D172), the events it retired (decision D219), then its lifecycle commands when
      * `@AggregateRoot(lifecycle)` narrows them (decision D91).
      */
     private fun StringBuilder.renderOwnershipAndLifecycle(binding: AggregateBinding) {
@@ -82,6 +82,10 @@ internal object ModelSource {
         }
         if (binding.stateRevision != 1) {
             appendLine("        stateRevision(${binding.stateRevision})")
+        }
+        if (binding.retiredEvents.isNotEmpty()) {
+            val names = binding.retiredEvents.joinToString(", ") { "\"${former(it)}\"" }
+            appendLine("        retired($names)")
         }
         if (binding.narrowsLifecycle) {
             val commands = binding.lifecycle.map { "${Lifecycle.COMMANDS.getValue(it).name}::class.java" }

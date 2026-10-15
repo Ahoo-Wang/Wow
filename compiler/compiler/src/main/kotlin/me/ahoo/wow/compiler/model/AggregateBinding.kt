@@ -57,6 +57,11 @@ internal data class AggregateBinding(
     val snapshot: Boolean = true,
     /** `@AggregateRoot(stateRevision)`: the revision of its state's structure (decision D172), 1 by default. */
     val stateRevision: Int = 1,
+    /**
+     * `@AggregateRoot(retiredEvents)`: the stored names of the events it no longer has (decision D219), as written,
+     * without a dot within the aggregate.
+     */
+    val retiredEvents: List<String> = emptyList(),
 ) {
     /** Whether `@AggregateRoot(lifecycle)` narrows the lifecycle commands, which the generated model then says. */
     val narrowsLifecycle: Boolean get() = lifecycle != ALL_LIFECYCLE_COMMANDS

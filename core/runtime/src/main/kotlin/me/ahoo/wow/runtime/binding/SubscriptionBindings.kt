@@ -137,7 +137,11 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                     context.models,
                     retry = handler.retry
                 ) { entry ->
-                    handleSaga(handler, stateEventOf(entry, context), entry, context, derived, receipts)
+                    if (onlyRetired(entry)) {
+                        HandledEntry.NOTHING
+                    } else {
+                        handleSaga(handler, stateEventOf(entry, context), entry, context, derived, receipts)
+                    }
                 }
             } else {
                 Subscription(
@@ -149,8 +153,10 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
                     handler.kind,
                     retry = handler.retry,
                 ) { entry ->
-                    val event = stateEventOf(entry, context)
-                    call(handler, event, contextOf(handler.kind, name, event, context.ids, context.commandTypes))
+                    if (!onlyRetired(entry)) {
+                        val event = stateEventOf(entry, context)
+                        call(handler, event, contextOf(handler.kind, name, event, context.ids, context.commandTypes))
+                    }
                 }
             }
         }
@@ -335,6 +341,13 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
             val committed = handler.committedHandlerOf(type) != null
             ReplyTo.of(context, execution, committed).takeIf { committed || handler.rejectionHandlerOf(type) != null }
         }
+
+        /**
+         * Whether every event of [entry]'s stream is one its model retired (decision D219): its decoded events are
+         * none. The handler is not called; the entry is acknowledged and the subscription moves past it.
+         */
+        private fun onlyRetired(entry: SubscribedEntry): Boolean =
+            entry.events.isEmpty() && entry.stream.events.isNotEmpty()
 
         /** Calls [handler] with [event] and [context]: on a virtual thread when it is blocking. */
         internal suspend fun call(

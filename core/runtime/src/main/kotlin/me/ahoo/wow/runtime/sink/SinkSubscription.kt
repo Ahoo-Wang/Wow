@@ -77,11 +77,18 @@ internal class SinkSubscription(
     )
 
     private suspend fun write(entry: SubscribedEntry) {
-        sink.write(listOf(recordOf(entry)))
+        recordOf(entry)?.let { sink.write(listOf(it)) }
     }
 
-    /** The record of [entry]. */
-    internal suspend fun recordOf(entry: SubscribedEntry): StateEventRecord {
+    /**
+     * The record of [entry], its events at their current names and revisions without those the model retired
+     * (decision D219); null when every event of the stream is retired: nothing is written, and the sink moves past it.
+     */
+    internal suspend fun recordOf(entry: SubscribedEntry): StateEventRecord? {
+        val events = entry.stream.events.filterNot { model.isRetired(it.name) }
+        if (events.isEmpty()) {
+            return null
+        }
         val stream = entry.stream
         val view = entry.state()
         return StateEventRecord(
@@ -91,7 +98,7 @@ internal class SinkSubscription(
             requestId = stream.requestId,
             commandType = stream.commandType,
             commitTime = stream.commitTime,
-            events = stream.events.map(::payloadOf),
+            events = events.map(::payloadOf),
             state = if (includeState) {
                 StateView(view.version, codec.stateSchemaFingerprint(model), WowJson.mapper.readTree(view.state))
             } else {

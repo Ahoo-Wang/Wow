@@ -53,6 +53,15 @@ import kotlin.reflect.KClass
  * added that the history must compute. The service then rebuilds the stored snapshots from the log in place, in the
  * background, and the Manifest compatibility gate accepts the state schema change. An optional field added or a field
  * removed needs no new revision.
+ *
+ * [retiredEvents] lists the events the aggregate no longer has (decision D219, as 9.x's `DroppedEvent`): delete the
+ * event's class and its sourcing function, and list its name here, so its history still loads. Each is the name the
+ * log stores the event under, as the model named it (its `@Name`, or one of its `@Alias` names when the records hold
+ * that one): a name without a dot is within the aggregate, `context.aggregate.Name` in the log; one with dots is the
+ * full stored name. A record of a retired event is skipped, never read: rebuilding the state applies nothing for it,
+ * though its stream still counts as a version, and a subscription passes over it. A record under a name that is
+ * neither an event's nor retired still fails to read. The compiler rejects a blank name, one listed twice, and one
+ * that is the name or a former name of one of the aggregate's events or commands.
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.ANNOTATION_CLASS)
 @Inherited
@@ -71,4 +80,5 @@ annotation class AggregateRoot(
     val ownership: Ownership = Ownership.OWNER,
     val snapshot: Boolean = true,
     val stateRevision: Int = 1,
+    val retiredEvents: Array<String> = [],
 )

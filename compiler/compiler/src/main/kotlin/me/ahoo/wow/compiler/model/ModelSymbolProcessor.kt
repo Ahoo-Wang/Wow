@@ -463,6 +463,8 @@ internal class ModelSymbolProcessor(
         val upgradeBindings = upgradeBindings(sourcing, problems)
         val mounted = mountedOf(aggregateName, commands, problems)
         val ownership = AggregateRootArguments.ownership(root)
+        val retiredEvents = RetiredEvents.of(root)
+        problems += RetiredEvents.problems(retiredEvents, aggregateName, context(), commands, sourcing, mounted)
         return AggregateBinding(
             root = rootName,
             packageName = root.packageName.asString(),
@@ -485,6 +487,7 @@ internal class ModelSymbolProcessor(
             mounted = mounted,
             snapshot = AggregateRootArguments.snapshot(root),
             stateRevision = AggregateRootArguments.stateRevision(root, problems),
+            retiredEvents = retiredEvents,
         )
     }
 

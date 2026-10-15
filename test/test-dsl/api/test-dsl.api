@@ -10,6 +10,8 @@ public final class me/ahoo/wow/test/AggregateSpec {
 	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun given ([Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;)V
 	public static synthetic fun given$default (Lme/ahoo/wow/test/AggregateSpec;[Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/Scope;ILjava/lang/Object;)V
+	public final fun givenRecords ([Lme/ahoo/wow/spi/log/EventRecord;Lme/ahoo/wow/api/aggregate/Scope;)V
+	public static synthetic fun givenRecords$default (Lme/ahoo/wow/test/AggregateSpec;[Lme/ahoo/wow/spi/log/EventRecord;Lme/ahoo/wow/api/aggregate/Scope;ILjava/lang/Object;)V
 	public final fun givenState (ILme/ahoo/wow/api/aggregate/Scope;Lkotlin/jvm/functions/Function1;)V
 	public final fun givenState (Ljava/lang/Object;ILme/ahoo/wow/api/aggregate/Scope;)V
 	public static synthetic fun givenState$default (Lme/ahoo/wow/test/AggregateSpec;ILme/ahoo/wow/api/aggregate/Scope;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V

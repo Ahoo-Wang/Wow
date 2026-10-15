@@ -35,6 +35,7 @@ import me.ahoo.wow.kernel.memory.InMemoryTimerStore
 import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
@@ -248,6 +249,21 @@ class AggregateSpec<S : Any>(
     fun given(vararg events: Any, scope: Scope? = null) {
         require(events.isNotEmpty()) { "given needs at least one event." }
         steps += { given(*events, scope = scope) }
+        commitGiven(events.map { codec.encode(model, it) }, scope)
+    }
+
+    /**
+     * Commits [records] as one stream, as the log holds them, leaving the aggregate in [scope] as [given] does: a
+     * history the model's classes can no longer write, such as an event the aggregate retired (decision D219), whose
+     * record the kernel skips, or a record of an older revision, read through its upgrades.
+     */
+    fun givenRecords(vararg records: EventRecord, scope: Scope? = null) {
+        require(records.isNotEmpty()) { "givenRecords needs at least one record." }
+        steps += { givenRecords(*records, scope = scope) }
+        commitGiven(records.toList(), scope)
+    }
+
+    private fun commitGiven(records: List<EventRecord>, scope: Scope?) {
         runBlocking {
             val last = log.read(ref).toList().lastOrNull()
             val version = currentVersion() + 1
@@ -258,7 +274,7 @@ class AggregateSpec<S : Any>(
                 requestId = "given-$version",
                 commandType = "${model.type}.Given",
                 commitTime = millis,
-                events = events.map { codec.encode(model, it) },
+                events = records,
                 scope = scope ?: last?.scope ?: given?.scope ?: Scope.NONE,
             )
             check(log.append(stream) is AppendOutcome.Committed) { "Could not commit the given events." }
@@ -308,8 +324,8 @@ class AggregateSpec<S : Any>(
     /** The aggregate's committed state now. */
     internal fun stateOf(): S = currentState(currentVersion())
 
-    /** The events of [stream], one of this aggregate's, decoded. */
-    internal fun decoded(stream: EventStreamRecord): List<Any> = stream.events.map { codec.decode(model, it) }
+    /** The events of [stream], one of this aggregate's, decoded, without those the model retired (D219). */
+    internal fun decoded(stream: EventStreamRecord): List<Any> = codec.decodeEvents(model, stream.events)
 
     private fun send(command: Command<*>): Result<CommandOutcome> {
         steps += { send(command) }

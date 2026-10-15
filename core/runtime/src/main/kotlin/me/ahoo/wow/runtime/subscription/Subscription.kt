@@ -399,20 +399,21 @@ fun interface EntryDecoder {
 
         /**
          * Decodes each event into its class through [codec] and the model of the stream's aggregate among
-         * [models], upgrading older revisions on the way. A stream of an aggregate with no model fails to decode.
+         * [models], upgrading older revisions on the way, and leaves out the events the model retired (decision
+         * D219). A stream of an aggregate with no model fails to decode.
          */
         fun models(models: Collection<AggregateModel<*>>, codec: EventCodec = EventCodec()): EntryDecoder {
             val byType: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
             return EntryDecoder { stream, position, transport ->
                 val model = checkNotNull(byType[stream.ref.type]) { "No model of ${stream.ref.type} to decode with." }
-                SubscribedEntry(stream, position, stream.events.map { codec.decode(model, it) }, transport)
+                SubscribedEntry(stream, position, codec.decodeEvents(model, stream.events), transport)
             }
         }
 
         /**
          * The decoder of the state consumers (design 04 §1, decision D133): each event decoded into its class through
-         * [states]' codec and models, upgraded on the way (unless [decodeEvents] is false: the stored records are
-         * handed over), and the aggregate's state after the stream read through [states] when the handler asks for
+         * [states]' codec and models, upgraded on the way, the events the model retired left out (decision D219;
+         * unless [decodeEvents] is false: the stored records are handed over, all of them), and the aggregate's state after the stream read through [states] when the handler asks for
          * it ([SubscribedEntry.state]): the context's shared view, else the nearest view or snapshot evolved with
          * the log's tail, else the log replayed.
          */
@@ -420,7 +421,7 @@ fun interface EntryDecoder {
             EntryDecoder { stream, position, transport ->
                 val events = if (decodeEvents) {
                     val model = states.modelOf(stream.ref.type)
-                    stream.events.map { states.codec.decode(model, it) }
+                    states.codec.decodeEvents(model, stream.events)
                 } else {
                     stream.events
                 }

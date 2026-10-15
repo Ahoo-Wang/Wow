@@ -81,6 +81,7 @@ class SinkSubscriptionTest {
             }
         }
         alias<Priced>("shop.order.PriceSet")
+        retired(DISCOUNTED)
     }
 
     private val codec = EventCodec()
@@ -162,6 +163,31 @@ class SinkSubscriptionTest {
     }
 
     @Test
+    fun `a retired event should be left out, and a stream of only retired events not written`(): Unit = runBlocking {
+        val discounted = EventRecord(DISCOUNTED, 1, """{"percent":10}""")
+        fun stream(version: Int, vararg events: EventRecord) = EventStreamRecord(
+            ref = ref,
+            version = version,
+            commandId = "c-$version",
+            requestId = "r-$version",
+            commandType = "shop.order.SetPrice",
+            commitTime = version.toLong(),
+            events = events.toList(),
+            scope = Scope.NONE,
+        )
+        val priced = EventRecord("shop.order.Priced", 2, """{"amount":1.20,"currency":"EUR"}""")
+        log.append(stream(1, discounted, priced)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        log.append(stream(2, discounted)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        val sink = sink()
+        log.read(ref).collect { handle(sink, it) }
+        // Decision D219: version 1 without its retired event; version 2, all retired, is passed over.
+        val record = written.single()
+        record.version.assert().isEqualTo(1)
+        record.events.map { it.name }.assert().containsExactly("shop.order.Priced")
+        record.state!!.state.assert().isEqualTo(tree("""{"amount":1.20,"currency":"EUR"}"""))
+    }
+
+    @Test
     fun `a stream published without its state should still carry the deleted mark and tags`(): Unit = runBlocking {
         val sink = sink(includeState = false)
         val tags = mapOf("tier" to listOf("gold"))
@@ -207,5 +233,6 @@ class SinkSubscriptionTest {
 
     private companion object {
         const val NAME = "kafka-sink.order"
+        const val DISCOUNTED = "shop.order.Discounted"
     }
 }
