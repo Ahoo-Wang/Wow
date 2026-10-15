@@ -386,7 +386,8 @@ class WaitCoordinator(
             logger.warn(failure) { "Command ${command.id} on ${command.ref} was not acknowledged on ${topic.topic}." }
             return accepted().failed(
                 ResultCodes.UNKNOWN,
-                "The command topic ${topic.topic} did not acknowledge the command: ${failure.message}",
+                "The command topic did not acknowledge the command; whether it was written is unknown. Retry it " +
+                    "with the same request id.",
             )
         }
         return if (sent == null) {
@@ -524,6 +525,9 @@ class WaitCoordinator(
                 ),
                 cause = failure,
             )
+        }
+        if (outcome is CommandOutcome.Unknown) {
+            logger.warn(outcome.cause) { "Whether command ${command.id} on ${command.ref} committed is unknown." }
         }
         val committed = outcome.toResult(command, function, hop, clock())
         val after = wait?.afterCommitted()?.remaining.orEmpty()

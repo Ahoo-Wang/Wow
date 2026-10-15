@@ -100,6 +100,9 @@ class HttpClusterTest {
         val result = one.deposit(id)
         result.status.assert().isEqualTo(CommandResult.Status.FAILED)
         result.error!!.code.assert().isEqualTo(ResultCodes.UNKNOWN)
+        // Review A3-8: the client learns the conclusion, not the owner's name, its address or the channel's error.
+        result.error!!.message.assert().doesNotContain(two.name).doesNotContain(two.server.address)
+            .doesNotContain("Exception")
         one.decided.assert().isEmpty()
 
         hold.complete(Unit)

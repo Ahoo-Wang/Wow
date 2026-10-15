@@ -143,7 +143,7 @@ class KafkaRouterTest {
         accepted.status.assert().isEqualTo(CommandResult.Status.FAILED)
         accepted.hop.assert().isEqualTo(Hop.accepted(STOCK))
         accepted.error!!.code.assert().isEqualTo(ResultCodes.UNKNOWN)
-        accepted.error!!.message.assert().contains("The broker is down.")
+        accepted.error!!.message.assert().doesNotContain("The broker is down.").contains("same request id")
         val waited = node.gateway.execute(reserve("i-4", wait = WaitPlan.COMMITTED.within(10.seconds)))
         waited.status.assert().isEqualTo(CommandResult.Status.FAILED)
         waited.hop.assert().isEqualTo(Hop.accepted(STOCK))

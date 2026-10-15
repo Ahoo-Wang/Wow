@@ -101,7 +101,7 @@ class DerivedCommandsTest {
             .exceptionOrNull()!!
         unknown.message.assert().isEqualTo(
             "The derived command c-2 on shop.cart/t/alice failed: wow.command.unknown Whether the command committed " +
-                "is unknown: The log is gone.",
+                "is unknown; retrying it with the same request id is safe.",
         )
         unknown.cause!!.message.assert().isEqualTo("The log is gone.")
         answer = AppendOutcome.Conflict(5)
