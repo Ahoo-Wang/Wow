@@ -47,11 +47,12 @@ const PACKAGE = 'package';
 const MIXED_VERSION = 'mixedVersion';
 // v10.yml (v10 branch): `-Pwow.scope=v10 v10Check` and the V10 integration
 // tests. Not a TypeScript scope. Decided apart from RULES, by V10_PATH: the
-// V10 modules, their tests and spikes, the V10 example, the platform they
-// import, and the root build and Gradle configuration every module reads.
+// V10 modules, their tests and spikes, the V10 examples (the eShop and the
+// quickstart, with the quickstart pages its test keeps in step), the platform
+// they import, and the root build and Gradle configuration every module reads.
 const V10 = 'v10';
 const V10_PATH =
-  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|kernel-benchmarks|routing-spike|lease-spike|test-dsl|tck|tck-containers)|example\/eshop|wow-dependencies|gradle|build-logic|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/v10\.yml$)/;
+  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|kernel-benchmarks|routing-spike|lease-spike|test-dsl|tck|tck-containers)|example\/(?:eshop|quickstart)|wow-dependencies|gradle|build-logic|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|documentation\/docs\/(?:en|zh)\/guide\/v10\/quickstart\.md$|\.github\/workflows\/v10\.yml$)/;
 // typescript-contract.yml (v10 branch): `test:v10` of integration-test, the
 // V10 store (`@ahoo-wang/wow-view-store/v10`) and the view engine on it
 // against the V10 view store service (platform/view-store) built from this
@@ -178,9 +179,10 @@ const RULES = [
     /^test\/(?:wow-it\/|wow-tck\/src\/main\/kotlin\/me\/ahoo\/wow\/tck\/container\/)/,
     [MIXED_VERSION],
   ],
-  // The V10 example, the eShop, and its end-to-end tests (v10 branch): the
-  // 9.x example server the same-source contract runs does not build on them.
-  [/^example\/eshop\//, []],
+  // The V10 examples, the eShop and its end-to-end tests, and the quickstart
+  // (v10 branch): the 9.x example server the same-source contract runs does
+  // not build on them.
+  [/^example\/(?:eshop|quickstart)\//, []],
   // Sources and build of the example server the same-source contract runs:
   // every project on its runtime classpath, plus the Gradle build.
   [

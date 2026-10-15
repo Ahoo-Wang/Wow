@@ -47,6 +47,7 @@ on:
       - '!test/tck/**'
       - '!test/tck-containers/**'
       - '!example/eshop/**'
+      - '!example/quickstart/**'
   pull_request:
     paths:
       - '.github/workflows/local-test.yml'
@@ -78,6 +79,7 @@ on:
       - '!test/tck/**'
       - '!test/tck-containers/**'
       - '!example/eshop/**'
+      - '!example/quickstart/**'
   # v10-nightly.yml dispatches it on v10 every night: v10.yml checks the V10 modules there, and this the 9.x ones.
   workflow_dispatch:
 concurrency:
