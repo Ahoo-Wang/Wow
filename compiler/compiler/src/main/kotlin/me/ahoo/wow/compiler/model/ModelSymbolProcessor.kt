@@ -802,8 +802,17 @@ internal class ModelSymbolProcessor(
         annotation: String,
     ): List<KSFunctionDeclaration> = getAllFunctions()
         // Not only public: 9.x found package-private Java handlers too, and the generated model shares their package.
-        .filter { !it.isPrivate() && (it.simpleName.asString() == conventionalName || it.hasAnnotation(annotation)) }
+        .filter { !it.isPrivate() && (it.simpleName.asString() == conventionalName || it.isAnnotatedOrOverrides(annotation)) }
         .toList()
+
+    /**
+     * Whether this function, or one it overrides, carries [annotation]. Inherited handlers bind with the type
+     * arguments the root or state gives its superclass, a library's included (work package P.8: a reusable aggregate
+     * such as wow-models' `Tree`); an annotation is not inherited by an override, so an override that leaves it out
+     * still overrides a handler instead of silently dropping it.
+     */
+    private fun KSFunctionDeclaration.isAnnotatedOrOverrides(annotation: String): Boolean =
+        generateSequence(this) { it.findOverridee() as? KSFunctionDeclaration }.any { it.hasAnnotation(annotation) }
 
     /** The JVM binary name of this class: `a.b.Outer$Inner` for a nested class. */
     private fun KSAnnotated.hasAnnotation(qualifiedName: String): Boolean = annotations.any {

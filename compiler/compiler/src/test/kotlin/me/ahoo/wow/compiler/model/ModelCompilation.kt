@@ -36,6 +36,30 @@ fun compileModel(
 ): Pair<KotlinCompilation, JvmCompilationResult> = compileModel(mode, options, null, *sources)
 
 /**
+ * Compiles [sources] as a library of their own, without the model processor, and gives the directory of its classes:
+ * a jar a domain module depends on, whose declarations the processor reads from the class path, not from sources.
+ */
+@OptIn(ExperimentalCompilerApi::class)
+fun compileLibrary(vararg sources: SourceFile): File {
+    val compilation = KotlinCompilation().apply {
+        inheritClassPath = true
+        this.sources = sources.toList()
+        jvmTarget = "21"
+    }
+    val result = compilation.compile()
+    check(result.exitCode == KotlinCompilation.ExitCode.OK) { result.messages }
+    return result.outputDirectory
+}
+
+/** Compiles [sources] as [compileModel] does, with the [libraries] (directories of classes) on the class path. */
+@OptIn(ExperimentalCompilerApi::class)
+fun compileModelAgainst(
+    mode: String,
+    libraries: List<File>,
+    vararg sources: SourceFile,
+): Pair<KotlinCompilation, JvmCompilationResult> = compileModel(mode, emptyMap(), null, libraries, *sources)
+
+/**
  * Compiles [sources] as [compileModel] does; when [onClasspath] is given, against only the test's class path entries
  * it keeps: a module without some dependency.
  */
@@ -45,12 +69,22 @@ fun compileModel(
     options: Map<String, String>,
     onClasspath: ((File) -> Boolean)?,
     vararg sources: SourceFile,
+): Pair<KotlinCompilation, JvmCompilationResult> = compileModel(mode, options, onClasspath, emptyList(), *sources)
+
+@OptIn(ExperimentalCompilerApi::class)
+private fun compileModel(
+    mode: String,
+    options: Map<String, String>,
+    onClasspath: ((File) -> Boolean)?,
+    libraries: List<File>,
+    vararg sources: SourceFile,
 ): Pair<KotlinCompilation, JvmCompilationResult> {
     val compilation = KotlinCompilation().apply {
         inheritClassPath = onClasspath == null
         if (onClasspath != null) {
             classpaths = System.getProperty("java.class.path").split(File.pathSeparator).map(::File).filter(onClasspath)
         }
+        classpaths = classpaths + libraries
         this.sources = sources.toList() + NineXStubs.SOURCES
         configureKsp {
             symbolProcessorProviders += ModelSymbolProcessorProvider()
