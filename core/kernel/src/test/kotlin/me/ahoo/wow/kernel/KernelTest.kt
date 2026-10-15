@@ -383,6 +383,22 @@ class KernelTest {
     }
 
     @Test
+    fun `a duplicate the backend reports of another append of the request stays a duplicate`() = runTest {
+        val log = InMemoryEventLog()
+        Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
+        // The request's earlier append committed the slot at another time: this attempt is its duplicate.
+        val earlier = object : EventLog by log {
+            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+                val committed = stream.copy(commitTime = stream.commitTime - 1)
+                log.append(committed, transport)
+                return AppendOutcome.AlreadyCommitted(committed)
+            }
+        }
+        Kernel(earlier).execute(cartModel, command(AddItem("apple", 1)))
+            .assert().isInstanceOf(CommandOutcome.AlreadyCommitted::class.java)
+    }
+
+    @Test
     fun `a duplicate of this very append whose position cannot be read is unknown`() = runTest {
         val log = InMemoryEventLog()
         Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
