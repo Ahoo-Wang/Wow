@@ -438,6 +438,7 @@ tasks.register("v10IntegrationTest") {
 // release's preflight). Without it, `v10PublicationCheck` signs the V10 publications with a throwaway key it generates
 // (GnuPG, in a home of its own), so a pull request, which has no key, checks the signatures a release publishes too.
 val requireV10Signatures = providers.gradleProperty("wow.publication.signed").orNull.toBoolean()
+val prebuiltPublication = providers.gradleProperty("wow.publication.prebuilt").orNull.toBoolean()
 val v10PublicationProjects = v10ReleaseProjects + dependenciesProject
 
 fun runProcess(command: List<String>, stdin: String? = null): String {
@@ -570,8 +571,12 @@ configure(publishProjects) {
             val signingPassword = System.getenv("SIGNING_PASSWORD")
             useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
         }
+        // A signature artifact of a publication is published only while its Sign task is required or has a signatory
+        // (the signing plugin's `shouldBePublished`). The deploy jobs (`-Pwow.publication.prebuilt=true`) have no key
+        // and leave the Sign tasks out (settings.gradle.kts), so they require the signatures: the publications then
+        // upload the `.asc` files the preflight made beside the files it signed, and a missing one fails the publish.
         if (v10Publication) {
-            isRequired = requireV10Signatures || v10ThrowawaySigningKey != null
+            isRequired = requireV10Signatures || v10ThrowawaySigningKey != null || prebuiltPublication
         }
         sign(extensions.getByType(PublishingExtension::class).publications)
     }
