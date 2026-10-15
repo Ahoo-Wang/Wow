@@ -17,10 +17,14 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryReservationStore
+import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
 import org.junit.jupiter.api.Test
@@ -92,6 +96,43 @@ class KernelReservationTest {
         // The first attempt reserved the key pending; the second found it confirmed and had nothing to confirm.
         entries[0].transport.assert().isEqualTo(Transport(reservations = listOf(ReservationKey(NAMES, "ahoo"))))
         entries[1].transport.assert().isNull()
+    }
+
+    @Test
+    fun `an unknown append the version slot shows committed confirms its key and compensates nothing`() = runTest {
+        // Finding A1-1: the backend commits, then reports the outcome unknown (a timeout after the write).
+        val unknownAfterCommit = object : EventLog by log {
+            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+                log.append(stream, transport)
+                return AppendOutcome.Unknown(IllegalStateException("timed out"))
+            }
+        }
+        val trail = mutableListOf<String>()
+        val hooked = aggregate<User>("test", "user") {
+            initial { User(it.id) }
+            decideSuspending<Register>(Creation.ALLOWED) { _, body ->
+                reserve(NAMES, body.name)
+                onAppendFailure { trail += "compensated" }
+                afterAppend { trail += "after" }
+                Decision.events(Registered(body.name))
+            }
+            evolve<Registered> { name = it.name }
+        }
+        val cached = HashMap<AggregateRef, CachedState>()
+        val states = object : StateCache {
+            override fun take(ref: AggregateRef): CachedState? = cached.remove(ref)
+
+            override fun put(ref: AggregateRef, state: CachedState) {
+                cached[ref] = state
+            }
+        }
+        val kernel = Kernel(unknownAfterCommit, reservations = reservations, states = states)
+        val outcome = kernel.execute(hooked, Command("c-1", "r-1", model.type.ref("t", "u-1"), Register("ahoo")))
+
+        outcome.assert().isInstanceOf(CommandOutcome.Committed::class.java)
+        reservations.find(NAMES, "ahoo")!!.confirmed.assert().isTrue()
+        trail.assert().containsExactly("after")
+        states.take(model.type.ref("t", "u-1"))!!.version.assert().isEqualTo(1)
     }
 
     private companion object {

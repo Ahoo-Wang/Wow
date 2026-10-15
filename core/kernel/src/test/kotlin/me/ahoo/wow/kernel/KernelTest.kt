@@ -28,6 +28,8 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.LogEntry
+import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Transport
 import org.junit.jupiter.api.Test
 
@@ -343,7 +345,77 @@ class KernelTest {
         val log = InMemoryEventLog()
         Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
         val outcome = Kernel(UnknownLog(log, commit = true)).execute(cartModel, command(AddItem("apple", 1)))
-        outcome.assert().isInstanceOf(CommandOutcome.AlreadyCommitted::class.java)
+        // The slot holds this very append: a commit, not a duplicate (finding A1-1).
+        val committed = outcome as CommandOutcome.Committed
+        committed.stream.version.assert().isEqualTo(2)
+        committed.position.assert().isEqualTo(log.positionOf(ref, 2))
+        (committed.state as CartState).items.assert().containsEntry("apple", 1)
+    }
+
+    @Test
+    fun `an unknown append whose slot holds another command of the request is a duplicate`() = runTest {
+        val log = InMemoryEventLog()
+        Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
+        // Another command carrying the same request id commits the slot first, say the caller's retry elsewhere.
+        val racing = object : EventLog by log {
+            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+                log.append(stream.copy(commandId = "elsewhere"), transport)
+                return AppendOutcome.Unknown(IllegalStateException("timeout"))
+            }
+        }
+        val outcome = Kernel(racing).execute(cartModel, command(AddItem("apple", 1))) as CommandOutcome.AlreadyCommitted
+        outcome.stream.commandId.assert().isEqualTo("elsewhere")
+    }
+
+    @Test
+    fun `a duplicate the backend reports of this very append is its commit`() = runTest {
+        val log = InMemoryEventLog()
+        Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
+        // The backend retried the append internally: its second try met the stream its first one committed.
+        val retrying = object : EventLog by log {
+            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+                log.append(stream, transport)
+                return log.append(stream, transport)
+            }
+        }
+        val committed = Kernel(retrying).execute(cartModel, command(AddItem("apple", 1))) as CommandOutcome.Committed
+        committed.position.assert().isEqualTo(log.positionOf(ref, 2))
+    }
+
+    @Test
+    fun `a duplicate of this very append whose position cannot be read is unknown`() = runTest {
+        val log = InMemoryEventLog()
+        Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
+        var failing = true
+        val retrying = object : EventLog by log {
+            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+                log.append(stream, transport)
+                return log.append(stream, transport)
+            }
+
+            override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? =
+                if (failing) throw IllegalStateException("down") else null
+        }
+        val failed = Kernel(retrying).execute(cartModel, command(AddItem("apple", 1))) as CommandOutcome.Unknown
+        failed.cause.message.assert().isEqualTo("down")
+        failing = false
+        val missing = Kernel(retrying).execute(cartModel, command(AddItem("pear", 1))) as CommandOutcome.Unknown
+        missing.cause.message.assert().contains("without a position")
+    }
+
+    @Test
+    fun `an unknown append whose slot cannot be read stays unknown`() = runTest {
+        val log = InMemoryEventLog()
+        Kernel(log).execute(cartModel, command(CreateCart("ahoo")))
+        val unreadable = object : EventLog by log {
+            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+                AppendOutcome.Unknown(IllegalStateException("timeout"))
+
+            override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
+                throw IllegalStateException("down")
+        }
+        val unknown = Kernel(unreadable).execute(cartModel, command(AddItem("apple", 1))) as CommandOutcome.Unknown
+        unknown.cause.suppressed.single().message.assert().isEqualTo("down")
     }
 
     @Test
@@ -380,5 +452,8 @@ class KernelTest {
 
         override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> =
             log.read(ref, fromVersion, toVersion)
+
+        override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> =
+            log.readEntries(ref, fromVersion, toVersion)
     }
 }

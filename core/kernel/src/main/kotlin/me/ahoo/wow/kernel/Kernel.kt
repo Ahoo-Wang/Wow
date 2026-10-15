@@ -359,29 +359,65 @@ class Kernel(
     }
 
     /**
-     * Appends [stream] with [transport]; when the outcome is unknown, reads the version slot it targeted, which only
-     * one stream can ever hold (the 9.3 rule): ours means committed, another means a conflict, none stays unknown.
+     * Appends [stream] with [transport]. An outcome that names this very append (the same command, request and commit
+     * time at the same version) is this append committed: when the outcome is unknown, the version slot it targeted,
+     * which only one stream can ever hold (the 9.3 rule), decides it (ours means committed, another stream of the
+     * request a duplicate, another request a conflict, none stays unknown); and a duplicate the backend reports may be
+     * its own retry of this append. Treating either as a duplicate would compensate what is a fact (finding A1-1).
      */
-    private suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
-        val outcome = log.append(stream, transport)
-        if (outcome !is AppendOutcome.Unknown) {
-            return outcome
+    private suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+        when (val outcome = log.append(stream, transport)) {
+            is AppendOutcome.Unknown -> settleUnknown(stream, outcome)
+            is AppendOutcome.AlreadyCommitted ->
+                if (outcome.existing.isAppendOf(stream)) committedAt(stream, outcome) else outcome
+
+            else -> outcome
         }
+
+    /** Reads the version slot an [unknown] append of [stream] targeted; a failing read leaves it unknown. */
+    private suspend fun settleUnknown(stream: EventStreamRecord, unknown: AppendOutcome.Unknown): AppendOutcome {
         val slot = try {
-            log.read(stream.ref, stream.version, stream.version).firstOrNull()
+            log.readEntries(stream.ref, stream.version, stream.version).firstOrNull()
         } catch (
             @Suppress("TooGenericExceptionCaught") // Whatever stops the read, the outcome stays unknown.
             failure: Exception,
         ) {
-            outcome.cause.addSuppressed(failure)
-            return outcome
+            unknown.cause.addSuppressed(failure)
+            return unknown
         }
         return when {
-            slot == null -> outcome
-            slot.requestId == stream.requestId -> AppendOutcome.AlreadyCommitted(slot)
+            slot == null -> unknown
+            slot.stream.isAppendOf(stream) -> AppendOutcome.Committed(slot.position)
+            slot.stream.requestId == stream.requestId -> AppendOutcome.AlreadyCommitted(slot.stream)
             else -> AppendOutcome.Conflict(stream.version)
         }
     }
+
+    /**
+     * [stream], which the backend reported [duplicate] of itself, committed at its position. Committed it is, so it is
+     * never compensated: when its position cannot be read, the outcome is unknown, which compensates nothing either.
+     */
+    private suspend fun committedAt(stream: EventStreamRecord, duplicate: AppendOutcome.AlreadyCommitted): AppendOutcome {
+        val position = try {
+            log.positionOf(stream.ref, stream.version)
+        } catch (
+            @Suppress("TooGenericExceptionCaught") // Whatever stops the read, the commit stands; its outcome is unknown.
+            failure: Exception,
+        ) {
+            return AppendOutcome.Unknown(failure)
+        }
+        return position?.let { AppendOutcome.Committed(it) } ?: AppendOutcome.Unknown(
+            IllegalStateException("${stream.ref}@${stream.version} is committed (${duplicate.existing.commandId}) without a position."),
+        )
+    }
+
+    /** Whether this committed stream is the append of [stream] itself, not another append of its request. */
+    private fun EventStreamRecord.isAppendOf(stream: EventStreamRecord): Boolean =
+        ref == stream.ref &&
+            version == stream.version &&
+            commandId == stream.commandId &&
+            requestId == stream.requestId &&
+            commitTime == stream.commitTime
 
     /**
      * The aggregate's committed state, version and scope: cached, else from its snapshot and tail, else replayed; and
