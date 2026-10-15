@@ -23,9 +23,13 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.json.QueryJson
+import me.ahoo.wow.runtime.admission.CommandInput
+import me.ahoo.wow.runtime.admission.CommandTarget
+import me.ahoo.wow.runtime.admission.CommandTransformer
 import org.junit.jupiter.api.Test
 import org.springframework.http.MediaType
 import org.springframework.http.server.reactive.ReactorHttpHandlerAdapter
@@ -112,5 +116,36 @@ class StreamCancellationTest {
             first.assert().contains("first")
             ended(listEnded).assert().isInstanceOf(CancellationException::class.java)
         }
+    }
+
+    @Test
+    fun `a client that leaves a command stream before its first result cancels the command's admission`() {
+        val started = CompletableDeferred<Unit>()
+        val cancelled = CompletableDeferred<Throwable?>()
+        val slow = object : CommandTransformer {
+            override val input: CommandType = CommandType("$CONTEXT.cart.AddItem", AddItem::class.java)
+
+            override suspend fun transform(input: CommandInput): CommandTarget {
+                started.complete(Unit)
+                try {
+                    delay(30.seconds)
+                } catch (cancellation: CancellationException) {
+                    cancelled.complete(cancellation)
+                    throw cancellation
+                }
+                return CommandTarget(this.input, input.aggregateId, input.body)
+            }
+        }
+        val node = HttpNode(transformers = listOf(slow))
+        serving(node.routes) { client ->
+            val left = runCatching {
+                client.stream("/shop/cart/c-1/add-item", """{"sku":"apple"}""")
+                    .timeout(Duration.ofMillis(500)).blockFirst()
+            }
+            left.isFailure.assert().isTrue()
+            runBlocking { withTimeout(10.seconds) { started.await() } }
+            ended(cancelled).assert().isInstanceOf(CancellationException::class.java)
+        }
+        node.commands.assert().isEmpty()
     }
 }
