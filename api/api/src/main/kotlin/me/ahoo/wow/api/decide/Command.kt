@@ -24,8 +24,9 @@ import me.ahoo.wow.api.schedule.ScheduleContext
  * An admitted command: who it targets and what it asks, with every fact decided once at admission and read-only
  * afterwards.
  *
- * [requestId] makes the command idempotent within its tenant: a second command with the same request id is never
- * decided again. [expectedVersion], when set, is the version the caller believes the aggregate is at.
+ * [requestId] makes the command idempotent within its tenant and aggregate type (decision D162): a second command with
+ * the same request id, to an aggregate of the same type, is never decided again; one to an aggregate of another type
+ * is another request. [expectedVersion], when set, is the version the caller believes the aggregate is at.
  *
  * [scope] and [headers] are what admission learned about the request: the caller's owner and space (from the
  * principal, design 05 §1; decision D56) and the request facts it chose to carry, such as the calling application. A
