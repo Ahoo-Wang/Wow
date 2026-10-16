@@ -20,7 +20,9 @@ data class NineXEventType(val name: String, val revision: String) {
 
 /**
  * What the 9.x store holds of [aggregate], found by scanning it: how many [streams], the [events] of each type and the
- * [commands] of each name (the number of streams each produced), and how many streams record no command name.
+ * [commands] of each name (the number of streams each produced), how many streams record no command name, and
+ * [streamEventTypes]: the number of streams by the set of event types each holds, which tells the streams a mapping
+ * would leave empty.
  */
 data class NineXInventory(
     val aggregate: NineXAggregate,
@@ -28,6 +30,7 @@ data class NineXInventory(
     val events: Map<NineXEventType, Long>,
     val commands: Map<String, Long>,
     val streamsWithoutCommand: Long = 0,
+    val streamEventTypes: Map<Set<NineXEventType>, Long> = emptyMap(),
 )
 
 /**
@@ -65,8 +68,10 @@ data class MappingReport(
  * §1 principle 5), before anything is imported:
  *
  * - every 9.x aggregate the store holds is mapped, and to a V10 aggregate type of the Manifest, no two to the same;
- * - every 9.x event (name and revision) the store holds has a mapping, which drops it or names a V10 event the
- *   Manifest reads at the mapped revision (its current revision or an older one its upgrades read);
+ * - every 9.x event (name and revision) the store holds has a mapping, which drops it, retires it under a name the
+ *   aggregate retired, or names a V10 event the Manifest reads at the mapped revision (its current revision or an
+ *   older one its upgrades read);
+ * - no stream holds only dropped events, which would leave its version empty (map them with `retire` instead);
  * - every 9.x command name the store records maps to a V10 command of the aggregate, and streams that record none
  *   have a default command;
  * - every mapping target is in the Manifest, whether or not the store uses it.
@@ -109,7 +114,9 @@ class MappingCheck(private val plan: MigrationPlan) {
         val commands = (mapping.commands.map { it.to } + listOfNotNull(mapping.defaultCommand))
             .mapNotNull { aggregate.commandProblem(it) }
         val events = mapping.events.mapNotNull { event ->
-            event.to?.let { aggregate.eventProblem(it, event.toRevision) }?.let { "${event.from}: $it" }
+            event.to?.let {
+                if (event.retire) aggregate.retiredProblem(it) else aggregate.eventProblem(it, event.toRevision)
+            }?.let { "${event.from}: $it" }
         }
         return duplicates + (commands + events).map { "$subject: $it" }
     }
@@ -131,6 +138,16 @@ class MappingCheck(private val plan: MigrationPlan) {
                 problems += "$subject: the 9.x command $name ($count streams) has no mapping"
             }
         }
+        // A stream whose every event is dropped cannot be imported: its version would be empty (finding A4-7).
+        inventory.streamEventTypes
+            .filterKeys { types ->
+                types.isNotEmpty() && types.all { aggregate.eventOf(it.name, it.revision)?.drop == true }
+            }
+            .forEach { (types, count) ->
+                problems += "$subject: $count streams hold only the dropped events " +
+                    "${types.map { it.toString() }.sorted()}, so their versions would be empty: map them with " +
+                    "retire to a name in the aggregate's retiredEvents"
+            }
         if (inventory.streamsWithoutCommand > 0 && aggregate.commandTypeOf(null) == null) {
             problems += "$subject: ${inventory.streamsWithoutCommand} streams record no command and there is no " +
                 "defaultCommand"

@@ -56,6 +56,18 @@ The format is described in `MigrationMap`. Roadmap 8b.2 adds an optional `state`
 - `fields` renames top-level fields of the 9.x state to their V10 names.
 - `ignore` leaves fields out on both sides, by their V10 name; a dotted path goes into objects and through arrays. Use it only for a field one side has by design, which is an explained difference.
 
+## Retired and dropped events
+
+A 9.x event the V10 aggregate no longer has (the 9.x `DroppedEvent`) is mapped in one of two ways:
+
+```json
+{ "from": "order_archived", "to": "OrderArchived", "retire": true },
+{ "from": "order_noted", "drop": true }
+```
+
+- `retire` writes the record as stored under the name `to`, which the V10 aggregate lists in `@AggregateRoot(retiredEvents)` (decision D219). Loading skips it, so its stream still counts as a version. The check fails when `to` is not in the aggregate's retired events in the Manifest.
+- `drop` leaves the event out of its stream. A stream whose every event is dropped would leave its version empty, which the log cannot hold, so the check counts those streams and fails before anything is imported. Map such events with `retire` instead.
+
 ## Comparing states
 
 `compare` reads `<aggregate>_snapshot`, one document per instance, in aggregate id order, a page at a time. For each 9.x snapshot it replays the V10 log up to the snapshot's version and compares:
@@ -84,6 +96,5 @@ The checkpoint file (format 1) keeps, per 9.x aggregate, where the import, the t
 
 - Only a 9.x MongoDB store is read (D213). A 9.x Redis store must be moved to MongoDB first.
 - A derived command's stream records only the chain's root as its cause, since 9.x keeps only the root.
-- A stream whose events are all dropped is refused until V10 has a retired-event marker (roadmap P.6).
 - An instance without a 9.x snapshot cannot be compared; the report gives the share that can.
 - Ids that collide across tenants are not reported yet.

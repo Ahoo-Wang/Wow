@@ -35,7 +35,8 @@ import tools.jackson.databind.json.JsonMapper
  *         { "from": "order_created", "fromRevision": "0.0.1", "to": "OrderCreated", "toRevision": 1,
  *           "upgrade": "upgradeOrderCreatedFrom1" },
  *         { "from": "owner_transferred", "to": "wow.lifecycle.OwnerTransferred", "fields": { "toOwnerId": "ownerId" } },
- *         { "from": "order_archived", "drop": true }
+ *         { "from": "order_archived", "to": "OrderArchived", "retire": true },
+ *         { "from": "order_noted", "drop": true }
  *       ],
  *       "state": { "fields": { "orderStatus": "status" }, "ignore": ["payable", "items.totalPrice"] }
  *     }
@@ -90,7 +91,7 @@ data class MigrationMap(
  *   records the type of the command that produced it (decision D55), so every command found in the store needs one.
  * - [defaultCommand] is the V10 command name of a stream that records no command name; without it, such a stream
  *   fails the check.
- * - [events] map the 9.x event names (and revisions) to V10 event names and revisions, or drop them.
+ * - [events] map the 9.x event names (and revisions) to V10 event names and revisions, retire or drop them.
  * - [state] says how a 9.x snapshot's state reads as the V10 state when `compare` compares them ([StateMapping]);
  *   by default field for field.
  *
@@ -129,7 +130,16 @@ data class CommandMapping(val from: String, val to: String) {
 
 /**
  * The 9.x event [from], of the 9.x revision [fromRevision] (any revision when null), imported as the V10 event [to]
- * of the revision [toRevision], or left out of the stream when [drop] is set (a retired event, the 9.x `DroppedEvent`).
+ * of the revision [toRevision]; imported under the retired name [to] when [retire] is set; or left out of its stream
+ * when [drop] is set.
+ *
+ * - [retire] is for an event the V10 aggregate retired (decision D219, the 9.x `DroppedEvent`): the record is written
+ *   as stored under the name [to], which the aggregate lists in `@AggregateRoot(retiredEvents)` (the Manifest's
+ *   `retired`), so loading skips it and its stream still counts as a version. The mapping check fails when [to] is
+ *   not retired there.
+ * - [drop] leaves the event out of its stream. A stream whose every event is dropped would leave its version empty,
+ *   which the log cannot hold: the mapping check counts such streams and fails before anything is imported; map
+ *   those events with [retire] instead (finding A4-7).
  *
  * - [toRevision] is the revision the 9.x payload has in V10: a 9.x shape is revision 1, and when the V10 class moved
  *   on, its `@Upgrade` functions read it up to the current revision. It is at most the Manifest's revision.
@@ -144,15 +154,18 @@ data class EventMapping(
     val to: String? = null,
     val toRevision: Int = 1,
     val drop: Boolean = false,
+    val retire: Boolean = false,
     val fields: Map<String, String> = emptyMap(),
     val upgrade: String? = null,
 ) {
     init {
         require(from.isNotBlank()) { "An event mapping names its 9.x event." }
+        require(!(drop && retire)) { "The event mapping of $from both drops and retires it." }
         require(drop == (to == null)) { "The event mapping of $from either names its V10 event or drops it." }
         require(to == null || to.isNotBlank()) { "The event mapping of $from names a blank V10 event." }
         require(toRevision >= 1) { "The event mapping of $from has a V10 revision below 1." }
         require(!drop || fields.isEmpty()) { "The event mapping of $from drops it and renames its fields." }
+        require(!retire || fields.isEmpty()) { "The event mapping of $from retires it and renames its fields." }
     }
 }
 

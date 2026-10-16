@@ -45,6 +45,12 @@ import java.math.BigDecimal
 object NineXExample {
     const val CONTEXT = "example"
 
+    /**
+     * The event the V10 port retired (decision D219): the 9.x `order_archived` the import tests add, as 9.x's
+     * `DroppedEvent` would have handled it after the archive feature was removed.
+     */
+    const val ORDER_ARCHIVED = "example.order.OrderArchived"
+
     val ORDER_STREAMS = (1..4).map { "order-stream-v$it.json" }
     val CART_STREAMS = (1..4).map { "cart-stream-v$it.json" }
 
@@ -100,6 +106,59 @@ object NineXExample {
     /** The Manifest as the JSON a service's build writes. */
     val MANIFEST_TEXT: String get() = WowJson.mapper.writeValueAsString(ManifestTree.write(manifest))
 
+    /**
+     * The Manifest of a port that keeps the 9.x `archive_order` command as `ArchiveOrder`, whose 9.x event
+     * `order_archived` it retired ([ORDER_ARCHIVED]) unless [retired] is false.
+     */
+    fun archivingManifest(retired: Boolean = true): Manifest = Manifest(
+        contexts = manifest.contexts.map { context ->
+            ContextManifest(
+                name = context.name,
+                aggregates = context.aggregates.map { aggregate ->
+                    if (aggregate.name != "order") {
+                        aggregate
+                    } else {
+                        AggregateManifest(
+                            name = aggregate.name,
+                            state = aggregate.state,
+                            commands = aggregate.commands + CommandManifest("ArchiveOrder", schema = ref("ArchiveOrder")),
+                            events = aggregate.events,
+                            lifecycle = aggregate.lifecycle,
+                            retired = if (retired) listOf("OrderArchived") else emptyList(),
+                        )
+                    }
+                },
+            )
+        },
+    )
+
+    /** [Manifest] as the JSON a service's build writes. */
+    fun manifestText(manifest: Manifest): String = WowJson.mapper.writeValueAsString(ManifestTree.write(manifest))
+
+    /** The example's map with `archive_order` and its `order_archived` mapped as [event] gives it (JSON). */
+    fun archivingMapText(event: String): String = MAP_TEXT
+        .replace(
+            """{ "from": "receipt_order", "to": "ReceiptOrder" }""",
+            """{ "from": "receipt_order", "to": "ReceiptOrder" }, { "from": "archive_order", "to": "ArchiveOrder" }""",
+        )
+        .replace(
+            """{ "from": "order_received", "to": "OrderReceived" }""",
+            """{ "from": "order_received", "to": "OrderReceived" }, { "from": "order_archived", $event }""",
+        )
+
+    /** The JSON of a 9.x stream following [text]'s: the order archived, at the next version, by `order_archived` only. */
+    fun archived(text: String): String {
+        val stream = NineXStream.parse(text)
+        return text
+            .replace("\"${stream.id}\"", "\"archived-stream\"")
+            .replace("\"${stream.commandId}\"", "\"archived-command\"")
+            .replace("\"version\":${stream.version}", "\"version\":${stream.version + 1}")
+            .replace("\"createTime\":${stream.createTime}", "\"createTime\":${stream.createTime + 1}")
+            .replace("ship_order", "archive_order")
+            .replace("order_shipped", "order_archived")
+            .replace("OrderShipped", "OrderArchived")
+    }
+
     val plan: MigrationPlan get() = MigrationPlan(map, manifest)
 
     private fun aggregate(name: String, commands: List<String>, events: List<EventManifest>) = AggregateManifest(
@@ -132,6 +191,7 @@ object NineXExample {
         }
         evolve<OrderShipped> { status = OrderStatus.SHIPPED }
         evolve<OrderReceived> { status = OrderStatus.RECEIVED }
+        retired(ORDER_ARCHIVED)
     }
 
     val cartModel: AggregateModel<CartState> = aggregate<CartState>(CONTEXT, "cart") {

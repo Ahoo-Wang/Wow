@@ -38,7 +38,8 @@ import tools.jackson.databind.node.ObjectNode
  * - **Command type.** The mapped V10 name of the 9.x `upstream_name` (decision D55).
  * - **Headers.** Only those the map lists, renamed; framework headers and wait plans are dropped (design 07 §3).
  * - **Events.** Each event by its mapping: renamed to its full V10 name at the mapped revision, its top-level fields
- *   renamed as listed, its payload otherwise as stored (numbers exact); a dropped event is left out.
+ *   renamed as listed, its payload otherwise as stored (numbers exact); a retired event is written as stored under
+ *   its retired name, which the V10 aggregate skips when it loads (decision D219); a dropped event is left out.
  *
  * Every failure is a [MigrationException] naming the stream: the mapping check passed, so one means the store changed
  * since, or a stream is malformed.
@@ -51,8 +52,11 @@ class StreamConverter(private val plan: MigrationPlan) {
             ?: throw MigrationException("$subject: the 9.x command ${stream.commandName} has no mapping.")
         val events = eventsOf(aggregate, stream, subject)
         if (events.isEmpty()) {
-            // A version slot cannot be left empty, and V10 has no retired-event marker yet (roadmap P.6).
-            throw MigrationException("$subject: every event of the stream is dropped, so its version would be empty.")
+            // The mapping check counts such streams and fails before the import (finding A4-7).
+            throw MigrationException(
+                "$subject: every event of the stream is dropped, so its version would be empty; map them with " +
+                    "retire to a name in the aggregate's retiredEvents instead.",
+            )
         }
         val tenantId = stream.aggregateId.tenantId
         val correlationId = stream.header[NineXHeaders.TRACE_ID]?.takeIf { it.isNotBlank() } ?: stream.commandId

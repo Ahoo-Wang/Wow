@@ -70,6 +70,7 @@ class MongoNineXEventSource(private val database: MongoDatabase) : NineXEventSou
                 ),
             ),
         ).map { it.get("_id", Document::class.java) to it.count() }.toList()
+        val shapes = streamEventTypesOf(collection)
         return (events.map { it.first.aggregate() } + commands.map { it.first.aggregate() }).distinct().map { aggregate ->
             val ofAggregate = commands.filter { it.first.aggregate() == aggregate }
             NineXInventory(
@@ -86,8 +87,48 @@ class MongoNineXEventSource(private val database: MongoDatabase) : NineXEventSou
                 }.toMap(),
                 streamsWithoutCommand = ofAggregate.filter { it.first.getString("command").isNullOrBlank() }
                     .sumOf { it.second },
+                streamEventTypes = shapes[aggregate].orEmpty(),
             )
         }
+    }
+
+    /**
+     * The number of streams by the set of event types each holds, per aggregate: grouped by the store on the set
+     * `$setUnion` makes, whose order MongoDB does not fix, so equal sets are merged here.
+     */
+    private fun streamEventTypesOf(
+        collection: MongoCollection<Document>,
+    ): Map<NineXAggregate, Map<Set<NineXEventType>, Long>> {
+        val types = Document(
+            "\$setUnion",
+            listOf(
+                Document(
+                    "\$map",
+                    Document("input", "\$body").append(
+                        "in",
+                        Document("name", "\$\$this.name").append("revision", "\$\$this.revision"),
+                    ),
+                ),
+            ),
+        )
+        return collection.aggregate(
+            listOf(
+                Document(
+                    "\$group",
+                    Document(
+                        "_id",
+                        Document("context", "\$contextName").append("aggregate", "\$aggregateName")
+                            .append("types", types),
+                    ).append("count", Document("\$sum", 1)),
+                ),
+            ),
+        ).map { it.get("_id", Document::class.java) to it.count() }.toList()
+            .groupBy({ it.first.aggregate() }) { (id, count) ->
+                id.getList("types", Document::class.java).orEmpty().map { type ->
+                    NineXEventType(type.getString("name"), type.getString("revision") ?: NineXStream.DEFAULT_REVISION)
+                }.toSet() to count
+            }
+            .mapValues { (_, shapes) -> shapes.groupBy({ it.first }) { it.second }.mapValues { it.value.sum() } }
     }
 
     override fun aggregateIds(aggregate: NineXAggregate, after: NineXAggregateId?, limit: Int): List<NineXAggregateId> {

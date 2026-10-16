@@ -82,6 +82,20 @@ class MigrationMapTest {
     }
 
     @Test
+    fun `a retiring event mapping names the retired name and renames no field`() {
+        val text = NineXExample.archivingMapText(""""to": "OrderArchived", "retire": true""")
+        MigrationMap.read(text).aggregates.first().events.single { it.from == "order_archived" }.also {
+            it.retire.assert().isTrue()
+            it.to.assert().isEqualTo("OrderArchived")
+        }
+        assertThrows<IllegalArgumentException> { EventMapping("a", retire = true) }
+        assertThrows<IllegalArgumentException> { EventMapping("a", drop = true, retire = true) }
+        assertThrows<IllegalArgumentException> {
+            EventMapping("a", to = "A", retire = true, fields = mapOf("x" to "y"))
+        }
+    }
+
+    @Test
     fun `a command mapping names both commands`() {
         assertThrows<IllegalArgumentException> { CommandMapping(" ", "A") }
         assertThrows<IllegalArgumentException> { CommandMapping("a", " ") }

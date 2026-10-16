@@ -34,7 +34,27 @@ class MongoNineXEventSourceTest {
             it.streamsWithoutCommand.assert().isEqualTo(0)
         }
         inventories.getValue(cart).commands.assert().containsEntry("add_cart_item", 2L)
+        val inMemory = InMemoryNineXEventSource(NineXExample.streams()).inventory().associateBy { it.aggregate }
+        inventories.getValue(order).streamEventTypes.assert().isEqualTo(inMemory.getValue(order).streamEventTypes)
+        inventories.getValue(cart).streamEventTypes.assert().isEqualTo(inMemory.getValue(cart).streamEventTypes)
         MappingCheck(NineXExample.plan).check(inventories.values.toList()).passed.assert().isTrue()
+    }
+
+    @Test
+    fun `the inventory counts streams by the set of event types they hold`() {
+        val shipped = NineXExample.resource("order-stream-v4.json")
+        val event = """{"id":"0VY3GwcK4OmV00R","name":"order_shipped","revision":"0.0.1","""
+        val noted = """{"id":"noted","name":"order_noted","body":{}}"""
+        val twice = shipped.replace("\"0VY3GwcK4OmV00Q\"", "\"twice-1\"").replace("0VY3GwaK4OmV00E", "twice-1")
+            .replace(event, "$noted,$event")
+        val reversed = shipped.replace("\"0VY3GwcK4OmV00Q\"", "\"twice-2\"").replace("0VY3GwaK4OmV00E", "twice-2")
+            .replace("\"body\":{}}]", "\"body\":{}},$noted]")
+        NineXMongoStore.insert(database, twice)
+        NineXMongoStore.insert(database, reversed)
+        val shape = setOf(NineXEventType("order_noted", NineXStream.DEFAULT_REVISION), NineXEventType("order_shipped", "0.0.1"))
+        source.inventory().first { it.aggregate == order }.streamEventTypes.assert()
+            .containsEntry(shape, 2L)
+            .containsEntry(setOf(NineXEventType("order_shipped", "0.0.1")), 1L)
     }
 
     @Test

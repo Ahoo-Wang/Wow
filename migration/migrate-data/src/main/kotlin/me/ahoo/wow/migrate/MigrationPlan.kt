@@ -94,6 +94,20 @@ class AggregatePlan(
     }
 
     /**
+     * Why the map's `retire` of an event under [name] does not hold: the aggregate does not list [name] among its
+     * retired events (decision D219); null when it does.
+     */
+    fun retiredProblem(name: String): String? {
+        val full = fullName(name)
+        val manifest = manifest ?: return null
+        return if (manifest.retired.any { fullName(it) == full }) {
+            null
+        } else {
+            "$full is retired by the map but not by $target: add it to @AggregateRoot(retiredEvents)"
+        }
+    }
+
+    /**
      * Why the V10 event [name] of the revision [revision] the map gives is not readable; null when it is, or when it
      * is an event the aggregate retired (its records are skipped).
      */
