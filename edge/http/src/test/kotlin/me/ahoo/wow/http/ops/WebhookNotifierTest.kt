@@ -90,7 +90,7 @@ class WebhookNotifierTest {
 
     @Test
     fun `a notice is posted as a WeCom robot's Markdown message`(): Unit = runBlocking {
-        val exhausted = parked.copy(kind = ParkedNotice.Kind.EXHAUSTED, entry = entry.copy(retries = 10))
+        val exhausted = parked.copy(kind = ParkedNotice.Kind.EXHAUSTED, entry = entry.copyWith(retries = 10))
         WebhookNotifier(uri, WebhookNotifier.Format.WECOM).notify(exhausted)
         val posted = json.readTree(received.single().second)
         posted["msgtype"].asString().assert().isEqualTo("markdown")

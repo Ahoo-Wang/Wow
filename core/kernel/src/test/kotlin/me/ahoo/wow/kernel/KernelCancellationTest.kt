@@ -90,7 +90,7 @@ class KernelCancellationTest {
         // Another writer takes the slot, and the caller gives up while the append is under way.
         val racing = object : EventLog by log {
             override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
-                log.append(stream.copy(commandId = "other", requestId = "other"), null)
+                log.append(stream.copyWith(commandId = "other", requestId = "other"), null)
                 caller.cancel()
                 return log.append(stream, transport)
             }

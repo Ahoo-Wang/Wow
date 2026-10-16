@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test
 
 /** The derived ids of the preferences and the wording: from the owner, the application and what they are for. */
 class ViewStoreTransformersTest {
-    private val alice = Caller(scope = Scope(ownerId = "alice"))
+    private val alice = Caller.of(scope = Scope(ownerId = "alice"))
 
     private fun CommandTransformer.target(body: Any, app: String?, named: String? = null): String? {
         val headers = app?.let { mapOf("cosec-app-id" to it) }.orEmpty()

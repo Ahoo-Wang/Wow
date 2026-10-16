@@ -70,7 +70,7 @@ internal class GivenStateLog(private val delegate: EventLog) : EventLog by deleg
     private fun to(version: Int): Int = if (version == Int.MAX_VALUE) version else version - offset
 
     private fun EventStreamRecord.shifted(by: Int): EventStreamRecord =
-        if (by == 0) this else copy(version = version + by)
+        if (by == 0) this else copyWith(version = version + by)
 
-    private fun LogEntry.shifted(by: Int): LogEntry = if (by == 0) this else copy(stream = stream.shifted(by))
+    private fun LogEntry.shifted(by: Int): LogEntry = if (by == 0) this else copyWith(stream = stream.shifted(by))
 }

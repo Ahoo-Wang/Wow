@@ -33,6 +33,7 @@ import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
+import me.ahoo.wow.manifest.copyWith
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -50,9 +51,9 @@ class ManifestOpenApiTest {
     @Test
     fun `info should name the service, or the options' title and no version for a fragment`() {
         info(document).assert().isEqualTo(mapOf("title" to "shop-service", "version" to "1.2.0"))
-        val fragment = ManifestOpenApi.write(MANIFEST.copy(service = null), OpenApiOptions(title = "Shop"))
+        val fragment = ManifestOpenApi.write(MANIFEST.copyWith(service = null), OpenApiOptions(title = "Shop"))
         info(fragment).assert().isEqualTo(mapOf("title" to "Shop", "version" to ManifestOpenApi.UNVERSIONED))
-        ManifestOpenApi.write(MANIFEST.copy(service = ServiceInfo("shop")))
+        ManifestOpenApi.write(MANIFEST.copyWith(service = ServiceInfo("shop")))
             .let(::info)["version"].assert().isEqualTo(ManifestOpenApi.UNVERSIONED)
     }
 
@@ -195,13 +196,13 @@ class ManifestOpenApiTest {
             "properties" to mapOf("tags" to mapOf("type" to "object")),
             "required" to listOf("tags"),
         )
-        val described = MANIFEST.copy(
+        val described = MANIFEST.copyWith(
             contexts = MANIFEST.contexts.map { context ->
-                context.copy(
+                context.copyWith(
                     aggregates = context.aggregates.map { aggregate ->
-                        aggregate.copy(
+                        aggregate.copyWith(
                             commands = aggregate.commands.map {
-                                if (it.name == "PutItem") it.copy(description = "Puts an item into the cart.") else it
+                                if (it.name == "PutItem") it.copyWith(description = "Puts an item into the cart.") else it
                             },
                         )
                     },
@@ -227,9 +228,9 @@ class ManifestOpenApiTest {
     @Test
     fun `a context with jobs should have the job routes, and the job codes among the errors`() {
         val document = ManifestOpenApi.write(
-            MANIFEST.copy(
+            MANIFEST.copyWith(
                 contexts = MANIFEST.contexts.map {
-                    it.copy(
+                    it.copyWith(
                         subscriptions = listOf(
                             SubscriptionManifest(
                                 name = "Jobs.report",
@@ -270,9 +271,9 @@ class ManifestOpenApiTest {
         OpenApiChecks.validate(document, "wow.snapshot.Rebuild", """{"ids":["c-1"]}""").assert().isEmpty()
         OpenApiChecks.validate(document, "wow.snapshot.Rebuild", """{"ids":[]}""").assert().isNotEmpty()
         val none = ManifestOpenApi.write(
-            MANIFEST.copy(
+            MANIFEST.copyWith(
                 contexts = MANIFEST.contexts.map { context ->
-                    context.copy(aggregates = context.aggregates.map { it.copy(snapshot = SnapshotManifest(false)) })
+                    context.copyWith(aggregates = context.aggregates.map { it.copyWith(snapshot = SnapshotManifest(false)) })
                 },
             ),
         )
@@ -398,7 +399,7 @@ class ManifestOpenApiTest {
     @Test
     fun `the checks should catch a schema that is not JSON Schema and a dangling reference`() {
         val broken = ManifestOpenApi.write(
-            MANIFEST.copy(
+            MANIFEST.copyWith(
                 defs = MANIFEST.defs + ("sample.Item" to mapOf("type" to 5, "items" to mapOf("\$ref" to "#/\$defs/x"))),
             ),
         )
@@ -469,11 +470,11 @@ class ManifestOpenApiTest {
                             name = "cart",
                             state = StateManifest(Manifest.schemaRef("sample.Cart\$State")),
                             commands = listOf(
-                                command("CreateCart", Creation.REQUIRED).copy(produces = listOf("CartCreated")),
-                                command("PutItem", Creation.NONE).copy(aliases = listOf("AddItem")),
-                                command("Open", Creation.ALLOWED).copy(produces = emptyList()),
+                                command("CreateCart", Creation.REQUIRED).copyWith(produces = listOf("CartCreated")),
+                                command("PutItem", Creation.NONE).copyWith(aliases = listOf("AddItem")),
+                                command("Open", Creation.ALLOWED).copyWith(produces = emptyList()),
                                 command("Import", Creation.NONE, mounted = true)
-                                    .copy(transformsTo = listOf("shop.cart.PutItem")),
+                                    .copyWith(transformsTo = listOf("shop.cart.PutItem")),
                             ),
                             lifecycle = listOf(
                                 "wow.lifecycle.DeleteAggregate",

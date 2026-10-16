@@ -238,7 +238,7 @@ class EshopSyncCallTest {
                 tenantId = Caller.DEFAULT_TENANT,
                 scope = scope,
                 causation = Causation("root-of-$id", "$execution"),
-                operator = Operator(checkNotNull(scope.ownerId), Caller.DEFAULT_TENANT),
+                operator = Operator.of(checkNotNull(scope.ownerId), Caller.DEFAULT_TENANT),
             )
             val authorization = token?.let { mapOf("Authorization" to "Bearer $it") }.orEmpty()
             return send(

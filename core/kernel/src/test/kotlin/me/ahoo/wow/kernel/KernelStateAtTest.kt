@@ -99,9 +99,9 @@ class KernelStateAtTest {
     fun `a snapshot past the version or not fitting is passed over`(): Unit = runBlocking {
         val snapshot = history()
         kernel.stateAt(cartModel, ref, 1, snapshot).items().assert().isEmpty()
-        kernel.stateAt(cartModel, ref, 3, snapshot.copy(schemaFingerprint = "another"))
+        kernel.stateAt(cartModel, ref, 3, snapshot.copyWith(schemaFingerprint = "another"))
             .items().assert().isEqualTo(mapOf("apple" to 1, "pear" to 2))
-        kernel.stateAt(cartModel, ref, 3, snapshot.copy(ref = cartModel.type.ref("tenant", "other")))
+        kernel.stateAt(cartModel, ref, 3, snapshot.copyWith(ref = cartModel.type.ref("tenant", "other")))
             .items().assert().isEqualTo(mapOf("apple" to 1, "pear" to 2))
     }
 

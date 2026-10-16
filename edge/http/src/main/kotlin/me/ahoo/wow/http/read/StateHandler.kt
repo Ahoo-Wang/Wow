@@ -118,7 +118,7 @@ internal class StateHandler(
         val scope = ownerships(type).scopeOf(target?.scope ?: caller.scope)
         val tenant = tenantOf(type, caller, target)
         val queryCaller =
-            QueryCaller(caller.copy(tenantId = tenant, scope = target?.scope ?: caller.scope), QueryEntry.HTTP)
+            QueryCaller(caller.copyWith(tenantId = tenant, scope = target?.scope ?: caller.scope), QueryEntry.HTTP)
         return Reader(scope, type.ref(tenant, request.pathVariable(CommandHandler.ID)), queryCaller)
     }
 

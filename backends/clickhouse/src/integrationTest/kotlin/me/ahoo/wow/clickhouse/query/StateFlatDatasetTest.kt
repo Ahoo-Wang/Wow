@@ -115,7 +115,7 @@ class StateFlatDatasetTest {
         sink.write(
             listOf(
                 SinkFixtures.recordOf(id = "order-2", state = SinkFixtures.stateOf(1, total = "0.10"))
-                    .copy(scope = Scope("owner-2", "space-1")),
+                    .copyWith(scope = Scope("owner-2", "space-1")),
             ),
         )
         sink.write(

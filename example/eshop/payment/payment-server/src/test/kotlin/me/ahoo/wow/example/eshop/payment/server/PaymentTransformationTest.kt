@@ -232,7 +232,7 @@ class PaymentTransformationAuthorizationTest {
         @Bean
         fun headerCallers(): CallerResolver = CallerResolver { request ->
             request.headers().firstHeader(PaymentNode.USER)?.let { user ->
-                Caller(tenantId = Caller.DEFAULT_TENANT, scope = Scope.NONE, subject = user)
+                Caller.of(tenantId = Caller.DEFAULT_TENANT, scope = Scope.NONE, subject = user)
             } ?: Caller.ANONYMOUS
         }
 

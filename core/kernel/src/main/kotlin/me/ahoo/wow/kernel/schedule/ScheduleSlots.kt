@@ -86,7 +86,7 @@ object ScheduleSlots {
             return timer
         }
         val due = firstDue(set.rule, stream.commitTime)
-        return timer.copy(dueAt = due, slotDueAt = due)
+        return timer.copyWith(dueAt = due, slotDueAt = due)
     }
 
     /**
@@ -103,7 +103,7 @@ object ScheduleSlots {
         if (steps == 0L) {
             return timer
         }
-        return timer.copy(slot = timer.slot + steps, slotDueAt = due, skipped = timer.skipped + steps)
+        return timer.copyWith(slot = timer.slot + steps, slotDueAt = due, skipped = timer.skipped + steps)
     }
 
     /**
@@ -117,7 +117,7 @@ object ScheduleSlots {
         val rule = timer.rule as? ScheduleRule.Cron ?: return null
         val next = next(rule, timer.slotDueAt) ?: return null
         val (due, steps) = if (rule.misfire == Misfire.COALESCE) latest(rule, next, now) else next to 0L
-        return timer.copy(
+        return timer.copyWith(
             status = TimerStatus.PENDING,
             slot = timer.slot + 1 + steps,
             slotDueAt = due,

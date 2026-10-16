@@ -29,6 +29,7 @@ import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionSource
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.contract.ContractFixtures.shop
 import me.ahoo.wow.runtime.contract.ContractFixtures.subscription
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
@@ -259,7 +260,7 @@ class ContractDirectoryTest {
         val manifest = shop(
             subscriptions = listOf(
                 subscription("Bins.onBin", SubscriptionKind.PROJECTION, nullable),
-                subscription("Strict.onBin", SubscriptionKind.PROJECTION, nullable.copy(nullableState = false)),
+                subscription("Strict.onBin", SubscriptionKind.PROJECTION, nullable.copyWith(nullableState = false)),
             ),
         )
         problems(manifest).assert().containsExactly(
@@ -330,7 +331,7 @@ class ContractDirectoryTest {
         val own = shop()
         val copy = ManifestFragment(
             "other-server.jar!/$SHOP_SERVICE.json",
-            own.copy(contexts = own.contexts + ContextManifest("shop-admin")),
+            own.copyWith(contexts = own.contexts + ContextManifest("shop-admin")),
         )
         val contracts = ContractDirectory(own, ContractFixtures.peers + copy)
 

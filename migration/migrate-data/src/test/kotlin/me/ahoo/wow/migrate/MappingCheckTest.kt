@@ -16,6 +16,7 @@ package me.ahoo.wow.migrate
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.migrate.example.NineXExample
 import org.junit.jupiter.api.Test
 
@@ -134,14 +135,14 @@ class MappingCheckTest {
     @Test
     fun `aliases in the Manifest resolve`() {
         val manifest = NineXExample.manifest.let { manifest ->
-            manifest.copy(
+            manifest.copyWith(
                 contexts = manifest.contexts.map { context ->
-                    context.copy(
+                    context.copyWith(
                         aggregates = context.aggregates.map { aggregate ->
-                            aggregate.copy(
-                                commands = aggregate.commands.map { it.copy(aliases = listOf("Old${it.name}")) },
+                            aggregate.copyWith(
+                                commands = aggregate.commands.map { it.copyWith(aliases = listOf("Old${it.name}")) },
                                 events = aggregate.events.map {
-                                    it.copy(
+                                    it.copyWith(
                                         aliases = listOf("example.order.Old${it.name}")
                                     )
                                 },
@@ -163,11 +164,11 @@ class MappingCheckTest {
     @Test
     fun `a mapping to an event the aggregate retired resolves`() {
         val manifest = NineXExample.manifest.let { manifest ->
-            manifest.copy(
+            manifest.copyWith(
                 contexts = manifest.contexts.map { context ->
-                    context.copy(
+                    context.copyWith(
                         aggregates = context.aggregates.map {
-                            it.copy(retired = listOf("OrderArchived", "legacy.order.Closed"))
+                            it.copyWith(retired = listOf("OrderArchived", "legacy.order.Closed"))
                         },
                     )
                 },

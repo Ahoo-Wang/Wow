@@ -225,7 +225,7 @@ class AggregateSpec<S : Any>(
                 )
                 val outcome = execute(command)
                 // A recurring timer moves on to its next slot; one due once is done.
-                val next = ScheduleSlots.afterFired(timer, millis) ?: timer.copy(status = TimerStatus.FIRED, attempts = 1)
+                val next = ScheduleSlots.afterFired(timer, millis) ?: timer.copyWith(status = TimerStatus.FIRED, attempts = 1)
                 timers.settle(listOf(TimerChange(loaded, next)))
                 fired += outcome
             }

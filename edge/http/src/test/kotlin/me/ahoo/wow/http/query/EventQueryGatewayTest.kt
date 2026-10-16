@@ -107,7 +107,7 @@ class EventQueryGatewayTest {
         fun visible(space: String) = runBlocking {
             untimed.list(
                 ListQuery(of()),
-                inProcess.copy(caller = inProcess.caller!!.copy(scope = Scope("alice", space)))
+                inProcess.copy(caller = inProcess.caller!!.copyWith(scope = Scope("alice", space)))
             ).toList()
         }
         visible("s-1").assert().hasSize(3)
@@ -119,7 +119,7 @@ class EventQueryGatewayTest {
         fun visible(gateway: EventQueryGateway) = runBlocking {
             gateway.list(
                 ListQuery(of()),
-                inProcess.copy(caller = inProcess.caller!!.copy(scope = Scope("bob", "s-1")))
+                inProcess.copy(caller = inProcess.caller!!.copyWith(scope = Scope("bob", "s-1")))
             ).toList()
         }
         visible(untimed).assert().isEmpty()

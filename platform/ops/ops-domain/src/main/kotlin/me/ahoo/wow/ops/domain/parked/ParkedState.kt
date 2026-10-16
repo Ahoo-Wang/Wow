@@ -44,7 +44,7 @@ class ParkedState {
         private set
     var subscription: String = ""
         private set
-    var aggregate: LedgerAggregate = LedgerAggregate("", "", "", "")
+    var aggregate: LedgerAggregate = LedgerAggregate.of("", "", "", "")
         private set
     var fromVersion: Int = 0
         private set

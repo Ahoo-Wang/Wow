@@ -218,7 +218,7 @@ class ParkedSpec {
 
     companion object {
         const val SUBSCRIPTION = "PaymentGatewaySaga.onPaymentRequested"
-        val AGGREGATE = LedgerAggregate("eshop-payment", "payment", "(0)", "alice-1")
+        val AGGREGATE = LedgerAggregate.of("eshop-payment", "payment", "(0)", "alice-1")
         const val ID = "eshop-payment-service:$SUBSCRIPTION:eshop-payment.payment:(0):alice-1"
 
         /**

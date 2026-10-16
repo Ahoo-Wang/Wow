@@ -360,7 +360,7 @@ class KernelTest {
         // Another command carrying the same request id commits the slot first, say the caller's retry elsewhere.
         val racing = object : EventLog by log {
             override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
-                log.append(stream.copy(commandId = "elsewhere"), transport)
+                log.append(stream.copyWith(commandId = "elsewhere"), transport)
                 return AppendOutcome.Unknown(IllegalStateException("timeout"))
             }
         }
@@ -390,7 +390,7 @@ class KernelTest {
         // The request's earlier append committed the slot at another time: this attempt is its duplicate.
         val earlier = object : EventLog by log {
             override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
-                val committed = stream.copy(commitTime = stream.commitTime - 1)
+                val committed = stream.copyWith(commitTime = stream.commitTime - 1)
                 log.append(committed, transport)
                 return AppendOutcome.AlreadyCommitted(committed)
             }
@@ -408,7 +408,7 @@ class KernelTest {
         val racing = object : EventLog by log {
             override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
                 appends++
-                log.append(stream.copy(commandId = "elsewhere"), transport)
+                log.append(stream.copyWith(commandId = "elsewhere"), transport)
                 return AppendOutcome.Conflict(stream.version)
             }
         }

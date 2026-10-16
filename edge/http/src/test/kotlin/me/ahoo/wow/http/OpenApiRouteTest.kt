@@ -26,6 +26,7 @@ import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.openapi.ManifestOpenApi
 import me.ahoo.wow.openapi.WowHttpContract
 import me.ahoo.wow.runtime.admission.CommandInput
@@ -69,11 +70,11 @@ class OpenApiRouteTest {
     @Test
     fun `the document should follow the options and the models the node serves`() {
         val manifest = queryManifest().let { manifest ->
-            manifest.copy(
+            manifest.copyWith(
                 contexts = manifest.contexts.map { context ->
-                    context.copy(
+                    context.copyWith(
                         aggregates = context.aggregates.map {
-                            it.copy(
+                            it.copyWith(
                                 queries = it.queries + QueryManifest("custom", QueryRoutes.of(CONTEXT, "cart", "custom"))
                             )
                         },

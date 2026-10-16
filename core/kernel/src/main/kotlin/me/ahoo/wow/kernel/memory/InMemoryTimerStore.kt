@@ -34,7 +34,7 @@ class InMemoryTimerStore : TimerStore {
         if (held != null && (held.id == timer.id || held.version > timer.version)) {
             return false
         }
-        timers[key] = timer.copy(status = TimerStatus.PENDING, attempts = 0, outcome = null)
+        timers[key] = timer.copyWith(status = TimerStatus.PENDING, attempts = 0, outcome = null)
         true
     }
 
@@ -63,10 +63,12 @@ class InMemoryTimerStore : TimerStore {
     }
 
     override suspend fun settle(changes: List<TimerChange>): Int = lock.withLock {
-        changes.count { (loaded, next) ->
+        changes.count { change ->
+            val loaded = change.loaded
+            val next = change.next
             val key = loaded.owner to loaded.key
             val held = timers[key]?.takeIf { it.isAsLoaded(loaded) } ?: return@count false
-            timers[key] = held.copy(
+            timers[key] = held.copyWith(
                 status = next.status,
                 slot = next.slot,
                 slotDueAt = next.slotDueAt,
@@ -91,7 +93,7 @@ class InMemoryTimerStore : TimerStore {
         fun Timer.cancellable(version: Long): Boolean =
             status in CANCELLABLE && this.version <= version
 
-        fun Timer.cancelled(version: Long): Timer = copy(status = TimerStatus.CANCELLED, version = version)
+        fun Timer.cancelled(version: Long): Timer = copyWith(status = TimerStatus.CANCELLED, version = version)
 
         /** Whether this, the timer held, is still [loaded] as it was loaded. */
         fun Timer.isAsLoaded(loaded: Timer): Boolean =

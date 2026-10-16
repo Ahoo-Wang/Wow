@@ -34,11 +34,11 @@ import org.junit.jupiter.api.Test
 
 class OpsAuthorizerTest {
     private val parked = AggregateType("ops", "parked").ref(Caller.DEFAULT_TENANT, "svc:Saga.on:shop.payment:(0):p-1")
-    private val operator = Caller(
+    private val operator = Caller.of(
         subject = "alice",
         attributes = mapOf(OpsCallers.ROLES_ATTRIBUTE to listOf(OpsCallers.OPERATOR))
     )
-    private val viewer = Caller(subject = "victor", attributes = mapOf(OpsCallers.ROLES_ATTRIBUTE to listOf("viewer")))
+    private val viewer = Caller.of(subject = "victor", attributes = mapOf(OpsCallers.ROLES_ATTRIBUTE to listOf("viewer")))
 
     private fun action(name: String, type: Class<*>): CommandAction =
         CommandAction(CommandType(name, type), parked, Scope.NONE, Creation.NONE)

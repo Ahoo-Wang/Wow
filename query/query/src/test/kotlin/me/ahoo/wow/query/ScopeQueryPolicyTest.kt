@@ -114,7 +114,7 @@ class ScopeQueryPolicyTest {
             state = StateManifest(Manifest.schemaRef("Product")),
             ownership = ManifestOwnership.TENANT,
         )
-        val order = product.copy(name = "order", ownership = ManifestOwnership.OWNER)
+        val order = AggregateManifest("order", state = product.state, ownership = ManifestOwnership.OWNER)
         val manifest = Manifest(contexts = listOf(ContextManifest("shop", aggregates = listOf(product, order))))
         val ownerships = QueryOwnership.of(manifest)
         ownerships.ownershipOf(AggregateType("shop", "product")).assert().isEqualTo(Ownership.TENANT)

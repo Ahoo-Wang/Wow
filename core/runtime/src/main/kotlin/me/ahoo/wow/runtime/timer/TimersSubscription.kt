@@ -103,7 +103,7 @@ class TimersSubscription(
             return timer
         }
         val tenantId = stream.ref.tenantId
-        return timer.copy(
+        return timer.copyWith(
             operator = Operator.system(ScheduleJobs.COMPONENT, tenantId),
             headers = emptyMap(),
             scope = Scope.NONE,

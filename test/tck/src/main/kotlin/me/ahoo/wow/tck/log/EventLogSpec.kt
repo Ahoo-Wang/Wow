@@ -93,7 +93,7 @@ abstract class EventLogSpec {
     /** Asserts this is [expected], comparing payloads as JSON: a backend may store them as JSON and reformat them. */
     private fun EventStreamRecord.assertSameAs(expected: EventStreamRecord) {
         events.map { ExactJson.of(it.payload) }.assert().isEqualTo(expected.events.map { ExactJson.of(it.payload) })
-        copy(events = expected.events).assert().isEqualTo(expected)
+        copyWith(events = expected.events).assert().isEqualTo(expected)
     }
 
     @Test
@@ -123,7 +123,7 @@ abstract class EventLogSpec {
     fun `payload numbers read back exactly as appended`(): Unit = runBlocking {
         val log = createLog(partitions = 1)
         val appended = stream("a", 1).let {
-            it.copy(events = listOf(EventRecord("$context.aggregate.Priced", 1, ExactJson.NUMBERS)) + it.events)
+            it.copyWith(events = listOf(EventRecord("$context.aggregate.Priced", 1, ExactJson.NUMBERS)) + it.events)
         }
         log.append(appended)
         log.read(appended.ref).toList().single().assertSameAs(appended)
@@ -163,8 +163,8 @@ abstract class EventLogSpec {
                 """"command":"{\"reason\":\"unpaid ü\",\"amount\":2.50}"}""",
         )
         val cancelled = EventRecord("wow.ScheduleCancelled", 1, """{"key":"remind"}""")
-        val withEvents = stream("a", 1).let { it.copy(events = it.events + set + cancelled) }
-        val alone = stream("a", 2).copy(events = listOf(EventRecord("wow.ScheduleCancelled", 1, """{"key":"pay"}""")))
+        val withEvents = stream("a", 1).let { it.copyWith(events = it.events + set + cancelled) }
+        val alone = stream("a", 2).copyWith(events = listOf(EventRecord("wow.ScheduleCancelled", 1, """{"key":"pay"}""")))
         log.append(withEvents)
         log.append(alone)
         val read = log.read(withEvents.ref).toList()
@@ -329,7 +329,7 @@ abstract class EventLogSpec {
         val first = stream("a", 2, requestId = "request")
         log.append(first).assert().isInstanceOf(AppendOutcome.Committed::class.java)
         // Both keys collide: the request key decides (finding A2-1).
-        val retry = log.append(first.copy(commandId = "retry", commitTime = first.commitTime + 1))
+        val retry = log.append(first.copyWith(commandId = "retry", commitTime = first.commitTime + 1))
         (retry as AppendOutcome.AlreadyCommitted).existing.assertSameAs(first)
     }
 
@@ -339,7 +339,7 @@ abstract class EventLogSpec {
         val (retried, fresh) = idsInPartitionZero(2, 4)
         val first = stream(retried, 1, requestId = "request")
         log.append(first)
-        val outcomes = log.appendAll(listOf(first.copy(commandId = "group") to null, stream(fresh, 1) to null))
+        val outcomes = log.appendAll(listOf(first.copyWith(commandId = "group") to null, stream(fresh, 1) to null))
         (outcomes[0] as AppendOutcome.AlreadyCommitted).existing.assertSameAs(first)
         outcomes[1].assert().isInstanceOf(AppendOutcome.Committed::class.java)
     }
@@ -351,7 +351,7 @@ abstract class EventLogSpec {
             log.append(stream("a", 1))
             val outcomes = coroutineScope {
                 (1..8).map { attempt ->
-                    async { log.append(stream("a", 2, requestId = "request").copy(commandId = "attempt-$attempt")) }
+                    async { log.append(stream("a", 2, requestId = "request").copyWith(commandId = "attempt-$attempt")) }
                 }.awaitAll()
             }
             outcomes.count { it is AppendOutcome.Committed }.assert().isEqualTo(1)
@@ -445,7 +445,7 @@ abstract class EventLogSpec {
     fun `a payload with a NUL character reads back as appended, or is rejected, never unknown`(): Unit = runBlocking {
         // Finding A2-7: PostgreSQL's jsonb refuses it, and the append was answered as unknown, retried for ever.
         val log = createLog(partitions = 1)
-        val appended = stream("a", 1).copy(
+        val appended = stream("a", 1).copyWith(
             events = listOf(EventRecord("$context.aggregate.Named", 1, """{"name":"a\u0000b","n\u0000":1}""")),
         )
         when (val outcome = log.append(appended)) {

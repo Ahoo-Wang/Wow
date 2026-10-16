@@ -120,12 +120,12 @@ class KernelHistoryTest {
     fun `a snapshot after the time, not fitting or disagreeing with the log is passed over`(): Unit = runBlocking {
         val snapshot = history()
         kernel.stateAt(cartModel, ref, millis(1500), snapshot).items().assert().isEmpty()
-        kernel.stateAt(cartModel, ref, millis(3000), snapshot.copy(schemaFingerprint = "another"))
+        kernel.stateAt(cartModel, ref, millis(3000), snapshot.copyWith(schemaFingerprint = "another"))
             .items().assert().isEqualTo(mapOf("apple" to 1, "pear" to 2))
-        kernel.stateAt(cartModel, ref, millis(3000), snapshot.copy(ref = cartModel.type.ref("tenant", "other")))
+        kernel.stateAt(cartModel, ref, millis(3000), snapshot.copyWith(ref = cartModel.type.ref("tenant", "other")))
             .items().assert().isEqualTo(mapOf("apple" to 1, "pear" to 2))
         // A snapshot claiming an earlier commit time than its stream has.
-        kernel.stateAt(cartModel, ref, millis(1500), snapshot.copy(firstEventTime = 1000, lastEventTime = 1000))
+        kernel.stateAt(cartModel, ref, millis(1500), snapshot.copyWith(firstEventTime = 1000, lastEventTime = 1000))
             .items().assert().isEmpty()
     }
 

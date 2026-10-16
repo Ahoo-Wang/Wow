@@ -20,6 +20,7 @@ import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import org.junit.jupiter.api.Test
 
@@ -44,12 +45,12 @@ class QueryRoutesEdgesTest {
     @Test
     fun `a model the routes do not know should have no route`() {
         val manifest = queryManifest().let { manifest ->
-            manifest.copy(
+            manifest.copyWith(
                 contexts = manifest.contexts.map { context ->
-                    context.copy(
+                    context.copyWith(
                         aggregates = context.aggregates.map {
                             val projection = QueryManifest("projection", QueryRoutes.of(CONTEXT, "cart", "projection"))
-                            it.copy(queries = it.queries + projection)
+                            it.copyWith(queries = it.queries + projection)
                         },
                     )
                 },

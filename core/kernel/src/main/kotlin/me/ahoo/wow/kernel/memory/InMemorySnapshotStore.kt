@@ -96,7 +96,7 @@ class InMemorySnapshotStore : SnapshotStore {
             when {
                 table == null -> SnapshotTable(revision, rebuilding = revision != 1, backfilled = false)
                 revision > table.revision || revision < table.revision && lower ->
-                    table.copy(revision = revision, rebuilding = true)
+                    table.copyWith(revision = revision, rebuilding = true)
 
                 else -> table
             }
@@ -111,7 +111,7 @@ class InMemorySnapshotStore : SnapshotStore {
         if (table.revision != revision) {
             table
         } else {
-            table.copy(rebuilding = rebuilding ?: table.rebuilding, backfilled = backfilled ?: table.backfilled)
+            table.copyWith(rebuilding = rebuilding ?: table.rebuilding, backfilled = backfilled ?: table.backfilled)
         }
     }?.takeIf { it.revision == revision }
 

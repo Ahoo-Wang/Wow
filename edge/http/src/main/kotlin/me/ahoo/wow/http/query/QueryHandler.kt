@@ -402,7 +402,7 @@ internal class QueryHandler(
             } catch (_: TenantConflictException) {
                 return null
             }
-            return QueryCaller(caller.copy(tenantId = tenant, scope = named?.scope ?: caller.scope), QueryEntry.HTTP)
+            return QueryCaller(caller.copyWith(tenantId = tenant, scope = named?.scope ?: caller.scope), QueryEntry.HTTP)
         }
     }
 }

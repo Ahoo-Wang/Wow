@@ -118,6 +118,6 @@ class CommandResultsTest {
         val derived = command.copyWith(causation = Causation("root", "shop.order/t/o-1@1"))
         map(CommandOutcome.Unchanged(1)).correlationId.assert().isEqualTo("c-1")
         CommandOutcome.Unchanged(1).toResult(derived, function, hop, 1L).correlationId.assert().isEqualTo("root")
-        stream.copy(causation = Causation("root", "x")).correlationId.assert().isEqualTo("root")
+        stream.copyWith(causation = Causation("root", "x")).correlationId.assert().isEqualTo("root")
     }
 }

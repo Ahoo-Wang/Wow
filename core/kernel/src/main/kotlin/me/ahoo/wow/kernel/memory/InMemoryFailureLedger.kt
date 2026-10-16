@@ -58,7 +58,7 @@ class InMemoryFailureLedger : FailureLedger {
     }
 
     /** This entry where [entry] parks the aggregate and why, with this entry's retry state. */
-    private fun ParkedAggregate.placedAs(entry: ParkedAggregate): ParkedAggregate = copy(
+    private fun ParkedAggregate.placedAs(entry: ParkedAggregate): ParkedAggregate = copyWith(
         fromVersion = entry.fromVersion,
         reason = entry.reason,
         failedAt = entry.failedAt,

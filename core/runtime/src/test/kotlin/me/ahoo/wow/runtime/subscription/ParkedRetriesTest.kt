@@ -131,7 +131,7 @@ class ParkedRetriesTest {
 
     @Test
     fun `an entry whose retries are spent waits for an operator, and is told once`(): Unit = runBlocking {
-        val runtime = runtime(spec.copy(maxRetries = 2))
+        val runtime = runtime(spec.copyWith(maxRetries = 2))
         parkX(runtime)
         eventually { notices.size == 1 }
         val parkedNotice = notices.single()
@@ -148,13 +148,13 @@ class ParkedRetriesTest {
         exhausted.kind.assert().isEqualTo(ParkedNotice.Kind.EXHAUSTED)
         exhausted.entry.retries.assert().isEqualTo(2)
         exhausted.nextRetryAt.assert().isNull()
-        parked()!!.exhausted(spec.copy(maxRetries = 2)).assert().isTrue()
+        parked()!!.exhausted(spec.copyWith(maxRetries = 2)).assert().isTrue()
 
         clock.advance(1_000.seconds)
         attemptedAfterScans(3)
 
         // A spec with more retries an operator applies takes it up again.
-        ledger.amend(NAME, cart("x"), ParkedAmendment.ApplyRetrySpec(spec.copy(maxRetries = 4)))
+        ledger.amend(NAME, cart("x"), ParkedAmendment.ApplyRetrySpec(spec.copyWith(maxRetries = 4)))
         eventually { attempts.get() == 4 }
         runtime.stop()
         parked()!!.retries.assert().isEqualTo(3)
@@ -176,7 +176,7 @@ class ParkedRetriesTest {
 
     @Test
     fun `automatic retries can be turned off`(): Unit = runBlocking {
-        val runtime = runtime(spec.copy(maxRetries = 0))
+        val runtime = runtime(spec.copyWith(maxRetries = 0))
         parkX(runtime)
         clock.advance(1_000.seconds)
         attemptedAfterScans(1)
@@ -186,7 +186,7 @@ class ParkedRetriesTest {
 
     @Test
     fun `the owner runs an operator's requests once, without counting a retry`(): Unit = runBlocking {
-        val runtime = runtime(spec.copy(maxRetries = 0))
+        val runtime = runtime(spec.copyWith(maxRetries = 0))
         parkX(runtime)
         ledger.amend(NAME, cart("x"), ParkedAmendment.Request(LedgerRequest.RESUME))
         eventually { attempts.get() == 2 && parked()?.request == null }

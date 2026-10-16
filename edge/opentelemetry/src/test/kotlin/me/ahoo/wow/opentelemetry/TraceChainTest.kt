@@ -26,6 +26,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
@@ -60,9 +61,9 @@ class TraceChainTest {
     }
 
     private val salesManifest: Manifest = salesManifest().let { manifest ->
-        manifest.copy(
+        manifest.copyWith(
             contexts = manifest.contexts.map {
-                it.copy(
+                it.copyWith(
                     subscriptions = listOf(
                         SubscriptionManifest(
                             name = SAGA,

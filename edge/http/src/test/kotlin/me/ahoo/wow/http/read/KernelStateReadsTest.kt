@@ -79,7 +79,7 @@ class KernelStateReadsTest {
     @Test
     fun `the latest state keeps a decimal exact (D122)`(): Unit = runBlocking {
         val snapshot = EventCodec().snapshotOf(cartModel, cart, Cart(), 1, Scope.NONE, 1L, 1L)
-        snapshots.save(snapshot.copy(state = """{"items":1,"price":2.50}"""))
+        snapshots.save(snapshot.copyWith(state = """{"items":1,"price":2.50}"""))
         val price = reads.latest(cart)!!.state["price"]
         price.decimalValue().assert().isEqualTo(BigDecimal("2.50"))
         price.decimalValue().scale().assert().isEqualTo(2)

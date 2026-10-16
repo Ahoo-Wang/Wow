@@ -28,6 +28,7 @@ import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.manifest.ManifestLoader
 import me.ahoo.wow.runtime.node.ContextNode
 import me.ahoo.wow.runtime.node.SourceTopics
@@ -178,9 +179,9 @@ class HostKafkaSinkTest {
         @Bean
         fun publishingManifest(loader: ManifestLoader, models: WowModels, identity: NodeIdentity): Manifest =
             loader.load(ServiceInfo(identity.service), models.providers).let { manifest ->
-                manifest.copy(
+                manifest.copyWith(
                     contexts = manifest.contexts.map { context ->
-                        context.copy(
+                        context.copyWith(
                             published = context.aggregates.map {
                                 PublishedManifest(it.name, PublishedManifest.defaultTopic(context.name, it.name))
                             },

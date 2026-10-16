@@ -98,7 +98,7 @@ class SnapshotTargetsTest {
         val saved = snapshot(order, "o", 2)
         router.save(saved).assert().isTrue()
         router.load(saved.ref).assert().isEqualTo(saved)
-        router.rewrite(saved.copy(state = """{"x":1}""")).assert().isTrue()
+        router.rewrite(saved.copyWith(state = """{"x":1}""")).assert().isTrue()
         router.markStale(saved.ref).assert().isTrue()
         router.pending(order, 1, limit = 10).assert().containsExactly(saved.ref)
         router.claim(order, 2).assert().isEqualTo(SnapshotTable(2, rebuilding = true, backfilled = false))

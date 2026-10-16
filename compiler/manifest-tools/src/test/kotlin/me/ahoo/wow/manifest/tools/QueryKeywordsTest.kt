@@ -32,6 +32,7 @@ import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.Manifest.Companion.schemaRef
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.copyWith
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import tools.jackson.module.kotlin.jacksonObjectMapper
@@ -122,8 +123,8 @@ class QueryKeywordsTest {
         val fragment = fragment(Address::class.java).let { manifest ->
             val context = manifest.contexts.single()
             val aggregate = context.aggregates.single()
-                .copy(commands = listOf(CommandManifest("PlaceOrder", schema = schemaRef(PlaceOrder::class.java.name))))
-            manifest.copy(contexts = listOf(context.copy(aggregates = listOf(aggregate))))
+                .copyWith(commands = listOf(CommandManifest("PlaceOrder", schema = schemaRef(PlaceOrder::class.java.name))))
+            manifest.copyWith(contexts = listOf(context.copyWith(aggregates = listOf(aggregate))))
         }
         val placeOrder = introspector.complete(fragment).defs[PlaceOrder::class.java.name] as Map<*, *>
         (placeOrder["properties"] as Map<*, *>)["buyer"].assert()

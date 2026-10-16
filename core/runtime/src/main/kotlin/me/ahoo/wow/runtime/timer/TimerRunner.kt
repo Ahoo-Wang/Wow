@@ -121,7 +121,7 @@ class TimerRunner(
         val now = loop.clock.millis()
         val resumed = store.settle(
             store.parked(target).map {
-                TimerChange(it, it.copy(status = TimerStatus.PENDING, attempts = 0, outcome = null, dueAt = now))
+                TimerChange(it, it.copyWith(status = TimerStatus.PENDING, attempts = 0, outcome = null, dueAt = now))
             },
         )
         ledger.resolve(TimerOptions.PARKED_SUBSCRIPTION, target)
@@ -137,7 +137,7 @@ class TimerRunner(
     suspend fun skip(target: AggregateRef): Int {
         val skipped = store.settle(
             store.parked(target).map {
-                TimerChange(it, it.copy(status = TimerStatus.CANCELLED, outcome = TimerOutcomes.SKIPPED))
+                TimerChange(it, it.copyWith(status = TimerStatus.CANCELLED, outcome = TimerOutcomes.SKIPPED))
             },
         )
         ledger.resolve(TimerOptions.PARKED_SUBSCRIPTION, target)
@@ -244,13 +244,13 @@ class TimerRunner(
         val expiry = options.expiresAfter
         if (expiry != null && now - current.dueAt > expiry.inWholeMilliseconds) {
             logger.warn { "The timer ${timer.id} was due ${(now - current.dueAt).milliseconds} ago; it expired." }
-            val next = ScheduleSlots.afterFired(current, now)?.copy(outcome = TimerOutcomes.EXPIRED)
-                ?: current.copy(status = TimerStatus.CANCELLED, outcome = TimerOutcomes.EXPIRED)
+            val next = ScheduleSlots.afterFired(current, now)?.copyWith(outcome = TimerOutcomes.EXPIRED)
+                ?: current.copyWith(status = TimerStatus.CANCELLED, outcome = TimerOutcomes.EXPIRED)
             settle(part, timer, next)
             return
         }
         // Claimed before it is sent, from the row as loaded: one cancelled or rescheduled since is not sent.
-        val claimed = current.copy(
+        val claimed = current.copyWith(
             status = TimerStatus.FIRING,
             dueAt = now + options.claimTimeout.inWholeMilliseconds
         )
@@ -278,7 +278,7 @@ class TimerRunner(
      * its slot was ([Timer.slotDueAt]), however many attempts or claims it took.
      */
     private fun fired(timer: Timer, outcome: String, now: Long): Timer =
-        ScheduleSlots.afterFired(timer, now)?.copy(outcome = outcome) ?: timer.copy(
+        ScheduleSlots.afterFired(timer, now)?.copyWith(outcome = outcome) ?: timer.copyWith(
             status = TimerStatus.FIRED,
             attempts = timer.attempts + 1,
             outcome = outcome,
@@ -303,7 +303,7 @@ class TimerRunner(
             settle(
                 part,
                 timer,
-                timer.copy(
+                timer.copyWith(
                     status = TimerStatus.PENDING,
                     attempts = attempts,
                     outcome = reason,
@@ -316,7 +316,7 @@ class TimerRunner(
             "Sending the timer ${timer.id} failed $attempts times; parking it under ${TimerOptions.PARKED_SUBSCRIPTION}."
         }
         // Written at once, so the ledger records only a timer the store holds parked.
-        val parked = TimerChange(timer, timer.copy(status = TimerStatus.PARKED, attempts = attempts, outcome = reason))
+        val parked = TimerChange(timer, timer.copyWith(status = TimerStatus.PARKED, attempts = attempts, outcome = reason))
         val written = quietly("park the timer ${timer.id}") { store.settle(listOf(parked)) } == 1
         part.sending.remove(timer.id)
         if (written) {

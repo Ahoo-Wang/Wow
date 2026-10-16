@@ -93,18 +93,17 @@ internal class SchemaIntrospector(
         val inlined = references.filterKeys { !definitions.has(it) }
         val generated = (defined + inlined).mapValues { (_, schema) -> schemaMap(schema) }
         val defs = fragment.defs + described(generated, aggregates)
-        return fragment.copy(
-            contexts = fragment.contexts.map { context ->
-                context.copy(
-                    aggregates = context.aggregates.map { aggregate ->
+        return fragment.withContexts(
+            fragment.contexts.map { context ->
+                context.withAggregates(
+                    context.aggregates.map { aggregate ->
                         val stateType = load(Manifest.schemaKey(aggregate.state.schema))
                         val fingerprint = fingerprint(AggregateType(context.name, aggregate.name), stateType)
-                        aggregate.copy(state = aggregate.state.copy(fingerprint = fingerprint))
+                        aggregate.withState(aggregate.state.withFingerprint(fingerprint))
                     },
                 )
             },
-            defs = (defs + queryIndexes(fragment, queryKeywords, defs)).toSortedMap(),
-        )
+        ).withDefs((defs + queryIndexes(fragment, queryKeywords, defs)).toSortedMap())
     }
 
     /** The classes of the lifecycle commands [aggregates] list, by their full names, that [defs] does not hold. */

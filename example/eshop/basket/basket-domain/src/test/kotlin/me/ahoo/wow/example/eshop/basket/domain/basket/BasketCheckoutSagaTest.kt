@@ -46,7 +46,7 @@ class BasketCheckoutSagaTest {
             version = 3,
             commandType = "eshop-basket.basket.CheckoutBasket",
             scope = Scope(ownerId = "alice"),
-            operator = Operator("alice", "tenant"),
+            operator = Operator.of("alice", "tenant"),
         )
 
     @Test
@@ -58,7 +58,7 @@ class BasketCheckoutSagaTest {
             submit.ref.assert().isEqualTo(order)
             // In the basket's scope, for its buyer: the order belongs to the buyer (decisions D163, D189).
             submit.scope.assert().isEqualTo(Scope(ownerId = "alice"))
-            submit.operator.assert().isEqualTo(Operator("alice", "tenant"))
+            submit.operator.assert().isEqualTo(Operator.of("alice", "tenant"))
             // Handling the commit again calls with the same request, which the ordering context decides once.
             expectDeterministic()
         }

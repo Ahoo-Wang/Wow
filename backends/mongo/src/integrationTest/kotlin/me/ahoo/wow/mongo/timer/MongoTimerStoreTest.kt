@@ -95,7 +95,7 @@ class MongoTimerStoreTest : TimerStoreSpec() {
             store.find(ref, "k")?.owner.assert().isEqualTo(ref)
             val elsewhere = AggregateType("elsewhere", "order").ref("t", "o-1")
             assertThrownBy<IllegalArgumentException> {
-                runBlocking { store.put(timer.copy(owner = elsewhere, id = "$elsewhere#k@1")) }
+                runBlocking { store.put(timer.copyWith(owner = elsewhere, id = "$elsewhere#k@1")) }
             }
         }
 

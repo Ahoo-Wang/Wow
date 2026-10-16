@@ -148,7 +148,7 @@ class TimersSubscriptionTest {
         runBlocking {
             val job = ScheduleJobs.typeOf(SHOP).ref("acme", "invoice")
             val set = ScheduleSet(ScheduleJobs.TICK_KEY, ScheduleRule.Cron("0 0 0 1 * *"), job, ScheduleJobs.TICK, "{}")
-            val stream = stream(1, event(Schedules.SCHEDULE_SET, set)).copy(ref = job)
+            val stream = stream(1, event(Schedules.SCHEDULE_SET, set)).copyWith(ref = job)
             timers.subscription.handle(SubscribedEntry(stream, null, stream.events))
             val timer = checkNotNull(store.find(Timers.ownerOf(job), ScheduleJobs.TICK_KEY))
             timer.operator.assert().isEqualTo(Operator.system(ScheduleJobs.COMPONENT, "acme"))

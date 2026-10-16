@@ -162,16 +162,16 @@ fun wowRoutes(
  * [manifest] with the route without an id (`POST /{context}/{aggregate}/{command}`) of each command [gateway]
  * transforms (decision D182) that has none, such as a command whose transformer finds its aggregate by a reserved key.
  */
-internal fun withTransformedRoutes(manifest: Manifest, gateway: CommandGateway): Manifest = manifest.copy(
-    contexts = manifest.contexts.map { context ->
-        context.copy(
-            aggregates = context.aggregates.map { aggregate ->
+internal fun withTransformedRoutes(manifest: Manifest, gateway: CommandGateway): Manifest = manifest.withContexts(
+    manifest.contexts.map { context ->
+        context.withAggregates(
+            context.aggregates.map { aggregate ->
                 val type = AggregateType(context.name, aggregate.name)
-                aggregate.copy(
-                    commands = aggregate.commands.map { command ->
+                aggregate.withCommands(
+                    aggregate.commands.map { command ->
                         val route = CommandRoutes.unaddressed(context.name, aggregate.name, command.name)
                         if (route !in command.routes && gateway.transforms(type, command.name)) {
-                            command.copy(routes = command.routes + route)
+                            command.withRoutes(command.routes + route)
                         } else {
                             command
                         }
@@ -188,12 +188,12 @@ internal fun withTransformedRoutes(manifest: Manifest, gateway: CommandGateway):
  * error statuses the host configures.
  */
 internal fun openApiOf(served: Manifest, options: WowHttpOptions, queries: HttpQueries): Map<String, Any?> {
-    val documented = served.copy(
-        contexts = served.contexts.map { context ->
-            context.copy(
-                aggregates = context.aggregates.map { aggregate ->
+    val documented = served.withContexts(
+        served.contexts.map { context ->
+            context.withAggregates(
+                context.aggregates.map { aggregate ->
                     val type = AggregateType(context.name, aggregate.name)
-                    aggregate.copy(queries = aggregate.queries.filter { queries.serves(type, it.model) })
+                    aggregate.withQueries(aggregate.queries.filter { queries.serves(type, it.model) })
                 },
             )
         },

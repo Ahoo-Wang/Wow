@@ -40,6 +40,6 @@ class ViewAudienceSaga {
                 else -> null
             }
         } ?: return null
-        return context.command(event.ref, TransferOwner(ownerId))
+        return context.command(event.ref, TransferOwner.of(ownerId))
     }
 }

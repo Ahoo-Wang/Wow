@@ -601,7 +601,7 @@ internal class SubscriptionWorker(
             "Subscription ${subscription.name} cannot resume ${parked.ref}: ${gone.message} It can only be skipped."
         }
         val reason = "${ParkedAggregate.UNRECOVERABLE}: ${gone.message}"
-        repark(parked.copy(reason = reason, failedAt = clock.millis()))
+        repark(parked.copyWith(reason = reason, failedAt = clock.millis()))
     }
 
     private suspend fun repark(entry: ParkedAggregate) {

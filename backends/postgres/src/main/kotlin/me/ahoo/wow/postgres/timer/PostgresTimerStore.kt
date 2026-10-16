@@ -144,7 +144,9 @@ class PostgresTimerStore(
         }
         return jdbc { connection ->
             connection.prepareStatement(tables.settle).use { settle ->
-                changes.forEach { (loaded, next) ->
+                changes.forEach { change ->
+                    val loaded = change.loaded
+                    val next = change.next
                     settle.setString(1, next.status.name)
                     settle.setLong(2, next.slot)
                     settle.setLong(3, next.slotDueAt)

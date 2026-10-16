@@ -253,7 +253,7 @@ class LedgerCommandsTest {
             .assert().isEqualTo(FrameworkCodes.MALFORMED)
         commands.execute(wire(Ledger.RESUME, ClusterCodec.mapper.createObjectNode()))!!.code
             .assert().isEqualTo(FrameworkCodes.MALFORMED)
-        val blank = ClusterCodec.mapper.valueToTree<JsonNode>(ResumeParked(NAME, X1.copy(id = " ")))
+        val blank = ClusterCodec.mapper.valueToTree<JsonNode>(ResumeParked(NAME, X1.copyWith(id = " ")))
         commands.execute(wire(Ledger.RESUME, blank))!!.code.assert().isEqualTo(FrameworkCodes.MALFORMED)
         // A command from the ops saga is taken by its source, with or without an operator, whatever its roles.
         commands.execute(wire(SkipParked(NAME, X1), operator = null)).assert().isNull()

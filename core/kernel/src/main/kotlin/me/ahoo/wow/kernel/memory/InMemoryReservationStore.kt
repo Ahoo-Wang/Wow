@@ -51,7 +51,7 @@ class InMemoryReservationStore(private val clock: Clock = Clock.systemUTC()) : R
                 held == null || !held.isLive(now) -> Reservation(scope, key, owner, expiresAt, setOf(hold))
                 held.owner != owner -> return@withLock null
                 held.confirmed -> return@withLock held
-                else -> held.copy(expiresAt = maxOf(held.expiresAt!!, expiresAt), holds = held.holds + hold)
+                else -> held.copyWith(expiresAt = maxOf(held.expiresAt!!, expiresAt), holds = held.holds + hold)
             }.also { reservations[scope to key] = it }
         }
     }
@@ -66,7 +66,7 @@ class InMemoryReservationStore(private val clock: Clock = Clock.systemUTC()) : R
             if (left.isEmpty()) {
                 reservations.remove(scope to key)
             } else {
-                reservations[scope to key] = held.copy(holds = left)
+                reservations[scope to key] = held.copyWith(holds = left)
             }
             true
         }

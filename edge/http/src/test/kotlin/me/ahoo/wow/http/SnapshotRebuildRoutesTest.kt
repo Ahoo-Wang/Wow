@@ -16,6 +16,7 @@ package me.ahoo.wow.http
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.SnapshotManifest
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.snapshot.SnapshotStatus
 import org.junit.jupiter.api.Test
 
@@ -39,9 +40,9 @@ class SnapshotRebuildRoutesTest {
     @Test
     fun `a context that keeps no snapshots has no rebuild route`() {
         val manifest = cartManifest().let { manifest ->
-            manifest.copy(
+            manifest.copyWith(
                 contexts = manifest.contexts.map { context ->
-                    context.copy(aggregates = context.aggregates.map { it.copy(snapshot = SnapshotManifest(false)) })
+                    context.copyWith(aggregates = context.aggregates.map { it.copyWith(snapshot = SnapshotManifest(false)) })
                 },
             )
         }

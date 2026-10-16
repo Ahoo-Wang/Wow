@@ -48,6 +48,7 @@ import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
@@ -304,8 +305,8 @@ private fun Manifest.withJobs(jobs: List<ScheduleJob>): Manifest {
             job = JobManifest(job.name, job.rule.expression, job.rule.zone, job.scope.name, job.sharded),
         )
     }
-    return copy(
-        contexts = listOf(context.copy(subscriptions = context.subscriptions + subscriptions)) + contexts.drop(1)
+    return copyWith(
+        contexts = listOf(context.copyWith(subscriptions = context.subscriptions + subscriptions)) + contexts.drop(1)
     )
 }
 

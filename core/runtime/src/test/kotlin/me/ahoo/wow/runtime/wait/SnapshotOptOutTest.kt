@@ -23,6 +23,7 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.manifest.SnapshotManifest
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandRequest
 import me.ahoo.wow.runtime.binding.CART
@@ -52,11 +53,11 @@ class SnapshotOptOutTest {
 
     /** The shop's Manifest with the cart's snapshots off, as the compiler writes `@AggregateRoot(snapshot = false)`. */
     private val manifest = shopManifest().let { manifest ->
-        manifest.copy(
+        manifest.copyWith(
             contexts = manifest.contexts.map { context ->
-                context.copy(
+                context.copyWith(
                     aggregates = context.aggregates.map {
-                        if (it.name == CART.name) it.copy(snapshot = SnapshotManifest(enabled = false)) else it
+                        if (it.name == CART.name) it.copyWith(snapshot = SnapshotManifest(enabled = false)) else it
                     },
                 )
             },

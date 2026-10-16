@@ -28,6 +28,7 @@ import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.manifest.SubscriptionStart
+import me.ahoo.wow.manifest.copyWith
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 import tools.jackson.module.kotlin.jacksonObjectMapper
@@ -233,7 +234,7 @@ class SubscriptionManifestTest {
                 name = "StockOnly.onEvent",
                 kind = SubscriptionKind.PROJECTION,
                 // Decision D140: a handler of a nullable state may read a stream published without it.
-                source = stock.copy(nullableState = true),
+                source = stock.copyWith(nullableState = true),
                 function = FunctionManifest(FunctionKind.PROJECT, "shop", "StockOnly", "onEvent"),
                 start = SubscriptionStart.BEGINNING,
             ),

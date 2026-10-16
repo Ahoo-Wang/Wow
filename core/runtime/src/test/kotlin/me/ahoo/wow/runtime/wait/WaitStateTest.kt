@@ -93,7 +93,7 @@ class WaitStateTest {
         state.offer(first.copyWith(signalTime = 2L)).assert().isNull()
         SignalKey.of(first.copyWith(signalTime = 2L)).assert().isEqualTo(SignalKey.of(first))
         // The same hop of the same command from another source is not taken for a copy of it.
-        val elsewhere = result("d-1", reserved, reserve.copy(context = "shop"))
+        val elsewhere = result("d-1", reserved, reserve.copyWith(context = "shop"))
         SignalKey.of(elsewhere).assert().isNotEqualTo(SignalKey.of(first))
         state.offer(elsewhere)!!.assert().isEmpty()
         state.outcome.assert().isNull()
