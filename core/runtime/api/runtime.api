@@ -25,6 +25,9 @@ public final class me/ahoo/wow/runtime/FrameworkCodes {
 	public final fun getALL ()Ljava/util/Set;
 }
 
+public final class me/ahoo/wow/runtime/InFlightLimit$Companion {
+}
+
 public abstract interface class me/ahoo/wow/runtime/admission/Authorization {
 }
 
@@ -570,7 +573,7 @@ public final class me/ahoo/wow/runtime/node/ServiceNodeOptions {
 	public static final field Companion Lme/ahoo/wow/runtime/node/ServiceNodeOptions$Companion;
 	public static final field DEFAULT_LANE_CAPACITY I
 	public static final field DEFAULT_STATE_CACHE_CAPACITY I
-	public synthetic fun <init> (Lme/ahoo/wow/runtime/cluster/ClusterOptions;Lme/ahoo/wow/runtime/node/Routing;JILme/ahoo/wow/runtime/subscription/SubscriptionOptions;Lme/ahoo/wow/runtime/log/AppendQueueOptions;IIJLme/ahoo/wow/runtime/state/StateViewOptions;Lme/ahoo/wow/runtime/timer/TimerOptions;Ljava/util/Map;Ljava/util/Set;Lme/ahoo/wow/runtime/wait/UnknownContexts;Lme/ahoo/wow/runtime/ledger/LedgerPublishing;Lme/ahoo/wow/runtime/snapshot/SnapshotOptions;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lme/ahoo/wow/runtime/cluster/ClusterOptions;Lme/ahoo/wow/runtime/node/Routing;JILme/ahoo/wow/runtime/subscription/SubscriptionOptions;Lme/ahoo/wow/runtime/log/AppendQueueOptions;IIJLme/ahoo/wow/runtime/state/StateViewOptions;Lme/ahoo/wow/runtime/timer/TimerOptions;Ljava/util/Map;Ljava/util/Set;Lme/ahoo/wow/runtime/wait/UnknownContexts;Lme/ahoo/wow/runtime/ledger/LedgerPublishing;Lme/ahoo/wow/runtime/snapshot/SnapshotOptions;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAppendQueue ()Lme/ahoo/wow/runtime/log/AppendQueueOptions;
 	public final fun getCluster ()Lme/ahoo/wow/runtime/cluster/ClusterOptions;
@@ -578,6 +581,7 @@ public final class me/ahoo/wow/runtime/node/ServiceNodeOptions {
 	public final fun getKafkaRouted ()Ljava/util/Set;
 	public final fun getLaneCapacity ()I
 	public final fun getLedger ()Lme/ahoo/wow/runtime/ledger/LedgerPublishing;
+	public final fun getMaxInFlight ()I
 	public final fun getMaxWaitHops ()I
 	public final fun getMaxWaitTimeout-UwyO8pc ()J
 	public final fun getRouting ()Lme/ahoo/wow/runtime/node/Routing;

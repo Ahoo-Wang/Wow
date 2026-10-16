@@ -28,9 +28,12 @@ import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.spi.wait.Origin
+import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.Test
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 class ExecutorTest {
     data class Add(val amount: Int)
@@ -110,6 +113,77 @@ class ExecutorTest {
             .assert().isInstanceOf(ExecutorBusyException::class.java)
         gate.complete(Unit)
         held.await()
+    }
+
+    @Test
+    fun `the node's in-flight bound refuses a command of any aggregate beyond it`(): Unit = runBlocking {
+        val limit = InFlightLimit(max = 1)
+        val first = Executor(Kernel(InMemoryEventLog()), limit = limit)
+        val second = Executor(Kernel(InMemoryEventLog()), limit = limit)
+        val gate = CompletableDeferred<Unit>().also { gates["node"] = it }
+        val held = async(Dispatchers.Default) { first.execute(model, command("p", Hold("node"))) }
+        withTimeout(TIMEOUT_MS) { holding.computeIfAbsent("node") { CompletableDeferred() }.await() }
+        limit.inFlight.assert().isEqualTo(1)
+        // Another aggregate, another context's executor: the node's bound is shared.
+        val busy = runCatching { second.execute(model, command("q", Add(1))) }.exceptionOrNull()
+        busy.assert().isInstanceOf(ExecutorBusyException::class.java)
+        (busy as ExecutorBusyException).node.assert().isTrue()
+        busy.message.assert().isEqualTo("The node already has 1 commands in flight; retry later.")
+        gate.complete(Unit)
+        held.await().assert().isInstanceOf(CommandOutcome.Committed::class.java)
+        limit.inFlight.assert().isEqualTo(0)
+        second.execute(model, command("q", Add(1))).assert().isInstanceOf(CommandOutcome.Committed::class.java)
+        limit.inFlight.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `a full lane gives its place in the node's bound back`(): Unit = runBlocking {
+        val limit = InFlightLimit(max = 4)
+        val small = Executor(Kernel(InMemoryEventLog()), laneCapacity = 1, limit = limit)
+        val gate = CompletableDeferred<Unit>().also { gates["lane"] = it }
+        val held = async(Dispatchers.Default) { small.execute(model, command("l", Hold("lane"))) }
+        withTimeout(TIMEOUT_MS) { holding.computeIfAbsent("lane") { CompletableDeferred() }.await() }
+        val busy = runCatching { small.execute(model, command("l", Add(1))) }.exceptionOrNull()
+        (busy as ExecutorBusyException).node.assert().isFalse()
+        limit.inFlight.assert().isEqualTo(1)
+        gate.complete(Unit)
+        held.await()
+        limit.inFlight.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `a command whose wait times out while it queues is withdrawn and never runs`(): Unit = runBlocking {
+        val now = AtomicLong(1_000)
+        val limit = InFlightLimit()
+        val timed = Executor(Kernel(InMemoryEventLog()), limit = limit, clock = { now.get() })
+        val gate = CompletableDeferred<Unit>().also { gates["wd"] = it }
+        val held = async(Dispatchers.Default) { timed.execute(model, command("w", Hold("wd"))) }
+        withTimeout(TIMEOUT_MS) { holding.computeIfAbsent("wd") { CompletableDeferred() }.await() }
+        val wait = WaitContext.of("wait-1", Origin("n", "a:1", "s"), emptyList(), deadline = 1_050)
+        val queued = command("w", Add(5))
+        val withdrawn = runCatching { timed.execute(model, queued, wait) }.exceptionOrNull()
+        withdrawn.assert().isInstanceOf(CommandWithdrawnException::class.java)
+        (withdrawn as CommandWithdrawnException).commandId.assert().isEqualTo(queued.id)
+        gate.complete(Unit)
+        held.await().assert().isInstanceOf(CommandOutcome.Committed::class.java)
+        limit.inFlight.assert().isEqualTo(0)
+        timed.activeLanes.assert().isEqualTo(0)
+        // The withdrawn command never ran: the next one is at version 2, after the held one alone.
+        val later = WaitContext.of("wait-3", Origin("n", "a:1", "s"), emptyList(), deadline = 10_000)
+        val next = timed.execute(model, command("w", Add(1)), later)
+        (next as CommandOutcome.Committed).stream.version.assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `a command whose lane is free runs even past its wait's deadline`(): Unit = runBlocking {
+        val timed = Executor(Kernel(InMemoryEventLog()), clock = { 5_000 })
+        val wait = WaitContext.of("wait-2", Origin("n", "a:1", "s"), emptyList(), deadline = 1_000)
+        timed.execute(model, command("free", Add(1)), wait).assert().isInstanceOf(CommandOutcome.Committed::class.java)
+    }
+
+    @Test
+    fun `an in-flight bound takes at least one command`() {
+        runCatching { InFlightLimit(0) }.exceptionOrNull().assert().isInstanceOf(IllegalArgumentException::class.java)
     }
 
     @Test

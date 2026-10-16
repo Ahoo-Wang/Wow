@@ -346,6 +346,7 @@ class WowAutoConfiguration {
                 subscription = properties.subscription.options(properties.subscriptions),
                 appendQueue = properties.log.appendQueue.options(backends.appendQueue),
                 laneCapacity = properties.executor.laneCapacity,
+                maxInFlight = properties.executor.maxInFlight,
                 stateCacheCapacity = properties.stateCache.capacity,
                 defaultWaitTimeout = properties.wait.defaultTimeout.toKotlinDuration(),
                 timers = properties.timers.options(),

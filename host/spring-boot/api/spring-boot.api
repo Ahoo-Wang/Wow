@@ -510,7 +510,9 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Contexts {
 public final class me/ahoo/wow/spring/boot/WowProperties$Executor {
 	public fun <init> ()V
 	public final fun getLaneCapacity ()I
+	public final fun getMaxInFlight ()I
 	public final fun setLaneCapacity (I)V
+	public final fun setMaxInFlight (I)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Http {

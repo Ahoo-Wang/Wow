@@ -42,6 +42,7 @@ import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.ScheduleNotDueException
+import me.ahoo.wow.runtime.CommandWithdrawnException
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.ExecutorBusyException
 import me.ahoo.wow.runtime.ExecutorClosedException
@@ -479,7 +480,9 @@ class WaitCoordinator(
      * partition runs it so for a forward.
      *
      * A command the executor does not take is settled FAILED at COMMITTED, not thrown (decision D115): its aggregate's
-     * lane is full ([ResultCodes.BUSY]), or the executor is closed ([ResultCodes.NODE_CLOSING]). So is one whose
+     * lane is full or the node has its most commands in flight ([ResultCodes.BUSY], decision D228 ②), or the executor
+     * is closed ([ResultCodes.NODE_CLOSING]). So is one that waited in its lane past its wait's deadline and was
+     * withdrawn before it ran ([ResultCodes.WAIT_TIMEOUT]: its waiter has gone, and it committed nothing). So is one whose
      * execution a store failed with a transient failure ([StorageUnavailableException], such as the request id's
      * lookup during a restart): [ResultCodes.STORAGE_UNAVAILABLE], which a retry with the same request id may pass, as
      * the kernel deduplicates it. So is a scheduled command due longer from now than the kernel waits for one
@@ -498,6 +501,11 @@ class WaitCoordinator(
             executor.execute(model, command, wait)
         } catch (busy: ExecutorBusyException) {
             return Settlement(reachedResult(command, function, hop, clock()).failed(ResultCodes.BUSY, busy.message!!))
+        } catch (withdrawn: CommandWithdrawnException) {
+            logger.debug { withdrawn.message }
+            return Settlement(
+                reachedResult(command, function, hop, clock()).failed(ResultCodes.WAIT_TIMEOUT, withdrawn.message!!),
+            )
         } catch (closed: ExecutorClosedException) {
             return Settlement(
                 reachedResult(command, function, hop, clock()).failed(ResultCodes.NODE_CLOSING, closed.message!!),
