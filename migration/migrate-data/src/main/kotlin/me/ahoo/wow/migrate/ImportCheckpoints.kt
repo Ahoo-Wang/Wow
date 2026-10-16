@@ -64,15 +64,32 @@ data class SnapshotCheckpoint(
 )
 
 /**
+ * Where the reservation import of one 9.x `PrepareKey` stands ([ReservationImporter]): [after] is the last key
+ * imported or skipped, in key order, [completed] is set once every key is, and the counts are those of every run
+ * since it started.
+ */
+data class ReservationCheckpoint(
+    val after: String? = null,
+    val completed: Boolean = false,
+    val imported: Long = 0,
+    val already: Long = 0,
+    val pending: Long = 0,
+    val expired: Long = 0,
+    val unresolved: Long = 0,
+)
+
+/**
  * The checkpoints of a migration, by 9.x aggregate (`contextName.aggregateName`), in format [format]: the import's
- * ([aggregates]), the state comparison's ([compared]) and the snapshot writing's ([snapshots]). The last two joined
- * format 1 as optional properties (roadmap 8b.2): a file without them reads as before.
+ * ([aggregates]), the state comparison's ([compared]) and the snapshot writing's ([snapshots]); and the reservation
+ * import's by 9.x `PrepareKey` name ([reservations]). The last three joined format 1 as optional properties (roadmap
+ * 8b.2, finding A4-8): a file without them reads as before.
  */
 data class ImportCheckpoints(
     val format: Int = FORMAT,
     val aggregates: Map<String, AggregateCheckpoint> = emptyMap(),
     val compared: Map<String, CompareCheckpoint> = emptyMap(),
     val snapshots: Map<String, SnapshotCheckpoint> = emptyMap(),
+    val reservations: Map<String, ReservationCheckpoint> = emptyMap(),
 ) {
     init {
         require(format == FORMAT) { "Checkpoint format $format is not supported; this tool reads format $FORMAT." }
@@ -92,6 +109,11 @@ data class ImportCheckpoints(
 
     fun with(aggregate: NineXAggregate, checkpoint: SnapshotCheckpoint): ImportCheckpoints =
         copy(snapshots = snapshots + (aggregate.toString() to checkpoint))
+
+    fun reservationsOf(name: String): ReservationCheckpoint? = reservations[name]
+
+    fun with(name: String, checkpoint: ReservationCheckpoint): ImportCheckpoints =
+        copy(reservations = reservations + (name to checkpoint))
 
     companion object {
         const val FORMAT: Int = 1

@@ -20,7 +20,9 @@ data class NineXEventType(val name: String, val revision: String) {
 
 /**
  * What the 9.x store holds of [aggregate], found by scanning it: how many [streams], the [events] of each type and the
- * [commands] of each name (the number of streams each produced), and how many streams record no command name.
+ * [commands] of each name (the number of streams each produced), how many streams record no command name, and
+ * [streamEventTypes]: the number of streams by the set of event types each holds, which tells the streams a mapping
+ * would leave empty.
  */
 data class NineXInventory(
     val aggregate: NineXAggregate,
@@ -28,6 +30,7 @@ data class NineXInventory(
     val events: Map<NineXEventType, Long>,
     val commands: Map<String, Long>,
     val streamsWithoutCommand: Long = 0,
+    val streamEventTypes: Map<Set<NineXEventType>, Long> = emptyMap(),
 )
 
 /**
@@ -38,6 +41,7 @@ data class MappingReport(
     val problems: List<String>,
     val warnings: List<String>,
     val inventories: List<NineXInventory>,
+    val prepareKeys: Map<String, Long> = emptyMap(),
 ) {
     /** Whether the import may start. */
     val passed: Boolean get() = problems.isEmpty()
@@ -54,6 +58,7 @@ data class MappingReport(
                     "${inventory.events.values.sum()} events of ${inventory.events.size} types",
             )
         }
+        prepareKeys.forEach { (name, keys) -> appendLine("  PrepareKey $name: $keys keys") }
         problems.forEach { appendLine("PROBLEM $it") }
         warnings.forEach { appendLine("WARNING $it") }
         append(if (passed) "Mapping check passed." else "Mapping check failed: ${problems.size} problems.")
@@ -65,16 +70,20 @@ data class MappingReport(
  * §1 principle 5), before anything is imported:
  *
  * - every 9.x aggregate the store holds is mapped, and to a V10 aggregate type of the Manifest, no two to the same;
- * - every 9.x event (name and revision) the store holds has a mapping, which drops it or names a V10 event the
- *   Manifest reads at the mapped revision (its current revision or an older one its upgrades read);
+ * - every 9.x event (name and revision) the store holds has a mapping, which drops it, retires it under a name the
+ *   aggregate retired, or names a V10 event the Manifest reads at the mapped revision (its current revision or an
+ *   older one its upgrades read);
+ * - no stream holds only dropped events, which would leave its version empty (map them with `retire` instead);
  * - every 9.x command name the store records maps to a V10 command of the aggregate, and streams that record none
  *   have a default command;
- * - every mapping target is in the Manifest, whether or not the store uses it.
+ * - every mapping target is in the Manifest, whether or not the store uses it;
+ * - every 9.x `PrepareKey` the store holds ([prepareKeys], keys by name) is mapped to a V10 reservation namespace, once
+ *   (finding A4-8).
  *
  * Mappings the store does not use are warnings: the Skill may map an event no stream holds yet.
  */
 class MappingCheck(private val plan: MigrationPlan) {
-    fun check(inventories: List<NineXInventory>): MappingReport {
+    fun check(inventories: List<NineXInventory>, prepareKeys: Map<String, Long> = emptyMap()): MappingReport {
         val problems = mutableListOf<String>()
         val warnings = mutableListOf<String>()
         plan.aggregates.values.groupBy { it.target }.filterValues { it.size > 1 }.forEach { (target, plans) ->
@@ -93,7 +102,23 @@ class MappingCheck(private val plan: MigrationPlan) {
                 storeProblems(aggregate, inventory, problems, warnings)
             }
         }
-        return MappingReport(problems, warnings, inventories)
+        reservationProblems(prepareKeys, problems, warnings)
+        return MappingReport(problems, warnings, inventories, prepareKeys)
+    }
+
+    private fun reservationProblems(
+        prepareKeys: Map<String, Long>,
+        problems: MutableList<String>,
+        warnings: MutableList<String>,
+    ) {
+        val mappings = plan.aggregates.values.flatMap { aggregate -> aggregate.mapping.reservations.map { it.from } }
+        mappings.groupBy { it }.filterValues { it.size > 1 }.keys
+            .forEach { problems += "the 9.x PrepareKey $it is mapped twice" }
+        prepareKeys.filterKeys { it !in mappings }.forEach { (name, keys) ->
+            problems += "the 9.x PrepareKey $name ($keys keys) has no reservation mapping: its keys would be free in V10"
+        }
+        mappings.distinct().filter { it !in prepareKeys }
+            .forEach { warnings += "the 9.x store holds no PrepareKey $it" }
     }
 
     private fun targetProblems(aggregate: AggregatePlan): List<String> {
@@ -109,7 +134,9 @@ class MappingCheck(private val plan: MigrationPlan) {
         val commands = (mapping.commands.map { it.to } + listOfNotNull(mapping.defaultCommand))
             .mapNotNull { aggregate.commandProblem(it) }
         val events = mapping.events.mapNotNull { event ->
-            event.to?.let { aggregate.eventProblem(it, event.toRevision) }?.let { "${event.from}: $it" }
+            event.to?.let {
+                if (event.retire) aggregate.retiredProblem(it) else aggregate.eventProblem(it, event.toRevision)
+            }?.let { "${event.from}: $it" }
         }
         return duplicates + (commands + events).map { "$subject: $it" }
     }
@@ -131,6 +158,16 @@ class MappingCheck(private val plan: MigrationPlan) {
                 problems += "$subject: the 9.x command $name ($count streams) has no mapping"
             }
         }
+        // A stream whose every event is dropped cannot be imported: its version would be empty (finding A4-7).
+        inventory.streamEventTypes
+            .filterKeys { types ->
+                types.isNotEmpty() && types.all { aggregate.eventOf(it.name, it.revision)?.drop == true }
+            }
+            .forEach { (types, count) ->
+                problems += "$subject: $count streams hold only the dropped events " +
+                    "${types.map { it.toString() }.sorted()}, so their versions would be empty: map them with " +
+                    "retire to a name in the aggregate's retiredEvents"
+            }
         if (inventory.streamsWithoutCommand > 0 && aggregate.commandTypeOf(null) == null) {
             problems += "$subject: ${inventory.streamsWithoutCommand} streams record no command and there is no " +
                 "defaultCommand"

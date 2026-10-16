@@ -1,6 +1,6 @@
 # wow-migrate-data
 
-Moves a 9.x application's data into V10 (design [07 §3](../../documentation/designs/v10/07-migration.md)): it checks `migration-map.json`, imports the 9.x event streams into the V10 log, follows what 9.x keeps writing, compares every 9.x snapshot with the state V10 rebuilds, and writes the V10 snapshots. The 9.x source is a MongoDB event store (decision D213); the V10 target is PostgreSQL or MongoDB.
+Moves a 9.x application's data into V10 (design [07 §3](../../documentation/designs/v10/07-migration.md)): it checks `migration-map.json`, imports the 9.x event streams into the V10 log and the 9.x `PrepareKey` keys into the V10 reservations, follows what 9.x keeps writing, compares every 9.x snapshot with the state V10 rebuilds, and writes the V10 snapshots. The 9.x source is a MongoDB event store (decision D213); the V10 target is PostgreSQL or MongoDB.
 
 ## Running
 
@@ -56,6 +56,42 @@ The format is described in `MigrationMap`. Roadmap 8b.2 adds an optional `state`
 - `fields` renames top-level fields of the 9.x state to their V10 names.
 - `ignore` leaves fields out on both sides, by their V10 name; a dotted path goes into objects and through arrays. Use it only for a field one side has by design, which is an explained difference.
 
+## Retired and dropped events
+
+A 9.x event the V10 aggregate no longer has (the 9.x `DroppedEvent`) is mapped in one of two ways:
+
+```json
+{ "from": "order_archived", "to": "OrderArchived", "retire": true },
+{ "from": "order_noted", "drop": true }
+```
+
+- `retire` writes the record as stored under the name `to`, which the V10 aggregate lists in `@AggregateRoot(retiredEvents)` (decision D219). Loading skips it, so its stream still counts as a version. The check fails when `to` is not in the aggregate's retired events in the Manifest.
+- `drop` leaves the event out of its stream. A stream whose every event is dropped would leave its version empty, which the log cannot hold, so the check counts those streams and fails before anything is imported. Map such events with `retire` instead.
+
+## Reservations (9.x `PrepareKey`)
+
+9.x's `MongoPrepareKey` keeps each `PrepareKey` in a collection `prepare_<name>`, one document per key: `{_id: <key>, value: <the prepared value>, ttlAt: <Date>}`. The value is the `PrepareKey<V>`'s `V`: a string, or a document of its fields. A key prepared forever has `ttlAt` at 9.x's `TTL_FOREVER` (6666-06-06). 9.x keys have no tenant.
+
+`import` reserves the confirmed keys in the V10 reservation store after the event streams (decisions D225, D227 ③), so a key 9.x holds is not free in V10 at the cut-over. Each `PrepareKey` the store holds needs a mapping on the aggregate whose instances own its keys:
+
+```json
+{
+  "from": "example-service.user",
+  "to": "identity.user",
+  "reservations": [
+    { "from": "username", "namespace": "user.name", "tenancy": "SYSTEM", "ownerId": "userId" }
+  ]
+}
+```
+
+- `from` is the 9.x `PrepareKey` name, `namespace` the V10 namespace the decide function reserves the key in.
+- `tenancy` is `TENANT` (the default of `DecideScope.reserve`: unique within the owner's tenant) or `SYSTEM` (unique across tenants, as every 9.x key was). It must be the tenancy the V10 code reserves with.
+- `ownerId` is the dotted path of the owner's id in the 9.x value; without it the value itself is the id.
+
+The owner is that aggregate's instance with the id, in the tenant its 9.x streams record. A key prepared forever becomes a confirmed reservation; a key prepared with a time to live (a decision in flight, or one that never committed) and an expired key are skipped. A key whose owner has no 9.x stream, or whose id is in streams of several tenants, is printed as `UNRESOLVED` and not imported. A key another owner already holds in V10 stops the import. The import is checkpointed per `PrepareKey` and idempotent: a key already reserved for its owner is skipped. `compare` checks that every confirmed 9.x key is reserved in V10 for the same owner and prints each that is not.
+
+The reservation store is the target backend's, under its default name, as the V10 host uses it. `tail` does not follow `PrepareKey`s: the final `import --restart`, once 9.x has stopped writing, reserves the keys 9.x confirmed since.
+
 ## Comparing states
 
 `compare` reads `<aggregate>_snapshot`, one document per instance, in aggregate id order, a page at a time. For each 9.x snapshot it replays the V10 log up to the snapshot's version and compares:
@@ -84,6 +120,5 @@ The checkpoint file (format 1) keeps, per 9.x aggregate, where the import, the t
 
 - Only a 9.x MongoDB store is read (D213). A 9.x Redis store must be moved to MongoDB first.
 - A derived command's stream records only the chain's root as its cause, since 9.x keeps only the root.
-- A stream whose events are all dropped is refused until V10 has a retired-event marker (roadmap P.6).
 - An instance without a 9.x snapshot cannot be compared; the report gives the share that can.
 - Ids that collide across tenants are not reported yet.

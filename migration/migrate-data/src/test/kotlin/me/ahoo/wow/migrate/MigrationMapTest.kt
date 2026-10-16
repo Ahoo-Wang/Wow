@@ -14,6 +14,7 @@
 package me.ahoo.wow.migrate
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.decide.ReservationTenancy
 import me.ahoo.wow.migrate.example.NineXExample
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -79,6 +80,40 @@ class MigrationMapTest {
         assertThrows<IllegalArgumentException> { EventMapping("a", to = " ") }
         assertThrows<IllegalArgumentException> { EventMapping("a", to = "A", toRevision = 0) }
         assertThrows<IllegalArgumentException> { EventMapping("a", drop = true, fields = mapOf("x" to "y")) }
+    }
+
+    @Test
+    fun `a retiring event mapping names the retired name and renames no field`() {
+        val text = NineXExample.archivingMapText(""""to": "OrderArchived", "retire": true""")
+        MigrationMap.read(text).aggregates.first().events.single { it.from == "order_archived" }.also {
+            it.retire.assert().isTrue()
+            it.to.assert().isEqualTo("OrderArchived")
+        }
+        assertThrows<IllegalArgumentException> { EventMapping("a", retire = true) }
+        assertThrows<IllegalArgumentException> { EventMapping("a", drop = true, retire = true) }
+        assertThrows<IllegalArgumentException> {
+            EventMapping("a", to = "A", retire = true, fields = mapOf("x" to "y"))
+        }
+    }
+
+    @Test
+    fun `a reservation mapping names its PrepareKey, namespace and tenancy`() {
+        val map = MigrationMap.read(
+            NineXExample.MAP_TEXT.replace(
+                "\"to\": \"example.order\",",
+                "\"to\": \"example.order\", \"reservations\": [ { \"from\": \"order_no\", \"namespace\": \"order.no\" }, " +
+                    "{ \"from\": \"order_code\", \"namespace\": \"order.code\", \"tenancy\": \"SYSTEM\", " +
+                    "\"ownerId\": \"owner.id\" } ],",
+            ),
+        )
+        map.aggregates.first().reservations.assert().containsExactly(
+            ReservationMapping("order_no", "order.no"),
+            ReservationMapping("order_code", "order.code", ReservationTenancy.SYSTEM, "owner.id"),
+        )
+        ReservationMapping("a", "n").tenancy.assert().isEqualTo(ReservationTenancy.TENANT)
+        assertThrows<IllegalArgumentException> { ReservationMapping(" ", "n") }
+        assertThrows<IllegalArgumentException> { ReservationMapping("a", " ") }
+        assertThrows<IllegalArgumentException> { ReservationMapping("a", "n", ownerId = "owner..id") }
     }
 
     @Test

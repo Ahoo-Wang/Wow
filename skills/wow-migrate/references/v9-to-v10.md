@@ -10,8 +10,8 @@ Status: first draft. V10 is still moving: verify every annotation, signature, ro
 - V10 needs JDK 21, Kotlin with KSP, and Jackson 3 (`tools.jackson`) in domain code that touches JSON.
 - Source migration is a semantic rewrite done here; stored history is converted by the data tool `wow-migrate-data`. Never hand-edit stored events to fit the new source.
 - Accept the source when the domain compiles under the V10 compiler and its domain tests pass. Accept the data only when every aggregate rebuilt by V10 matches its 9.x snapshot or each difference class is explained and signed off (`references/cutover-evidence.md`).
-- Each rewrite that changes an event's or command's name, context, revision or shape becomes an entry of `migration-map.json`, which the data tool checks against the event types in the 9.x store and the V10 Manifest before it imports anything; a 9.x event or command the store holds without an entry stops the import. Format 1 (`migration/migrate-data`, `MigrationMap`): `{"format": 1, "headers": {"<9.x request header>": "<V10 name>"}, "aggregates": [{"from": "<9.x contextName.aggregateName>", "to": "<V10 context.aggregate>", "commands": [{"from": "create_order", "to": "CreateOrder"}], "events": [{"from": "order_created", "fromRevision": "0.0.1", "to": "OrderCreated", "toRevision": 1, "upgrade": "upgradeOrderCreatedFrom1"}, {"from": "order_archived", "drop": true}]}]}`. A V10 name without a dot is in the target aggregate's namespace; a system name (`wow.lifecycle.OwnerTransferred`) is written whole, with `"fields": {"toOwnerId": "ownerId"}` to rename a 9.x lifecycle event's fields. `toRevision` is the revision the stored 9.x shape has in V10 (1 unless the 9.x store holds a later 9.x shape); `upgrade` names the V10 upgrade function and is recorded, not run. Map every 9.x command the streams name (their `upstream_name`), not only renamed ones. When a rewrite renames a state property, add `"state": {"fields": {"<9.x name>": "<V10 name>"}}` to the aggregate's entry; list a property only one side has by design in `"state": {"ignore": ["<V10 name or dotted path>"]}` and report it as an explained difference. The data tool's `compare` reads them when it compares each 9.x snapshot with the rebuilt V10 state.
-- `wow-migrate-data` reads a 9.x **MongoDB** event store only. History kept in a 9.x **Redis** event store (`wow-redis`) cannot be imported yet: report it as `MISSING EVIDENCE` for the data migration and do not plan a cut-over on it. The tool writes nothing to the 9.x store unless told to; its tail needs a `(createTime, _id)` index on each `<aggregate>_event_stream` collection, which the operator creates (or lets the tool create with `source.createCommitTimeIndex`).
+- Each rewrite that changes an event's or command's name, context, revision or shape becomes an entry of `migration-map.json`, which the data tool checks against the event types in the 9.x store and the V10 Manifest before it imports anything; a 9.x event or command the store holds without an entry stops the import. Format 1 (`migration/migrate-data`, `MigrationMap`): `{"format": 1, "headers": {"<9.x request header>": "<V10 name>"}, "aggregates": [{"from": "<9.x contextName.aggregateName>", "to": "<V10 context.aggregate>", "commands": [{"from": "create_order", "to": "CreateOrder"}], "events": [{"from": "order_created", "fromRevision": "0.0.1", "to": "OrderCreated", "toRevision": 1, "upgrade": "upgradeOrderCreatedFrom1"}, {"from": "order_archived", "to": "OrderArchived", "retire": true}, {"from": "order_noted", "drop": true}]}]}`. A 9.x event the V10 aggregate no longer has (the 9.x `DroppedEvent`) is mapped with `"retire": true` to a name the aggregate lists in `@AggregateRoot(retiredEvents)` (see [Retired events](#retired-events-9x-droppedevent)): the record is imported under that name and skipped when V10 loads it, so its stream keeps its version, and the check fails when the name is not retired. `"drop": true` leaves the event out of its stream; the check refuses a map that would leave a stream with no event (a command whose only event is dropped), so prefer `retire` for deleted events. A V10 name without a dot is in the target aggregate's namespace; a system name (`wow.lifecycle.OwnerTransferred`) is written whole, with `"fields": {"toOwnerId": "ownerId"}` to rename a 9.x lifecycle event's fields. `toRevision` is the revision the stored 9.x shape has in V10 (1 unless the 9.x store holds a later 9.x shape); `upgrade` names the V10 upgrade function and is recorded, not run. Map every 9.x command the streams name (their `upstream_name`), not only renamed ones. When a rewrite renames a state property, add `"state": {"fields": {"<9.x name>": "<V10 name>"}}` to the aggregate's entry; list a property only one side has by design in `"state": {"ignore": ["<V10 name or dotted path>"]}` and report it as an explained difference. The data tool's `compare` reads them when it compares each 9.x snapshot with the rebuilt V10 state. Every 9.x `PrepareKey` the store holds needs an entry under the aggregate whose instances own its keys, `"reservations": [{"from": "<9.x PrepareKey name>", "namespace": "<V10 namespace>", "tenancy": "TENANT" | "SYSTEM", "ownerId": "<dotted path of the owner's id in the 9.x value>"}]`, with the namespace and tenancy the V10 decide function reserves the key with (see [Reserved keys](#reserved-keys-9x-preparekey)); the import reserves each confirmed 9.x key for its owner in V10, and a `PrepareKey` without an entry fails the check.
+- `wow-migrate-data` reads a 9.x **MongoDB** event store only, and the 9.x `PrepareKey`s kept in that MongoDB (`prepare_<name>` collections). History or `PrepareKey`s kept in a 9.x **Redis** store (`wow-redis`) cannot be imported yet: report it as `MISSING EVIDENCE` for the data migration and do not plan a cut-over on it. A cut-over without the reservations imported leaves every key 9.x holds free in V10, so uniqueness silently breaks. The tool writes nothing to the 9.x store unless told to; its tail needs a `(createTime, _id)` index on each `<aggregate>_event_stream` collection, which the operator creates (or lets the tool create with `source.createCommitTimeIndex`).
 - When a rewrite is uncertain, ask the user, or leave `TODO(wow-migrate)` in code that does not compile. Never guess a semantic rewrite into code that compiles.
 
 ## Build and dependencies
@@ -21,6 +21,7 @@ Status: first draft. V10 is still moving: verify every annotation, signature, ro
 | `wow-spring-boot-starter` with capability variants (`mongo-support`, `kafka-support`, ...) | `wow-spring-boot` (wiring only) plus one module per technology the host uses: `wow-postgres`, `wow-mongo`, `wow-kafka`, `wow-http`, `wow-cosec` |
 | `wow-core`, `wow-spring`, `wow-webflux`, `wow-rest-contract`, `wow-mock`, `wow-metadata`, `wow-schema` | Replaced: `wow-kernel` and `wow-runtime` (core), `wow-http` (routes, problem+json, SSE), `wow-manifest` (contract) |
 | `wow-redis`, `wow-bi` | Removed (no Redis backend; ClickHouse sink replaces BI sync) |
+| `wow-models` (`EnumText`, `StatusCapable`, the `*Capable` interfaces, the `Tree` aggregate) | `wow-models` of the V10 version (the project `:models`, `extensions/models`, decision D187): the same packages (`me.ahoo.wow.models.common`, `me.ahoo.wow.models.tree`), so imports stay; a `Tree` subclass binds through the compiler (annotate its concrete create command `@AllowCreate`) |
 | `ksp("me.ahoo.wow:wow-compiler")` by hand | Gradle plugin `id("me.ahoo.wow")`: applies KSP with `wow-compiler` of its own version, excludes the 9.x processors, and adds `generateWowManifestFragment` and `mergeWowManifest` |
 | `wow-test` (`AggregateSpec<A, S>`) | The functional `aggregateSpec` and `sagaSpec` DSL (`me.ahoo.wow.test`), still the artifact `wow-test` (the project `:test-dsl` in the Wow repository): `testImplementation("me.ahoo.wow:wow-test:<version>")` |
 | In-memory stores and buses (`InMemoryEventStore`, `InMemorySnapshotStore`, ..., `wow-mock`) | No public in-memory store class: domain tests use `wow-test` (`aggregateSpec`, `sagaSpec` run on in-memory stores), a host uses `wow.backend: memory`, and a test without Kafka gives an `InMemoryTopics` bean (`me.ahoo.wow.kernel.memory`). The kernel's other `InMemory*` stores are `@InternalWowApi` |
@@ -65,9 +66,11 @@ V10 annotations keep the package `me.ahoo.wow.api.annotation`, so kept names nee
 | 9.x | V10 | Rewrite |
 |---|---|---|
 | `@BoundedContext(name, alias, description, scopes, packageScopes, aggregates)` | `@BoundedContext(name, description)` | The aggregate list comes from `@AggregateRoot`; a fixed tenant moves to host configuration. The context name is part of every command, event and route name, so decide it explicitly (the port chose the 9.x alias `example` over `example-service`; the eShop names its contexts `eshop-<context>`) and record it in the map. |
-| `@AggregateRoot(commands = [...])` | `@AggregateRoot(lifecycle = [...], published, publishState, topic)` | Mounted commands have no equivalent. `lifecycle` lists the system commands kept (all five by default). `published = false` keeps the aggregate's state events out of the context's published streams, `publishState = false` publishes them without the state, and `topic` overrides `wow.<context>.<aggregate>.state` (a Kafka topic name, at most 249 characters). |
+| `@AggregateRoot(commands = [...])` | `@AggregateRoot(lifecycle = [...], published, publishState, topic, ownership, retiredEvents)` | A 9.x mounted command becomes a class annotated `@MountedCommand(aggregate = "<aggregate>", transformsTo = [...])` (decision D182): served under the aggregate's routes, decided by no aggregate, and turned into a command an aggregate decides by exactly one `CommandTransformer` of the service (the service does not start with none or two). `retiredEvents` lists deleted events (see [Retired events](#retired-events-9x-droppedevent)). `lifecycle` lists the system commands kept (all five by default). `published = false` keeps the aggregate's state events out of the context's published streams, `publishState = false` publishes them without the state, and `topic` overrides `wow.<context>.<aggregate>.state` (a Kafka topic name, at most 249 characters). |
 | `@OnCommand(returns = [...])` | `@OnCommand(produces = [...])` | Needed only when the function returns `Decision`; a concrete or sealed return type is inferred. |
-| `@OnSourcing`, `@CreateAggregate`, `@AllowCreate`, `@AfterCommand(include, exclude)`, `@Blocking`, `@Description`, `@Summary`, `@WowSpi` | Same | Unchanged. |
+| `@OnSourcing`, `@CreateAggregate`, `@AllowCreate`, `@AfterCommand(include, exclude)`, `@Description`, `@Summary`, `@WowSpi` | Same | Unchanged. |
+| `@Blocking` | Same | Keep it on a function that blocks its thread (JDBC, a blocking client): a command function (`@OnCommand`), an after hook, a subscription handler (`@OnEvent`, `@OnRejected`, `@OnCommitted`) or a job (decision D227 ①). Its call then runs on a virtual thread; an unmarked synchronous function runs inline as pure computation, so a blocking one left unmarked stalls the worker. It is a compile error on `@OnSourcing`, `@Upgrade` and `@Tags` functions, and a warning on a function returning a Reactor publisher. |
+| `DroppedEvent` (an `EventUpgrader` returning `toDroppedEventRecord()`) | `@AggregateRoot(retiredEvents = ["<stored name>"])` | See [Retired events](#retired-events-9x-droppedevent) (decision D219). |
 | `@Name` on a class | Same | Names an aggregate, processor, command or event. |
 | `@Name` on a parameter | Same, as a qualifier | The binding index resolves the service by type and qualifier. |
 | `@Event(revision = "0.0.1")` | `@Revision(n)` | Integer revision; a migrated 9.x shape is revision 1. |
@@ -81,7 +84,7 @@ V10 annotations keep the package `me.ahoo.wow.api.annotation`, so kept names nee
 | none | `@OnRejected` | A saga's handler for the rejection of a command it derived (`CommandRejected<C>`, or `CommandRejected<*>` for any), returning the commands that compensate. Without one, a rejected derived command parks the aggregate at once; 9.x had no such outcome. |
 | `@Retry(maxRetries, minBackoff, executionTimeout)` | `@Retry(maxAttempts, initialBackoff, maxBackoff, timeout)` and `wow.subscriptions.[<name>].parked.*` | V10's `@Retry`, on a processor or its `@OnEvent` handler, is the in-process budget before the aggregate parks. The 9.x settings are the parked entry's long-horizon retries: `wow.subscriptions.[<processor.function>].parked.max-retries`, `min-backoff` and `execution-timeout`. |
 | `@OnError` | Removed | Return a rejection; compensate in a `@Saga`. |
-| `@PreparableKey` | Removed | `DecideScope.reserve(namespace, key)`. |
+| `@PreparableKey` | Removed | `DecideScope.reserve(namespace, key, tenancy)`; decide the tenancy of every key. See [Reserved keys](#reserved-keys-9x-preparekey). |
 | `@AggregateId`, `@TenantId`, `@OwnerId`, `@AggregateVersion` on command fields | Removed (compile error) | See [Command bodies](#command-bodies-carry-no-identity). |
 | `@StaticTenantId`, `@StaticAggregateId` | Removed | Fixed tenant is host configuration. |
 | `@AggregateName` | `@Name` on the aggregate root | |
@@ -138,7 +141,7 @@ Events lose identity fields the same way: the 9.x `OrderCreated.orderId` is now 
 | `onError(...)` | Delete when it only logs; compensation becomes a `@Saga` |
 | `CommandValidator.validate()` on the body | Jakarta constraints at the edge (`wow.command.invalid`, 400); a rule Jakarta cannot express is a rejection in decide |
 | Injected service; `@Name("x")` parameter | Parameter of the generated factory, bound once by the host; `@Name("x")` qualifies it |
-| `GlobalIdGenerator` inside decide | An id derived from `command.ref` (deciding again after a conflict must produce the same events), or a generator injected as a service; verify the target's `IdGenerator` |
+| `GlobalIdGenerator.generateAsString()`, `NamedAggregate.generateId()` inside decide | `scope.ids.next()`, `scope.ids.next(type)` on the `DecideScope` (decision D171): the node's generators (UUIDv7, or CosId with `wow-cosid`), fixed ids in the test DSL. A decision decided again after a version conflict takes new ids, which is safe: the conflicting attempt appended nothing, and a retried request is answered from its first commit (`Wow-Request-Id`), not decided again. Derive an id from `command.ref` only when a client must know it before the answer. A saga takes ids from `SagaContext.ids`; the commands it derives keep their deterministic ids |
 | Return `Any`, event, list, `Mono` | `Decision` (`events`, `NoOp`, `reject`), an event, a list, a sealed type, or a publisher through `wow-reactor` |
 
 9.x framework types in a V10 signature are compile errors, so these rewrites are mandatory. A function's first parameter is the body `X` or `Command<X>`; later parameters are services or a `DecideScope`. Every non-private function is bound; private functions are ignored.
@@ -199,8 +202,8 @@ suspend fun onCommand(
         }
     }
     val created = OrderCreated(
-        items = placing.items.mapIndexed { index, item ->
-            OrderItem("${command.ref.id}-${index + 1}", item.productId, item.price, item.quantity)
+        items = placing.items.map { item ->
+            OrderItem(scope.ids.next(), item.productId, item.price, item.quantity)
         },
         address = placing.address,
         fromCart = placing.fromCart,
@@ -312,13 +315,39 @@ fun upgradeOrderCreatedFrom1(node: ObjectNode): ObjectNode {
 
 Cover each upgrade with a test that decodes a real 9.x payload through the generated model.
 
+### Retired events (9.x `DroppedEvent`)
+
+An event the domain no longer has is retired, not dropped from history (decision D219): delete its class and its sourcing function, and list the name the log stores it under in `@AggregateRoot(retiredEvents)`. A record of a retired event is skipped when the aggregate loads (its stream still counts as a version) and passed over by subscriptions; a name neither current nor retired still fails to load. A name without a dot is within the aggregate (`OrderArchived` is `context.aggregate.OrderArchived`); a name with dots is the full stored name. The compiler rejects a retired name that is a current event's or command's name or former name (`@Alias`). The Manifest lists the retired names (`retired`), and the compatibility gate takes an event moved from `events` to `retired` for a retirement, not a breaking removal.
+
+Before, 9.x:
+
+```kotlin
+class OrderArchivedUpgrader : EventUpgrader {
+    override val eventNamedAggregate: EventNamedAggregate =
+        "example-service.order".toNamedAggregate().toEventNamedAggregate("order_archived")
+
+    override fun upgrade(domainEventRecord: DomainEventRecord): DomainEventRecord =
+        domainEventRecord.toDroppedEventRecord()
+}
+```
+
+After, V10:
+
+```kotlin
+@AggregateRoot(retiredEvents = ["OrderArchived"])
+class Order(private val state: OrderState) { /* no OrderArchived class, no onSourcing for it */ }
+```
+
+In `migration-map.json`, map the 9.x event to that name with `"retire": true` (`{"from": "order_archived", "to": "OrderArchived", "retire": true}`): the data tool imports its records under the retired name and checks that the aggregate retired it. Do not map a deleted event with `"drop": true` when a command produced it alone: its streams would be left empty and the check refuses the map.
+
 ## State classes
 
 - `onSourcing` functions must be non-private; V10 ignores private functions, and an event without an evolve function fails when encoded.
 - Every event a command can produce needs a sourcing function, even an empty one (`fun onSourcing(event: OrderOverPaid) = Unit`).
 - Every property needs a value before creation: the kernel serializes state for snapshots and the test DSL's purity check, and an uninitialized `lateinit` cannot be read. Make it nullable or give it a default.
 - Mutable state stays the default style; only annotations and signatures change. Decide must not mutate state outside events; the test DSL fails such code.
-- Drop 9.x framework interfaces on state: `StatusCapable`, `StateAggregateTagsExtractor` (tags now change only through the `ApplyTags` lifecycle command), `ReadOnlyStateAggregate`, and swagger `@Schema`.
+- Drop the 9.x framework interfaces on state: `ReadOnlyStateAggregate` and swagger `@Schema`. `StatusCapable` and the other `wow-models` interfaces stay, from the V10 `wow-models`.
+- `StateAggregateTagsExtractor` becomes a `@Tags` member of the state (decision D220): a function without parameters, or a property, returning `Map<String, Collection<String>>`, pure (no I/O, not `suspend`, no `@Blocking`). Derived keys override, per key, the tags `ApplyTags` applied, and are derived again after every commit and load, so a state change replaces a key's values instead of merging them as 9.x did: return every key it owns on every call, an empty list for none. `ApplyTags` cannot set a derived key.
 - Drop the state's `id` unless the domain reads it: a no-argument constructor is the recommended form (decision D203); the id is the snapshot's `aggregateId` and `command.ref.id` in decide. The compiler also accepts `(id)` and `(id, tenantId)`.
 - Jackson trees in commands, events and state (`ObjectNode`, `JsonNode`, a free-form config) become `Map<String, Any?>` (or a typed class): the API module then needs no Jackson, and the Manifest schema of the field is a plain object. A query can neither filter nor project into such a field (`state.config.kind` is `UNKNOWN_FIELD`), so a value clients filter or list by is kept as a field of its own beside it (`state.kind`), and their queries change.
 
@@ -353,7 +382,7 @@ class OrderState {
 
 ## Sagas, projections, reactors
 
-Target form; check that the pinned target compiler generates subscription bindings before rewriting (the first port deferred its sagas until it did).
+The compiler generates the subscription bindings of annotated processors (decision D149: a `ProcessorBinding` per handler, exposed through the generated `ModelProvider`, which the runtime turns into subscriptions), so rewrite sagas, projections and reactors directly; leave no `TODO(wow-migrate)` waiting for bindings.
 
 - The class carries exactly one of `@Projection`, `@Reactor`, `@Saga`; its handlers are `@OnEvent` functions or functions named `onEvent`, none private.
 - A handler takes `StateEvent<S>` (the commit's events plus the state after it) and optionally its kind's context (`ProjectContext`, `ReactContext`, `SagaContext`), nothing else. Services go to the processor's constructor.
@@ -383,7 +412,7 @@ class CartSaga {
 }
 ```
 
-After (target form):
+After:
 
 ```kotlin
 @Saga
@@ -402,6 +431,44 @@ class CartSaga {
 ```
 
 A 9.x saga or `onStateEvent` handler that only logs has no V10 counterpart worth keeping; delete it and say so.
+
+## Reserved keys (9.x `PrepareKey`)
+
+A 9.x `@PreparableKey` interface and its `prepare`/`usingPrepare`/`rollback`/`reprepare` calls become reservations taken in the decide function (decisions D38, D225): `scope.reserve(namespace, key, tenancy)` returns false when another aggregate holds the key (return a rejection then); the kernel confirms the reservation once the events are appended and gives it up when they are not, so `usingPrepare`'s rollback has no counterpart. A rename (`reprepare`) reserves the new key and `scope.release(namespace, oldKey, tenancy)`s the old one in the same decision; a release applies only once the events are appended. Deleting an aggregate releases none of its keys: its delete command releases those it should give up.
+
+**Tenancy is a decision per key.** A 9.x `PrepareKey` was global: one key across every tenant. A V10 key is unique within its bounded context and, by default (`reserve(namespace, key)`, `ReservationTenancy.TENANT`), within the aggregate's tenant, so another tenant may hold the same key. Copying `reserve(namespace, key)` therefore turns a globally unique login name into one unique per tenant, silently. For each key, decide:
+
+- `ReservationTenancy.SYSTEM`: the key must stay unique across tenants (a login name, an e-mail address used to sign in, an external id shared by all tenants);
+- `ReservationTenancy.TENANT`: the key is the tenant's own business (an order number, a SKU, a code that only needs to be unique inside the tenant).
+
+When the code and the request do not say which, ask the user, and record the answer; never pick one silently. A single-tenant application behaves the same either way, but say which you chose. Write the same `tenancy` and namespace into the `reservations` entry of `migration-map.json`.
+
+Before, 9.x:
+
+```kotlin
+@PreparableKey(name = "username")
+interface UsernamePrepareKey : PrepareKey<String>
+
+fun onCommand(command: CommandMessage<Register>, usernamePrepareKey: UsernamePrepareKey): Mono<Registered> =
+    usernamePrepareKey.usingPrepare(command.body.username, command.aggregateId.id) { prepared ->
+        require(prepared) { "username is already reserved" }
+        Registered(command.body.username).toMono()
+    }
+```
+
+After, V10 (a login name unique across tenants, as the user confirmed):
+
+```kotlin
+@OnCommand(produces = [Registered::class])
+suspend fun onCommand(command: Register, scope: DecideScope): Decision =
+    if (scope.reserve(UserNamespaces.NAME, command.username, ReservationTenancy.SYSTEM)) {
+        Decision.events(Registered(command.username))
+    } else {
+        Decision.reject(UserRejections.NAME_TAKEN, "${command.username} is taken.")
+    }
+```
+
+`migration-map.json`, under the user aggregate: `"reservations": [{"from": "username", "namespace": "user.name", "tenancy": "SYSTEM"}]` (the 9.x value is the user's id; give `"ownerId": "<path>"` when it is an object holding the id). The data tool reserves each key 9.x prepared forever for its owner, in the tenant the owner's 9.x streams record, and skips pending and expired keys; `compare` checks every confirmed key is reserved for the same owner. A 9.x lookup of an aggregate by its key (`PrepareKey.get`) becomes a `CommandTransformer` (decision D182) that finds the command's aggregate, or a query; check the pinned target for what it offers.
 
 ## Routing
 
@@ -518,25 +585,21 @@ class CartSpec {
 | 9.x | Status on the V10 target |
 |---|---|
 | `@AggregateRoute(resourceName)`, custom `@CommandRoute` actions, methods, path and header variables | No equivalent; routes are fixed. Clients and gateway rules change. |
-| `@AggregateRoot(commands = [...])`, `MountedCommand`, `@VoidCommand` | No equivalent; dropped. |
+| `@VoidCommand` | No equivalent; dropped. |
 | `@AggregateOwner(OwnerPolicy.*)`, `@Spaced` | `Ownership.OWNER` or `TENANT` per aggregate; scope from the principal plus explicit checks. |
 | An event implementing `OwnerTransferred`; a decide function for a lifecycle command | Not in a decide function: a saga derives `TransferOwner` ([Ownership and owner moves](#ownership-and-owner-moves)). |
 | A starter's own routes (derived ids, replay, "unchanged" answers, path-scoped reserved owners) | Transformers, snapshot queries, `NoOp`, request-id deduplication and a `CallerResolver` ([Routes and handlers of a 9.x starter](#routes-and-handlers-of-a-9x-starter)). |
 | `bindingErrors` of a domain exception | No place in a rejection; said in its message. |
 | `CommandValidator.validate()` | No V10 counterpart in the domain API; Jakarta at the edge or a decide rejection. The example's China-only address rule was dropped. |
 | `@Order`, swagger `@Tag`/`@Schema` | No equivalent; dropped. |
-| `GlobalIdGenerator` inside decide | Deterministic ids from the ref; check the target's `IdGenerator` port before injecting one. |
-| `EnumText`, `StatusCapable` (`wow-models`) | No equivalent; plain enum and property. `wow-models` is undecided for V10. |
-| `StateAggregateTagsExtractor`, `AbacTags` from state | No equivalent; tags change only through `ApplyTags`. |
 | `@EntityObject`, `@ValueObject`, `Identifier` | Removed. |
 | `@QueryReference` and other query annotations | No V10 counterpart yet; dropped. |
 | `ErrorInfo` on events | Plain data. |
 | Private `onSourcing`; events without one; `lateinit` state | Must be rewritten (see [State classes](#state-classes)). |
-| `@StatelessSaga` sagas | Wait for subscription bindings in the pinned target; until then mark them `TODO(wow-migrate)` so the build fails. |
 | Test DSL artifact | `wow-test` (`:test-dsl`), the V10 test DSL (`aggregateSpec`, `sagaSpec`); the eShop's domain tests use it. |
 
-Gaps the port reported that later V10 work closed, so do not report them as missing: qualifying an injected service (`@Name` on the parameter), declaring `produces` for functions returning `Decision` (`@OnCommand(produces)`), and declaring rejection codes in the Manifest (`@ErrorCode`). Verify each against the pinned target.
+Gaps the port reported that later V10 work closed, so do not report them as missing: qualifying an injected service (`@Name` on the parameter), declaring `produces` for functions returning `Decision` (`@OnCommand(produces)`), declaring rejection codes in the Manifest (`@ErrorCode`), mounted commands (`@MountedCommand` with a `CommandTransformer`, D182; the 9.x `CommandBuilderRewriter` maps to the transformer too), ids in decide (`DecideScope.ids`, D171), `wow-models` (ported, with `Tree`, D187), tags derived from state (`@Tags`, D220), deleted events (`retiredEvents`, D219), `@Blocking` on command functions (D227), saga, projection and reactor bindings (generated, D149) and `PrepareKey` data (imported by `wow-migrate-data`, D227). Verify each against the pinned target.
 
 ## Completion
 
-Report, besides the general completion items: the pinned 9.x source and V10 target, every changed file, every `TODO(wow-migrate)` and question left for the user, every `migration-map.json` entry, every dropped construct with its replacement or none, every route and header change clients must follow, the compile and domain-test results under the V10 compiler, and the data migration state, which this rewrite alone never proves.
+Report, besides the general completion items: the pinned 9.x source and V10 target, every changed file, every `TODO(wow-migrate)` and question left for the user, every `migration-map.json` entry, every reserved key with its namespace and tenancy and whether the user confirmed it, every retired event, every dropped construct with its replacement or none, every route and header change clients must follow, the compile and domain-test results under the V10 compiler, and the data migration state, which this rewrite alone never proves.

@@ -31,8 +31,12 @@ class InMemoryNineXEventSource(streams: Collection<NineXStream> = emptyList()) :
                 .mapValues { it.value.toLong() },
             commands = held.mapNotNull { it.commandName }.groupingBy { it }.eachCount().mapValues { it.value.toLong() },
             streamsWithoutCommand = held.count { it.commandName == null }.toLong(),
+            streamEventTypes = held.groupingBy { stream -> stream.eventTypes() }.eachCount().mapValues { it.value.toLong() },
         )
     }
+
+    private fun NineXStream.eventTypes(): Set<NineXEventType> =
+        events.map { NineXEventType(it.name, it.revision) }.toSet()
 
     override fun aggregateIds(aggregate: NineXAggregate, after: NineXAggregateId?, limit: Int): List<NineXAggregateId> =
         streams.filter { it.aggregate == aggregate && it.version == 1 }.map { it.aggregateId }.distinct().sorted()
@@ -47,6 +51,10 @@ class InMemoryNineXEventSource(streams: Collection<NineXStream> = emptyList()) :
     ): List<NineXStream> = streams.filter { it.aggregate == aggregate && it.aggregateId == id && it.version >= fromVersion }
         .sortedBy { it.version }
         .take(limit)
+
+    override fun tenantsOf(aggregate: NineXAggregate, id: String): List<String> =
+        streams.filter { it.aggregate == aggregate && it.aggregateId.id == id && it.version == 1 }
+            .map { it.aggregateId.tenantId }.distinct().sorted()
 
     override fun committedSince(
         aggregate: NineXAggregate,

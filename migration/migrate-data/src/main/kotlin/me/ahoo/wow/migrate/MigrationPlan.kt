@@ -32,6 +32,14 @@ class MigrationPlan(val map: MigrationMap, val manifest: Manifest) {
         mapping.source() to AggregatePlan(mapping, target, manifestOf(target), map.headers)
     }
 
+    /**
+     * The plans of the mapped 9.x `PrepareKey`s, by name (A4-8): each with the aggregate whose instances own its keys.
+     * A name mapped twice keeps its last mapping here; the mapping check reports it.
+     */
+    val reservations: Map<String, ReservationPlan> = aggregates.values.flatMap { aggregate ->
+        aggregate.mapping.reservations.map { it.from to ReservationPlan(aggregate, it) }
+    }.toMap()
+
     /** The plan of [aggregate]; a [MigrationException] when the map does not name it. */
     fun of(aggregate: NineXAggregate): AggregatePlan =
         aggregates[aggregate] ?: throw MigrationException("migration-map.json does not map the 9.x aggregate $aggregate.")
@@ -91,6 +99,20 @@ class AggregatePlan(
             fullName(command.name) == full || command.aliases.any { fullName(it) == full }
         }
         return if (known) null else "the V10 command $full is not in the Manifest"
+    }
+
+    /**
+     * Why the map's `retire` of an event under [name] does not hold: the aggregate does not list [name] among its
+     * retired events (decision D219); null when it does.
+     */
+    fun retiredProblem(name: String): String? {
+        val full = fullName(name)
+        val manifest = manifest ?: return null
+        return if (manifest.retired.any { fullName(it) == full }) {
+            null
+        } else {
+            "$full is retired by the map but not by $target: add it to @AggregateRoot(retiredEvents)"
+        }
     }
 
     /**

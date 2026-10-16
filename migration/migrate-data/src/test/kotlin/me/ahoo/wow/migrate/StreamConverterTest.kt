@@ -130,6 +130,18 @@ class StreamConverterTest {
         converter(map).convert(mixed).events.map { it.name }.assert().containsExactly("example.order.OrderCreated")
         val dropped = created.copy(events = listOf(event("order_archived", "{}")))
         assertThrows<MigrationException> { converter(map).convert(dropped) }.message!!.assert().contains("dropped")
+            .contains("retire")
+    }
+
+    @Test
+    fun `a retired event is written as stored under its retired name`() {
+        val map = NineXExample.map.order {
+            copy(events = events + EventMapping("order_archived", to = "OrderArchived", retire = true))
+        }
+        val archived = created.copy(events = listOf(event("order_archived", """{"reason":"old"}""")))
+        converter(map).convert(archived).events.single().assert().isEqualTo(
+            EventRecord(NineXExample.ORDER_ARCHIVED, 1, """{"reason":"old"}"""),
+        )
     }
 
     @Test

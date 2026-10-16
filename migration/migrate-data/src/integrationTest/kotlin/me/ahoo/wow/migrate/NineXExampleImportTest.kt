@@ -14,6 +14,7 @@
 package me.ahoo.wow.migrate
 
 import com.mongodb.client.MongoDatabase
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.Kernel
@@ -49,9 +50,14 @@ class NineXExampleImportTest {
     private val output = ByteArrayOutputStream()
     private val nineX: MongoDatabase = NineXMongoStore.example()
 
-    private fun config(target: String, createIndex: Boolean = false, map: String = NineXExample.MAP_TEXT): Path {
+    private fun config(
+        target: String,
+        createIndex: Boolean = false,
+        map: String = NineXExample.MAP_TEXT,
+        manifest: String = NineXExample.MANIFEST_TEXT,
+    ): Path {
         Files.writeString(directory.resolve("migration-map.json"), map)
-        Files.writeString(directory.resolve("manifest.json"), NineXExample.MANIFEST_TEXT)
+        Files.writeString(directory.resolve("manifest.json"), manifest)
         return directory.resolve("migrate-data.json").also {
             Files.writeString(
                 it,
@@ -178,6 +184,52 @@ class NineXExampleImportTest {
             MongoEventLog(NineXMongoStore.client, TARGET_DATABASE, NineXExample.CONTEXT, PARTITIONS),
             MongoSnapshotStore(NineXMongoStore.client, TARGET_DATABASE, NineXExample.CONTEXT),
         )
+    }
+
+    @Test
+    fun `a stream of retired events only imports and keeps its version`(): Unit = runBlocking {
+        // Finding A4-7: the 9.x order archived by a stream holding only order_archived, which V10 retired (D219).
+        NineXMongoStore.insert(nineX, NineXExample.archived(NineXExample.resource("order-stream-v4.json")))
+        val database = "wow_v10_retired"
+        val target = """{ "type": "mongo", "uri": "${WowContainers.mongo.replicaSetUrl}", "database": "$database" }"""
+        val log = MongoEventLog(NineXMongoStore.client, database, NineXExample.CONTEXT, PARTITIONS)
+        val manifest = NineXExample.manifestText(NineXExample.archivingManifest())
+
+        // Dropped, the stream's version would be empty: the check reports it and the import does not start.
+        val drop = config(target, map = NineXExample.archivingMapText(""""drop": true"""), manifest = manifest)
+        run("import", "--config", drop.toString()).assert().isEqualTo(MigrateData.FAILED)
+        output.toString().assert().contains("1 streams hold only the dropped events [order_archived@0.0.1]")
+            .doesNotContain("streams imported")
+
+        // Retired to a name the aggregate does not retire: the check fails too.
+        val retire = NineXExample.archivingMapText(""""to": "OrderArchived", "retire": true""")
+        val unretired = config(
+            target,
+            map = retire,
+            manifest = NineXExample.manifestText(NineXExample.archivingManifest(retired = false)),
+        )
+        run("check", "--config", unretired.toString()).assert().isEqualTo(MigrateData.FAILED)
+        output.toString().assert().contains("add it to @AggregateRoot(retiredEvents)")
+
+        // Retired: the record is written under the retired name, and loading skips it at its version.
+        val config = config(target, map = retire, manifest = manifest)
+        run("import", "--config", config.toString()).assert().describedAs(output.toString()).isEqualTo(MigrateData.OK)
+        output.toString().assert().contains("example-service.order done: 1 instances, 5 streams imported")
+        val order = NineXExample.stream("order-stream-v1.json").aggregateId
+        val orderRef = NineXExample.orderModel.type.ref(order.tenantId, order.id)
+        log.read(orderRef).toList().last().also {
+            it.version.assert().isEqualTo(5)
+            it.commandType.assert().isEqualTo("example.order.ArchiveOrder")
+            it.events.single().name.assert().isEqualTo(NineXExample.ORDER_ARCHIVED)
+        }
+        val archived = Kernel(log).stateAt(NineXExample.orderModel, orderRef, 5)!!
+        archived.version.assert().isEqualTo(5)
+        NineXExample.sameJson(
+            WowJson.mapper.valueToTree(archived.state),
+            WowJson.mapper.readTree(NineXExample.resource("order-state.json")),
+        ).assert().isTrue()
+        run("import", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
+        output.toString().assert().contains("example-service.order done: 1 instances, 0 streams imported, 5 skipped")
     }
 
     private companion object {

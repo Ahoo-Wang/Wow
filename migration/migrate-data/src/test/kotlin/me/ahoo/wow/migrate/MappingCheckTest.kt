@@ -187,6 +187,61 @@ class MappingCheckTest {
         )
     }
 
+    private val archiving: List<NineXInventory>
+        get() = InMemoryNineXEventSource(
+            NineXExample.streams() +
+                NineXStream.parse(NineXExample.archived(NineXExample.resource("order-stream-v4.json"))),
+        ).inventory()
+
+    @Test
+    fun `a stream of retired events only passes when the aggregate retired the name`() {
+        val retire = MigrationMap.read(NineXExample.archivingMapText(""""to": "OrderArchived", "retire": true"""))
+        check(retire, archiving, NineXExample.archivingManifest()).problems.assert().isEmpty()
+        check(retire, archiving, NineXExample.archivingManifest(retired = false)).problems.assert().containsExactly(
+            "example-service.order -> example.order: order_archived: example.order.OrderArchived is retired by the " +
+                "map but not by example.order: add it to @AggregateRoot(retiredEvents)",
+        )
+    }
+
+    @Test
+    fun `streams that hold only dropped events fail it before the import`() {
+        val drop = MigrationMap.read(NineXExample.archivingMapText(""""drop": true"""))
+        val report = check(drop, archiving, NineXExample.archivingManifest())
+        report.problems.assert().containsExactly(
+            "example-service.order: 1 streams hold only the dropped events [order_archived@0.0.1], so their " +
+                "versions would be empty: map them with retire to a name in the aggregate's retiredEvents",
+        )
+        // A dropped event beside one that is kept leaves the stream its version.
+        val mixed = archiving.map { inventory ->
+            inventory.copy(
+                streamEventTypes = inventory.streamEventTypes.mapKeys { (types, _) ->
+                    if (NineXEventType("order_archived", "0.0.1") in types) {
+                        types + NineXEventType("order_shipped", "0.0.1")
+                    } else {
+                        types
+                    }
+                },
+            )
+        }
+        check(drop, mixed, NineXExample.archivingManifest()).passed.assert().isTrue()
+    }
+
+    @Test
+    fun `every 9x PrepareKey the store holds is mapped once`() {
+        val mapping = ReservationMapping("order_no", "order.no", ownerId = "orderId")
+        val map = NineXExample.map.order { copy(reservations = listOf(mapping, mapping.copy(from = "order_code"))) }
+        val report = MappingCheck(MigrationPlan(map, NineXExample.manifest))
+            .check(example, mapOf("order_no" to 3L, "user_name" to 2L))
+        report.problems.assert().containsExactly(
+            "the 9.x PrepareKey user_name (2 keys) has no reservation mapping: its keys would be free in V10",
+        )
+        report.warnings.assert().contains("the 9.x store holds no PrepareKey order_code")
+        report.render().assert().contains("  PrepareKey order_no: 3 keys")
+        val twice = NineXExample.map.order { copy(reservations = listOf(mapping, mapping)) }
+        MappingCheck(MigrationPlan(twice, NineXExample.manifest)).check(example, mapOf("order_no" to 3L))
+            .problems.assert().containsExactly("the 9.x PrepareKey order_no is mapped twice")
+    }
+
     @Test
     fun `a target aggregate missing from the Manifest, duplicates and shared targets fail it`() {
         val map = NineXExample.map.order {
