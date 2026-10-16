@@ -15,6 +15,7 @@ package me.ahoo.wow.spi.snapshot
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 
 /**
@@ -98,12 +99,44 @@ interface SnapshotStore {
  * snapshots of another revision or marked stale may remain to be rewritten ([rebuilding]), and whether the table has
  * caught up with the log since it was first claimed ([backfilled]): a snapshot target added to a running service is
  * filled from the beginning of the log. A query of a table that is [catchingUp] answers with `rebuilding`.
+ *
+ * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
-data class SnapshotTable(val revision: Int, val rebuilding: Boolean = false, val backfilled: Boolean = true) {
+class SnapshotTable @InternalWowApi constructor(
+    val revision: Int,
+    val rebuilding: Boolean = false,
+    val backfilled: Boolean = true,
+) {
     init {
         require(revision >= 1) { "A state revision starts at 1." }
     }
 
     /** Whether the table is rebuilding or not backfilled yet: a query of it answers with `rebuilding`. */
     val catchingUp: Boolean get() = rebuilding || !backfilled
+
+    /** This SnapshotTable with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        revision: Int = this.revision,
+        rebuilding: Boolean = this.rebuilding,
+        backfilled: Boolean = this.backfilled,
+    ): SnapshotTable = SnapshotTable(revision, rebuilding, backfilled)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is SnapshotTable && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "SnapshotTable(revision=$revision, rebuilding=$rebuilding, backfilled=$backfilled)"
+
+    private fun valueFields(): List<Any?> = listOf(revision, rebuilding, backfilled)
+
+    companion object {
+        /** A SnapshotTable of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(revision: Int, rebuilding: Boolean = false, backfilled: Boolean = true): SnapshotTable =
+            SnapshotTable(revision, rebuilding, backfilled)
+    }
 }

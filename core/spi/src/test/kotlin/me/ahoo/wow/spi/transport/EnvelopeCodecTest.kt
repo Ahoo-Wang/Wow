@@ -65,7 +65,7 @@ class EnvelopeCodecTest {
     fun `a state event should keep its facts, state and numbers through the wire`() {
         val record = record()
         val read = EnvelopeCodec.stateEventOf(EnvelopeCodec.encode(EnvelopeCodec.stateEvent(record)))
-        read.assert().isEqualTo(record.copy(transport = Transport(wait, trace = mapOf("traceparent" to "00-1-2-01"))))
+        read.assert().isEqualTo(record.copyWith(transport = Transport(wait, trace = mapOf("traceparent" to "00-1-2-01"))))
         read.id.assert().isEqualTo("shop.order/t1/o-1@2")
         val state = WowJson.mapper.writeValueAsString(read.state!!.state)
         ExactJson.of(state).assert().isEqualTo(ExactJson.of(ExactJson.NUMBERS))
@@ -96,7 +96,7 @@ class EnvelopeCodecTest {
 
     @Test
     fun `a state event without its state should carry a null state`() {
-        val record = record(state = null).copy(transport = null)
+        val record = record(state = null).copyWith(transport = null)
         val value = tree(String(EnvelopeCodec.encode(EnvelopeCodec.stateEvent(record))))
         value["payload"]["state"].isNull.assert().isTrue()
         value["transport"].isNull.assert().isTrue()
@@ -154,10 +154,10 @@ class EnvelopeCodecTest {
     @Test
     fun `a record should hold a consistent commit`() {
         assertThrows<IllegalArgumentException> { record(state = StateView(3, "f1", tree("{}"))) }
-        assertThrows<IllegalArgumentException> { record().copy(events = emptyList()) }
-        assertThrows<IllegalArgumentException> { record().copy(version = 0) }
-        assertThrows<IllegalArgumentException> { record().copy(commandId = " ") }
-        assertThrows<IllegalArgumentException> { record().copy(commandType = "") }
+        assertThrows<IllegalArgumentException> { record().copyWith(events = emptyList()) }
+        assertThrows<IllegalArgumentException> { record().copyWith(version = 0) }
+        assertThrows<IllegalArgumentException> { record().copyWith(commandId = " ") }
+        assertThrows<IllegalArgumentException> { record().copyWith(commandType = "") }
         assertThrows<IllegalArgumentException> { StateView(0, "f1", tree("{}")) }
         assertThrows<IllegalArgumentException> { StateView(1, " ", tree("{}")) }
         assertThrows<IllegalArgumentException> { StateEventPayload("", 1, tree("{}")) }

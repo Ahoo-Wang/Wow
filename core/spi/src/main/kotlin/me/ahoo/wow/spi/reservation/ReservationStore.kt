@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.reservation
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 import kotlin.time.Duration
 
@@ -90,8 +91,10 @@ interface ReservationStore {
  * Where a reserved key is unique: the bounded [context] of its owners, the [tenantId] (axiom A6: every unique key
  * includes the tenant) and the [namespace], such as `user.name`. A key unique across the context's tenants has the
  * tenant [SYSTEM_TENANT], which no aggregate's tenant ever is.
+ *
+ * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
-data class ReservationScope(val context: String, val tenantId: String, val namespace: String) {
+class ReservationScope @InternalWowApi constructor(val context: String, val tenantId: String, val namespace: String) {
     init {
         require(context.isNotBlank()) { "A reservation needs a context." }
         require(tenantId == SYSTEM_TENANT || tenantId.isNotBlank()) { "A reservation's tenant is not blank." }
@@ -100,6 +103,23 @@ data class ReservationScope(val context: String, val tenantId: String, val names
 
     /** Whether the keys of this scope are unique across tenants. */
     val isSystem: Boolean get() = tenantId == SYSTEM_TENANT
+
+    /** This ReservationScope with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        context: String = this.context,
+        tenantId: String = this.tenantId,
+        namespace: String = this.namespace,
+    ): ReservationScope = ReservationScope(context, tenantId, namespace)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ReservationScope && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "ReservationScope(context=$context, tenantId=$tenantId, namespace=$namespace)"
+
+    private fun valueFields(): List<Any?> = listOf(context, tenantId, namespace)
 
     companion object {
         /**
@@ -115,6 +135,11 @@ data class ReservationScope(val context: String, val tenantId: String, val names
             if (key.system) SYSTEM_TENANT else owner.tenantId,
             key.namespace,
         )
+
+        /** A ReservationScope of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(context: String, tenantId: String, namespace: String): ReservationScope =
+            ReservationScope(context, tenantId, namespace)
     }
 }
 
@@ -122,8 +147,10 @@ data class ReservationScope(val context: String, val tenantId: String, val names
  * [owner]'s reservation of [key] in [scope]. A pending reservation expires at [expiresAt] (epoch milliseconds) and is
  * held by the attempts in [holds]; a confirmed one has no expiry and no holds. Its owner is an aggregate of the
  * scope's context.
+ *
+ * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
-data class Reservation(
+class Reservation @InternalWowApi constructor(
     val scope: ReservationScope,
     val key: String,
     val owner: AggregateRef,
@@ -143,6 +170,39 @@ data class Reservation(
 
     /** Whether the reservation still holds its key at [now] (epoch milliseconds). */
     fun isLive(now: Long): Boolean = expiresAt == null || now < expiresAt
+
+    /** This Reservation with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        scope: ReservationScope = this.scope,
+        key: String = this.key,
+        owner: AggregateRef = this.owner,
+        expiresAt: Long? = this.expiresAt,
+        holds: Set<String> = this.holds,
+    ): Reservation = Reservation(scope, key, owner, expiresAt, holds)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is Reservation && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "Reservation(scope=$scope, key=$key, owner=$owner, expiresAt=$expiresAt, holds=$holds)"
+
+    private fun valueFields(): List<Any?> = listOf(scope, key, owner, expiresAt, holds)
+
+    companion object {
+        /** A Reservation of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            scope: ReservationScope,
+            key: String,
+            owner: AggregateRef,
+            expiresAt: Long?,
+            holds: Set<String> = emptySet(),
+        ): Reservation = Reservation(scope, key, owner, expiresAt, holds)
+    }
 }
 
 /** How a [ReservationStore.confirm] ended. */
@@ -150,18 +210,56 @@ sealed interface ConfirmOutcome {
     /** The owner holds the key confirmed. */
     data object Confirmed : ConfirmOutcome
 
-    /** Another owner's live reservation, [by], holds the key: the fact committed without it. */
-    data class Taken(val by: Reservation) : ConfirmOutcome
+    /**
+     * Another owner's live reservation, [by], holds the key: the fact committed without it.
+     *
+     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+     */
+    class Taken @InternalWowApi constructor(val by: Reservation) : ConfirmOutcome {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Taken && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Taken(by=$by)"
+
+        private fun valueFields(): List<Any?> = listOf(by)
+
+        companion object {
+            /** A Taken of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            fun of(by: Reservation): Taken = Taken(by)
+        }
+    }
 }
 
 /**
  * A reserved or released [key] in [namespace], without its owner or expiry: what an append records (decision D50).
  * Its scope follows from the entry's aggregate ([ReservationScope.of]): its context and its tenant, or no tenant when
  * the key is a [system] one, unique across tenants.
+ *
+ * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
-data class ReservationKey(val namespace: String, val key: String, val system: Boolean = false) {
+class ReservationKey @InternalWowApi constructor(val namespace: String, val key: String, val system: Boolean = false) {
     init {
         require(namespace.isNotBlank()) { "A reservation needs a namespace." }
         require(key.isNotEmpty()) { "A reservation needs a key." }
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ReservationKey && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "ReservationKey(namespace=$namespace, key=$key, system=$system)"
+
+    private fun valueFields(): List<Any?> = listOf(namespace, key, system)
+
+    companion object {
+        /** A ReservationKey of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(namespace: String, key: String, system: Boolean = false): ReservationKey =
+            ReservationKey(namespace, key, system)
     }
 }

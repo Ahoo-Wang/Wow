@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.id
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.id.Ids
 import java.security.SecureRandom
 import java.util.UUID
@@ -71,8 +72,12 @@ fun interface AggregateIdGeneratorSource {
     fun find(name: String): AggregateIdGenerator?
 }
 
-/** A node's two generators (decision D171), the [Ids] its decide functions and sagas take. */
-data class IdGenerators(
+/**
+ * A node's two generators (decision D171), the [Ids] its decide functions and sagas take.
+ *
+ * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ */
+class IdGenerators @InternalWowApi constructor(
     val global: GlobalIdGenerator = GlobalIdGenerator.UUID_V7,
     val aggregates: AggregateIdGenerator = AggregateIdGenerator.UUID_V7,
 ) : Ids {
@@ -80,10 +85,27 @@ data class IdGenerators(
 
     override fun next(type: AggregateType): String = aggregates.next(type)
 
+    override fun equals(other: Any?): Boolean =
+        this === other || other is IdGenerators && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "IdGenerators(global=$global, aggregates=$aggregates)"
+
+    private fun valueFields(): List<Any?> = listOf(global, aggregates)
+
     companion object {
         /** UUIDv7 for both. */
         @JvmField
         val DEFAULT: IdGenerators = IdGenerators()
+
+        /** An IdGenerators of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            global: GlobalIdGenerator = GlobalIdGenerator.UUID_V7,
+            aggregates: AggregateIdGenerator = AggregateIdGenerator.UUID_V7,
+        ): IdGenerators = IdGenerators(global, aggregates)
     }
 }
 

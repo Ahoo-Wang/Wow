@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spi.subscription
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 import kotlin.time.Duration
 
@@ -22,26 +23,73 @@ import kotlin.time.Duration
  * [epoch] counts the acquisitions of the partition: each time it changes hands, or its owner takes it back after it
  * expired or was released, the epoch is one more. V10 does not fence on it (decision D45); it shows handovers in
  * metrics and tests.
+ *
+ * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
-data class Lease(
+class Lease @InternalWowApi constructor(
     val group: String,
     val partition: Int,
     val owner: String,
     val epoch: Long,
     val expiresAt: Long,
-)
+) {
+    /** This Lease with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        group: String = this.group,
+        partition: Int = this.partition,
+        owner: String = this.owner,
+        epoch: Long = this.epoch,
+        expiresAt: Long = this.expiresAt,
+    ): Lease = Lease(group, partition, owner, epoch, expiresAt)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is Lease && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "Lease(group=$group, partition=$partition, owner=$owner, epoch=$epoch, expiresAt=$expiresAt)"
+
+    private fun valueFields(): List<Any?> = listOf(group, partition, owner, epoch, expiresAt)
+
+    companion object {
+        /** A Lease of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(group: String, partition: Int, owner: String, epoch: Long, expiresAt: Long): Lease =
+            Lease(group, partition, owner, epoch, expiresAt)
+    }
+}
 
 /**
  * [node] is a live member of subscription group [group] until [expiresAt] (epoch milliseconds, exclusive). [address]
  * is the node's internal address (`host:port` of its internal port, never the public one; decision D72): where the
  * cluster channel reaches it, so commands can be routed to the owners of partitions.
+ *
+ * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
-data class Member(
+class Member @InternalWowApi constructor(
     val group: String,
     val node: String,
     val address: String,
     val expiresAt: Long,
-)
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is Member && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "Member(group=$group, node=$node, address=$address, expiresAt=$expiresAt)"
+
+    private fun valueFields(): List<Any?> = listOf(group, node, address, expiresAt)
+
+    companion object {
+        /** A Member of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(group: String, node: String, address: String, expiresAt: Long): Member =
+            Member(group, node, address, expiresAt)
+    }
+}
 
 /**
  * Partition ownership within a subscription group, the deployment unit whose nodes share the partitions of a log

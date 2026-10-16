@@ -15,6 +15,7 @@ package me.ahoo.wow.spi.snapshot
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.ScheduleRule
 
@@ -36,8 +37,10 @@ import me.ahoo.wow.api.schedule.ScheduleRule
  *   that created it; each null when that stream's caller was anonymous. Both are queryable system fields.
  * - [schedules] are the schedules the aggregate keeps (decision D198), each rule by its key: those its streams set
  *   (`wow.ScheduleSet`) and did not cancel (`wow.ScheduleCancelled`), fired or not; a deleted aggregate keeps none.
+ *
+ * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
-data class SnapshotRecord(
+class SnapshotRecord @InternalWowApi constructor(
     val ref: AggregateRef,
     val version: Int,
     val schemaFingerprint: String,
@@ -59,5 +62,101 @@ data class SnapshotRecord(
         require(state.isNotBlank()) { "A snapshot needs a state." }
         require(firstEventTime <= lastEventTime) { "The first event is not committed after the last one." }
         require(tags.keys.none { it.isBlank() }) { "A tag needs a name." }
+    }
+
+    /** This SnapshotRecord with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        ref: AggregateRef = this.ref,
+        version: Int = this.version,
+        schemaFingerprint: String = this.schemaFingerprint,
+        state: String = this.state,
+        scope: Scope = this.scope,
+        deleted: Boolean = this.deleted,
+        firstEventTime: Long = this.firstEventTime,
+        lastEventTime: Long = this.lastEventTime,
+        tags: Map<String, List<String>> = this.tags,
+        operator: Operator? = this.operator,
+        firstOperator: Operator? = this.firstOperator,
+        schedules: Map<String, ScheduleRule> = this.schedules,
+        stateRevision: Int = this.stateRevision,
+    ): SnapshotRecord =
+        SnapshotRecord(
+            ref,
+            version,
+            schemaFingerprint,
+            state,
+            scope,
+            deleted,
+            firstEventTime,
+            lastEventTime,
+            tags,
+            operator,
+            firstOperator,
+            schedules,
+            stateRevision,
+        )
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is SnapshotRecord && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "SnapshotRecord(ref=$ref, version=$version, schemaFingerprint=$schemaFingerprint, state=$state, " +
+            "scope=$scope, deleted=$deleted, firstEventTime=$firstEventTime, lastEventTime=$lastEventTime, " +
+            "tags=$tags, operator=$operator, firstOperator=$firstOperator, schedules=$schedules, " +
+            "stateRevision=$stateRevision)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        ref,
+        version,
+        schemaFingerprint,
+        state,
+        scope,
+        deleted,
+        firstEventTime,
+        lastEventTime,
+        tags,
+        operator,
+        firstOperator,
+        schedules,
+        stateRevision,
+    )
+
+    companion object {
+        /** A SnapshotRecord of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            ref: AggregateRef,
+            version: Int,
+            schemaFingerprint: String,
+            state: String,
+            scope: Scope = Scope.NONE,
+            deleted: Boolean = false,
+            firstEventTime: Long,
+            lastEventTime: Long,
+            tags: Map<String, List<String>> = emptyMap(),
+            operator: Operator? = null,
+            firstOperator: Operator? = null,
+            schedules: Map<String, ScheduleRule> = emptyMap(),
+            stateRevision: Int = 1,
+        ): SnapshotRecord =
+            SnapshotRecord(
+                ref,
+                version,
+                schemaFingerprint,
+                state,
+                scope,
+                deleted,
+                firstEventTime,
+                lastEventTime,
+                tags,
+                operator,
+                firstOperator,
+                schedules,
+                stateRevision,
+            )
     }
 }

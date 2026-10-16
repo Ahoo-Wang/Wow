@@ -15,6 +15,7 @@ package me.ahoo.wow.spi.state
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.spi.log.Transport
@@ -24,11 +25,29 @@ import tools.jackson.databind.JsonNode
  * One event of a [StateEventRecord]: its type [name] (`context.aggregate.Event`) and the [payload] as a JSON tree,
  * both of the current [revision] of its schema: a stored event of an older revision is upgraded before it is
  * published (design 04 §4, finding F10), and one stored under a former name is published under the current one.
+ *
+ * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
-data class StateEventPayload(val name: String, val revision: Int, val payload: JsonNode) {
+class StateEventPayload @InternalWowApi constructor(val name: String, val revision: Int, val payload: JsonNode) {
     init {
         require(name.isNotBlank()) { "An event needs a name." }
         require(revision >= 1) { "An event revision starts at 1." }
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is StateEventPayload && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "StateEventPayload(name=$name, revision=$revision, payload=$payload)"
+
+    private fun valueFields(): List<Any?> = listOf(name, revision, payload)
+
+    companion object {
+        /** A StateEventPayload of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(name: String, revision: Int, payload: JsonNode): StateEventPayload =
+            StateEventPayload(name, revision, payload)
     }
 }
 
@@ -46,8 +65,10 @@ data class StateEventPayload(val name: String, val revision: Int, val payload: J
  *   the kernel evolved them, published either way.
  * - [transport] is the stream's transport metadata (decision D25): the wait context and the trace. It is not a fact:
  *   the envelope carries it beside the record ([me.ahoo.wow.spi.transport.Envelope.transport]), never inside it.
+ *
+ * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
-data class StateEventRecord(
+class StateEventRecord @InternalWowApi constructor(
     val ref: AggregateRef,
     val version: Int,
     val commandId: String,
@@ -77,8 +98,112 @@ data class StateEventRecord(
     /** The identity of the commit, `ref@version` (design 08 §2): what a reader deduplicates by. */
     val id: String get() = idOf(ref, version)
 
+    /** This StateEventRecord with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        ref: AggregateRef = this.ref,
+        version: Int = this.version,
+        commandId: String = this.commandId,
+        requestId: String = this.requestId,
+        commandType: String = this.commandType,
+        commitTime: Long = this.commitTime,
+        events: List<StateEventPayload> = this.events,
+        state: StateView? = this.state,
+        scope: Scope = this.scope,
+        deleted: Boolean = this.deleted,
+        tags: Map<String, List<String>> = this.tags,
+        causation: Causation? = this.causation,
+        headers: Map<String, String> = this.headers,
+        operator: Operator? = this.operator,
+        transport: Transport? = this.transport,
+    ): StateEventRecord =
+        StateEventRecord(
+            ref,
+            version,
+            commandId,
+            requestId,
+            commandType,
+            commitTime,
+            events,
+            state,
+            scope,
+            deleted,
+            tags,
+            causation,
+            headers,
+            operator,
+            transport,
+        )
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is StateEventRecord && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "StateEventRecord(ref=$ref, version=$version, commandId=$commandId, requestId=$requestId, " +
+            "commandType=$commandType, commitTime=$commitTime, events=$events, state=$state, scope=$scope, " +
+            "deleted=$deleted, tags=$tags, causation=$causation, headers=$headers, operator=$operator, " +
+            "transport=$transport)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        ref,
+        version,
+        commandId,
+        requestId,
+        commandType,
+        commitTime,
+        events,
+        state,
+        scope,
+        deleted,
+        tags,
+        causation,
+        headers,
+        operator,
+        transport,
+    )
+
     companion object {
         /** The identity of [ref]'s commit at [version]: `ref@version`. */
         fun idOf(ref: AggregateRef, version: Int): String = "$ref@$version"
+
+        /** A StateEventRecord of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            ref: AggregateRef,
+            version: Int,
+            commandId: String,
+            requestId: String,
+            commandType: String,
+            commitTime: Long,
+            events: List<StateEventPayload>,
+            state: StateView? = null,
+            scope: Scope = Scope.NONE,
+            deleted: Boolean = false,
+            tags: Map<String, List<String>> = emptyMap(),
+            causation: Causation? = null,
+            headers: Map<String, String> = emptyMap(),
+            operator: Operator? = null,
+            transport: Transport? = null,
+        ): StateEventRecord =
+            StateEventRecord(
+                ref,
+                version,
+                commandId,
+                requestId,
+                commandType,
+                commitTime,
+                events,
+                state,
+                scope,
+                deleted,
+                tags,
+                causation,
+                headers,
+                operator,
+                transport,
+            )
     }
 }
