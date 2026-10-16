@@ -95,6 +95,28 @@ describe("a parked entry's reading", () => {
     expect(reading).toHaveTextContent("—");
   });
 
+  it("says why the owning service refused the last request (D226)", () => {
+    const reading = read(
+      rowOf({
+        refusedAction: "wow.ledger.Skip",
+        refusalCode: "wow.auth.forbidden",
+        refusalReason: "Taken from the ops context's saga alone.",
+      }),
+    );
+    expect(reading).toHaveTextContent("Refused by the owning service");
+    expect(reading).toHaveTextContent("Refused actionSkip");
+    expect(reading).toHaveTextContent("Refusal codewow.auth.forbidden");
+    expect(reading).toHaveTextContent("Taken from the ops context's saga alone.");
+    expect(screen.getByTestId("parked-refusal")).toHaveTextContent(
+      "did not run the operator's last request",
+    );
+  });
+
+  it("shows no refusal when there is none", () => {
+    read(PARKED);
+    expect(screen.queryByTestId("parked-refusal")).toBeNull();
+  });
+
   it("reads a cause that names no type as its own type", () => {
     read(rowOf({ reason: "The gateway is down." }));
     const failure = screen.getByTestId("parked-failure");

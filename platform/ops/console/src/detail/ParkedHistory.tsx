@@ -31,6 +31,7 @@ const KIND_WORDS: Record<HistoryKind, Message> = {
   skipRequested: "historySkipRequested",
   markRecoverableRequested: "historyMarkRecoverableRequested",
   applyRetrySpecRequested: "historyApplyRetrySpecRequested",
+  actionRefused: "historyActionRefused",
   resolved: "historyResolved",
   unknown: "historyUnknown",
 };
@@ -44,6 +45,7 @@ const KIND_TONE: Partial<Record<HistoryKind, string>> = {
   skipRequested: "bg-primary",
   markRecoverableRequested: "bg-primary",
   applyRetrySpecRequested: "bg-primary",
+  actionRefused: "bg-destructive",
 };
 
 type Loaded =
@@ -72,6 +74,9 @@ function Step({ item }: { item: HistoryItem }) {
   if (facts.recoverable)
     details.push(optionWord(locale, "recoverable", facts.recoverable));
   if (facts.outcome) details.push(optionWord(locale, "outcome", facts.outcome));
+  if (facts.refusedAction)
+    details.push(optionWord(locale, "refusedAction", facts.refusedAction));
+  if (facts.refusalCode) details.push(facts.refusalCode);
   return (
     <li className="relative flex flex-col gap-0.5 pb-3 pl-5 text-sm last:pb-0">
       <span

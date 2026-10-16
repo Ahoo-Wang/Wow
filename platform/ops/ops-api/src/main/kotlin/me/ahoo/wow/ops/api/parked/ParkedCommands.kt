@@ -31,6 +31,14 @@ data class RecordParked(val entry: LedgerEntry)
 @Summary("Record a resolved entry")
 data class RecordResolved(val resolution: LedgerResolution)
 
+/**
+ * The owning service refused the ledger's system command [action] (`wow.ledger.Resume`, ...) the ops saga sent it for
+ * an operator's request on the entry, with the error [code] and [reason] of its rejection (decision D226): its receipt
+ * came back to the saga, which records it here, so the console shows why the request came to nothing.
+ */
+@Summary("Record an action the owning service refused")
+data class RecordActionRefused(val action: String, val code: String, val reason: String)
+
 /*
  * An operator's actions on a parked entry (decisions D141, D185): each is recorded on the entry's `parked` aggregate
  * and sent to the owning service as the ledger's system command of the same name (`wow.ledger.*`), which runs it.

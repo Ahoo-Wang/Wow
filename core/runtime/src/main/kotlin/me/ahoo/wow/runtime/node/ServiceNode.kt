@@ -28,6 +28,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.kernel.AggregateModel
@@ -545,7 +546,7 @@ class ServiceNode @InternalWowApi constructor(
      * system commands on the node's [parked] entries (decision D141).
      */
     private val intakes: Map<ContextNode, CommandIntake> = contexts.values.filter { it.intake != null }.associateWith {
-        val ledger = LedgerCommands(parked, admission.authorizer) { ledgerPublisher }
+        val ledger = LedgerCommands(parked, options.ledger?.context ?: Ledger.OPS_CONTEXT) { ledgerPublisher }
         CommandIntake(it.context, it.models, it.coordinator, topics!!, it.creations, ledger)
     }
 

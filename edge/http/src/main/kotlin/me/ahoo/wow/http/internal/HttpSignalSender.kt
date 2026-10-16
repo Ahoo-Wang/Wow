@@ -26,6 +26,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.WaitSignal
+import me.ahoo.wow.http.call.ServiceCredential
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.wait.Origin
@@ -53,6 +54,12 @@ import kotlin.time.toJavaDuration
  *
  * An origin's queue goes away after [idleTimeout] without signals, so the origins of nodes long gone do not
  * accumulate. [close] stops sending; what is queued then is dropped.
+ *
+ * A signal is authenticated as the origin's signal entry takes it (decision D226): to a node of this [service], with
+ * the service's cluster token, [clusterToken], as [InternalHttp.CLUSTER_TOKEN]; to a node of another service, the
+ * origin of a wait that crossed into this one, with the service's [credential] as `Authorization`, the identity it
+ * calls other services with (decision D208), which that service trusts. The cluster token never leaves the service.
+ * Without a [service], every origin is taken for one of this service.
  */
 @InternalWowApi
 class HttpSignalSender(
@@ -61,6 +68,9 @@ class HttpSignalSender(
     private val concurrency: Int = DEFAULT_CONCURRENCY,
     private val timeout: Duration = DEFAULT_TIMEOUT,
     private val idleTimeout: Duration = DEFAULT_IDLE_TIMEOUT,
+    private val service: String? = null,
+    private val clusterToken: String? = null,
+    private val credential: ServiceCredential = ServiceCredential.NONE,
 ) : SignalSender, AutoCloseable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val outboxes = ConcurrentHashMap<String, Outbox>()
@@ -81,7 +91,7 @@ class HttpSignalSender(
 
     override suspend fun send(origin: Origin, signal: WaitSignal) {
         while (!closed) {
-            val outbox = outboxes.computeIfAbsent(origin.address) { Outbox(it) }
+            val outbox = outboxes.computeIfAbsent(origin.address) { Outbox(it, origin.service) }
             val offered = outbox.queue.trySend(signal)
             when {
                 offered.isSuccess -> return
@@ -106,7 +116,7 @@ class HttpSignalSender(
     }
 
     /** The queue of one origin and the coroutine that sends from it. */
-    private inner class Outbox(private val address: String) {
+    private inner class Outbox(private val address: String, private val originService: String) {
         val queue = Channel<WaitSignal>(queueCapacity) { drop(address, it, "the sender stopped") }
         private val permits = Semaphore(concurrency)
 
@@ -131,7 +141,7 @@ class HttpSignalSender(
             permits.acquire()
             scope.launch {
                 try {
-                    deliver(address, signal)
+                    deliver(address, originService, signal)
                 } finally {
                     permits.release()
                 }
@@ -140,13 +150,17 @@ class HttpSignalSender(
     }
 
     @Suppress("TooGenericExceptionCaught") // Whatever fails a signal drops it (design 04 §6.3).
-    private suspend fun deliver(address: String, signal: WaitSignal) {
+    private suspend fun deliver(address: String, originService: String, signal: WaitSignal) {
         try {
-            val request = HttpRequest.newBuilder(InternalHttp.uri(address, InternalHttp.SIGNALS_PATH))
+            val builder = HttpRequest.newBuilder(InternalHttp.uri(address, InternalHttp.SIGNALS_PATH))
                 .timeout(timeout.toJavaDuration())
                 .header("Content-Type", InternalHttp.JSON)
-                .POST(HttpRequest.BodyPublishers.ofByteArray(ClusterCodec.encode(signal)))
-                .build()
+            if (service == null || service == originService) {
+                clusterToken?.let { builder.header(InternalHttp.CLUSTER_TOKEN, it) }
+            } else {
+                credential.authorization()?.let { builder.header(AUTHORIZATION, it) }
+            }
+            val request = builder.POST(HttpRequest.BodyPublishers.ofByteArray(ClusterCodec.encode(signal))).build()
             val status = client.sendAsync(request, HttpResponse.BodyHandlers.discarding()).await().statusCode()
             if (status !in SUCCESS) {
                 drop(address, signal, "it answered HTTP $status")
@@ -165,6 +179,7 @@ class HttpSignalSender(
         val DEFAULT_TIMEOUT: Duration = 1.seconds
         val DEFAULT_IDLE_TIMEOUT: Duration = 1.minutes
         private val SUCCESS = 200..299
+        private const val AUTHORIZATION = "Authorization"
         private val logger = KotlinLogging.logger {}
     }
 }

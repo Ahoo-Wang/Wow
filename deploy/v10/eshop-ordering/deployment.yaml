@@ -44,6 +44,9 @@ spec:
                 name: eshop-ordering-config
             - secretRef:
                 name: eshop-ordering-postgres
+            # The cluster token and the service tokens of the internal port (decisions D193, D226).
+            - secretRef:
+                name: eshop-ordering-tokens
           env:
             - name: POD_NAME
               valueFrom:

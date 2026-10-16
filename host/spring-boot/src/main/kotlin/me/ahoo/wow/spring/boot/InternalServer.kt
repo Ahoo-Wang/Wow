@@ -30,7 +30,8 @@ import reactor.netty.http.server.HttpServer
  * messages of up to [maxMessageSize] bytes, which the host derives from the public port's codec limit
  * ([InternalHttp.messageLimit], review A3-9), and the server takes an upgrade request of up to that size too, as the
  * JDK client reaches HTTP/2 by upgrading the first request of a connection; it keeps reading its HTTP/1.1 connections
- * ([KeepAliveReads]). It is not authenticated (D35): bind it to [host] where only the cluster reaches it.
+ * ([KeepAliveReads]). Its cluster routes take the service's cluster token, its call routes a service identity
+ * (decision D226); bind it to [host] where only the cluster reaches it all the same.
  */
 class InternalServer(
     private val port: Int,

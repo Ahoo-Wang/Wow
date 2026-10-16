@@ -14,11 +14,13 @@
 package me.ahoo.wow.ops.domain.parked
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerAggregate
 import me.ahoo.wow.api.ledger.LedgerEntry
 import me.ahoo.wow.api.ledger.LedgerResolution
 import me.ahoo.wow.api.ledger.LedgerRetrySpec
 import me.ahoo.wow.ops.api.OpsContext
+import me.ahoo.wow.ops.api.parked.ActionRefused
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpec
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
 import me.ahoo.wow.ops.api.parked.MarkRecoverable
@@ -26,6 +28,7 @@ import me.ahoo.wow.ops.api.parked.MarkRecoverableRequested
 import me.ahoo.wow.ops.api.parked.ParkedRecorded
 import me.ahoo.wow.ops.api.parked.ParkedResolved
 import me.ahoo.wow.ops.api.parked.ParkedStatus
+import me.ahoo.wow.ops.api.parked.RecordActionRefused
 import me.ahoo.wow.ops.api.parked.RecordParked
 import me.ahoo.wow.ops.api.parked.RecordResolved
 import me.ahoo.wow.ops.api.parked.Resume
@@ -165,6 +168,50 @@ class ParkedSpec {
             // The service's next record answers the request.
             whenCommand(RecordParked(entry("request" to "RESUME", "recordedAt" to 700))) {
                 expectState { requested.assert().isNull() }
+            }
+        }
+    }
+
+    @Test
+    fun `a refusal of the owning service is recorded on the entry until the next request (D226)`() {
+        parkedSpec {
+            given(ParkedRecorded(ENTRY), ResumeRequested("fixed"))
+            whenCommand(RecordActionRefused(Ledger.RESUME, "wow.auth.forbidden", "Not from the ops saga.")) {
+                expectEvents(ActionRefused(Ledger.RESUME, "wow.auth.forbidden", "Not from the ops saga."))
+                expectState {
+                    requested.assert().isNull()
+                    refusedAction.assert().isEqualTo(Ledger.RESUME)
+                    refusalCode.assert().isEqualTo("wow.auth.forbidden")
+                    refusalReason.assert().isEqualTo("Not from the ops saga.")
+                }
+            }
+            // The service's next record leaves the refusal shown.
+            whenCommand(RecordParked(entry("retries" to 1, "recordedAt" to 700))) {
+                expectState { refusedAction.assert().isEqualTo(Ledger.RESUME) }
+            }
+            // A new request clears it.
+            whenCommand(Skip()) {
+                expectState {
+                    requested.assert().isEqualTo(ParkedState.SKIP)
+                    refusedAction.assert().isNull()
+                    refusalCode.assert().isNull()
+                    refusalReason.assert().isNull()
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `a refusal of a resolved entry changes nothing`() {
+        parkedSpec {
+            given(ParkedRecorded(ENTRY), ParkedResolved(LedgerResolution.RESUMED, 100, 400))
+            whenCommand(RecordActionRefused(Ledger.SKIP, "wow.auth.forbidden", "No.")) { expectUnchanged() }
+        }
+        // A resolution clears a refusal.
+        parkedSpec {
+            given(ParkedRecorded(ENTRY), ActionRefused(Ledger.SKIP, "wow.auth.forbidden", "No."))
+            whenCommand(RecordResolved(RESOLUTION)) {
+                expectState { refusedAction.assert().isNull() }
             }
         }
     }

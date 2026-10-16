@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.command
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.manifest.Manifest
@@ -109,8 +110,13 @@ internal class Receipts internal constructor(
         synchronized(handled) { handled[commandId] = true }
     }
 
-    /** The class of the command type [commandType] (`ctx.agg.Command`), by its schema in the contracts. */
+    /**
+     * The class of the command type [commandType] (`ctx.agg.Command`), by its schema in the contracts; a ledger command
+     * (`wow.ledger.*`, decision D141), which no Manifest declares, by its own name: an owning service refuses one back
+     * to the ops saga that sent it (decision D226).
+     */
     internal fun commandClassOf(commandType: String): Class<*> {
+        Ledger.COMMANDS[commandType]?.let { return it }
         val schema = checkNotNull(contracts.schemaOf(commandType)) {
             "No Manifest of the service or its peers declares the command type $commandType."
         }

@@ -30,6 +30,7 @@
  */
 
 import { spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { delimiter, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -76,6 +77,8 @@ const server = spawn(
     `--server.port=${port}`,
     "--wow.internal.port=0",
     "--wow.internal.host=127.0.0.1",
+    // The cluster token of the node's internal port (decision D226), a new secret each run.
+    `--wow.internal.token=${randomBytes(32).toString("base64url")}`,
     "--wow.log.partitions=2",
     "--wow.subscription.checkpoint-interval=100ms",
     "--wow.query.memory.enabled=true",

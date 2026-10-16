@@ -30,11 +30,13 @@ import me.ahoo.wow.runtime.admission.CommandAuthorizer
  *
  * - An operator's action on an entry, `ops.parked.Resume`, `Skip`, `MarkRecoverable` and `ApplyRetrySpec`, is
  *   authorized by [operators] as the ledger's system command of the same name ([Ledger.RESUME], ...) on the entry, so
- *   one policy guards the action here, on the operator's routes of the owning service (`/wow/ops/parked`) and when
- *   the owning service runs the command the saga sends it, as the operator who asked (decision D163).
+ *   one policy guards the action here and on the operator's routes of the owning service (`/wow/ops/parked`). Here is
+ *   where it is authorized: the owning service takes the command the saga sends it because it comes from this
+ *   context's saga, not by the operator's roles, which do not travel with it (decision D226, review A3-12).
  * - The framework's own system commands (`wow.*`: this node's ledger, its snapshot rebuild) are [operators]' too.
- * - The records, `ops.parked.RecordParked` and `RecordResolved`, are refused: the owning services' ledgers publish them
- *   through `wow.ops.commands`, whose intake no authorizer guards, and no caller of the gateway may forge one.
+ * - The records, `ops.parked.RecordParked`, `RecordResolved` and `RecordActionRefused`, are refused: the owning
+ *   services' ledgers publish the first two through `wow.ops.commands`, whose intake no authorizer guards, and the
+ *   saga derives the last from an owning service's refusal; no caller of the gateway may forge one.
  */
 class OpsAuthorizer(private val operators: CommandAuthorizer = OperatorRole()) : CommandAuthorizer {
     override suspend fun authorize(caller: Caller, action: CommandAction): Authorization {

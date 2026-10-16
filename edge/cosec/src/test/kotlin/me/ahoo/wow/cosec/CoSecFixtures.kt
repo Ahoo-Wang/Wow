@@ -22,6 +22,7 @@ import me.ahoo.cosec.tenant.SimpleTenant
 import me.ahoo.cosec.webflux.ServerWebExchanges.setSecurityContext
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.http.WowHttpOptions
+import me.ahoo.wow.http.callRoutes
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.wowRoutes
 import me.ahoo.wow.kernel.Creation
@@ -37,6 +38,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.runtime.Executor
+import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.ModelRegistry
@@ -133,6 +135,7 @@ class CoSecNode(
     callers: CallerResolver,
     options: WowHttpOptions = WowHttpOptions(),
     transformers: List<CommandTransformer> = emptyList(),
+    authorizer: CommandAuthorizer = CommandAuthorizer.ALLOW_ALL,
 ) {
     private val registry = WaitRegistry()
     private val coordinator = WaitCoordinator(
@@ -145,8 +148,13 @@ class CoSecNode(
     private val gateway = CommandGateway(
         ModelRegistry(listOf(cartModel)),
         mapOf(CONTEXT to coordinator),
+        authorizer = authorizer,
         transformers = transformers,
     )
+
+    /** The internal port's call routes (decision D193) of this node, their callers from [internalCallers]. */
+    fun calls(internalCallers: CallerResolver): WebTestClient =
+        WebTestClient.bindToRouterFunction(callRoutes(cartManifest(), gateway, internalCallers)).build()
     val client: WebTestClient = WebTestClient
         .bindToRouterFunction(wowRoutes(cartManifest(), gateway, callerResolver = callers, options = options))
         .webFilter<WebTestClient.RouterFunctionSpec>(coSecFilter())

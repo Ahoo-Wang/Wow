@@ -21,6 +21,11 @@ public final class me/ahoo/wow/http/WowHttpOptions {
 	public fun toString ()Ljava/lang/String;
 }
 
+public abstract interface class me/ahoo/wow/http/caller/CallAuthorizer {
+	public abstract fun authorize (Lme/ahoo/wow/api/caller/Caller;Lme/ahoo/wow/runtime/admission/CommandAction;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun over (Lme/ahoo/wow/runtime/admission/CommandAuthorizer;)Lme/ahoo/wow/runtime/admission/CommandAuthorizer;
+}
+
 public abstract interface class me/ahoo/wow/http/caller/CallerResolver {
 	public static final field ANONYMOUS Lme/ahoo/wow/http/caller/CallerResolver;
 	public static final field Companion Lme/ahoo/wow/http/caller/CallerResolver$Companion;

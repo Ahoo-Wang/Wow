@@ -16,7 +16,9 @@ package me.ahoo.wow.runtime.ledger
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerAggregate
@@ -71,9 +73,9 @@ class LedgerNodeTest {
     private val channel = LoopbackClusterChannel()
     private val stock = StockItems()
     private val backends = InMemoryBackends(PARTITIONS)
-    private val authorizer = CommandAuthorizer { caller, _ ->
-        if (caller.subject == "mallory") Authorization.Denied("Not an operator.") else Authorization.Allowed
-    }
+
+    /** An authorizer that refuses every caller: the ledger's commands are not the operator's to authorize (D226). */
+    private val authorizer = CommandAuthorizer { _, _ -> Authorization.Denied("Not an operator.") }
     private val node = ServiceNode(
         STOCK_SERVICE,
         "stock-1",
@@ -97,16 +99,19 @@ class LedgerNodeTest {
         .filter { it.type == "ops.parked.$type" }
         .map { it.record }
 
-    private suspend fun ledgerCommand(type: String, body: Any, parked: AggregateRef, operator: String) {
+    /** [type] with [body], as the saga of [source] derives it for [operator]. */
+    private suspend fun ledgerCommand(type: String, body: Any, parked: AggregateRef, operator: String, source: String) {
         val ref = Ledger.targetOf(STOCK, Ledger.parkedId(STOCK_SERVICE, CommandIntake.NAME, parked))
+        val entry = AggregateType(source, "parked").ref(TENANT, "entry-1")
         val wire = CommandWire(
             type = type,
             id = "l-$operator-$type",
             requestId = "l-$operator-$type",
             ref = ref,
             body = ClusterCodec.mapper.valueToTree(body),
+            causation = Causation("root-$operator", "$entry@2"),
             operator = Operator(operator, TENANT),
-            replyTo = ReplyTo("sales", "OpsSaga.onParked", ref, 1),
+            replyTo = ReplyTo(source, "OpsSaga.onParked", entry, 2),
         )
         sender.send(wire)
     }
@@ -135,22 +140,26 @@ class LedgerNodeTest {
                 "ops.parked/(0)/" + Ledger.parkedId(STOCK_SERVICE, CommandIntake.NAME, broken.ref)
             )
 
-            // An operator ops does not authorize as one: the owning service refuses, with a receipt to the sender.
+            // A ledger command another context's saga sends: the owning service refuses it, with a receipt to the
+            // sender, whoever its operator (decision D226).
             ledgerCommand(
                 Ledger.SKIP,
                 SkipParked(CommandIntake.NAME, LedgerAggregate.of(broken.ref)),
                 broken.ref,
-                "mallory"
+                "mallory",
+                source = "sales",
             )
             eventually { topics.messages(RECEIPTS).isNotEmpty() }
             ledger.isParked(CommandIntake.NAME, broken.ref).assert().isTrue()
 
             stock.broken = false
+            // The ops context's saga: taken by its source, though the node's authorizer allows no operator.
             ledgerCommand(
                 Ledger.RESUME,
                 ResumeParked(CommandIntake.NAME, LedgerAggregate.of(broken.ref)),
                 broken.ref,
-                "alice"
+                "alice",
+                source = Ledger.OPS_CONTEXT,
             )
             eventually { !ledger.isParked(CommandIntake.NAME, broken.ref) }
             stock.decided.assert().contains(broken.id)

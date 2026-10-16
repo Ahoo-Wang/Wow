@@ -24,7 +24,8 @@ RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 COPY --from=build --chown=appuser:appgroup ${WORK_HOME} ${WORK_HOME}
 
 WORKDIR ${WORK_HOME}
-# The HTTP routes; 9090 is the node's internal port (wow.internal.port).
+# The HTTP routes; 9090 is the node's internal port (wow.internal.port). Run the image with WOW_INTERNAL_TOKEN, the
+# nodes' cluster token (decision D226): without one, a node on a reachable address does not start.
 EXPOSE 8080 9090
 # The process accepts connections; the server has no actuator. Plain bash, so the check needs no curl in the image.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \

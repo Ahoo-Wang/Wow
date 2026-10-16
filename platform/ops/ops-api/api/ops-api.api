@@ -4,6 +4,21 @@ public final class me/ahoo/wow/ops/api/OpsContext {
 	public static final field PARKED Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/ops/api/parked/ActionRefused {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/ops/api/parked/ActionRefused;
+	public static synthetic fun copy$default (Lme/ahoo/wow/ops/api/parked/ActionRefused;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/ops/api/parked/ActionRefused;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAction ()Ljava/lang/String;
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getReason ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/ops/api/parked/ApplyRetrySpec {
 	public fun <init> ()V
 	public fun <init> (Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;)V
@@ -93,6 +108,21 @@ public final class me/ahoo/wow/ops/api/parked/ParkedStatus {
 	public static final field RESOLVED Ljava/lang/String;
 	public static final field SCHEDULED Ljava/lang/String;
 	public static final field UNRECOVERABLE Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/ops/api/parked/RecordActionRefused {
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun component2 ()Ljava/lang/String;
+	public final fun component3 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/ops/api/parked/RecordActionRefused;
+	public static synthetic fun copy$default (Lme/ahoo/wow/ops/api/parked/RecordActionRefused;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/ops/api/parked/RecordActionRefused;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAction ()Ljava/lang/String;
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getReason ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/ops/api/parked/RecordParked {

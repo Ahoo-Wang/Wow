@@ -190,6 +190,8 @@ class EshopSharedJvmTest {
                 "--wow.internal.host=127.0.0.1",
                 "--wow.internal.port=0",
                 "--wow.contexts.include=eshop-$context",
+                // The services share one class path, so one application.yaml: each is given its own secrets.
+                *EshopTokens.arguments(context).toTypedArray(),
             ),
         )
     }

@@ -10,6 +10,7 @@ public final class me/ahoo/wow/cosec/CoSecAutoConfiguration {
 	public static final field TENANT_POLICIES Ljava/lang/String;
 	public static final field TENANT_ROLES Ljava/lang/String;
 	public fun <init> ()V
+	public final fun wowCoSecCallAuthorizer (Lme/ahoo/cosec/api/authorization/Authorization;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/http/caller/CallAuthorizer;
 	public final fun wowCoSecCallerResolver (Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/cosec/CoSecCallerResolver;
 	public final fun wowCoSecCommandAuthorizer (Lme/ahoo/cosec/api/authorization/Authorization;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/cosec/CoSecCommandAuthorizer;
 	public final fun wowCoSecInternalCallerResolver (Lme/ahoo/cosec/context/request/RequestParser;Lme/ahoo/cosec/context/SecurityContextParser;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/cosec/CoSecInternalCallerResolver;

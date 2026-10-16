@@ -19,12 +19,14 @@ import me.ahoo.wow.api.annotation.Description
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.ledger.LedgerEntry
+import me.ahoo.wow.ops.api.parked.ActionRefused
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpec
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
 import me.ahoo.wow.ops.api.parked.MarkRecoverable
 import me.ahoo.wow.ops.api.parked.MarkRecoverableRequested
 import me.ahoo.wow.ops.api.parked.ParkedRecorded
 import me.ahoo.wow.ops.api.parked.ParkedResolved
+import me.ahoo.wow.ops.api.parked.RecordActionRefused
 import me.ahoo.wow.ops.api.parked.RecordParked
 import me.ahoo.wow.ops.api.parked.RecordResolved
 import me.ahoo.wow.ops.api.parked.Resume
@@ -43,7 +45,8 @@ import kotlin.time.Duration
  *   delivered after it), and one published before the record the entry holds, change nothing either.
  * - **Actions**: [Resume], [Skip], [MarkRecoverable] and [ApplyRetrySpec] record the operator's request
  *   ([ResumeRequested], ...), which [ParkedOperationSaga] sends to the owning service; what came of it arrives as the
- *   service's next record. A resolved entry takes no action: there is nothing parked to act on.
+ *   service's next record, or, when the service refuses the request, as the saga's [RecordActionRefused]
+ *   ([ActionRefused], decision D226). A resolved entry takes no action: there is nothing parked to act on.
  *
  * An entry is a resource of its tenant (decision D189, [Ownership.TENANT]): the ledger records it without an owner,
  * and every operator of the tenant, a tenant-level caller, reads it; each action is authorized as the ledger's system
@@ -73,6 +76,14 @@ class Parked(private val state: ParkedState) {
             return Decision.NoOp
         }
         return Decision.events(ParkedResolved(resolution.outcome, failedAt, resolution.resolvedAt))
+    }
+
+    /** The owning service refused the last request (decision D226); a resolved entry has none to refuse. */
+    @OnCommand(produces = [ActionRefused::class])
+    fun onCommand(command: RecordActionRefused): Decision = if (state.resolved) {
+        Decision.NoOp
+    } else {
+        Decision.events(ActionRefused(command.action, command.code, command.reason))
     }
 
     @OnCommand(produces = [ResumeRequested::class])

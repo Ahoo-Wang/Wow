@@ -55,7 +55,8 @@ import kotlin.time.toKotlinDuration
  *   `host:port` the other nodes reach its internal port at (by default this host's address and `wow.internal.port`).
  * - `wow.internal.port` (9090; 0 for a port the system chooses, which the node learns once bound) and
  *   `wow.internal.host` (the host of the node's member address; `0.0.0.0` for every interface, D195): the internal
- *   port (D89).
+ *   port (D89); `wow.internal.token`, the service's cluster tokens, and `wow.internal.dev-profiles`, the profiles
+ *   that may go without one (decision D226), see [Internal].
  * - `wow.contexts.include`, `wow.contexts.exclude`: the bounded contexts the node serves among the domain modules on
  *   the class path, by default all of them (decision D169), see [Contexts].
  * - `wow.backend`: `auto` (the default), `memory`, `postgres` or `mongo` ([BackendKind]); `wow.mongo.database`: the one
@@ -99,7 +100,8 @@ import kotlin.time.toKotlinDuration
  * - `wow.http.request-facts`, `wow.http.errors.[<code>].status`, `wow.http.manifest.enabled`,
  *   `wow.http.openapi.enabled` (`GET /wow/openapi`, the OpenAPI document of the routes);
  *   `wow.http.services.<service>.tokens`: the service identities the internal port trusts without CoSec (decision
- *   D193), see [Http.Service].
+ *   D193), and `wow.http.services.<service>.commands`, the commands each may call there (decision D226), see
+ *   [Http.Service].
  * - `wow.calls.contexts.<context>.url`, `wow.calls.token`, `wow.calls.timeout` (10s), `wow.calls.connect-timeout`
  *   (2s): the synchronous calls of the sagas to other contexts' command gateways (decision D193), see [Calls].
  * - `wow.aggregates.[<context>.<aggregate>].tenant`: a fixed tenant per aggregate type (decision D116);
@@ -169,6 +171,21 @@ class WowProperties {
 
         /** The signals queued per origin node before they are dropped (decision D109). */
         var signalQueueCapacity: Int = HttpSignalSender.DEFAULT_QUEUE_CAPACITY
+
+        /**
+         * The service's cluster tokens (decision D226, review A3-1), at least 32 characters each: the secret its nodes
+         * share, which alone opens the cluster channel (`/wow/internal/forward`) and the wait signals of the internal
+         * port. A node sends the first and takes any, so a token is rotated by adding the new one second, then moving
+         * it first on every node, then removing the old one; a comma-separated value (`WOW_INTERNAL_TOKEN`) is a list.
+         * A service token of `wow.http.services` opens the call routes, not these, and this token no call route.
+         *
+         * A node without one starts only in a profile of [devProfiles], or with its internal port bound to the
+         * loopback interface alone, and warns: its cluster routes then take every request.
+         */
+        var token: MutableList<String> = ArrayList()
+
+        /** The profiles in which the internal port may run without [token]: `dev`, `local`, `test` and `demo`. */
+        var devProfiles: MutableSet<String> = linkedSetOf("dev", "local", "test", "demo")
     }
 
     /**
@@ -602,10 +619,15 @@ class WowProperties {
 
         /**
          * One trusted service: the [tokens] it may present, at least 32 characters each, several while one is rotated
-         * (add the new one here, switch the caller's `wow.calls.token`, then remove the old one).
+         * (add the new one here, switch the caller's `wow.calls.token`, then remove the old one), and the [commands]
+         * it may call (decision D226, review A3-2), names or patterns (`AddItem`, `shop.cart.*`, `wow.lifecycle.*`):
+         * without them, the domain commands alone; a system command (`wow.*`: the lifecycle, the snapshot rebuild, the
+         * schedules) only when an entry naming `wow.` lists it; an entry naming a domain command narrows the domain
+         * commands to those listed. A CoSec service principal is configured here by its id, with [commands] alone.
          */
         class Service {
             var tokens: MutableList<String> = ArrayList()
+            var commands: MutableList<String> = ArrayList()
         }
 
         class Error {

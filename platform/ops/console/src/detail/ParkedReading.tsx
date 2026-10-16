@@ -209,6 +209,20 @@ export function ParkedReading({
           <p className="text-sm text-muted-foreground">{t("pendingRequest")}</p>
         </Section>
       ) : null}
+      {entry.refusedAction ? (
+        <Section title={t("refusal")}>
+          <Facts
+            rows={[
+              [label("refusedAction"), option("refusedAction", entry.refusedAction)],
+              [label("refusalCode"), entry.refusalCode ?? undefined],
+              [label("refusalReason"), entry.refusalReason ?? undefined],
+            ]}
+          />
+          <p className="text-sm text-muted-foreground" data-testid="parked-refusal">
+            {t("refusalHint")}
+          </p>
+        </Section>
+      ) : null}
       {entry.outcome ? (
         <Section title={t("resolution")}>
           <Facts

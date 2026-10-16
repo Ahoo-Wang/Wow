@@ -16,6 +16,9 @@ wow:
       enabled: true
   internal:
     port: 9090
+    # The cluster token of the service's nodes (decision D226): set WOW_INTERNAL_TOKEN, a secret of at least 32
+    # characters, the same on every node. Without one, the node starts only in a development profile
+    # (wow.internal.dev-profiles: dev, local, test, demo) or with its internal port on the loopback interface alone.
   http:
     # The calling application, which every view, preference and wording is kept in.
     request-facts: CoSec-App-Id

@@ -36,6 +36,13 @@ const OPTION_WORDS: Record<string, Record<string, ParkedField>> = {
     MARK_RECOVERABLE: "requestedMark",
     APPLY_RETRY_SPEC: "requestedSpec",
   },
+  /** The ledger's system command an owning service refused (decision D226). */
+  refusedAction: {
+    "wow.ledger.Resume": "requestedResume",
+    "wow.ledger.Skip": "requestedSkip",
+    "wow.ledger.MarkRecoverable": "requestedMark",
+    "wow.ledger.ApplyRetrySpec": "requestedSpec",
+  },
   outcome: {
     RESUMED: "outcomeResumed",
     SKIPPED: "outcomeSkipped",

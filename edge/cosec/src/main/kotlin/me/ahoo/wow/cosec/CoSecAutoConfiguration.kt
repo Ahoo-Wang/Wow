@@ -17,6 +17,7 @@ import me.ahoo.cosec.context.SecurityContextParser
 import me.ahoo.cosec.context.request.RequestParser
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.WowHttpOptions
+import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.caller.InternalCallerResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
@@ -46,6 +47,10 @@ import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
  * - [CoSecCommandAuthorizer] is the host's [CommandAuthorizer] when `wow.cosec.authorizer.enabled` is true, the
  *   application has CoSec's `Authorization` and no authorizer of its own. On the public port CoSec's WebFilter
  *   already authorizes the command routes by path and method.
+ * - [CoSecCommandAuthorizer] is also the [CallAuthorizer] of the service identities' commands, their synchronous calls
+ *   on the internal port, whenever the application has CoSec's `Authorization` and no call authorizer of its own,
+ *   whatever `wow.cosec.authorizer.enabled` says (decision D226, review A3-2): the internal port runs no WebFilter, so
+ *   a call is authorized as its service principal by CoSec's policies, never by the host's default that allows all.
  */
 @Configuration(proxyBeanMethods = false)
 class CoSecAutoConfiguration {
@@ -66,6 +71,14 @@ class CoSecAutoConfiguration {
         environment: Environment,
     ): CoSecInternalCallerResolver =
         CoSecInternalCallerResolver(requests, contexts, CoSecCallerResolver(callerOptions(environment)))
+
+    /** The authorizer of the services' calls (decision D226): CoSec's policies, as the service principal. */
+    @Bean
+    @Conditional(CallAuthorizerAvailable::class)
+    fun wowCoSecCallAuthorizer(authorization: CoSecAuthorization, environment: Environment): CallAuthorizer {
+        val authorizer = CoSecCommandAuthorizer(authorization, defaultTenant(environment))
+        return CallAuthorizer(authorizer::authorize)
+    }
 
     @Bean
     @Conditional(AuthorizerEnabled::class)
@@ -88,6 +101,15 @@ class CoSecAutoConfiguration {
             return beans.getBeanNamesForType(RequestParser::class.java, true, false).isNotEmpty() &&
                 beans.getBeanNamesForType(SecurityContextParser::class.java, true, false).isNotEmpty() &&
                 beans.getBeanNamesForType(InternalCallerResolver::class.java, true, false).isEmpty()
+        }
+    }
+
+    /** The application has CoSec's `Authorization` and no [CallAuthorizer] of its own. */
+    internal class CallAuthorizerAvailable : Condition {
+        override fun matches(context: ConditionContext, metadata: AnnotatedTypeMetadata): Boolean {
+            val beans = context.beanFactory ?: return false
+            return beans.getBeanNamesForType(CoSecAuthorization::class.java, true, false).isNotEmpty() &&
+                beans.getBeanNamesForType(CallAuthorizer::class.java, true, false).isEmpty()
         }
     }
 

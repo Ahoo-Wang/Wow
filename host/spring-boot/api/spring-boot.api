@@ -547,20 +547,26 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Http$OpenApi {
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Http$Service {
 	public fun <init> ()V
+	public final fun getCommands ()Ljava/util/List;
 	public final fun getTokens ()Ljava/util/List;
+	public final fun setCommands (Ljava/util/List;)V
 	public final fun setTokens (Ljava/util/List;)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Internal {
 	public fun <init> ()V
 	public final fun getConnectTimeout ()Ljava/time/Duration;
+	public final fun getDevProfiles ()Ljava/util/Set;
 	public final fun getHost ()Ljava/lang/String;
 	public final fun getPort ()I
 	public final fun getSignalQueueCapacity ()I
+	public final fun getToken ()Ljava/util/List;
 	public final fun setConnectTimeout (Ljava/time/Duration;)V
+	public final fun setDevProfiles (Ljava/util/Set;)V
 	public final fun setHost (Ljava/lang/String;)V
 	public final fun setPort (I)V
 	public final fun setSignalQueueCapacity (I)V
+	public final fun setToken (Ljava/util/List;)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Log {

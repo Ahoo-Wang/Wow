@@ -28,6 +28,7 @@ import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.subscribe.CallFailedException
 import me.ahoo.wow.http.call.HttpCommandCaller
 import me.ahoo.wow.http.call.ServiceCredential
+import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.ServiceTokens
 import me.ahoo.wow.http.command.CallHeader
 import me.ahoo.wow.http.internal.InternalServer
@@ -161,6 +162,11 @@ class ServiceCallRoutesTest {
             mapOf("Authorization" to "Bearer $FORGED", WowHeaders.CALL to callHeader())
         ).assertForbidden()
         internalPost(path, mapOf(WowHeaders.CALL to callHeader())).assertForbidden()
+        // Nor is a node's cluster token, which opens the cluster routes alone (decision D226).
+        internalPost(
+            path,
+            mapOf("Wow-Cluster-Token" to "cluster-token-of-this-service-0123456789", WowHeaders.CALL to callHeader()),
+        ).assertForbidden()
         // A service's request that is no call is not taken either.
         internalPost(path, mapOf("Authorization" to "Bearer $TOKEN")).assertForbidden()
         node.commands.assert().isEmpty()
@@ -203,6 +209,59 @@ class ServiceCallRoutesTest {
         val command = node.commands.single()
         command.operator.assert().isEqualTo(Operator("service:basket-service", TENANT))
         command.causation.assert().isNull()
+    }
+
+    /** The internal port's call routes, with [permits], called by the basket service with its call. */
+    private fun permitted(permits: CallPermits): WebTestClient =
+        WebTestClient.bindToRouterFunction(
+            callRoutes(cartManifest(), node.gateway, tokens.resolver(headerCallers), permits = permits)
+        )
+            .build()
+
+    private fun WebTestClient.call(method: String, path: String, body: String? = """{"sku":"mug"}"""): Answer =
+        method(org.springframework.http.HttpMethod.valueOf(method)).uri(path)
+            .header("Authorization", "Bearer $TOKEN")
+            .header(WowHeaders.CALL, callHeader())
+            .header("Content-Type", "application/json")
+            .let { if (body == null) it else it.bodyValue(body) }
+            .answer()
+
+    private fun Answer.assertCommandForbidden() {
+        status.assert().isEqualTo(403)
+        body!!["code"].asString().assert().isEqualTo(CallPermits.COMMAND_FORBIDDEN)
+    }
+
+    @Test
+    fun `a service's call of a system command should be refused unless its commands list it (D226)`() {
+        // By default: the domain commands alone.
+        val defaults = permitted(CallPermits(emptyMap()))
+        defaults.call("DELETE", "/shop/cart/cart-1", body = null).assertCommandForbidden()
+        defaults.call("POST", "/shop/cart/cart-1/wow.lifecycle.transfer-owner", """{"ownerId":"mallory"}""")
+            .assertCommandForbidden()
+        defaults.call("POST", "/shop/cart/cart-1/wow.lifecycle.apply-tags", """{"tags":{}}""").assertCommandForbidden()
+        // A wildcard alone opens no system command.
+        permitted(CallPermits(mapOf("basket-service" to listOf("*")))).call("DELETE", "/shop/cart/cart-1", body = null)
+            .assertCommandForbidden()
+        node.commands.assert().isEmpty()
+        // Listed, the system command is the gateway's: this cart does not exist.
+        val listed = permitted(CallPermits(mapOf("basket-service" to listOf("wow.lifecycle.DeleteAggregate"))))
+        listed.call("DELETE", "/shop/cart/cart-1", body = null).status.assert().isEqualTo(404)
+        listed.call("POST", "/shop/cart/cart-1/wow.lifecycle.restore-aggregate", body = null).assertCommandForbidden()
+        // The domain commands stay allowed beside a listed system command.
+        listed.call("POST", "/shop/cart/cart-1/add-item").status.assert().isEqualTo(200)
+    }
+
+    @Test
+    fun `a service's commands should narrow its domain commands to an allowlist (D226)`() {
+        val narrowed = permitted(CallPermits(mapOf("basket-service" to listOf("shop.cart.Checkout", "Open*"))))
+        narrowed.call("POST", "/shop/cart/cart-1/add-item").assertCommandForbidden()
+        node.commands.assert().isEmpty()
+        narrowed.call("POST", "/shop/cart/open-cart", """{"note":"hi"}""").status.assert().isEqualTo(200)
+        // Another service's list is not this one's: the gateway decides (the call's command id is taken already).
+        permitted(
+            CallPermits(mapOf("ordering-service" to listOf("Checkout")))
+        ).call("POST", "/shop/cart/cart-1/add-item")
+            .body!!["code"].asString().assert().isNotEqualTo(CallPermits.COMMAND_FORBIDDEN)
     }
 
     @Test
