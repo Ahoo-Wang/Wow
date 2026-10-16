@@ -402,5 +402,5 @@ class EshopSyncCallTest {
 @Configuration(proxyBeanMethods = false)
 class OperatorActions {
     @Bean
-    fun operatorActions(): CommandAuthorizer = CommandAuthorizer.ALLOW_ALL
+    fun basketOperatorAuthorizer(): CommandAuthorizer = CommandAuthorizer.ALLOW_ALL
 }
