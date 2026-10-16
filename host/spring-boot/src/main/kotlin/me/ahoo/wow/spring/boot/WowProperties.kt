@@ -100,7 +100,8 @@ import kotlin.time.toKotlinDuration
  * - `wow.http.request-facts`, `wow.http.errors.[<code>].status`, `wow.http.manifest.enabled`,
  *   `wow.http.openapi.enabled` (`GET /wow/openapi`, the OpenAPI document of the routes);
  *   `wow.http.services.<service>.tokens`: the service identities the internal port trusts without CoSec (decision
- *   D193), see [Http.Service].
+ *   D193), and `wow.http.services.<service>.commands`, the commands each may call there (decision D226), see
+ *   [Http.Service].
  * - `wow.calls.contexts.<context>.url`, `wow.calls.token`, `wow.calls.timeout` (10s), `wow.calls.connect-timeout`
  *   (2s): the synchronous calls of the sagas to other contexts' command gateways (decision D193), see [Calls].
  * - `wow.aggregates.[<context>.<aggregate>].tenant`: a fixed tenant per aggregate type (decision D116);
@@ -618,10 +619,15 @@ class WowProperties {
 
         /**
          * One trusted service: the [tokens] it may present, at least 32 characters each, several while one is rotated
-         * (add the new one here, switch the caller's `wow.calls.token`, then remove the old one).
+         * (add the new one here, switch the caller's `wow.calls.token`, then remove the old one), and the [commands]
+         * it may call (decision D226, review A3-2), names or patterns (`AddItem`, `shop.cart.*`, `wow.lifecycle.*`):
+         * without them, the domain commands alone; a system command (`wow.*`: the lifecycle, the snapshot rebuild, the
+         * schedules) only when an entry naming `wow.` lists it; an entry naming a domain command narrows the domain
+         * commands to those listed. A CoSec service principal is configured here by its id, with [commands] alone.
          */
         class Service {
             var tokens: MutableList<String> = ArrayList()
+            var commands: MutableList<String> = ArrayList()
         }
 
         class Error {

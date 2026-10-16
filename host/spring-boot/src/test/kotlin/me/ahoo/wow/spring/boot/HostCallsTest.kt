@@ -26,6 +26,7 @@ import me.ahoo.wow.api.subscribe.CallFailedException
 import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.call.HttpCommandCaller
 import me.ahoo.wow.http.call.ServiceCredential
+import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.command.CallHeader
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.call.CommandCaller
@@ -34,7 +35,11 @@ import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
+import tools.jackson.databind.json.JsonMapper
 import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
 
 /**
  * The host's synchronous calls (decision D193): `wow.calls.*` gives the node its client of the other contexts'
@@ -51,8 +56,16 @@ class HostCallsTest {
         "wow.calls.timeout" to "5s",
     )
 
+    /** A target whose list narrows the service's calls (decision D226). */
+    private val narrowed = startHost(
+        "wow.http.services.ledger-service.tokens[0]" to TOKEN,
+        "wow.http.services.ledger-service.commands[0]" to "wow.lifecycle.*",
+        "wow.http.services.ledger-service.commands[1]" to "bank.account.Deposit",
+    )
+
     @AfterAll
     fun close() {
+        narrowed.close()
         host.close()
         target.close()
     }
@@ -109,6 +122,34 @@ class HostCallsTest {
         assertThrows<CallFailedException> {
             runBlocking { forged.call(OutgoingCall("bank.account.OpenAccount", command)) }
         }.message.assert().contains("403")
+    }
+
+    /** A call of [path] on [host]'s internal port, from the trusted service: its status and its problem's code. */
+    private fun internalCall(host: Host, path: String, body: String): Pair<Int, String?> {
+        val call = CallHeader.format(CallContext("call-${path.hashCode()}", Caller.DEFAULT_TENANT, Scope("dave"), root))
+        val request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:${host.internalPort}$path"))
+            .header("Content-Type", "application/json")
+            .header("Authorization", "Bearer $TOKEN")
+            .header(WowHeaders.CALL, call)
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+            .build()
+        val response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString())
+        val code = response.body().takeIf { it.isNotBlank() }?.let { JsonMapper.builder().build().readTree(it)["code"] }
+        return response.statusCode() to code?.asString()
+    }
+
+    @Test
+    fun `a service's commands should narrow the calls it may make (D226)`() {
+        // Without a list, a domain command is called (the bank's account has no lifecycle routes; the edge's tests
+        // call those).
+        internalCall(target, "/bank/account/open-account", """{"owner":"olga"}""").second.assert()
+            .isNotEqualTo(CallPermits.COMMAND_FORBIDDEN)
+        // Listed, the gateway decides it: the account does not exist.
+        internalCall(narrowed, "/bank/account/acc-1/deposit", """{"amount":1}""").second.assert()
+            .isEqualTo("wow.aggregate.not-found")
+        // The list narrows the domain commands to those it names.
+        internalCall(narrowed, "/bank/account/open-account", """{"owner":"mallory"}""").assert()
+            .isEqualTo(403 to CallPermits.COMMAND_FORBIDDEN)
     }
 
     @Test

@@ -25,6 +25,7 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.snapshot.SnapshotRebuilds
 import me.ahoo.wow.http.caller.Authenticator
+import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.command.CommandHandler
 import me.ahoo.wow.http.command.CommandTarget
@@ -239,7 +240,9 @@ private fun CoRouterFunctionDsl.document(
  * CoSec service principal), and carry `Wow-Call`; any other, one without credentials too, is answered 403
  * `wow.auth.forbidden`. The public port
  * refuses `Wow-Call` ([wowRoutes]), so the root command a call asserts reaches a node only through its internal
- * network, from a service it trusts.
+ * network, from a service it trusts. A service calls only the commands [permits] lets it (decision D226, review A3-2):
+ * the domain commands by default, a system command (`wow.*`: the lifecycle, the snapshot rebuild, the schedules)
+ * only when listed; any other is answered 403 [CallPermits.COMMAND_FORBIDDEN].
  */
 @InternalWowApi
 fun callRoutes(
@@ -247,6 +250,7 @@ fun callRoutes(
     gateway: CommandGateway,
     callerResolver: CallerResolver,
     options: WowHttpOptions = WowHttpOptions(),
+    permits: CallPermits = CallPermits(emptyMap()),
 ): RouterFunction<ServerResponse> {
     val statuses = ErrorStatuses(manifest, options.errorStatuses)
     val commands = CommandHandler(
@@ -261,6 +265,7 @@ fun callRoutes(
         options = options,
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
         internal = true,
+        permits = permits,
     )
     val served = withTransformedRoutes(manifest, gateway)
     return coRouter {

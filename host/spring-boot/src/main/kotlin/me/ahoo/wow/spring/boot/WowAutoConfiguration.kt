@@ -21,6 +21,7 @@ import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.call.HttpCommandCaller
 import me.ahoo.wow.http.call.ServiceCredential
 import me.ahoo.wow.http.callRoutes
+import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.caller.InternalCallerResolver
 import me.ahoo.wow.http.caller.ServiceTokens
@@ -403,7 +404,7 @@ class WowAutoConfiguration {
                 node.waits,
                 tokens = clusterTokens(properties, environment, identity.bindHost),
                 services = services,
-            ).and(callRoutes(manifest, node.gateway, services, options)),
+            ).and(callRoutes(manifest, node.gateway, services, options, callPermits(properties))),
             InternalHttp.messageLimit(publicCodecLimit(environment)),
         )
     }
@@ -570,6 +571,10 @@ class WowAutoConfiguration {
         }
 
         private val CODEC_LIMITS = listOf("spring.http.codecs.max-in-memory-size", "spring.codec.max-in-memory-size")
+
+        /** The commands each service may call on the internal port (`wow.http.services.*.commands`, decision D226). */
+        internal fun callPermits(properties: WowProperties): CallPermits =
+            CallPermits(properties.http.services.mapValues { it.value.commands.toList() })
 
         /** The cluster token this node sends (`wow.internal.token`, the first), or null without one (decision D226). */
         internal fun clusterTokenOf(properties: WowProperties): String? = clusterTokenList(properties).firstOrNull()

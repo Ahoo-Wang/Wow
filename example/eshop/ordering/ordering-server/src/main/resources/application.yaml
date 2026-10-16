@@ -31,6 +31,10 @@ wow:
       eshop-basket-service:
         tokens:
           - ${ESHOP_BASKET_SERVICE_TOKEN:eshop-basket-local-service-token-not-a-secret}
+        # The commands the basket may call (decision D226): its checkout submits the order, and nothing else. A system
+        # command (wow.*: delete, restore, transfers, tags) is never called unless listed here.
+        commands:
+          - eshop-ordering.order.SubmitOrder
       eshop-inventory-service:
         tokens:
           - ${ESHOP_INVENTORY_SERVICE_TOKEN:eshop-inventory-local-service-token-not-a-secret}

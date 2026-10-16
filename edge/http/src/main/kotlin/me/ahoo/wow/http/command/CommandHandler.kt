@@ -26,7 +26,10 @@ import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.Authenticator
+import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.problem.ErrorStatuses
+import me.ahoo.wow.http.problem.Problem
+import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.receiveFirst
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandGateway
@@ -52,8 +55,9 @@ internal data class CommandTarget(val context: String, val aggregate: String, va
  * - the W3C trace context headers (`traceparent`, `tracestate`, `baggage`) as the request's trace (decision D174),
  *   which the command's admission continues;
  * - `Wow-Call`, the root command of a service's synchronous call (decision D193): refused (403) on the public port;
- *   on the internal port (`internal`) required, from a service identity only, and answered once its command is
- *   committed, never as an event stream;
+ *   on the internal port (`internal`) required, from a service identity only, for a command [permits] lets it call
+ *   (403 [CallPermits.COMMAND_FORBIDDEN] otherwise, decision D226), and answered once its command is committed, never
+ *   as an event stream;
  * - without `Accept: text/event-stream`, the result the wait ends with: 200, or 202 for a plan that ends at ACCEPTED,
  *   with the [CommandResult]; a problem with the result when it did not succeed;
  * - with it, the first result decides: an admission refusal (a result at ACCEPTED that did not succeed) is a problem,
@@ -74,10 +78,24 @@ internal class CommandHandler(
     private val scope: CoroutineScope,
     /** Whether this is the internal port's handler, of the services' synchronous calls alone (decision D193). */
     private val internal: Boolean = false,
+    /** The commands each service may call on the internal port (decision D226); every one without. */
+    private val permits: CallPermits? = null,
 ) {
     suspend fun handle(request: ServerRequest, target: CommandTarget): ServerResponse {
         val caller = authenticator.authenticate(request)
         val call = headers.call(request, caller, internal)
+        if (internal) {
+            permits?.refusal(caller, target.context, target.aggregate, target.command)?.let { refusal ->
+                throw ProblemException(
+                    Problem(
+                        HttpStatus.FORBIDDEN.value(),
+                        "The service may not call this command.",
+                        refusal,
+                        CallPermits.COMMAND_FORBIDDEN
+                    ),
+                )
+            }
+        }
         val eventStream = call == null && Negotiation.wantsEventStream(request)
         Negotiation.checkAcceptable(request, alsoEventStream = true)
         Negotiation.checkJsonBody(request)
