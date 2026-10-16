@@ -29,6 +29,7 @@ import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
+import me.ahoo.wow.query.QueryError
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.TargetScope
 import me.ahoo.wow.runtime.admission.TenantConflictException
@@ -77,7 +78,7 @@ internal class StateHandler(
         val (scope, ref, caller) = reader(request, type)
         val view = read(request, ref)
         checkScope(scope, view.scope, ref)
-        if (!StateVisibility.visible(queries.snapshots(type), caller, view)) {
+        if (!admitted(type) { StateVisibility.visible(queries.snapshots(type), caller, view) }) {
             throw problem(FrameworkCodes.NOT_FOUND, "No state of $ref.", type)
         }
         val tag = "\"${view.version}\""
@@ -99,7 +100,7 @@ internal class StateHandler(
         }
         commits.forEach { checkScope(scope, it.scope, ref) }
         val gateway = queries.snapshots(type)
-        if (commits.any { !StateVisibility.visible(gateway, caller, ref, it) }) {
+        if (commits.any { commit -> !admitted(type) { StateVisibility.visible(gateway, caller, ref, commit) } }) {
             throw problem(FrameworkCodes.NOT_FOUND, "No commit of $ref from version $from.", type)
         }
         return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
@@ -123,6 +124,18 @@ internal class StateHandler(
 
     /** Who reads which state: the [scope] it reads in, the [ref] it reads and the [caller] its queries are admitted as. */
     private data class Reader(val scope: Scope, val ref: AggregateRef, val caller: QueryCaller)
+
+    /**
+     * What [check] answers; a query policy that refuses the caller (a query error, such as an application the
+     * request does not name) is that query error's problem, as on the query routes.
+     */
+    @Suppress("TooGenericExceptionCaught") // Only a query error is answered here; anything else propagates.
+    private suspend inline fun admitted(type: AggregateType, check: () -> Boolean): Boolean = try {
+        check()
+    } catch (refused: Exception) {
+        if (refused !is QueryError) throw refused
+        throw problem(refused.errorCode, refused.errorMsg, type)
+    }
 
     private fun checkScope(reader: Scope, state: Scope, ref: AggregateRef) {
         if (!reader.covers(state)) {
