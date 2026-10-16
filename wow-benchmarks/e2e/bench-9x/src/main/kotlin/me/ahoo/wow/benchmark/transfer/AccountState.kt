@@ -42,9 +42,17 @@ class AccountState(val id: String) {
         locked += event.amount
     }
 
+    /** The transfer's request to the saga: the lock that came with it changed the balance. */
+    @Suppress("UnusedParameter")
+    fun onSourcing(event: Prepared) = Unit
+
     fun onSourcing(event: AmountEntered) {
         balance += event.amount
     }
+
+    /** The target's refusal, for the saga: the entry changed nothing. */
+    @Suppress("UnusedParameter")
+    fun onSourcing(event: EntryFailed) = Unit
 
     fun onSourcing(event: Confirmed) {
         locked -= event.amount
