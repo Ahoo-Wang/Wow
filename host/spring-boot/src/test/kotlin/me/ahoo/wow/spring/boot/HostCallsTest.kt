@@ -26,15 +26,20 @@ import me.ahoo.wow.api.subscribe.CallFailedException
 import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.call.HttpCommandCaller
 import me.ahoo.wow.http.call.ServiceCredential
+import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.command.CallHeader
+import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CallContext
+import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.call.CommandCaller
 import me.ahoo.wow.runtime.call.OutgoingCall
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
+import org.springframework.context.annotation.Bean
+import org.springframework.context.annotation.Configuration
 import tools.jackson.databind.json.JsonMapper
 import java.net.URI
 import java.net.http.HttpClient
@@ -63,8 +68,15 @@ class HostCallsTest {
         "wow.http.services.ledger-service.commands[1]" to "bank.account.Deposit",
     )
 
+    /** A target with a call authorizer bean (CoSec's, say) that denies every call (decision D226). */
+    private val denying = startHost(
+        "wow.http.services.ledger-service.tokens[0]" to TOKEN,
+        sources = listOf(HostTestApp::class.java, DenyingCalls::class.java),
+    )
+
     @AfterAll
     fun close() {
+        denying.close()
         narrowed.close()
         host.close()
         target.close()
@@ -153,6 +165,19 @@ class HostCallsTest {
     }
 
     @Test
+    fun `a call authorizer should authorize the services' commands, the host's authorizer every other`() {
+        val base = CommandAuthorizer.ALLOW_ALL
+        WowAutoConfiguration.authorizerOf(base, null).assert().isSameAs(base)
+        WowAutoConfiguration.authorizerOf(base, CallAuthorizer { _, _ -> Authorization.Denied("No.") }).assert()
+            .isNotSameAs(base)
+        // With a call authorizer bean (CoSec's, say), a service's call is that authorizer's.
+        internalCall(denying, "/bank/account/open-account", """{"owner":"mallory"}""").assert()
+            .isEqualTo(403 to "wow.auth.forbidden")
+        // A caller that is no service is the host's authorizer's, which allows all.
+        denying.post("/bank/account/open-account", """{"owner":"olga"}""").status.assert().isEqualTo(200)
+    }
+
+    @Test
     fun `a context without a URL should be refused`() {
         val properties = WowProperties().apply { calls.contexts["mail"] = WowProperties.Calls.CallTarget() }
         assertThrows<IllegalStateException> {
@@ -168,4 +193,10 @@ class HostCallsTest {
     private companion object {
         const val TOKEN = "ledger-service-token-0123456789abcdef"
     }
+}
+
+@Configuration(proxyBeanMethods = false)
+class DenyingCalls {
+    @Bean
+    fun callAuthorizer(): CallAuthorizer = CallAuthorizer { _, _ -> Authorization.Denied("No call is allowed here.") }
 }

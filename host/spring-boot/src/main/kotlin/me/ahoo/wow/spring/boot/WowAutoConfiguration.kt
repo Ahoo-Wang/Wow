@@ -21,6 +21,7 @@ import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.call.HttpCommandCaller
 import me.ahoo.wow.http.call.ServiceCredential
 import me.ahoo.wow.http.callRoutes
+import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.caller.InternalCallerResolver
@@ -127,7 +128,9 @@ import jakarta.validation.Validator as JakartaValidator
  *   by default an [HttpCommandCaller] at `wow.calls.contexts.<context>.url`, the target's internal port, presenting
  *   the [ServiceCredential] bean (`wow.calls.token` as a bearer). The internal port serves the command routes of the
  *   calls ([callRoutes]) to the service identities of `wow.http.services`, by their tokens ([ServiceTokens]), or of
- *   the [InternalCallerResolver] bean (CoSec's service principals); the public port refuses `Wow-Call`.
+ *   the [InternalCallerResolver] bean (CoSec's service principals); the public port refuses `Wow-Call`. A service may
+ *   call the commands `wow.http.services.<service>.commands` lets it ([CallPermits], decision D226), each authorized
+ *   by the [CallAuthorizer] bean when there is one (CoSec's, always with CoSec), else by the [CommandAuthorizer].
  * - **Subscriptions**: the annotated processors' handlers the binding indexes list ([ModelProvider.processors], built
  *   from the application's beans), then every [SubscriptionFactory] bean, the application's and the modules', in their order,
  *   and every [PublishedSinks] bean (such as the Kafka Sink). Those that read other contexts' published streams read
@@ -292,7 +295,8 @@ class WowAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    @Suppress("LongParameterList") // One parameter per part of the node, each a bean the application may replace.
+    // One parameter per part of the node, each a bean the application may replace, and one line per option.
+    @Suppress("LongParameterList", "LongMethod")
     @InternalWowApi
     fun wowServiceNode(
         properties: WowProperties,
@@ -310,6 +314,7 @@ class WowAutoConfiguration {
         idSources: ObjectProvider<AggregateIdGeneratorSource>,
         beanFactory: ConfigurableListableBeanFactory,
         authorizers: ObjectProvider<CommandAuthorizer>,
+        callAuthorizers: ObjectProvider<CallAuthorizer>,
         transformers: ObjectProvider<CommandTransformer>,
         validators: ObjectProvider<CommandValidator>,
         subscriptions: ObjectProvider<SubscriptionFactory>,
@@ -350,7 +355,10 @@ class WowAutoConfiguration {
                 snapshots = properties.snapshot.options(),
             ),
             admission = AdmissionPlugins(
-                authorizer = authorizers.getIfAvailable { CommandAuthorizer.ALLOW_ALL },
+                authorizer = authorizerOf(
+                    authorizers.getIfAvailable { CommandAuthorizer.ALLOW_ALL },
+                    callAuthorizers.ifAvailable
+                ),
                 transformers = transformers.orderedStream().toList(),
                 validators = validators.orderedStream().toList(),
                 ids = IdGenerators(
@@ -571,6 +579,13 @@ class WowAutoConfiguration {
         }
 
         private val CODEC_LIMITS = listOf("spring.http.codecs.max-in-memory-size", "spring.codec.max-in-memory-size")
+
+        /**
+         * The node's authorizer (decision D226, review A3-2): [base] for every caller but the service identities, whose
+         * commands (their synchronous calls) [calls] authorizes when the application or a module (CoSec) gives one.
+         */
+        internal fun authorizerOf(base: CommandAuthorizer, calls: CallAuthorizer?): CommandAuthorizer =
+            calls?.over(base) ?: base
 
         /** The commands each service may call on the internal port (`wow.http.services.*.commands`, decision D226). */
         internal fun callPermits(properties: WowProperties): CallPermits =
