@@ -85,7 +85,7 @@ abstract class TimerStoreSpec {
     private suspend fun settle(loaded: Timer, next: Timer): Boolean = store.settle(listOf(TimerChange(loaded, next))) == 1
 
     private fun Timer.fired(outcome: String = TimerOutcomes.COMMITTED) =
-        copy(status = TimerStatus.FIRED, attempts = attempts + 1, outcome = outcome)
+        copyWith(status = TimerStatus.FIRED, attempts = attempts + 1, outcome = outcome)
 
     @Test
     fun `a timer put is found and due once its time comes`(): Unit = runBlocking {
@@ -100,7 +100,7 @@ abstract class TimerStoreSpec {
 
     @Test
     fun `a timer's rule and slot read back as written, whatever the rule`(): Unit = runBlocking {
-        val after = timer(key = "after", rule = ScheduleRule.After(60_000)).copy(slot = 3)
+        val after = timer(key = "after", rule = ScheduleRule.After(60_000)).copyWith(slot = 3)
         val cron = timer(key = "cron", rule = ScheduleRule.Cron("0 0 9 * * MON-FRI", "Asia/Shanghai", Misfire.CATCH_UP))
         val utc = timer(key = "utc", rule = ScheduleRule.cron("0 */5 * * * *"))
         listOf(after, cron, utc).forEach { store.put(it).assert().isTrue() }
@@ -113,10 +113,10 @@ abstract class TimerStoreSpec {
     @Test
     fun `a timer without causation, headers, operator or scope is found as put`(): Unit = runBlocking {
         val timer = timer(key = "bare")
-            .copy(causation = null, headers = emptyMap(), operator = null, scope = Scope.NONE)
+            .copyWith(causation = null, headers = emptyMap(), operator = null, scope = Scope.NONE)
         store.put(timer).assert().isTrue()
         store.find(owner, "bare").assert().isEqualTo(timer)
-        val spaced = timer(key = "spaced").copy(scope = Scope(spaceId = "space-a"))
+        val spaced = timer(key = "spaced").copyWith(scope = Scope(spaceId = "space-a"))
         store.put(spaced).assert().isTrue()
         store.find(owner, "spaced").assert().isEqualTo(spaced)
     }
@@ -238,8 +238,8 @@ abstract class TimerStoreSpec {
     fun `a change is written only while the timer is as it was loaded`(): Unit = runBlocking {
         val timer = timer()
         store.put(timer)
-        val retried = timer.copy(attempts = 1, dueAt = DUE + 5, outcome = "java.io.IOException: down")
-        settle(timer.copy(status = TimerStatus.FIRED), retried).assert().isFalse()
+        val retried = timer.copyWith(attempts = 1, dueAt = DUE + 5, outcome = "java.io.IOException: down")
+        settle(timer.copyWith(status = TimerStatus.FIRED), retried).assert().isFalse()
         settle(timer, retried).assert().isTrue()
         store.find(owner, "pay").assert().isEqualTo(retried)
         // The row moved on: a change from what was loaded before does nothing.
@@ -258,7 +258,7 @@ abstract class TimerStoreSpec {
     fun `firing a slot moves the timer to its next slot in one write`(): Unit = runBlocking {
         val timer = timer(rule = ScheduleRule.cron("0 0 * * * *"))
         store.put(timer)
-        val next = timer.copy(
+        val next = timer.copyWith(
             slot = 2,
             dueAt = DUE + HOUR,
             slotDueAt = DUE + HOUR,
@@ -272,7 +272,7 @@ abstract class TimerStoreSpec {
         store.due(partitions, DUE, LIMIT).assert().isEmpty()
         store.due(partitions, DUE + HOUR, LIMIT).assert().containsExactly(next)
         // The slot fired already cannot be fired again.
-        settle(timer, timer.copy(slot = 2, dueAt = DUE + 2 * HOUR)).assert().isFalse()
+        settle(timer, timer.copyWith(slot = 2, dueAt = DUE + 2 * HOUR)).assert().isFalse()
         store.find(owner, "pay").assert().isEqualTo(next)
     }
 
@@ -283,7 +283,7 @@ abstract class TimerStoreSpec {
         val claimed = timer.claimed()
         settle(timer, claimed).assert().isTrue()
         // A technical failure: due again after the backoff, its slot still due when it was.
-        val retried = claimed.copy(
+        val retried = claimed.copyWith(
             status = TimerStatus.PENDING,
             attempts = 1,
             dueAt = DUE + CLAIM + 5,
@@ -301,12 +301,12 @@ abstract class TimerStoreSpec {
         lapsed.slotDueAt.assert().isEqualTo(DUE)
         lapsed.dueAt.assert().isEqualTo(DUE + 2 * CLAIM)
         // A change from another due time of the slot does nothing.
-        settle(lapsed.copy(slotDueAt = DUE + 1), lapsed.fired()).assert().isFalse()
+        settle(lapsed.copyWith(slotDueAt = DUE + 1), lapsed.fired()).assert().isFalse()
         settle(lapsed, lapsed.fired()).assert().isTrue()
         store.find(owner, "pay")?.slotDueAt.assert().isEqualTo(DUE)
     }
 
-    private fun Timer.claimed(deadline: Long = DUE + CLAIM) = copy(status = TimerStatus.FIRING, dueAt = deadline)
+    private fun Timer.claimed(deadline: Long = DUE + CLAIM) = copyWith(status = TimerStatus.FIRING, dueAt = deadline)
 
     @Test
     fun `a monthly timer advances slot after slot, each written from the claim of the one before`(): Unit =
@@ -317,7 +317,7 @@ abstract class TimerStoreSpec {
             listOf(MARCH, APRIL, MAY).forEachIndexed { index, nextDue ->
                 val claimed = loaded.claimed(loaded.slotDueAt + CLAIM)
                 settle(loaded, claimed).assert().isTrue()
-                val advanced = claimed.copy(
+                val advanced = claimed.copyWith(
                     status = TimerStatus.PENDING,
                     slot = claimed.slot + 1,
                     slotDueAt = nextDue,
@@ -327,7 +327,7 @@ abstract class TimerStoreSpec {
                 )
                 settle(claimed, advanced).assert().isTrue()
                 // The slot sent is not sent again: a second outcome of its claim does nothing.
-                settle(claimed, advanced.copy(slot = advanced.slot + 1)).assert().isFalse()
+                settle(claimed, advanced.copyWith(slot = advanced.slot + 1)).assert().isFalse()
                 store.due(partitions, nextDue - 1, LIMIT).assert().isEmpty()
                 loaded = store.due(partitions, nextDue, LIMIT).single()
                 loaded.assert().isEqualTo(advanced)
@@ -344,10 +344,10 @@ abstract class TimerStoreSpec {
             val timer = timer(key = "invoice", dueAt = FEBRUARY, rule = MONTHLY)
             store.put(timer)
             // Claimed on May 2nd: February to April are skipped, May's slot is sent.
-            val coalesced = timer.copy(slot = 4, slotDueAt = MAY, skipped = 3).claimed(MAY + DAY + CLAIM)
+            val coalesced = timer.copyWith(slot = 4, slotDueAt = MAY, skipped = 3).claimed(MAY + DAY + CLAIM)
             settle(timer, coalesced).assert().isTrue()
             store.find(owner, "invoice").assert().isEqualTo(coalesced)
-            val retried = coalesced.copy(status = TimerStatus.PENDING, attempts = 1, dueAt = MAY + DAY + 5)
+            val retried = coalesced.copyWith(status = TimerStatus.PENDING, attempts = 1, dueAt = MAY + DAY + 5)
             settle(coalesced, retried).assert().isTrue()
             val loaded = store.due(partitions, MAY + DAY + 5, LIMIT).single()
             loaded.skipped.assert().isEqualTo(3L)
@@ -355,7 +355,7 @@ abstract class TimerStoreSpec {
             loaded.context.slot.assert().isEqualTo(4L)
             val reclaimed = loaded.claimed(MAY + DAY + 2 * CLAIM)
             settle(loaded, reclaimed).assert().isTrue()
-            val june = reclaimed.copy(
+            val june = reclaimed.copyWith(
                 status = TimerStatus.PENDING,
                 slot = 5,
                 slotDueAt = JUNE,
@@ -367,7 +367,7 @@ abstract class TimerStoreSpec {
             settle(reclaimed, june).assert().isTrue()
             store.find(owner, "invoice").assert().isEqualTo(june)
             // A timer put with skipped slots, as a rebuilt store writes it, reads back so.
-            val rebuilt = timer(key = "rebuilt", rule = MONTHLY).copy(slot = 7, skipped = 2)
+            val rebuilt = timer(key = "rebuilt", rule = MONTHLY).copyWith(slot = 7, skipped = 2)
             store.put(rebuilt).assert().isTrue()
             store.find(owner, "rebuilt").assert().isEqualTo(rebuilt)
         }
@@ -436,7 +436,7 @@ abstract class TimerStoreSpec {
         val second = timer(key = "second", partition = partition + 1)
         val stale = timer(key = "stale")
         listOf(first, second, stale).forEach { store.put(it) }
-        settle(stale, stale.copy(attempts = 1, dueAt = DUE + 1))
+        settle(stale, stale.copyWith(attempts = 1, dueAt = DUE + 1))
         val written = store.settle(
             listOf(
                 TimerChange(first, first.fired()),
@@ -457,7 +457,9 @@ abstract class TimerStoreSpec {
         val written = coroutineScope {
             (1..CONTENDERS).map { attempt ->
                 async(Dispatchers.Default) {
-                    store.settle(listOf(TimerChange(timer, timer.copy(attempts = attempt, outcome = "try $attempt"))))
+                    store.settle(
+                        listOf(TimerChange(timer, timer.copyWith(attempts = attempt, outcome = "try $attempt")))
+                    )
                 }
             }.awaitAll()
         }
@@ -470,14 +472,14 @@ abstract class TimerStoreSpec {
         val second = timer(key = "second", dueAt = DUE)
         val other = timer(key = "other", target = target.type.ref("tenant", "other-$run"))
         listOf(first, second, other).forEach { store.put(it) }
-        val parkedFirst = first.copy(status = TimerStatus.PARKED, attempts = 3, outcome = "down")
-        val parkedSecond = second.copy(status = TimerStatus.PARKED, attempts = 3, outcome = "down")
+        val parkedFirst = first.copyWith(status = TimerStatus.PARKED, attempts = 3, outcome = "down")
+        val parkedSecond = second.copyWith(status = TimerStatus.PARKED, attempts = 3, outcome = "down")
         settle(first, parkedFirst).assert().isTrue()
         settle(second, parkedSecond).assert().isTrue()
         store.parked(target).assert().containsExactly(parkedSecond, parkedFirst)
         store.due(partitions, DUE + 10, LIMIT).assert().containsExactly(other)
         // Resuming puts one back.
-        val resumed = parkedSecond.copy(status = TimerStatus.PENDING, attempts = 0)
+        val resumed = parkedSecond.copyWith(status = TimerStatus.PENDING, attempts = 0)
         settle(parkedSecond, resumed).assert().isTrue()
         store.parked(target).assert().containsExactly(parkedFirst)
         // A cancel takes a parked timer too.

@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.Ownership
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import org.junit.jupiter.api.Test
@@ -105,9 +106,9 @@ class StateAndManifestRoutesTest {
     fun `a state of an aggregate of its tenant is read by every owner of the tenant (D189)`() {
         val manifest = cartManifest().let { manifest ->
             val context = manifest.contexts.single()
-            manifest.copy(
+            manifest.copyWith(
                 contexts = listOf(
-                    context.copy(aggregates = context.aggregates.map { it.copy(ownership = Ownership.TENANT) }),
+                    context.copyWith(aggregates = context.aggregates.map { it.copyWith(ownership = Ownership.TENANT) }),
                 ),
             )
         }

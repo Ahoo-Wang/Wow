@@ -33,11 +33,11 @@ class ViewAudienceSagaTest {
     @Test
     fun `a shared view should go to the owner (shared), a claimed one to the claiming user`() = sagaSpec(handlers) {
         whenEvent(stateEvent(view, ViewState(), ViewShared, version = 2)) {
-            expectCommand(TransferOwner(ViewStoreContext.SHARED_OWNER_ID), to = view)
+            expectCommand(TransferOwner.of(ViewStoreContext.SHARED_OWNER_ID), to = view)
             expectDeterministic()
         }
         whenEvent(stateEvent(view, ViewState(), ViewClaimed(ViewFixtures.BOB), version = 3)) {
-            expectCommand(TransferOwner(ViewFixtures.BOB), to = view)
+            expectCommand(TransferOwner.of(ViewFixtures.BOB), to = view)
         }
     }
 

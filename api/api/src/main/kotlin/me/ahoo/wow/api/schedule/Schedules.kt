@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.schedule
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.InternalWowApi
 import java.time.Instant
 import kotlin.time.Duration
 
@@ -28,19 +29,57 @@ sealed interface ScheduleRule {
      */
     fun firstDue(commitTime: Long): Long?
 
-    /** Due once, at [epochMillis]. */
-    data class At(val epochMillis: Long) : ScheduleRule {
+    /**
+     * Due once, at [epochMillis].
+     *
+     * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+     */
+    class At @InternalWowApi constructor(val epochMillis: Long) : ScheduleRule {
         override fun firstDue(commitTime: Long): Long = epochMillis
+
+        override fun equals(other: Any?): Boolean =
+            this === other || other is At && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "At(epochMillis=$epochMillis)"
+
+        private fun valueFields(): List<Any?> = listOf(epochMillis)
+
+        companion object {
+            /** An At of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            fun of(epochMillis: Long): At = At(epochMillis)
+        }
     }
 
-    /** Due once, [millis] after the commit that sets it. */
-    data class After(val millis: Long) : ScheduleRule {
+    /**
+     * Due once, [millis] after the commit that sets it.
+     *
+     * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+     */
+    class After @InternalWowApi constructor(val millis: Long) : ScheduleRule {
         init {
             require(millis >= 0) { "A schedule is not due before the commit that sets it." }
         }
 
         override fun firstDue(commitTime: Long): Long =
             if (commitTime > Long.MAX_VALUE - millis) Long.MAX_VALUE else commitTime + millis
+
+        override fun equals(other: Any?): Boolean =
+            this === other || other is After && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "After(millis=$millis)"
+
+        private fun valueFields(): List<Any?> = listOf(millis)
+
+        companion object {
+            /** An After of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            fun of(millis: Long): After = After(millis)
+        }
     }
 
     /**
@@ -48,8 +87,10 @@ sealed interface ScheduleRule {
      * `CronExpression` reads them; a time missed while no node fired it is handled as [misfire] says (decision D198).
      * The runtime evaluates it: the first slot is the first time after the commit that sets it, and each next one the
      * first time after the slot before it.
+     *
+     * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
      */
-    data class Cron(
+    class Cron @InternalWowApi constructor(
         val expression: String,
         val zone: String = UTC,
         val misfire: Misfire = Misfire.COALESCE,
@@ -60,6 +101,31 @@ sealed interface ScheduleRule {
         }
 
         override fun firstDue(commitTime: Long): Long? = null
+
+        /** This Cron with the given fields replaced: Wow's own copy, left out of the ABI. */
+        @InternalWowApi
+        fun copyWith(
+            expression: String = this.expression,
+            zone: String = this.zone,
+            misfire: Misfire = this.misfire,
+        ): Cron = Cron(expression, zone, misfire)
+
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Cron && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Cron(expression=$expression, zone=$zone, misfire=$misfire)"
+
+        private fun valueFields(): List<Any?> = listOf(expression, zone, misfire)
+
+        companion object {
+            /** A Cron of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            @JvmOverloads
+            fun of(expression: String, zone: String = UTC, misfire: Misfire = Misfire.COALESCE): Cron =
+                Cron(expression, zone, misfire)
+        }
     }
 
     companion object {
@@ -100,18 +166,60 @@ enum class Misfire {
  * send it the command of type [commandType] (`context.aggregate.Command`), [command] its JSON, as [rule] says. Every
  * aggregate decides it without user code, on an aggregate that exists; a saga derives it
  * ([me.ahoo.wow.api.subscribe.SagaContext.schedule]).
+ *
+ * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
  */
-data class SetSchedule(val key: String, val rule: ScheduleRule, val commandType: String, val command: String) {
+class SetSchedule @InternalWowApi constructor(
+    val key: String,
+    val rule: ScheduleRule,
+    val commandType: String,
+    val command: String,
+) {
     init {
         require(key.isNotBlank()) { "A schedule needs a key." }
         require(commandType.isNotBlank()) { "A schedule names the type of its command." }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is SetSchedule && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "SetSchedule(key=$key, rule=$rule, commandType=$commandType, command=$command)"
+
+    private fun valueFields(): List<Any?> = listOf(key, rule, commandType, command)
+
+    companion object {
+        /** A SetSchedule of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(key: String, rule: ScheduleRule, commandType: String, command: String): SetSchedule =
+            SetSchedule(key, rule, commandType, command)
+    }
 }
 
-/** The system command `wow.schedule.Cancel` (decision D198): cancels the schedule [key] of the aggregate it is sent to. */
-data class CancelSchedule(val key: String) {
+/**
+ * The system command `wow.schedule.Cancel` (decision D198): cancels the schedule [key] of the aggregate it is sent to.
+ *
+ * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ */
+class CancelSchedule @InternalWowApi constructor(val key: String) {
     init {
         require(key.isNotBlank()) { "A schedule needs a key." }
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is CancelSchedule && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "CancelSchedule(key=$key)"
+
+    private fun valueFields(): List<Any?> = listOf(key)
+
+    companion object {
+        /** A CancelSchedule of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(key: String): CancelSchedule = CancelSchedule(key)
     }
 }
 
@@ -119,8 +227,10 @@ data class CancelSchedule(val key: String) {
  * The system event `wow.ScheduleSet` (decision D198): the aggregate set its schedule [key], to send [target] the command
  * of type [commandType], [command] its JSON, as [rule] says. Committed with the aggregate's other events; the built-in
  * `timers` subscription derives the timer store from it.
+ *
+ * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
  */
-data class ScheduleSet(
+class ScheduleSet @InternalWowApi constructor(
     val key: String,
     val rule: ScheduleRule,
     val target: AggregateRef,
@@ -131,12 +241,53 @@ data class ScheduleSet(
         require(key.isNotBlank()) { "A schedule needs a key." }
         require(commandType.isNotBlank()) { "A schedule names the type of its command." }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ScheduleSet && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "ScheduleSet(key=$key, rule=$rule, target=$target, commandType=$commandType, command=$command)"
+
+    private fun valueFields(): List<Any?> = listOf(key, rule, target, commandType, command)
+
+    companion object {
+        /** A ScheduleSet of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(
+            key: String,
+            rule: ScheduleRule,
+            target: AggregateRef,
+            commandType: String,
+            command: String,
+        ): ScheduleSet = ScheduleSet(key, rule, target, commandType, command)
+    }
 }
 
-/** The system event `wow.ScheduleCancelled` (decision D198): the aggregate cancelled its schedule [key]. */
-data class ScheduleCancelled(val key: String) {
+/**
+ * The system event `wow.ScheduleCancelled` (decision D198): the aggregate cancelled its schedule [key].
+ *
+ * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ */
+class ScheduleCancelled @InternalWowApi constructor(val key: String) {
     init {
         require(key.isNotBlank()) { "A schedule needs a key." }
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ScheduleCancelled && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "ScheduleCancelled(key=$key)"
+
+    private fun valueFields(): List<Any?> = listOf(key)
+
+    companion object {
+        /** A ScheduleCancelled of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(key: String): ScheduleCancelled = ScheduleCancelled(key)
     }
 }
 
@@ -146,8 +297,16 @@ data class ScheduleCancelled(val key: String) {
  * one per time it is due), the time that slot was [due] (epoch milliseconds), and how many slots before it a
  * recurring schedule [skipped] because they were missed ([Misfire.COALESCE]). A command sent for a schedule carries it
  * in its headers ([HEADERS]); its request id is `timer#slot`.
+ *
+ * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
  */
-data class ScheduleContext(val timer: String, val key: String, val slot: Long, val due: Long, val skipped: Long = 0) {
+class ScheduleContext @InternalWowApi constructor(
+    val timer: String,
+    val key: String,
+    val slot: Long,
+    val due: Long,
+    val skipped: Long = 0,
+) {
     init {
         require(timer.isNotBlank()) { "A scheduled command names its timer." }
         require(key.isNotBlank()) { "A scheduled command names its schedule." }
@@ -165,6 +324,25 @@ data class ScheduleContext(val timer: String, val key: String, val slot: Long, v
             put(SKIPPED, skipped.toString())
         }
     }
+
+    /** This ScheduleContext with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        timer: String = this.timer,
+        key: String = this.key,
+        slot: Long = this.slot,
+        due: Long = this.due,
+        skipped: Long = this.skipped,
+    ): ScheduleContext = ScheduleContext(timer, key, slot, due, skipped)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ScheduleContext && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "ScheduleContext(timer=$timer, key=$key, slot=$slot, due=$due, skipped=$skipped)"
+
+    private fun valueFields(): List<Any?> = listOf(timer, key, slot, due, skipped)
 
     companion object {
         const val TIMER: String = "wow.schedule.timer"
@@ -187,6 +365,12 @@ data class ScheduleContext(val timer: String, val key: String, val slot: Long, v
             val skipped = headers[SKIPPED]?.toLongOrNull()?.takeIf { it in 0 until slot } ?: 0
             return ScheduleContext(timer, key, slot, due, skipped)
         }
+
+        /** A ScheduleContext of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(timer: String, key: String, slot: Long, due: Long, skipped: Long = 0): ScheduleContext =
+            ScheduleContext(timer, key, slot, due, skipped)
     }
 }
 

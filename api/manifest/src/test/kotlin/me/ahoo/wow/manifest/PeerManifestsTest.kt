@@ -62,7 +62,7 @@ class PeerManifestsTest {
             listOf(
                 peer("inventory", "inventory"),
                 own,
-                own.copy(source = "again.json"),
+                own.copyWith(source = "again.json"),
                 peer("monolith", "shop", "audit")
             ),
         )

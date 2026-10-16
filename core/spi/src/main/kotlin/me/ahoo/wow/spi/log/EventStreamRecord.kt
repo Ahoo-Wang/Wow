@@ -15,6 +15,7 @@ package me.ahoo.wow.spi.log
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.spi.reservation.ReservationKey
@@ -23,11 +24,28 @@ import me.ahoo.wow.spi.wait.WaitContext
 /**
  * One event as the log stores it: its type [name] (`context.aggregate.event`, not a class name), the [revision] of
  * its schema, and its serialized [payload].
+ *
+ * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
-data class EventRecord(val name: String, val revision: Int, val payload: String) {
+class EventRecord @InternalWowApi constructor(val name: String, val revision: Int, val payload: String) {
     init {
         require(name.isNotBlank()) { "An event record needs a name." }
         require(revision >= 1) { "An event revision starts at 1." }
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is EventRecord && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "EventRecord(name=$name, revision=$revision, payload=$payload)"
+
+    private fun valueFields(): List<Any?> = listOf(name, revision, payload)
+
+    companion object {
+        /** An EventRecord of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(name: String, revision: Int, payload: String): EventRecord = EventRecord(name, revision, payload)
     }
 }
 
@@ -46,8 +64,10 @@ data class EventRecord(val name: String, val revision: Int, val payload: String)
  *   an audit; null for an anonymous caller.
  * - The schedules a decision set or cancelled are among its [events], as the system events `wow.ScheduleSet` and
  *   `wow.ScheduleCancelled` (decision D198), from which the built-in `timers` subscription derives the timer store.
+ *
+ * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
-data class EventStreamRecord(
+class EventStreamRecord @InternalWowApi constructor(
     val ref: AggregateRef,
     val version: Int,
     val commandId: String,
@@ -65,6 +85,91 @@ data class EventStreamRecord(
         require(commandType.isNotBlank()) { "An event stream names the type of its command." }
         require(events.isNotEmpty()) { "An event stream holds at least one event." }
     }
+
+    /** This EventStreamRecord with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        ref: AggregateRef = this.ref,
+        version: Int = this.version,
+        commandId: String = this.commandId,
+        requestId: String = this.requestId,
+        commandType: String = this.commandType,
+        commitTime: Long = this.commitTime,
+        events: List<EventRecord> = this.events,
+        scope: Scope = this.scope,
+        causation: Causation? = this.causation,
+        headers: Map<String, String> = this.headers,
+        operator: Operator? = this.operator,
+    ): EventStreamRecord =
+        EventStreamRecord(
+            ref,
+            version,
+            commandId,
+            requestId,
+            commandType,
+            commitTime,
+            events,
+            scope,
+            causation,
+            headers,
+            operator,
+        )
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is EventStreamRecord && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "EventStreamRecord(ref=$ref, version=$version, commandId=$commandId, requestId=$requestId, " +
+            "commandType=$commandType, commitTime=$commitTime, events=$events, scope=$scope, causation=$causation, " +
+            "headers=$headers, operator=$operator)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        ref,
+        version,
+        commandId,
+        requestId,
+        commandType,
+        commitTime,
+        events,
+        scope,
+        causation,
+        headers,
+        operator,
+    )
+
+    companion object {
+        /** An EventStreamRecord of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            ref: AggregateRef,
+            version: Int,
+            commandId: String,
+            requestId: String,
+            commandType: String,
+            commitTime: Long,
+            events: List<EventRecord>,
+            scope: Scope,
+            causation: Causation? = null,
+            headers: Map<String, String> = emptyMap(),
+            operator: Operator? = null,
+        ): EventStreamRecord =
+            EventStreamRecord(
+                ref,
+                version,
+                commandId,
+                requestId,
+                commandType,
+                commitTime,
+                events,
+                scope,
+                causation,
+                headers,
+                operator,
+            )
+    }
 }
 
 /** A position in the log: a partition and a sequence within it, in the order commits became visible. */
@@ -79,8 +184,39 @@ data class LogPosition(val partition: Int, val sequence: Long) {
  * A committed event stream at its [position] in the log, with the [transport] metadata appended with it, if any.
  * Only [EventLog.tail] returns entries: the transport serves the subscriptions and signals that read the log, never
  * the domain.
+ *
+ * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
-data class LogEntry(val position: LogPosition, val stream: EventStreamRecord, val transport: Transport? = null)
+class LogEntry @InternalWowApi constructor(
+    val position: LogPosition,
+    val stream: EventStreamRecord,
+    val transport: Transport? = null,
+) {
+    /** This LogEntry with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        position: LogPosition = this.position,
+        stream: EventStreamRecord = this.stream,
+        transport: Transport? = this.transport,
+    ): LogEntry = LogEntry(position, stream, transport)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is LogEntry && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "LogEntry(position=$position, stream=$stream, transport=$transport)"
+
+    private fun valueFields(): List<Any?> = listOf(position, stream, transport)
+
+    companion object {
+        /** A LogEntry of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(position: LogPosition, stream: EventStreamRecord, transport: Transport? = null): LogEntry =
+            LogEntry(position, stream, transport)
+    }
+}
 
 /**
  * What an append carries for delivery, not as fact (design 08 §1, §4; decision D25): domain code and queries never
@@ -94,10 +230,34 @@ data class LogEntry(val position: LogPosition, val stream: EventStreamRecord, va
  * - [releases] are the keys this attempt released (finding A2-4): the kernel releases them once the append commits,
  *   and the `reservation` subscription releases them again from the log, after the keys of [reservations] are
  *   confirmed, so a release is not lost to a crash after the append.
+ *
+ * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
-data class Transport(
+class Transport @InternalWowApi constructor(
     val wait: WaitContext? = null,
     val reservations: List<ReservationKey> = emptyList(),
     val trace: Map<String, String> = emptyMap(),
     val releases: List<ReservationKey> = emptyList(),
-)
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is Transport && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "Transport(wait=$wait, reservations=$reservations, trace=$trace, releases=$releases)"
+
+    private fun valueFields(): List<Any?> = listOf(wait, reservations, trace, releases)
+
+    companion object {
+        /** A Transport of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            wait: WaitContext? = null,
+            reservations: List<ReservationKey> = emptyList(),
+            trace: Map<String, String> = emptyMap(),
+            releases: List<ReservationKey> = emptyList(),
+        ): Transport = Transport(wait, reservations, trace, releases)
+    }
+}

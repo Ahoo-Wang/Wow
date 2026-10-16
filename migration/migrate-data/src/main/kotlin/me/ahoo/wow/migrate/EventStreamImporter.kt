@@ -249,7 +249,7 @@ class EventStreamImporter(
                                 "${existing.ref} v${existing.version}.",
                         )
                     }
-                    attempt = record.copy(requestId = "${record.requestId}#${stream.id}")
+                    attempt = record.copyWith(requestId = "${record.requestId}#${stream.id}")
                 }
 
                 is AppendOutcome.Conflict -> {

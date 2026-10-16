@@ -128,7 +128,7 @@ abstract class SnapshotRebuildSpec {
             // The old node still takes commands; whichever node writes their snapshots, none goes back to revision 1.
             IDS.forEach { add(old, it, 1) }
             maintain(old)
-            table(A).assert().isEqualTo(table(A).copy(revision = 2, rebuilding = true))
+            table(A).assert().isEqualTo(table(A).copyWith(revision = 2, rebuilding = true))
             eventually {
                 // The old node keeps the table rebuilding on each of its runs: its refused saves leave stale marks.
                 maintain(old)
@@ -146,7 +146,7 @@ abstract class SnapshotRebuildSpec {
             // The rollback: the new revision is gone, a node of the old one starts and rebuilds back.
             new.stop()
             val back = start("old-2", revision = 1)
-            table(A).assert().isEqualTo(table(A).copy(revision = 1, rebuilding = true))
+            table(A).assert().isEqualTo(table(A).copyWith(revision = 1, rebuilding = true))
             eventually {
                 maintain(back)
                 !table(A).rebuilding
@@ -205,7 +205,7 @@ abstract class SnapshotRebuildSpec {
         val node = start("node-1", revision = 1)
         IDS.forEach { add(node, it, 2) }
         eventually { IDS.all { snapshot(A, it)?.version == 1 } }
-        val broken = snapshot(A, IDS.first())!!.copy(state = """{"total":999,"adds":0}""")
+        val broken = snapshot(A, IDS.first())!!.copyWith(state = """{"total":999,"adds":0}""")
         snapshots(A).rewrite(broken).assert().isTrue()
 
         rebuild(node, COUNTER, IDS.first(), "missing").status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)

@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.ledger
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -120,8 +121,10 @@ interface FailureLedger {
  * the last one started at [retryAt] (epoch milliseconds). [recoverable] is what an operator marked it: an entry marked
  * [Recoverable.UNRECOVERABLE] is not retried automatically, though it can still be resumed by hand. [request] is an
  * operator's resume or skip that the partition's owner has not taken yet (decision D141).
+ *
+ * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
-data class ParkedAggregate(
+class ParkedAggregate @InternalWowApi constructor(
     val subscription: String,
     val ref: AggregateRef,
     val fromVersion: Int,
@@ -169,6 +172,59 @@ data class ParkedAggregate(
         return maxOf(next, timeout)
     }
 
+    /** This ParkedAggregate with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        subscription: String = this.subscription,
+        ref: AggregateRef = this.ref,
+        fromVersion: Int = this.fromVersion,
+        reason: String = this.reason,
+        failedAt: Long = this.failedAt,
+        fromPosition: Long? = this.fromPosition,
+        retries: Int = this.retries,
+        retryAt: Long? = this.retryAt,
+        retrySpec: ParkedRetrySpec? = this.retrySpec,
+        recoverable: Recoverable = this.recoverable,
+        request: LedgerRequest? = this.request,
+    ): ParkedAggregate =
+        ParkedAggregate(
+            subscription,
+            ref,
+            fromVersion,
+            reason,
+            failedAt,
+            fromPosition,
+            retries,
+            retryAt,
+            retrySpec,
+            recoverable,
+            request,
+        )
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ParkedAggregate && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "ParkedAggregate(subscription=$subscription, ref=$ref, fromVersion=$fromVersion, reason=$reason, " +
+            "failedAt=$failedAt, fromPosition=$fromPosition, retries=$retries, retryAt=$retryAt, " +
+            "retrySpec=$retrySpec, recoverable=$recoverable, request=$request)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        subscription,
+        ref,
+        fromVersion,
+        reason,
+        failedAt,
+        fromPosition,
+        retries,
+        retryAt,
+        retrySpec,
+        recoverable,
+        request,
+    )
+
     companion object {
         /** The start of the [reason] of an entry that can no longer be resumed, only skipped. */
         const val UNRECOVERABLE: String = "wow.subscription.unrecoverable"
@@ -178,6 +234,36 @@ data class ParkedAggregate(
             val millis = duration.inWholeMilliseconds
             return if (at > Long.MAX_VALUE - millis) Long.MAX_VALUE else at + millis
         }
+
+        /** A ParkedAggregate of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            subscription: String,
+            ref: AggregateRef,
+            fromVersion: Int,
+            reason: String,
+            failedAt: Long,
+            fromPosition: Long? = null,
+            retries: Int = 0,
+            retryAt: Long? = null,
+            retrySpec: ParkedRetrySpec? = null,
+            recoverable: Recoverable = Recoverable.UNKNOWN,
+            request: LedgerRequest? = null,
+        ): ParkedAggregate =
+            ParkedAggregate(
+                subscription,
+                ref,
+                fromVersion,
+                reason,
+                failedAt,
+                fromPosition,
+                retries,
+                retryAt,
+                retrySpec,
+                recoverable,
+                request,
+            )
     }
 }
 
@@ -186,8 +272,10 @@ data class ParkedAggregate(
  * retries, the first [minBackoff] after the failure and each next one twice as long after the previous one started;
  * [executionTimeout] is how long a retry may run before another one may start, such as on the partition's next owner.
  * A [maxRetries] of 0 turns automatic retries off.
+ *
+ * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
-data class ParkedRetrySpec(
+class ParkedRetrySpec @InternalWowApi constructor(
     val maxRetries: Int = DEFAULT_MAX_RETRIES,
     val minBackoff: Duration = DEFAULT_MIN_BACKOFF,
     val executionTimeout: Duration = DEFAULT_EXECUTION_TIMEOUT,
@@ -208,12 +296,39 @@ data class ParkedRetrySpec(
         return backoff.milliseconds
     }
 
+    /** This ParkedRetrySpec with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        maxRetries: Int = this.maxRetries,
+        minBackoff: Duration = this.minBackoff,
+        executionTimeout: Duration = this.executionTimeout,
+    ): ParkedRetrySpec = ParkedRetrySpec(maxRetries, minBackoff, executionTimeout)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ParkedRetrySpec && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "ParkedRetrySpec(maxRetries=$maxRetries, minBackoff=$minBackoff, executionTimeout=$executionTimeout)"
+
+    private fun valueFields(): List<Any?> = listOf(maxRetries, minBackoff, executionTimeout)
+
     companion object {
         /** 9.x `@Retry`'s defaults: ten retries, the first three minutes after the failure, two minutes each. */
         const val DEFAULT_MAX_RETRIES: Int = 10
         val DEFAULT_MIN_BACKOFF: Duration = 3.minutes
         val DEFAULT_EXECUTION_TIMEOUT: Duration = 2.minutes
         private const val MAX_DOUBLINGS = Long.SIZE_BITS - 2
+
+        /** A ParkedRetrySpec of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            maxRetries: Int = DEFAULT_MAX_RETRIES,
+            minBackoff: Duration = DEFAULT_MIN_BACKOFF,
+            executionTimeout: Duration = DEFAULT_EXECUTION_TIMEOUT,
+        ): ParkedRetrySpec = ParkedRetrySpec(maxRetries, minBackoff, executionTimeout)
     }
 }
 
@@ -246,24 +361,117 @@ sealed interface ParkedAmendment {
     /**
      * Claims an automatic retry: when the entry has still made [retries] retries, it has made one more, started [at]
      * (epoch milliseconds).
+     *
+     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
      */
-    data class ClaimRetry(val retries: Int, val at: Long) : ParkedAmendment {
+    class ClaimRetry @InternalWowApi constructor(val retries: Int, val at: Long) : ParkedAmendment {
         init {
             require(retries >= 0) { "The retries of a parked aggregate are never negative." }
         }
+
+        override fun equals(other: Any?): Boolean =
+            this === other || other is ClaimRetry && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "ClaimRetry(retries=$retries, at=$at)"
+
+        private fun valueFields(): List<Any?> = listOf(retries, at)
+
+        companion object {
+            /** A ClaimRetry of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            fun of(retries: Int, at: Long): ClaimRetry = ClaimRetry(retries, at)
+        }
     }
 
-    /** Marks the entry [recoverable] (9.x `MarkRecoverable`). */
-    data class MarkRecoverable(val recoverable: Recoverable) : ParkedAmendment
+    /**
+     * Marks the entry [recoverable] (9.x `MarkRecoverable`).
+     *
+     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+     */
+    class MarkRecoverable @InternalWowApi constructor(val recoverable: Recoverable) : ParkedAmendment {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is MarkRecoverable && valueFields() == other.valueFields()
 
-    /** Applies [spec] to the entry, or the subscription's spec again when null (9.x `ApplyRetrySpec`). */
-    data class ApplyRetrySpec(val spec: ParkedRetrySpec?) : ParkedAmendment
+        override fun hashCode(): Int = valueFields().hashCode()
 
-    /** Leaves [request] for the partition's owner, replacing one it has not taken yet. */
-    data class Request(val request: LedgerRequest) : ParkedAmendment
+        override fun toString(): String = "MarkRecoverable(recoverable=$recoverable)"
 
-    /** Takes [request]: when the entry holds it, it no longer does. */
-    data class TakeRequest(val request: LedgerRequest) : ParkedAmendment
+        private fun valueFields(): List<Any?> = listOf(recoverable)
+
+        companion object {
+            /** A MarkRecoverable of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            fun of(recoverable: Recoverable): MarkRecoverable = MarkRecoverable(recoverable)
+        }
+    }
+
+    /**
+     * Applies [spec] to the entry, or the subscription's spec again when null (9.x `ApplyRetrySpec`).
+     *
+     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+     */
+    class ApplyRetrySpec @InternalWowApi constructor(val spec: ParkedRetrySpec?) : ParkedAmendment {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is ApplyRetrySpec && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "ApplyRetrySpec(spec=$spec)"
+
+        private fun valueFields(): List<Any?> = listOf(spec)
+
+        companion object {
+            /** An ApplyRetrySpec of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            fun of(spec: ParkedRetrySpec?): ApplyRetrySpec = ApplyRetrySpec(spec)
+        }
+    }
+
+    /**
+     * Leaves [request] for the partition's owner, replacing one it has not taken yet.
+     *
+     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+     */
+    class Request @InternalWowApi constructor(val request: LedgerRequest) : ParkedAmendment {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Request && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Request(request=$request)"
+
+        private fun valueFields(): List<Any?> = listOf(request)
+
+        companion object {
+            /** A Request of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            fun of(request: LedgerRequest): Request = Request(request)
+        }
+    }
+
+    /**
+     * Takes [request]: when the entry holds it, it no longer does.
+     *
+     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+     */
+    class TakeRequest @InternalWowApi constructor(val request: LedgerRequest) : ParkedAmendment {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is TakeRequest && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "TakeRequest(request=$request)"
+
+        private fun valueFields(): List<Any?> = listOf(request)
+
+        companion object {
+            /** A TakeRequest of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            fun of(request: LedgerRequest): TakeRequest = TakeRequest(request)
+        }
+    }
 }
 
 /**
@@ -272,10 +480,10 @@ sealed interface ParkedAmendment {
  */
 fun ParkedAggregate.amended(amendment: ParkedAmendment): ParkedAggregate? = when (amendment) {
     is ParkedAmendment.ClaimRetry ->
-        if (retries == amendment.retries) copy(retries = retries + 1, retryAt = amendment.at) else null
+        if (retries == amendment.retries) copyWith(retries = retries + 1, retryAt = amendment.at) else null
 
-    is ParkedAmendment.MarkRecoverable -> copy(recoverable = amendment.recoverable)
-    is ParkedAmendment.ApplyRetrySpec -> copy(retrySpec = amendment.spec)
-    is ParkedAmendment.Request -> copy(request = amendment.request)
-    is ParkedAmendment.TakeRequest -> if (request == amendment.request) copy(request = null) else null
+    is ParkedAmendment.MarkRecoverable -> copyWith(recoverable = amendment.recoverable)
+    is ParkedAmendment.ApplyRetrySpec -> copyWith(retrySpec = amendment.spec)
+    is ParkedAmendment.Request -> copyWith(request = amendment.request)
+    is ParkedAmendment.TakeRequest -> if (request == amendment.request) copyWith(request = null) else null
 }

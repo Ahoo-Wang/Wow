@@ -43,11 +43,11 @@ class ParkedOperationSagaTest {
     @Test
     fun `a resume and a skip go to the context that holds the entry`() = sagaSpec(handlers) {
         whenEvent(requested(ResumeRequested())) {
-            expectCommand(ResumeParked(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE), to = target)
+            expectCommand(ResumeParked.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE), to = target)
             expectDeterministic()
         }
         whenEvent(requested(SkipRequested("not needed"))) {
-            expectCommand(SkipParked(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE), to = target)
+            expectCommand(SkipParked.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE), to = target)
         }
     }
 
@@ -55,13 +55,13 @@ class ParkedOperationSagaTest {
     fun `a mark and a retry spec carry what the operator asked`() = sagaSpec(handlers) {
         whenEvent(requested(MarkRecoverableRequested("RECOVERABLE"))) {
             expectCommand(
-                MarkParkedRecoverable(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE, "RECOVERABLE"),
+                MarkParkedRecoverable.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE, "RECOVERABLE"),
                 to = target
             )
         }
         whenEvent(requested(ApplyRetrySpecRequested(1, "PT1M", null))) {
             expectCommand(
-                ApplyParkedRetrySpec(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE, 1, "PT1M", null),
+                ApplyParkedRetrySpec.of(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE, 1, "PT1M", null),
                 to = target,
             )
         }

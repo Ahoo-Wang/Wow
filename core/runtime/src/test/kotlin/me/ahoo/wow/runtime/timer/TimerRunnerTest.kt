@@ -262,7 +262,7 @@ class TimerRunnerTest {
         store.put(timer)
         // The previous owner claimed it and died before it wrote the outcome.
         store.settle(
-            listOf(TimerChange(timer, timer.copy(status = TimerStatus.FIRING, dueAt = clock.millis() + 1_000)))
+            listOf(TimerChange(timer, timer.copyWith(status = TimerStatus.FIRING, dueAt = clock.millis() + 1_000)))
         )
         runner().startPartition(0)
         delay(50)

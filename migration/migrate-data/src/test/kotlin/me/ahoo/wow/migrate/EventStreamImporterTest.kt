@@ -178,7 +178,7 @@ class EventStreamImporterTest {
     fun `an instance V10 has written to stops the import`(): Unit = runTest {
         val first = NineXExample.stream("order-stream-v1.json")
         val record = StreamConverter(NineXExample.plan).convert(first)
-        log.append(record.copy(commandId = "v10-command", requestId = "v10-request"))
+        log.append(record.copyWith(commandId = "v10-command", requestId = "v10-request"))
         val failure = assertThrows<MigrationException> {
             importer(InMemoryNineXEventSource(listOf(first))).importAll(order)
         }
@@ -189,8 +189,8 @@ class EventStreamImporterTest {
     fun `a log ahead of 9x stops the import`(): Unit = runTest {
         val first = NineXExample.stream("order-stream-v1.json")
         val converter = StreamConverter(NineXExample.plan)
-        log.append(converter.convert(first).copy(requestId = "other"))
-        log.append(converter.convert(first).copy(version = 2, requestId = "next"))
+        log.append(converter.convert(first).copyWith(requestId = "other"))
+        log.append(converter.convert(first).copyWith(version = 2, requestId = "next"))
         assertThrows<MigrationException> { importer(InMemoryNineXEventSource(listOf(first))).importAll(order) }
     }
 
@@ -199,7 +199,7 @@ class EventStreamImporterTest {
         val streams = NineXExample.streams().filter { it.aggregate == order }
         val converter = StreamConverter(NineXExample.plan)
         // Appended under other request ids, so only the version tells they are there, as PostgreSQL reports it.
-        streams.take(2).forEach { log.append(converter.convert(it).copy(requestId = "r${it.version}")) }
+        streams.take(2).forEach { log.append(converter.convert(it).copyWith(requestId = "r${it.version}")) }
         importer(InMemoryNineXEventSource(streams)).importAll(order).also {
             it.imported.assert().isEqualTo(2)
             it.skipped.assert().isEqualTo(2)
@@ -260,7 +260,7 @@ class EventStreamImporterTest {
         val record = StreamConverter(NineXExample.plan).convert(first)
         val taken = mockk<EventLog>()
         coEvery { taken.append(any(), any()) } returns
-            AppendOutcome.AlreadyCommitted(record.copy(ref = record.ref.copy(id = "someone-else")))
+            AppendOutcome.AlreadyCommitted(record.copyWith(ref = record.ref.copy(id = "someone-else")))
         assertThrows<MigrationException> {
             importer(InMemoryNineXEventSource(listOf(first)), target = taken).importAll(order)
         }

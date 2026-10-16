@@ -40,15 +40,21 @@ class ConfirmedBeforeTopics {
     @Bean
     fun inMemoryTopics(): InMemoryTopics = InMemoryTopics(1).also { topics ->
         val order = PaymentJoinsLaterTest.ORDER
-        val record = StateEventRecord(
+        val record = StateEventRecord.of(
             ref = order,
             version = 5,
             commandId = "command-${order.id}",
             requestId = "request-${order.id}",
             commandType = "eshop-ordering.order.ConfirmOrderStock",
             commitTime = System.currentTimeMillis(),
-            events = listOf(StateEventPayload("eshop-ordering.order.OrderStockConfirmed", 1, json.createObjectNode())),
-            state = StateView(5, "fingerprint", json.readTree("""{"status":"STOCK_CONFIRMED","totalAmount":42.00}""")),
+            events = listOf(
+                StateEventPayload.of("eshop-ordering.order.OrderStockConfirmed", 1, json.createObjectNode())
+            ),
+            state = StateView.of(
+                5,
+                "fingerprint",
+                json.readTree("""{"status":"STOCK_CONFIRMED","totalAmount":42.00}""")
+            ),
         )
         runBlocking { topics.send("wow.eshop-ordering.order.state", listOf(EnvelopeCodec.message(record))) }
     }

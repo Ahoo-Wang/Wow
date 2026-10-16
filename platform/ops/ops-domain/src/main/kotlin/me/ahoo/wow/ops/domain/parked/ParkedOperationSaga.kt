@@ -51,10 +51,10 @@ class ParkedOperationSaga {
         val subscription = state.subscription
         val aggregate = state.aggregate
         val command = when (val requested = event.events.lastOrNull()) {
-            is ResumeRequested -> ResumeParked(subscription, aggregate)
-            is SkipRequested -> SkipParked(subscription, aggregate)
-            is MarkRecoverableRequested -> MarkParkedRecoverable(subscription, aggregate, requested.recoverable)
-            is ApplyRetrySpecRequested -> ApplyParkedRetrySpec(
+            is ResumeRequested -> ResumeParked.of(subscription, aggregate)
+            is SkipRequested -> SkipParked.of(subscription, aggregate)
+            is MarkRecoverableRequested -> MarkParkedRecoverable.of(subscription, aggregate, requested.recoverable)
+            is ApplyRetrySpecRequested -> ApplyParkedRetrySpec.of(
                 subscription,
                 aggregate,
                 requested.maxRetries,

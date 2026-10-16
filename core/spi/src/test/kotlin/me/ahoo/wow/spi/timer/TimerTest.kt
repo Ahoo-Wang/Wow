@@ -62,17 +62,18 @@ class TimerTest {
         timer(slot = 3).requestId.assert().isEqualTo("$ref#pay@1#3")
         timer(slot = 3).context.assert().isEqualTo(ScheduleContext("$ref#pay@1", "pay", 3, 5))
         // Claimed or retried, the slot is still sent as due when it was.
-        timer(slot = 3).copy(dueAt = 9).context.due.assert().isEqualTo(5L)
+        timer(slot = 3).copyWith(dueAt = 9).context.due.assert().isEqualTo(5L)
         assertThrownBy<IllegalArgumentException> { timer(slot = 0) }
     }
 
     @Test
     fun `a change keeps its timer`() {
-        TimerChange(timer(), timer().copy(status = TimerStatus.FIRED)).next.status.assert().isEqualTo(TimerStatus.FIRED)
-        assertThrownBy<IllegalArgumentException> { TimerChange(timer(), timer().copy(id = "other")) }
-        assertThrownBy<IllegalArgumentException> { TimerChange(timer(), timer().copy(key = "other")) }
+        TimerChange(timer(), timer().copyWith(status = TimerStatus.FIRED)).next.status
+            .assert().isEqualTo(TimerStatus.FIRED)
+        assertThrownBy<IllegalArgumentException> { TimerChange(timer(), timer().copyWith(id = "other")) }
+        assertThrownBy<IllegalArgumentException> { TimerChange(timer(), timer().copyWith(key = "other")) }
         assertThrownBy<IllegalArgumentException> {
-            TimerChange(timer(), timer().copy(owner = ref.type.ref(ref.tenantId, "other")))
+            TimerChange(timer(), timer().copyWith(owner = ref.type.ref(ref.tenantId, "other")))
         }
     }
 

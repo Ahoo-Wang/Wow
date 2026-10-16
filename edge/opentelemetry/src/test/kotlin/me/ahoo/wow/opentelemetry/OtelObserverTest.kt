@@ -152,7 +152,7 @@ class OtelObserverTest {
     @Test
     fun `a handling of a topic should be a consumer span, and a message without a commit time lag nothing`(): Unit =
         runBlocking {
-            observer.handling("wow.commands", STOCK, stream.copy(commitTime = 0), emptyMap(), "wow.stock.commands")
+            observer.handling("wow.commands", STOCK, stream.copyWith(commitTime = 0), emptyMap(), "wow.stock.commands")
                 .observe { }
             val process = telemetry.single("wow.stock.commands process")
             process.kind.assert().isEqualTo(SpanKind.CONSUMER)

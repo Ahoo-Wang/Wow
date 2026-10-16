@@ -61,7 +61,7 @@ class KernelWaitTest {
         val beyond = wait(Hop.accepted("test"), Hop.committed("test"), Hop.snapshot("test"))
         register("a", beyond)
         val entry = log.tail(0).take(1).toList().single()
-        entry.transport.assert().isEqualTo(Transport(wait = beyond.copy(remaining = listOf(Hop.snapshot("test")))))
+        entry.transport.assert().isEqualTo(Transport(wait = beyond.copyWith(remaining = listOf(Hop.snapshot("test")))))
     }
 
     @Test

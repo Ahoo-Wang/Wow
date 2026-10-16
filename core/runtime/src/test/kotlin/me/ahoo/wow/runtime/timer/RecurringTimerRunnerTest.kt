@@ -133,7 +133,7 @@ class RecurringTimerRunnerTest {
 
     @Test
     fun `a catching-up timer sends each slot it missed in turn`(): Unit = runBlocking {
-        store.put(timer(MONTHLY.copy(misfire = Misfire.CATCH_UP)))
+        store.put(timer(MONTHLY.copyWith(misfire = Misfire.CATCH_UP)))
         moveTo("2026-04-02T00:00:00Z")
         runner().startPartition(0)
         eventually { held().slot == 4L }
@@ -177,7 +177,7 @@ class RecurringTimerRunnerTest {
         runner.startPartition(0)
         eventually { runner.loopRounds() >= 1 }
         runner.offer(timer(EVERY_SECOND, key = "other", partition = 1))
-        runner.offer(timer(EVERY_SECOND, key = "done").copy(status = TimerStatus.FIRED))
+        runner.offer(timer(EVERY_SECOND, key = "done").copyWith(status = TimerStatus.FIRED))
         runner.offer(timer(MONTHLY, key = "later"))
         runner.loaded(0).assert().isEqualTo(0)
         runner.loaded(1).assert().isEqualTo(0)

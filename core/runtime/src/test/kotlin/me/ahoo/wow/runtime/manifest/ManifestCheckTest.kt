@@ -21,6 +21,7 @@ import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.cluster.Account
 import me.ahoo.wow.runtime.cluster.Deposit
 import me.ahoo.wow.runtime.cluster.Deposited
@@ -41,7 +42,7 @@ class ManifestCheckTest {
         change: (me.ahoo.wow.manifest.AggregateManifest) -> me.ahoo.wow.manifest.AggregateManifest,
     ): Manifest {
         val context = manifest.contexts.single()
-        return manifest.copy(contexts = listOf(context.copy(aggregates = context.aggregates.map(change))))
+        return manifest.copyWith(contexts = listOf(context.copyWith(aggregates = context.aggregates.map(change))))
     }
 
     @Test
@@ -54,9 +55,9 @@ class ManifestCheckTest {
     fun `commands, former names and creation are compared`() {
         val deposit = manifest.contexts.single().aggregates.single().commands.single()
         val differing = changed { aggregate ->
-            aggregate.copy(
+            aggregate.copyWith(
                 commands = listOf(
-                    deposit.copy(aliases = listOf("Pay"), creation = ManifestCreation.REQUIRED),
+                    deposit.copyWith(aliases = listOf("Pay"), creation = ManifestCreation.REQUIRED),
                     CommandManifest("Withdraw", schema = Manifest.schemaRef("Withdraw")),
                 ),
             )
@@ -114,7 +115,7 @@ class ManifestCheckTest {
             "command bank.account.Withdraw is mounted by the model of bank.account but not in the Manifest",
         )
         val listed = changed { aggregate ->
-            aggregate.copy(
+            aggregate.copyWith(
                 commands = aggregate.commands + CommandManifest(
                     "Withdraw",
                     schema = Manifest.schemaRef("Withdraw"),
@@ -139,15 +140,15 @@ class ManifestCheckTest {
         }
         // Without a dot a former name is within the aggregate; with one it is the full name.
         val listingOne = changed { aggregate ->
-            aggregate.copy(commands = aggregate.commands.map { it.copy(aliases = listOf("Pay")) })
+            aggregate.copyWith(commands = aggregate.commands.map { it.copyWith(aliases = listOf("Pay")) })
         }
         ManifestCheck.differences(listingOne, listOf(aliased)).assert().containsExactly(
             "command bank.account.Deposit has the former name bank.account.Credit in the model of bank.account " +
                 "but not in the Manifest",
         )
         val listingBoth = changed { aggregate ->
-            aggregate.copy(
-                commands = aggregate.commands.map { it.copy(aliases = listOf("Pay", "bank.account.Credit")) },
+            aggregate.copyWith(
+                commands = aggregate.commands.map { it.copyWith(aliases = listOf("Pay", "bank.account.Credit")) },
             )
         }
         ManifestCheck.differences(listingBoth, listOf(aliased)).assert().isEmpty()
@@ -164,7 +165,7 @@ class ManifestCheckTest {
             "command bank.account.Deposit creates its aggregate ALLOWED in the Manifest, REQUIRED in the model",
         )
         val none = changed { aggregate ->
-            aggregate.copy(commands = aggregate.commands.map { it.copy(creation = ManifestCreation.NONE) })
+            aggregate.copyWith(commands = aggregate.commands.map { it.copyWith(creation = ManifestCreation.NONE) })
         }
         ManifestCheck.differences(none, listOf(accountModel("bank"))).assert().containsExactly(
             "command bank.account.Deposit creates its aggregate NONE in the Manifest, ALLOWED in the model",
@@ -175,7 +176,9 @@ class ManifestCheckTest {
     fun `events and their revisions are compared`() {
         val deposited = manifest.contexts.single().aggregates.single().events.single()
         val differing = changed { aggregate ->
-            aggregate.copy(events = listOf(deposited.copy(revision = 2), deposited.copy(name = "Withdrawn")))
+            aggregate.copyWith(
+                events = listOf(deposited.copyWith(revision = 2), deposited.copyWith(name = "Withdrawn"))
+            )
         }
         ManifestCheck.differences(differing, listOf(accountModel("bank"))).assert().containsExactly(
             "event bank.account.Deposited is of revision 2 in the Manifest, 1 in the model",
@@ -191,7 +194,7 @@ class ManifestCheckTest {
             evolve<Deposited> { balance += it.amount }
             lifecycle(DeleteAggregate::class.java)
         }
-        val differing = changed { it.copy(lifecycle = listOf(Lifecycle.DELETE_AGGREGATE, "wow.lifecycle.Archive")) }
+        val differing = changed { it.copyWith(lifecycle = listOf(Lifecycle.DELETE_AGGREGATE, "wow.lifecycle.Archive")) }
         ManifestCheck.differences(differing, listOf(narrowed)).assert().containsExactly(
             "lifecycle command wow.lifecycle.Archive of bank.account is in the Manifest but not handled by the model",
         )

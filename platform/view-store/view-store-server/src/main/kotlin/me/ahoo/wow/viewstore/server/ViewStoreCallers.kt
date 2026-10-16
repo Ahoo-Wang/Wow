@@ -48,7 +48,7 @@ class ViewStoreCallers : CallerResolver {
             app?.let { APP to listOf(it) },
         ).toMap().filterValues { it.isNotEmpty() }
         val reserved = reservedTarget(headers.firstHeader(WowHeaders.SCOPE))
-        return Caller(
+        return Caller.of(
             tenantId = tenant,
             scope = reserved?.scope ?: user?.let { Scope(ownerId = it) } ?: Scope.NONE,
             subject = user,

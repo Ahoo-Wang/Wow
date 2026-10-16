@@ -34,7 +34,7 @@ class PostgresEventLogTest : EventLogSpec() {
     override fun createLog(context: String, partitions: Int): EventLog = PostgresFixture.log(partitions, context)
 
     /** A `\u0000` in a payload string: PostgreSQL's `jsonb` does not take it (finding A2-7). */
-    override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copy(
+    override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
         events = listOf(EventRecord("x.aggregate.Named", 1, """{"name":"a\u0000b"}""")),
     )
 

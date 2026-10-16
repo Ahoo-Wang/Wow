@@ -20,6 +20,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.manifest.Ownership
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventRecord
@@ -35,9 +36,9 @@ class StreamConverterTest {
         ownership: Ownership = Ownership.OWNER,
     ): StreamConverter {
         val manifest = NineXExample.manifest.let { manifest ->
-            manifest.copy(
+            manifest.copyWith(
                 contexts = manifest.contexts.map { context ->
-                    context.copy(aggregates = context.aggregates.map { it.copy(ownership = ownership) })
+                    context.copyWith(aggregates = context.aggregates.map { it.copyWith(ownership = ownership) })
                 },
             )
         }

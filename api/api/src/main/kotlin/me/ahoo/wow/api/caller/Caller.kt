@@ -14,6 +14,7 @@
 package me.ahoo.wow.api.caller
 
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
  * Who sends a command or runs a query, as the edge authenticated it (decisions D93, D165): the facts admission takes a
@@ -34,8 +35,10 @@ import me.ahoo.wow.api.aggregate.Scope
  *   any other caller. A service identity has a [subject].
  *
  * A caller is the runtime's view of one request; the [Operator] is what a commit records of it ([toOperator]).
+ *
+ * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
  */
-data class Caller(
+class Caller @InternalWowApi constructor(
     val tenantId: String = DEFAULT_TENANT,
     val scope: Scope = Scope.NONE,
     val subject: String? = null,
@@ -57,6 +60,28 @@ data class Caller(
     fun toOperator(actingElsewhere: Boolean = false): Operator? =
         subject?.let { Operator(it, tenantId, actingElsewhere) }
 
+    /** This Caller with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        tenantId: String = this.tenantId,
+        scope: Scope = this.scope,
+        subject: String? = this.subject,
+        crossScope: Boolean = this.crossScope,
+        attributes: Map<String, List<String>> = this.attributes,
+        service: Boolean = this.service,
+    ): Caller = Caller(tenantId, scope, subject, crossScope, attributes, service)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is Caller && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "Caller(tenantId=$tenantId, scope=$scope, subject=$subject, crossScope=$crossScope, attributes=$attributes, " +
+            "service=$service)"
+
+    private fun valueFields(): List<Any?> = listOf(tenantId, scope, subject, crossScope, attributes, service)
+
     companion object {
         /** The tenant of a principal that has none (decision D97). */
         const val DEFAULT_TENANT: String = "(0)"
@@ -64,5 +89,17 @@ data class Caller(
         /** An unauthenticated caller: the default tenant, no scope, no subject (decision D97). */
         @JvmField
         val ANONYMOUS: Caller = Caller()
+
+        /** A Caller of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            tenantId: String = DEFAULT_TENANT,
+            scope: Scope = Scope.NONE,
+            subject: String? = null,
+            crossScope: Boolean = false,
+            attributes: Map<String, List<String>> = emptyMap(),
+            service: Boolean = false,
+        ): Caller = Caller(tenantId, scope, subject, crossScope, attributes, service)
     }
 }

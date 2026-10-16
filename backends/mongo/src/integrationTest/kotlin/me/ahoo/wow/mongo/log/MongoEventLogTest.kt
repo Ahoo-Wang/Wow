@@ -54,7 +54,7 @@ class MongoEventLogTest : EventLogSpec() {
     override fun createLog(context: String, partitions: Int): EventLog = MongoLogFixture.log(partitions, context)
 
     /** A decimal of 40 significant digits: MongoDB keeps at most 34 exactly. */
-    override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copy(
+    override fun refused(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
         events = listOf(EventRecord("x.aggregate.Priced", 1, """{"amount":1.234567890123456789012345678901234567890}""")),
     )
 
@@ -154,14 +154,14 @@ class MongoEventLogTest : EventLogSpec() {
     fun `a payload decimal beyond 34 digits is refused at append, never rounded`(): Unit = runBlocking {
         val valid = stream("a", 1)
         val log = createLog(valid.ref.type.context, 1)
-        val tooPrecise = valid.copy(
+        val tooPrecise = valid.copyWith(
             events = listOf(EventRecord("x.aggregate.Priced", 1, """{"amount":1.2345678901234567890123456789012345}""")),
         )
         (log.append(tooPrecise) as AppendOutcome.Rejected).cause.assert().isInstanceOf(IllegalArgumentException::class.java)
         log.head(0).assert().isNull()
         log.read(tooPrecise.ref).toList().assert().isEmpty()
         // An integer of 35 digits has no exact Decimal128 of scale 0 either.
-        val tooLarge = tooPrecise.copy(
+        val tooLarge = tooPrecise.copyWith(
             events = listOf(EventRecord("x.aggregate.Priced", 1, """{"amount":12345678901234567890123456789012345}""")),
         )
         log.append(tooLarge).assert().isInstanceOf(AppendOutcome.Rejected::class.java)

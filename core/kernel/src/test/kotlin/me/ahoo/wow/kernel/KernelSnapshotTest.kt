@@ -104,7 +104,9 @@ class KernelSnapshotTest {
         // As PostgreSQL JSONB gives a state back: keys in its own order, its own whitespace.
         stored.state.assert().isEqualTo("""{"id":"cart-1","items":{"apple":1,"pear":2},"owner":"ahoo"}""")
         val normalised = InMemorySnapshotStore()
-        normalised.save(stored.copy(state = """{"items": {"pear": 2, "apple": 1}, "owner": "ahoo", "id": "cart-1"}"""))
+        normalised.save(
+            stored.copyWith(state = """{"items": {"pear": 2, "apple": 1}, "owner": "ahoo", "id": "cart-1"}""")
+        )
         log.streamsRead = 0
         val outcome = Kernel(log, codec, snapshots = normalised).execute(
             cartModel,
@@ -131,7 +133,7 @@ class KernelSnapshotTest {
         (send(replaying, AddItem("apple", 1)) as CommandOutcome.Committed).stream.scope.assert().isEqualTo(owned)
         // A snapshot whose scope differs from the log's shows that the kernel took the scope from it.
         val marked = Scope("from-snapshot", null)
-        snapshots.save(snapshots.load(ref)!!.copy(version = 6, scope = marked))
+        snapshots.save(snapshots.load(ref)!!.copyWith(version = 6, scope = marked))
         (send(kernel, AddItem("apple", 1)) as CommandOutcome.Committed).stream.scope.assert().isEqualTo(marked)
     }
 
@@ -148,7 +150,7 @@ class KernelSnapshotTest {
     @Test
     fun `a snapshot of another state revision is ignored`(): Unit = runTest {
         history()
-        val other = snapshots.load(ref)!!.copy(version = 4, stateRevision = 2)
+        val other = snapshots.load(ref)!!.copyWith(version = 4, stateRevision = 2)
         snapshots.save(other).assert().isTrue()
         log.streamsRead = 0
         send(kernel, AddItem("apple", 10)).cart().items.assert().isEqualTo(mapOf("apple" to 14, "pear" to 6))
@@ -169,7 +171,7 @@ class KernelSnapshotTest {
     @Test
     fun `a snapshot of another state schema is ignored`() = runTest {
         history()
-        val stale = snapshots.load(ref)!!.copy(version = 4, schemaFingerprint = "another-schema", state = "{}")
+        val stale = snapshots.load(ref)!!.copyWith(version = 4, schemaFingerprint = "another-schema", state = "{}")
         snapshots.save(stale)
         log.streamsRead = 0
         send(kernel, AddItem("apple", 10)).cart().items.assert().isEqualTo(mapOf("apple" to 14, "pear" to 6))
@@ -179,7 +181,7 @@ class KernelSnapshotTest {
     @Test
     fun `a snapshot that does not decode is ignored`() = runTest {
         history()
-        snapshots.save(snapshots.load(ref)!!.copy(version = 4, state = """{"items": "not a map"}"""))
+        snapshots.save(snapshots.load(ref)!!.copyWith(version = 4, state = """{"items": "not a map"}"""))
         log.streamsRead = 0
         send(kernel, AddItem("apple", 10)).cart().items.assert().isEqualTo(mapOf("apple" to 14, "pear" to 6))
         log.streamsRead.assert().isEqualTo(5)
@@ -188,7 +190,7 @@ class KernelSnapshotTest {
     @Test
     fun `a snapshot newer than the log is ignored`() = runTest {
         history()
-        snapshots.save(snapshots.load(ref)!!.copy(version = 9))
+        snapshots.save(snapshots.load(ref)!!.copyWith(version = 9))
         val outcome = send(kernel, AddItem("apple", 10)) as CommandOutcome.Committed
         outcome.stream.version.assert().isEqualTo(6)
         (outcome.state as CartState).items.assert().isEqualTo(mapOf("apple" to 14, "pear" to 6))

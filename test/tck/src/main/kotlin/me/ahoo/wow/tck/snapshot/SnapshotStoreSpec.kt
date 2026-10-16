@@ -80,7 +80,7 @@ abstract class SnapshotStoreSpec {
         val loaded = checkNotNull(this)
         // A backend may store the state as JSON and give it back reformatted: compare it as JSON.
         ExactJson.of(loaded.state).assert().isEqualTo(ExactJson.of(expected.state))
-        loaded.copy(state = expected.state).assert().isEqualTo(expected)
+        loaded.copyWith(state = expected.state).assert().isEqualTo(expected)
     }
 
     @Test
@@ -96,7 +96,7 @@ abstract class SnapshotStoreSpec {
         // Finding A2-7: PostgreSQL's jsonb refuses it with a driver exception, MongoDB keeps it. Admission refuses it
         // first; a store that sees it all the same keeps it or refuses it as a value, never as another failure.
         val store = createStore()
-        val saved = snapshot("a", 1).copy(state = """{"name":"a\u0000b","n\u0000":1}""")
+        val saved = snapshot("a", 1).copyWith(state = """{"name":"a\u0000b","n\u0000":1}""")
         val outcome = runCatching { store.save(saved) }
         val refused = outcome.exceptionOrNull()
         if (refused == null) {
@@ -111,7 +111,7 @@ abstract class SnapshotStoreSpec {
     @Test
     fun `state numbers load back exactly as saved`(): Unit = runBlocking {
         val store = createStore()
-        val saved = snapshot("a", 1).copy(state = ExactJson.NUMBERS)
+        val saved = snapshot("a", 1).copyWith(state = ExactJson.NUMBERS)
         store.save(saved).assert().isTrue()
         store.load(saved.ref).assertSameAs(saved)
     }
@@ -121,11 +121,11 @@ abstract class SnapshotStoreSpec {
         val store = createStore()
         // How Jackson writes a double: PostgreSQL JSONB gives `1.0E10` back as `10000000000`, with the same value.
         val state = """{"amount":1.0E10,"tiny":1.0E-7,"negative":-2.5E-3,"huge":1.0E21,"keys":{"b":1.5E2,"a":2}}"""
-        val saved = snapshot("a", 1).copy(state = state)
+        val saved = snapshot("a", 1).copyWith(state = state)
         store.save(saved).assert().isTrue()
         val loaded = checkNotNull(store.load(saved.ref))
         ExactJson.valueOf(loaded.state).assert().isEqualTo(ExactJson.valueOf(state))
-        loaded.copy(state = state).assert().isEqualTo(saved)
+        loaded.copyWith(state = state).assert().isEqualTo(saved)
     }
 
     @Test
@@ -157,7 +157,7 @@ abstract class SnapshotStoreSpec {
         val second = snapshot("a", 2)
         store.save(second).assert().isTrue()
         store.save(snapshot("a", 1)).assert().isFalse()
-        store.save(second.copy(state = """{"changed":true}""", scope = Scope(ownerId = "other"))).assert().isFalse()
+        store.save(second.copyWith(state = """{"changed":true}""", scope = Scope(ownerId = "other"))).assert().isFalse()
         store.load(second.ref).assertSameAs(second)
         val third = snapshot("a", 3, scope = Scope(ownerId = "other"), deleted = true)
         store.save(third).assert().isTrue()
@@ -202,7 +202,7 @@ abstract class SnapshotStoreSpec {
     @Test
     fun `the state revision loads back as saved`(): Unit = runBlocking {
         val store = createStore()
-        val saved = snapshot("a", 1).copy(stateRevision = 3)
+        val saved = snapshot("a", 1).copyWith(stateRevision = 3)
         store.save(saved).assert().isTrue()
         store.load(saved.ref).assertSameAs(saved)
         val legacy = snapshot("b", 1)
@@ -213,7 +213,7 @@ abstract class SnapshotStoreSpec {
     @Test
     fun `a lower state revision never replaces a higher one but marks it stale`(): Unit = runBlocking {
         val store = createStore()
-        val newer = snapshot("a", 2).copy(stateRevision = 2)
+        val newer = snapshot("a", 2).copyWith(stateRevision = 2)
         store.save(newer).assert().isTrue()
         store.pending(type, 2, limit = 10).assert().isEmpty()
         // An old node of revision 1 commits version 3 and cannot write it over the revision 2 snapshot.
@@ -221,14 +221,14 @@ abstract class SnapshotStoreSpec {
         store.load(newer.ref).assertSameAs(newer)
         store.pending(type, 2, limit = 10).assert().containsExactly(newer.ref)
         // A save that is not newer marks nothing.
-        val other = snapshot("b", 2).copy(stateRevision = 2)
+        val other = snapshot("b", 2).copyWith(stateRevision = 2)
         store.save(other).assert().isTrue()
         store.save(snapshot("b", 1)).assert().isFalse()
         store.pending(type, 2, limit = 10).assert().containsExactly(newer.ref)
         // A higher state revision replaces a lower one at a higher version.
         val upgraded = snapshot("c", 1)
         store.save(upgraded).assert().isTrue()
-        val third = snapshot("c", 2).copy(stateRevision = 2)
+        val third = snapshot("c", 2).copyWith(stateRevision = 2)
         store.save(third).assert().isTrue()
         store.load(third.ref).assertSameAs(third)
     }
@@ -236,15 +236,15 @@ abstract class SnapshotStoreSpec {
     @Test
     fun `a rewrite replaces the same version or a lower one whatever the revision`(): Unit = runBlocking {
         val store = createStore()
-        val stored = snapshot("a", 4).copy(stateRevision = 2)
+        val stored = snapshot("a", 4).copyWith(stateRevision = 2)
         store.save(stored).assert().isTrue()
         // A rollback rebuilds at revision 1, in place, at the same version.
-        val rebuilt = snapshot("a", 4).copy(state = """{"rebuilt":true}""")
+        val rebuilt = snapshot("a", 4).copyWith(state = """{"rebuilt":true}""")
         store.rewrite(rebuilt).assert().isTrue()
         store.load(rebuilt.ref).assertSameAs(rebuilt)
-        store.rewrite(snapshot("a", 3).copy(stateRevision = 2)).assert().isFalse()
+        store.rewrite(snapshot("a", 3).copyWith(stateRevision = 2)).assert().isFalse()
         store.load(rebuilt.ref).assertSameAs(rebuilt)
-        val later = snapshot("a", 5).copy(stateRevision = 2)
+        val later = snapshot("a", 5).copyWith(stateRevision = 2)
         store.rewrite(later).assert().isTrue()
         store.load(later.ref).assertSameAs(later)
         val missing = snapshot("b", 2)
@@ -265,7 +265,7 @@ abstract class SnapshotStoreSpec {
         store.pending(type, 1, limit = 10).assert().isEmpty()
         store.markStale(type.ref("tenant", "missing")).assert().isFalse()
         // A refused save of version 5 over a higher revision: only a rewrite of version 5 or later clears it.
-        val newer = snapshot("b", 3).copy(stateRevision = 2)
+        val newer = snapshot("b", 3).copyWith(stateRevision = 2)
         store.save(newer).assert().isTrue()
         store.save(snapshot("b", 5)).assert().isFalse()
         store.rewrite(snapshot("b", 4)).assert().isTrue()
@@ -273,12 +273,12 @@ abstract class SnapshotStoreSpec {
         store.rewrite(snapshot("b", 5)).assert().isTrue()
         store.pending(type, 1, limit = 10).assert().isEmpty()
         // A save of a higher version keeps a mark of a version above it.
-        store.save(snapshot("c", 2).copy(stateRevision = 2)).assert().isTrue()
+        store.save(snapshot("c", 2).copyWith(stateRevision = 2)).assert().isTrue()
         store.save(snapshot("c", 6)).assert().isFalse()
-        store.save(snapshot("c", 4).copy(stateRevision = 2)).assert().isTrue()
+        store.save(snapshot("c", 4).copyWith(stateRevision = 2)).assert().isTrue()
         val c = type.ref("tenant", "c")
         store.pending(type, 2, limit = 10).assert().contains(c)
-        store.save(snapshot("c", 6).copy(stateRevision = 2)).assert().isTrue()
+        store.save(snapshot("c", 6).copyWith(stateRevision = 2)).assert().isTrue()
         store.pending(type, 2, limit = 10).assert().doesNotContain(c)
     }
 
@@ -289,7 +289,7 @@ abstract class SnapshotStoreSpec {
         listOf("t2" to "a", "t1" to "b", "t1" to "a", "t1" to "a~", "t1" to "aé").forEach { (tenant, id) ->
             store.save(snapshot(id, 1, tenant = tenant)).assert().isTrue()
         }
-        store.save(snapshot("current", 1, tenant = "t1").copy(stateRevision = 2)).assert().isTrue()
+        store.save(snapshot("current", 1, tenant = "t1").copyWith(stateRevision = 2)).assert().isTrue()
         store.save(snapshot("a", 1, tenant = "t1", aggregate = other)).assert().isTrue()
         val expected = listOf("t1" to "a", "t1" to "a~", "t1" to "aé", "t1" to "b", "t2" to "a").map { (tenant, id) ->
             type.ref(tenant, id)

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spi.transport
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.log.Transport
 import tools.jackson.databind.JsonNode
 
@@ -51,8 +52,10 @@ enum class EnvelopeKind(val wire: String) {
  * The Kafka key is not in the envelope: it is the aggregate ref (`context.aggregate/tenant/id`), so the messages of an
  * aggregate keep their order in one partition. The headers repeat [format], [kind] and [type] ([EnvelopeHeaders]),
  * so a reader filters without parsing the value.
+ *
+ * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
-data class Envelope(
+class Envelope @InternalWowApi constructor(
     val kind: EnvelopeKind,
     val id: String,
     val type: String,
@@ -66,9 +69,31 @@ data class Envelope(
         require(format >= 1) { "An envelope's format starts at 1." }
     }
 
+    override fun equals(other: Any?): Boolean =
+        this === other || other is Envelope && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "Envelope(kind=$kind, id=$id, type=$type, payload=$payload, transport=$transport, format=$format)"
+
+    private fun valueFields(): List<Any?> = listOf(kind, id, type, payload, transport, format)
+
     companion object {
         /** The envelope format this version writes and reads. */
         const val FORMAT: Int = 1
+
+        /** An Envelope of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            kind: EnvelopeKind,
+            id: String,
+            type: String,
+            payload: JsonNode,
+            transport: Transport? = null,
+            format: Int = FORMAT,
+        ): Envelope = Envelope(kind, id, type, payload, transport, format)
     }
 }
 

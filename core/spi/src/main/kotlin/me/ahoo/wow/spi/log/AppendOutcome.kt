@@ -13,30 +13,123 @@
 
 package me.ahoo.wow.spi.log
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /**
  * How an append ended. Every expected result is a value; only a defect is an exception.
  */
 sealed interface AppendOutcome {
-    /** The stream is committed at [position]. */
-    data class Committed(val position: LogPosition) : AppendOutcome
+    /**
+     * The stream is committed at [position].
+     *
+     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+     */
+    class Committed @InternalWowApi constructor(val position: LogPosition) : AppendOutcome {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Committed && valueFields() == other.valueFields()
 
-    /** A stream with the same tenant and request id is already committed: [existing]. */
-    data class AlreadyCommitted(val existing: EventStreamRecord) : AppendOutcome
+        override fun hashCode(): Int = valueFields().hashCode()
 
-    /** Another stream already holds the version; the aggregate is at [currentVersion]. */
-    data class Conflict(val currentVersion: Int) : AppendOutcome
+        override fun toString(): String = "Committed(position=$position)"
+
+        private fun valueFields(): List<Any?> = listOf(position)
+
+        companion object {
+            /** A Committed of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            fun of(position: LogPosition): Committed = Committed(position)
+        }
+    }
+
+    /**
+     * A stream with the same tenant and request id is already committed: [existing].
+     *
+     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+     */
+    class AlreadyCommitted @InternalWowApi constructor(val existing: EventStreamRecord) : AppendOutcome {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is AlreadyCommitted && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "AlreadyCommitted(existing=$existing)"
+
+        private fun valueFields(): List<Any?> = listOf(existing)
+
+        companion object {
+            /** An AlreadyCommitted of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            fun of(existing: EventStreamRecord): AlreadyCommitted = AlreadyCommitted(existing)
+        }
+    }
+
+    /**
+     * Another stream already holds the version; the aggregate is at [currentVersion].
+     *
+     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+     */
+    class Conflict @InternalWowApi constructor(val currentVersion: Int) : AppendOutcome {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Conflict && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Conflict(currentVersion=$currentVersion)"
+
+        private fun valueFields(): List<Any?> = listOf(currentVersion)
+
+        companion object {
+            /** A Conflict of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            fun of(currentVersion: Int): Conflict = Conflict(currentVersion)
+        }
+    }
 
     /**
      * Whether the append committed is unknown, for example after a timeout. The version slot decides it: read the
      * stream at the appended version before deciding again.
+     *
+     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
      */
-    data class Unknown(val cause: Throwable) : AppendOutcome
+    class Unknown @InternalWowApi constructor(val cause: Throwable) : AppendOutcome {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Unknown && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Unknown(cause=$cause)"
+
+        private fun valueFields(): List<Any?> = listOf(cause)
+
+        companion object {
+            /** An Unknown of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            fun of(cause: Throwable): Unknown = Unknown(cause)
+        }
+    }
 
     /**
      * The backend refuses the stream as it is, for good, and nothing was committed: a value it cannot store (a decimal
      * MongoDB cannot keep exactly, a `\u0000` PostgreSQL's `jsonb` does not take), an identifier too long for its
      * index. Appending it again is refused the same way, so it is neither retried nor read back; [cause] says why. In
      * a group ([EventLog.appendAll]) it fails that stream alone (findings A2-5, A2-7).
+     *
+     * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
      */
-    data class Rejected(val cause: Throwable) : AppendOutcome
+    class Rejected @InternalWowApi constructor(val cause: Throwable) : AppendOutcome {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Rejected && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Rejected(cause=$cause)"
+
+        private fun valueFields(): List<Any?> = listOf(cause)
+
+        companion object {
+            /** A Rejected of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            fun of(cause: Throwable): Rejected = Rejected(cause)
+        }
+    }
 }

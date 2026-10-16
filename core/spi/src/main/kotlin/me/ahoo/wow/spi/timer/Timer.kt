@@ -15,6 +15,7 @@ package me.ahoo.wow.spi.timer
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.schedule.ScheduleContext
@@ -47,8 +48,10 @@ import me.ahoo.wow.spi.log.Partitioner
  *   the command is sent in (decision D189).
  * - [status], [attempts] and [outcome] record what the firing loop did: [outcome] is what the target answered
  *   ([TimerOutcomes]), or why a timer is parked.
+ *
+ * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
-data class Timer(
+class Timer @InternalWowApi constructor(
     val id: String,
     val owner: AggregateRef,
     val key: String,
@@ -88,6 +91,137 @@ data class Timer(
      * [slotDueAt], however many attempts or claims it took.
      */
     val context: ScheduleContext get() = ScheduleContext(id, key, slot, slotDueAt, skipped)
+
+    /** This Timer with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        id: String = this.id,
+        owner: AggregateRef = this.owner,
+        key: String = this.key,
+        version: Long = this.version,
+        partition: Int = this.partition,
+        rule: ScheduleRule = this.rule,
+        dueAt: Long = this.dueAt,
+        target: AggregateRef = this.target,
+        commandType: String = this.commandType,
+        body: String = this.body,
+        slot: Long = this.slot,
+        causation: Causation? = this.causation,
+        headers: Map<String, String> = this.headers,
+        operator: Operator? = this.operator,
+        status: TimerStatus = this.status,
+        attempts: Int = this.attempts,
+        outcome: String? = this.outcome,
+        scope: Scope = this.scope,
+        slotDueAt: Long = this.slotDueAt,
+        skipped: Long = this.skipped,
+    ): Timer =
+        Timer(
+            id,
+            owner,
+            key,
+            version,
+            partition,
+            rule,
+            dueAt,
+            target,
+            commandType,
+            body,
+            slot,
+            causation,
+            headers,
+            operator,
+            status,
+            attempts,
+            outcome,
+            scope,
+            slotDueAt,
+            skipped,
+        )
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is Timer && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "Timer(id=$id, owner=$owner, key=$key, version=$version, partition=$partition, rule=$rule, dueAt=$dueAt, " +
+            "target=$target, commandType=$commandType, body=$body, slot=$slot, causation=$causation, " +
+            "headers=$headers, operator=$operator, status=$status, attempts=$attempts, outcome=$outcome, " +
+            "scope=$scope, slotDueAt=$slotDueAt, skipped=$skipped)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        id,
+        owner,
+        key,
+        version,
+        partition,
+        rule,
+        dueAt,
+        target,
+        commandType,
+        body,
+        slot,
+        causation,
+        headers,
+        operator,
+        status,
+        attempts,
+        outcome,
+        scope,
+        slotDueAt,
+        skipped,
+    )
+
+    companion object {
+        /** A Timer of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            id: String,
+            owner: AggregateRef,
+            key: String,
+            version: Long,
+            partition: Int,
+            rule: ScheduleRule,
+            dueAt: Long,
+            target: AggregateRef,
+            commandType: String,
+            body: String,
+            slot: Long = 1,
+            causation: Causation? = null,
+            headers: Map<String, String> = emptyMap(),
+            operator: Operator? = null,
+            status: TimerStatus = TimerStatus.PENDING,
+            attempts: Int = 0,
+            outcome: String? = null,
+            scope: Scope = Scope.NONE,
+            slotDueAt: Long = dueAt,
+            skipped: Long = 0,
+        ): Timer =
+            Timer(
+                id,
+                owner,
+                key,
+                version,
+                partition,
+                rule,
+                dueAt,
+                target,
+                commandType,
+                body,
+                slot,
+                causation,
+                headers,
+                operator,
+                status,
+                attempts,
+                outcome,
+                scope,
+                slotDueAt,
+                skipped,
+            )
+    }
 }
 
 /** Where a [Timer] is. */

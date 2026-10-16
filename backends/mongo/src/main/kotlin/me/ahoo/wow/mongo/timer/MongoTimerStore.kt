@@ -169,7 +169,9 @@ class MongoTimerStore(
             return 0
         }
         return dispatcher.mongo {
-            val writes = changes.map { (loaded, next) ->
+            val writes = changes.map { change ->
+                val loaded = change.loaded
+                val next = change.next
                 UpdateOneModel<Document>(
                     Filters.and(
                         keyFilter(loaded.owner, loaded.key),

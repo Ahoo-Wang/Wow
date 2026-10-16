@@ -10,6 +10,7 @@ dependencies {
     // The tests compile the generated models; the 9.x types they reject are stubs (NineXStubs), never 9.x wow-api.
     testImplementation(project(":kernel"))
     testImplementation(project(":reactor"))
+    testImplementation(testFixtures(project(":manifest")))
 }
 
 tasks.withType<Test>().all {

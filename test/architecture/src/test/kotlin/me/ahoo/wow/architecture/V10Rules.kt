@@ -351,12 +351,23 @@ object V10Rules {
     )
 
     /**
+     * The Manifest model's test fixtures (its `copyWith` helpers, decision D59: the model has no `copy`) declared in a
+     * test configuration. Every module that reads a Manifest reaches `:manifest` through its main dependencies.
+     */
+    private val TEST_SCOPED_MANIFEST_FIXTURES = Regex(
+        """\b(?:test\w*|\w+Test\w*)\(\s*testFixtures\(\s*project\(\s*":${MANIFEST.name}"\s*\)\s*\)\s*\)""",
+    )
+
+    /**
      * The projects [module]'s build script depends on, in any configuration but for a test module its tests use
-     * ([TEST_MODULES]): those are allowed to every module.
+     * ([TEST_MODULES]) and the Manifest's test fixtures ([TEST_SCOPED_MANIFEST_FIXTURES]): those are allowed to every
+     * module.
      */
     fun projectDependencies(repositoryRoot: File, module: V10Module): Set<String> =
         PROJECT_DEPENDENCY.findAll(
-            File(repositoryRoot, "${module.dir}/build.gradle.kts").readText().replace(TEST_SCOPED_TEST_MODULE, ""),
+            File(repositoryRoot, "${module.dir}/build.gradle.kts").readText()
+                .replace(TEST_SCOPED_TEST_MODULE, "")
+                .replace(TEST_SCOPED_MANIFEST_FIXTURES, ""),
         )
             .map { it.groupValues[1] }
             .toSet()
@@ -481,6 +492,52 @@ object V10Rules {
         return graph.keys.filter(::isExampleDomain).sorted()
             .filter { RUNTIME.name in reachable(graph, it) }
             .map { "$it reaches :${RUNTIME.name}" }
+    }
+
+    /**
+     * The modules whose ABI holds no data class (decisions D216, D227, D228): a type users, backends or Wow's tools
+     * construct may gain fields within a format (D59), and a data class's `copy` and `componentN` change their
+     * signatures when it does.
+     */
+    val PLAIN_CLASS_MODULES: List<V10Module> = listOf(API, SPI, MANIFEST)
+
+    /**
+     * The data classes the ABI of [PLAIN_CLASS_MODULES] keeps, by their JVM names, each with why: closed value
+     * types, whose fields are their identity, so a new field would make another type.
+     */
+    val DATA_CLASS_EXCEPTIONS: Map<String, String> = mapOf(
+        "me/ahoo/wow/api/aggregate/AggregateType" to "an aggregate's identity: its context and name",
+        "me/ahoo/wow/api/aggregate/AggregateRef" to "an aggregate instance's identity: its type, tenant and id",
+        "me/ahoo/wow/api/aggregate/Scope" to "the owner and space dimensions of authorization (D56, D189)",
+        "me/ahoo/wow/api/decide/Causation" to "the causal link of a command: its correlation and causation ids",
+        "me/ahoo/wow/api/subscribe/ExecutionId" to "a subscription's execution: its name, aggregate and version",
+        "me/ahoo/wow/spi/log/LogPosition" to "a position in the log: a partition and a sequence",
+        "me/ahoo/wow/spi/transport/PartitionOffsets" to "a range of offsets: its start and end",
+    )
+
+    private val ABI_CLASS = Regex("""^public (?:final |abstract |open |sealed )*class ([\w/$]+)""")
+    private val DATA_CLASS_MEMBER = Regex("""\bfun (?:copy|copy\${'$'}default|component\d+) \(""")
+
+    /**
+     * The `copy` and `componentN` members of the ABI dumps of [PLAIN_CLASS_MODULES] outside [DATA_CLASS_EXCEPTIONS],
+     * as `dump: class: member`, and each exception the dumps no longer have a data class for (a stale entry).
+     */
+    fun dataClassMembers(repositoryRoot: File): List<String> {
+        val dataClasses = mutableSetOf<String>()
+        val violations = PLAIN_CLASS_MODULES.flatMap { module ->
+            val dump = File(repositoryRoot, "${module.dir}/api/${module.name}.api")
+            var owner = ""
+            dump.readLines().mapNotNull { line ->
+                ABI_CLASS.find(line)?.let { owner = it.groupValues[1] }
+                if (DATA_CLASS_MEMBER.containsMatchIn(line)) {
+                    dataClasses += owner
+                    if (owner in DATA_CLASS_EXCEPTIONS) null else "${module.dir}/api/${module.name}.api: $owner: ${line.trim()}"
+                } else {
+                    null
+                }
+            }
+        }
+        return violations + (DATA_CLASS_EXCEPTIONS.keys - dataClasses).map { "stale exception: $it" }
     }
 
     private val COMPATIBILITY_MARKER = Regex("""@Deprecated\b|\bcompat\(""")

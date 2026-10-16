@@ -20,6 +20,7 @@ import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.read.StateVisibility
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryRoutes
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.query.DefaultQueryGateway
 import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.QueryBackendStorages
@@ -43,11 +44,11 @@ val cartType = AggregateType(CONTEXT, "cart")
 /** [cartManifest] with the cart's query models (decision D128) and its state schema. */
 fun queryManifest(): Manifest {
     val manifest = cartManifest()
-    return manifest.copy(
+    return manifest.copyWith(
         contexts = manifest.contexts.map { context ->
-            context.copy(
+            context.copyWith(
                 aggregates = context.aggregates.map {
-                    it.copy(queries = QueryRoutes.queries(context.name, it.name, snapshots = true))
+                    it.copyWith(queries = QueryRoutes.queries(context.name, it.name, snapshots = true))
                 },
             )
         },

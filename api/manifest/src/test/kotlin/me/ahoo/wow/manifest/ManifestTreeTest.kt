@@ -21,7 +21,7 @@ import tools.jackson.module.kotlin.jacksonObjectMapper
 class ManifestTreeTest {
     private val mapper = jacksonObjectMapper()
 
-    private val manifest = Manifests.fragment().copy(
+    private val manifest = Manifests.fragment().copyWith(
         service = ServiceInfo("shop-service", "1.0.0"),
         errors = FrameworkErrors.ALL,
     )
@@ -93,8 +93,8 @@ class ManifestTreeTest {
 
     @Test
     fun `the tree should name the fields as the design does and leave out absent values`() {
-        val fragment = Manifests.fragment().copy(
-            contexts = Manifests.fragment().contexts.map { it.copy(description = null) },
+        val fragment = Manifests.fragment().copyWith(
+            contexts = Manifests.fragment().contexts.map { it.copyWith(description = null) },
         )
         val tree = ManifestTree.write(fragment)
         tree.keys.assert().containsExactly("format", "contexts", "errors", "\$defs")
@@ -207,8 +207,8 @@ class ManifestTreeTest {
             contexts = listOf(
                 ContextManifest(
                     "shop",
-                    aggregates = listOf(aggregate, aggregate.copy(name = "cart", ownership = Ownership.OWNER)),
-                    subscriptions = listOf(subscription, subscription.copy(name = "Notifier.other", retry = null)),
+                    aggregates = listOf(aggregate, aggregate.copyWith(name = "cart", ownership = Ownership.OWNER)),
+                    subscriptions = listOf(subscription, subscription.copyWith(name = "Notifier.other", retry = null)),
                 ),
             ),
         )
@@ -235,7 +235,7 @@ class ManifestTreeTest {
             contexts = listOf(
                 ContextManifest(
                     "shop",
-                    aggregates = listOf(aggregate, aggregate.copy(name = "order", snapshot = SnapshotManifest()))
+                    aggregates = listOf(aggregate, aggregate.copyWith(name = "order", snapshot = SnapshotManifest()))
                 ),
             ),
         )
@@ -262,7 +262,7 @@ class ManifestTreeTest {
             contexts = listOf(
                 ContextManifest(
                     "shop",
-                    subscriptions = listOf(subscription, subscription.copy(name = "Billing.other", job = null)),
+                    subscriptions = listOf(subscription, subscription.copyWith(name = "Billing.other", job = null)),
                 ),
             ),
         )
@@ -310,8 +310,8 @@ class ManifestTreeTest {
             committed = listOf(Manifest.schemaRef("sales.Refund")),
         )
         committed.isReceiptHandler.assert().isTrue()
-        committed.copy(committed = null).isReceiptHandler.assert().isFalse()
-        committed.copy(committed = null, rejected = emptyList()).isReceiptHandler.assert().isTrue()
+        committed.copyWith(committed = null).isReceiptHandler.assert().isFalse()
+        committed.copyWith(committed = null, rejected = emptyList()).isReceiptHandler.assert().isTrue()
         val manifest = Manifest(contexts = listOf(ContextManifest("shop", subscriptions = listOf(committed))))
         manifest.schemaRefs.assert().containsExactly("#/\$defs/sales.Refund")
         val tree = ManifestTree.write(manifest)

@@ -24,6 +24,7 @@ import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PeerManifests
 import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.manifest.tools.ManifestJson
 import org.gradle.api.Action
 import org.gradle.api.GradleException
@@ -437,7 +438,7 @@ class WowPluginTest {
         )
 
         ManifestJson.write(
-            Manifest(service = ServiceInfo("shop", "1.1.0"), contexts = listOf(cart.copy(errors = emptyList()))),
+            Manifest(service = ServiceInfo("shop", "1.1.0"), contexts = listOf(cart.copyWith(errors = emptyList()))),
             manifest
         )
         val failure = assertThrows<IllegalStateException> { check.submit(queue) }

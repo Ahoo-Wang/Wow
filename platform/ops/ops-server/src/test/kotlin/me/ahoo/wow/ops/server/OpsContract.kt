@@ -65,7 +65,7 @@ abstract class OpsContract {
             "service" to "$context-service",
             "context" to context,
             "subscription" to subscription,
-            "aggregate" to LedgerAggregate(context, "payment", Caller.DEFAULT_TENANT, id),
+            "aggregate" to LedgerAggregate.of(context, "payment", Caller.DEFAULT_TENANT, id),
             "fromVersion" to 2,
             "fromPosition" to null,
             "reason" to reason,
@@ -139,7 +139,7 @@ abstract class OpsContract {
         resume.ref.assert().isEqualTo(Ledger.targetOf(context, id))
         resume.operator!!.id.assert().isEqualTo("alice")
         WowJson.mapper.treeToValue(resume.body, ResumeParked::class.java).assert()
-            .isEqualTo(ResumeParked(SAGA, LedgerAggregate(context, "payment", Caller.DEFAULT_TENANT, "p-1")))
+            .isEqualTo(ResumeParked.of(SAGA, LedgerAggregate.of(context, "payment", Caller.DEFAULT_TENANT, "p-1")))
 
         // The owning service resumed it and publishes that it is resolved.
         ops.resolve(
@@ -147,7 +147,7 @@ abstract class OpsContract {
                 "$context-service",
                 context,
                 SAGA,
-                LedgerAggregate(context, "payment", Caller.DEFAULT_TENANT, "p-1"),
+                LedgerAggregate.of(context, "payment", Caller.DEFAULT_TENANT, "p-1"),
                 FAILED_AT,
                 LedgerResolution.RESUMED,
                 FAILED_AT + HOUR,
@@ -190,7 +190,7 @@ abstract class OpsContract {
         val context = context()
         val id = ops.publish(entry(context, "p-1"))
         eventually("$id recorded") { state(id) != null }
-        val aggregate = LedgerAggregate(context, "payment", Caller.DEFAULT_TENANT, "p-1")
+        val aggregate = LedgerAggregate.of(context, "payment", Caller.DEFAULT_TENANT, "p-1")
 
         ops.post("/ops/parked/$id/mark-recoverable", """{"recoverable":"unrecoverable"}""", Who.OPERATOR).assertOk()
         ops.post("/ops/parked/$id/apply-retry-spec", """{"maxRetries":5,"minBackoff":"1m"}""", Who.OPERATOR).assertOk()
@@ -198,11 +198,11 @@ abstract class OpsContract {
         eventually("three commands sent to $context") { ops.ledgerCommands(context).size == 3 }
         val sent = ops.ledgerCommands(context).associateBy { it.type }
         WowJson.mapper.treeToValue(sent.getValue(Ledger.MARK_RECOVERABLE).body, MarkParkedRecoverable::class.java)
-            .assert().isEqualTo(MarkParkedRecoverable(SAGA, aggregate, "UNRECOVERABLE"))
+            .assert().isEqualTo(MarkParkedRecoverable.of(SAGA, aggregate, "UNRECOVERABLE"))
         WowJson.mapper.treeToValue(sent.getValue(Ledger.APPLY_RETRY_SPEC).body, ApplyParkedRetrySpec::class.java)
-            .assert().isEqualTo(ApplyParkedRetrySpec(SAGA, aggregate, maxRetries = 5, minBackoff = "1m"))
+            .assert().isEqualTo(ApplyParkedRetrySpec.of(SAGA, aggregate, maxRetries = 5, minBackoff = "1m"))
         WowJson.mapper.treeToValue(sent.getValue(Ledger.SKIP).body, SkipParked::class.java)
-            .assert().isEqualTo(SkipParked(SAGA, aggregate))
+            .assert().isEqualTo(SkipParked.of(SAGA, aggregate))
 
         // An invalid argument is the entry's rejection, and sends nothing.
         ops.post("/ops/parked/$id/mark-recoverable", """{"recoverable":"maybe"}""", Who.OPERATOR)

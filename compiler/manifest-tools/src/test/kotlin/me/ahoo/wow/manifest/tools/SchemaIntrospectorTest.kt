@@ -34,6 +34,7 @@ import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
+import me.ahoo.wow.manifest.copyWith
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 
@@ -134,7 +135,7 @@ class SchemaIntrospectorTest {
             derives = listOf("shop.cart.AddItem", schemaRef(ReserveStock::class.java.name)),
         )
         val fragment = fragment()
-        val withSaga = fragment.copy(contexts = fragment.contexts.map { it.copy(subscriptions = listOf(saga)) })
+        val withSaga = fragment.copyWith(contexts = fragment.contexts.map { it.copyWith(subscriptions = listOf(saga)) })
         val completed = introspector.complete(withSaga)
         completed.unresolvedSchemaRefs.assert().isEmpty()
         defOf(completed, ReserveStock::class.java)["required"].assert().isEqualTo(listOf("quantity"))
@@ -181,9 +182,9 @@ class SchemaIntrospectorTest {
         val java = fragment().let { fragment ->
             val aggregate = fragment.contexts.single().aggregates.single()
             val commands = listOf(CommandManifest("Ship", schema = schemaRef(JavaShipment::class.java.name)))
-            fragment.copy(
+            fragment.copyWith(
                 contexts = listOf(
-                    fragment.contexts.single().copy(aggregates = listOf(aggregate.copy(commands = commands)))
+                    fragment.contexts.single().copyWith(aggregates = listOf(aggregate.copyWith(commands = commands)))
                 )
             )
         }
@@ -197,7 +198,7 @@ class SchemaIntrospectorTest {
 
     @Test
     fun `schemas already in the fragment should be kept`() {
-        val known = fragment().copy(defs = mapOf(AddItem::class.java.name to mapOf("type" to "object")))
+        val known = fragment().copyWith(defs = mapOf(AddItem::class.java.name to mapOf("type" to "object")))
         val completed = introspector.complete(known)
         completed.defs[AddItem::class.java.name].assert().isEqualTo(mapOf("type" to "object"))
     }
@@ -225,7 +226,7 @@ class SchemaIntrospectorTest {
 
     @Test
     fun `schemas should be described by their annotations, and commands and events by their entries`() {
-        val aggregate = fragment().contexts.single().aggregates.single().copy(
+        val aggregate = fragment().contexts.single().aggregates.single().copyWith(
             commands = listOf(
                 CommandManifest("Ship", schema = schemaRef(Ship::class.java.name)),
                 CommandManifest("Track", schema = schemaRef(Track::class.java.name)),
@@ -233,7 +234,7 @@ class SchemaIntrospectorTest {
             ),
             events = listOf(EventManifest("Shipped", schema = schemaRef(Shipped::class.java.name))),
         )
-        val fragment = fragment().copy(contexts = listOf(ContextManifest("shop", aggregates = listOf(aggregate))))
+        val fragment = fragment().copyWith(contexts = listOf(ContextManifest("shop", aggregates = listOf(aggregate))))
         val completed = introspector.complete(fragment)
         defOf(completed, Ship::class.java)["description"].assert().isEqualTo("A shipment of the order")
         defOf(completed, Shipped::class.java)["description"].assert().isEqualTo("Shipped")
@@ -245,8 +246,8 @@ class SchemaIntrospectorTest {
     @Test
     fun `the body of each lifecycle command an aggregate lists should be a definition keyed by its name`() {
         val aggregate = fragment().contexts.single().aggregates.single()
-            .copy(lifecycle = Lifecycle.COMMANDS.keys.sorted() + "wow.lifecycle.Unknown")
-        val fragment = fragment().copy(contexts = listOf(ContextManifest("shop", aggregates = listOf(aggregate))))
+            .copyWith(lifecycle = Lifecycle.COMMANDS.keys.sorted() + "wow.lifecycle.Unknown")
+        val fragment = fragment().copyWith(contexts = listOf(ContextManifest("shop", aggregates = listOf(aggregate))))
         val defs = introspector.complete(fragment).defs
         val lifecycleKeys = defs.keys.filter { it.startsWith("wow.") }
         lifecycleKeys.assert().containsExactlyInAnyOrder(*Lifecycle.COMMANDS.keys.toTypedArray())
@@ -273,7 +274,7 @@ class SchemaIntrospectorTest {
         )
         (defs[Lifecycle.DELETE_AGGREGATE] as Map<*, *>)["type"].assert().isEqualTo("object")
         // A body the fragment already holds is kept.
-        val known = fragment.copy(defs = mapOf(Lifecycle.DELETE_AGGREGATE to mapOf("type" to "object")))
+        val known = fragment.copyWith(defs = mapOf(Lifecycle.DELETE_AGGREGATE to mapOf("type" to "object")))
         introspector.complete(known).defs[Lifecycle.DELETE_AGGREGATE].assert().isEqualTo(mapOf("type" to "object"))
     }
 }

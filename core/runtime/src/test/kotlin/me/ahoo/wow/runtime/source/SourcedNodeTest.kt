@@ -33,6 +33,7 @@ import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.Deposit
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
@@ -106,9 +107,9 @@ class SourcedNodeTest {
     )
 
     private fun manifest(nullable: Boolean = true): Manifest = accountsManifest(BANK).let { manifest ->
-        manifest.copy(
+        manifest.copyWith(
             contexts = manifest.contexts.map {
-                it.copy(
+                it.copyWith(
                     subscriptions = listOf(
                         subscription("Board.onOrder", SubscriptionKind.PROJECTION, nullable),
                         subscription("Payout.onOrder", SubscriptionKind.SAGA, nullable),

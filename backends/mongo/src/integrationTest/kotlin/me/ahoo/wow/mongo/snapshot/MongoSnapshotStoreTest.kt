@@ -39,7 +39,7 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
     @Test
     fun `creating the schema twice keeps the snapshots`(): Unit = runBlocking {
         val context = MongoLogFixture.newContext()
-        val saved = snapshot("a", 1).copy(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
+        val saved = snapshot("a", 1).copyWith(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
         store(context).save(saved).assert().isTrue()
         store(context).load(saved.ref)?.version.assert().isEqualTo(1)
     }
@@ -63,13 +63,13 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
     fun `a state decimal beyond 34 digits is refused at save, never rounded`(): Unit = runBlocking {
         val context = MongoLogFixture.newContext()
         val store = store(context)
-        val saved = snapshot("a", 1).copy(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
-        val tooPrecise = saved.copy(state = """{"items":[{"price":1.2345678901234567890123456789012345}]}""")
+        val saved = snapshot("a", 1).copyWith(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
+        val tooPrecise = saved.copyWith(state = """{"items":[{"price":1.2345678901234567890123456789012345}]}""")
         assertThrownBy<IllegalArgumentException> { runBlocking { store.save(tooPrecise) } }
         store.load(saved.ref).assert().isNull()
         // So is an exponent Decimal128 cannot hold, or holds only by changing the scale.
         listOf("1E-6200", "1E+6120").forEach { number ->
-            assertThrownBy<IllegalArgumentException> { runBlocking { store.save(saved.copy(state = """{"n":$number}""")) } }
+            assertThrownBy<IllegalArgumentException> { runBlocking { store.save(saved.copyWith(state = """{"n":$number}""")) } }
         }
         store.save(saved).assert().isTrue()
     }
@@ -79,7 +79,7 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
         runBlocking {
             val context = MongoLogFixture.newContext()
             val store = store(context)
-            val saved = snapshot("a", 1).copy(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
+            val saved = snapshot("a", 1).copyWith(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
             store.save(saved).assert().isTrue()
             val snapshots = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
                 .getCollection(collection(context))
@@ -93,14 +93,14 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
     @Test
     fun `a state that is not a JSON object is refused`(): Unit = runBlocking {
         val context = MongoLogFixture.newContext()
-        val saved = snapshot("a", 1).copy(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
-        assertThrownBy<IllegalArgumentException> { runBlocking { store(context).save(saved.copy(state = "[1]")) } }
+        val saved = snapshot("a", 1).copyWith(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
+        assertThrownBy<IllegalArgumentException> { runBlocking { store(context).save(saved.copyWith(state = "[1]")) } }
     }
 
     @Test
     fun `a snapshot of another context is refused`(): Unit = runBlocking {
         val store = store()
-        val foreign = snapshot("a", 1).copy(ref = AggregateType("elsewhere", "aggregate").ref("tenant", "a"))
+        val foreign = snapshot("a", 1).copyWith(ref = AggregateType("elsewhere", "aggregate").ref("tenant", "a"))
         assertThrownBy<IllegalArgumentException> { runBlocking { store.save(foreign) } }
         assertThrownBy<IllegalArgumentException> { runBlocking { store.load(foreign.ref) } }
     }
@@ -110,7 +110,7 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
         val context = MongoLogFixture.newContext()
         val store = MongoSnapshotStore(MongoLogFixture.client, MongoLogFixture.DATABASE, context)
         store.createSchema()
-        val saved = snapshot("a", 1).copy(ref = AggregateType(context, "Order-Line").ref("tenant", "a"))
+        val saved = snapshot("a", 1).copyWith(ref = AggregateType(context, "Order-Line").ref("tenant", "a"))
         store.save(saved).assert().isTrue()
         store.save(saved).assert().isFalse()
         val database = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)

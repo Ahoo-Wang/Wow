@@ -71,20 +71,20 @@ abstract class FailureLedgerSpec {
     @Test
     fun `a source position reads back with its entry, and moves with the earlier version or a repark`(): Unit =
         runBlocking {
-            val parked = entry(ref("a"), 4).copy(fromPosition = 40)
+            val parked = entry(ref("a"), 4).copyWith(fromPosition = 40)
             ledger.park(parked).assert().isTrue()
             ledger.parked(subscription, ref("a")).assert().isEqualTo(parked)
             ledger.list(subscription).assert().containsExactly(parked)
-            ledger.park(entry(ref("a"), 6).copy(fromPosition = 60)).assert().isFalse()
+            ledger.park(entry(ref("a"), 6).copyWith(fromPosition = 60)).assert().isFalse()
             ledger.parked(subscription, ref("a"))!!.fromPosition.assert().isEqualTo(40L)
-            val earlier = entry(ref("a"), 2).copy(fromPosition = Long.MAX_VALUE)
+            val earlier = entry(ref("a"), 2).copyWith(fromPosition = Long.MAX_VALUE)
             ledger.park(earlier).assert().isTrue()
             ledger.parked(subscription, ref("a")).assert().isEqualTo(earlier)
-            val unrecoverable = earlier.copy(reason = "${ParkedAggregate.UNRECOVERABLE}: gone", fromPosition = 0)
+            val unrecoverable = earlier.copyWith(reason = "${ParkedAggregate.UNRECOVERABLE}: gone", fromPosition = 0)
             ledger.repark(unrecoverable).assert().isTrue()
             ledger.parked(subscription, ref("a")).assert().isEqualTo(unrecoverable)
             ledger.parked(subscription, ref("a"))!!.unrecoverable.assert().isTrue()
-            val withoutPosition = earlier.copy(fromPosition = null)
+            val withoutPosition = earlier.copyWith(fromPosition = null)
             ledger.repark(withoutPosition).assert().isTrue()
             ledger.parked(subscription, ref("a")).assert().isEqualTo(withoutPosition)
             ledger.resolve(subscription, ref("a")).assert().isEqualTo(withoutPosition)
@@ -174,7 +174,7 @@ abstract class FailureLedgerSpec {
 
     @Test
     fun `a new entry's retry state reads back with it, in its page and when resolved`(): Unit = runBlocking {
-        val parked = entry(ref("a"), 3).copy(
+        val parked = entry(ref("a"), 3).copyWith(
             retries = 2,
             retryAt = FAILED_AT + 100,
             retrySpec = SPEC,
@@ -194,7 +194,7 @@ abstract class FailureLedgerSpec {
         ledger.amend(subscription, ref("a"), ParkedAmendment.ApplyRetrySpec(SPEC))
         ledger.amend(subscription, ref("a"), ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE))
         ledger.amend(subscription, ref("a"), ParkedAmendment.Request(LedgerRequest.SKIP))
-        val state = claimed.copy(
+        val state = claimed.copyWith(
             retrySpec = SPEC,
             recoverable = Recoverable.RECOVERABLE,
             request = LedgerRequest.SKIP,
@@ -202,15 +202,15 @@ abstract class FailureLedgerSpec {
         ledger.parked(subscription, ref("a")).assert().isEqualTo(state)
 
         // The earlier entry's own retry state is not taken: the parked one keeps its own.
-        ledger.park(entry(ref("a"), 2).copy(retries = 7, recoverable = Recoverable.UNRECOVERABLE)).assert().isTrue()
+        ledger.park(entry(ref("a"), 2).copyWith(retries = 7, recoverable = Recoverable.UNRECOVERABLE)).assert().isTrue()
         val earlier = entry(ref("a"), 2)
         ledger.parked(subscription, ref("a")).assert().isEqualTo(
-            state.copy(fromVersion = 2, reason = earlier.reason, failedAt = earlier.failedAt),
+            state.copyWith(fromVersion = 2, reason = earlier.reason, failedAt = earlier.failedAt),
         )
-        val reparked = entry(ref("a"), 4, reason = "failed again").copy(fromPosition = 44, retries = 9)
+        val reparked = entry(ref("a"), 4, reason = "failed again").copyWith(fromPosition = 44, retries = 9)
         ledger.repark(reparked).assert().isTrue()
         ledger.parked(subscription, ref("a")).assert().isEqualTo(
-            state.copy(fromVersion = 4, reason = "failed again", failedAt = reparked.failedAt, fromPosition = 44),
+            state.copyWith(fromVersion = 4, reason = "failed again", failedAt = reparked.failedAt, fromPosition = 44),
         )
     }
 
@@ -252,7 +252,7 @@ abstract class FailureLedgerSpec {
             ledger.parked(subscription, ref("a"))!!.recoverable.assert().isEqualTo(recoverable)
         }
         ledger.parked(subscription, ref("a")).assert()
-            .isEqualTo(entry(ref("a"), 1).copy(recoverable = Recoverable.UNRECOVERABLE))
+            .isEqualTo(entry(ref("a"), 1).copyWith(recoverable = Recoverable.UNRECOVERABLE))
     }
 
     @Test

@@ -60,19 +60,19 @@ class ManifestMergerTest {
         )
         val shop = ManifestFragment(
             "shop.json",
-            Manifests.fragment(aggregates = listOf(cart.copy(commands = cart.commands + addItem))),
+            Manifests.fragment(aggregates = listOf(cart.copyWith(commands = cart.commands + addItem))),
         )
         // A hand-written fragment of another context claiming a path of shop.
         val billing = Manifests.fragment("billing").let { fragment ->
             val context = fragment.contexts.single()
             val account = context.aggregates.single().let { aggregate ->
-                aggregate.copy(
+                aggregate.copyWith(
                     commands = aggregate.commands.map {
-                        if (it.name == "CreateCart") it.copy(routes = cart.commands[0].routes.take(1)) else it
+                        if (it.name == "CreateCart") it.copyWith(routes = cart.commands[0].routes.take(1)) else it
                     },
                 )
             }
-            fragment.copy(contexts = listOf(context.copy(aggregates = listOf(account))))
+            fragment.copyWith(contexts = listOf(context.copyWith(aggregates = listOf(account))))
         }
         val conflicts = assertThrows<ManifestConflictException> {
             ManifestMerger.merge(listOf(shop, ManifestFragment("billing.json", billing)))
@@ -96,7 +96,7 @@ class ManifestMergerTest {
                 routes = CommandRoutes.of("wow", "cart", name, Creation.ALLOWED),
             )
         }
-        val fragment = Manifests.fragment("wow", listOf(cart.copy(commands = cart.commands + reserved)))
+        val fragment = Manifests.fragment("wow", listOf(cart.copyWith(commands = cart.commands + reserved)))
         val conflicts = assertThrows<ManifestConflictException> {
             ManifestMerger.merge(listOf(ManifestFragment("a.json", fragment)))
         }.conflicts
@@ -118,7 +118,7 @@ class ManifestMergerTest {
         val fragment = Manifests.fragment().let { fragment ->
             val context = fragment.contexts.single()
             val errors = context.errors + context.errors + ErrorManifest(FrameworkErrors.COMMAND_BUSY, 429)
-            fragment.copy(contexts = listOf(context.copy(errors = errors)))
+            fragment.copyWith(contexts = listOf(context.copyWith(errors = errors)))
         }
         val conflicts = assertThrows<ManifestConflictException> {
             ManifestMerger.merge(listOf(ManifestFragment("a.json", fragment)))
@@ -131,7 +131,7 @@ class ManifestMergerTest {
 
     @Test
     fun `a fragment's top-level errors should be the framework's`() {
-        val fragment = Manifests.fragment().copy(
+        val fragment = Manifests.fragment().copyWith(
             errors = FrameworkErrors.ALL.take(1) + ErrorManifest("cart.empty", 422) +
                 ErrorManifest(FrameworkErrors.COMMAND_BUSY, 503),
         )
@@ -154,7 +154,7 @@ class ManifestMergerTest {
     @Test
     fun `aggregates listing the same lifecycle commands should not conflict and keep their lists`() {
         val basket = Manifests.cart(aggregate = "basket").let { basket ->
-            basket.copy(
+            basket.copyWith(
                 commands = emptyList(),
                 events = emptyList(),
                 lifecycle = Manifests.LIFECYCLE.take(1),
@@ -197,8 +197,8 @@ class ManifestMergerTest {
     @Test
     fun `a command name taken by another command's alias should conflict`() {
         val cart = Manifests.cart()
-        val addItem = cart.commands[0].copy(name = "AddItem", aliases = emptyList(), routes = emptyList())
-        val clash = cart.copy(commands = cart.commands + addItem)
+        val addItem = cart.commands[0].copyWith(name = "AddItem", aliases = emptyList(), routes = emptyList())
+        val clash = cart.copyWith(commands = cart.commands + addItem)
         val conflicts = assertThrows<ManifestConflictException> {
             ManifestMerger.merge(listOf(ManifestFragment("a.json", Manifests.fragment(aggregates = listOf(clash)))))
         }.conflicts
@@ -210,8 +210,8 @@ class ManifestMergerTest {
     @Test
     fun `an event's full former name taken by an event of another aggregate should conflict`() {
         val basket = Manifests.cart(aggregate = "basket").let { basket ->
-            val events = basket.events.map { it.copy(aliases = emptyList()) }
-            basket.copy(events = events + EventManifest("ItemAdded", schema = "#/\$defs/x"))
+            val events = basket.events.map { it.copyWith(aliases = emptyList()) }
+            basket.copyWith(events = events + EventManifest("ItemAdded", schema = "#/\$defs/x"))
         }
         val conflicts = assertThrows<ManifestConflictException> {
             ManifestMerger.merge(
@@ -227,8 +227,10 @@ class ManifestMergerTest {
     fun `a subscription declared twice in a context should conflict`() {
         val fragment = Manifests.fragment().let { fragment ->
             val context = fragment.contexts.single()
-            fragment.copy(
-                contexts = listOf(context.copy(subscriptions = context.subscriptions + context.subscriptions.first()))
+            fragment.copyWith(
+                contexts = listOf(
+                    context.copyWith(subscriptions = context.subscriptions + context.subscriptions.first())
+                )
             )
         }
         assertThrows<ManifestConflictException> {
@@ -241,11 +243,11 @@ class ManifestMergerTest {
     @Test
     fun `a query model declared twice, or on a route another declares, should conflict`() {
         val cart = Manifests.cart()
-        val twice = cart.copy(queries = cart.queries + cart.queries.last())
+        val twice = cart.copyWith(queries = cart.queries + cart.queries.last())
         val clash = Manifests.cart(aggregate = "basket").let { basket ->
-            basket.copy(
+            basket.copyWith(
                 events = emptyList(),
-                queries = basket.queries.map { it.copy(routes = QueryRoutes.of("shop", "cart", it.model)) },
+                queries = basket.queries.map { it.copyWith(routes = QueryRoutes.of("shop", "cart", it.model)) },
             )
         }
         val conflicts = assertThrows<ManifestConflictException> {
@@ -272,7 +274,7 @@ class ManifestMergerTest {
             val context = fragment.contexts.single()
             val published = context.published + PublishedManifest("cart", "wow.shop.cart.v2") +
                 PublishedManifest("order", "wow.billing.cart.state")
-            fragment.copy(contexts = listOf(context.copy(published = published)))
+            fragment.copyWith(contexts = listOf(context.copyWith(published = published)))
         }
         val conflicts = assertThrows<ManifestConflictException> {
             ManifestMerger.merge(
@@ -290,8 +292,8 @@ class ManifestMergerTest {
     fun `only a saga should handle rejections`() {
         val fragment = Manifests.fragment().let { fragment ->
             val context = fragment.contexts.single()
-            val projection = context.subscriptions.first().copy(rejected = emptyList())
-            fragment.copy(contexts = listOf(context.copy(subscriptions = listOf(projection))))
+            val projection = context.subscriptions.first().copyWith(rejected = emptyList())
+            fragment.copyWith(contexts = listOf(context.copyWith(subscriptions = listOf(projection))))
         }
         assertThrows<ManifestConflictException> {
             ManifestMerger.merge(listOf(ManifestFragment("a.json", fragment)))
@@ -304,14 +306,14 @@ class ManifestMergerTest {
     fun `a job declared twice differently, or beside an aggregate named schedule, should conflict`() {
         val fragment = Manifests.fragment().let { fragment ->
             val context = fragment.contexts.single()
-            val saga = context.subscriptions.first().copy(kind = SubscriptionKind.SAGA)
-            val nightly = saga.copy(name = "Jobs.nightly", job = JobManifest("nightly", "0 0 3 * * *"))
-            val again = nightly.copy(name = "Jobs.again")
-            val other = nightly.copy(name = "Jobs.other", job = JobManifest("nightly", "0 0 4 * * *"))
-            val schedule = context.aggregates.first().copy(name = "schedule")
-            fragment.copy(
+            val saga = context.subscriptions.first().copyWith(kind = SubscriptionKind.SAGA)
+            val nightly = saga.copyWith(name = "Jobs.nightly", job = JobManifest("nightly", "0 0 3 * * *"))
+            val again = nightly.copyWith(name = "Jobs.again")
+            val other = nightly.copyWith(name = "Jobs.other", job = JobManifest("nightly", "0 0 4 * * *"))
+            val schedule = context.aggregates.first().copyWith(name = "schedule")
+            fragment.copyWith(
                 contexts = listOf(
-                    context.copy(
+                    context.copyWith(
                         aggregates = context.aggregates + schedule,
                         subscriptions = listOf(nightly, again, other),
                     ),
@@ -345,7 +347,7 @@ class ManifestMergerTest {
     @Test
     fun `a fragment of another format should be refused`() {
         val exception = assertThrows<ManifestConflictException> {
-            ManifestMerger.merge(listOf(ManifestFragment("a.json", Manifests.fragment().copy(format = 2))))
+            ManifestMerger.merge(listOf(ManifestFragment("a.json", Manifests.fragment().copyWith(format = 2))))
         }
         exception.conflicts.assert().containsExactly("a.json is of format 2, not 1")
         exception.message.assert().contains("- a.json is of format 2, not 1")

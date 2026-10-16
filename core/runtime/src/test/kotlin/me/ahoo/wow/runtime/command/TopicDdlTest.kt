@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.PublishedManifest
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
@@ -60,9 +61,9 @@ class TopicDdlTest {
 
     private fun salesNode(ddl: TopicDdl): ServiceNode {
         val manifest = salesManifest().let { manifest ->
-            manifest.copy(
+            manifest.copyWith(
                 contexts = manifest.contexts.map {
-                    it.copy(
+                    it.copyWith(
                         published = listOf(PublishedManifest("order", PublishedManifest.defaultTopic(SALES, "order")))
                     )
                 },

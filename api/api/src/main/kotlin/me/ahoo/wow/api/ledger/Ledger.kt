@@ -15,6 +15,7 @@ package me.ahoo.wow.api.ledger
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 
 /**
@@ -100,10 +101,35 @@ object Ledger {
 /**
  * A parked aggregate as the ledger's commands name it: the aggregate [name] of [context], its [tenantId] and [id]
  * (the shape of an entry on the operator routes, `/wow/ops/parked`).
+ *
+ * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
  */
-data class LedgerAggregate(val context: String, val name: String, val tenantId: String, val id: String) {
+class LedgerAggregate @InternalWowApi constructor(
+    val context: String,
+    val name: String,
+    val tenantId: String,
+    val id: String,
+) {
     /** The aggregate this names. */
     fun toRef(): AggregateRef = AggregateType(context, name).ref(tenantId, id)
+
+    /** This LedgerAggregate with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        context: String = this.context,
+        name: String = this.name,
+        tenantId: String = this.tenantId,
+        id: String = this.id,
+    ): LedgerAggregate = LedgerAggregate(context, name, tenantId, id)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is LedgerAggregate && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "LedgerAggregate(context=$context, name=$name, tenantId=$tenantId, id=$id)"
+
+    private fun valueFields(): List<Any?> = listOf(context, name, tenantId, id)
 
     companion object {
         /** [ref] as the ledger's commands name it. */
@@ -114,6 +140,11 @@ data class LedgerAggregate(val context: String, val name: String, val tenantId: 
             ref.tenantId,
             ref.id
         )
+
+        /** A LedgerAggregate of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(context: String, name: String, tenantId: String, id: String): LedgerAggregate =
+            LedgerAggregate(context, name, tenantId, id)
     }
 }
 
@@ -123,31 +154,121 @@ sealed interface LedgerCommand {
     val aggregate: LedgerAggregate
 }
 
-/** Handles the parked aggregate again from where it is parked ([Ledger.RESUME]). */
-data class ResumeParked(override val subscription: String, override val aggregate: LedgerAggregate) : LedgerCommand
+/**
+ * Handles the parked aggregate again from where it is parked ([Ledger.RESUME]).
+ *
+ * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ */
+class ResumeParked @InternalWowApi constructor(
+    override val subscription: String,
+    override val aggregate: LedgerAggregate,
+) : LedgerCommand {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ResumeParked && valueFields() == other.valueFields()
 
-/** Resolves the entry without handling what was parked ([Ledger.SKIP]). */
-data class SkipParked(override val subscription: String, override val aggregate: LedgerAggregate) : LedgerCommand
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "ResumeParked(subscription=$subscription, aggregate=$aggregate)"
+
+    private fun valueFields(): List<Any?> = listOf(subscription, aggregate)
+
+    companion object {
+        /** A ResumeParked of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(subscription: String, aggregate: LedgerAggregate): ResumeParked = ResumeParked(subscription, aggregate)
+    }
+}
+
+/**
+ * Resolves the entry without handling what was parked ([Ledger.SKIP]).
+ *
+ * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ */
+class SkipParked @InternalWowApi constructor(
+    override val subscription: String,
+    override val aggregate: LedgerAggregate,
+) : LedgerCommand {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is SkipParked && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "SkipParked(subscription=$subscription, aggregate=$aggregate)"
+
+    private fun valueFields(): List<Any?> = listOf(subscription, aggregate)
+
+    companion object {
+        /** A SkipParked of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(subscription: String, aggregate: LedgerAggregate): SkipParked = SkipParked(subscription, aggregate)
+    }
+}
 
 /**
  * Marks the entry [recoverable] ([Ledger.MARK_RECOVERABLE], 9.x `MarkRecoverable`): `RECOVERABLE`, `UNRECOVERABLE`
  * or `UNKNOWN`.
+ *
+ * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
  */
-data class MarkParkedRecoverable(
+class MarkParkedRecoverable @InternalWowApi constructor(
     override val subscription: String,
     override val aggregate: LedgerAggregate,
     val recoverable: String,
-) : LedgerCommand
+) : LedgerCommand {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is MarkParkedRecoverable && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "MarkParkedRecoverable(subscription=$subscription, aggregate=$aggregate, recoverable=$recoverable)"
+
+    private fun valueFields(): List<Any?> = listOf(subscription, aggregate, recoverable)
+
+    companion object {
+        /** A MarkParkedRecoverable of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(subscription: String, aggregate: LedgerAggregate, recoverable: String): MarkParkedRecoverable =
+            MarkParkedRecoverable(subscription, aggregate, recoverable)
+    }
+}
 
 /**
  * Applies a retry spec to the entry ([Ledger.APPLY_RETRY_SPEC], 9.x `ApplyRetrySpec`): at most [maxRetries]
  * automatic retries, the first [minBackoff] after the failure, each allowed to run [executionTimeout] (ISO-8601
  * durations). A member left out keeps the value the entry is retried by now.
+ *
+ * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
  */
-data class ApplyParkedRetrySpec(
+class ApplyParkedRetrySpec @InternalWowApi constructor(
     override val subscription: String,
     override val aggregate: LedgerAggregate,
     val maxRetries: Int? = null,
     val minBackoff: String? = null,
     val executionTimeout: String? = null,
-) : LedgerCommand
+) : LedgerCommand {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ApplyParkedRetrySpec && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "ApplyParkedRetrySpec(subscription=$subscription, aggregate=$aggregate, maxRetries=$maxRetries, " +
+            "minBackoff=$minBackoff, executionTimeout=$executionTimeout)"
+
+    private fun valueFields(): List<Any?> = listOf(subscription, aggregate, maxRetries, minBackoff, executionTimeout)
+
+    companion object {
+        /** An ApplyParkedRetrySpec of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            subscription: String,
+            aggregate: LedgerAggregate,
+            maxRetries: Int? = null,
+            minBackoff: String? = null,
+            executionTimeout: String? = null,
+        ): ApplyParkedRetrySpec =
+            ApplyParkedRetrySpec(subscription, aggregate, maxRetries, minBackoff, executionTimeout)
+    }
+}

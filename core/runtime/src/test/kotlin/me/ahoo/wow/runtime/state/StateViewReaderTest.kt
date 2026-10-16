@@ -192,7 +192,7 @@ class StateViewReaderTest {
     @Test
     fun `an entry the reader cannot read should fail`(): Unit = runBlocking {
         add("apple")
-        val ahead = stream(1).copy(version = 5)
+        val ahead = stream(1).copyWith(version = 5)
         runCatching {
             StateViewReader(
                 PROJECTION,
@@ -200,7 +200,7 @@ class StateViewReaderTest {
                 kernel,
                 codec,
                 views
-            ).read(stream(1).copy(version = 2))
+            ).read(stream(1).copyWith(version = 2))
         }
             .exceptionOrNull()!!.message.assert().contains("No model of shop.cart")
         runCatching { reader().read(ahead) }.exceptionOrNull()!!.message

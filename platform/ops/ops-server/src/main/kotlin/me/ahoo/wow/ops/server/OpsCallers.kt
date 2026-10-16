@@ -35,7 +35,7 @@ class OpsCallers : CallerResolver {
         val user = headers.firstHeader(USER)?.trim()?.ifEmpty { null } ?: return null
         val tenant = headers.firstHeader(TENANT)?.trim()?.ifEmpty { null } ?: Caller.DEFAULT_TENANT
         val roles = headers.firstHeader(ROLES)?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }.orEmpty()
-        return Caller(
+        return Caller.of(
             tenantId = tenant,
             scope = Scope.NONE,
             subject = user,

@@ -14,6 +14,7 @@
 package me.ahoo.wow.spi.timer
 
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 
 /**
@@ -90,11 +91,28 @@ interface TimerStore {
 /**
  * A change of the timer [loaded] from the store to [next] (decision D198): its next status, slot, slot's due time,
  * skipped slots, due time, attempts or outcome. It applies only while the store holds [loaded] as loaded ([TimerStore.settle]).
+ *
+ * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
  */
-data class TimerChange(val loaded: Timer, val next: Timer) {
+class TimerChange @InternalWowApi constructor(val loaded: Timer, val next: Timer) {
     init {
         require(next.id == loaded.id && next.owner == loaded.owner && next.key == loaded.key) {
             "A change keeps its timer: ${loaded.id} cannot become ${next.id}."
         }
+    }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is TimerChange && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "TimerChange(loaded=$loaded, next=$next)"
+
+    private fun valueFields(): List<Any?> = listOf(loaded, next)
+
+    companion object {
+        /** A TimerChange of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(loaded: Timer, next: Timer): TimerChange = TimerChange(loaded, next)
     }
 }

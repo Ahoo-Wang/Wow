@@ -23,6 +23,7 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PublishedManifest
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandRequest
 import me.ahoo.wow.runtime.binding.CART
@@ -62,9 +63,9 @@ class PublishedSinksTest {
 
     /** The shop publishing its orders with their state and its carts without, on a topic of their own. */
     private val manifest: Manifest = shopManifest().let { shop ->
-        shop.copy(
+        shop.copyWith(
             contexts = shop.contexts.map {
-                it.copy(
+                it.copyWith(
                     published = listOf(
                         PublishedManifest("order", PublishedManifest.defaultTopic(SHOP, "order")),
                         PublishedManifest("cart", "custom.cart", includeState = false),
@@ -206,8 +207,8 @@ class PublishedSinksTest {
 
     @Test
     fun `a context publishing an aggregate it has no model of should not assemble`() {
-        val wrong = manifest.copy(
-            contexts = manifest.contexts.map { it.copy(published = listOf(PublishedManifest("missing", "t"))) },
+        val wrong = manifest.copyWith(
+            contexts = manifest.contexts.map { it.copyWith(published = listOf(PublishedManifest("missing", "t"))) },
         )
         val sinks =
             PublishedSinks(

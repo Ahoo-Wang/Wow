@@ -42,7 +42,7 @@ class CatalogCallers {
         val headers = request.headers()
         val user = headers.firstHeader(USER)?.trim()?.takeIf { it.isNotEmpty() } ?: return@CallerResolver Caller.ANONYMOUS
         val employee = headers.firstHeader(ROLE)?.trim() == EMPLOYEE
-        Caller(
+        Caller.of(
             tenantId = Caller.DEFAULT_TENANT,
             scope = if (employee) Scope.NONE else Scope(ownerId = user),
             subject = user,

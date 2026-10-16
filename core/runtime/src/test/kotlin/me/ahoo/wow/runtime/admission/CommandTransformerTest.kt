@@ -346,7 +346,7 @@ class CommandTransformerTest {
         byUsername.transform(input).aggregateId.assert().isNull()
         // Another tenant's key is not found (finding A1-3); an id with a slash is read as it is (finding A1-10).
         reservations.reserve(
-            scope.copy(tenantId = "elsewhere"),
+            scope.copyWith(tenantId = "elsewhere"),
             "grace",
             TYPE.ref("elsewhere", "acc-9"),
             "h",

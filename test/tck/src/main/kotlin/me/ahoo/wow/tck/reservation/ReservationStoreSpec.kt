@@ -248,7 +248,7 @@ abstract class ReservationStoreSpec {
 
     @Test
     fun `namespaces are separate`(): Unit = runBlocking {
-        val other = scope.copy(namespace = "$namespace-other")
+        val other = scope.copyWith(namespace = "$namespace-other")
         store.reserve(scope, "alice", user1, H1, TTL)
         store.reserve(other, "alice", user2, H1, TTL)?.owner.assert().isEqualTo(user2)
         store.release(scope, "alice", user1).assert().isTrue()
@@ -257,7 +257,7 @@ abstract class ReservationStoreSpec {
 
     @Test
     fun `tenants are separate`(): Unit = runBlocking {
-        val otherTenant = scope.copy(tenantId = "tenant-b")
+        val otherTenant = scope.copyWith(tenantId = "tenant-b")
         val elsewhere = owner("user-1", tenant = "tenant-b")
         val mine = store.reserve(scope, "alice", user1, H1, TTL)
         val theirs = store.reserve(otherTenant, "alice", elsewhere, H1, TTL)
@@ -271,7 +271,7 @@ abstract class ReservationStoreSpec {
 
     @Test
     fun `contexts are separate`(): Unit = runBlocking {
-        val otherContext = scope.copy(context = "$CONTEXT-other")
+        val otherContext = scope.copyWith(context = "$CONTEXT-other")
         val elsewhere = AggregateType("$CONTEXT-other", "user").ref(TENANT, "user-1")
         val mine = store.reserve(scope, "alice", user1, H1, TTL)
         store.reserve(otherContext, "alice", elsewhere, H1, TTL)?.owner.assert().isEqualTo(elsewhere)
@@ -299,7 +299,7 @@ abstract class ReservationStoreSpec {
 
     @Test
     fun `a system key is unique across tenants and apart from the tenants' own keys`(): Unit = runBlocking {
-        val system = scope.copy(tenantId = ReservationScope.SYSTEM_TENANT)
+        val system = scope.copyWith(tenantId = ReservationScope.SYSTEM_TENANT)
         val elsewhere = owner("user-2", tenant = "tenant-b")
         store.reserve(system, "alice", user1, H1, TTL)?.scope?.isSystem.assert().isEqualTo(true)
         store.reserve(system, "alice", elsewhere, H2, TTL).assert().isNull()

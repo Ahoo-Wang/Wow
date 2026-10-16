@@ -29,7 +29,7 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
     @Test
     fun `creating the schema twice keeps the snapshots`(): Unit = runBlocking {
         val context = PostgresFixture.newContext()
-        val saved = snapshot("a", 1).copy(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
+        val saved = snapshot("a", 1).copyWith(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
         PostgresFixture.snapshotStore(context).save(saved).assert().isTrue()
         PostgresFixture.snapshotStore(context).load(saved.ref)?.version.assert().isEqualTo(1)
     }
@@ -40,7 +40,7 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
         PostgresFixture.snapshotStore(context).createTable("aggregate")
         PostgresFixture.bumpFormat(table(context, "aggregate"))
         assertThrownBy<IllegalStateException> { PostgresFixture.snapshotStore(context).createTable("aggregate") }
-        val saved = snapshot("a", 1).copy(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
+        val saved = snapshot("a", 1).copyWith(ref = AggregateType(context, "aggregate").ref("tenant", "a"))
         assertThrownBy<IllegalStateException> { runBlocking { PostgresFixture.snapshotStore(context).save(saved) } }
     }
 
@@ -55,8 +55,8 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
     fun `each aggregate type has a table of its own`(): Unit = runBlocking {
         val context = PostgresFixture.newContext()
         val store = PostgresFixture.snapshotStore(context)
-        val order = snapshot("a", 1).copy(ref = AggregateType(context, "Order-Item").ref("tenant", "a"))
-        val cart = snapshot("a", 2).copy(ref = AggregateType(context, "cart").ref("tenant", "a"))
+        val order = snapshot("a", 1).copyWith(ref = AggregateType(context, "Order-Item").ref("tenant", "a"))
+        val cart = snapshot("a", 2).copyWith(ref = AggregateType(context, "cart").ref("tenant", "a"))
         store.save(order).assert().isTrue()
         store.save(cart).assert().isTrue()
         store.load(order.ref)?.version.assert().isEqualTo(1)
@@ -68,7 +68,7 @@ class PostgresSnapshotStoreTest : SnapshotStoreSpec() {
     @Test
     fun `a snapshot of another context is refused`(): Unit = runBlocking {
         val store = PostgresFixture.snapshotStore()
-        val foreign = snapshot("a", 1).copy(ref = AggregateType("elsewhere", "aggregate").ref("tenant", "a"))
+        val foreign = snapshot("a", 1).copyWith(ref = AggregateType("elsewhere", "aggregate").ref("tenant", "a"))
         assertThrownBy<IllegalArgumentException> { runBlocking { store.save(foreign) } }
         assertThrownBy<IllegalArgumentException> { runBlocking { store.load(foreign.ref) } }
     }

@@ -1,19 +1,6 @@
 public final class me/ahoo/wow/manifest/AggregateManifest {
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/manifest/StateManifest;Lme/ahoo/wow/manifest/SnapshotManifest;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/manifest/Ownership;Ljava/util/List;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/manifest/StateManifest;Lme/ahoo/wow/manifest/SnapshotManifest;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/manifest/Ownership;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component10 ()Lme/ahoo/wow/manifest/Ownership;
-	public final fun component11 ()Ljava/util/List;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun component3 ()Lme/ahoo/wow/manifest/StateManifest;
-	public final fun component4 ()Lme/ahoo/wow/manifest/SnapshotManifest;
-	public final fun component5 ()Ljava/util/List;
-	public final fun component6 ()Ljava/util/List;
-	public final fun component7 ()Ljava/util/List;
-	public final fun component8 ()Ljava/util/List;
-	public final fun component9 ()Ljava/util/List;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/manifest/StateManifest;Lme/ahoo/wow/manifest/SnapshotManifest;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/manifest/Ownership;Ljava/util/List;)Lme/ahoo/wow/manifest/AggregateManifest;
-	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/AggregateManifest;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/manifest/StateManifest;Lme/ahoo/wow/manifest/SnapshotManifest;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/manifest/Ownership;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/manifest/AggregateManifest;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCommands ()Ljava/util/List;
 	public final fun getDescription ()Ljava/lang/String;
@@ -28,22 +15,14 @@ public final class me/ahoo/wow/manifest/AggregateManifest {
 	public final fun getState ()Lme/ahoo/wow/manifest/StateManifest;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+	public final fun withCommands (Ljava/util/List;)Lme/ahoo/wow/manifest/AggregateManifest;
+	public final fun withQueries (Ljava/util/List;)Lme/ahoo/wow/manifest/AggregateManifest;
+	public final fun withState (Lme/ahoo/wow/manifest/StateManifest;)Lme/ahoo/wow/manifest/AggregateManifest;
 }
 
 public final class me/ahoo/wow/manifest/CommandManifest {
 	public fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lme/ahoo/wow/manifest/Creation;Ljava/util/List;Ljava/util/List;ZLjava/util/List;Ljava/lang/String;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lme/ahoo/wow/manifest/Creation;Ljava/util/List;Ljava/util/List;ZLjava/util/List;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Ljava/util/List;
-	public final fun component3 ()Ljava/lang/String;
-	public final fun component4 ()Lme/ahoo/wow/manifest/Creation;
-	public final fun component5 ()Ljava/util/List;
-	public final fun component6 ()Ljava/util/List;
-	public final fun component7 ()Z
-	public final fun component8 ()Ljava/util/List;
-	public final fun component9 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lme/ahoo/wow/manifest/Creation;Ljava/util/List;Ljava/util/List;ZLjava/util/List;Ljava/lang/String;)Lme/ahoo/wow/manifest/CommandManifest;
-	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/CommandManifest;Ljava/lang/String;Ljava/util/List;Ljava/lang/String;Lme/ahoo/wow/manifest/Creation;Ljava/util/List;Ljava/util/List;ZLjava/util/List;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/CommandManifest;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAliases ()Ljava/util/List;
 	public final fun getCreation ()Lme/ahoo/wow/manifest/Creation;
@@ -56,6 +35,7 @@ public final class me/ahoo/wow/manifest/CommandManifest {
 	public final fun getTransformsTo ()Ljava/util/List;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+	public final fun withRoutes (Ljava/util/List;)Lme/ahoo/wow/manifest/CommandManifest;
 }
 
 public final class me/ahoo/wow/manifest/CommandRoutes {
@@ -76,14 +56,6 @@ public final class me/ahoo/wow/manifest/CommandRoutes {
 public final class me/ahoo/wow/manifest/ContextManifest {
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun component3 ()Ljava/util/List;
-	public final fun component4 ()Ljava/util/List;
-	public final fun component5 ()Ljava/util/List;
-	public final fun component6 ()Ljava/util/List;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/manifest/ContextManifest;
-	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/ContextManifest;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/manifest/ContextManifest;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAggregates ()Ljava/util/List;
 	public final fun getDescription ()Ljava/lang/String;
@@ -93,6 +65,7 @@ public final class me/ahoo/wow/manifest/ContextManifest {
 	public final fun getSubscriptions ()Ljava/util/List;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+	public final fun withAggregates (Ljava/util/List;)Lme/ahoo/wow/manifest/ContextManifest;
 }
 
 public final class me/ahoo/wow/manifest/ContextName {
@@ -114,11 +87,6 @@ public final class me/ahoo/wow/manifest/Creation : java/lang/Enum {
 public final class me/ahoo/wow/manifest/ErrorManifest {
 	public fun <init> (Ljava/lang/String;ILjava/lang/String;)V
 	public synthetic fun <init> (Ljava/lang/String;ILjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()I
-	public final fun component3 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;ILjava/lang/String;)Lme/ahoo/wow/manifest/ErrorManifest;
-	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/ErrorManifest;Ljava/lang/String;ILjava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/ErrorManifest;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCode ()Ljava/lang/String;
 	public final fun getDescription ()Ljava/lang/String;
@@ -130,13 +98,6 @@ public final class me/ahoo/wow/manifest/ErrorManifest {
 public final class me/ahoo/wow/manifest/EventManifest {
 	public fun <init> (Ljava/lang/String;Ljava/util/List;ILjava/lang/String;Ljava/lang/String;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;ILjava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Ljava/util/List;
-	public final fun component3 ()I
-	public final fun component4 ()Ljava/lang/String;
-	public final fun component5 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;Ljava/util/List;ILjava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/EventManifest;
-	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/EventManifest;Ljava/lang/String;Ljava/util/List;ILjava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/EventManifest;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAliases ()Ljava/util/List;
 	public final fun getDescription ()Ljava/lang/String;
@@ -194,12 +155,6 @@ public final class me/ahoo/wow/manifest/FunctionKind : java/lang/Enum {
 
 public final class me/ahoo/wow/manifest/FunctionManifest {
 	public fun <init> (Lme/ahoo/wow/manifest/FunctionKind;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
-	public final fun component1 ()Lme/ahoo/wow/manifest/FunctionKind;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun component3 ()Ljava/lang/String;
-	public final fun component4 ()Ljava/lang/String;
-	public final fun copy (Lme/ahoo/wow/manifest/FunctionKind;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/FunctionManifest;
-	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/FunctionManifest;Lme/ahoo/wow/manifest/FunctionKind;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/FunctionManifest;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getContext ()Ljava/lang/String;
 	public final fun getKind ()Lme/ahoo/wow/manifest/FunctionKind;
@@ -212,14 +167,6 @@ public final class me/ahoo/wow/manifest/FunctionManifest {
 public final class me/ahoo/wow/manifest/JobManifest {
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun component3 ()Ljava/lang/String;
-	public final fun component4 ()Ljava/lang/String;
-	public final fun component5 ()Z
-	public final fun component6 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;)Lme/ahoo/wow/manifest/JobManifest;
-	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/JobManifest;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ZLjava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/JobManifest;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCron ()Ljava/lang/String;
 	public final fun getMisfire ()Ljava/lang/String;
@@ -238,13 +185,6 @@ public final class me/ahoo/wow/manifest/Manifest {
 	public fun <init> ()V
 	public fun <init> (ILme/ahoo/wow/manifest/ServiceInfo;Ljava/util/List;Ljava/util/List;Ljava/util/Map;)V
 	public synthetic fun <init> (ILme/ahoo/wow/manifest/ServiceInfo;Ljava/util/List;Ljava/util/List;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()I
-	public final fun component2 ()Lme/ahoo/wow/manifest/ServiceInfo;
-	public final fun component3 ()Ljava/util/List;
-	public final fun component4 ()Ljava/util/List;
-	public final fun component5 ()Ljava/util/Map;
-	public final fun copy (ILme/ahoo/wow/manifest/ServiceInfo;Ljava/util/List;Ljava/util/List;Ljava/util/Map;)Lme/ahoo/wow/manifest/Manifest;
-	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/Manifest;ILme/ahoo/wow/manifest/ServiceInfo;Ljava/util/List;Ljava/util/List;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/manifest/Manifest;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getContexts ()Ljava/util/List;
 	public final fun getDefs ()Ljava/util/Map;
@@ -255,6 +195,8 @@ public final class me/ahoo/wow/manifest/Manifest {
 	public final fun getUnresolvedSchemaRefs ()Ljava/util/List;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+	public final fun withContexts (Ljava/util/List;)Lme/ahoo/wow/manifest/Manifest;
+	public final fun withDefs (Ljava/util/Map;)Lme/ahoo/wow/manifest/Manifest;
 }
 
 public final class me/ahoo/wow/manifest/Manifest$Companion {
@@ -269,10 +211,6 @@ public final class me/ahoo/wow/manifest/ManifestConflictException : java/lang/Il
 
 public final class me/ahoo/wow/manifest/ManifestFragment {
 	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/manifest/Manifest;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Lme/ahoo/wow/manifest/Manifest;
-	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/manifest/Manifest;)Lme/ahoo/wow/manifest/ManifestFragment;
-	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/ManifestFragment;Ljava/lang/String;Lme/ahoo/wow/manifest/Manifest;ILjava/lang/Object;)Lme/ahoo/wow/manifest/ManifestFragment;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getManifest ()Lme/ahoo/wow/manifest/Manifest;
 	public final fun getSource ()Ljava/lang/String;
@@ -314,11 +252,6 @@ public final class me/ahoo/wow/manifest/PublishedManifest {
 	public static final field Companion Lme/ahoo/wow/manifest/PublishedManifest$Companion;
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;Z)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun component3 ()Z
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;Z)Lme/ahoo/wow/manifest/PublishedManifest;
-	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/PublishedManifest;Ljava/lang/String;Ljava/lang/String;ZILjava/lang/Object;)Lme/ahoo/wow/manifest/PublishedManifest;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAggregate ()Ljava/lang/String;
 	public final fun getIncludeState ()Z
@@ -334,10 +267,6 @@ public final class me/ahoo/wow/manifest/PublishedManifest$Companion {
 public final class me/ahoo/wow/manifest/QueryManifest {
 	public fun <init> (Ljava/lang/String;Ljava/util/List;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Ljava/util/List;
-	public final fun copy (Ljava/lang/String;Ljava/util/List;)Lme/ahoo/wow/manifest/QueryManifest;
-	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/QueryManifest;Ljava/lang/String;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/manifest/QueryManifest;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getModel ()Ljava/lang/String;
 	public final fun getRoutes ()Ljava/util/List;
@@ -359,12 +288,6 @@ public final class me/ahoo/wow/manifest/RetryManifest {
 	public fun <init> ()V
 	public fun <init> (Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
 	public synthetic fun <init> (Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/Integer;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun component3 ()Ljava/lang/String;
-	public final fun component4 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/RetryManifest;
-	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/RetryManifest;Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/RetryManifest;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getInitialBackoff ()Ljava/lang/String;
 	public final fun getMaxAttempts ()Ljava/lang/Integer;
@@ -376,10 +299,6 @@ public final class me/ahoo/wow/manifest/RetryManifest {
 
 public final class me/ahoo/wow/manifest/RouteManifest {
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/RouteManifest;
-	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/RouteManifest;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/RouteManifest;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getMethod ()Ljava/lang/String;
 	public final fun getPath ()Ljava/lang/String;
@@ -390,10 +309,6 @@ public final class me/ahoo/wow/manifest/RouteManifest {
 public final class me/ahoo/wow/manifest/ServiceInfo {
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/ServiceInfo;
-	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/ServiceInfo;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/ServiceInfo;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getName ()Ljava/lang/String;
 	public final fun getVersion ()Ljava/lang/String;
@@ -405,10 +320,6 @@ public final class me/ahoo/wow/manifest/SnapshotManifest {
 	public fun <init> ()V
 	public fun <init> (ZI)V
 	public synthetic fun <init> (ZIILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Z
-	public final fun component2 ()I
-	public final fun copy (ZI)Lme/ahoo/wow/manifest/SnapshotManifest;
-	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/SnapshotManifest;ZIILjava/lang/Object;)Lme/ahoo/wow/manifest/SnapshotManifest;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getEnabled ()Z
 	public final fun getStateRevision ()I
@@ -419,15 +330,12 @@ public final class me/ahoo/wow/manifest/SnapshotManifest {
 public final class me/ahoo/wow/manifest/StateManifest {
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Ljava/lang/String;
-	public final fun copy (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/StateManifest;
-	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/StateManifest;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/manifest/StateManifest;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getFingerprint ()Ljava/lang/String;
 	public final fun getSchema ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+	public final fun withFingerprint (Ljava/lang/String;)Lme/ahoo/wow/manifest/StateManifest;
 }
 
 public final class me/ahoo/wow/manifest/SubscriptionKind : java/lang/Enum {
@@ -442,19 +350,6 @@ public final class me/ahoo/wow/manifest/SubscriptionKind : java/lang/Enum {
 public final class me/ahoo/wow/manifest/SubscriptionManifest {
 	public fun <init> (Ljava/lang/String;Lme/ahoo/wow/manifest/SubscriptionKind;Lme/ahoo/wow/manifest/SubscriptionSource;Lme/ahoo/wow/manifest/FunctionManifest;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/manifest/SubscriptionStart;Ljava/util/List;Lme/ahoo/wow/manifest/RetryManifest;Ljava/util/List;Lme/ahoo/wow/manifest/JobManifest;)V
 	public synthetic fun <init> (Ljava/lang/String;Lme/ahoo/wow/manifest/SubscriptionKind;Lme/ahoo/wow/manifest/SubscriptionSource;Lme/ahoo/wow/manifest/FunctionManifest;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/manifest/SubscriptionStart;Ljava/util/List;Lme/ahoo/wow/manifest/RetryManifest;Ljava/util/List;Lme/ahoo/wow/manifest/JobManifest;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component10 ()Ljava/util/List;
-	public final fun component11 ()Lme/ahoo/wow/manifest/JobManifest;
-	public final fun component2 ()Lme/ahoo/wow/manifest/SubscriptionKind;
-	public final fun component3 ()Lme/ahoo/wow/manifest/SubscriptionSource;
-	public final fun component4 ()Lme/ahoo/wow/manifest/FunctionManifest;
-	public final fun component5 ()Ljava/util/List;
-	public final fun component6 ()Ljava/util/List;
-	public final fun component7 ()Lme/ahoo/wow/manifest/SubscriptionStart;
-	public final fun component8 ()Ljava/util/List;
-	public final fun component9 ()Lme/ahoo/wow/manifest/RetryManifest;
-	public final fun copy (Ljava/lang/String;Lme/ahoo/wow/manifest/SubscriptionKind;Lme/ahoo/wow/manifest/SubscriptionSource;Lme/ahoo/wow/manifest/FunctionManifest;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/manifest/SubscriptionStart;Ljava/util/List;Lme/ahoo/wow/manifest/RetryManifest;Ljava/util/List;Lme/ahoo/wow/manifest/JobManifest;)Lme/ahoo/wow/manifest/SubscriptionManifest;
-	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/SubscriptionManifest;Ljava/lang/String;Lme/ahoo/wow/manifest/SubscriptionKind;Lme/ahoo/wow/manifest/SubscriptionSource;Lme/ahoo/wow/manifest/FunctionManifest;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/manifest/SubscriptionStart;Ljava/util/List;Lme/ahoo/wow/manifest/RetryManifest;Ljava/util/List;Lme/ahoo/wow/manifest/JobManifest;ILjava/lang/Object;)Lme/ahoo/wow/manifest/SubscriptionManifest;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCommitted ()Ljava/util/List;
 	public final fun getDerives ()Ljava/util/List;
@@ -476,12 +371,6 @@ public final class me/ahoo/wow/manifest/SubscriptionSource {
 	public fun <init> ()V
 	public fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/util/List;Z)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/util/List;Ljava/util/List;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1 ()Ljava/lang/String;
-	public final fun component2 ()Ljava/util/List;
-	public final fun component3 ()Ljava/util/List;
-	public final fun component4 ()Z
-	public final fun copy (Ljava/lang/String;Ljava/util/List;Ljava/util/List;Z)Lme/ahoo/wow/manifest/SubscriptionSource;
-	public static synthetic fun copy$default (Lme/ahoo/wow/manifest/SubscriptionSource;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ZILjava/lang/Object;)Lme/ahoo/wow/manifest/SubscriptionSource;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAggregates ()Ljava/util/List;
 	public final fun getContext ()Ljava/lang/String;

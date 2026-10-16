@@ -110,7 +110,7 @@ class ScheduleJobModelTest {
 
     @Test
     fun `a catching-up job runs each slot it missed`() {
-        val catchUp = ScheduleJob("invoice", monthly.copy(misfire = Misfire.CATCH_UP), JobScope.TENANT)
+        val catchUp = ScheduleJob("invoice", monthly.copyWith(misfire = Misfire.CATCH_UP), JobScope.TENANT)
         aggregateSpec(ScheduleJobModel.model("billing", listOf(catchUp)), id = "invoice", tenantId = "acme") {
             whenCommand(EnableJob("invoice")) { expectEventTypes(JobEnabled::class) }
             advanceTime(91.days) {
@@ -128,7 +128,7 @@ class ScheduleJobModelTest {
         val shanghai = JobRule(zone = "Asia/Shanghai")
         aggregateSpec(model, id = "invoice", tenantId = "acme") {
             whenCommand(EnableJob("invoice", shanghai)) {
-                expectEvents(JobEnabled("invoice", monthly.copy(zone = "Asia/Shanghai"), shanghai))
+                expectEvents(JobEnabled("invoice", monthly.copyWith(zone = "Asia/Shanghai"), shanghai))
             }
             // Midnight of February 1st in Shanghai is 16:00 UTC on January 31st.
             advanceTime(30.days + 16.hours) {

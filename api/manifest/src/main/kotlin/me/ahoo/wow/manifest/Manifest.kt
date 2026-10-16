@@ -33,8 +33,10 @@ package me.ahoo.wow.manifest
  * wrote it decides the command; else
  * by the schema reference of its class (`#/$defs/<binary name>`, [schemaRef]): [defs] holds its schema like any other,
  * and the Manifest of the context that decides it (a peer Manifest, decision D139) names it by the same schema.
+ *
+ * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-data class Manifest(
+class Manifest(
     val format: Int = FORMAT,
     val service: ServiceInfo? = null,
     val contexts: List<ContextManifest> = emptyList(),
@@ -61,6 +63,22 @@ data class Manifest(
     val unresolvedSchemaRefs: List<String>
         get() = schemaRefs.distinct().filter { schemaKey(it) !in defs }
 
+    override fun equals(other: Any?): Boolean =
+        this === other || other is Manifest && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "Manifest(format=$format, service=$service, contexts=$contexts, errors=$errors, defs=$defs)"
+
+    /** This Manifest with [contexts] in place of its own. */
+    fun withContexts(contexts: List<ContextManifest>): Manifest = Manifest(format, service, contexts, errors, defs)
+
+    /** This Manifest with [defs] in place of its own. */
+    fun withDefs(defs: Map<String, Any?>): Manifest = Manifest(format, service, contexts, errors, defs)
+
+    private fun valueFields(): List<Any?> = listOf(format, service, contexts, errors, defs)
+
     companion object {
         /** The format version of this structure (decision D59); a reader refuses another. */
         const val FORMAT: Int = 1
@@ -81,22 +99,52 @@ data class Manifest(
     }
 }
 
-/** The service a merged Manifest describes; a fragment has none. */
-data class ServiceInfo(val name: String, val version: String? = null)
+/**
+ * The service a merged Manifest describes; a fragment has none.
+ *
+ * Fields may be added (decision D59): pass the constructor's arguments by name.
+ */
+class ServiceInfo(val name: String, val version: String? = null) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ServiceInfo && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "ServiceInfo(name=$name, version=$version)"
+
+    private fun valueFields(): List<Any?> = listOf(name, version)
+}
 
 /**
  * A bounded context. [errors] optionally documents the domain's rejection codes, the `@ErrorCode` constants of its
  * module (decision D121); they are runtime strings, so the list is neither complete nor checked against what the code
  * rejects with, and a `wow.*` code is not the context's.
+ *
+ * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-data class ContextManifest(
+class ContextManifest(
     val name: String,
     val description: String? = null,
     val aggregates: List<AggregateManifest> = emptyList(),
     val subscriptions: List<SubscriptionManifest> = emptyList(),
     val published: List<PublishedManifest> = emptyList(),
     val errors: List<ErrorManifest> = emptyList(),
-)
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ContextManifest && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "ContextManifest(name=$name, description=$description, aggregates=$aggregates, " +
+            "subscriptions=$subscriptions, published=$published, errors=$errors)"
+
+    /** This ContextManifest with [aggregates] in place of its own. */
+    fun withAggregates(aggregates: List<AggregateManifest>): ContextManifest =
+        ContextManifest(name, description, aggregates, subscriptions, published, errors)
+
+    private fun valueFields(): List<Any?> = listOf(name, description, aggregates, subscriptions, published, errors)
+}
 
 /**
  * An aggregate of a context. [lifecycle] lists the system commands (design 01 §6) the aggregate's model handles, by
@@ -117,8 +165,10 @@ data class ContextManifest(
  * finding A4-12): the stored names whose records are skipped, as [EventManifest.aliases] writes names (without a dot
  * within the aggregate, else full). The compatibility gate takes an event removed and retired for a retirement, and
  * the data migration checks a mapping to a retired name against it.
+ *
+ * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-data class AggregateManifest(
+class AggregateManifest(
     val name: String,
     val description: String? = null,
     val state: StateManifest,
@@ -130,7 +180,79 @@ data class AggregateManifest(
     val schedules: List<String>? = null,
     val ownership: Ownership = Ownership.OWNER,
     val retired: List<String> = emptyList(),
-)
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is AggregateManifest && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "AggregateManifest(name=$name, description=$description, state=$state, snapshot=$snapshot, " +
+            "commands=$commands, events=$events, lifecycle=$lifecycle, queries=$queries, schedules=$schedules, " +
+            "ownership=$ownership, retired=$retired)"
+
+    /** This AggregateManifest with [state] in place of its own. */
+    fun withState(state: StateManifest): AggregateManifest =
+        AggregateManifest(
+            name,
+            description,
+            state,
+            snapshot,
+            commands,
+            events,
+            lifecycle,
+            queries,
+            schedules,
+            ownership,
+            retired,
+        )
+
+    /** This AggregateManifest with [commands] in place of its own. */
+    fun withCommands(commands: List<CommandManifest>): AggregateManifest =
+        AggregateManifest(
+            name,
+            description,
+            state,
+            snapshot,
+            commands,
+            events,
+            lifecycle,
+            queries,
+            schedules,
+            ownership,
+            retired,
+        )
+
+    /** This AggregateManifest with [queries] in place of its own. */
+    fun withQueries(queries: List<QueryManifest>): AggregateManifest =
+        AggregateManifest(
+            name,
+            description,
+            state,
+            snapshot,
+            commands,
+            events,
+            lifecycle,
+            queries,
+            schedules,
+            ownership,
+            retired,
+        )
+
+    private fun valueFields(): List<Any?> = listOf(
+        name,
+        description,
+        state,
+        snapshot,
+        commands,
+        events,
+        lifecycle,
+        queries,
+        schedules,
+        ownership,
+        retired,
+    )
+}
 
 /** Who an aggregate belongs to besides its tenant (`me.ahoo.wow.api.aggregate.Ownership`, decision D189). */
 enum class Ownership {
@@ -144,19 +266,44 @@ enum class Ownership {
 /**
  * The aggregate's state: its [schema], and the [fingerprint] a snapshot written under it carries (design 03 §3);
  * the fingerprint is null until the schemas are generated.
+ *
+ * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-data class StateManifest(val schema: String, val fingerprint: String? = null)
+class StateManifest(val schema: String, val fingerprint: String? = null) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is StateManifest && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "StateManifest(schema=$schema, fingerprint=$fingerprint)"
+
+    /** This StateManifest with [fingerprint] in place of its own. */
+    fun withFingerprint(fingerprint: String?): StateManifest = StateManifest(schema, fingerprint)
+
+    private fun valueFields(): List<Any?> = listOf(schema, fingerprint)
+}
 
 /**
  * Whether the aggregate keeps snapshots ([enabled], decisions D4, D195), and the revision of its state's structure
  * the snapshots are written at ([stateRevision], decision D172): raised, the service rebuilds the stored snapshots in
  * place, and the compatibility gate accepts a state schema change of an aggregate whose state no one else reads (no
  * snapshot query, no published stream with the state).
+ *
+ * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-data class SnapshotManifest(val enabled: Boolean = true, val stateRevision: Int = 1) {
+class SnapshotManifest(val enabled: Boolean = true, val stateRevision: Int = 1) {
     init {
         require(stateRevision >= 1) { "A state revision starts at 1." }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is SnapshotManifest && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "SnapshotManifest(enabled=$enabled, stateRevision=$stateRevision)"
+
+    private fun valueFields(): List<Any?> = listOf(enabled, stateRevision)
 }
 
 /**
@@ -165,8 +312,19 @@ data class SnapshotManifest(val enabled: Boolean = true, val stateRevision: Int 
  * of its capability descriptor ([QueryRoutes]). What a model can do (its operations, fields, limits) is not here: it
  * depends on the query backend the service runs on, which the build does not know (decision D110), and the
  * descriptor route answers it.
+ *
+ * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-data class QueryManifest(val model: String, val routes: List<RouteManifest> = emptyList())
+class QueryManifest(val model: String, val routes: List<RouteManifest> = emptyList()) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is QueryManifest && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "QueryManifest(model=$model, routes=$routes)"
+
+    private fun valueFields(): List<Any?> = listOf(model, routes)
+}
 
 /**
  * A command the aggregate decides, or one [mounted] under its routes.
@@ -183,8 +341,10 @@ data class QueryManifest(val model: String, val routes: List<RouteManifest> = em
  *
  * [description] is what the command's class says it does: its `@Description`, else the summary of its KDoc; null when
  * it says nothing. It documents the command for a client, and is no part of the contract.
+ *
+ * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-data class CommandManifest(
+class CommandManifest(
     val name: String,
     val aliases: List<String> = emptyList(),
     val schema: String,
@@ -194,20 +354,67 @@ data class CommandManifest(
     val mounted: Boolean = false,
     val transformsTo: List<String>? = null,
     val description: String? = null,
-)
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is CommandManifest && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "CommandManifest(name=$name, aliases=$aliases, schema=$schema, creation=$creation, produces=$produces, " +
+            "routes=$routes, mounted=$mounted, transformsTo=$transformsTo, description=$description)"
+
+    /** This CommandManifest with [routes] in place of its own. */
+    fun withRoutes(routes: List<RouteManifest>): CommandManifest =
+        CommandManifest(name, aliases, schema, creation, produces, routes, mounted, transformsTo, description)
+
+    private fun valueFields(): List<Any?> = listOf(
+        name,
+        aliases,
+        schema,
+        creation,
+        produces,
+        routes,
+        mounted,
+        transformsTo,
+        description,
+    )
+}
 
 /**
  * An HTTP route: its [method] and its [path], a template whose variables are written literally in braces
  * (`/shop/cart/{id}/add-item`).
+ *
+ * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-data class RouteManifest(val method: String, val path: String)
+class RouteManifest(val method: String, val path: String) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is RouteManifest && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "RouteManifest(method=$method, path=$path)"
+
+    private fun valueFields(): List<Any?> = listOf(method, path)
+}
 
 /**
  * An error code a client may receive: its [code], the HTTP [status] it is answered with, and what it means. The
  * code is the `code` of a `CommandResult` and of a problem+json body, whose `type` is `urn:wow:error:<code>`
  * (decision D101).
+ *
+ * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-data class ErrorManifest(val code: String, val status: Int, val description: String? = null)
+class ErrorManifest(val code: String, val status: Int, val description: String? = null) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ErrorManifest && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "ErrorManifest(code=$code, status=$status, description=$description)"
+
+    private fun valueFields(): List<Any?> = listOf(code, status, description)
+}
 
 /** Whether a command creates its aggregate (`@CreateAggregate`, `@AllowCreate`). */
 enum class Creation {
@@ -224,14 +431,26 @@ enum class Creation {
 /**
  * An event of the aggregate: its name in the log, its [revision] and former names (design 01 §8), and its
  * [description], as for a [CommandManifest].
+ *
+ * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-data class EventManifest(
+class EventManifest(
     val name: String,
     val aliases: List<String> = emptyList(),
     val revision: Int = 1,
     val schema: String,
     val description: String? = null,
-)
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is EventManifest && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "EventManifest(name=$name, aliases=$aliases, revision=$revision, schema=$schema, description=$description)"
+
+    private fun valueFields(): List<Any?> = listOf(name, aliases, revision, schema, description)
+}
 
 /**
  * A subscription: one handler of a processor, named `processor.function` (design 04 §1).
@@ -256,8 +475,10 @@ data class EventManifest(
  * - [job] is the job of a saga's `@OnSchedule` handler (decision D198): its subscription reads the context's built-in
  *   job aggregate `<context>.schedule` ([source]) and hands its job's ticks to the handler. Null for an `@OnEvent`
  *   handler.
+ *
+ * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-data class SubscriptionManifest(
+class SubscriptionManifest(
     val name: String,
     val kind: SubscriptionKind,
     val source: SubscriptionSource,
@@ -272,32 +493,80 @@ data class SubscriptionManifest(
 ) {
     /** Whether it is a saga's `@OnRejected` or `@OnCommitted` handler: it reads receipts, not the log (D136, D192). */
     val isReceiptHandler: Boolean get() = rejected != null || committed != null
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is SubscriptionManifest && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "SubscriptionManifest(name=$name, kind=$kind, source=$source, function=$function, derives=$derives, " +
+            "rejected=$rejected, start=$start, schedules=$schedules, retry=$retry, committed=$committed, job=$job)"
+
+    private fun valueFields(): List<Any?> = listOf(
+        name,
+        kind,
+        source,
+        function,
+        derives,
+        rejected,
+        start,
+        schedules,
+        retry,
+        committed,
+        job,
+    )
 }
 
 /**
  * A job of an `@OnSchedule` handler (decision D198): its [name], its default rule ([cron] read in [zone], missed slots
  * handled as [misfire] says: `COALESCE` or `CATCH_UP`), its [scope] (`SYSTEM` or `TENANT`) and whether it is [sharded].
  * The host's `wow.schedules.<name>.*` overrides the rule.
+ *
+ * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-data class JobManifest(
+class JobManifest(
     val name: String,
     val cron: String,
     val zone: String = "UTC",
     val scope: String = "SYSTEM",
     val sharded: Boolean = false,
     val misfire: String = "COALESCE",
-)
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is JobManifest && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "JobManifest(name=$name, cron=$cron, zone=$zone, scope=$scope, sharded=$sharded, misfire=$misfire)"
+
+    private fun valueFields(): List<Any?> = listOf(name, cron, zone, scope, sharded, misfire)
+}
 
 /**
  * A subscription handler's in-process retry budget as `@Retry` declares it (roadmap P.3): each setting null when it
  * is not given. Durations are ISO-8601 (`PT2S`).
+ *
+ * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-data class RetryManifest(
+class RetryManifest(
     val maxAttempts: Int? = null,
     val initialBackoff: String? = null,
     val maxBackoff: String? = null,
     val timeout: String? = null,
-)
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is RetryManifest && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "RetryManifest(maxAttempts=$maxAttempts, initialBackoff=$initialBackoff, maxBackoff=$maxBackoff, " +
+            "timeout=$timeout)"
+
+    private fun valueFields(): List<Any?> = listOf(maxAttempts, initialBackoff, maxBackoff, timeout)
+}
 
 enum class SubscriptionKind { PROJECTION, REACTOR, SAGA }
 
@@ -327,41 +596,91 @@ enum class SubscriptionStart {
  *
  * [nullableState] says the handler takes a null state, `StateEvent<S?>` or `StateEvent<*>` (decision D140): only such
  * a handler may read a stream published without the state (`PublishedManifest.includeState = false`).
+ *
+ * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-data class SubscriptionSource(
+class SubscriptionSource(
     val context: String? = null,
     val aggregates: List<String> = emptyList(),
     val events: List<String> = emptyList(),
     val nullableState: Boolean = false,
-)
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is SubscriptionSource && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "SubscriptionSource(context=$context, aggregates=$aggregates, events=$events, nullableState=$nullableState)"
+
+    private fun valueFields(): List<Any?> = listOf(context, aggregates, events, nullableState)
+}
 
 /**
  * A stream of state events a context publishes for other contexts (decisions D58, D135): those of its [aggregate], on
  * the Kafka [topic] ([defaultTopic] unless overridden), each with the aggregate's state after the commit unless
  * [includeState] is false, for an aggregate whose state is too large (decision D140: a subscriber of such a stream
  * declares a nullable state).
+ *
+ * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
-data class PublishedManifest(
+class PublishedManifest(
     val aggregate: String,
     val topic: String,
     val includeState: Boolean = true,
 ) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is PublishedManifest && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "PublishedManifest(aggregate=$aggregate, topic=$topic, includeState=$includeState)"
+
+    private fun valueFields(): List<Any?> = listOf(aggregate, topic, includeState)
+
     companion object {
         /** The topic of the state events of [aggregate] of [context]: `wow.<context>.<aggregate>.state`. */
         fun defaultTopic(context: String, aggregate: String): String = "wow.$context.$aggregate.state"
     }
 }
 
-/** The function a subscription runs, as `CommandResult.function` names it. */
-data class FunctionManifest(
+/**
+ * The function a subscription runs, as `CommandResult.function` names it.
+ *
+ * Fields may be added (decision D59): pass the constructor's arguments by name.
+ */
+class FunctionManifest(
     val kind: FunctionKind,
     val context: String,
     val processor: String,
     val name: String,
-)
+) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is FunctionManifest && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "FunctionManifest(kind=$kind, context=$context, processor=$processor, name=$name)"
+
+    private fun valueFields(): List<Any?> = listOf(kind, context, processor, name)
+}
 
 /** The kinds of `me.ahoo.wow.api.result.FunctionKind` a Manifest names. */
 enum class FunctionKind { COMMAND, PROJECT, REACT, SAGA }
 
-/** A fragment and where it was read from, for the messages of [ManifestMerger]. */
-data class ManifestFragment(val source: String, val manifest: Manifest)
+/**
+ * A fragment and where it was read from, for the messages of [ManifestMerger].
+ *
+ * Fields may be added (decision D59): pass the constructor's arguments by name.
+ */
+class ManifestFragment(val source: String, val manifest: Manifest) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is ManifestFragment && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "ManifestFragment(source=$source, manifest=$manifest)"
+
+    private fun valueFields(): List<Any?> = listOf(source, manifest)
+}

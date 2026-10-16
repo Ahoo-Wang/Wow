@@ -88,13 +88,13 @@ class SchedulesTest {
         ScheduleContext.of(context.headers() + (ScheduleContext.SLOT to "x")).assert().isNull()
         ScheduleContext.of(context.headers() - ScheduleContext.SLOT).assert().isNull()
         ScheduleContext.of(context.headers() - ScheduleContext.DUE).assert().isNull()
-        val skipped = context.copy(slot = 5, skipped = 3)
+        val skipped = context.copyWith(slot = 5, skipped = 3)
         skipped.headers()[ScheduleContext.SKIPPED].assert().isEqualTo("3")
         ScheduleContext.of(skipped.headers()).assert().isEqualTo(skipped)
         // A slot skips only the slots before it: a count beyond them is read as none.
         ScheduleContext.of(
             skipped.headers() + (ScheduleContext.SKIPPED to "5")
-        ).assert().isEqualTo(skipped.copy(skipped = 0))
+        ).assert().isEqualTo(skipped.copyWith(skipped = 0))
         ScheduleContext.of(skipped.headers() + (ScheduleContext.SKIPPED to "x"))?.skipped.assert().isEqualTo(0L)
         context.headers().keys.assert().doesNotContain(ScheduleContext.SKIPPED)
         assertThrownBy<IllegalArgumentException> { ScheduleContext("t", "k", 1, 0, skipped = 1) }

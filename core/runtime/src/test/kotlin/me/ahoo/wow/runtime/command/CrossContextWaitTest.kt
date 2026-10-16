@@ -34,6 +34,7 @@ import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
@@ -116,9 +117,9 @@ class CrossContextWaitTest {
 
     /** The sales Manifest: it publishes its orders, and its saga declares it derives the stock's reservations. */
     private val salesManifest: Manifest = salesManifest().let { manifest ->
-        manifest.copy(
+        manifest.copyWith(
             contexts = manifest.contexts.map {
-                it.copy(
+                it.copyWith(
                     subscriptions = listOf(
                         SubscriptionManifest(
                             name = SAGA,
@@ -136,9 +137,9 @@ class CrossContextWaitTest {
 
     /** The stock Manifest: a projection and a saga of the published orders. */
     private val stockManifest: Manifest = stockManifest().let { manifest ->
-        manifest.copy(
+        manifest.copyWith(
             contexts = manifest.contexts.map {
-                it.copy(
+                it.copyWith(
                     subscriptions = listOf(
                         stockSubscription(BOARD, SubscriptionKind.PROJECTION),
                         stockSubscription(PICKER, SubscriptionKind.SAGA, derives = listOf("stock.item.Reserve")),
@@ -262,10 +263,12 @@ class CrossContextWaitTest {
         val contracts = ContractDirectory(salesManifest, listOf(peer(stockManifest)))
         contracts.commandsOutside(setOf(SALES, STOCK)).assert().isEmpty()
         contracts.commandsOutside(setOf(SALES)).assert().isEqualTo(mapOf("$SALES/$SAGA" to sortedSetOf(STOCK)))
-        val lifecycle = salesManifest.copy(
+        val lifecycle = salesManifest.copyWith(
             contexts = salesManifest.contexts.map { context ->
-                context.copy(
-                    subscriptions = context.subscriptions.map { it.copy(derives = Lifecycle.COMMANDS.keys.toList()) }
+                context.copyWith(
+                    subscriptions = context.subscriptions.map {
+                        it.copyWith(derives = Lifecycle.COMMANDS.keys.toList())
+                    },
                 )
             },
         )

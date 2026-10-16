@@ -114,6 +114,39 @@ class V10ArchitectureTest {
     }
 
     @Test
+    fun `the ABI of the api, spi and manifest modules should hold no data class but the listed exceptions`() {
+        V10Rules.dataClassMembers(repositoryRoot).assert().isEmpty()
+    }
+
+    @Test
+    fun `data class rule should catch a copy or componentN and a stale exception`(@TempDir root: File) {
+        val exceptions = V10Rules.DATA_CLASS_EXCEPTIONS.keys.toList()
+        V10Rules.PLAIN_CLASS_MODULES.forEach { module ->
+            File(root, "${module.dir}/api").mkdirs()
+            File(root, "${module.dir}/api/${module.name}.api").writeText("")
+        }
+        File(root, "${V10Rules.API.dir}/api/${V10Rules.API.name}.api").writeText(
+            (exceptions.drop(1) + "me/ahoo/wow/api/Record").joinToString("\n") { owner ->
+                """
+                public final class $owner {
+                	public final fun component1 ()Ljava/lang/String;
+                	public final fun copy (Ljava/lang/String;)L$owner;
+                	public static synthetic fun copy${'$'}default (L$owner;Ljava/lang/String;ILjava/lang/Object;)L$owner;
+                	public fun equals (Ljava/lang/Object;)Z
+                }
+                """.trimIndent()
+            },
+        )
+        V10Rules.dataClassMembers(root).assert().containsExactlyInAnyOrder(
+            "api/api/api/api.api: me/ahoo/wow/api/Record: public final fun component1 ()Ljava/lang/String;",
+            "api/api/api/api.api: me/ahoo/wow/api/Record: public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/api/Record;",
+            "api/api/api/api.api: me/ahoo/wow/api/Record: public static synthetic fun copy${'$'}default " +
+                "(Lme/ahoo/wow/api/Record;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/Record;",
+            "stale exception: ${exceptions.first()}",
+        )
+    }
+
+    @Test
     fun `core rule should catch a Reactor import and a fully-qualified driver reference`(@TempDir root: File) {
         root.writeSource(
             V10Rules.KERNEL.dir,

@@ -53,7 +53,7 @@ class FakeOrdering : AutoCloseable {
                     correlationId = call.causation.correlationId,
                     ref = ORDER.ref(call.tenantId, exchange.requestURI.path.split('/')[ID_SEGMENT]),
                     hop = Hop.committed(ORDER.context),
-                    function = FunctionInfo(FunctionKind.COMMAND, ORDER.context, ORDER.name, "SubmitOrder"),
+                    function = FunctionInfo.of(FunctionKind.COMMAND, ORDER.context, ORDER.name, "SubmitOrder"),
                     version = 1,
                     signalTime = System.currentTimeMillis(),
                 )

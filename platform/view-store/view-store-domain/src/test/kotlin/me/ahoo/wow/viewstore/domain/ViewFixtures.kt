@@ -34,7 +34,7 @@ object ViewFixtures {
     val SHARED: Scope = owner(ViewStoreContext.SHARED_OWNER_ID)
     val SYSTEM: Scope = owner(ViewStoreContext.SYSTEM_OWNER_ID)
 
-    fun operator(id: String): Operator = Operator(id, TENANT)
+    fun operator(id: String): Operator = Operator.of(id, TENANT)
 
     fun recordConfig(): Map<String, Any?> = mapOf("kind" to "record", "columns" to listOf("id", "status"))
 

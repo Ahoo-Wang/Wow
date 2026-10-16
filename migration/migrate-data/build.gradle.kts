@@ -16,6 +16,7 @@ dependencies {
     implementation(project(":postgres"))
     implementation(project(":mongo"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
+    testImplementation(testFixtures(project(":manifest")))
     integrationTestImplementation(project(":tck-containers"))
     // The 9.x example's fixtures and its V10 port, shared with the unit tests.
     integrationTestImplementation(sourceSets.test.get().output)

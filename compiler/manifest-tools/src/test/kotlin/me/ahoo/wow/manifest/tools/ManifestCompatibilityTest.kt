@@ -34,6 +34,7 @@ import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.manifest.SubscriptionStart
+import me.ahoo.wow.manifest.copyWith
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
@@ -108,24 +109,25 @@ class ManifestCompatibilityTest {
         )
 
         private fun Manifest.context(change: (ContextManifest) -> ContextManifest): Manifest =
-            copy(contexts = contexts.map(change))
+            copyWith(contexts = contexts.map(change))
 
         private fun Manifest.cart(change: (AggregateManifest) -> AggregateManifest): Manifest =
-            context { it.copy(aggregates = it.aggregates.map(change)) }
+            context { it.copyWith(aggregates = it.aggregates.map(change)) }
 
         private fun Manifest.addItem(change: (CommandManifest) -> CommandManifest): Manifest =
-            cart { it.copy(commands = it.commands.map(change)) }
+            cart { it.copyWith(commands = it.commands.map(change)) }
 
         private fun Manifest.itemAdded(change: (EventManifest) -> EventManifest): Manifest =
-            cart { it.copy(events = it.events.map(change)) }
+            cart { it.copyWith(events = it.events.map(change)) }
 
         private fun Manifest.subscription(change: (SubscriptionManifest) -> SubscriptionManifest): Manifest =
-            context { it.copy(subscriptions = it.subscriptions.map(change)) }
+            context { it.copyWith(subscriptions = it.subscriptions.map(change)) }
 
         private fun Manifest.published(change: (PublishedManifest) -> PublishedManifest): Manifest =
-            context { it.copy(published = it.published.map(change)) }
+            context { it.copyWith(published = it.published.map(change)) }
 
-        private fun Manifest.def(key: String, schema: Map<String, Any?>): Manifest = copy(defs = defs + (key to schema))
+        private fun Manifest.def(key: String, schema: Map<String, Any?>): Manifest =
+            copyWith(defs = defs + (key to schema))
 
         private fun row(name: String, current: Manifest, vararg expected: String): Arguments =
             Arguments.of(name, current, expected.toList())
@@ -134,7 +136,8 @@ class ManifestCompatibilityTest {
 
         /** The baseline of an aggregate no one but the service reads: no query model, no published stream. */
         private val UNEXPOSED: Manifest
-            get() = BASELINE.cart { it.copy(queries = emptyList()) }.context { it.copy(published = emptyList()) }
+            get() = BASELINE.cart { it.copyWith(queries = emptyList()) }
+                .context { it.copyWith(published = emptyList()) }
 
         private val NARROWED_EVENT =
             schema("productId" to STRING, "quantity" to STRING, required = listOf("productId", "quantity"))
@@ -146,40 +149,44 @@ class ManifestCompatibilityTest {
             row(
                 "descriptions, fingerprints, schedules and start positions are not contract",
                 BASELINE.cart {
-                    it.copy(description = "a cart", state = it.state.copy(fingerprint = "b"), schedules = listOf("x"))
-                }.subscription { it.copy(start = SubscriptionStart.END) },
+                    it.copyWith(
+                        description = "a cart",
+                        state = it.state.copyWith(fingerprint = "b"),
+                        schedules = listOf("x")
+                    )
+                }.subscription { it.copyWith(start = SubscriptionStart.END) },
             ),
             row(
                 "format changed",
-                BASELINE.copy(format = 2),
+                BASELINE.copyWith(format = 2),
                 "BREAKING format: the Manifest format changed from 1 to 2"
             ),
             row(
                 "service renamed",
-                BASELINE.copy(service = ServiceInfo("store", "10.1.0")),
+                BASELINE.copyWith(service = ServiceInfo("store", "10.1.0")),
                 "BREAKING service: the service was renamed from shop-service to store",
             ),
-            row("context removed", BASELINE.copy(contexts = emptyList()), "BREAKING $CONTEXT: context removed"),
+            row("context removed", BASELINE.copyWith(contexts = emptyList()), "BREAKING $CONTEXT: context removed"),
             row(
                 "context added",
-                BASELINE.copy(contexts = BASELINE.contexts + ContextManifest("billing")),
+                BASELINE.copyWith(contexts = BASELINE.contexts + ContextManifest("billing")),
                 "ADDITIVE contexts[billing]: context added",
             ),
             row(
                 "context renamed",
-                BASELINE.context { it.copy(name = "store") },
+                BASELINE.context { it.copyWith(name = "store") },
                 "BREAKING $CONTEXT: context removed",
                 "ADDITIVE contexts[store]: context added",
             ),
             row(
                 "aggregate removed",
-                BASELINE.context { it.copy(aggregates = emptyList()) },
+                BASELINE.context { it.copyWith(aggregates = emptyList()) },
                 "BREAKING $CART: aggregate removed"
             ),
             row(
                 "aggregate added",
                 BASELINE.context {
-                    it.copy(
+                    it.copyWith(
                         aggregates = it.aggregates + AggregateManifest("order", state = StateManifest(Manifest.schemaRef("shop.CartState")))
                     )
                 },
@@ -187,58 +194,62 @@ class ManifestCompatibilityTest {
             ),
             row(
                 "command removed",
-                BASELINE.cart { it.copy(commands = emptyList()) },
+                BASELINE.cart { it.copyWith(commands = emptyList()) },
                 "BREAKING $CART.commands[AddItem]: command removed",
             ),
             row(
                 "command added",
-                BASELINE.cart { it.copy(commands = it.commands + ADD_ITEM.copy(name = "Clear", routes = emptyList())) },
+                BASELINE.cart {
+                    it.copyWith(
+                        commands = it.commands + ADD_ITEM.copyWith(name = "Clear", routes = emptyList())
+                    )
+                },
                 "ADDITIVE $CART.commands[Clear]: command added",
             ),
             row(
                 "command renamed with an alias",
-                BASELINE.addItem { it.copy(name = "PutItem", aliases = listOf("AddItem")) },
+                BASELINE.addItem { it.copyWith(name = "PutItem", aliases = listOf("AddItem")) },
                 "ADDITIVE $CART.commands[AddItem]: command renamed to PutItem, which keeps AddItem as an alias",
                 "ADDITIVE $CART.commands[PutItem].aliases: alias AddItem added",
             ),
             row(
                 "command alias added",
-                BASELINE.addItem { it.copy(aliases = listOf("Put")) },
+                BASELINE.addItem { it.copyWith(aliases = listOf("Put")) },
                 "ADDITIVE $CART.commands[AddItem].aliases: alias Put added",
             ),
             row(
                 "command creation narrowed",
-                BASELINE.addItem { it.copy(creation = Creation.REQUIRED) },
+                BASELINE.addItem { it.copyWith(creation = Creation.REQUIRED) },
                 "BREAKING $CART.commands[AddItem].creation: creation changed from NONE to REQUIRED",
             ),
             row(
                 "command creation widened",
-                BASELINE.addItem { it.copy(creation = Creation.ALLOWED) },
+                BASELINE.addItem { it.copyWith(creation = Creation.ALLOWED) },
                 "ADDITIVE $CART.commands[AddItem].creation: creation changed from NONE to ALLOWED",
             ),
             row(
                 "produced event removed",
-                BASELINE.addItem { it.copy(produces = emptyList()) },
+                BASELINE.addItem { it.copyWith(produces = emptyList()) },
                 "BREAKING $CART.commands[AddItem].produces: produced event ItemAdded removed",
             ),
             row(
                 "produced event added",
-                BASELINE.addItem { it.copy(produces = listOf("ItemAdded", "CartFull")) },
+                BASELINE.addItem { it.copyWith(produces = listOf("ItemAdded", "CartFull")) },
                 "ADDITIVE $CART.commands[AddItem].produces: produced event CartFull added",
             ),
             row(
                 "produced events no longer declared",
-                BASELINE.addItem { it.copy(produces = null) },
+                BASELINE.addItem { it.copyWith(produces = null) },
                 "ADDITIVE $CART.commands[AddItem].produces: produced events no longer declared",
             ),
             row(
                 "route removed",
-                BASELINE.addItem { it.copy(routes = emptyList()) },
+                BASELINE.addItem { it.copyWith(routes = emptyList()) },
                 "BREAKING $CART.commands[AddItem].routes: route POST /shop/cart/{id}/add-item removed",
             ),
             row(
                 "route added",
-                BASELINE.addItem { it.copy(routes = it.routes + RouteManifest("POST", "/shop/cart/add-item")) },
+                BASELINE.addItem { it.copyWith(routes = it.routes + RouteManifest("POST", "/shop/cart/add-item")) },
                 "ADDITIVE $CART.commands[AddItem].routes: route POST /shop/cart/add-item added",
             ),
             row(
@@ -259,26 +270,26 @@ class ManifestCompatibilityTest {
             ),
             row(
                 "event removed",
-                BASELINE.cart { it.copy(events = emptyList()) },
+                BASELINE.cart { it.copyWith(events = emptyList()) },
                 "BREAKING $CART.events[ItemAdded]: event removed: list it in @AggregateRoot(retiredEvents) to " +
                     "retire it, or its history no longer loads",
             ),
             row(
                 "event retired",
-                BASELINE.cart { it.copy(events = emptyList(), retired = listOf("ItemAdded")) },
+                BASELINE.cart { it.copyWith(events = emptyList(), retired = listOf("ItemAdded")) },
                 "ADDITIVE $CART.events[ItemAdded]: event retired",
                 "ADDITIVE $CART.retired: retired event ItemAdded added",
             ),
             row(
                 "event retired by its full name",
-                BASELINE.cart { it.copy(events = emptyList(), retired = listOf("shop.cart.ItemAdded")) },
+                BASELINE.cart { it.copyWith(events = emptyList(), retired = listOf("shop.cart.ItemAdded")) },
                 "ADDITIVE $CART.events[ItemAdded]: event retired",
                 "ADDITIVE $CART.retired: retired event shop.cart.ItemAdded added",
             ),
 
             row(
                 "event renamed with an alias",
-                BASELINE.itemAdded { it.copy(name = "ItemPut", aliases = listOf("ItemAdded")) },
+                BASELINE.itemAdded { it.copyWith(name = "ItemPut", aliases = listOf("ItemAdded")) },
                 "ADDITIVE $CART.events[ItemAdded]: event renamed to ItemPut, which keeps ItemAdded as an alias",
                 "ADDITIVE $CART.events[ItemPut].aliases: alias ItemAdded added",
             ),
@@ -289,7 +300,7 @@ class ManifestCompatibilityTest {
             ),
             row(
                 "event schema broken with a new revision, of a published aggregate",
-                BASELINE.def("shop.ItemAdded", NARROWED_EVENT).itemAdded { it.copy(revision = 2) },
+                BASELINE.def("shop.ItemAdded", NARROWED_EVENT).itemAdded { it.copyWith(revision = 2) },
                 "ADDITIVE $CART.events[ItemAdded].revision: revision raised from 1 to 2",
                 "BREAKING $CART.events[ItemAdded].schema.quantity: required field added: the service upgrades its " +
                     "records from revision 1, but the subscribers of its published stream read the event at its " +
@@ -298,7 +309,7 @@ class ManifestCompatibilityTest {
             row(
                 "event field type changed with a new revision, of a published aggregate",
                 BASELINE.def("shop.ItemAdded", schema("productId" to INTEGER, required = listOf("productId")))
-                    .itemAdded { it.copy(revision = 2) },
+                    .itemAdded { it.copyWith(revision = 2) },
                 "ADDITIVE $CART.events[ItemAdded].revision: revision raised from 1 to 2",
                 "BREAKING $CART.events[ItemAdded].schema.productId: type narrowed from [string] to [integer]: the " +
                     "service upgrades its records from revision 1, but the subscribers of its published stream read " +
@@ -310,13 +321,13 @@ class ManifestCompatibilityTest {
                     "shop.ItemAdded",
                     schema("productId" to STRING, "note" to STRING, required = listOf("productId"))
                 )
-                    .itemAdded { it.copy(revision = 2) },
+                    .itemAdded { it.copyWith(revision = 2) },
                 "ADDITIVE $CART.events[ItemAdded].revision: revision raised from 1 to 2",
                 "ADDITIVE $CART.events[ItemAdded].schema.note: optional field added",
             ),
             row(
                 "subscription source context changed",
-                BASELINE.subscription { it.copy(source = it.source.copy(context = "store")) },
+                BASELINE.subscription { it.copyWith(source = it.source.copyWith(context = "store")) },
                 "BREAKING $CONTEXT.subscriptions[CartProjector.onItemAdded].source: source stream changed from " +
                     "shop[cart] to store[cart]: its checkpoint belongs to the old one",
             ),
@@ -330,7 +341,7 @@ class ManifestCompatibilityTest {
             ),
             row(
                 "event revision lowered",
-                BASELINE.itemAdded { it.copy(revision = 0) }.def("shop.ItemAdded", NARROWED_EVENT),
+                BASELINE.itemAdded { it.copyWith(revision = 0) }.def("shop.ItemAdded", NARROWED_EVENT),
                 "BREAKING $CART.events[ItemAdded].revision: revision lowered from 1 to 0",
                 "BREAKING $CART.events[ItemAdded].schema.quantity: required field added",
             ),
@@ -344,14 +355,14 @@ class ManifestCompatibilityTest {
                 BASELINE.def(
                     "shop.CartState",
                     schema()
-                ).cart { it.copy(snapshot = SnapshotManifest(stateRevision = 2)) },
+                ).cart { it.copyWith(snapshot = SnapshotManifest(stateRevision = 2)) },
                 "ADDITIVE $CART.snapshot.stateRevision: state revision raised from 1 to 2",
                 "BREAKING $CART.state.items: field removed: snapshots are rebuilt at state revision 2, but the " +
                     "snapshot query's clients and the subscribers of its published stream read the state",
             ),
             row(
                 "state revision raised alone",
-                BASELINE.cart { it.copy(snapshot = SnapshotManifest(stateRevision = 3)) },
+                BASELINE.cart { it.copyWith(snapshot = SnapshotManifest(stateRevision = 3)) },
                 "ADDITIVE $CART.snapshot.stateRevision: state revision raised from 1 to 3",
             ),
             row(
@@ -359,7 +370,7 @@ class ManifestCompatibilityTest {
                 BASELINE.def(
                     "shop.CartState",
                     schema("items" to mapOf("type" to "array", "items" to STRING), "total" to STRING)
-                ).cart { it.copy(snapshot = SnapshotManifest(stateRevision = 2)) },
+                ).cart { it.copyWith(snapshot = SnapshotManifest(stateRevision = 2)) },
                 "ADDITIVE $CART.snapshot.stateRevision: state revision raised from 1 to 2",
                 "ADDITIVE $CART.state.total: optional field added",
             ),
@@ -374,117 +385,117 @@ class ManifestCompatibilityTest {
             ),
             row(
                 "snapshots disabled",
-                BASELINE.cart { it.copy(snapshot = SnapshotManifest(false)) },
+                BASELINE.cart { it.copyWith(snapshot = SnapshotManifest(false)) },
                 "BREAKING $CART.snapshot: snapshots disabled"
             ),
             row(
                 "ownership changed",
-                BASELINE.cart { it.copy(ownership = Ownership.TENANT) },
+                BASELINE.cart { it.copyWith(ownership = Ownership.TENANT) },
                 "BREAKING $CART.ownership: ownership changed from OWNER to TENANT",
             ),
             row(
                 "lifecycle command removed",
-                BASELINE.cart { it.copy(lifecycle = emptyList()) },
+                BASELINE.cart { it.copyWith(lifecycle = emptyList()) },
                 "BREAKING $CART.lifecycle: lifecycle command wow.lifecycle.DeleteAggregate removed",
             ),
             row(
                 "lifecycle command added",
-                BASELINE.cart { it.copy(lifecycle = it.lifecycle + "wow.lifecycle.ApplyTags") },
+                BASELINE.cart { it.copyWith(lifecycle = it.lifecycle + "wow.lifecycle.ApplyTags") },
                 "ADDITIVE $CART.lifecycle: lifecycle command wow.lifecycle.ApplyTags added",
             ),
             row(
                 "query model removed",
-                BASELINE.cart { it.copy(queries = emptyList()) },
+                BASELINE.cart { it.copyWith(queries = emptyList()) },
                 "BREAKING $CART.queries[snapshot]: query model removed"
             ),
             row(
                 "query route removed",
-                BASELINE.cart { it.copy(queries = listOf(QueryManifest("snapshot"))) },
+                BASELINE.cart { it.copyWith(queries = listOf(QueryManifest("snapshot"))) },
                 "BREAKING $CART.queries[snapshot].routes: route POST /shop/cart/snapshot/query removed",
             ),
             row(
                 "subscription removed",
-                BASELINE.context { it.copy(subscriptions = emptyList()) },
+                BASELINE.context { it.copyWith(subscriptions = emptyList()) },
                 "BREAKING $CONTEXT.subscriptions[CartProjector.onItemAdded]: subscription removed",
             ),
             row(
                 "subscription kind changed",
-                BASELINE.subscription { it.copy(kind = SubscriptionKind.REACTOR) },
+                BASELINE.subscription { it.copyWith(kind = SubscriptionKind.REACTOR) },
                 "BREAKING $CONTEXT.subscriptions[CartProjector.onItemAdded].kind: kind changed from PROJECTION to REACTOR",
             ),
             row(
                 "subscription function changed",
-                BASELINE.subscription { it.copy(function = it.function.copy(name = "on")) },
+                BASELINE.subscription { it.copyWith(function = it.function.copyWith(name = "on")) },
                 "BREAKING $CONTEXT.subscriptions[CartProjector.onItemAdded].function: function changed from " +
                     "FunctionManifest(kind=PROJECT, context=shop, processor=CartProjector, name=onItemAdded) to " +
                     "FunctionManifest(kind=PROJECT, context=shop, processor=CartProjector, name=on)",
             ),
             row(
                 "subscription source changed",
-                BASELINE.subscription { it.copy(source = it.source.copy(aggregates = listOf("order"))) },
+                BASELINE.subscription { it.copyWith(source = it.source.copyWith(aggregates = listOf("order"))) },
                 "BREAKING $CONTEXT.subscriptions[CartProjector.onItemAdded].source: source stream changed from " +
                     "shop[cart] to shop[order]: its checkpoint belongs to the old one",
             ),
             row(
                 "subscription events changed",
-                BASELINE.subscription { it.copy(source = it.source.copy(events = listOf("ItemAdded"))) },
+                BASELINE.subscription { it.copyWith(source = it.source.copyWith(events = listOf("ItemAdded"))) },
                 "ADDITIVE $CONTEXT.subscriptions[CartProjector.onItemAdded].source.events: events changed from [] to [ItemAdded]",
             ),
             row(
                 "derived command removed",
-                BASELINE.subscription { it.copy(derives = emptyList()) },
+                BASELINE.subscription { it.copyWith(derives = emptyList()) },
                 "BREAKING $CONTEXT.subscriptions[CartProjector.onItemAdded].derives: derived command shop.cart.Checkout removed",
             ),
             row(
                 "derived commands no longer declared",
-                BASELINE.subscription { it.copy(derives = null) },
+                BASELINE.subscription { it.copyWith(derives = null) },
                 "ADDITIVE $CONTEXT.subscriptions[CartProjector.onItemAdded].derives: derived commands no longer declared",
             ),
             row(
                 "committed handler added",
                 BASELINE.context {
-                    it.copy(subscriptions = it.subscriptions + COMMITTED)
+                    it.copyWith(subscriptions = it.subscriptions + COMMITTED)
                 },
                 "ADDITIVE $CONTEXT.subscriptions[CheckoutSaga.onCommitted]: subscription added",
             ),
             row(
                 "commits handled",
-                BASELINE.subscription { it.copy(committed = listOf("shop.cart.Checkout")) },
+                BASELINE.subscription { it.copyWith(committed = listOf("shop.cart.Checkout")) },
                 "ADDITIVE $CONTEXT.subscriptions[CartProjector.onItemAdded].committed: handles commits",
             ),
             row(
                 "rejections handled",
-                BASELINE.subscription { it.copy(rejected = emptyList()) },
+                BASELINE.subscription { it.copyWith(rejected = emptyList()) },
                 "ADDITIVE $CONTEXT.subscriptions[CartProjector.onItemAdded].rejected: handles rejections",
             ),
             row(
                 "stream topic changed",
-                BASELINE.published { it.copy(topic = "cart") },
+                BASELINE.published { it.copyWith(topic = "cart") },
                 "BREAKING $CONTEXT.published[cart].topic: topic changed from wow.shop.cart.state to cart",
             ),
             row(
                 "stream state dropped",
-                BASELINE.published { it.copy(includeState = false) },
+                BASELINE.published { it.copyWith(includeState = false) },
                 "BREAKING $CONTEXT.published[cart].includeState: the state is no longer included",
             ),
             row(
                 "stream removed",
-                BASELINE.context { it.copy(published = emptyList()) },
+                BASELINE.context { it.copyWith(published = emptyList()) },
                 "BREAKING $CONTEXT.published[cart]: published stream removed",
             ),
             row(
                 "error code removed",
-                BASELINE.context { it.copy(errors = emptyList()) },
+                BASELINE.context { it.copyWith(errors = emptyList()) },
                 "BREAKING $CONTEXT.errors[shop.cart.full]: error code removed"
             ),
             row(
                 "error status changed",
-                BASELINE.context { it.copy(errors = listOf(ERROR.copy(status = 422))) },
+                BASELINE.context { it.copyWith(errors = listOf(ERROR.copyWith(status = 422))) },
                 "BREAKING $CONTEXT.errors[shop.cart.full]: status changed from 409 to 422",
             ),
             row(
                 "framework error code added",
-                BASELINE.copy(errors = BASELINE.errors + ErrorManifest("wow.command.busy", 429)),
+                BASELINE.copyWith(errors = BASELINE.errors + ErrorManifest("wow.command.busy", 429)),
                 "ADDITIVE errors[wow.command.busy]: error code added",
             ),
         )
@@ -502,13 +513,14 @@ class ManifestCompatibilityTest {
         fun changes(current: Manifest) = ManifestCompatibility.compare(UNEXPOSED, current).changes.map { it.toString() }
 
         changes(
-            UNEXPOSED.def("shop.CartState", schema()).cart { it.copy(snapshot = SnapshotManifest(stateRevision = 2)) }
+            UNEXPOSED.def("shop.CartState", schema())
+                .cart { it.copyWith(snapshot = SnapshotManifest(stateRevision = 2)) },
         )
             .assert().containsExactlyInAnyOrder(
                 "ADDITIVE $CART.snapshot.stateRevision: state revision raised from 1 to 2",
                 "ADDITIVE $CART.state.items: field removed (snapshots rebuilt at state revision 2)",
             )
-        changes(UNEXPOSED.def("shop.ItemAdded", schema()).itemAdded { it.copy(revision = 2) })
+        changes(UNEXPOSED.def("shop.ItemAdded", schema()).itemAdded { it.copyWith(revision = 2) })
             .assert().containsExactlyInAnyOrder(
                 "ADDITIVE $CART.events[ItemAdded].revision: revision raised from 1 to 2",
                 "ADDITIVE $CART.events[ItemAdded].schema.productId: field removed (upgraded from revision 1)",
@@ -517,9 +529,9 @@ class ManifestCompatibilityTest {
         val withoutState = PublishedManifest("cart", "wow.shop.cart.state", includeState = false)
         changes(
             UNEXPOSED.def("shop.CartState", schema()).def("shop.ItemAdded", schema())
-                .cart { it.copy(snapshot = SnapshotManifest(stateRevision = 2)) }
-                .itemAdded { it.copy(revision = 2) }
-                .context { it.copy(published = listOf(withoutState)) },
+                .cart { it.copyWith(snapshot = SnapshotManifest(stateRevision = 2)) }
+                .itemAdded { it.copyWith(revision = 2) }
+                .context { it.copyWith(published = listOf(withoutState)) },
         ).assert().containsExactlyInAnyOrder(
             "ADDITIVE $CONTEXT.published[cart]: published stream added",
             "ADDITIVE $CART.snapshot.stateRevision: state revision raised from 1 to 2",
@@ -530,8 +542,8 @@ class ManifestCompatibilityTest {
         )
         // A query model added now has clients built against the new schema only, but one in the baseline had others.
         changes(
-            UNEXPOSED.def("shop.ItemAdded", schema()).itemAdded { it.copy(revision = 2) }
-                .cart { it.copy(queries = listOf(QueryManifest("events"))) },
+            UNEXPOSED.def("shop.ItemAdded", schema()).itemAdded { it.copyWith(revision = 2) }
+                .cart { it.copyWith(queries = listOf(QueryManifest("events"))) },
         ).assert().containsExactlyInAnyOrder(
             "ADDITIVE $CART.queries[events]: query model added",
             "ADDITIVE $CART.events[ItemAdded].revision: revision raised from 1 to 2",
@@ -540,8 +552,8 @@ class ManifestCompatibilityTest {
         )
         changes(
             UNEXPOSED.def("shop.CartState", schema("items" to STRING))
-                .cart { it.copy(snapshot = SnapshotManifest(stateRevision = 2)) }
-                .context { it.copy(published = listOf(PublishedManifest("cart", "wow.shop.cart.state"))) },
+                .cart { it.copyWith(snapshot = SnapshotManifest(stateRevision = 2)) }
+                .context { it.copyWith(published = listOf(PublishedManifest("cart", "wow.shop.cart.state"))) },
         ).assert().containsExactlyInAnyOrder(
             "ADDITIVE $CONTEXT.published[cart]: published stream added",
             "ADDITIVE $CART.snapshot.stateRevision: state revision raised from 1 to 2",
@@ -556,41 +568,41 @@ class ManifestCompatibilityTest {
         fun changes(baseline: Manifest, current: Manifest) =
             ManifestCompatibility.compare(baseline, current).changes.map { it.toString() }
 
-        changes(BASELINE.cart { it.copy(retired = listOf("ItemRemoved")) }, BASELINE)
+        changes(BASELINE.cart { it.copyWith(retired = listOf("ItemRemoved")) }, BASELINE)
             .assert().containsExactly("BREAKING $CART.retired: retired event ItemRemoved removed")
-        val retiring = BASELINE.itemAdded { it.copy(aliases = listOf("ItemPut")) }
-        changes(retiring, BASELINE.cart { it.copy(events = emptyList(), retired = listOf("ItemAdded")) })
+        val retiring = BASELINE.itemAdded { it.copyWith(aliases = listOf("ItemPut")) }
+        changes(retiring, BASELINE.cart { it.copyWith(events = emptyList(), retired = listOf("ItemAdded")) })
             .assert().containsExactlyInAnyOrder(
                 "BREAKING $CART.events[ItemAdded]: event retired without its former names ItemPut: their records " +
                     "no longer load",
                 "ADDITIVE $CART.retired: retired event ItemAdded added",
             )
-        changes(retiring, BASELINE.cart { it.copy(events = emptyList(), retired = listOf("ItemAdded", "ItemPut")) })
+        changes(retiring, BASELINE.cart { it.copyWith(events = emptyList(), retired = listOf("ItemAdded", "ItemPut")) })
             .assert().containsExactlyInAnyOrder(
                 "ADDITIVE $CART.events[ItemAdded]: event retired",
                 "ADDITIVE $CART.retired: retired event ItemAdded added",
                 "ADDITIVE $CART.retired: retired event ItemPut added",
             )
 
-        val aliased = BASELINE.addItem { it.copy(aliases = listOf("Put")) }
+        val aliased = BASELINE.addItem { it.copyWith(aliases = listOf("Put")) }
         changes(
             aliased,
             BASELINE
         ).assert().containsExactly("BREAKING $CART.commands[AddItem].aliases: alias Put removed")
-        changes(BASELINE.cart { it.copy(snapshot = SnapshotManifest(false)) }, BASELINE)
+        changes(BASELINE.cart { it.copyWith(snapshot = SnapshotManifest(false)) }, BASELINE)
             .assert().containsExactly("ADDITIVE $CART.snapshot: snapshots enabled")
-        changes(BASELINE.addItem { it.copy(produces = null) }, BASELINE)
+        changes(BASELINE.addItem { it.copyWith(produces = null) }, BASELINE)
             .assert().containsExactly("ADDITIVE $CART.commands[AddItem].produces: produced events declared")
-        changes(BASELINE.subscription { it.copy(derives = null) }, BASELINE)
+        changes(BASELINE.subscription { it.copyWith(derives = null) }, BASELINE)
             .assert().containsExactly(
                 "ADDITIVE $CONTEXT.subscriptions[CartProjector.onItemAdded].derives: derived commands declared"
             )
-        changes(BASELINE.published { it.copy(includeState = false) }, BASELINE)
+        changes(BASELINE.published { it.copyWith(includeState = false) }, BASELINE)
             .assert().containsExactly("ADDITIVE $CONTEXT.published[cart].includeState: the state is now included")
-        changes(BASELINE.context { it.copy(subscriptions = emptyList()) }, BASELINE)
+        changes(BASELINE.context { it.copyWith(subscriptions = emptyList()) }, BASELINE)
             .assert().containsExactly("ADDITIVE $CONTEXT.subscriptions[CartProjector.onItemAdded]: subscription added")
-        changes(BASELINE.copy(service = null), BASELINE).assert().isEmpty()
-        val revised = BASELINE.cart { it.copy(snapshot = SnapshotManifest(stateRevision = 2)) }
+        changes(BASELINE.copyWith(service = null), BASELINE).assert().isEmpty()
+        val revised = BASELINE.cart { it.copyWith(snapshot = SnapshotManifest(stateRevision = 2)) }
         changes(revised, BASELINE.def("shop.CartState", schema())).assert().containsExactlyInAnyOrder(
             "BREAKING $CART.snapshot.stateRevision: state revision lowered from 2 to 1",
             "BREAKING $CART.state.items: field removed",
@@ -600,10 +612,10 @@ class ManifestCompatibilityTest {
     @Test
     fun `a committed handler's receipts should be classified`() {
         val saga = "$CONTEXT.subscriptions[CheckoutSaga.onCommitted]"
-        val baseline = BASELINE.context { it.copy(subscriptions = it.subscriptions + COMMITTED) }
+        val baseline = BASELINE.context { it.copyWith(subscriptions = it.subscriptions + COMMITTED) }
         fun changes(committed: List<String>?) = ManifestCompatibility.compare(
             baseline,
-            baseline.subscription { if (it.name == COMMITTED.name) it.copy(committed = committed) else it },
+            baseline.subscription { if (it.name == COMMITTED.name) it.copyWith(committed = committed) else it },
         ).changes.map { it.toString() }
 
         ManifestCompatibility.compare(baseline, BASELINE).changes.map { it.toString() }
@@ -618,7 +630,7 @@ class ManifestCompatibilityTest {
         ).assert().containsExactly("ADDITIVE $saga.committed: handles the commits of any derived command")
         changes(null).assert().containsExactly("BREAKING $saga.committed: no longer handles commits")
         ManifestCompatibility.compare(
-            baseline.subscription { if (it.name == COMMITTED.name) it.copy(committed = emptyList()) else it },
+            baseline.subscription { if (it.name == COMMITTED.name) it.copyWith(committed = emptyList()) else it },
             baseline,
         ).changes.map { it.toString() }.assert().containsExactly(
             "BREAKING $saga.committed: handles the commits of [shop.cart.Checkout, shop.cart.Clear] only, not of " +
@@ -629,8 +641,8 @@ class ManifestCompatibilityTest {
     @Test
     @Suppress("UNCHECKED_CAST")
     fun `descriptions and lifecycle bodies added to the Manifest should be no change`() {
-        val current = BASELINE.addItem { it.copy(description = "Adds an item.") }
-            .itemAdded { it.copy(description = "An item was added.") }
+        val current = BASELINE.addItem { it.copyWith(description = "Adds an item.") }
+            .itemAdded { it.copyWith(description = "An item was added.") }
             .def(
                 "shop.AddItem",
                 BASELINE.defs.getValue("shop.AddItem") as Map<String, Any?> + ("description" to "Adds.")
@@ -641,13 +653,16 @@ class ManifestCompatibilityTest {
 
     @Test
     fun `a breaking change should fail only within the baseline's major version`() {
-        val broken = BASELINE.cart { it.copy(commands = emptyList()) }
+        val broken = BASELINE.cart { it.copyWith(commands = emptyList()) }
         ManifestCompatibility.compare(BASELINE, broken).failed.assert().isTrue()
-        ManifestCompatibility.compare(BASELINE, broken.copy(service = ServiceInfo("shop-service", "10.2.0-SNAPSHOT")))
+        ManifestCompatibility.compare(
+            BASELINE,
+            broken.copyWith(service = ServiceInfo("shop-service", "10.2.0-SNAPSHOT"))
+        )
             .failed.assert().isTrue()
         val nextMajor = ManifestCompatibility.compare(
             BASELINE,
-            broken.copy(service = ServiceInfo("shop-service", "11.0.0"))
+            broken.copyWith(service = ServiceInfo("shop-service", "11.0.0"))
         )
         nextMajor.newMajor.assert().isTrue()
         nextMajor.failed.assert().isFalse()
@@ -655,23 +670,23 @@ class ManifestCompatibilityTest {
         // An unknown version is the same major.
         ManifestCompatibility.compare(
             BASELINE,
-            broken.copy(service = ServiceInfo("shop-service"))
+            broken.copyWith(service = ServiceInfo("shop-service"))
         ).failed.assert().isTrue()
-        ManifestCompatibility.compare(BASELINE.copy(service = ServiceInfo("shop-service", "next")), broken)
+        ManifestCompatibility.compare(BASELINE.copyWith(service = ServiceInfo("shop-service", "next")), broken)
             .failed.assert().isTrue()
         ManifestCompatibility.compare(BASELINE, BASELINE).failed.assert().isFalse()
     }
 
     @Test
     fun `the report should list the breaking changes first`() {
-        val current = BASELINE.cart { it.copy(lifecycle = listOf("wow.lifecycle.ApplyTags")) }
-        val report = ManifestCompatibility.compare(BASELINE.copy(service = null), current)
+        val current = BASELINE.cart { it.copyWith(lifecycle = listOf("wow.lifecycle.ApplyTags")) }
+        val report = ManifestCompatibility.compare(BASELINE.copyWith(service = null), current)
         report.render().assert().isEqualTo(
             "Manifest 10.1.0 against the baseline (no version): 1 breaking, 1 additive\n" +
                 "BREAKING $CART.lifecycle: lifecycle command wow.lifecycle.DeleteAggregate removed\n" +
                 "ADDITIVE $CART.lifecycle: lifecycle command wow.lifecycle.ApplyTags added\n",
         )
-        ManifestCompatibility.compare(BASELINE, current.copy(service = null)).render()
+        ManifestCompatibility.compare(BASELINE, current.copyWith(service = null)).render()
             .assert().startsWith("Manifest (no version) against the baseline 10.1.0")
     }
 
@@ -680,7 +695,7 @@ class ManifestCompatibilityTest {
         val baseline = File(directory, "manifest/baseline.json")
         val current = File(directory, "build/manifest.json")
         val report = File(directory, "build/report/compatibility.txt")
-        ManifestJson.write(BASELINE.cart { it.copy(commands = emptyList()) }, current)
+        ManifestJson.write(BASELINE.cart { it.copyWith(commands = emptyList()) }, current)
 
         ManifestTools.checkCompatibility(baseline, current, report).assert().isEqualTo(0)
         report.readText().assert().contains("No Manifest baseline at $baseline: run updateManifestBaseline")
@@ -695,7 +710,7 @@ class ManifestCompatibilityTest {
         )
         report.readText().assert().contains("BREAKING $CART.commands[AddItem]: command removed")
 
-        ManifestJson.write(BASELINE.copy(service = ServiceInfo("shop-service", "9.0.0")), baseline)
+        ManifestJson.write(BASELINE.copyWith(service = ServiceInfo("shop-service", "9.0.0")), baseline)
         ManifestTools.checkCompatibility(baseline, current, report).assert().isEqualTo(1)
 
         ManifestJson.write(BASELINE, current)

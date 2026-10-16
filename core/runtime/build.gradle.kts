@@ -8,4 +8,5 @@ dependencies {
 
 dependencies {
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
+    testImplementation(testFixtures(project(":manifest")))
 }

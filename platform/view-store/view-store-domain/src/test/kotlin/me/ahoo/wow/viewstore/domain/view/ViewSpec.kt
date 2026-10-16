@@ -163,8 +163,8 @@ class ViewSpec {
             expectState { audience.assert().isEqualTo(ViewAudience.SHARED) }
         }
         // The saga's TransferOwner, derived from the share and not checked against the target's scope (D199).
-        whenCommand(TransferOwner(ViewStoreContext.SHARED_OWNER_ID)) {
-            expectEvents(OwnerTransferred(ViewStoreContext.SHARED_OWNER_ID))
+        whenCommand(TransferOwner.of(ViewStoreContext.SHARED_OWNER_ID)) {
+            expectEvents(OwnerTransferred.of(ViewStoreContext.SHARED_OWNER_ID))
             expectScope(SHARED)
         }
         whenCommand(ShareView, scope = SHARED, headers = APP_HEADERS) { expectUnchanged() }
@@ -183,7 +183,7 @@ class ViewSpec {
             expectState { audience.assert().isEqualTo(ViewAudience.PERSONAL) }
         }
         asked.assert().containsExactly(Triple(TENANT, APP, ID))
-        whenCommand(TransferOwner(BOB)) { expectScope(owner(BOB)) }
+        whenCommand(TransferOwner.of(BOB)) { expectScope(owner(BOB)) }
         // Claimed again by its owner: nothing changes; by anyone else as themselves, the kernel refuses.
         whenCommand(
             ClaimView,

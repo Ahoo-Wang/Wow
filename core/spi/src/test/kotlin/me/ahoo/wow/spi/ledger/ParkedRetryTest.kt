@@ -49,7 +49,7 @@ class ParkedRetryTest {
         assertThrownBy<IllegalArgumentException> { ParkedRetrySpec(maxRetries = -1) }
         assertThrownBy<IllegalArgumentException> { ParkedRetrySpec(minBackoff = (-1).seconds) }
         assertThrownBy<IllegalArgumentException> { ParkedRetrySpec(executionTimeout = Duration.INFINITE) }
-        assertThrownBy<IllegalArgumentException> { entry.copy(retries = -1) }
+        assertThrownBy<IllegalArgumentException> { entry.copyWith(retries = -1) }
         assertThrownBy<IllegalArgumentException> { ParkedAmendment.ClaimRetry(-1, 0) }
     }
 
@@ -62,27 +62,27 @@ class ParkedRetryTest {
 
     @Test
     fun `a later retry is due its backoff after the last one started, not before its execution timeout`() {
-        val retried = entry.copy(retries = 1, retryAt = FAILED_AT + 10_000)
+        val retried = entry.copyWith(retries = 1, retryAt = FAILED_AT + 10_000)
         retried.nextRetryAt(spec).assert().isEqualTo(FAILED_AT + 10_000 + 30_000)
-        val later = entry.copy(retries = 2, retryAt = FAILED_AT + 40_000)
+        val later = entry.copyWith(retries = 2, retryAt = FAILED_AT + 40_000)
         later.nextRetryAt(spec).assert().isEqualTo(FAILED_AT + 40_000 + 40_000)
-        entry.copy(retryAt = Long.MAX_VALUE - 1).nextRetryAt(spec).assert().isEqualTo(Long.MAX_VALUE)
+        entry.copyWith(retryAt = Long.MAX_VALUE - 1).nextRetryAt(spec).assert().isEqualTo(Long.MAX_VALUE)
     }
 
     @Test
     fun `an entry spent, marked unrecoverable or gone from its source is not retried automatically`() {
-        val spent = entry.copy(retries = 3, retryAt = FAILED_AT)
+        val spent = entry.copyWith(retries = 3, retryAt = FAILED_AT)
         spent.exhausted(spec).assert().isTrue()
         spent.nextRetryAt(spec).assert().isNull()
-        entry.copy(recoverable = Recoverable.UNRECOVERABLE).nextRetryAt(spec).assert().isNull()
-        entry.copy(recoverable = Recoverable.RECOVERABLE).nextRetryAt(spec).assert().isNotNull()
-        entry.copy(reason = "${ParkedAggregate.UNRECOVERABLE}: gone").retryable(spec).assert().isFalse()
-        entry.nextRetryAt(spec.copy(maxRetries = 0)).assert().isNull()
+        entry.copyWith(recoverable = Recoverable.UNRECOVERABLE).nextRetryAt(spec).assert().isNull()
+        entry.copyWith(recoverable = Recoverable.RECOVERABLE).nextRetryAt(spec).assert().isNotNull()
+        entry.copyWith(reason = "${ParkedAggregate.UNRECOVERABLE}: gone").retryable(spec).assert().isFalse()
+        entry.nextRetryAt(spec.copyWith(maxRetries = 0)).assert().isNull()
     }
 
     @Test
     fun `amendments apply as the ledger applies them`() {
-        entry.amended(ParkedAmendment.ClaimRetry(0, 5)).assert().isEqualTo(entry.copy(retries = 1, retryAt = 5))
+        entry.amended(ParkedAmendment.ClaimRetry(0, 5)).assert().isEqualTo(entry.copyWith(retries = 1, retryAt = 5))
         entry.amended(ParkedAmendment.ClaimRetry(1, 5)).assert().isNull()
         entry.amended(ParkedAmendment.ApplyRetrySpec(spec))!!.retrySpec.assert().isEqualTo(spec)
         entry.amended(ParkedAmendment.MarkRecoverable(Recoverable.RECOVERABLE))!!
