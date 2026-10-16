@@ -31,13 +31,13 @@ internal object AdmissionLimits {
     const val MAX_ID_LENGTH: Int = 256
 
     /** Why an id of a request is too long, or null when none is. */
-    fun oversized(requestId: String, aggregateId: String, tenantId: String, scope: Scope): String? = listOf(
-        "request id" to requestId,
-        "aggregate id" to aggregateId,
-        "tenant id" to tenantId,
-        "space id" to scope.spaceId,
-    ).firstOrNull { (_, id) -> id != null && id.length > MAX_ID_LENGTH }
-        ?.let { (name, id) -> "A $name is at most $MAX_ID_LENGTH characters; this one has ${id!!.length}." }
+    fun oversized(requestId: String, aggregateId: String, tenantId: String, scope: Scope): String? =
+        oversized("request id", requestId) ?: oversized("aggregate id", aggregateId)
+            ?: oversized("tenant id", tenantId) ?: oversized("space id", scope.spaceId)
+
+    /** Checked one by one, without a list of pairs per command (review A5-5). */
+    private fun oversized(name: String, id: String?): String? = id?.takeIf { it.length > MAX_ID_LENGTH }
+        ?.let { "A $name is at most $MAX_ID_LENGTH characters; this one has ${it.length}." }
 
     /**
      * Whether the JSON text [json] writes `\u0000` in a string or a key. It reads the escapes alone: in JSON a

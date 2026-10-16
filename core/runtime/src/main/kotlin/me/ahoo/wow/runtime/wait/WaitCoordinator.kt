@@ -25,11 +25,11 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.job
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
@@ -236,8 +236,17 @@ class WaitCoordinator(
         executions.cancel()
     }
 
-    /** Executes [command] on [model]'s aggregate and returns the result it ends its wait with. */
-    suspend fun execute(model: AggregateModel<*>, command: Command<*>): CommandResult = stream(model, command).last()
+    /**
+     * Executes [command] on [model]'s aggregate and returns the result it ends its wait with: the last one [stream]
+     * would emit. It runs in this coordinator's execution context as [stream] does, without the channel and producer
+     * coroutine a flow moved to another context takes (review A5-5): a caller that wants the final result only pays
+     * for that.
+     */
+    suspend fun execute(model: AggregateModel<*>, command: Command<*>): CommandResult = withContext(executionContext) {
+        var last: CommandResult? = null
+        run(model, command) { last = it }
+        checkNotNull(last) { "The wait of ${command.id} ended without a result." }
+    }
 
     /**
      * Executes [command] on [model]'s aggregate and emits a result for each hop of its wait plan as it is reached, one
@@ -262,13 +271,19 @@ class WaitCoordinator(
      *   dropped.
      */
     fun stream(model: AggregateModel<*>, command: Command<*>): Flow<CommandResult> = flow {
+        run(model, command) { emit(it) }
+    }.flowOn(executionContext)
+
+    /** Runs [command]'s wait as [stream] describes, handing each result to [emit]; the caller picks the context. */
+    @Suppress("LongMethod") // One wait from admission to its end, the Kafka router's branch included.
+    private suspend fun run(model: AggregateModel<*>, command: Command<*>, emit: suspend (CommandResult) -> Unit) {
         val function = commandFunction(model, command)
         val context = command.ref.type.context
         val checked = WaitChain.of(command.wait, command.ref.type, directory, options.maxHops, options.unknownContexts)
         val chain = when (checked) {
             is WaitChain.Invalid -> {
                 emit(admissionRejected(command, function, ResultCodes.WAIT_INVALID, checked.reason, clock()))
-                return@flow
+                return
             }
 
             is WaitChain -> checked
@@ -287,14 +302,14 @@ class WaitCoordinator(
                 val wait = WaitContext(waitId, options.origin, remaining, deadline).takeIf { remaining.isNotEmpty() }
                 sendToTopic(topic, model, command, wait, deadline)?.let { failed ->
                     emit(failed)
-                    return@flow
+                    return
                 }
                 waiting.offer(reachedResult(command, function, Hop.accepted(context), clock()))
                 expiry = expireAt(deadline, waiting, settled)
                 for (result in waiting.results) {
                     emit(waiting.carry(result))
                 }
-                return@flow
+                return
             }
             waiting.offer(reachedResult(command, function, Hop.accepted(context), clock()))
             // Once ACCEPTED is reached: a timeout answers at the last hop reached.
@@ -317,7 +332,7 @@ class WaitCoordinator(
             expiry?.cancel(false)
             registry.remove(waitId)
         }
-    }.flowOn(executionContext)
+    }
 
     /**
      * Ends [waiting] with a timeout at [deadline] (decision D64), from one of [DEADLINES], apart from the waiter:
