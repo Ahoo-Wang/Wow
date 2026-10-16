@@ -39,7 +39,11 @@ internal object ModelSource {
         val ref = if (binding.stateArguments.isEmpty()) "_" else "ref"
         appendLine("        initial { $ref -> $state(${binding.stateArguments.joinToString(", ")}) }")
         binding.commands.forEach { command ->
-            val dsl = if (command.suspending || command.reactor) "decideSuspending" else "decide"
+            val dsl = when {
+                command.blocking -> "decideBlocking"
+                command.suspending || command.reactor -> "decideSuspending"
+                else -> "decide"
+            }
             val first = if (command.admitted) "this.command as $COMMAND<${command.command}>" else "command"
             val arguments = (listOf(first) + command.arguments).joinToString(", ")
             val call = "${receiver(binding)}.${command.function}($arguments)"
@@ -57,7 +61,11 @@ internal object ModelSource {
         renderSourcing(binding.sourcing)
         renderAliasesAndUpgrades(binding)
         binding.afters.forEach { after ->
-            val dsl = if (after.suspending || after.reactor) "afterSuspending" else "after"
+            val dsl = when {
+                after.blocking -> "afterBlocking"
+                after.suspending || after.reactor -> "afterSuspending"
+                else -> "after"
+            }
             val include = after.include.joinToString(", ", "setOf(", ")") { "$it::class.java" }
             val exclude = after.exclude.joinToString(", ", "setOf(", ")") { "$it::class.java" }
             val arguments = listOfNotNull(after.parameter?.let { "command as $it" }) + after.arguments

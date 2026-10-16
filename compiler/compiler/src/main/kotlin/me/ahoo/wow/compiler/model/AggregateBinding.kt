@@ -64,6 +64,8 @@ internal data class AggregateBinding(
     val retiredEvents: List<String> = emptyList(),
     /** The state member marked `@Tags`, which derives the aggregate's tags (decision D220); null when none is. */
     val tags: TagsBinding? = null,
+    /** What compiles but is likely wrong, reported as warnings, such as `@Blocking` on a Reactor function. */
+    val warnings: List<String> = emptyList(),
 ) {
     /** Whether `@AggregateRoot(lifecycle)` narrows the lifecycle commands, which the generated model then says. */
     val narrowsLifecycle: Boolean get() = lifecycle != ALL_LIFECYCLE_COMMANDS
@@ -118,6 +120,8 @@ internal data class CommandBinding(
     val schedules: List<String> = emptyList(),
     /** What the command's class says it is ([Descriptions]). */
     val description: String? = null,
+    /** Whether the function, or one it overrides, is `@Blocking`: the kernel runs it on a virtual thread (D227). */
+    val blocking: Boolean = false,
 )
 
 /**
@@ -163,6 +167,8 @@ internal data class AfterBinding(
     val suspending: Boolean,
     /** The classes the hook's return type yields as events ([EventYield]); null when it does not say. */
     val yields: List<String>?,
+    /** Whether the hook, or one it overrides, is `@Blocking`: the kernel runs it on a virtual thread (D227). */
+    val blocking: Boolean = false,
 ) {
     /** Whether the hook runs after [command], a command type as [CommandBinding.command] renders it. */
     fun appliesTo(command: String): Boolean = (include.isEmpty() || command in include) && command !in exclude

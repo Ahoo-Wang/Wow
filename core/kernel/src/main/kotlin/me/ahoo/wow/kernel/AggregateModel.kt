@@ -26,7 +26,8 @@ import tools.jackson.databind.JsonNode
 
 /**
  * A decide function, in the form its signature has (decision D36). The kernel calls a [Sync] one directly, with no
- * continuation and no dispatch; only a [Suspending] one runs as a coroutine call.
+ * continuation and no dispatch; only a [Suspending] one runs as a coroutine call, and a [Suspending.blocking] one
+ * (`@Blocking`, decision D227) on the kernel's blocking dispatcher, a virtual thread.
  */
 sealed interface DecideFunction<S : Any> {
     /** Whether the command may, or must, create the aggregate. */
@@ -35,10 +36,15 @@ sealed interface DecideFunction<S : Any> {
     class Sync<S : Any>(override val creation: Creation, val decide: DecideScope.(S, Any) -> Decision) :
         DecideFunction<S>
 
+    /** A suspending decide function; a [blocking] one blocks its thread, so the kernel runs it on a virtual thread. */
     class Suspending<S : Any>(
         override val creation: Creation,
+        val blocking: Boolean,
         val decide: suspend DecideScope.(S, Any) -> Decision,
-    ) : DecideFunction<S>
+    ) : DecideFunction<S> {
+        constructor(creation: Creation, decide: suspend DecideScope.(S, Any) -> Decision) :
+            this(creation, false, decide)
+    }
 }
 
 /** How a command relates to the aggregate's existence (9.x `@CreateAggregate` and `@AllowCreate`). */
@@ -56,7 +62,8 @@ enum class Creation {
 /**
  * An after hook (decision D39): runs after the decide function of every command it [applies] to, sees the same,
  * not yet evolved state, and returns events appended after the command's own, in the same event stream. It does not
- * run when the command is rejected. Like a decide function it keeps its form (D36).
+ * run when the command is rejected. Like a decide function it keeps its form (D36); a [Suspending.blocking] one runs
+ * on a virtual thread (D227).
  */
 sealed interface AfterFunction<S : Any> {
     val applies: (Class<*>) -> Boolean
@@ -64,10 +71,15 @@ sealed interface AfterFunction<S : Any> {
     class Sync<S : Any>(override val applies: (Class<*>) -> Boolean, val after: DecideScope.(S, Any) -> List<Any>) :
         AfterFunction<S>
 
+    /** A suspending after hook; a [blocking] one blocks its thread, so the kernel runs it on a virtual thread. */
     class Suspending<S : Any>(
         override val applies: (Class<*>) -> Boolean,
+        val blocking: Boolean,
         val after: suspend DecideScope.(S, Any) -> List<Any>,
-    ) : AfterFunction<S>
+    ) : AfterFunction<S> {
+        constructor(applies: (Class<*>) -> Boolean, after: suspend DecideScope.(S, Any) -> List<Any>) :
+            this(applies, false, after)
+    }
 }
 
 /**

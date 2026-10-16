@@ -16,9 +16,13 @@ package me.ahoo.wow.api.annotation
 import java.lang.annotation.Inherited
 
 /**
- * A synchronous function that blocks, such as one writing a projection over JDBC (V10, design 01 §4). A synchronous
- * function is otherwise taken for pure computation and runs inline on a shared worker; the generated call dispatches
- * this one to the blocking dispatcher, on virtual threads.
+ * A function that blocks its thread, such as one writing a projection or checking a uniqueness over JDBC (V10, design
+ * 01 §4). A synchronous function is otherwise taken for pure computation and runs inline on a shared worker; the
+ * generated call runs this one on the blocking dispatcher, a virtual thread per call. It applies to command functions
+ * (`@OnCommand`), after hooks (`@AfterCommand`), subscription handlers (`@OnEvent`, `@OnRejected`, `@OnCommitted`) and
+ * scheduled jobs (`@OnSchedule`), also when it is on the function an override overrides. Sourcing functions, `@Upgrade`
+ * functions and `@Tags` members do no I/O, so it is a compile error on them; on a function returning a Reactor
+ * publisher it is a warning, since a publisher should not block.
  */
 @Target(AnnotationTarget.FUNCTION)
 @Inherited

@@ -86,6 +86,24 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     /**
+     * Decides commands of type [C], named [name], with a function that blocks its thread (`@Blocking`, decisions D36,
+     * D227), such as one calling JDBC: the kernel runs it on its blocking dispatcher, a virtual thread, so it does not
+     * hold a worker thread.
+     */
+    inline fun <reified C : Any> decideBlocking(
+        creation: Creation = Creation.NONE,
+        name: String = defaultName(C::class.java),
+        noinline decide: suspend DecideScope.(S, C) -> Decision,
+    ) {
+        @Suppress("UNCHECKED_CAST")
+        addDecider(
+            C::class.java,
+            name,
+            DecideFunction.Suspending(creation, true, decide as suspend DecideScope.(S, Any) -> Decision)
+        )
+    }
+
+    /**
      * Mounts commands of type [C], named [name], under this aggregate's routes without deciding them (decision D182):
      * a transformer of the service turns each into a command that is decided.
      */
@@ -112,6 +130,15 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         after: suspend DecideScope.(S, Any) -> List<Any>,
     ) {
         afterFunctions += AfterFunction.Suspending(applies(include, exclude), after)
+    }
+
+    /** An after hook that blocks its thread (`@Blocking`, D227): it runs on a virtual thread; see [after]. */
+    fun afterBlocking(
+        include: Set<Class<*>> = emptySet(),
+        exclude: Set<Class<*>> = emptySet(),
+        after: suspend DecideScope.(S, Any) -> List<Any>,
+    ) {
+        afterFunctions += AfterFunction.Suspending(applies(include, exclude), true, after)
     }
 
     /** Evolves the state by changing it in place: the default, concise form (D7). */

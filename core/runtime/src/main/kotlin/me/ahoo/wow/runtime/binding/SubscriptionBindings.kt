@@ -14,7 +14,6 @@
 package me.ahoo.wow.runtime.binding
 
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -25,6 +24,7 @@ import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.api.subscribe.SubscriptionContext
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.kernel.BlockingDispatcher
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.kernel.ProcessorBinding
@@ -43,7 +43,6 @@ import me.ahoo.wow.runtime.subscription.SubscribedEntry
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.spi.wait.WaitContext
-import java.util.concurrent.Executors
 
 /**
  * Adapts the handlers of annotated processors ([ProcessorBinding], decision D149) into the subscriptions of a
@@ -251,10 +250,9 @@ class SubscriptionBindings(private val processors: Map<String, List<ProcessorBin
         @JvmField
         val NONE: SubscriptionBindings = SubscriptionBindings(emptyMap())
 
-        /** Runs the `@Blocking` handlers: a virtual thread per call (decision D29: JDK 21). */
-        internal val BLOCKING: CoroutineDispatcher by lazy {
-            Executors.newVirtualThreadPerTaskExecutor().asCoroutineDispatcher()
-        }
+        /** Runs the `@Blocking` handlers: the kernel's virtual threads, shared with blocking decide functions (D227). */
+        internal val BLOCKING: CoroutineDispatcher
+            get() = BlockingDispatcher.dispatcher
 
         /**
          * The handlers of the processors of [providers] (by default the binding indexes on the class path, decision

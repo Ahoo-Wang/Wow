@@ -55,6 +55,7 @@ import me.ahoo.wow.spi.wait.WaitContext
 import tools.jackson.core.JacksonException
 import java.time.Instant
 import java.util.UUID
+import kotlin.coroutines.CoroutineContext
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 
@@ -133,6 +134,10 @@ import kotlin.time.Duration.Companion.seconds
  * A decide function takes its ids from [ids] ([DecideScope.ids], decision D171): the node's generators, fixed ids in
  * the test DSL.
  *
+ * A decide function or after hook marked `@Blocking` ([DecideFunction.Suspending.blocking], decision D227) runs on
+ * [blocking], by default the node's virtual threads ([BlockingDispatcher]); every other one runs inline in the
+ * caller's coroutine.
+ *
  * [observer] sees each execution, decision and append (decision D174); what an append carries for delivery holds the
  * append's trace ([Transport.trace]), so the subscriptions that handle it continue the command's trace.
  */
@@ -151,6 +156,7 @@ class Kernel(
     private val ids: Ids = IdGenerators.DEFAULT,
     private val maxEarlyWait: Duration = DEFAULT_MAX_EARLY_WAIT,
     private val observer: Observer = Observer.NONE,
+    private val blocking: CoroutineContext = BlockingDispatcher.dispatcher,
 ) {
     init {
         require(maxAttempts >= 1) { "At least one attempt." }
@@ -838,7 +844,11 @@ class Kernel(
         body: Any,
     ): Decision = when (decider) {
         is DecideFunction.Sync -> decider.decide(scope, state, body)
-        is DecideFunction.Suspending -> decider.decide(scope, state, body)
+        is DecideFunction.Suspending -> if (decider.blocking) {
+            withContext(blocking) { decider.decide(scope, state, body) }
+        } else {
+            decider.decide(scope, state, body)
+        }
     }
 
     private suspend fun <S : Any> after(
@@ -848,7 +858,11 @@ class Kernel(
         body: Any,
     ): List<Any> = when (after) {
         is AfterFunction.Sync -> after.after(scope, state, body)
-        is AfterFunction.Suspending -> after.after(scope, state, body)
+        is AfterFunction.Suspending -> if (after.blocking) {
+            withContext(blocking) { after.after(scope, state, body) }
+        } else {
+            after.after(scope, state, body)
+        }
     }
 
     /**

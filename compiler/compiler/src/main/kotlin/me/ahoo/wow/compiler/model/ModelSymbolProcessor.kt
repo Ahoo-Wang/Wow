@@ -37,6 +37,7 @@ import me.ahoo.wow.api.annotation.AfterCommand
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Alias
 import me.ahoo.wow.api.annotation.AllowCreate
+import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.BoundedContext
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Name
@@ -190,6 +191,7 @@ internal class ModelSymbolProcessor(
             )
             bindings += binding
             if (mode == Mode.GENERATE) {
+                binding.warnings.forEach { logger.warn("${binding.root}: $it", root) }
                 if (binding.problems.isEmpty()) {
                     generate(binding, root)
                 } else {
@@ -434,6 +436,7 @@ internal class ModelSymbolProcessor(
     @OptIn(KspExperimental::class)
     private fun analyze(root: KSClassDeclaration): AggregateBinding {
         val problems = mutableListOf<String>()
+        val warnings = mutableListOf<String>()
         val rootName = root.qualifiedName!!.asString()
         val constructor = root.primaryConstructor ?: root.getConstructors().firstOrNull()
         val state = stateOf(root)
@@ -445,14 +448,16 @@ internal class ModelSymbolProcessor(
 
         val dependencies = linkedMapOf<String, Dependency>()
         val commandFunctions = root.functionsNamedOrAnnotated(ON_COMMAND, OnCommand::class.java.name)
-        val commands = commandFunctions.mapNotNull { function -> commandBinding(function, dependencies, problems) }
+        val commands = commandFunctions.mapNotNull { function ->
+            commandBinding(function, dependencies, problems, warnings)
+        }
         commands.groupBy { it.command }.filterValues { it.size > 1 }.keys.forEach {
             problems += "two command functions handle $it"
         }
         val sourcing = state.functionsNamedOrAnnotated(ON_SOURCING, OnSourcing::class.java.name)
             .mapNotNull { function -> sourcingBinding(function, state, problems) }
         val afters = root.functionsNamedOrAnnotated(AFTER_COMMAND, AfterCommand::class.java.name)
-            .mapNotNull { function -> afterBinding(function, dependencies, problems) }
+            .mapNotNull { function -> afterBinding(function, dependencies, problems, warnings) }
         problems += producesProblems(commands, sourcing)
         val commandTypes = commandFunctions.mapNotNull { firstParameterClass(it, unwrapCommand = true) }
         val eventTypes = state.functionsNamedOrAnnotated(ON_SOURCING, OnSourcing::class.java.name)
@@ -489,6 +494,7 @@ internal class ModelSymbolProcessor(
             stateRevision = AggregateRootArguments.stateRevision(root, problems),
             retiredEvents = retiredEvents,
             tags = TagsResolver.of(state, problems),
+            warnings = warnings,
         )
     }
 
@@ -596,6 +602,7 @@ internal class ModelSymbolProcessor(
         function: KSFunctionDeclaration,
         dependencies: MutableMap<String, Dependency>,
         problems: MutableList<String>,
+        warnings: MutableList<String>,
     ): CommandBinding? {
         val name = function.simpleName.asString()
         val parameters = function.parameters
@@ -620,6 +627,8 @@ internal class ModelSymbolProcessor(
             problems += "$name's command parameter is annotated @Name: a qualifier names a dependency parameter"
         }
         val returned = EventYield.of(function.returnType?.resolve())
+        val reactor = reactorReturn(function) != null
+        val blocking = blocking(function, reactor, warnings)
         val producesListed = declaredProduces(function)
         val schedules = declaredSchedules(function, problems)
         if (producesListed.isNotEmpty() && returned != null) {
@@ -634,7 +643,7 @@ internal class ModelSymbolProcessor(
             admitted = admitted,
             arguments = parameters.drop(1).mapNotNull { argument(name, it, dependencies, problems) },
             suspending = Modifier.SUSPEND in function.modifiers,
-            reactor = reactorReturn(function) != null,
+            reactor = reactor,
             creation = when {
                 command.hasAnnotation(CreateAggregate::class.java.name) -> "REQUIRED"
                 command.hasAnnotation(AllowCreate::class.java.name) -> "ALLOWED"
@@ -646,7 +655,22 @@ internal class ModelSymbolProcessor(
             declaredProduces = producesListed,
             schedules = schedules,
             description = Descriptions.of(command),
+            blocking = blocking,
         )
+    }
+
+    /**
+     * Whether [function], or one it overrides (an annotation is not inherited by an override), is `@Blocking`: the
+     * kernel runs it on a virtual thread (decision D227). On a function returning a Reactor publisher it is a
+     * [warnings] entry: the publisher is subscribed on the virtual thread, but a publisher should not block.
+     */
+    private fun blocking(function: KSFunctionDeclaration, reactor: Boolean, warnings: MutableList<String>): Boolean {
+        val blocking = function.isAnnotatedOrOverrides(BLOCKING)
+        if (blocking && reactor) {
+            warnings += "${function.simpleName.asString()} is annotated @Blocking and returns a Reactor publisher: " +
+                "it is called on a virtual thread, but a publisher should not block; make it a plain function"
+        }
+        return blocking
     }
 
     /** The events `@OnCommand(produces)` lists on [function], by qualified name (decision D120). */
@@ -736,6 +760,9 @@ internal class ModelSymbolProcessor(
         if (Modifier.SUSPEND in function.modifiers) {
             problems += "sourcing function $name suspends: evolving does no I/O"
         }
+        if (function.isAnnotatedOrOverrides(BLOCKING)) {
+            problems += "sourcing function $name is annotated @Blocking: evolving does no I/O"
+        }
         val eventType = function.parameters.single().type.resolve()
         val event = eventType.declaration as? KSClassDeclaration ?: return null
         val returned = function.returnType?.resolve()?.declaration?.qualifiedName?.asString()
@@ -759,6 +786,7 @@ internal class ModelSymbolProcessor(
         function: KSFunctionDeclaration,
         dependencies: MutableMap<String, Dependency>,
         problems: MutableList<String>,
+        warnings: MutableList<String>,
     ): AfterBinding? {
         val name = function.simpleName.asString()
         val annotation = function.annotations.firstOrNull {
@@ -767,15 +795,17 @@ internal class ModelSymbolProcessor(
         fun classes(argument: String): List<String> =
             (annotation?.arguments?.firstOrNull { it.name?.asString() == argument }?.value as? List<*>).orEmpty()
                 .filterIsInstance<KSType>().map { it.render() }
+        val reactor = reactorReturn(function) != null
         return AfterBinding(
             function = name,
             parameter = function.parameters.firstOrNull()?.type?.resolve()?.render(),
             arguments = function.parameters.drop(1).mapNotNull { argument(name, it, dependencies, problems) },
-            reactor = reactorReturn(function) != null,
+            reactor = reactor,
             include = classes("include"),
             exclude = classes("exclude"),
             suspending = Modifier.SUSPEND in function.modifiers,
             yields = EventYield.of(function.returnType?.resolve()),
+            blocking = blocking(function, reactor, warnings),
         )
     }
 
@@ -830,6 +860,7 @@ internal class ModelSymbolProcessor(
 
     private companion object {
         val AGGREGATE_ROOT = AggregateRoot::class.java.name
+        val BLOCKING = Blocking::class.java.name
         const val PRODUCES = "produces"
         const val SCHEDULES = "schedules"
         val COMMAND_NAME = Regex("[^.\\s]+\\.[^.\\s]+\\.[^.\\s]+")

@@ -19,6 +19,7 @@ import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
+import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.Upgrade
 
 /**
@@ -52,6 +53,7 @@ internal data class UpgradeBinding(
  */
 internal object UpgradeResolver {
     val UPGRADE: String = Upgrade::class.java.name
+    private val BLOCKING = Blocking::class.java.name
     private const val JSON_NODE = "tools.jackson.databind.JsonNode"
     private const val OBJECT_NODE = "tools.jackson.databind.node.ObjectNode"
     private val NODES = setOf(JSON_NODE, OBJECT_NODE)
@@ -77,6 +79,9 @@ internal object UpgradeResolver {
             }
             if (Modifier.SUSPEND in function.modifiers) {
                 add("upgrade $name suspends: an upgrade does no I/O")
+            }
+            if (function.annotations.any { it.annotationType.resolve().qualifiedName() == BLOCKING }) {
+                add("upgrade $name is annotated @Blocking: an upgrade does no I/O")
             }
             if (function.isPrivate()) {
                 add("upgrade $name is private: the generated model calls it")
