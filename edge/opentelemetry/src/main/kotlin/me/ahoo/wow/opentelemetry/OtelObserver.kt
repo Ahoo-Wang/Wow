@@ -62,11 +62,12 @@ import kotlin.coroutines.EmptyCoroutineContext
 @InternalWowApi
 class OtelObserver(
     openTelemetry: OpenTelemetry,
-    private val meters: MeterRegistry,
+    meters: MeterRegistry,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : Observer {
     private val tracer = openTelemetry.getTracer(WowAttributes.INSTRUMENTATION)
     private val propagator = openTelemetry.propagators.textMapPropagator
+    private val cached = MeterCache(meters)
 
     override fun admitting(context: String, aggregate: String, command: String, trace: Map<String, String>): Observation {
         val parent = OtelTraceContext.extract(propagator, Context.current(), trace)
@@ -85,7 +86,7 @@ class OtelObserver(
             .setAttribute(REQUEST_ID, command.requestId)
             .setAttribute(COMMAND, command.body.javaClass.simpleName)
         return observation(Context.current(), span) { outcome, nanos ->
-            meters.timer(
+            cached.timer(
                 WowMetrics.COMMIT,
                 WowMetrics.CONTEXT,
                 type.context,
@@ -98,7 +99,7 @@ class OtelObserver(
     }
 
     override fun undecodable(topic: String, partition: Int, offset: Long, parked: Boolean) {
-        meters.counter(
+        cached.counter(
             WowMetrics.UNDECODABLE,
             WowMetrics.TOPIC,
             topic,
@@ -143,7 +144,7 @@ class OtelObserver(
         // A message of a command or receipts topic commits nothing: it has no commit time to lag behind.
         if (stream.commitTime > 0) {
             val lag = (clock() - stream.commitTime).coerceAtLeast(0)
-            meters.timer(
+            cached.timer(
                 WowMetrics.SUBSCRIPTION_LAG,
                 WowMetrics.CONTEXT,
                 context,
@@ -158,7 +159,7 @@ class OtelObserver(
     override fun firing(timer: Timer): Observation {
         val context = timer.target.type.context
         val delay = (clock() - timer.dueAt).coerceAtLeast(0)
-        meters.timer(WowMetrics.TIMER_DELAY, WowMetrics.CONTEXT, context).record(delay, TimeUnit.MILLISECONDS)
+        cached.timer(WowMetrics.TIMER_DELAY, WowMetrics.CONTEXT, context).record(delay, TimeUnit.MILLISECONDS)
         val span = tracer.spanBuilder("fire ${timer.commandType}")
             .setAttribute(CONTEXT, context)
             .setAttribute(TIMER_ID, timer.id)
