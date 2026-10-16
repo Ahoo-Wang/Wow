@@ -163,4 +163,18 @@ class ProducedEventsTest {
         aggregate.events.map { it.name }.assert().containsExactly("Bumped", "Cleared", "Created")
         aggregate.commands.single { it.name == "Bump" }.produces.assert().isEqualTo(listOf("Bumped", "Cleared"))
     }
+
+    @Test
+    fun `a sourcing function taking two parameters or suspending should be a compile error`() {
+        failing(
+            "fun onCommand(command: Create): Created = Created(command.id)",
+            """
+            fun onSourcing(event: Created, extra: String) {}
+            suspend fun onSourcing(event: Bumped) {}
+            """.trimIndent(),
+        ).assert().contains(
+            "sourcing function onSourcing must take only its event",
+            "sourcing function onSourcing suspends: evolving does no I/O",
+        )
+    }
 }

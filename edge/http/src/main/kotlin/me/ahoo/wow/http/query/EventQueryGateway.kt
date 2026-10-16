@@ -340,8 +340,8 @@ class EventQueryGateway(
                 ?: throw QueryViolation.InvalidCursor.rejection()
         }
 
-        /** [stream] as this model's record, each of its events as [reading] gives it (as stored by default). */
-        fun record(stream: EventStreamRecord, reading: (EventRecord) -> EventRecord? = { it }): ObjectNode {
+        /** [stream] as this model's record, each of its events as [reading] gives it, null leaving it out. */
+        fun record(stream: EventStreamRecord, reading: (EventRecord) -> EventRecord?): ObjectNode {
             val record = WowJson.mapper.createObjectNode()
                 .put(AGGREGATE_ID, stream.ref.id)
                 .put(TENANT_ID, stream.ref.tenantId)

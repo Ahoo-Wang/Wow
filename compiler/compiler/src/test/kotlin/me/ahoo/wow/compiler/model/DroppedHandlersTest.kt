@@ -187,4 +187,14 @@ class DroppedHandlersTest {
             "CartProjection.onTwo:false:[]",
         )
     }
+
+    @Test
+    fun `two command functions of one command should be a compile error`() {
+        failing(
+            """
+            fun onCommand(command: Add): Added = Added(command.item)
+            @OnCommand fun onAdd(command: Add): Added = Added(command.item)
+            """.trimIndent(),
+        ).assert().contains("two command functions handle sample.Add")
+    }
 }

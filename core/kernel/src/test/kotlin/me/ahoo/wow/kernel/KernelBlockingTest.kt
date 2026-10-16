@@ -85,4 +85,19 @@ class KernelBlockingTest {
         AfterFunction.Suspending<Ledger>({ true }) { _, _ -> emptyList() }.blocking.assert().isFalse()
         (model.afterFunctions(Read::class.java).single() as AfterFunction.Suspending).blocking.assert().isTrue()
     }
+
+    @Test
+    fun `a suspending after hook that does not block runs inline`() = runBlocking<Unit> {
+        val hooked = aggregate<Ledger>("test", "ledger") {
+            initial { Ledger() }
+            decideBlocking(Open::class.java, Creation.REQUIRED) { _, open -> Decision.events(Opened(open.by)) }
+            afterSuspending { _, _ -> listOf(Seen("afterSuspending:" + Thread.currentThread().isVirtual)) }
+            evolve<Opened> { }
+            evolve<Seen> { seen += it.thread }
+        }
+        val outcome = Kernel(InMemoryEventLog()).execute(hooked, Command("c-1", "r-1", ref, Open("me")))
+            as CommandOutcome.Committed
+        (outcome.state as Ledger).seen.assert().containsExactly("afterSuspending:false")
+        (hooked.decider(Open::class.java) as DecideFunction.Suspending).blocking.assert().isTrue()
+    }
 }

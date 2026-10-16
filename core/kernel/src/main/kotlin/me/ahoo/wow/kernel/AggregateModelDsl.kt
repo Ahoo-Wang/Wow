@@ -94,12 +94,20 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         creation: Creation = Creation.NONE,
         name: String = defaultName(C::class.java),
         noinline decide: suspend DecideScope.(S, C) -> Decision,
+    ) = decideBlocking(C::class.java, creation, name, decide)
+
+    /** Decides commands of [commandType] with a function that blocks its thread; see the reified overload. */
+    fun <C : Any> decideBlocking(
+        commandType: Class<C>,
+        creation: Creation = Creation.NONE,
+        name: String = defaultName(commandType),
+        decide: suspend DecideScope.(S, C) -> Decision,
     ) {
         @Suppress("UNCHECKED_CAST")
         addDecider(
-            C::class.java,
+            commandType,
             name,
-            DecideFunction.Suspending(creation, true, decide as suspend DecideScope.(S, Any) -> Decision)
+            DecideFunction.Suspending(creation, true, decide as suspend DecideScope.(S, Any) -> Decision),
         )
     }
 

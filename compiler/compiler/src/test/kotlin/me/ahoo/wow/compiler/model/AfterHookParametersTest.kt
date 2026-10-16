@@ -187,4 +187,27 @@ class AfterHookParametersTest {
             "after hook afterCommand takes sample.Audited, which no command function of the aggregate takes",
         )
     }
+
+    private fun failing(hooks: String): String {
+        val (_, result) = compileModel("generate", cart(hooks))
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        return result.messages
+    }
+
+    @Test
+    fun `a hook taking the command of a type parameter should be a compile error`() {
+        failing("fun <T : Any> afterCommand(command: Command<T>): Audited = Audited(\"x\")").assert().contains(
+            "after hook afterCommand takes me.ahoo.wow.api.decide.Command<sample.Cart.afterCommand.T>: an after " +
+                "hook names the class of its command, Any, or me.ahoo.wow.api.decide.Command of it",
+        )
+    }
+
+    @Test
+    fun `a hook whose first parameter is a framework type takes no command`() {
+        failing("fun afterCommand(type: me.ahoo.wow.api.aggregate.AggregateType): Audited = Audited(\"x\")")
+            .assert().contains(
+                "afterCommand takes me.ahoo.wow.api.aggregate.AggregateType, a 9.x framework type with no V10 " +
+                    "counterpart",
+            )
+    }
 }
