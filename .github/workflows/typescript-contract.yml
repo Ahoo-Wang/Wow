@@ -145,7 +145,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.21.0
+          node-version: 24.22.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Build packages
@@ -316,7 +316,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.21.0
+          node-version: 24.22.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Build packages
@@ -425,7 +425,7 @@ jobs:
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.21.0
+          node-version: 24.22.0
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # test/released/viewStore.test.ts runs WowViewStore and the engine

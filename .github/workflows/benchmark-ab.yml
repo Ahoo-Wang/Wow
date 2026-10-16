@@ -119,7 +119,7 @@ jobs:
           sparse-checkout: .github/scripts
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.21.0
+          node-version: 24.22.0
       - name: Resolve refs
         id: refs
         env:
@@ -305,7 +305,7 @@ jobs:
           sparse-checkout: .github/scripts
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.21.0
+          node-version: 24.22.0
       - uses: actions/download-artifact@v7
         with:
           name: jmh-list-${{ needs.resolve.outputs.base-sha }}
@@ -340,7 +340,7 @@ jobs:
           sparse-checkout: .github/scripts
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.21.0
+          node-version: 24.22.0
       - uses: actions/download-artifact@v7
         with:
           name: jmh-jar-${{ needs.resolve.outputs.base-sha }}
@@ -429,7 +429,7 @@ jobs:
           sparse-checkout: .github/scripts
       - uses: actions/setup-node@v6
         with:
-          node-version: 24.21.0
+          node-version: 24.22.0
       - uses: actions/download-artifact@v7
         with:
           pattern: ab-result-*
