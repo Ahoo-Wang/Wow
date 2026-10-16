@@ -128,8 +128,8 @@ class PartitionAppendQueue(
     @Volatile
     private var closed = false
 
-    /** The appends queued and not taken into a batch yet. */
-    internal val queued: Int get() = waiting.get()
+    /** The appends queued and not taken into a batch yet (review A5-11: the queue depth gauge). */
+    val queued: Int get() = waiting.get()
 
     override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
         if (!enabled) {

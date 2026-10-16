@@ -110,6 +110,10 @@ class NodeMetricsTest {
         gauge(WowMetrics.POSITION, *board).sum().assert().isEqualTo(heads.values.sum().toDouble())
         gauge(WowMetrics.BACKLOG, *board).assert().containsOnly(0.0)
         gauge(WowMetrics.PROGRESS, *board).assert().containsOnly(1.0)
+        // Nothing in flight once the commands settled (review A5-11).
+        listOf(WowMetrics.EXECUTOR_IN_FLIGHT, WowMetrics.EXECUTOR_LANES, WowMetrics.APPEND_QUEUE_DEPTH).forEach {
+            gauge(it, WowMetrics.CONTEXT, SALES).assert().containsExactly(0.0)
+        }
         // Counted up to the bound, a page at a time.
         val capped = Telemetry()
         NodeMetrics(node, capped.meters, maxParked = 1).sample()

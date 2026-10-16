@@ -19,8 +19,10 @@ import io.opentelemetry.api.trace.Span
 import io.opentelemetry.api.trace.SpanBuilder
 import io.opentelemetry.api.trace.SpanKind
 import io.opentelemetry.context.Context
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.opentelemetry.WowAttributes.AGGREGATE
 import me.ahoo.wow.opentelemetry.WowAttributes.AGGREGATE_ID
 import me.ahoo.wow.opentelemetry.WowAttributes.COMMAND
@@ -75,16 +77,27 @@ class OtelObserver(
             .setSpanKind(SpanKind.SERVER)
             .setAttribute(CONTEXT, context)
             .setAttribute(AGGREGATE, aggregate)
-            .setAttribute(COMMAND, command)
+            .setAttribute(COMMAND, commandName(context, aggregate, command))
         return observation(parent, span)
     }
 
-    override fun executing(command: Command<*>): Observation {
+    override fun executing(command: Command<*>): Observation =
+        executing(
+            command,
+            commandName(command.ref.type.context, command.ref.type.name, command.body.javaClass.simpleName)
+        )
+
+    /**
+     * The execution span carries [commandType], the kernel's resolved name (`context.aggregate.Name`, `@Name`
+     * included), as the admission span carries the request's command under its type (review A5-11): one value for
+     * `wow.command` on both.
+     */
+    override fun executing(command: Command<*>, commandType: String): Observation {
         val type = command.ref.type
         val span = commandSpan("execute", command)
             .setAttribute(COMMAND_ID, command.id)
             .setAttribute(REQUEST_ID, command.requestId)
-            .setAttribute(COMMAND, command.body.javaClass.simpleName)
+            .setAttribute(COMMAND, commandType)
         return observation(Context.current(), span) { outcome, nanos ->
             cached.timer(
                 WowMetrics.COMMIT,
@@ -106,6 +119,39 @@ class OtelObserver(
             WowMetrics.OUTCOME,
             if (parked) WowMetrics.PARKED_OUTCOME else WowMetrics.SKIPPED_OUTCOME,
         ).increment()
+    }
+
+    override fun refused(type: AggregateType, code: String) {
+        cached.counter(
+            WowMetrics.REFUSED,
+            WowMetrics.CONTEXT,
+            type.context,
+            WowMetrics.AGGREGATE,
+            type.name,
+            WowMetrics.CODE,
+            code,
+        ).increment()
+    }
+
+    override fun waitTimedOut(type: AggregateType, stage: Stage) {
+        cached.counter(
+            WowMetrics.WAIT_TIMEOUT,
+            WowMetrics.CONTEXT,
+            type.context,
+            WowMetrics.AGGREGATE,
+            type.name,
+            WowMetrics.STAGE,
+            stage.name.lowercase(),
+        ).increment()
+    }
+
+    override fun signalDropped(origin: String, reason: String) {
+        cached.counter(WowMetrics.SIGNAL_DROPPED, WowMetrics.REASON, reason).increment()
+    }
+
+    override fun forwardFailed(type: AggregateType, outcome: String) {
+        cached.counter(WowMetrics.FORWARD_FAILED, WowMetrics.CONTEXT, type.context, WowMetrics.OUTCOME, outcome)
+            .increment()
     }
 
     override fun deciding(command: Command<*>): Observation =
@@ -172,6 +218,10 @@ class OtelObserver(
     } else {
         OtelTraceContext(OtelTraceContext.extract(propagator, Context.current(), trace), propagator)
     }
+
+    /** `context.aggregate.Name` of [command], which a request may name with or without its type. */
+    private fun commandName(context: String, aggregate: String, command: String): String =
+        "$context.$aggregate.${command.substringAfterLast('.')}"
 
     private fun commandSpan(stage: String, command: Command<*>): SpanBuilder {
         val ref = command.ref

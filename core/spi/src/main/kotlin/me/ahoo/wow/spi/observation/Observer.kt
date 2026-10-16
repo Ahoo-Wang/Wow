@@ -14,8 +14,10 @@
 package me.ahoo.wow.spi.observation
 
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.timer.Timer
 import kotlin.coroutines.AbstractCoroutineContextElement
@@ -47,6 +49,32 @@ interface Observer {
 
     /** The kernel's execution of [command], from taking it to its outcome ([Observation.outcome]). */
     fun executing(command: Command<*>): Observation = Observation.NONE
+
+    /**
+     * The kernel's execution of [command], whose resolved type name is [commandType] (`context.aggregate.Name`, as the
+     * Manifest and the log name it, `@Name` included); the kernel calls this one. By default [executing] without it.
+     */
+    fun executing(command: Command<*>, commandType: String): Observation = executing(command)
+
+    /**
+     * A command of [type] that ended before the kernel took it (review A5-11), with the framework or authorization
+     * [code] it was answered with: an admission refusal, a busy lane or node (`wow.command.busy`), a closing node, an
+     * unavailable store, a wait that timed out while it queued.
+     */
+    fun refused(type: AggregateType, code: String) = Unit
+
+    /** A wait on a command of [type] that timed out (`wow.wait.timeout`), at the [stage] it had reached last. */
+    fun waitTimedOut(type: AggregateType, stage: Stage) = Unit
+
+    /** A wait signal for the node [origin] that was dropped without being sent, for [reason] (review A5-12). */
+    fun signalDropped(origin: String, reason: String) = Unit
+
+    /**
+     * A forward of a command of [type] to its partition's owner that did not get the owner's settlement (decision
+     * D223): `local` when it surely did not reach the owner and ran here, `busy` when the peer had its most forwards in
+     * flight and it ran here, `unknown` when it may have reached the owner and its outcome is unknown.
+     */
+    fun forwardFailed(type: AggregateType, outcome: String) = Unit
 
     /** One decision of [command]: its decide function and its after hooks. */
     fun deciding(command: Command<*>): Observation = Observation.NONE

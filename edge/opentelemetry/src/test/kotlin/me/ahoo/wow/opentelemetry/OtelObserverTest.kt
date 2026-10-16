@@ -24,6 +24,7 @@ import kotlinx.coroutines.withContext
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -70,7 +71,7 @@ class OtelObserverTest {
         admit.kind.assert().isEqualTo(SpanKind.SERVER)
         admit.traceId.assert().isEqualTo(caller.spanContext.traceId)
         admit.parentSpanId.assert().isEqualTo(caller.spanContext.spanId)
-        admit.attr(WowAttributes.COMMAND).assert().isEqualTo("PlaceOrder")
+        admit.attr(WowAttributes.COMMAND).assert().isEqualTo("$SALES.order.PlaceOrder")
         admit.attr(WowAttributes.OUTCOME).assert().isEqualTo("admitted")
     }
 
@@ -95,6 +96,7 @@ class OtelObserverTest {
             observer.executing(command).observe { }
             val execute = telemetry.named("execute $ORDER").first()
             execute.attr(WowAttributes.COMMAND_ID).assert().isEqualTo("c-1")
+            execute.attr(WowAttributes.COMMAND).assert().isEqualTo("$ORDER.PlaceOrder")
             execute.attr(WowAttributes.REQUEST_ID).assert().isEqualTo("r-1")
             execute.attr(WowAttributes.AGGREGATE_ID).assert().isEqualTo("o-1")
             telemetry.single("decide $ORDER").parentSpanId.assert().isEqualTo(execute.spanId)
@@ -113,6 +115,33 @@ class OtelObserverTest {
             telemetry.meters.find(WowMetrics.COMMIT).tags(WowMetrics.OUTCOME, OtelObservation.OK).timer()!!
                 .count().assert().isEqualTo(1L)
         }
+
+    @Test
+    fun `the execution span should carry the kernel's resolved command type, as the admission does`(): Unit =
+        runBlocking {
+            observer.executing(command, "$ORDER.Place").observe { }
+            observer.admitting(SALES, "order", "$ORDER.Place", emptyMap()).end()
+            telemetry.single("execute $ORDER").attr(WowAttributes.COMMAND).assert().isEqualTo("$ORDER.Place")
+            telemetry.single("admit $SALES.order").attr(WowAttributes.COMMAND).assert().isEqualTo("$ORDER.Place")
+        }
+
+    @Test
+    fun `refusals, wait timeouts, dropped signals and failed forwards should be counted`() {
+        observer.refused(ORDER, "wow.command.busy")
+        observer.refused(ORDER, "wow.command.busy")
+        observer.waitTimedOut(ORDER, Stage.COMMITTED)
+        observer.signalDropped("node-2", "queue-full")
+        observer.forwardFailed(ORDER, "unknown")
+        val meters = telemetry.meters
+        meters.get(WowMetrics.REFUSED).tags(WowMetrics.CONTEXT, SALES, WowMetrics.CODE, "wow.command.busy")
+            .counter().count().assert().isEqualTo(2.0)
+        meters.get(WowMetrics.WAIT_TIMEOUT).tags(WowMetrics.AGGREGATE, "order", WowMetrics.STAGE, "committed")
+            .counter().count().assert().isEqualTo(1.0)
+        meters.get(WowMetrics.SIGNAL_DROPPED).tags(WowMetrics.REASON, "queue-full").counter().count()
+            .assert().isEqualTo(1.0)
+        meters.get(WowMetrics.FORWARD_FAILED).tags(WowMetrics.OUTCOME, "unknown").counter().count()
+            .assert().isEqualTo(1.0)
+    }
 
     @Test
     fun `a failure should be recorded on the span, a cancellation only named`(): Unit = runBlocking {

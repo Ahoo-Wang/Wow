@@ -179,7 +179,9 @@ class Kernel(
     ): CommandOutcome {
         require(admitted.ref.type == model.type) { "${admitted.ref} is not a ${model.type}." }
         require(admitted.ref.isAssigned) { "${admitted.ref} names no aggregate: admission assigns its id (D191)." }
-        val executing = observer.executing(admitted)
+        val executing = model.findCommandType(admitted.body.javaClass)
+            ?.let { observer.executing(admitted, it.name) }
+            ?: observer.executing(admitted)
         var committed: CommandOutcome.Committed? = null
         return try {
             executing.observe {

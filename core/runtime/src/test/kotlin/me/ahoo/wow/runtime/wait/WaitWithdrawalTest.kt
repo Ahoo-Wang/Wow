@@ -20,10 +20,12 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.Kernel
@@ -31,6 +33,7 @@ import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
@@ -67,12 +70,23 @@ class WaitWithdrawalTest {
 
         override suspend fun hasHandled(subscription: String, stream: EventStreamRecord): Boolean = false
     }
+    private val observed = java.util.concurrent.CopyOnWriteArrayList<String>()
+    private val observer = object : Observer {
+        override fun refused(type: AggregateType, code: String) {
+            observed += "refused $code"
+        }
+
+        override fun waitTimedOut(type: AggregateType, stage: Stage) {
+            observed += "timed out at $stage"
+        }
+    }
     private val coordinator = WaitCoordinator(
         Executor(Kernel(log)),
         registry,
         directory,
         LocalSignalSender(origin.node, registry),
         WaitOptions(origin),
+        observer = observer,
     )
 
     private fun command(id: String, body: Any, requestId: String, wait: WaitPlan) =
@@ -99,6 +113,8 @@ class WaitWithdrawalTest {
             withTimeout(5.seconds) { first.await() }.version.assert().isEqualTo(1)
             withTimeout(5.seconds) { coordinator.join() }
             log.findByRequestId("t", "r-2").assert().isNull()
+            // Review A5-11: the timeout and the withdrawal are both observed.
+            observed.assert().containsExactlyInAnyOrder("timed out at ACCEPTED", "refused ${ResultCodes.WAIT_TIMEOUT}")
             val retry = coordinator.execute(model, command("c-3", Add("queued"), "r-2", WaitPlan.COMMITTED))
             retry.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
             retry.duplicate.assert().isFalse()

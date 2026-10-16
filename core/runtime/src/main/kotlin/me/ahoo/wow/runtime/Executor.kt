@@ -77,6 +77,9 @@ class Executor(
     /** The aggregates with commands in flight. */
     val activeLanes: Int get() = lanes.size
 
+    /** The commands taken and not finished, waiting in their lanes or in the kernel (review A5-11). */
+    val commandsInFlight: Int get() = inFlight.get()
+
     /** Runs [command] through the kernel in its aggregate's lane; [wait] is passed on to [Kernel.execute]. */
     suspend fun execute(model: AggregateModel<*>, command: Command<*>, wait: WaitContext? = null): CommandOutcome {
         val lane = enter(command.ref)

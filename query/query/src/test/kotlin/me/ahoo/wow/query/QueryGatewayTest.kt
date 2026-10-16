@@ -83,8 +83,8 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.CoroutineContext
-import kotlin.time.toKotlinDuration
 import kotlin.time.toJavaDuration
+import kotlin.time.toKotlinDuration
 
 /**
  * The gateway's admission, execution and observation, ported from 9.x `QueryGatewaySubscriptionTest`: a suspend call

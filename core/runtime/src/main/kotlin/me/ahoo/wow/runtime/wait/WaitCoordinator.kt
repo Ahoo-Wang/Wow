@@ -35,6 +35,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
@@ -50,6 +51,7 @@ import me.ahoo.wow.runtime.cluster.CommandRouter
 import me.ahoo.wow.runtime.cluster.TopicRouter
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.id.GlobalIdGenerator
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.traceContext
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
@@ -202,6 +204,8 @@ class WaitCoordinator(
     private val executionContext: CoroutineContext = Dispatchers.Default,
     /** The `Kafka` router of the context's types configured for it (decision D143); none by default. */
     private val topicRouter: TopicRouter? = null,
+    /** Sees the commands refused before the kernel and the waits that time out (review A5-11). */
+    private val observer: Observer = Observer.NONE,
 ) {
     /** Where the commands of [stream] execute, apart from their waits (decision D64). */
     private val executions = CoroutineScope(SupervisorJob() + executionContext)
@@ -274,9 +278,18 @@ class WaitCoordinator(
         run(model, command) { emit(it) }
     }.flowOn(executionContext)
 
+    /** [emit], counting a timeout the wait ends with (review A5-11). */
+    private suspend fun observed(command: Command<*>, result: CommandResult, emit: suspend (CommandResult) -> Unit) {
+        if (result.error?.code == ResultCodes.WAIT_TIMEOUT) {
+            observer.waitTimedOut(command.ref.type, result.hop.stage)
+        }
+        emit(result)
+    }
+
     /** Runs [command]'s wait as [stream] describes, handing each result to [emit]; the caller picks the context. */
     @Suppress("LongMethod") // One wait from admission to its end, the Kafka router's branch included.
-    private suspend fun run(model: AggregateModel<*>, command: Command<*>, emit: suspend (CommandResult) -> Unit) {
+    private suspend fun run(model: AggregateModel<*>, command: Command<*>, results: suspend (CommandResult) -> Unit) {
+        val emit: suspend (CommandResult) -> Unit = { observed(command, it, results) }
         val function = commandFunction(model, command)
         val context = command.ref.type.context
         val checked = WaitChain.of(command.wait, command.ref.type, directory, options.maxHops, options.unknownContexts)
@@ -422,8 +435,15 @@ class WaitCoordinator(
         try {
             val settlement = router.route(model, command, null) { executeHere(model, command, null) }
             val committed = settlement.committed
-            if (committed.status != CommandResult.Status.SUCCEEDED) {
-                logger.info { "Detached command ${command.id} on ${command.ref} ended ${committed.status}: ${committed.error}" }
+            when (committed.status) {
+                CommandResult.Status.SUCCEEDED -> Unit
+                // A business rejection is an outcome, not an incident (review A5-11).
+                CommandResult.Status.REJECTED ->
+                    logger.debug { "Detached command ${command.id} on ${command.ref} was rejected: ${committed.error}" }
+
+                else -> logger.info {
+                    "Detached command ${command.id} on ${command.ref} ended ${committed.status}: ${committed.error}"
+                }
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -516,22 +536,15 @@ class WaitCoordinator(
         val outcome = try {
             executor.execute(model, command, wait)
         } catch (busy: ExecutorBusyException) {
-            return Settlement(reachedResult(command, function, hop, clock()).failed(ResultCodes.BUSY, busy.message!!))
+            return refused(command, function, hop, ResultCodes.BUSY, busy.message!!)
         } catch (withdrawn: CommandWithdrawnException) {
             logger.debug { withdrawn.message }
-            return Settlement(
-                reachedResult(command, function, hop, clock()).failed(ResultCodes.WAIT_TIMEOUT, withdrawn.message!!),
-            )
+            return refused(command, function, hop, ResultCodes.WAIT_TIMEOUT, withdrawn.message!!)
         } catch (closed: ExecutorClosedException) {
-            return Settlement(
-                reachedResult(command, function, hop, clock()).failed(ResultCodes.NODE_CLOSING, closed.message!!),
-            )
+            return refused(command, function, hop, ResultCodes.NODE_CLOSING, closed.message!!)
         } catch (unavailable: StorageUnavailableException) {
             logger.warn(unavailable) { "Command ${command.id} on ${command.ref} failed: a store is unavailable." }
-            return Settlement(
-                reachedResult(command, function, hop, clock())
-                    .failed(ResultCodes.STORAGE_UNAVAILABLE, unavailable.message!!),
-            )
+            return refused(command, function, hop, ResultCodes.STORAGE_UNAVAILABLE, unavailable.message!!)
         } catch (early: ScheduleNotDueException) {
             logger.warn { "Clock skew at node ${options.origin.node}: ${early.message}" }
             return Settlement(
@@ -566,6 +579,18 @@ class WaitCoordinator(
             else -> null
         }
         return Settlement(committed, listOfNotNull(reached), outcome)
+    }
+
+    /** [command] settled FAILED with [code] at [hop] before the kernel took it, and observed so (review A5-11). */
+    private fun refused(
+        command: Command<*>,
+        function: FunctionInfo,
+        hop: Hop,
+        code: String,
+        message: String
+    ): Settlement {
+        observer.refused(command.ref.type, code)
+        return Settlement(reachedResult(command, function, hop, clock()).failed(code, message))
     }
 
     /**

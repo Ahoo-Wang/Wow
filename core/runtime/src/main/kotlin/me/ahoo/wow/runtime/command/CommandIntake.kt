@@ -150,7 +150,8 @@ class CommandIntake internal constructor(
     private suspend fun reply(wire: CommandWire, error: ErrorInfo, wait: WaitContext?) {
         val replyTo = wire.replyTo
         if (replyTo == null) {
-            logger.info { "Command ${wire.id} on ${wire.ref} was rejected: ${error.code} ${error.message}" }
+            // A business rejection is an outcome, not an incident (review A5-11): no INFO line per command.
+            logger.debug { "Command ${wire.id} on ${wire.ref} was rejected: ${error.code} ${error.message}" }
             return
         }
         val rejected = CommandRejected<Any>(

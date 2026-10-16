@@ -19,11 +19,13 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.wait.ResultCodes
+import me.ahoo.wow.spi.observation.Observer
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
@@ -377,8 +379,14 @@ class ClusterTest {
             { throw ClusterChannelException("Stream reset") },
             { throw IllegalStateException("The reply does not decode.") },
         )
+        val failed = mutableListOf<String>()
+        val observer = object : Observer {
+            override fun forwardFailed(type: AggregateType, outcome: String) {
+                failed += outcome
+            }
+        }
         val outcomes = answers.map { answer ->
-            val router = PartitionedRouter(listOf(one.ownership), { _, _ -> answer() }, cluster.options)
+            val router = PartitionedRouter(listOf(one.ownership), { _, _ -> answer() }, cluster.options, observer)
             val command = one.command(id)
             router.route(one.model, command, null) { one.coordinator.executeHere(one.model, command, null) }
         }
@@ -389,5 +397,7 @@ class ClusterTest {
             it.outcome.assert().isNull()
         }
         one.decided.assert().hasSize(3)
+        // Review A5-11: each forward without the owner's settlement is observed, by outcome.
+        failed.assert().containsExactly("local", "local", "local", "unknown", "unknown")
     }
 }

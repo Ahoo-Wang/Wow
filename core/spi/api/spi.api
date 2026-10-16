@@ -454,10 +454,15 @@ public abstract interface class me/ahoo/wow/spi/observation/Observer {
 	public fun appending (Lme/ahoo/wow/spi/log/EventStreamRecord;)Lme/ahoo/wow/spi/observation/Observation;
 	public fun deciding (Lme/ahoo/wow/api/decide/Command;)Lme/ahoo/wow/spi/observation/Observation;
 	public fun executing (Lme/ahoo/wow/api/decide/Command;)Lme/ahoo/wow/spi/observation/Observation;
+	public fun executing (Lme/ahoo/wow/api/decide/Command;Ljava/lang/String;)Lme/ahoo/wow/spi/observation/Observation;
 	public fun firing (Lme/ahoo/wow/spi/timer/Timer;)Lme/ahoo/wow/spi/observation/Observation;
+	public fun forwardFailed (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;)V
 	public fun handling (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/log/EventStreamRecord;Ljava/util/Map;Ljava/lang/String;)Lme/ahoo/wow/spi/observation/Observation;
+	public fun refused (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;)V
 	public fun resuming (Ljava/util/Map;)Lkotlin/coroutines/CoroutineContext;
+	public fun signalDropped (Ljava/lang/String;Ljava/lang/String;)V
 	public fun undecodable (Ljava/lang/String;IJZ)V
+	public fun waitTimedOut (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/api/result/Stage;)V
 }
 
 public final class me/ahoo/wow/spi/observation/Observer$Companion {

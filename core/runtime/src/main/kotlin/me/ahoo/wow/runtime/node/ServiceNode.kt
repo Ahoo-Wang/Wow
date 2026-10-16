@@ -472,7 +472,7 @@ class ServiceNode @InternalWowApi constructor(
     /** Where commands run: [Routing.PARTITIONED] over every context's lease group, or [Routing.LOCAL]. */
     @InternalWowApi
     val router: CommandRouter = when (options.routing) {
-        Routing.PARTITIONED -> PartitionedRouter(parts.map { it.ownership }, channel, options.cluster)
+        Routing.PARTITIONED -> PartitionedRouter(parts.map { it.ownership }, channel, options.cluster, observer)
         Routing.LOCAL -> CommandRouter.LOCAL
     }
 
@@ -1132,6 +1132,7 @@ class ServiceNode @InternalWowApi constructor(
                 waitIds = admission.ids.global::next,
                 router = router,
                 topicRouter = topicRouterOf(context, backends),
+                observer = observer,
             )
             val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership), observer = observer)
             firing.firer = ContextTimerFirer(models, coordinator, sender, observer)

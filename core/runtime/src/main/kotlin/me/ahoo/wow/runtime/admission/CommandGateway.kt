@@ -193,7 +193,7 @@ class CommandGateway @InternalWowApi constructor(
                 }
         }
         when (admission) {
-            is Admission.Refused -> emit(admission.result)
+            is Admission.Refused -> emit(observedRefusal(admission.result))
             is Admission.Admitted -> {
                 val coordinator = coordinators.getValue(admission.command.ref.type.context)
                 val from = admission.transformedFrom
@@ -213,6 +213,11 @@ class CommandGateway @InternalWowApi constructor(
                 }
             }
         }
+    }
+
+    /** [refused], told to the observer by its code (review A5-11). */
+    private fun observedRefusal(refused: CommandResult): CommandResult = refused.also { result ->
+        result.error?.let { observer.refused(result.ref.type, it.code) }
     }
 
     /** Runs [block] in the admission's [trace] (decision D174), switching context only when there is one. */
