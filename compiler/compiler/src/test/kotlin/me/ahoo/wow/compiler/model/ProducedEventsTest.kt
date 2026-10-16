@@ -99,6 +99,21 @@ class ProducedEventsTest {
     }
 
     @Test
+    fun `sourcing functions of overlapping sealed types or of Any should be compile errors`() {
+        failing(
+            "fun onCommand(command: Create): Created = Created(command.id)",
+            """
+            fun onSourcing(event: CartEvent) {}
+            @me.ahoo.wow.api.annotation.OnSourcing fun onChanged(event: Changed) {}
+            @me.ahoo.wow.api.annotation.OnSourcing fun onAnything(event: Any) {}
+            """.trimIndent(),
+        ).assert().contains(
+            "the sourcing functions onSourcing, onChanged both take sample.Bumped, through sealed types",
+            "sourcing function onAnything takes kotlin.Any: a sourcing function takes the class of its event",
+        )
+    }
+
+    @Test
     fun `a sourcing function of a sealed type should evolve each of its subclasses`() {
         val scenario = SourceFile.kotlin(
             "Scenario.kt",
