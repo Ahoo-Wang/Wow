@@ -93,10 +93,17 @@ class AggregatePlan(
         return if (known) null else "the V10 command $full is not in the Manifest"
     }
 
-    /** Why the V10 event [name] of the revision [revision] the map gives is not readable; null when it is. */
+    /**
+     * Why the V10 event [name] of the revision [revision] the map gives is not readable; null when it is, or when it
+     * is an event the aggregate retired (its records are skipped).
+     */
     fun eventProblem(name: String, revision: Int): String? {
         val full = fullName(name)
         val manifest = manifest ?: return null
+        // A record under a retired name (decision D219, finding A4-12) is kept in the log and skipped when read.
+        if (manifest.retired.any { fullName(it) == full }) {
+            return null
+        }
         if ('.' in name) {
             return when {
                 full !in Lifecycle.EVENTS -> "the V10 event $full is not a system event"

@@ -183,6 +183,7 @@ internal object ManifestFragmentBuilder {
             queries = QueryRoutes.queries(context, binding.aggregateName, snapshot.enabled),
             schedules = binding.commands.flatMap { it.schedules }.distinct().sorted().ifEmpty { null },
             ownership = Ownership.valueOf(binding.ownership),
+            retired = binding.retiredEvents.sorted(),
         )
     }
 

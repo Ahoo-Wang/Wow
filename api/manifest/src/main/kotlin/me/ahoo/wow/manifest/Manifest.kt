@@ -112,6 +112,11 @@ data class ContextManifest(
  * [ownership] is who the aggregate belongs to besides its tenant, as `@AggregateRoot(ownership)` declares it (decision
  * D189): query admission restricts an owner-level caller's queries of an [Ownership.OWNER] aggregate to its owner, and
  * not those of an [Ownership.TENANT] one.
+ *
+ * [retired] lists the events the aggregate retired, as `@AggregateRoot(retiredEvents)` declares them (decision D219,
+ * finding A4-12): the stored names whose records are skipped, as [EventManifest.aliases] writes names (without a dot
+ * within the aggregate, else full). The compatibility gate takes an event removed and retired for a retirement, and
+ * the data migration checks a mapping to a retired name against it.
  */
 data class AggregateManifest(
     val name: String,
@@ -124,6 +129,7 @@ data class AggregateManifest(
     val queries: List<QueryManifest> = emptyList(),
     val schedules: List<String>? = null,
     val ownership: Ownership = Ownership.OWNER,
+    val retired: List<String> = emptyList(),
 )
 
 /** Who an aggregate belongs to besides its tenant (`me.ahoo.wow.api.aggregate.Ownership`, decision D189). */

@@ -21,7 +21,8 @@ package me.ahoo.wow.manifest
  *
  * Absent optional values (a null description, unknown `produces`, `derives`, `schedules` or `transformsTo`, a fragment's
  * service, a subscription's `retry` or `job`) are left out, not written as null, and so are a subscription source's
- * `nullableState` and a command's `mounted` when false, and an aggregate's `ownership` when it is `OWNER`, the default.
+ * `nullableState` and a command's `mounted` when false, an aggregate's `ownership` when it is `OWNER`, the default,
+ * and its `retired` events when it has none.
  */
 object ManifestTree {
     private const val DEFS = "\$defs"
@@ -85,6 +86,7 @@ object ManifestTree {
         },
         "schedules" to aggregate.schedules,
         "ownership" to aggregate.ownership.takeIf { it != Ownership.OWNER }?.name,
+        "retired" to aggregate.retired.ifEmpty { null },
     )
 
     private fun writeRoute(route: RouteManifest): Map<String, Any?> =
@@ -215,6 +217,7 @@ object ManifestTree {
             },
             schedules = if (node.has("schedules")) node.strings("schedules") else null,
             ownership = node.stringOrNull("ownership")?.let(Ownership::valueOf) ?: Ownership.OWNER,
+            retired = if (node.has("retired")) node.strings("retired") else emptyList(),
         )
     }
 

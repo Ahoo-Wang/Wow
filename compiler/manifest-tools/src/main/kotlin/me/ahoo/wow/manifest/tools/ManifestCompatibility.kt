@@ -90,6 +90,10 @@ data class CompatibilityReport(
  * additive. A command or an event renamed with its former name in its `aliases` keeps matching: the rename is additive,
  * though the routes the old name gave are reported removed.
  *
+ * - An event removed and listed in the aggregate's `retired` events (`@AggregateRoot(retiredEvents)`, decision D219) is
+ *   retired, which is additive, when each of its stored names (its name and aliases) is retired; one removed without
+ *   that breaks the loading of its history. A name no longer retired breaks too; one newly retired is additive.
+ *
  * - Schemas follow [SchemaCompatibility]: a removed field, a narrowed type, a newly required field or a removed enum
  *   value break; an optional field or an enum value added does not. The state schema is the snapshot query's fields,
  *   so the same rules hold for it, and a field renamed with its old path in `x-wow-alias` is additive.
@@ -154,6 +158,7 @@ private class Changes(val schemas: SchemaCompatibility) {
         noun: String,
         compare: (String, T, T) -> Unit,
         aliases: (T) -> List<String> = { emptyList() },
+        removed: (String, T) -> Unit = { entryPath, _ -> breaking(entryPath, "$noun removed") },
     ) {
         val matched = mutableSetOf<String>()
         baseline.forEach { old ->
@@ -168,7 +173,7 @@ private class Changes(val schemas: SchemaCompatibility) {
                     compare("$path[${name(renamed)}]", old, renamed)
                 }
 
-                else -> breaking(entryPath, "$noun removed")
+                else -> removed(entryPath, old)
             }
             matched += name(renamed ?: return@forEach)
         }
@@ -250,7 +255,9 @@ private class Changes(val schemas: SchemaCompatibility) {
             "event",
             { entry, old, new -> compareEvent(entry, old, new, exposure) },
             { it.aliases },
+            { entry, old -> removedEvent(entry, old, current.retired) },
         )
+        compareValues("$path.retired", baseline.retired, current.retired, "retired event")
         compareValues("$path.lifecycle", baseline.lifecycle, current.lifecycle, "lifecycle command")
         compareNamed("$path.queries", baseline.queries, current.queries, { it.model }, "query model", ::compareQuery)
     }
@@ -371,6 +378,31 @@ private class Changes(val schemas: SchemaCompatibility) {
             }
         }
     }
+
+    /**
+     * An event the current Manifest no longer has (decision D219, finding A4-12): retired when each name its records
+     * may be stored under, its name and its aliases, is in [retired]; else its history no longer loads.
+     */
+    private fun removedEvent(path: String, event: EventManifest, retired: List<String>) {
+        val names = listOf(event.name) + event.aliases
+        val unretired = names.filterNot { name -> retired.any { sameName(it, name) } }
+        when {
+            unretired.isEmpty() -> additive(path, "event retired")
+            unretired.size == names.size -> breaking(
+                path,
+                "event removed: list it in @AggregateRoot(retiredEvents) to retire it, or its history no longer loads",
+            )
+
+            else -> breaking(
+                path,
+                "event retired without its former names ${unretired.joinToString()}: their records no longer load",
+            )
+        }
+    }
+
+    /** Whether two names of an event within an aggregate are the same: a simple one, or a full one ending in it. */
+    private fun sameName(left: String, right: String): Boolean =
+        left == right || left.endsWith(".$right") || right.endsWith(".$left")
 
     fun compareQuery(path: String, baseline: QueryManifest, current: QueryManifest) {
         compareRoutes("$path.routes", baseline.routes, current.routes)

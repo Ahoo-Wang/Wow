@@ -260,8 +260,22 @@ class ManifestCompatibilityTest {
             row(
                 "event removed",
                 BASELINE.cart { it.copy(events = emptyList()) },
-                "BREAKING $CART.events[ItemAdded]: event removed"
+                "BREAKING $CART.events[ItemAdded]: event removed: list it in @AggregateRoot(retiredEvents) to " +
+                    "retire it, or its history no longer loads",
             ),
+            row(
+                "event retired",
+                BASELINE.cart { it.copy(events = emptyList(), retired = listOf("ItemAdded")) },
+                "ADDITIVE $CART.events[ItemAdded]: event retired",
+                "ADDITIVE $CART.retired: retired event ItemAdded added",
+            ),
+            row(
+                "event retired by its full name",
+                BASELINE.cart { it.copy(events = emptyList(), retired = listOf("shop.cart.ItemAdded")) },
+                "ADDITIVE $CART.events[ItemAdded]: event retired",
+                "ADDITIVE $CART.retired: retired event shop.cart.ItemAdded added",
+            ),
+
             row(
                 "event renamed with an alias",
                 BASELINE.itemAdded { it.copy(name = "ItemPut", aliases = listOf("ItemAdded")) },
@@ -539,6 +553,22 @@ class ManifestCompatibilityTest {
     fun `the reverse changes should be classified too`() {
         fun changes(baseline: Manifest, current: Manifest) =
             ManifestCompatibility.compare(baseline, current).changes.map { it.toString() }
+
+        changes(BASELINE.cart { it.copy(retired = listOf("ItemRemoved")) }, BASELINE)
+            .assert().containsExactly("BREAKING $CART.retired: retired event ItemRemoved removed")
+        val retiring = BASELINE.itemAdded { it.copy(aliases = listOf("ItemPut")) }
+        changes(retiring, BASELINE.cart { it.copy(events = emptyList(), retired = listOf("ItemAdded")) })
+            .assert().containsExactlyInAnyOrder(
+                "BREAKING $CART.events[ItemAdded]: event retired without its former names ItemPut: their records " +
+                    "no longer load",
+                "ADDITIVE $CART.retired: retired event ItemAdded added",
+            )
+        changes(retiring, BASELINE.cart { it.copy(events = emptyList(), retired = listOf("ItemAdded", "ItemPut")) })
+            .assert().containsExactlyInAnyOrder(
+                "ADDITIVE $CART.events[ItemAdded]: event retired",
+                "ADDITIVE $CART.retired: retired event ItemAdded added",
+                "ADDITIVE $CART.retired: retired event ItemPut added",
+            )
 
         val aliased = BASELINE.addItem { it.copy(aliases = listOf("Put")) }
         changes(
