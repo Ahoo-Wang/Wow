@@ -20,7 +20,7 @@ export const OpsErrorCodes = {
 export type OpsErrorCode = (typeof OpsErrorCodes)[keyof typeof OpsErrorCodes];
 
 /** The subscriptions of `ops` a `handled` hop names. */
-export type OpsSubscription = 'ParkedOperationSaga.onParkedChanged';
+export type OpsSubscription = 'ParkedOperationSaga.onActionRejected' | 'ParkedOperationSaga.onParkedChanged';
 
 /** The hops of a wait chain (`Wow-Wait`) in `ops`. */
 export const opsWait = {

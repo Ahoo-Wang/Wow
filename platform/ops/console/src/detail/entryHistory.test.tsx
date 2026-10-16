@@ -148,6 +148,24 @@ describe("an entry's history", () => {
     expect(byVersion[1].at).toBe(AT + 60_000);
   });
 
+  it("reads an owning service's refusal of the last request (D226)", () => {
+    const [refused] = historyOf([
+      stream(8, "ActionRefused", {
+        action: "wow.ledger.Resume",
+        code: "wow.auth.forbidden",
+        reason: "Taken from the ops context's saga alone.",
+      }),
+    ]);
+    expect(refused).toMatchObject({
+      kind: "actionRefused",
+      facts: {
+        refusedAction: "wow.ledger.Resume",
+        refusalCode: "wow.auth.forbidden",
+        reason: "Taken from the ops context's saga alone.",
+      },
+    });
+  });
+
   it("matches the event names the server sends, system events included", () => {
     const [tagged] = historyOf([TAGGED]);
     expect(tagged).toMatchObject({

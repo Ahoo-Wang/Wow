@@ -2,6 +2,17 @@
 
 
 /**
+ * An action was refused
+ * - key: `me.ahoo.wow.ops.api.parked.ActionRefused`
+ */
+export interface ActionRefused {
+  action: string;
+  code: string;
+  reason: string;
+}
+
+
+/**
  * Apply a retry spec to a parked entry
  * - key: `me.ahoo.wow.ops.api.parked.ApplyRetrySpec`
  */
@@ -113,6 +124,9 @@ export interface ParkedState {
   reason: string;
   recordedAt: number;
   recoverable: string;
+  refusalCode?: string | null;
+  refusalReason?: string | null;
+  refusedAction?: string | null;
   request?: string | null;
   requested?: string | null;
   resolvedAt?: number | null;
@@ -122,6 +136,17 @@ export interface ParkedState {
   service: string;
   status: string;
   subscription: string;
+}
+
+
+/**
+ * Record an action the owning service refused
+ * - key: `me.ahoo.wow.ops.api.parked.RecordActionRefused`
+ */
+export interface RecordActionRefused {
+  action: string;
+  code: string;
+  reason: string;
 }
 
 

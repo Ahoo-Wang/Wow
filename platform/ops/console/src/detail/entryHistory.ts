@@ -50,6 +50,7 @@ export type HistoryKind =
   | "skipRequested"
   | "markRecoverableRequested"
   | "applyRetrySpecRequested"
+  | "actionRefused"
   | "resolved"
   | "unknown";
 
@@ -77,6 +78,9 @@ export interface HistoryFacts {
   outcome: string;
   minBackoff: string;
   executionTimeout: string;
+  /** The ledger's system command an owning service refused, and the code it refused it with. */
+  refusedAction: string;
+  refusalCode: string;
 }
 
 function recorded(
@@ -136,6 +140,15 @@ function step(
           maxRetries: event.body.maxRetries ?? undefined,
           minBackoff: event.body.minBackoff ?? undefined,
           executionTimeout: event.body.executionTimeout ?? undefined,
+        },
+      };
+    case "ops.parked.ActionRefused":
+      return {
+        kind: "actionRefused",
+        facts: {
+          refusedAction: event.body.action,
+          refusalCode: event.body.code,
+          reason: event.body.reason,
         },
       };
     case "ops.parked.ParkedResolved":
