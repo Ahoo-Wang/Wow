@@ -46,7 +46,7 @@ export const FrameworkErrorCodes = {
   COMMAND_CONTENDED: 'wow.command.contended',
   /** 410: the aggregate is deleted; only RestoreAggregate applies. */
   AGGREGATE_DELETED: 'wow.aggregate.deleted',
-  /** 429: the node has too many commands in flight; retry later. */
+  /** 429: the command was not taken, its aggregate or the node being busy; retry later. */
   COMMAND_BUSY: 'wow.command.busy',
   /** 503: whether the command committed is unknown; retrying with the same request id is safe. */
   COMMAND_UNKNOWN: 'wow.command.unknown',

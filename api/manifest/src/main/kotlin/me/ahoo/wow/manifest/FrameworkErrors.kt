@@ -22,6 +22,10 @@ package me.ahoo.wow.manifest
  * The kernel and the runtime define the codes they produce themselves (`KernelRejections`, `ResultCodes`); the
  * strings are the same. A domain rejection's code is not here: it is answered with [DOMAIN_REJECTION_STATUS] unless
  * the host configures another status for it.
+ *
+ * The TypeScript client's code table (`@ahoo-wang/wow-client`, `FrameworkErrorCodes`) is checked against this one
+ * through the snapshot `framework-errors.json` of this module's tests (review A5-8): changing a code or a status here
+ * changes that snapshot, and the client's test fails until its table follows.
  */
 object FrameworkErrors {
     const val AUTH_UNAUTHENTICATED: String = "wow.auth.unauthenticated"
@@ -80,7 +84,12 @@ object FrameworkErrors {
             "Concurrent writers kept winning the version; retrying with the same request id is safe.",
         ),
         ErrorManifest(AGGREGATE_DELETED, 410, "The aggregate is deleted; only RestoreAggregate applies."),
-        ErrorManifest(COMMAND_BUSY, 429, "The node has too many commands in flight; retry later."),
+        ErrorManifest(
+            COMMAND_BUSY,
+            429,
+            "The command was not taken: its aggregate has too many commands waiting, or the node too many in flight; " +
+                "retry later.",
+        ),
         ErrorManifest(
             COMMAND_UNKNOWN,
             503,

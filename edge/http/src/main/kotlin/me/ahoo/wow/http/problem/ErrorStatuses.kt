@@ -29,8 +29,9 @@ import org.springframework.http.HttpStatus
  *    (`wow.*`) 500.
  *
  * `wow.aggregate.version-mismatch` is 412 instead of its table status when the request carried `If-Match`, and a
- * problem a retry may get past, `wow.storage.unavailable`, `wow.command.unknown`, `wow.node.closing` and
- * `wow.command.busy`, carries `Retry-After` ([retryAfter]).
+ * problem a retry may get past, every framework code the table answers with 503 or 429 (`wow.storage.unavailable`,
+ * `wow.command.unknown`, `wow.node.closing`, `wow.schedule.not-due`, `wow.query.timeout`, `wow.command.busy`), carries
+ * `Retry-After` ([retryAfter]).
  */
 internal class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> = emptyMap()) {
     private val framework: Map<String, ErrorManifest> =
@@ -93,15 +94,13 @@ internal class ErrorStatuses(manifest: Manifest, private val overrides: Map<Stri
         const val STORAGE_RETRY_AFTER_SECONDS: Long = 1
 
         /**
-         * The codes whose problems carry `Retry-After` (review A3-8): a store that is unavailable, a command whose
-         * outcome is unknown (retried with the same request id, decision D223), a node that is closing and a lane that
-         * is full. A client that waits spreads its retries instead of repeating them at once.
+         * The codes whose problems carry `Retry-After` (reviews A3-8, A5-8): every framework code answered with 503 or
+         * 429, such as a store that is unavailable, a command whose outcome is unknown (retried with the same request
+         * id, decision D223), a node that is closing, a node or lane that is busy, a query over its budget. A client
+         * that waits spreads its retries instead of repeating them at once.
          */
-        private val RETRYABLE: Set<String> = setOf(
-            FrameworkErrors.STORAGE_UNAVAILABLE,
-            FrameworkErrors.COMMAND_UNKNOWN,
-            FrameworkErrors.NODE_CLOSING,
-            FrameworkErrors.COMMAND_BUSY,
-        )
+        internal val RETRYABLE: Set<String> = FrameworkErrors.ALL
+            .filter { it.status == HttpStatus.SERVICE_UNAVAILABLE.value() || it.status == HttpStatus.TOO_MANY_REQUESTS.value() }
+            .mapTo(LinkedHashSet()) { it.code }
     }
 }

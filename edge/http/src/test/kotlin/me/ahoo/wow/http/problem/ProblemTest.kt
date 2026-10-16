@@ -118,4 +118,14 @@ class ProblemTest {
         statuses.retryAfter(FrameworkCodes.FAILED).assert().isNull()
         statuses.retryAfter(FrameworkCodes.CONTENDED).assert().isNull()
     }
+
+    @Test
+    fun `every framework code answered with 503 or 429 carries Retry-After, and no other`() {
+        val statuses = ErrorStatuses(Manifest())
+        FrameworkErrors.ALL.forEach { error ->
+            val expected = ErrorStatuses.STORAGE_RETRY_AFTER_SECONDS.takeIf { error.status == 503 || error.status == 429 }
+            statuses.problemOf(error.code, "Later.").retryAfter.assert().describedAs(error.code).isEqualTo(expected)
+        }
+        ErrorStatuses.RETRYABLE.assert().contains(FrameworkErrors.QUERY_TIMEOUT, FrameworkErrors.SCHEDULE_NOT_DUE)
+    }
 }

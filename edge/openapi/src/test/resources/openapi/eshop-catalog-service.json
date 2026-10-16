@@ -5191,7 +5191,7 @@
         "x-wow-error-codes" : [ "eshop-catalog.brand.blank-name", "eshop-catalog.category.blank-name", "eshop-catalog.product.blank-name", "eshop-catalog.product.invalid-price" ]
       },
       "eshop-catalog.command.429" : {
-        "description" : "`wow.command.busy`: The node has too many commands in flight; retry later.",
+        "description" : "`wow.command.busy`: The command was not taken: its aggregate has too many commands waiting, or the node too many in flight; retry later.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -5337,7 +5337,7 @@
         }
       },
       "wow.command.429" : {
-        "description" : "`wow.command.busy`: The node has too many commands in flight; retry later.",
+        "description" : "`wow.command.busy`: The command was not taken: its aggregate has too many commands waiting, or the node too many in flight; retry later.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
