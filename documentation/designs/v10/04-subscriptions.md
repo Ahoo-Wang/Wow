@@ -101,6 +101,8 @@ data class WaitContext(                                               // 传输�
 data class WaitSignal(val format: Int, val waitId: String, val result: CommandResult)
 ```
 
+（代码块为示意；这些类型在代码里是普通类，构造函数为 `@InternalWowApi`，经 `of(...)` 创建，D216 ⑤、D227 ②、D228 ①；`Scope`、`Causation`、`AggregateRef`、`AggregateType`、`LogPosition` 等封闭的身份值保留为 data class）
+
 ### 6.3 跨上下文等待
 
 跨上下文等待是 Wow 的重要特性（9.x 已支持），V10 保留。
