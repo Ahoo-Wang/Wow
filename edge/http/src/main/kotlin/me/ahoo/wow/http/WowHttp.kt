@@ -14,9 +14,8 @@
 package me.ahoo.wow.http
 
 import me.ahoo.wow.api.annotation.InternalWowApi
-import tools.jackson.databind.DeserializationFeature
+import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.json.JsonMapper
-import tools.jackson.module.kotlin.kotlinModule
 
 /**
  * The request headers of the public port (decisions D95, D96, D98, D99). A request header that is neither one of these
@@ -151,14 +150,13 @@ internal object WowPaths {
 }
 
 /**
- * The JSON of the public port: the Kotlin module only, unknown fields ignored, as the cluster codec (decision D105).
- * Spring's codecs are not used: responses are written as bytes.
+ * The JSON of the public port and of the HTTP clients: Wow's one configuration ([WowJson], decisions D105, D122), as
+ * the cluster codec's. Spring's codecs are not used: responses are written as bytes. A decimal in a peer's results or
+ * a rejection's extensions read back by a synchronous call ([me.ahoo.wow.http.call.HttpCommandCaller]) keeps its exact
+ * value, as the same result forwarded over the cluster channel does (review A5-6).
  */
 internal object HttpJson {
-    val mapper: JsonMapper = JsonMapper.builder()
-        .addModule(kotlinModule())
-        .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-        .build()
+    val mapper: JsonMapper = WowJson.builder().build()
 
     fun write(value: Any): ByteArray = mapper.writeValueAsBytes(value)
 

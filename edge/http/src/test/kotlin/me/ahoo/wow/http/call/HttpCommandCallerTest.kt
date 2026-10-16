@@ -36,6 +36,7 @@ import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.observation.TraceContext
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import java.math.BigDecimal
 import java.net.InetSocketAddress
 import java.net.URI
 import java.util.concurrent.CopyOnWriteArrayList
@@ -101,6 +102,7 @@ class HttpCommandCallerTest {
         call: OutgoingCall,
         status: CommandResult.Status = CommandResult.Status.SUCCEEDED,
         error: ErrorInfo? = null,
+        results: Map<String, Any> = emptyMap(),
     ) = CommandResult(
         commandId = call.command.id,
         requestId = call.command.requestId,
@@ -112,6 +114,7 @@ class HttpCommandCallerTest {
         version = 1,
         error = error,
         signalTime = 1L,
+        results = results,
     )
 
     private fun caller(credential: ServiceCredential = ServiceCredential.bearer(TOKEN), timeout: Duration = 5.seconds) =
@@ -158,6 +161,27 @@ class HttpCommandCallerTest {
         answer = Triple(422, "application/problem+json", WowJson.mapper.writeValueAsBytes(mapOf("result" to rejected)))
         caller().call(call).error!!.code.assert().isEqualTo("mail.box.full")
     }
+
+    @Test
+    fun `decimals in the results and in a rejection's extensions should keep their exact value (D122)`(): Unit =
+        runBlocking {
+            val call = call()
+            val total = BigDecimal("2.50")
+            answer = Triple(
+                200,
+                "application/json",
+                WowJson.mapper.writeValueAsBytes(result(call, results = mapOf("total" to total))),
+            )
+            caller().call(call).results["total"].assert().isEqualTo(total)
+
+            val rejected = result(
+                call,
+                CommandResult.Status.REJECTED,
+                ErrorInfo("mail.box.full", "Full.", extensions = mapOf("limit" to BigDecimal("10.00"))),
+            )
+            answer = Triple(422, "application/problem+json", WowJson.mapper.writeValueAsBytes(mapOf("result" to rejected)))
+            caller().call(call).error!!.extensions["limit"].assert().isEqualTo(BigDecimal("10.00"))
+        }
 
     @Test
     fun `an answer without a result should fail the call`() {
