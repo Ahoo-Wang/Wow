@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.migrate
 
+import me.ahoo.wow.api.decide.ReservationTenancy
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.DeserializationFeature
 import tools.jackson.databind.json.JsonMapper
@@ -38,7 +39,8 @@ import tools.jackson.databind.json.JsonMapper
  *         { "from": "order_archived", "to": "OrderArchived", "retire": true },
  *         { "from": "order_noted", "drop": true }
  *       ],
- *       "state": { "fields": { "orderStatus": "status" }, "ignore": ["payable", "items.totalPrice"] }
+ *       "state": { "fields": { "orderStatus": "status" }, "ignore": ["payable", "items.totalPrice"] },
+ *       "reservations": [ { "from": "order_no", "namespace": "order.no", "tenancy": "SYSTEM", "ownerId": "orderId" } ]
  *     }
  *   ]
  * }
@@ -52,7 +54,8 @@ import tools.jackson.databind.json.JsonMapper
  *
  * A file of another [format] is refused, as is a property this format does not define. [AggregateMapping.state] joined
  * format 1 with the state comparison (roadmap 8b.2) as an optional property, not a new format: a map without it reads
- * as before, and only `compare` reads it.
+ * as before, and only `compare` reads it. [AggregateMapping.reservations] and [EventMapping.retire] joined format 1 the
+ * same way (findings A4-8, A4-7).
  */
 data class MigrationMap(
     val format: Int,
@@ -94,6 +97,8 @@ data class MigrationMap(
  * - [events] map the 9.x event names (and revisions) to V10 event names and revisions, retire or drop them.
  * - [state] says how a 9.x snapshot's state reads as the V10 state when `compare` compares them ([StateMapping]);
  *   by default field for field.
+ * - [reservations] map the 9.x `PrepareKey`s whose values name an instance of this aggregate to V10 reservation
+ *   namespaces ([ReservationMapping]): every `PrepareKey` the store holds needs one.
  *
  * A V10 name without a dot is the simple name in [to]'s namespace (`OrderCreated` is `example.order.OrderCreated`);
  * one with a dot is a system name such as `wow.lifecycle.AggregateDeleted`.
@@ -105,6 +110,7 @@ data class AggregateMapping(
     val events: List<EventMapping> = emptyList(),
     val defaultCommand: String? = null,
     val state: StateMapping = StateMapping(),
+    val reservations: List<ReservationMapping> = emptyList(),
 ) {
     init {
         val dot = from.lastIndexOf('.')
@@ -166,6 +172,34 @@ data class EventMapping(
         require(toRevision >= 1) { "The event mapping of $from has a V10 revision below 1." }
         require(!drop || fields.isEmpty()) { "The event mapping of $from drops it and renames its fields." }
         require(!retire || fields.isEmpty()) { "The event mapping of $from retires it and renames its fields." }
+    }
+}
+
+/**
+ * The 9.x `PrepareKey` named [from] (its MongoDB collection `prepare_<from>`) imported as V10 reservations in
+ * [namespace] (decisions D38, D225, D227 ③), owned by instances of the enclosing aggregate:
+ *
+ * - each confirmed 9.x key (one prepared forever) becomes a confirmed reservation; a pending key (prepared with a time
+ *   to live) or an expired one is not imported;
+ * - its owner is the instance whose id the 9.x value holds: the value itself when [ownerId] is null, else the string
+ *   at the dotted path [ownerId] in it (`userId`, `owner.id`). 9.x keys have no tenant, so the owner's tenant is the
+ *   one its 9.x streams record;
+ * - [tenancy] is where the key is unique in V10: [ReservationTenancy.TENANT], within the owner's tenant (the default
+ *   of `DecideScope.reserve`), or [ReservationTenancy.SYSTEM], across the context's tenants, as every 9.x key was. It
+ *   must be the tenancy the V10 decide function reserves the key with.
+ */
+data class ReservationMapping(
+    val from: String,
+    val namespace: String,
+    val tenancy: ReservationTenancy = ReservationTenancy.TENANT,
+    val ownerId: String? = null,
+) {
+    init {
+        require(from.isNotBlank()) { "A reservation mapping names its 9.x PrepareKey." }
+        require(namespace.isNotBlank()) { "The reservation mapping of $from names its V10 namespace." }
+        require(ownerId == null || ownerId.split('.').none { it.isBlank() }) {
+            "The reservation mapping of $from gives the owner id as a dotted path of names: $ownerId"
+        }
     }
 }
 

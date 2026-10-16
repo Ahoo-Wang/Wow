@@ -17,9 +17,13 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemoryReservationStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.migrate.example.NineXExample
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.reservation.ReservationScope
+import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
@@ -42,6 +46,8 @@ class MigrateDataTest {
     private var nineX: NineXEventSource = source
     private var nineXSnapshots = InMemoryNineXSnapshotSource(NineXExample.snapshots(), source)
     private val store = InMemorySnapshotStore()
+    private val prepared = InMemoryNineXReservationSource()
+    private val reservationStore = InMemoryReservationStore()
 
     private val connections = object : MigrationConnections {
         override val source: NineXEventSource get() = nineX
@@ -51,6 +57,10 @@ class MigrateDataTest {
         override fun logOf(context: String): EventLog = log
 
         override fun snapshotStoreOf(context: String): SnapshotStore = store
+
+        override val reservations: NineXReservationSource get() = prepared
+
+        override fun reservationStore(): ReservationStore = reservationStore
 
         override fun close() {
             closed = true
@@ -169,9 +179,40 @@ class MigrateDataTest {
 
         run("compare", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
         printed.assert().contains("example-service.order compared: 1 of 1 instances have a 9.x snapshot (100.0%)")
-            .contains("Comparison done: every state compared equals its 9.x snapshot.")
+            .contains("Comparison done: every state compared equals its 9.x snapshot, and every confirmed 9.x key")
         run("snapshot", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
         printed.assert().contains("0 V10 snapshots written, 1 already there")
+    }
+
+    @Test
+    fun `import reserves the confirmed 9x keys, and compare checks them`(): Unit = runBlocking {
+        val id = NineXExample.stream("order-stream-v1.json").aggregateId
+        prepared.add(NineXPreparedKey("order_no", "NO-1", WowJson.mapper.readTree("""{"orderId":"${id.id}"}"""), null))
+        run("import", "--config", config().toString()).assert().isEqualTo(MigrateData.FAILED)
+        printed.assert().contains("  PrepareKey order_no: 1 keys")
+            .contains("the 9.x PrepareKey order_no (1 keys) has no reservation mapping")
+
+        val map = NineXExample.MAP_TEXT.replace(
+            "\"to\": \"example.order\",",
+            "\"to\": \"example.order\", \"reservations\": [ { \"from\": \"order_no\", \"namespace\": \"order.no\", " +
+                "\"ownerId\": \"orderId\" } ],",
+        )
+        val config = config(map)
+        run("import", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
+        printed.assert().contains("PrepareKey order_no reservations done: 1 keys, 1 imported")
+        val scope = ReservationScope.of(NineXExample.CONTEXT, id.tenantId, "order.no")
+        val owner = NineXExample.orderModel.type.ref(id.tenantId, id.id)
+        reservationStore.find(scope, "NO-1")!!.owner.assert().isEqualTo(owner)
+        run("compare", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
+        printed.assert().contains("PrepareKey order_no compared: 1 confirmed keys, 0 differ")
+
+        reservationStore.release(scope, "NO-1", owner)
+        run("compare", "--config", config.toString()).assert().isEqualTo(MigrateData.DIFFERS)
+        printed.assert().contains("DIFFERS PrepareKey order_no/NO-1: 9.x $owner, V10 (none)")
+            .contains("1 confirmed keys of the PrepareKeys [order_no] are not reserved for their owners in V10")
+        // Resumable: the import is complete, so it reserves again only from a restart.
+        run("import", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
+        reservationStore.find(scope, "NO-1")!!.owner.assert().isEqualTo(owner)
     }
 
     @Test

@@ -37,14 +37,17 @@ import kotlin.system.exitProcess
  * - `import` checks first and does not start on a failed check; then imports every mapped 9.x aggregate, resuming from
  *   its checkpoint. `--dry-run` converts every stream and appends none; `--restart` walks every instance again, the
  *   final complete pass once 9.x has stopped writing; `--snapshots` then writes the V10 snapshots, as `snapshot` does.
+ *   After the streams it imports the confirmed keys of every mapped 9.x `PrepareKey` as V10 reservations
+ *   ([ReservationImporter]), resuming from their checkpoints too.
  * - `tail` follows what 9.x commits after the full import until it is stopped (or after one pass with `--once`), the
  *   increment until cut-over. It reads the 9.x store by commit time, which needs an index 9.x did not create: without
  *   it the tail refuses to start and prints the command that creates it, unless `source.createCommitTimeIndex` lets
  *   it create the index itself, the tool's only write to a 9.x store.
  * - `compare` compares each 9.x snapshot with the V10 state rebuilt from the imported log at its version
  *   ([StateComparison]), resuming from its checkpoint; `--sample` compares that percentage of the instances, the same
- *   ones on every run, and `--restart` compares from the first again. It prints each instance that differs, and exits
- *   with [DIFFERS] when one does.
+ *   ones on every run, and `--restart` compares from the first again. It then checks that every confirmed 9.x
+ *   `PrepareKey` key is reserved in V10 for the same owner ([ReservationComparison], every key on every run). It
+ *   prints each instance and key that differs, and exits with [DIFFERS] when one does.
  * - `snapshot` writes the V10 snapshot of every imported instance at its last version ([SnapshotWriter]), resuming
  *   from its checkpoint; `--restart` walks every instance again (the snapshots already written are skipped).
  *
@@ -118,7 +121,7 @@ class MigrateData(
         options.zipWithNext().firstOrNull { it.first == name }?.second
 
     private fun check(plan: MigrationPlan, connections: MigrationConnections): Int {
-        val report = MappingCheck(plan).check(connections.source.inventory())
+        val report = MappingCheck(plan).check(connections.source.inventory(), connections.reservations.prepareKeys())
         out.println(report.render())
         return if (report.passed) OK else FAILED
     }
@@ -140,6 +143,17 @@ class MigrateData(
         }
         val importer = importer(plan, config.options(dryRun, RESTART in options), connections, checkpoints)
         plan.aggregates.keys.forEach { importer.importAll(it) }
+        val reservations = ReservationImporter(
+            source = connections.source,
+            reservations = connections.reservations,
+            plan = plan,
+            store = connections::reservationStore,
+            checkpoints = checkpoints,
+            options = config.options(dryRun, RESTART in options),
+            progress = { out.println(it.render()) },
+            report = out::println,
+        )
+        plan.reservations.keys.forEach { reservations.importAll(it) }
         out.println(if (dryRun) "Dry run done: nothing was appended." else "Import done.")
         return if (SNAPSHOTS in options) snapshot(plan, config, connections, RESTART in options) else OK
     }
@@ -161,15 +175,36 @@ class MigrateData(
             report = out::println,
         )
         val differing = plan.aggregates.keys.map { comparison.compare(it) }.filterNot { it.passed }
-        if (differing.isEmpty()) {
-            out.println("Comparison done: every state compared equals its 9.x snapshot.")
+        val reservations = ReservationComparison(
+            source = connections.source,
+            reservations = connections.reservations,
+            plan = plan,
+            store = connections::reservationStore,
+            pageSize = config.pageSize,
+            report = out::println,
+        )
+        val differingKeys = plan.reservations.keys.map { reservations.compare(it) }.filterNot { it.passed }
+        if (differing.isEmpty() && differingKeys.isEmpty()) {
+            out.println(
+                "Comparison done: every state compared equals its 9.x snapshot, and every confirmed 9.x key is " +
+                    "reserved for its owner.",
+            )
             return OK
         }
-        out.println(
-            "Comparison done: ${differing.sumOf { it.differing }} instances of ${differing.map { it.aggregate }} " +
-                "differ. Explain each kind of difference (a known 9.x defect or an intended change) before the " +
-                "cut-over (design 07 §3 step 4).",
-        )
+        if (differing.isNotEmpty()) {
+            out.println(
+                "Comparison done: ${differing.sumOf { it.differing }} instances of ${differing.map { it.aggregate }} " +
+                    "differ. Explain each kind of difference (a known 9.x defect or an intended change) before the " +
+                    "cut-over (design 07 §3 step 4).",
+            )
+        }
+        if (differingKeys.isNotEmpty()) {
+            out.println(
+                "Comparison done: ${differingKeys.sumOf { it.differ }} confirmed keys of the PrepareKeys " +
+                    "${differingKeys.map { it.name }} are not reserved for their owners in V10: run the import " +
+                    "again before the cut-over.",
+            )
+        }
         return DIFFERS
     }
 

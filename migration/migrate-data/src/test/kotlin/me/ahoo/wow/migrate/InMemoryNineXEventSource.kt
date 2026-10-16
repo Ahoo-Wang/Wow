@@ -52,6 +52,10 @@ class InMemoryNineXEventSource(streams: Collection<NineXStream> = emptyList()) :
         .sortedBy { it.version }
         .take(limit)
 
+    override fun tenantsOf(aggregate: NineXAggregate, id: String): List<String> =
+        streams.filter { it.aggregate == aggregate && it.aggregateId.id == id && it.version == 1 }
+            .map { it.aggregateId.tenantId }.distinct().sorted()
+
     override fun committedSince(
         aggregate: NineXAggregate,
         from: Long,

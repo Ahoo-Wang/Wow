@@ -41,6 +41,7 @@ data class MappingReport(
     val problems: List<String>,
     val warnings: List<String>,
     val inventories: List<NineXInventory>,
+    val prepareKeys: Map<String, Long> = emptyMap(),
 ) {
     /** Whether the import may start. */
     val passed: Boolean get() = problems.isEmpty()
@@ -57,6 +58,7 @@ data class MappingReport(
                     "${inventory.events.values.sum()} events of ${inventory.events.size} types",
             )
         }
+        prepareKeys.forEach { (name, keys) -> appendLine("  PrepareKey $name: $keys keys") }
         problems.forEach { appendLine("PROBLEM $it") }
         warnings.forEach { appendLine("WARNING $it") }
         append(if (passed) "Mapping check passed." else "Mapping check failed: ${problems.size} problems.")
@@ -74,12 +76,14 @@ data class MappingReport(
  * - no stream holds only dropped events, which would leave its version empty (map them with `retire` instead);
  * - every 9.x command name the store records maps to a V10 command of the aggregate, and streams that record none
  *   have a default command;
- * - every mapping target is in the Manifest, whether or not the store uses it.
+ * - every mapping target is in the Manifest, whether or not the store uses it;
+ * - every 9.x `PrepareKey` the store holds ([prepareKeys], keys by name) is mapped to a V10 reservation namespace, once
+ *   (finding A4-8).
  *
  * Mappings the store does not use are warnings: the Skill may map an event no stream holds yet.
  */
 class MappingCheck(private val plan: MigrationPlan) {
-    fun check(inventories: List<NineXInventory>): MappingReport {
+    fun check(inventories: List<NineXInventory>, prepareKeys: Map<String, Long> = emptyMap()): MappingReport {
         val problems = mutableListOf<String>()
         val warnings = mutableListOf<String>()
         plan.aggregates.values.groupBy { it.target }.filterValues { it.size > 1 }.forEach { (target, plans) ->
@@ -98,7 +102,23 @@ class MappingCheck(private val plan: MigrationPlan) {
                 storeProblems(aggregate, inventory, problems, warnings)
             }
         }
-        return MappingReport(problems, warnings, inventories)
+        reservationProblems(prepareKeys, problems, warnings)
+        return MappingReport(problems, warnings, inventories, prepareKeys)
+    }
+
+    private fun reservationProblems(
+        prepareKeys: Map<String, Long>,
+        problems: MutableList<String>,
+        warnings: MutableList<String>,
+    ) {
+        val mappings = plan.aggregates.values.flatMap { aggregate -> aggregate.mapping.reservations.map { it.from } }
+        mappings.groupBy { it }.filterValues { it.size > 1 }.keys
+            .forEach { problems += "the 9.x PrepareKey $it is mapped twice" }
+        prepareKeys.filterKeys { it !in mappings }.forEach { (name, keys) ->
+            problems += "the 9.x PrepareKey $name ($keys keys) has no reservation mapping: its keys would be free in V10"
+        }
+        mappings.distinct().filter { it !in prepareKeys }
+            .forEach { warnings += "the 9.x store holds no PrepareKey $it" }
     }
 
     private fun targetProblems(aggregate: AggregatePlan): List<String> {

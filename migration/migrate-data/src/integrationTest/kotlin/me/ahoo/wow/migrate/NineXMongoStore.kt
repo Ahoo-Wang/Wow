@@ -21,6 +21,7 @@ import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.tck.containers.WowContainers
 import org.bson.Document
+import java.util.Date
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -60,6 +61,15 @@ object NineXMongoStore {
         document["_id"] = document.remove("id")
         document["size"] = (stream["body"] as List<*>).size
         database.getCollection("${stream["aggregateName"]}${MongoNineXEventSource.SUFFIX}").insertOne(document)
+    }
+
+    /**
+     * Prepares [key] of the 9.x `PrepareKey` [name] in [database] as 9.x's `MongoPrepareKey.prepare` writes it:
+     * `{_id: key, value, ttlAt: Date}` in `prepare_<name>`, the value a string or a document of its fields.
+     */
+    fun prepare(database: MongoDatabase, name: String, key: String, value: Any, ttlAt: Long) {
+        database.getCollection("${MongoNineXReservationSource.PREFIX}$name")
+            .insertOne(Document("_id", key).append("value", value).append("ttlAt", Date(ttlAt)))
     }
 
     /** The JSON of a 9.x stream following [text]'s: the order received, at the next version, committed at [createTime]. */

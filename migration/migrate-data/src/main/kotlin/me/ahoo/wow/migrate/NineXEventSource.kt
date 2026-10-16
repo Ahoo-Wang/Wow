@@ -38,6 +38,12 @@ interface NineXEventSource {
      * in commit-time order.
      */
     fun committedSince(aggregate: NineXAggregate, from: Long, after: NineXPosition?, limit: Int): List<NineXStream>
+
+    /**
+     * The tenants of [aggregate]'s instances whose id is [id], by their first streams, sorted: one for an instance
+     * found, none when no stream has the id, several when ids collide across tenants.
+     */
+    fun tenantsOf(aggregate: NineXAggregate, id: String): List<String>
 }
 
 /**

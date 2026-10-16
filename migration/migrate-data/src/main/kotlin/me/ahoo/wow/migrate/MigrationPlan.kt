@@ -32,6 +32,14 @@ class MigrationPlan(val map: MigrationMap, val manifest: Manifest) {
         mapping.source() to AggregatePlan(mapping, target, manifestOf(target), map.headers)
     }
 
+    /**
+     * The plans of the mapped 9.x `PrepareKey`s, by name (A4-8): each with the aggregate whose instances own its keys.
+     * A name mapped twice keeps its last mapping here; the mapping check reports it.
+     */
+    val reservations: Map<String, ReservationPlan> = aggregates.values.flatMap { aggregate ->
+        aggregate.mapping.reservations.map { it.from to ReservationPlan(aggregate, it) }
+    }.toMap()
+
     /** The plan of [aggregate]; a [MigrationException] when the map does not name it. */
     fun of(aggregate: NineXAggregate): AggregatePlan =
         aggregates[aggregate] ?: throw MigrationException("migration-map.json does not map the 9.x aggregate $aggregate.")

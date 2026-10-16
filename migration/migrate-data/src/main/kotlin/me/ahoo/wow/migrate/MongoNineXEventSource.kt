@@ -186,6 +186,20 @@ class MongoNineXEventSource(private val database: MongoDatabase) : NineXEventSou
         )
     }
 
+    override fun tenantsOf(aggregate: NineXAggregate, id: String): List<String> = collectionOf(aggregate)
+        .find(
+            Filters.and(
+                Filters.eq(AGGREGATE_ID, id),
+                Filters.eq(CONTEXT_NAME, aggregate.context),
+                Filters.eq(VERSION, 1)
+            )
+        )
+        .projection(Document(TENANT_ID, 1))
+        .mapNotNull { it.getString(TENANT_ID) }
+        .toList()
+        .distinct()
+        .sorted()
+
     override fun missingCommitTimeIndexes(aggregates: Collection<NineXAggregate>): Map<String, String> =
         aggregates.map { it.name + SUFFIX }.distinct().filterNot { name ->
             database.getCollection(name).listIndexes().any { isCommitTimeKey(it.get("key", Document::class.java)) }

@@ -227,6 +227,22 @@ class MappingCheckTest {
     }
 
     @Test
+    fun `every 9x PrepareKey the store holds is mapped once`() {
+        val mapping = ReservationMapping("order_no", "order.no", ownerId = "orderId")
+        val map = NineXExample.map.order { copy(reservations = listOf(mapping, mapping.copy(from = "order_code"))) }
+        val report = MappingCheck(MigrationPlan(map, NineXExample.manifest))
+            .check(example, mapOf("order_no" to 3L, "user_name" to 2L))
+        report.problems.assert().containsExactly(
+            "the 9.x PrepareKey user_name (2 keys) has no reservation mapping: its keys would be free in V10",
+        )
+        report.warnings.assert().contains("the 9.x store holds no PrepareKey order_code")
+        report.render().assert().contains("  PrepareKey order_no: 3 keys")
+        val twice = NineXExample.map.order { copy(reservations = listOf(mapping, mapping)) }
+        MappingCheck(MigrationPlan(twice, NineXExample.manifest)).check(example, mapOf("order_no" to 3L))
+            .problems.assert().containsExactly("the 9.x PrepareKey order_no is mapped twice")
+    }
+
+    @Test
     fun `a target aggregate missing from the Manifest, duplicates and shared targets fail it`() {
         val map = NineXExample.map.order {
             copy(events = events + events.first(), commands = commands + commands.first())

@@ -19,11 +19,14 @@ import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.mongo.log.MongoEventLog
+import me.ahoo.wow.mongo.reservation.MongoReservationStore
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.postgres.PostgresEventLog
+import me.ahoo.wow.postgres.reservation.PostgresReservationStore
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.postgresql.ds.PGSimpleDataSource
 import tools.jackson.databind.DeserializationFeature
@@ -165,12 +168,19 @@ interface MigrationConnections : Closeable {
     fun logOf(context: String): EventLog
 
     fun snapshotStoreOf(context: String): SnapshotStore
+
+    /** The 9.x `PrepareKey`s (finding A4-8). */
+    val reservations: NineXReservationSource
+
+    /** The V10 reservation store, one for every context, on the target backend; its schema created. */
+    fun reservationStore(): ReservationStore
 }
 
 /**
  * The connections [config] names: a 9.x MongoDB store, and a V10 log on PostgreSQL or MongoDB whose schema each
  * context's first use creates (with the configured partition count, which an existing log must already have), with
- * the snapshot store of each context on the same backend.
+ * the snapshot store of each context and the reservation store on the same backend (their default names, as the
+ * host's).
  */
 class ConfiguredConnections(private val config: MigrationConfig) : MigrationConnections {
     private val sourceClient: MongoClient = MongoClients.create(
@@ -210,6 +220,19 @@ class ConfiguredConnections(private val config: MigrationConfig) : MigrationConn
             PostgresSnapshotStore(dataSource, context)
         }
     }
+
+    override val reservations: NineXReservationSource =
+        MongoNineXReservationSource(sourceClient.getDatabase(config.source.database))
+
+    private val reservationStore: ReservationStore by lazy {
+        if (targetClient != null) {
+            MongoReservationStore(targetClient, requireNotNull(config.target.database)).also { it.createSchema() }
+        } else {
+            PostgresReservationStore(dataSource).also { it.createSchema() }
+        }
+    }
+
+    override fun reservationStore(): ReservationStore = reservationStore
 
     override fun close() {
         sourceClient.close()
