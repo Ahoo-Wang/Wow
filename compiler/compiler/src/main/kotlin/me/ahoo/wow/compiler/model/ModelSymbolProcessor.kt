@@ -24,10 +24,8 @@ import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
 import com.google.devtools.ksp.processing.SymbolProcessorProvider
-import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
-import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
@@ -36,20 +34,24 @@ import com.google.devtools.ksp.symbol.KSValueParameter
 import com.google.devtools.ksp.symbol.Modifier
 import com.google.devtools.ksp.symbol.Origin
 import com.google.devtools.ksp.validate
-import me.ahoo.wow.api.annotation.AfterCommand
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.Alias
 import me.ahoo.wow.api.annotation.AllowCreate
-import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.BoundedContext
 import me.ahoo.wow.api.annotation.CreateAggregate
 import me.ahoo.wow.api.annotation.Name
-import me.ahoo.wow.api.annotation.OnCommand
-import me.ahoo.wow.api.annotation.OnSourcing
 import me.ahoo.wow.api.annotation.Revision
 import me.ahoo.wow.api.annotation.Unaddressed
-import me.ahoo.wow.api.lifecycle.Lifecycle
-import me.ahoo.wow.api.schedule.Schedules
+import me.ahoo.wow.compiler.model.ModelNames.AFTER_COMMAND_ANNOTATION
+import me.ahoo.wow.compiler.model.ModelNames.ANY
+import me.ahoo.wow.compiler.model.ModelNames.COMMAND
+import me.ahoo.wow.compiler.model.ModelNames.DECIDE_SCOPE
+import me.ahoo.wow.compiler.model.ModelNames.FRAMEWORK_PACKAGES
+import me.ahoo.wow.compiler.model.ModelNames.ON_COMMAND_ANNOTATION
+import me.ahoo.wow.compiler.model.ModelNames.ON_SOURCING
+import me.ahoo.wow.compiler.model.ModelNames.ON_SOURCING_ANNOTATION
+import me.ahoo.wow.compiler.model.ModelNames.REACTOR_TYPES
+import me.ahoo.wow.compiler.model.ModelNames.STRING
 import me.ahoo.wow.manifest.ContextName
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
@@ -428,67 +430,20 @@ internal class ModelSymbolProcessor(
         }
     }
 
-    /**
-     * The root's state, decided explicitly (finding A4-4), not from the order or the defaults of its constructors: a
-     * root is built from its state when one of its constructors takes exactly one parameter whose class has sourcing
-     * functions (`@OnSourcing`, or named `onSourcing`), and that class is the state; the root may have other
-     * constructors, such as a Java no-argument one, and the parameter may have a default value. Else the root is its
-     * own state (decision D203). Two such constructors of different states are a problem, and so is a constructor
-     * whose first parameter is a state but that takes more.
-     */
-    private fun stateOf(root: KSClassDeclaration, problems: MutableList<String> = mutableListOf()): KSClassDeclaration {
-        val constructors = root.getConstructors().toList()
-        fun KSValueParameter.stateClass(): KSClassDeclaration? =
-            (type.resolve().declaration as? KSClassDeclaration)?.takeIf { it != root && it.hasSourcingFunctions() }
-        val states = constructors.filter { it.parameters.size == 1 }.mapNotNull { it.parameters.single().stateClass() }
-            .distinct()
-        if (states.size > 1) {
-            problems += "the root's constructors take the states ${states.joinToString { it.simpleName.asString() }}: " +
-                "a root is built from one state, so keep one constructor taking it"
-        }
-        val state = states.firstOrNull()
-        if (state == null) {
-            constructors.firstOrNull { it.parameters.size > 1 && it.parameters.first().stateClass() != null }?.let {
-                problems += "the root's constructor must take only its state"
-            }
-        }
-        return state ?: root
-    }
-
-    /** Whether this class, or a superclass, has a sourcing function: what makes it an aggregate's state. */
-    private fun KSClassDeclaration.hasSourcingFunctions(): Boolean = getAllFunctions().any {
-        it.simpleName.asString() == ON_SOURCING || it.annotatedIn(ON_SOURCING_ANNOTATION) != null
-    }
-
     @OptIn(KspExperimental::class)
     private fun analyze(root: KSClassDeclaration): AggregateBinding {
         val problems = mutableListOf<String>()
         val warnings = mutableListOf<String>()
         val rootName = root.qualifiedName!!.asString()
-        val state = stateOf(root, problems)
+        val state = RootStateResolver.stateOf(root, problems)
         val rootIsState = state == root
         val stateArguments = stateArguments(state, problems)
 
         val dependencies = linkedMapOf<String, Dependency>()
-        val commandFunctions = root.functionsNamedOrAnnotated(ON_COMMAND, ON_COMMAND_ANNOTATION, problems)
-        val commands = commandFunctions.mapNotNull { function ->
-            commandBinding(function, dependencies, problems, warnings)
-        }
-        commands.groupBy { it.command }.filterValues { it.size > 1 }.keys.forEach {
-            problems += "two command functions handle $it"
-        }
-        val sourcingFunctions = state.functionsNamedOrAnnotated(ON_SOURCING, ON_SOURCING_ANNOTATION, problems)
-        val sourcing = sourcingOf(sourcingFunctions, state, problems)
-        val commandTypes = commandFunctions.mapNotNull { firstParameterClass(it, unwrapCommand = true) }
-        val afters = root.functionsNamedOrAnnotated(AFTER_COMMAND, AFTER_COMMAND_ANNOTATION, problems)
-            .mapNotNull { function -> afterBinding(function, commandTypes, dependencies, problems, warnings) }
+        val (commands, sourcing, afters) = handlersOf(root, state, dependencies, problems, warnings)
         if (!rootIsState) {
-            problems += misplacedProblems(root, state)
+            problems += RootStateResolver.misplacedProblems(root, state)
         }
-        problems += producesProblems(commands, sourcing)
-        problems += yieldProblems(commands, afters, sourcing)
-        val eventTypes = sourcingFunctions.mapNotNull { function -> firstParameterClass(function, unwrapCommand = false) }
-        problems += annotationProblems(root, state, commandTypes, eventTypes)
         val aggregateName = root.toName()
         problems += aliasProblems(aggregateName, commands, sourcing)
         val upgradeBindings = upgradeBindings(sourcing, problems)
@@ -521,105 +476,51 @@ internal class ModelSymbolProcessor(
             retiredEvents = retiredEvents,
             tags = TagsResolver.of(state, problems),
             warnings = warnings,
-            internal = root.isInternal() || state.isInternal(),
+            internal = with(RootStateResolver) { root.isInternal() || state.isInternal() },
         )
     }
 
-    /**
-     * Whether this class, or one it is nested in, is `internal`: the generated factory exposes the state in its
-     * signature, so it is `internal` too (finding A4-11), and the module's model provider still calls it.
-     */
-    private fun KSClassDeclaration.isInternal(): Boolean =
-        generateSequence<KSDeclaration>(this) { it.parentDeclaration }.any { Modifier.INTERNAL in it.modifiers }
+    /** The handlers of an aggregate, as [handlersOf] finds them. */
+    private data class Handlers(
+        val commands: List<CommandBinding>,
+        val sourcing: List<SourcingBinding>,
+        val afters: List<AfterBinding>,
+    )
 
     /**
-     * The handler annotations on the wrong class of an aggregate whose root is built from its state (finding A4-2):
-     * command functions and after hooks are the root's, sourcing functions the state's. The generated model would not
-     * see them.
+     * The command functions and after hooks of [root] and the sourcing functions of [state], their dependencies in
+     * [dependencies]; the problems of each, of the events they produce and of the annotations on their types go to
+     * [problems].
      */
-    private fun misplacedProblems(root: KSClassDeclaration, state: KSClassDeclaration): List<String> {
-        fun annotated(type: KSClassDeclaration, annotation: String): List<String> =
-            type.getAllFunctions().filter { it.annotatedIn(annotation) != null }.map { it.simpleName.asString() }
-                .toList()
-        val rootName = root.simpleName.asString()
-        val stateName = state.simpleName.asString()
-        return annotated(state, ON_COMMAND_ANNOTATION).map {
-            "the state $stateName's function $it is annotated @OnCommand: command functions are the aggregate " +
-                "root's, so move it to $rootName"
-        } + annotated(state, AFTER_COMMAND_ANNOTATION).map {
-            "the state $stateName's function $it is annotated @AfterCommand: after hooks are the aggregate root's, " +
-                "so move it to $rootName"
-        } + annotated(root, ON_SOURCING_ANNOTATION).map {
-            "the aggregate root $rootName's function $it is annotated @OnSourcing: sourcing functions are the " +
-                "state's, so move it to $stateName"
-        }
-    }
-
-    /** `@OnCommand(produces)` lists events of the aggregate only (decision D120). */
-    private fun producesProblems(commands: List<CommandBinding>, sourcing: List<SourcingBinding>): List<String> {
-        val events = sourcing.map { it.event }.toSet()
-        return commands.flatMap { command ->
-            command.declaredProduces.filterNot { it in events }.map {
-                "@OnCommand(produces) of ${command.function}(${command.command}) lists $it, which is not an event " +
-                    "of the aggregate: no sourcing function takes it"
-            }
-        }
-    }
-
-    /**
-     * What a command function or an after hook produces, as its return type says ([EventYield]), is an event of the
-     * aggregate (finding A4-9): the kernel cannot evolve the state with an event no sourcing function takes, so every
-     * such command would fail at run time. A system event (lifecycle, schedule) is always one.
-     */
-    private fun yieldProblems(
-        commands: List<CommandBinding>,
-        afters: List<AfterBinding>,
-        sourcing: List<SourcingBinding>,
-    ): List<String> {
-        val events = sourcing.map { it.event }.toSet() + SYSTEM_EVENTS
-        val fix = "no sourcing function takes it; add one to the state, an empty one when the event changes nothing"
-        // `@OnCommand(produces)` is checked on its own ([producesProblems]).
-        return commands.filter { it.declaredProduces.isEmpty() }.flatMap { command ->
-            command.yields.orEmpty().filterNot { it in events }.map {
-                "${command.function}(${command.command}) produces $it, which is not an event of the aggregate: $fix"
-            }
-        } + afters.flatMap { after ->
-            after.yields.orEmpty().filterNot { it in events }.map {
-                "after hook ${after.function} produces $it, which is not an event of the aggregate: $fix"
-            }
-        }
-    }
-
-    /**
-     * The bindings of the sourcing [functions] of [state]. A function taking a sealed type evolves each of its
-     * concrete subclasses (finding A4-9), those another function takes by their own class aside; one taking any other
-     * interface or abstract class is a problem: the kernel finds a sourcing function by the event's exact class.
-     */
-    private fun sourcingOf(
-        functions: List<KSFunctionDeclaration>,
+    private fun handlersOf(
+        root: KSClassDeclaration,
         state: KSClassDeclaration,
+        dependencies: MutableMap<String, Dependency>,
         problems: MutableList<String>,
-    ): List<SourcingBinding> {
-        val bound = functions.map { function -> function to sourcingBinding(function, state, problems) }
-        val direct = bound.filter { (_, binding) -> binding != null && !binding.sealed }.map { it.second!! }
-        val expanded = bound.mapNotNull { it.second }.filter { it.sealed }.flatMap { sealed ->
-            sealedEvents(sealed.declaration!!).filterNot { event -> direct.any { it.event == event.render() } }
-                .map { event -> eventBinding(event, sealed.function, sealed.returnsState) }
+        warnings: MutableList<String>,
+    ): Handlers {
+        val commandFunctions = root.functionsNamedOrAnnotated(ON_COMMAND, ON_COMMAND_ANNOTATION, problems)
+        val commands = commandFunctions.mapNotNull { function ->
+            commandBinding(function, dependencies, problems, warnings)
         }
-        expanded.groupBy { it.event }.filterValues { it.size > 1 }.forEach { (event, twice) ->
-            problems += "the sourcing functions ${twice.joinToString { it.function }} both take $event, through " +
-                "sealed types: give $event a sourcing function of its own"
+        commands.groupBy { it.command }.filterValues { it.size > 1 }.keys.forEach {
+            problems += "two command functions handle $it"
         }
-        return direct + expanded.distinctBy { it.event }
+        val sourcingFunctions = state.functionsNamedOrAnnotated(ON_SOURCING, ON_SOURCING_ANNOTATION, problems)
+        val sourcing = SourcingResolver.sourcingOf(sourcingFunctions, state, problems)
+        val commandTypes = commandFunctions.mapNotNull { firstParameterClass(it, unwrapCommand = true) }
+        val afters = root.functionsNamedOrAnnotated(AFTER_COMMAND, AFTER_COMMAND_ANNOTATION, problems)
+            .mapNotNull { function ->
+                AfterHookResolver.afterBinding(function, commandTypes, problems, warnings) { name, parameter ->
+                    argument(name, parameter, dependencies, problems)
+                }
+            }
+        problems += SourcingResolver.producesProblems(commands, sourcing)
+        problems += SourcingResolver.yieldProblems(commands, afters, sourcing)
+        val eventTypes = sourcingFunctions.mapNotNull { firstParameterClass(it, unwrapCommand = false) }
+        problems += annotationProblems(root, state, commandTypes, eventTypes)
+        return Handlers(commands, sourcing, afters)
     }
-
-    /** The concrete classes of the sealed [type], its sealed subclasses' included. */
-    private fun sealedEvents(type: KSClassDeclaration): List<KSClassDeclaration> =
-        type.getSealedSubclasses().flatMap { sub ->
-            if (Modifier.SEALED in sub.modifiers) sealedEvents(sub).asSequence() else sequenceOf(sub)
-        }.toList()
-
-    private fun KSClassDeclaration.render(): String = asStarProjectedType().render()
 
     /** The problems of the `@Alias` values of the aggregate's commands and events ([AliasCheck]). */
     private fun aliasProblems(
@@ -725,19 +626,8 @@ internal class ModelSymbolProcessor(
         val declared = parameters.first().type.resolve()
         // `Command<X>` asks for the admitted command, not only its body X: the generated code passes the scope's.
         val admitted = declared.declaration.qualifiedName?.asString() == COMMAND
-        val commandType = if (admitted) declared.arguments.first().type?.resolve() else declared
-        val command = commandType?.declaration as? KSClassDeclaration
-        if (commandType == null || command == null || command.qualifiedName?.asString() == ANY) {
-            val taken = if (commandType == null) "$COMMAND<*>" else commandType.render()
-            problems += "$name takes $taken: a command function names the class of its command, as its first " +
-                "parameter X or $COMMAND<X>"
-            return null
-        }
-        if (FRAMEWORK_PACKAGES.any { commandType.render().startsWith(it) }) {
-            problems += "$name takes ${commandType.render()}: a V10 decide function takes the command body, " +
-                "or $COMMAND of it"
-            return null
-        }
+        val commandType = commandTypeOf(name, declared, admitted, problems) ?: return null
+        val command = commandType.declaration as KSClassDeclaration
         if (command.hasAnnotation(Revision::class.java.name)) {
             problems += "command ${command.simpleName.asString()} is annotated @Revision: only events have revisions"
         }
@@ -778,17 +668,30 @@ internal class ModelSymbolProcessor(
     }
 
     /**
-     * Whether [function], or one it overrides (an annotation is not inherited by an override), is `@Blocking`: the
-     * kernel runs it on a virtual thread (decision D227). On a function returning a Reactor publisher it is a
-     * [warnings] entry: the publisher is subscribed on the virtual thread, but a publisher should not block.
+     * The command type a command function taking [declared] first decides: [declared], or its argument when it is
+     * the [admitted] `Command<X>`. Null, with a problem, when it names no command class: `Command<*>`, `Any`, a type
+     * parameter, or a framework type.
      */
-    private fun blocking(function: KSFunctionDeclaration, reactor: Boolean, warnings: MutableList<String>): Boolean {
-        val blocking = function.isAnnotatedOrOverrides(BLOCKING)
-        if (blocking && reactor) {
-            warnings += "${function.simpleName.asString()} is annotated @Blocking and returns a Reactor publisher: " +
-                "it is called on a virtual thread, but a publisher should not block; make it a plain function"
+    private fun commandTypeOf(
+        name: String,
+        declared: KSType,
+        admitted: Boolean,
+        problems: MutableList<String>,
+    ): KSType? {
+        val commandType = if (admitted) declared.arguments.first().type?.resolve() else declared
+        val command = commandType?.declaration as? KSClassDeclaration
+        if (commandType == null || command == null || command.qualifiedName?.asString() == ANY) {
+            val taken = if (commandType == null) "$COMMAND<*>" else commandType.render()
+            problems += "$name takes $taken: a command function names the class of its command, as its first " +
+                "parameter X or $COMMAND<X>"
+            return null
         }
-        return blocking
+        if (FRAMEWORK_PACKAGES.any { commandType.render().startsWith(it) }) {
+            problems += "$name takes ${commandType.render()}: a V10 decide function takes the command body, " +
+                "or $COMMAND of it"
+            return null
+        }
+        return commandType
     }
 
     /** The events `@OnCommand(produces)` lists on [function], by qualified name (decision D120). */
@@ -865,162 +768,6 @@ internal class ModelSymbolProcessor(
     /** This non-empty name with its first character mapped by [first]. */
     private fun String.withFirst(first: (Char) -> Char): String = first(this[0]) + substring(1)
 
-    @OptIn(KspExperimental::class)
-    private fun sourcingBinding(
-        function: KSFunctionDeclaration,
-        state: KSClassDeclaration,
-        problems: MutableList<String>,
-    ): SourcingBinding? {
-        val name = function.simpleName.asString()
-        if (function.parameters.size != 1) {
-            problems += "sourcing function $name must take only its event"
-            return null
-        }
-        if (Modifier.SUSPEND in function.modifiers) {
-            problems += "sourcing function $name suspends: evolving does no I/O"
-        }
-        if (function.isAnnotatedOrOverrides(BLOCKING)) {
-            problems += "sourcing function $name is annotated @Blocking: evolving does no I/O"
-        }
-        val eventType = function.parameters.single().type.resolve()
-        val event = eventType.declaration as? KSClassDeclaration
-        val returnsState = function.returnType?.resolve()?.declaration?.qualifiedName?.asString() ==
-            state.qualifiedName?.asString()
-        if (event == null || event.qualifiedName?.asString() in ANY_TYPES) {
-            problems += "sourcing function $name takes ${eventType.render()}: a sourcing function takes the class of " +
-                "its event"
-            return null
-        }
-        if (Modifier.SEALED in event.modifiers) {
-            return SourcingBinding(
-                event = eventType.render(),
-                eventName = null,
-                function = name,
-                returnsState = returnsState,
-                type = event.binaryName(),
-                declaration = event,
-            )
-        }
-        if (event.classKind == ClassKind.INTERFACE || Modifier.ABSTRACT in event.modifiers) {
-            problems += "sourcing function $name takes ${eventType.render()}, which is not a concrete class: the " +
-                "kernel finds a sourcing function by its event's class, so take each event class, or a sealed type " +
-                "whose subclasses are the events"
-            return null
-        }
-        return eventBinding(event, name, returnsState).also {
-            if (it.revision < 1) {
-                problems += "event ${event.simpleName.asString()} has @Revision(${it.revision}): a revision starts at 1"
-            }
-        }
-    }
-
-    /** The binding of [function] evolving [event], a concrete event class. */
-    @OptIn(KspExperimental::class)
-    private fun eventBinding(event: KSClassDeclaration, function: String, returnsState: Boolean): SourcingBinding =
-        SourcingBinding(
-            event = event.render(),
-            eventName = event.getAnnotationsByType(Name::class).firstOrNull()?.value,
-            revision = event.getAnnotationsByType(Revision::class).firstOrNull()?.value ?: 1,
-            aliases = event.getAnnotationsByType(Alias::class).flatMap { it.value.toList() }.toList(),
-            function = function,
-            returnsState = returnsState,
-            type = event.binaryName(),
-            description = Descriptions.of(event),
-        )
-
-    /**
-     * An after hook (finding A4-3) takes its parameters as a command function does: first the command, as its body
-     * (`Any`, or a command type `X`) or as the admitted `Command<X>`, then dependencies and the [DECIDE_SCOPE]; it may
-     * take no command at all. A hook whose command parameter names a type `X` runs only for the commands of the
-     * aggregate it accepts: without `@AfterCommand(include)` it includes the aggregate's commands of type `X` (none is
-     * a problem), and with it each class included must be an `X`. So the generated cast never fails.
-     */
-    @Suppress("LongMethod")
-    private fun afterBinding(
-        function: KSFunctionDeclaration,
-        commandClasses: List<KSClassDeclaration>,
-        dependencies: MutableMap<String, Dependency>,
-        problems: MutableList<String>,
-        warnings: MutableList<String>,
-    ): AfterBinding? {
-        val name = function.simpleName.asString()
-        val annotation = function.annotationIn(AFTER_COMMAND_ANNOTATION)
-        fun types(argument: String): List<KSType> =
-            (annotation?.arguments?.firstOrNull { it.name?.asString() == argument }?.value as? List<*>).orEmpty()
-                .filterIsInstance<KSType>()
-        val first = function.parameters.firstOrNull()?.type?.resolve()
-        // A hook may take no command: its first parameter is then a dependency, or the decide scope.
-        val takesCommand = first != null && first.render() != DECIDE_SCOPE &&
-            (first.isCommandWrapper() || first.declaration is KSClassDeclaration && !first.isDependencyLike())
-        val admitted = takesCommand && first!!.isCommandWrapper()
-        val body = if (!takesCommand) null else if (admitted) first!!.arguments.first().type?.resolve() else first
-        val bodyClass = body?.declaration as? KSClassDeclaration
-        if (takesCommand && body != null && bodyClass == null) {
-            problems += "after hook $name takes ${first!!.render()}: an after hook names the class of its command, " +
-                "Any, or $COMMAND of it"
-            return null
-        }
-        // A hook of a command type runs only for the commands it accepts.
-        val accepting = bodyClass?.takeUnless { it.qualifiedName?.asString() in ANY_TYPES }
-        val declaredInclude = types("include")
-        val declaredExclude = types("exclude")
-        // `include` and `exclude` name the aggregate's commands, or system commands (finding A4-10).
-        val commandNames = commandClasses.map { it.render() }.toSet() + SYSTEM_COMMANDS
-        (declaredInclude + declaredExclude).map { it.render() }.filterNot { it in commandNames }.distinct().forEach {
-            problems += "after hook $name names $it in @AfterCommand(include, exclude), which is not a command of " +
-                "the aggregate: no command function takes it, and it is no lifecycle or schedule command"
-        }
-        val include = when {
-            accepting == null -> declaredInclude.map { it.render() }
-            // A hook of a system command runs after it, which it must name otherwise.
-            declaredInclude.isEmpty() && body!!.render() in SYSTEM_COMMANDS -> listOf(body.render())
-            declaredInclude.isEmpty() -> commandClasses.distinct()
-                .filter { body!!.isAssignableFrom(it.asStarProjectedType()) }
-                .map { it.asStarProjectedType().render() }
-                .also {
-                    if (it.isEmpty()) {
-                        problems += "after hook $name takes ${body!!.render()}, which no command function of the " +
-                            "aggregate takes: it would never run"
-                    }
-                }
-
-            else -> declaredInclude.map { it.render() }.also {
-                declaredInclude.filterNot { included -> body!!.isAssignableFrom(included) }.forEach { included ->
-                    problems += "after hook $name includes ${included.render()}, but takes ${body!!.render()}: " +
-                        "each command it includes is one it takes"
-                }
-            }
-        }
-        val reactor = reactorReturn(function) != null
-        val rest = if (takesCommand) function.parameters.drop(1) else function.parameters
-        return AfterBinding(
-            function = name,
-            parameter = if (takesCommand) first!!.render() else null,
-            admitted = admitted,
-            arguments = rest.mapNotNull { argument(name, it, dependencies, problems) },
-            reactor = reactor,
-            include = include,
-            exclude = declaredExclude.map { it.render() },
-            suspending = Modifier.SUSPEND in function.modifiers,
-            yields = EventYield.of(function.returnType?.resolve()),
-            blocking = blocking(function, reactor, warnings),
-        )
-    }
-
-    /** Whether this type is the admitted command, `Command<X>`. */
-    private fun KSType.isCommandWrapper(): Boolean = declaration.qualifiedName?.asString() == COMMAND
-
-    /**
-     * Whether this type, first among an after hook's parameters, is a framework type other than the command, so not
-     * the command the hook takes: such a parameter is reported as a dependency's would be.
-     */
-    private fun KSType.isDependencyLike(): Boolean = render().let { rendered ->
-        FRAMEWORK_PACKAGES.any { rendered.startsWith(it) } && rendered !in SYSTEM_COMMANDS
-    }
-
-    private fun reactorReturn(function: KSFunctionDeclaration): String? =
-        function.returnType?.resolve()?.declaration?.qualifiedName?.asString()?.takeIf { it in REACTOR_TYPES }
-
     private fun generate(binding: AggregateBinding, root: KSClassDeclaration) {
         val upgradeFiles = upgrades.filter { upgrade -> binding.upgrades.any { it.function == upgrade.name } }
             .mapNotNull { it.declaration.containingFile }
@@ -1033,7 +780,7 @@ internal class ModelSymbolProcessor(
             "${binding.rootSimpleName}Model",
         ).bufferedWriter().use { it.write(ModelSource.render(binding)) }
         if (queryApi == true) {
-            QueryPropertiesSource.generate(codeGenerator, stateOf(root), propertiesOf)
+            QueryPropertiesSource.generate(codeGenerator, RootStateResolver.stateOf(root), propertiesOf)
         }
     }
 
@@ -1080,17 +827,8 @@ internal class ModelSymbolProcessor(
         it.annotationType.resolve().declaration.qualifiedName?.asString() == qualifiedName
     }
 
-    private fun KSType.render(): String {
-        val name = declaration.qualifiedName!!.asString()
-        if (arguments.isEmpty()) {
-            return name
-        }
-        return name + arguments.joinToString(", ", "<", ">") { it.type?.resolve()?.render() ?: "*" }
-    }
-
     private companion object {
         val AGGREGATE_ROOT = AggregateRoot::class.java.name
-        val BLOCKING = Blocking::class.java.name
         const val PRODUCES = "produces"
         const val SCHEDULES = "schedules"
         val COMMAND_NAME = Regex("[^.\\s]+\\.[^.\\s]+\\.[^.\\s]+")
@@ -1099,45 +837,9 @@ internal class ModelSymbolProcessor(
 
         // A plain tree needs no Kotlin module, whose reflection KSP's class loader does not provide.
         val FRAGMENT_WRITER = JsonMapper.builder().build().writerWithDefaultPrettyPrinter()
-        val ON_COMMAND_ANNOTATION: String = OnCommand::class.java.name
-        val ON_SOURCING_ANNOTATION: String = OnSourcing::class.java.name
-        val AFTER_COMMAND_ANNOTATION: String = AfterCommand::class.java.name
-        const val ANY = "kotlin.Any"
-        val ANY_TYPES = setOf(ANY, "java.lang.Object")
 
-        /** The system events every aggregate may commit (lifecycle and schedule), by Kotlin name. */
-        val SYSTEM_EVENTS: Set<String> =
-            (Lifecycle.EVENTS.values + Schedules.EVENTS.values).map { it.canonicalName }.toSet()
-
-        /** The lifecycle commands (design 01 §6), by Kotlin name: an after hook may include them. */
-        val LIFECYCLE_COMMANDS: Set<String> = Lifecycle.COMMANDS.values.map { it.canonicalName }.toSet()
-
-        /** The system commands every aggregate decides (lifecycle and schedule), by Kotlin name. */
-        val SYSTEM_COMMANDS: Set<String> = LIFECYCLE_COMMANDS + Schedules.COMMANDS.values.map { it.canonicalName }
         const val ON_COMMAND = "onCommand"
-        const val ON_SOURCING = "onSourcing"
         const val AFTER_COMMAND = "afterCommand"
-        const val STRING = "kotlin.String"
-        const val DECIDE_SCOPE = "me.ahoo.wow.api.decide.DecideScope"
-        const val COMMAND = "me.ahoo.wow.api.decide.Command"
-
-        /** Packages of 9.x framework types; Wow's own platform domains live under `me.ahoo.wow` too. */
-        val FRAMEWORK_PACKAGES = listOf(
-            "me.ahoo.wow.api.",
-            "me.ahoo.wow.command.",
-            "me.ahoo.wow.event.",
-            "me.ahoo.wow.eventsourcing.",
-            "me.ahoo.wow.messaging.",
-            "me.ahoo.wow.modeling.",
-            "me.ahoo.wow.infra.",
-            "me.ahoo.wow.ioc.",
-            "me.ahoo.wow.saga.",
-        )
-        val REACTOR_TYPES = setOf(
-            "reactor.core.publisher.Mono",
-            "reactor.core.publisher.Flux",
-            "org.reactivestreams.Publisher",
-        )
     }
 }
 
