@@ -148,6 +148,11 @@ if (nineX) {
     include(":wow-analytics-server")
     project(":wow-analytics-server").projectDir = file("analytics/wow-analytics-server")
     //endregion
+
+    // The 9.x side of the end-to-end architecture benchmark (decision D224, roadmap M7.5 B.0): the twin benchmark
+    // domain and its server on 9.x modules only; its V10 twin, :e2e-bench-v10, is in the V10 region below.
+    include(":e2e-bench-9x")
+    project(":e2e-bench-9x").projectDir = file("wow-benchmarks/e2e/bench-9x")
 }
 
 //region v10 (documentation/designs/v10/06-modules.md)
