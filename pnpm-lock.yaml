@@ -205,8 +205,8 @@ catalogs:
       specifier: ^11.17.2
       version: 11.17.2
     mingo:
-      specifier: ^7.2.4
-      version: 7.2.4
+      specifier: ^7.2.5
+      version: 7.2.5
     playwright:
       specifier: ^1.64.0
       version: 1.64.0
@@ -547,7 +547,7 @@ importers:
         version: 29.1.1(patch_hash=e3cc832b737c64812e91aeec5b51dcfc530c129436ae2ff992ee9655591e0962)
       mingo:
         specifier: 'catalog:'
-        version: 7.2.4
+        version: 7.2.5
       prettier:
         specifier: 'catalog:'
         version: 3.9.9
@@ -846,7 +846,7 @@ importers:
         version: 1.55.0(@types/react@19.3.0)(react@19.3.0)
       mingo:
         specifier: 'catalog:'
-        version: 7.2.4
+        version: 7.2.5
       playwright:
         specifier: 'catalog:'
         version: 1.64.0
@@ -1197,7 +1197,7 @@ importers:
         version: 29.1.1(patch_hash=e3cc832b737c64812e91aeec5b51dcfc530c129436ae2ff992ee9655591e0962)
       mingo:
         specifier: 'catalog:'
-        version: 7.2.4
+        version: 7.2.5
       postcss:
         specifier: 'catalog:'
         version: 8.5.29
@@ -5832,8 +5832,8 @@ packages:
     resolution: {integrity: sha512-I9jwMn07Sy/IwOj3zVkVik2JTvgpaykDZEigL6Rx6N9LbMywwUSMtxET+7lVoDLLd3O3IXwJwvuuns8UB/HeAg==}
     engines: {node: '>=4'}
 
-  mingo@7.2.4:
-    resolution: {integrity: sha512-KrxHKzMMguL+G1lBC6YbU5UTXdw2viwVHNTPzNYVfEQfSAoetC3M1a7rlveOksn/96oNy+QwBlIXvx/q6rWyxQ==}
+  mingo@7.2.5:
+    resolution: {integrity: sha512-lZR31XnwGQuDHebGyLTlW095BI19qfaYE/IAcVkmBDRyn7DnEwYLQFMfnwFVr+bmc+42a3elhOB2ZBL73i782A==}
 
   minimatch@10.2.3:
     resolution: {integrity: sha512-Rwi3pnapEqirPSbWbrZaa6N3nmqq4Xer/2XooiOKyV3q12ML06f7MOuc5DVH8ONZIFhwIYQ3yzPH4nt7iWHaTg==}
@@ -11860,7 +11860,7 @@ snapshots:
 
   min-indent@1.0.1: {}
 
-  mingo@7.2.4: {}
+  mingo@7.2.5: {}
 
   minimatch@10.2.3:
     dependencies:
