@@ -425,15 +425,35 @@ internal class ModelSymbolProcessor(
     }
 
     /**
-     * The root's state: its constructor's one parameter, or the root itself when it takes none, only parameters with
-     * default values, or an id (decision D203).
+     * The root's state, decided explicitly (finding A4-4), not from the order or the defaults of its constructors: a
+     * root is built from its state when one of its constructors takes exactly one parameter whose class has sourcing
+     * functions (`@OnSourcing`, or named `onSourcing`), and that class is the state; the root may have other
+     * constructors, such as a Java no-argument one, and the parameter may have a default value. Else the root is its
+     * own state (decision D203). Two such constructors of different states are a problem, and so is a constructor
+     * whose first parameter is a state but that takes more.
      */
-    private fun stateOf(root: KSClassDeclaration): KSClassDeclaration {
-        val parameters = (root.primaryConstructor ?: root.getConstructors().firstOrNull())?.parameters.orEmpty()
-        val firstParameter = parameters.firstOrNull()?.type?.resolve()?.declaration as? KSClassDeclaration
-        val rootIsState = firstParameter == null || firstParameter.qualifiedName?.asString() == STRING ||
-            parameters.all { it.hasDefault }
-        return if (rootIsState) root else firstParameter!!
+    private fun stateOf(root: KSClassDeclaration, problems: MutableList<String> = mutableListOf()): KSClassDeclaration {
+        val constructors = root.getConstructors().toList()
+        fun KSValueParameter.stateClass(): KSClassDeclaration? =
+            (type.resolve().declaration as? KSClassDeclaration)?.takeIf { it != root && it.hasSourcingFunctions() }
+        val states = constructors.filter { it.parameters.size == 1 }.mapNotNull { it.parameters.single().stateClass() }
+            .distinct()
+        if (states.size > 1) {
+            problems += "the root's constructors take the states ${states.joinToString { it.simpleName.asString() }}: " +
+                "a root is built from one state, so keep one constructor taking it"
+        }
+        val state = states.firstOrNull()
+        if (state == null) {
+            constructors.firstOrNull { it.parameters.size > 1 && it.parameters.first().stateClass() != null }?.let {
+                problems += "the root's constructor must take only its state"
+            }
+        }
+        return state ?: root
+    }
+
+    /** Whether this class, or a superclass, has a sourcing function: what makes it an aggregate's state. */
+    private fun KSClassDeclaration.hasSourcingFunctions(): Boolean = getAllFunctions().any {
+        it.simpleName.asString() == ON_SOURCING || it.annotatedIn(ON_SOURCING_ANNOTATION) != null
     }
 
     @OptIn(KspExperimental::class)
@@ -441,12 +461,8 @@ internal class ModelSymbolProcessor(
         val problems = mutableListOf<String>()
         val warnings = mutableListOf<String>()
         val rootName = root.qualifiedName!!.asString()
-        val constructor = root.primaryConstructor ?: root.getConstructors().firstOrNull()
-        val state = stateOf(root)
+        val state = stateOf(root, problems)
         val rootIsState = state == root
-        if (!rootIsState && constructor!!.parameters.size != 1) {
-            problems += "the root's constructor must take only its state"
-        }
         val stateArguments = stateArguments(state, problems)
 
         val dependencies = linkedMapOf<String, Dependency>()
