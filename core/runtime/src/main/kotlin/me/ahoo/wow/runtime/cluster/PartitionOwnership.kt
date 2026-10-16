@@ -209,6 +209,9 @@ class PartitionOwnership internal constructor(
     /** The other members' addresses handed to [peers] so far, as `node@address`. */
     private val seenPeers = ConcurrentHashMap.newKeySet<String>()
 
+    /** The members greeted and still members, as `node@address`. */
+    internal val knownPeers: Set<String> get() = seenPeers
+
     init {
         require(node.isNotBlank()) { "A node has an id." }
         require(partitions >= 1) { "A log has at least one partition." }
@@ -386,6 +389,8 @@ class PartitionOwnership internal constructor(
     /** Hands each other member of [members] at an address not seen before to [peers], in its own coroutine. */
     private fun greetNew(members: List<Member>) {
         val run = running ?: return
+        // The members that left are forgotten (review A5-14): one that comes back is greeted again.
+        seenPeers.retainAll(members.mapTo(HashSet()) { "${it.node}@${it.address}" })
         members.filter { it.node != node && seenPeers.add("${it.node}@${it.address}") }.forEach { member ->
             run.upkeep.launch { quietly("greet ${member.node} at ${member.address}") { peers(member) } }
         }

@@ -663,10 +663,24 @@ class WowAutoConfiguration {
          * The service identities the internal port trusts by their static tokens (`wow.http.services`, decision D193), in
          * the default tenant.
          */
-        internal fun serviceTokens(properties: WowProperties): ServiceTokens = ServiceTokens(
-            properties.http.services.mapValues { it.value.tokens.toList() },
-            properties.tenant.default,
-        )
+        /**
+         * The static service tokens of `wow.http.services` (decision D193). A node is configured with them or with
+         * CoSec's service principals (`wow.cosec.service.roles` and `.policies`), not both (decisions D208, D226): two
+         * sources of service identity would let a token outlive the CoSec policy meant to replace it, so a node with
+         * both refuses to start (review A5-14).
+         */
+        internal fun serviceTokens(properties: WowProperties): ServiceTokens {
+            val tokens = properties.http.services.filterValues { it.tokens.any(String::isNotBlank) }.keys
+            val principals = properties.cosec.service.let { it.roles + it.policies }.filter(String::isNotBlank)
+            check(tokens.isEmpty() || principals.isEmpty()) {
+                "Service identities come from static tokens (wow.http.services.*.tokens of $tokens) or from CoSec's " +
+                    "service principals (wow.cosec.service.*: $principals), not both (decision D208): remove one."
+            }
+            return ServiceTokens(
+                properties.http.services.mapValues { it.value.tokens.toList() },
+                properties.tenant.default
+            )
+        }
 
         /**
          * Where commands run: `wow.cluster.router`, by default local on the memory backend, whose stores no other

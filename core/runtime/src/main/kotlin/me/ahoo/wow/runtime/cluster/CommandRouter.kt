@@ -143,9 +143,16 @@ class PartitionedRouter(
             } ?: return unsent(ownership, command, peer, "not connected by the wait's deadline")
             return send(ownership, peer, model, command, request)
         } finally {
-            permits.decrementAndGet()
+            // An idle peer's counter goes (review A5-14): a peer that left, or changed its address in a rolling
+            // update, leaves nothing behind. A forward racing the removal counts on the old counter, a soft bound.
+            if (permits.decrementAndGet() == 0) {
+                inFlight.remove(peer.address, permits)
+            }
         }
     }
+
+    /** The peers with forwards in flight. */
+    internal val peersInFlight: Set<String> get() = inFlight.keys
 
     /** The forward of [command] to [peer], once connected to it; null when not connected by [wait]'s deadline. */
     private suspend fun request(

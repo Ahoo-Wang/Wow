@@ -296,23 +296,24 @@ abstract class EventLogSpec {
     }
 
     @Test
-    fun `a request id is unique within its tenant`(): Unit = runBlocking {
-        val log = createLog()
-        val first = stream("a", 1, requestId = "request")
-        log.append(first)
-        val again = log.append(stream("b", 1, requestId = "request")) as AppendOutcome.AlreadyCommitted
-        again.existing.ref.assert().isEqualTo(first.ref)
-        again.existing.requestId.assert().isEqualTo("request")
-        log.append(stream("a", 1, requestId = "request", tenant = "other"))
-            .assert().isInstanceOf(AppendOutcome.Committed::class.java)
-        log.findByRequestId("tenant", "request")?.ref.assert().isEqualTo(first.ref)
-        log.findByRequestId("tenant", "missing").assert().isNull()
-        log.findByRequestId("nobody", "request").assert().isNull()
-        log.findByRequestId(type, "tenant", "request")?.ref.assert().isEqualTo(first.ref)
-        log.findByRequestId(type, "tenant", "missing").assert().isNull()
-        log.findByRequestId(type, "nobody", "request").assert().isNull()
-        log.findByRequestId(other, "tenant", "request").assert().isNull()
-    }
+    fun `a request id reused in a tenant and aggregate type answers the first commit, in another tenant it commits`(): Unit =
+        runBlocking {
+            val log = createLog()
+            val first = stream("a", 1, requestId = "request")
+            log.append(first)
+            val again = log.append(stream("b", 1, requestId = "request")) as AppendOutcome.AlreadyCommitted
+            again.existing.ref.assert().isEqualTo(first.ref)
+            again.existing.requestId.assert().isEqualTo("request")
+            log.append(stream("a", 1, requestId = "request", tenant = "other"))
+                .assert().isInstanceOf(AppendOutcome.Committed::class.java)
+            log.findByRequestId("tenant", "request")?.ref.assert().isEqualTo(first.ref)
+            log.findByRequestId("tenant", "missing").assert().isNull()
+            log.findByRequestId("nobody", "request").assert().isNull()
+            log.findByRequestId(type, "tenant", "request")?.ref.assert().isEqualTo(first.ref)
+            log.findByRequestId(type, "tenant", "missing").assert().isNull()
+            log.findByRequestId(type, "nobody", "request").assert().isNull()
+            log.findByRequestId(other, "tenant", "request").assert().isNull()
+        }
 
     @Test
     fun `concurrent appends to one version let exactly one win`(): Unit = runBlocking {

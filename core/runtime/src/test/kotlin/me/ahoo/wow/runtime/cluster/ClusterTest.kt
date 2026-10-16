@@ -154,6 +154,8 @@ class ClusterTest {
             cluster.awaitStable()
             cluster.owners().values.toSet().assert().isEqualTo(setOf("node-1", "node-2"))
             cluster.events.none { it.endsWith(" node-3") && it.startsWith("release") }.assert().isTrue()
+            // Review A5-14: the member that left is forgotten.
+            eventually { one.ownership.knownPeers.none { it.startsWith("node-3@") } }
         }
 
     @Test
@@ -362,6 +364,8 @@ class ClusterTest {
             one.coordinator.executeHere(one.model, command, null)
         }
         asked.assert().isEqualTo(1)
+        // Review A5-14: the peer's forward counter goes once it has none in flight.
+        refusing.peersInFlight.assert().isEmpty()
         settlement.committed.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
         one.decided.assert().containsExactly(command.id)
     }
