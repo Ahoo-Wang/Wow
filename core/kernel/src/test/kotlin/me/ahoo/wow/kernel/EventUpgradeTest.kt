@@ -124,4 +124,35 @@ class EventUpgradeTest {
             }
         }
     }
+
+    @Test
+    fun `an event reads now under its current name and revision, a retired one not at all`() {
+        val retiring = aggregate<Person>("test", "person") {
+            initial { Person(it.id) }
+            evolve<Renamed>(revision = 3) { }
+            alias<Renamed>("test.person.NameChanged")
+            upgrade<Renamed>(from = 1) { payload ->
+                val node = payload as ObjectNode
+                val (first, last) = node.remove("name").asString().split(" ")
+                node.put("first", first).put("last", last)
+            }
+            upgrade<Renamed>(from = 2) { payload -> (payload as ObjectNode).put("source", "unknown") }
+            retired("test.person.Gone")
+        }
+        codec.current(retiring, EventRecord("test.person.NameChanged", 1, """{"name":"Ada Lovelace"}"""))
+            .assert().isEqualTo(
+                EventRecord("test.person.Renamed", 3, """{"first":"Ada","last":"Lovelace","source":"unknown"}"""),
+            )
+        val current = EventRecord("test.person.Renamed", 3, """{"first":"A","last":"L","source":"s"}""")
+        codec.current(retiring, current).assert().isSameAs(current)
+        // A record newer than the model, or of a name it does not know, is left as stored.
+        val newer = EventRecord("test.person.Renamed", 4, "{}")
+        codec.current(retiring, newer).assert().isSameAs(newer)
+        val unknown = EventRecord("test.person.Unknown", 1, "{}")
+        codec.current(retiring, unknown).assert().isSameAs(unknown)
+        codec.current(retiring, EventRecord("test.person.Gone", 1, "{}")).assert().isNull()
+        // A current revision under a former name is renamed.
+        codec.current(retiring, EventRecord("test.person.NameChanged", 3, current.payload))
+            .assert().isEqualTo(current)
+    }
 }

@@ -3,7 +3,7 @@
   "files": {
     "eshop-payment/boundedContext.ts": "3caa770a5b6ad322d7c7ada2e6cc764f153e429a703c8d1cdbce7b9c62aaf5af",
     "eshop-payment/index.ts": "8b2ef50ffb4bc4742da2edef17d54fb83457f9c5a855f11deba1fe22c7f83bac",
-    "eshop-payment/payment/aggregate.ts": "ed02277a83f8e35f61185d2aeba7015b20659168f1fbb0e2a82083d15092d81c",
+    "eshop-payment/payment/aggregate.ts": "4a92e690a5f583a3c0a590a5241b15e82b79ff1986f2375330a6d594c131bea0",
     "eshop-payment/payment/commandClient.ts": "4b6d61f6d9199d3f1909fafa9a52fb6b4b386ced42065a593fdd56beb16e4817",
     "eshop-payment/payment/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
     "eshop-payment/payment/queryClient.ts": "70f10e3576c539f93a07e4fbc55576ce2e32b5c3c34d4dfa180517bdda0a536f",

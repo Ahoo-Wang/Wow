@@ -18,5 +18,5 @@ export const BrandAggregate = {
 /** The `state.*` paths of `brand`'s snapshots a query filters, sorts and projects on. */
 export type BrandStateField = 'state.name';
 
-/** The events of `brand`, named as the server sends them: `eshop-catalog.brand.<Event>`, and the system events every aggregate has. */
+/** The events of `brand`, named as the server sends them, `eshop-catalog.brand.<Event>` at its current revision (the `events` query upgrades older records), and the system events every aggregate has. */
 export type BrandEvent = EventView<'eshop-catalog.brand.BrandCreated', BrandCreated> | EventView<'eshop-catalog.brand.BrandRenamed', BrandRenamed> | SystemEvent;

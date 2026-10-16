@@ -78,6 +78,27 @@ class EventCodec(private val mapper: JsonMapper = DEFAULT_MAPPER) {
     }
 
     /**
+     * [record] as [model] reads it now (finding A4-16): under its type's current name, at its current revision, its
+     * payload upgraded as [decode] upgrades it, but left a JSON text rather than bound to the class; null when [model]
+     * retired its name (decision D219). A record of a name [model] does not know, or of a revision newer than its
+     * own, is left as stored.
+     */
+    fun current(model: AggregateModel<*>, record: EventRecord): EventRecord? {
+        if (model.isRetired(record.name)) {
+            return null
+        }
+        val type = model.findEventType(record.name) ?: return record
+        if (record.revision > type.revision || record.revision == type.revision && record.name == type.name) {
+            return record
+        }
+        var payload = mapper.readTree(record.payload)
+        for (revision in record.revision until type.revision) {
+            payload = type.upgrades.getValue(revision)(payload)
+        }
+        return EventRecord(type.name, type.revision, mapper.writeValueAsString(payload))
+    }
+
+    /**
      * The event [record] holds, as [decode] reads it, or null when [model] retired its name
      * ([AggregateModel.isRetired], decision D219): a retired record is skipped, never decoded.
      */

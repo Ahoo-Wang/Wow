@@ -16,6 +16,7 @@ package me.ahoo.wow.kernel
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
@@ -31,6 +32,9 @@ import me.ahoo.wow.api.subscribe.ProjectContext
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.spi.state.StateEventPayload
+import me.ahoo.wow.test.commandCommitted
+import me.ahoo.wow.test.commandRejected
+import me.ahoo.wow.test.commandTypeOf
 import me.ahoo.wow.test.projectionSpec
 import me.ahoo.wow.test.publishedEvent
 import me.ahoo.wow.test.reactorSpec
@@ -415,5 +419,30 @@ class ProcessorSpecTest {
                 expectError<IllegalStateException> { message.assert().isEqualTo("The mail server is down.") }
             }
         }
+    }
+
+    @Name("Hold")
+    data class Held(val orderId: String)
+
+    @Test
+    fun `the default command type honours the command's Name`() {
+        commandTypeOf(Command("x", "x", stock, Held("order-1"))).assert().isEqualTo("inventory.stock.Hold")
+        commandTypeOf(Command("x", "x", stock, Reserve("order-1", 1))).assert().isEqualTo("inventory.stock.Reserve")
+    }
+
+    @Test
+    fun `receipts of a command another execution derived are built with the factories`() = sagaSpec(
+        orderSagaHandlers()
+    ) {
+        val execution = ExecutionId("OrderSaga.onOrder", order, 1)
+        val reserve = Command("derived-1", "derived-1", stock, Reserve("order-1", 1))
+        val rejected = commandRejected(reserve, execution, "inventory.stock.insufficient", "None.")
+        rejected.commandType.assert().isEqualTo("inventory.stock.Reserve")
+        rejected.error.assert().isEqualTo(ErrorInfo("inventory.stock.insufficient", "None."))
+        whenRejected(rejected, Reserve::class) { expectCommands(Cancel("None.")) }
+        val committed = commandCommitted(reserve, execution, version = 3, aggregateId = "pear", duplicate = true)
+        committed.ref.id.assert().isEqualTo("pear")
+        committed.result.function.name.assert().isEqualTo("Reserve")
+        whenCommitted(committed, Reserve::class) { expectCommands(Confirm("pear", 3, duplicate = true)) }
     }
 }

@@ -35,6 +35,10 @@ import kotlin.reflect.KClass
  * The event checks ([expectEvents], [expectEventTypes], [expectEvent]) read the events the decision committed beside
  * its schedules: the system events `wow.ScheduleSet` and `wow.ScheduleCancelled` (decision D198) are checked by
  * [expectScheduled] and [expectScheduleCancelled].
+ *
+ * A rejection is a value, not an exception, so a scenario that does not look at it would pass whatever the command
+ * did (finding A4-14): a rejected command fails the scenario unless [expectRejected] checks it, or the scenario reads
+ * the [outcome] itself.
  */
 @Suppress("TooManyFunctions") // The DSL's expectations.
 class Expectations<S : Any> @InternalWowApi constructor(
@@ -46,9 +50,13 @@ class Expectations<S : Any> @InternalWowApi constructor(
     private val tagsAt: (Int) -> Map<String, List<String>> = { emptyMap() },
 ) {
     private var errorChecked = false
+    private var outcomeChecked = false
 
     /** The command's outcome (`Committed`, `Unchanged`, `Rejected`, …); a failure when its decide function threw. */
     val outcome: CommandOutcome
+        get() = decidedOutcome.also { outcomeChecked = true }
+
+    private val decidedOutcome: CommandOutcome
         get() = result.getOrElse { throw AssertionError("Expected an outcome but the command threw $it.", it) }
 
     /** What the command's decide function threw; null when it returned a decision. */
@@ -92,17 +100,21 @@ class Expectations<S : Any> @InternalWowApi constructor(
 
     /** The command was accepted and changed nothing. */
     fun expectUnchanged() {
+        val outcome = decidedOutcome
         if (outcome !is CommandOutcome.Unchanged) throw AssertionError("Expected no change but got $outcome.")
     }
 
     /** The decide function threw nothing and the command was not rejected. */
     fun expectNoError() {
         error?.let { throw AssertionError("Expected no error but the command threw $it.", it) }
+        val outcome = decidedOutcome
         if (outcome is CommandOutcome.Rejected) throw AssertionError("Expected no error but got $outcome.")
     }
 
     /** The command was rejected with [code]; [check] checks the rejection, its message say. */
     fun expectRejected(code: String, check: Rejection.() -> Unit = {}) {
+        val outcome = decidedOutcome
+        outcomeChecked = true
         val rejected = outcome as? CommandOutcome.Rejected ?: throw AssertionError("Expected a rejection but got $outcome.")
         if (rejected.rejection.code != code) {
             throw AssertionError("Expected rejection $code but got ${rejected.rejection}.")
@@ -119,7 +131,7 @@ class Expectations<S : Any> @InternalWowApi constructor(
     /** The command's decide function threw a [type], which [check] checks. */
     fun <T : Throwable> expectError(type: KClass<T>, check: T.() -> Unit = {}): T {
         errorChecked = true
-        val thrown = error ?: throw AssertionError("Expected a ${type.simpleName} but got $outcome.")
+        val thrown = error ?: throw AssertionError("Expected a ${type.simpleName} but got $decidedOutcome.")
         if (!type.isInstance(thrown)) {
             throw AssertionError("Expected a ${type.simpleName} but the command threw $thrown.", thrown)
         }
@@ -199,14 +211,27 @@ class Expectations<S : Any> @InternalWowApi constructor(
         }
     }
 
-    /** Fails with what the decide function threw when no [expectError] checked it. */
+    /**
+     * Fails with what the decide function threw when no [expectError] checked it, and on a rejection that neither
+     * [expectRejected] checked nor the scenario read from [outcome].
+     */
     internal fun verify() {
         val thrown = error
         if (thrown != null && !errorChecked) {
             throw thrown
         }
+        val rejected = result.getOrNull() as? CommandOutcome.Rejected
+        if (rejected != null && !outcomeChecked) {
+            throw AssertionError(
+                "The command was rejected with ${rejected.rejection}, which the scenario does not check: " +
+                    "expectRejected checks a rejection.",
+            )
+        }
     }
 
-    private fun committed(): CommandOutcome.Committed =
-        outcome as? CommandOutcome.Committed ?: throw AssertionError("Expected committed events but got $outcome.")
+    private fun committed(): CommandOutcome.Committed {
+        val outcome = decidedOutcome
+        return outcome as? CommandOutcome.Committed
+            ?: throw AssertionError("Expected committed events but got $outcome.")
+    }
 }

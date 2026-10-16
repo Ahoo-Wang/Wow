@@ -15,6 +15,7 @@ package me.ahoo.wow.kernel
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Decision
@@ -298,6 +299,55 @@ class AggregateSpecDslTest {
             whenCommand(Claim("root", system = true)) { expectNoError() }
             holds("handle", "root", ReservationTenancy.SYSTEM).assert().isTrue()
             holds("handle", "root").assert().isFalse()
+        }
+    }
+
+    private val claims = aggregate<Account>("bank", "handle") {
+        initial { Account(it.id) }
+        decideSuspending<Claim>(Creation.ALLOWED) { _, body ->
+            val tenancy = if (body.system) ReservationTenancy.SYSTEM else ReservationTenancy.TENANT
+            if (reserve("handle", body.handle, tenancy)) {
+                Decision.events(Claimed(body.handle, body.system))
+            } else {
+                Decision.reject("handle.taken", body.handle)
+            }
+        }
+        evolve<Claimed> { }
+    }
+
+    @Test
+    fun `givenReservation gives a key to another aggregate, so reserving it is refused`() {
+        aggregateSpec(claims) {
+            givenReservation("handle", "ahoo")
+            givenReservation("handle", "root", tenancy = ReservationTenancy.SYSTEM)
+            whenCommand(Claim("ahoo", system = false)) { expectRejected("handle.taken") }
+            whenCommand(Claim("root", system = true)) { expectRejected("handle.taken") }
+            // Held per tenancy: the tenant's key leaves the system one free, and the other way round.
+            whenCommand(Claim("ahoo", system = true)) { expectNoError() }
+            holds("handle", "ahoo").assert().isFalse()
+            fork {
+                whenCommand(Claim("root", system = false)) { expectNoError() }
+            }
+            assertThrownBy<IllegalArgumentException> { givenReservation("handle", "x", owner = ref) }
+            assertThrownBy<IllegalArgumentException> {
+                givenReservation("handle", "x", owner = AggregateType("other", "handle").ref("tenant", "h"))
+            }
+        }
+    }
+
+    @Test
+    fun `a rejection the scenario does not check fails it`() {
+        aggregateSpec(claims) {
+            givenReservation("handle", "ahoo")
+            assertThrownBy<AssertionError> { whenCommand(Claim("ahoo", system = false)) { } }
+                .hasMessageContaining("which the scenario does not check: expectRejected checks a rejection")
+            assertThrownBy<AssertionError> {
+                whenCommand(Claim("ahoo", system = false)) { expectState { id.assert().isEqualTo("aggregate-1") } }
+            }
+            // A scenario that reads the outcome checks it itself.
+            whenCommand(Claim("ahoo", system = false)) {
+                outcome.assert().isInstanceOf(CommandOutcome.Rejected::class.java)
+            }
         }
     }
 }

@@ -4,8 +4,10 @@ public abstract interface class me/ahoo/wow/kernel/AfterFunction {
 
 public final class me/ahoo/wow/kernel/AfterFunction$Suspending : me/ahoo/wow/kernel/AfterFunction {
 	public fun <init> (Lkotlin/jvm/functions/Function1;Lkotlin/jvm/functions/Function4;)V
+	public fun <init> (Lkotlin/jvm/functions/Function1;ZLkotlin/jvm/functions/Function4;)V
 	public final fun getAfter ()Lkotlin/jvm/functions/Function4;
 	public fun getApplies ()Lkotlin/jvm/functions/Function1;
+	public final fun getBlocking ()Z
 }
 
 public final class me/ahoo/wow/kernel/AfterFunction$Sync : me/ahoo/wow/kernel/AfterFunction {
@@ -45,9 +47,13 @@ public final class me/ahoo/wow/kernel/AggregateModelBuilder {
 	public final fun addUpgrade (Ljava/lang/Class;ILkotlin/jvm/functions/Function1;)V
 	public final fun after (Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function3;)V
 	public static synthetic fun after$default (Lme/ahoo/wow/kernel/AggregateModelBuilder;Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function3;ILjava/lang/Object;)V
+	public final fun afterBlocking (Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function4;)V
+	public static synthetic fun afterBlocking$default (Lme/ahoo/wow/kernel/AggregateModelBuilder;Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function4;ILjava/lang/Object;)V
 	public final fun afterSuspending (Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function4;)V
 	public static synthetic fun afterSuspending$default (Lme/ahoo/wow/kernel/AggregateModelBuilder;Ljava/util/Set;Ljava/util/Set;Lkotlin/jvm/functions/Function4;ILjava/lang/Object;)V
 	public final fun build ()Lme/ahoo/wow/kernel/AggregateModel;
+	public final fun decideBlocking (Ljava/lang/Class;Lme/ahoo/wow/kernel/Creation;Ljava/lang/String;Lkotlin/jvm/functions/Function4;)V
+	public static synthetic fun decideBlocking$default (Lme/ahoo/wow/kernel/AggregateModelBuilder;Ljava/lang/Class;Lme/ahoo/wow/kernel/Creation;Ljava/lang/String;Lkotlin/jvm/functions/Function4;ILjava/lang/Object;)V
 	public final fun defaultName (Ljava/lang/Class;)Ljava/lang/String;
 	public final fun getStateType ()Ljava/lang/Class;
 	public final fun getType ()Lme/ahoo/wow/api/aggregate/AggregateType;
@@ -202,6 +208,8 @@ public abstract interface class me/ahoo/wow/kernel/DecideFunction {
 
 public final class me/ahoo/wow/kernel/DecideFunction$Suspending : me/ahoo/wow/kernel/DecideFunction {
 	public fun <init> (Lme/ahoo/wow/kernel/Creation;Lkotlin/jvm/functions/Function4;)V
+	public fun <init> (Lme/ahoo/wow/kernel/Creation;ZLkotlin/jvm/functions/Function4;)V
+	public final fun getBlocking ()Z
 	public fun getCreation ()Lme/ahoo/wow/kernel/Creation;
 	public final fun getDecide ()Lkotlin/jvm/functions/Function4;
 }

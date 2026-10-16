@@ -24,6 +24,7 @@ import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.OnSchedule
+import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.api.schedule.JobScope
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.api.schedule.ScheduleTick
@@ -49,6 +50,7 @@ internal object ScheduleJobResolver {
     private val TICK = ScheduleTick::class.java.name
     private val SAGA_CONTEXT = SagaContext::class.java.name
     private val BLOCKING = Blocking::class.java.name
+    private val RETRY = Retry::class.java.name
     private const val CRON_FIELDS = 6
     private const val SAGA = "SAGA"
     private val LABELS = mapOf("PROJECT" to "@Projection", "REACT" to "@Reactor")
@@ -94,7 +96,7 @@ internal object ScheduleJobResolver {
         if (returned != null && !reactor) {
             returnProblem(returned)?.let { problems += "$where $it" }
         }
-        val annotation = function.getAnnotationsByType(OnSchedule::class).first()
+        val annotation = function.annotatedIn(ON_SCHEDULE)!!.getAnnotationsByType(OnSchedule::class).first()
         val job = JobBinding(
             name = annotation.name,
             cron = annotation.cron,
@@ -104,7 +106,7 @@ internal object ScheduleJobResolver {
             misfire = annotation.misfire.name,
         )
         problems += jobProblems(where, job)
-        val retry = RetryResolver.read(function, where, problems)
+        val retry = RetryResolver.read(function.annotatedIn(RETRY) ?: function, where, problems)
         if (problems.size > count) {
             return null
         }
@@ -116,7 +118,7 @@ internal object ScheduleJobResolver {
             context = function.parameters.size > 1,
             suspending = Modifier.SUSPEND in function.modifiers,
             reactor = reactor,
-            blocking = function.hasAnnotation(BLOCKING),
+            blocking = function.annotatedIn(BLOCKING) != null,
             retry = retry,
             job = job,
         )

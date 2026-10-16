@@ -207,7 +207,7 @@ function emitAggregate(
   addStatement(
     module,
     `${doc([
-      `The events of \`${aggregate.name}\`, named as the server sends them: \`${aggregate.context}.${aggregate.name}.<Event>\`, and the system events every aggregate has.`,
+      `The events of \`${aggregate.name}\`, named as the server sends them, \`${aggregate.context}.${aggregate.name}.<Event>\` at its current revision (the \`events\` query upgrades older records), and the system events every aggregate has.`,
     ])}export type ${name}Event = ${union([...events, 'SystemEvent'])};`,
   );
   importTypes(

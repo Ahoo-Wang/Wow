@@ -37,6 +37,8 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
+import me.ahoo.wow.kernel.EventCodec
+import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryCaller
@@ -46,6 +48,7 @@ import me.ahoo.wow.query.QueryError
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
+import tools.jackson.databind.node.ObjectNode
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.nio.charset.StandardCharsets
@@ -206,5 +209,60 @@ class EventQueryGatewayTest {
 
     private companion object {
         const val TENANT = "acme"
+    }
+
+    data class ItemAdded(val n: Int, val unit: String)
+
+    class Cart
+
+    @Test
+    fun `events should read as the model reads them now when the host gives the model`() {
+        val model = aggregate<Cart>("shop", "cart") {
+            initial { Cart() }
+            evolve<ItemAdded>(revision = 2) { }
+            alias<ItemAdded>("shop.cart.ItemPut")
+            upgrade<ItemAdded>(from = 1) { payload -> (payload as ObjectNode).put("unit", "piece") }
+            retired("shop.cart.ItemGone")
+        }
+        val stored = InMemoryEventLog(partitions = 1)
+        runBlocking {
+            stored.append(
+                EventStreamRecord(
+                    ref = type.ref(TENANT, "c-2"),
+                    version = 1,
+                    commandId = "cmd-1",
+                    requestId = "req-1",
+                    commandType = "shop.cart.AddItem",
+                    commitTime = 1000L,
+                    events = listOf(
+                        EventRecord("shop.cart.ItemPut", 1, """{"n":1}"""),
+                        EventRecord("shop.cart.ItemGone", 1, "{}"),
+                        EventRecord("shop.cart.ItemAdded", 2, """{"n":2,"unit":"box"}"""),
+                    ),
+                    scope = Scope("alice", "s-1"),
+                ),
+                null,
+            )
+        }
+        val codec = EventCodec()
+        val reading = EventQueryGateway(
+            type,
+            stored,
+            entryPolicy = QueryEntryPolicy(inProcessTimeout = null),
+        ) { codec.current(model, it) }
+        val events = runBlocking { reading.single(SingleQuery(AggregateIdFilter("c-2")), inProcess) }!!["events"]
+        (0 until events.size()).map {
+            events[it]
+        }.map { "${it["name"].asString()}@${it["revision"].asInt()}:${it["body"]}" }.assert().containsExactly(
+            """shop.cart.ItemAdded@2:{"n":1,"unit":"piece"}""",
+            """shop.cart.ItemAdded@2:{"n":2,"unit":"box"}""",
+        )
+        // Without the model, as the log stores them.
+        val stored3 = runBlocking {
+            EventQueryGateway(type, stored, entryPolicy = QueryEntryPolicy(inProcessTimeout = null))
+                .single(SingleQuery(AggregateIdFilter("c-2")), inProcess)
+        }!!["events"]
+        (0 until stored3.size()).map { stored3[it]["name"].asString() }
+            .assert().containsExactly("shop.cart.ItemPut", "shop.cart.ItemGone", "shop.cart.ItemAdded")
     }
 }

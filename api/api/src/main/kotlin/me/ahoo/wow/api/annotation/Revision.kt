@@ -18,8 +18,10 @@ package me.ahoo.wow.api.annotation
  *
  * The log stores each event with the revision it was written at. When the event's structure changes in a way old
  * records do not fit, raise the revision and give an upgrade from each earlier revision to the next one: records of
- * an older revision are read through that chain of [Upgrade] functions (design 01 §8). Adding an optional field with a default is not such
- * a change and needs no new revision.
+ * an older revision are read through that chain of [Upgrade] functions (design 01 §8). Adding an optional field with a
+ * default is not such a change and needs no new revision. The revision and its upgrades cover the service's own records
+ * only: the events query and the published stream give the event at its current revision, so the Manifest
+ * compatibility gate still reports a field removed, retyped or made required as breaking for their readers.
  *
  * ```kotlin
  * @Revision(2)

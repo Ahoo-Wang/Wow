@@ -20,6 +20,7 @@ import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
+import me.ahoo.wow.api.annotation.Blocking
 import me.ahoo.wow.api.annotation.Tags
 
 /**
@@ -36,6 +37,7 @@ internal data class TagsBinding(val member: String, val property: Boolean)
  */
 internal object TagsResolver {
     private val TAGS = Tags::class.java.name
+    private val BLOCKING = Blocking::class.java.name
     private const val WHERE = "@Tags"
     private val MAPS = setOf("kotlin.collections.Map", "kotlin.collections.MutableMap", "java.util.Map")
     private val COLLECTIONS = setOf(
@@ -74,6 +76,9 @@ internal object TagsResolver {
             "$where takes parameters: it reads the state only".takeIf { function.parameters.isNotEmpty() },
             "$where is an extension: it is a member of the state".takeIf { function.extensionReceiver != null },
             "$where suspends: deriving tags does no I/O".takeIf { Modifier.SUSPEND in function.modifiers },
+            "$where is annotated @Blocking: deriving tags does no I/O".takeIf {
+                function.annotations.any { it.annotationType.resolve().qualifiedName == BLOCKING }
+            },
             "$where is private: the generated model calls it".takeIf { function.isPrivate() },
             returnProblem(where, function.returnType?.resolve()),
         )

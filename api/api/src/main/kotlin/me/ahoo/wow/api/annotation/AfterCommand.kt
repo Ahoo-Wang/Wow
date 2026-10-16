@@ -17,10 +17,17 @@ import java.lang.annotation.Inherited
 import kotlin.reflect.KClass
 
 /**
- * A function of an [AggregateRoot] that runs after its command functions (V10), on the events they decided. A
- * function named `afterCommand` needs no annotation.
+ * A function of an [AggregateRoot] that runs after its command functions (V10, decision D39): it sees the state the
+ * command function saw, not yet evolved by its events, and returns events appended after them in the same stream. It
+ * does not run when the command is rejected. A function named `afterCommand` needs no annotation.
  *
- * @param include the commands it runs after; empty for all of them.
+ * Its parameters are a command function's: first the command, as its body (`Any`, or a command type) or as the
+ * admitted `Command<X>`, then dependencies and the `DecideScope`; it may take no command. One taking a command type
+ * runs only for the aggregate's commands of that type, and every command it includes must be one.
+ *
+ * @param include the commands it runs after; empty for every command of the aggregate's command functions. A lifecycle
+ *   or schedule command (`DeleteAggregate`, `wow.schedule.Set`) is run after only when included. Each is a command of
+ *   the aggregate, or a compile error.
  * @param exclude the commands it does not run after.
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.ANNOTATION_CLASS)

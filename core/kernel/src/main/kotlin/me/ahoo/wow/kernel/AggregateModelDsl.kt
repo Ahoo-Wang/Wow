@@ -86,6 +86,32 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     /**
+     * Decides commands of type [C], named [name], with a function that blocks its thread (`@Blocking`, decisions D36,
+     * D227), such as one calling JDBC: the kernel runs it on its blocking dispatcher, a virtual thread, so it does not
+     * hold a worker thread.
+     */
+    inline fun <reified C : Any> decideBlocking(
+        creation: Creation = Creation.NONE,
+        name: String = defaultName(C::class.java),
+        noinline decide: suspend DecideScope.(S, C) -> Decision,
+    ) = decideBlocking(C::class.java, creation, name, decide)
+
+    /** Decides commands of [commandType] with a function that blocks its thread; see the reified overload. */
+    fun <C : Any> decideBlocking(
+        commandType: Class<C>,
+        creation: Creation = Creation.NONE,
+        name: String = defaultName(commandType),
+        decide: suspend DecideScope.(S, C) -> Decision,
+    ) {
+        @Suppress("UNCHECKED_CAST")
+        addDecider(
+            commandType,
+            name,
+            DecideFunction.Suspending(creation, true, decide as suspend DecideScope.(S, Any) -> Decision),
+        )
+    }
+
+    /**
      * Mounts commands of type [C], named [name], under this aggregate's routes without deciding them (decision D182):
      * a transformer of the service turns each into a command that is decided.
      */
@@ -94,8 +120,10 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     /**
-     * An after hook (D39) for every command that is one of [include] (all when empty) and none of [exclude]: its
-     * events follow the command's own in the same stream.
+     * An after hook (D39) for every command that is one of [include] and none of [exclude]: its events follow the
+     * command's own in the same stream. An empty [include] is every command of the model's own decide functions, not
+     * the system commands the kernel decides (lifecycle and `wow.schedule`, finding A4-10): a hook runs after one of
+     * those only when [include] names it.
      */
     fun after(
         include: Set<Class<*>> = emptySet(),
@@ -112,6 +140,15 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         after: suspend DecideScope.(S, Any) -> List<Any>,
     ) {
         afterFunctions += AfterFunction.Suspending(applies(include, exclude), after)
+    }
+
+    /** An after hook that blocks its thread (`@Blocking`, D227): it runs on a virtual thread; see [after]. */
+    fun afterBlocking(
+        include: Set<Class<*>> = emptySet(),
+        exclude: Set<Class<*>> = emptySet(),
+        after: suspend DecideScope.(S, Any) -> List<Any>,
+    ) {
+        afterFunctions += AfterFunction.Suspending(applies(include, exclude), true, after)
     }
 
     /** Evolves the state by changing it in place: the default, concise form (D7). */
@@ -274,6 +311,13 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         tags = tags,
     )
 
-    private fun applies(include: Set<Class<*>>, exclude: Set<Class<*>>): (Class<*>) -> Boolean =
-        { command -> (include.isEmpty() || command in include) && command !in exclude }
+    private fun applies(include: Set<Class<*>>, exclude: Set<Class<*>>): (Class<*>) -> Boolean = { command ->
+        val included = if (include.isEmpty()) command !in SYSTEM_COMMANDS else command in include
+        included && command !in exclude
+    }
+
+    private companion object {
+        /** The commands the kernel decides for every model, which an after hook runs after only when it names them. */
+        val SYSTEM_COMMANDS: Set<Class<*>> = KernelLifecycle.COMMANDS + KernelLifecycle.SCHEDULE_COMMANDS
+    }
 }

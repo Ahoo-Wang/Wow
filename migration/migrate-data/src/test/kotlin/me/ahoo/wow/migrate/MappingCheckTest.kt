@@ -161,6 +161,32 @@ class MappingCheckTest {
     }
 
     @Test
+    fun `a mapping to an event the aggregate retired resolves`() {
+        val manifest = NineXExample.manifest.let { manifest ->
+            manifest.copy(
+                contexts = manifest.contexts.map { context ->
+                    context.copy(
+                        aggregates = context.aggregates.map {
+                            it.copy(retired = listOf("OrderArchived", "legacy.order.Closed"))
+                        },
+                    )
+                },
+            )
+        }
+        val map = NineXExample.map.order {
+            copy(
+                events = events + EventMapping("order_archived", to = "OrderArchived") +
+                    EventMapping("order_closed", to = "legacy.order.Closed") +
+                    EventMapping("order_lost", to = "OrderLost"),
+            )
+        }
+        check(map, manifest = manifest).problems.assert().containsExactly(
+            "example-service.order -> example.order: order_lost: the V10 event example.order.OrderLost is not in " +
+                "the Manifest",
+        )
+    }
+
+    @Test
     fun `a target aggregate missing from the Manifest, duplicates and shared targets fail it`() {
         val map = NineXExample.map.order {
             copy(events = events + events.first(), commands = commands + commands.first())

@@ -16,8 +16,11 @@ package me.ahoo.wow.compiler.model
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.ManifestTree
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
+import tools.jackson.module.kotlin.jacksonObjectMapper
 
 /** `@AggregateRoot(retiredEvents)` (decision D219) as the model processor reads, checks and generates it. */
 @OptIn(ExperimentalCompilerApi::class)
@@ -90,6 +93,13 @@ class RetiredEventsTest {
         scenarioClass.getMethod("retired").invoke(null)
             .assert().isEqualTo(setOf("bank.ledger.Withdrawn", "legacy.ledger.Closed"))
         scenarioClass.getMethod("read").invoke(null).toString().assert().isEqualTo("[Entered(amount=7)]")
+        // The Manifest records them (finding A4-12), as written.
+        val fragment = compilation.workingDir.walkTopDown()
+            .single { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
+        val manifest = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
+        manifest.contexts.single().aggregates.single().retired
+            .assert().containsExactly("Withdrawn", "legacy.ledger.Closed")
+        ManifestTree.read(ManifestTree.write(manifest)).assert().isEqualTo(manifest)
     }
 
     @Test

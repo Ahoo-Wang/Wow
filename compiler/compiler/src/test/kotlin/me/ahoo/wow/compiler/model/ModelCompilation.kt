@@ -59,6 +59,15 @@ fun compileModelAgainst(
     vararg sources: SourceFile,
 ): Pair<KotlinCompilation, JvmCompilationResult> = compileModel(mode, emptyMap(), null, libraries, *sources)
 
+/** Compiles [sources] as [compileModelAgainst] does, with the further KSP [options]. */
+@OptIn(ExperimentalCompilerApi::class)
+fun compileModelAgainst(
+    mode: String,
+    options: Map<String, String>,
+    libraries: List<File>,
+    vararg sources: SourceFile,
+): Pair<KotlinCompilation, JvmCompilationResult> = compileModel(mode, options, null, libraries, *sources)
+
 /**
  * Compiles [sources] as [compileModel] does; when [onClasspath] is given, against only the test's class path entries
  * it keeps: a module without some dependency.

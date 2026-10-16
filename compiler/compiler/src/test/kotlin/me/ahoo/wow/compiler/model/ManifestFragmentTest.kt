@@ -328,7 +328,7 @@ class ManifestFragmentTest {
 
             fun onCommand(command: Ship): ShipEvent = ShipFailed(command.note)
 
-            fun onCommand(command: Rename): String = command.name
+            fun onCommand(command: Rename): Any = Renamed(command.name)
 
             fun onCommand(command: Archive): List<*> = emptyList<Any>()
 

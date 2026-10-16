@@ -51,8 +51,10 @@ import kotlin.reflect.KClass
  * event's `@Revision`. Raise it when the snapshots already written no longer read as the state, or no longer hold
  * what the state now derives: an `evolve` or `@Upgrade` whose meaning changed, a field renamed or retyped, or a field
  * added that the history must compute. The service then rebuilds the stored snapshots from the log in place, in the
- * background, and the Manifest compatibility gate accepts the state schema change. An optional field added or a field
- * removed needs no new revision.
+ * background. An optional field added needs no new revision. The revision covers the service's own snapshots only:
+ * the state is also the snapshot query's fields and, unless the stream leaves it out, the payload of the published
+ * stream, so the Manifest compatibility gate reports a field removed, retyped or made required as breaking whatever
+ * the revision, unless the aggregate has neither (a new major version, or a new field beside the old one, then).
  *
  * [retiredEvents] lists the events the aggregate no longer has (decision D219, as 9.x's `DroppedEvent`): delete the
  * event's class and its sourcing function, and list its name here, so its history still loads. Each is the name the

@@ -99,6 +99,9 @@ fun <S : Any> aggregateSpec(
 /** Where the time of an [aggregateSpec] starts by default. */
 val DEFAULT_START: Instant = Instant.parse("2026-01-01T00:00:00Z")
 
+/** The id of the aggregate [AggregateSpec.givenReservation] gives a key to by default. */
+const val ANOTHER_AGGREGATE: String = "another-aggregate"
+
 @Suppress("TooManyFunctions") // The DSL's verbs.
 class AggregateSpec<S : Any>(
     private val model: AggregateModel<S>,
@@ -143,6 +146,26 @@ class AggregateSpec<S : Any>(
             val scope = ReservationScope.of(ref, ReservationKey(namespace, key, tenancy == ReservationTenancy.SYSTEM))
             reservations.find(scope, key)?.owner == ref
         }
+
+    /**
+     * Gives [key] in [namespace] (decision D38), reserved with [tenancy], to [owner], another aggregate of the same
+     * context (one of this type, `another-aggregate`, by default), as a command of it that committed would: a
+     * command reserving it is then refused (finding A4-14), and [holds] says the aggregate does not hold it.
+     */
+    fun givenReservation(
+        namespace: String,
+        key: String,
+        owner: AggregateRef = model.type.ref(ref.tenantId, ANOTHER_AGGREGATE),
+        tenancy: ReservationTenancy = ReservationTenancy.TENANT,
+    ) {
+        require(owner != ref) { "$owner is the aggregate under test: a command of it reserves the key." }
+        require(owner.type.context == ref.type.context) { "$owner reserves keys of its own context only." }
+        steps += { givenReservation(namespace, key, owner, tenancy) }
+        runBlocking {
+            val scope = ReservationScope.of(owner, ReservationKey(namespace, key, tenancy == ReservationTenancy.SYSTEM))
+            reservations.confirm(scope, key, owner)
+        }
+    }
 
     /**
      * Moves the time on by [duration], then sends the aggregate each command it scheduled for itself that is due by

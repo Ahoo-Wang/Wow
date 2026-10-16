@@ -278,14 +278,17 @@ class QueryAutoConfiguration {
                 latest == null || StateVisibility.visible(byType[ref.type], caller, latest)
             }
             val events = queryTypes(manifest, contexts, QueryRoutes.EVENTS).map { type ->
+                val context = node.contexts.getValue(type.context)
+                // Events read as the model reads them now (finding A4-16): current names and revisions, as typed.
+                val model = context.models.firstOrNull { it.type == type }
                 EventQueryGateway(
                     type,
-                    node.contexts.getValue(type.context).log,
+                    context.log,
                     tenants,
                     entryPolicy,
                     QueryOwnership.of(manifest).ownershipOf(type),
                     visible,
-                )
+                ) { record -> if (model == null) record else context.codec.current(model, record) }
             }
             return HttpQueries(
                 snapshots,
