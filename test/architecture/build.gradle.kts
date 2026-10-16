@@ -21,6 +21,10 @@ tasks.named<Test>("test") {
             )
         },
     ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("v10Sources")
+    // The ABI dumps of the modules that hold no data class (decisions D227, D228).
+    inputs.files(listOf("api/api", "core/spi", "api/manifest").map { rootProject.layout.projectDirectory.dir("$it/api") })
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .withPropertyName("abiDumps")
     inputs.files(rootProject.file("settings.gradle.kts"), rootProject.subprojects.map { it.buildFile })
         .withPathSensitivity(PathSensitivity.RELATIVE)
         .withPropertyName("buildScripts")
