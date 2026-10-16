@@ -21,18 +21,56 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * and nothing is written.
  */
 sealed interface Decision {
-    /** The command produces [events], appended together as one event stream. */
-    data class Events(val events: List<Any>) : Decision {
+    /**
+     * The command produces [events], appended together as one event stream.
+     *
+     * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+     */
+    class Events @InternalWowApi constructor(val events: List<Any>) : Decision {
         init {
             require(events.isNotEmpty()) { "A decision to produce events needs at least one event." }
+        }
+
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Events && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Events(events=$events)"
+
+        private fun valueFields(): List<Any?> = listOf(events)
+
+        companion object {
+            /** An Events of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            fun of(events: List<Any>): Events = Events(events)
         }
     }
 
     /** The command is accepted and changes nothing: nothing is appended. */
     data object NoOp : Decision
 
-    /** The command is refused for [rejection]; nothing is appended. */
-    data class Rejected(val rejection: Rejection) : Decision
+    /**
+     * The command is refused for [rejection]; nothing is appended.
+     *
+     * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+     */
+    class Rejected @InternalWowApi constructor(val rejection: Rejection) : Decision {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Rejected && valueFields() == other.valueFields()
+
+        override fun hashCode(): Int = valueFields().hashCode()
+
+        override fun toString(): String = "Rejected(rejection=$rejection)"
+
+        private fun valueFields(): List<Any?> = listOf(rejection)
+
+        companion object {
+            /** A Rejected of the given fields; parameters added later come last, with a default. */
+            @JvmStatic
+            fun of(rejection: Rejection): Rejected = Rejected(rejection)
+        }
+    }
 
     companion object {
         /** Produces [events]. */

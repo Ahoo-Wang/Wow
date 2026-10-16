@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.api.caller
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /**
  * Whose name a fact is recorded in (decision D163; design 08 §4): the operator of a command and of the event stream
  * it commits, the primary record of an audit.
@@ -28,12 +30,23 @@ package me.ahoo.wow.api.caller
  *
  * A command a saga derives, an `@OnRejected` compensation and a scheduled command keep the operator of the root
  * command; who triggered them is what their causation records.
+ *
+ * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
  */
-data class Operator(val id: String, val tenantId: String, val crossScope: Boolean = false) {
+class Operator @InternalWowApi constructor(val id: String, val tenantId: String, val crossScope: Boolean = false) {
     init {
         require(id.isNotBlank()) { "An operator needs an id." }
         require(tenantId.isNotBlank()) { "An operator needs a tenant." }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is Operator && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "Operator(id=$id, tenantId=$tenantId, crossScope=$crossScope)"
+
+    private fun valueFields(): List<Any?> = listOf(id, tenantId, crossScope)
 
     companion object {
         /** The prefix of the id of a framework component that issues a command on its own. */
@@ -46,5 +59,10 @@ data class Operator(val id: String, val tenantId: String, val crossScope: Boolea
             require(component.isNotBlank()) { "A system operator names its component." }
             return Operator(SYSTEM_PREFIX + component, tenantId)
         }
+
+        /** An Operator of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(id: String, tenantId: String, crossScope: Boolean = false): Operator = Operator(id, tenantId, crossScope)
     }
 }

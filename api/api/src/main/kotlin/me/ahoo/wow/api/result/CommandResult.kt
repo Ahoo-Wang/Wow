@@ -44,17 +44,68 @@ enum class FunctionKind {
  * Who produced a result (design 08 §7): a function of [kind] in [context]. A subscription is named
  * `processor.function` (design 04 §1), so [processor] and [name] come from its definition; for a command they are the
  * aggregate and the command's name.
+ *
+ * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
  */
-data class FunctionInfo(val kind: FunctionKind, val context: String, val processor: String, val name: String) {
+class FunctionInfo @InternalWowApi constructor(
+    val kind: FunctionKind,
+    val context: String,
+    val processor: String,
+    val name: String,
+) {
     init {
         require(context.isNotBlank()) { "A function's context is not blank." }
         require(processor.isNotBlank()) { "A function's processor is not blank." }
         require(name.isNotBlank()) { "A function's name is not blank." }
     }
+
+    /** This FunctionInfo with the given fields replaced: Wow's own copy, left out of the ABI. */
+    @InternalWowApi
+    fun copyWith(
+        kind: FunctionKind = this.kind,
+        context: String = this.context,
+        processor: String = this.processor,
+        name: String = this.name,
+    ): FunctionInfo = FunctionInfo(kind, context, processor, name)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is FunctionInfo && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "FunctionInfo(kind=$kind, context=$context, processor=$processor, name=$name)"
+
+    private fun valueFields(): List<Any?> = listOf(kind, context, processor, name)
+
+    companion object {
+        /** A FunctionInfo of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(kind: FunctionKind, context: String, processor: String, name: String): FunctionInfo =
+            FunctionInfo(kind, context, processor, name)
+    }
 }
 
-/** A field-level validation error: the [path] of the field, a [code] and a human-readable [message]. */
-data class Violation(val path: String, val code: String, val message: String)
+/**
+ * A field-level validation error: the [path] of the field, a [code] and a human-readable [message].
+ *
+ * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ */
+class Violation @InternalWowApi constructor(val path: String, val code: String, val message: String) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is Violation && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "Violation(path=$path, code=$code, message=$message)"
+
+    private fun valueFields(): List<Any?> = listOf(path, code, message)
+
+    companion object {
+        /** A Violation of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(path: String, code: String, message: String): Violation = Violation(path, code, message)
+    }
+}
 
 /**
  * Why a command was rejected or failed: an error [code] (`wow.*` or a domain's own), a [message], [violations], and the

@@ -14,23 +14,60 @@
 package me.ahoo.wow.api.snapshot
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 
 /**
  * The system command `wow.snapshot.Rebuild` (decision D172): rebuilds from the log the snapshots of the aggregates
  * [ids] of one aggregate type, in the tenant of the instance it is sent to: the aggregate `<context>.snapshot` whose id
  * is the name of that aggregate type. A snapshot written wrong is repaired this way; the rebuild runs in the background,
  * once the request is committed.
+ *
+ * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
  */
-data class RebuildSnapshot(val ids: List<String>) {
+class RebuildSnapshot @InternalWowApi constructor(val ids: List<String>) {
     init {
         require(ids.isNotEmpty()) { "A rebuild names the aggregates whose snapshots it rebuilds." }
         require(ids.size <= SnapshotRebuilds.MAX_IDS) { "A rebuild names at most ${SnapshotRebuilds.MAX_IDS} ids." }
         require(ids.none { it.isBlank() }) { "An aggregate id is not blank." }
     }
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is RebuildSnapshot && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "RebuildSnapshot(ids=$ids)"
+
+    private fun valueFields(): List<Any?> = listOf(ids)
+
+    companion object {
+        /** A RebuildSnapshot of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(ids: List<String>): RebuildSnapshot = RebuildSnapshot(ids)
+    }
 }
 
-/** The system event `wow.SnapshotRebuildRequested`: the snapshots of the aggregates [ids] are to be rebuilt. */
-data class SnapshotRebuildRequested(val ids: List<String>)
+/**
+ * The system event `wow.SnapshotRebuildRequested`: the snapshots of the aggregates [ids] are to be rebuilt.
+ *
+ * Fields may be added (decisions D59, D227): construct one with [of]; the constructor is internal to Wow.
+ */
+class SnapshotRebuildRequested @InternalWowApi constructor(val ids: List<String>) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is SnapshotRebuildRequested && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "SnapshotRebuildRequested(ids=$ids)"
+
+    private fun valueFields(): List<Any?> = listOf(ids)
+
+    companion object {
+        /** A SnapshotRebuildRequested of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(ids: List<String>): SnapshotRebuildRequested = SnapshotRebuildRequested(ids)
+    }
+}
 
 /** The names of the snapshot rebuild aggregate, its system command and event (decision D172). */
 object SnapshotRebuilds {
