@@ -22,6 +22,7 @@ import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.QueryManifest
+import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.RouteManifest
 import me.ahoo.wow.manifest.SubscriptionManifest
 
@@ -92,11 +93,14 @@ data class CompatibilityReport(
  * - Schemas follow [SchemaCompatibility]: a removed field, a narrowed type, a newly required field or a removed enum
  *   value break; an optional field or an enum value added does not. The state schema is the snapshot query's fields,
  *   so the same rules hold for it, and a field renamed with its old path in `x-wow-alias` is additive.
- * - A state schema that breaks keeps the contract only when the aggregate's state revision
- *   (`@AggregateRoot(stateRevision)`) was raised (decision D172): the service then rebuilds the stored snapshots from
- *   the log. A lowered state revision breaks.
- * - An event whose schema breaks keeps the contract only when its revision was raised: the compiler then requires an
- *   `@Upgrade` from each earlier revision (decision D82), which reads the old records. A lowered revision breaks.
+ * - A revision covers only the service's own storage (finding A4-5), never a contract others read. A state schema
+ *   that breaks breaks the snapshot query's clients (its `state.*` fields) and the subscribers of the aggregate's
+ *   published stream when it carries the state, whatever the state revision: raising it (`@AggregateRoot(
+ *   stateRevision)`, decision D172) only rebuilds the stored snapshots from the log, so it keeps the contract only for
+ *   an aggregate with neither. Likewise an event schema that breaks breaks the events query's clients and the
+ *   published stream's subscribers, which read events at their current revision: raising the revision (with an
+ *   `@Upgrade` from each earlier one, decision D82) only reads the service's own old records. A lowered revision
+ *   breaks.
  * - Command creation that accepts more (`NONE` or `REQUIRED` to `ALLOWED`) is additive, any other change breaking; a
  *   produced event removed breaks a client waiting for it.
  * - Disabling snapshots, changing the ownership, a published stream's topic, or dropping its state breaks; so does a
@@ -196,7 +200,7 @@ private class Changes(val schemas: SchemaCompatibility) {
             current.aggregates,
             { it.name },
             "aggregate",
-            ::compareAggregate,
+            { entry, old, new -> compareAggregate(entry, old, new, Exposure.of(old.name, baseline, current)) },
         )
         compareNamed(
             "$path.subscriptions",
@@ -217,8 +221,8 @@ private class Changes(val schemas: SchemaCompatibility) {
         compareErrors("$path.errors", baseline.errors, current.errors)
     }
 
-    fun compareAggregate(path: String, baseline: AggregateManifest, current: AggregateManifest) {
-        compareState(path, baseline, current)
+    fun compareAggregate(path: String, baseline: AggregateManifest, current: AggregateManifest, exposure: Exposure) {
+        compareState(path, baseline, current, exposure)
         if (baseline.snapshot.enabled != current.snapshot.enabled) {
             if (current.snapshot.enabled) {
                 additive("$path.snapshot", "snapshots enabled")
@@ -244,7 +248,7 @@ private class Changes(val schemas: SchemaCompatibility) {
             current.events,
             { it.name },
             "event",
-            ::compareEvent,
+            { entry, old, new -> compareEvent(entry, old, new, exposure) },
             { it.aliases },
         )
         compareValues("$path.lifecycle", baseline.lifecycle, current.lifecycle, "lifecycle command")
@@ -252,10 +256,11 @@ private class Changes(val schemas: SchemaCompatibility) {
     }
 
     /**
-     * The state schema, as an event's (decision D172): a breaking change keeps the contract only when the aggregate's
-     * state revision was raised, so the stored snapshots are rebuilt from the log; a lowered revision breaks.
+     * The state schema (decision D172, finding A4-5): a breaking change keeps the contract only when the aggregate's
+     * state revision was raised, so the stored snapshots are rebuilt from the log, and no one else reads the state
+     * ([Exposure.state]); a lowered revision breaks.
      */
-    private fun compareState(path: String, baseline: AggregateManifest, current: AggregateManifest) {
+    private fun compareState(path: String, baseline: AggregateManifest, current: AggregateManifest, exposure: Exposure) {
         val schemaChanges = schemas.compare(
             "$path.state",
             baseline.state.schema,
@@ -272,14 +277,19 @@ private class Changes(val schemas: SchemaCompatibility) {
 
             new > old -> {
                 additive("$path.snapshot.stateRevision", "state revision raised from $old to $new")
+                val readers = exposure.state
                 list += schemaChanges.map {
-                    if (it.kind == ChangeKind.BREAKING) {
-                        it.copy(
+                    when {
+                        it.kind != ChangeKind.BREAKING -> it
+                        readers.isEmpty() -> it.copy(
                             kind = ChangeKind.ADDITIVE,
                             description = "${it.description} (snapshots rebuilt at state revision $new)",
                         )
-                    } else {
-                        it
+
+                        else -> it.copy(
+                            description = "${it.description}: snapshots are rebuilt at state revision $new, but " +
+                                "${readers.joinToString(" and ")} read the state",
+                        )
                     }
                 }
             }
@@ -318,7 +328,11 @@ private class Changes(val schemas: SchemaCompatibility) {
         compareRoutes("$path.routes", baseline.routes, current.routes)
     }
 
-    fun compareEvent(path: String, baseline: EventManifest, current: EventManifest) {
+    /**
+     * An event (decision D82, finding A4-5): a breaking schema change keeps the contract only when its revision was
+     * raised, so the service's own old records are upgraded, and no one else reads the event ([Exposure.events]).
+     */
+    fun compareEvent(path: String, baseline: EventManifest, current: EventManifest, exposure: Exposure) {
         compareValues("$path.aliases", baseline.aliases, current.aliases, "alias")
         val schemaChanges = schemas.compare("$path.schema", baseline.schema, current.schema)
         when {
@@ -330,14 +344,20 @@ private class Changes(val schemas: SchemaCompatibility) {
             current.revision > baseline.revision -> {
                 additive("$path.revision", "revision raised from ${baseline.revision} to ${current.revision}")
                 // The compiler requires an @Upgrade from each earlier revision (D82): the old records still read.
+                val readers = exposure.events
                 list += schemaChanges.map {
-                    if (it.kind == ChangeKind.BREAKING) {
-                        it.copy(
+                    when {
+                        it.kind != ChangeKind.BREAKING -> it
+                        readers.isEmpty() -> it.copy(
                             kind = ChangeKind.ADDITIVE,
                             description = "${it.description} (upgraded from revision ${baseline.revision})",
                         )
-                    } else {
-                        it
+
+                        else -> it.copy(
+                            description = "${it.description}: the service upgrades its records from revision " +
+                                "${baseline.revision}, but ${readers.joinToString(" and ")} read the event at its " +
+                                "current revision",
+                        )
                     }
                 }
             }
@@ -402,6 +422,35 @@ private class Changes(val schemas: SchemaCompatibility) {
             current.isEmpty() -> additive(path, "handles the $receipts of any derived command")
             baseline.isEmpty() -> breaking(path, "handles the $receipts of $current only, not of any derived command")
             else -> compareValues(path, baseline, current, "command with handled $receipts")
+        }
+    }
+
+    /**
+     * Who besides the service reads an aggregate's state and events, in the baseline or now (finding A4-5): the
+     * clients of its snapshot and events query models, and the subscribers of its published stream (decisions D58,
+     * D156), which carries its events and, unless it leaves it out, its state.
+     */
+    class Exposure(val state: List<String>, val events: List<String>) {
+        companion object {
+            fun of(aggregate: String, baseline: ContextManifest, current: ContextManifest): Exposure {
+                val manifests = listOf(baseline, current)
+                val queries = manifests.flatMap { context ->
+                    context.aggregates.filter { it.name == aggregate }.flatMap { it.queries }.map { it.model }
+                }.toSet()
+                val published = manifests.flatMap { context -> context.published.filter { it.aggregate == aggregate } }
+                val stream = "the subscribers of its published stream".takeIf { published.isNotEmpty() }
+                val stateStream = stream.takeIf { published.any { it.includeState } }
+                return Exposure(
+                    state = listOfNotNull(
+                        "the snapshot query's clients".takeIf { QueryRoutes.SNAPSHOT in queries },
+                        stateStream,
+                    ),
+                    events = listOfNotNull(
+                        "the events query's clients".takeIf { QueryRoutes.EVENTS in queries },
+                        stream,
+                    ),
+                )
+            }
         }
     }
 

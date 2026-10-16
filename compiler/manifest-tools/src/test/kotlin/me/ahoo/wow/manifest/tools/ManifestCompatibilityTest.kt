@@ -130,6 +130,12 @@ class ManifestCompatibilityTest {
         private fun row(name: String, current: Manifest, vararg expected: String): Arguments =
             Arguments.of(name, current, expected.toList())
 
+        private val INTEGER = mapOf("type" to "integer")
+
+        /** The baseline of an aggregate no one but the service reads: no query model, no published stream. */
+        private val UNEXPOSED: Manifest
+            get() = BASELINE.cart { it.copy(queries = emptyList()) }.context { it.copy(published = emptyList()) }
+
         private val NARROWED_EVENT =
             schema("productId" to STRING, "quantity" to STRING, required = listOf("productId", "quantity"))
 
@@ -268,10 +274,21 @@ class ManifestCompatibilityTest {
                 "BREAKING $CART.events[ItemAdded].schema.quantity: required field added without a new revision and its @Upgrade",
             ),
             row(
-                "event schema broken with a new revision",
+                "event schema broken with a new revision, of a published aggregate",
                 BASELINE.def("shop.ItemAdded", NARROWED_EVENT).itemAdded { it.copy(revision = 2) },
                 "ADDITIVE $CART.events[ItemAdded].revision: revision raised from 1 to 2",
-                "ADDITIVE $CART.events[ItemAdded].schema.quantity: required field added (upgraded from revision 1)",
+                "BREAKING $CART.events[ItemAdded].schema.quantity: required field added: the service upgrades its " +
+                    "records from revision 1, but the subscribers of its published stream read the event at its " +
+                    "current revision",
+            ),
+            row(
+                "event field type changed with a new revision, of a published aggregate",
+                BASELINE.def("shop.ItemAdded", schema("productId" to INTEGER, required = listOf("productId")))
+                    .itemAdded { it.copy(revision = 2) },
+                "ADDITIVE $CART.events[ItemAdded].revision: revision raised from 1 to 2",
+                "BREAKING $CART.events[ItemAdded].schema.productId: type narrowed from [string] to [integer]: the " +
+                    "service upgrades its records from revision 1, but the subscribers of its published stream read " +
+                    "the event at its current revision",
             ),
             row(
                 "event revised with an optional field",
@@ -309,13 +326,14 @@ class ManifestCompatibilityTest {
                 "BREAKING $CART.state.items: field removed without a new state revision",
             ),
             row(
-                "state schema broken with a new state revision",
+                "state field removed with a new state revision, of a queried and published aggregate",
                 BASELINE.def(
                     "shop.CartState",
                     schema()
                 ).cart { it.copy(snapshot = SnapshotManifest(stateRevision = 2)) },
                 "ADDITIVE $CART.snapshot.stateRevision: state revision raised from 1 to 2",
-                "ADDITIVE $CART.state.items: field removed (snapshots rebuilt at state revision 2)",
+                "BREAKING $CART.state.items: field removed: snapshots are rebuilt at state revision 2, but the " +
+                    "snapshot query's clients and the subscribers of its published stream read the state",
             ),
             row(
                 "state revision raised alone",
@@ -463,6 +481,58 @@ class ManifestCompatibilityTest {
     fun `each structural change should be classified`(name: String, current: Manifest, expected: List<String>) {
         ManifestCompatibility.compare(BASELINE, current).changes.map { it.toString() }
             .assert().describedAs(name).containsExactlyInAnyOrderElementsOf(expected)
+    }
+
+    @Test
+    fun `a revision should exempt a schema break only of an aggregate no one else reads`() {
+        fun changes(current: Manifest) = ManifestCompatibility.compare(UNEXPOSED, current).changes.map { it.toString() }
+
+        changes(UNEXPOSED.def("shop.CartState", schema()).cart { it.copy(snapshot = SnapshotManifest(stateRevision = 2)) })
+            .assert().containsExactlyInAnyOrder(
+                "ADDITIVE $CART.snapshot.stateRevision: state revision raised from 1 to 2",
+                "ADDITIVE $CART.state.items: field removed (snapshots rebuilt at state revision 2)",
+            )
+        changes(UNEXPOSED.def("shop.ItemAdded", schema()).itemAdded { it.copy(revision = 2) })
+            .assert().containsExactlyInAnyOrder(
+                "ADDITIVE $CART.events[ItemAdded].revision: revision raised from 1 to 2",
+                "ADDITIVE $CART.events[ItemAdded].schema.productId: field removed (upgraded from revision 1)",
+            )
+        // A stream published without the state exposes its events, not its state.
+        val withoutState = PublishedManifest("cart", "wow.shop.cart.state", includeState = false)
+        changes(
+            UNEXPOSED.def("shop.CartState", schema()).def("shop.ItemAdded", schema())
+                .cart { it.copy(snapshot = SnapshotManifest(stateRevision = 2)) }
+                .itemAdded { it.copy(revision = 2) }
+                .context { it.copy(published = listOf(withoutState)) },
+        ).assert().containsExactlyInAnyOrder(
+            "ADDITIVE $CONTEXT.published[cart]: published stream added",
+            "ADDITIVE $CART.snapshot.stateRevision: state revision raised from 1 to 2",
+            "ADDITIVE $CART.state.items: field removed (snapshots rebuilt at state revision 2)",
+            "ADDITIVE $CART.events[ItemAdded].revision: revision raised from 1 to 2",
+            "BREAKING $CART.events[ItemAdded].schema.productId: field removed: the service upgrades its records " +
+                "from revision 1, but the subscribers of its published stream read the event at its current revision",
+        )
+        // A query model added now has clients built against the new schema only, but one in the baseline had others.
+        changes(
+            UNEXPOSED.def("shop.ItemAdded", schema()).itemAdded { it.copy(revision = 2) }
+                .cart { it.copy(queries = listOf(QueryManifest("events"))) },
+        ).assert().containsExactlyInAnyOrder(
+            "ADDITIVE $CART.queries[events]: query model added",
+            "ADDITIVE $CART.events[ItemAdded].revision: revision raised from 1 to 2",
+            "BREAKING $CART.events[ItemAdded].schema.productId: field removed: the service upgrades its records " +
+                "from revision 1, but the events query's clients read the event at its current revision",
+        )
+        changes(
+            UNEXPOSED.def("shop.CartState", schema("items" to STRING))
+                .cart { it.copy(snapshot = SnapshotManifest(stateRevision = 2)) }
+                .context { it.copy(published = listOf(PublishedManifest("cart", "wow.shop.cart.state"))) },
+        ).assert().containsExactlyInAnyOrder(
+            "ADDITIVE $CONTEXT.published[cart]: published stream added",
+            "ADDITIVE $CART.snapshot.stateRevision: state revision raised from 1 to 2",
+            "BREAKING $CART.state.items: type narrowed from [array] to [string]: snapshots are rebuilt at state " +
+                "revision 2, but the subscribers of its published stream read the state",
+            "ADDITIVE $CART.state.items[]: type widened from [string] to any",
+        )
     }
 
     @Test

@@ -144,7 +144,8 @@ data class StateManifest(val schema: String, val fingerprint: String? = null)
 /**
  * Whether the aggregate keeps snapshots ([enabled], decisions D4, D195), and the revision of its state's structure
  * the snapshots are written at ([stateRevision], decision D172): raised, the service rebuilds the stored snapshots in
- * place, and the compatibility gate accepts a state schema change.
+ * place, and the compatibility gate accepts a state schema change of an aggregate whose state no one else reads (no
+ * snapshot query, no published stream with the state).
  */
 data class SnapshotManifest(val enabled: Boolean = true, val stateRevision: Int = 1) {
     init {
