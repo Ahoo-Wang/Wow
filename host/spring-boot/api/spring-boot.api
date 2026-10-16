@@ -85,6 +85,12 @@ public final class me/ahoo/wow/spring/boot/ClickHouseProperties$Sink {
 	public final fun setEnabled (Z)V
 }
 
+public final class me/ahoo/wow/spring/boot/ConfigurationKeys$Companion {
+	public final fun getSTRICT_PREFIXES ()Ljava/util/List;
+	public final fun of (Ljava/lang/ClassLoader;Ljava/util/Collection;)Lme/ahoo/wow/spring/boot/ConfigurationKeys;
+	public static synthetic fun of$default (Lme/ahoo/wow/spring/boot/ConfigurationKeys$Companion;Ljava/lang/ClassLoader;Ljava/util/Collection;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/ConfigurationKeys;
+}
+
 public final class me/ahoo/wow/spring/boot/HostBackends {
 	public static final field Companion Lme/ahoo/wow/spring/boot/HostBackends$Companion;
 	public final fun createSchemas ()V
@@ -365,6 +371,8 @@ public final class me/ahoo/wow/spring/boot/WowProperties {
 	public final fun getCalls ()Lme/ahoo/wow/spring/boot/WowProperties$Calls;
 	public final fun getCluster ()Lme/ahoo/wow/spring/boot/WowProperties$Cluster;
 	public final fun getContexts ()Lme/ahoo/wow/spring/boot/WowProperties$Contexts;
+	public final fun getCosec ()Lme/ahoo/wow/spring/boot/WowProperties$CoSec;
+	public final fun getCosid ()Lme/ahoo/wow/spring/boot/WowProperties$CosId;
 	public final fun getExecutor ()Lme/ahoo/wow/spring/boot/WowProperties$Executor;
 	public final fun getHttp ()Lme/ahoo/wow/spring/boot/WowProperties$Http;
 	public final fun getInternal ()Lme/ahoo/wow/spring/boot/WowProperties$Internal;
@@ -387,6 +395,8 @@ public final class me/ahoo/wow/spring/boot/WowProperties {
 	public final fun setCalls (Lme/ahoo/wow/spring/boot/WowProperties$Calls;)V
 	public final fun setCluster (Lme/ahoo/wow/spring/boot/WowProperties$Cluster;)V
 	public final fun setContexts (Lme/ahoo/wow/spring/boot/WowProperties$Contexts;)V
+	public final fun setCosec (Lme/ahoo/wow/spring/boot/WowProperties$CoSec;)V
+	public final fun setCosid (Lme/ahoo/wow/spring/boot/WowProperties$CosId;)V
 	public final fun setExecutor (Lme/ahoo/wow/spring/boot/WowProperties$Executor;)V
 	public final fun setHttp (Lme/ahoo/wow/spring/boot/WowProperties$Http;)V
 	public final fun setInternal (Lme/ahoo/wow/spring/boot/WowProperties$Internal;)V
@@ -496,6 +506,32 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Cluster {
 	public final fun setRouter (Lme/ahoo/wow/runtime/node/Routing;)V
 }
 
+public final class me/ahoo/wow/spring/boot/WowProperties$CoSec {
+	public fun <init> ()V
+	public final fun getAuthorizer ()Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Authorizer;
+	public final fun getCrossScope ()Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Principals;
+	public final fun getService ()Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Principals;
+	public final fun getTenantLevel ()Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Principals;
+	public final fun setAuthorizer (Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Authorizer;)V
+	public final fun setCrossScope (Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Principals;)V
+	public final fun setService (Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Principals;)V
+	public final fun setTenantLevel (Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Principals;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$CoSec$Authorizer {
+	public fun <init> ()V
+	public final fun getEnabled ()Z
+	public final fun setEnabled (Z)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$CoSec$Principals {
+	public fun <init> ()V
+	public final fun getPolicies ()Ljava/util/Set;
+	public final fun getRoles ()Ljava/util/Set;
+	public final fun setPolicies (Ljava/util/Set;)V
+	public final fun setRoles (Ljava/util/Set;)V
+}
+
 public final class me/ahoo/wow/spring/boot/WowProperties$Companion {
 }
 
@@ -505,6 +541,12 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Contexts {
 	public final fun getInclude ()Ljava/util/Set;
 	public final fun setExclude (Ljava/util/Set;)V
 	public final fun setInclude (Ljava/util/Set;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$CosId {
+	public fun <init> ()V
+	public final fun getGlobalGenerator ()Ljava/lang/String;
+	public final fun setGlobalGenerator (Ljava/lang/String;)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Executor {

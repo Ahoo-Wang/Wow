@@ -110,6 +110,10 @@ import kotlin.time.toKotlinDuration
  *   `wow.aggregates.[<context>.<aggregate>].id-generator`: the generator of its new ids (decision D171);
  *   `wow.aggregates.[<context>.<aggregate>].routing`: `cluster` (the default, the node's `wow.cluster.router`)
  *   or `kafka`, the `Kafka` router (decision D143), see [Aggregate].
+ * - `wow.cosec.*` and `wow.cosid.*`: the keys wow-cosec and wow-cosid read, see [CoSec] and [CosId].
+ *
+ * Every key is in the host's configuration metadata (`META-INF/spring-configuration-metadata.json`, review A5-9), and
+ * a `wow.*` key that no property of the host or of a module names is reported at startup ([ConfigurationKeys]).
  */
 @ConfigurationProperties(prefix = WowProperties.PREFIX)
 class WowProperties {
@@ -140,6 +144,12 @@ class WowProperties {
 
     /** Per aggregate type, by `<context>.<aggregate>` (bracketed in a property name: `wow.aggregates.[shop.cart]`). */
     var aggregates: MutableMap<String, Aggregate> = LinkedHashMap()
+
+    /** The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are. */
+    var cosec: CoSec = CoSec()
+
+    /** The keys wow-cosid reads (`wow.cosid.*`), bound here as [cosec] is. */
+    var cosid: CosId = CosId()
 
     /** The named store instances (decision D177), by name: `wow.stores.<name>.type` and its settings. */
     var stores: MutableMap<String, Store> = LinkedHashMap()
@@ -701,6 +711,45 @@ class WowProperties {
          * primary one.
          */
         var snapshot: AggregateSnapshot = AggregateSnapshot()
+    }
+
+    /**
+     * CoSec's settings (wow-cosec, decisions D189, D193, D226), which that module reads from the environment: bound
+     * here, they have metadata, and a key of `wow.cosec` that none of these is refuses the startup
+     * ([ConfigurationKeys]) instead of being ignored, so a mistyped [Authorizer.enabled] cannot leave the authorizer
+     * that allows all in place.
+     */
+    class CoSec {
+        var authorizer: Authorizer = Authorizer()
+
+        /** The callers that may act across scopes: by CoSec role or policy. */
+        var crossScope: Principals = Principals()
+
+        /** The tenant-level callers (decision D189), who read and write every aggregate of their tenant. */
+        var tenantLevel: Principals = Principals()
+
+        /** The service identities (decision D193), whose synchronous calls the internal port takes. */
+        var service: Principals = Principals()
+
+        class Authorizer {
+            /**
+             * Whether CoSec authorizes every command as its caller (`CoSecCommandAuthorizer`), not only the public
+             * routes by path; the services' calls are authorized by CoSec whatever this says (decision D226).
+             */
+            var enabled: Boolean = false
+        }
+
+        /** Callers by their CoSec roles or policies, comma-separated or as a list. */
+        class Principals {
+            var roles: MutableSet<String> = LinkedHashSet()
+            var policies: MutableSet<String> = LinkedHashSet()
+        }
+    }
+
+    /** CosId's settings (wow-cosid, decision D171), which that module reads from the environment. */
+    class CosId {
+        /** The CosId generator of the node's global ids (command ids, wait ids); CosId's own `cosid` when not set. */
+        var globalGenerator: String? = null
     }
 
     /** How the commands of an aggregate type are routed (`wow.aggregates.[<context>.<aggregate>].routing`). */

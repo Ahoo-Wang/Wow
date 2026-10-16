@@ -78,12 +78,15 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.availability.ApplicationAvailability
+import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.reactor.netty.NettyServerCustomizer
+import org.springframework.context.ApplicationContext
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.env.ConfigurableEnvironment
 import org.springframework.core.env.Environment
 import org.springframework.util.ClassUtils
 import org.springframework.util.unit.DataSize
@@ -151,6 +154,22 @@ import jakarta.validation.Validator as JakartaValidator
 )
 @EnableConfigurationProperties(WowProperties::class)
 class WowAutoConfiguration {
+    /**
+     * Checks the environment's `wow.*` keys against the configuration metadata at startup (review A5-9): warns of the
+     * unknown ones, and refuses an unknown `wow.cosec.*` key ([ConfigurationKeys]).
+     */
+    @Bean
+    @InternalWowApi
+    fun wowConfigurationKeys(environment: ConfigurableEnvironment, context: ApplicationContext): ConfigurationKeys {
+        val prefixes = context.getBeanNamesForAnnotation(ConfigurationProperties::class.java).mapNotNull { name ->
+            context.findAnnotationOnBean(
+                name,
+                ConfigurationProperties::class.java
+            )?.let { it.prefix.ifEmpty { it.value } }
+        }
+        return ConfigurationKeys.of(context.classLoader, prefixes).also { it.check(environment) }
+    }
+
     /** Wow's JSON mapper (decision D105); not a default candidate, so Spring's own mapper stays Spring's. */
     @Bean(WOW_JSON_MAPPER, defaultCandidate = false)
     fun wowJsonMapper(): JsonMapper = WowJson.mapper
