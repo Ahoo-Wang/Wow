@@ -27,6 +27,8 @@ sealed interface AppendOutcome {
 }
 ```
 
+（代码块为示意；这些类型在代码里是普通类，构造函数为 `@InternalWowApi`，经 `of(...)` 创建，D216 ⑤、D227 ②、D228 ①；`Scope`、`Causation`、`AggregateRef`、`AggregateType`、`LogPosition` 等封闭的身份值保留为 data class）
+
 按时间读（`stateAt` 按时间）由内核在 `read` 上截止，不是后端合同的一部分；没有单独的「聚合已存在」结果，创建冲突就是版本 1 的 `Conflict`。
 
 由 TCK 对每个后端强制。**合同里没有可选能力**：9.x 的 Redis 不支持按时间读、Elasticsearch 的请求 ID 去重有跳过点，统一接口掩盖了能力差异（KaeX 的研究结论）；V10 的后端要么完整实现合同，要么不是日志后端。

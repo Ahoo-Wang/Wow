@@ -71,6 +71,8 @@ data class Causation(val correlationId: String, val causationId: String)
 data class Operator(val id: String, val tenantId: String, val crossScope: Boolean = false) // wow-api（D163）
 ```
 
+（代码块为示意；这些类型在代码里是普通类，构造函数为 `@InternalWowApi`，经 `of(...)` 创建，D216 ⑤、D227 ②、D228 ①；`Scope`、`Causation`、`AggregateRef`、`AggregateType`、`LogPosition` 等封闭的身份值保留为 data class）
+
 - **`Scope` 是一个值类型**（所有者与空间的组合），命令、事件流、快照、查询授权都用它，不再散放两个字段（D56）。位置决定语义：命令上的是准入得到的调用方作用域，事件流与快照上的是聚合的归属。
 - **事件流的 `scope` 是这次提交之后聚合的作用域**，不是发命令的人：
   - 创建时取自命令的 `scope`。
