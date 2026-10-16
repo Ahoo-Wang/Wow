@@ -56,7 +56,7 @@
 
 示例：eShop（`example/eshop/`，D158、D159）：五个上下文各有 `api`、`domain`、`server` 三个项目（`:eshop-<上下文>-*`）与只用于测试、不发布的 `:eshop-e2e`，都只能依赖 V10 模块（D118）；原 `:shop-*`、`:inventory-*` 与 `:example-e2e` 已由 D204 收拢进 eShop 并删除（#4432）。
 
-9.x 中删除或并入上表的：wow-redis（D12）、wow-bi（D18）、wow-spring、wow-mock、wow-schema、wow-rest-contract、wow-metadata。去留未定的：wow-apiclient（Kotlin 客户端可能改由 Manifest 生成）、wow-cocache、wow-models，见 §6。
+9.x 中删除或并入上表的：wow-redis（D12）、wow-bi（D18）、wow-spring、wow-mock、wow-schema、wow-rest-contract、wow-metadata。已定（D187）：wow-models 迁到 V10（`extensions/models`，P.8）；放弃 wow-apiclient（由 Manifest 生成的客户端替代）与 wow-cocache。
 
 ### 2.1 `wow-api` 的内容（D66）
 
@@ -106,6 +106,8 @@ flowchart BT
     MIG[wow-migrate-data] --> KER
 ```
 
+图是概略。权威的依赖清单是架构测试的 `V10Rules.ALLOWED_PROJECT_DEPENDENCIES`，此外还有：`wow-http → wow-openapi`、`wow-cosec → wow-http`、`wow-opentelemetry → wow-runtime, wow-query`、`wow-migrate-data → wow-postgres, wow-mongo`，以及 `extensions/` 下的 `wow-models`、`wow-cosid`。
+
 由架构测试强制：
 
 - `wow-api`、`wow-query-api`、`wow-manifest` 没有运行时依赖。
@@ -127,11 +129,12 @@ query/          wow-query
 backends/       wow-postgres  wow-mongo  wow-elasticsearch  wow-clickhouse  wow-kafka
 edge/           wow-http  wow-openapi  wow-cosec  wow-opentelemetry
 host/           wow-spring-boot
-test/           wow-test  wow-tck  wow-it  wow-benchmarks
+test/           test-dsl  tck  tck-containers  architecture  kernel-benchmarks（V10）；wow-test  wow-tck  wow-it  wow-mock（9.x，M9 删除）
+extensions/     wow-models  wow-cosid
 migration/      wow-migrate-data
 bom/            wow-bom  wow-dependencies
 platform/       ops/  view-store/  dataset-registry/  analytics/
-example/        9.x 示例原地不动；V10 的 shop/  inventory/  e2e/
+example/        9.x 示例原地不动；V10 的 eshop/（唯一的 V10 示例，D204）与 quickstart/（D217）
 typescript/     （同 9.x）
 documentation/  docs/  skills/  build-logic/  config/  （同 9.x）
 ```
@@ -152,6 +155,5 @@ documentation/  docs/  skills/  build-logic/  config/  （同 9.x）
 
 ## 6. 待细化
 
-- `wow-apiclient`、`wow-cocache`、`wow-models` 的去留与替代。
 - `wow-it` 的内容：端到端、多节点、迁移演练是否各成模块。
 - 发布模块清单（ABI 转储从 M7 出口的 API 冻结开始，D88、D147）。

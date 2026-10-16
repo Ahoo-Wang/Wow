@@ -31,7 +31,7 @@ flowchart LR
 | 状态：保留可变写法，只改注解与签名（D7） | 高 |
 | `@OnError`：只记日志的删除，做补偿的改 Saga | 低 |
 | Saga 与处理器：改订阅声明，订阅名取 9.x 处理器名 | 中 |
-| 网关调用：保留 Reactor 写法时改用 `wow-reactor` 的 `ReactiveCommandGateway`，或改为 `suspend`；`CommandBus` 注入改为网关 | 高 |
+| 网关调用：改为 `suspend`（`wow-reactor` 目前只提供处理函数返回 `Mono`/`Flux` 的适配，没有 Reactor 网关）；`CommandBus` 注入改为网关 | 高 |
 | 查询：Condition 改 `FilterExpression`；`raw()` 需和用户确认 | 中 |
 | 测试：改函数式 DSL | 中 |
 | `@AfterCommand`：改为 V10 的 after 钩子，语义不变（D39） | 高 |
