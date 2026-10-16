@@ -123,7 +123,9 @@ class QueryKeywordsTest {
         val fragment = fragment(Address::class.java).let { manifest ->
             val context = manifest.contexts.single()
             val aggregate = context.aggregates.single()
-                .copyWith(commands = listOf(CommandManifest("PlaceOrder", schema = schemaRef(PlaceOrder::class.java.name))))
+                .copyWith(
+                    commands = listOf(CommandManifest("PlaceOrder", schema = schemaRef(PlaceOrder::class.java.name)))
+                )
             manifest.copyWith(contexts = listOf(context.copyWith(aggregates = listOf(aggregate))))
         }
         val placeOrder = introspector.complete(fragment).defs[PlaceOrder::class.java.name] as Map<*, *>

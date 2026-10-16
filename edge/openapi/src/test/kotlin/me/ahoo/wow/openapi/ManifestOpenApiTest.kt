@@ -202,7 +202,11 @@ class ManifestOpenApiTest {
                     aggregates = context.aggregates.map { aggregate ->
                         aggregate.copyWith(
                             commands = aggregate.commands.map {
-                                if (it.name == "PutItem") it.copyWith(description = "Puts an item into the cart.") else it
+                                if (it.name == "PutItem") {
+                                    it.copyWith(description = "Puts an item into the cart.")
+                                } else {
+                                    it
+                                }
                             },
                         )
                     },
@@ -273,7 +277,9 @@ class ManifestOpenApiTest {
         val none = ManifestOpenApi.write(
             MANIFEST.copyWith(
                 contexts = MANIFEST.contexts.map { context ->
-                    context.copyWith(aggregates = context.aggregates.map { it.copyWith(snapshot = SnapshotManifest(false)) })
+                    context.copyWith(
+                        aggregates = context.aggregates.map { it.copyWith(snapshot = SnapshotManifest(false)) }
+                    )
                 },
             ),
         )

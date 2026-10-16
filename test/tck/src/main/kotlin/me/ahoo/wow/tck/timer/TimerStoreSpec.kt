@@ -457,7 +457,9 @@ abstract class TimerStoreSpec {
         val written = coroutineScope {
             (1..CONTENDERS).map { attempt ->
                 async(Dispatchers.Default) {
-                    store.settle(listOf(TimerChange(timer, timer.copyWith(attempts = attempt, outcome = "try $attempt"))))
+                    store.settle(
+                        listOf(TimerChange(timer, timer.copyWith(attempts = attempt, outcome = "try $attempt")))
+                    )
                 }
             }.awaitAll()
         }

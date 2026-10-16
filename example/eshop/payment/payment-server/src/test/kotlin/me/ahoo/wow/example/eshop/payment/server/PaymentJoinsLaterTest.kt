@@ -47,8 +47,14 @@ class ConfirmedBeforeTopics {
             requestId = "request-${order.id}",
             commandType = "eshop-ordering.order.ConfirmOrderStock",
             commitTime = System.currentTimeMillis(),
-            events = listOf(StateEventPayload.of("eshop-ordering.order.OrderStockConfirmed", 1, json.createObjectNode())),
-            state = StateView.of(5, "fingerprint", json.readTree("""{"status":"STOCK_CONFIRMED","totalAmount":42.00}""")),
+            events = listOf(
+                StateEventPayload.of("eshop-ordering.order.OrderStockConfirmed", 1, json.createObjectNode())
+            ),
+            state = StateView.of(
+                5,
+                "fingerprint",
+                json.readTree("""{"status":"STOCK_CONFIRMED","totalAmount":42.00}""")
+            ),
         )
         runBlocking { topics.send("wow.eshop-ordering.order.state", listOf(EnvelopeCodec.message(record))) }
     }

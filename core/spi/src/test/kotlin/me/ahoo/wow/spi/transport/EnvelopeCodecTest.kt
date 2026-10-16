@@ -65,7 +65,9 @@ class EnvelopeCodecTest {
     fun `a state event should keep its facts, state and numbers through the wire`() {
         val record = record()
         val read = EnvelopeCodec.stateEventOf(EnvelopeCodec.encode(EnvelopeCodec.stateEvent(record)))
-        read.assert().isEqualTo(record.copyWith(transport = Transport(wait, trace = mapOf("traceparent" to "00-1-2-01"))))
+        read.assert().isEqualTo(
+            record.copyWith(transport = Transport(wait, trace = mapOf("traceparent" to "00-1-2-01")))
+        )
         read.id.assert().isEqualTo("shop.order/t1/o-1@2")
         val state = WowJson.mapper.writeValueAsString(read.state!!.state)
         ExactJson.of(state).assert().isEqualTo(ExactJson.of(ExactJson.NUMBERS))

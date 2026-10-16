@@ -295,10 +295,18 @@ class SubscriptionBindingsTest {
             Long.MAX_VALUE,
         )
         DerivedCommands.waitOf(wait, SHOP, saga.name)!!.remaining.assert().containsExactly(Hop.committed(SHOP))
-        DerivedCommands.waitOf(wait.copyWith(remaining = listOf(Hop.handled(saga.name))), SHOP, saga.name).assert().isNull()
+        DerivedCommands.waitOf(
+            wait.copyWith(remaining = listOf(Hop.handled(saga.name))),
+            SHOP,
+            saga.name
+        ).assert().isNull()
         DerivedCommands.waitOf(wait, "other", saga.name).assert().isNull()
         DerivedCommands.waitOf(wait, SHOP, "Other.saga").assert().isNull()
-        DerivedCommands.waitOf(wait.copyWith(remaining = listOf(Hop.committed(SHOP))), SHOP, saga.name).assert().isNull()
+        DerivedCommands.waitOf(
+            wait.copyWith(remaining = listOf(Hop.committed(SHOP))),
+            SHOP,
+            saga.name
+        ).assert().isNull()
         DerivedCommands.waitOf(null, SHOP, saga.name).assert().isNull()
         DerivedCommands.waitOf(
             wait.copyWith(remaining = listOf(Hop.handled(saga.name), Hop.snapshot())),

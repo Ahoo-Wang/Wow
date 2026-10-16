@@ -68,7 +68,8 @@ class TimerTest {
 
     @Test
     fun `a change keeps its timer`() {
-        TimerChange(timer(), timer().copyWith(status = TimerStatus.FIRED)).next.status.assert().isEqualTo(TimerStatus.FIRED)
+        TimerChange(timer(), timer().copyWith(status = TimerStatus.FIRED)).next.status
+            .assert().isEqualTo(TimerStatus.FIRED)
         assertThrownBy<IllegalArgumentException> { TimerChange(timer(), timer().copyWith(id = "other")) }
         assertThrownBy<IllegalArgumentException> { TimerChange(timer(), timer().copyWith(key = "other")) }
         assertThrownBy<IllegalArgumentException> {

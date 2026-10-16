@@ -126,7 +126,8 @@ class ManifestCompatibilityTest {
         private fun Manifest.published(change: (PublishedManifest) -> PublishedManifest): Manifest =
             context { it.copyWith(published = it.published.map(change)) }
 
-        private fun Manifest.def(key: String, schema: Map<String, Any?>): Manifest = copyWith(defs = defs + (key to schema))
+        private fun Manifest.def(key: String, schema: Map<String, Any?>): Manifest =
+            copyWith(defs = defs + (key to schema))
 
         private fun row(name: String, current: Manifest, vararg expected: String): Arguments =
             Arguments.of(name, current, expected.toList())
@@ -135,7 +136,8 @@ class ManifestCompatibilityTest {
 
         /** The baseline of an aggregate no one but the service reads: no query model, no published stream. */
         private val UNEXPOSED: Manifest
-            get() = BASELINE.cart { it.copyWith(queries = emptyList()) }.context { it.copyWith(published = emptyList()) }
+            get() = BASELINE.cart { it.copyWith(queries = emptyList()) }
+                .context { it.copyWith(published = emptyList()) }
 
         private val NARROWED_EVENT =
             schema("productId" to STRING, "quantity" to STRING, required = listOf("productId", "quantity"))
@@ -147,7 +149,11 @@ class ManifestCompatibilityTest {
             row(
                 "descriptions, fingerprints, schedules and start positions are not contract",
                 BASELINE.cart {
-                    it.copyWith(description = "a cart", state = it.state.copyWith(fingerprint = "b"), schedules = listOf("x"))
+                    it.copyWith(
+                        description = "a cart",
+                        state = it.state.copyWith(fingerprint = "b"),
+                        schedules = listOf("x")
+                    )
                 }.subscription { it.copyWith(start = SubscriptionStart.END) },
             ),
             row(
@@ -193,7 +199,11 @@ class ManifestCompatibilityTest {
             ),
             row(
                 "command added",
-                BASELINE.cart { it.copyWith(commands = it.commands + ADD_ITEM.copyWith(name = "Clear", routes = emptyList())) },
+                BASELINE.cart {
+                    it.copyWith(
+                        commands = it.commands + ADD_ITEM.copyWith(name = "Clear", routes = emptyList())
+                    )
+                },
                 "ADDITIVE $CART.commands[Clear]: command added",
             ),
             row(
@@ -503,7 +513,8 @@ class ManifestCompatibilityTest {
         fun changes(current: Manifest) = ManifestCompatibility.compare(UNEXPOSED, current).changes.map { it.toString() }
 
         changes(
-            UNEXPOSED.def("shop.CartState", schema()).cart { it.copyWith(snapshot = SnapshotManifest(stateRevision = 2)) }
+            UNEXPOSED.def("shop.CartState", schema())
+                .cart { it.copyWith(snapshot = SnapshotManifest(stateRevision = 2)) },
         )
             .assert().containsExactlyInAnyOrder(
                 "ADDITIVE $CART.snapshot.stateRevision: state revision raised from 1 to 2",
@@ -644,7 +655,10 @@ class ManifestCompatibilityTest {
     fun `a breaking change should fail only within the baseline's major version`() {
         val broken = BASELINE.cart { it.copyWith(commands = emptyList()) }
         ManifestCompatibility.compare(BASELINE, broken).failed.assert().isTrue()
-        ManifestCompatibility.compare(BASELINE, broken.copyWith(service = ServiceInfo("shop-service", "10.2.0-SNAPSHOT")))
+        ManifestCompatibility.compare(
+            BASELINE,
+            broken.copyWith(service = ServiceInfo("shop-service", "10.2.0-SNAPSHOT"))
+        )
             .failed.assert().isTrue()
         val nextMajor = ManifestCompatibility.compare(
             BASELINE,

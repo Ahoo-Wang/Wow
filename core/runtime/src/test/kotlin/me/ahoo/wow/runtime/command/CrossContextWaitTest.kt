@@ -266,7 +266,9 @@ class CrossContextWaitTest {
         val lifecycle = salesManifest.copyWith(
             contexts = salesManifest.contexts.map { context ->
                 context.copyWith(
-                    subscriptions = context.subscriptions.map { it.copyWith(derives = Lifecycle.COMMANDS.keys.toList()) }
+                    subscriptions = context.subscriptions.map {
+                        it.copyWith(derives = Lifecycle.COMMANDS.keys.toList())
+                    },
                 )
             },
         )

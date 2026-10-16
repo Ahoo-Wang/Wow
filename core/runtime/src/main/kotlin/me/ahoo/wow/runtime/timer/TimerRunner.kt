@@ -316,7 +316,10 @@ class TimerRunner(
             "Sending the timer ${timer.id} failed $attempts times; parking it under ${TimerOptions.PARKED_SUBSCRIPTION}."
         }
         // Written at once, so the ledger records only a timer the store holds parked.
-        val parked = TimerChange(timer, timer.copyWith(status = TimerStatus.PARKED, attempts = attempts, outcome = reason))
+        val parked = TimerChange(
+            timer,
+            timer.copyWith(status = TimerStatus.PARKED, attempts = attempts, outcome = reason)
+        )
         val written = quietly("park the timer ${timer.id}") { store.settle(listOf(parked)) } == 1
         part.sending.remove(timer.id)
         if (written) {

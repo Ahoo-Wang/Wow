@@ -42,7 +42,9 @@ class SnapshotRebuildRoutesTest {
         val manifest = cartManifest().let { manifest ->
             manifest.copyWith(
                 contexts = manifest.contexts.map { context ->
-                    context.copyWith(aggregates = context.aggregates.map { it.copyWith(snapshot = SnapshotManifest(false)) })
+                    context.copyWith(
+                        aggregates = context.aggregates.map { it.copyWith(snapshot = SnapshotManifest(false)) }
+                    )
                 },
             )
         }

@@ -164,7 +164,8 @@ abstract class EventLogSpec {
         )
         val cancelled = EventRecord("wow.ScheduleCancelled", 1, """{"key":"remind"}""")
         val withEvents = stream("a", 1).let { it.copyWith(events = it.events + set + cancelled) }
-        val alone = stream("a", 2).copyWith(events = listOf(EventRecord("wow.ScheduleCancelled", 1, """{"key":"pay"}""")))
+        val alone = stream("a", 2)
+            .copyWith(events = listOf(EventRecord("wow.ScheduleCancelled", 1, """{"key":"pay"}""")))
         log.append(withEvents)
         log.append(alone)
         val read = log.read(withEvents.ref).toList()

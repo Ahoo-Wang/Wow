@@ -104,7 +104,9 @@ class KernelSnapshotTest {
         // As PostgreSQL JSONB gives a state back: keys in its own order, its own whitespace.
         stored.state.assert().isEqualTo("""{"id":"cart-1","items":{"apple":1,"pear":2},"owner":"ahoo"}""")
         val normalised = InMemorySnapshotStore()
-        normalised.save(stored.copyWith(state = """{"items": {"pear": 2, "apple": 1}, "owner": "ahoo", "id": "cart-1"}"""))
+        normalised.save(
+            stored.copyWith(state = """{"items": {"pear": 2, "apple": 1}, "owner": "ahoo", "id": "cart-1"}""")
+        )
         log.streamsRead = 0
         val outcome = Kernel(log, codec, snapshots = normalised).execute(
             cartModel,

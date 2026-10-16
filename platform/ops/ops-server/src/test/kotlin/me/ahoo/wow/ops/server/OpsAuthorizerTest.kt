@@ -38,7 +38,10 @@ class OpsAuthorizerTest {
         subject = "alice",
         attributes = mapOf(OpsCallers.ROLES_ATTRIBUTE to listOf(OpsCallers.OPERATOR))
     )
-    private val viewer = Caller.of(subject = "victor", attributes = mapOf(OpsCallers.ROLES_ATTRIBUTE to listOf("viewer")))
+    private val viewer = Caller.of(
+        subject = "victor",
+        attributes = mapOf(OpsCallers.ROLES_ATTRIBUTE to listOf("viewer"))
+    )
 
     private fun action(name: String, type: Class<*>): CommandAction =
         CommandAction(CommandType(name, type), parked, Scope.NONE, Creation.NONE)

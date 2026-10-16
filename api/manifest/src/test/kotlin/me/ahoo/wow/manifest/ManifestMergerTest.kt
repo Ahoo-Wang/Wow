@@ -228,7 +228,9 @@ class ManifestMergerTest {
         val fragment = Manifests.fragment().let { fragment ->
             val context = fragment.contexts.single()
             fragment.copyWith(
-                contexts = listOf(context.copyWith(subscriptions = context.subscriptions + context.subscriptions.first()))
+                contexts = listOf(
+                    context.copyWith(subscriptions = context.subscriptions + context.subscriptions.first())
+                )
             )
         }
         assertThrows<ManifestConflictException> {

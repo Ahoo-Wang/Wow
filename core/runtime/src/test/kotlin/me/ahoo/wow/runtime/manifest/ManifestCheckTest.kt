@@ -176,7 +176,9 @@ class ManifestCheckTest {
     fun `events and their revisions are compared`() {
         val deposited = manifest.contexts.single().aggregates.single().events.single()
         val differing = changed { aggregate ->
-            aggregate.copyWith(events = listOf(deposited.copyWith(revision = 2), deposited.copyWith(name = "Withdrawn")))
+            aggregate.copyWith(
+                events = listOf(deposited.copyWith(revision = 2), deposited.copyWith(name = "Withdrawn"))
+            )
         }
         ManifestCheck.differences(differing, listOf(accountModel("bank"))).assert().containsExactly(
             "event bank.account.Deposited is of revision 2 in the Manifest, 1 in the model",
