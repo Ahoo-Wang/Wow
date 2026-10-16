@@ -19,7 +19,7 @@
 | 名字 | 形式 | 来源 |
 |---|---|---|
 | 聚合类型 | `context.aggregate` | 模型 |
-| 聚合引用 | `context.aggregate/tenant/id` | `AggregateRef.toString()`，同时是预留的所有者（D38） |
+| 聚合引用 | `context.aggregate/tenant/id` | `AggregateRef.toString()`；预留与定时器的所有者是结构化的 `AggregateRef`（类型、租户、ID 分列），不用这个字符串（D225） |
 | 命令类型 | `context.aggregate.CommandName` | 模型；默认取类的简单名，`@Name` 覆盖（**新增**，D55） |
 | 事件类型 | `context.aggregate.EventName` | 模型（已实现），旧名作别名 |
 | 错误码 | `wow.*`（框架）、领域自定 | `Rejection.code`，登记在 Manifest |
@@ -28,9 +28,9 @@
 ## 3. 命令
 
 ```kotlin
-data class Command<C : Any>(
+class Command<C : Any>(   // 普通类，构造函数 @InternalWowApi，经公开工厂创建（D216 ⑤）
     val id: String,
-    val requestId: String,            // 租户内幂等键（D46）
+    val requestId: String,            // 幂等键，在租户加聚合类型内唯一（D46、D162）
     val ref: AggregateRef,
     val body: C,
     val expectedVersion: Int? = null,
@@ -42,7 +42,7 @@ data class Command<C : Any>(
 )
 ```
 
-- **线上形式**（Kafka 命令主题、集群转发）：`{ type, id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, replyTo }`，`type` 是命令类型名，接收方按 Manifest 解码 `body`。`replyTo: {context, subscription, ref, version}` 可选，只在跨上下文命令上出现，告诉目标拒绝回执发往哪个上下文、交给哪个 Saga 的哪次提交（D136，格式 1 内的加法）。等待计划不随命令传给目标上下文，只把 `WaitContext` 放进传输段（D25）。
+- **线上形式**（Kafka 命令主题、集群转发）：`{ type, id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, replyTo }`，`type` 是命令类型名，接收方按 Manifest 解码 `body`。`replyTo: {context, subscription, ref, version, committed}` 可选，只在跨上下文命令上出现，告诉目标拒绝回执发往哪个上下文、交给哪个 Saga 的哪次提交（D136，格式 1 内的加法）；`committed` 标记还要成功回执（D192）。等待计划不随命令传给目标上下文，只把 `WaitContext` 放进传输段（D25）。
 - **请求 ID 复用的识别只比命令类型名**（D46，按性能取舍修正，D55）：事件流记下产生它的命令类型名（§4 的 `commandType`），同一请求 ID 再来时，类型名不同就拒绝（`wow.command.request-id-reused`），相同就当作重试。
   - 不再给命令体算哈希：命令体在写路径上本来不序列化，只为指纹序列化一次再哈希，是 H3 测出的主要成本之一；规范化 JSON 还有「跨部署加字段即误判」的问题。
   - 已知限制：同一类型、不同内容的命令复用请求 ID 时，后者被当作重试，得到前者的结果。请求 ID 由调用方按「一次业务请求一个」生成，这是调用方的契约（文档与 `wow-client` 默认每次生成新 ID）。
@@ -94,7 +94,8 @@ data class Transport(
     val wait: WaitContext? = null,                 // 只在等待超出 COMMITTED 时写（D25）
     val reservations: List<ReservationKey> = emptyList(), // 本次尝试做过的预留，由订阅确认（D50）
     val trace: Map<String, String> = emptyMap(),   // W3C traceparent 等
-)
+    val releases: List<ReservationKey> = emptyList(), // 提交后释放的键，由订阅兜底（D225）
+)   // 记录类型将改为普通类（D228）
 ```
 
 `EventLog.append` 改为接收 `(stream, transport)`。`findByRequestId`、`read` 只返回事实；`tail` 返回带传输段的 `LogEntry`，供订阅与信号使用。
@@ -115,7 +116,7 @@ data class StateView(val version: Int, val schemaFingerprint: String, val state:
 - **状态视图**：提交时把状态序列化一次（[01](01-programming-model.md) §2 的版本视图）。属主节点直接使用这个视图；重放和属主切换时，由快照加尾部演化得到。
 - **进程内**：处理函数拿到 `StateEvent<S>`：事件已解码并升级到当前 revision，状态是由视图反序列化的**副本**（不是活的实例），字段展平，不带日志位置（位置只供运行时记检查点）。
 - **Kafka 上发布的是 `StateEventRecord`，不是单纯的事件流**（D58）：消费端拿到提交后的聚合状态，不必再去请求上游服务。
-  - **默认总是附带状态。** 只有单个 Sink 可以为超大状态的聚合显式关闭（按聚合类型配置），关闭后 `state` 为 null。
+  - **默认总是附带状态。** 超大状态的聚合可在编译期用 `@AggregateRoot(publishState = false)` 关闭（写进 Manifest，没有运行时配置，D156），关闭后 `state` 为 null。
   - **载荷是嵌入的 JSON 对象，不是转义后的字符串**：事件的 `payload`、状态都原样嵌入，人可以直接读，下游可以直接按路径取值。
   - 事件先升级到当前 revision 再发布（F10）。schema 是上下文的公开语言，登记在 Manifest 里。
 - **快照**就是最后一个 `StateEventRecord` 折叠成的视图加元数据（§6），两者字段同源：`state` 对应 `SnapshotRecord.state`，`stream.scope` 对应快照的作用域。
@@ -233,8 +234,8 @@ value    = { "format": 1, "kind": "state-event" | "command" | "command-receipt",
 
 **集群通道的命令转发**（D78，Ahoo-Wang/Wow#4251，格式 1）：
 
-- 请求：`{v, command: {type, id, requestId, ref, body, expectedVersion, scope, headers, causation}, wait: {waitId, origin, remaining, deadline}, deadline}`；`wait` 只在有等待时出现，`origin` 始终是发起节点。
-- 响应：`{v, result, reached, refused}`。`reached` 是属主当场就能定下的后续跳（命令无变化时空转的 `HANDLED`、重复请求按检查点补查到的结果，D63），否则发起方分不清无变化与已提交；`refused` 为 `not-owner`、`expired`、`unknown-type` 之一，发起方据此在本地执行。
+- 请求：`{v, command: {type, id, requestId, ref, body, expectedVersion, scope, headers, causation, operator, replyTo}, wait: {waitId, origin, remaining, deadline}, deadline, trace}`，请求头带本服务的集群令牌 `Wow-Cluster-Token`（D226）；`wait` 只在有等待时出现，`origin` 始终是发起节点。
+- 响应：`{v, result, reached, refused}`。`reached` 是属主当场就能定下的后续跳（命令无变化时空转的 `HANDLED`、重复请求按检查点补查到的结果，D63），否则发起方分不清无变化与已提交；`refused` 为 `not-owner`、`expired`、`unknown-type`、`too-large` 之一，发起方据此在本地执行；请求已发出后超时或失败，发起方返回结果不确定，不在本地执行（D223）。
 - 编解码器的 Jackson 模块集合固定（只有 Kotlin 模块），不从类路径自动发现，保证不同宿主的线上形式一致（D48）。
 
 ## 11. 待细化

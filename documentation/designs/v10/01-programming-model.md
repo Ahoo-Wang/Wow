@@ -64,7 +64,7 @@ class CartState(val id: String) {
 
 **注解写法怎样绑定**（H4 的结论，D49）：
 
-- 命令处理函数的第一个参数是命令体 `X`，或者被准入的命令 `Command<X>`；后者带着准入得到的请求事实：所有者、空间、请求头（例如调用方应用）。这些事实不进命令指纹。
+- 命令处理函数的第一个参数是命令体 `X`，或者被准入的命令 `Command<X>`；后者带着准入得到的请求事实：所有者、空间、请求头（例如调用方应用）。（D55 之后没有命令指纹，同一请求 ID 只比较命令类型名。）
 - 其后的参数是领域服务，成为生成的工厂函数 `xxxModel(context, 服务…)` 的参数，由宿主在构建模型时绑定一次；`DecideScope` 类型的参数传入本次决定的作用域。依赖因此在构造期绑定，运行时不按类型解析。
 - 返回给调用方的附加结果（9.x 的 `CommandResultAccessor`）经 `DecideScope.putResult` 写入，随提交结果返回，不持久化，所以重复请求得到的回答不含它。
 - 创建语义三态：`@CreateAggregate` 必须新建，`@AllowCreate` 新建或已有皆可，其余只作用于已有聚合。
@@ -91,12 +91,18 @@ class CartState(val id: String) {
 | `@Blocking` | 阻塞调用，派发到虚拟线程（§4） | 同名 |
 | `@Description`、`@Summary` | 写进 Manifest 的说明 | 同名 |
 | `@WowSpi` | 标注可替换的端口 | 同名 |
+| `@MountedCommand` | 挂载到别的聚合上执行的命令（D182） | — |
+| `@OnCommitted` | Saga 处理跨上下文命令的成功回执，参数 `CommandCommitted<C>`（D192） | — |
+| `@OnSchedule` | 定时触发的处理函数（D198） | 9.x 的定时任务 |
+| `@Retry` | 订阅处理函数的重试与超时预算，写进 Manifest，可被 `wow.subscriptions.[…]` 覆盖（P.3） | `@Retry` |
+| `@ErrorCode` | 声明领域拒绝的错误码，写进 Manifest（HTTP 状态映射） | 同名 |
+| `@ExperimentalWowApi`、`@InternalWowApi` | API 稳定性标记（D216） | — |
 
 V10 注解在 V10 的 `wow-api` 模块里按上表原样定义（D85 修订 D79）：包名与 9.x 相同（`me.ahoo.wow.api.annotation`），所以同名注解的全名不变、迁移只需换依赖，但不再带 9.x 独有的属性（如 `AggregateRoot.commands`、`OnEvent.value`）；没有模块同时依赖新旧两边，类路径上不会冲突；V10 模型上出现下列已删除的注解，编译报错并指向迁移 Skill。
 
 实现细节（Ahoo-Wang/Wow#4250）：`@Alias` 的值不带点表示同一聚合内的旧名，带点表示完整类型名；`@Projection`、`@Reactor`、`@Saga` 没有属性，处理器名取 `@Name` 或类名，处理函数也可按约定名 `onEvent` 找到；`ExecutionId` 的文本 `订阅:ref@version` 是幂等键；`SagaContext.command` 按 `executionId` 与调用顺序生成确定的命令 ID 与请求 ID，并带上因果；生成的工厂函数最后一个参数 `configure` 是通用扩展口。订阅处理器的绑定（D149）：KSP 生成与运行时无关的 `ProcessorBinding`（类型在 `wow-kernel`，领域模块仍只依赖它），经 `ModelProvider.processors(dependencies)` 暴露，由 `wow-runtime` 适配成订阅。
 
-删除且没有对应物：`@OnError`（改用 Saga 补偿）、`@VoidCommand`、`@PreparableKey`（改用 `DecideScope.reserve`）、`@Retry`（改为订阅配置）、`@Order`、`@EntityObject`、`@ValueObject`、`@Generated`、`@OwnerPolicy`、`@Spaced`、`@AggregateRoute`、`@CommandRoute`（路由由 Manifest 物化，[05](05-read-and-contract.md) §3）。
+删除且没有对应物：`@OnError`（改用 Saga 补偿）、`@VoidCommand`、`@PreparableKey`（改用 `DecideScope.reserve`）、`@Order`、`@EntityObject`、`@ValueObject`、`@Generated`、`@OwnerPolicy`、`@Spaced`、`@AggregateRoute`、`@CommandRoute`（路由由 Manifest 物化，[05](05-read-and-contract.md) §3）。
 
 **命令体里不放身份**（D68）：命令字段上的 `@AggregateId`、`@TenantId`、`@OwnerId`、`@AggregateVersion` 删除。聚合身份在 `Command.ref`，来自路径（HTTP）或命令消息本身（Kafka、Saga 派生），所有者与空间来自认证主体（[05](05-read-and-contract.md) §3）；命令体只放业务数据。创建命令要由客户端指定 ID 时用带 `{id}` 的路由，不带则由服务端生成。迁移 Skill 从 9.x 命令里删去这些字段，并把读取它们的代码改为读 `Command<X>.ref`。
 
@@ -123,7 +129,7 @@ H3 的基准分别测同步与 `suspend` 处理函数，作为这条快速路径
 协程是内核与 SPI 的唯一模型（D9）。用户的编程模型仍然可以用 Reactor，由独立模块 `wow-reactor` 适配，内核不感知：
 
 - **处理函数**：Decide、React、Saga、Project 可以返回 `Mono`、`Flux` 或 `Publisher`。KSP 在编译期识别返回类型，生成经 `wow-reactor` 转换的调用；类路径上没有 `wow-reactor` 时编译报错。
-- **调用方**：`wow-reactor` 提供 `ReactiveCommandGateway` 与 `ReactiveQueryGateway`，是协程网关的薄包装。Java 用户可以用它，或用 `CompletableFuture` 形式。
+- **调用方**：`wow-reactor` 目前只提供处理函数的 Reactor 适配（`ReactorResults`），没有 `ReactiveCommandGateway`、`ReactiveQueryGateway`；调用网关用协程。Java 用户可以用它，或用 `CompletableFuture` 形式。
 - **边界**：只适配用户编程模型。SPI（日志、快照、租约）只有协程形式；存储实现者需要桥接 Reactor 驱动时，自己在实现里用 kotlinx-coroutines-reactor。
 - **上下文**：`ReactorContext` 在适配时传递，返回 `Mono` 的处理函数仍能读到它。
 
