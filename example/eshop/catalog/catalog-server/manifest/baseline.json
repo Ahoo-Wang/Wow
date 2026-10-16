@@ -372,7 +372,7 @@
   }, {
     "code" : "wow.command.busy",
     "status" : 429,
-    "description" : "The node has too many commands in flight; retry later."
+    "description" : "The command was not taken: its aggregate has too many commands waiting, or the node too many in flight; retry later."
   }, {
     "code" : "wow.command.unknown",
     "status" : 503,
