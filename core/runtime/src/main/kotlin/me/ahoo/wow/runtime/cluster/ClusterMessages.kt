@@ -196,6 +196,22 @@ object ClusterCodec {
 
     fun decodeSignal(bytes: ByteArray): WaitSignal = mapper.readValue(bytes, WaitSignal::class.java)
 
+    /**
+     * A batch of signals to one node (review A5-12), a JSON array of what [encode] writes for each. A node that reads
+     * only single signals refuses the array as malformed; its sender then falls back to one signal a request.
+     */
+    fun encodeSignals(signals: List<WaitSignal>): ByteArray = mapper.writeValueAsBytes(signals)
+
+    /** The signals of a request body: one signal ([encode]) or a batch ([encodeSignals]). */
+    fun decodeSignals(bytes: ByteArray): List<WaitSignal> {
+        val tree = mapper.readTree(bytes)
+        return if (tree.isArray) {
+            tree.asSequence().map { mapper.treeToValue(it, WaitSignal::class.java) }.toList()
+        } else {
+            listOf(mapper.treeToValue(tree, WaitSignal::class.java))
+        }
+    }
+
     /** [command], a command of [model], in its wire form. */
     fun wire(model: AggregateModel<*>, command: Command<*>): CommandWire =
         wire(model.commandType(command.body.javaClass).name, command)

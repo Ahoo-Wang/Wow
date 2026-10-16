@@ -29,6 +29,7 @@ import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.http.call.ServiceCredential
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.wait.SignalSender
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.wait.Origin
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
@@ -47,10 +48,15 @@ import kotlin.time.toJavaDuration
  * nodes of a service (decision D122).
  *
  * [send] never waits: it puts the signal in its origin's queue of [queueCapacity] and returns. Each origin's queue is
- * sent from by at most [concurrency] requests at a time, each given [timeout], so an origin holds at most
- * `queueCapacity + concurrency + 1` signals (the one more is taken off the queue, waiting for a request). A signal is dropped, never retried,
- * when its queue is full, when its request fails or times out, or when the origin answers other than 2xx: a lost
- * signal costs its waiter a timeout, never a fact. [dropped] counts them.
+ * sent from by at most [concurrency] requests at a time, each given [timeout]. A request carries what the queue holds
+ * then, up to [maxBatch] signals (review A5-12): under a burst, one request per batch instead of one per signal; a
+ * lone signal goes as before. An origin that refuses a batch as malformed (HTTP 400: a node of an earlier version
+ * reads only single signals) is sent one signal a request from then on.
+ *
+ * A signal is dropped, never retried, when its queue is full, when its request fails or times out, or when the origin
+ * answers other than 2xx: a lost signal costs its waiter a timeout, never a fact. Every drop is counted ([dropped],
+ * and [observer]'s [Observer.signalDropped] by reason) and logged, at WARN the first time for an origin and every
+ * [WARN_EVERY]th time after, at DEBUG otherwise: never silent, never a log line per signal of a burst.
  *
  * An origin's queue goes away after [idleTimeout] without signals, so the origins of nodes long gone do not
  * accumulate. [close] stops sending; what is queued then is dropped.
@@ -71,6 +77,10 @@ class HttpSignalSender(
     private val service: String? = null,
     private val clusterToken: String? = null,
     private val credential: ServiceCredential = ServiceCredential.NONE,
+    /** The most signals one request carries to an origin (review A5-12). */
+    private val maxBatch: Int = DEFAULT_MAX_BATCH,
+    /** Counts the dropped signals by reason (review A5-11). */
+    private val observer: Observer = Observer.NONE,
 ) : SignalSender, AutoCloseable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val outboxes = ConcurrentHashMap<String, Outbox>()
@@ -84,6 +94,7 @@ class HttpSignalSender(
         require(concurrency >= 1) { "At least one signal is sent at a time." }
         require(timeout.isPositive()) { "The signal timeout is positive." }
         require(idleTimeout.isPositive()) { "The idle timeout is positive." }
+        require(maxBatch >= 1) { "A request carries at least one signal." }
     }
 
     /** The signals dropped so far. */
@@ -97,10 +108,10 @@ class HttpSignalSender(
                 offered.isSuccess -> return
                 // The queue went idle and away meanwhile: take the origin's next one.
                 offered.isClosed -> continue
-                else -> return drop(origin.address, signal, "its queue is full")
+                else -> return drop(origin.address, signal, QUEUE_FULL)
             }
         }
-        drop(origin.address, signal, "the sender is closed")
+        drop(origin.address, signal, CLOSED)
     }
 
     override fun close() {
@@ -110,15 +121,21 @@ class HttpSignalSender(
         outboxes.clear()
     }
 
-    private fun drop(address: String, signal: WaitSignal, why: String) {
-        drops.incrementAndGet()
-        logger.debug { "Dropped the signal of wait ${signal.waitId} to $address: $why." }
+    private fun drop(address: String, signal: WaitSignal, reason: String, detail: String = reason) {
+        val count = drops.incrementAndGet()
+        observer.signalDropped(address, reason)
+        val message = { "Dropped the signal of wait ${signal.waitId} to $address ($detail); $count dropped so far." }
+        if (count == 1L || count % WARN_EVERY == 0L) logger.warn(message) else logger.debug(message)
     }
 
     /** The queue of one origin and the coroutine that sends from it. */
-    private inner class Outbox(private val address: String, private val originService: String) {
-        val queue = Channel<WaitSignal>(queueCapacity) { drop(address, it, "the sender stopped") }
+    private inner class Outbox(val address: String, val originService: String) {
+        val queue = Channel<WaitSignal>(queueCapacity) { drop(address, it, CLOSED) }
         private val permits = Semaphore(concurrency)
+
+        /** Whether the origin refused a batch: it is sent one signal a request. */
+        @Volatile
+        var singles = false
 
         init {
             scope.launch { run() }
@@ -127,21 +144,31 @@ class HttpSignalSender(
         private suspend fun run() {
             while (true) {
                 val signal = withTimeoutOrNull(idleTimeout) { queue.receive() } ?: break
-                dispatch(signal)
+                dispatch(batch(signal))
             }
             // Idle: leave first, so new signals open a new queue, then send what came in meanwhile.
             outboxes.remove(address, this)
             queue.close()
             for (signal in queue) {
-                dispatch(signal)
+                dispatch(batch(signal))
             }
         }
 
-        private suspend fun dispatch(signal: WaitSignal) {
+        /** [first] and what the queue holds behind it, up to [maxBatch]; [first] alone for an origin of [singles]. */
+        private fun batch(first: WaitSignal): List<WaitSignal> {
+            val batch = ArrayList<WaitSignal>(1)
+            batch += first
+            while (!singles && batch.size < maxBatch) {
+                batch += queue.tryReceive().getOrNull() ?: break
+            }
+            return batch
+        }
+
+        private suspend fun dispatch(batch: List<WaitSignal>) {
             permits.acquire()
             scope.launch {
                 try {
-                    deliver(address, originService, signal)
+                    deliver(this@Outbox, batch)
                 } finally {
                     permits.release()
                 }
@@ -149,27 +176,43 @@ class HttpSignalSender(
         }
     }
 
-    @Suppress("TooGenericExceptionCaught") // Whatever fails a signal drops it (design 04 §6.3).
-    private suspend fun deliver(address: String, originService: String, signal: WaitSignal) {
-        try {
-            val builder = HttpRequest.newBuilder(InternalHttp.uri(address, InternalHttp.SIGNALS_PATH))
-                .timeout(timeout.toJavaDuration())
-                .header("Content-Type", InternalHttp.JSON)
-            if (service == null || service == originService) {
-                clusterToken?.let { builder.header(InternalHttp.CLUSTER_TOKEN, it) }
-            } else {
-                credential.authorization()?.let { builder.header(AUTHORIZATION, it) }
+    /**
+     * Sends [batch] to [outbox]'s origin in one request; a batch the origin refuses as malformed is sent again one
+     * signal a request, and the origin marked to take single signals from now on.
+     */
+    private suspend fun deliver(outbox: Outbox, batch: List<WaitSignal>) {
+        val body = if (batch.size == 1) ClusterCodec.encode(batch.single()) else ClusterCodec.encodeSignals(batch)
+        val status = post(outbox, batch, body) ?: return
+        when {
+            status in SUCCESS -> Unit
+            status == BAD_REQUEST && batch.size > 1 -> {
+                logger.info { "${outbox.address} takes no batch of signals (HTTP $status): sending them one by one." }
+                outbox.singles = true
+                batch.forEach { signal -> deliver(outbox, listOf(signal)) }
             }
-            val request = builder.POST(HttpRequest.BodyPublishers.ofByteArray(ClusterCodec.encode(signal))).build()
-            val status = client.sendAsync(request, HttpResponse.BodyHandlers.discarding()).await().statusCode()
-            if (status !in SUCCESS) {
-                drop(address, signal, "it answered HTTP $status")
-            }
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (failure: Exception) {
-            drop(address, signal, failure.toString())
+
+            else -> batch.forEach { drop(outbox.address, it, REFUSED, "it answered HTTP $status") }
         }
+    }
+
+    /** The status [outbox]'s origin answered [body] with; null when the request failed, its signals dropped. */
+    @Suppress("TooGenericExceptionCaught") // Whatever fails a request drops its signals (design 04 §6.3).
+    private suspend fun post(outbox: Outbox, batch: List<WaitSignal>, body: ByteArray): Int? = try {
+        val builder = HttpRequest.newBuilder(InternalHttp.uri(outbox.address, InternalHttp.SIGNALS_PATH))
+            .timeout(timeout.toJavaDuration())
+            .header("Content-Type", InternalHttp.JSON)
+        if (service == null || service == outbox.originService) {
+            clusterToken?.let { builder.header(InternalHttp.CLUSTER_TOKEN, it) }
+        } else {
+            credential.authorization()?.let { builder.header(AUTHORIZATION, it) }
+        }
+        val request = builder.POST(HttpRequest.BodyPublishers.ofByteArray(body)).build()
+        client.sendAsync(request, HttpResponse.BodyHandlers.discarding()).await().statusCode()
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        batch.forEach { drop(outbox.address, it, FAILED, failure.toString()) }
+        null
     }
 
     @InternalWowApi
@@ -178,6 +221,17 @@ class HttpSignalSender(
         const val DEFAULT_CONCURRENCY: Int = 16
         val DEFAULT_TIMEOUT: Duration = 1.seconds
         val DEFAULT_IDLE_TIMEOUT: Duration = 1.minutes
+        const val DEFAULT_MAX_BATCH: Int = 64
+
+        /** A drop is logged at WARN the first time and every this many times after. */
+        const val WARN_EVERY: Long = 100
+
+        /** The reasons of [Observer.signalDropped]. */
+        const val QUEUE_FULL: String = "queue-full"
+        const val CLOSED: String = "closed"
+        const val REFUSED: String = "refused"
+        const val FAILED: String = "failed"
+        private const val BAD_REQUEST = 400
         private val SUCCESS = 200..299
         private const val AUTHORIZATION = "Authorization"
         private val logger = KotlinLogging.logger {}

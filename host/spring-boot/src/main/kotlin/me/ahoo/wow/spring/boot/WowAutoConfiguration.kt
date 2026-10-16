@@ -281,12 +281,14 @@ class WowAutoConfiguration {
         properties: WowProperties,
         identity: NodeIdentity,
         credential: ServiceCredential,
+        observers: ObjectProvider<Observer>,
     ): SignalSender = HttpSignalSender(
         client,
         queueCapacity = properties.internal.signalQueueCapacity,
         service = identity.service,
         clusterToken = clusterTokenOf(properties),
         credential = credential,
+        observer = observers.getIfUnique { Observer.NONE },
     )
 
     /** The credential of the node's synchronous calls (decision D193): `wow.calls.token` as a bearer, else none. */
