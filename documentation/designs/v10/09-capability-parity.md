@@ -199,4 +199,4 @@
 
 计划中但同样卡在 M7 门槛上的：6.2c、6.1c、6.1d、6.4a/b、6.3f、6.9、5a.2、5a.3、6.0e、D179、6.0h。卡在 M8 的：6.0f、6.0g、6.7、6.2e、6.5。
 
-迁移 Skill 参考（`skills/wow-migrate/references/v9-to-v10.md`）中已过时的条目：挂载命令（现为 D182）、`@QueryReference`（已在 `:query-api`）、ID 生成（指向 D171）、`CommandValidator`（运行时有对应端口，D106）。
+迁移 Skill 参考（`skills/wow-migrate/references/v9-to-v10.md`）中已过时的条目：挂载命令（现为 D182）、`@QueryReference`（已在 `:query-api`）、ID 生成（指向 D171）、`CommandValidator`（运行时有对应端口，D106）。 以上与审查 A4-15 列出的条目（`@Blocking`、`@Tags`、`wow-models`、退役事件、Saga 绑定、预留的租户范围、`scope.ids`）已在 #4536 更新。
