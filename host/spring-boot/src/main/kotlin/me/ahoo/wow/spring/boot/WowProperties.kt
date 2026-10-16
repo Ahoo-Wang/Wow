@@ -55,7 +55,8 @@ import kotlin.time.toKotlinDuration
  *   `host:port` the other nodes reach its internal port at (by default this host's address and `wow.internal.port`).
  * - `wow.internal.port` (9090; 0 for a port the system chooses, which the node learns once bound) and
  *   `wow.internal.host` (the host of the node's member address; `0.0.0.0` for every interface, D195): the internal
- *   port (D89).
+ *   port (D89); `wow.internal.token`, the service's cluster tokens, and `wow.internal.dev-profiles`, the profiles
+ *   that may go without one (decision D226), see [Internal].
  * - `wow.contexts.include`, `wow.contexts.exclude`: the bounded contexts the node serves among the domain modules on
  *   the class path, by default all of them (decision D169), see [Contexts].
  * - `wow.backend`: `auto` (the default), `memory`, `postgres` or `mongo` ([BackendKind]); `wow.mongo.database`: the one
@@ -169,6 +170,21 @@ class WowProperties {
 
         /** The signals queued per origin node before they are dropped (decision D109). */
         var signalQueueCapacity: Int = HttpSignalSender.DEFAULT_QUEUE_CAPACITY
+
+        /**
+         * The service's cluster tokens (decision D226, review A3-1), at least 32 characters each: the secret its nodes
+         * share, which alone opens the cluster channel (`/wow/internal/forward`) and the wait signals of the internal
+         * port. A node sends the first and takes any, so a token is rotated by adding the new one second, then moving
+         * it first on every node, then removing the old one; a comma-separated value (`WOW_INTERNAL_TOKEN`) is a list.
+         * A service token of `wow.http.services` opens the call routes, not these, and this token no call route.
+         *
+         * A node without one starts only in a profile of [devProfiles], or with its internal port bound to the
+         * loopback interface alone, and warns: its cluster routes then take every request.
+         */
+        var token: MutableList<String> = ArrayList()
+
+        /** The profiles in which the internal port may run without [token]: `dev`, `local`, `test` and `demo`. */
+        var devProfiles: MutableSet<String> = linkedSetOf("dev", "local", "test", "demo")
     }
 
     /**

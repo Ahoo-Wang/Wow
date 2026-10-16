@@ -82,7 +82,6 @@ class EshopLocal(private val randomPorts: Boolean) : AutoCloseable {
             OrderingServer::class.java,
             "ordering",
             "--eshop.ordering.payment-grace-period=30m",
-            "--wow.http.services.eshop-basket-service.tokens[0]=$SERVICE_TOKEN",
         )
         start(PaymentServer::class.java, "payment", "--eshop.payment.gateway.limit=1000.00")
         val orderingGateway = ordering.getBean(InternalServer::class.java).boundPort
@@ -90,7 +89,6 @@ class EshopLocal(private val randomPorts: Boolean) : AutoCloseable {
             BasketServer::class.java,
             "basket",
             "--wow.calls.contexts.eshop-ordering.url=http://127.0.0.1:$orderingGateway",
-            "--wow.calls.token=$SERVICE_TOKEN",
         )
         start(CatalogServer::class.java, "catalog")
     }
@@ -114,6 +112,8 @@ class EshopLocal(private val randomPorts: Boolean) : AutoCloseable {
                 "--wow.internal.host=127.0.0.1",
                 "--wow.internal.port=${if (randomPorts) 0 else INTERNAL_PORT_BASE + offset}",
                 "--wow.contexts.include=eshop-$name",
+                // The services share one class path, so one application.yaml: each is given its own secrets.
+                *EshopTokens.arguments(name).toTypedArray(),
             )
         started += context
         publicPorts[name] = context.environment.getRequiredProperty("local.server.port", Int::class.java)
@@ -134,9 +134,6 @@ class EshopLocal(private val randomPorts: Boolean) : AutoCloseable {
         const val INTERNAL_PORT_BASE = 9090
         const val PARTITIONS = 4
         const val TOPICS_BEAN = "eshopLocalTopics"
-
-        /** The basket's credential at the ordering's internal port (decision D193), for this one machine. */
-        const val SERVICE_TOKEN = "eshop-local-service-token-not-a-secret"
     }
 }
 

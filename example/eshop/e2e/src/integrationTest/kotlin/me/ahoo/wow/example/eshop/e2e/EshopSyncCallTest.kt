@@ -304,7 +304,7 @@ class EshopSyncCallTest {
         const val CHECKOUT_TO_ORDER = EshopStack.CHECKOUT_TO_ORDER
 
         /** The basket service's token, at least 32 characters, which the ordering trusts in this test. */
-        const val TOKEN = "eshop-sync-call-test-token-0123456789"
+        val TOKEN: String = EshopTokens.service("basket")
         val BASKET = AggregateType("eshop-basket", "basket")
         val TIMEOUT: Duration = Duration.ofSeconds(30)
         val DEADLINE: Duration = Duration.ofSeconds(30)
@@ -321,7 +321,6 @@ class EshopSyncCallTest {
             OrderingServer::class.java,
             "ordering",
             internalPort,
-            "--wow.http.services.eshop-basket-service.tokens[0]=$TOKEN",
             "--eshop.ordering.payment-grace-period=30m",
         )
 
@@ -334,7 +333,6 @@ class EshopSyncCallTest {
             "basket",
             0,
             "--wow.calls.contexts.eshop-ordering.url=http://127.0.0.1:$orderingPort",
-            "--wow.calls.token=$TOKEN",
             "--wow.calls.timeout=5s",
             "--wow.ops.enabled=true",
             // The operator's actions are refused without a CommandAuthorizer (review A3-3): the test's operator may act.
@@ -381,6 +379,8 @@ class EshopSyncCallTest {
                     "--wow.internal.host=127.0.0.1",
                     "--wow.internal.port=$internalPort",
                     "--wow.contexts.include=eshop-$context",
+                    // The services share one class path, so one application.yaml: each is given its own secrets.
+                    *EshopTokens.arguments(context).toTypedArray(),
                 ),
             )
 

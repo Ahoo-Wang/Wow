@@ -23,7 +23,8 @@ import kotlin.time.toJavaDuration
 
 /**
  * The internal port (decisions D89, D109): the cluster channel and the wait signal entry of a node, served apart from
- * its public port, over HTTP/1.1 and h2c, and trusted without authentication (D35).
+ * its public port, over HTTP/1.1 and h2c. The nodes of a service authenticate each other by their cluster token
+ * ([CLUSTER_TOKEN], [ClusterTokens], decision D226).
  */
 @InternalWowApi
 object InternalHttp {
@@ -34,6 +35,13 @@ object InternalHttp {
     const val SIGNALS_PATH: String = "/wow/internal/signals"
 
     const val JSON: String = "application/json"
+
+    /**
+     * The header that carries the service's cluster token ([ClusterTokens], decision D226) on a forward and on a
+     * signal to a node of the same service. It is not `Authorization`, which carries a service identity's token on the
+     * call routes, so neither secret opens the other's routes.
+     */
+    const val CLUSTER_TOKEN: String = "Wow-Cluster-Token"
 
     /**
      * The default largest message of the internal port: the default in-memory limit of the WebFlux codecs. The host

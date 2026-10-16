@@ -161,6 +161,11 @@ class ServiceCallRoutesTest {
             mapOf("Authorization" to "Bearer $FORGED", WowHeaders.CALL to callHeader())
         ).assertForbidden()
         internalPost(path, mapOf(WowHeaders.CALL to callHeader())).assertForbidden()
+        // Nor is a node's cluster token, which opens the cluster routes alone (decision D226).
+        internalPost(
+            path,
+            mapOf("Wow-Cluster-Token" to "cluster-token-of-this-service-0123456789", WowHeaders.CALL to callHeader()),
+        ).assertForbidden()
         // A service's request that is no call is not taken either.
         internalPost(path, mapOf("Authorization" to "Bearer $TOKEN")).assertForbidden()
         node.commands.assert().isEmpty()

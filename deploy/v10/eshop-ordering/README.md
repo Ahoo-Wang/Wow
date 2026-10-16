@@ -6,10 +6,10 @@ These are plain manifests for one V10 service: the eShop ordering service (`exam
 | --- | --- |
 | `kustomization.yaml` | The set: `kubectl apply -k deploy/v10/eshop-ordering` |
 | `configmap.yaml` | The settings every node shares, as environment variables: profiles, the PostgreSQL URL, the Kafka brokers, the log partitions |
-| `secret.yaml` | The PostgreSQL user and password. These are example values; replace them |
+| `secret.yaml` | The PostgreSQL user and password; the cluster token of the internal port (`WOW_INTERNAL_TOKEN`, decision D226) and the shop's service tokens (`ESHOP_*_SERVICE_TOKEN`). These are example values; replace them |
 | `deployment.yaml` | The nodes. Each has its HTTP port (`8083`) and its internal port (`9093`). The node id is the pod name. The internal port binds the pod IP and is advertised under the headless name. The file also sets the probes and the shutdown grace period |
 | `service.yaml` | `eshop-ordering`, the HTTP service; `eshop-ordering-cluster`, the headless service of the internal port |
-| `networkpolicy.yaml` | Only pods labelled `app.kubernetes.io/part-of: eshop` may reach the internal port (decision D173) |
+| `networkpolicy.yaml` | Only pods labelled `app.kubernetes.io/part-of: eshop` may reach the internal port (decision D173); there, the forwards and signals take the cluster token alone, and the calls a service token (decision D226) |
 | `Dockerfile` | The image, built from the service's Gradle distribution |
 
 ## Before you apply

@@ -11,6 +11,26 @@ wow:
   backend: memory
   internal:
     port: 9095
+    # The cluster token this service's nodes share (decision D226): it alone opens their forwards and the signals of
+    # their waits. The value is for trying the shop out on one machine; a deployment sets WOW_INTERNAL_TOKEN, a secret
+    # of at least 32 characters, the same on every node of the service.
+    token: ${WOW_INTERNAL_TOKEN:eshop-payment-local-cluster-token-not-a-secret}
+  # This service's identity where it signals the waits that crossed into it from another service (decision D226).
+  calls:
+    token: ${ESHOP_PAYMENT_SERVICE_TOKEN:eshop-payment-local-service-token-not-a-secret}
+  http:
+    # The other services of the shop signal, with their service tokens, the waits that started here and crossed into
+    # them (decision D226). The tokens are for trying the shop out on one machine; a deployment sets each service's.
+    services:
+      eshop-basket-service:
+        tokens:
+          - ${ESHOP_BASKET_SERVICE_TOKEN:eshop-basket-local-service-token-not-a-secret}
+      eshop-ordering-service:
+        tokens:
+          - ${ESHOP_ORDERING_SERVICE_TOKEN:eshop-ordering-local-service-token-not-a-secret}
+      eshop-inventory-service:
+        tokens:
+          - ${ESHOP_INVENTORY_SERVICE_TOKEN:eshop-inventory-local-service-token-not-a-secret}
 eshop:
   payment:
     gateway:

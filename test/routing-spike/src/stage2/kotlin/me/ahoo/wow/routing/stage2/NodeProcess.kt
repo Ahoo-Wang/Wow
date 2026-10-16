@@ -119,6 +119,8 @@ class NodeProcess private constructor(
                     "--wow.internal.host=127.0.0.1",
                     // The node learns its internal port once bound and advertises it to the others.
                     "--wow.internal.port=0",
+                    // The cluster token the nodes forward and signal with (decision D226), as a deployment sets it.
+                    "--wow.internal.token=$H2_SERVICE-cluster-token-0123456789abcdef",
                     "--wow.backend=postgres",
                     "--wow.cluster.router=${router.property}",
                     "--wow.log.partitions=${settings.partitions}",
