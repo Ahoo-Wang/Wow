@@ -300,6 +300,8 @@ internal class ModelSymbolProcessor(
             .flatMap { resolver.getSymbolsWithAnnotation(it) }
             .filterIsInstance<KSFunctionDeclaration>()
             .mapNotNull { it.parentDeclaration as? KSClassDeclaration }
+            // A processor base class is read through the processors extending it (finding A4-2).
+            .filterNot { SubscriptionResolver.isProcessorBase(it) }
         val processors = (
             (SubscriptionResolver.KIND_ANNOTATIONS + SubscriptionResolver.REMOVED_KIND_ANNOTATIONS).asSequence()
                 .flatMap { resolver.getSymbolsWithAnnotation(it) }
@@ -447,21 +449,23 @@ internal class ModelSymbolProcessor(
         val stateArguments = stateArguments(state, problems)
 
         val dependencies = linkedMapOf<String, Dependency>()
-        val commandFunctions = root.functionsNamedOrAnnotated(ON_COMMAND, OnCommand::class.java.name)
+        val commandFunctions = root.functionsNamedOrAnnotated(ON_COMMAND, ON_COMMAND_ANNOTATION, problems)
         val commands = commandFunctions.mapNotNull { function ->
             commandBinding(function, dependencies, problems, warnings)
         }
         commands.groupBy { it.command }.filterValues { it.size > 1 }.keys.forEach {
             problems += "two command functions handle $it"
         }
-        val sourcing = state.functionsNamedOrAnnotated(ON_SOURCING, OnSourcing::class.java.name)
-            .mapNotNull { function -> sourcingBinding(function, state, problems) }
-        val afters = root.functionsNamedOrAnnotated(AFTER_COMMAND, AfterCommand::class.java.name)
+        val sourcingFunctions = state.functionsNamedOrAnnotated(ON_SOURCING, ON_SOURCING_ANNOTATION, problems)
+        val sourcing = sourcingFunctions.mapNotNull { function -> sourcingBinding(function, state, problems) }
+        val afters = root.functionsNamedOrAnnotated(AFTER_COMMAND, AFTER_COMMAND_ANNOTATION, problems)
             .mapNotNull { function -> afterBinding(function, dependencies, problems, warnings) }
+        if (!rootIsState) {
+            problems += misplacedProblems(root, state)
+        }
         problems += producesProblems(commands, sourcing)
         val commandTypes = commandFunctions.mapNotNull { firstParameterClass(it, unwrapCommand = true) }
-        val eventTypes = state.functionsNamedOrAnnotated(ON_SOURCING, OnSourcing::class.java.name)
-            .mapNotNull { function -> firstParameterClass(function, unwrapCommand = false) }
+        val eventTypes = sourcingFunctions.mapNotNull { function -> firstParameterClass(function, unwrapCommand = false) }
         problems += annotationProblems(root, state, commandTypes, eventTypes)
         val aggregateName = root.toName()
         problems += aliasProblems(aggregateName, commands, sourcing)
@@ -496,6 +500,29 @@ internal class ModelSymbolProcessor(
             tags = TagsResolver.of(state, problems),
             warnings = warnings,
         )
+    }
+
+    /**
+     * The handler annotations on the wrong class of an aggregate whose root is built from its state (finding A4-2):
+     * command functions and after hooks are the root's, sourcing functions the state's. The generated model would not
+     * see them.
+     */
+    private fun misplacedProblems(root: KSClassDeclaration, state: KSClassDeclaration): List<String> {
+        fun annotated(type: KSClassDeclaration, annotation: String): List<String> =
+            type.getAllFunctions().filter { it.annotatedIn(annotation) != null }.map { it.simpleName.asString() }
+                .toList()
+        val rootName = root.simpleName.asString()
+        val stateName = state.simpleName.asString()
+        return annotated(state, ON_COMMAND_ANNOTATION).map {
+            "the state $stateName's function $it is annotated @OnCommand: command functions are the aggregate " +
+                "root's, so move it to $rootName"
+        } + annotated(state, AFTER_COMMAND_ANNOTATION).map {
+            "the state $stateName's function $it is annotated @AfterCommand: after hooks are the aggregate root's, " +
+                "so move it to $rootName"
+        } + annotated(root, ON_SOURCING_ANNOTATION).map {
+            "the aggregate root $rootName's function $it is annotated @OnSourcing: sourcing functions are the " +
+                "state's, so move it to $stateName"
+        }
     }
 
     /** `@OnCommand(produces)` lists events of the aggregate only (decision D120). */
@@ -613,8 +640,14 @@ internal class ModelSymbolProcessor(
         val declared = parameters.first().type.resolve()
         // `Command<X>` asks for the admitted command, not only its body X: the generated code passes the scope's.
         val admitted = declared.declaration.qualifiedName?.asString() == COMMAND
-        val commandType = if (admitted) declared.arguments.first().type?.resolve() ?: return null else declared
-        val command = commandType.declaration as? KSClassDeclaration ?: return null
+        val commandType = if (admitted) declared.arguments.first().type?.resolve() else declared
+        val command = commandType?.declaration as? KSClassDeclaration
+        if (commandType == null || command == null || command.qualifiedName?.asString() == ANY) {
+            val taken = if (commandType == null) "$COMMAND<*>" else commandType.render()
+            problems += "$name takes $taken: a command function names the class of its command, as its first " +
+                "parameter X or $COMMAND<X>"
+            return null
+        }
         if (FRAMEWORK_PACKAGES.any { commandType.render().startsWith(it) }) {
             problems += "$name takes ${commandType.render()}: a V10 decide function takes the command body, " +
                 "or $COMMAND of it"
@@ -675,9 +708,7 @@ internal class ModelSymbolProcessor(
 
     /** The events `@OnCommand(produces)` lists on [function], by qualified name (decision D120). */
     private fun declaredProduces(function: KSFunctionDeclaration): List<String> {
-        val annotation = function.annotations.firstOrNull {
-            it.annotationType.resolve().declaration.qualifiedName?.asString() == OnCommand::class.java.name
-        }
+        val annotation = function.annotationIn(ON_COMMAND_ANNOTATION)
         val listed = annotation?.arguments?.firstOrNull { it.name?.asString() == PRODUCES }?.value as? List<*>
         return listed.orEmpty().filterIsInstance<KSType>().mapNotNull { it.declaration.qualifiedName?.asString() }
             .distinct()
@@ -688,9 +719,7 @@ internal class ModelSymbolProcessor(
      * `context.aggregate.Command` is a problem.
      */
     private fun declaredSchedules(function: KSFunctionDeclaration, problems: MutableList<String>): List<String> {
-        val annotation = function.annotations.firstOrNull {
-            it.annotationType.resolve().declaration.qualifiedName?.asString() == OnCommand::class.java.name
-        }
+        val annotation = function.annotationIn(ON_COMMAND_ANNOTATION)
         val listed = annotation?.arguments?.firstOrNull { it.name?.asString() == SCHEDULES }?.value as? List<*>
         val schedules = listed.orEmpty().filterIsInstance<String>().distinct()
         schedules.filterNot { COMMAND_NAME.matches(it) }.forEach {
@@ -789,9 +818,7 @@ internal class ModelSymbolProcessor(
         warnings: MutableList<String>,
     ): AfterBinding? {
         val name = function.simpleName.asString()
-        val annotation = function.annotations.firstOrNull {
-            it.annotationType.resolve().declaration.qualifiedName?.asString() == AfterCommand::class.java.name
-        }
+        val annotation = function.annotationIn(AFTER_COMMAND_ANNOTATION)
         fun classes(argument: String): List<String> =
             (annotation?.arguments?.firstOrNull { it.name?.asString() == argument }?.value as? List<*>).orEmpty()
                 .filterIsInstance<KSType>().map { it.render() }
@@ -828,13 +855,26 @@ internal class ModelSymbolProcessor(
         }
     }
 
+    /**
+     * The functions of this class named [conventionalName] or carrying [annotation] (or overriding one that does). Not
+     * only public: 9.x found package-private Java handlers too, and the generated model shares their package. A
+     * private one annotated is a problem (finding A4-2), as on a subscription processor: the generated model cannot
+     * call it, and leaving it out would drop the handler silently.
+     */
     private fun KSClassDeclaration.functionsNamedOrAnnotated(
         conventionalName: String,
         annotation: String,
-    ): List<KSFunctionDeclaration> = getAllFunctions()
-        // Not only public: 9.x found package-private Java handlers too, and the generated model shares their package.
-        .filter { !it.isPrivate() && (it.simpleName.asString() == conventionalName || it.isAnnotatedOrOverrides(annotation)) }
-        .toList()
+        problems: MutableList<String>,
+    ): List<KSFunctionDeclaration> {
+        val found = getAllFunctions()
+            .filter { it.simpleName.asString() == conventionalName || it.isAnnotatedOrOverrides(annotation) }
+            .toList()
+        found.filter { it.isPrivate() && it.isAnnotatedOrOverrides(annotation) }.forEach {
+            problems += "${it.simpleName.asString()} is private and annotated @${annotation.substringAfterLast('.')}: " +
+                "the generated model calls it, so it is public or internal"
+        }
+        return found.filterNot { it.isPrivate() }
+    }
 
     /**
      * Whether this function, or one it overrides, carries [annotation]. Inherited handlers bind with the type
@@ -869,6 +909,10 @@ internal class ModelSymbolProcessor(
 
         // A plain tree needs no Kotlin module, whose reflection KSP's class loader does not provide.
         val FRAGMENT_WRITER = JsonMapper.builder().build().writerWithDefaultPrettyPrinter()
+        val ON_COMMAND_ANNOTATION: String = OnCommand::class.java.name
+        val ON_SOURCING_ANNOTATION: String = OnSourcing::class.java.name
+        val AFTER_COMMAND_ANNOTATION: String = AfterCommand::class.java.name
+        const val ANY = "kotlin.Any"
         const val ON_COMMAND = "onCommand"
         const val ON_SOURCING = "onSourcing"
         const val AFTER_COMMAND = "afterCommand"

@@ -59,6 +59,10 @@ import me.ahoo.wow.api.subscribe.StateEvent
  * - the generated binding can reach it: the class is concrete, not private, not generic, an `object` or constructed
  *   by a constructor that is not private, whose parameters are domain services, each qualified by its `@Name`
  *   (decision D119); a handler's state type takes no type arguments.
+ *
+ * A handler a processor inherits is its handler, its annotations those of the function it overrides when the
+ * override leaves them out ([annotatedIn], finding A4-2): a processor base class, in the module or a library, is read
+ * only through the processors that extend it.
  */
 internal object SubscriptionResolver {
     private enum class Kind(val annotation: String, val context: String, val label: String) {
@@ -109,11 +113,11 @@ internal object SubscriptionResolver {
         val kind = kinds.singleOrNull()
         problems += kindProblems(className, kinds)
         val receiptFunctions = Receipt.entries.associateWith { receipt ->
-            processor.getAllFunctions().filter { it.hasAnnotation(receipt.annotation) }.toList()
+            processor.getAllFunctions().filter { it.isHandler(receipt.annotation) }.toList()
         }
         val functions = processor.getAllFunctions().filter { isEventHandler(it) }.toList()
         // A saga's @OnSchedule jobs (decision D198) are handlers of their own.
-        val jobFunctions = processor.getAllFunctions().filter { it.hasAnnotation(ScheduleJobResolver.ON_SCHEDULE) }
+        val jobFunctions = processor.getAllFunctions().filter { it.isHandler(ScheduleJobResolver.ON_SCHEDULE) }
             .toList()
         if (functions.isEmpty() && jobFunctions.isEmpty()) {
             problems += "processor $className declares no @OnEvent function"
@@ -181,7 +185,7 @@ internal object SubscriptionResolver {
         reactorTypes: Set<String>,
         problems: MutableList<String>,
     ): List<ReceiptBinding> {
-        val bound = functions.filterNot { receipt == Receipt.COMMITTED && it.hasAnnotation(ON_REJECTED) }
+        val bound = functions.filterNot { receipt == Receipt.COMMITTED && it.isHandler(ON_REJECTED) }
             .mapNotNull { receiptHandler(it, name, receipt, reactorTypes, problems) }
         bound.groupBy { it.command }.filterValues { it.size > 1 }.forEach { (command, same) ->
             problems += "processor $className has two ${receipt.label} handlers of the ${receipt.nouns} of " +
@@ -201,21 +205,21 @@ internal object SubscriptionResolver {
         receipt: Receipt,
         functions: List<KSFunctionDeclaration>,
     ): List<String> = buildList {
-        functions.filter { it.hasAnnotation(ON_EVENT) }.forEach {
+        functions.filter { it.isHandler(ON_EVENT) }.forEach {
             add(
                 "handler $name.${it.simpleName.asString()} is both @OnEvent and ${receipt.label}: a handler takes " +
                     "either a state event or a ${receipt.noun}",
             )
         }
         if (receipt == Receipt.COMMITTED) {
-            functions.filter { it.hasAnnotation(ON_REJECTED) }.forEach {
+            functions.filter { it.isHandler(ON_REJECTED) }.forEach {
                 add(
                     "handler $name.${it.simpleName.asString()} is both @OnRejected and @OnCommitted: a handler takes " +
                         "either the rejection of a command or the receipt of its commit",
                 )
             }
         }
-        functions.filter { it.hasAnnotation(RETRY) }.forEach {
+        functions.filter { it.isHandler(RETRY) }.forEach {
             add(
                 "handler $name.${it.simpleName.asString()} is annotated @Retry: ${receipt.retryReason}; @Retry goes " +
                     "on an @OnEvent handler or its processor",
@@ -236,11 +240,25 @@ internal object SubscriptionResolver {
             Receipt.COMMITTED -> "an @OnCommitted handler runs in its context's receipts subscription, retried by the host"
         }
 
-    /** Whether [function] is an `@OnEvent` handler, or a public one named `onEvent`, and no receipt handler. */
+    /**
+     * Whether [function] is an `@OnEvent` handler (or overrides one), or a public one named `onEvent`, and no receipt
+     * handler.
+     */
     private fun isEventHandler(function: KSFunctionDeclaration): Boolean =
-        Receipt.entries.none { function.hasAnnotation(it.annotation) } &&
-            !function.hasAnnotation(ScheduleJobResolver.ON_SCHEDULE) &&
-            (function.hasAnnotation(ON_EVENT) || (function.simpleName.asString() == ON_EVENT_NAME && !function.isPrivate()))
+        Receipt.entries.none { function.isHandler(it.annotation) } &&
+            !function.isHandler(ScheduleJobResolver.ON_SCHEDULE) &&
+            (function.isHandler(ON_EVENT) || (function.simpleName.asString() == ON_EVENT_NAME && !function.isPrivate()))
+
+    /** Whether this function, or one it overrides, carries [annotation] ([annotatedIn]). */
+    private fun KSFunctionDeclaration.isHandler(annotation: String): Boolean = annotatedIn(annotation) != null
+
+    /**
+     * Whether [declaration] is a base class of processors rather than one: an interface or an abstract class with
+     * none of the processor kinds. Its handlers are read through the processors extending it.
+     */
+    fun isProcessorBase(declaration: KSClassDeclaration): Boolean =
+        (declaration.classKind == ClassKind.INTERFACE || Modifier.ABSTRACT in declaration.modifiers) &&
+            (KIND_ANNOTATIONS + REMOVED_KIND_ANNOTATIONS).none { declaration.hasAnnotation(it) }
 
     /** Whether the generated binding can construct [processor], or use it when it [isObject]. */
     private fun constructionProblems(
@@ -310,14 +328,14 @@ internal object SubscriptionResolver {
         if (kind != null && returned != null && !reactor) {
             returnProblem(kind, returned)?.let { problems += "$where $it" }
         }
-        val onEvent = function.annotations.firstOrNull { it.isOf(ON_EVENT) }
+        val onEvent = function.annotationIn(ON_EVENT)
         val aggregates = onEvent.strings(AGGREGATES)
         val derives = onEvent.strings(DERIVES)
         val schedules = onEvent.strings(SCHEDULES)
         problems += sourceProblems(where, aggregates)
         problems += derivesProblems(where, derives, kind)
         problems += schedulesProblems(where, schedules, kind)
-        val retry = RetryResolver.read(function, where, problems)
+        val retry = RetryResolver.read(function.annotatedIn(RETRY) ?: function, where, problems)
         if (problems.size > count) {
             return null
         }
@@ -335,7 +353,7 @@ internal object SubscriptionResolver {
             context = context != null,
             suspending = Modifier.SUSPEND in function.modifiers,
             reactor = reactor,
-            blocking = function.hasAnnotation(BLOCKING),
+            blocking = function.isHandler(BLOCKING),
             aggregates = aggregates,
             derives = derives,
             schedules = schedules,
@@ -450,7 +468,7 @@ internal object SubscriptionResolver {
             context = context != null,
             suspending = Modifier.SUSPEND in function.modifiers,
             reactor = reactor,
-            blocking = function.hasAnnotation(BLOCKING),
+            blocking = function.isHandler(BLOCKING),
             derived = returned?.let { derivedClasses(it, reactor) },
             receipt = receipt,
         )
@@ -467,11 +485,8 @@ internal object SubscriptionResolver {
      */
     @OptIn(KspExperimental::class)
     private fun startOf(function: KSFunctionDeclaration): String? =
-        function.getAnnotationsByType(OnEvent::class).map { it.start }
+        (function.annotatedIn(ON_EVENT) ?: function).getAnnotationsByType(OnEvent::class).map { it.start }
             .firstOrNull { it != OnEvent.Start.DEFAULT }?.name
-
-    private fun KSAnnotation.isOf(qualifiedName: String): Boolean =
-        annotationType.resolve().declaration.qualifiedName?.asString() == qualifiedName
 
     private fun parameterProblems(where: String, parameters: List<KSType>, kind: Kind?): List<String> = buildList {
         val first = parameters.firstOrNull()
