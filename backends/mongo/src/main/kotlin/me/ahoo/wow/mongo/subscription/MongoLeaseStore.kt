@@ -29,6 +29,7 @@ import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.mongo
+import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
@@ -56,6 +57,8 @@ class MongoLeaseStore(
     databaseName: String,
     private val clock: Clock = Clock.systemUTC(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
+    private val ddl: StoreDdl = StoreDdl.AUTO,
 ) : LeaseStore {
     private val database = client.getDatabase(databaseName)
     private val leases: MongoCollection<Document> = database.getCollection(LEASES)
@@ -63,10 +66,10 @@ class MongoLeaseStore(
 
     /** Creates the key indexes when missing. */
     fun createSchema() {
-        MongoFormat.claim(database, LEASES, FORMAT)
-        MongoFormat.claim(database, MEMBERS, FORMAT)
-        leases.createIndex(Indexes.ascending(GROUP, PARTITION), IndexOptions().unique(true).name(LEASE_KEY))
-        members.createIndex(Indexes.ascending(GROUP, NODE), IndexOptions().unique(true).name(MEMBER_KEY))
+        MongoFormat.claim(database, LEASES, FORMAT, ddl)
+        MongoFormat.claim(database, MEMBERS, FORMAT, ddl)
+        MongoFormat.index(leases, Indexes.ascending(GROUP, PARTITION), IndexOptions().unique(true).name(LEASE_KEY), ddl)
+        MongoFormat.index(members, Indexes.ascending(GROUP, NODE), IndexOptions().unique(true).name(MEMBER_KEY), ddl)
     }
 
     override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? =

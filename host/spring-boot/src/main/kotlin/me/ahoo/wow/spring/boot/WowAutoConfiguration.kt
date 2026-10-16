@@ -357,7 +357,7 @@ class WowAutoConfiguration {
             channel = channel,
             remoteSignals = signals,
             options = ServiceNodeOptions(
-                cluster = properties.cluster.options(),
+                cluster = properties.cluster.options(properties.wait.defaultTimeout),
                 routing = routing,
                 maxWaitTimeout = properties.wait.maxTimeout.toKotlinDuration(),
                 maxWaitHops = properties.wait.maxHops,
@@ -367,6 +367,7 @@ class WowAutoConfiguration {
                 laneCapacity = properties.executor.laneCapacity,
                 maxInFlight = properties.executor.maxInFlight,
                 stateCacheCapacity = properties.stateCache.capacity,
+                stateViews = properties.stateViews.options(),
                 defaultWaitTimeout = properties.wait.defaultTimeout.toKotlinDuration(),
                 timers = properties.timers.options(),
                 schedules = properties.schedules.mapValues { it.value.options() },

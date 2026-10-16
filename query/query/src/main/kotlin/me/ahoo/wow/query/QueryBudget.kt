@@ -40,7 +40,8 @@ import me.ahoo.wow.query.spec.GroupSpec
 import me.ahoo.wow.query.spec.MetricSpec
 import me.ahoo.wow.query.spec.OperatorCost
 import me.ahoo.wow.query.spec.spec
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Size limits and expensive-operator gates for one [QueryEntry], checked at admission step 0: against the query as
@@ -81,7 +82,7 @@ class QueryBudget(
 ) {
     init {
         require(countLimit >= 0) { "countLimit must be greater than or equal to 0." }
-        require(!timeout.isNegative) { "timeout must not be negative." }
+        require(!timeout.isNegative()) { "timeout must not be negative." }
         require(maxListSize >= 0) { "maxListSize must be greater than or equal to 0." }
         require(maxPageSize >= 0) { "maxPageSize must be greater than or equal to 0." }
         require(maxPageWindow >= 0) { "maxPageWindow must be greater than or equal to 0." }
@@ -286,8 +287,7 @@ class QueryBudget(
         const val DEFAULT_COUNT_LIMIT: Int = 10_000
 
         /** The default [timeout] (decision D150). */
-        @JvmField
-        val DEFAULT_TIMEOUT: Duration = Duration.ofSeconds(30)
+        val DEFAULT_TIMEOUT: Duration = 30.seconds
         const val HTTP_LABEL: String = "HTTP"
 
         /** The HTTP budget with the default limits. */

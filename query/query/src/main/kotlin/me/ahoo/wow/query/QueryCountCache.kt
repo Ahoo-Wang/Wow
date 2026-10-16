@@ -19,8 +19,9 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.FilterExpression
-import java.time.Duration
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The snapshot write checkpoint of an aggregate type (decision D152): a value that does not change while no snapshot
@@ -48,7 +49,7 @@ class QueryCountCacheOptions @InternalWowApi constructor(
 ) {
     init {
         require(maxEntries > 0) { "maxEntries must be positive." }
-        require(ttl > Duration.ZERO) { "ttl must be positive." }
+        require(ttl.isPositive()) { "ttl must be positive." }
     }
 
     override fun equals(other: Any?): Boolean =
@@ -63,8 +64,7 @@ class QueryCountCacheOptions @InternalWowApi constructor(
     companion object {
         const val DEFAULT_MAX_ENTRIES: Int = 10_000
 
-        @JvmField
-        val DEFAULT_TTL: Duration = Duration.ofSeconds(30)
+        val DEFAULT_TTL: Duration = 30.seconds
     }
 }
 
@@ -92,7 +92,7 @@ class QueryCountCache(
     private val entries = object : LinkedHashMap<Key, Entry>(INITIAL_CAPACITY, LOAD_FACTOR, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Key, Entry>): Boolean = size > options.maxEntries
     }
-    private val ttlNanos = options.ttl.toNanos()
+    private val ttlNanos = options.ttl.inWholeNanoseconds
 
     /** How many counts are cached now. */
     val size: Int

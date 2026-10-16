@@ -45,6 +45,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.time.Duration
+import kotlin.time.toKotlinDuration
 
 private val ACCOUNT = AggregateType(BANK, "account")
 
@@ -140,7 +141,7 @@ class HostQueryTest {
             val policy = host.context.getBean(QueryEntryPolicy::class.java)
             policy.http.maxListSize.assert().isEqualTo(7)
             policy.http.countLimit.assert().isEqualTo(50)
-            policy.http.timeout.assert().isEqualTo(Duration.ofSeconds(5))
+            policy.http.timeout.assert().isEqualTo(Duration.ofSeconds(5).toKotlinDuration())
             host.context.getBean(QueryProperties::class.java).index.ddl.assert().isEqualTo(QueryIndexDdl.VALIDATE)
             // The application's backend manages its own indexes.
             host.context.getBean(QueryIndexesLifecycle::class.java).reports.assert().isEmpty()

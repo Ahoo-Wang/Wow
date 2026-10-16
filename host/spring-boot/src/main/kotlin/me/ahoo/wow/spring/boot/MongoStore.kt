@@ -21,6 +21,7 @@ import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.mongo.subscription.MongoCheckpointStore
 import me.ahoo.wow.mongo.subscription.MongoLeaseStore
 import me.ahoo.wow.mongo.timer.MongoTimerStore
+import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
@@ -38,19 +39,22 @@ internal class MongoStore(
     name: String,
     val client: MongoClient,
     val database: String,
+    /** How the store's collections and indexes are managed (`wow.ddl`, `wow.stores.<name>.ddl`; review A5-10). */
+    private val ddl: StoreDdl = StoreDdl.AUTO,
 ) : HostStore(name, BackendKind.MONGO) {
     override val location: Any get() = client to database
 
     override fun openCheckpoints(): CheckpointStore =
-        MongoCheckpointStore(client, database).also { schema(it::createSchema) }
+        MongoCheckpointStore(client, database, ddl = ddl).also { schema(it::createSchema) }
 
-    override fun openLeases(): LeaseStore = MongoLeaseStore(client, database).also { schema(it::createSchema) }
+    override fun openLeases(): LeaseStore =
+        MongoLeaseStore(client, database, ddl = ddl).also { schema(it::createSchema) }
 
     override fun openLedger(): FailureLedger =
-        MongoFailureLedger(client, database, service = service).also { schema(it::createSchema) }
+        MongoFailureLedger(client, database, service = service, ddl = ddl).also { schema(it::createSchema) }
 
     override fun openReservations(): ReservationStore =
-        MongoReservationStore(client, database).also { schema(it::createSchema) }
+        MongoReservationStore(client, database, ddl = ddl).also { schema(it::createSchema) }
 
     override fun openLog(context: String, partitions: Int): EventLog =
         MongoEventLog(
@@ -60,20 +64,22 @@ internal class MongoStore(
             partitions,
             pollInterval = tailPolling.interval,
             maxPollInterval = tailPolling.maxInterval,
+            ddl = ddl,
         ).also { schema(it::createSchema) }
 
     override fun openSnapshots(context: String): SnapshotStore =
-        MongoSnapshotStore(client, database, context).also { schema(it::createSchema) }
+        MongoSnapshotStore(client, database, context, ddl = ddl).also { schema(it::createSchema) }
 
     override fun openTimers(context: String): TimerStore =
-        MongoTimerStore(client, database, context).also { schema(it::createSchema) }
+        MongoTimerStore(client, database, context, ddl = ddl).also { schema(it::createSchema) }
 
     companion object {
         /** The store [name] over [client] in [database], typed loosely so that the caller does not load the driver. */
         fun open(
             name: String,
             client: Any,
-            database: String
-        ): HostStore = MongoStore(name, client as MongoClient, database)
+            database: String,
+            ddl: StoreDdl = StoreDdl.AUTO,
+        ): HostStore = MongoStore(name, client as MongoClient, database, ddl)
     }
 }

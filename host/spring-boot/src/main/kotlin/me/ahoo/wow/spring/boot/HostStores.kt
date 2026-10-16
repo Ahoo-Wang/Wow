@@ -373,9 +373,13 @@ internal object StoreInstances {
             val mongo = mongoClient != null && beanFactory.getBeanNamesForType(mongoClient).isNotEmpty()
             val name = ContextBackends.DEFAULT_STORE
             val store = when (BackendSelection.select(properties.backend, postgres, mongo)) {
-                BackendKind.POSTGRES -> PostgresStore.open(name, beanFactory.getBean(DataSource::class.java))
+                BackendKind.POSTGRES -> PostgresStore.open(
+                    name,
+                    beanFactory.getBean(DataSource::class.java),
+                    properties.ddl
+                )
                 BackendKind.MONGO ->
-                    MongoStore.open(name, beanFactory.getBean(mongoClient!!), properties.mongo.database)
+                    MongoStore.open(name, beanFactory.getBean(mongoClient!!), properties.mongo.database, properties.ddl)
 
                 else -> memory(name)
             }
@@ -386,13 +390,15 @@ internal object StoreInstances {
         }
         return properties.stores.mapValues { (name, store) ->
             val key = "wow.stores.$name"
+            val ddl = store.ddlOr(properties.ddl)
             when (checkNotNull(store.type) { "$key.type is not set: memory, postgres or mongo." }) {
                 BackendKind.MEMORY -> memory(name)
                 BackendKind.POSTGRES -> {
                     check(postgresModule) { "$key is on PostgreSQL, which needs wow-postgres on the classpath." }
                     PostgresStore.open(
                         name,
-                        bean(beanFactory, DataSource::class.java, store.dataSource, "$key.data-source")
+                        bean(beanFactory, DataSource::class.java, store.dataSource, "$key.data-source"),
+                        ddl,
                     )
                 }
 
@@ -404,6 +410,7 @@ internal object StoreInstances {
                         name,
                         bean(beanFactory, client, store.client, "$key.client"),
                         store.database?.takeIf { it.isNotBlank() } ?: properties.mongo.database,
+                        ddl,
                     )
                 }
 

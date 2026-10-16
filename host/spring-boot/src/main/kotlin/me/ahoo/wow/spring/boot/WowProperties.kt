@@ -31,6 +31,7 @@ import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
+import me.ahoo.wow.runtime.state.StateViewOptions
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RetryPolicy
@@ -39,6 +40,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.runtime.wait.WaitOptions
+import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.net.URI
@@ -61,7 +63,8 @@ import kotlin.time.toKotlinDuration
  * - `wow.contexts.include`, `wow.contexts.exclude`: the bounded contexts the node serves among the domain modules on
  *   the class path, by default all of them (decision D169), see [Contexts].
  * - `wow.backend`: `auto` (the default), `memory`, `postgres` or `mongo` ([BackendKind]); `wow.mongo.database`: the one
- *   store of a node that names none.
+ *   store of a node that names none; `wow.ddl` (`auto`, `validate` or `none`), how the stores manage the framework's
+ *   tables (review A5-10), `wow.stores.<name>.ddl` per store.
  * - `wow.stores.<name>.*`: the named store instances (decision D177, [Store]); `wow.log.store` and
  *   `wow.snapshot.store`, the stores of the aggregates' logs and snapshots by default; per aggregate type,
  *   `wow.aggregates.[<context>.<aggregate>].log.store` and `.snapshot.store`. The aggregates whose logs are on one store
@@ -77,6 +80,8 @@ import kotlin.time.toKotlinDuration
  * - `wow.wait.default-timeout` (10s), `max-timeout` (60s), `max-hops` (16, at most 32), `unknown-contexts` (`allow`
  *   or `reject`, decision D190): the default timeout is the node's ([ServiceNodeOptions.defaultWaitTimeout]), for every
  *   command whose request names none.
+ * - `wow.state-views.capacity` (4096), `max-age` (1m), `max-bytes` (64 MiB): the bounds of each context's state views
+ *   (decision D133), see [StateViews].
  * - `wow.executor.lane-capacity` (1024), `wow.executor.max-in-flight` (4096, the node's commands in flight, beyond
  *   which a command is `wow.command.busy`, decision D228 ②), `wow.state-cache.capacity`, `wow.subscription.*`.
  * - `wow.subscriptions.[<subscription>].start`: `beginning`, `end` or an ISO-8601 instant, where the subscription
@@ -123,12 +128,22 @@ class WowProperties {
     var internal: Internal = Internal()
     var contexts: Contexts = Contexts()
     var backend: BackendKind = BackendKind.AUTO
+
+    /**
+     * How the stores manage the framework's tables, collections and indexes (review A5-10): `auto` creates what is
+     * missing (the default), `validate` creates nothing and refuses a store whose schema is missing or in another
+     * format, `none` creates and checks nothing; `wow.stores.<name>.ddl` overrides it for one store.
+     */
+    var ddl: StoreDdl = StoreDdl.AUTO
     var mongo: Mongo = Mongo()
     var log: Log = Log()
     var cluster: Cluster = Cluster()
     var wait: Wait = Wait()
     var executor: Executor = Executor()
     var stateCache: StateCache = StateCache()
+
+    /** The bounds of each context's state views (decision D133, review A5-10): `wow.state-views.*`. */
+    var stateViews: StateViews = StateViews()
     var subscription: Subscription = Subscription()
 
     /** Per subscription, by its name (bracketed in a property name: `wow.subscriptions.[CartSaga.onOrderCreated]`). */
@@ -251,6 +266,12 @@ class WowProperties {
         var dataSource: String? = null
         var client: String? = null
         var database: String? = null
+
+        /** How this store manages the framework's schema, over `wow.ddl`. */
+        var ddl: StoreDdl? = null
+
+        /** [ddl], else the node's [default] (`wow.ddl`). */
+        internal fun ddlOr(default: StoreDdl): StoreDdl = ddl ?: default
     }
 
     /**
@@ -319,26 +340,38 @@ class WowProperties {
         var routeRefreshInterval: Duration = DEFAULT_CLUSTER.routeRefreshInterval.toJavaDuration()
 
         /**
-         * How long a forward waits for the owner's reply, capped by the command's own deadline. A forward the owner
-         * received and did not answer by then is reported unknown (`wow.command.unknown`), not run here, so a retry
-         * with the same request id is safe (decision D223).
+         * How long a forward waits for the owner's reply, capped by the command's own deadline: `wow.wait.default-timeout`
+         * when not set (review A5-10), so a node whose waits are longer forwards as long. A forward the owner received
+         * and did not answer by then is reported unknown (`wow.command.unknown`), not run here, so a retry with the
+         * same request id is safe (decision D223).
          */
-        var forwardTimeout: Duration = DEFAULT_CLUSTER.forwardTimeout.toJavaDuration()
+        var forwardTimeout: Duration? = null
         var maxInFlightPerPeer: Int = DEFAULT_CLUSTER.maxInFlightPerPeer
         var drainTimeout: Duration = DEFAULT_CLUSTER.drainTimeout.toJavaDuration()
         var leaseParallelism: Int = DEFAULT_CLUSTER.leaseParallelism
 
-        fun options(): ClusterOptions = ClusterOptions(
+        /**
+         * How long one reconcile may run before the node takes itself as stuck and leaves the members until it ends
+         * (finding C.1 F1).
+         */
+        var reconcileTimeout: Duration = DEFAULT_CLUSTER.reconcileTimeout.toJavaDuration()
+
+        /** The cluster options, a forward waiting [ClusterOptions]' default when [forwardTimeout] is not set. */
+        fun options(): ClusterOptions = options(DEFAULT_CLUSTER.forwardTimeout.toJavaDuration())
+
+        /** The cluster options, a forward waiting [defaultWaitTimeout] when [forwardTimeout] is not set. */
+        fun options(defaultWaitTimeout: Duration): ClusterOptions = ClusterOptions(
             leaseTtl = leaseTtl.toKotlinDuration(),
             renewInterval = renewInterval.toKotlinDuration(),
             memberTtl = memberTtl.toKotlinDuration(),
             heartbeatInterval = heartbeatInterval.toKotlinDuration(),
             reconcileInterval = reconcileInterval.toKotlinDuration(),
             routeRefreshInterval = routeRefreshInterval.toKotlinDuration(),
-            forwardTimeout = forwardTimeout.toKotlinDuration(),
+            forwardTimeout = (forwardTimeout ?: defaultWaitTimeout).toKotlinDuration(),
             maxInFlightPerPeer = maxInFlightPerPeer,
             drainTimeout = drainTimeout.toKotlinDuration(),
             leaseParallelism = leaseParallelism,
+            reconcileTimeout = reconcileTimeout.toKotlinDuration(),
         )
     }
 
@@ -371,6 +404,18 @@ class WowProperties {
          * refused as `wow.command.busy` (429, with `Retry-After`) instead of queued.
          */
         var maxInFlight: Int = InFlightLimit.DEFAULT_MAX
+    }
+
+    /**
+     * The bounds of each context's state views, the states its consumers share after each commit (decision D133): at
+     * most [capacity] views and [maxBytes] of serialized state (two bytes a character), none older than [maxAge].
+     */
+    class StateViews {
+        var capacity: Int = StateViewOptions.DEFAULT_CAPACITY
+        var maxAge: Duration = StateViewOptions.DEFAULT_MAX_AGE.toJavaDuration()
+        var maxBytes: Long = StateViewOptions.DEFAULT_MAX_BYTES
+
+        fun options(): StateViewOptions = StateViewOptions(capacity, maxAge.toKotlinDuration(), maxBytes)
     }
 
     class StateCache {
@@ -711,6 +756,23 @@ class WowProperties {
          * primary one.
          */
         var snapshot: AggregateSnapshot = AggregateSnapshot()
+
+        /**
+         * How the ClickHouse Sink keeps the type's commits (decision D164), in the one style of per-aggregate keys
+         * (review A5-10): over `wow.clickhouse.sink.aggregates.<context>.<aggregate>`, which is still read.
+         */
+        var clickhouse: AggregateClickHouse = AggregateClickHouse()
+    }
+
+    /** An aggregate type's ClickHouse settings: `wow.aggregates.[<context>.<aggregate>].clickhouse.*`. */
+    class AggregateClickHouse {
+        var history: AggregateHistory = AggregateHistory()
+    }
+
+    /** Whether every commit of the type is kept ([enabled], on by default), and how long ([ttl], forever by default). */
+    class AggregateHistory {
+        var enabled: Boolean? = null
+        var ttl: Duration? = null
     }
 
     /**

@@ -39,6 +39,7 @@ import me.ahoo.wow.query.schema.requireValid
 import me.ahoo.wow.query.schema.withCanonicalFields
 import tools.jackson.databind.node.ObjectNode
 import java.time.Instant
+import kotlin.time.toJavaDuration
 
 /**
  * The one admission pipeline of an aggregate type's queries: it turns what a caller submitted into the
@@ -94,7 +95,7 @@ class QueryAdmission(
         val defaulted = restricted.withDefaultScope(model.profile, appended)
         return operation.finish(defaulted, model, entry, appended, budget)
             .also { admitted -> budget?.let { requireIndexedSorts(it, query, admitted) } }
-            .withTimeout(entryPolicy.timeout(entry))
+            .withTimeout(entryPolicy.timeout(entry)?.toJavaDuration())
     }
 
     /**

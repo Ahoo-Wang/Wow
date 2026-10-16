@@ -119,6 +119,29 @@ class StateViewsTest {
     }
 
     @Test
+    fun `the views should be bounded by the bytes of their states, oldest first, the last one kept`() {
+        val views = StateViews(
+            codec,
+            mapOf(SNAPSHOT to setOf(CART)),
+            StateViewOptions(capacity = 16, maxBytes = 40),
+            time,
+        )
+        val state = "x".repeat(8)
+        views.put(alice, SerializedState(1, state))
+        views.put(bob, SerializedState(1, state))
+        views.bytes.assert().isEqualTo(32L)
+        views.put(alice, SerializedState(2, state))
+        views.get(alice, 1).assert().isNull()
+        views.bytes.assert().isEqualTo(32L)
+        views.pass(SNAPSHOT, bob, 2)
+        views.bytes.assert().isEqualTo(16L)
+        views.put(bob, SerializedState(3, "y".repeat(100)))
+        views.size.assert().isEqualTo(1)
+        views.get(bob, 3).assert().isNotNull()
+        views.bytes.assert().isEqualTo(200L)
+    }
+
+    @Test
     fun `the views should age out`() {
         val views = views(maxAge = 10.seconds)
         views.put(alice, view(1))
@@ -136,6 +159,7 @@ class StateViewsTest {
     fun `the options and a view should be valid`() {
         assertThrownBy<IllegalArgumentException> { StateViewOptions(capacity = 0) }
         assertThrownBy<IllegalArgumentException> { StateViewOptions(maxAge = 0.seconds) }
+        assertThrownBy<IllegalArgumentException> { StateViewOptions(maxBytes = 0) }
         assertThrownBy<IllegalArgumentException> { SerializedState(0, "{}") }
         view(3).toString().assert().isEqualTo("SerializedState(version=3)")
     }

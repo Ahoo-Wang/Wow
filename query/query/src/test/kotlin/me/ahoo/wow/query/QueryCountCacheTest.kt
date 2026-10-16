@@ -41,6 +41,7 @@ import org.junit.jupiter.api.assertThrows
 import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicLong
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The count cache (decision D152, work package 6.2d) through the gateway, over the in-memory reference backend: a
@@ -239,7 +240,7 @@ class QueryCountCacheTest {
     fun `a count should expire after the ttl however long its checkpoint holds`() {
         runTest {
             write("o1")
-            val (gateway, _) = gateway(cache(QueryCountCacheOptions(ttl = Duration.ofSeconds(1))))
+            val (gateway, _) = gateway(cache(QueryCountCacheOptions(ttl = 1.seconds)))
             gateway.count(CountQuery(MatchAllFilter), QueryCaller.IN_PROCESS)
             nanos = Duration.ofMillis(999).toNanos()
             gateway.count(CountQuery(MatchAllFilter), QueryCaller.IN_PROCESS)
@@ -298,9 +299,9 @@ class QueryCountCacheTest {
     @Test
     fun `the options should be bounded`() {
         QueryCountCacheOptions().assert()
-            .isEqualTo(QueryCountCacheOptions(QueryCountCacheOptions.DEFAULT_MAX_ENTRIES, Duration.ofSeconds(30)))
+            .isEqualTo(QueryCountCacheOptions(QueryCountCacheOptions.DEFAULT_MAX_ENTRIES, 30.seconds))
         assertThrows<IllegalArgumentException> { QueryCountCacheOptions(maxEntries = 0) }
-        assertThrows<IllegalArgumentException> { QueryCountCacheOptions(ttl = Duration.ZERO) }
+        assertThrows<IllegalArgumentException> { QueryCountCacheOptions(ttl = kotlin.time.Duration.ZERO) }
     }
 
     private companion object {

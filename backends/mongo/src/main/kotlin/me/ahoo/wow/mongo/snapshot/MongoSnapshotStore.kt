@@ -40,6 +40,7 @@ import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
+import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
@@ -72,6 +73,8 @@ class MongoSnapshotStore(
     databaseName: String,
     private val context: String,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
+    private val ddl: StoreDdl = StoreDdl.AUTO,
 ) : SnapshotStore {
     private val database = client.getDatabase(databaseName)
 
@@ -95,7 +98,7 @@ class MongoSnapshotStore(
     private fun collectionOf(aggregate: String): MongoCollection<Document> =
         ensured[aggregate] ?: ensure(aggregate).also { ensured[aggregate] = it }
 
-    private fun ensure(aggregate: String): MongoCollection<Document> = ensure(database, context, aggregate)
+    private fun ensure(aggregate: String): MongoCollection<Document> = ensure(database, context, aggregate, ddl)
 
     override suspend fun save(snapshot: SnapshotRecord): Boolean = dispatcher.mongo {
         require(snapshot.ref.type.context == context) { "${snapshot.ref} is not in context $context." }
@@ -325,16 +328,23 @@ class MongoSnapshotStore(
          * Makes sure of the snapshot collection of [aggregate] in [context]: claims its format record ([MongoFormat]),
          * then creates its key and scope indexes when missing, which creates the collection itself.
          */
-        fun ensure(database: MongoDatabase, context: String, aggregate: String): MongoCollection<Document> {
+        fun ensure(
+            database: MongoDatabase,
+            context: String,
+            aggregate: String,
+            ddl: StoreDdl = StoreDdl.AUTO,
+        ): MongoCollection<Document> {
             val name = collectionName(context, aggregate)
-            MongoFormat.claim(database, name, FORMAT)
+            MongoFormat.claim(database, name, FORMAT, ddl)
             return database.getCollection(name).also { collection ->
-                collection.createIndex(
+                MongoFormat.index(
+                    collection,
                     Indexes.ascending(TENANT_ID, AGGREGATE_ID),
                     IndexOptions().unique(true).name(SNAPSHOT_KEY),
+                    ddl,
                 )
                 SCOPE_INDEXES.forEach { (index, field) ->
-                    collection.createIndex(Indexes.ascending(TENANT_ID, field), scopeIndexOptions(index))
+                    MongoFormat.index(collection, Indexes.ascending(TENANT_ID, field), scopeIndexOptions(index), ddl)
                 }
             }
         }

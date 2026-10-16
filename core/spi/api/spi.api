@@ -3,6 +3,15 @@ public final class me/ahoo/wow/spi/StorageUnavailableException : java/lang/Runti
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 }
 
+public final class me/ahoo/wow/spi/StoreDdl : java/lang/Enum {
+	public static final field AUTO Lme/ahoo/wow/spi/StoreDdl;
+	public static final field NONE Lme/ahoo/wow/spi/StoreDdl;
+	public static final field VALIDATE Lme/ahoo/wow/spi/StoreDdl;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spi/StoreDdl;
+	public static fun values ()[Lme/ahoo/wow/spi/StoreDdl;
+}
+
 public abstract interface class me/ahoo/wow/spi/id/AggregateIdGenerator {
 	public static final field Companion Lme/ahoo/wow/spi/id/AggregateIdGenerator$Companion;
 	public static final field UUID_V7 Lme/ahoo/wow/spi/id/AggregateIdGenerator;

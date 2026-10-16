@@ -20,6 +20,7 @@ import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.postgres.subscription.PostgresCheckpointStore
 import me.ahoo.wow.postgres.subscription.PostgresLeaseStore
 import me.ahoo.wow.postgres.timer.PostgresTimerStore
+import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
@@ -34,20 +35,24 @@ import javax.sql.DataSource
  * timer tables; the checkpoints, leases, failure ledger and reservations shared. Loaded only when it is configured, so
  * the host runs without wow-postgres on the classpath.
  */
-internal class PostgresStore(name: String, val dataSource: DataSource) : HostStore(name, BackendKind.POSTGRES) {
+internal class PostgresStore(
+    name: String,
+    val dataSource: DataSource,
+    /** How the store's tables are managed (`wow.ddl`, `wow.stores.<name>.ddl`; review A5-10). */
+    private val ddl: StoreDdl = StoreDdl.AUTO,
+) : HostStore(name, BackendKind.POSTGRES) {
     override val location: Any get() = dataSource
 
-    override fun openCheckpoints(): CheckpointStore = PostgresCheckpointStore(
-        dataSource
-    ).also { schema(it::createSchema) }
+    override fun openCheckpoints(): CheckpointStore =
+        PostgresCheckpointStore(dataSource, ddl = ddl).also { schema(it::createSchema) }
 
-    override fun openLeases(): LeaseStore = PostgresLeaseStore(dataSource).also { schema(it::createSchema) }
+    override fun openLeases(): LeaseStore = PostgresLeaseStore(dataSource, ddl = ddl).also { schema(it::createSchema) }
 
     override fun openLedger(): FailureLedger =
-        PostgresFailureLedger(dataSource, service = service).also { schema(it::createSchema) }
+        PostgresFailureLedger(dataSource, service = service, ddl = ddl).also { schema(it::createSchema) }
 
     override fun openReservations(): ReservationStore =
-        PostgresReservationStore(dataSource).also { schema(it::createSchema) }
+        PostgresReservationStore(dataSource, ddl = ddl).also { schema(it::createSchema) }
 
     override fun openLog(context: String, partitions: Int): EventLog =
         PostgresEventLog(
@@ -56,16 +61,18 @@ internal class PostgresStore(name: String, val dataSource: DataSource) : HostSto
             partitions,
             pollInterval = tailPolling.interval,
             maxPollInterval = tailPolling.maxInterval,
+            ddl = ddl,
         ).also { schema(it::createSchema) }
 
     override fun openSnapshots(context: String): SnapshotStore =
-        PostgresSnapshotStore(dataSource, context).also { schema(it::createSchema) }
+        PostgresSnapshotStore(dataSource, context, ddl = ddl).also { schema(it::createSchema) }
 
     override fun openTimers(context: String): TimerStore =
-        PostgresTimerStore(dataSource, context).also { schema(it::createSchema) }
+        PostgresTimerStore(dataSource, context, ddl = ddl).also { schema(it::createSchema) }
 
     companion object {
         /** The store [name] over [dataSource], typed loosely so that the caller does not load the JDBC classes. */
-        fun open(name: String, dataSource: Any): HostStore = PostgresStore(name, dataSource as DataSource)
+        fun open(name: String, dataSource: Any, ddl: StoreDdl = StoreDdl.AUTO): HostStore =
+            PostgresStore(name, dataSource as DataSource, ddl)
     }
 }

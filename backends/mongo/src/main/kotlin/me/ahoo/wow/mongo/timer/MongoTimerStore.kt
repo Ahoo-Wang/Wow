@@ -36,6 +36,7 @@ import me.ahoo.wow.mongo.MongoRules
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.mongo
+import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus
@@ -67,6 +68,8 @@ class MongoTimerStore(
     databaseName: String,
     private val context: String,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
+    private val ddl: StoreDdl = StoreDdl.AUTO,
 ) : TimerStore {
     /** The collection's name, `wow_timer__<context>`. */
     val collectionName: String = MongoNames.limited("${PREFIX}__${MongoNames.part(context)}")
@@ -79,18 +82,24 @@ class MongoTimerStore(
      * recorded in another format version ([MongoFormat], decision D59).
      */
     fun createSchema() {
-        MongoFormat.claim(database, collectionName, FORMAT)
-        timers.createIndex(
+        MongoFormat.claim(database, collectionName, FORMAT, ddl)
+        MongoFormat.index(
+            timers,
             Indexes.ascending(OWNER_AGGREGATE, OWNER_TENANT_ID, OWNER_AGGREGATE_ID, KEY),
             IndexOptions().unique(true).name(TIMER_KEY),
+            ddl,
         )
-        timers.createIndex(
+        MongoFormat.index(
+            timers,
             Indexes.ascending(PARTITION, DUE_AT, TIMER_ID),
             IndexOptions().name(DUE_INDEX).partialFilterExpression(Filters.`in`(STATUS, DUE_STATUSES)),
+            ddl,
         )
-        timers.createIndex(
+        MongoFormat.index(
+            timers,
             Indexes.ascending(TARGET_CONTEXT, TARGET_AGGREGATE, TARGET_TENANT_ID, TARGET_ID),
             IndexOptions().name(PARKED_INDEX).partialFilterExpression(Filters.eq(STATUS, TimerStatus.PARKED.name)),
+            ddl,
         )
     }
 

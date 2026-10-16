@@ -258,10 +258,9 @@ public final class me/ahoo/wow/query/QueryBudget {
 	public static final field DEFAULT_COUNT_LIMIT I
 	public static final field DEFAULT_MAX_FILTER_NODES I
 	public static final field DEFAULT_MAX_RESIDUAL_GROUPS I
-	public static final field DEFAULT_TIMEOUT Ljava/time/Duration;
 	public static final field HTTP_LABEL Ljava/lang/String;
-	public fun <init> (Ljava/lang/String;IIJIIZIIZLjava/time/Duration;Z)V
-	public synthetic fun <init> (Ljava/lang/String;IIJIIZIIZLjava/time/Duration;ZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/lang/String;IIJIIZIIZJZILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/lang/String;IIJIIZIIZJZLkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun check (Lme/ahoo/wow/api/query/AggregationQuery;Lme/ahoo/wow/api/query/FilterExpression;)V
 	public final fun check (Lme/ahoo/wow/api/query/ICountQuery;Lme/ahoo/wow/api/query/FilterExpression;)V
 	public final fun check (Lme/ahoo/wow/api/query/ICursorQuery;Lme/ahoo/wow/api/query/FilterExpression;)V
@@ -285,13 +284,14 @@ public final class me/ahoo/wow/query/QueryBudget {
 	public final fun getMaxPageSize ()I
 	public final fun getMaxPageWindow ()J
 	public final fun getMaxResidualGroups ()I
-	public final fun getTimeout ()Ljava/time/Duration;
+	public final fun getTimeout-UwyO8pc ()J
 	public final fun getTotalLimit ()Ljava/lang/Integer;
 	public final fun getUnindexedSortExpensive ()Z
 	public final fun listDefault (I)Ljava/lang/Integer;
 }
 
 public final class me/ahoo/wow/query/QueryBudget$Companion {
+	public final fun getDEFAULT_TIMEOUT-UwyO8pc ()J
 	public final fun getHTTP_DEFAULT ()Lme/ahoo/wow/query/QueryBudget;
 }
 
@@ -343,15 +343,16 @@ public final class me/ahoo/wow/query/QueryCountCache$Companion {
 public final class me/ahoo/wow/query/QueryCountCacheOptions {
 	public static final field Companion Lme/ahoo/wow/query/QueryCountCacheOptions$Companion;
 	public static final field DEFAULT_MAX_ENTRIES I
-	public static final field DEFAULT_TTL Ljava/time/Duration;
+	public synthetic fun <init> (IJILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getMaxEntries ()I
-	public final fun getTtl ()Ljava/time/Duration;
+	public final fun getTtl-UwyO8pc ()J
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/query/QueryCountCacheOptions$Companion {
+	public final fun getDEFAULT_TTL-UwyO8pc ()J
 }
 
 public final class me/ahoo/wow/query/QueryEntry : java/lang/Enum {
@@ -366,25 +367,25 @@ public final class me/ahoo/wow/query/QueryEntry : java/lang/Enum {
 public final class me/ahoo/wow/query/QueryEntryPolicy {
 	public static final field Companion Lme/ahoo/wow/query/QueryEntryPolicy$Companion;
 	public fun <init> ()V
-	public fun <init> (ZZLme/ahoo/wow/query/QueryBudget;Lme/ahoo/wow/query/QueryBudget;Ljava/time/Duration;)V
-	public synthetic fun <init> (ZZLme/ahoo/wow/query/QueryBudget;Lme/ahoo/wow/query/QueryBudget;Ljava/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (ZZLme/ahoo/wow/query/QueryBudget;Lme/ahoo/wow/query/QueryBudget;Lkotlin/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (ZZLme/ahoo/wow/query/QueryBudget;Lme/ahoo/wow/query/QueryBudget;Lkotlin/time/Duration;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun admit (Lme/ahoo/wow/query/QueryEntry;)Lme/ahoo/wow/query/QueryEntry;
 	public final fun budget (Lme/ahoo/wow/query/QueryEntry;)Lme/ahoo/wow/query/QueryBudget;
 	public final fun component1 ()Z
 	public final fun component2 ()Z
 	public final fun component3 ()Lme/ahoo/wow/query/QueryBudget;
 	public final fun component4 ()Lme/ahoo/wow/query/QueryBudget;
-	public final fun component5 ()Ljava/time/Duration;
-	public final fun copy (ZZLme/ahoo/wow/query/QueryBudget;Lme/ahoo/wow/query/QueryBudget;Ljava/time/Duration;)Lme/ahoo/wow/query/QueryEntryPolicy;
-	public static synthetic fun copy$default (Lme/ahoo/wow/query/QueryEntryPolicy;ZZLme/ahoo/wow/query/QueryBudget;Lme/ahoo/wow/query/QueryBudget;Ljava/time/Duration;ILjava/lang/Object;)Lme/ahoo/wow/query/QueryEntryPolicy;
+	public final fun component5-FghU774 ()Lkotlin/time/Duration;
+	public final fun copy-jSaE0eg (ZZLme/ahoo/wow/query/QueryBudget;Lme/ahoo/wow/query/QueryBudget;Lkotlin/time/Duration;)Lme/ahoo/wow/query/QueryEntryPolicy;
+	public static synthetic fun copy-jSaE0eg$default (Lme/ahoo/wow/query/QueryEntryPolicy;ZZLme/ahoo/wow/query/QueryBudget;Lme/ahoo/wow/query/QueryBudget;Lkotlin/time/Duration;ILjava/lang/Object;)Lme/ahoo/wow/query/QueryEntryPolicy;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getHttp ()Lme/ahoo/wow/query/QueryBudget;
 	public final fun getInProcess ()Lme/ahoo/wow/query/QueryBudget;
-	public final fun getInProcessTimeout ()Ljava/time/Duration;
+	public final fun getInProcessTimeout-FghU774 ()Lkotlin/time/Duration;
 	public final fun getRequireAuthenticatedScope ()Z
 	public final fun getRequireExplicitEntry ()Z
 	public fun hashCode ()I
-	public final fun timeout (Lme/ahoo/wow/query/QueryEntry;)Ljava/time/Duration;
+	public final fun timeout-LV8wdWc (Lme/ahoo/wow/query/QueryEntry;)Lkotlin/time/Duration;
 	public fun toString ()Ljava/lang/String;
 }
 

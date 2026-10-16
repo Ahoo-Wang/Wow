@@ -40,6 +40,7 @@ import me.ahoo.wow.runtime.admission.TenantPolicy
 import org.junit.jupiter.api.Test
 import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
+import kotlin.time.toKotlinDuration
 
 /** The snapshot query routes (decisions D127, D129, D130, D150). */
 class QueryRoutesTest {
@@ -266,7 +267,9 @@ class QueryRoutesTest {
     fun `a query past its budget's timeout should be wow-query-timeout`() {
         val slow = QueryNode(
             storage = InMemoryQueryStorage(delay = Duration.ofMillis(500)),
-            entryPolicy = QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = Duration.ofMillis(50))),
+            entryPolicy = QueryEntryPolicy(
+                http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = Duration.ofMillis(50).toKotlinDuration())
+            ),
         )
         slow.query(
             """{"kind":"count","filter":{"op":"MATCH_ALL"}}"""

@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.postgres.jdbc
+import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.subscription.Member
@@ -45,13 +46,13 @@ class PostgresLeaseStore(
     private val dataSource: DataSource,
     private val clock: Clock = Clock.systemUTC(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    /** How the tables are managed: created when missing by default (review A5-10). */
+    private val ddl: StoreDdl = StoreDdl.AUTO,
 ) : LeaseStore {
     /** Claims the tables' format ([PostgresFormat], decision D59) and creates them when missing. */
     fun createSchema() {
         dataSource.connection.use { connection ->
-            PostgresFormat.creating(connection) {
-                PostgresFormat.claim(connection, LEASES, FORMAT)
-                PostgresFormat.claim(connection, MEMBERS_TABLE, FORMAT)
+            PostgresFormat.schema(connection, ddl, listOf(LEASES to FORMAT, MEMBERS_TABLE to FORMAT)) {
                 connection.createStatement().use { statement -> DDL.forEach { statement.execute(it) } }
             }
         }

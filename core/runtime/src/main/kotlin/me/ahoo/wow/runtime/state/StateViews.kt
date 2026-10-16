@@ -55,17 +55,23 @@ class SerializedState(
     override fun toString(): String = "SerializedState(version=$version)"
 }
 
-/** The bounds of a context's [StateViews]: at most [capacity] views, none older than [maxAge].  *
+/**
+ * The bounds of a context's [StateViews]: at most [capacity] views, holding at most [maxBytes] of serialized state
+ * (review A5-10: a few aggregates with states of hundreds of kilobytes would otherwise take gigabytes within the
+ * count), none older than [maxAge]. The host configures them (`wow.state-views.*`).
+ *
  * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
  */
 class StateViewOptions @InternalWowApi constructor(
     val capacity: Int = DEFAULT_CAPACITY,
     val maxAge: Duration = DEFAULT_MAX_AGE,
+    val maxBytes: Long = DEFAULT_MAX_BYTES,
 ) {
     init {
         require(capacity >= 1) { "The state views hold at least one view." }
         require(maxAge.isPositive()) { "The maximum age of a state view is positive." }
+        require(maxBytes >= 1) { "The state views hold at least one byte." }
     }
 
     override fun equals(other: Any?): Boolean =
@@ -73,13 +79,16 @@ class StateViewOptions @InternalWowApi constructor(
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "StateViewOptions(capacity=$capacity, maxAge=$maxAge)"
+    override fun toString(): String = "StateViewOptions(capacity=$capacity, maxAge=$maxAge, maxBytes=$maxBytes)"
 
-    private fun valueFields(): List<Any?> = listOf(capacity, maxAge)
+    private fun valueFields(): List<Any?> = listOf(capacity, maxAge, maxBytes)
 
     companion object {
         const val DEFAULT_CAPACITY: Int = 4_096
         val DEFAULT_MAX_AGE: Duration = 1.minutes
+
+        /** 64 MiB of serialized state per context: 4096 views of 16 KiB. */
+        const val DEFAULT_MAX_BYTES: Long = 64L * 1024 * 1024
     }
 }
 
@@ -122,11 +131,16 @@ class StateViews(
      * [pass] of different aggregates rarely take the same lock; age and capacity are then bounded per stripe.
      */
     private val stripes: Array<Stripe> = Stripes.of(options.capacity).let { count ->
-        Array(count) { index -> Stripe(Stripes.share(options.capacity, count, index)) }
+        Array(count) { index ->
+            Stripe(Stripes.share(options.capacity, count, index), (options.maxBytes / count).coerceAtLeast(1))
+        }
     }
 
     /** The number of views held. */
     val size: Int get() = stripes.sumOf { it.size }
+
+    /** The bytes of the states held, two a character. */
+    val bytes: Long get() = stripes.sumOf { it.held }
 
     /** Records the state of [committed], when some reader reads [model]'s aggregate type. */
     fun record(model: AggregateModel<*>, committed: CommandOutcome.Committed) {
@@ -174,15 +188,20 @@ class StateViews(
         Stripes.pick(stripes, ref).pass(reader, ref, version, readers)
     }
 
-    /** One stripe of the views: at most [capacity] of them, under its own lock. */
-    private inner class Stripe(private val capacity: Int) {
+    /** One stripe of the views: at most [capacity] of them and [maxBytes] of their states, under its own lock. */
+    private inner class Stripe(private val capacity: Int, private val maxBytes: Long) {
         private val lock = ReentrantLock()
         private val slots = HashMap<AggregateRef, Slot>()
 
         /** Every view held, in the order it was put: the oldest first. */
         private val order = LinkedHashMap<Key, Entry>()
 
+        /** The bytes of the states held. */
+        private var bytes = 0L
+
         val size: Int get() = lock.withLock { order.size }
+
+        val held: Long get() = lock.withLock { bytes }
 
         fun put(ref: AggregateRef, view: SerializedState, readers: Set<String>) = lock.withLock {
             expire()
@@ -196,7 +215,9 @@ class StateViews(
             val entry = Entry(view, timeSource.markNow())
             slot.views[view.version] = entry
             order[Key(ref, view.version)] = entry
-            while (order.size > capacity) {
+            bytes += entry.bytes
+            // The view just put stays, even alone over the bytes: its readers are about to read it.
+            while (order.size > capacity || bytes > maxBytes && order.size > 1) {
                 evictEldest()
             }
         }
@@ -217,6 +238,7 @@ class StateViews(
             val passed = readers.minOf { slot.passed[it] ?: 0 }
             val evicted = slot.views.headMap(passed, false)
             evicted.keys.forEach { order.remove(Key(ref, it)) }
+            evicted.values.forEach { bytes -= it.bytes }
             evicted.clear()
             if (slot.views.isEmpty()) {
                 slots.remove(ref)
@@ -233,7 +255,7 @@ class StateViews(
         /** Called under the lock. */
         private fun evictEldest() {
             val eldest = order.keys.first()
-            order.remove(eldest)
+            order.remove(eldest)?.let { bytes -= it.bytes }
             val slot = slots[eldest.ref] ?: return
             slot.views.remove(eldest.version)
             if (slot.views.isEmpty()) {
@@ -244,7 +266,10 @@ class StateViews(
 
     private data class Key(val ref: AggregateRef, val version: Int)
 
-    private class Entry(val view: SerializedState, val recorded: TimeMark)
+    private class Entry(val view: SerializedState, val recorded: TimeMark) {
+        /** What the view's state takes in memory: two bytes a character. */
+        val bytes: Long = view.state.length * 2L
+    }
 
     /** The views of one aggregate by version, and the version each reader passed while it had some. */
     private class Slot {
