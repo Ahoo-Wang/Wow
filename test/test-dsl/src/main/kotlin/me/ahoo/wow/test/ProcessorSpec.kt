@@ -14,6 +14,7 @@
 package me.ahoo.wow.test
 
 import kotlinx.coroutines.runBlocking
+import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
@@ -93,6 +94,77 @@ fun reactorSpec(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() -> 
     ProcessorSpec(handlers, FunctionKind.REACT).block()
 }
 
+/**
+ * The full type name of [command] as its receipts carry it, `<context>.<aggregate>.<name>`: the name is its class's
+ * `@Name` (decision D55), or its simple name.
+ */
+fun commandTypeOf(command: Command<*>): String {
+    val type = command.body.javaClass
+    return "${command.ref.type}.${type.getAnnotation(Name::class.java)?.value ?: type.simpleName}"
+}
+
+/**
+ * The rejection of [command] with [code] and [message], as the runtime hands it to the `@OnRejected` handler of the
+ * saga whose execution [executionId] derived the command (decisions D136, D153): for [ProcessorSpec.whenRejected].
+ */
+fun commandRejected(
+    command: Command<*>,
+    executionId: ExecutionId,
+    code: String,
+    message: String = code,
+    commandType: String = commandTypeOf(command),
+): CommandRejected<Any> = CommandRejected(
+    commandId = command.id,
+    commandType = commandType,
+    ref = command.ref,
+    error = ErrorInfo(code, message),
+    causation = command.causation ?: Causation(command.id, command.id),
+    executionId = executionId,
+    operator = command.operator,
+)
+
+/**
+ * The success receipt of [command], committed on the aggregate [aggregateId] at [version] ([duplicate] when its
+ * target had already committed the request), as the runtime hands it to the `@OnCommitted` handler of the saga whose
+ * execution [executionId] derived the command (decision D192): for [ProcessorSpec.whenCommitted].
+ */
+@Suppress("LongParameterList")
+fun commandCommitted(
+    command: Command<*>,
+    executionId: ExecutionId,
+    version: Int = 1,
+    aggregateId: String = command.ref.id,
+    duplicate: Boolean = false,
+    commandType: String = commandTypeOf(command),
+): CommandCommitted<Any> {
+    val ref = command.ref.copy(id = aggregateId)
+    val causation = command.causation ?: Causation(command.id, command.id)
+    val type = command.ref.type
+    val result = CommandResult(
+        commandId = command.id,
+        requestId = command.requestId,
+        correlationId = causation.correlationId,
+        ref = ref,
+        hop = Hop.committed(type.context),
+        function = FunctionInfo(FunctionKind.COMMAND, type.context, type.name, commandType.substringAfterLast('.')),
+        status = CommandResult.Status.SUCCEEDED,
+        version = version,
+        duplicate = duplicate,
+        signalTime = 0L,
+    )
+    return CommandCommitted(
+        commandId = command.id,
+        commandType = commandType,
+        ref = ref,
+        version = version,
+        result = result,
+        causation = causation,
+        executionId = executionId,
+        operator = command.operator,
+        scope = command.scope,
+    )
+}
+
 /** Calls the [handlers] of one processor of [kind] as the runtime would, one commit or receipt at a time. */
 class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: FunctionKind) {
     /** The executions that derived each command, by command id: a rejection of one goes back to its saga. */
@@ -149,35 +221,28 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
      * Hands the rejection of [command] with [code] and [message] to the saga's `@OnRejected` handler of it, as the
      * runtime does for a command a handler derived and its target refused (decisions D136, D153). [command] is one
      * this specification derived ([ProcessorExpectations.commands]), so the rejection goes back to the execution that
-     * derived it; [commandType] is its full type name, `<context>.<aggregate>.<simple name>` by default. [expect]
-     * checks the compensating commands; it fails when the saga has no handler of that rejection.
+     * derived it; [commandType] is its full type name ([commandTypeOf] by default). [expect] checks the compensating
+     * commands; it fails when the saga has no handler of that rejection.
      */
     fun whenRejected(
         command: Command<*>,
         code: String,
         message: String = code,
-        commandType: String = "${command.ref.type}.${command.body.javaClass.simpleName}",
+        commandType: String = commandTypeOf(command),
         expect: ProcessorExpectations.() -> Unit,
     ) {
         val execution = derivedBy[command.id] ?: throw IllegalArgumentException(
-            "${command.id} is not a command this specification derived: hand its CommandRejected over instead.",
+            "${command.id} is not a command this specification derived: hand over commandRejected(command, " +
+                "executionId, code) instead, with the execution that derived it.",
         )
-        val rejected = CommandRejected<Any>(
-            commandId = command.id,
-            commandType = commandType,
-            ref = command.ref,
-            error = ErrorInfo(code, message),
-            causation = command.causation ?: Causation(command.id, command.id),
-            executionId = execution,
-            operator = command.operator,
-        )
-        whenRejected(rejected, command.body.javaClass.kotlin, expect)
+        whenRejected(commandRejected(command, execution, code, message, commandType), command.body.javaClass.kotlin, expect)
     }
 
     /**
      * Hands [rejected], the rejection of a command of [command] that the saga's handler named by its
-     * [CommandRejected.executionId] derived, to the saga's `@OnRejected` handler of it, as the runtime does. [expect]
-     * checks the compensating commands; it fails when the saga has no handler of that rejection.
+     * [CommandRejected.executionId] derived, to the saga's `@OnRejected` handler of it, as the runtime does: build it
+     * with [commandRejected]. [expect] checks the compensating commands; it fails when the saga has no handler of that
+     * rejection.
      */
     fun whenRejected(rejected: CommandRejected<*>, command: KClass<*>, expect: ProcessorExpectations.() -> Unit) {
         require(kind == FunctionKind.SAGA) { "Only a saga takes the rejections of the commands it derived." }
@@ -198,8 +263,8 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
      * specification derived ([ProcessorExpectations.commands]), so the receipt goes back to the execution that derived
      * it. It was committed on the aggregate [aggregateId] (the target's, for a creation that named none, decision
      * D191) at [version], [duplicate] when the target had already committed its request; [commandType] is its full
-     * type name, `<context>.<aggregate>.<simple name>` by default. [expect] checks the commands the handler derives;
-     * it fails when the saga has no handler of that receipt.
+     * type name ([commandTypeOf] by default). [expect] checks the commands the handler derives; it fails when the saga
+     * has no handler of that receipt.
      */
     @Suppress("LongParameterList")
     fun whenCommitted(
@@ -207,45 +272,22 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
         version: Int = 1,
         aggregateId: String = command.ref.id,
         duplicate: Boolean = false,
-        commandType: String = "${command.ref.type}.${command.body.javaClass.simpleName}",
+        commandType: String = commandTypeOf(command),
         expect: ProcessorExpectations.() -> Unit,
     ) {
         val execution = derivedBy[command.id] ?: throw IllegalArgumentException(
-            "${command.id} is not a command this specification derived: hand its CommandCommitted over instead.",
+            "${command.id} is not a command this specification derived: hand over commandCommitted(command, " +
+                "executionId) instead, with the execution that derived it.",
         )
-        val ref = command.ref.copy(id = aggregateId)
-        val causation = command.causation ?: Causation(command.id, command.id)
-        val type = command.ref.type
-        val result = CommandResult(
-            commandId = command.id,
-            requestId = command.requestId,
-            correlationId = causation.correlationId,
-            ref = ref,
-            hop = Hop.committed(type.context),
-            function = FunctionInfo(FunctionKind.COMMAND, type.context, type.name, commandType.substringAfterLast('.')),
-            status = CommandResult.Status.SUCCEEDED,
-            version = version,
-            duplicate = duplicate,
-            signalTime = 0L,
-        )
-        val committed = CommandCommitted<Any>(
-            commandId = command.id,
-            commandType = commandType,
-            ref = ref,
-            version = version,
-            result = result,
-            causation = causation,
-            executionId = execution,
-            operator = command.operator,
-            scope = command.scope,
-        )
+        val committed = commandCommitted(command, execution, version, aggregateId, duplicate, commandType)
         whenCommitted(committed, command.body.javaClass.kotlin, expect)
     }
 
     /**
      * Hands [committed], the success receipt of a command of [command] that the saga's handler named by its
-     * [CommandCommitted.executionId] derived, to the saga's `@OnCommitted` handler of it, as the runtime does.
-     * [expect] checks the commands the handler derives; it fails when the saga has no handler of that receipt.
+     * [CommandCommitted.executionId] derived, to the saga's `@OnCommitted` handler of it, as the runtime does: build
+     * it with [commandCommitted]. [expect] checks the commands the handler derives; it fails when the saga has no
+     * handler of that receipt.
      */
     fun whenCommitted(committed: CommandCommitted<*>, command: KClass<*>, expect: ProcessorExpectations.() -> Unit) {
         require(kind == FunctionKind.SAGA) { "Only a saga takes the receipts of the commands it derived." }
