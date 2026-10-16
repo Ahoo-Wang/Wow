@@ -14,10 +14,13 @@
 package me.ahoo.wow.ops.testing
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerEntry
 import me.ahoo.wow.api.ledger.LedgerResolution
+import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.ops.api.OpsContext
@@ -72,6 +75,26 @@ class LedgerSimulator(manifest: Manifest, private val topics: InMemoryTopics) {
             operator = LedgerPublisher.OPERATOR,
         )
         sender.send(wire)
+    }
+
+    /**
+     * Refuses [command], a ledger command the ops saga sent, with [code] and [message], as the owning service's intake
+     * does (decision D226): the receipt of its rejection goes back to `wow.<replyTo.context>.receipts`.
+     */
+    @OptIn(InternalWowApi::class) // A receipt as the owning service's intake writes it.
+    suspend fun refuse(command: CommandWire, code: String, message: String) {
+        val replyTo = checkNotNull(command.replyTo) { "${command.type} ${command.id} asks for no receipt." }
+        val rejected = CommandRejected<Any>(
+            commandId = command.id,
+            commandType = command.type,
+            ref = command.ref,
+            error = ErrorInfo(code, message),
+            causation = checkNotNull(command.causation),
+            executionId = replyTo.executionId(),
+            operator = command.operator,
+            scope = command.scope,
+        )
+        topics.send("wow.${replyTo.context}.receipts", CommandMessages.receipt(rejected))
     }
 
     /** The ledger's system commands the ops saga sent to [context]'s command topic, in their order per partition. */

@@ -15,7 +15,6 @@ package me.ahoo.wow.runtime.ledger
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateRef
-import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerCommand
@@ -24,12 +23,7 @@ import me.ahoo.wow.api.ledger.MarkParkedRecoverable
 import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.api.ledger.SkipParked
 import me.ahoo.wow.api.result.ErrorInfo
-import me.ahoo.wow.kernel.CommandType
-import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.runtime.FrameworkCodes
-import me.ahoo.wow.runtime.admission.Authorization
-import me.ahoo.wow.runtime.admission.CommandAction
-import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.node.ParkedOps
@@ -43,10 +37,13 @@ import kotlin.time.Duration
  * Runs the ledger's system commands (`wow.ledger.*`, decision D141) that arrive on a context's command topic, sent by
  * the ops context for an entry of this service: the runtime runs them on the node's [parked] entries, not the kernel.
  *
- * Each is authorized by [authorizer] as the operator's routes authorize the same action: the system command of its
- * name on the parked aggregate, without creation, in the command's scope, for the caller its operator was (the
- * operator of the ops command it derives from, decision D163; anonymous when it has none). A denial, an unknown ledger
- * command and a body that does not read are rejections, which the intake answers as it answers any.
+ * Each is authorized by its source (decision D226, review A3-12): it is taken only when the ops context's saga derived
+ * it, a command with a causation whose reply goes to [opsContext] (`wow.ops.publish.context`, `ops` by default),
+ * where that saga takes the rejections of the commands it sends. The operator is not authorized here: the ops service
+ * authorized them when they asked, and their roles do not travel with the command (decision D163). A command from any
+ * other source is refused ([FrameworkCodes.AUTH_FORBIDDEN]); that, an unknown ledger command and a body that does not
+ * read are rejections, which the intake answers as it answers any, its receipt going back to the sender, so the ops
+ * entry records a refusal of its own action.
  *
  * Resume and Skip act at once when this node owns the entry's partition, else leave a request for its owner
  * ([ParkedOps.resume], [ParkedOps.skip]); marking an entry recoverable and applying a retry spec write the ledger.
@@ -56,7 +53,7 @@ import kotlin.time.Duration
  */
 internal class LedgerCommands(
     private val parked: ParkedOps,
-    private val authorizer: CommandAuthorizer = CommandAuthorizer.ALLOW_ALL,
+    private val opsContext: String = Ledger.OPS_CONTEXT,
     private val publisher: () -> LedgerPublisher? = { null },
 ) {
     /** Runs [wire], a ledger command; the error of its rejection, or null when it ran. */
@@ -79,12 +76,12 @@ internal class LedgerCommands(
                 "The ${wire.type} ${wire.id} names no aggregate: ${invalid.message}"
             )
         }
-        val caller = wire.operator?.let { Caller(it.tenantId, wire.scope, it.id, it.crossScope) }
-            ?: Caller(scope = wire.scope)
-        val action = CommandAction(CommandType(wire.type, type), ref, wire.scope, Creation.NONE)
-        val authorization = authorizer.authorize(caller, action)
-        if (authorization is Authorization.Denied) {
-            return ErrorInfo(authorization.code, authorization.message)
+        if (wire.causation == null || wire.replyTo?.context != opsContext) {
+            logger.warn { "Refused the ${wire.type} ${wire.id} on $ref: it does not come from the $opsContext saga." }
+            return ErrorInfo(
+                FrameworkCodes.AUTH_FORBIDDEN,
+                "${wire.type} is taken from the $opsContext context's saga alone (decision D226).",
+            )
         }
         // The scans leave the entry to the action, which publishes what came of it.
         val publisher = publisher() ?: return run(command, ref)

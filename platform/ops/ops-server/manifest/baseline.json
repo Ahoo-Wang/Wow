@@ -12,7 +12,7 @@
       "description" : "One service's parked entry, as its failure ledger publishes it, and an operator's actions on it",
       "state" : {
         "schema" : "#/$defs/me.ahoo.wow.ops.domain.parked.ParkedState",
-        "fingerprint" : "0f46b404fe68436e0a327902743541a59701c33efcabc062b9a0c16f861e3ba2"
+        "fingerprint" : "e97454fbe6d0a30722d92e1bac5c66ff3a72a48d6c8d726fafe53eb8010bc986"
       },
       "snapshot" : {
         "enabled" : true
@@ -39,6 +39,17 @@
           "path" : "/ops/parked/{id}/mark-recoverable"
         } ],
         "description" : "Mark a parked entry recoverable or not"
+      }, {
+        "name" : "RecordActionRefused",
+        "aliases" : [ ],
+        "schema" : "#/$defs/me.ahoo.wow.ops.api.parked.RecordActionRefused",
+        "creation" : "NONE",
+        "produces" : [ "ActionRefused" ],
+        "routes" : [ {
+          "method" : "POST",
+          "path" : "/ops/parked/{id}/record-action-refused"
+        } ],
+        "description" : "Record an action the owning service refused"
       }, {
         "name" : "RecordParked",
         "aliases" : [ ],
@@ -88,6 +99,12 @@
         "description" : "Skip a parked entry"
       } ],
       "events" : [ {
+        "name" : "ActionRefused",
+        "aliases" : [ ],
+        "revision" : 1,
+        "schema" : "#/$defs/me.ahoo.wow.ops.api.parked.ActionRefused",
+        "description" : "An action was refused"
+      }, {
         "name" : "ApplyRetrySpecRequested",
         "aliases" : [ ],
         "revision" : 1,
@@ -147,6 +164,21 @@
       "ownership" : "TENANT"
     } ],
     "subscriptions" : [ {
+      "name" : "ParkedOperationSaga.onActionRejected",
+      "kind" : "SAGA",
+      "source" : {
+        "aggregates" : [ ],
+        "events" : [ ]
+      },
+      "function" : {
+        "kind" : "SAGA",
+        "context" : "ops",
+        "processor" : "ParkedOperationSaga",
+        "name" : "onActionRejected"
+      },
+      "derives" : [ "ops.parked.RecordActionRefused" ],
+      "rejected" : [ ]
+    }, {
       "name" : "ParkedOperationSaga.onParkedChanged",
       "kind" : "SAGA",
       "source" : {
@@ -373,6 +405,22 @@
       },
       "required" : [ "executionTimeout", "maxRetries", "minBackoff" ]
     },
+    "me.ahoo.wow.ops.api.parked.ActionRefused" : {
+      "type" : "object",
+      "properties" : {
+        "action" : {
+          "type" : "string"
+        },
+        "code" : {
+          "type" : "string"
+        },
+        "reason" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "action", "code", "reason" ],
+      "description" : "An action was refused"
+    },
     "me.ahoo.wow.ops.api.parked.ApplyRetrySpec" : {
       "type" : "object",
       "properties" : {
@@ -448,6 +496,22 @@
       },
       "required" : [ "outcome", "resolvedAt" ],
       "description" : "A parked entry was resolved"
+    },
+    "me.ahoo.wow.ops.api.parked.RecordActionRefused" : {
+      "type" : "object",
+      "properties" : {
+        "action" : {
+          "type" : "string"
+        },
+        "code" : {
+          "type" : "string"
+        },
+        "reason" : {
+          "type" : "string"
+        }
+      },
+      "required" : [ "action", "code", "reason" ],
+      "description" : "Record an action the owning service refused"
     },
     "me.ahoo.wow.ops.api.parked.RecordParked" : {
       "type" : "object",
@@ -573,6 +637,15 @@
         },
         "recoverable" : {
           "type" : "string"
+        },
+        "refusalCode" : {
+          "type" : [ "string", "null" ]
+        },
+        "refusalReason" : {
+          "type" : [ "string", "null" ]
+        },
+        "refusedAction" : {
+          "type" : [ "string", "null" ]
         },
         "request" : {
           "type" : [ "string", "null" ]

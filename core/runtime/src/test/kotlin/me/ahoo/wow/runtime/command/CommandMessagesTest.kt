@@ -22,6 +22,8 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.ledger.Ledger
+import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
@@ -373,6 +375,10 @@ class CommandMessagesTest {
         receipts.handle(rejected)
         receipts.handle(rejected)
         handled.assert().containsExactly("c-1" to Reserve::class.java)
+        // A ledger command no Manifest declares, refused back to the ops saga that sent it (decision D226).
+        receipts.handle(rejected.copyWith(commandId = "c-ledger", commandType = Ledger.RESUME))
+        handled.last().assert().isEqualTo("c-ledger" to ResumeParked::class.java)
+        handled.removeLast()
         // No handler takes it: logged and passed over, once.
         answer = null
         receipts.handle(rejected.copyWith(commandId = "c-2"))

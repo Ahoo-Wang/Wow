@@ -17,8 +17,8 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.LedgerAggregate
@@ -32,11 +32,9 @@ import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.runtime.FrameworkCodes
-import me.ahoo.wow.runtime.admission.Authorization
-import me.ahoo.wow.runtime.admission.CommandAction
-import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
+import me.ahoo.wow.runtime.cluster.ReplyTo
 import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.subscription.Appender
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
@@ -59,7 +57,10 @@ import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
-/** The ledger's system commands on the owning service (decision D141): authorized, run, and published. */
+/**
+ * The ledger's system commands on the owning service (decision D141): taken from the ops context's saga alone
+ * (decision D226), run, and published.
+ */
 class LedgerCommandsTest {
     private val log = InMemoryEventLog(partitions = 2)
     private val appender = Appender(log)
@@ -91,12 +92,7 @@ class LedgerCommandsTest {
     private val ops = ParkedOps { listOf(ParkedOps.Scope.of(runtime)) }
     private val sent = CopyOnWriteArrayList<CommandWire>()
     private val publisher = LedgerPublisher("shop-service", LedgerPublishing(), ops, { sent += it })
-    private val actions = CopyOnWriteArrayList<Pair<Caller, CommandAction>>()
-    private val authorizer = CommandAuthorizer { caller, action ->
-        actions += caller to action
-        if (caller.subject == "mallory") Authorization.Denied("Not an operator.") else Authorization.Allowed
-    }
-    private val commands = LedgerCommands(ops, authorizer) { publisher }
+    private val commands = LedgerCommands(ops, Ledger.OPS_CONTEXT) { publisher }
 
     private suspend fun parkAll(vararg ids: String, start: Boolean = true) {
         ids.forEach { appender.append(it) }
@@ -112,8 +108,33 @@ class LedgerCommandsTest {
         operator,
     )
 
-    private fun wire(type: String, body: JsonNode, ref: AggregateRef = cart("x1"), operator: Operator? = ALICE) =
-        CommandWire(type, "c-1", "r-1", ref, body, scope = Scope.NONE, operator = operator)
+    /** A ledger command as the ops context's saga derives it ([source]): with a causation, its reply to that context. */
+    private fun wire(
+        type: String,
+        body: JsonNode,
+        ref: AggregateRef = cart("x1"),
+        operator: Operator? = ALICE,
+        source: String? = Ledger.OPS_CONTEXT,
+        causation: Causation? = CAUSATION,
+    ) = CommandWire(
+        type,
+        "c-1",
+        "r-1",
+        ref,
+        body,
+        scope = Scope.NONE,
+        causation = causation,
+        operator = operator,
+        replyTo = source?.let { ReplyTo(it, "ParkedOperationSaga.onParkedChanged", PARKED_ENTRY, 2) },
+    )
+
+    private fun wire(command: LedgerCommand, source: String?, causation: Causation? = CAUSATION): CommandWire = wire(
+        Ledger.nameOf(command.javaClass)!!,
+        ClusterCodec.mapper.valueToTree(command),
+        command.aggregate.toRef(),
+        source = source,
+        causation = causation,
+    )
 
     private fun lastRecord(): JsonNode = sent.last().record
 
@@ -154,12 +175,6 @@ class LedgerCommandsTest {
         }
         commands.execute(wire(ResumeParked(NAME, X1))).assert().isNull()
         lastRecord()["outcome"].asString().assert().isEqualTo(LedgerResolution.NOT_PARKED)
-        val (caller, action) = actions.first()
-        caller.subject.assert().isEqualTo("alice")
-        caller.tenantId.assert().isEqualTo("t")
-        action.type.name.assert().isEqualTo(Ledger.RESUME)
-        action.type.type.assert().isEqualTo(ResumeParked::class.java)
-        action.ref.assert().isEqualTo(cart("x1"))
         runtime.stop()
     }
 
@@ -208,20 +223,40 @@ class LedgerCommandsTest {
     }
 
     @Test
-    fun `a command that is denied, unknown or does not read is a rejection`(): Unit = runBlocking {
+    fun `a command the ops context's saga did not derive is refused, whoever its operator (D226)`(): Unit =
+        runBlocking {
+            parkAll("x1", start = false)
+            // From another context's saga, or from no saga at all (a command written to the topic by hand).
+            listOf(
+                wire(SkipParked(NAME, X1), source = "shop"),
+                wire(SkipParked(NAME, X1), source = null),
+                wire(SkipParked(NAME, X1), source = Ledger.OPS_CONTEXT, causation = null),
+            ).forEach { refused ->
+                val error = commands.execute(refused)!!
+                error.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
+                error.message.assert().contains("ops")
+            }
+            ledger.parked(NAME, cart("x1"))!!.request.assert().isNull()
+            sent.assert().isEmpty()
+            // Another ops context, as wow.ops.publish.context names it.
+            val elsewhere = LedgerCommands(ops, "platform-ops") { publisher }
+            elsewhere.execute(wire(SkipParked(NAME, X1), source = Ledger.OPS_CONTEXT))!!.code.assert()
+                .isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
+            elsewhere.execute(wire(SkipParked(NAME, X1), source = "platform-ops")).assert().isNull()
+            ledger.parked(NAME, cart("x1"))!!.request.assert().isEqualTo(LedgerRequest.SKIP)
+        }
+
+    @Test
+    fun `a command that is unknown or does not read is a rejection`(): Unit = runBlocking {
         parkAll("x1", start = false)
-        commands.execute(wire(SkipParked(NAME, X1), Operator("mallory", "t")))!!.message.assert()
-            .isEqualTo("Not an operator.")
         commands.execute(wire(Ledger.NAMESPACE + ".Unknown", ClusterCodec.mapper.createObjectNode()))!!.code
             .assert().isEqualTo(FrameworkCodes.MALFORMED)
         commands.execute(wire(Ledger.RESUME, ClusterCodec.mapper.createObjectNode()))!!.code
             .assert().isEqualTo(FrameworkCodes.MALFORMED)
         val blank = ClusterCodec.mapper.valueToTree<JsonNode>(ResumeParked(NAME, X1.copy(id = " ")))
         commands.execute(wire(Ledger.RESUME, blank))!!.code.assert().isEqualTo(FrameworkCodes.MALFORMED)
-        // A command without an operator is authorized as the anonymous caller, in its scope.
+        // A command from the ops saga is taken by its source, with or without an operator, whatever its roles.
         commands.execute(wire(SkipParked(NAME, X1), operator = null)).assert().isNull()
-        actions.last().first.subject.assert().isNull()
-        actions.last().first.tenantId.assert().isEqualTo(Caller.DEFAULT_TENANT)
         // The partition is another node's: the skip is left for it.
         ledger.parked(NAME, cart("x1"))!!.request.assert().isEqualTo(LedgerRequest.SKIP)
     }
@@ -237,6 +272,8 @@ class LedgerCommandsTest {
     }
 
     private companion object {
+        val CAUSATION = Causation("root-1", "ops.parked/(0)/entry-1@2")
+        val PARKED_ENTRY: AggregateRef = me.ahoo.wow.api.aggregate.AggregateType("ops", "parked").ref("(0)", "entry-1")
         const val NAME = "Projector.onCart"
         val ALICE = Operator("alice", "t")
         val X1 = LedgerAggregate.of(cart("x1"))

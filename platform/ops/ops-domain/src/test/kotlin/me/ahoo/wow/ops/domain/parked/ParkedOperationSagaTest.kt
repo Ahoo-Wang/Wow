@@ -24,6 +24,7 @@ import me.ahoo.wow.ops.api.OpsContext
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
 import me.ahoo.wow.ops.api.parked.MarkRecoverableRequested
 import me.ahoo.wow.ops.api.parked.ParkedRecorded
+import me.ahoo.wow.ops.api.parked.RecordActionRefused
 import me.ahoo.wow.ops.api.parked.ResumeRequested
 import me.ahoo.wow.ops.api.parked.SkipRequested
 import me.ahoo.wow.test.sagaSpec
@@ -63,6 +64,19 @@ class ParkedOperationSagaTest {
                 ApplyParkedRetrySpec(ParkedSpec.SUBSCRIPTION, ParkedSpec.AGGREGATE, 1, "PT1M", null),
                 to = target,
             )
+        }
+    }
+
+    @Test
+    fun `a command the owning service refuses is recorded on the entry (D226)`() = sagaSpec(handlers) {
+        whenEvent(requested(ResumeRequested())) {
+            val resume = commands.single()
+            whenRejected(resume, "wow.auth.forbidden", "Not from the ops saga.", commandType = Ledger.RESUME) {
+                expectCommand(
+                    RecordActionRefused(Ledger.RESUME, "wow.auth.forbidden", "Not from the ops saga."),
+                    to = parked,
+                )
+            }
         }
     }
 

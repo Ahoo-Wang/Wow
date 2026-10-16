@@ -27,6 +27,13 @@ data class ParkedRecorded(val entry: LedgerEntry)
 @Summary("A parked entry was resolved")
 data class ParkedResolved(val outcome: String, val failedAt: Long? = null, val resolvedAt: Long)
 
+/**
+ * The owning service refused the operator's last request on the entry: the ledger's system command [action], with the
+ * error [code] and [reason] of its rejection (decision D226).
+ */
+@Summary("An action was refused")
+data class ActionRefused(val action: String, val code: String, val reason: String)
+
 /** An operator asked the owning service to resume the entry, for [reason]. */
 @Summary("A resume was requested")
 data class ResumeRequested(val reason: String? = null)

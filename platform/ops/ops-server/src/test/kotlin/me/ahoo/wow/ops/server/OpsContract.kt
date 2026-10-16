@@ -162,6 +162,30 @@ abstract class OpsContract {
     }
 
     @Test
+    fun `an action the owning service refuses should be recorded on the entry, for the console to show (D226)`() {
+        val context = context()
+        val id = ops.publish(entry(context, "p-1"))
+        eventually("$id recorded") { state(id) != null }
+
+        ops.post("/ops/parked/$id/resume", "{}", Who.OPERATOR).assertOk()
+        eventually("the resume sent to $context") { ops.ledgerCommands(context).isNotEmpty() }
+        val resume = ops.ledgerCommands(context).single()
+        // What the owning service takes it by: a command derived by the ops context's saga, its receipts back there.
+        resume.causation.assert().isNotNull()
+        resume.replyTo!!.context.assert().isEqualTo(Ledger.OPS_CONTEXT)
+
+        ops.refuse(resume, "wow.auth.forbidden", "Taken from the ops context's saga alone.")
+        eventually("$id refused") { state(id)!!["refusedAction"]?.asString() == Ledger.RESUME }
+        val refused = state(id)!!
+        refused["refusalCode"].asString().assert().isEqualTo("wow.auth.forbidden")
+        refused["refusalReason"].asString().assert().isEqualTo("Taken from the ops context's saga alone.")
+        refused["requested"]?.takeUnless { it.isNull }.assert().isNull()
+        // The operator may ask again, which clears the refusal.
+        ops.post("/ops/parked/$id/skip", "{}", Who.OPERATOR).assertOk()
+        state(id)!!["refusedAction"]?.takeUnless { it.isNull }.assert().isNull()
+    }
+
+    @Test
     fun `skip, mark-recoverable and apply-retry-spec should go back as the ledger's commands of the same name`() {
         val context = context()
         val id = ops.publish(entry(context, "p-1"))

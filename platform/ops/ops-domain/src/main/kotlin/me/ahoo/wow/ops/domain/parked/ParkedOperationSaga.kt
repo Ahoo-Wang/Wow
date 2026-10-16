@@ -14,6 +14,7 @@
 package me.ahoo.wow.ops.domain.parked
 
 import me.ahoo.wow.api.annotation.OnEvent
+import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Saga
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.ledger.ApplyParkedRetrySpec
@@ -21,10 +22,12 @@ import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.MarkParkedRecoverable
 import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.api.ledger.SkipParked
+import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
 import me.ahoo.wow.ops.api.parked.MarkRecoverableRequested
+import me.ahoo.wow.ops.api.parked.RecordActionRefused
 import me.ahoo.wow.ops.api.parked.ResumeRequested
 import me.ahoo.wow.ops.api.parked.SkipRequested
 
@@ -32,8 +35,13 @@ import me.ahoo.wow.ops.api.parked.SkipRequested
  * Sends an operator's request on a [Parked] entry back to the service that owns the entry (decision D141): the ledger's
  * system command of the same name (`wow.ledger.Resume`, `Skip`, `MarkRecoverable`, `ApplyRetrySpec`), to the command
  * topic of the context that holds the entry ([ParkedState.context]), addressed to the entry ([Ledger.targetOf]). The
- * owning service authorizes it as the operator who asked (the command keeps the operator of the root command, decision
- * D163), runs it on its ledger, and publishes the entry as it then stands, which comes back as a record.
+ * owning service takes it because this saga of the ops context sent it (decision D226; the operator was authorized
+ * here, and keeps being the command's, decision D163), runs it on its ledger, and publishes the entry as it then
+ * stands, which comes back as a record.
+ *
+ * A command the owning service refuses comes back as its rejection's receipt ([onActionRejected]), which the entry
+ * records as [RecordActionRefused], so the console shows why the operator's request came to nothing. Taking the
+ * receipts is also what makes each command carry this context as its source.
  */
 @Saga
 class ParkedOperationSaga {
@@ -58,4 +66,12 @@ class ParkedOperationSaga {
         }
         return context.command(Ledger.targetOf(state.context, event.ref.id), command)
     }
+
+    /** The owning service refused a command this saga sent for the entry: the entry records the refusal. */
+    @OnRejected
+    fun onActionRejected(rejected: CommandRejected<*>, context: SagaContext): Command<RecordActionRefused> =
+        context.command(
+            rejected.executionId.ref,
+            RecordActionRefused(rejected.commandType, rejected.error.code, rejected.error.message),
+        )
 }

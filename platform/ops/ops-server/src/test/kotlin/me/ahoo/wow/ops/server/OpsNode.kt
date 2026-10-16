@@ -121,6 +121,11 @@ class OpsNode(val context: ConfigurableApplicationContext) : AutoCloseable {
     /** The ledger's system commands the ops saga sent to [context]'s command topic, in their order per partition. */
     fun ledgerCommands(context: String): List<CommandWire> = ledger.ledgerCommands(context)
 
+    /** Refuses [command] with [code] and [message], as the owning service does (decision D226). */
+    fun refuse(command: CommandWire, code: String, message: String) {
+        runBlocking { ledger.refuse(command, code, message) }
+    }
+
     override fun close() {
         context.close()
     }

@@ -17,6 +17,7 @@ import me.ahoo.wow.api.ledger.LedgerAggregate
 import me.ahoo.wow.api.ledger.LedgerEntry
 import me.ahoo.wow.api.ledger.LedgerRetrySpec
 import me.ahoo.wow.api.query.annotation.QueryTemporal
+import me.ahoo.wow.ops.api.parked.ActionRefused
 import me.ahoo.wow.ops.api.parked.ApplyRetrySpecRequested
 import me.ahoo.wow.ops.api.parked.MarkRecoverableRequested
 import me.ahoo.wow.ops.api.parked.ParkedRecorded
@@ -30,7 +31,9 @@ import me.ahoo.wow.ops.api.parked.SkipRequested
  * snapshot is the read model an operator queries. While parked, it is the entry's [LedgerEntry]; once resolved,
  * [status] is [ParkedStatus.RESOLVED] with the [outcome]. [requested] is the last action an operator asked of the
  * owning service (`RESUME`, `SKIP`, `MARK_RECOVERABLE` or `APPLY_RETRY_SPEC`), until the service publishes the entry
- * again. [errorType] is what [reason] says failed, which an operator groups the entries by (roadmap 7.1c).
+ * again. [refusedAction], [refusalCode] and [refusalReason] say why the service refused the last request (decision
+ * D226), until the next request or the entry's resolution. [errorType] is what [reason] says failed, which an operator
+ * groups the entries by (roadmap 7.1c).
  *
  * Its times are epoch milliseconds, declared so (`@QueryTemporal`): a query counts the entries by day or hour of them.
  */
@@ -96,6 +99,18 @@ class ParkedState {
     var requested: String? = null
         private set
 
+    /** The ledger's system command the owning service refused (`wow.ledger.Resume`, ...), or null. */
+    var refusedAction: String? = null
+        private set
+
+    /** The error code of that refusal, such as `wow.auth.forbidden`. */
+    var refusalCode: String? = null
+        private set
+
+    /** Why the owning service refused it. */
+    var refusalReason: String? = null
+        private set
+
     /** Whether the owning service no longer parks the entry. */
     val resolved: Boolean get() = status == ParkedStatus.RESOLVED
 
@@ -144,22 +159,39 @@ class ParkedState {
         request = null
         nextRetryAt = null
         requested = null
+        refused(null)
+    }
+
+    fun onSourcing(event: ActionRefused) {
+        requested = null
+        refused(event)
     }
 
     fun onSourcing(@Suppress("UNUSED_PARAMETER") event: ResumeRequested) {
-        requested = RESUME
+        requested(RESUME)
     }
 
     fun onSourcing(@Suppress("UNUSED_PARAMETER") event: SkipRequested) {
-        requested = SKIP
+        requested(SKIP)
     }
 
     fun onSourcing(@Suppress("UNUSED_PARAMETER") event: MarkRecoverableRequested) {
-        requested = MARK_RECOVERABLE
+        requested(MARK_RECOVERABLE)
     }
 
     fun onSourcing(@Suppress("UNUSED_PARAMETER") event: ApplyRetrySpecRequested) {
-        requested = APPLY_RETRY_SPEC
+        requested(APPLY_RETRY_SPEC)
+    }
+
+    private fun requested(action: String) {
+        requested = action
+        refused(null)
+    }
+
+    private fun refused(event: ActionRefused?) {
+        refusedAction = event?.action
+        refusalCode = event?.code
+        refusalReason = event?.reason
     }
 
     companion object {
