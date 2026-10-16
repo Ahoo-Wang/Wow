@@ -70,6 +70,7 @@ import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import tools.jackson.databind.node.ObjectNode
 import java.nio.charset.StandardCharsets
@@ -102,8 +103,10 @@ import java.util.Base64
  *
  * A record is the stream: `aggregateId`, `tenantId`, `version`, `commitTime`, `commandId`, `requestId`,
  * `commandType`, `ownerId` and `spaceId` when set, `operator` (`{id, tenantId, crossScope}`, decision D163) when the
- * stream has one, and `events`, each `{name, revision, body}` as the log stores it (at its own revision, not
- * upgraded).
+ * stream has one, and `events`, each `{name, revision, body}` as [reading] gives it: the host reads each event as the
+ * aggregate's model does now (finding A4-16, [me.ahoo.wow.kernel.EventCodec.current]), under its current name, at
+ * its current revision and upgraded to it, an event the aggregate retired left out, so the records match the event
+ * types the Manifest gives clients. Without a model, as the log stores it.
  */
 @InternalWowApi
 class EventQueryGateway(
@@ -115,11 +118,13 @@ class EventQueryGateway(
     val ownership: Ownership = Ownership.OWNER,
     /** Whether a caller sees an aggregate ([StateVisibility]); every one by default. */
     private val visibility: suspend (AggregateRef, QueryCaller) -> Boolean = { _, _ -> true },
+    /** How an event of the log reads in a record: null leaves it out; as the log stores it by default. */
+    private val reading: (EventRecord) -> EventRecord? = { it },
 ) {
     /** The first stream [query] matches, or `null` when none does. */
     suspend fun single(query: ISingleQuery, caller: QueryCaller): ObjectNode? {
         val admitted = admit(query, caller) { it.check(query) }
-        return bounded(admitted) { admitted.streams().firstOrNull()?.let(::record) }
+        return bounded(admitted) { admitted.streams().firstOrNull()?.let(::read) }
     }
 
     /** The streams [query] matches, at most its limit (`0` for every one). */
@@ -129,9 +134,9 @@ class EventQueryGateway(
         // Bounded as a whole, as the snapshot gateway bounds a streamed list.
         val timeout = admitted.timeout
         if (timeout == null) {
-            streams.collect { emit(record(it)) }
+            streams.collect { emit(read(it)) }
         } else {
-            bounded(admitted) { streams.toList() }.forEach { emit(record(it)) }
+            bounded(admitted) { streams.toList() }.forEach { emit(read(it)) }
         }
     }
 
@@ -144,7 +149,7 @@ class EventQueryGateway(
                 .drop(Pagination.offset(pagination.index, pagination.size))
                 .take(pagination.size)
                 .toList()
-                .map(::record)
+                .map(::read)
             when (query.total) {
                 TotalMode.NONE -> PagedList(null, page)
                 TotalMode.EXACT -> PagedList(admitted.streams().count(null), page)
@@ -164,7 +169,7 @@ class EventQueryGateway(
         return bounded(admitted) {
             val streams = admitted.copy(range = admitted.range.after(after)).streams().take(query.size + 1).toList()
             val page = streams.take(query.size)
-            CursorPage(page.map(::record), page.lastOrNull()?.takeIf { streams.size > query.size }?.let(::encodeCursor))
+            CursorPage(page.map(::read), page.lastOrNull()?.takeIf { streams.size > query.size }?.let(::encodeCursor))
         }
     }
 
@@ -212,6 +217,9 @@ class EventQueryGateway(
             .put("version", "sha256:" + digest.joinToString("") { "%02x".format(it) })
             .setAll(descriptor) as ObjectNode
     }
+
+    /** [stream] as this model's record, its events as [reading] gives them. */
+    private fun read(stream: EventStreamRecord): ObjectNode = record(stream, reading)
 
     /** A query of this model the caller may run: its aggregate's range, its budget and its timeout. */
     private data class Admitted(
@@ -332,8 +340,8 @@ class EventQueryGateway(
                 ?: throw QueryViolation.InvalidCursor.rejection()
         }
 
-        /** [stream] as this model's record. */
-        fun record(stream: EventStreamRecord): ObjectNode {
+        /** [stream] as this model's record, each of its events as [reading] gives it (as stored by default). */
+        fun record(stream: EventStreamRecord, reading: (EventRecord) -> EventRecord? = { it }): ObjectNode {
             val record = WowJson.mapper.createObjectNode()
                 .put(AGGREGATE_ID, stream.ref.id)
                 .put(TENANT_ID, stream.ref.tenantId)
@@ -351,7 +359,7 @@ class EventQueryGateway(
                     .put("crossScope", operator.crossScope)
             }
             val events = record.putArray("events")
-            stream.events.forEach { event ->
+            stream.events.mapNotNull(reading).forEach { event ->
                 events.addObject()
                     .put("name", event.name)
                     .put("revision", event.revision)

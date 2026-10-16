@@ -18,5 +18,5 @@ export const OrderAggregate = {
 /** The `state.*` paths of `order`'s snapshots a query filters, sorts and projects on. */
 export type OrderStateField = 'state.cancelReason' | 'state.confirmedProducts' | 'state.items' | 'state.paymentId' | 'state.status' | 'state.totalAmount';
 
-/** The events of `order`, named as the server sends them: `eshop-ordering.order.<Event>`, and the system events every aggregate has. */
+/** The events of `order`, named as the server sends them, `eshop-ordering.order.<Event>` at its current revision (the `events` query upgrades older records), and the system events every aggregate has. */
 export type OrderEvent = EventView<'eshop-ordering.order.OrderAwaitingValidation', OrderAwaitingValidation> | EventView<'eshop-ordering.order.OrderCancelled', OrderCancelled> | EventView<'eshop-ordering.order.OrderPaid', OrderPaid> | EventView<'eshop-ordering.order.OrderShipped', OrderShipped> | EventView<'eshop-ordering.order.OrderStockConfirmed', OrderStockConfirmed> | EventView<'eshop-ordering.order.OrderStockItemConfirmed', OrderStockItemConfirmed> | EventView<'eshop-ordering.order.OrderSubmitted', OrderSubmitted> | SystemEvent;

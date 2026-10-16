@@ -102,10 +102,10 @@ class QueryNode(
         HttpQueries(
             snapshots = listOfNotNull(gateway),
             events = listOf(
-                EventQueryGateway(cartType, log, entryPolicy = entryPolicy) { ref, caller ->
+                EventQueryGateway(cartType, log, entryPolicy = entryPolicy, visibility = { ref, caller ->
                     // As the host wires it: the latest state, visible through the snapshot queries (review A3-11).
                     http.reads.latest(ref)?.let { StateVisibility.visible(gateway, caller, it) } ?: true
-                },
+                }),
             ),
             defaultListSize = defaultListSize,
             snapshotStatus = snapshotStatus,

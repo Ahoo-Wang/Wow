@@ -18,5 +18,5 @@ export const CategoryAggregate = {
 /** The `state.*` paths of `category`'s snapshots a query filters, sorts and projects on. */
 export type CategoryStateField = 'state.name';
 
-/** The events of `category`, named as the server sends them: `eshop-catalog.category.<Event>`, and the system events every aggregate has. */
+/** The events of `category`, named as the server sends them, `eshop-catalog.category.<Event>` at its current revision (the `events` query upgrades older records), and the system events every aggregate has. */
 export type CategoryEvent = EventView<'eshop-catalog.category.CategoryCreated', CategoryCreated> | EventView<'eshop-catalog.category.CategoryRenamed', CategoryRenamed> | SystemEvent;

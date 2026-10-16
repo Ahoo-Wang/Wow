@@ -188,7 +188,9 @@ export interface StateView<S = unknown> {
 }
 
 /**
- * An event as Wow reads it now, upgraded to its latest revision.
+ * An event as Wow reads it now: under its current name, upgraded to its latest revision. The `events` query gives
+ * every stored event so, however old its record, and leaves out the events its aggregate retired, so a generated
+ * `<Aggregate>Event` union, with {@link SystemEvent}, covers each event it returns.
  *
  * @typeParam N - The event's name.
  * @typeParam B - The event's body.

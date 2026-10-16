@@ -18,5 +18,5 @@ export const PaymentAggregate = {
 /** The `state.*` paths of `payment`'s snapshots a query filters, sorts and projects on. */
 export type PaymentStateField = 'state.amount' | 'state.orderId' | 'state.reason' | 'state.status' | 'state.transactionId';
 
-/** The events of `payment`, named as the server sends them: `eshop-payment.payment.<Event>`, and the system events every aggregate has. */
+/** The events of `payment`, named as the server sends them, `eshop-payment.payment.<Event>` at its current revision (the `events` query upgrades older records), and the system events every aggregate has. */
 export type PaymentEvent = EventView<'eshop-payment.payment.PaymentFailed', PaymentFailed> | EventView<'eshop-payment.payment.PaymentRefunded', PaymentRefunded> | EventView<'eshop-payment.payment.PaymentRequested', PaymentRequested> | EventView<'eshop-payment.payment.PaymentSucceeded', PaymentSucceeded> | SystemEvent;
