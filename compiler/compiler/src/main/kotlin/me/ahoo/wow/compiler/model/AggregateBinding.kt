@@ -155,7 +155,15 @@ internal data class SourcingBinding(
     val type: String,
     /** What the event's class says it is ([Descriptions]). */
     val description: String? = null,
-)
+    /**
+     * The sealed type the function takes, before it is expanded into a binding per concrete subclass (finding A4-9);
+     * null for a function of one event class, the only kind the model is generated from.
+     */
+    val declaration: com.google.devtools.ksp.symbol.KSClassDeclaration? = null,
+) {
+    /** Whether the function takes a sealed type, which is expanded into its subclasses. */
+    val sealed: Boolean get() = declaration != null
+}
 
 internal data class AfterBinding(
     val function: String,

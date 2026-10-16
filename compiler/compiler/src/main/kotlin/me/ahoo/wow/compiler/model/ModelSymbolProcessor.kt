@@ -24,6 +24,7 @@ import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.processing.SymbolProcessorEnvironment
 import com.google.devtools.ksp.processing.SymbolProcessorProvider
+import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSFile
@@ -46,6 +47,7 @@ import me.ahoo.wow.api.annotation.OnSourcing
 import me.ahoo.wow.api.annotation.Revision
 import me.ahoo.wow.api.annotation.Unaddressed
 import me.ahoo.wow.api.lifecycle.Lifecycle
+import me.ahoo.wow.api.schedule.Schedules
 import me.ahoo.wow.manifest.ContextName
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
@@ -474,7 +476,7 @@ internal class ModelSymbolProcessor(
             problems += "two command functions handle $it"
         }
         val sourcingFunctions = state.functionsNamedOrAnnotated(ON_SOURCING, ON_SOURCING_ANNOTATION, problems)
-        val sourcing = sourcingFunctions.mapNotNull { function -> sourcingBinding(function, state, problems) }
+        val sourcing = sourcingOf(sourcingFunctions, state, problems)
         val commandTypes = commandFunctions.mapNotNull { firstParameterClass(it, unwrapCommand = true) }
         val afters = root.functionsNamedOrAnnotated(AFTER_COMMAND, AFTER_COMMAND_ANNOTATION, problems)
             .mapNotNull { function -> afterBinding(function, commandTypes, dependencies, problems, warnings) }
@@ -482,6 +484,7 @@ internal class ModelSymbolProcessor(
             problems += misplacedProblems(root, state)
         }
         problems += producesProblems(commands, sourcing)
+        problems += yieldProblems(commands, afters, sourcing)
         val eventTypes = sourcingFunctions.mapNotNull { function -> firstParameterClass(function, unwrapCommand = false) }
         problems += annotationProblems(root, state, commandTypes, eventTypes)
         val aggregateName = root.toName()
@@ -552,6 +555,61 @@ internal class ModelSymbolProcessor(
             }
         }
     }
+
+    /**
+     * What a command function or an after hook produces, as its return type says ([EventYield]), is an event of the
+     * aggregate (finding A4-9): the kernel cannot evolve the state with an event no sourcing function takes, so every
+     * such command would fail at run time. A system event (lifecycle, schedule) is always one.
+     */
+    private fun yieldProblems(
+        commands: List<CommandBinding>,
+        afters: List<AfterBinding>,
+        sourcing: List<SourcingBinding>,
+    ): List<String> {
+        val events = sourcing.map { it.event }.toSet() + SYSTEM_EVENTS
+        val fix = "no sourcing function takes it; add one to the state, an empty one when the event changes nothing"
+        // `@OnCommand(produces)` is checked on its own ([producesProblems]).
+        return commands.filter { it.declaredProduces.isEmpty() }.flatMap { command ->
+            command.yields.orEmpty().filterNot { it in events }.map {
+                "${command.function}(${command.command}) produces $it, which is not an event of the aggregate: $fix"
+            }
+        } + afters.flatMap { after ->
+            after.yields.orEmpty().filterNot { it in events }.map {
+                "after hook ${after.function} produces $it, which is not an event of the aggregate: $fix"
+            }
+        }
+    }
+
+    /**
+     * The bindings of the sourcing [functions] of [state]. A function taking a sealed type evolves each of its
+     * concrete subclasses (finding A4-9), those another function takes by their own class aside; one taking any other
+     * interface or abstract class is a problem: the kernel finds a sourcing function by the event's exact class.
+     */
+    private fun sourcingOf(
+        functions: List<KSFunctionDeclaration>,
+        state: KSClassDeclaration,
+        problems: MutableList<String>,
+    ): List<SourcingBinding> {
+        val bound = functions.map { function -> function to sourcingBinding(function, state, problems) }
+        val direct = bound.filter { (_, binding) -> binding != null && !binding.sealed }.map { it.second!! }
+        val expanded = bound.mapNotNull { it.second }.filter { it.sealed }.flatMap { sealed ->
+            sealedEvents(sealed.declaration!!).filterNot { event -> direct.any { it.event == event.render() } }
+                .map { event -> eventBinding(event, sealed.function, sealed.returnsState) }
+        }
+        expanded.groupBy { it.event }.filterValues { it.size > 1 }.forEach { (event, twice) ->
+            problems += "the sourcing functions ${twice.joinToString { it.function }} both take $event, through " +
+                "sealed types: give $event a sourcing function of its own"
+        }
+        return direct + expanded.distinctBy { it.event }
+    }
+
+    /** The concrete classes of the sealed [type], its sealed subclasses' included. */
+    private fun sealedEvents(type: KSClassDeclaration): List<KSClassDeclaration> =
+        type.getSealedSubclasses().flatMap { sub ->
+            if (Modifier.SEALED in sub.modifiers) sealedEvents(sub).asSequence() else sequenceOf(sub)
+        }.toList()
+
+    private fun KSClassDeclaration.render(): String = asStarProjectedType().render()
 
     /** The problems of the `@Alias` values of the aggregate's commands and events ([AliasCheck]). */
     private fun aliasProblems(
@@ -810,23 +868,50 @@ internal class ModelSymbolProcessor(
             problems += "sourcing function $name is annotated @Blocking: evolving does no I/O"
         }
         val eventType = function.parameters.single().type.resolve()
-        val event = eventType.declaration as? KSClassDeclaration ?: return null
-        val returned = function.returnType?.resolve()?.declaration?.qualifiedName?.asString()
-        val revision = event.getAnnotationsByType(Revision::class).firstOrNull()?.value ?: 1
-        if (revision < 1) {
-            problems += "event ${event.simpleName.asString()} has @Revision($revision): a revision starts at 1"
+        val event = eventType.declaration as? KSClassDeclaration
+        val returnsState = function.returnType?.resolve()?.declaration?.qualifiedName?.asString() ==
+            state.qualifiedName?.asString()
+        if (event == null || event.qualifiedName?.asString() in ANY_TYPES) {
+            problems += "sourcing function $name takes ${eventType.render()}: a sourcing function takes the class of " +
+                "its event"
+            return null
         }
-        return SourcingBinding(
-            event = eventType.render(),
+        if (Modifier.SEALED in event.modifiers) {
+            return SourcingBinding(
+                event = eventType.render(),
+                eventName = null,
+                function = name,
+                returnsState = returnsState,
+                type = event.binaryName(),
+                declaration = event,
+            )
+        }
+        if (event.classKind == ClassKind.INTERFACE || Modifier.ABSTRACT in event.modifiers) {
+            problems += "sourcing function $name takes ${eventType.render()}, which is not a concrete class: the " +
+                "kernel finds a sourcing function by its event's class, so take each event class, or a sealed type " +
+                "whose subclasses are the events"
+            return null
+        }
+        return eventBinding(event, name, returnsState).also {
+            if (it.revision < 1) {
+                problems += "event ${event.simpleName.asString()} has @Revision(${it.revision}): a revision starts at 1"
+            }
+        }
+    }
+
+    /** The binding of [function] evolving [event], a concrete event class. */
+    @OptIn(KspExperimental::class)
+    private fun eventBinding(event: KSClassDeclaration, function: String, returnsState: Boolean): SourcingBinding =
+        SourcingBinding(
+            event = event.render(),
             eventName = event.getAnnotationsByType(Name::class).firstOrNull()?.value,
-            revision = revision,
+            revision = event.getAnnotationsByType(Revision::class).firstOrNull()?.value ?: 1,
             aliases = event.getAnnotationsByType(Alias::class).flatMap { it.value.toList() }.toList(),
-            function = name,
-            returnsState = returned == state.qualifiedName?.asString(),
+            function = function,
+            returnsState = returnsState,
             type = event.binaryName(),
             description = Descriptions.of(event),
         )
-    }
 
     /**
      * An after hook (finding A4-3) takes its parameters as a command function does: first the command, as its body
@@ -987,6 +1072,10 @@ internal class ModelSymbolProcessor(
         val AFTER_COMMAND_ANNOTATION: String = AfterCommand::class.java.name
         const val ANY = "kotlin.Any"
         val ANY_TYPES = setOf(ANY, "java.lang.Object")
+
+        /** The system events every aggregate may commit (lifecycle and schedule), by Kotlin name. */
+        val SYSTEM_EVENTS: Set<String> =
+            (Lifecycle.EVENTS.values + Schedules.EVENTS.values).map { it.canonicalName }.toSet()
 
         /** The lifecycle commands (design 01 §6), by Kotlin name: an after hook may include them. */
         val LIFECYCLE_COMMANDS: Set<String> = Lifecycle.COMMANDS.values.map { it.canonicalName }.toSet()
