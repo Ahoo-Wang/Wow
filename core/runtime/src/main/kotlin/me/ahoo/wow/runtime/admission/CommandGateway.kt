@@ -19,14 +19,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.job
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.withContext
@@ -46,6 +44,7 @@ import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.DecideFunction
 import me.ahoo.wow.runtime.FrameworkCodes
+import me.ahoo.wow.runtime.ZeroAwaitingCounter
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.admissionRejected
@@ -158,7 +157,7 @@ class CommandGateway @InternalWowApi constructor(
     private var closed = false
 
     /** The requests between their check of [closed] and the launch of their detached command, if any. */
-    private val admissions = MutableStateFlow(0)
+    private val admissions = ZeroAwaitingCounter()
 
     init {
         val missing = registry.contexts - this.coordinators.keys
@@ -241,7 +240,7 @@ class CommandGateway @InternalWowApi constructor(
     suspend fun close() {
         closed = true
         // A request counted before it read `closed` launches its detached command, if any, before it is uncounted.
-        admissions.first { it == 0 }
+        admissions.awaitZero()
         while (true) {
             val running = detached.coroutineContext.job.children.toList()
             if (running.isEmpty()) {
@@ -254,11 +253,11 @@ class CommandGateway @InternalWowApi constructor(
 
     /** Runs [block], an admission and the launch of its detached command, counted in [admissions]. */
     private inline fun <T> counted(block: () -> T): T {
-        admissions.update { it + 1 }
+        admissions.increment()
         try {
             return block()
         } finally {
-            admissions.update { it - 1 }
+            admissions.decrement()
         }
     }
 

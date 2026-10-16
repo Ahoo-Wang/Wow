@@ -26,9 +26,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
@@ -37,6 +35,7 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.runtime.ZeroAwaitingCounter
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.timer.TimerRunner
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -316,12 +315,12 @@ class PartitionOwnership internal constructor(
      */
     suspend fun <T : Any> runIfAccepting(partition: Int, command: suspend () -> T): T? {
         val gate = gates[partition]?.takeIf { it.open } ?: return null
-        gate.inFlight.update { it + 1 }
+        gate.inFlight.increment()
         try {
             // A hand-off may have stopped accepting meanwhile and seen nothing in flight: back out.
             return if (gate.open) command() else null
         } finally {
-            gate.inFlight.update { it - 1 }
+            gate.inFlight.decrement()
         }
     }
 
@@ -447,7 +446,7 @@ class PartitionOwnership internal constructor(
                 stopTimers(partition)
                 // The intake stops taking the partition's commands, settles those in flight and saves its checkpoint.
                 quietly("stop the command intake of partition $partition") { intake?.stopPartition(partition) }
-                withTimeoutOrNull(options.drainTimeout) { gate.inFlight.first { it <= 0 } } ?: logger.warn {
+                withTimeoutOrNull(options.drainTimeout) { gate.inFlight.awaitZero() } ?: logger.warn {
                     "$node handed off partition $partition of $group with commands still in flight."
                 }
                 stopSubscriptions(partition)
@@ -604,7 +603,7 @@ class PartitionOwnership internal constructor(
 
         @Volatile
         var lost = false
-        val inFlight = MutableStateFlow(0)
+        val inFlight = ZeroAwaitingCounter()
 
         val overdue: Boolean get() = renewedAt.elapsedNow() >= unrenewedLimit
 

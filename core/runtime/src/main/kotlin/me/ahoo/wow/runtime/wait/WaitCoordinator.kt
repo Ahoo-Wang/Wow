@@ -49,13 +49,14 @@ import me.ahoo.wow.runtime.ExecutorClosedException
 import me.ahoo.wow.runtime.cluster.CommandRouter
 import me.ahoo.wow.runtime.cluster.TopicRouter
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.observation.traceContext
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
-import java.util.UUID
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.ScheduledThreadPoolExecutor
+import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.CoroutineContext
@@ -196,7 +197,7 @@ class WaitCoordinator(
     private val signals: SignalSender,
     options: WaitOptions,
     private val clock: () -> Long = System::currentTimeMillis,
-    private val waitIds: () -> String = { UUID.randomUUID().toString() },
+    private val waitIds: () -> String = GlobalIdGenerator.UUID_V7::next,
     private val router: CommandRouter = CommandRouter.LOCAL,
     private val executionContext: CoroutineContext = Dispatchers.Default,
     /** The `Kafka` router of the context's types configured for it (decision D143); none by default. */
@@ -319,12 +320,12 @@ class WaitCoordinator(
     }.flowOn(executionContext)
 
     /**
-     * Ends [waiting] with a timeout at [deadline] (decision D64), from [DEADLINES], apart from the waiter:
+     * Ends [waiting] with a timeout at [deadline] (decision D64), from one of [DEADLINES], apart from the waiter:
      * at ACCEPTED, saying the outcome is not known, until the waiter has the command's settlement ([settled]), else at
      * the last hop it reached. Whether or not the wait had ended, its [deadline passes][Waiting.deadlinePassed].
      */
     private fun expireAt(deadline: Long, waiting: Waiting, settled: AtomicBoolean): ScheduledFuture<*> =
-        DEADLINES.schedule(
+        DEADLINES[ThreadLocalRandom.current().nextInt(DEADLINES.size)].schedule(
             {
                 waiting.expire(clock()) { hop ->
                     if (settled.get()) {
@@ -650,12 +651,19 @@ class WaitCoordinator(
         val logger = KotlinLogging.logger {}
 
         /**
-         * Ends the waits of every coordinator of the process at their deadlines: one daemon thread that only ends them
-         * and never runs their waiters, which resume in their coordinator's execution context.
+         * Ends the waits of every coordinator of the process at their deadlines: daemon threads that only end them and
+         * never run their waiters, which resume in their coordinator's execution context. Sharded (review A5-3): each
+         * wait schedules its deadline on one picked at random and cancels it there, so the commands of a busy node
+         * do not all take one delay queue's lock twice each.
          */
-        val DEADLINES: ScheduledExecutorService = ScheduledThreadPoolExecutor(1) { task ->
-            Thread(task, "wow-wait-deadlines").apply { isDaemon = true }
-        }.apply { removeOnCancelPolicy = true }
+        val DEADLINES: List<ScheduledExecutorService> =
+            List(Runtime.getRuntime().availableProcessors().coerceIn(1, MAX_DEADLINE_SHARDS)) { shard ->
+                ScheduledThreadPoolExecutor(1) { task ->
+                    Thread(task, "wow-wait-deadlines-$shard").apply { isDaemon = true }
+                }.apply { removeOnCancelPolicy = true }
+            }
+
+        const val MAX_DEADLINE_SHARDS = 4
     }
 }
 

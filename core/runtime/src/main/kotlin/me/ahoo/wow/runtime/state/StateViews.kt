@@ -21,6 +21,7 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.EventCodec
+import me.ahoo.wow.runtime.Stripes
 import java.util.TreeMap
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
@@ -115,14 +116,17 @@ class StateViews(
     /** The aggregate types whose views are recorded: those some reader reads. */
     val types: Set<AggregateType> get() = readersOf.keys
 
-    private val lock = ReentrantLock()
-    private val slots = HashMap<AggregateRef, Slot>()
-
-    /** Every view held, in the order it was put: the oldest first. */
-    private val order = LinkedHashMap<Key, Entry>()
+    /**
+     * The views, striped by aggregate (review A5-3) as [me.ahoo.wow.runtime.LruStateCache] is: each stripe holds its
+     * share of [StateViewOptions.capacity] under its own lock, so the executor's [record] and the consumers' [get] and
+     * [pass] of different aggregates rarely take the same lock; age and capacity are then bounded per stripe.
+     */
+    private val stripes: Array<Stripe> = Stripes.of(options.capacity).let { count ->
+        Array(count) { index -> Stripe(Stripes.share(options.capacity, count, index)) }
+    }
 
     /** The number of views held. */
-    val size: Int get() = lock.withLock { order.size }
+    val size: Int get() = stripes.sumOf { it.size }
 
     /** Records the state of [committed], when some reader reads [model]'s aggregate type. */
     fun record(model: AggregateModel<*>, committed: CommandOutcome.Committed) {
@@ -149,7 +153,38 @@ class StateViews(
      */
     fun put(ref: AggregateRef, view: SerializedState) {
         val readers = readersOf[ref.type] ?: return
-        lock.withLock {
+        Stripes.pick(stripes, ref).put(ref, view, readers)
+    }
+
+    /** The view of [ref] taken at [version], or null when there is none at that version. */
+    fun get(ref: AggregateRef, version: Int): SerializedState? = Stripes.pick(stripes, ref).get(ref, version)
+
+    /** The latest view of [ref] before [version], or null when there is none. */
+    fun floor(ref: AggregateRef, version: Int): SerializedState? = Stripes.pick(stripes, ref).floor(ref, version)
+
+    /**
+     * [reader] is done with [ref] up to [version]: the views every reader of the type passed a later version of are
+     * evicted. A reader that reads none of the type passes nothing.
+     */
+    fun pass(reader: String, ref: AggregateRef, version: Int) {
+        val readers = readersOf[ref.type] ?: return
+        if (reader !in readers) {
+            return
+        }
+        Stripes.pick(stripes, ref).pass(reader, ref, version, readers)
+    }
+
+    /** One stripe of the views: at most [capacity] of them, under its own lock. */
+    private inner class Stripe(private val capacity: Int) {
+        private val lock = ReentrantLock()
+        private val slots = HashMap<AggregateRef, Slot>()
+
+        /** Every view held, in the order it was put: the oldest first. */
+        private val order = LinkedHashMap<Key, Entry>()
+
+        val size: Int get() = lock.withLock { order.size }
+
+        fun put(ref: AggregateRef, view: SerializedState, readers: Set<String>) = lock.withLock {
             expire()
             val held = slots[ref]
             if (held != null &&
@@ -161,34 +196,22 @@ class StateViews(
             val entry = Entry(view, timeSource.markNow())
             slot.views[view.version] = entry
             order[Key(ref, view.version)] = entry
-            while (order.size > options.capacity) {
+            while (order.size > capacity) {
                 evictEldest()
             }
         }
-    }
 
-    /** The view of [ref] taken at [version], or null when there is none at that version. */
-    fun get(ref: AggregateRef, version: Int): SerializedState? = lock.withLock {
-        expire()
-        slots[ref]?.views?.get(version)?.view
-    }
-
-    /** The latest view of [ref] before [version], or null when there is none. */
-    fun floor(ref: AggregateRef, version: Int): SerializedState? = lock.withLock {
-        expire()
-        slots[ref]?.views?.lowerEntry(version)?.value?.view
-    }
-
-    /**
-     * [reader] is done with [ref] up to [version]: the views every reader of the type passed a later version of are
-     * evicted. A reader that reads none of the type passes nothing.
-     */
-    fun pass(reader: String, ref: AggregateRef, version: Int) {
-        val readers = readersOf[ref.type] ?: return
-        if (reader !in readers) {
-            return
+        fun get(ref: AggregateRef, version: Int): SerializedState? = lock.withLock {
+            expire()
+            slots[ref]?.views?.get(version)?.view
         }
-        lock.withLock {
+
+        fun floor(ref: AggregateRef, version: Int): SerializedState? = lock.withLock {
+            expire()
+            slots[ref]?.views?.lowerEntry(version)?.value?.view
+        }
+
+        fun pass(reader: String, ref: AggregateRef, version: Int, readers: Set<String>) = lock.withLock {
             val slot = slots[ref] ?: return
             slot.passed.merge(reader, version, ::maxOf)
             val passed = readers.minOf { slot.passed[it] ?: 0 }
@@ -199,23 +222,23 @@ class StateViews(
                 slots.remove(ref)
             }
         }
-    }
 
-    /** Called under the lock: evicts the views older than the maximum age, oldest first. */
-    private fun expire() {
-        while (order.isNotEmpty() && order.values.first().recorded.elapsedNow() > options.maxAge) {
-            evictEldest()
+        /** Called under the lock: evicts the views older than the maximum age, oldest first. */
+        private fun expire() {
+            while (order.isNotEmpty() && order.values.first().recorded.elapsedNow() > options.maxAge) {
+                evictEldest()
+            }
         }
-    }
 
-    /** Called under the lock. */
-    private fun evictEldest() {
-        val eldest = order.keys.first()
-        order.remove(eldest)
-        val slot = slots[eldest.ref] ?: return
-        slot.views.remove(eldest.version)
-        if (slot.views.isEmpty()) {
-            slots.remove(eldest.ref)
+        /** Called under the lock. */
+        private fun evictEldest() {
+            val eldest = order.keys.first()
+            order.remove(eldest)
+            val slot = slots[eldest.ref] ?: return
+            slot.views.remove(eldest.version)
+            if (slot.views.isEmpty()) {
+                slots.remove(eldest.ref)
+            }
         }
     }
 
