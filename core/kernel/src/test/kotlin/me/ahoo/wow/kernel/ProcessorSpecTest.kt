@@ -431,7 +431,9 @@ class ProcessorSpecTest {
     }
 
     @Test
-    fun `receipts of a command another execution derived are built with the factories`() = sagaSpec(orderSagaHandlers()) {
+    fun `receipts of a command another execution derived are built with the factories`() = sagaSpec(
+        orderSagaHandlers()
+    ) {
         val execution = ExecutionId("OrderSaga.onOrder", order, 1)
         val reserve = Command("derived-1", "derived-1", stock, Reserve("order-1", 1))
         val rejected = commandRejected(reserve, execution, "inventory.stock.insufficient", "None.")

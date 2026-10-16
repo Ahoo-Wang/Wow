@@ -235,7 +235,11 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
             "${command.id} is not a command this specification derived: hand over commandRejected(command, " +
                 "executionId, code) instead, with the execution that derived it.",
         )
-        whenRejected(commandRejected(command, execution, code, message, commandType), command.body.javaClass.kotlin, expect)
+        whenRejected(
+            commandRejected(command, execution, code, message, commandType),
+            command.body.javaClass.kotlin,
+            expect
+        )
     }
 
     /**

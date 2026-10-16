@@ -501,7 +501,9 @@ class ManifestCompatibilityTest {
     fun `a revision should exempt a schema break only of an aggregate no one else reads`() {
         fun changes(current: Manifest) = ManifestCompatibility.compare(UNEXPOSED, current).changes.map { it.toString() }
 
-        changes(UNEXPOSED.def("shop.CartState", schema()).cart { it.copy(snapshot = SnapshotManifest(stateRevision = 2)) })
+        changes(
+            UNEXPOSED.def("shop.CartState", schema()).cart { it.copy(snapshot = SnapshotManifest(stateRevision = 2)) }
+        )
             .assert().containsExactlyInAnyOrder(
                 "ADDITIVE $CART.snapshot.stateRevision: state revision raised from 1 to 2",
                 "ADDITIVE $CART.state.items: field removed (snapshots rebuilt at state revision 2)",

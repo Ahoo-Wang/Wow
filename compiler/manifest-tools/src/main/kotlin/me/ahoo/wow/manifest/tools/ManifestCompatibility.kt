@@ -267,7 +267,12 @@ private class Changes(val schemas: SchemaCompatibility) {
      * state revision was raised, so the stored snapshots are rebuilt from the log, and no one else reads the state
      * ([Exposure.state]); a lowered revision breaks.
      */
-    private fun compareState(path: String, baseline: AggregateManifest, current: AggregateManifest, exposure: Exposure) {
+    private fun compareState(
+        path: String,
+        baseline: AggregateManifest,
+        current: AggregateManifest,
+        exposure: Exposure
+    ) {
         val schemaChanges = schemas.compare(
             "$path.state",
             baseline.state.schema,
