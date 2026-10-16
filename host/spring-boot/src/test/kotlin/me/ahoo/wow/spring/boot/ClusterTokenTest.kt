@@ -43,6 +43,10 @@ class ClusterTokenTest {
         assertThrownBy<IllegalStateException> {
             WowAutoConfiguration.clusterTokens(properties(), environment("prod"), "0.0.0.0")
         }
+        // A host that does not resolve is not known to be the loopback interface.
+        assertThrownBy<IllegalStateException> {
+            WowAutoConfiguration.clusterTokens(properties(), environment(), "no-such-host.invalid")
+        }
         // A blank value, as an unset environment variable gives, is no token.
         assertThrownBy<IllegalStateException> {
             WowAutoConfiguration.clusterTokens(properties(" "), environment(), "10.0.0.7")
