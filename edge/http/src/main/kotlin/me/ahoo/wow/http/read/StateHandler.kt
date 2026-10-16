@@ -129,7 +129,8 @@ internal class StateHandler(
      * What [check] answers; a query policy that refuses the caller (a query error, such as an application the
      * request does not name) is that query error's problem, as on the query routes.
      */
-    @Suppress("TooGenericExceptionCaught") // Only a query error is answered here; anything else propagates.
+    // QueryError is an interface of the query exceptions, which a catch cannot name: anything else propagates.
+    @Suppress("TooGenericExceptionCaught", "InstanceOfCheckForException")
     private suspend inline fun admitted(type: AggregateType, check: () -> Boolean): Boolean = try {
         check()
     } catch (refused: Exception) {
