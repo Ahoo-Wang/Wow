@@ -651,7 +651,7 @@ class CommandGatewayTest {
 
     @Test
     fun `the framework codes are listed once each, in the wow namespace`() {
-        FrameworkCodes.ALL.size.assert().isEqualTo(21)
+        FrameworkCodes.ALL.size.assert().isEqualTo(22)
         FrameworkCodes.ALL.forEach { it.assert().startsWith("wow.") }
         FrameworkCodes.ALL.assert().contains(
             FrameworkCodes.MALFORMED,

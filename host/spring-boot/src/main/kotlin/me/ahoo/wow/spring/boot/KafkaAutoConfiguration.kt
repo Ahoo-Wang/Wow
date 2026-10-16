@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import io.micrometer.core.instrument.FunctionCounter
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.Metrics
@@ -21,6 +22,7 @@ import me.ahoo.wow.kafka.KafkaPartitionedSource
 import me.ahoo.wow.kafka.KafkaTopicAdmin
 import me.ahoo.wow.kafka.KafkaTopicProducer
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.spi.transport.PartitionedSource
@@ -31,9 +33,12 @@ import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
+import org.springframework.boot.context.event.ApplicationReadyEvent
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.context.ApplicationListener
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.env.Environment
 import kotlin.time.toKotlinDuration
 
 /**
@@ -88,8 +93,29 @@ class KafkaAutoConfiguration {
         fun wowKafkaTopicAdmin(properties: KafkaProperties): KafkaTopicAdmin = KafkaTopicAdmin.create(
             options(properties),
             properties.topics.replicationFactor,
-            properties.topics.configs.toMap(),
+            properties.topics.creationConfigs(),
         )
+
+        /**
+         * Checks, once the application is ready, that the command topics of the node's contexts survive the loss of a
+         * broker (decision D143, review A3-15): it warns about each that does not, and about a configuration that
+         * would create such topics, unless a dev profile is active.
+         */
+        @Bean
+        fun wowKafkaDurabilityCheck(
+            properties: KafkaProperties,
+            environment: Environment,
+            node: ObjectProvider<ServiceNode>,
+            topics: ObjectProvider<SourceTopics>,
+            admin: ObjectProvider<TopicAdmin>,
+        ): ApplicationListener<ApplicationReadyEvent> = ApplicationListener {
+            val durability = KafkaDurability(properties.topics, environment.activeProfiles.toSet())
+            durability.configured().forEach { logger.warn { it } }
+            val kafka = admin.ifAvailable as? KafkaTopicAdmin ?: return@ApplicationListener
+            val names = node.ifAvailable?.contexts?.keys.orEmpty()
+                .mapNotNull { context -> topics.ifAvailable?.commandsOf(context) }.toSet()
+            durability.checkQuietly { kafka.durability(names) }.forEach { logger.warn { it } }
+        }
 
         @Bean
         @ConditionalOnMissingBean
@@ -131,6 +157,8 @@ class KafkaAutoConfiguration {
     }
 
     companion object {
+        private val logger = KotlinLogging.logger {}
+
         /** The counter of the offset gaps the Kafka source met. */
         const val OFFSET_GAPS: String = "wow.kafka.offset.gaps"
 

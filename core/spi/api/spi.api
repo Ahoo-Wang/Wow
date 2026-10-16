@@ -421,6 +421,7 @@ public abstract interface class me/ahoo/wow/spi/observation/Observer {
 	public fun firing (Lme/ahoo/wow/spi/timer/Timer;)Lme/ahoo/wow/spi/observation/Observation;
 	public fun handling (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/log/EventStreamRecord;Ljava/util/Map;Ljava/lang/String;)Lme/ahoo/wow/spi/observation/Observation;
 	public fun resuming (Ljava/util/Map;)Lkotlin/coroutines/CoroutineContext;
+	public fun undecodable (Ljava/lang/String;IJZ)V
 }
 
 public final class me/ahoo/wow/spi/observation/Observer$Companion {

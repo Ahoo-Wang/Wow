@@ -25,12 +25,14 @@ import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.runtime.subscription.EntrySource
 import me.ahoo.wow.runtime.subscription.SourcedEntry
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
+import me.ahoo.wow.runtime.subscription.UndecodableMessage
 import me.ahoo.wow.runtime.subscription.UnrecoverableException
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.transport.Envelope
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.EnvelopeKind
@@ -47,7 +49,9 @@ import me.ahoo.wow.spi.transport.SourceMessage
  * by the offset. A park records it ([sourcePosition]); a resume re-scans the aggregate's partition from it, keeping
  * the messages keyed by the aggregate; an offset no longer retained is unrecoverable.
  *
- * - A message of another kind, format or shape is logged and passed over: no aggregate can be parked for it.
+ * - A message of another kind, format or shape is reported to [observer] and logged (review A3-14): when its key
+ *   names an aggregate, it is the entry of an [UndecodableMessage] there, on which the aggregate's subscription fails
+ *   and parks it at its offset; otherwise it is passed over, the checkpoint moving past it.
  * - [repeats] is false: a copy of a command is not decided twice by the kernel (its request id), and a copy of a
  *   receipt is dropped by its command id, so the subscriptions need not drop copies themselves.
  * - A subscription starts at the beginning of the topic, or at its end; a start at an instant cannot be searched
@@ -59,6 +63,7 @@ internal class MessageEntries private constructor(
     private val partitions: Int,
     private val kind: EnvelopeKind,
     private val partitioner: suspend (AggregateRef) -> Int,
+    private val observer: Observer,
     private val decode: (Envelope) -> Decoded,
 ) : EntrySource {
     /** What a message holds: the aggregate whose lane it runs in, the command it is about, and the [message]. */
@@ -121,11 +126,15 @@ internal class MessageEntries private constructor(
             require(envelope.kind == kind) { "It holds a ${envelope.kind}, not a $kind." }
             envelope to decode(envelope)
         } catch (failure: Exception) {
-            logger.error(failure) {
-                "Passing over offset ${message.offset} of partition $partition of $topic: it holds no $kind this " +
-                    "version reads."
+            val ref = UndecodableMessage.refOf(message.key)
+            observer.undecodable(topic, partition, message.offset, parked = ref != null)
+            val at = "offset ${message.offset} of partition $partition of $topic"
+            if (ref == null) {
+                logger.error(failure) { "Passing over $at: it holds no $kind this version reads, nor a key." }
+                return null
             }
-            return null
+            logger.error(failure) { "Parking $ref at $at: it holds no $kind this version reads." }
+            return UndecodableMessage.entryOf(ref, LogPosition(partition, message.offset + 1), failure.toString())
         }
         val stream = EventStreamRecord(
             ref = decoded.ref,
@@ -154,12 +163,18 @@ internal class MessageEntries private constructor(
          * The command topic [topic] of a context whose log has [partitions] partitions (decision D135): an aggregate's
          * commands are in the partition the log's partitioner gives it, and each runs in its aggregate's lane.
          */
-        fun commands(topic: String, source: PartitionedSource, partitions: Int): MessageEntries = MessageEntries(
+        fun commands(
+            topic: String,
+            source: PartitionedSource,
+            partitions: Int,
+            observer: Observer = Observer.NONE,
+        ): MessageEntries = MessageEntries(
             topic,
             source,
             partitions,
             EnvelopeKind.COMMAND,
             { Partitioner.partitionOf(it, partitions) },
+            observer,
         ) { envelope ->
             val wire = CommandMessages.commandOf(envelope)
             Decoded(wire.ref, wire.id, wire.requestId, wire.type, wire.scope, wire.causation, wire)
@@ -170,12 +185,18 @@ internal class MessageEntries private constructor(
          * of a commit, runs in the lane of the aggregate whose commit the saga handled, in the partition its key maps
          * to on the broker.
          */
-        fun receipts(topic: String, source: PartitionedSource, partitions: Int): MessageEntries = MessageEntries(
+        fun receipts(
+            topic: String,
+            source: PartitionedSource,
+            partitions: Int,
+            observer: Observer = Observer.NONE,
+        ): MessageEntries = MessageEntries(
             topic,
             source,
             partitions,
             EnvelopeKind.COMMAND_RECEIPT,
             { source.partitionOf(topic, it.toString()) },
+            observer,
         ) { envelope ->
             when (val receipt = CommandMessages.receiptOf(envelope)) {
                 is CommandCommitted<*> -> Decoded(

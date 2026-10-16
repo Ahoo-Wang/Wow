@@ -26,6 +26,10 @@ import me.ahoo.wow.http.command.Negotiation
 import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.ProblemException
+import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.query.QueryCaller
+import me.ahoo.wow.query.QueryEntry
+import me.ahoo.wow.query.QueryError
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.TargetScope
 import me.ahoo.wow.runtime.admission.TenantConflictException
@@ -56,8 +60,9 @@ import java.time.format.DateTimeParseException
  * the caller's scope (an owner or a space it names and the state does not have) is 403 `wow.aggregate.forbidden`, as
  * for a command (decision D94); the caller's owner is not checked for an aggregate of its tenant, as [ownerships] say
  * (decision D189); in a trace, every commit's state is checked so, as each `?version=` read would be. A
- * missing state, or a trace with no commit, is 404 `wow.aggregate.not-found`. A deleted aggregate's state is read as
- * any other, `deleted` set. A query parameter that cannot be read is 400 `wow.command.malformed`, the code of a
+ * missing state, or a trace with no commit, is 404 `wow.aggregate.not-found`, and so is a state the snapshot queries of
+ * its type hide from the caller ([StateVisibility]: ABAC and the application's query policies, review A3-11), each
+ * commit of a trace checked so too. A deleted aggregate's state is read as any other, `deleted` set. A query parameter that cannot be read is 400 `wow.command.malformed`, the code of a
  * request the edge cannot read, as for a `Wow-Scope` it cannot.
  */
 internal class StateHandler(
@@ -67,11 +72,15 @@ internal class StateHandler(
     private val statuses: ErrorStatuses,
     private val tenants: TenantPolicy = TenantPolicy.CALLERS,
     private val ownerships: (AggregateType) -> Ownership = { Ownership.OWNER },
+    private val queries: HttpQueries = HttpQueries.NONE,
 ) {
     suspend fun handle(request: ServerRequest, type: AggregateType): ServerResponse {
-        val (scope, ref) = reader(request, type)
+        val (scope, ref, caller) = reader(request, type)
         val view = read(request, ref)
         checkScope(scope, view.scope, ref)
+        if (!admitted(type) { StateVisibility.visible(queries.snapshots(type), caller, view) }) {
+            throw problem(FrameworkCodes.NOT_FOUND, "No state of $ref.", type)
+        }
         val tag = "\"${view.version}\""
         if (request.headers().header(HttpHeaders.IF_NONE_MATCH).any { matches(it, tag) }) {
             return ServerResponse.status(NOT_MODIFIED).eTag(tag).buildAndAwait()
@@ -81,7 +90,7 @@ internal class StateHandler(
     }
 
     suspend fun trace(request: ServerRequest, type: AggregateType): ServerResponse {
-        val (scope, ref) = reader(request, type)
+        val (scope, ref, caller) = reader(request, type)
         val from = request.number(WowPaths.FROM, type, min = 1) ?: 1
         val to = request.number(WowPaths.TO, type, min = from) ?: Int.MAX_VALUE
         val limit = request.number(WowPaths.LIMIT, type, min = 1, max = MAX_TRACE_LIMIT) ?: DEFAULT_TRACE_LIMIT
@@ -90,12 +99,16 @@ internal class StateHandler(
             throw problem(FrameworkCodes.NOT_FOUND, "No commit of $ref from version $from.", type)
         }
         commits.forEach { checkScope(scope, it.scope, ref) }
+        val gateway = queries.snapshots(type)
+        if (commits.any { commit -> !admitted(type) { StateVisibility.visible(gateway, caller, ref, commit) } }) {
+            throw problem(FrameworkCodes.NOT_FOUND, "No commit of $ref from version $from.", type)
+        }
         return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
             .bodyValueAndAwait(HttpJson.write(mapOf("ref" to ref, "commits" to commits)))
     }
 
-    /** Authenticates and negotiates [request]: the scope the caller reads in, and the ref it reads. */
-    private suspend fun reader(request: ServerRequest, type: AggregateType): Pair<Scope, AggregateRef> {
+    /** Authenticates and negotiates [request]: the scope the caller reads in, the ref it reads, and its query caller. */
+    private suspend fun reader(request: ServerRequest, type: AggregateType): Reader {
         val caller = authenticator.authenticate(request)
         Negotiation.checkAcceptable(request, alsoEventStream = false)
         val target = headers.target(request)
@@ -103,7 +116,26 @@ internal class StateHandler(
             throw problem(FrameworkCodes.AUTH_FORBIDDEN, "The caller may not read in another scope.", type)
         }
         val scope = ownerships(type).scopeOf(target?.scope ?: caller.scope)
-        return scope to type.ref(tenantOf(type, caller, target), request.pathVariable(CommandHandler.ID))
+        val tenant = tenantOf(type, caller, target)
+        val queryCaller =
+            QueryCaller(caller.copy(tenantId = tenant, scope = target?.scope ?: caller.scope), QueryEntry.HTTP)
+        return Reader(scope, type.ref(tenant, request.pathVariable(CommandHandler.ID)), queryCaller)
+    }
+
+    /** Who reads which state: the [scope] it reads in, the [ref] it reads and the [caller] its queries are admitted as. */
+    private data class Reader(val scope: Scope, val ref: AggregateRef, val caller: QueryCaller)
+
+    /**
+     * What [check] answers; a query policy that refuses the caller (a query error, such as an application the
+     * request does not name) is that query error's problem, as on the query routes.
+     */
+    // QueryError is an interface of the query exceptions, which a catch cannot name: anything else propagates.
+    @Suppress("TooGenericExceptionCaught", "InstanceOfCheckForException")
+    private suspend inline fun admitted(type: AggregateType, check: () -> Boolean): Boolean = try {
+        check()
+    } catch (refused: Exception) {
+        if (refused !is QueryError) throw refused
+        throw problem(refused.errorCode, refused.errorMsg, type)
     }
 
     private fun checkScope(reader: Scope, state: Scope, ref: AggregateRef) {

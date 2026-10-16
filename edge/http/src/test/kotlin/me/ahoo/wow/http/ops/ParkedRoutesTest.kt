@@ -20,6 +20,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.http.Answer
+import me.ahoo.wow.http.TENANT
 import me.ahoo.wow.http.answer
 import me.ahoo.wow.http.cartManifest
 import me.ahoo.wow.http.headerCallers
@@ -82,7 +83,7 @@ class ParkedRoutesTest {
     @AfterEach
     fun stop(): Unit = runBlocking { owner.stop() }
 
-    private fun entry(id: String) = "${OpsPaths.PARKED}/$NAME/shop/cart/t/$id"
+    private fun entry(id: String) = "${OpsPaths.PARKED}/$NAME/shop/cart/$TENANT/$id"
 
     private fun WebTestClient.get(path: String, user: String? = "alice"): Answer =
         get().uri(path).headers { if (user != null) it.set("X-User", user) }.answer()
@@ -94,12 +95,12 @@ class ParkedRoutesTest {
         }.let { if (body == null) it else it.bodyValue(body) }.answer()
 
     private suspend fun park(id: String, version: Int = 1) {
-        ledger.park(ParkedAggregate(NAME, type.ref("t", id), version, "$id failed", FAILED_AT))
+        ledger.park(ParkedAggregate(NAME, type.ref(TENANT, id), version, "$id failed", FAILED_AT))
     }
 
     private suspend fun append(id: String) {
         val stream = EventStreamRecord(
-            type.ref("t", id),
+            type.ref(TENANT, id),
             1,
             "c-$id",
             "r-$id",
@@ -119,7 +120,7 @@ class ParkedRoutesTest {
         first.status.assert().isEqualTo(200)
         first.body!!["entries"].toList().map { it["aggregate"]["id"].asString() }.assert().containsExactly("a", "b")
         val next = first.body!!["next"].asString()
-        next.assert().isEqualTo(encodeCursor(ParkedKey(NAME, type.ref("t", "b"))))
+        next.assert().isEqualTo(encodeCursor(ParkedKey(NAME, type.ref(TENANT, "b"))))
         val second = client.get("${OpsPaths.PARKED}?subscription=$NAME&after=$next")
         second.body!!["entries"].toList().map { it["aggregate"]["id"].asString() }.assert().containsExactly("c")
         second.body!!["next"].isNull.assert().isTrue()
@@ -130,7 +131,7 @@ class ParkedRoutesTest {
         body["subscription"].asString().assert().isEqualTo(NAME)
         body["aggregate"]["context"].asString().assert().isEqualTo("shop")
         body["aggregate"]["name"].asString().assert().isEqualTo("cart")
-        body["aggregate"]["tenantId"].asString().assert().isEqualTo("t")
+        body["aggregate"]["tenantId"].asString().assert().isEqualTo(TENANT)
         body["fromVersion"].asInt().assert().isEqualTo(1)
         body["reason"].asString().assert().isEqualTo("a failed")
         body["failedAt"].asLong().assert().isEqualTo(FAILED_AT)
@@ -158,7 +159,7 @@ class ParkedRoutesTest {
         park("gone")
         append("x")
         owner.start(setOf(0, 1))
-        eventually { ledger.isParked(NAME, type.ref("t", "x")) }
+        eventually { ledger.isParked(NAME, type.ref(TENANT, "x")) }
         val local = client(owner)
 
         // Nothing of "gone" is in the log: resuming it handles nothing and resolves it.
@@ -177,7 +178,7 @@ class ParkedRoutesTest {
         requested.body!!["outcome"].asString().assert().isEqualTo("REQUESTED")
         requested.body!!["entry"]["request"].asString().assert().isEqualTo("RESUME")
         remote.post("${entry("x")}/${OpsPaths.SKIP}").body!!["entry"]["request"].asString().assert().isEqualTo("SKIP")
-        ledger.parked(NAME, type.ref("t", "x"))!!.request.assert().isEqualTo(LedgerRequest.SKIP)
+        ledger.parked(NAME, type.ref(TENANT, "x"))!!.request.assert().isEqualTo(LedgerRequest.SKIP)
 
         val skipped = local.post("${entry("x")}/${OpsPaths.SKIP}")
         skipped.status.assert().isEqualTo(200)
@@ -194,7 +195,7 @@ class ParkedRoutesTest {
             OpsCommands.SKIP,
             OpsCommands.RESUME,
         )
-        actions.first().second.ref.assert().isEqualTo(type.ref("t", "gone"))
+        actions.first().second.ref.assert().isEqualTo(type.ref(TENANT, "gone"))
         actions.first().second.scope.assert().isEqualTo(Scope("alice"))
     }
 
@@ -207,7 +208,7 @@ class ParkedRoutesTest {
         marked.body!!["recoverable"].asString().assert().isEqualTo("UNRECOVERABLE")
         marked.body!!["status"].asString().assert().isEqualTo("UNRECOVERABLE")
         marked.body!!["nextRetryAt"].isNull.assert().isTrue()
-        ledger.parked(NAME, type.ref("t", "a"))!!.recoverable.assert().isEqualTo(Recoverable.UNRECOVERABLE)
+        ledger.parked(NAME, type.ref(TENANT, "a"))!!.recoverable.assert().isEqualTo(Recoverable.UNRECOVERABLE)
 
         val mark = "${entry("a")}/${OpsPaths.MARK_RECOVERABLE}"
         client.post(mark, """{"recoverable":"maybe"}""").assertMalformed()
@@ -234,7 +235,7 @@ class ParkedRoutesTest {
         applied.body!!["retrySpec"]["executionTimeout"].asString().assert().isEqualTo("PT1M")
         applied.body!!["retrySpec"]["applied"].asBoolean().assert().isTrue()
         applied.body!!["nextRetryAt"].asLong().assert().isEqualTo(FAILED_AT + 10_000)
-        ledger.parked(NAME, type.ref("t", "a"))!!.retrySpec.assert()
+        ledger.parked(NAME, type.ref(TENANT, "a"))!!.retrySpec.assert()
             .isEqualTo(ParkedRetrySpec(5, 10.seconds, 1.minutes))
 
         // 9.x's seconds, the short forms, ISO-8601 and zero.
@@ -267,19 +268,68 @@ class ParkedRoutesTest {
         denied.status.assert().isEqualTo(403)
         denied.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         denied.body!!["detail"].asString().assert().isEqualTo("Mallory may not.")
-        ledger.parked(NAME, type.ref("t", "a"))!!.request.assert().isNull()
+        ledger.parked(NAME, type.ref(TENANT, "a"))!!.request.assert().isNull()
         actions.single().first.assert().isEqualTo("mallory")
 
         val anonymous = client.post().uri("${entry("a")}/${OpsPaths.RESUME}").answer()
         anonymous.status.assert().isEqualTo(401)
         anonymous.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.UNAUTHENTICATED)
-        client.post().uri("${OpsPaths.PARKED}/$NAME/shop/cart/t/a/${OpsPaths.RESUME}")
+        client.post().uri("${OpsPaths.PARKED}/$NAME/shop/cart/$TENANT/a/${OpsPaths.RESUME}")
             .header("X-User", "alice").header("Accept", "text/html").answer().status.assert().isEqualTo(406)
-        // The defaults: every caller is anonymous, every action allowed.
-        val defaults = WebTestClient.bindToRouterFunction(parkedRoutes(ParkedOps.of(listOf(other)), cartManifest()))
+        // Without an authorizer every action is refused, never allowed by default (review A3-3).
+        val unauthorized = WebTestClient
+            .bindToRouterFunction(parkedRoutes(ParkedOps.of(listOf(other)), cartManifest(), null, headerCallers))
             .build()
-        defaults.post().uri("${entry("a")}/${OpsPaths.RESUME}").answer().status.assert().isEqualTo(202)
+        val refused = unauthorized.post("${entry("a")}/${OpsPaths.RESUME}")
+        refused.status.assert().isEqualTo(403)
+        refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
+        refused.body!!["detail"].asString().assert().contains("no CommandAuthorizer")
+        unauthorized.get(entry("a")).status.assert().isEqualTo(200)
+        ledger.parked(NAME, type.ref(TENANT, "a"))!!.request.assert().isNull()
     }
+
+    @Test
+    fun `a caller sees and acts on its own tenant's entries alone, a cross-scope caller on every tenant's`(): Unit =
+        runBlocking {
+            park("a")
+            ledger.park(ParkedAggregate(NAME, type.ref("other", "b"), 1, "b failed", FAILED_AT))
+            ledger.park(ParkedAggregate(NAME, type.ref("other", "c"), 1, "c failed", FAILED_AT))
+            val client = client(other)
+            val foreign = "${OpsPaths.PARKED}/$NAME/shop/cart/other/b"
+
+            val listed = client.get("${OpsPaths.PARKED}?limit=1")
+            listed.body!!["entries"].toList().map { it["aggregate"]["id"].asString() }.assert().containsExactly("a")
+            listed.body!!["next"].asString().assert().isEqualTo(encodeCursor(ParkedKey(NAME, type.ref(TENANT, "a"))))
+            client.get("${OpsPaths.PARKED}?after=${listed.body!!["next"].asString()}").body!!["entries"].toList()
+                .assert().isEmpty()
+            client.get(foreign).status.assert().isEqualTo(404)
+            listOf(OpsPaths.RESUME, OpsPaths.SKIP).forEach { action ->
+                client.post("$foreign/$action").status.assert().isEqualTo(404)
+            }
+            client.post("$foreign/${OpsPaths.MARK_RECOVERABLE}", """{"recoverable":"UNRECOVERABLE"}""")
+                .status.assert().isEqualTo(404)
+            client.post("$foreign/${OpsPaths.APPLY_RETRY_SPEC}", """{"maxRetries":0}""").status.assert().isEqualTo(404)
+            ledger.parked(NAME, type.ref("other", "b"))!!.let {
+                it.request.assert().isNull()
+                it.recoverable.assert().isEqualTo(Recoverable.UNKNOWN)
+                it.retrySpec.assert().isNull()
+            }
+            // Refused before it is authorized: the authorizer never hears of another tenant's entry.
+            actions.assert().isEmpty()
+
+            val admin = client.get().uri("${OpsPaths.PARKED}?limit=10")
+                .headers {
+                    it.set("X-User", "root")
+                    it.set("X-Admin", "true")
+                }.answer()
+            admin.body!!["entries"].toList().map { it["aggregate"]["id"].asString() }.assert()
+                .containsExactly("a", "b", "c")
+            client.post().uri("$foreign/${OpsPaths.SKIP}")
+                .headers {
+                    it.set("X-User", "root")
+                    it.set("X-Admin", "true")
+                }.answer().status.assert().isEqualTo(202)
+        }
 
     private fun Answer.assertMalformed() {
         status.assert().isEqualTo(400)

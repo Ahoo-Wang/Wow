@@ -147,9 +147,16 @@ abstract class ViewStoreContract {
         store.post(VIEWS, """{"definitionId":"d","title":"Anyone's","config":$RECORD}""", Who.ANONYMOUS.shared)
             .assertProblem(FORBIDDEN, "wow.auth.forbidden")
             .json["detail"].asString().assert().startsWith("An anonymous caller")
-        // A view's events carry no application to keep a query in.
-        store.post(VIEW_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$id"}}""", ALICE.withoutApp)
+        // A view's events and state are read in its application, as its snapshot is queried (review A3-11).
+        val events = """{"kind":"list","filter":{"op":"ID","value":"$id"}}"""
+        store.post(VIEW_EVENTS, events, ALICE)
             .assertOk().json.values().map { it["version"].asInt() }.assert().containsExactly(1)
+        store.post(VIEW_EVENTS, events, ALICE.withoutApp).assertProblem(BAD_REQUEST, "wow.query.malformed")
+        store.post(VIEW_EVENTS, events, ALICE.inApp("other-console")).assertOk().json.values().assert().isEmpty()
+        store.get("/view-store/view/$id/state", ALICE).assertOk()
+        store.get("/view-store/view/$id/state", ALICE.withoutApp).assertProblem(BAD_REQUEST, "wow.query.malformed")
+        store.get("/view-store/view/$id/state", ALICE.inApp("other-console"))
+            .assertProblem(NOT_FOUND, "wow.aggregate.not-found")
         // Acting as another user is refused: only the reserved owners are open to Wow-Scope.
         store.post(
             VIEW_QUERY,

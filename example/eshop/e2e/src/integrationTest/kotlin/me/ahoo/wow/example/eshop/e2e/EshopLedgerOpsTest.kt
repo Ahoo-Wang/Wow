@@ -79,7 +79,9 @@ class EshopLedgerOpsTest {
     private val ops = EshopService.start(
         "ops",
         OPS_MAIN,
-        backendArguments(postgres, kafka, OPS_DATABASE, OPS_PARTITIONS),
+        // The test's operators name themselves in headers, which the service trusts only when told to (review A3-4).
+        backendArguments(postgres, kafka, OPS_DATABASE, OPS_PARTITIONS) +
+            "--wow.platform.trust-identity-headers=true",
         readyHeaders = VIEWER,
     )
     private val inventory = EshopService.start("inventory", INVENTORY_MAIN, arguments(INVENTORY_DATABASE))

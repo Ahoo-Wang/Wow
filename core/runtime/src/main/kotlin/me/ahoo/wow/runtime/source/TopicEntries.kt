@@ -22,10 +22,12 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.runtime.subscription.EntrySource
 import me.ahoo.wow.runtime.subscription.SourcedEntry
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
+import me.ahoo.wow.runtime.subscription.UndecodableMessage
 import me.ahoo.wow.runtime.subscription.UnrecoverableException
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogPosition
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.PartitionedSource
@@ -36,8 +38,11 @@ import me.ahoo.wow.spi.transport.SourceMessage
  * message decoded into the [StateEventRecord] its envelope holds ([EnvelopeCodec]), at the position (partition,
  * offset + 1), so a checkpoint is the offset to read next and 0 reads from the first one retained.
  *
- * - A message that holds no state event this version reads (another format or kind, a malformed value) is logged and
- *   passed over: no aggregate can be parked for it, and the checkpoint moves past it.
+ * - A message that holds no state event this version reads (another format or kind, a malformed value) is reported
+ *   to [observer] and logged (review A3-14). When its key names an aggregate, it is the entry of an
+ *   [UndecodableMessage] there, on which the aggregate's subscriptions fail and park it, at its offset, for an
+ *   operator to resume once a version reads it, or to skip; its order is after every entry of the aggregate handled
+ *   ([ordinalOf]). Otherwise no aggregate can be parked for it: it is passed over, the checkpoint moving past it.
  * - A start from the end is the partition's end offset; from an instant, a binary search over the offsets retained by
  *   the records' commit times.
  * - An aggregate's records are all in the partition its key (the ref) maps to ([PartitionedSource.partitionOf]). A park
@@ -51,6 +56,7 @@ internal class TopicEntries(
     override val topic: String,
     private val source: PartitionedSource,
     private val partitions: Int,
+    private val observer: Observer = Observer.NONE,
 ) : EntrySource {
     override val name: String get() = "topic $topic"
 
@@ -70,8 +76,8 @@ internal class TopicEntries(
             start.search(offsets.start, offsets.end) { after ->
                 // The first record decoded at or after the offset; a partition of nothing but undecodable messages
                 // up to its end starts at the end.
-                source.read(topic, partition, after, offsets.end).mapNotNull { entryOf(partition, it) }
-                    .firstOrNull()?.stream?.commitTime ?: Long.MAX_VALUE
+                source.read(topic, partition, after, offsets.end).mapNotNull { decodedOrNull(it) }
+                    .firstOrNull()?.commitTime ?: Long.MAX_VALUE
             }
         }
     }
@@ -79,6 +85,10 @@ internal class TopicEntries(
     override suspend fun partitionOf(ref: AggregateRef): Int = source.partitionOf(topic, ref.toString())
 
     override fun sourcePosition(entry: SourcedEntry): Long = entry.position.sequence - 1
+
+    /** An undecodable message's entry comes after every entry of its aggregate handled: it is never dropped as a copy. */
+    override fun ordinalOf(entry: SourcedEntry): Long =
+        if (UndecodableMessage.isUndecodable(entry)) Long.MAX_VALUE else entry.stream.version.toLong()
 
     override suspend fun resume(ref: AggregateRef, fromVersion: Int, fromPosition: Long?): Flow<SourcedEntry> {
         if (fromPosition == null) {
@@ -100,18 +110,35 @@ internal class TopicEntries(
 
     override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = null
 
-    @Suppress("TooGenericExceptionCaught") // Whatever cannot be decoded is passed over.
+    @Suppress("TooGenericExceptionCaught") // Whatever cannot be decoded is parked, or passed over.
     private fun entryOf(partition: Int, message: SourceMessage): SourcedEntry? {
         val record = try {
             EnvelopeCodec.stateEventOf(message.value)
         } catch (failure: Exception) {
-            logger.error(failure) {
-                "Passing over offset ${message.offset} of partition $partition of $topic: it holds no state event " +
-                    "this version reads."
-            }
-            return null
+            return undecodable(partition, message, failure)
         }
         return SourcedEntry(LogPosition(partition, message.offset + 1), streamOf(record), record.transport, record)
+    }
+
+    /** The state event [message] holds, or null when it holds none this version reads. */
+    @Suppress("TooGenericExceptionCaught", "SwallowedException") // A search passes over what it cannot decode.
+    private fun decodedOrNull(message: SourceMessage): StateEventRecord? = try {
+        EnvelopeCodec.stateEventOf(message.value)
+    } catch (_: Exception) {
+        null
+    }
+
+    /** The entry of an undecodable [message] when its key names an aggregate; null when it is passed over. */
+    private fun undecodable(partition: Int, message: SourceMessage, failure: Exception): SourcedEntry? {
+        val ref = UndecodableMessage.refOf(message.key)
+        observer.undecodable(topic, partition, message.offset, parked = ref != null)
+        val at = "offset ${message.offset} of partition $partition of $topic"
+        if (ref == null) {
+            logger.error(failure) { "Passing over $at: it holds no state event this version reads, nor a key." }
+            return null
+        }
+        logger.error(failure) { "Parking $ref at $at: it holds no state event this version reads." }
+        return UndecodableMessage.entryOf(ref, LogPosition(partition, message.offset + 1), failure.toString())
     }
 
     internal companion object {

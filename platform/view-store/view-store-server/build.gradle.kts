@@ -29,3 +29,9 @@ dependencies {
     integrationTestImplementation(sourceSets["test"].output)
     integrationTestImplementation(project(":tck-containers"))
 }
+
+// `./gradlew :view-store-server:run` is a local run: the view engine names its caller in request headers, which the server trusts
+// only with wow.platform.trust-identity-headers (review A3-4); a deployment uses CoSec instead.
+tasks.named<JavaExec>("run") {
+    systemProperty("wow.platform.trust-identity-headers", "true")
+}

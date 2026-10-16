@@ -14,6 +14,7 @@
 package me.ahoo.wow.http
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -32,6 +33,7 @@ import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
+import me.ahoo.wow.http.problem.tooLargeProblem
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.query.QueryHandler
 import me.ahoo.wow.http.query.QueryTarget
@@ -117,7 +119,8 @@ fun wowRoutes(
     )
     val queryHandler = QueryHandler(queries, authenticator, headers, statuses, gateway.tenants, scope)
     val ownerships = QueryOwnership.of(manifest)
-    val states = StateHandler(reads, authenticator, headers, statuses, gateway.tenants, ownerships::ownershipOf)
+    val states =
+        StateHandler(reads, authenticator, headers, statuses, gateway.tenants, ownerships::ownershipOf, queries)
     val served = withTransformedRoutes(manifest, gateway)
     return coRouter {
         if (options.manifestEndpoint) {
@@ -383,8 +386,10 @@ private suspend fun noDataset(request: ServerRequest): ServerResponse =
 
 /**
  * [block]'s response, or the problem it was answered with: a store that is unavailable where no result carries it
- * (a state read, say) is `wow.storage.unavailable`, as a command's result would be.
+ * (a state read, say) is `wow.storage.unavailable`, as a command's result would be. Any other failure is a 500
+ * problem that says nothing of its cause, which is logged (review A3-6): never Spring's bare error page.
  */
+@Suppress("TooGenericExceptionCaught") // Whatever else a route throws is answered as a problem, not a bare 500.
 private suspend inline fun ErrorStatuses.answering(block: () -> ServerResponse): ServerResponse = try {
     block()
 } catch (problem: ProblemException) {
@@ -392,6 +397,15 @@ private suspend inline fun ErrorStatuses.answering(block: () -> ServerResponse):
 } catch (unavailable: StorageUnavailableException) {
     logger.warn(unavailable) { "A request failed: a store is unavailable." }
     problemOf(FrameworkErrors.STORAGE_UNAVAILABLE, unavailable.message!!).respond()
+} catch (cancelled: CancellationException) {
+    throw cancelled
+} catch (failure: Exception) {
+    // A body larger than the codecs take is the client's (413, review A3-9); anything else is a 500.
+    val problem = tooLargeProblem(failure) ?: run {
+        logger.error(failure) { "A request failed with an unexpected error." }
+        Problem.ofStatus(HttpStatus.INTERNAL_SERVER_ERROR, "The request failed with an unexpected error.")
+    }
+    problem.respond()
 }
 
 private val logger = KotlinLogging.logger {}

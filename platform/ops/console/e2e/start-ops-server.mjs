@@ -79,6 +79,8 @@ const server = spawn(
     "--wow.log.partitions=2",
     "--wow.subscription.checkpoint-interval=100ms",
     "--wow.query.memory.enabled=true",
+    // The console names its caller in headers, which the server trusts only when told to (a local run).
+    "--wow.platform.trust-identity-headers=true",
     `--spring.main.sources=${SOURCES.join(",")}`,
     `--spring.web.resources.static-locations=${new URL(`file://${CONSOLE}`).href}`,
   ],

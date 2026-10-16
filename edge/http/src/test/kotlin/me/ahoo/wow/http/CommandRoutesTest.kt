@@ -20,6 +20,8 @@ import jakarta.validation.Path
 import jakarta.validation.Validator
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.metadata.ConstraintDescriptor
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.WaitPlan
@@ -326,6 +328,32 @@ class CommandRoutesTest {
         configured.post("/shop/cart/c-1/checkout", """{"note":"closed"}""")
             .assertProblem(451, CART_CLOSED, withResult = true)
         configured.post("/shop/cart/c-1/checkout").assertProblem(400, CART_EMPTY, withResult = true)
+    }
+
+    @Test
+    fun `a decide function that throws is a 500 problem with its result, saying nothing of the cause`() {
+        // Review A3-6: never Spring's bare 500.
+        node.post("/shop/cart/c-1/open-cart").assertSucceeded()
+        val failed = node.post("/shop/cart/c-1/checkout", """{"note":"throw"}""")
+            .assertProblem(500, FrameworkCodes.FAILED, withResult = true).body!!
+        failed["result"]["status"].asString().assert().isEqualTo("FAILED")
+        failed["result"]["requestId"].asString().assert().isNotBlank()
+        failed.toString().assert().doesNotContain("secret")
+        // It committed nothing: the cart is still at version 1.
+        runBlocking { node.log.read(cartType.ref(TENANT, "c-1"), 1, Int.MAX_VALUE).toList() }.size.assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `a body larger than the codecs take is a 413 problem`() {
+        // Review A3-9: WebFlux's default in-memory limit is 256 KB.
+        val large = """{"sku":"${"a".repeat(300 * 1024)}"}"""
+        val answer = node.post("/shop/cart/c-1/add-item", large)
+        answer.status.assert().isEqualTo(413)
+        answer.contentType.assert().isEqualTo("application/problem+json")
+        answer.body!!["status"].asInt().assert().isEqualTo(413)
+        val query = QueryNode().query("""{"kind":"list","filter":{"op":"EQ","field":"state.note","value":"$large"}}""")
+        query.status.assert().isEqualTo(413)
+        query.contentType.assert().isEqualTo("application/problem+json")
     }
 
     @Test

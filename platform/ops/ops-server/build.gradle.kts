@@ -38,8 +38,15 @@ dependencies {
     // The `postgres` profile: the entries' log and snapshots on PostgreSQL, their snapshot queries served there.
     implementation(project(":postgres"))
     implementation("com.zaxxer:HikariCP")
+    implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation("org.springframework:spring-test")
     // The same flow on PostgreSQL in a container (decision D196).
     integrationTestImplementation(sourceSets["test"].output)
     integrationTestImplementation(project(":tck-containers"))
+}
+
+// `./gradlew :ops-server:run` is a local run: the console names its caller in request headers, which the server trusts
+// only with wow.platform.trust-identity-headers (review A3-4); a deployment uses CoSec instead.
+tasks.named<JavaExec>("run") {
+    systemProperty("wow.platform.trust-identity-headers", "true")
 }

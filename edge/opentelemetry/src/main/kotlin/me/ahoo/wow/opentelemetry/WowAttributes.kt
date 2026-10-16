@@ -54,6 +54,12 @@ object WowMetrics {
     /** Counter: the entries parked, and those whose retries are spent; tags subscription, kind. */
     const val PARKED_NOTICES: String = "wow.subscription.parked.notices"
 
+    /**
+     * Counter: the messages of a topic this version cannot decode (review A3-14); tags topic, and outcome `parked`
+     * (its key names an aggregate, parked there) or `skipped` (passed over).
+     */
+    const val UNDECODABLE: String = "wow.subscription.undecodable"
+
     /** Timer: how late a timer fires after its due time; tag context. */
     const val TIMER_DELAY: String = "wow.timer.delay"
 
@@ -80,4 +86,7 @@ object WowMetrics {
     const val QUERY_TYPE: String = "query.type"
     const val GROUP: String = "group"
     const val PARTITION: String = "partition"
+    const val TOPIC: String = "topic"
+    const val PARKED_OUTCOME: String = "parked"
+    const val SKIPPED_OUTCOME: String = "skipped"
 }

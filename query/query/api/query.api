@@ -406,6 +406,7 @@ public class me/ahoo/wow/query/QueryExecutionException : java/lang/RuntimeExcept
 }
 
 public abstract interface class me/ahoo/wow/query/QueryGateway {
+	public fun admitRecord (Lme/ahoo/wow/api/query/FilterExpression;Ltools/jackson/databind/node/ObjectNode;Lme/ahoo/wow/query/QueryCaller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;Lme/ahoo/wow/query/QueryCaller;)Lkotlinx/coroutines/flow/Flow;
 	public abstract fun count (Lme/ahoo/wow/api/query/ICountQuery;Lme/ahoo/wow/query/QueryCaller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun cursor (Lme/ahoo/wow/api/query/ICursorQuery;Lme/ahoo/wow/query/QueryCaller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -602,6 +603,7 @@ public final class me/ahoo/wow/query/dataset/DefaultDatasetQueryGateway : me/aho
 	public fun <init> (Lme/ahoo/wow/query/dataset/QueryDataset;Lme/ahoo/wow/query/dataset/DatasetQueryBackend;Lme/ahoo/wow/query/schema/QueryModelSchemaProvider;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/QueryObserver;)V
 	public fun <init> (Lme/ahoo/wow/query/dataset/QueryDataset;Lme/ahoo/wow/query/dataset/DatasetQueryBackend;Lme/ahoo/wow/query/schema/QueryModelSchemaProvider;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/QueryObserver;Lme/ahoo/wow/query/QueryEntryPolicy;)V
 	public synthetic fun <init> (Lme/ahoo/wow/query/dataset/QueryDataset;Lme/ahoo/wow/query/dataset/DatasetQueryBackend;Lme/ahoo/wow/query/schema/QueryModelSchemaProvider;Ljava/util/List;Ljava/util/List;Lme/ahoo/wow/query/QueryObserver;Lme/ahoo/wow/query/QueryEntryPolicy;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun admitRecord (Lme/ahoo/wow/api/query/FilterExpression;Ltools/jackson/databind/node/ObjectNode;Lme/ahoo/wow/query/QueryCaller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun aggregate (Lme/ahoo/wow/api/query/AggregationQuery;Lme/ahoo/wow/query/QueryCaller;)Lkotlinx/coroutines/flow/Flow;
 	public fun count (Lme/ahoo/wow/api/query/ICountQuery;Lme/ahoo/wow/query/QueryCaller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun cursor (Lme/ahoo/wow/api/query/ICursorQuery;Lme/ahoo/wow/query/QueryCaller;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;

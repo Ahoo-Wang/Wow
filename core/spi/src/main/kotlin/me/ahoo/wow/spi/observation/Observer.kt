@@ -70,6 +70,12 @@ interface Observer {
     fun firing(timer: Timer): Observation = Observation.NONE
 
     /**
+     * A message at [offset] of [partition] of [topic] this version cannot decode (review A3-14): [parked] when its key
+     * names an aggregate, whose subscriptions park it there; otherwise passed over, the checkpoint moving past it.
+     */
+    fun undecodable(topic: String, partition: Int, offset: Long, parked: Boolean) = Unit
+
+    /**
      * The coroutine context that continues the trace whose propagation fields are [trace], arrived without a stage of
      * its own (a command forwarded over the cluster channel); empty when there is none to continue.
      */

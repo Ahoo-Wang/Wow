@@ -76,12 +76,14 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.availability.ApplicationAvailability
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.reactor.netty.NettyServerCustomizer
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
 import org.springframework.util.ClassUtils
+import org.springframework.util.unit.DataSize
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.ServerResponse
 import tools.jackson.databind.json.JsonMapper
@@ -374,6 +376,7 @@ class WowAutoConfiguration {
         callers: CallerResolver,
         internalCallers: ObjectProvider<InternalCallerResolver>,
         options: WowHttpOptions,
+        environment: Environment,
     ): InternalServer = InternalServer(
         properties.internal.port,
         identity.bindHost,
@@ -385,6 +388,7 @@ class WowAutoConfiguration {
                 options,
             ),
         ),
+        InternalHttp.messageLimit(publicCodecLimit(environment)),
     )
 
     /** Binds the internal port, then gives a node without a configured address the one it is bound at. */
@@ -477,7 +481,8 @@ class WowAutoConfiguration {
 
     /**
      * The operator's routes over the parked entries (roadmap P.1), when `wow.ops.enabled`: authenticated by the
-     * application's [CallerResolver], their actions authorized by its [CommandAuthorizer] (decision D141).
+     * application's [CallerResolver], each caller kept in its tenant, their actions authorized by its
+     * [CommandAuthorizer] (decision D141), and refused when it has none.
      */
     @Bean
     @ConditionalOnProperty(prefix = "${WowProperties.PREFIX}.ops", name = ["enabled"], havingValue = "true")
@@ -487,13 +492,16 @@ class WowAutoConfiguration {
         callers: CallerResolver,
         options: WowHttpOptions,
         authorizers: ObjectProvider<CommandAuthorizer>,
-    ): RouterFunction<ServerResponse> = parkedRoutes(
-        node.parked,
-        manifest,
-        authorizers.getIfAvailable { CommandAuthorizer.ALLOW_ALL },
-        callers,
-        options,
-    )
+    ): RouterFunction<ServerResponse> {
+        val authorizer = authorizers.ifAvailable
+        if (authorizer == null) {
+            logger.warn {
+                "wow.ops.enabled without a CommandAuthorizer bean: the operator's actions on parked entries are " +
+                    "refused (403) until the application gives one."
+            }
+        }
+        return parkedRoutes(node.parked, manifest, authorizer, callers, options)
+    }
 
     /** Tells `wow.ops.webhook.url` when an entry parks or spends its retries (roadmap P.1). */
     @Bean
@@ -531,6 +539,20 @@ class WowAutoConfiguration {
         const val WOW_AGGREGATE_ID_GENERATOR: String = "wowAggregateIdGenerator"
         private const val JAKARTA_VALIDATOR = "jakarta.validation.Validator"
         private val logger = KotlinLogging.logger {}
+
+        /**
+         * The in-memory limit of the public port's codecs, in bytes (negative: none): Spring Boot's
+         * `spring.http.codecs.max-in-memory-size`, or the older `spring.codec.max-in-memory-size`, else WebFlux's
+         * default. The internal port takes a forward of a body that large (review A3-9).
+         */
+        internal fun publicCodecLimit(environment: Environment): Int {
+            val binder = Binder.get(environment)
+            val size = CODEC_LIMITS.firstNotNullOfOrNull { binder.bind(it, DataSize::class.java).orElse(null) }
+                ?: return InternalHttp.MAX_UPGRADE_BODY
+            return size.toBytes().coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        }
+
+        private val CODEC_LIMITS = listOf("spring.http.codecs.max-in-memory-size", "spring.codec.max-in-memory-size")
 
         /**
          * The service identities the internal port trusts by their static tokens (`wow.http.services`, decision D193), in

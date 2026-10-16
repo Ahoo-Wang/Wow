@@ -348,6 +348,25 @@ class CommandIntakeTest {
         eventually { checkpoint(node, unknown.ref) == 3L }
     }
 
+    @Test
+    fun `a message of an aggregate that holds no command should park the aggregate there`(): Unit = runBlocking {
+        // Review A3-14: an undecodable command is not dropped silently.
+        val node = stockNode().also { it.start() }
+        val ref = ITEM.ref(TENANT, "i-garbled")
+        val partition = Partitioner.partitionOf(ref, PARTITIONS)
+        topics.send(COMMANDS, TopicMessage(ref.toString(), "not an envelope".toByteArray(), partition = partition))
+        val after = reserve("c-after-garbled", 1, item = "i-garbled")
+        val ledger = stockBackends.backends(STOCK).ledger
+        eventually { ledger.isParked(CommandIntake.NAME, ref) }
+        ledger.parked(CommandIntake.NAME, ref)!!.reason.assert().contains("cannot be decoded")
+        eventually { checkpoint(node, ref) == topics.offsets(COMMANDS, partition).end }
+        stock.decided.assert().doesNotContain(after.id)
+        // Skipped by an operator, the aggregate takes its commands again.
+        node.context(STOCK).intake!!.skip(CommandIntake.NAME, ref).assert().isTrue()
+        val later = reserve("c-later-garbled", 1, item = "i-garbled")
+        eventually { later.id in stock.decided }
+    }
+
     /** A checkpoint store that never saves: the node crashes before each save. */
     private object DroppedCheckpoints : CheckpointStore {
         override suspend fun load(group: String, subscription: String, partition: Int): Long? = null

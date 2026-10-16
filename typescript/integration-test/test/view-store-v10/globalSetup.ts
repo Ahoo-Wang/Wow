@@ -77,6 +77,8 @@ function start(): Promise<{ url: string; child: ChildProcess }> {
       '--server.address=127.0.0.1',
       '--server.port=0',
       '--wow.internal.port=0',
+      // The suites name their callers in headers, which the server trusts only when told to (a local run).
+      '--wow.platform.trust-identity-headers=true',
       '--wow.view-store.system-views[0].id=conformance-system-view',
       `--wow.view-store.system-views[0].definition-id=${SYSTEM_VIEW_DEFINITION}`,
       '--wow.view-store.system-views[0].title=Conformance',

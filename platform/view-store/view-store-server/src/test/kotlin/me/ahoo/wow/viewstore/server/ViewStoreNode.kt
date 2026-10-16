@@ -154,6 +154,7 @@ fun startViewStore(
         "wow.cluster.drain-timeout" to "1s",
         "wow.subscription.stop-timeout" to "2s",
         "wow.wait.max-timeout" to "15s",
+        ViewStoreConfiguration.TRUST_IDENTITY_HEADERS to true,
     ) + properties.toMap()
     val context = SpringApplicationBuilder(ViewStoreServer::class.java)
         .profiles(*profiles.toTypedArray())

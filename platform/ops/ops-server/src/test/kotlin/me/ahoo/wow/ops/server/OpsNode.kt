@@ -146,6 +146,7 @@ fun startOps(
         "wow.subscription.stop-timeout" to "2s",
         "wow.subscription.checkpoint-interval" to "100ms",
         "wow.wait.max-timeout" to "15s",
+        OpsConfiguration.TRUST_IDENTITY_HEADERS to true,
     ) + properties.toMap()
     val context = SpringApplicationBuilder(
         OpsServer::class.java,

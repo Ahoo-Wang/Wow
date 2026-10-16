@@ -101,17 +101,21 @@ class ProblemTest {
         statuses.status(FrameworkCodes.BUSY).assert().isEqualTo(503)
         statuses.title(FrameworkCodes.BUSY, null, 503).assert().isEqualTo("Busy.")
         val problem = statuses.problemOf(FrameworkCodes.BUSY, "Later.")
-        problem.assert().isEqualTo(Problem(503, "Busy.", "Later.", FrameworkCodes.BUSY))
+        problem.assert().isEqualTo(Problem(503, "Busy.", "Later.", FrameworkCodes.BUSY, retryAfter = 1))
     }
 
     @Test
-    fun `only an unavailable store carries Retry-After, which is not a member of the body`() {
+    fun `a problem a retry may get past carries Retry-After, which is not a member of the body`() {
         val statuses = ErrorStatuses(Manifest())
         val unavailable = statuses.problemOf(FrameworkCodes.STORAGE_UNAVAILABLE, "Down.")
         unavailable.status.assert().isEqualTo(503)
         unavailable.retryAfter.assert().isEqualTo(ErrorStatuses.STORAGE_RETRY_AFTER_SECONDS)
         unavailable.members().keys.assert().containsExactly("type", "title", "status", "detail", "code")
-        statuses.problemOf(FrameworkCodes.UNKNOWN, "Unknown.").retryAfter.assert().isNull()
-        statuses.retryAfter(FrameworkCodes.BUSY).assert().isNull()
+        // Review A3-8: the 503s and the 429 a retry with the same request id may get past.
+        listOf(FrameworkCodes.UNKNOWN, FrameworkCodes.NODE_CLOSING, FrameworkCodes.BUSY).forEach { code ->
+            statuses.problemOf(code, "Later.").retryAfter.assert().isEqualTo(ErrorStatuses.STORAGE_RETRY_AFTER_SECONDS)
+        }
+        statuses.retryAfter(FrameworkCodes.FAILED).assert().isNull()
+        statuses.retryAfter(FrameworkCodes.CONTENDED).assert().isNull()
     }
 }

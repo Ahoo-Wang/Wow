@@ -29,7 +29,8 @@ import org.springframework.http.HttpStatus
  *    (`wow.*`) 500.
  *
  * `wow.aggregate.version-mismatch` is 412 instead of its table status when the request carried `If-Match`, and a
- * problem of `wow.storage.unavailable` carries `Retry-After` ([retryAfter]).
+ * problem a retry may get past, `wow.storage.unavailable`, `wow.command.unknown`, `wow.node.closing` and
+ * `wow.command.busy`, carries `Retry-After` ([retryAfter]).
  */
 internal class ErrorStatuses(manifest: Manifest, private val overrides: Map<String, Int> = emptyMap()) {
     private val framework: Map<String, ErrorManifest> =
@@ -78,9 +79,8 @@ internal class ErrorStatuses(manifest: Manifest, private val overrides: Map<Stri
         return Problem(status, title(code, context, status), detail, code, retryAfter = retryAfter(code))
     }
 
-    /** The `Retry-After` seconds of [code]: [STORAGE_RETRY_AFTER_SECONDS] for an unavailable store, else none. */
-    fun retryAfter(code: String): Long? =
-        STORAGE_RETRY_AFTER_SECONDS.takeIf { code == FrameworkErrors.STORAGE_UNAVAILABLE }
+    /** The `Retry-After` seconds of [code]: [STORAGE_RETRY_AFTER_SECONDS] for a code a retry may get past, else none. */
+    fun retryAfter(code: String): Long? = STORAGE_RETRY_AFTER_SECONDS.takeIf { code in RETRYABLE }
 
     private fun find(code: String, context: String?): ErrorManifest? =
         context?.let { byContext[it]?.get(code) } ?: framework[code]
@@ -91,5 +91,17 @@ internal class ErrorStatuses(manifest: Manifest, private val overrides: Map<Stri
          * and a client that waits a second spreads its retries rather than repeating at once.
          */
         const val STORAGE_RETRY_AFTER_SECONDS: Long = 1
+
+        /**
+         * The codes whose problems carry `Retry-After` (review A3-8): a store that is unavailable, a command whose
+         * outcome is unknown (retried with the same request id, decision D223), a node that is closing and a lane that
+         * is full. A client that waits spreads its retries instead of repeating them at once.
+         */
+        private val RETRYABLE: Set<String> = setOf(
+            FrameworkErrors.STORAGE_UNAVAILABLE,
+            FrameworkErrors.COMMAND_UNKNOWN,
+            FrameworkErrors.NODE_CLOSING,
+            FrameworkErrors.COMMAND_BUSY,
+        )
     }
 }

@@ -27,6 +27,7 @@ import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.problem.ErrorStatuses
+import me.ahoo.wow.http.receiveFirst
 import me.ahoo.wow.runtime.admission.CommandBody
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandRequest
@@ -113,7 +114,8 @@ internal class CommandHandler(
     @OptIn(ExperimentalCoroutinesApi::class) // produce: the results of one collection, handed to the response.
     private suspend fun stream(command: CommandRequest, ifMatch: Boolean): ServerResponse {
         val results = scope.produce { gateway.send(command).collect { send(it) } }
-        val first = results.receive()
+        // A wait's results end with a final one: a stream never ends without a first result.
+        val first = checkNotNull(results.receiveFirst()) { "The command's results ended without one." }
         if (first.isAdmissionRefusal) {
             results.cancel()
             return statuses.problemOf(first, ifMatch).respond()

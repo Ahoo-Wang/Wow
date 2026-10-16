@@ -24,7 +24,6 @@ import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.cluster.ReplyTo
 import me.ahoo.wow.runtime.command.CommandSender
@@ -139,9 +138,11 @@ internal class DerivedCommands(
             return null
         }
         val error = settlement.committed.error
+        val failure = settlement.failure
         return IllegalStateException(
-            "The derived command ${command.id} on ${command.ref} failed: ${error?.code} ${error?.message}",
-            (settlement.outcome as? CommandOutcome.Unknown)?.cause,
+            "The derived command ${command.id} on ${command.ref} failed: ${error?.code} ${error?.message}" +
+                settlement.cause?.let { " ($it)" }.orEmpty(),
+            failure,
         )
     }
 

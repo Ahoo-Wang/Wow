@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.http.internal.InternalHttp
 import org.springframework.http.server.reactive.ReactorHttpHandlerAdapter
+import org.springframework.web.reactive.function.server.HandlerStrategies
 import org.springframework.web.reactive.function.server.RouterFunction
 import org.springframework.web.reactive.function.server.RouterFunctions
 import org.springframework.web.reactive.function.server.ServerResponse
@@ -25,17 +26,28 @@ import reactor.netty.http.server.HttpServer
 
 /**
  * The internal port of the node (decisions D89, D109): a Reactor Netty server of its own, apart from the public
- * WebFlux server, serving [routes] (the cluster channel and the wait signals) over HTTP/1.1 and h2c. The JDK client
- * reaches HTTP/2 by upgrading the first request of a connection, a `POST` with its body, so the server takes an
- * upgrade request of up to [InternalHttp.MAX_UPGRADE_BODY] bytes, and keeps reading its HTTP/1.1 connections
+ * WebFlux server, serving [routes] (the cluster channel and the wait signals) over HTTP/1.1 and h2c. Its codecs take
+ * messages of up to [maxMessageSize] bytes, which the host derives from the public port's codec limit
+ * ([InternalHttp.messageLimit], review A3-9), and the server takes an upgrade request of up to that size too, as the
+ * JDK client reaches HTTP/2 by upgrading the first request of a connection; it keeps reading its HTTP/1.1 connections
  * ([KeepAliveReads]). It is not authenticated (D35): bind it to [host] where only the cluster reaches it.
  */
 class InternalServer(
     private val port: Int,
     private val host: String?,
     routes: RouterFunction<ServerResponse>,
+    private val maxMessageSize: Int,
 ) {
-    private val adapter = ReactorHttpHandlerAdapter(RouterFunctions.toHttpHandler(routes))
+    /** The internal port with the default codec limit, [InternalHttp.MAX_UPGRADE_BODY]. */
+    constructor(port: Int, host: String?, routes: RouterFunction<ServerResponse>) :
+        this(port, host, routes, InternalHttp.MAX_UPGRADE_BODY)
+
+    private val adapter = ReactorHttpHandlerAdapter(
+        RouterFunctions.toHttpHandler(
+            routes,
+            HandlerStrategies.builder().codecs { it.defaultCodecs().maxInMemorySize(maxMessageSize) }.build(),
+        ),
+    )
 
     @Volatile
     private var server: DisposableServer? = null
@@ -55,7 +67,7 @@ class InternalServer(
         var configured = HttpServer.create()
             .port(port)
             .protocol(HttpProtocol.HTTP11, HttpProtocol.H2C)
-            .httpRequestDecoder { it.h2cMaxContentLength(InternalHttp.MAX_UPGRADE_BODY) }
+            .httpRequestDecoder { it.h2cMaxContentLength(maxMessageSize) }
             .doOnChannelInit { _, channel, _ -> KeepAliveReads.install(channel) }
             .handle(adapter)
         host?.let { configured = configured.host(it) }

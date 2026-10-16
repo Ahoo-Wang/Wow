@@ -109,4 +109,16 @@ class MetricsTest {
         count("parked").assert().isEqualTo(2.0)
         count("exhausted").assert().isEqualTo(1.0)
     }
+
+    @Test
+    fun `each undecodable message should be counted by topic and whether it parked its aggregate`() {
+        // Review A3-14.
+        telemetry.observer.undecodable("orders", 0, 7, parked = true)
+        telemetry.observer.undecodable("orders", 1, 8, parked = false)
+        telemetry.observer.undecodable("orders", 1, 9, parked = false)
+        fun count(outcome: String) = telemetry.meters.find(WowMetrics.UNDECODABLE)
+            .tags(WowMetrics.TOPIC, "orders", WowMetrics.OUTCOME, outcome).counter()!!.count()
+        count(WowMetrics.PARKED_OUTCOME).assert().isEqualTo(1.0)
+        count(WowMetrics.SKIPPED_OUTCOME).assert().isEqualTo(2.0)
+    }
 }

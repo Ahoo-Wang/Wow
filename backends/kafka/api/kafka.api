@@ -38,10 +38,12 @@ public final class me/ahoo/wow/kafka/KafkaPartitionedSource$Companion {
 
 public final class me/ahoo/wow/kafka/KafkaTopicAdmin : java/lang/AutoCloseable, me/ahoo/wow/spi/transport/TopicAdmin {
 	public static final field Companion Lme/ahoo/wow/kafka/KafkaTopicAdmin$Companion;
+	public static final field MIN_INSYNC_REPLICAS Ljava/lang/String;
 	public synthetic fun <init> (Lorg/apache/kafka/clients/admin/Admin;Ljava/lang/Short;Ljava/util/Map;JLkotlinx/coroutines/CoroutineDispatcher;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public synthetic fun <init> (Lorg/apache/kafka/clients/admin/Admin;Ljava/lang/Short;Ljava/util/Map;JLkotlinx/coroutines/CoroutineDispatcher;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun close ()V
 	public fun create (Ljava/util/Map;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public final fun durability (Ljava/util/Set;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun partitions (Ljava/util/Set;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
@@ -78,5 +80,24 @@ public final class me/ahoo/wow/kafka/OffsetGapPolicy : java/lang/Enum {
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/kafka/OffsetGapPolicy;
 	public static fun values ()[Lme/ahoo/wow/kafka/OffsetGapPolicy;
+}
+
+public final class me/ahoo/wow/kafka/TopicDurability {
+	public static final field Companion Lme/ahoo/wow/kafka/TopicDurability$Companion;
+	public static final field DURABLE I
+	public fun <init> (II)V
+	public final fun component1 ()I
+	public final fun component2 ()I
+	public final fun copy (II)Lme/ahoo/wow/kafka/TopicDurability;
+	public static synthetic fun copy$default (Lme/ahoo/wow/kafka/TopicDurability;IIILjava/lang/Object;)Lme/ahoo/wow/kafka/TopicDurability;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getMinInsyncReplicas ()I
+	public final fun getReplicationFactor ()I
+	public final fun getSurvivesOneBroker ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/kafka/TopicDurability$Companion {
 }
 

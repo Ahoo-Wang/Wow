@@ -35,6 +35,12 @@ object ResultCodes {
     /** Whether the command committed is unknown; retrying with the same request id is safe (D46). */
     const val UNKNOWN = "wow.command.unknown"
 
+    /**
+     * The command's handling threw an unexpected error (a bug in a decide function or an after hook, a missing
+     * dependency): it committed nothing, and a retry fails the same way until the service is fixed (review A3-6).
+     */
+    const val FAILED = "wow.command.failed"
+
     /** The wait ran out of time. It says only that the wait gave up, not that the command failed (D64). */
     const val WAIT_TIMEOUT = "wow.wait.timeout"
 
@@ -106,6 +112,9 @@ internal val EventStreamRecord.correlationId: String get() = causation?.correlat
  * | Rejected | REJECTED | the rejection's code |
  * | Contended | FAILED | [ResultCodes.CONTENDED] |
  * | Unknown | FAILED | [ResultCodes.UNKNOWN] |
+ *
+ * An unknown outcome's message says nothing of its cause (a driver's exception, a host name, review A3-8): the node
+ * logs it ([WaitCoordinator.executeHere]).
  */
 internal fun CommandOutcome.toResult(command: Command<*>, function: FunctionInfo, hop: Hop, now: Long): CommandResult {
     val result = CommandResult(
@@ -134,7 +143,7 @@ internal fun CommandOutcome.toResult(command: Command<*>, function: FunctionInfo
 
         is CommandOutcome.Unknown -> result.failed(
             ResultCodes.UNKNOWN,
-            "Whether the command committed is unknown: ${cause.message ?: cause.javaClass.name}",
+            "Whether the command committed is unknown; retrying it with the same request id is safe.",
         )
     }
 }

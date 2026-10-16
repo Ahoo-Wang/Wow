@@ -44,6 +44,17 @@ class EventStreamTest {
             .block(Duration.ofSeconds(10))!!
 
     @Test
+    fun `a decide function that throws ends the stream with its failed result`() {
+        node.client.post().uri("/shop/cart/c-1/open-cart").header("X-User", "alice")
+            .header("Content-Type", "application/json").bodyValue("{}").exchange().expectStatus().isOk
+        val events = events("/shop/cart/c-1/checkout", """{"note":"throw"}""")
+        val last = json.readTree(events.last().data())
+        last["status"].asString().assert().isEqualTo("FAILED")
+        last["error"]["code"].asString().assert().isEqualTo(FrameworkCodes.FAILED)
+        events.last().data().assert().doesNotContain("secret")
+    }
+
+    @Test
     fun `each hop reached is an event, until the wait ends`() {
         val events = events(
             "/shop/cart/c-1/add-item",

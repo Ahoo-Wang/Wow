@@ -426,6 +426,7 @@ internal class SubscriptionWorker(
     }
 
     private suspend fun decodeAndHandle(sourced: SourcedEntry): HandledEntry {
+        (sourced.message as? UndecodableMessage)?.let { throw UndecodableEntryException(it.reason) }
         val decoded = subscription.decoder.decode(sourced.stream, sourced.position, sourced.transport)
         val entry = if (sourced.published == null && sourced.message == null) {
             decoded
@@ -469,7 +470,8 @@ internal class SubscriptionWorker(
         synchronized(this) {
             val state = parkStates[stream.ref]
             if (state !is ParkState.Resuming) {
-                val ordinal = source.ordinalOf(sourced)
+                // As a restart reads it back from the ledger: an undecodable message parks from the first version.
+                val ordinal = source.ordinalOf(entry)
                 val from = (state as? ParkState.Parked)?.fromOrdinal?.coerceAtMost(ordinal) ?: ordinal
                 parkStates[stream.ref] = ParkState.Parked(from)
             }

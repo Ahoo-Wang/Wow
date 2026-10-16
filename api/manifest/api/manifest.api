@@ -155,6 +155,7 @@ public final class me/ahoo/wow/manifest/FrameworkErrors {
 	public static final field AUTH_UNAUTHENTICATED Ljava/lang/String;
 	public static final field COMMAND_BUSY Ljava/lang/String;
 	public static final field COMMAND_CONTENDED Ljava/lang/String;
+	public static final field COMMAND_FAILED Ljava/lang/String;
 	public static final field COMMAND_INVALID Ljava/lang/String;
 	public static final field COMMAND_MALFORMED Ljava/lang/String;
 	public static final field COMMAND_REQUEST_ID_REUSED Ljava/lang/String;

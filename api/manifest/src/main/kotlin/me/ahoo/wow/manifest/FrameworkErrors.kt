@@ -39,6 +39,7 @@ object FrameworkErrors {
     const val AGGREGATE_DELETED: String = "wow.aggregate.deleted"
     const val COMMAND_BUSY: String = "wow.command.busy"
     const val COMMAND_UNKNOWN: String = "wow.command.unknown"
+    const val COMMAND_FAILED: String = "wow.command.failed"
     const val NODE_CLOSING: String = "wow.node.closing"
     const val STORAGE_UNAVAILABLE: String = "wow.storage.unavailable"
     const val SCHEDULE_NOT_DUE: String = "wow.schedule.not-due"
@@ -84,6 +85,11 @@ object FrameworkErrors {
             COMMAND_UNKNOWN,
             503,
             "Whether the command committed is unknown; retrying with the same request id is safe.",
+        ),
+        ErrorManifest(
+            COMMAND_FAILED,
+            500,
+            "The command's handling failed with an unexpected error; it committed nothing, and a retry fails alike.",
         ),
         ErrorManifest(NODE_CLOSING, 503, "The node is shutting down; retry on another node."),
         ErrorManifest(

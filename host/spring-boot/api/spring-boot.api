@@ -103,6 +103,7 @@ public final class me/ahoo/wow/spring/boot/HostBackends$Companion {
 
 public final class me/ahoo/wow/spring/boot/InternalServer {
 	public fun <init> (ILjava/lang/String;Lorg/springframework/web/reactive/function/server/RouterFunction;)V
+	public fun <init> (ILjava/lang/String;Lorg/springframework/web/reactive/function/server/RouterFunction;I)V
 	public final fun getBoundPort ()I
 	public final fun isRunning ()Z
 	public final fun start ()V
@@ -127,6 +128,7 @@ public final class me/ahoo/wow/spring/boot/KafkaAutoConfiguration$KafkaMetrics {
 
 public final class me/ahoo/wow/spring/boot/KafkaAutoConfiguration$KafkaTransport {
 	public fun <init> ()V
+	public final fun wowKafkaDurabilityCheck (Lme/ahoo/wow/spring/boot/KafkaProperties;Lorg/springframework/core/env/Environment;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;Lorg/springframework/beans/factory/ObjectProvider;)Lorg/springframework/context/ApplicationListener;
 	public final fun wowKafkaPartitionedSource (Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/kafka/KafkaPartitionedSource;
 	public final fun wowKafkaSinks (Lme/ahoo/wow/manifest/Manifest;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/runtime/sink/PublishedSinks;
 	public final fun wowKafkaSourceTopics (Lme/ahoo/wow/spi/transport/PartitionedSource;Lme/ahoo/wow/spi/transport/TopicProducer;Lme/ahoo/wow/spi/transport/TopicAdmin;Lme/ahoo/wow/spring/boot/KafkaProperties;)Lme/ahoo/wow/runtime/node/SourceTopics;
@@ -159,12 +161,17 @@ public final class me/ahoo/wow/spring/boot/KafkaProperties$Companion {
 
 public final class me/ahoo/wow/spring/boot/KafkaProperties$Topics {
 	public fun <init> ()V
+	public final fun creationConfigs ()Ljava/util/Map;
 	public final fun getConfigs ()Ljava/util/Map;
 	public final fun getDdl ()Lme/ahoo/wow/runtime/node/TopicDdl;
+	public final fun getDevProfiles ()Ljava/util/Set;
+	public final fun getMinInsyncReplicas ()Ljava/lang/Integer;
 	public final fun getPartitionRefresh ()Ljava/time/Duration;
 	public final fun getReplicationFactor ()Ljava/lang/Short;
 	public final fun setConfigs (Ljava/util/Map;)V
 	public final fun setDdl (Lme/ahoo/wow/runtime/node/TopicDdl;)V
+	public final fun setDevProfiles (Ljava/util/Set;)V
+	public final fun setMinInsyncReplicas (Ljava/lang/Integer;)V
 	public final fun setPartitionRefresh (Ljava/time/Duration;)V
 	public final fun setReplicationFactor (Ljava/lang/Short;)V
 }

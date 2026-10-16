@@ -14,16 +14,20 @@
 package me.ahoo.wow.spring.boot
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.query.DatasetVisibility
 import me.ahoo.wow.http.query.EventQueryGateway
 import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.http.read.StateReads
+import me.ahoo.wow.http.read.StateVisibility
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.AbacQueryPolicy
 import me.ahoo.wow.query.DefaultQueryGateway
 import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.QueryBackendStorages
+import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryCountCache
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryLogObserver
@@ -245,6 +249,7 @@ class QueryAutoConfiguration {
             datasets: DatasetQueryGateways,
             visibility: ObjectProvider<DatasetVisibility>,
             counts: ObjectProvider<QueryCountCache>,
+            reads: ObjectProvider<StateReads>,
         ): HttpQueries {
             val contexts = node.contexts.keys
             val observer = observerOf(observers)
@@ -266,6 +271,12 @@ class QueryAutoConfiguration {
                     )
                 }
             }
+            val byType = snapshots.associateBy { it.aggregateType }
+            // An aggregate the snapshot queries hide is hidden from the events model too (review A3-11).
+            val visible: suspend (AggregateRef, QueryCaller) -> Boolean = { ref, caller ->
+                val latest = reads.ifAvailable?.latest(ref)
+                latest == null || StateVisibility.visible(byType[ref.type], caller, latest)
+            }
             val events = queryTypes(manifest, contexts, QueryRoutes.EVENTS).map { type ->
                 EventQueryGateway(
                     type,
@@ -273,6 +284,7 @@ class QueryAutoConfiguration {
                     tenants,
                     entryPolicy,
                     QueryOwnership.of(manifest).ownershipOf(type),
+                    visible,
                 )
             }
             return HttpQueries(

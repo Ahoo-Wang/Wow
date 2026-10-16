@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.ops.OpsPaths
 import me.ahoo.wow.http.ops.WebhookNotifier
+import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.subscription.Subscription
@@ -173,6 +174,10 @@ class HostParkedOpsTest {
         val handled: MutableList<String> = CopyOnWriteArrayList()
 
         fun attempts(subscription: String, id: String): Int = attempts["$subscription:$id"]?.get() ?: 0
+
+        /** The operator's actions are refused without an authorizer (review A3-3): this host allows them all. */
+        @Bean
+        fun operators(): CommandAuthorizer = CommandAuthorizer.ALLOW_ALL
 
         @Bean
         fun failingSubscriptionFactory(): SubscriptionFactory = SubscriptionFactory { context ->

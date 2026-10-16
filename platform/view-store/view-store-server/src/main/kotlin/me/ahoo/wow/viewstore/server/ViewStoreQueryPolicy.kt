@@ -26,7 +26,11 @@ import me.ahoo.wow.viewstore.api.ViewStoreContext
 /**
  * Keeps a caller's queries of the view store's snapshots in its application (the 9.x `ViewStoreQueryPolicy`): a
  * view, preferences or wording written in another application reads as none. A query without an application is
- * refused; trusted in-process code, which has no caller, is not restricted.
+ * refused (`wow.query.malformed`, `APP_REQUIRED`); trusted in-process code, which has no caller, is not restricted.
+ *
+ * The host applies the same check to the reads by id (review A3-11): a state read (`/state`, `?version=`, the trace)
+ * and an events query of an aggregate run it on the aggregate's state, so a request without an application is refused
+ * there too, and an aggregate of another application is not found (no events), as a snapshot query would not show it.
  */
 class ViewStoreQueryPolicy : QueryPolicy {
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {

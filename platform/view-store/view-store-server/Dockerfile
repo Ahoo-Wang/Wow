@@ -1,6 +1,9 @@
 # The V10 view store service image (R.1): `./gradlew -Pwow.scope=v10 :view-store-server:installDist`.
 # v10-image-deploy.yml builds it and tags only the release version: a pre-release never moves `latest`, which stays
 # on the 9.x image of the same name (view-store-deploy.yml).
+# Callers: the image trusts no identity header. Without wow-cosec on its class path every request is answered 401
+# until a deployment gives it an identity provider; WOW_PLATFORM_TRUSTIDENTITYHEADERS=true (the property
+# wow.platform.trust-identity-headers) takes them from X-User, X-Tenant and X-Role instead, for a local demo only.
 ARG APP_NAME=view-store-server
 ARG WORK_HOME=/opt/${APP_NAME}
 

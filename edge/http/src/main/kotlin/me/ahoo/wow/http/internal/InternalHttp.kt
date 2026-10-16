@@ -36,13 +36,29 @@ object InternalHttp {
     const val JSON: String = "application/json"
 
     /**
-     * The largest body the first request of a connection may carry for the server to upgrade it to h2c: the host
-     * sets its internal server's `h2cMaxContentLength` to it. The JDK client upgrades with whatever request opens a
-     * connection, here a `POST` with its body, and a server that takes no body on an upgrade request (Reactor Netty's
-     * default) answers it 413. It is the default in-memory limit of the WebFlux codecs, which bound every later
-     * request the same way; a larger message fails, and its forward runs locally (decision D78).
+     * The default largest message of the internal port: the default in-memory limit of the WebFlux codecs. The host
+     * sets its internal server's limits ([messageLimit]) from the public port's, so a command the public port takes is
+     * taken when forwarded too; the server takes a body of up to that size on the request that upgrades a connection
+     * to h2c as well (the channel opens each connection with a `HEAD`). A forward larger than the internal port takes
+     * is refused ([me.ahoo.wow.runtime.cluster.Refusal.TOO_LARGE]), and its sender runs it (review A3-9).
      */
     const val MAX_UPGRADE_BODY: Int = 256 * 1024
+
+    /** What a forward carries besides its command's body: ids, the ref, headers, the wait and the trace. */
+    const val MESSAGE_OVERHEAD: Int = 64 * 1024
+
+    /**
+     * The largest message the internal port takes when the public port's codecs take bodies of up to [publicLimit]
+     * bytes (a negative one: no limit): the body and a forward's [MESSAGE_OVERHEAD], never less than
+     * [MAX_UPGRADE_BODY].
+     */
+    fun messageLimit(publicLimit: Int): Int {
+        if (publicLimit < 0) {
+            return Int.MAX_VALUE
+        }
+        val limit = maxOf(MAX_UPGRADE_BODY.toLong(), publicLimit.toLong() + MESSAGE_OVERHEAD)
+        return limit.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+    }
 
     /** The default connect timeout of [client]: a peer that does not accept a connection by then is unreachable. */
     val DEFAULT_CONNECT_TIMEOUT: Duration = 1.seconds

@@ -225,8 +225,9 @@ class PartitionedRouter(
         return Settlement(
             committed.failed(
                 ResultCodes.UNKNOWN,
-                "The owner ${peer.node} of ${command.ref} did not reply in time ($why); whether the command committed " +
-                    "is unknown. Retry it with the same request id.",
+                // Not the peer, its address or why: the client is told the conclusion, the node's log the rest.
+                "The owner of ${command.ref} did not reply in time; whether the command committed is unknown. " +
+                    "Retry it with the same request id.",
             ),
         )
     }

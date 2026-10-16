@@ -118,6 +118,28 @@ class NodeMetricsTest {
     }
 
     @Test
+    fun `a node that no longer runs a partition removes its gauges, and the parked count with partition 0`(): Unit =
+        runBlocking {
+            // Review A3-13: a partition handed off leaves no stale gauge, and one node reports the service's ledger.
+            node.start()
+            listOf("good-1", "bad-1").forEach { place(it) }
+            eventually { node.parked.list(BOARD).entries.size == 1 }
+            val metrics = NodeMetrics(node, telemetry.meters)
+            metrics.reportsParked().assert().isTrue()
+            metrics.sample()
+            gauge(WowMetrics.PARKED, WowMetrics.SUBSCRIPTION, BOARD).assert().containsExactly(1.0)
+            gauge(WowMetrics.POSITION, WowMetrics.SUBSCRIPTION, BOARD).assert().isNotEmpty()
+
+            node.stop()
+            metrics.reportsParked().assert().isFalse()
+            metrics.sample()
+            telemetry.meters.find(WowMetrics.PARKED).gauges().assert().isEmpty()
+            telemetry.meters.find(WowMetrics.POSITION).gauges().assert().isEmpty()
+            telemetry.meters.find(WowMetrics.BACKLOG).gauges().assert().isEmpty()
+            telemetry.meters.find(WowMetrics.PROGRESS).gauges().assert().isEmpty()
+        }
+
+    @Test
     fun `sampling should go on every interval, past a sample that fails, until it is closed`(): Unit = runBlocking {
         node.start()
         place("good-1")

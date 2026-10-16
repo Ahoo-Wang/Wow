@@ -24,7 +24,6 @@ import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.AggregateModel
-import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
@@ -113,9 +112,11 @@ class CommandIntake internal constructor(
         }
         if (settlement.failed) {
             val error = settlement.committed.error
+            val failure = settlement.failure
             throw IllegalStateException(
-                "The command ${wire.id} on ${wire.ref} failed: ${error?.code} ${error?.message}",
-                (settlement.outcome as? CommandOutcome.Unknown)?.cause,
+                "The command ${wire.id} on ${wire.ref} failed: ${error?.code} ${error?.message}" +
+                    settlement.cause?.let { " ($it)" }.orEmpty(),
+                failure,
             )
         }
         replyCommitted(wire, settlement.committed, next)

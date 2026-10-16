@@ -16,7 +16,6 @@ package me.ahoo.wow.http.query
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.flow.Flow
@@ -41,6 +40,8 @@ import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
+import me.ahoo.wow.http.problem.tooLargeProblem
+import me.ahoo.wow.http.receiveFirst
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryBudget
@@ -315,11 +316,7 @@ internal class QueryHandler(
     ): ServerResponse {
         if (!eventStream) return json(records.toList(), rebuilding)
         val rows = scope.produce { records.collect { send(it) } }
-        val first = try {
-            rows.receive()
-        } catch (_: ClosedReceiveChannelException) {
-            null
-        }
+        val first = rows.receiveFirst()
         val events = flow {
             if (first == null) return@flow
             var index = 0L
@@ -355,6 +352,7 @@ internal class QueryHandler(
     /** The problem a query that failed with [failure] answers. */
     private fun problemOf(failure: Throwable, context: String?): Problem {
         if (failure is ProblemException) return failure.problem
+        tooLargeProblem(failure)?.let { return it }
         // From a backend primitive through the core, or from a read of the log (the events model).
         if (failure is QueryStorageUnavailableException || failure is StorageUnavailableException) {
             logger.warn(failure) { "A query failed: its storage is unavailable." }
