@@ -68,6 +68,8 @@ import java.lang.reflect.Modifier
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.Continuation
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toJavaDuration
 
 class QueryAdmissionTest {
     private val epoch = scalarFixture(QueryValueType.INTEGER, Temporal.Epoch(TimeUnit.MILLISECONDS))
@@ -489,12 +491,12 @@ class QueryAdmissionTest {
     fun `admission puts the entry's timeout on the admitted query`() {
         val query = SingleQuery(note) as ISingleQuery
         QueryAdmission(aggregateType).admitBlocking(QueryOperation.SINGLE, query, http).timeout
-            .assert().isEqualTo(QueryBudget.DEFAULT_TIMEOUT)
+            .assert().isEqualTo(QueryBudget.DEFAULT_TIMEOUT.toJavaDuration())
         QueryAdmission(aggregateType).admitBlocking(QueryOperation.SINGLE, query, QueryCaller.IN_PROCESS).timeout
-            .assert().isEqualTo(QueryBudget.DEFAULT_TIMEOUT)
+            .assert().isEqualTo(QueryBudget.DEFAULT_TIMEOUT.toJavaDuration())
         val custom = QueryEntryPolicy(
-            http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = Duration.ZERO),
-            inProcessTimeout = Duration.ofSeconds(3),
+            http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = kotlin.time.Duration.ZERO),
+            inProcessTimeout = 3.seconds,
         )
         QueryAdmission(aggregateType, entryPolicy = custom).admitBlocking(QueryOperation.SINGLE, query, http).timeout
             .assert().isNull()
@@ -509,23 +511,23 @@ class QueryAdmissionTest {
     @Test
     fun `the entry policy gives each entry its timeout`() {
         val policy = QueryEntryPolicy(
-            http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = Duration.ofSeconds(5)),
-            inProcessTimeout = Duration.ofSeconds(7),
+            http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = 5.seconds),
+            inProcessTimeout = 7.seconds,
         )
-        policy.timeout(QueryEntry.HTTP).assert().isEqualTo(Duration.ofSeconds(5))
-        policy.timeout(QueryEntry.IN_PROCESS).assert().isEqualTo(Duration.ofSeconds(7))
-        policy.timeout(QueryEntry.UNSPECIFIED).assert().isEqualTo(Duration.ofSeconds(7))
-        QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = Duration.ZERO))
+        policy.timeout(QueryEntry.HTTP).assert().isEqualTo(5.seconds)
+        policy.timeout(QueryEntry.IN_PROCESS).assert().isEqualTo(7.seconds)
+        policy.timeout(QueryEntry.UNSPECIFIED).assert().isEqualTo(7.seconds)
+        QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = kotlin.time.Duration.ZERO))
             .timeout(QueryEntry.HTTP).assert().isNull()
-        QueryEntryPolicy(inProcess = QueryBudget("In-process", timeout = Duration.ofSeconds(2)))
-            .timeout(QueryEntry.IN_PROCESS).assert().isEqualTo(Duration.ofSeconds(2))
+        QueryEntryPolicy(inProcess = QueryBudget("In-process", timeout = 2.seconds))
+            .timeout(QueryEntry.IN_PROCESS).assert().isEqualTo(2.seconds)
         QueryEntryPolicy(inProcessTimeout = null).timeout(QueryEntry.IN_PROCESS).assert().isNull()
         QueryEntryPolicy.DEFAULT.timeout(QueryEntry.HTTP).assert().isEqualTo(QueryBudget.DEFAULT_TIMEOUT)
         QueryEntryPolicy.DEFAULT.budget(QueryEntry.HTTP).assert().isSameAs(QueryBudget.HTTP_DEFAULT)
         QueryEntryPolicy.DEFAULT.budget(QueryEntry.UNSPECIFIED).assert().isNull()
-        assertThrows<IllegalArgumentException> { QueryEntryPolicy(inProcessTimeout = Duration.ZERO) }
+        assertThrows<IllegalArgumentException> { QueryEntryPolicy(inProcessTimeout = kotlin.time.Duration.ZERO) }
             .message.assert().isEqualTo("inProcessTimeout must be positive.")
-        assertThrows<IllegalArgumentException> { QueryEntryPolicy(inProcessTimeout = Duration.ofSeconds(-1)) }
+        assertThrows<IllegalArgumentException> { QueryEntryPolicy(inProcessTimeout = (-1).seconds) }
     }
 
     @Test

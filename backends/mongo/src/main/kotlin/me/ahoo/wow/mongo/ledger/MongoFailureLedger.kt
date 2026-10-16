@@ -31,6 +31,7 @@ import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.mongo
+import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.LedgerRequest
 import me.ahoo.wow.spi.ledger.ParkedAggregate
@@ -68,6 +69,8 @@ class MongoFailureLedger(
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     /** The service whose ledger this is: its entries alone are seen. */
     private val service: String = DEFAULT_SERVICE,
+    /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
+    private val ddl: StoreDdl = StoreDdl.AUTO,
 ) : FailureLedger {
     private val database = client.getDatabase(databaseName)
     private val ledger: MongoCollection<Document> = database.getCollection(collection)
@@ -77,10 +80,12 @@ class MongoFailureLedger(
      * when missing.
      */
     fun createSchema() {
-        MongoFormat.claim(database, collection, FORMAT)
-        ledger.createIndex(
+        MongoFormat.claim(database, collection, FORMAT, ddl)
+        MongoFormat.index(
+            ledger,
             Indexes.ascending(SERVICE, SUBSCRIPTION, CONTEXT, AGGREGATE_NAME, TENANT_ID, AGGREGATE_ID),
             IndexOptions().unique(true).name(LEDGER_KEY),
+            ddl,
         )
     }
 

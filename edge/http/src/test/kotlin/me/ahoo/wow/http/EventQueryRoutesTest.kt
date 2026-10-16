@@ -42,6 +42,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
 import java.time.Duration
+import kotlin.time.toKotlinDuration
 
 /** The `events` query model (decision D131): one aggregate's streams from the log, never filtered freely. */
 class EventQueryRoutesTest {
@@ -254,7 +255,9 @@ class EventQueryRoutesTest {
         val slow = EventQueryGateway(
             cartType,
             SlowLog(node.http.log),
-            entryPolicy = QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = Duration.ofMillis(50))),
+            entryPolicy = QueryEntryPolicy(
+                http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = Duration.ofMillis(50).toKotlinDuration())
+            ),
         )
         history()
         val caller = QueryCaller(Caller(tenantId = TENANT), entry = me.ahoo.wow.query.QueryEntry.HTTP)

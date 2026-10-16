@@ -83,6 +83,8 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.CoroutineContext
+import kotlin.time.toJavaDuration
+import kotlin.time.toKotlinDuration
 
 /**
  * The gateway's admission, execution and observation, ported from 9.x `QueryGatewaySubscriptionTest`: a suspend call
@@ -829,8 +831,8 @@ class QueryGatewayTest {
             }
             val slow = SlowBackend()
             listOf(
-                QueryEntryPolicy(inProcessTimeout = Duration.ofMillis(100)) to QueryCaller.IN_PROCESS,
-                QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = Duration.ofMillis(100))) to
+                QueryEntryPolicy(inProcessTimeout = Duration.ofMillis(100).toKotlinDuration()) to QueryCaller.IN_PROCESS,
+                QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = Duration.ofMillis(100).toKotlinDuration())) to
                     QueryCaller(entry = QueryEntry.HTTP),
             ).forEach { (entryPolicy, caller) ->
                 val gateway = gateway(slow, observer = observer, entryPolicy = entryPolicy)
@@ -864,26 +866,34 @@ class QueryGatewayTest {
                 .count(CountQuery(MatchAllFilter), QueryCaller.IN_PROCESS).count.assert().isEqualTo(1)
             gateway(
                 slow,
-                entryPolicy = QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = Duration.ZERO))
+                entryPolicy = QueryEntryPolicy(
+                    http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = Duration.ZERO.toKotlinDuration())
+                )
             )
                 .count(CountQuery(MatchAllFilter), QueryCaller(entry = QueryEntry.HTTP)).count.assert().isEqualTo(1)
             slow.admitted.map { it.timeout }.assert().containsExactly(null, null)
             gateway(slow).count(CountQuery(MatchAllFilter), QueryCaller.IN_PROCESS)
-            slow.admitted.last().timeout.assert().isEqualTo(QueryBudget.DEFAULT_TIMEOUT)
+            slow.admitted.last().timeout.assert().isEqualTo(QueryBudget.DEFAULT_TIMEOUT.toJavaDuration())
         }
     }
 
     @Test
     fun `the entry policy gives each entry its budget and timeout`() {
-        val inProcess = QueryBudget("In-process", timeout = Duration.ofSeconds(5))
-        val policy = QueryEntryPolicy(inProcess = inProcess, inProcessTimeout = Duration.ofSeconds(1))
+        val inProcess = QueryBudget("In-process", timeout = Duration.ofSeconds(5).toKotlinDuration())
+        val policy =
+            QueryEntryPolicy(inProcess = inProcess, inProcessTimeout = Duration.ofSeconds(1).toKotlinDuration())
         policy.budget(QueryEntry.HTTP).assert().isSameAs(QueryBudget.HTTP_DEFAULT)
         policy.budget(QueryEntry.UNSPECIFIED).assert().isSameAs(inProcess)
-        policy.timeout(QueryEntry.IN_PROCESS).assert().isEqualTo(Duration.ofSeconds(5))
+        policy.timeout(QueryEntry.IN_PROCESS).assert().isEqualTo(Duration.ofSeconds(5).toKotlinDuration())
         policy.timeout(QueryEntry.HTTP).assert().isEqualTo(QueryBudget.DEFAULT_TIMEOUT)
         QueryEntryPolicy().timeout(QueryEntry.IN_PROCESS).assert().isEqualTo(QueryBudget.DEFAULT_TIMEOUT)
-        assertThrows<IllegalArgumentException> { QueryEntryPolicy(inProcessTimeout = Duration.ZERO) }
-        assertThrows<IllegalArgumentException> { QueryBudget("HTTP", timeout = Duration.ofSeconds(-1)) }
+        assertThrows<IllegalArgumentException> { QueryEntryPolicy(inProcessTimeout = Duration.ZERO.toKotlinDuration()) }
+        assertThrows<IllegalArgumentException> {
+            QueryBudget(
+                "HTTP",
+                timeout = Duration.ofSeconds(-1).toKotlinDuration()
+            )
+        }
         assertThrows<IllegalArgumentException> { QueryBudget("HTTP", countLimit = -1) }
     }
 

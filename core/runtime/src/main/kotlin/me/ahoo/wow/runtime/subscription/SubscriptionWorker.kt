@@ -20,7 +20,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
@@ -32,6 +31,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.WaitSignal
+import me.ahoo.wow.runtime.ZeroAwaitingCounter
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.handledResult
@@ -101,7 +101,7 @@ internal class SubscriptionWorker(
     /** How the handler is retried before its aggregate is parked: its subscription's budget (roadmap P.3). */
     private val retry: RetryPolicy = options.retryOf(subscription)
     private val pending = ArrayDeque<Slot>()
-    private val outstanding = MutableStateFlow(0)
+    private val outstanding = ZeroAwaitingCounter()
     private val active = HashMap<AggregateRef, Lane>()
     private val parkStates = HashMap<AggregateRef, ParkState>(parked.mapValues { ParkState.Parked(it.value) })
 
@@ -170,7 +170,7 @@ internal class SubscriptionWorker(
         cursor = entry.position.sequence
         val slot = Slot(entry.position.sequence)
         pending.addLast(slot)
-        outstanding.value = pending.size
+        outstanding.set(pending.size)
         if (!subscription.takes(stream) || skippedOnAdmit(entry)) {
             complete(slot)
             if (waitsHere(entry)) {
@@ -209,7 +209,9 @@ internal class SubscriptionWorker(
     /**
      * Signals the wait on [entry], if it waits for this subscription next and is not over: SUCCEEDED with the
      * commands [handled] derived, REJECTED with the rejection it met, or FAILED when it failed or the aggregate is
-     * [parked].
+     * [parked]. A FAILED signal carries the code and where the aggregate parked, never the handler's exception: its
+     * class and message, which may name a database, an address or a third party's answer, go to the ledger and the
+     * logs only (review A5-7).
      */
     @Suppress("TooGenericExceptionCaught") // A signal is best effort: whatever fails, the entry is done with.
     private suspend fun signal(entry: SourcedEntry, handled: Result<HandledEntry>, parked: Boolean = false) {
@@ -225,11 +227,15 @@ internal class SubscriptionWorker(
         val rejection = (failure as? HandlingRejectedException)?.error ?: handled.getOrNull()?.rejection
         val error = when {
             rejection != null -> rejection
-            failure != null -> ErrorInfo(ResultCodes.SUBSCRIPTION_PARKED, reason(failure))
-            parked -> ErrorInfo(
-                ResultCodes.SUBSCRIPTION_PARKED,
-                "${entry.stream.ref} is parked by ${subscription.name}."
-            )
+            failure != null || parked -> {
+                // The handler's exception stays in the ledger and the logs; the caller learns only where (A5-7).
+                failure?.let { logger.debug(it) { "Wait ${wait.waitId} fails: ${subscription.name} parked." } }
+                ErrorInfo(
+                    ResultCodes.SUBSCRIPTION_PARKED,
+                    "${entry.stream.ref}@${entry.stream.version} is parked by ${subscription.name}; the failure " +
+                        "ledger has the cause.",
+                )
+            }
             else -> null
         }
         val hop = checkNotNull(wait.nextHandled)
@@ -268,7 +274,7 @@ internal class SubscriptionWorker(
             completeAbove--
             permits.release()
         }
-        outstanding.value = pending.size
+        outstanding.set(pending.size)
     }
 
     private suspend fun drain(ref: AggregateRef, lane: Lane) {
@@ -643,7 +649,7 @@ internal class SubscriptionWorker(
 
     /** Waits until every taken entry is complete. */
     suspend fun awaitDrained() {
-        outstanding.first { it == 0 }
+        outstanding.awaitZero()
     }
 
     /** Fails the resumes still queued: their lanes were cancelled by a stop. */

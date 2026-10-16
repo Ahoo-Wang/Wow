@@ -16,8 +16,9 @@ package me.ahoo.wow.spi.id
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.id.Ids
-import java.security.SecureRandom
 import java.util.UUID
+import java.util.concurrent.ThreadLocalRandom
+import java.util.random.RandomGenerator
 
 /**
  * Generates the message-level ids of a node (decision D171): command ids, the request id of a request that names
@@ -112,10 +113,17 @@ class IdGenerators @InternalWowApi constructor(
 /**
  * Version 7 UUIDs (RFC 9562 §5.7): 48 bits of Unix epoch milliseconds from [clock], the version, 12 random bits, the
  * variant and 62 random bits.
+ *
+ * The random bits come from the calling thread's [ThreadLocalRandom] by default (review A5-3): the ids only need to be
+ * unique, not unpredictable (no id is a secret; the internal port authenticates by token, decision D226), and a shared
+ * `SecureRandom` serialises every command's ids, some taken on the server's event loops, on one lock.
  */
-internal class UuidV7Generator(private val clock: () -> Long, private val random: SecureRandom = SecureRandom()) :
-    GlobalIdGenerator {
+internal class UuidV7Generator(
+    private val clock: () -> Long,
+    private val random: () -> RandomGenerator = ThreadLocalRandom::current,
+) : GlobalIdGenerator {
     override fun next(): String {
+        val random = random()
         val randomA = random.nextInt() and RAND_A_MASK
         val msb = (clock() shl TIMESTAMP_SHIFT) or VERSION or randomA.toLong()
         val lsb = (random.nextLong() and RAND_B_MASK) or VARIANT

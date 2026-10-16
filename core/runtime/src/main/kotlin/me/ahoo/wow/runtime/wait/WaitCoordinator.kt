@@ -25,16 +25,17 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.job
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Rejection
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
@@ -42,19 +43,22 @@ import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.ScheduleNotDueException
+import me.ahoo.wow.runtime.CommandWithdrawnException
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.ExecutorBusyException
 import me.ahoo.wow.runtime.ExecutorClosedException
 import me.ahoo.wow.runtime.cluster.CommandRouter
 import me.ahoo.wow.runtime.cluster.TopicRouter
 import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.id.GlobalIdGenerator
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.traceContext
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
-import java.util.UUID
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.ScheduledThreadPoolExecutor
+import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.CoroutineContext
@@ -195,11 +199,13 @@ class WaitCoordinator(
     private val signals: SignalSender,
     options: WaitOptions,
     private val clock: () -> Long = System::currentTimeMillis,
-    private val waitIds: () -> String = { UUID.randomUUID().toString() },
+    private val waitIds: () -> String = GlobalIdGenerator.UUID_V7::next,
     private val router: CommandRouter = CommandRouter.LOCAL,
     private val executionContext: CoroutineContext = Dispatchers.Default,
     /** The `Kafka` router of the context's types configured for it (decision D143); none by default. */
     private val topicRouter: TopicRouter? = null,
+    /** Sees the commands refused before the kernel and the waits that time out (review A5-11). */
+    private val observer: Observer = Observer.NONE,
 ) {
     /** Where the commands of [stream] execute, apart from their waits (decision D64). */
     private val executions = CoroutineScope(SupervisorJob() + executionContext)
@@ -234,8 +240,17 @@ class WaitCoordinator(
         executions.cancel()
     }
 
-    /** Executes [command] on [model]'s aggregate and returns the result it ends its wait with. */
-    suspend fun execute(model: AggregateModel<*>, command: Command<*>): CommandResult = stream(model, command).last()
+    /**
+     * Executes [command] on [model]'s aggregate and returns the result it ends its wait with: the last one [stream]
+     * would emit. It runs in this coordinator's execution context as [stream] does, without the channel and producer
+     * coroutine a flow moved to another context takes (review A5-5): a caller that wants the final result only pays
+     * for that.
+     */
+    suspend fun execute(model: AggregateModel<*>, command: Command<*>): CommandResult = withContext(executionContext) {
+        var last: CommandResult? = null
+        run(model, command) { last = it }
+        checkNotNull(last) { "The wait of ${command.id} ended without a result." }
+    }
 
     /**
      * Executes [command] on [model]'s aggregate and emits a result for each hop of its wait plan as it is reached, one
@@ -260,13 +275,28 @@ class WaitCoordinator(
      *   dropped.
      */
     fun stream(model: AggregateModel<*>, command: Command<*>): Flow<CommandResult> = flow {
+        run(model, command) { emit(it) }
+    }.flowOn(executionContext)
+
+    /** [emit], counting a timeout the wait ends with (review A5-11). */
+    private suspend fun observed(command: Command<*>, result: CommandResult, emit: suspend (CommandResult) -> Unit) {
+        if (result.error?.code == ResultCodes.WAIT_TIMEOUT) {
+            observer.waitTimedOut(command.ref.type, result.hop.stage)
+        }
+        emit(result)
+    }
+
+    /** Runs [command]'s wait as [stream] describes, handing each result to [emit]; the caller picks the context. */
+    @Suppress("LongMethod") // One wait from admission to its end, the Kafka router's branch included.
+    private suspend fun run(model: AggregateModel<*>, command: Command<*>, results: suspend (CommandResult) -> Unit) {
+        val emit: suspend (CommandResult) -> Unit = { observed(command, it, results) }
         val function = commandFunction(model, command)
         val context = command.ref.type.context
         val checked = WaitChain.of(command.wait, command.ref.type, directory, options.maxHops, options.unknownContexts)
         val chain = when (checked) {
             is WaitChain.Invalid -> {
                 emit(admissionRejected(command, function, ResultCodes.WAIT_INVALID, checked.reason, clock()))
-                return@flow
+                return
             }
 
             is WaitChain -> checked
@@ -285,14 +315,14 @@ class WaitCoordinator(
                 val wait = WaitContext(waitId, options.origin, remaining, deadline).takeIf { remaining.isNotEmpty() }
                 sendToTopic(topic, model, command, wait, deadline)?.let { failed ->
                     emit(failed)
-                    return@flow
+                    return
                 }
                 waiting.offer(reachedResult(command, function, Hop.accepted(context), clock()))
                 expiry = expireAt(deadline, waiting, settled)
                 for (result in waiting.results) {
                     emit(waiting.carry(result))
                 }
-                return@flow
+                return
             }
             waiting.offer(reachedResult(command, function, Hop.accepted(context), clock()))
             // Once ACCEPTED is reached: a timeout answers at the last hop reached.
@@ -315,15 +345,15 @@ class WaitCoordinator(
             expiry?.cancel(false)
             registry.remove(waitId)
         }
-    }.flowOn(executionContext)
+    }
 
     /**
-     * Ends [waiting] with a timeout at [deadline] (decision D64), from [DEADLINES], apart from the waiter:
+     * Ends [waiting] with a timeout at [deadline] (decision D64), from one of [DEADLINES], apart from the waiter:
      * at ACCEPTED, saying the outcome is not known, until the waiter has the command's settlement ([settled]), else at
      * the last hop it reached. Whether or not the wait had ended, its [deadline passes][Waiting.deadlinePassed].
      */
     private fun expireAt(deadline: Long, waiting: Waiting, settled: AtomicBoolean): ScheduledFuture<*> =
-        DEADLINES.schedule(
+        DEADLINES[ThreadLocalRandom.current().nextInt(DEADLINES.size)].schedule(
             {
                 waiting.expire(clock()) { hop ->
                     if (settled.get()) {
@@ -405,8 +435,15 @@ class WaitCoordinator(
         try {
             val settlement = router.route(model, command, null) { executeHere(model, command, null) }
             val committed = settlement.committed
-            if (committed.status != CommandResult.Status.SUCCEEDED) {
-                logger.info { "Detached command ${command.id} on ${command.ref} ended ${committed.status}: ${committed.error}" }
+            when (committed.status) {
+                CommandResult.Status.SUCCEEDED -> Unit
+                // A business rejection is an outcome, not an incident (review A5-11).
+                CommandResult.Status.REJECTED ->
+                    logger.debug { "Detached command ${command.id} on ${command.ref} was rejected: ${committed.error}" }
+
+                else -> logger.info {
+                    "Detached command ${command.id} on ${command.ref} ended ${committed.status}: ${committed.error}"
+                }
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -479,7 +516,9 @@ class WaitCoordinator(
      * partition runs it so for a forward.
      *
      * A command the executor does not take is settled FAILED at COMMITTED, not thrown (decision D115): its aggregate's
-     * lane is full ([ResultCodes.BUSY]), or the executor is closed ([ResultCodes.NODE_CLOSING]). So is one whose
+     * lane is full or the node has its most commands in flight ([ResultCodes.BUSY], decision D228 ②), or the executor
+     * is closed ([ResultCodes.NODE_CLOSING]). So is one that waited in its lane past its wait's deadline and was
+     * withdrawn before it ran ([ResultCodes.WAIT_TIMEOUT]: its waiter has gone, and it committed nothing). So is one whose
      * execution a store failed with a transient failure ([StorageUnavailableException], such as the request id's
      * lookup during a restart): [ResultCodes.STORAGE_UNAVAILABLE], which a retry with the same request id may pass, as
      * the kernel deduplicates it. So is a scheduled command due longer from now than the kernel waits for one
@@ -497,17 +536,15 @@ class WaitCoordinator(
         val outcome = try {
             executor.execute(model, command, wait)
         } catch (busy: ExecutorBusyException) {
-            return Settlement(reachedResult(command, function, hop, clock()).failed(ResultCodes.BUSY, busy.message!!))
+            return refused(command, function, hop, ResultCodes.BUSY, busy.message!!)
+        } catch (withdrawn: CommandWithdrawnException) {
+            logger.debug { withdrawn.message }
+            return refused(command, function, hop, ResultCodes.WAIT_TIMEOUT, withdrawn.message!!)
         } catch (closed: ExecutorClosedException) {
-            return Settlement(
-                reachedResult(command, function, hop, clock()).failed(ResultCodes.NODE_CLOSING, closed.message!!),
-            )
+            return refused(command, function, hop, ResultCodes.NODE_CLOSING, closed.message!!)
         } catch (unavailable: StorageUnavailableException) {
             logger.warn(unavailable) { "Command ${command.id} on ${command.ref} failed: a store is unavailable." }
-            return Settlement(
-                reachedResult(command, function, hop, clock())
-                    .failed(ResultCodes.STORAGE_UNAVAILABLE, unavailable.message!!),
-            )
+            return refused(command, function, hop, ResultCodes.STORAGE_UNAVAILABLE, unavailable.message!!)
         } catch (early: ScheduleNotDueException) {
             logger.warn { "Clock skew at node ${options.origin.node}: ${early.message}" }
             return Settlement(
@@ -542,6 +579,18 @@ class WaitCoordinator(
             else -> null
         }
         return Settlement(committed, listOfNotNull(reached), outcome)
+    }
+
+    /** [command] settled FAILED with [code] at [hop] before the kernel took it, and observed so (review A5-11). */
+    private fun refused(
+        command: Command<*>,
+        function: FunctionInfo,
+        hop: Hop,
+        code: String,
+        message: String
+    ): Settlement {
+        observer.refused(command.ref.type, code)
+        return Settlement(reachedResult(command, function, hop, clock()).failed(code, message))
     }
 
     /**
@@ -642,12 +691,19 @@ class WaitCoordinator(
         val logger = KotlinLogging.logger {}
 
         /**
-         * Ends the waits of every coordinator of the process at their deadlines: one daemon thread that only ends them
-         * and never runs their waiters, which resume in their coordinator's execution context.
+         * Ends the waits of every coordinator of the process at their deadlines: daemon threads that only end them and
+         * never run their waiters, which resume in their coordinator's execution context. Sharded (review A5-3): each
+         * wait schedules its deadline on one picked at random and cancels it there, so the commands of a busy node
+         * do not all take one delay queue's lock twice each.
          */
-        val DEADLINES: ScheduledExecutorService = ScheduledThreadPoolExecutor(1) { task ->
-            Thread(task, "wow-wait-deadlines").apply { isDaemon = true }
-        }.apply { removeOnCancelPolicy = true }
+        val DEADLINES: List<ScheduledExecutorService> =
+            List(Runtime.getRuntime().availableProcessors().coerceIn(1, MAX_DEADLINE_SHARDS)) { shard ->
+                ScheduledThreadPoolExecutor(1) { task ->
+                    Thread(task, "wow-wait-deadlines-$shard").apply { isDaemon = true }
+                }.apply { removeOnCancelPolicy = true }
+            }
+
+        const val MAX_DEADLINE_SHARDS = 4
     }
 }
 

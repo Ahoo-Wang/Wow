@@ -40,4 +40,44 @@ class LruStateCacheTest {
         cache.take(type.ref("t", "a")).assert().isNull()
         cache.size.assert().isEqualTo(0)
     }
+
+    @Test
+    fun `a large cache is striped, each stripe bounded, the whole within its capacity`() {
+        Stripes.of(2).assert().isEqualTo(1)
+        Stripes.of(4_096).assert().isEqualTo(Stripes.MAX)
+        Stripes.of(1_000).assert().isEqualTo(3)
+        (0 until 3).sumOf { Stripes.share(1_000, 3, it) }.assert().isEqualTo(1_000)
+        val cache = LruStateCache(capacity = 1_000)
+        repeat(5_000) { cache.put(type.ref("t", "a-$it"), CachedState(it, 1)) }
+        cache.size.assert().isLessThanOrEqualTo(1_000)
+        cache.size.assert().isGreaterThan(900)
+        // The most recent states stay, whichever stripe they are in.
+        cache.take(type.ref("t", "a-4999"))!!.state.assert().isEqualTo(4_999)
+    }
+
+    @Test
+    fun `threads putting and taking different aggregates at once keep every state`() {
+        val cache = LruStateCache(capacity = 4_096)
+        val threads = (0 until THREADS).map { thread ->
+            Thread {
+                repeat(PER_THREAD) { n ->
+                    val ref = type.ref("t", "$thread-${n % 64}")
+                    val taken = cache.take(ref)
+                    cache.put(ref, CachedState((taken?.state as Int? ?: 0) + 1, 1))
+                }
+            }
+        }
+        threads.forEach { it.start() }
+        threads.forEach { it.join() }
+        cache.size.assert().isEqualTo(THREADS * 64)
+        val total = (0 until THREADS).sumOf { thread ->
+            (0 until 64).sumOf { cache.take(type.ref("t", "$thread-$it"))!!.state as Int }
+        }
+        total.assert().isEqualTo(THREADS * PER_THREAD)
+    }
+
+    private companion object {
+        const val THREADS = 8
+        const val PER_THREAD = 2_000
+    }
 }

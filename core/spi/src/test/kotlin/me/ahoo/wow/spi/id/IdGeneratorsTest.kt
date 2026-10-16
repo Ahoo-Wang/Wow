@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import org.junit.jupiter.api.Test
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 class IdGeneratorsTest {
     private val order = AggregateType("shop", "order")
@@ -41,6 +42,16 @@ class IdGeneratorsTest {
         val ids = (1..100).map { generator.next() }
         ids.sorted().assert().isEqualTo(ids)
         UUID.fromString(GlobalIdGenerator.UUID_V7.next()).version().assert().isEqualTo(7)
+    }
+
+    @Test
+    fun `UUIDv7 ids taken on many threads at once are unique`() {
+        val generator = UuidV7Generator({ 1_700_000_000_000L })
+        val ids = ConcurrentHashMap.newKeySet<String>()
+        val threads = (1..THREADS).map { Thread { repeat(PER_THREAD) { ids += generator.next() } } }
+        threads.forEach { it.start() }
+        threads.forEach { it.join() }
+        ids.size.assert().isEqualTo(THREADS * PER_THREAD)
     }
 
     @Test
@@ -72,5 +83,10 @@ class IdGeneratorsTest {
         val ids = IdGenerators(GlobalIdGenerator { "global" }, selected)
         ids.next().assert().isEqualTo("global")
         ids.next(order).assert().isEqualTo("orders-order")
+    }
+
+    private companion object {
+        const val THREADS = 8
+        const val PER_THREAD = 5_000
     }
 }

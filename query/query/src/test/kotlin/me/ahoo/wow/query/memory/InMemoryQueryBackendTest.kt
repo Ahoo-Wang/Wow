@@ -36,6 +36,8 @@ import me.ahoo.wow.query.tck.QueryBackendSpec
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.junit.jupiter.api.Test
 import java.time.Duration
+import kotlin.time.toJavaDuration
+import kotlin.time.toKotlinDuration
 
 class InMemoryQueryBackendTest : QueryBackendSpec() {
     private val storage = InMemoryQueryStorage()
@@ -100,7 +102,8 @@ class InMemoryQueryBackendTest : QueryBackendSpec() {
         runBlocking {
             val fixture = given(orders())
             val timeout = Duration.ofSeconds(7)
-            val policy = QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = timeout))
+            val policy =
+                QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, timeout = timeout.toKotlinDuration()))
             val gateway = DefaultQueryGateway(
                 type,
                 fixture.backend,
@@ -110,7 +113,7 @@ class InMemoryQueryBackendTest : QueryBackendSpec() {
             gateway.count(CountQuery(MatchAllFilter), QueryCaller(entry = QueryEntry.HTTP))
             gateway.count(CountQuery(MatchAllFilter), QueryCaller.IN_PROCESS)
             (fixture.backend as InMemoryQueryBackend).timeouts.assert()
-                .containsExactly(timeout, QueryBudget.DEFAULT_TIMEOUT)
+                .containsExactly(timeout, QueryBudget.DEFAULT_TIMEOUT.toJavaDuration())
         }
     }
 
@@ -121,7 +124,7 @@ class InMemoryQueryBackendTest : QueryBackendSpec() {
             orders().forEach(slow::save)
             val fixture = given(orders())
             val binding = slow.create(type)
-            val policy = QueryEntryPolicy(inProcessTimeout = Duration.ofMillis(50))
+            val policy = QueryEntryPolicy(inProcessTimeout = Duration.ofMillis(50).toKotlinDuration())
             val gateway = DefaultQueryGateway(
                 type,
                 binding.backend,

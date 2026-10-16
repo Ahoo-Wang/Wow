@@ -176,6 +176,37 @@ class PartitionAppendQueueTest {
     }
 
     @Test
+    fun `a full lane makes the next caller wait for room instead of queueing without bound`(): Unit = runBlocking {
+        val log = GatedLog(InMemoryEventLog(PARTITIONS))
+        val queue = PartitionAppendQueue(log, AppendQueueOptions.MONGO, capacity = 1)
+        val refs = refsOfOnePartition(4)
+        val (blocker, queued, cancelled) = refs
+        val waiting = refs[3]
+        val blocked = async(Dispatchers.Default) { queue.append(stream(blocker, 1)) }
+        log.entered.await()
+        val inLane = async(Dispatchers.Default) { queue.append(stream(queued, 1)) }
+        queue.queuedSoon(1)
+        // The lane holds one: this caller waits for room, and cancelled meanwhile, it is never appended.
+        val withdrawn = launch(Dispatchers.Default) { queue.append(stream(cancelled, 1)) }
+        queue.queuedSoon(2)
+        withdrawn.cancelAndJoin()
+        val behind = async(Dispatchers.Default) { queue.append(stream(waiting, 1)) }
+        queue.queuedSoon(2)
+        log.release.complete(Unit)
+
+        listOf(blocked, inLane, behind).awaitAll()
+            .forEach { it.assert().isInstanceOf(AppendOutcome.Committed::class.java) }
+        log.batches.flatten().map { it.ref }.assert().containsExactlyInAnyOrder(blocker, queued, waiting)
+        log.read(cancelled).toList().assert().isEmpty()
+        queue.close()
+    }
+
+    @Test
+    fun `a lane holds at least one append`() {
+        assertThrows<IllegalArgumentException> { PartitionAppendQueue(InMemoryEventLog(PARTITIONS), capacity = 0) }
+    }
+
+    @Test
     fun `a caller cancelled once its append is in a batch leaves it committed`(): Unit = runBlocking {
         val log = GatedLog(InMemoryEventLog(PARTITIONS))
         val queue = PartitionAppendQueue(log, AppendQueueOptions.MONGO)

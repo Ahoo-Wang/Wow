@@ -20,6 +20,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.postgres.jdbc
+import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.Reservation
 import me.ahoo.wow.spi.reservation.ReservationScope
@@ -49,6 +50,8 @@ class PostgresReservationStore(
     table: String = DEFAULT_TABLE,
     private val clock: Clock = Clock.systemUTC(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    /** How the store's tables are managed: created when missing by default (review A5-10). */
+    private val ddl: StoreDdl = StoreDdl.AUTO,
 ) : ReservationStore {
     private val tables = PostgresReservationTables(table)
 
@@ -58,8 +61,7 @@ class PostgresReservationStore(
      */
     fun createSchema() {
         dataSource.connection.use { connection ->
-            PostgresFormat.creating(connection) {
-                PostgresFormat.claim(connection, tables.name, PostgresReservationTables.FORMAT)
+            PostgresFormat.schema(connection, ddl, listOf(tables.name to PostgresReservationTables.FORMAT)) {
                 connection.createStatement().use { statement -> tables.ddl.forEach { statement.execute(it) } }
             }
         }

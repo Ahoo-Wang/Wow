@@ -14,9 +14,13 @@
 package me.ahoo.wow.mongo
 
 import com.mongodb.MongoWriteException
+import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
+import com.mongodb.client.model.IndexOptions
+import me.ahoo.wow.spi.StoreDdl
 import org.bson.Document
+import org.bson.conversions.Bson
 
 /**
  * The format versions of stored structures (decision D59): one document per structure (a log or a snapshot
@@ -28,6 +32,50 @@ import org.bson.Document
  * version.
  */
 internal object MongoFormat {
+    /**
+     * Makes sure of [structure] as [ddl] says (review A5-10): [claim]s it under [StoreDdl.AUTO], checks its record
+     * under [StoreDdl.VALIDATE] ([validate]), does nothing under [StoreDdl.NONE].
+     */
+    fun claim(database: MongoDatabase, structure: String, version: Int, ddl: StoreDdl) {
+        when (ddl) {
+            StoreDdl.AUTO -> claim(database, structure, version)
+            StoreDdl.VALIDATE -> validate(database, structure, version)
+            StoreDdl.NONE -> Unit
+        }
+    }
+
+    /** Checks that [structure] is recorded at [version], creating nothing ([StoreDdl.VALIDATE]). */
+    fun validate(database: MongoDatabase, structure: String, version: Int) {
+        val stored = database.getCollection(COLLECTION).find(Filters.eq(ID, structure)).first()?.getInteger(VERSION)
+        checkNotNull(stored) {
+            "$structure has no format record, and the store only validates its schema (ddl validate): create the " +
+                "schema first, with ddl auto once or the migration tool."
+        }
+        check(stored == version) {
+            "$structure is stored in format $stored; this version of Wow reads format $version. " +
+                "Migrate it with the migration tool rather than opening it."
+        }
+    }
+
+    /**
+     * Makes sure of the index [options] names on [collection] as [ddl] says: creates it under [StoreDdl.AUTO], checks
+     * it exists under [StoreDdl.VALIDATE], does nothing under [StoreDdl.NONE].
+     */
+    fun index(collection: MongoCollection<Document>, keys: Bson, options: IndexOptions, ddl: StoreDdl) {
+        when (ddl) {
+            StoreDdl.AUTO -> collection.createIndex(keys, options)
+            StoreDdl.VALIDATE -> {
+                val names = collection.listIndexes().mapNotNull { it.getString("name") }.toSet()
+                check(options.name in names) {
+                    "The index ${options.name} of ${collection.namespace.collectionName} is missing, and the store " +
+                        "only validates its schema (ddl validate)."
+                }
+            }
+
+            StoreDdl.NONE -> Unit
+        }
+    }
+
     /** The collection of format versions, shared by every structure in the database. */
     const val COLLECTION = "wow_format"
 

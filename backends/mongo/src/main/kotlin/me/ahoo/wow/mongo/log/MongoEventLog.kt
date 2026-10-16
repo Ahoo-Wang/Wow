@@ -52,6 +52,7 @@ import me.ahoo.wow.mongo.TailPacer
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo
+import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
@@ -131,6 +132,8 @@ class MongoEventLog(
     pollInterval: Duration = DEFAULT_POLL_INTERVAL,
     private val tailBatch: Int = DEFAULT_TAIL_BATCH,
     maxPollInterval: Duration = DEFAULT_MAX_POLL_INTERVAL,
+    /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
+    private val ddl: StoreDdl = StoreDdl.AUTO,
 ) : EventLog {
     private val pacer = TailPacer(partitions, pollInterval, maxPollInterval)
 
@@ -170,8 +173,8 @@ class MongoEventLog(
      * format version ([MongoFormat]). The aggregate collections are created on first use, or by [createCollection].
      */
     fun createSchema() {
-        MongoFormat.claim(database, countersName, FORMAT)
-        MongoFormat.claim(database, REGISTRY, FORMAT)
+        MongoFormat.claim(database, countersName, FORMAT, ddl)
+        MongoFormat.claim(database, REGISTRY, FORMAT, ddl)
         // Every step is idempotent, so nodes creating a new log at once all succeed (finding A2-8). The partition count
         // is recorded before any counter, so a node that finds counters also finds the count the log was created with
         // and refuses another one before it adds a counter.
@@ -229,19 +232,15 @@ class MongoEventLog(
         require(collection.name != countersName) {
             "The aggregate $aggregate of $context would take the name of the log's partition counters."
         }
-        MongoFormat.claim(database, collection.name, FORMAT)
-        collection.log.createIndex(
-            Indexes.ascending(AGGREGATE_ID, TENANT_ID, VERSION),
-            IndexOptions().unique(true).name(VERSION_KEY),
-        )
-        collection.log.createIndex(
-            Indexes.ascending(TENANT_ID, REQUEST_ID),
-            IndexOptions().unique(true).name(REQUEST_KEY),
-        )
-        collection.log.createIndex(
-            Indexes.ascending(PARTITION, SEQUENCE),
-            IndexOptions().unique(true).name(POSITION_KEY),
-        )
+        MongoFormat.claim(database, collection.name, FORMAT, ddl)
+        val log = collection.log
+        MongoFormat.index(log, Indexes.ascending(AGGREGATE_ID, TENANT_ID, VERSION), unique(VERSION_KEY), ddl)
+        MongoFormat.index(log, Indexes.ascending(TENANT_ID, REQUEST_ID), unique(REQUEST_KEY), ddl)
+        MongoFormat.index(log, Indexes.ascending(PARTITION, SEQUENCE), unique(POSITION_KEY), ddl)
+        if (ddl != StoreDdl.AUTO) {
+            // The registry is the schema's: a validated or foreign schema registered its collections already.
+            return collection
+        }
         try {
             registry.insertOne(Document(ID, collection.name).append(CONTEXT, context).append(AGGREGATE, aggregate))
         } catch (failure: MongoWriteException) {
@@ -256,6 +255,8 @@ class MongoEventLog(
         }
         return collection
     }
+
+    private fun unique(name: String): IndexOptions = IndexOptions().unique(true).name(name)
 
     /** Reads the registry again: the aggregate collections of the context, in registry order. */
     private fun register(): List<AggregateCollection> =

@@ -22,6 +22,8 @@ import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
+import kotlin.time.toJavaDuration
+import kotlin.time.toKotlinDuration
 
 /**
  * The query plane's configuration, `wow.query.*` (decisions D110, D126, D129, D150, D151), read by
@@ -52,7 +54,7 @@ import java.time.Duration
 class QueryProperties {
     var enabled: Boolean = true
     var http: Http = Http()
-    var inProcessTimeout: Duration = QueryBudget.DEFAULT_TIMEOUT
+    var inProcessTimeout: Duration = QueryBudget.DEFAULT_TIMEOUT.toJavaDuration()
     var requireExplicitEntry: Boolean = false
     var requireAuthenticatedScope: Boolean = false
     var abac: Abac = Abac()
@@ -67,7 +69,7 @@ class QueryProperties {
         requireExplicitEntry = requireExplicitEntry,
         requireAuthenticatedScope = requireAuthenticatedScope,
         http = http.budget(),
-        inProcessTimeout = inProcessTimeout.takeUnless { it.isZero },
+        inProcessTimeout = inProcessTimeout.takeUnless { it.isZero }?.toKotlinDuration(),
     )
 
     class Http {
@@ -80,7 +82,7 @@ class QueryProperties {
         var maxResidualGroups: Int = DEFAULT.maxResidualGroups
         var countLimit: Int = DEFAULT.countLimit
         var allowExactCount: Boolean = DEFAULT.allowExactCount
-        var timeout: Duration = DEFAULT.timeout
+        var timeout: Duration = DEFAULT.timeout.toJavaDuration()
         var unindexedSortExpensive: Boolean = DEFAULT.unindexedSortExpensive
         var defaultListSize: Int = HttpQueries.DEFAULT_LIST_SIZE
 
@@ -95,7 +97,7 @@ class QueryProperties {
             maxResidualGroups = maxResidualGroups,
             countLimit = countLimit,
             allowExactCount = allowExactCount,
-            timeout = timeout,
+            timeout = timeout.toKotlinDuration(),
             unindexedSortExpensive = unindexedSortExpensive,
         )
 
@@ -127,9 +129,9 @@ class QueryProperties {
     class CountCache {
         var enabled: Boolean = true
         var maxEntries: Int = QueryCountCacheOptions.DEFAULT_MAX_ENTRIES
-        var ttl: Duration = QueryCountCacheOptions.DEFAULT_TTL
+        var ttl: Duration = QueryCountCacheOptions.DEFAULT_TTL.toJavaDuration()
 
-        fun options(): QueryCountCacheOptions = QueryCountCacheOptions(maxEntries, ttl)
+        fun options(): QueryCountCacheOptions = QueryCountCacheOptions(maxEntries, ttl.toKotlinDuration())
     }
 
     class Memory {

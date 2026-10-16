@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.postgres.jdbc
+import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import javax.sql.DataSource
 
@@ -32,12 +33,13 @@ import javax.sql.DataSource
 class PostgresCheckpointStore(
     private val dataSource: DataSource,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    /** How the table is managed: created when missing by default (review A5-10). */
+    private val ddl: StoreDdl = StoreDdl.AUTO,
 ) : CheckpointStore {
     /** Claims the table's format ([PostgresFormat], decision D59) and creates it when missing. */
     fun createSchema() {
         dataSource.connection.use { connection ->
-            PostgresFormat.creating(connection) {
-                PostgresFormat.claim(connection, TABLE, FORMAT)
+            PostgresFormat.schema(connection, ddl, listOf(TABLE to FORMAT)) {
                 connection.createStatement().use { it.execute(DDL) }
             }
         }

@@ -47,6 +47,10 @@ import kotlin.time.Duration.Companion.seconds
  *   watermark, the entries of the log after it, and the watermark over the log's head: how far a rebuild (a
  *   subscription under a new name, from the beginning) has come.
  *
+ * - [WowMetrics.EXECUTOR_IN_FLIGHT], [WowMetrics.EXECUTOR_LANES] and [WowMetrics.APPEND_QUEUE_DEPTH], per context: the
+ *   commands in its executor, the aggregates with commands in flight, and the appends queued on its partitions (review
+ *   A5-11), which show a store slowing down before the node refuses commands as busy (decision D228 ②).
+ *
  * A gauge a sample no longer takes (a partition handed off to another node, the parked count of a node that no
  * longer reports it) is removed from [meters], so it does not report its last value forever (review A3-13).
  *
@@ -99,6 +103,12 @@ class NodeMetrics(
                     countParked(subscription).toDouble()
                 )
             }
+        }
+        node.contexts.forEach { (name, context) ->
+            val tags = Tags.of(WowMetrics.CONTEXT, name)
+            taken += gauge(WowMetrics.EXECUTOR_IN_FLIGHT, tags, context.executor.commandsInFlight.toDouble())
+            taken += gauge(WowMetrics.EXECUTOR_LANES, tags, context.executor.activeLanes.toDouble())
+            taken += gauge(WowMetrics.APPEND_QUEUE_DEPTH, tags, context.log.queued.toDouble())
         }
         node.contexts.values.flatMap { it.logGroups }.forEach { group ->
             val runtime = group.subscriptions

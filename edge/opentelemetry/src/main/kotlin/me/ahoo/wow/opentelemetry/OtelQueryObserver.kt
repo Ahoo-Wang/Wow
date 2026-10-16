@@ -29,9 +29,10 @@ import java.util.concurrent.TimeUnit
  * it ended: `ok`, `error` or `cancelled`.
  */
 @InternalWowApi
-class OtelQueryObserver(openTelemetry: OpenTelemetry, private val meters: MeterRegistry) : QueryObserver {
+class OtelQueryObserver(openTelemetry: OpenTelemetry, meters: MeterRegistry) : QueryObserver {
     private val tracer = openTelemetry.getTracer(WowAttributes.INSTRUMENTATION)
     private val propagator = openTelemetry.propagators.textMapPropagator
+    private val cached = MeterCache(meters)
 
     override fun start(aggregateType: AggregateType, queryType: QueryType): Observation {
         val parent = Context.current()
@@ -42,7 +43,7 @@ class OtelQueryObserver(openTelemetry: OpenTelemetry, private val meters: MeterR
             .setAttribute(WowAttributes.QUERY_TYPE, queryType.name)
             .startSpan()
         return OtelObservation(span, OtelTraceContext(parent.with(span), propagator)) { outcome, nanos ->
-            meters.timer(
+            cached.timer(
                 WowMetrics.QUERY,
                 WowMetrics.CONTEXT,
                 aggregateType.context,

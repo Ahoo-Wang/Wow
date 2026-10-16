@@ -48,7 +48,8 @@ import tools.jackson.core.JacksonException
  * - `POST` [InternalHttp.FORWARD_PATH] reads a [ForwardCommand] ([ClusterCodec]) and answers [forward]'s
  *   [ForwardReply]. The forward runs in [scope], apart from the request, so a sender that gives up (its deadline
  *   passed, its stream reset) does not stop the execution it started, as on the loopback channel.
- * - `POST` [InternalHttp.SIGNALS_PATH] reads a [WaitSignal] ([ClusterCodec]), hands it to [signals] and answers 204, whether or not a
+ * - `POST` [InternalHttp.SIGNALS_PATH] reads a [WaitSignal], or a batch of them (review A5-12, [ClusterCodec.decodeSignals]),
+ *   hands each to [signals] and answers 204, whether or not a
  *   wait took it: a signal is an observation, its sender does not act on the answer (design 04 §6.3).
  *
  * A body that is not such a message is answered 400. A forward larger than the port's codecs take is refused
@@ -85,12 +86,12 @@ fun internalRoutes(
     }
     POST(InternalHttp.SIGNALS_PATH) { request ->
         tokens.refusal(request, services)?.let { return@POST it.respond() }
-        val signal = try {
-            request.decode(ClusterCodec::decodeSignal) ?: return@POST malformed()
+        val batch = try {
+            request.decode(ClusterCodec::decodeSignals) ?: return@POST malformed()
         } catch (_: DataBufferLimitException) {
             return@POST ServerResponse.status(CONTENT_TOO_LARGE).buildAndAwait()
         }
-        signals(signal)
+        batch.forEach(signals)
         ServerResponse.noContent().buildAndAwait()
     }
 }

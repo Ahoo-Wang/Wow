@@ -20,6 +20,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.postgres.jdbc
+import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.LedgerRequest
 import me.ahoo.wow.spi.ledger.ParkedAggregate
@@ -56,14 +57,15 @@ class PostgresFailureLedger(
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
     /** The service whose ledger this is: its entries alone are seen. */
     private val service: String = DEFAULT_SERVICE,
+    /** How the store's tables are managed: created when missing by default (review A5-10). */
+    private val ddl: StoreDdl = StoreDdl.AUTO,
 ) : FailureLedger {
     private val tables = PostgresFailureLedgerTables(table)
 
     /** Claims the table's format ([PostgresFormat]) and creates it when missing. */
     fun createSchema() {
         dataSource.connection.use { connection ->
-            PostgresFormat.creating(connection) {
-                PostgresFormat.claim(connection, tables.name, PostgresFailureLedgerTables.FORMAT)
+            PostgresFormat.schema(connection, ddl, listOf(tables.name to PostgresFailureLedgerTables.FORMAT)) {
                 connection.createStatement().use { it.execute(tables.ddl) }
             }
         }

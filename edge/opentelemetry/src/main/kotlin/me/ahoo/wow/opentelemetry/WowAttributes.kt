@@ -78,10 +78,38 @@ object WowMetrics {
      */
     const val PROGRESS: String = "wow.subscription.progress"
 
+    /**
+     * Counter: the commands that ended before the kernel took them (review A5-11): admission refusals, busy lanes or
+     * nodes, a closing node, an unavailable store, a wait that timed out while the command queued; tags context,
+     * aggregate, code.
+     */
+    const val REFUSED: String = "wow.command.refused"
+
+    /** Counter: the waits that timed out (`wow.wait.timeout`); tags context, aggregate, stage (the last one reached). */
+    const val WAIT_TIMEOUT: String = "wow.wait.timeout"
+
+    /** Counter: the wait signals dropped unsent (review A5-12); tag reason. */
+    const val SIGNAL_DROPPED: String = "wow.wait.signal.dropped"
+
+    /** Counter: the forwards that got no settlement from the owner; tags context, outcome (`local`, `busy`, `unknown`). */
+    const val FORWARD_FAILED: String = "wow.command.forward.failed"
+
+    /** Gauge: the commands in a context's executor, waiting in their lanes or in the kernel; tag context. */
+    const val EXECUTOR_IN_FLIGHT: String = "wow.executor.in-flight"
+
+    /** Gauge: the aggregates of a context with commands in flight; tag context. */
+    const val EXECUTOR_LANES: String = "wow.executor.lanes"
+
+    /** Gauge: the appends queued on a context's partition append queue (decision D52); tag context. */
+    const val APPEND_QUEUE_DEPTH: String = "wow.log.append-queue.depth"
+
     const val CONTEXT: String = "context"
     const val AGGREGATE: String = "aggregate"
     const val SUBSCRIPTION: String = "subscription"
     const val OUTCOME: String = "outcome"
+    const val CODE: String = "code"
+    const val STAGE: String = "stage"
+    const val REASON: String = "reason"
     const val KIND: String = "kind"
     const val QUERY_TYPE: String = "query.type"
     const val GROUP: String = "group"

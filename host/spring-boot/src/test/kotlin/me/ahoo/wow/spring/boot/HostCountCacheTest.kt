@@ -26,6 +26,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.time.toKotlinDuration
 
 /** Records the outcome each query's observation is told, as `<query type>:<outcome>`. */
 class OutcomeObserver : QueryObserver {
@@ -127,7 +128,7 @@ class HostCountCacheTest {
         ).use { host ->
             val options = host.context.getBean(QueryCountCache::class.java).options
             options.maxEntries.assert().isEqualTo(5)
-            options.ttl.assert().isEqualTo(Duration.ofSeconds(2))
+            options.ttl.assert().isEqualTo(Duration.ofSeconds(2).toKotlinDuration())
         }
         startHost(
             "wow.query.count-cache.enabled" to false,

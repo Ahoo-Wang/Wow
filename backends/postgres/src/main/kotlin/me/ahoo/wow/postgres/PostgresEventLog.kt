@@ -24,6 +24,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
+import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
@@ -99,6 +100,8 @@ class PostgresEventLog(
     pollInterval: Duration = DEFAULT_POLL_INTERVAL,
     private val tailBatch: Int = DEFAULT_TAIL_BATCH,
     maxPollInterval: Duration = DEFAULT_MAX_POLL_INTERVAL,
+    /** How the log's tables are managed: created when missing by default (review A5-10). */
+    private val ddl: StoreDdl = StoreDdl.AUTO,
 ) : EventLog {
     private val tables = PostgresEventLogTables(context)
 
@@ -122,9 +125,9 @@ class PostgresEventLog(
      */
     fun createSchema() {
         dataSource.connection.use { connection ->
-            PostgresFormat.creating(connection) {
-                PostgresFormat.claim(connection, tables.partitionsBase, PostgresEventLogTables.FORMAT)
-                PostgresFormat.claim(connection, PostgresEventLogTables.REGISTRY, PostgresEventLogTables.FORMAT)
+            val structures = listOf(tables.partitionsBase, PostgresEventLogTables.REGISTRY)
+                .map { it to PostgresEventLogTables.FORMAT }
+            PostgresFormat.schema(connection, ddl, structures) {
                 connection.createStatement().use { statement ->
                     tables.ddl().forEach { statement.execute(it) }
                     statement.execute(tables.initializePartitions(partitions))
@@ -169,9 +172,8 @@ class PostgresEventLog(
      * Claims [table]'s format, creates it and records it in the registry, in one transaction under an advisory lock,
      * so that nodes creating tables at once neither race the format record nor two aggregates take one table name.
      */
-    private fun ensure(connection: Connection, table: AggregateLogTable): AggregateLogTable =
-        PostgresFormat.creating(connection) {
-            PostgresFormat.claim(connection, table.base, PostgresEventLogTables.FORMAT)
+    private fun ensure(connection: Connection, table: AggregateLogTable): AggregateLogTable = table.also {
+        PostgresFormat.schema(connection, ddl, listOf(table.base to PostgresEventLogTables.FORMAT)) {
             connection.createStatement().use {
                 it.execute(table.ddl())
                 it.execute(table.additions)
@@ -193,8 +195,8 @@ class PostgresEventLog(
                 "The aggregate ${table.aggregate} of $context takes the log table ${table.base}, " +
                     "which the aggregate ${holder.second} of ${holder.first} has."
             }
-            table
         }
+    }
 
     /** Reads the registry again: the aggregate tables of the context, in registry order. */
     private fun register(connection: Connection): List<AggregateLogTable> {

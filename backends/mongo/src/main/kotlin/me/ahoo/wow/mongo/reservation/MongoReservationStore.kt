@@ -29,6 +29,7 @@ import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.mongo
+import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.reservation.ConfirmOutcome
 import me.ahoo.wow.spi.reservation.Reservation
 import me.ahoo.wow.spi.reservation.ReservationScope
@@ -63,20 +64,26 @@ class MongoReservationStore(
     private val collection: String = DEFAULT_COLLECTION,
     private val clock: Clock = Clock.systemUTC(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
+    private val ddl: StoreDdl = StoreDdl.AUTO,
 ) : ReservationStore {
     private val database = client.getDatabase(databaseName)
     private val reservations: MongoCollection<Document> = database.getCollection(collection)
 
     /** Creates the key and owner indexes when missing; refuses a collection of another format or without a record. */
     fun createSchema() {
-        MongoFormat.claim(database, collection, FORMAT)
-        reservations.createIndex(
+        MongoFormat.claim(database, collection, FORMAT, ddl)
+        MongoFormat.index(
+            reservations,
             Indexes.ascending(CONTEXT, TENANT_ID, NAMESPACE, KEY),
             IndexOptions().unique(true).name(RESERVATION_KEY),
+            ddl,
         )
-        reservations.createIndex(
+        MongoFormat.index(
+            reservations,
             Indexes.ascending(CONTEXT, OWNER_AGGREGATE, OWNER_TENANT_ID, OWNER_ID),
             IndexOptions().name(RESERVATION_OWNER),
+            ddl,
         )
     }
 

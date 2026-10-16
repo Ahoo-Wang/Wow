@@ -23,6 +23,7 @@ import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.http.ops.WebhookNotifier
 import me.ahoo.wow.kernel.HandlerRetry
+import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.log.AppendQueueOptions
@@ -30,6 +31,7 @@ import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
+import me.ahoo.wow.runtime.state.StateViewOptions
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RetryPolicy
@@ -38,6 +40,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.runtime.wait.WaitOptions
+import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.net.URI
@@ -60,7 +63,8 @@ import kotlin.time.toKotlinDuration
  * - `wow.contexts.include`, `wow.contexts.exclude`: the bounded contexts the node serves among the domain modules on
  *   the class path, by default all of them (decision D169), see [Contexts].
  * - `wow.backend`: `auto` (the default), `memory`, `postgres` or `mongo` ([BackendKind]); `wow.mongo.database`: the one
- *   store of a node that names none.
+ *   store of a node that names none; `wow.ddl` (`auto`, `validate` or `none`), how the stores manage the framework's
+ *   tables (review A5-10), `wow.stores.<name>.ddl` per store.
  * - `wow.stores.<name>.*`: the named store instances (decision D177, [Store]); `wow.log.store` and
  *   `wow.snapshot.store`, the stores of the aggregates' logs and snapshots by default; per aggregate type,
  *   `wow.aggregates.[<context>.<aggregate>].log.store` and `.snapshot.store`. The aggregates whose logs are on one store
@@ -76,7 +80,10 @@ import kotlin.time.toKotlinDuration
  * - `wow.wait.default-timeout` (10s), `max-timeout` (60s), `max-hops` (16, at most 32), `unknown-contexts` (`allow`
  *   or `reject`, decision D190): the default timeout is the node's ([ServiceNodeOptions.defaultWaitTimeout]), for every
  *   command whose request names none.
- * - `wow.executor.lane-capacity`, `wow.state-cache.capacity`, `wow.subscription.*`.
+ * - `wow.state-views.capacity` (4096), `max-age` (1m), `max-bytes` (64 MiB): the bounds of each context's state views
+ *   (decision D133), see [StateViews].
+ * - `wow.executor.lane-capacity` (1024), `wow.executor.max-in-flight` (4096, the node's commands in flight, beyond
+ *   which a command is `wow.command.busy`, decision D228 ②), `wow.state-cache.capacity`, `wow.subscription.*`.
  * - `wow.subscriptions.[<subscription>].start`: `beginning`, `end` or an ISO-8601 instant, where the subscription
  *   (`processor.function`, bracketed for its dot) starts in a partition it has no checkpoint in yet, instead of its
  *   kind's default (decision D154), see [SubscriptionSettings].
@@ -108,6 +115,10 @@ import kotlin.time.toKotlinDuration
  *   `wow.aggregates.[<context>.<aggregate>].id-generator`: the generator of its new ids (decision D171);
  *   `wow.aggregates.[<context>.<aggregate>].routing`: `cluster` (the default, the node's `wow.cluster.router`)
  *   or `kafka`, the `Kafka` router (decision D143), see [Aggregate].
+ * - `wow.cosec.*` and `wow.cosid.*`: the keys wow-cosec and wow-cosid read, see [CoSec] and [CosId].
+ *
+ * Every key is in the host's configuration metadata (`META-INF/spring-configuration-metadata.json`, review A5-9), and
+ * a `wow.*` key that no property of the host or of a module names is reported at startup ([ConfigurationKeys]).
  */
 @ConfigurationProperties(prefix = WowProperties.PREFIX)
 class WowProperties {
@@ -117,12 +128,22 @@ class WowProperties {
     var internal: Internal = Internal()
     var contexts: Contexts = Contexts()
     var backend: BackendKind = BackendKind.AUTO
+
+    /**
+     * How the stores manage the framework's tables, collections and indexes (review A5-10): `auto` creates what is
+     * missing (the default), `validate` creates nothing and refuses a store whose schema is missing or in another
+     * format, `none` creates and checks nothing; `wow.stores.<name>.ddl` overrides it for one store.
+     */
+    var ddl: StoreDdl = StoreDdl.AUTO
     var mongo: Mongo = Mongo()
     var log: Log = Log()
     var cluster: Cluster = Cluster()
     var wait: Wait = Wait()
     var executor: Executor = Executor()
     var stateCache: StateCache = StateCache()
+
+    /** The bounds of each context's state views (decision D133, review A5-10): `wow.state-views.*`. */
+    var stateViews: StateViews = StateViews()
     var subscription: Subscription = Subscription()
 
     /** Per subscription, by its name (bracketed in a property name: `wow.subscriptions.[CartSaga.onOrderCreated]`). */
@@ -138,6 +159,12 @@ class WowProperties {
 
     /** Per aggregate type, by `<context>.<aggregate>` (bracketed in a property name: `wow.aggregates.[shop.cart]`). */
     var aggregates: MutableMap<String, Aggregate> = LinkedHashMap()
+
+    /** The keys wow-cosec reads (`wow.cosec.*`), bound here so they are checked and documented as the others are. */
+    var cosec: CoSec = CoSec()
+
+    /** The keys wow-cosid reads (`wow.cosid.*`), bound here as [cosec] is. */
+    var cosid: CosId = CosId()
 
     /** The named store instances (decision D177), by name: `wow.stores.<name>.type` and its settings. */
     var stores: MutableMap<String, Store> = LinkedHashMap()
@@ -239,6 +266,12 @@ class WowProperties {
         var dataSource: String? = null
         var client: String? = null
         var database: String? = null
+
+        /** How this store manages the framework's schema, over `wow.ddl`. */
+        var ddl: StoreDdl? = null
+
+        /** [ddl], else the node's [default] (`wow.ddl`). */
+        internal fun ddlOr(default: StoreDdl): StoreDdl = ddl ?: default
     }
 
     /**
@@ -307,26 +340,38 @@ class WowProperties {
         var routeRefreshInterval: Duration = DEFAULT_CLUSTER.routeRefreshInterval.toJavaDuration()
 
         /**
-         * How long a forward waits for the owner's reply, capped by the command's own deadline. A forward the owner
-         * received and did not answer by then is reported unknown (`wow.command.unknown`), not run here, so a retry
-         * with the same request id is safe (decision D223).
+         * How long a forward waits for the owner's reply, capped by the command's own deadline: `wow.wait.default-timeout`
+         * when not set (review A5-10), so a node whose waits are longer forwards as long. A forward the owner received
+         * and did not answer by then is reported unknown (`wow.command.unknown`), not run here, so a retry with the
+         * same request id is safe (decision D223).
          */
-        var forwardTimeout: Duration = DEFAULT_CLUSTER.forwardTimeout.toJavaDuration()
+        var forwardTimeout: Duration? = null
         var maxInFlightPerPeer: Int = DEFAULT_CLUSTER.maxInFlightPerPeer
         var drainTimeout: Duration = DEFAULT_CLUSTER.drainTimeout.toJavaDuration()
         var leaseParallelism: Int = DEFAULT_CLUSTER.leaseParallelism
 
-        fun options(): ClusterOptions = ClusterOptions(
+        /**
+         * How long one reconcile may run before the node takes itself as stuck and leaves the members until it ends
+         * (finding C.1 F1).
+         */
+        var reconcileTimeout: Duration = DEFAULT_CLUSTER.reconcileTimeout.toJavaDuration()
+
+        /** The cluster options, a forward waiting [ClusterOptions]' default when [forwardTimeout] is not set. */
+        fun options(): ClusterOptions = options(DEFAULT_CLUSTER.forwardTimeout.toJavaDuration())
+
+        /** The cluster options, a forward waiting [defaultWaitTimeout] when [forwardTimeout] is not set. */
+        fun options(defaultWaitTimeout: Duration): ClusterOptions = ClusterOptions(
             leaseTtl = leaseTtl.toKotlinDuration(),
             renewInterval = renewInterval.toKotlinDuration(),
             memberTtl = memberTtl.toKotlinDuration(),
             heartbeatInterval = heartbeatInterval.toKotlinDuration(),
             reconcileInterval = reconcileInterval.toKotlinDuration(),
             routeRefreshInterval = routeRefreshInterval.toKotlinDuration(),
-            forwardTimeout = forwardTimeout.toKotlinDuration(),
+            forwardTimeout = (forwardTimeout ?: defaultWaitTimeout).toKotlinDuration(),
             maxInFlightPerPeer = maxInFlightPerPeer,
             drainTimeout = drainTimeout.toKotlinDuration(),
             leaseParallelism = leaseParallelism,
+            reconcileTimeout = reconcileTimeout.toKotlinDuration(),
         )
     }
 
@@ -353,6 +398,24 @@ class WowProperties {
     class Executor {
         /** The commands one aggregate may have waiting in the executor. */
         var laneCapacity: Int = ServiceNodeOptions.DEFAULT_LANE_CAPACITY
+
+        /**
+         * The commands the node may have in flight, all contexts together (decision D228 ②): beyond it a command is
+         * refused as `wow.command.busy` (429, with `Retry-After`) instead of queued.
+         */
+        var maxInFlight: Int = InFlightLimit.DEFAULT_MAX
+    }
+
+    /**
+     * The bounds of each context's state views, the states its consumers share after each commit (decision D133): at
+     * most [capacity] views and [maxBytes] of serialized state (two bytes a character), none older than [maxAge].
+     */
+    class StateViews {
+        var capacity: Int = StateViewOptions.DEFAULT_CAPACITY
+        var maxAge: Duration = StateViewOptions.DEFAULT_MAX_AGE.toJavaDuration()
+        var maxBytes: Long = StateViewOptions.DEFAULT_MAX_BYTES
+
+        fun options(): StateViewOptions = StateViewOptions(capacity, maxAge.toKotlinDuration(), maxBytes)
     }
 
     class StateCache {
@@ -693,6 +756,62 @@ class WowProperties {
          * primary one.
          */
         var snapshot: AggregateSnapshot = AggregateSnapshot()
+
+        /**
+         * How the ClickHouse Sink keeps the type's commits (decision D164), in the one style of per-aggregate keys
+         * (review A5-10): over `wow.clickhouse.sink.aggregates.<context>.<aggregate>`, which is still read.
+         */
+        var clickhouse: AggregateClickHouse = AggregateClickHouse()
+    }
+
+    /** An aggregate type's ClickHouse settings: `wow.aggregates.[<context>.<aggregate>].clickhouse.*`. */
+    class AggregateClickHouse {
+        var history: AggregateHistory = AggregateHistory()
+    }
+
+    /** Whether every commit of the type is kept ([enabled], on by default), and how long ([ttl], forever by default). */
+    class AggregateHistory {
+        var enabled: Boolean? = null
+        var ttl: Duration? = null
+    }
+
+    /**
+     * CoSec's settings (wow-cosec, decisions D189, D193, D226), which that module reads from the environment: bound
+     * here, they have metadata, and a key of `wow.cosec` that none of these is refuses the startup
+     * ([ConfigurationKeys]) instead of being ignored, so a mistyped [Authorizer.enabled] cannot leave the authorizer
+     * that allows all in place.
+     */
+    class CoSec {
+        var authorizer: Authorizer = Authorizer()
+
+        /** The callers that may act across scopes: by CoSec role or policy. */
+        var crossScope: Principals = Principals()
+
+        /** The tenant-level callers (decision D189), who read and write every aggregate of their tenant. */
+        var tenantLevel: Principals = Principals()
+
+        /** The service identities (decision D193), whose synchronous calls the internal port takes. */
+        var service: Principals = Principals()
+
+        class Authorizer {
+            /**
+             * Whether CoSec authorizes every command as its caller (`CoSecCommandAuthorizer`), not only the public
+             * routes by path; the services' calls are authorized by CoSec whatever this says (decision D226).
+             */
+            var enabled: Boolean = false
+        }
+
+        /** Callers by their CoSec roles or policies, comma-separated or as a list. */
+        class Principals {
+            var roles: MutableSet<String> = LinkedHashSet()
+            var policies: MutableSet<String> = LinkedHashSet()
+        }
+    }
+
+    /** CosId's settings (wow-cosid, decision D171), which that module reads from the environment. */
+    class CosId {
+        /** The CosId generator of the node's global ids (command ids, wait ids); CosId's own `cosid` when not set. */
+        var globalGenerator: String? = null
     }
 
     /** How the commands of an aggregate type are routed (`wow.aggregates.[<context>.<aggregate>].routing`). */

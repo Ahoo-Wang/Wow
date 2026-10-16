@@ -67,7 +67,7 @@ import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.QueryViolation
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import java.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 class QueryBudgetTest {
     @Test
@@ -87,7 +87,7 @@ class QueryBudgetTest {
         assertThrows<IllegalArgumentException> { QueryBudget("HTTP", maxResidualGroups = -1) }
         assertThrows<IllegalArgumentException> { QueryBudget("HTTP", countLimit = -1) }
             .message.assert().isEqualTo("countLimit must be greater than or equal to 0.")
-        assertThrows<IllegalArgumentException> { QueryBudget("HTTP", timeout = Duration.ofSeconds(-1)) }
+        assertThrows<IllegalArgumentException> { QueryBudget("HTTP", timeout = (-1).seconds) }
             .message.assert().isEqualTo("timeout must not be negative.")
     }
 
@@ -299,9 +299,9 @@ class QueryBudgetTest {
             maxFilterValues.assert().isEqualTo(1000)
             allowExpensiveOperators.assert().isTrue()
             maxResidualGroups.assert().isEqualTo(QueryBudget.DEFAULT_MAX_RESIDUAL_GROUPS)
-            timeout.assert().isEqualTo(Duration.ofSeconds(30))
+            timeout.assert().isEqualTo(30.seconds)
         }
-        QueryBudget.DEFAULT_TIMEOUT.assert().isEqualTo(Duration.ofSeconds(30))
+        QueryBudget.DEFAULT_TIMEOUT.assert().isEqualTo(30.seconds)
     }
 
     @Test

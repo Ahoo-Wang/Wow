@@ -79,6 +79,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.format.DateTimeParseException
 import java.util.Base64
+import kotlin.time.toJavaDuration
 
 /**
  * The `events` query model of one aggregate type (decision D131): the event streams of **one** aggregate, read from
@@ -209,7 +210,7 @@ class EventQueryGateway(
                 .put("maxPageWindow", limits.maxPageWindow)
                 .put("countLimit", limits.countLimit)
                 .put("allowExactCount", limits.allowExactCount)
-                .put("timeoutMillis", limits.timeout.toMillis())
+                .put("timeoutMillis", limits.timeout.inWholeMilliseconds)
                 .also { if (defaultListSize != null) it.put("defaultListSize", defaultListSize) }
         }
         val digest = MessageDigest.getInstance("SHA-256").digest(WowJson.mapper.writeValueAsBytes(descriptor))
@@ -249,7 +250,7 @@ class EventQueryGateway(
             tenantId,
             ownership.scopeOf(caller.principal),
             budget,
-            entryPolicy.timeout(entry),
+            entryPolicy.timeout(entry)?.toJavaDuration(),
             caller
         )
     }

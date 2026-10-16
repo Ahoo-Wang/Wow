@@ -26,6 +26,7 @@ import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.mongo
+import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -43,16 +44,20 @@ class MongoCheckpointStore(
     client: MongoClient,
     databaseName: String,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
+    private val ddl: StoreDdl = StoreDdl.AUTO,
 ) : CheckpointStore {
     private val database = client.getDatabase(databaseName)
     private val checkpoints: MongoCollection<Document> = database.getCollection(COLLECTION)
 
     /** Creates the key index when missing. */
     fun createSchema() {
-        MongoFormat.claim(database, COLLECTION, FORMAT)
-        checkpoints.createIndex(
+        MongoFormat.claim(database, COLLECTION, FORMAT, ddl)
+        MongoFormat.index(
+            checkpoints,
             Indexes.ascending(GROUP, SUBSCRIPTION, PARTITION),
             IndexOptions().unique(true).name(CHECKPOINT_KEY),
+            ddl,
         )
     }
 

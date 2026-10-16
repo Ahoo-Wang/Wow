@@ -78,12 +78,15 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.availability.ApplicationAvailability
+import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.context.properties.bind.Binder
 import org.springframework.boot.reactor.netty.NettyServerCustomizer
+import org.springframework.context.ApplicationContext
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.env.ConfigurableEnvironment
 import org.springframework.core.env.Environment
 import org.springframework.util.ClassUtils
 import org.springframework.util.unit.DataSize
@@ -151,6 +154,22 @@ import jakarta.validation.Validator as JakartaValidator
 )
 @EnableConfigurationProperties(WowProperties::class)
 class WowAutoConfiguration {
+    /**
+     * Checks the environment's `wow.*` keys against the configuration metadata at startup (review A5-9): warns of the
+     * unknown ones, and refuses an unknown `wow.cosec.*` key ([ConfigurationKeys]).
+     */
+    @Bean
+    @InternalWowApi
+    fun wowConfigurationKeys(environment: ConfigurableEnvironment, context: ApplicationContext): ConfigurationKeys {
+        val prefixes = context.getBeanNamesForAnnotation(ConfigurationProperties::class.java).mapNotNull { name ->
+            context.findAnnotationOnBean(
+                name,
+                ConfigurationProperties::class.java
+            )?.let { it.prefix.ifEmpty { it.value } }
+        }
+        return ConfigurationKeys.of(context.classLoader, prefixes).also { it.check(environment) }
+    }
+
     /** Wow's JSON mapper (decision D105); not a default candidate, so Spring's own mapper stays Spring's. */
     @Bean(WOW_JSON_MAPPER, defaultCandidate = false)
     fun wowJsonMapper(): JsonMapper = WowJson.mapper
@@ -262,12 +281,14 @@ class WowAutoConfiguration {
         properties: WowProperties,
         identity: NodeIdentity,
         credential: ServiceCredential,
+        observers: ObjectProvider<Observer>,
     ): SignalSender = HttpSignalSender(
         client,
         queueCapacity = properties.internal.signalQueueCapacity,
         service = identity.service,
         clusterToken = clusterTokenOf(properties),
         credential = credential,
+        observer = observers.getIfUnique { Observer.NONE },
     )
 
     /** The credential of the node's synchronous calls (decision D193): `wow.calls.token` as a bearer, else none. */
@@ -338,7 +359,7 @@ class WowAutoConfiguration {
             channel = channel,
             remoteSignals = signals,
             options = ServiceNodeOptions(
-                cluster = properties.cluster.options(),
+                cluster = properties.cluster.options(properties.wait.defaultTimeout),
                 routing = routing,
                 maxWaitTimeout = properties.wait.maxTimeout.toKotlinDuration(),
                 maxWaitHops = properties.wait.maxHops,
@@ -346,7 +367,9 @@ class WowAutoConfiguration {
                 subscription = properties.subscription.options(properties.subscriptions),
                 appendQueue = properties.log.appendQueue.options(backends.appendQueue),
                 laneCapacity = properties.executor.laneCapacity,
+                maxInFlight = properties.executor.maxInFlight,
                 stateCacheCapacity = properties.stateCache.capacity,
+                stateViews = properties.stateViews.options(),
                 defaultWaitTimeout = properties.wait.defaultTimeout.toKotlinDuration(),
                 timers = properties.timers.options(),
                 schedules = properties.schedules.mapValues { it.value.options() },
@@ -640,10 +663,24 @@ class WowAutoConfiguration {
          * The service identities the internal port trusts by their static tokens (`wow.http.services`, decision D193), in
          * the default tenant.
          */
-        internal fun serviceTokens(properties: WowProperties): ServiceTokens = ServiceTokens(
-            properties.http.services.mapValues { it.value.tokens.toList() },
-            properties.tenant.default,
-        )
+        /**
+         * The static service tokens of `wow.http.services` (decision D193). A node is configured with them or with
+         * CoSec's service principals (`wow.cosec.service.roles` and `.policies`), not both (decisions D208, D226): two
+         * sources of service identity would let a token outlive the CoSec policy meant to replace it, so a node with
+         * both refuses to start (review A5-14).
+         */
+        internal fun serviceTokens(properties: WowProperties): ServiceTokens {
+            val tokens = properties.http.services.filterValues { it.tokens.any(String::isNotBlank) }.keys
+            val principals = properties.cosec.service.let { it.roles + it.policies }.filter(String::isNotBlank)
+            check(tokens.isEmpty() || principals.isEmpty()) {
+                "Service identities come from static tokens (wow.http.services.*.tokens of $tokens) or from CoSec's " +
+                    "service principals (wow.cosec.service.*: $principals), not both (decision D208): remove one."
+            }
+            return ServiceTokens(
+                properties.http.services.mapValues { it.value.tokens.toList() },
+                properties.tenant.default
+            )
+        }
 
         /**
          * Where commands run: `wow.cluster.router`, by default local on the memory backend, whose stores no other

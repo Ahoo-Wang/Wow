@@ -42,6 +42,7 @@ import me.ahoo.wow.kernel.schedule.ScheduleJob
 import me.ahoo.wow.kernel.schedule.ScheduleJobModel
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.runtime.Executor
+import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.LruStateCache
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommittedRequests
@@ -380,6 +381,9 @@ class ServiceNode @InternalWowApi constructor(
 
     private val nodeSnapshots = NodeSnapshots(manifest)
 
+    /** The commands in flight in the executors of every context (decision D228 ②): one bound for the node. */
+    private val inFlight = InFlightLimit(options.maxInFlight)
+
     /**
      * The models the node runs: the [models] of the Manifest, the built-in job aggregate of each context's [jobs], and
      * the built-in rebuild aggregate of each context that keeps snapshots.
@@ -468,7 +472,7 @@ class ServiceNode @InternalWowApi constructor(
     /** Where commands run: [Routing.PARTITIONED] over every context's lease group, or [Routing.LOCAL]. */
     @InternalWowApi
     val router: CommandRouter = when (options.routing) {
-        Routing.PARTITIONED -> PartitionedRouter(parts.map { it.ownership }, channel, options.cluster)
+        Routing.PARTITIONED -> PartitionedRouter(parts.map { it.ownership }, channel, options.cluster, observer)
         Routing.LOCAL -> CommandRouter.LOCAL
     }
 
@@ -915,7 +919,7 @@ class ServiceNode @InternalWowApi constructor(
     ): Parts {
         val groups = logGroupsOf(context, models, backends)
         val routed = routedLog(backends, groups)
-        val log = PartitionAppendQueue(routed, options.appendQueue)
+        val log = PartitionAppendQueue(routed, options.appendQueue, capacity = options.maxInFlight)
         val names = ContextCommandTypes(models, contracts)
         val kernel = kernelOf(log, backends, codec, names)
         val snaps = nodeSnapshots.assembly(context, models, backends, kernel, routed, codec)
@@ -947,7 +951,7 @@ class ServiceNode @InternalWowApi constructor(
             timers = logGroups.mapNotNull { it.timers?.runner },
             groups = logGroups.drop(1).map { it.subscriptions },
         )
-        val executor = Executor(kernel, options.laneCapacity, views.takeIf { it.types.isNotEmpty() })
+        val executor = Executor(kernel, options.laneCapacity, views.takeIf { it.types.isNotEmpty() }, inFlight)
         return Parts(
             context,
             models,
@@ -1128,6 +1132,7 @@ class ServiceNode @InternalWowApi constructor(
                 waitIds = admission.ids.global::next,
                 router = router,
                 topicRouter = topicRouterOf(context, backends),
+                observer = observer,
             )
             val endpoint = ForwardEndpoint(coordinator, models, listOf(ownership), observer = observer)
             firing.firer = ContextTimerFirer(models, coordinator, sender, observer)

@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.http
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -50,6 +51,7 @@ import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.Executor
+import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
@@ -63,8 +65,10 @@ import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.id.IdGenerators
+import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.wait.Origin
 import org.springframework.http.HttpHeaders
 import org.springframework.test.web.reactive.server.WebTestClient
@@ -217,9 +221,15 @@ class HttpNode(
     jobs: List<ScheduleJob> = emptyList(),
     /** Whether the node keeps the cart's snapshots and so has the rebuild aggregate (decision D172). */
     rebuilds: Boolean = false,
+    /** The node's bound on its commands in flight (decision D228 ②). */
+    val inFlight: InFlightLimit = InFlightLimit(),
     queries: (EventLog) -> HttpQueries = { HttpQueries.NONE },
 ) {
     val log = InMemoryEventLog(partitions = 2)
+
+    /** While set, every append waits for it: the commands stay in flight, as on a store that slowed down. */
+    @Volatile
+    var appendGate: CompletableDeferred<Unit>? = null
 
     /** While set, every read of [log] by the kernel, the state reads and the queries fails as a store that is down. */
     @Volatile
@@ -234,6 +244,11 @@ class HttpNode(
 
         override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String) =
             ensureAvailable().let { log.findByRequestId(type, tenantId, requestId) }
+
+        override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
+            appendGate?.await()
+            return log.append(stream, transport)
+        }
 
         private fun ensureAvailable() {
             if (unavailable) throw StorageUnavailableException("The log is unavailable; retry later.")
@@ -250,7 +265,7 @@ class HttpNode(
     private val registry = WaitRegistry()
     private val origin = Origin("node-1", "127.0.0.1:9090", "shop-service")
     private val coordinator = WaitCoordinator(
-        Executor(kernel),
+        Executor(kernel, limit = inFlight),
         registry,
         auditDirectory,
         LocalSignalSender(origin.node, registry),

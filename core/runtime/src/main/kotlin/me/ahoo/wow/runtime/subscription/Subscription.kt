@@ -391,7 +391,11 @@ data class SubscribedEntry(
  * that cannot be decoded is retried and then parks its aggregate like a failing handler.
  *
  * The post-commit state of design 04 §1 (`StateEvent`) comes with [stateEvents], the decoder every state consumer
- * of a context shares (decision D133).
+ * of a context shares (decision D133): the same code, not the same result. Each subscription decodes an entry's events
+ * itself, as each reader decodes a state view afresh: the events are the application's classes, which may be mutable
+ * (a Java bean, a Kotlin class with a `var`), so one decoded instance handed to every processor would let one handler's
+ * change reach the others (review A5-5). The snapshot subscription and the sinks take the stored records and decode
+ * no event; what a processor's subscription decodes is that processor's alone.
  */
 @InternalWowApi
 fun interface EntryDecoder {
@@ -420,9 +424,11 @@ fun interface EntryDecoder {
         /**
          * The decoder of the state consumers (design 04 §1, decision D133): each event decoded into its class through
          * [states]' codec and models, upgraded on the way, the events the model retired left out (decision D219;
-         * unless [decodeEvents] is false: the stored records are handed over, all of them), and the aggregate's state after the stream read through [states] when the handler asks for
-         * it ([SubscribedEntry.state]): the context's shared view, else the nearest view or snapshot evolved with
-         * the log's tail, else the log replayed.
+         * unless [decodeEvents] is false: the stored records are handed over, all of them), and the aggregate's state
+         * after the stream read through [states] when the handler asks for it ([SubscribedEntry.state]): the
+         * context's shared view, else the nearest view or snapshot evolved with the log's tail, else the log
+         * replayed. Each subscription decodes the events afresh, so no handler sees another's instances (see
+         * [EntryDecoder]).
          */
         fun stateEvents(states: StateViewReader, decodeEvents: Boolean = true): EntryDecoder =
             EntryDecoder { stream, position, transport ->

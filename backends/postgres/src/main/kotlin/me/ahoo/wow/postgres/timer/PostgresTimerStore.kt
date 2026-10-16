@@ -24,6 +24,7 @@ import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
 import me.ahoo.wow.postgres.jdbc
+import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
@@ -50,6 +51,8 @@ class PostgresTimerStore(
     private val dataSource: DataSource,
     context: String,
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    /** How the store's tables are managed: created when missing by default (review A5-10). */
+    private val ddl: StoreDdl = StoreDdl.AUTO,
 ) : TimerStore {
     private val tables = PostgresTimerTables(context)
     private val ownerContext = context
@@ -57,8 +60,7 @@ class PostgresTimerStore(
     /** Creates the context's timer table and its indexes when missing; refuses one recorded in another format. */
     fun createSchema() {
         dataSource.connection.use { connection ->
-            PostgresFormat.creating(connection) {
-                PostgresFormat.claim(connection, tables.base, PostgresTimerTables.FORMAT)
+            PostgresFormat.schema(connection, ddl, listOf(tables.base to PostgresTimerTables.FORMAT)) {
                 connection.createStatement().use { statement -> tables.ddl().forEach { statement.execute(it) } }
             }
         }

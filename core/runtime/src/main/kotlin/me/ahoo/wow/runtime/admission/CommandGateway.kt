@@ -19,14 +19,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.emitAll
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.job
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.withContext
@@ -46,6 +41,7 @@ import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.DecideFunction
 import me.ahoo.wow.runtime.FrameworkCodes
+import me.ahoo.wow.runtime.ZeroAwaitingCounter
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.admissionRejected
@@ -158,7 +154,7 @@ class CommandGateway @InternalWowApi constructor(
     private var closed = false
 
     /** The requests between their check of [closed] and the launch of their detached command, if any. */
-    private val admissions = MutableStateFlow(0)
+    private val admissions = ZeroAwaitingCounter()
 
     init {
         val missing = registry.contexts - this.coordinators.keys
@@ -171,6 +167,18 @@ class CommandGateway @InternalWowApi constructor(
      * admitted when the flow is collected.
      */
     fun send(request: CommandRequest): Flow<CommandResult> = flow {
+        dispatch(request, streaming = true) { emit(it) }
+    }
+
+    /**
+     * Admits [request] and hands [emit] what [send] emits; unless [streaming], only the result its wait ends with,
+     * without the flow of every hop (review A5-5).
+     */
+    private suspend fun dispatch(
+        request: CommandRequest,
+        streaming: Boolean,
+        emit: suspend (CommandResult) -> Unit,
+    ) {
         val observed = observer.admitting(request.context, request.aggregate, request.command, request.trace)
         // The command executes in the admission's trace (decision D174).
         val trace = observed.context
@@ -181,36 +189,40 @@ class CommandGateway @InternalWowApi constructor(
                 ?.takeIf { it.call == null && it.command.wait.isAcceptedOnly }
                 ?.let { admitted ->
                     val coordinator = coordinators.getValue(admitted.command.ref.type.context)
-                    if (trace === EmptyCoroutineContext) {
-                        coordinator.accept(admitted.model, admitted.command, detached)
-                    } else {
-                        withContext(trace) { coordinator.accept(admitted.model, admitted.command, detached) }
-                    }
+                    traced(trace) { coordinator.accept(admitted.model, admitted.command, detached) }
                 }
         }
         when (admission) {
-            is Admission.Refused -> emit(admission.result)
+            is Admission.Refused -> emit(observedRefusal(admission.result))
             is Admission.Admitted -> {
                 val coordinator = coordinators.getValue(admission.command.ref.type.context)
                 val from = admission.transformedFrom
                 val call = admission.call
                 if (call != null) {
-                    val settled = if (trace === EmptyCoroutineContext) {
-                        coordinator.forward(admission.model, admission.command, call.wait)
-                    } else {
-                        withContext(trace) { coordinator.forward(admission.model, admission.command, call.wait) }
-                    }
+                    val settled = traced(trace) { coordinator.forward(admission.model, admission.command, call.wait) }
                     emit(if (from == null) settled.committed else settled.committed.copyWith(transformedFrom = from))
                 } else if (accepted != null) {
                     emit(if (from == null) accepted else accepted.copyWith(transformedFrom = from))
-                } else {
+                } else if (streaming) {
                     val streamed = coordinator.stream(admission.model, admission.command)
                     val results = if (trace === EmptyCoroutineContext) streamed else streamed.flowOn(trace)
-                    emitAll(if (from == null) results else results.map { it.copyWith(transformedFrom = from) })
+                    results.collect { emit(if (from == null) it else it.copyWith(transformedFrom = from)) }
+                } else {
+                    val result = traced(trace) { coordinator.execute(admission.model, admission.command) }
+                    emit(if (from == null) result else result.copyWith(transformedFrom = from))
                 }
             }
         }
     }
+
+    /** [refused], told to the observer by its code (review A5-11). */
+    private fun observedRefusal(refused: CommandResult): CommandResult = refused.also { result ->
+        result.error?.let { observer.refused(result.ref.type, it.code) }
+    }
+
+    /** Runs [block] in the admission's [trace] (decision D174), switching context only when there is one. */
+    private suspend inline fun <T> traced(trace: CoroutineContext, crossinline block: suspend () -> T): T =
+        if (trace === EmptyCoroutineContext) block() else withContext(trace) { block() }
 
     /**
      * Whether a request of [command] to [type] (its model name, or the part of it after the aggregate type) is
@@ -231,7 +243,11 @@ class CommandGateway @InternalWowApi constructor(
         coordinators[context]?.options?.let { minOf(it.defaultTimeout, it.maxTimeout) } ?: WaitPlan.DEFAULT_TIMEOUT
 
     /** Admits [request] and returns the result its wait ends with: the last one [send] emits. */
-    suspend fun execute(request: CommandRequest): CommandResult = send(request).last()
+    suspend fun execute(request: CommandRequest): CommandResult {
+        var last: CommandResult? = null
+        dispatch(request, streaming = false) { last = it }
+        return checkNotNull(last) { "Request ${request.requestId} ended without a result." }
+    }
 
     /**
      * Refuses new requests from now on ([FrameworkCodes.NODE_CLOSING]), waits for the detached commands accepted
@@ -241,7 +257,7 @@ class CommandGateway @InternalWowApi constructor(
     suspend fun close() {
         closed = true
         // A request counted before it read `closed` launches its detached command, if any, before it is uncounted.
-        admissions.first { it == 0 }
+        admissions.awaitZero()
         while (true) {
             val running = detached.coroutineContext.job.children.toList()
             if (running.isEmpty()) {
@@ -254,11 +270,11 @@ class CommandGateway @InternalWowApi constructor(
 
     /** Runs [block], an admission and the launch of its detached command, counted in [admissions]. */
     private inline fun <T> counted(block: () -> T): T {
-        admissions.update { it + 1 }
+        admissions.increment()
         try {
             return block()
         } finally {
-            admissions.update { it - 1 }
+            admissions.decrement()
         }
     }
 
@@ -381,7 +397,11 @@ class CommandGateway @InternalWowApi constructor(
             )
         }
         // 6. Validation.
-        val violations = validators.flatMap { it.validate(command.type, command.body) }
+        val violations = if (validators.isEmpty()) {
+            emptyList()
+        } else {
+            validators.flatMap { it.validate(command.type, command.body) }
+        }
         if (violations.isNotEmpty()) {
             return facts.refuse(FrameworkCodes.INVALID, "${command.type.name} is invalid.", violations = violations)
         }
@@ -475,19 +495,26 @@ class CommandGateway @InternalWowApi constructor(
     )
 
     /** The facts decided so far about a request, to refuse it with. */
-    private inner class Facts(request: CommandRequest, val commandId: String) {
+    private inner class Facts(private val request: CommandRequest, val commandId: String) {
         val type = AggregateType(request.context, request.aggregate)
         val requestId: String = request.requestId?.takeIf { it.isNotBlank() } ?: commandId
         var ref: AggregateRef = type.ref(
             tenants.fixedTenant(type) ?: request.caller.tenantId,
             request.aggregateId?.takeIf { it.isNotBlank() } ?: UNADDRESSED,
         )
-        var function = FunctionInfo(
-            FunctionKind.COMMAND,
-            type.context,
-            type.name,
-            request.command.substringAfterLast('.').ifBlank { request.command },
-        )
+        private var resolved: FunctionInfo? = null
+
+        /** The command's function: as the request names it until admission resolves it, built only when needed. */
+        var function: FunctionInfo
+            get() = resolved ?: FunctionInfo(
+                FunctionKind.COMMAND,
+                type.context,
+                type.name,
+                request.command.substringAfterLast('.').ifBlank { request.command },
+            ).also { resolved = it }
+            set(value) {
+                resolved = value
+            }
         var transformedFrom: TransformedFrom? = null
 
         fun refuse(denied: Authorization.Denied): Admission.Refused = refuse(denied.code, denied.message)

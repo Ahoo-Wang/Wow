@@ -26,9 +26,7 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
@@ -37,6 +35,7 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.runtime.ZeroAwaitingCounter
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.timer.TimerRunner
 import me.ahoo.wow.spi.subscription.LeaseStore
@@ -210,6 +209,9 @@ class PartitionOwnership internal constructor(
     /** The other members' addresses handed to [peers] so far, as `node@address`. */
     private val seenPeers = ConcurrentHashMap.newKeySet<String>()
 
+    /** The members greeted and still members, as `node@address`. */
+    internal val knownPeers: Set<String> get() = seenPeers
+
     init {
         require(node.isNotBlank()) { "A node has an id." }
         require(partitions >= 1) { "A log has at least one partition." }
@@ -316,12 +318,12 @@ class PartitionOwnership internal constructor(
      */
     suspend fun <T : Any> runIfAccepting(partition: Int, command: suspend () -> T): T? {
         val gate = gates[partition]?.takeIf { it.open } ?: return null
-        gate.inFlight.update { it + 1 }
+        gate.inFlight.increment()
         try {
             // A hand-off may have stopped accepting meanwhile and seen nothing in flight: back out.
             return if (gate.open) command() else null
         } finally {
-            gate.inFlight.update { it - 1 }
+            gate.inFlight.decrement()
         }
     }
 
@@ -387,6 +389,8 @@ class PartitionOwnership internal constructor(
     /** Hands each other member of [members] at an address not seen before to [peers], in its own coroutine. */
     private fun greetNew(members: List<Member>) {
         val run = running ?: return
+        // The members that left are forgotten (review A5-14): one that comes back is greeted again.
+        seenPeers.retainAll(members.mapTo(HashSet()) { "${it.node}@${it.address}" })
         members.filter { it.node != node && seenPeers.add("${it.node}@${it.address}") }.forEach { member ->
             run.upkeep.launch { quietly("greet ${member.node} at ${member.address}") { peers(member) } }
         }
@@ -447,7 +451,7 @@ class PartitionOwnership internal constructor(
                 stopTimers(partition)
                 // The intake stops taking the partition's commands, settles those in flight and saves its checkpoint.
                 quietly("stop the command intake of partition $partition") { intake?.stopPartition(partition) }
-                withTimeoutOrNull(options.drainTimeout) { gate.inFlight.first { it <= 0 } } ?: logger.warn {
+                withTimeoutOrNull(options.drainTimeout) { gate.inFlight.awaitZero() } ?: logger.warn {
                     "$node handed off partition $partition of $group with commands still in flight."
                 }
                 stopSubscriptions(partition)
@@ -604,7 +608,7 @@ class PartitionOwnership internal constructor(
 
         @Volatile
         var lost = false
-        val inFlight = MutableStateFlow(0)
+        val inFlight = ZeroAwaitingCounter()
 
         val overdue: Boolean get() = renewedAt.elapsedNow() >= unrenewedLimit
 

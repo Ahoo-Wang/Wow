@@ -22,11 +22,13 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -95,6 +97,10 @@ class AppendQueueOptions @InternalWowApi constructor(
  * of this node: a partition appended to from two nodes (Local fallback during a hand-off, decision D71) still
  * contends in the database, and the backend's own retry keeps it correct. The kernel stays unaware of it (D43).
  *
+ * Each partition's lane holds at most [capacity] appends (decision D228 ②): the node's in-flight bound
+ * ([me.ahoo.wow.runtime.InFlightLimit]), which every append's command is counted in, so the lane never fills on its
+ * own; were it full, the caller would wait for room rather than queue without bound.
+ *
  * [close] stops taking appends and returns once the queued ones are committed.
  */
 @InternalWowApi
@@ -102,13 +108,19 @@ class PartitionAppendQueue(
     private val log: EventLog,
     private val options: AppendQueueOptions = AppendQueueOptions(),
     context: CoroutineContext = Dispatchers.Default,
+    /** The most appends one partition's lane holds; the node's in-flight bound. */
+    capacity: Int = InFlightLimit.DEFAULT_MAX,
 ) : EventLog by log {
+    init {
+        require(capacity >= 1) { "A lane holds at least one append." }
+    }
+
     /** Whether appends queue per partition; when not, they go straight to the log. */
     val enabled: Boolean get() = options.enabled
 
     private val root = SupervisorJob()
     private val scope = CoroutineScope(context + root)
-    private val lanes = if (enabled) List(log.partitions) { Channel<Pending>(Channel.UNLIMITED) } else emptyList()
+    private val lanes = if (enabled) List(log.partitions) { Channel<Pending>(capacity) } else emptyList()
     private val workers: List<Job> = lanes.map { lane -> scope.launch { drain(lane) } }
 
     private val waiting = AtomicInteger()
@@ -116,8 +128,8 @@ class PartitionAppendQueue(
     @Volatile
     private var closed = false
 
-    /** The appends queued and not taken into a batch yet. */
-    internal val queued: Int get() = waiting.get()
+    /** The appends queued and not taken into a batch yet (review A5-11: the queue depth gauge). */
+    val queued: Int get() = waiting.get()
 
     override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
         if (!enabled) {
@@ -134,21 +146,31 @@ class PartitionAppendQueue(
         val queued = ArrayList<Pending>(streams.size)
         try {
             streams.forEach { (stream, transport) -> queued += enqueue(stream, transport) }
-        } catch (closed: IllegalStateException) {
+        } catch (failure: IllegalStateException) {
             queued.forEach { it.withdraw() }
-            throw closed
+            throw failure
+        } catch (cancelled: CancellationException) {
+            queued.forEach { it.withdraw() }
+            throw cancelled
         }
         return await(queued)
     }
 
-    private fun enqueue(stream: EventStreamRecord, transport: Transport?): Pending {
+    /** Queues [stream] on its partition's lane, waiting for room when the lane is full. */
+    private suspend fun enqueue(stream: EventStreamRecord, transport: Transport?): Pending {
         val pending = Pending(stream, transport, waiting)
         val lane = lanes[Partitioner.partitionOf(stream.ref, log.partitions)]
         check(!closed) { "The append queue is closed." }
         waiting.incrementAndGet()
-        if (!lane.trySend(pending).isSuccess) {
+        try {
+            lane.send(pending)
+        } catch (closedLane: ClosedSendChannelException) {
             waiting.decrementAndGet()
-            throw IllegalStateException("The append queue is closed.")
+            throw IllegalStateException("The append queue is closed.", closedLane)
+        } catch (cancelled: CancellationException) {
+            // A cancelled send may still have queued it (prompt cancellation): the lane skips it once withdrawn.
+            pending.withdraw()
+            throw cancelled
         }
         return pending
     }

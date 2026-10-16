@@ -24,7 +24,7 @@ import me.ahoo.wow.query.schema.requireValid
 import me.ahoo.wow.query.spec.SystemField
 import me.ahoo.wow.query.spec.ValueArity
 import me.ahoo.wow.query.spec.spec
-import java.time.Duration
+import kotlin.time.Duration
 
 /**
  * What a gateway requires of a query's [QueryEntry] before admitting it, and the budget each entry runs under.
@@ -50,7 +50,7 @@ data class QueryEntryPolicy(
     val inProcessTimeout: Duration? = QueryBudget.DEFAULT_TIMEOUT,
 ) {
     init {
-        require(inProcessTimeout == null || inProcessTimeout.isPositive) { "inProcessTimeout must be positive." }
+        require(inProcessTimeout == null || inProcessTimeout.isPositive()) { "inProcessTimeout must be positive." }
     }
 
     fun budget(entry: QueryEntry): QueryBudget? = when (entry) {
@@ -61,7 +61,7 @@ data class QueryEntryPolicy(
     /** The execution timeout of [entry]'s queries: its budget's, or [inProcessTimeout] for an entry without one. */
     fun timeout(entry: QueryEntry): Duration? {
         val budget = budget(entry) ?: return inProcessTimeout
-        return budget.timeout.takeUnless(Duration::isZero)
+        return budget.timeout.takeUnless { it == Duration.ZERO }
     }
 
     /** The entry the query runs under, after this policy accepted it. */

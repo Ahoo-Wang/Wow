@@ -23,6 +23,7 @@ public final class me/ahoo/wow/kernel/AggregateModel {
 	public final fun eventType (Ljava/lang/Class;)Lme/ahoo/wow/kernel/EventType;
 	public final fun eventType (Ljava/lang/String;)Lme/ahoo/wow/kernel/EventType;
 	public final fun evolve (Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+	public final fun findCommandType (Ljava/lang/Class;)Lme/ahoo/wow/kernel/CommandType;
 	public final fun findCommandType (Ljava/lang/String;)Lme/ahoo/wow/kernel/CommandType;
 	public final fun findEventType (Ljava/lang/String;)Lme/ahoo/wow/kernel/EventType;
 	public final fun findMountedCommandType (Ljava/lang/String;)Lme/ahoo/wow/kernel/CommandType;

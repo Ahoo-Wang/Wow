@@ -226,6 +226,15 @@ class StateViewReaderTest {
             .exceptionOrNull()!!.message.assert().contains("No model of shop.cart")
     }
 
+    @Test
+    fun `each subscription decodes its own event instances, so no handler sees another's`(): Unit = runBlocking {
+        add("apple")
+        val first = EntryDecoder.stateEvents(reader()).decode(stream(1), null, null)
+        val second = EntryDecoder.stateEvents(reader()).decode(stream(1), null, null)
+        second.events.assert().isEqualTo(first.events)
+        second.events.single().assert().isNotSameAs(first.events.single())
+    }
+
     private companion object {
         const val SNAPSHOT = "snapshot"
         const val PROJECTION = "CartView.onEvent"

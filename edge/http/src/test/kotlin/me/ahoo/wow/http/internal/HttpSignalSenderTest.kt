@@ -26,10 +26,12 @@ import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.ForwardReply
 import me.ahoo.wow.runtime.cluster.Refusal
+import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.wait.Origin
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.springframework.web.reactive.function.server.ServerResponse
+import org.springframework.web.reactive.function.server.awaitBody
 import org.springframework.web.reactive.function.server.buildAndAwait
 import org.springframework.web.reactive.function.server.coRouter
 import java.math.BigDecimal
@@ -108,8 +110,8 @@ class HttpSignalSenderTest {
         val arrived = AtomicInteger()
         InternalServer(
             coRouter {
-                POST(InternalHttp.SIGNALS_PATH) {
-                    arrived.incrementAndGet()
+                POST(InternalHttp.SIGNALS_PATH) { request ->
+                    arrived.addAndGet(ClusterCodec.decodeSignals(request.awaitBody<ByteArray>()).size)
                     release.await()
                     ServerResponse.noContent().buildAndAwait()
                 }
@@ -120,13 +122,82 @@ class HttpSignalSenderTest {
                 (1..10).forEach { sender.send(origin(stuck.address), signal(it)) }
             }
             elapsed.assert().isLessThan(1_000)
-            // At most one is in flight, one taken off the queue for the next request and one queued; the rest are
-            // dropped at once.
-            sender.dropped.assert().isGreaterThanOrEqualTo(7)
+            // At most one is in flight, a batch taken off the queue for the next request (the one it took and the one it
+            // drained, review A5-12) and one queued; the rest are dropped at once.
+            sender.dropped.assert().isGreaterThanOrEqualTo(6)
             release.complete(Unit)
             eventually { arrived.get() + sender.dropped == 10L }
-            arrived.get().assert().isLessThanOrEqualTo(3)
+            arrived.get().assert().isLessThanOrEqualTo(4)
         }
+    }
+
+    @Test
+    fun `a burst to one origin goes in batches, each a request`(): Unit = runBlocking {
+        val release = CompletableDeferred<Unit>()
+        val requests = AtomicInteger()
+        val signals = CopyOnWriteArrayList<WaitSignal>()
+        InternalServer(
+            coRouter {
+                POST(InternalHttp.SIGNALS_PATH) { request ->
+                    requests.incrementAndGet()
+                    signals += ClusterCodec.decodeSignals(request.awaitBody<ByteArray>())
+                    release.await()
+                    ServerResponse.noContent().buildAndAwait()
+                }
+            },
+        ).use { origin ->
+            val sender = sender(concurrency = 1)
+            sender.send(origin(origin.address), signal(0))
+            eventually { requests.get() == 1 }
+            (1..30).forEach { sender.send(origin(origin.address), signal(it)) }
+            release.complete(Unit)
+            eventually { signals.size == 31 }
+            requests.get().assert().isLessThan(5)
+            sender.dropped.assert().isEqualTo(0)
+        }
+    }
+
+    @Test
+    fun `an origin that refuses a batch is sent one signal a request`(): Unit = runBlocking {
+        val release = CompletableDeferred<Unit>()
+        val singles = CopyOnWriteArrayList<WaitSignal>()
+        InternalServer(
+            coRouter {
+                POST(InternalHttp.SIGNALS_PATH) { request ->
+                    release.await()
+                    // A node of an earlier version: a single signal only.
+                    val signal = runCatching { ClusterCodec.decodeSignal(request.awaitBody<ByteArray>()) }.getOrNull()
+                        ?: return@POST ServerResponse.badRequest().buildAndAwait()
+                    singles += signal
+                    ServerResponse.noContent().buildAndAwait()
+                }
+            },
+        ).use { old ->
+            val sender = sender(concurrency = 1)
+            (1..6).forEach { sender.send(origin(old.address), signal(it)) }
+            release.complete(Unit)
+            eventually { singles.size == 6 }
+            singles.map { it.waitId }.assert().containsExactlyInAnyOrder("w-1", "w-2", "w-3", "w-4", "w-5", "w-6")
+            sender.dropped.assert().isEqualTo(0)
+        }
+    }
+
+    @Test
+    fun `every dropped signal is observed by its reason`(): Unit = runBlocking {
+        val reasons = CopyOnWriteArrayList<String>()
+        val observer = object : Observer {
+            override fun signalDropped(origin: String, reason: String) {
+                reasons += reason
+            }
+        }
+        withRefusingPort { gone ->
+            val sender = HttpSignalSender(observer = observer).also { senders += it }
+            sender.send(origin("127.0.0.1:$gone"), signal(1))
+            eventually { reasons.size == 1 }
+            sender.close()
+            sender.send(origin("127.0.0.1:$gone"), signal(2))
+        }
+        reasons.assert().containsExactly(HttpSignalSender.FAILED, HttpSignalSender.CLOSED)
     }
 
     @Test

@@ -15,6 +15,9 @@ package me.ahoo.wow.manifest
 
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
+import java.nio.file.Path
+import kotlin.io.path.readText
+import kotlin.io.path.writeText
 
 class FrameworkErrorsTest {
     @Test
@@ -61,5 +64,25 @@ class FrameworkErrorsTest {
             it.description.assert().isNotBlank()
         }
         FrameworkErrors.BY_CODE[FrameworkErrors.AGGREGATE_VERSION_MISMATCH]?.description.assert().contains("412")
+    }
+
+    @Test
+    fun `the snapshot the TypeScript client checks its code table against should be this table`() {
+        val expected = FrameworkErrors.ALL.joinToString(",\n", "[\n", "\n]\n") {
+            """  { "code": "${it.code}", "status": ${it.status} }"""
+        }
+        val snapshot = Path.of(SNAPSHOT)
+        if (System.getenv(UPDATE) != null) {
+            snapshot.writeText(expected)
+        }
+        snapshot.readText().assert()
+            .describedAs("Run with $UPDATE=1 to rewrite $SNAPSHOT, then align the client's FrameworkErrorCodes.")
+            .isEqualTo(expected)
+    }
+
+    private companion object {
+        /** Read by typescript/wow-client/test/v10/frameworkErrors.test.ts. */
+        const val SNAPSHOT = "src/test/resources/framework-errors.json"
+        const val UPDATE = "WOW_UPDATE_SNAPSHOTS"
     }
 }

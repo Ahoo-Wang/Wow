@@ -334,6 +334,9 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
     /** The command mounted under this aggregate named [name] (or formerly named so), or null when none is. */
     fun findMountedCommandType(name: String): CommandType? = mountedByName[name]
 
+    /** The name of [commandClass], or null when it is no command of this aggregate. */
+    fun findCommandType(commandClass: Class<*>): CommandType? = commandsByType[commandClass]
+
     /** The name of [commandClass], a command this aggregate decides. */
     fun commandType(commandClass: Class<*>): CommandType =
         requireNotNull(commandsByType[commandClass]) { "${commandClass.name} is not a command of $type." }

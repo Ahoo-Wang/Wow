@@ -20,6 +20,7 @@ import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.schedule.ScheduleJob
+import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.runtime.admission.CommandValidator
@@ -243,6 +244,9 @@ enum class Routing {
  * - [appendQueue]: the partition append queue, by the log backend's preset ([AppendQueueOptions.MONGO],
  *   [AppendQueueOptions.POSTGRES]).
  * - [laneCapacity]: the commands one aggregate may have waiting in the executor.
+ * - [maxInFlight]: the commands the node may have in flight in its executors, all contexts together (decision D228 ②,
+ *   [me.ahoo.wow.runtime.InFlightLimit]); beyond it a command is refused as busy. Each partition append queue holds at
+ *   most as many.
  * - [stateCacheCapacity]: the aggregate states kept per context between commands; 0 keeps none.
  * - [stateViews]: the bounds of each context's state views, shared by its state consumers (decision D133).
  * - [timers]: the timer runner of each context that has a timer store (decision D166).
@@ -280,8 +284,10 @@ class ServiceNodeOptions @InternalWowApi constructor(
     val ledger: LedgerPublishing? = null,
     /** The snapshot maintenance of each context (decision D172): claims, in-place rebuilds, backfills. */
     val snapshots: SnapshotOptions = SnapshotOptions(),
+    val maxInFlight: Int = InFlightLimit.DEFAULT_MAX,
 ) {
     init {
+        require(maxInFlight >= 1) { "A node takes at least one command in flight." }
         require(defaultWaitTimeout.isPositive()) { "The default wait timeout is positive." }
         require(laneCapacity >= 1) { "A lane takes at least one command." }
         require(stateCacheCapacity >= 0) { "The state cache capacity is never negative." }
@@ -306,6 +312,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
         unknownWaitContexts: UnknownContexts = this.unknownWaitContexts,
         ledger: LedgerPublishing? = this.ledger,
         snapshots: SnapshotOptions = this.snapshots,
+        maxInFlight: Int = this.maxInFlight,
     ): ServiceNodeOptions = ServiceNodeOptions(
         cluster,
         routing,
@@ -323,6 +330,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
         unknownWaitContexts,
         ledger,
         snapshots,
+        maxInFlight,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -336,11 +344,12 @@ class ServiceNodeOptions @InternalWowApi constructor(
             "laneCapacity=$laneCapacity, stateCacheCapacity=$stateCacheCapacity, " +
             "defaultWaitTimeout=$defaultWaitTimeout, stateViews=$stateViews, timers=$timers, " +
             "schedules=$schedules, kafkaRouted=$kafkaRouted, unknownWaitContexts=$unknownWaitContexts, " +
-            "ledger=$ledger, snapshots=$snapshots)"
+            "ledger=$ledger, snapshots=$snapshots, maxInFlight=$maxInFlight)"
 
     private fun valueFields(): List<Any?> = listOf(
         cluster, routing, maxWaitTimeout, maxWaitHops, subscription, appendQueue, laneCapacity, stateCacheCapacity,
-        defaultWaitTimeout, stateViews, timers, schedules, kafkaRouted, unknownWaitContexts, ledger, snapshots
+        defaultWaitTimeout, stateViews, timers, schedules, kafkaRouted, unknownWaitContexts, ledger, snapshots,
+        maxInFlight,
     )
 
     companion object {

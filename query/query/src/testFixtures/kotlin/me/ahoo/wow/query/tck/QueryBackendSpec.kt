@@ -103,6 +103,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
 import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
+import kotlin.time.toKotlinDuration
 import java.time.Instant
 import java.util.UUID
 
@@ -886,7 +887,7 @@ abstract class QueryBackendSpec {
     @Test
     fun `the gateway bounds counts and totals by the entry's budget`() = blocking {
         val fixture = given(orders())
-        val policy = QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, countLimit = 2, timeout = GENEROUS))
+        val policy = QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, countLimit = 2, timeout = GENEROUS.toKotlinDuration()))
         val gateway = DefaultQueryGateway(type, fixture.backend, FixedQueryModelSchemaProvider(fixture.schema), entryPolicy = policy)
         val http = QueryCaller(entry = QueryEntry.HTTP)
         gateway.count(CountQuery(MatchAllFilter), http).assert().isEqualTo(CountResult(2, exact = false))
