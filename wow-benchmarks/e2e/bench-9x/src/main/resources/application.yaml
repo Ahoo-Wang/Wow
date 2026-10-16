@@ -1,0 +1,32 @@
+# The benchmark's 9.x server in its production topology (decision D224): events and snapshots on MongoDB, commands,
+# events and state events on Kafka, the 9.x defaults otherwise. The harness (wow-benchmarks/e2e/harness/bench.sh)
+# overrides the addresses, the port and, per node of a cluster, the CosId machine id on the command line.
+spring:
+  application:
+    name: transfer-service
+  main:
+    banner-mode: off
+  mongodb:
+    uri: mongodb://localhost:27017/transfer_9x?replicaSet=rs0
+server:
+  port: 8080
+logging:
+  level:
+    root: warn
+    me.ahoo.wow: warn
+    org.springframework.boot.web.embedded.netty: info
+    org.springframework.boot.reactor.netty: info
+cosid:
+  machine:
+    enabled: true
+    distributor:
+      type: manual
+      manual:
+        # Unique per node of a cluster: --cosid.machine.distributor.manual.machine-id=<n>.
+        machine-id: 1
+  generator:
+    enabled: true
+wow:
+  context-name: transfer
+  kafka:
+    bootstrap-servers: localhost:9092

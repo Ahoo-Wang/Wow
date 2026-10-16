@@ -34,6 +34,10 @@ dependencies {
     implementation("me.ahoo.cosid:cosid-spring-boot-starter")
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("org.springframework.boot:spring-boot-starter-data-mongodb-reactive")
+    // CosId's starter registers health indicators.
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+    // The command gateway validates commands with the application's Bean Validation provider, as the 9.x examples do.
+    implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation(project(":wow-test"))
     testImplementation("io.projectreactor:reactor-test")

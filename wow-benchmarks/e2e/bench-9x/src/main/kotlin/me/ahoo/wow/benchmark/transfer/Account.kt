@@ -15,6 +15,7 @@ package me.ahoo.wow.benchmark.transfer
 
 import me.ahoo.wow.api.annotation.AggregateRoot
 import me.ahoo.wow.api.annotation.OnCommand
+import me.ahoo.wow.api.annotation.StaticTenantId
 import me.ahoo.wow.benchmark.transfer.AccountRejections.FROZEN
 import me.ahoo.wow.benchmark.transfer.AccountRejections.INSUFFICIENT_BALANCE
 import me.ahoo.wow.benchmark.transfer.AccountRejections.INVALID_AMOUNT
@@ -23,8 +24,10 @@ import me.ahoo.wow.benchmark.transfer.AccountRejections.reject
 /**
  * The account. Each command function decides on the state alone; a rejection leaves the account as it was.
  *
- * 9.x: a function returns its events and rejects by throwing ([reject]).
+ * 9.x: a function returns its events and rejects by throwing ([reject]). The account lives in the default tenant
+ * ([StaticTenantId]), as V10's does when the caller names none, so its routes carry no tenant either.
  */
+@StaticTenantId
 @AggregateRoot
 class Account(private val state: AccountState) {
     fun onCommand(command: OpenAccount): AccountOpened {
