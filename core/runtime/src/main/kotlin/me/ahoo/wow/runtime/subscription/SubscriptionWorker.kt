@@ -209,7 +209,9 @@ internal class SubscriptionWorker(
     /**
      * Signals the wait on [entry], if it waits for this subscription next and is not over: SUCCEEDED with the
      * commands [handled] derived, REJECTED with the rejection it met, or FAILED when it failed or the aggregate is
-     * [parked].
+     * [parked]. A FAILED signal carries the code and where the aggregate parked, never the handler's exception: its
+     * class and message, which may name a database, an address or a third party's answer, go to the ledger and the
+     * logs only (review A5-7).
      */
     @Suppress("TooGenericExceptionCaught") // A signal is best effort: whatever fails, the entry is done with.
     private suspend fun signal(entry: SourcedEntry, handled: Result<HandledEntry>, parked: Boolean = false) {
@@ -225,11 +227,15 @@ internal class SubscriptionWorker(
         val rejection = (failure as? HandlingRejectedException)?.error ?: handled.getOrNull()?.rejection
         val error = when {
             rejection != null -> rejection
-            failure != null -> ErrorInfo(ResultCodes.SUBSCRIPTION_PARKED, reason(failure))
-            parked -> ErrorInfo(
-                ResultCodes.SUBSCRIPTION_PARKED,
-                "${entry.stream.ref} is parked by ${subscription.name}."
-            )
+            failure != null || parked -> {
+                // The handler's exception stays in the ledger and the logs; the caller learns only where (A5-7).
+                failure?.let { logger.debug(it) { "Wait ${wait.waitId} fails: ${subscription.name} parked." } }
+                ErrorInfo(
+                    ResultCodes.SUBSCRIPTION_PARKED,
+                    "${entry.stream.ref}@${entry.stream.version} is parked by ${subscription.name}; the failure " +
+                        "ledger has the cause.",
+                )
+            }
             else -> null
         }
         val hop = checkNotNull(wait.nextHandled)
