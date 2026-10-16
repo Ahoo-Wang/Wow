@@ -122,7 +122,9 @@ internal object UpgradeResolver {
                 listOf(
                     "event $simpleName is at revision $revision but has no @Upgrade: declare one from each of the " +
                         "revisions ${(1 until revision).joinToString()}, as " +
-                        "@Upgrade(event = $simpleName::class, from = 1) on a function from JsonNode to JsonNode",
+                        "@Upgrade(event = $simpleName::class, from = 1) on a function from JsonNode to JsonNode, in " +
+                        "this module, the aggregate's: the processor reads no @Upgrade of a dependency, such as the " +
+                        "module of the events",
                 )
             } else {
                 emptyList()

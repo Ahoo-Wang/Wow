@@ -66,6 +66,8 @@ internal data class AggregateBinding(
     val tags: TagsBinding? = null,
     /** What compiles but is likely wrong, reported as warnings, such as `@Blocking` on a Reactor function. */
     val warnings: List<String> = emptyList(),
+    /** Whether the root or its state is `internal`, so the generated factory is too (finding A4-11). */
+    val internal: Boolean = false,
 ) {
     /** Whether `@AggregateRoot(lifecycle)` narrows the lifecycle commands, which the generated model then says. */
     val narrowsLifecycle: Boolean get() = lifecycle != ALL_LIFECYCLE_COMMANDS

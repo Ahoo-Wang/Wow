@@ -33,7 +33,8 @@ internal object ModelSource {
         val parameters = listOf("context: String") + binding.dependencies.map { "${it.name}: ${it.type}" } +
             "configure: me.ahoo.wow.kernel.AggregateModelBuilder<$state>.() -> Unit = {}"
         appendLine(
-            "public fun $functionName(${parameters.joinToString(", ")}): me.ahoo.wow.kernel.AggregateModel<$state> =",
+            "${if (binding.internal) "internal" else "public"} fun $functionName(${parameters.joinToString(", ")}): " +
+                "me.ahoo.wow.kernel.AggregateModel<$state> =",
         )
         appendLine("    me.ahoo.wow.kernel.aggregate<$state>(context, \"${binding.aggregateName}\") {")
         val ref = if (binding.stateArguments.isEmpty()) "_" else "ref"

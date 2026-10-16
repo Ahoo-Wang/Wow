@@ -27,12 +27,14 @@ import com.google.devtools.ksp.processing.SymbolProcessorProvider
 import com.google.devtools.ksp.symbol.ClassKind
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSFile
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSValueParameter
 import com.google.devtools.ksp.symbol.Modifier
+import com.google.devtools.ksp.symbol.Origin
 import com.google.devtools.ksp.validate
 import me.ahoo.wow.api.annotation.AfterCommand
 import me.ahoo.wow.api.annotation.AggregateRoot
@@ -519,8 +521,16 @@ internal class ModelSymbolProcessor(
             retiredEvents = retiredEvents,
             tags = TagsResolver.of(state, problems),
             warnings = warnings,
+            internal = root.isInternal() || state.isInternal(),
         )
     }
+
+    /**
+     * Whether this class, or one it is nested in, is `internal`: the generated factory exposes the state in its
+     * signature, so it is `internal` too (finding A4-11), and the module's model provider still calls it.
+     */
+    private fun KSClassDeclaration.isInternal(): Boolean =
+        generateSequence<KSDeclaration>(this) { it.parentDeclaration }.any { Modifier.INTERNAL in it.modifiers }
 
     /**
      * The handler annotations on the wrong class of an aggregate whose root is built from its state (finding A4-2):
@@ -830,6 +840,11 @@ internal class ModelSymbolProcessor(
             problems += "$function takes $rendered, a 9.x framework type with no V10 counterpart"
             return null
         }
+        if (parameter.hasDefault) {
+            problems += "$where has a default value: the generated model passes every parameter after the command, " +
+                "a dependency from the host, so it has none"
+            return null
+        }
         if (qualifier != null && qualifier.isBlank()) {
             problems += "$where has a blank @Name: a qualifier names the dependency"
             return null
@@ -1040,7 +1055,15 @@ internal class ModelSymbolProcessor(
             problems += "${it.simpleName.asString()} is private and annotated @${annotation.substringAfterLast('.')}: " +
                 "the generated model calls it, so it is public or internal"
         }
-        return found.filterNot { it.isPrivate() }
+        // A Kotlin protected function is out of the generated model's reach; a Java one is in its package (A4-11).
+        val protected = found.filter {
+            Modifier.PROTECTED in it.modifiers && it.origin != Origin.JAVA && it.origin != Origin.JAVA_LIB
+        }
+        protected.forEach {
+            problems += "${it.simpleName.asString()} is protected: the generated model calls it from outside the " +
+                "class, so it is public or internal"
+        }
+        return found.filterNot { it.isPrivate() || it in protected }
     }
 
     /**
