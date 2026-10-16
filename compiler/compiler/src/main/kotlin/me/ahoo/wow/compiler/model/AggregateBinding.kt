@@ -159,7 +159,10 @@ internal data class SourcingBinding(
 
 internal data class AfterBinding(
     val function: String,
+    /** The type of the command parameter, the body or `Command<X>`; null when the hook takes no command. */
     val parameter: String?,
+    /** Whether the hook takes the admitted `Command<X>` rather than the body. */
+    val admitted: Boolean = false,
     val arguments: List<String>,
     val reactor: Boolean,
     val include: List<String>,

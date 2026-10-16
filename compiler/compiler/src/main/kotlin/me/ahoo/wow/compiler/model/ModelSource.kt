@@ -68,7 +68,8 @@ internal object ModelSource {
             }
             val include = after.include.joinToString(", ", "setOf(", ")") { "$it::class.java" }
             val exclude = after.exclude.joinToString(", ", "setOf(", ")") { "$it::class.java" }
-            val arguments = listOfNotNull(after.parameter?.let { "command as $it" }) + after.arguments
+            val command = after.parameter?.let { if (after.admitted) "this.command as $it" else "command as $it" }
+            val arguments = listOfNotNull(command) + after.arguments
             val call = "${receiver(binding)}.${after.function}(${arguments.joinToString(", ")})"
             appendLine("        $dsl(include = $include, exclude = $exclude) { state, command ->")
             appendLine("            me.ahoo.wow.kernel.eventsOf(${awaited(call, after.reactor)})")

@@ -45,6 +45,7 @@ import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.annotation.OnSourcing
 import me.ahoo.wow.api.annotation.Revision
 import me.ahoo.wow.api.annotation.Unaddressed
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.manifest.ContextName
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
@@ -458,13 +459,13 @@ internal class ModelSymbolProcessor(
         }
         val sourcingFunctions = state.functionsNamedOrAnnotated(ON_SOURCING, ON_SOURCING_ANNOTATION, problems)
         val sourcing = sourcingFunctions.mapNotNull { function -> sourcingBinding(function, state, problems) }
+        val commandTypes = commandFunctions.mapNotNull { firstParameterClass(it, unwrapCommand = true) }
         val afters = root.functionsNamedOrAnnotated(AFTER_COMMAND, AFTER_COMMAND_ANNOTATION, problems)
-            .mapNotNull { function -> afterBinding(function, dependencies, problems, warnings) }
+            .mapNotNull { function -> afterBinding(function, commandTypes, dependencies, problems, warnings) }
         if (!rootIsState) {
             problems += misplacedProblems(root, state)
         }
         problems += producesProblems(commands, sourcing)
-        val commandTypes = commandFunctions.mapNotNull { firstParameterClass(it, unwrapCommand = true) }
         val eventTypes = sourcingFunctions.mapNotNull { function -> firstParameterClass(function, unwrapCommand = false) }
         problems += annotationProblems(root, state, commandTypes, eventTypes)
         val aggregateName = root.toName()
@@ -811,29 +812,85 @@ internal class ModelSymbolProcessor(
         )
     }
 
+    /**
+     * An after hook (finding A4-3) takes its parameters as a command function does: first the command, as its body
+     * (`Any`, or a command type `X`) or as the admitted `Command<X>`, then dependencies and the [DECIDE_SCOPE]; it may
+     * take no command at all. A hook whose command parameter names a type `X` runs only for the commands of the
+     * aggregate it accepts: without `@AfterCommand(include)` it includes the aggregate's commands of type `X` (none is
+     * a problem), and with it each class included must be an `X`. So the generated cast never fails.
+     */
+    @Suppress("LongMethod")
     private fun afterBinding(
         function: KSFunctionDeclaration,
+        commandClasses: List<KSClassDeclaration>,
         dependencies: MutableMap<String, Dependency>,
         problems: MutableList<String>,
         warnings: MutableList<String>,
     ): AfterBinding? {
         val name = function.simpleName.asString()
         val annotation = function.annotationIn(AFTER_COMMAND_ANNOTATION)
-        fun classes(argument: String): List<String> =
+        fun types(argument: String): List<KSType> =
             (annotation?.arguments?.firstOrNull { it.name?.asString() == argument }?.value as? List<*>).orEmpty()
-                .filterIsInstance<KSType>().map { it.render() }
+                .filterIsInstance<KSType>()
+        val first = function.parameters.firstOrNull()?.type?.resolve()
+        // A hook may take no command: its first parameter is then a dependency, or the decide scope.
+        val takesCommand = first != null && first.render() != DECIDE_SCOPE &&
+            (first.isCommandWrapper() || first.declaration is KSClassDeclaration && !first.isDependencyLike())
+        val admitted = takesCommand && first!!.isCommandWrapper()
+        val body = if (!takesCommand) null else if (admitted) first!!.arguments.first().type?.resolve() else first
+        val bodyClass = body?.declaration as? KSClassDeclaration
+        if (takesCommand && body != null && bodyClass == null) {
+            problems += "after hook $name takes ${first!!.render()}: an after hook names the class of its command, " +
+                "Any, or $COMMAND of it"
+            return null
+        }
+        // A hook of a command type runs only for the commands it accepts.
+        val accepting = bodyClass?.takeUnless { it.qualifiedName?.asString() in ANY_TYPES }
+        val declaredInclude = types("include")
+        val include = when {
+            accepting == null -> declaredInclude.map { it.render() }
+            declaredInclude.isEmpty() -> commandClasses.distinct()
+                .filter { body!!.isAssignableFrom(it.asStarProjectedType()) }
+                .map { it.asStarProjectedType().render() }
+                .also {
+                    if (it.isEmpty()) {
+                        problems += "after hook $name takes ${body!!.render()}, which no command function of the " +
+                            "aggregate takes: it would never run"
+                    }
+                }
+
+            else -> declaredInclude.map { it.render() }.also {
+                declaredInclude.filterNot { included -> body!!.isAssignableFrom(included) }.forEach { included ->
+                    problems += "after hook $name includes ${included.render()}, but takes ${body!!.render()}: " +
+                        "each command it includes is one it takes"
+                }
+            }
+        }
         val reactor = reactorReturn(function) != null
+        val rest = if (takesCommand) function.parameters.drop(1) else function.parameters
         return AfterBinding(
             function = name,
-            parameter = function.parameters.firstOrNull()?.type?.resolve()?.render(),
-            arguments = function.parameters.drop(1).mapNotNull { argument(name, it, dependencies, problems) },
+            parameter = if (takesCommand) first!!.render() else null,
+            admitted = admitted,
+            arguments = rest.mapNotNull { argument(name, it, dependencies, problems) },
             reactor = reactor,
-            include = classes("include"),
-            exclude = classes("exclude"),
+            include = include,
+            exclude = types("exclude").map { it.render() },
             suspending = Modifier.SUSPEND in function.modifiers,
             yields = EventYield.of(function.returnType?.resolve()),
             blocking = blocking(function, reactor, warnings),
         )
+    }
+
+    /** Whether this type is the admitted command, `Command<X>`. */
+    private fun KSType.isCommandWrapper(): Boolean = declaration.qualifiedName?.asString() == COMMAND
+
+    /**
+     * Whether this type, first among an after hook's parameters, is a framework type other than the command, so not
+     * the command the hook takes: such a parameter is reported as a dependency's would be.
+     */
+    private fun KSType.isDependencyLike(): Boolean = render().let { rendered ->
+        FRAMEWORK_PACKAGES.any { rendered.startsWith(it) } && rendered !in LIFECYCLE_COMMANDS
     }
 
     private fun reactorReturn(function: KSFunctionDeclaration): String? =
@@ -913,6 +970,10 @@ internal class ModelSymbolProcessor(
         val ON_SOURCING_ANNOTATION: String = OnSourcing::class.java.name
         val AFTER_COMMAND_ANNOTATION: String = AfterCommand::class.java.name
         const val ANY = "kotlin.Any"
+        val ANY_TYPES = setOf(ANY, "java.lang.Object")
+
+        /** The lifecycle commands (design 01 §6), by Kotlin name: an after hook may include them. */
+        val LIFECYCLE_COMMANDS: Set<String> = Lifecycle.COMMANDS.values.map { it.canonicalName }.toSet()
         const val ON_COMMAND = "onCommand"
         const val ON_SOURCING = "onSourcing"
         const val AFTER_COMMAND = "afterCommand"
