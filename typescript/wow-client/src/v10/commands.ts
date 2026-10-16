@@ -20,7 +20,7 @@ import {
   WowV10Headers,
 } from './http.js';
 import type { CommandResult } from './wire.js';
-import { WowProblemError } from './problem.js';
+import { rememberRequestId, WowProblemError } from './problem.js';
 import { commandResults, type CommandResultStream } from './streams.js';
 import { formatWaitPlan, formatWaitTimeout, type WaitOptions } from './wait.js';
 
@@ -28,7 +28,9 @@ import { formatWaitPlan, formatWaitTimeout, type WaitOptions } from './wait.js';
 export interface CommandOptions extends RequestOptions {
   /**
    * The request id (`Wow-Request-Id`): a retry with the same one is
-   * deduplicated, answered as the first commit's duplicate.
+   * deduplicated, answered as the first commit's duplicate. When absent, the
+   * gateway generates one ({@link newRequestId}), which a failure carries
+   * ({@link requestIdOf}): retry with it, not with a new one.
    */
   readonly requestId?: string;
   /** What to wait for, and for how long. */
@@ -94,13 +96,58 @@ export function commandSegment(name: string): string {
     .toLowerCase();
 }
 
+/**
+ * A new request id (`Wow-Request-Id`): a random UUID. The gateway generates
+ * one for a command sent without; generate it first to retry with it however
+ * the request fails.
+ */
+export function newRequestId(): string {
+  const crypto = globalThis.crypto;
+  if (typeof crypto?.randomUUID === 'function') return crypto.randomUUID();
+  // An insecure browser context has no randomUUID: a version 4 UUID by hand.
+  const bytes = new Uint8Array(16);
+  if (typeof crypto?.getRandomValues === 'function') {
+    crypto.getRandomValues(bytes);
+  } else {
+    for (let index = 0; index < bytes.length; index++) {
+      bytes[index] = Math.floor(Math.random() * 256);
+    }
+  }
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0'));
+  return [
+    hex.slice(0, 4),
+    hex.slice(4, 6),
+    hex.slice(6, 8),
+    hex.slice(8, 10),
+    hex.slice(10, 16),
+  ]
+    .map(group => group.join(''))
+    .join('-');
+}
+
+/** Sends with the request id `requestId`, which a failure carries. */
+async function withRequestId<T>(
+  requestId: string,
+  sending: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await sending();
+  } catch (error) {
+    rememberRequestId(error, requestId);
+    throw error;
+  }
+}
+
 function commandHeaders(
   options: CommandOptions,
+  requestId: string,
   accept?: string,
 ): Record<string, string | undefined> {
   const wait = options.wait;
   return {
-    [WowV10Headers.REQUEST_ID]: options.requestId,
+    [WowV10Headers.REQUEST_ID]: requestId,
     [WowV10Headers.WAIT]:
       wait?.plan === undefined ? undefined : formatWaitPlan(wait.plan),
     [WowV10Headers.WAIT_TIMEOUT]:
@@ -120,7 +167,9 @@ function commandHeaders(
  * on it; it serves any route too.
  *
  * A command that did not succeed rejects with a {@link WowProblemError}
- * holding its result, unless the options resolve it.
+ * holding its result, unless the options resolve it. Every command carries a
+ * request id, the options' or a generated one, and whatever it rejects with
+ * carries that id ({@link requestIdOf}).
  */
 export class CommandGateway {
   /** @param client - How the service is reached */
@@ -139,9 +188,11 @@ export class CommandGateway {
     body?: object,
     options: CreateCommandOptions = {},
   ): Promise<CommandResult<R>> {
+    const requestId = options.requestId ?? newRequestId();
     try {
-      const response = await this.post(path, body, options);
-      return await json<CommandResult<R>>(response);
+      return await withRequestId(requestId, async () =>
+        json<CommandResult<R>>(await this.post(path, body, options, requestId)),
+      );
     } catch (error) {
       if (
         options.resolveRejected &&
@@ -168,8 +219,11 @@ export class CommandGateway {
     body?: object,
     options: CreateCommandOptions = {},
   ): Promise<CommandResultStream<R>> {
-    return commandResults<R>(
-      await this.post(path, body, options, 'text/event-stream'),
+    const requestId = options.requestId ?? newRequestId();
+    return withRequestId(requestId, async () =>
+      commandResults<R>(
+        await this.post(path, body, options, requestId, 'text/event-stream'),
+      ),
     );
   }
 
@@ -193,13 +247,16 @@ export class CommandGateway {
   ): Promise<CommandResult<R>> {
     const base = `${aggregatePath}/${encodeURIComponent(id)}`;
     if (command === LifecycleCommands.DELETE_AGGREGATE) {
-      const response = await send(this.client, {
-        method: 'DELETE',
-        path: base,
-        headers: commandHeaders(options),
-        options,
+      const requestId = options.requestId ?? newRequestId();
+      return withRequestId(requestId, async () => {
+        const response = await send(this.client, {
+          method: 'DELETE',
+          path: base,
+          headers: commandHeaders(options, requestId),
+          options,
+        });
+        return json<CommandResult<R>>(response);
       });
-      return json<CommandResult<R>>(response);
     }
     return this.send<R>(
       `${base}/${commandSegment(command)}`,
@@ -212,6 +269,7 @@ export class CommandGateway {
     path: string,
     body: object | undefined,
     options: CreateCommandOptions,
+    requestId: string,
     accept?: string,
   ): Promise<Response> {
     return send(this.client, {
@@ -219,7 +277,7 @@ export class CommandGateway {
       path: path.includes('{id}')
         ? expandPath(path, { id: options.id ?? '' })
         : path,
-      headers: commandHeaders(options, accept),
+      headers: commandHeaders(options, requestId, accept),
       body: body ?? {},
       options,
     });

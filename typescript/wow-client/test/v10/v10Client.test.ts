@@ -25,9 +25,11 @@ import {
   formatWaitTimeout,
   FrameworkErrorCodes,
   LifecycleCommands,
+  newRequestId,
   parseRetryAfter,
   type Problem,
   readProblem,
+  requestIdOf,
   retryHintOf,
   SnapshotQueryClient,
   StateClient,
@@ -197,7 +199,7 @@ describe('CommandGateway', () => {
     });
   });
 
-  it('sends {} without a body, and no Wow header it was not given', async () => {
+  it('sends {} without a body, and no Wow header it was not given but its request id', async () => {
     const { requests } = stubFetch(() => jsonResponse(result()));
     await new CommandGateway(client()).send(
       '/eshop-catalog/product/create-product',
@@ -205,7 +207,7 @@ describe('CommandGateway', () => {
     expect(requests[0].body).toEqual({});
     expect(
       [...requests[0].headers.keys()].filter(h => h.startsWith('wow-')),
-    ).toEqual([]);
+    ).toEqual(['wow-request-id']);
   });
 
   it('needs the id of a route that names it', async () => {
@@ -338,6 +340,81 @@ describe('CommandGateway', () => {
     );
     expect(answered.chainEnded).toBe(true);
     expect(answered.pending).toHaveLength(1);
+  });
+
+  it('sends a generated request id when the options name none, and a failure carries it', async () => {
+    // Review A3-16: a client that lost the answer retries with the same id.
+    const UUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+    let answer: () => Response | Promise<Response> = () =>
+      jsonResponse(result());
+    const { requests } = stubFetch(() => answer());
+    const gateway = new CommandGateway(client());
+
+    await gateway.send('/eshop-catalog/product/p1/rename', { name: 'n' });
+    await gateway.send(
+      '/eshop-catalog/product/p1/rename',
+      {},
+      { requestId: 'mine' },
+    );
+    const generated = requests[0].headers.get('Wow-Request-Id');
+    expect(generated).toMatch(UUID);
+    expect(requests[1].headers.get('Wow-Request-Id')).toBe('mine');
+
+    // The network fails: no answer, the error carries the id sent.
+    answer = () => Promise.reject(new TypeError('Failed to fetch'));
+    const lost = await gateway
+      .send('/eshop-catalog/product/p1/rename', {})
+      .catch((error: unknown) => error);
+    expect(lost).toBeInstanceOf(Error);
+    expect(lost).not.toBeInstanceOf(WowProblemError);
+    expect(requestIdOf(lost)).toBe(requests[2].headers.get('Wow-Request-Id'));
+    expect(requestIdOf(lost)).toMatch(UUID);
+    const streamLost = await gateway
+      .stream('/eshop-catalog/product/p1/rename', {}, { requestId: 's1' })
+      .catch((error: unknown) => error);
+    expect(requestIdOf(streamLost)).toBe('s1');
+    const deleteLost = await gateway
+      .lifecycle(
+        '/eshop-catalog/product',
+        'p1',
+        LifecycleCommands.DELETE_AGGREGATE,
+      )
+      .catch((error: unknown) => error);
+    expect(requestIdOf(deleteLost)).toBe(
+      requests[4].headers.get('Wow-Request-Id'),
+    );
+
+    // A problem without a result (a proxy's 503) carries it too.
+    answer = () =>
+      new Response('upstream down', {
+        status: 503,
+        statusText: 'Service Unavailable',
+      });
+    const unknown = await gateway
+      .send('/eshop-catalog/product/p1/rename', {}, { requestId: 'r-503' })
+      .catch((error: unknown) => error);
+    expect(unknown).toBeInstanceOf(WowProblemError);
+    expect((unknown as WowProblemError).requestId).toBe('r-503');
+    expect((unknown as WowProblemError).retry.sameRequestId).toBe(true);
+    expect(requestIdOf(unknown)).toBe('r-503');
+    expect(requestIdOf('not an error')).toBeUndefined();
+    expect(requestIdOf(new Error('of no command'))).toBeUndefined();
+  });
+
+  it('generates request ids without randomUUID, as an insecure page has none', () => {
+    const UUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+    expect(newRequestId()).toMatch(UUID);
+    const crypto = globalThis.crypto;
+    vi.stubGlobal('crypto', {
+      getRandomValues: crypto.getRandomValues.bind(crypto),
+    });
+    expect(newRequestId()).toMatch(UUID);
+    vi.stubGlobal('crypto', undefined);
+    expect(newRequestId()).toMatch(UUID);
+    vi.stubGlobal('crypto', crypto);
+    expect(newRequestId()).not.toBe(newRequestId());
   });
 
   it('sends lifecycle commands to their routes', async () => {

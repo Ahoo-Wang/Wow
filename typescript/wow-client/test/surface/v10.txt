@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client/v10 — 91 names, from src/v10/index.ts.
+# @ahoo-wang/wow-client/v10 — 93 names, from src/v10/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 type  AggregateManifest
@@ -86,9 +86,11 @@ value formatScope
 value formatWaitPlan
 value formatWaitTimeout
 value isProblem
+value newRequestId
 value parseRetryAfter
 value queryPath
 value readProblem
+value requestIdOf
 value retryHintOf
 value toWowProblemError
 value wait

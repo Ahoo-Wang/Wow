@@ -128,18 +128,25 @@ console.log(JSON.stringify(requests.map(({ url, method, headers, body }) => ({
   headers: Object.fromEntries(Object.entries(headers).filter(([name]) => name.startsWith('wow-') || name === 'if-match')),
 }))));`,
     );
+    // A command without a request id is sent with a generated one (review A3-16).
+    const GENERATED = expect.stringMatching(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
     expect(JSON.parse(output)).toEqual([
       {
         method: 'POST',
         url: 'http://shop/eshop-catalog/product/create-product',
         body: '{"name":"n","price":1}',
-        headers: {},
+        headers: { 'wow-request-id': GENERATED },
       },
       {
         method: 'POST',
         url: 'http://shop/eshop-catalog/product/p-1/create-product',
         body: '{"name":"n","price":1}',
-        headers: { 'wow-wait': 'committed(eshop-catalog)' },
+        headers: {
+          'wow-request-id': GENERATED,
+          'wow-wait': 'committed(eshop-catalog)',
+        },
       },
       {
         method: 'POST',
@@ -151,19 +158,19 @@ console.log(JSON.stringify(requests.map(({ url, method, headers, body }) => ({
         method: 'POST',
         url: 'http://shop/eshop-catalog/product/p-1/publish-product',
         body: '{}',
-        headers: {},
+        headers: { 'wow-request-id': GENERATED },
       },
       {
         method: 'DELETE',
         url: 'http://shop/eshop-catalog/product/p-1',
         body: null,
-        headers: {},
+        headers: { 'wow-request-id': GENERATED },
       },
       {
         method: 'POST',
         url: 'http://shop/eshop-catalog/product/p-1/wow.lifecycle.apply-tags',
         body: '{"tags":{"region":["eu"]}}',
-        headers: {},
+        headers: { 'wow-request-id': GENERATED },
       },
       {
         method: 'POST',
@@ -182,6 +189,7 @@ console.log(JSON.stringify(requests.map(({ url, method, headers, body }) => ({
         url: 'http://shop/eshop-ordering/order/o-1/cancel-order',
         body: '{"reason":"r"}',
         headers: {
+          'wow-request-id': GENERATED,
           'wow-wait':
             'committed(eshop-ordering) > handled(eshop-ordering/OrderProcessSaga.onOrderCancelled)',
           'wow-wait-timeout': '5s',
@@ -197,7 +205,7 @@ console.log(JSON.stringify(requests.map(({ url, method, headers, body }) => ({
         method: 'POST',
         url: 'http://shop/eshop-payment/payment/chargeback-notified',
         body: '{"merchantReference":"o-1","disputeId":"d","reason":"x"}',
-        headers: {},
+        headers: { 'wow-request-id': GENERATED },
       },
     ]);
   }, 60000);

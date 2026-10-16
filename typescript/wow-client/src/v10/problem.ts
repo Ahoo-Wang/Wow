@@ -210,6 +210,15 @@ export class WowProblemError extends Error {
   readonly cause?: unknown;
 
   /**
+   * The request id (`Wow-Request-Id`) of the command this answers: its
+   * result's, else the one the client sent. Retry with it when
+   * {@link RetryHint.sameRequestId} says so.
+   */
+  get requestId(): string | undefined {
+    return this.result?.requestId ?? SENT_REQUEST_IDS.get(this);
+  }
+
+  /**
    * @param problem - The problem the server answered with
    * @param options - The response's `Retry-After` in milliseconds, and the
    * error this one explains
@@ -240,6 +249,42 @@ export class WowProblemError extends Error {
   get isFramework(): boolean {
     return this.code?.startsWith(FRAMEWORK_ERROR_PREFIX) ?? false;
   }
+}
+
+/** The request ids the client sent, by the errors the requests failed with. */
+const SENT_REQUEST_IDS = new WeakMap<object, string>();
+
+/**
+ * Remembers that the request that failed with `error` was sent with
+ * `requestId` (internal): {@link requestIdOf} answers it.
+ *
+ * @param error - What the request failed with
+ * @param requestId - The `Wow-Request-Id` it was sent with
+ */
+export function rememberRequestId(error: unknown, requestId: string): void {
+  if (
+    (typeof error === 'object' && error !== null) ||
+    typeof error === 'function'
+  ) {
+    if (!SENT_REQUEST_IDS.has(error)) SENT_REQUEST_IDS.set(error, requestId);
+  }
+}
+
+/**
+ * The request id (`Wow-Request-Id`) a command that failed with `error` was
+ * sent with: also after a failure no server answered (the network, a proxy,
+ * an abort), so the command can be retried with the same id and the service
+ * answers a commit that did happen as a duplicate (decision D223).
+ * Undefined for an error of no command the client sent.
+ *
+ * @param error - What a command rejected with
+ */
+export function requestIdOf(error: unknown): string | undefined {
+  if (error instanceof WowProblemError) return error.requestId;
+  return (typeof error === 'object' && error !== null) ||
+    typeof error === 'function'
+    ? SENT_REQUEST_IDS.get(error)
+    : undefined;
 }
 
 /** Whether `value` reads as a problem: an object with a numeric `status`. */

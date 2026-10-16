@@ -29,6 +29,7 @@ export {
   type CreateCommandOptions,
   type LifecycleCommand,
   LifecycleCommands,
+  newRequestId,
   type TransferOwner,
   type TransferSpace,
 } from './commands.js';
@@ -63,6 +64,7 @@ export {
   type Problem,
   PROBLEM_TYPE_PREFIX,
   readProblem,
+  requestIdOf,
   type RetryHint,
   retryHintOf,
   toWowProblemError,
