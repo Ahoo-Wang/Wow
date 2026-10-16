@@ -30,6 +30,7 @@ dependencies {
     testImplementation("org.springframework.boot:spring-boot-starter-validation")
     testImplementation("org.springframework.boot:spring-boot-jackson")
     testImplementation("org.springframework:spring-test")
+    testImplementation(testFixtures(project(":manifest")))
     testImplementation(project(":postgres"))
     testImplementation(project(":mongo"))
     testImplementation(project(":kafka"))

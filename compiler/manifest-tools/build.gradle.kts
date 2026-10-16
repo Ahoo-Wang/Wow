@@ -13,4 +13,5 @@ dependencies {
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation(kotlin("reflect"))
     testImplementation("com.fasterxml.jackson.core:jackson-annotations")
+    testImplementation(testFixtures(project(":manifest")))
 }

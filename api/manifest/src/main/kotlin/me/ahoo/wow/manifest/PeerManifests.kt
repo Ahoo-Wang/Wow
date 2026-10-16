@@ -51,7 +51,7 @@ object PeerManifests {
             when {
                 contexts.size == peer.manifest.contexts.size -> peer
                 contexts.isEmpty() -> null
-                else -> peer.copy(manifest = peer.manifest.copy(contexts = contexts))
+                else -> ManifestFragment(peer.source, peer.manifest.withContexts(contexts))
             }
         }.distinctBy { it.manifest }
     }
