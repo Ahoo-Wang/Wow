@@ -62,8 +62,9 @@ enum class Creation {
 /**
  * An after hook (decision D39): runs after the decide function of every command it [applies] to, sees the same,
  * not yet evolved state, and returns events appended after the command's own, in the same event stream. It does not
- * run when the command is rejected. Like a decide function it keeps its form (D36); a [Suspending.blocking] one runs
- * on a virtual thread (D227).
+ * run when the command is rejected. A hook the model builder makes runs after a system command (a lifecycle or
+ * `wow.schedule` one) only when it names it ([AggregateModelBuilder.after], finding A4-10). Like a decide function it
+ * keeps its form (D36); a [Suspending.blocking] one runs on a virtual thread (D227).
  */
 sealed interface AfterFunction<S : Any> {
     val applies: (Class<*>) -> Boolean

@@ -130,6 +130,44 @@ class AfterHookParametersTest {
     }
 
     @Test
+    fun `a hook of every command should not run after a lifecycle command it does not name`() {
+        run("fun afterCommand(command: Any): Audited = Audited(command.javaClass.simpleName)").assert().isEqualTo(
+            "Created+Audited{\"by\":\"Create\"} | Added+Audited{\"by\":\"Add\"} | " +
+                "Removed+Audited{\"by\":\"Remove\"} | AggregateDeleted",
+        )
+    }
+
+    @Test
+    fun `a hook naming a lifecycle command should run after it`() {
+        run(
+            "fun afterCommand(command: me.ahoo.wow.api.lifecycle.DeleteAggregate): Audited = Audited(\"deleted\")",
+        ).assert().isEqualTo("Created | Added | Removed | AggregateDeleted+Audited{\"by\":\"deleted\"}")
+        run(
+            "@AfterCommand(include = [Add::class, me.ahoo.wow.api.lifecycle.DeleteAggregate::class]) " +
+                "fun audit(command: Any): Audited = Audited(command.javaClass.simpleName)",
+        ).assert().isEqualTo(
+            "Created | Added+Audited{\"by\":\"Add\"} | Removed | AggregateDeleted+Audited{\"by\":\"DeleteAggregate\"}",
+        )
+    }
+
+    @Test
+    fun `a hook naming a class that is no command of the aggregate should be a compile error`() {
+        val (_, result) = compileModel(
+            "generate",
+            cart(
+                "@AfterCommand(include = [Add::class, Audited::class], exclude = [Created::class]) " +
+                    "fun audit(command: Any): Audited = Audited(\"x\")",
+            ),
+        )
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains(
+            "after hook audit names sample.Audited in @AfterCommand(include, exclude), which is not a command of " +
+                "the aggregate",
+            "after hook audit names sample.Created in @AfterCommand(include, exclude)",
+        )
+    }
+
+    @Test
     fun `a hook including a command it does not take should be a compile error`() {
         val (_, result) = compileModel(
             "generate",

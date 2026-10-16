@@ -19,6 +19,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
@@ -101,6 +102,25 @@ class KernelHooksTest {
         outcome.stream.events.map { it.name }.assert().containsExactly("test.counter.Touched", "test.counter.Audited")
         (outcome.state as Counter).audits.assert().isEqualTo(1)
         log.read(ref).toList().first().events.map { it.name }.assert().containsExactly("test.counter.Opened")
+    }
+
+    @Test
+    fun `an after hook runs after a lifecycle command only when it names it`() = runTest {
+        val hooked = aggregate<Counter>("test", "counter") {
+            initial { Counter(it.id) }
+            decide<Open>(Creation.REQUIRED) { _, body -> Decision.events(Opened(body.by)) }
+            after { _, command -> listOf(Audited("any:" + command.javaClass.simpleName)) }
+            after(include = setOf(DeleteAggregate::class.java)) { _, _ -> listOf(Audited("delete")) }
+            evolve<Opened> { }
+            evolve<Audited> { audits++ }
+        }
+        val log = InMemoryEventLog()
+        Kernel(log).execute(hooked, open())
+        val outcome = Kernel(log).execute(hooked, command(DeleteAggregate)) as CommandOutcome.Committed
+        outcome.stream.events.map { it.name }
+            .assert().containsExactly("wow.lifecycle.AggregateDeleted", "test.counter.Audited")
+        log.read(ref).toList().first().events.map { it.name }
+            .assert().containsExactly("test.counter.Opened", "test.counter.Audited")
     }
 
     @Test

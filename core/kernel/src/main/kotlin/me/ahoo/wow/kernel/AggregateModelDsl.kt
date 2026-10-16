@@ -112,8 +112,10 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
     }
 
     /**
-     * An after hook (D39) for every command that is one of [include] (all when empty) and none of [exclude]: its
-     * events follow the command's own in the same stream.
+     * An after hook (D39) for every command that is one of [include] and none of [exclude]: its events follow the
+     * command's own in the same stream. An empty [include] is every command of the model's own decide functions, not
+     * the system commands the kernel decides (lifecycle and `wow.schedule`, finding A4-10): a hook runs after one of
+     * those only when [include] names it.
      */
     fun after(
         include: Set<Class<*>> = emptySet(),
@@ -301,6 +303,13 @@ class AggregateModelBuilder<S : Any>(val type: AggregateType, val stateType: Cla
         tags = tags,
     )
 
-    private fun applies(include: Set<Class<*>>, exclude: Set<Class<*>>): (Class<*>) -> Boolean =
-        { command -> (include.isEmpty() || command in include) && command !in exclude }
+    private fun applies(include: Set<Class<*>>, exclude: Set<Class<*>>): (Class<*>) -> Boolean = { command ->
+        val included = if (include.isEmpty()) command !in SYSTEM_COMMANDS else command in include
+        included && command !in exclude
+    }
+
+    private companion object {
+        /** The commands the kernel decides for every model, which an after hook runs after only when it names them. */
+        val SYSTEM_COMMANDS: Set<Class<*>> = KernelLifecycle.COMMANDS + KernelLifecycle.SCHEDULE_COMMANDS
+    }
 }

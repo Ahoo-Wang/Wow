@@ -948,8 +948,17 @@ internal class ModelSymbolProcessor(
         // A hook of a command type runs only for the commands it accepts.
         val accepting = bodyClass?.takeUnless { it.qualifiedName?.asString() in ANY_TYPES }
         val declaredInclude = types("include")
+        val declaredExclude = types("exclude")
+        // `include` and `exclude` name the aggregate's commands, or system commands (finding A4-10).
+        val commandNames = commandClasses.map { it.render() }.toSet() + SYSTEM_COMMANDS
+        (declaredInclude + declaredExclude).map { it.render() }.filterNot { it in commandNames }.distinct().forEach {
+            problems += "after hook $name names $it in @AfterCommand(include, exclude), which is not a command of " +
+                "the aggregate: no command function takes it, and it is no lifecycle or schedule command"
+        }
         val include = when {
             accepting == null -> declaredInclude.map { it.render() }
+            // A hook of a system command runs after it, which it must name otherwise.
+            declaredInclude.isEmpty() && body!!.render() in SYSTEM_COMMANDS -> listOf(body.render())
             declaredInclude.isEmpty() -> commandClasses.distinct()
                 .filter { body!!.isAssignableFrom(it.asStarProjectedType()) }
                 .map { it.asStarProjectedType().render() }
@@ -976,7 +985,7 @@ internal class ModelSymbolProcessor(
             arguments = rest.mapNotNull { argument(name, it, dependencies, problems) },
             reactor = reactor,
             include = include,
-            exclude = types("exclude").map { it.render() },
+            exclude = declaredExclude.map { it.render() },
             suspending = Modifier.SUSPEND in function.modifiers,
             yields = EventYield.of(function.returnType?.resolve()),
             blocking = blocking(function, reactor, warnings),
@@ -991,7 +1000,7 @@ internal class ModelSymbolProcessor(
      * the command the hook takes: such a parameter is reported as a dependency's would be.
      */
     private fun KSType.isDependencyLike(): Boolean = render().let { rendered ->
-        FRAMEWORK_PACKAGES.any { rendered.startsWith(it) } && rendered !in LIFECYCLE_COMMANDS
+        FRAMEWORK_PACKAGES.any { rendered.startsWith(it) } && rendered !in SYSTEM_COMMANDS
     }
 
     private fun reactorReturn(function: KSFunctionDeclaration): String? =
@@ -1079,6 +1088,9 @@ internal class ModelSymbolProcessor(
 
         /** The lifecycle commands (design 01 §6), by Kotlin name: an after hook may include them. */
         val LIFECYCLE_COMMANDS: Set<String> = Lifecycle.COMMANDS.values.map { it.canonicalName }.toSet()
+
+        /** The system commands every aggregate decides (lifecycle and schedule), by Kotlin name. */
+        val SYSTEM_COMMANDS: Set<String> = LIFECYCLE_COMMANDS + Schedules.COMMANDS.values.map { it.canonicalName }
         const val ON_COMMAND = "onCommand"
         const val ON_SOURCING = "onSourcing"
         const val AFTER_COMMAND = "afterCommand"
