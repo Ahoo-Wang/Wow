@@ -32,7 +32,7 @@ case "$command" in
     out="$SCRATCH/$setup-$dist-saturation"
     rm -rf "$out"
     # shellcheck disable=SC2046
-    "$BENCH" saturate $(setup_args "$setup") --scenario=E1 --distribution="$dist" --max-concurrency=256 \
+    "$BENCH" saturate $(setup_args "$setup") --scenario=E1 --distribution="$dist" --max-concurrency=1024 \
       --label=b1 --out="$out"
     mkdir -p "$dest"
     cp "$out/saturation.json" "$dest/"
