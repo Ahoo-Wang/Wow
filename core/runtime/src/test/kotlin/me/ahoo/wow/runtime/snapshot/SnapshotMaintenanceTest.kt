@@ -34,6 +34,7 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
@@ -70,6 +71,7 @@ class SnapshotMaintenanceTest {
         store: SnapshotStore,
         node: String = "node",
         options: SnapshotOptions = SnapshotOptions(interval = 1.hours, leaseTtl = 2.hours, memberTtl = 2.hours),
+        progressLog: EventLog = log,
     ) = SnapshotMaintenance(
         CONTEXT,
         GROUP,
@@ -80,7 +82,7 @@ class SnapshotMaintenanceTest {
         codec,
         log,
         leases,
-        listOf(LogProgress(GROUP, log, checkpoints)),
+        listOf(LogProgress(GROUP, progressLog, checkpoints)),
         options,
     )
 
@@ -113,6 +115,31 @@ class SnapshotMaintenanceTest {
         store.load(ref)!!.stateRevision.assert().isEqualTo(1)
         store.table(type).assert().isEqualTo(SnapshotTable(2, rebuilding = true, backfilled = false))
         maintenance.tables().keys.assert().containsExactly(SnapshotTargets.DEFAULT_STORE to type)
+    }
+
+    @Test
+    fun `a run reads the partition heads only while a target has not caught up`(): Unit = runBlocking {
+        // B.D diagnostics: the heads serve the backfill check alone.
+        val heads = AtomicInteger()
+        val counting = object : EventLog by log {
+            override suspend fun head(partition: Int): Long? = log.head(partition).also { heads.incrementAndGet() }
+        }
+        val store = InMemorySnapshotStore()
+        val maintenance = maintenance(1, store, progressLog = counting)
+        commit("a")
+        // The table is not known yet, then claimed and not backfilled: each run reads both partitions' heads.
+        maintenance.maintain()
+        heads.get().assert().isEqualTo(2)
+        maintenance.maintain()
+        heads.get().assert().isEqualTo(4)
+        store.mark(type, 1, backfilled = true)
+        maintenance.maintain()
+        heads.get().assert().isEqualTo(6)
+        // Every target caught up: no more reads.
+        maintenance.maintain()
+        maintenance.maintain()
+        heads.get().assert().isEqualTo(6)
+        store.table(type)!!.backfilled.assert().isTrue()
     }
 
     @Test
