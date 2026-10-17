@@ -40,6 +40,7 @@ import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
@@ -250,6 +251,7 @@ class QueryAutoConfiguration {
             visibility: ObjectProvider<DatasetVisibility>,
             counts: ObjectProvider<QueryCountCache>,
             reads: ObjectProvider<StateReads>,
+            masks: PayloadMasks,
         ): HttpQueries {
             val contexts = node.contexts.keys
             val observer = observerOf(observers)
@@ -288,6 +290,7 @@ class QueryAutoConfiguration {
                     entryPolicy,
                     QueryOwnership.of(manifest).ownershipOf(type),
                     visible,
+                    masks,
                 ) { record -> if (model == null) record else context.codec.current(model, record) }
             }
             return HttpQueries(

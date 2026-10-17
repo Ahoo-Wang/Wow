@@ -66,6 +66,7 @@ import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.QueryTimeoutException
+import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.spi.json.WowJson
@@ -107,7 +108,8 @@ import kotlin.time.toJavaDuration
  * stream has one, and `events`, each `{name, revision, body}` as [reading] gives it: the host reads each event as the
  * aggregate's model does now (finding A4-16, [me.ahoo.wow.kernel.EventCodec.current]), under its current name, at
  * its current revision and upgraded to it, an event the aggregate retired left out, so the records match the event
- * types the Manifest gives clients. Without a model, as the log stores it.
+ * types the Manifest gives clients. Without a model, as the log stores it. Each body is masked by the sensitive fields
+ * of its event's schema ([masks], 09 §17 G-2), for every caller alike, as a snapshot query masks a state.
  */
 @InternalWowApi
 class EventQueryGateway(
@@ -119,6 +121,8 @@ class EventQueryGateway(
     val ownership: Ownership = Ownership.OWNER,
     /** Whether a caller sees an aggregate ([StateVisibility]); every one by default. */
     private val visibility: suspend (AggregateRef, QueryCaller) -> Boolean = { _, _ -> true },
+    /** How each event's body is masked (09 §17 G-2): by its schema's sensitive fields, for every caller alike. */
+    private val masks: PayloadMasks = PayloadMasks.NONE,
     /** How an event of the log reads in a record: null leaves it out; as the log stores it by default. */
     private val reading: (EventRecord) -> EventRecord? = { it },
 ) {
@@ -219,8 +223,13 @@ class EventQueryGateway(
             .setAll(descriptor) as ObjectNode
     }
 
-    /** [stream] as this model's record, its events as [reading] gives them. */
-    private fun read(stream: EventStreamRecord): ObjectNode = record(stream, reading)
+    /** [stream] as this model's record, its events as [reading] gives them, each body masked by [masks]. */
+    private fun read(stream: EventStreamRecord): ObjectNode = record(stream, reading).also { record ->
+        record.get(EVENTS).forEach { event ->
+            val body = event.get(BODY)
+            (event as ObjectNode).set(BODY, masks.event(aggregateType, event.get(NAME).asString(), body))
+        }
+    }
 
     /** A query of this model the caller may run: its aggregate's range, its budget and its timeout. */
     private data class Admitted(
@@ -318,6 +327,9 @@ class EventQueryGateway(
             "spaceId", "operator", "events",
         )
         private const val CURSOR_PREFIX = "v:"
+        private const val EVENTS = "events"
+        private const val NAME = "name"
+        private const val BODY = "body"
 
         private fun Scope.covers(scope: Scope): Boolean =
             (ownerId == null || ownerId == scope.ownerId) && (spaceId == null || spaceId == scope.spaceId)

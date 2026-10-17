@@ -51,6 +51,7 @@ import me.ahoo.wow.openapi.ManifestOpenApi
 import me.ahoo.wow.openapi.OpenApiOptions
 import me.ahoo.wow.query.QueryOwnership
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
+import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.spi.StorageUnavailableException
 import org.springframework.http.HttpMethod
@@ -78,7 +79,8 @@ import org.springframework.web.reactive.function.server.coRouter
  *   `DeleteAggregate`, `POST /{context}/{aggregate}/{id}/wow.lifecycle.<kebab>` the others;
  * - `GET /{context}/{aggregate}/{id}/state`, `?version=`, `?at=` and `GET …/{id}/state/trace` read [reads]
  *   (decisions D40, D112), in the tenant the gateway's [tenants][CommandGateway.tenants] decide, as for a command
- *   (decision D116);
+ *   (decision D116); each state and each event of a trace masked as a snapshot query masks it, by the snapshot query
+ *   gateway of [queries] or, without one, by [masks] (09 §17 G-2);
  * - `POST /{context}/{aggregate}/{model}/query` and its `GET` (decisions D127, D131) query the models of
  *   [AggregateManifest.queries] that [queries] serves, the snapshots and the events of each aggregate type;
  * - `POST /wow/dataset/{context}/{dataset}/query` and its `GET` query the datasets of [queries] (decision D145) as a
@@ -105,6 +107,7 @@ fun wowRoutes(
     callerResolver: CallerResolver = CallerResolver.ANONYMOUS,
     options: WowHttpOptions = WowHttpOptions(),
     queries: HttpQueries = HttpQueries.NONE,
+    masks: PayloadMasks = PayloadMasks(manifest),
 ): RouterFunction<ServerResponse> {
     val statuses = ErrorStatuses(manifest, options.errorStatuses)
     val authenticator = Authenticator(callerResolver, statuses)
@@ -121,7 +124,7 @@ fun wowRoutes(
     val queryHandler = QueryHandler(queries, authenticator, headers, statuses, gateway.tenants, scope)
     val ownerships = QueryOwnership.of(manifest)
     val states =
-        StateHandler(reads, authenticator, headers, statuses, gateway.tenants, ownerships::ownershipOf, queries)
+        StateHandler(reads, authenticator, headers, statuses, gateway.tenants, ownerships::ownershipOf, queries, masks)
     val served = withTransformedRoutes(manifest, gateway)
     return coRouter {
         if (options.manifestEndpoint) {
