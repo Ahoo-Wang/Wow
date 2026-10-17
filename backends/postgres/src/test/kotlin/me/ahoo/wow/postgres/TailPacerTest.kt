@@ -33,11 +33,28 @@ class TailPacerTest {
         val pacer = TailPacer(2, 1.milliseconds, 6.milliseconds)
         var idle = pacer.interval
         val waits = (1..4).map {
-            idle = pacer.await(0, pacer.mark(0), found = false, idle = idle)
+            idle = pacer.await(0, pacer.mark(0), found = false, idle = idle).idle
             idle
         }
         waits.assert().containsExactly(2.milliseconds, 4.milliseconds, 6.milliseconds, 6.milliseconds)
-        pacer.await(0, pacer.mark(0), found = true, idle = idle).assert().isEqualTo(1.milliseconds)
+        pacer.await(0, pacer.mark(0), found = true, idle = idle)
+            .assert().isEqualTo(TailPacer.Pace(1.milliseconds, woken = false))
+    }
+
+    @Test
+    fun `entries found by a poll a commit woke keep the backoff`(): Unit = runBlocking {
+        val pacer = TailPacer(1, 1.milliseconds, 6.milliseconds)
+        // The poll was woken and found entries: it waits the backoff, which it keeps.
+        pacer.await(0, pacer.mark(0), found = true, idle = 6.milliseconds, woken = true)
+            .assert().isEqualTo(TailPacer.Pace(6.milliseconds, woken = false))
+        // A poll a commit woke that found nothing still backs off.
+        pacer.await(0, pacer.mark(0), found = false, idle = 2.milliseconds, woken = true)
+            .assert().isEqualTo(TailPacer.Pace(4.milliseconds, woken = false))
+        // A commit during the wait is reported, so the next poll is known to be woken.
+        val mark = pacer.mark(0)
+        pacer.committed(0)
+        pacer.await(0, mark, found = true, idle = 6.milliseconds, woken = true)
+            .assert().isEqualTo(TailPacer.Pace(6.milliseconds, woken = true))
     }
 
     @Test
@@ -52,7 +69,7 @@ class TailPacerTest {
         delay(50)
         waiting.isCompleted.assert().isFalse()
         pacer.committed(1)
-        withTimeout(10.seconds) { waiting.await() }.assert().isEqualTo(10.minutes)
+        withTimeout(10.seconds) { waiting.await() }.assert().isEqualTo(TailPacer.Pace(10.minutes, woken = true))
         // A commit between the poll and the wait is not missed.
         val before = pacer.mark(1)
         pacer.committed(1)
