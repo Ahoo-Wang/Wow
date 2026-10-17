@@ -126,7 +126,11 @@ class Resources(
         }
         samplers += process
         thread(name = "sampler-${command.first()}", isDaemon = true) {
-            process.inputStream.bufferedReader().useLines { lines -> lines.forEach(onLine) }
+            try {
+                process.inputStream.bufferedReader().useLines { lines -> lines.forEach(onLine) }
+            } catch (_: java.io.IOException) {
+                // The sampler was stopped: its output closed under the reader.
+            }
         }
     }
 

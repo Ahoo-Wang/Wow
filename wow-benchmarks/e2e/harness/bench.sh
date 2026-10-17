@@ -1,0 +1,205 @@
+#!/usr/bin/env bash
+#
+# Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#      http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+# The harness of the end-to-end benchmark (decision D224; wow-benchmarks/e2e/README.md). Each run starts from empty
+# stores: it starts the stores and the bus (compose.yml), starts the servers of one version in their topology (one node
+# or a cluster), seeds the accounts, checks every scenario once, runs the load generator, then stops the servers and
+# removes the containers with their volumes, whatever happens. Runs on macOS's bash 3.2.
+#
+#   bench.sh build
+#   bench.sh run      --version=9x|v10 [--backend=mongo|postgres] [--nodes=1|3] --scenario=E1 --rate=50 [options]
+#   bench.sh saturate --version=9x|v10 [--backend=...] [--nodes=...] --scenario=E1 [--max-concurrency=256] [options]
+#   bench.sh down
+#
+# Options: --warm-up=30 --measure=60 --distribution=uniform|zipf|hot --accounts=1000 --label=run --out=<dir>
+#          --heap=1g --jfr (a flight recording per server) --settle=<s> (after the nodes are up), and any other
+#          --name=value of the load generator's run or saturate, passed through.
+set -euo pipefail
+
+HARNESS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(cd "$HARNESS/../../.." && pwd)"
+JAVA_HOME="${JAVA_HOME:?Set JAVA_HOME to a JDK 21.}"
+export JAVA_HOME
+LOAD="$REPO/wow-benchmarks/e2e/load/build/install/e2e-bench-load/bin/e2e-bench-load"
+PUBLIC_PORT=18080
+INTERNAL_PORT=19090
+SERVER_PIDS=()
+TARGETS=()
+
+usage() {
+  sed -n '14,26p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  exit 2
+}
+
+log() { echo "[bench] $*" >&2; }
+
+compose() { docker compose -f "$HARNESS/compose.yml" "$@"; }
+
+build() {
+  log "building the servers and the load generator"
+  (cd "$REPO" && ./gradlew --console=plain -q \
+    :e2e-bench-9x:installDist :e2e-bench-v10:installDist :e2e-bench-load:installDist)
+}
+
+down() {
+  local pid
+  for pid in ${SERVER_PIDS[@]+"${SERVER_PIDS[@]}"}; do
+    kill "$pid" 2>/dev/null || true
+  done
+  for pid in ${SERVER_PIDS[@]+"${SERVER_PIDS[@]}"}; do
+    wait "$pid" 2>/dev/null || true
+  done
+  compose down -v --remove-orphans >/dev/null 2>&1 || true
+}
+
+# The --name=value options, one name=value per line in OPTIONS (bash 3.2 has no associative arrays); the ones the
+# harness does not know go to the load generator in PASS.
+OPTIONS=""
+PASS=()
+parse() {
+  local argument key
+  for argument in "$@"; do
+    case "$argument" in
+      --*=*) key=${argument%%=*} ;;
+      --*) key=$argument; argument="$argument=true" ;;
+      *) log "not an option: $argument"; usage ;;
+    esac
+    OPTIONS="$OPTIONS${argument#--}
+"
+    case " --version --backend --nodes --label --out --heap --jfr --settle --accounts " in
+      *" $key "*) ;;
+      *) PASS+=("$argument") ;;
+    esac
+  done
+}
+
+# The value of option $1, or $2.
+opt() {
+  local line value="$2"
+  while IFS= read -r line; do
+    if [ "${line%%=*}" = "$1" ]; then value=${line#*=}; fi
+  done <<EOF
+$OPTIONS
+EOF
+  echo "$value"
+}
+
+# Starts node $1 (1-based) of $VERSION; its output goes to $OUT/node-$1.log. The launcher execs java, so the pid it
+# records is the server JVM's.
+start_node() {
+  local n=$1
+  local port=$((PUBLIC_PORT + n - 1)) internal=$((INTERNAL_PORT + n - 1))
+  local args=("--server.port=$port")
+  if [ "$VERSION" = 9x ]; then
+    args+=("--cosid.machine.distributor.manual.machine-id=$n")
+  else
+    args+=("--spring.profiles.active=$BACKEND" "--wow.internal.port=$internal" "--wow.node.id=node-$n")
+  fi
+  local jvm="-Xms$HEAP -Xmx$HEAP -XX:+UseG1GC"
+  if [ "$(opt jfr false)" = true ]; then
+    jvm="$jvm -XX:StartFlightRecording=filename=$OUT/node-$n.jfr,settings=profile"
+  fi
+  JAVA_OPTS="$jvm" "$REPO/wow-benchmarks/e2e/bench-$VERSION/build/install/e2e-bench-$VERSION/bin/e2e-bench-$VERSION" \
+    "${args[@]}" >"$OUT/node-$n.log" 2>&1 &
+  SERVER_PIDS+=($!)
+  TARGETS+=("http://127.0.0.1:$port")
+}
+
+# Waits until node $1 answers on its public port; fails when it exits first.
+await_node() {
+  local n=$1
+  local url=${TARGETS[$((n - 1))]} pid=${SERVER_PIDS[$((n - 1))]} probe=/wow/manifest
+  if [ "$VERSION" = 9x ]; then probe=/wow/id/global; fi
+  local attempt
+  for attempt in $(seq 1 120); do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      log "node $n exited:"; tail -40 "$OUT/node-$n.log" >&2; return 1
+    fi
+    if [ "$(curl -s -o /dev/null -w '%{http_code}' "$url$probe")" = 200 ]; then return 0; fi
+    sleep 1
+  done
+  log "node $n did not start in ${attempt}s"; tail -40 "$OUT/node-$n.log" >&2; return 1
+}
+
+setup() {
+  VERSION=$(opt version "")
+  if [ "$VERSION" != 9x ] && [ "$VERSION" != v10 ]; then log "--version=9x|v10"; usage; fi
+  BACKEND=$(opt backend mongo)
+  if [ "$VERSION" = 9x ] && [ "$BACKEND" != mongo ]; then log "9.x runs on MongoDB only (D224)"; exit 2; fi
+  NODES=$(opt nodes 1)
+  HEAP=$(opt heap 1g)
+  ACCOUNTS=$(opt accounts 1000)
+  LABEL=$(opt label run)
+  local scenario; scenario=$(opt scenario saturation)
+  OUT=$(opt out "$REPO/wow-benchmarks/results/e2e/$(date +%Y%m%d-%H%M%S)-$LABEL-$VERSION-$BACKEND-n$NODES-$scenario")
+  mkdir -p "$OUT"
+  if [ ! -x "$LOAD" ]; then build; fi
+  trap down EXIT
+  down
+  local store=postgres
+  if [ "$BACKEND" = mongo ]; then store=mongo; fi
+  log "starting kafka and $store"
+  compose up -d --wait kafka "$store" >/dev/null
+  CONTAINERS="wow-e2e-bench-kafka,wow-e2e-bench-$store"
+  STORE_OPTION="--$store=wow-e2e-bench-$store"
+  local n
+  for n in $(seq 1 "$NODES"); do
+    log "starting $VERSION node $n on $BACKEND"
+    start_node "$n"
+    await_node "$n"
+  done
+  local settle=2
+  if [ "$NODES" -gt 1 ]; then settle=15; fi
+  settle=$(opt settle "$settle")
+  log "nodes up; settling ${settle}s"
+  sleep "$settle"
+  TARGET_LIST=$(IFS=,; echo "${TARGETS[*]}")
+  log "seeding $ACCOUNTS accounts"
+  "$LOAD" seed --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" | tee "$OUT/seed.log" >&2
+  log "checking every scenario once"
+  "$LOAD" check --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" | tee "$OUT/check.log" >&2
+  PIDS=""
+  for n in $(seq 1 "$NODES"); do PIDS="${PIDS}node-$n:${SERVER_PIDS[$((n - 1))]},"; done
+  PIDS=${PIDS%,}
+  local jvm; jvm=$("$JAVA_HOME/bin/java" -version 2>&1 | tr '\n' ' ' | sed 's/;/,/g')
+  META="backend=$BACKEND;nodes=$NODES;heap=$HEAP;gc=G1;serverJvm=$jvm;stores=kafka $store"
+}
+
+run() {
+  parse "$@"
+  setup
+  log "running $(opt scenario ?) at $(opt rate ?)/s"
+  "$LOAD" run --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --label="$LABEL" --out="$OUT" \
+    --pids="$PIDS" --containers="$CONTAINERS" --kafka=wow-e2e-bench-kafka "$STORE_OPTION" --repository="$REPO" \
+    --meta="$META" ${PASS[@]+"${PASS[@]}"}
+  log "results in $OUT"
+}
+
+saturate() {
+  parse "$@"
+  setup
+  "$LOAD" saturate --version="$VERSION" --targets="$TARGET_LIST" --accounts="$ACCOUNTS" --out="$OUT" \
+    --meta="$META" ${PASS[@]+"${PASS[@]}"}
+  log "results in $OUT"
+}
+
+command=${1:-}
+if [ -z "$command" ]; then usage; fi
+shift
+case "$command" in
+  build) build ;;
+  run) run "$@" ;;
+  saturate) saturate "$@" ;;
+  down) down ;;
+  *) usage ;;
+esac

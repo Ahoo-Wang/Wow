@@ -59,3 +59,6 @@ typescript/*/.vitest-attachments/
 
 # Local skill eval reports (scripts/eval-skills.mjs)
 skills/*/evals/results/
+
+# End-to-end benchmark runs (wow-benchmarks/e2e/harness/bench.sh); reports copy what they cite into results/reports/
+wow-benchmarks/results/e2e/
