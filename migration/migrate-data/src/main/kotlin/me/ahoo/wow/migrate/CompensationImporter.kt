@@ -243,7 +243,8 @@ class CompensationImporter(
 /**
  * The compensation comparison of `compare`: every unresolved 9.x execution this run imports has a V10 parked entry of
  * its subscription and aggregate from its version or an earlier one. Counts the executions [compared], those that
- * [differ] and those [unresolved] (not imported, as the import reported them).
+ * [differ] and those [unresolved] (not imported, as the import reported them: no mapping or subscription that parks
+ * them, or a version the log does not hold).
  */
 data class CompensationComparisonResult(val compared: Long, val differ: Long, val unresolved: Long) {
     val passed: Boolean get() = differ == 0L
@@ -256,6 +257,7 @@ data class CompensationComparisonResult(val compared: Long, val differ: Long, va
 class CompensationComparison(
     private val source: NineXCompensationSource,
     private val plan: MigrationPlan,
+    private val logOf: (String) -> EventLog,
     private val ledger: () -> FailureLedger,
     private val pageSize: Int,
     private val report: (String) -> Unit = {},
@@ -278,6 +280,9 @@ class CompensationComparison(
         val target = plan.compensation.parkedOf(execution) as? ParkedTarget.Parked
             ?: return result.copy(unresolved = result.unresolved + 1)
         val entry = target.entry
+        if (logOf(entry.ref.type.context).positionOf(entry.ref, entry.fromVersion) == null) {
+            return result.copy(unresolved = result.unresolved + 1)
+        }
         val parked = ledger().parked(entry.subscription, entry.ref)
         val v10 = when {
             parked == null -> "(none)"

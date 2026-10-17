@@ -121,4 +121,30 @@ class MigrationMapTest {
         assertThrows<IllegalArgumentException> { CommandMapping(" ", "A") }
         assertThrows<IllegalArgumentException> { CommandMapping("a", " ") }
     }
+
+    @Test
+    fun `format 1 maps the 9x processors to V10 subscriptions when told`() {
+        val map = MigrationMap.read(
+            """{"format":1,"aggregates":[],"subscriptions":[{"from":"s.CartSaga"},
+               {"from":"s.OrderSaga","to":"Orders","functions":{"onEvent":"onCreated","onPaid":"Payments.onPaid"}}]}""",
+        )
+        val (cart, order) = map.subscriptions
+        cart.source().assert().isEqualTo(NineXProcessor("s", "CartSaga"))
+        cart.subscriptionOf("onOrderCreated").assert().isEqualTo("CartSaga.onOrderCreated")
+        order.subscriptionOf("onEvent").assert().isEqualTo("Orders.onCreated")
+        order.subscriptionOf("onPaid").assert().isEqualTo("Payments.onPaid")
+        order.subscriptionOf("onShipped").assert().isEqualTo("Orders.onShipped")
+        NineXExample.map.subscriptions.assert().isEmpty()
+    }
+
+    @Test
+    fun `a subscription mapping names a 9x processor and V10 names`() {
+        assertThrows<IllegalArgumentException> { SubscriptionMapping("CartSaga") }
+        assertThrows<IllegalArgumentException> { SubscriptionMapping("s.CartSaga", to = "a.b") }
+        assertThrows<IllegalArgumentException> { SubscriptionMapping("s.CartSaga", to = " ") }
+        assertThrows<IllegalArgumentException> { SubscriptionMapping("s.CartSaga", functions = mapOf("on" to "")) }
+        assertThrows<IllegalArgumentException> { SubscriptionMapping("s.CartSaga", functions = mapOf(" " to "on")) }
+        assertThrows<IllegalArgumentException> { SubscriptionMapping("s.CartSaga", functions = mapOf("on" to "a.b.c")) }
+        assertThrows<IllegalArgumentException> { SubscriptionMapping("s.CartSaga", functions = mapOf("on" to "a.")) }
+    }
 }

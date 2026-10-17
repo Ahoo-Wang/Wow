@@ -204,7 +204,14 @@ class MigrateData(
         )
         val differingKeys = plan.reservations.keys.map { reservations.compare(it) }.filterNot { it.passed }
         val executions = connections.compensation?.let { compensation ->
-            CompensationComparison(compensation, plan, connections::failureLedger, config.pageSize, out::println)
+            CompensationComparison(
+                compensation,
+                plan,
+                connections::logOf,
+                connections::failureLedger,
+                config.pageSize,
+                out::println,
+            )
                 .compare()
         }
         if (differing.isEmpty() && differingKeys.isEmpty() && executions?.passed != false) {
