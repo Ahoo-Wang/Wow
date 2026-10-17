@@ -42,6 +42,10 @@ import tools.jackson.databind.json.JsonMapper
  *       "state": { "fields": { "orderStatus": "status" }, "ignore": ["payable", "items.totalPrice"] },
  *       "reservations": [ { "from": "order_no", "namespace": "order.no", "tenancy": "SYSTEM", "ownerId": "orderId" } ]
  *     }
+ *   ],
+ *   "subscriptions": [
+ *     { "from": "example-service.CartSaga" },
+ *     { "from": "example-service.OrderSaga", "to": "OrderSaga", "functions": { "onEvent": "onOrderCreated" } }
  *   ]
  * }
  * ```
@@ -51,16 +55,19 @@ import tools.jackson.databind.json.JsonMapper
  * - [headers] lists the 9.x stream headers kept as request facts, by their 9.x key, with their V10 name. Every other
  *   header is dropped: 9.x framework headers ([NineXHeaders.FRAMEWORK]) become fields of their own or go (design 07
  *   §3), and a request fact not listed here is not recorded (decision D163).
+ * - [subscriptions] maps the 9.x processors whose failed executions the 9.x compensation service still holds to the
+ *   V10 subscriptions that park them ([SubscriptionMapping], decision D229 G-1).
  *
  * A file of another [format] is refused, as is a property this format does not define. [AggregateMapping.state] joined
  * format 1 with the state comparison (roadmap 8b.2) as an optional property, not a new format: a map without it reads
  * as before, and only `compare` reads it. [AggregateMapping.reservations] and [EventMapping.retire] joined format 1 the
- * same way (findings A4-8, A4-7).
+ * same way (findings A4-8, A4-7), and so did [subscriptions] (roadmap 8b.4).
  */
 data class MigrationMap(
     val format: Int,
     val aggregates: List<AggregateMapping>,
     val headers: Map<String, String> = emptyMap(),
+    val subscriptions: List<SubscriptionMapping> = emptyList(),
 ) {
     init {
         require(format == FORMAT) {
@@ -222,5 +229,50 @@ data class StateMapping(val fields: Map<String, String> = emptyMap(), val ignore
         require(ignore.none { path -> path.split('.').any { it.isBlank() } }) {
             "An ignored state field is a dotted path of names: $ignore"
         }
+    }
+}
+
+/**
+ * The 9.x processor [from] (`contextName.processorName`, as a 9.x `ExecutionFailed` records its function) whose
+ * failed executions are imported as parked entries of V10 subscriptions (decision D229 G-1, roadmap 8b.4). A V10
+ * subscription is named `<processor>.<function>`; the 9.x function `f` of this processor is parked for:
+ *
+ * - `functions[f]` when it holds a dot: the whole V10 subscription name (`OrderSaga.onOrderCreated`), for a function
+ *   that moved to another processor;
+ * - else `<to>.<functions[f] or f>`, [to] defaulting to the 9.x processor name: a processor and its functions keep
+ *   their 9.x names unless the map renames them.
+ *
+ * The mapping check fails when a resulting subscription is not in the Manifest.
+ */
+data class SubscriptionMapping(
+    val from: String,
+    val to: String? = null,
+    val functions: Map<String, String> = emptyMap(),
+) {
+    init {
+        val dot = from.lastIndexOf('.')
+        require(dot in 1 until from.length - 1) { "A 9.x processor is named contextName.processorName: $from" }
+        require(to == null || (to.isNotBlank() && '.' !in to)) { "$from maps to the V10 processor name $to." }
+        require(functions.keys.none { it.isBlank() } && functions.values.none { it.isBlank() }) {
+            "A function mapping of $from names both functions."
+        }
+        val invalid = functions.values.filter { name ->
+            '.' in name && name.split('.').let { it.size != 2 || it.any(String::isBlank) }
+        }
+        require(invalid.isEmpty()) {
+            "A function of $from maps to a V10 function name or a subscription name, processor.function: $functions"
+        }
+    }
+
+    /** The 9.x processor. */
+    fun source(): NineXProcessor {
+        val dot = from.lastIndexOf('.')
+        return NineXProcessor(from.substring(0, dot), from.substring(dot + 1))
+    }
+
+    /** The V10 subscription the 9.x [function] of this processor is parked for. */
+    fun subscriptionOf(function: String): String {
+        val name = functions[function] ?: function
+        return if ('.' in name) name else "${to ?: source().processor}.$name"
     }
 }

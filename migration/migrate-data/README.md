@@ -1,6 +1,6 @@
 # wow-migrate-data
 
-Moves a 9.x application's data into V10 (design [07 §3](../../documentation/designs/v10/07-migration.md)): it checks `migration-map.json`, imports the 9.x event streams into the V10 log and the 9.x `PrepareKey` keys into the V10 reservations, follows what 9.x keeps writing, compares every 9.x snapshot with the state V10 rebuilds, and writes the V10 snapshots. The 9.x source is a MongoDB event store (decision D213); the V10 target is PostgreSQL or MongoDB.
+Moves a 9.x application's data into V10 (design [07 §3](../../documentation/designs/v10/07-migration.md)): it checks `migration-map.json`, imports the 9.x event streams into the V10 log, the 9.x `PrepareKey` keys into the V10 reservations and the 9.x compensation service's unresolved executions into the V10 failure ledger, follows what 9.x keeps writing, compares every 9.x snapshot with the state V10 rebuilds, and writes the V10 snapshots. The 9.x source is a MongoDB event store (decision D213); the V10 target is PostgreSQL or MongoDB.
 
 ## Running
 
@@ -11,9 +11,9 @@ Moves a 9.x application's data into V10 (design [07 §3](../../documentation/des
 | Command | Options | What it does |
 | --- | --- | --- |
 | `check` | | Checks `migration-map.json` against the 9.x store and the V10 Manifests. Writes nothing. |
-| `import` | `--dry-run`, `--restart`, `--snapshots` | Checks, then imports every mapped 9.x aggregate, resuming from the checkpoint. `--dry-run` appends nothing; `--restart` is the final complete pass after 9.x stops writing; `--snapshots` then runs `snapshot`. |
+| `import` | `--dry-run`, `--restart`, `--snapshots` | Checks, then imports every mapped 9.x aggregate, then the reservations and the unresolved compensation executions, resuming from the checkpoint. `--dry-run` writes nothing; `--restart` is the final complete pass after 9.x stops writing; `--snapshots` then runs `snapshot`. |
 | `tail` | `--once` | Follows what 9.x commits after the import. It needs a `(createTime, _id)` index on each `<aggregate>_event_stream`; it prints the command, or creates it with `source.createCommitTimeIndex`. |
-| `compare` | `--sample <percent>`, `--restart` | Compares each 9.x snapshot with the V10 state rebuilt from the imported log at the snapshot's version. |
+| `compare` | `--sample <percent>`, `--restart` | Compares each 9.x snapshot with the V10 state rebuilt from the imported log at the snapshot's version, then the reservations and the parked entries. |
 | `snapshot` | `--restart` | Writes the V10 snapshot of every imported instance at its last version. |
 
 Exit codes: `0` done, `1` failed (the check, or a step that stopped), `2` usage error, `3` `compare` found differences.
@@ -33,12 +33,14 @@ Exit codes: `0` done, `1` failed (the check, or a step that stopped), `2` usage 
     "password": "env:WOW_PG_PASSWORD"
   },
   "partitions": { "example": 16 },
-  "classpath": ["../order-service/build/install/order-service/lib"]
+  "classpath": ["../order-service/build/install/order-service/lib"],
+  "compensation": { "database": "compensation_db", "service": "order-service" }
 }
 ```
 
 - Relative paths resolve against the configuration file; `env:NAME` reads an environment variable.
 - `classpath` lists the services' domain modules: jars, or directories of classes and jars. `compare` and `snapshot` rebuild states with the V10 models found there (the compiler's `ModelProvider`, decision D107), so the same evolve and upgrade functions the service runs. Dependencies the models take are stand-ins: the tool runs no decide function. Without `classpath`, the models are the ones on the tool's own class path.
+- `compensation` is optional: the 9.x compensation service's database (`database`, on the server of `uri`, the source's when left out) and the V10 service whose failure ledger receives its unresolved executions (`service`, the service's `wow.service` or `spring.application.name`). Without it, nothing of the compensation service is read.
 - `pageSize`, `streamBatch`, `concurrency`, `lookbackMillis` and `pollIntervalMillis` tune the passes.
 
 ## `migration-map.json`, format 1
@@ -92,6 +94,50 @@ The owner is that aggregate's instance with the id, in the tenant its 9.x stream
 
 The reservation store is the target backend's, under its default name, as the V10 host uses it. `tail` does not follow `PrepareKey`s: the final `import --restart`, once 9.x has stopped writing, reserves the keys 9.x confirmed since.
 
+## Compensation (9.x `ExecutionFailed`)
+
+The 9.x compensation service keeps each failed processor execution as an `execution_failed` aggregate in its own MongoDB database, with its snapshot in `execution_failed_snapshot`: `{_id, contextName: "compensation-service", version, deleted, state: {eventId: {id, aggregateId: {contextName, aggregateName, aggregateId, tenantId}, version}, function: {functionKind, contextName, processorName, name}, error: {errorCode, errorMsg, stackTrace}, executeAt, retrySpec: {maxRetries, minBackoff, executionTimeout}, retryState: {retries, retryAt, timeoutAt, nextRetryAt}, status, recoverable}}`. The tool reads these snapshots, which 9.x keeps at every version and reads itself to find the next retries.
+
+An execution is **unresolved** while its status is not `SUCCEEDED` and its aggregate is not deleted: `FAILED`, and `PREPARED` (a retry in flight at the cut-over). `import` parks each unresolved execution in the failure ledger of the V10 service (decisions D14, D141, D229 G-1), after the event streams, so the V10 service retries it automatically (roadmap P.1) and the ops service and console list it. Succeeded executions and deleted (skipped) ones are history: they are not imported, and their trail stays in the 9.x compensation database.
+
+Each 9.x processor whose functions have unresolved executions needs a mapping to the V10 subscriptions, named `<processor>.<function>`:
+
+```json
+"subscriptions": [
+  { "from": "example-service.CartSaga" },
+  { "from": "example-service.OrderSaga", "to": "OrderSaga", "functions": { "onEvent": "onOrderCreated" } },
+  { "from": "example-service.OrderProjector", "functions": { "onOrderPaid": "Reports.onOrderPaid" } }
+]
+```
+
+- `from` is the 9.x `contextName.processorName` the execution records.
+- `to` is the V10 processor name; it defaults to the 9.x one.
+- `functions` renames a 9.x function to its V10 name. A value with a dot is a whole subscription name, for a function that moved to another processor. A function not listed keeps its name.
+
+The check fails when a 9.x processor function with unresolved executions in a context this map migrates (the contexts of its aggregates and subscription mappings) has no mapping, when a processor is mapped twice, or when a mapped subscription is not in the Manifest. A mapping no unresolved execution uses is a warning. The executions of other services' contexts, which share the compensation database, are left for their own runs.
+
+Each execution becomes one parked entry of its subscription:
+
+| V10 parked entry | From the 9.x execution |
+| --- | --- |
+| subscription | the mapping of `function` |
+| aggregate | the mapped V10 type of `eventId.aggregateId`, with its id and tenant |
+| from version | `eventId.version` (the import keeps the versions) |
+| reason | `<errorCode>: <errorMsg>`; the ops console groups by the part before the colon. No stack trace (D215) |
+| failed at | `executeAt`, the last attempt |
+| retries, retry at | `retryState.retries`, and `retryState.retryAt` once a retry was made |
+| retry spec | `retrySpec`, seconds |
+| recoverable | `recoverable` (9.x `MarkRecoverable`) |
+
+An execution whose processor is not mapped, whose aggregate this map does not import, whose subscription reads another context's published events (it parks by topic offset, which a 9.x execution has none of), or whose version the V10 log does not hold is printed as `UNRESOLVED` and not imported; the check warns about the first three before the import. The import is checkpointed and idempotent: an aggregate the subscription already parks from that version or an earlier one is left as it is. `compare` checks that every unresolved execution has an entry of its subscription and aggregate from its version or an earlier one, prints each that has none as `DIFFERS` and exits with `3`.
+
+Cut-over notes:
+
+- V10 parks the aggregate, not the event (D14): its later events wait while it is parked, and a resume handles its streams from the failed version on, including those 9.x already handled after the failure. Handlers must tolerate that, as they tolerate any redelivery.
+- Two executions of one subscription and aggregate become one entry, from the earlier version, with the retry state of the first one imported.
+- `tail` does not follow the compensation service. Stop the 9.x compensation service with the application, then run the final `import --restart`.
+- After the cut-over the V10 service owns the retries, and an entry resolved in V10 is no longer parked, so a later `compare` reports it.
+
 ## Comparing states
 
 `compare` reads `<aggregate>_snapshot`, one document per instance, in aggregate id order, a page at a time. For each 9.x snapshot it replays the V10 log up to the snapshot's version and compares:
@@ -114,11 +160,11 @@ The summary of each aggregate gives the share of instances that have a 9.x snaps
 
 ## Checkpoints
 
-The checkpoint file (format 1) keeps, per 9.x aggregate, where the import, the tail, the comparison and the snapshot writing stand. A stopped run repeats at most one page. A resumed comparison keeps the counts of the earlier runs, so it still exits with `3` when they found differences. `--restart` starts a pass again from the first instance, and another `--sample` restarts the comparison.
+The checkpoint file (format 1) keeps, per 9.x aggregate, where the import, the tail, the comparison and the snapshot writing stand; per `PrepareKey`, where its reservation import stands; and where the compensation import stands. A stopped run repeats at most one page. A resumed comparison keeps the counts of the earlier runs, so it still exits with `3` when they found differences. `--restart` starts a pass again from the first instance, and another `--sample` restarts the comparison.
 
 ## Limits
 
-- Only a 9.x MongoDB store is read (D213). A 9.x Redis store must be moved to MongoDB first.
+- Only a 9.x MongoDB store is read (D213). A 9.x Redis store must be moved to MongoDB first, and so must a 9.x compensation service whose snapshots are in Elasticsearch.
 - A derived command's stream records only the chain's root as its cause, since 9.x keeps only the root.
 - An instance without a 9.x snapshot cannot be compared; the report gives the share that can.
 - Ids that collide across tenants are not reported yet.

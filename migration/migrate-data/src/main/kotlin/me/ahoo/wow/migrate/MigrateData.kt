@@ -38,7 +38,9 @@ import kotlin.system.exitProcess
  *   its checkpoint. `--dry-run` converts every stream and appends none; `--restart` walks every instance again, the
  *   final complete pass once 9.x has stopped writing; `--snapshots` then writes the V10 snapshots, as `snapshot` does.
  *   After the streams it imports the confirmed keys of every mapped 9.x `PrepareKey` as V10 reservations
- *   ([ReservationImporter]), resuming from their checkpoints too.
+ *   ([ReservationImporter]), and, when the configuration names the 9.x compensation database, the unresolved 9.x
+ *   executions as parked entries of the V10 service's failure ledger ([CompensationImporter]), resuming from their
+ *   checkpoints too.
  * - `tail` follows what 9.x commits after the full import until it is stopped (or after one pass with `--once`), the
  *   increment until cut-over. It reads the 9.x store by commit time, which needs an index 9.x did not create: without
  *   it the tail refuses to start and prints the command that creates it, unless `source.createCommitTimeIndex` lets
@@ -46,8 +48,9 @@ import kotlin.system.exitProcess
  * - `compare` compares each 9.x snapshot with the V10 state rebuilt from the imported log at its version
  *   ([StateComparison]), resuming from its checkpoint; `--sample` compares that percentage of the instances, the same
  *   ones on every run, and `--restart` compares from the first again. It then checks that every confirmed 9.x
- *   `PrepareKey` key is reserved in V10 for the same owner ([ReservationComparison], every key on every run). It
- *   prints each instance and key that differs, and exits with [DIFFERS] when one does.
+ *   `PrepareKey` key is reserved in V10 for the same owner ([ReservationComparison], every key on every run), and
+ *   that every unresolved 9.x execution is parked in V10 ([CompensationComparison]). It prints each instance, key
+ *   and execution that differs, and exits with [DIFFERS] when one does.
  * - `snapshot` writes the V10 snapshot of every imported instance at its last version ([SnapshotWriter]), resuming
  *   from its checkpoint; `--restart` walks every instance again (the snapshots already written are skipped).
  *
@@ -121,7 +124,11 @@ class MigrateData(
         options.zipWithNext().firstOrNull { it.first == name }?.second
 
     private fun check(plan: MigrationPlan, connections: MigrationConnections): Int {
-        val report = MappingCheck(plan).check(connections.source.inventory(), connections.reservations.prepareKeys())
+        val report = MappingCheck(plan).check(
+            connections.source.inventory(),
+            connections.reservations.prepareKeys(),
+            connections.compensation?.inventory(),
+        )
         out.println(report.render())
         return if (report.passed) OK else FAILED
     }
@@ -154,6 +161,18 @@ class MigrateData(
             report = out::println,
         )
         plan.reservations.keys.forEach { reservations.importAll(it) }
+        connections.compensation?.let { compensation ->
+            CompensationImporter(
+                source = compensation,
+                plan = plan,
+                logOf = connections::logOf,
+                ledger = connections::failureLedger,
+                checkpoints = checkpoints,
+                options = config.options(dryRun, RESTART in options),
+                progress = { out.println(it.render()) },
+                report = out::println,
+            ).importAll()
+        }
         out.println(if (dryRun) "Dry run done: nothing was appended." else "Import done.")
         return if (SNAPSHOTS in options) snapshot(plan, config, connections, RESTART in options) else OK
     }
@@ -184,10 +203,11 @@ class MigrateData(
             report = out::println,
         )
         val differingKeys = plan.reservations.keys.map { reservations.compare(it) }.filterNot { it.passed }
-        if (differing.isEmpty() && differingKeys.isEmpty()) {
+        val executions = compareCompensation(plan, config, connections)
+        if (differing.isEmpty() && differingKeys.isEmpty() && executions?.passed != false) {
             out.println(
-                "Comparison done: every state compared equals its 9.x snapshot, and every confirmed 9.x key is " +
-                    "reserved for its owner.",
+                "Comparison done: every state compared equals its 9.x snapshot, every confirmed 9.x key is " +
+                    "reserved for its owner, and every unresolved 9.x execution imported is parked.",
             )
             return OK
         }
@@ -205,7 +225,29 @@ class MigrateData(
                     "again before the cut-over.",
             )
         }
+        if (executions?.passed == false) {
+            out.println(
+                "Comparison done: ${executions.differ} unresolved 9.x executions are not parked in V10: run the " +
+                    "import again before the cut-over.",
+            )
+        }
         return DIFFERS
+    }
+
+    /** Compares the unresolved 9.x executions with the V10 parked entries; null without a compensation database. */
+    private suspend fun compareCompensation(
+        plan: MigrationPlan,
+        config: MigrationConfig,
+        connections: MigrationConnections,
+    ): CompensationComparisonResult? = connections.compensation?.let { compensation ->
+        CompensationComparison(
+            source = compensation,
+            plan = plan,
+            logOf = connections::logOf,
+            ledger = connections::failureLedger,
+            pageSize = config.pageSize,
+            report = out::println,
+        ).compare()
     }
 
     private suspend fun snapshot(
