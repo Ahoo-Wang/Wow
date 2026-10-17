@@ -43,6 +43,7 @@ import me.ahoo.wow.spi.snapshot.SnapshotTable
 import me.ahoo.wow.spi.state.StateEventPayload
 import me.ahoo.wow.spi.state.StateEventRecord
 import me.ahoo.wow.spi.state.StateView
+import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.Member
 import me.ahoo.wow.spi.timer.Timer
@@ -232,6 +233,7 @@ class RecordValuesTest {
         valueSemantics({ Lease.of("g", 0, "node-1", 1L, 9L) }, Lease.of("g", 0, "node-1", 2L, 9L))
         Lease.of("g", 0, "node-1", 1L, 9L).copyWith(epoch = 2L).assert().isEqualTo(Lease.of("g", 0, "node-1", 2L, 9L))
         valueSemantics({ Member.of("g", "node-1", "10.0.0.1:8081", 9L) }, Member.of("g", "node-2", "10.0.0.1:8081", 9L))
+        valueSemantics({ Checkpoint.of("saga", 1, 9L) }, Checkpoint.of("saga", 1, 10L))
         valueSemantics({ IdGenerators.of() }, IdGenerators.of(GlobalIdGenerator { "g" }, AggregateIdGenerator { "a" }))
     }
 

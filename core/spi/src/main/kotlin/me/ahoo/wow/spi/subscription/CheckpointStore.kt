@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spi.subscription
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 
 /**
@@ -45,5 +46,25 @@ interface CheckpointStore {
     }
 }
 
-/** The checkpoint of [subscription] in [partition], at [position], as [CheckpointStore.saveAll] saves it. */
-data class Checkpoint(val subscription: String, val partition: Int, val position: Long)
+/**
+ * The checkpoint of [subscription] in [partition], at [position], as [CheckpointStore.saveAll] saves it.
+ *
+ * Fields may be added (decisions D59, D228): construct one with [of]; the constructor is internal to Wow.
+ */
+class Checkpoint @InternalWowApi constructor(val subscription: String, val partition: Int, val position: Long) {
+    override fun equals(other: Any?): Boolean =
+        this === other || other is Checkpoint && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String = "Checkpoint(subscription=$subscription, partition=$partition, position=$position)"
+
+    private fun valueFields(): List<Any?> = listOf(subscription, partition, position)
+
+    companion object {
+        /** A Checkpoint of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        fun of(subscription: String, partition: Int, position: Long): Checkpoint =
+            Checkpoint(subscription, partition, position)
+    }
+}

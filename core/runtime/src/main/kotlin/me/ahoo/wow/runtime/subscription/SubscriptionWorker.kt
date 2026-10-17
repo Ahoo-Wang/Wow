@@ -655,7 +655,10 @@ internal class SubscriptionWorker(
      * The watermark when it moved since the last save, else null: what the runtime's periodic save stores, for all
      * its workers at once ([CheckpointStore.saveAll]), then reports with [saved].
      */
-    fun unsaved(): Checkpoint? = watermark.takeIf { it > saved }?.let { Checkpoint(subscription.name, partition, it) }
+    fun unsaved(): Checkpoint? {
+        val position = watermark
+        return if (position > saved) Checkpoint.of(subscription.name, partition, position) else null
+    }
 
     /** Records that [checkpoint], from [unsaved], is stored. */
     suspend fun saved(checkpoint: Checkpoint) = flushLock.withLock {

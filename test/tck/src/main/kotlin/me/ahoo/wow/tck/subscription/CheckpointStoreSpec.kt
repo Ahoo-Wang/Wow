@@ -102,11 +102,11 @@ abstract class CheckpointStoreSpec {
         store.saveAll(
             group,
             listOf(
-                Checkpoint("projection", 0, 4), // behind the stored 10: ignored
-                Checkpoint("saga", 1, 5), // the stored one: nothing changes
-                Checkpoint("saga", 0, 0), // new, at 0
-                Checkpoint("saga", 2, 7), // new
-                Checkpoint("projection", 1, 3), // new
+                Checkpoint.of("projection", 0, 4), // behind the stored 10: ignored
+                Checkpoint.of("saga", 1, 5), // the stored one: nothing changes
+                Checkpoint.of("saga", 0, 0), // new, at 0
+                Checkpoint.of("saga", 2, 7), // new
+                Checkpoint.of("projection", 1, 3), // new
             ),
         )
         store.load(group, "projection", 0).assert().isEqualTo(10L)
@@ -115,7 +115,7 @@ abstract class CheckpointStoreSpec {
         store.load(group, "saga", 2).assert().isEqualTo(7L)
         store.load(group, "projection", 1).assert().isEqualTo(3L)
         store.load(other, "projection", 0).assert().isEqualTo(1L)
-        store.saveAll(group, listOf(Checkpoint("projection", 0, 11), Checkpoint("saga", 2, 6)))
+        store.saveAll(group, listOf(Checkpoint.of("projection", 0, 11), Checkpoint.of("saga", 2, 6)))
         store.load(group, "projection", 0).assert().isEqualTo(11L)
         store.load(group, "saga", 2).assert().isEqualTo(7L)
     }
@@ -127,7 +127,7 @@ abstract class CheckpointStoreSpec {
         coroutineScope {
             positions.map { position ->
                 async(Dispatchers.Default) {
-                    store.saveAll(group, (0 until BATCH_PARTITIONS).map { Checkpoint("projection", it, position) })
+                    store.saveAll(group, (0 until BATCH_PARTITIONS).map { Checkpoint.of("projection", it, position) })
                 }
             }.awaitAll()
         }

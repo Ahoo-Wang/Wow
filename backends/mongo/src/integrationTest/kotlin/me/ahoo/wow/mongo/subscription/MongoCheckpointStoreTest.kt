@@ -51,7 +51,7 @@ class MongoCheckpointStoreTest : CheckpointStoreSpec() {
         val counted = MongoCheckpointStore(CountedMongo.client, MongoLogFixture.DATABASE)
         val group = "one-round-trip"
         counted.save(group, "saga", 0, 9)
-        val tick = (0 until 8).map { Checkpoint(if (it % 2 == 0) "saga" else "projection", it / 2, it + 1L) }
+        val tick = (0 until 8).map { Checkpoint.of(if (it % 2 == 0) "saga" else "projection", it / 2, it + 1L) }
         val sent = CountedMongo.commandsOf { runBlocking { counted.saveAll(group, tick) } }.second
         // Saga 0 is stored at 9, ahead of the 1 saved now: its upsert is refused and written again without upsert.
         sent.assert().containsExactly(
@@ -59,7 +59,7 @@ class MongoCheckpointStoreTest : CheckpointStoreSpec() {
             CountedMongo.Sent("update", "wow_checkpoint"),
         )
         counted.load(group, "saga", 0).assert().isEqualTo(9L)
-        CountedMongo.commandsOf { runBlocking { counted.saveAll(group, tick.map { it.copy(position = it.position + 10) }) } }
+        CountedMongo.commandsOf { runBlocking { counted.saveAll(group, tick.map { Checkpoint.of(it.subscription, it.partition, it.position + 10) }) } }
             .second.assert().containsExactly(CountedMongo.Sent("update", "wow_checkpoint"))
         tick.forEach { counted.load(group, it.subscription, it.partition).assert().isEqualTo(it.position + 10) }
     }
