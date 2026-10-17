@@ -1,0 +1,26 @@
+# v10-mongo: 600 commands, idle 30000 ms, load 37000 ms
+collection                           kind           txn     load  idle/s  per cmd
+wow_log__transfer__partition         aggregate              5137   61.87     4.75
+wow_checkpoint                       update                 4044    0.00     6.74
+wow_snapshot__transfer__account      update                 1200    0.00     2.00
+wow_lease                            findAndModify  txn      832   19.20     0.20
+wow_log__transfer__account           query                   600    0.00     1.00
+wow_log__transfer__partition         findAndModify  txn      600    0.00     1.00
+wow_log__transfer__account           query          txn      600    0.00     1.00
+wow_log__transfer__account           insert         txn      600    0.00     1.00
+wow_log__transfer__partition         query                   448   12.80    -0.04
+wow_lease_member                     query                    74    2.00     0.00
+wow_lease                            query                    37    1.00     0.00
+wow_timer__transfer                  query                    37    1.00     0.00
+wow_failure_ledger                   query                    24    0.80    -0.01
+wow_lease_member                     update                   19    0.53    -0.00
+wow_snapshot_table                   query                     7    0.20    -0.00
+total (profiled, per cmd, idle removed)                     17.64
+server command counters per cmd (idle removed):
+  aggregate                  4.59  (idle 64.50/s)
+  commitTransaction          1.00  (idle 0.00/s)
+  find                       1.95  (idle 17.80/s)
+  findAndModify              0.96  (idle 21.33/s)
+  insert                     1.00  (idle 0.00/s)
+  update                     8.74  (idle 0.53/s)
+

@@ -1,0 +1,52 @@
+# v10-postgres: 600 commands, idle 30000 ms, load 37000 ms
+   6.98   4186 idle/s=  0.00  INSERT INTO wow_checkpoint AS c (subscription_group, subscription, partition, position) VALUES ($1, $2, $3, $4) ON CONFLICT (subscription_group, subscription, partition) 
+   0.49   2662 idle/s= 64.00  SELECT counter.sequence AS head, entry.* FROM (SELECT sequence FROM "wow_log__transfer__partition" WHERE partition = $1) AS counter LEFT JOIN LATERAL (SELECT * FROM ((SEL
+  -0.04    768 idle/s= 21.33  UPDATE wow_lease SET expires_at = $1 WHERE subscription_group = $2 AND partition = $3 AND owner = $4 AND expires_at > $5 RETURNING subscription_group, partition, owner, e
+   1.00    600 idle/s=  0.00  INSERT INTO "wow_snapshot__transfer__account" AS stored (tenant_id, aggregate_id, version, schema_fingerprint, state, owner_id, space_id, deleted, first_event_time, last_
+   1.00    600 idle/s=  0.00  SELECT tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, events, owner_id, space_id, correlation_id, causation_id, headers, operator_id
+   1.00    600 idle/s=  0.00  WITH current AS ( SELECT coalesce(max(version), 0) AS version FROM "wow_log__transfer__account" WHERE aggregate_id = $1 AND tenant_id = $2 ), bump AS ( UPDATE "wow_log__t
+   0.00     74 idle/s=  2.00  SELECT subscription_group, node, address, expires_at FROM wow_lease_member WHERE subscription_group = $1 AND expires_at > $2 ORDER BY node COLLATE "C"
+   0.00     37 idle/s=  1.00  SELECT subscription_group, partition, owner, epoch, expires_at FROM wow_lease WHERE subscription_group = $1 AND expires_at > $2 ORDER BY partition
+   0.00     36 idle/s=  0.97  SELECT owner_aggregate, owner_tenant_id, owner_id, key, timer_id, version, partition, rule, slot, due_at, target_context, target_aggregate, target_tenant_id, target_id, c
+   0.00     32 idle/s=  0.80  SELECT * FROM "wow_failure_ledger" WHERE service = $1 AND subscription = $2 ORDER BY context, aggregate_name, tenant_id, aggregate_id LIMIT $3
+   0.00     21 idle/s=  0.53  INSERT INTO wow_lease_member (subscription_group, node, address, expires_at) VALUES ($1, $2, $3, $4) ON CONFLICT (subscription_group, node) DO UPDATE SET address = exclud
+   0.00      8 idle/s=  0.20  SELECT revision, rebuilding, backfilled FROM wow_snapshot_table WHERE structure = $1
+  -0.00      0 idle/s=  0.03  UPDATE wow_snapshot_table SET rebuilding = COALESCE($1::boolean, rebuilding), backfilled = COALESCE($2::boolean, backfilled) WHERE structure = $3 AND revision = $4 RETURN
+  -0.13      0 idle/s=  2.13  SELECT position FROM wow_checkpoint WHERE subscription_group = $1 AND subscription = $2 AND partition = $3
+  -0.13      0 idle/s=  2.13  SELECT sequence FROM "wow_log__transfer__partition" WHERE partition = $1
+total statements per cmd (idle removed): 10.17
+== idle-tables.tsv
+wow_checkpoint	0	64	0	0	0	0
+wow_failure_ledger	0	24	0	0	0	0
+wow_format	0	0	0	0	0	0
+wow_lease	15	655	0	640	629	0
+wow_lease_member	0	76	0	16	16	0
+wow_log__transfer__account	0	1899	0	0	0	0
+wow_log__transfer__partition	0	1968	0	0	0	0
+wow_log_aggregate	0	0	0	0	0	0
+wow_reservation	0	0	0	0	0	0
+wow_snapshot__transfer__account	0	0	0	0	0	0
+wow_snapshot_table	0	7	0	1	1	0
+wow_timer__transfer	0	30	0	0	0	0
+
+== load-tables.tsv
+wow_checkpoint	0	4186	0	4186	4108	0
+wow_failure_ledger	0	32	0	0	0	0
+wow_format	0	0	0	0	0	0
+wow_lease	37	807	0	807	803	0
+wow_lease_member	0	94	0	21	21	0
+wow_log__transfer__account	0	3905	600	0	0	0
+wow_log__transfer__partition	0	3300	0	600	600	0
+wow_log_aggregate	0	0	0	0	0	0
+wow_reservation	0	0	0	0	0	0
+wow_snapshot__transfer__account	0	600	0	600	548	0
+wow_snapshot_table	0	8	0	0	0	0
+wow_timer__transfer	0	37	0	0	0	0
+
+== idle-database.tsv
+3118	0	9297	6475	303	683	206
+
+== load-database.tsv
+5724	0	15936	11552	600	6214	0
+
+

@@ -1,0 +1,12 @@
+# 9x-mongo: 600 commands, idle 30000 ms, load 36000 ms
+collection                           kind           txn     load  idle/s  per cmd
+account_snapshot                     update                  600    0.00     1.00
+account_event_stream                 query                   600    0.00     1.00
+account_event_stream                 insert         txn      600    0.00     1.00
+account_snapshot                     query                   600    0.00     1.00
+total (profiled, per cmd, idle removed)                      4.00
+server command counters per cmd (idle removed):
+  find                       2.00  (idle 0.00/s)
+  insert                     1.00  (idle 0.00/s)
+  update                     1.00  (idle 0.00/s)
+

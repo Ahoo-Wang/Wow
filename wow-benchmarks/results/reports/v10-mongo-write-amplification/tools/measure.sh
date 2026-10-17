@@ -22,7 +22,7 @@
 set -euo pipefail
 VERSION=$1; BACKEND=$2; OUT=$3; RATE=${4:-20}; SECONDS_=${5:-30}; ACCOUNTS=${6:-1000}
 DIAG="$(cd "$(dirname "$0")" && pwd)"
-REPO="$(cd "$DIAG/../../../.." && pwd)"
+REPO="$(cd "$DIAG/../../../../.." && pwd)"
 HARNESS=$REPO/wow-benchmarks/e2e/harness
 export JAVA_HOME="${JAVA_HOME:?Set JAVA_HOME to a JDK 21.}"
 LOAD=$REPO/wow-benchmarks/e2e/load/build/install/e2e-bench-load/bin/e2e-bench-load

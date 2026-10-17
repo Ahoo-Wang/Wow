@@ -1,0 +1,5 @@
+{"db":"transfer_9x","ns":"transfer_9x.account_event_stream","op":"insert","name":"insert","txn":true,"count":600,"docsExamined":0,"nreturned":0,"nMatched":0}
+{"db":"transfer_9x","ns":"transfer_9x.account_event_stream","op":"query","name":"query","txn":false,"count":600,"docsExamined":0,"nreturned":0,"nMatched":0}
+{"db":"transfer_9x","ns":"transfer_9x.account_snapshot","op":"query","name":"query","txn":false,"count":600,"docsExamined":600,"nreturned":600,"nMatched":0}
+{"db":"transfer_9x","ns":"transfer_9x.account_snapshot","op":"update","name":"update","txn":false,"count":600,"docsExamined":600,"nreturned":0,"nMatched":600}
+true
