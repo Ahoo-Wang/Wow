@@ -22,6 +22,7 @@ import me.ahoo.wow.api.query.DeletionState
 import me.ahoo.wow.api.query.IdFilter
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.schema.SnapshotFields
 import me.ahoo.wow.spi.json.WowJson
 import tools.jackson.databind.JsonNode
@@ -34,11 +35,17 @@ import tools.jackson.databind.node.ObjectNode
  * hide from a state read by id, a version, a trace and the events model the rows they hide from a query. A type
  * without a snapshot query gateway has no policies to apply, and every state of it is visible.
  *
+ * What a state read returns is [admitted]: the state masked as the snapshot queries mask it (09 §17 G-2, the 9.x
+ * `PointReadAdmission`), for every caller alike, as a query masks every row whoever asks.
+ *
  * The record is read by id with every deletion state: a state read answers a deleted aggregate as any other.
  */
 @InternalWowApi
 object StateVisibility {
-    /** Whether [caller] may see [ref]'s state at [version], of [scope], [deleted] and [tags], holding [state]. */
+    /**
+     * Whether [caller] may see [ref]'s state at [version], of [scope], [deleted] and [tags], holding [state], which may
+     * be masked in place ([admitted]).
+     */
     @Suppress("LongParameterList") // The facts of one state, as a snapshot record holds them.
     suspend fun visible(
         gateway: QueryGateway?,
@@ -49,8 +56,27 @@ object StateVisibility {
         deleted: Boolean,
         tags: Map<String, List<String>>,
         state: JsonNode,
-    ): Boolean {
-        gateway ?: return true
+    ): Boolean = gateway == null || admitted(gateway, caller, ref, version, scope, deleted, tags, state) != null
+
+    /**
+     * [state], [ref]'s state at [version], of [scope], [deleted] and [tags], as [caller] may see it: masked as the
+     * snapshot queries of its type mask it (09 §17 G-2), or null when they hide it. With a [gateway], its admitted
+     * record's state, masked by the schema its queries are masked by; without one, [state] masked by [masks], the
+     * masks the Manifest declares. [state] may be masked in place.
+     */
+    @Suppress("LongParameterList") // The facts of one state, as a snapshot record holds them.
+    suspend fun admitted(
+        gateway: QueryGateway?,
+        caller: QueryCaller,
+        ref: AggregateRef,
+        version: Int,
+        scope: Scope,
+        deleted: Boolean,
+        tags: Map<String, List<String>>,
+        state: JsonNode,
+        masks: PayloadMasks = PayloadMasks.NONE,
+    ): JsonNode? {
+        gateway ?: return masks.state(ref.type, state)
         val record = WowJson.mapper.createObjectNode().apply {
             put(SnapshotFields.TENANT_ID, ref.tenantId)
             put(SnapshotFields.AGGREGATE_ID, ref.id)
@@ -61,16 +87,40 @@ object StateVisibility {
             set(SnapshotFields.TAGS, tagsOf(tags))
             set(SnapshotFields.STATE, state)
         }
-        return gateway.admitRecord(selection(ref.id), record, caller) != null
+        return gateway.admitRecord(selection(ref.id), record, caller)?.get(SnapshotFields.STATE)
     }
 
-    /** Whether [caller] may see the state of [view]. */
+    /** The state of [view] as [caller] may see it, masked; null when it may not ([admitted]). */
+    suspend fun admitted(
+        gateway: QueryGateway?,
+        caller: QueryCaller,
+        view: StateReadView,
+        masks: PayloadMasks,
+    ): JsonNode? =
+        admitted(gateway, caller, view.ref, view.version, view.scope, view.deleted, view.tags, view.state, masks)
+
+    /** The state after [commit] of [ref] as [caller] may see it, masked; null when it may not ([admitted]). */
+    suspend fun admitted(
+        gateway: QueryGateway?,
+        caller: QueryCaller,
+        ref: AggregateRef,
+        commit: CommitView,
+        masks: PayloadMasks,
+    ): JsonNode? = admitted(
+        gateway,
+        caller,
+        ref,
+        commit.version,
+        commit.scope,
+        commit.deleted,
+        commit.tags,
+        commit.state,
+        masks,
+    )
+
+    /** Whether [caller] may see the state of [view] ([visible]). */
     suspend fun visible(gateway: QueryGateway?, caller: QueryCaller, view: StateReadView): Boolean =
         visible(gateway, caller, view.ref, view.version, view.scope, view.deleted, view.tags, view.state)
-
-    /** Whether [caller] may see the state after [commit] of [ref]. */
-    suspend fun visible(gateway: QueryGateway?, caller: QueryCaller, ref: AggregateRef, commit: CommitView): Boolean =
-        visible(gateway, caller, ref, commit.version, commit.scope, commit.deleted, commit.tags, commit.state)
 
     /** A point read by [id], of every deletion state. */
     private fun selection(id: String) = AndFilter(listOf(IdFilter(id), DeletionFilter(DeletionState.ALL)))
