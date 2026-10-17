@@ -1,0 +1,10 @@
+{"db":"transfer_v10","ns":"transfer_v10.wow_log__transfer__partition","op":"command","name":"aggregate","txn":false,"count":1856,"docsExamined":1856,"nreturned":1856,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_lease","op":"command","name":"findAndModify","txn":true,"count":576,"docsExamined":576,"nreturned":0,"nMatched":576}
+{"db":"transfer_v10","ns":"transfer_v10.wow_log__transfer__partition","op":"query","name":"query","txn":false,"count":384,"docsExamined":384,"nreturned":384,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_lease_member","op":"query","name":"query","txn":false,"count":60,"docsExamined":60,"nreturned":60,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_timer__transfer","op":"query","name":"query","txn":false,"count":30,"docsExamined":0,"nreturned":0,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_lease","op":"query","name":"query","txn":false,"count":30,"docsExamined":1920,"nreturned":1920,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_failure_ledger","op":"query","name":"query","txn":false,"count":24,"docsExamined":0,"nreturned":0,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_lease_member","op":"update","name":"update","txn":false,"count":16,"docsExamined":16,"nreturned":0,"nMatched":16}
+{"db":"transfer_v10","ns":"transfer_v10.wow_snapshot_table","op":"query","name":"query","txn":false,"count":6,"docsExamined":6,"nreturned":6,"nMatched":0}
+true

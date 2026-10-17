@@ -1,0 +1,16 @@
+{"db":"transfer_v10","ns":"transfer_v10.wow_log__transfer__partition","op":"command","name":"aggregate","txn":false,"count":5137,"docsExamined":5737,"nreturned":5737,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_checkpoint","op":"update","name":"update","txn":false,"count":4044,"docsExamined":4044,"nreturned":0,"nMatched":4044}
+{"db":"transfer_v10","ns":"transfer_v10.wow_snapshot__transfer__account","op":"update","name":"update","txn":false,"count":1200,"docsExamined":1200,"nreturned":0,"nMatched":600}
+{"db":"transfer_v10","ns":"transfer_v10.wow_lease","op":"command","name":"findAndModify","txn":true,"count":832,"docsExamined":832,"nreturned":0,"nMatched":832}
+{"db":"transfer_v10","ns":"transfer_v10.wow_log__transfer__account","op":"query","name":"query","txn":false,"count":600,"docsExamined":0,"nreturned":0,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_log__transfer__account","op":"query","name":"query","txn":true,"count":600,"docsExamined":600,"nreturned":600,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_log__transfer__account","op":"insert","name":"insert","txn":true,"count":600,"docsExamined":0,"nreturned":0,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_log__transfer__partition","op":"command","name":"findAndModify","txn":true,"count":600,"docsExamined":600,"nreturned":0,"nMatched":600}
+{"db":"transfer_v10","ns":"transfer_v10.wow_log__transfer__partition","op":"query","name":"query","txn":false,"count":448,"docsExamined":448,"nreturned":448,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_lease_member","op":"query","name":"query","txn":false,"count":74,"docsExamined":74,"nreturned":74,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_timer__transfer","op":"query","name":"query","txn":false,"count":37,"docsExamined":0,"nreturned":0,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_lease","op":"query","name":"query","txn":false,"count":37,"docsExamined":2368,"nreturned":2368,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_failure_ledger","op":"query","name":"query","txn":false,"count":24,"docsExamined":0,"nreturned":0,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_lease_member","op":"update","name":"update","txn":false,"count":19,"docsExamined":19,"nreturned":0,"nMatched":19}
+{"db":"transfer_v10","ns":"transfer_v10.wow_snapshot_table","op":"query","name":"query","txn":false,"count":7,"docsExamined":7,"nreturned":7,"nMatched":0}
+true
