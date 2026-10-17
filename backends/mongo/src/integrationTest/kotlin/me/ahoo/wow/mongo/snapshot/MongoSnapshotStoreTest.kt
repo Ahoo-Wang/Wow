@@ -19,6 +19,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.mongo.CountedMongo
 import me.ahoo.wow.mongo.log.MongoLogFixture
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.tck.snapshot.SnapshotStoreSpec
@@ -103,6 +104,29 @@ class MongoSnapshotStoreTest : SnapshotStoreSpec() {
         val foreign = snapshot("a", 1).copyWith(ref = AggregateType("elsewhere", "aggregate").ref("tenant", "a"))
         assertThrownBy<IllegalArgumentException> { runBlocking { store.save(foreign) } }
         assertThrownBy<IllegalArgumentException> { runBlocking { store.load(foreign.ref) } }
+    }
+
+    @Test
+    fun `a save is one round trip unless the snapshot is marked stale`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        val store = MongoSnapshotStore(CountedMongo.client, MongoLogFixture.DATABASE, context)
+            .also { it.createCollection("aggregate") }
+        val type = AggregateType(context, "aggregate")
+        val first = snapshot("a", 1).copyWith(ref = type.ref("tenant", "a"))
+        val name = collection(context)
+        fun sent(block: suspend () -> Boolean): List<CountedMongo.Sent> =
+            CountedMongo.commandsOf { runBlocking { block() }.assert().isTrue() }.second
+
+        sent { store.save(first) }.assert().containsExactly(CountedMongo.Sent("findAndModify", name))
+        sent { store.save(first.copyWith(version = 2)) }.assert()
+            .containsExactly(CountedMongo.Sent("findAndModify", name))
+        // A stale mark up to the saved version is cleared by a second write; one above it is kept without one.
+        store.markStale(first.ref).assert().isTrue()
+        sent { store.save(first.copyWith(version = 3)) }.assert()
+            .containsExactly(CountedMongo.Sent("findAndModify", name), CountedMongo.Sent("update", name))
+        store.pending(type, 1, limit = 10).assert().isEmpty()
+        sent { store.rewrite(first.copyWith(version = 3)) }.assert()
+            .containsExactly(CountedMongo.Sent("findAndModify", name))
     }
 
     @Test
