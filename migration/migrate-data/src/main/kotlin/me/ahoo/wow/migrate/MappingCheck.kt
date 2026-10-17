@@ -42,6 +42,7 @@ data class MappingReport(
     val warnings: List<String>,
     val inventories: List<NineXInventory>,
     val prepareKeys: Map<String, Long> = emptyMap(),
+    val compensation: NineXCompensationInventory? = null,
 ) {
     /** Whether the import may start. */
     val passed: Boolean get() = problems.isEmpty()
@@ -59,6 +60,13 @@ data class MappingReport(
             )
         }
         prepareKeys.forEach { (name, keys) -> appendLine("  PrepareKey $name: $keys keys") }
+        compensation?.let { inventory ->
+            appendLine(
+                "  9.x compensation: ${inventory.unresolved.sumOf { it.executions }} unresolved executions of " +
+                    "${inventory.unresolved.map { it.function }.distinct().size} functions, ${inventory.resolved} " +
+                    "resolved (history, not imported)",
+            )
+        }
         problems.forEach { appendLine("PROBLEM $it") }
         warnings.forEach { appendLine("WARNING $it") }
         append(if (passed) "Mapping check passed." else "Mapping check failed: ${problems.size} problems.")
@@ -78,12 +86,20 @@ data class MappingReport(
  *   have a default command;
  * - every mapping target is in the Manifest, whether or not the store uses it;
  * - every 9.x `PrepareKey` the store holds ([prepareKeys], keys by name) is mapped to a V10 reservation namespace, once
- *   (finding A4-8).
+ *   (finding A4-8);
+ * - every 9.x processor function with unresolved executions in the 9.x compensation service ([compensation]), of a
+ *   context this map migrates, maps to a V10 subscription of the Manifest, each processor once (roadmap 8b.4); an
+ *   execution whose subscription cannot park its aggregate (not imported by this map, or not read from the log) is a
+ *   warning: it is reported and not imported.
  *
  * Mappings the store does not use are warnings: the Skill may map an event no stream holds yet.
  */
 class MappingCheck(private val plan: MigrationPlan) {
-    fun check(inventories: List<NineXInventory>, prepareKeys: Map<String, Long> = emptyMap()): MappingReport {
+    fun check(
+        inventories: List<NineXInventory>,
+        prepareKeys: Map<String, Long> = emptyMap(),
+        compensation: NineXCompensationInventory? = null,
+    ): MappingReport {
         val problems = mutableListOf<String>()
         val warnings = mutableListOf<String>()
         plan.aggregates.values.groupBy { it.target }.filterValues { it.size > 1 }.forEach { (target, plans) ->
@@ -103,7 +119,58 @@ class MappingCheck(private val plan: MigrationPlan) {
             }
         }
         reservationProblems(prepareKeys, problems, warnings)
-        return MappingReport(problems, warnings, inventories, prepareKeys)
+        compensationProblems(compensation, problems, warnings)
+        return MappingReport(problems, warnings, inventories, prepareKeys, compensation)
+    }
+
+    private fun compensationProblems(
+        inventory: NineXCompensationInventory?,
+        problems: MutableList<String>,
+        warnings: MutableList<String>,
+    ) {
+        val compensation = plan.compensation
+        compensation.mappings.groupBy { it.source() }.filterValues { it.size > 1 }.keys
+            .forEach { problems += "the 9.x processor $it is mapped twice" }
+        compensation.mappings.forEach { mapping ->
+            mapping.functions.keys.map(mapping::subscriptionOf).filter { compensation.manifestOf(it) == null }
+                .forEach { problems += "${mapping.from}: the V10 subscription $it is not in the Manifest" }
+        }
+        if (inventory == null) {
+            if (compensation.mappings.isNotEmpty()) {
+                warnings += "the configuration names no 9.x compensation database: the subscription mappings are unused"
+            }
+            return
+        }
+        val groups = inventory.unresolved.filter { compensation.covers(it.function) }
+        groups.groupBy { it.function }.forEach { (function, onAggregates) ->
+            val executions = onAggregates.sumOf { it.executions }
+            val subscription = compensation.subscriptionOf(function)
+            when {
+                subscription == null -> problems += "the 9.x processor function $function ($executions unresolved " +
+                    "executions) has no subscription mapping: its failures would be lost"
+
+                compensation.manifestOf(subscription) == null -> problems += "the 9.x processor function $function " +
+                    "($executions unresolved executions) maps to the V10 subscription $subscription, which is not in " +
+                    "the Manifest"
+
+                else -> onAggregates.forEach { group ->
+                    compensation.problemOf(subscription, group.aggregate)?.let {
+                        warnings += "${group.executions} unresolved executions of $function on ${group.aggregate} " +
+                            "will not be imported: $it"
+                    }
+                }
+            }
+        }
+        val functions = groups.map { it.function }.toSet()
+        compensation.mappings.forEach { mapping ->
+            val processor = mapping.source()
+            if (functions.none { it.owner == processor }) {
+                warnings += "no unresolved 9.x execution is of the processor $processor"
+            } else {
+                mapping.functions.keys.filter { NineXFunction(processor.context, processor.processor, it) !in functions }
+                    .forEach { warnings += "no unresolved 9.x execution is of the processor function $processor.$it" }
+            }
+        }
     }
 
     private fun reservationProblems(
