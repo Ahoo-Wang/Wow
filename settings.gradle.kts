@@ -148,6 +148,11 @@ if (nineX) {
     include(":wow-analytics-server")
     project(":wow-analytics-server").projectDir = file("analytics/wow-analytics-server")
     //endregion
+
+    // The 9.x side of the end-to-end architecture benchmark (decision D224, roadmap M7.5 B.0): the twin benchmark
+    // domain and its server on 9.x modules only; its V10 twin, :e2e-bench-v10, is in the V10 region below.
+    include(":e2e-bench-9x")
+    project(":e2e-bench-9x").projectDir = file("wow-benchmarks/e2e/bench-9x")
 }
 
 //region v10 (documentation/designs/v10/06-modules.md)
@@ -275,4 +280,13 @@ project(":eshop-e2e").projectDir = file("example/eshop/e2e")
 // The V10 quickstart (decision D217): the sample the quickstart page shows, one module, its domain and its server.
 include(":quickstart")
 project(":quickstart").projectDir = file("example/quickstart")
+// The V10 side of the end-to-end architecture benchmark (decision D224, roadmap M7.5 B.0): the twin benchmark domain
+// and its server on V10 modules only. Never published.
+include(":e2e-bench-v10")
+project(":e2e-bench-v10").projectDir = file("wow-benchmarks/e2e/bench-v10")
 //endregion
+
+// The load generator of the end-to-end architecture benchmark (decision D224): a JVM of its own that depends on no Wow
+// module, so it builds in either scope and drives the 9.x and the V10 servers alike over HTTP.
+include(":e2e-bench-load")
+project(":e2e-bench-load").projectDir = file("wow-benchmarks/e2e/load")

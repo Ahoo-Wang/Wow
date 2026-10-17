@@ -30,10 +30,14 @@ plugins {
     id("jacoco-report-aggregation")
 }
 
+// The end-to-end architecture benchmark's modules (decision D224) are applications measured, not tested for coverage:
+// every report leaves them out.
 @Suppress("UNCHECKED_CAST")
-val libraryProjects = rootProject.ext.get("libraryProjects") as Iterable<Project>
+val e2eBenchmarkProjects = (rootProject.ext.get("e2eBenchmarkProjects") as Iterable<Project>).toSet()
 @Suppress("UNCHECKED_CAST")
-val localTestProjects = rootProject.ext.get("localTestProjects") as Iterable<Project>
+val libraryProjects = (rootProject.ext.get("libraryProjects") as Iterable<Project>) - e2eBenchmarkProjects
+@Suppress("UNCHECKED_CAST")
+val localTestProjects = (rootProject.ext.get("localTestProjects") as Iterable<Project>) - e2eBenchmarkProjects
 @Suppress("UNCHECKED_CAST")
 val localContractTestProjects = rootProject.ext.get("localContractTestProjects") as Iterable<Project>
 @Suppress("UNCHECKED_CAST")
@@ -237,7 +241,7 @@ registerLayerCoverageReport("integrationCoverageReport", integrationTestProjects
 // v10.yml uploads these under the `v10` Codecov flag, in either build scope (`-Pwow.scope=v10` leaves the 9.x modules
 // out): the unit tests of the V10 modules, and their container-backed tests.
 @Suppress("UNCHECKED_CAST")
-val v10Projects = rootProject.ext.get("v10Projects") as Iterable<Project>
+val v10Projects = (rootProject.ext.get("v10Projects") as Iterable<Project>) - e2eBenchmarkProjects
 @Suppress("UNCHECKED_CAST")
 val v10IntegrationTestProjects = rootProject.ext.get("v10IntegrationTestProjects") as Iterable<Project>
 registerLayerCoverageReport("v10CoverageReport", v10Projects, "test")

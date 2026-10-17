@@ -69,6 +69,11 @@ val exampleProjects =
 
 val codeCoverageReportProject = project(":code-coverage-report")
 val benchmarksProject = includedProjects(":wow-benchmarks")
+// The end-to-end architecture benchmark (decision D224, roadmap M7.5 B.0) under wow-benchmarks/e2e/: the twin benchmark
+// domain and server of each version and the load generator. Applications, like the examples: never published, without
+// an ABI dump, and left out of the coverage reports (code-coverage-report reads `e2eBenchmarkProjects`). The V10 one
+// builds and checks with the V10 modules (`v10Check`) as a user of them; the 9.x one only in the full build.
+val e2eBenchmarkProjects = includedProjects(":e2e-bench-9x", ":e2e-bench-v10", ":e2e-bench-load")
 // The V10 modules (documentation/designs/v10/06-modules.md). Every module builds on JDK 21 (decision D29); these stay
 // incubating until their API settles; :architecture (V10's dependency rules), :kernel-benchmarks (spike H3),
 // :routing-spike (spike H2), :lease-spike (spike H6) and the examples (:eshop-*, :quickstart) are never published.
@@ -79,7 +84,7 @@ val v10Projects = listOf(
     "test-dsl", "tck", "tck-containers", "ops-api", "ops-domain", "ops-server",
     "view-store-api", "view-store-domain", "view-store-server",
     "kernel-benchmarks", "compiler", "gradle-plugin", "manifest-tools",
-    "routing-spike", "lease-spike",
+    "routing-spike", "lease-spike", "e2e-bench-v10",
 ).plus(v10ExampleNames).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
 
 // The V10 modules a 10.x release publishes (06-modules.md §6; R.1 turns their publication on). Their ABI is kept in
@@ -104,7 +109,7 @@ val v10AbiProjects = v10PublishedProjects
 // and :architecture. They do not opt in to `@InternalWowApi` or `@ExperimentalWowApi`, so the compiler shows where
 // they reach past the public API.
 val v10UserProjects = v10ExampleProjects + includedProjects(
-    ":ops-domain", ":ops-server", ":view-store-domain", ":view-store-server", ":architecture",
+    ":ops-domain", ":ops-server", ":view-store-domain", ":view-store-server", ":architecture", ":e2e-bench-v10",
 )
 
 // D87: a V10 project's name and directory carry no `wow-` prefix (`:kernel` in core/kernel); its jar, Kotlin module and
@@ -112,7 +117,7 @@ val v10UserProjects = v10ExampleProjects + includedProjects(
 // artifact minus the prefix (a Gradle task name, such as the test DSL's `:test-dsl`) is mapped here.
 val v10ArtifactIds = mapOf("test-dsl" to "wow-test")
 fun Project.artifactName(): String =
-    if (this == v10BomProject || this in v10Projects && this !in v10ExampleProjects) {
+    if (this == v10BomProject || this in v10Projects && this !in v10ExampleProjects && this !in e2eBenchmarkProjects) {
         v10ArtifactIds[name] ?: "wow-$name"
     } else {
         name
@@ -121,9 +126,10 @@ fun Project.artifactName(): String =
 // design R1b) left with the analytics service (R5d). On v10: the V10 modules a release does not publish (the platform's
 // domains and servers, :architecture, the spikes and the eShop).
 val incubatingProjects = v10Projects - v10PublishedLibraries
-val publishProjects =
-    subprojects - exampleProjects - codeCoverageReportProject - benchmarksProject - incubatingProjects
-val libraryProjects = publishProjects - bomProjects + exampleLibraries + benchmarksProject + incubatingProjects
+val publishProjects = subprojects - exampleProjects - codeCoverageReportProject - benchmarksProject -
+    e2eBenchmarkProjects - incubatingProjects
+val libraryProjects =
+    publishProjects - bomProjects + exampleLibraries + benchmarksProject + incubatingProjects + e2eBenchmarkProjects
 // What 9.x's wow-bom constrains: the published 9.x libraries only, never an example, the benchmarks, an incubating
 // module, whose coordinates are not on Maven Central, or a V10 module (the V10 BOM constrains those).
 val bomConstrainedProjects = publishProjects - bomProjects - v10PublishedLibraries
@@ -147,6 +153,7 @@ val wowSpiProjects = includedProjects(
 )
 val isInCI = !System.getenv("CI").isNullOrEmpty()
 ext.set("libraryProjects", libraryProjects)
+ext.set("e2eBenchmarkProjects", e2eBenchmarkProjects)
 ext.set("bomConstrainedProjects", bomConstrainedProjects)
 ext.set("v10BomConstrainedProjects", v10BomConstrainedProjects)
 
@@ -315,8 +322,8 @@ configure(libraryProjects) {
         compilerOptions {
             freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
             // Wow's own modules share internal declarations and build on its experimental ones; a user module
-            // (`v10UserProjects`, the 9.x example libraries) does not (D216).
-            if (project !in v10UserProjects && project !in exampleLibraries) {
+            // (`v10UserProjects`, the 9.x example libraries, the end-to-end benchmark) does not (D216).
+            if (project !in v10UserProjects && project !in exampleLibraries && project !in e2eBenchmarkProjects) {
                 optIn.addAll(
                     "me.ahoo.wow.api.annotation.InternalWowApi",
                     "me.ahoo.wow.api.annotation.ExperimentalWowApi",
