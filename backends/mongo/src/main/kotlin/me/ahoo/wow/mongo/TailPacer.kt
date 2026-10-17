@@ -24,6 +24,12 @@ import kotlin.time.Duration
  * empty poll doubling the wait up to [maxInterval]. A commit this log made in the partition wakes its tails at once,
  * so an idle partition's next entry is not held up by the backoff on the node that appends it; entries other nodes
  * append are read within [maxInterval].
+ *
+ * A poll a commit of this log woke, which found entries and is not behind the partition's counter, keeps the backoff
+ * as it was instead of polling again after [interval] (B.D diagnostics): this log's next commit wakes the tail anyway,
+ * so on a partition only this node appends to (decision D6's partitioned routing) a commit costs one read of the tail,
+ * not a run of short polls backing off again. Entries found without a wake, from another node, still bring the tail
+ * back to [interval].
  */
 internal class TailPacer(partitions: Int, val interval: Duration, val maxInterval: Duration) {
     init {
@@ -42,13 +48,23 @@ internal class TailPacer(partitions: Int, val interval: Duration, val maxInterva
 
     /**
      * Waits after a poll of [partition] that found entries ([found]) or none, [idle] being the wait after the last
-     * empty one: the interval after entries, else [idle], cut short when this log commits in the partition after
-     * [mark]. Returns the wait after the next empty poll: the interval after entries, else [idle] doubled, up to the
-     * longest.
+     * empty one, [woken] whether a commit of this log woke the poll (and it is not behind the counter): the interval
+     * after entries found unwoken, else [idle]; cut short when this log commits in the partition after [mark]. Returns
+     * the wait after the next empty poll (the interval after entries found unwoken, [idle] after entries found woken,
+     * else [idle] doubled, up to the longest) and whether a commit cut this wait short.
      */
-    suspend fun await(partition: Int, mark: Long, found: Boolean, idle: Duration): Duration {
-        val wait = if (found) interval else idle
-        withTimeoutOrNull(wait) { commits[partition].first { it != mark } }
-        return if (found) interval else (wait * 2).coerceAtMost(maxInterval)
+    suspend fun await(partition: Int, mark: Long, found: Boolean, idle: Duration, woken: Boolean = false): Pace {
+        val fast = found && !woken
+        val wait = if (fast) interval else idle
+        val cut = withTimeoutOrNull(wait) { commits[partition].first { it != mark } } != null
+        val next = when {
+            fast -> interval
+            found -> idle
+            else -> (wait * 2).coerceAtMost(maxInterval)
+        }
+        return Pace(next, cut)
     }
+
+    /** The wait after the next empty poll, and whether a commit of this log woke the next poll. */
+    data class Pace(val idle: Duration, val woken: Boolean)
 }

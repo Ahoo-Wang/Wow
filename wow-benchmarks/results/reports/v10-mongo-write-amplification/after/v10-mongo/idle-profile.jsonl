@@ -1,0 +1,12 @@
+{"db":"transfer_v10","ns":"transfer_v10.wow_log__transfer__partition","op":"command","name":"aggregate","txn":false,"count":1920,"docsExamined":1920,"nreturned":1920,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_lease","op":"command","name":"findAndModify","txn":true,"count":640,"docsExamined":640,"nreturned":0,"nMatched":640}
+{"db":"transfer_v10","ns":"transfer_v10.wow_checkpoint","op":"query","name":"query","txn":false,"count":64,"docsExamined":64,"nreturned":64,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_lease_member","op":"query","name":"query","txn":false,"count":58,"docsExamined":58,"nreturned":58,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_log__transfer__partition","op":"query","name":"query","txn":false,"count":55,"docsExamined":55,"nreturned":55,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_timer__transfer","op":"query","name":"query","txn":false,"count":30,"docsExamined":0,"nreturned":0,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_lease","op":"query","name":"query","txn":false,"count":29,"docsExamined":1856,"nreturned":1856,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_failure_ledger","op":"query","name":"query","txn":false,"count":24,"docsExamined":0,"nreturned":0,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_lease_member","op":"update","name":"update","txn":false,"count":15,"docsExamined":15,"nreturned":0,"nMatched":15}
+{"db":"transfer_v10","ns":"transfer_v10.wow_snapshot_table","op":"query","name":"query","txn":false,"count":6,"docsExamined":6,"nreturned":6,"nMatched":0}
+{"db":"transfer_v10","ns":"transfer_v10.wow_snapshot_table","op":"command","name":"findAndModify","txn":true,"count":1,"docsExamined":1,"nreturned":0,"nMatched":1}
+true

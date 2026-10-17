@@ -28,27 +28,34 @@ import io.mockk.spyk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.mongo.CountedMongo
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.tck.containers.WowContainers
 import me.ahoo.wow.tck.log.EventLogSpec
 import org.bson.BsonDocument
 import org.junit.jupiter.api.Test
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.milliseconds
 
 class MongoEventLogTest : EventLogSpec() {
     override fun createLog(context: String, partitions: Int): EventLog = MongoLogFixture.log(partitions, context)
@@ -286,8 +293,68 @@ class MongoEventLogTest : EventLogSpec() {
         assertThrownBy<IllegalStateException> { MongoLogFixture.log(8, context) }
     }
 
+    @Test
+    fun `an append to a warm aggregate is one transaction of three statements`(): Unit = runBlocking {
+        // B.D diagnostics, decision D11: read the version, bump the partition counter, insert; then the commit.
+        val context = MongoLogFixture.newContext()
+        val log = MongoEventLog(CountedMongo.client, MongoLogFixture.DATABASE, context, 1)
+            .also { it.createSchema() }
+        val type = AggregateType(context, "order")
+        log.append(stream("a", 1, aggregate = type)).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        val (outcome, sent) = CountedMongo.commandsOf { runBlocking { log.append(stream("a", 2, aggregate = type)) } }
+        outcome.assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        sent.assert().containsExactly(
+            CountedMongo.Sent("find", collection(context, "order")),
+            CountedMongo.Sent("findAndModify", collection(context, "partition")),
+            CountedMongo.Sent("insert", collection(context, "order")),
+            CountedMongo.Sent("commitTransaction", null),
+        )
+    }
+
+    @Test
+    fun `a commit of this log costs its idle tail one read`(): Unit = runBlocking {
+        // B.D diagnostics: the poll a commit wakes finds the entry and keeps the backoff, without a run of short polls.
+        val context = MongoLogFixture.newContext()
+        val log = MongoEventLog(
+            CountedMongo.client,
+            MongoLogFixture.DATABASE,
+            context,
+            1,
+            pollInterval = 1.milliseconds,
+            maxPollInterval = 1.hours,
+        ).also { it.createSchema() }
+        val type = AggregateType(context, "order")
+        log.append(stream("a", 1, aggregate = type))
+        val counters = collection(context, "partition")
+        fun reads(mark: Int) = CountedMongo.since(mark).count { it.name == "aggregate" && it.collection == counters }
+        val start = CountedMongo.begin()
+        val received = Channel<LogEntry>(Channel.UNLIMITED)
+        val tail = launch(Dispatchers.Default) { log.tail(0).collect { received.send(it) } }
+        try {
+            withTimeout(TAIL_TIMEOUT_MS) { received.receive() }
+            // Twelve empty polls back the tail off to seconds between polls.
+            withTimeout(TAIL_TIMEOUT_MS) {
+                while (reads(start) < IDLE_POLLS) {
+                    delay(10)
+                }
+            }
+            val mark = CountedMongo.begin()
+            (2..COMMITS + 1).forEach { version ->
+                log.append(stream("a", version, aggregate = type))
+                withTimeout(TAIL_TIMEOUT_MS) { received.receive() }.stream.version.assert().isEqualTo(version)
+            }
+            delay(SETTLE_MS)
+            reads(mark).assert().isEqualTo(COMMITS)
+        } finally {
+            tail.cancel()
+        }
+    }
+
     private companion object {
         const val TAIL_STALL_MS = 500L
         const val RACES = 5
+        const val IDLE_POLLS = 13
+        const val COMMITS = 5
+        const val SETTLE_MS = 100L
     }
 }

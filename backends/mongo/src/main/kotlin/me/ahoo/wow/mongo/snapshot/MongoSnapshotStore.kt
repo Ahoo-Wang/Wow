@@ -24,7 +24,6 @@ import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Sorts
-import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -133,6 +132,10 @@ class MongoSnapshotStore(
     /**
      * Writes [snapshot] over the document [guarded] matches, or inserts it when there is none; then clears a stale
      * mark of a version up to its own. Whether it was written.
+     *
+     * The write returns the stale mark the document had before it, so the clearing write runs only when there was a
+     * mark to clear: a save is one round trip unless the snapshot was marked stale (B.D diagnostics). A mark set after
+     * the write, of the version it wrote, stays.
      */
     private fun upsert(snapshots: MongoCollection<Document>, guarded: Bson, snapshot: SnapshotRecord): Boolean {
         val update = Updates.combine(
@@ -150,11 +153,20 @@ class MongoSnapshotStore(
             Updates.set(SCHEDULES, Document(snapshot.schedules.mapValues { MongoRules.document(it.value) })),
             Updates.set(STATE_REVISION, snapshot.stateRevision),
         )
+        // Before the write: the stored document's stale mark, null when it has none or there was no document.
+        var marked: Number? = null
         val written = conditionalUpsert { upsert ->
-            val result = snapshots.updateOne(guarded, update, UpdateOptions().upsert(upsert))
-            result.matchedCount > 0 || result.upsertedId != null
+            val before = snapshots.findOneAndUpdate(
+                guarded,
+                update,
+                FindOneAndUpdateOptions().upsert(upsert).projection(STALE_PROJECTION)
+                    .returnDocument(ReturnDocument.BEFORE),
+            )
+            marked = before?.get(STALE_VERSION) as Number?
+            // With upsert, no document before means it inserted one; without, that it matched none.
+            before != null || upsert
         }
-        if (written) {
+        if (written && marked.let { it != null && it.toLong() <= snapshot.version }) {
             snapshots.updateOne(
                 Filters.and(keyFilter(snapshot.ref), Filters.lte(STALE_VERSION, snapshot.version)),
                 Updates.unset(STALE_VERSION),
@@ -366,6 +378,12 @@ class MongoSnapshotStore(
         const val SCHEDULES = "schedules"
         const val STATE_REVISION = "state_revision"
         const val STALE_VERSION = "stale_version"
+
+        /** What a save reads of the document it replaces: the stale mark alone. */
+        private val STALE_PROJECTION: Bson = Projections.fields(
+            Projections.include(STALE_VERSION),
+            Projections.excludeId()
+        )
 
         /** The records of the snapshot collections' claimed state revisions (decision D172). */
         const val TABLES = "wow_snapshot_table"

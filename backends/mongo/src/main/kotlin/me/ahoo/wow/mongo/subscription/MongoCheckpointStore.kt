@@ -13,11 +13,15 @@
 
 package me.ahoo.wow.mongo.subscription
 
+import com.mongodb.ErrorCategory
+import com.mongodb.MongoBulkWriteException
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoCollection
+import com.mongodb.client.model.BulkWriteOptions
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.IndexOptions
 import com.mongodb.client.model.Indexes
+import com.mongodb.client.model.UpdateOneModel
 import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
@@ -27,6 +31,7 @@ import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import org.bson.Document
 import org.bson.conversions.Bson
@@ -74,6 +79,39 @@ class MongoCheckpointStore(
         }
     }
 
+    /**
+     * One unordered bulk write of the conditional upserts [save] makes one by one: one round trip. An upsert the key
+     * index refuses (the guard failed on a stored checkpoint, or a concurrent insert won) is written again without
+     * upsert, as [conditionalUpsert] does.
+     */
+    override suspend fun saveAll(group: String, checkpoints: List<Checkpoint>) {
+        if (checkpoints.isEmpty()) {
+            return
+        }
+        val saves = this.checkpoints
+        dispatcher.mongo {
+            fun write(upsert: Boolean, of: List<Checkpoint>) = saves.bulkWrite(
+                of.map {
+                    UpdateOneModel<Document>(
+                        Filters.and(keyFilter(group, it.subscription, it.partition), Filters.lt(POSITION, it.position)),
+                        Updates.set(POSITION, it.position),
+                        UpdateOptions().upsert(upsert),
+                    )
+                },
+                UNORDERED,
+            )
+            try {
+                write(upsert = true, checkpoints)
+            } catch (failure: MongoBulkWriteException) {
+                val refused = failure.writeErrors.filter { ErrorCategory.fromErrorCode(it.code) == ErrorCategory.DUPLICATE_KEY }
+                if (refused.size != failure.writeErrors.size || failure.writeConcernError != null) {
+                    throw failure
+                }
+                write(upsert = false, refused.map { checkpoints[it.index] })
+            }
+        }
+    }
+
     private fun keyFilter(group: String, subscription: String, partition: Int): Bson = Filters.and(
         Filters.eq(GROUP, group),
         Filters.eq(SUBSCRIPTION, subscription),
@@ -90,5 +128,8 @@ class MongoCheckpointStore(
         const val SUBSCRIPTION = "subscription"
         const val PARTITION = "partition"
         const val POSITION = "position"
+
+        /** Each checkpoint of a [saveAll] is saved whatever happens to the others. */
+        val UNORDERED: BulkWriteOptions = BulkWriteOptions().ordered(false)
     }
 }

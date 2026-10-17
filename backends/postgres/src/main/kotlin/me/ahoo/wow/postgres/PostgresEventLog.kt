@@ -84,7 +84,8 @@ import kotlin.time.Duration.Companion.seconds
  *
  * **Polling** (finding A2-14). A tail polls every `pollInterval` (50 ms by default) while it finds entries; each poll
  * that finds none doubles the wait, up to `maxPollInterval` (1 s), so an idle cluster's partitions cost a statement a
- * second each rather than twenty. A commit this log makes wakes the partition's tails at once; an entry another node
+ * second each rather than twenty. A commit this log makes wakes the partition's tails at once, and a poll it woke
+ * that finds the partition caught up keeps the backoff, so a commit costs one read of the tail; an entry another node
  * appends is read within `maxPollInterval`. `LISTEN/NOTIFY` (design 03 §2) would wake the tails of every node; it is
  * not implemented: the bounded backoff and the wake on this log's commits keep an idle cluster cheap without a
  * listening connection per node.
@@ -364,6 +365,7 @@ class PostgresEventLog(
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         var last = after ?: 0L
         var idle = pacer.interval
+        var woken = false
         while (true) {
             val mark = pacer.mark(partition)
             val batch = dispatcher.jdbc { dataSource.connection.use { readTail(it, partition, last) } }
@@ -372,7 +374,9 @@ class PostgresEventLog(
                 last = it.position.sequence
             }
             if (!batch.again) {
-                idle = pacer.await(partition, mark, batch.entries.isNotEmpty(), idle)
+                val pace = pacer.await(partition, mark, batch.entries.isNotEmpty(), idle, woken && !batch.behind)
+                idle = pace.idle
+                woken = pace.woken
             }
         }
     }
@@ -414,10 +418,11 @@ class PostgresEventLog(
             run.size < expected -> register(connection).map { it.base } != known.map { it.base }
             else -> run.size == tailBatch
         }
-        return TailBatch(run, again)
+        return TailBatch(run, again, behind = run.size < expected)
     }
 
-    private class TailBatch(val entries: List<LogEntry>, val again: Boolean)
+    /** One read of a tail: its [entries], whether to read again at once, whether the counter is ahead of them. */
+    private class TailBatch(val entries: List<LogEntry>, val again: Boolean, val behind: Boolean)
 
     override suspend fun head(partition: Int): Long? {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }

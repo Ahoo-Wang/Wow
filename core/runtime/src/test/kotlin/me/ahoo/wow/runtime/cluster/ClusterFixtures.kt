@@ -373,4 +373,8 @@ class EventCheckpoints(
         delegate.save(group, subscription, partition, position)
         events += "checkpoint $partition $position"
     }
+
+    override suspend fun saveAll(group: String, checkpoints: List<me.ahoo.wow.spi.subscription.Checkpoint>) {
+        checkpoints.forEach { save(group, it.subscription, it.partition, it.position) }
+    }
 }

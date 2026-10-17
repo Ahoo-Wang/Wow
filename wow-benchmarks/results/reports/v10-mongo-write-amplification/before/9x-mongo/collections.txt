@@ -1,0 +1,4 @@
+transfer_9x.account_snapshot 1000 [{"_id":1},{"tenantId":"hashed"},{"ownerId":"hashed"},{"_id":"hashed"},{"deleted":"hashed"}]
+transfer_9x.wow_database_metadata 1 [{"_id":1}]
+transfer_9x.account_event_stream 1600 [{"_id":1},{"aggregateId":"hashed"},{"aggregateId":1,"version":1},{"aggregateId":1,"requestId":1},{"tenantId":"hashed"},{"ownerId":"hashed"}]
+transfer_9x.system.profile 2408 []

@@ -16,8 +16,10 @@ package me.ahoo.wow.mongo.subscription
 import com.mongodb.client.model.Filters
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.mongo.CountedMongo
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.log.MongoLogFixture
+import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.tck.subscription.CheckpointStoreSpec
 import org.junit.jupiter.api.Test
@@ -41,6 +43,25 @@ class MongoCheckpointStoreTest : CheckpointStoreSpec() {
         listOf("wow_checkpoint", "wow_lease", "wow_lease_member").forEach { structure ->
             formats.find(Filters.eq("_id", structure)).first()?.getInteger("version").assert().isEqualTo(1)
         }
+    }
+
+    @Test
+    fun `saving the checkpoints of a tick is one round trip`(): Unit = runBlocking {
+        // B.D diagnostics: a runtime's periodic save, one update command for all its subscriptions and partitions.
+        val counted = MongoCheckpointStore(CountedMongo.client, MongoLogFixture.DATABASE)
+        val group = "one-round-trip"
+        counted.save(group, "saga", 0, 9)
+        val tick = (0 until 8).map { Checkpoint.of(if (it % 2 == 0) "saga" else "projection", it / 2, it + 1L) }
+        val sent = CountedMongo.commandsOf { runBlocking { counted.saveAll(group, tick) } }.second
+        // Saga 0 is stored at 9, ahead of the 1 saved now: its upsert is refused and written again without upsert.
+        sent.assert().containsExactly(
+            CountedMongo.Sent("update", "wow_checkpoint"),
+            CountedMongo.Sent("update", "wow_checkpoint"),
+        )
+        counted.load(group, "saga", 0).assert().isEqualTo(9L)
+        CountedMongo.commandsOf { runBlocking { counted.saveAll(group, tick.map { Checkpoint.of(it.subscription, it.partition, it.position + 10) }) } }
+            .second.assert().containsExactly(CountedMongo.Sent("update", "wow_checkpoint"))
+        tick.forEach { counted.load(group, it.subscription, it.partition).assert().isEqualTo(it.position + 10) }
     }
 
     private companion object {

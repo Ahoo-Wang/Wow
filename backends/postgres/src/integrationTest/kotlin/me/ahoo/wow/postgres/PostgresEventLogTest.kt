@@ -13,9 +13,13 @@
 
 package me.ahoo.wow.postgres
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
@@ -24,11 +28,14 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
-import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.EventRecord
+import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.tck.log.EventLogSpec
 import org.junit.jupiter.api.Test
 import java.util.UUID
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.milliseconds
 
 class PostgresEventLogTest : EventLogSpec() {
     override fun createLog(context: String, partitions: Int): EventLog = PostgresFixture.log(partitions, context)
@@ -146,8 +153,49 @@ class PostgresEventLogTest : EventLogSpec() {
         withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).first() }.position.sequence.assert().isEqualTo(1L)
     }
 
+    @Test
+    fun `a commit of this log costs its idle tail one read`(): Unit = runBlocking {
+        // B.D diagnostics: the poll a commit wakes finds the entry and keeps the backoff, without a run of short polls.
+        val counted = CountedDataSource(PostgresFixture.dataSource)
+        val context = PostgresFixture.newContext()
+        val log = PostgresEventLog(
+            counted.dataSource,
+            context,
+            1,
+            pollInterval = 1.milliseconds,
+            maxPollInterval = 1.hours,
+        ).also { it.createSchema() }
+        val type = AggregateType(context, "order")
+        log.append(stream("a", 1, aggregate = type))
+        fun reads(mark: Int) = counted.since(mark).count { it.contains("AS head") }
+        val start = counted.begin()
+        val received = Channel<LogEntry>(Channel.UNLIMITED)
+        val tail = launch(Dispatchers.Default) { log.tail(0).collect { received.send(it) } }
+        try {
+            withTimeout(TAIL_TIMEOUT_MS) { received.receive() }
+            // Twelve empty polls back the tail off to seconds between polls.
+            withTimeout(TAIL_TIMEOUT_MS) {
+                while (reads(start) < IDLE_POLLS) {
+                    delay(10)
+                }
+            }
+            val mark = counted.begin()
+            (2..COMMITS + 1).forEach { version ->
+                log.append(stream("a", version, aggregate = type))
+                withTimeout(TAIL_TIMEOUT_MS) { received.receive() }.stream.version.assert().isEqualTo(version)
+            }
+            delay(SETTLE_MS)
+            reads(mark).assert().isEqualTo(COMMITS)
+        } finally {
+            tail.cancel()
+        }
+    }
+
     private companion object {
         const val TAIL_STALL_MS = 500L
         const val LONG_ID_UUIDS = 300
+        const val IDLE_POLLS = 13
+        const val COMMITS = 5
+        const val SETTLE_MS = 100L
     }
 }

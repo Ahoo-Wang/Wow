@@ -1,0 +1,23 @@
+== checkpoint updates by subscription
+{"_id":"snapshot","count":521}
+{"_id":"kafka-sink.account","count":519}
+{"_id":"TransferSaga.onAmountEntered","count":519}
+{"_id":"reservation","count":519}
+{"_id":"TransferSaga.onEntryFailed","count":519}
+{"_id":"timers","count":519}
+{"_id":"wow.snapshot.rebuild","count":519}
+{"_id":"TransferSaga.onPrepared","count":519}
+== samples
+4154 {"ns":"transfer_v10.wow_checkpoint","op":"update"} {"q":{"$and":[{"$and":[{"subscription_group":"transfer-service/transfer"},{"subscription":"snapshot"},{"partition":34}]},{"position":{"$lt":{"high":0,"low":23,"unsigned":false}}}]},"u":{"$set":{"position":{"high":0,"low":23,"unsigned":false}}},"multi":false,"upsert":true}
+3281 {"ns":"transfer_v10.wow_log__transfer__partition","op":"command"} {"aggregate":"wow_log__transfer__partition","readConcern":{"level":"majority"},"pipeline":[{"$match":{"_id":8}},{"$project":{"_id":0,"head":"$sequence"}},{"$unionWith":{"coll":"wow_log__transfer__account","pipeline":[{"$match":{"$and":[{"partition":8},{"sequence":{"$gt":{"high":0,"low":16,"unsigned":false}}}]}},{"$sort":{"sequence":1}},{"$limit":500},{"$addFields":{"branch":0}}]}}],"cursor":{}}
+1200 {"ns":"transfer_v10.wow_log__transfer__account","op":"query"} {"find":"wow_log__transfer__account","readConcern":{"level":"majority"},"filter":{"$and":[{"tenant_id":"(0)"},{"request_id":"01a1484c-c480-71c2-8e86-0907ce3df14d"}]},"projection":{"transport":0}}
+768 {"ns":"transfer_v10.wow_lease","op":"command"} {"findAndModify":"wow_lease","query":{"$and":[{"$and":[{"subscription_group":"transfer-service/transfer"},{"partition":4}]},{"owner":"node-1"},{"expires_at":{"$gt":{"high":417,"low":1212990729,"unsigned":false}}}]},"new":true,"update":{"$set":{"expires_at":{"high":417,"low":1213000729,"unsigned":false}}},"txnNumber":{"high":0,"low":79,"unsigned":false}}
+600 {"ns":"transfer_v10.wow_snapshot__transfer__account","op":"command"} {"findAndModify":"wow_snapshot__transfer__account","query":{"$and":[{"$and":[{"tenant_id":"(0)"},{"aggregate_id":"acc-0000448"}]},{"version":{"$lt":2}},{"$or":[{"state_revision":{"$lte":1}},{"state_revision":{"$exists":false}}]}]},"fields":{"stale_version":1,"_id":0},"new":false,"upsert":true,"update":{"$set":{"version":2,"schema_fingerprint":"74db0cdbcc2b4a7d3f68ddf742fed90423dd595c2cd0afddbf34a7a95c3a86dd","state":{"balance":{"high":232,"low":-727379967,"unsigned":false},"frozen":false,"locked":0,"owner":"owner-48"},"owner_id":null,"space_id":null,"deleted":false,"first_event_time":{"high":417,"low":1212953235,"unsigned":false},"last_event_time":{"high":417,"low":1212990597,"unsigned":false},"tags":{},"operator":null,"first_operator":null,"schedules":{},"state_revision":1}},"txnNumber":{"high":0,"low":86,"unsigned":false}}
+600 {"ns":"transfer_v10.wow_log__transfer__account","op":"insert"} {"insert":"wow_log__transfer__account","ordered":true,"txnNumber":{"high":0,"low":85,"unsigned":false},"autocommit":false}
+74 {"ns":"transfer_v10.wow_lease_member","op":"query"} {"find":"wow_lease_member","filter":{"$and":[{"subscription_group":"transfer-service/transfer"},{"expires_at":{"$gt":{"high":417,"low":1212989927,"unsigned":false}}}]},"sort":{"node":1}}
+37 {"ns":"transfer_v10.wow_timer__transfer","op":"query"} {"find":"wow_timer__transfer","filter":{"$and":[{"partition":{"$in":[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63]}},{"status":{"$in":["PENDING","FIRING"]}},{"due_at":{"$lte":{"high":417,"low":1213020020,"unsigned":false}}}]},"sort":{"due_at":1,"timer_id":1},"limit":1000}
+37 {"ns":"transfer_v10.wow_lease","op":"query"} {"find":"wow_lease","filter":{"$and":[{"subscription_group":"transfer-service/transfer"},{"expires_at":{"$gt":{"high":417,"low":1212989929,"unsigned":false}}}]},"sort":{"partition":1}}
+24 {"ns":"transfer_v10.wow_failure_ledger","op":"query"} {"find":"wow_failure_ledger","filter":{"$and":[{"service":"transfer-service"},{"subscription":"TransferSaga.onAmountEntered"}]},"sort":{"context":1,"aggregate_name":1,"tenant_id":1,"aggregate_id":1},"limit":100}
+20 {"ns":"transfer_v10.wow_lease_member","op":"update"} {"q":{"$and":[{"subscription_group":"transfer-service/transfer#snapshot/account@1"},{"node":"node-1"}]},"u":{"$set":{"address":"127.0.0.1:19090","expires_at":{"high":417,"low":1213019759,"unsigned":false}}},"multi":false,"upsert":true}
+8 {"ns":"transfer_v10.wow_snapshot_table","op":"query"} {"find":"wow_snapshot_table","filter":{"_id":"wow_snapshot__transfer__account"}}
+true

@@ -1,0 +1,12 @@
+wow_checkpoint	0	64	0	0	0	0
+wow_failure_ledger	0	24	0	0	0	0
+wow_format	0	0	0	0	0	0
+wow_lease	335	335	0	640	636	0
+wow_lease_member	0	76	0	16	16	0
+wow_log__transfer__account	0	1917	0	0	0	0
+wow_log__transfer__partition	0	2296	0	0	0	0
+wow_log_aggregate	0	0	0	0	0	0
+wow_reservation	0	0	0	0	0	0
+wow_snapshot__transfer__account	0	0	0	0	0	0
+wow_snapshot_table	0	7	0	1	1	0
+wow_timer__transfer	0	30	0	0	0	0
