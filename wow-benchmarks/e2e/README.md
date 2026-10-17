@@ -63,9 +63,9 @@ Each scenario's request waits for the same point on both versions; the adapter (
 Where the points are not exactly the same:
 
 - **E1.** 9.x signals `PROCESSED` after the append and after handing the event stream and the state event to its buses (with local-first, the local hand-off; the Kafka copy follows). V10's `committed` is the append alone; its Kafka publication runs afterwards in its own subscription. Both mean "the events are stored"; 9.x's answer also covers the hand-off, and its command itself travels through Kafka (or the local-first path), V10's through the cluster router.
-- **E3.** Both wait until the saga's `Entry` is stored on the target, the transfer "entered on both sides" of roadmap B.2. The saga's second hop, `Confirm` on the source, is awaited on neither: 9.x's waiting chain follows one saga hop only. 9.x's saga reads the event from Kafka, V10's from the log.
+- **E3.** Both wait until the saga's `Entry` is stored on the target, the transfer "entered on both sides" of roadmap B.2. The saga's second hop, `Confirm` on the source, is awaited on neither: 9.x's waiting chain follows one saga hop only. Agreed with the user (D224 implementation note): reports state that E3 excludes the source's `Confirm`. 9.x's saga reads the event from Kafka, V10's from the log.
 - **E4 list.** Neither sorts; the snapshot documents returned differ in shape (9.x's carry its snapshot metadata), not in number.
-- **Bean Validation.** The 9.x server needs a Bean Validation provider to start (`spring-boot-starter-validation`, as the 9.x examples have); V10 validates only when one is on the class path, and its server has none. The commands declare no constraints.
+- **Bean Validation.** The 9.x server needs a Bean Validation provider to start (`spring-boot-starter-validation`, as the 9.x examples have); V10 validates only when one is on the class path, and its server has none. The commands declare no constraints. Agreed with the user (D224 implementation note): each side keeps its default, the cost counts toward its framework, and reports say so.
 
 ## Load model and recorder
 

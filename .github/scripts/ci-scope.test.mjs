@@ -513,6 +513,9 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'example/eshop/e2e/build.gradle.kts',
     'example/eshop/DX-GAPS.md',
     'example/quickstart/build.gradle.kts',
+    // The V10-against-9.x end-to-end benchmark (D224): its V10 side is in v10Check.
+    'wow-benchmarks/e2e/bench-v10/build.gradle.kts',
+    'wow-benchmarks/e2e/load/src/main/kotlin/A.kt',
     'documentation/docs/en/guide/v10/quickstart.md',
     'documentation/docs/zh/guide/v10/quickstart.md',
     'bom/bom/build.gradle.kts',
