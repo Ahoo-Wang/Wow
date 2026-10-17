@@ -380,7 +380,10 @@ class MongoSnapshotStore(
         const val STALE_VERSION = "stale_version"
 
         /** What a save reads of the document it replaces: the stale mark alone. */
-        private val STALE_PROJECTION: Bson = Projections.fields(Projections.include(STALE_VERSION), Projections.excludeId())
+        private val STALE_PROJECTION: Bson = Projections.fields(
+            Projections.include(STALE_VERSION),
+            Projections.excludeId()
+        )
 
         /** The records of the snapshot collections' claimed state revisions (decision D172). */
         const val TABLES = "wow_snapshot_table"

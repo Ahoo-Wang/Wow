@@ -134,7 +134,10 @@ class SubscriptionCheckpointTest {
                 log,
                 failingOnce,
                 ledger,
-                listOf(Subscription("one", SubscriptionFilter("shop")) {}, Subscription("two", SubscriptionFilter("shop")) {}),
+                listOf(
+                    Subscription("one", SubscriptionFilter("shop")) {},
+                    Subscription("two", SubscriptionFilter("shop")) {}
+                ),
                 testOptions(checkpointInterval = 200.milliseconds),
             )
             repeat(30) { appender.append("a$it") }
