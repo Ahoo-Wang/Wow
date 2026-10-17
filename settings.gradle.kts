@@ -286,3 +286,7 @@ include(":e2e-bench-v10")
 project(":e2e-bench-v10").projectDir = file("wow-benchmarks/e2e/bench-v10")
 //endregion
 
+// The load generator of the end-to-end architecture benchmark (decision D224): a JVM of its own that depends on no Wow
+// module, so it builds in either scope and drives the 9.x and the V10 servers alike over HTTP.
+include(":e2e-bench-load")
+project(":e2e-bench-load").projectDir = file("wow-benchmarks/e2e/load")
