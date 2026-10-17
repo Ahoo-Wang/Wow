@@ -143,6 +143,9 @@ class ReservationImporterTest {
     fun `a dry run resolves every key and reserves none`(): Unit = runTest {
         importer(ImportOptions(dryRun = true)).importAll("order_no").imported.assert().isEqualTo(2)
         store.find(scope("(0)"), "NO-1").assert().isNull()
+        // The dry run of the streams before it recorded no checkpoint.
+        ReservationImporter(events, keys, plan, { store }, InMemoryCheckpointRepository(), ImportOptions(dryRun = true))
+            .importAll("order_no").imported.assert().isEqualTo(2)
     }
 
     @Test

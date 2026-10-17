@@ -56,7 +56,9 @@ class NineXCompensationTest {
         execution.unresolved.assert().isTrue()
         execution.function.owner.toString().assert().isEqualTo("example-service.OrderSaga")
         execution.toString().assert()
-            .isEqualTo("0VYC0mp1nA0002 (example-service.OrderSaga.onEvent on example-service.order/(0)/0VY3GwaK4OmV00E v1)")
+            .isEqualTo(
+                "0VYC0mp1nA0002 (example-service.OrderSaga.onEvent on example-service.order/(0)/0VY3GwaK4OmV00E v1)"
+            )
     }
 
     @Test

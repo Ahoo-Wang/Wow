@@ -42,7 +42,8 @@ class CompensationImporterTest {
     private val reports = mutableListOf<String>()
 
     /** Every example execution but the projector's, which the port reads from another context's topic. */
-    private val source = InMemoryNineXCompensationSource(NineXCompensationExample.executions().filter { it.id != "0VYC0mp1nA0006" })
+    private val source =
+        InMemoryNineXCompensationSource(NineXCompensationExample.executions().filter { it.id != "0VYC0mp1nA0006" })
 
     private suspend fun importStreams() {
         val events = InMemoryNineXEventSource(NineXExample.streams())
@@ -52,7 +53,9 @@ class CompensationImporterTest {
     }
 
     private fun importer(options: ImportOptions = ImportOptions(pageSize = 2), from: NineXCompensationSource = source) =
-        CompensationImporter(from, plan, { log }, { ledger }, checkpoints, options, { reports += it.render() }, { reports += it })
+        CompensationImporter(from, plan, {
+            log
+        }, { ledger }, checkpoints, options, { reports += it.render() }, { reports += it })
 
     private fun comparison() = CompensationComparison(source, plan, { log }, { ledger }, 2) { reports += it }
 
@@ -152,8 +155,7 @@ class CompensationImporterTest {
         }
 
     @Test
-    fun `a dry run resolves every execution and parks none`(): Unit = runTest {
-        importStreams()
+    fun `a dry run resolves every execution and parks none, after a dry run of the streams`(): Unit = runTest {
         importer(ImportOptions(dryRun = true)).importAll().assert().isEqualTo(CompensationProgress(4, 0, 0, 0, true))
         ledger.list(CART_SAGA).assert().isEmpty()
     }

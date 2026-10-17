@@ -117,7 +117,8 @@ class CompensationPlan(
             if (execution.errorMessage.isBlank()) execution.errorCode else "${execution.errorCode}: ${execution.errorMessage}"
 
         /** The V10 mark of the 9.x `RecoverableType` [name] (9.x `MarkRecoverable`); an unknown name is [Recoverable.UNKNOWN]. */
-        fun recoverableOf(name: String): Recoverable = Recoverable.entries.firstOrNull { it.name == name } ?: Recoverable.UNKNOWN
+        fun recoverableOf(name: String): Recoverable =
+            Recoverable.entries.firstOrNull { it.name == name } ?: Recoverable.UNKNOWN
     }
 }
 
@@ -176,8 +177,9 @@ class CompensationImporter(
 ) {
     /** Imports the unresolved executions not yet imported, and marks the import complete. */
     suspend fun importAll(): CompensationProgress {
+        // A dry run of the streams records no checkpoint: it reads the executions whatever the streams' import stands at.
         val pending = plan.aggregates.keys.filter { checkpoints.load().of(it)?.completed != true }
-        if (pending.isNotEmpty()) {
+        if (!options.dryRun && pending.isNotEmpty()) {
             throw MigrationException(
                 "The full import of $pending has not completed: import the streams before the 9.x compensation.",
             )
@@ -235,7 +237,8 @@ class CompensationImporter(
         return Outcome.UNRESOLVED
     }
 
-    private fun CompensationCheckpoint.progress() = CompensationProgress(imported, already, unresolved, others, completed)
+    private fun CompensationCheckpoint.progress() =
+        CompensationProgress(imported, already, unresolved, others, completed)
 
     private enum class Outcome { IMPORTED, ALREADY, UNRESOLVED, OTHER }
 }

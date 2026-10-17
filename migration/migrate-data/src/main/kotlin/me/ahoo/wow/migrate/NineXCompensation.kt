@@ -104,10 +104,20 @@ data class NineXExecutionFailed(
                 ?: throw MigrationException("9.x execution $id has no number at $path.")
             return NineXExecutionFailed(
                 id = id,
-                function = NineXFunction(text("function.contextName"), text("function.processorName"), text("function.name")),
+                function = NineXFunction(
+                    text("function.contextName"),
+                    text("function.processorName"),
+                    text("function.name")
+                ),
                 functionKind = text("function.functionKind"),
-                aggregate = NineXAggregate(text("eventId.aggregateId.contextName"), text("eventId.aggregateId.aggregateName")),
-                aggregateId = NineXAggregateId(text("eventId.aggregateId.aggregateId"), text("eventId.aggregateId.tenantId")),
+                aggregate = NineXAggregate(
+                    text("eventId.aggregateId.contextName"),
+                    text("eventId.aggregateId.aggregateName")
+                ),
+                aggregateId = NineXAggregateId(
+                    text("eventId.aggregateId.aggregateId"),
+                    text("eventId.aggregateId.tenantId")
+                ),
                 version = number("eventId.version").toInt(),
                 errorCode = text("error.errorCode"),
                 errorMessage = state.get("error")?.text("errorMsg").orEmpty(),

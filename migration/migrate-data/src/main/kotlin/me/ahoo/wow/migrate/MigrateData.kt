@@ -203,17 +203,7 @@ class MigrateData(
             report = out::println,
         )
         val differingKeys = plan.reservations.keys.map { reservations.compare(it) }.filterNot { it.passed }
-        val executions = connections.compensation?.let { compensation ->
-            CompensationComparison(
-                compensation,
-                plan,
-                connections::logOf,
-                connections::failureLedger,
-                config.pageSize,
-                out::println,
-            )
-                .compare()
-        }
+        val executions = compareCompensation(plan, config, connections)
         if (differing.isEmpty() && differingKeys.isEmpty() && executions?.passed != false) {
             out.println(
                 "Comparison done: every state compared equals its 9.x snapshot, every confirmed 9.x key is " +
@@ -242,6 +232,22 @@ class MigrateData(
             )
         }
         return DIFFERS
+    }
+
+    /** Compares the unresolved 9.x executions with the V10 parked entries; null without a compensation database. */
+    private suspend fun compareCompensation(
+        plan: MigrationPlan,
+        config: MigrationConfig,
+        connections: MigrationConnections,
+    ): CompensationComparisonResult? = connections.compensation?.let { compensation ->
+        CompensationComparison(
+            source = compensation,
+            plan = plan,
+            logOf = connections::logOf,
+            ledger = connections::failureLedger,
+            pageSize = config.pageSize,
+            report = out::println,
+        ).compare()
     }
 
     private suspend fun snapshot(

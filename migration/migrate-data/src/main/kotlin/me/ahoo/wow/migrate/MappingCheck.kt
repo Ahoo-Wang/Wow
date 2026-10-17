@@ -142,16 +142,29 @@ class MappingCheck(private val plan: MigrationPlan) {
             return
         }
         val groups = inventory.unresolved.filter { compensation.covers(it.function) }
+        functionProblems(groups, problems, warnings)
+        unusedSubscriptionMappings(groups.map { it.function }.toSet(), warnings)
+    }
+
+    /** What the unresolved executions of each 9.x function in [groups] lack to be imported. */
+    private fun functionProblems(
+        groups: List<NineXFailureGroup>,
+        problems: MutableList<String>,
+        warnings: MutableList<String>,
+    ) {
+        val compensation = plan.compensation
         groups.groupBy { it.function }.forEach { (function, onAggregates) ->
             val executions = onAggregates.sumOf { it.executions }
             val subscription = compensation.subscriptionOf(function)
             when {
-                subscription == null -> problems += "the 9.x processor function $function ($executions unresolved " +
-                    "executions) has no subscription mapping: its failures would be lost"
+                subscription == null ->
+                    problems += "the 9.x processor function $function ($executions unresolved " +
+                        "executions) has no subscription mapping: its failures would be lost"
 
-                compensation.manifestOf(subscription) == null -> problems += "the 9.x processor function $function " +
-                    "($executions unresolved executions) maps to the V10 subscription $subscription, which is not in " +
-                    "the Manifest"
+                compensation.manifestOf(subscription) == null ->
+                    problems += "the 9.x processor function $function " +
+                        "($executions unresolved executions) maps to the V10 subscription $subscription, which is not in " +
+                        "the Manifest"
 
                 else -> onAggregates.forEach { group ->
                     compensation.problemOf(subscription, group.aggregate)?.let {
@@ -161,8 +174,11 @@ class MappingCheck(private val plan: MigrationPlan) {
                 }
             }
         }
-        val functions = groups.map { it.function }.toSet()
-        compensation.mappings.forEach { mapping ->
+    }
+
+    /** The subscription mappings no unresolved execution of [functions] uses. */
+    private fun unusedSubscriptionMappings(functions: Set<NineXFunction>, warnings: MutableList<String>) {
+        plan.compensation.mappings.forEach { mapping ->
             val processor = mapping.source()
             if (functions.none { it.owner == processor }) {
                 warnings += "no unresolved 9.x execution is of the processor $processor"

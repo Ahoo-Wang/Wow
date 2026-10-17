@@ -17,6 +17,7 @@ import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.ReplaceOptions
+import me.ahoo.wow.migrate.example.NineXCompensationExample
 import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.tck.containers.WowContainers
@@ -39,6 +40,15 @@ object NineXMongoStore {
         (NineXExample.ORDER_STREAMS + NineXExample.CART_STREAMS).forEach { insert(database, NineXExample.resource(it)) }
         NineXExample.SNAPSHOTS.forEach { saveSnapshot(database, NineXExample.resource(it)) }
     }
+
+    /**
+     * A fresh database of the 9.x compensation service holding the example's executions
+     * ([NineXCompensationExample]): the snapshots of its `execution_failed` aggregate, as it stored them.
+     */
+    fun compensation(): MongoDatabase =
+        client.getDatabase("ninex_compensation_${databases.incrementAndGet()}").also { database ->
+            NineXCompensationExample.FIXTURES.indices.forEach { saveSnapshot(database, NineXCompensationExample.resource(it + 1)) }
+        }
 
     /**
      * Saves the snapshot whose JSON is [text] into [database] as 9.x's `MongoSnapshotStore` does: a document of

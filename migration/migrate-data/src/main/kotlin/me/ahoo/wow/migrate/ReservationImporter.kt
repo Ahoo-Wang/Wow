@@ -112,7 +112,8 @@ class ReservationImporter(
     suspend fun importAll(name: String): ReservationProgress {
         val reservationPlan = plan.reservations[name]
             ?: throw MigrationException("migration-map.json does not map the 9.x PrepareKey $name.")
-        if (checkpoints.load().of(reservationPlan.aggregate.source)?.completed != true) {
+        // A dry run of the streams records no checkpoint: it reads the keys whatever the streams' import stands at.
+        if (!options.dryRun && checkpoints.load().of(reservationPlan.aggregate.source)?.completed != true) {
             throw MigrationException(
                 "The full import of ${reservationPlan.aggregate.source} has not completed: import its streams before " +
                     "the PrepareKey $name.",

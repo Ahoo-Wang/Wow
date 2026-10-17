@@ -256,13 +256,19 @@ data class SubscriptionMapping(
         require(functions.keys.none { it.isBlank() } && functions.values.none { it.isBlank() }) {
             "A function mapping of $from names both functions."
         }
-        require(functions.values.none { name -> '.' in name && name.split('.').let { it.size != 2 || it.any(String::isBlank) } }) {
+        val invalid = functions.values.filter { name ->
+            '.' in name && name.split('.').let { it.size != 2 || it.any(String::isBlank) }
+        }
+        require(invalid.isEmpty()) {
             "A function of $from maps to a V10 function name or a subscription name, processor.function: $functions"
         }
     }
 
     /** The 9.x processor. */
-    fun source(): NineXProcessor = from.lastIndexOf('.').let { NineXProcessor(from.substring(0, it), from.substring(it + 1)) }
+    fun source(): NineXProcessor {
+        val dot = from.lastIndexOf('.')
+        return NineXProcessor(from.substring(0, dot), from.substring(dot + 1))
+    }
 
     /** The V10 subscription the 9.x [function] of this processor is parked for. */
     fun subscriptionOf(function: String): String {
