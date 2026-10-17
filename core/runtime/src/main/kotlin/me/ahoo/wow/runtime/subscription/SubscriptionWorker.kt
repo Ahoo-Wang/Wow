@@ -39,6 +39,7 @@ import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
+import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.time.Clock
 
@@ -118,6 +119,9 @@ internal class SubscriptionWorker(
         null
     }
     private val flushLock = Mutex()
+
+    /** The last position stored. Written under `flushLock`. */
+    @Volatile
     private var saved = checkpoint
 
     /** Set by [abandon] under the monitor: the lanes are cancelled, so a resume would never run. */
@@ -644,6 +648,19 @@ internal class SubscriptionWorker(
         if (position > saved) {
             checkpoints.save(group, subscription.name, partition, position)
             saved = position
+        }
+    }
+
+    /**
+     * The watermark when it moved since the last save, else null: what the runtime's periodic save stores, for all
+     * its workers at once ([CheckpointStore.saveAll]), then reports with [saved].
+     */
+    fun unsaved(): Checkpoint? = watermark.takeIf { it > saved }?.let { Checkpoint(subscription.name, partition, it) }
+
+    /** Records that [checkpoint], from [unsaved], is stored. */
+    suspend fun saved(checkpoint: Checkpoint) = flushLock.withLock {
+        if (checkpoint.position > saved) {
+            saved = checkpoint.position
         }
     }
 

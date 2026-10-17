@@ -20,8 +20,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
+import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import org.junit.jupiter.api.Test
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -113,6 +115,39 @@ class SubscriptionCheckpointTest {
         runtime.stop()
         handled.size.assert().isEqualTo(4)
     }
+
+    @Test
+    fun `the periodic save stores every moved checkpoint in one call, and a failed one again on the next tick`(): Unit =
+        runBlocking {
+            // B.D diagnostics: one round trip a tick for all the subscriptions and partitions, not one each.
+            val log = InMemoryEventLog(partitions = 3)
+            val appender = Appender(log)
+            val failures = AtomicInteger(1)
+            val failingOnce = object : CheckpointStore by checkpoints {
+                override suspend fun saveAll(group: String, checkpoints: List<Checkpoint>) {
+                    check(failures.getAndDecrement() <= 0) { "The store is down." }
+                    this@SubscriptionCheckpointTest.checkpoints.saveAll(group, checkpoints)
+                }
+            }
+            val runtime = SubscriptionRuntime(
+                "group",
+                log,
+                failingOnce,
+                ledger,
+                listOf(Subscription("one", SubscriptionFilter("shop")) {}, Subscription("two", SubscriptionFilter("shop")) {}),
+                testOptions(checkpointInterval = 200.milliseconds),
+            )
+            repeat(30) { appender.append("a$it") }
+            runtime.start(setOf(0, 1, 2))
+            eventually {
+                (0..2).all { partition ->
+                    listOf("one", "two").all { checkpoints.load("group", it, partition) == appender.ends[partition] }
+                }
+            }
+            runtime.stop()
+            failures.get().assert().isLessThan(0)
+            checkpoints.batches.assert().contains(6)
+        }
 
     @Test
     fun `stop waits for the entries in flight and saves the checkpoint`(): Unit = runBlocking {

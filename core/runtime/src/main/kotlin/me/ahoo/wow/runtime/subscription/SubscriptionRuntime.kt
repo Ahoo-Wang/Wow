@@ -153,7 +153,7 @@ class SubscriptionRuntime internal constructor(
         run.scope.launch {
             while (true) {
                 delay(options.checkpointInterval)
-                run.workers.values.forEach { flushQuietly(it) }
+                flushQuietly(run.workers.values)
             }
         }
         run.scope.launch {
@@ -402,16 +402,25 @@ class SubscriptionRuntime internal constructor(
         return parked
     }
 
+    /**
+     * Saves the checkpoints of [workers] that moved since their last save, in one call of the store (B.D diagnostics:
+     * one round trip a tick, not one per subscription and partition); a failed save is retried on the next tick.
+     */
     @Suppress("TooGenericExceptionCaught") // A failed save is retried on the next tick.
-    private suspend fun flushQuietly(worker: SubscriptionWorker) {
+    private suspend fun flushQuietly(workers: Collection<SubscriptionWorker>) {
+        val due = workers.mapNotNull { worker -> worker.unsaved()?.let { worker to it } }
+        if (due.isEmpty()) {
+            return
+        }
         try {
-            worker.flush()
+            checkpoints.saveAll(group, due.map { it.second })
+            due.forEach { (worker, checkpoint) -> worker.saved(checkpoint) }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
-            // The watermark stays ahead of the stored checkpoint until a save succeeds.
+            // The watermarks stay ahead of the stored checkpoints until a save succeeds.
             logger.warn(failure) {
-                "Failed to save the checkpoint of ${worker.subscription.name} in partition ${worker.partition}; " +
+                "Failed to save the checkpoints of ${due.size} subscription partitions of group $group; " +
                     "retrying on the next tick."
             }
         }

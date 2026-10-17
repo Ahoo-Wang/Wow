@@ -33,4 +33,17 @@ interface CheckpointStore {
 
     /** Moves the checkpoint to [position] if that is ahead of the stored one; otherwise does nothing. */
     suspend fun save(group: String, subscription: String, partition: Int, position: Long)
+
+    /**
+     * [save]s each of [checkpoints] in [group]: what a subscription runtime's periodic save stores at once, one per
+     * subscription and partition whose checkpoint moved. Each is saved as [save] would, on its own: a failure may leave
+     * some saved and others not, which only means those are saved again later. A backend stores them in as few round
+     * trips as it can; this default saves them one by one.
+     */
+    suspend fun saveAll(group: String, checkpoints: List<Checkpoint>) {
+        checkpoints.forEach { save(group, it.subscription, it.partition, it.position) }
+    }
 }
+
+/** The checkpoint of [subscription] in [partition], at [position], as [CheckpointStore.saveAll] saves it. */
+data class Checkpoint(val subscription: String, val partition: Int, val position: Long)
