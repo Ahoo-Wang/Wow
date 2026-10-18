@@ -173,7 +173,9 @@ object FilterSemantics {
         string("ne", MISSING, NULL, EMPTY, CASE_VARIANT, OTHER, TRAILING_NEWLINE) { NotEqualFilter(it, "Wow") },
         string("ne-null", EMPTY, VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE) { NotEqualFilter(it, null) },
         string("in", VALUE, OTHER) { InFilter(it, listOf("Wow", "Other")) },
-        string("not-in", MISSING, NULL, EMPTY, CASE_VARIANT, TRAILING_NEWLINE) { NotInFilter(it, listOf("Wow", "Other")) },
+        string("not-in", MISSING, NULL, EMPTY, CASE_VARIANT, TRAILING_NEWLINE) {
+            NotInFilter(it, listOf("Wow", "Other"))
+        },
         // Literal matches: case-sensitive unless asked otherwise; never match a missing or null field.
         string("contains", VALUE, CASE_VARIANT, TRAILING_NEWLINE) { ContainsFilter(it, "o") },
         string("contains-ignore-case", VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE) {
