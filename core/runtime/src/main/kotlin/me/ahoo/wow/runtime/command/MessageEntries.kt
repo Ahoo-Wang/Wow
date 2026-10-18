@@ -177,7 +177,8 @@ internal class MessageEntries private constructor(
             observer,
         ) { envelope ->
             val wire = CommandMessages.commandOf(envelope)
-            Decoded(wire.ref, wire.id, wire.requestId, wire.type, wire.scope, wire.causation, wire)
+            // A creation that names no aggregate runs, and parks, by its request (review R2.1-2).
+            Decoded(CommandMessages.laneOf(wire), wire.id, wire.requestId, wire.type, wire.scope, wire.causation, wire)
         }
 
         /**

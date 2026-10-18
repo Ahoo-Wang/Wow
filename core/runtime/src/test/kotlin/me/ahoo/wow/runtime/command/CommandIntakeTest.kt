@@ -160,15 +160,36 @@ class CommandIntakeTest {
             val unassigned = ITEM.unassigned(TENANT)
             val reserve = Command("new-1", "r-new-1", unassigned, Reserve(1))
             sender.send(reserve)
+            // Keyed and partitioned by its request (review R2.1-2).
+            val lane = ITEM.ref(TENANT, "(none):r-new-1")
+            topics.messages(COMMANDS).single().key.assert().isEqualTo(lane.toString())
             // Decided is not yet committed: the intake's checkpoint moves once the commit is in the log.
-            eventually { checkpoint(stockNode, unassigned) == 1L }
+            eventually { checkpoint(stockNode, lane) == 1L }
             val created = checkNotNull(stockBackends.backends(STOCK).log.findByRequestId(ITEM, TENANT, "r-new-1"))
             created.ref.isAssigned.assert().isTrue()
             // Sent again (a saga that handled its commit again): the same request finds the item it created.
             sender.send(reserve.copyWith(id = "new-1-again"))
-            eventually { checkpoint(stockNode, unassigned) == 2L }
+            eventually { checkpoint(stockNode, lane) == 2L }
             stock.decided.assert().containsExactly("new-1")
         }
+
+    @Test
+    fun `a creation that names no item and fails should park only its own request`(): Unit = runBlocking {
+        // Review R2.1-2: the creations of one type and tenant do not share one lane nor one parking key.
+        stockNode().also { it.start() }
+        val broken = Command("new-b", "r-new-b", ITEM.unassigned(TENANT), Reserve(BREAKING)).also { sender.send(it) }
+        val ledger = stockBackends.backends(STOCK).ledger
+        val lane = ITEM.ref(TENANT, "(none):r-new-b")
+        eventually { ledger.isParked(CommandIntake.NAME, lane) }
+        ledger.isParked(CommandIntake.NAME, ITEM.unassigned(TENANT)).assert().isFalse()
+        // Every other creation of the type and tenant goes on, whichever partition it lands in.
+        val others = (1..4).map { Command("new-$it", "r-new-$it", ITEM.unassigned(TENANT), Reserve(1)) }
+        others.forEach { sender.send(it) }
+        eventually { stock.decided.containsAll(others.map { it.id }) }
+        stock.decided.assert().doesNotContain(broken.id)
+        others.map { Partitioner.partitionOf(ITEM.ref(TENANT, "(none):${it.requestId}"), PARTITIONS) }.toSet().size
+            .assert().isGreaterThan(1)
+    }
 
     @Test
     fun `a rejected command should send a receipt that the saga's handler takes once`(): Unit = runBlocking {

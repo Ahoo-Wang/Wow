@@ -40,8 +40,9 @@ import java.util.concurrent.ConcurrentHashMap
  *   another aggregate than the command's, fails the send.
  * - **Topic and partition**: `wow.<ctx>.commands` after the prefix ([SourceTopics.commandsOf]), in the partition the
  *   log's [Partitioner] gives the aggregate among the topic's partitions, which the target keeps equal to its log's
- *   (decision D135), so the owner of the aggregate's log partition reads it. The partition count is read once per
- *   topic; a topic without partitions fails the send.
+ *   (decision D135), so the owner of the aggregate's log partition reads it; a creation that names no aggregate goes
+ *   by its request instead ([CommandMessages.laneOf], review R2.1-2), and the intake that reads it forwards it to the
+ *   owner of the id it assigns. The partition count is read once per topic; a topic without partitions fails the send.
  * - **Durable ACCEPTED**: [send] returns once the broker has acknowledged the message (decision D33); it throws when
  *   it has not, and the caller retries with the same command, which the target does not decide twice.
  * - **Trace**: the message carries the trace the sender runs in (decision D174), which the target's intake continues.
@@ -64,7 +65,7 @@ class CommandSender(private val contracts: ContractDirectory, private val topics
             topic,
             CommandMessages.command(
                 wire,
-                Partitioner.partitionOf(wire.ref, partitionsOf(topic)),
+                Partitioner.partitionOf(CommandMessages.laneOf(wire), partitionsOf(topic)),
                 wait,
                 currentCoroutineContext().trace,
             ),

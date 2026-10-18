@@ -36,8 +36,8 @@ import me.ahoo.wow.spi.wait.WaitContext
  *
  * - **Command** ([EnvelopeKind.COMMAND]): `id` is the command id, `type` its full type name (`ctx.agg.Command`),
  *   `payload` its wire form ([CommandWire], with `replyTo` when a saga sent it), `transport` its wait context, if any.
- *   Keyed by the aggregate ref; its partition is the one the log's partitioner gives the ref among the topic's
- *   partitions, which are the target context's log partitions.
+ *   Keyed by the aggregate ref ([laneOf]: a creation that names no aggregate by its request); its partition is the one
+ *   the log's partitioner gives that ref among the topic's partitions, which are the target context's log partitions.
  * - **Receipt** ([EnvelopeKind.COMMAND_RECEIPT]): `id` is the rejected command's id, the one a reader deduplicates by,
  *   `type` its type, `payload` the rejection as the saga's `@OnRejected` handler takes it, `{commandId, commandType,
  *   ref, error, causation, executionId, operator, scope}` (decisions D157, D163, D189), without the command's body. Keyed by the ref of the commit
@@ -65,10 +65,20 @@ object CommandMessages {
             payload = mapper.valueToTree(wire),
             transport = transportOf(wait, trace),
         )
-        return EnvelopeCodec.message(wire.ref.toString(), envelope).let {
+        return EnvelopeCodec.message(laneOf(wire).toString(), envelope).let {
             TopicMessage(it.key, it.value, it.headers, partition)
         }
     }
+
+    /**
+     * The aggregate a command's message is keyed, partitioned and run by (review R2.1-2): its ref, unless the command
+     * is a creation that names no aggregate yet ([AggregateRef.isAssigned], decision D191), whose id the target's
+     * intake assigns. Such a command goes by a ref of its own request, `(none):<requestId>`, so the creations of one
+     * type and tenant spread over the partitions and lanes, and a park holds up only the request that failed: the
+     * copies of one request keep to one lane, and creations of different requests have no order to keep.
+     */
+    fun laneOf(wire: CommandWire): AggregateRef = wire.ref.takeIf { it.isAssigned }
+        ?: wire.ref.type.ref(wire.ref.tenantId, "${AggregateRef.UNASSIGNED}:${wire.requestId}")
 
     /** The command [envelope] holds. */
     fun commandOf(envelope: Envelope): CommandWire {
