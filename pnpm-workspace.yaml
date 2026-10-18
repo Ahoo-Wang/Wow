@@ -73,7 +73,7 @@ catalog:
   '@faker-js/faker': ^10.6.0
   globals: ^17.13.0
   jsdom: ^29.1.1
-  lucide-react: ^1.55.0
+  lucide-react: ^1.59.0
   medium-zoom: ^1.1.0
   '@microsoft/api-extractor': ^7.59.4
   mermaid: ^11.17.2
