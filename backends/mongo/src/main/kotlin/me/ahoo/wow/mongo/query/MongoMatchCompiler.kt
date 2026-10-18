@@ -161,9 +161,11 @@ internal object MongoMatchCompiler {
             "^${filter.value.escapeRegex()}",
             filter.stringComparison.ignoreCase,
         )
+        // `\z`, not `$`: PCRE's `$` also matches before a trailing newline, so `abc\n` would end with `abc` here and
+        // nowhere else (finding R2.2-4).
         is EndsWithFilter -> regex(
             filter.field.resolve(admitted, scope),
-            "${filter.value.escapeRegex()}$",
+            "${filter.value.escapeRegex()}\\z",
             filter.stringComparison.ignoreCase,
         )
         is InFilter -> Filters.`in`(filter.field.resolve(admitted, scope), filter.values.map { it.operand() })

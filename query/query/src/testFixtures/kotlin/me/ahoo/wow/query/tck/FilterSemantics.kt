@@ -78,6 +78,9 @@ class SemanticProbe private constructor(
         const val THREE = "three"
         const val VALUE_AND_OTHER = "valueAndOther"
 
+        /** The value followed by a newline: an end anchor must not match before it (finding R2.2-4). */
+        const val TRAILING_NEWLINE = "trailingNewline"
+
         private fun missing(shape: SemanticShape) = SemanticProbe(shape, MISSING, null)
         private fun nullValue(shape: SemanticShape) = SemanticProbe(shape, NULL, "null")
 
@@ -90,6 +93,7 @@ class SemanticProbe private constructor(
                 SemanticProbe(SemanticShape.STRING, VALUE, "\"Wow\""),
                 SemanticProbe(SemanticShape.STRING, CASE_VARIANT, "\"wow\""),
                 SemanticProbe(SemanticShape.STRING, OTHER, "\"Other\""),
+                SemanticProbe(SemanticShape.STRING, TRAILING_NEWLINE, "\"Wow\\n\""),
             ),
             SemanticShape.NUMBER to listOf(
                 missing(SemanticShape.NUMBER),
@@ -151,6 +155,7 @@ object FilterSemantics {
     private const val TWO = SemanticProbe.TWO
     private const val THREE = SemanticProbe.THREE
     private const val VALUE_AND_OTHER = SemanticProbe.VALUE_AND_OTHER
+    private const val TRAILING_NEWLINE = SemanticProbe.TRAILING_NEWLINE
 
     private fun string(id: String, vararg matches: String, filter: (QueryField) -> FilterExpression) =
         SemanticCase("string.$id", SemanticShape.STRING, matches.toSet(), filter)
@@ -165,30 +170,32 @@ object FilterSemantics {
         // Equality is exact and case-sensitive; negations match records without the field.
         string("eq", VALUE) { EqualFilter(it, "Wow") },
         string("eq-null", MISSING, NULL) { EqualFilter(it, null) },
-        string("ne", MISSING, NULL, EMPTY, CASE_VARIANT, OTHER) { NotEqualFilter(it, "Wow") },
-        string("ne-null", EMPTY, VALUE, CASE_VARIANT, OTHER) { NotEqualFilter(it, null) },
+        string("ne", MISSING, NULL, EMPTY, CASE_VARIANT, OTHER, TRAILING_NEWLINE) { NotEqualFilter(it, "Wow") },
+        string("ne-null", EMPTY, VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE) { NotEqualFilter(it, null) },
         string("in", VALUE, OTHER) { InFilter(it, listOf("Wow", "Other")) },
-        string("not-in", MISSING, NULL, EMPTY, CASE_VARIANT) { NotInFilter(it, listOf("Wow", "Other")) },
+        string("not-in", MISSING, NULL, EMPTY, CASE_VARIANT, TRAILING_NEWLINE) { NotInFilter(it, listOf("Wow", "Other")) },
         // Literal matches: case-sensitive unless asked otherwise; never match a missing or null field.
-        string("contains", VALUE, CASE_VARIANT) { ContainsFilter(it, "o") },
-        string("contains-ignore-case", VALUE, CASE_VARIANT, OTHER) {
+        string("contains", VALUE, CASE_VARIANT, TRAILING_NEWLINE) { ContainsFilter(it, "o") },
+        string("contains-ignore-case", VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE) {
             ContainsFilter(it, "o", StringComparison.CASE_INSENSITIVE)
         },
-        string("starts-with", VALUE) { StartsWithFilter(it, "W") },
-        string("starts-with-ignore-case", VALUE, CASE_VARIANT) {
+        string("starts-with", VALUE, TRAILING_NEWLINE) { StartsWithFilter(it, "W") },
+        string("starts-with-ignore-case", VALUE, CASE_VARIANT, TRAILING_NEWLINE) {
             StartsWithFilter(it, "W", StringComparison.CASE_INSENSITIVE)
         },
+        // An end anchors at the very end: a trailing newline is not stepped over (finding R2.2-4).
         string("ends-with") { EndsWithFilter(it, "OW") },
+        string("ends-with-exact-case", VALUE, CASE_VARIANT) { EndsWithFilter(it, "ow") },
         string("ends-with-ignore-case", VALUE, CASE_VARIANT) {
             EndsWithFilter(it, "OW", StringComparison.CASE_INSENSITIVE)
         },
         // Presence: null and missing are both "null"; only a missing field does not exist.
         string("is-null", MISSING, NULL) { IsNullFilter(it) },
-        string("is-not-null", EMPTY, VALUE, CASE_VARIANT, OTHER) { IsNotNullFilter(it) },
-        string("exists", NULL, EMPTY, VALUE, CASE_VARIANT, OTHER) { ExistsFilter(it) },
+        string("is-not-null", EMPTY, VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE) { IsNotNullFilter(it) },
+        string("exists", NULL, EMPTY, VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE) { ExistsFilter(it) },
         string("not-exists", MISSING) { NotExistsFilter(it) },
         string("is-empty-string", EMPTY) { IsEmptyStringFilter(it) },
-        string("is-not-empty-string", VALUE, CASE_VARIANT, OTHER) { IsNotEmptyStringFilter(it) },
+        string("is-not-empty-string", VALUE, CASE_VARIANT, OTHER, TRAILING_NEWLINE) { IsNotEmptyStringFilter(it) },
         // Ranges never match a missing or null field.
         number("eq", TWO) { EqualFilter(it, 2) },
         number("ne", MISSING, NULL, ONE, THREE) { NotEqualFilter(it, 2) },
