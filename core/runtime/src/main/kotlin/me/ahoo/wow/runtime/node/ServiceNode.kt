@@ -402,7 +402,7 @@ class ServiceNode @InternalWowApi constructor(
 
     /** Delivers signals: to [waits] when they are this node's, through the remote sender otherwise. */
     @InternalWowApi
-    val signals: SignalSender = LocalSignalSender(node, waits, remoteSignals)
+    val signals: SignalSender = LocalSignalSender(node, service, waits, remoteSignals)
 
     private val waitOptions = WaitOptions(
         Origin(node, address.orEmpty(), service),
