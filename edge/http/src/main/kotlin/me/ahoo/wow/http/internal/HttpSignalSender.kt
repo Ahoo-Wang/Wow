@@ -64,8 +64,11 @@ import kotlin.time.toJavaDuration
  * A signal is authenticated as the origin's signal entry takes it (decision D226): to a node of this [service], with
  * the service's cluster token, [clusterToken], as [InternalHttp.CLUSTER_TOKEN]; to a node of another service, the
  * origin of a wait that crossed into this one, with the service's [credential] as `Authorization`, the identity it
- * calls other services with (decision D208), which that service trusts. The cluster token never leaves the service.
- * Without a [service], every origin is taken for one of this service.
+ * calls other services with (decision D208), which that service trusts. The cluster token never leaves the service:
+ * an origin's service and address come from whoever started or carried the wait, so the token goes only to an
+ * address [members] knows as a member of this service's cluster (review R2.3-1). An origin that names this service at
+ * any other address is sent the signal without a credential, and refuses it. Without a [service], every origin is
+ * taken for one of this service.
  */
 @InternalWowApi
 class HttpSignalSender(
@@ -81,6 +84,8 @@ class HttpSignalSender(
     private val maxBatch: Int = DEFAULT_MAX_BATCH,
     /** Counts the dropped signals by reason (review A5-11). */
     private val observer: Observer = Observer.NONE,
+    /** The addresses of this service's nodes, the only ones sent the [clusterToken] (review R2.3-1). */
+    private val members: ClusterMembers = ClusterMembers.NONE,
 ) : SignalSender, AutoCloseable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val outboxes = ConcurrentHashMap<String, Outbox>()
@@ -201,10 +206,15 @@ class HttpSignalSender(
         val builder = HttpRequest.newBuilder(InternalHttp.uri(outbox.address, InternalHttp.SIGNALS_PATH))
             .timeout(timeout.toJavaDuration())
             .header("Content-Type", InternalHttp.JSON)
-        if (service == null || service == outbox.originService) {
-            clusterToken?.let { builder.header(InternalHttp.CLUSTER_TOKEN, it) }
-        } else {
-            credential.authorization()?.let { builder.header(AUTHORIZATION, it) }
+        when {
+            service != null && service != outbox.originService ->
+                credential.authorization()?.let { builder.header(AUTHORIZATION, it) }
+
+            members.contains(outbox.address) -> clusterToken?.let { builder.header(InternalHttp.CLUSTER_TOKEN, it) }
+
+            else -> logger.debug {
+                "${outbox.address} is no member of this service's cluster: its signals go without the cluster token."
+            }
         }
         val request = builder.POST(HttpRequest.BodyPublishers.ofByteArray(body)).build()
         client.sendAsync(request, HttpResponse.BodyHandlers.discarding()).await().statusCode()
