@@ -35,6 +35,9 @@ import me.ahoo.wow.spi.StorageUnavailableException
  * server labels transient (`TransientTransactionError`, `RetryableWriteError`).
  */
 internal object MongoFailures {
+    /** The server's error code of a document beyond the BSON size limit. */
+    private const val BSON_OBJECT_TOO_LARGE = 10334
+
     private val TRANSIENT_LABELS = listOf(
         MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL,
         "RetryableWriteError",
@@ -59,6 +62,14 @@ internal object MongoFailures {
             failure is MongoTimeoutException ||
             failure is MongoSocketException ||
             failure is MongoExecutionTimeoutException
+
+    /**
+     * Whether [failure] is the server refusing a document beyond its size limit (`BSONObjectTooLarge`): the stream
+     * written can never be stored, so it is refused rather than left unknown (finding R2.2-2). The driver usually
+     * refuses such a document before sending it, with a `BsonMaximumSizeExceededException`, which is no
+     * [MongoException].
+     */
+    fun isTooLarge(failure: MongoException): Boolean = failure.code == BSON_OBJECT_TOO_LARGE
 
     /** [failure] as a [StorageUnavailableException] when it [isTransient], else as it is. */
     fun translate(failure: MongoException): RuntimeException =
