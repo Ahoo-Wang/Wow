@@ -89,6 +89,17 @@ class CommandResultsTest {
     }
 
     @Test
+    fun `a duplicate answers with the committed stream's aggregate, not the retry's`() {
+        // Review R2.1-3: a creation without an id retried before its first id committed was given another one.
+        val first = stream.copyWith(ref = model.type.ref("t", "o-first"), version = 1)
+        val result = map(CommandOutcome.AlreadyCommitted(first))
+        result.ref.assert().isEqualTo(first.ref)
+        result.version.assert().isEqualTo(1)
+        result.duplicate.assert().isTrue()
+        result.commandId.assert().isEqualTo(command.id)
+    }
+
+    @Test
     fun `unchanged succeeds at the same version`() {
         map(CommandOutcome.Unchanged(5)).let {
             it.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
