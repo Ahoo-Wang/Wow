@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
+import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.subscription.Lease
@@ -51,7 +52,7 @@ class PostgresLeaseStore(
 ) : LeaseStore {
     /** Claims the tables' format ([PostgresFormat], decision D59) and creates them when missing. */
     fun createSchema() {
-        dataSource.connection.use { connection ->
+        dataSource.autoCommitted { connection ->
             PostgresFormat.schema(connection, ddl, listOf(LEASES to FORMAT, MEMBERS_TABLE to FORMAT)) {
                 connection.createStatement().use { statement -> DDL.forEach { statement.execute(it) } }
             }
@@ -122,7 +123,7 @@ class PostgresLeaseStore(
     }
 
     private suspend fun <T> execute(sql: String, block: PreparedStatement.() -> T): T = dispatcher.jdbc {
-        dataSource.connection.use { connection: Connection -> connection.prepareStatement(sql).use { it.block() } }
+        dataSource.autoCommitted { connection: Connection -> connection.prepareStatement(sql).use { it.block() } }
     }
 
     private suspend fun <T> single(sql: String, row: (ResultSet) -> T, bind: PreparedStatement.() -> Unit): T? =

@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
+import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.ledger.FailureLedger
@@ -40,13 +41,14 @@ import kotlin.time.Duration.Companion.milliseconds
  * ledger is of (finding A2-13): services that share a database, and subscriptions of one name, see and resolve only
  * their own entries. The table's layout is recorded as format 1 ([PostgresFormat], decision D59).
  *
- * Every write is one autocommitted statement. A park is an upsert that replaces the row's where and why only with an
- * earlier from version, so concurrent or replayed parks converge on the earliest (decision D45) without a
- * transaction; a repark is one update of an existing row; a resolve is one delete returning the removed row; an
- * amendment is one update returning the amended row, conditional on the retries or the request read when it claims or
- * takes one. The source position of a Kafka-sourced subscription's entry (decision D134) and the retry state (roadmap
- * P.1) are columns added to a table created before them. Key columns use the "C" collation, so [list] orders by code
- * point on every database, whatever its default collation.
+ * Every write is one autocommitted statement, whatever the autocommit default of the [dataSource]'s pool (finding
+ * R2.2-1). A park is an upsert that replaces the row's where and why only with an earlier from version, so concurrent
+ * or replayed parks converge on the earliest (decision D45) without a transaction; a repark is one update of an
+ * existing row; a resolve is one delete returning the removed row; an amendment is one update returning the amended
+ * row, conditional on the retries or the request read when it claims or takes one. Format 1 creates the table with
+ * the source position of a Kafka-sourced subscription's entry (decision D134) and the retry state (roadmap P.1) among
+ * its columns; nothing adds columns to an older table: one without a format record is refused ([PostgresFormat]).
+ * Key columns use the "C" collation, so [list] orders by code point on every database, whatever its default collation.
  *
  * JDBC calls run on [dispatcher], virtual threads by default (JDK 21, decision D29).
  */
@@ -64,7 +66,7 @@ class PostgresFailureLedger(
 
     /** Claims the table's format ([PostgresFormat]) and creates it when missing. */
     fun createSchema() {
-        dataSource.connection.use { connection ->
+        dataSource.autoCommitted { connection ->
             PostgresFormat.schema(connection, ddl, listOf(tables.name to PostgresFailureLedgerTables.FORMAT)) {
                 connection.createStatement().use { it.execute(tables.ddl) }
             }
@@ -188,7 +190,7 @@ class PostgresFailureLedger(
         bindKey(service, subscription, ref, first)
 
     private suspend fun <T> jdbc(block: (Connection) -> T): T =
-        dispatcher.jdbc { dataSource.connection.use(block) }
+        dispatcher.jdbc { dataSource.autoCommitted(block) }
 
     private companion object {
         const val DEFAULT_TABLE = "wow_failure_ledger"
