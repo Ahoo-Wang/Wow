@@ -551,7 +551,7 @@ class ServiceNode @InternalWowApi constructor(
      */
     private val intakes: Map<ContextNode, CommandIntake> = contexts.values.filter { it.intake != null }.associateWith {
         val ledger = LedgerCommands(parked, options.ledger?.context ?: Ledger.OPS_CONTEXT) { ledgerPublisher }
-        CommandIntake(it.context, it.models, it.coordinator, topics!!, it.creations, ledger)
+        CommandIntake(it.context, it.models, it.coordinator, topics!!, it.creations, ledger, inFlight)
     }
 
     init {

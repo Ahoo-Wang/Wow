@@ -20,6 +20,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryTimerStore
+import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.timer.Timer
@@ -192,6 +193,24 @@ class TimerRunnerTest {
         status("remind").status.assert().isEqualTo(TimerStatus.CANCELLED)
         status("remind").outcome.assert().isEqualTo(TimerOutcomes.SKIPPED)
         ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")).assert().isNull()
+    }
+
+    @Test
+    fun `a busy target is backpressure, sent again without spending an attempt`(): Unit = runBlocking {
+        // Review R2.1-1: the node's in-flight bound never parks a timer.
+        answers["pay"] = CommandBusyException(order("o-1"), "pay", "The node already has 1 commands in flight.")
+        store.put(timer("pay"))
+        runner().startPartition(0)
+        repeat(5) { round ->
+            eventually { fired.size == round + 1 && status("pay").status == TimerStatus.PENDING }
+            status("pay").attempts.assert().isEqualTo(0)
+            status("pay").dueAt.assert().isEqualTo(clock.millis() + 1_000)
+            clock.advance(1.seconds)
+        }
+        ledger.parked(TimerOptions.PARKED_SUBSCRIPTION, order("o-1")).assert().isNull()
+        answers.remove("pay")
+        eventually { status("pay").status == TimerStatus.FIRED }
+        status("pay").attempts.assert().isEqualTo(1)
     }
 
     @Test

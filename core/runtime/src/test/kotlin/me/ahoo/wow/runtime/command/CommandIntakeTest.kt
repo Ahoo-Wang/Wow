@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.command
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -23,12 +24,14 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.memory.InMemoryTopics
+import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.eventually
@@ -70,6 +73,7 @@ class CommandIntakeTest {
         name: String = "stock-1",
         producer: TopicProducer = topics,
         backends: BackendFactory = stockBackends,
+        options: ServiceNodeOptions = fastNodeOptions(),
     ): ServiceNode = ServiceNode(
         STOCK_SERVICE,
         name,
@@ -78,7 +82,7 @@ class CommandIntakeTest {
         stockManifest(),
         backends,
         channel,
-        options = fastNodeOptions(),
+        options = options,
         contracts = ContractDirectory(stockManifest()),
         topics = SourceTopics(topics, PREFIX, producer, intake = true),
     ).also {
@@ -365,6 +369,59 @@ class CommandIntakeTest {
         node.context(STOCK).intake!!.skip(CommandIntake.NAME, ref).assert().isTrue()
         val later = reserve("c-later-garbled", 1, item = "i-garbled")
         eventually { later.id in stock.decided }
+    }
+
+    @Test
+    fun `a command the node refuses as busy should wait for room instead of parking its aggregate`(): Unit =
+        runBlocking {
+            // Review R2.1-1: the node's in-flight bound is backpressure for the intake, not a technical failure.
+            val node = stockNode(options = fastNodeOptions().copyWith(maxInFlight = 2)).also { it.start() }
+            val context = node.context(STOCK)
+            val items = listOf("i-h1", "i-h2")
+            val held = items.map { item -> CompletableDeferred<Unit>().also { stock.gates[item] = it } }
+            val callers = items.map { item ->
+                launch {
+                    context.coordinator.execute(
+                        stock.model,
+                        Command("h-$item", "h-$item", ITEM.ref(TENANT, item), Reserve(1), wait = WaitPlan.COMMITTED),
+                    )
+                }
+            }
+            val ledger = stockBackends.backends(STOCK).ledger
+            val busy = try {
+                eventually { context.executor.commandsInFlight == 2 }
+                reserve("c-busy", 1, item = "i-busy").also { busy ->
+                    // Far longer than the subscription's three attempts take.
+                    delay(300.milliseconds)
+                    ledger.isParked(CommandIntake.NAME, busy.ref).assert().isFalse()
+                    stock.decided.assert().doesNotContain(busy.id)
+                }
+            } finally {
+                // Never left holding the node's stop.
+                held.forEach { it.complete(Unit) }
+            }
+            callers.forEach { it.join() }
+            eventually { busy.id in stock.decided }
+            eventually { checkpoint(node, busy.ref) == 1L }
+            ledger.isParked(CommandIntake.NAME, busy.ref).assert().isFalse()
+        }
+
+    @Test
+    fun `the intakes of a node should execute at most half its in-flight bound at once`(): Unit = runBlocking {
+        // Review R2.1-1: a backlog over many partitions leaves room for callers, sagas and timers.
+        InFlightLimit().intakes.availablePermits.assert().isEqualTo(InFlightLimit.DEFAULT_MAX / 2)
+        InFlightLimit(1).intakes.availablePermits.assert().isEqualTo(1)
+        val node = stockNode(options = fastNodeOptions().copyWith(maxInFlight = 4)).also { it.start() }
+        val items = (1..4).map { "i-s$it" }
+        val gates = items.map { item -> CompletableDeferred<Unit>().also { stock.gates[item] = it } }
+        try {
+            items.forEach { reserve("c-$it", 1, item = it) }
+            delay(300.milliseconds)
+            node.context(STOCK).executor.commandsInFlight.assert().isEqualTo(2)
+        } finally {
+            gates.forEach { it.complete(Unit) }
+        }
+        eventually { stock.decided.containsAll(items.map { "c-$it" }) }
     }
 
     /** A checkpoint store that never saves: the node crashes before each save. */

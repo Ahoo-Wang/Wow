@@ -43,6 +43,7 @@ import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.ScheduleNotDueException
+import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.runtime.CommandWithdrawnException
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.ExecutorBusyException
@@ -735,3 +736,12 @@ data class Settlement(
     /** Whether [committed] is FAILED: a technical failure, such as contention, an unknown outcome or a busy lane. */
     val failed: Boolean get() = committed.status == CommandResult.Status.FAILED
 }
+
+/**
+ * The backpressure [command] met when this settlement says the node refused it as busy ([ResultCodes.BUSY], here or
+ * on its partition's owner): what the node's own sources throw instead of a technical failure (review R2.1-1).
+ */
+internal fun Settlement.busyOf(command: Command<*>): CommandBusyException? =
+    committed.error?.takeIf { failed && it.code == ResultCodes.BUSY }?.let {
+        CommandBusyException(command.ref, command.id, it.message)
+    }
