@@ -523,8 +523,9 @@ class WaitCoordinator(
      * execution a store failed with a transient failure ([StorageUnavailableException], such as the request id's
      * lookup during a restart): [ResultCodes.STORAGE_UNAVAILABLE], which a retry with the same request id may pass, as
      * the kernel deduplicates it. So is a scheduled command due longer from now than the kernel waits for one
-     * ([ScheduleNotDueException], decision D198): [ResultCodes.SCHEDULE_NOT_DUE], logged with the clock skew, which
-     * its firing runner sends again later. An append whose outcome is unknown is [ResultCodes.UNKNOWN], from the
+     * ([ScheduleNotDueException], decision D198): [ResultCodes.SCHEDULE_NOT_DUE], logged with the clock skew; a timer
+     * of this context sends it again later, and the intake of a command another context's timer sent waits for its
+     * due time before it runs it, then retries it as any technical failure (review R2.5-1). An append whose outcome is unknown is [ResultCodes.UNKNOWN], from the
      * kernel. Any other failure of its handling (a decide function or an after hook that throws, a missing
      * dependency), which the kernel compensated, is [ResultCodes.FAILED], logged with its cause and answered without
      * it: the owner of a forwarded command answers it so, not with an error the sender could not tell from a lost

@@ -22,6 +22,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.schedule.ScheduleContext
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.InFlightLimit
@@ -444,6 +445,23 @@ class CommandIntakeTest {
         }
         eventually { stock.decided.containsAll(items.map { "c-$it" }) }
     }
+
+    @Test
+    fun `a scheduled command early by the target's clock should wait for its due time, not park`(): Unit =
+        runBlocking {
+            // Review R2.5-1: nothing sends another context's timer command again once the broker took it.
+            val defaults = fastNodeOptions()
+            val timers = defaults.timers.copyWith(maxEarlyWait = 50.milliseconds)
+            val node = stockNode(options = defaults.copyWith(timers = timers)).also { it.start() }
+            val due = System.currentTimeMillis() + 1_000
+            val slot = ScheduleContext("timer-1", "release", 1, due)
+            val scheduled = Command("t-1", "timer-1#1", ITEM.ref(TENANT, "i-t"), Reserve(1), headers = slot.headers())
+            sender.send(scheduled)
+            eventually { scheduled.id in stock.decided }
+            System.currentTimeMillis().assert().isGreaterThanOrEqualTo(due)
+            stockBackends.backends(STOCK).ledger.isParked(CommandIntake.NAME, scheduled.ref).assert().isFalse()
+            eventually { checkpoint(node, scheduled.ref) == 1L }
+        }
 
     /** A checkpoint store that never saves: the node crashes before each save. */
     private object DroppedCheckpoints : CheckpointStore {
