@@ -391,6 +391,40 @@ class CommandMessagesTest {
     }
 
     @Test
+    fun `a commit after a rejection of the same command should reach the handler, a copy of either not`(): Unit =
+        runBlocking {
+            // Review R2.1-7: a rejection is not in the log (D47), so a command sent again may commit after it.
+            val handled = CopyOnWriteArrayList<String>()
+            val receipts = Receipts(
+                SALES,
+                ContractDirectory(salesManifest(), listOf(peer(stockManifest()))),
+                receiptHandler(
+                    rejected = { rejected, _ ->
+                        handled += "rejected:${rejected.commandId}"
+                        listOf("compensated")
+                    },
+                    committed = { committed, _ ->
+                        handled += "committed:${committed.commandId}"
+                        listOf("went on")
+                    },
+                ),
+            )
+            val rejected = CommandRejected<Any>(
+                "c-1",
+                "stock.item.Reserve",
+                ref,
+                ErrorInfo(INSUFFICIENT, "none"),
+                Causation("root", "o-1@3"),
+                execution,
+            )
+            receipts.handle(rejected)
+            receipts.handle(committed("c-1"))
+            receipts.handle(rejected)
+            receipts.handle(committed("c-1", duplicate = true))
+            handled.assert().containsExactly("rejected:c-1", "committed:c-1")
+        }
+
+    @Test
     fun `combined factories should ask each for the handler of a receipt in turn`(): Unit = runBlocking {
         val first = object : SubscriptionFactory {
             override fun subscriptions(
