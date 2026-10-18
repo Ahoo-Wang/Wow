@@ -352,6 +352,32 @@ class CommandMessagesTest {
     }
 
     @Test
+    fun `a resume should not resolve an aggregate whose parked message moved to another partition`(): Unit =
+        runBlocking {
+            // Review R2.1-4: a topic that gained partitions maps the key elsewhere; the re-scan finds nothing there.
+            val entries = MessageEntries.commands(COMMANDS, topics, PARTITIONS)
+            val partition = Partitioner.partitionOf(ref, PARTITIONS)
+            val before = (partition + 1) % PARTITIONS
+            val other = generateSequence(0) { it + 1 }.map { ITEM.ref(TENANT, "i-$it") }
+                .first { Partitioner.partitionOf(it, PARTITIONS) == partition && it != ref }
+            val wire = { id: String, of: me.ahoo.wow.api.aggregate.AggregateRef ->
+                ClusterCodec.wire("stock.item.Reserve", Command(id, id, of, Reserve(1)))
+            }
+            // Parked at offset 0 of the partition its key mapped to before.
+            topics.send(COMMANDS, CommandMessages.command(wire("parked", ref), before))
+            // Nothing at that offset in the partition it maps to now.
+            assertThrows<UnrecoverableException> { runBlocking { entries.resume(ref, 1, 0).toList() } }
+                .message.assert().contains("partitions changed")
+            // Another aggregate's message at that offset there.
+            topics.send(COMMANDS, CommandMessages.command(wire("other", other), partition))
+            assertThrows<UnrecoverableException> { runBlocking { entries.resume(ref, 1, 0).toList() } }
+                .message.assert().contains("partitions changed")
+            // Where the message is, the re-scan goes on.
+            topics.send(COMMANDS, CommandMessages.command(wire("own", ref), partition))
+            entries.resume(ref, 1, 1).toList().map { (it.message as CommandWire).id }.assert().containsExactly("own")
+        }
+
+    @Test
     fun `a receipt should reach the handler once per command id with the command's class`(): Unit = runBlocking {
         val handled = CopyOnWriteArrayList<Pair<String, Class<*>>>()
         var answer: List<String>? = listOf("compensated")

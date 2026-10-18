@@ -27,6 +27,7 @@ import me.ahoo.wow.runtime.subscription.SourcedEntry
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.UndecodableMessage
 import me.ahoo.wow.runtime.subscription.UnrecoverableException
+import me.ahoo.wow.runtime.subscription.parkedAt
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -112,6 +113,7 @@ internal class MessageEntries private constructor(
         }
         val key = ref.toString()
         return source.read(topic, partition, fromPosition, offsets.end)
+            .parkedAt(topic, partition, key, fromPosition, offsets.end)
             .filter { it.key == key }
             .mapNotNull { entryOf(partition, it) }
             .filter { it.stream.ref == ref }
