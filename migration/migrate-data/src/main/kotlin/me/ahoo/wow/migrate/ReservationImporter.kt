@@ -73,11 +73,13 @@ data class ReservationProgress(
     val expired: Long,
     val unresolved: Long,
     val done: Boolean,
+    val released: Long = 0,
 ) {
     fun render(): String =
         "PrepareKey $name reservations${if (done) " done" else ""}: ${imported + already + pending + expired + unresolved} " +
             "keys, $imported imported, $already already there, $pending pending and $expired expired skipped, " +
-            "$unresolved without an owner"
+            "$unresolved without an owner" +
+            if (released > 0) "; $released imported keys released, 9.x no longer confirming them to that owner" else ""
 }
 
 /**
@@ -92,6 +94,12 @@ data class ReservationProgress(
  *   ([ReservationPlan.ownerOf]); a key whose owner is not found is reported and not imported.
  * - **Idempotent.** A key V10 already holds confirmed for the same owner is skipped; one another owner holds stops the
  *   import with a [MigrationException] naming both owners.
+ * - **Convergent** (finding R2.4-2). 9.x keeps serving while the migration runs: a key it released (`rollback`) or
+ *   gave to another owner (`reprepare`) after an import confirmed it must not stay held in V10. The import records
+ *   each key it confirms ([ImportedKeys]) before confirming it; a walk that starts from the first key (the first one,
+ *   or the final `--restart`) first releases every recorded key V10 still holds for the recorded owner that 9.x no
+ *   longer confirms to that owner, then confirms the keys 9.x holds now, so a key that moved is confirmed for its new
+ *   owner. A key V10 holds without such a record, which V10 took itself, is never released.
  * - **Checkpointed.** Keys are walked in key order, a page of [ImportOptions.pageSize] at a time,
  *   [ImportOptions.concurrency] at a time, and the checkpoint ([ReservationCheckpoint]) moves after each page;
  *   [ImportOptions.restart] walks every key again. A dry run reads and resolves every key and writes nothing.
@@ -107,6 +115,7 @@ class ReservationImporter(
     private val progress: (ReservationProgress) -> Unit = {},
     private val report: (String) -> Unit = {},
     private val clock: () -> Long = System::currentTimeMillis,
+    private val imported: ImportedKeys = InMemoryImportedKeys(),
 ) {
     /** Imports the keys of the 9.x `PrepareKey` [name] not yet imported, and marks its import complete. */
     suspend fun importAll(name: String): ReservationProgress {
@@ -120,16 +129,27 @@ class ReservationImporter(
             )
         }
         var checkpoint = checkpoints.load().reservationsOf(name)?.takeUnless { options.restart } ?: ReservationCheckpoint()
+        if (!options.dryRun && checkpoint.after == null && !checkpoint.completed) {
+            // Saved first: a run stopped while it converges walks from the first key again, and so confirms the keys
+            // that moved to another owner after it released them.
+            checkpoints.save(checkpoints.load().with(name, checkpoint))
+            checkpoint = checkpoint.copy(released = converge(name, reservationPlan))
+        }
         val permits = Semaphore(options.concurrency)
         while (!checkpoint.completed) {
             val page = withContext(Dispatchers.IO) { reservations.keys(name, checkpoint.after, options.pageSize) }
             checkpoint = if (page.isEmpty()) {
                 checkpoint.copy(completed = true)
             } else {
-                val outcomes = coroutineScope {
-                    page.map { key -> async { permits.withPermit { import(reservationPlan, key) } } }.awaitAll()
+                val resolved = coroutineScope {
+                    page.map { key -> async { permits.withPermit { resolve(reservationPlan, key) } } }.awaitAll()
                 }
-                checkpoint.counted(page.last().key, outcomes)
+                val confirming = resolved.filterIsInstance<KeyStep.Confirm>()
+                imported.add(confirming.map { ImportedKey.of(name, it.key.key, it.owner.scope, it.owner.owner) })
+                coroutineScope {
+                    confirming.map { step -> async { permits.withPermit { confirm(step) } } }.awaitAll()
+                }
+                checkpoint.counted(page.last().key, resolved.map { (it as? KeyStep.Done)?.outcome ?: KeyOutcome.IMPORTED })
             }
             checkpoints.save(checkpoints.load().with(name, checkpoint))
             if (!checkpoint.completed) {
@@ -139,35 +159,64 @@ class ReservationImporter(
         return checkpoint.progress(name).also(progress)
     }
 
-    private suspend fun import(reservationPlan: ReservationPlan, key: NineXPreparedKey): KeyOutcome {
+    /**
+     * Releases each key the import confirmed that V10 still holds for the recorded owner and 9.x no longer confirms
+     * to that owner, and forgets the recorded keys V10 no longer holds for theirs; returns how many it released.
+     */
+    private suspend fun converge(name: String, reservationPlan: ReservationPlan): Long {
+        val reservations = store()
+        var released = 0L
+        imported.retain(name) { record ->
+            when (reservationPlan.standing(record, reservations, this.reservations, source)) {
+                Standing.GONE -> false
+                Standing.CURRENT -> true
+                Standing.STALE -> {
+                    reservations.release(record.scope(), record.key, record.owner())
+                    report(
+                        "RELEASED PrepareKey $name/${record.key} of ${record.owner()}: 9.x no longer confirms it to them"
+                    )
+                    released++
+                    false
+                }
+            }
+        }
+        return released
+    }
+
+    /** What to do with [key]: count it, or confirm it for its owner. */
+    private suspend fun resolve(reservationPlan: ReservationPlan, key: NineXPreparedKey): KeyStep {
         if (key.expired(clock())) {
-            return KeyOutcome.EXPIRED
+            return KeyStep.Done(KeyOutcome.EXPIRED)
         }
         if (!key.confirmed) {
-            return KeyOutcome.PENDING
+            return KeyStep.Done(KeyOutcome.PENDING)
         }
         val owner = withContext(Dispatchers.IO) { reservationPlan.ownerOf(key, source) }
         if (owner is KeyOwner.Unresolved) {
             report("UNRESOLVED PrepareKey $key: ${owner.reason}; the key is not imported")
-            return KeyOutcome.UNRESOLVED
+            return KeyStep.Done(KeyOutcome.UNRESOLVED)
         }
         owner as KeyOwner.Found
         if (options.dryRun) {
-            return KeyOutcome.IMPORTED
+            return KeyStep.Done(KeyOutcome.IMPORTED)
         }
-        val reservations = store()
-        val held = reservations.find(owner.scope, key.key)
+        val held = store().find(owner.scope, key.key)
         if (held != null && held.confirmed && held.owner == owner.owner) {
-            return KeyOutcome.ALREADY
+            return KeyStep.Done(KeyOutcome.ALREADY)
         }
-        val outcome = reservations.confirm(owner.scope, key.key, owner.owner)
+        return KeyStep.Confirm(key, owner)
+    }
+
+    private suspend fun confirm(step: KeyStep.Confirm) {
+        val (key, owner) = step
+        val outcome = store().confirm(owner.scope, key.key, owner.owner)
         if (outcome is ConfirmOutcome.Taken) {
             throw MigrationException(
                 "The 9.x PrepareKey $key of ${owner.owner} is held in V10 by ${outcome.by.owner} " +
-                    "(${owner.scope}): release one of them, or map the PrepareKey to another namespace or tenancy.",
+                    "(${owner.scope}), which this import did not confirm: release one of them, or map the PrepareKey " +
+                    "to another namespace or tenancy.",
             )
         }
-        return KeyOutcome.IMPORTED
     }
 
     private fun ReservationCheckpoint.counted(after: String, outcomes: List<KeyOutcome>): ReservationCheckpoint {
@@ -183,21 +232,67 @@ class ReservationImporter(
     }
 
     private fun ReservationCheckpoint.progress(name: String) =
-        ReservationProgress(name, imported, already, pending, expired, unresolved, completed)
+        ReservationProgress(name, imported, already, pending, expired, unresolved, completed, released)
 
     private enum class KeyOutcome { IMPORTED, ALREADY, PENDING, EXPIRED, UNRESOLVED }
+
+    private sealed interface KeyStep {
+        data class Done(val outcome: KeyOutcome) : KeyStep
+
+        data class Confirm(val key: NineXPreparedKey, val owner: KeyOwner.Found) : KeyStep
+    }
+}
+
+/** Where a key the import confirmed ([ImportedKey]) stands now. */
+internal enum class Standing {
+    /** V10 no longer holds it confirmed for the recorded owner: released, or never confirmed by a stopped run. */
+    GONE,
+
+    /** V10 holds it for the recorded owner, and 9.x still confirms it to that owner in that scope. */
+    CURRENT,
+
+    /** V10 holds it for the recorded owner, which 9.x no longer confirms it to: released or moved in 9.x. */
+    STALE,
+}
+
+/** Where [record] stands in the V10 [store] and the 9.x [keys] ([Standing]). */
+internal suspend fun ReservationPlan.standing(
+    record: ImportedKey,
+    store: ReservationStore,
+    keys: NineXReservationSource,
+    source: NineXEventSource,
+): Standing {
+    val held = store.find(record.scope(), record.key)
+    if (held == null || !held.confirmed || held.owner != record.owner()) {
+        return Standing.GONE
+    }
+    val current = withContext(Dispatchers.IO) { keys.key(record.name, record.key) }
+    if (current == null || !current.confirmed) {
+        return Standing.STALE
+    }
+    val owner = withContext(Dispatchers.IO) { ownerOf(current, source) }
+    return if (owner == KeyOwner.Found(record.owner(), record.scope())) Standing.CURRENT else Standing.STALE
 }
 
 /**
- * The reservation comparison of `compare` (finding A4-8): every confirmed 9.x key has a confirmed V10 reservation of
- * the same owner. Counts the keys [compared], those that [differ] (missing, pending or another owner's in V10) and
- * those [unresolved] (no single owner, so not imported).
+ * The reservation comparison of `compare`, both ways (findings A4-8, R2.4-2): every confirmed 9.x key has a confirmed
+ * V10 reservation of the same owner, and every key the import confirmed that V10 still holds for that owner is still
+ * confirmed to it in 9.x. Counts the keys [compared], those that [differ] (missing, pending or another owner's in
+ * V10), those [unresolved] (no single owner, so not imported), and the imported keys that are [stale] (released or
+ * moved in 9.x).
  */
-data class ReservationComparisonResult(val name: String, val compared: Long, val differ: Long, val unresolved: Long) {
-    val passed: Boolean get() = differ == 0L
+data class ReservationComparisonResult(
+    val name: String,
+    val compared: Long,
+    val differ: Long,
+    val unresolved: Long,
+    val stale: Long = 0,
+) {
+    val passed: Boolean get() = differ == 0L && stale == 0L
 
     fun render(): String =
-        "PrepareKey $name compared: $compared confirmed keys, $differ differ, $unresolved without an owner"
+        "PrepareKey $name compared: $compared confirmed keys, $differ differ, $unresolved without an owner; " +
+            "$stale imported keys no longer confirmed to their owner in 9.x"
 }
 
 /** Compares the 9.x `PrepareKey`s with the V10 reservations, every key on every run. */
@@ -207,6 +302,7 @@ class ReservationComparison(
     private val plan: MigrationPlan,
     private val store: () -> ReservationStore,
     private val pageSize: Int,
+    private val imported: ImportedKeys = InMemoryImportedKeys(),
     private val report: (String) -> Unit = {},
 ) {
     suspend fun compare(name: String): ReservationComparisonResult {
@@ -219,7 +315,17 @@ class ReservationComparison(
             page.filter { it.confirmed }.forEach { key -> result = compare(reservationPlan, key, result) }
             after = page.lastOrNull()?.key
         } while (page.isNotEmpty())
-        return result.also { report(it.render()) }
+        var stale = 0L
+        val reservations = store()
+        imported.forEach(name) { record ->
+            if (reservationPlan.standing(record, reservations, this.reservations, source) == Standing.STALE) {
+                report(
+                    "DIFFERS PrepareKey $name/${record.key}: V10 ${record.owner()}, which 9.x no longer confirms it to"
+                )
+                stale++
+            }
+        }
+        return result.copy(stale = stale).also { report(it.render()) }
     }
 
     private suspend fun compare(

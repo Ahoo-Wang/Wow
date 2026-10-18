@@ -14,6 +14,8 @@
 package me.ahoo.wow.migrate
 
 import com.mongodb.client.MongoDatabase
+import com.mongodb.client.model.Filters
+import com.mongodb.client.model.Updates
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.migrate.example.NineXExample
@@ -139,6 +141,26 @@ class NineXReservationImportTest {
         store.release(scope(TENANT_B), "NO-2", ownerB).assert().isTrue()
         run("compare", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.DIFFERS)
         output.toString().assert().contains("DIFFERS PrepareKey order_no/NO-2: 9.x $ownerB, V10 (none)")
+
+        // During the window 9.x rolls NO-1 back and reprepares C-1 for order-b (finding R2.4-2): compare finds V10
+        // still holding them for the owners the import gave them, and the final restart releases NO-1 and moves C-1
+        // instead of stopping on it.
+        nineX.getCollection("prepare_order_no").deleteOne(Filters.eq("_id", "NO-1"))
+        nineX.getCollection("prepare_order_code").updateOne(Filters.eq("_id", "C-1"), Updates.set("value", "order-b"))
+        run("compare", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.DIFFERS)
+        output.toString().assert()
+            .contains("DIFFERS PrepareKey order_no/NO-1: V10 $owner, which 9.x no longer confirms it to")
+            .contains("DIFFERS PrepareKey order_code/C-1: V10 $owner, which 9.x no longer confirms it to")
+        run("import", "--config", config.toString(), "--restart").assert().describedAs(output.toString())
+            .isEqualTo(MigrateData.OK)
+        output.toString().assert()
+            .contains("RELEASED PrepareKey order_no/NO-1 of $owner")
+            .contains("RELEASED PrepareKey order_code/C-1 of $owner")
+        store.find(scope(first.aggregateId.tenantId), "NO-1").assert().isNull()
+        store.find(scope(TENANT_B), "NO-2")!!.owner.assert().isEqualTo(ownerB)
+        store.find(scope(ReservationScope.SYSTEM_TENANT, "order.code"), "C-1")!!.owner.assert().isEqualTo(ownerB)
+        run("compare", "--config", config.toString(), "--restart").assert().describedAs(output.toString())
+            .isEqualTo(MigrateData.OK)
     }
 
     private companion object {

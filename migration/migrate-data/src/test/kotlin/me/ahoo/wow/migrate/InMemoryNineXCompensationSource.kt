@@ -24,6 +24,12 @@ class InMemoryNineXCompensationSource(executions: Collection<NineXExecutionFaile
         executions += execution
     }
 
+    /** Replaces the execution of [execution]'s id, as 9.x does when it retries or skips one. */
+    fun update(execution: NineXExecutionFailed) {
+        executions.removeIf { it.id == execution.id }
+        executions += execution
+    }
+
     override fun inventory(): NineXCompensationInventory = NineXCompensationInventory(
         executions.filter { it.unresolved }
             .groupingBy { it.function to it.aggregate }
@@ -34,4 +40,6 @@ class InMemoryNineXCompensationSource(executions: Collection<NineXExecutionFaile
 
     override fun unresolved(after: String?, limit: Int): List<NineXExecutionFailed> =
         executions.filter { it.unresolved && (after == null || it.id > after) }.sortedBy { it.id }.take(limit)
+
+    override fun execution(id: String): NineXExecutionFailed? = executions.lastOrNull { it.id == id }
 }
