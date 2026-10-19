@@ -16,6 +16,7 @@ package me.ahoo.wow.clickhouse.sink
 import com.clickhouse.client.api.Client
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.Manifest
 
 /**
@@ -38,14 +39,28 @@ class ClickHouseSinks internal constructor(
         this(ClientStatements(client), manifest, options)
 
     /** The Sink of [aggregate] of [context]. */
-    fun sinkOf(context: String, aggregate: String): ClickHouseSink =
-        ClickHouseSink(schemaOf(AggregateType(context, aggregate)), statements, options.ddl, options.batchSize)
+    fun sinkOf(context: String, aggregate: String): ClickHouseSink {
+        val type = AggregateType(context, aggregate)
+        val schema = schemaOf(type)
+        return ClickHouseSink(schema, statements, options.ddl, options.batchSize, catalogOf(schema))
+    }
+
+    /** The `wow_catalog` entries of [type]'s tables (decision D241 ②). */
+    fun catalogOf(type: AggregateType): List<CatalogEntry> = catalogOf(schemaOf(type))
+
+    private fun catalogOf(schema: ClickHouseSinkSchema): List<CatalogEntry> =
+        CatalogEntries.of(manifest, aggregateOf(schema.type), schema)
+
+    private fun aggregateOf(type: AggregateType): AggregateManifest {
+        val aggregate = manifest.contexts.firstOrNull { it.name == type.context }
+            ?.aggregates?.firstOrNull { it.name == type.name }
+        return requireNotNull(aggregate) { "The Manifest declares no aggregate $type." }
+    }
 
     /** The tables and views of [type]. */
     fun schemaOf(type: AggregateType): ClickHouseSinkSchema {
-        val aggregate = manifest.contexts.firstOrNull { it.name == type.context }
-            ?.aggregates?.firstOrNull { it.name == type.name }
-        requireNotNull(aggregate) { "The Manifest declares no aggregate $type." }
+        val aggregate = aggregateOf(type)
+
         @Suppress("UNCHECKED_CAST")
         val schema = manifest.defs[Manifest.schemaKey(aggregate.state.schema)] as? Map<String, Any?>
         return ClickHouseSinkSchema(

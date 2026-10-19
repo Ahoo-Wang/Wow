@@ -38,6 +38,9 @@ internal interface ClickHouseStatements {
 
     /** The columns of [database]'s table or view [name], in order; empty when there is none. */
     suspend fun columns(database: String, name: String): List<ClickHouseColumn>
+
+    /** The `system.tables.uuid` of [database]'s table or view [name]; null when there is none the account sees. */
+    suspend fun uuid(database: String, name: String): String?
 }
 
 /**
@@ -71,6 +74,13 @@ internal class ClientStatements(private val client: Client) : ClickHouseStatemen
                 "ORDER BY position",
             mapOf<String, Any>("database" to database, "name" to name),
         ).map { ClickHouseColumn(it.getString("name"), it.getString("type")) }
+    }
+
+    override suspend fun uuid(database: String, name: String): String? = withContext(Dispatchers.IO) {
+        client.queryAll(
+            "SELECT toString(uuid) AS uuid FROM system.tables WHERE database = {database:String} AND name = {name:String}",
+            mapOf<String, Any>("database" to database, "name" to name),
+        ).firstOrNull()?.getString("uuid")
     }
 
     companion object {

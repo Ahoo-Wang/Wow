@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.clickhouse.sink
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
@@ -40,6 +41,10 @@ import java.util.concurrent.ConcurrentLinkedQueue
  *   read with `FINAL` never sees it twice.
  * - **DDL**: before its first write, the Sink creates or validates its tables as [ddl] says; a failure fails the write,
  *   which the subscription retries.
+ * - **Catalog** (decision D241 ②): once its tables are created or validated (at once with `ddl=none`), the Sink
+ *   appends the [catalog] entries of its tables to the database's `wow_catalog` ([ClickHouseCatalog]), each with the
+ *   table's current uuid; `auto` creates `wow_catalog` when it is missing. A table whose uuid the account cannot read
+ *   gets no row, and a failed write is logged and never fails the Sink's write.
  */
 @InternalWowApi
 class ClickHouseSink internal constructor(
@@ -47,11 +52,12 @@ class ClickHouseSink internal constructor(
     private val statements: ClickHouseStatements,
     private val ddl: DdlMode = DdlMode.AUTO,
     private val batchSize: Int = ClickHouseSinkOptions.DEFAULT_BATCH_SIZE,
+    private val catalog: List<CatalogEntry> = emptyList(),
 ) : Sink {
     private val preparation = Mutex()
 
     @Volatile
-    private var prepared = ddl == DdlMode.NONE
+    private var prepared = false
 
     init {
         require(batchSize >= 1) { "A batch holds at least one record." }
@@ -126,10 +132,43 @@ class ClickHouseSink internal constructor(
                 return
             }
             if (ddl == DdlMode.AUTO) {
+                statements.execute(ClickHouseCatalog.ddl(schema.database))
                 schema.ddl.forEach { statements.execute(it) }
             }
-            validate()
+            if (ddl != DdlMode.NONE) {
+                validate()
+            }
+            describe()
             prepared = true
+        }
+    }
+
+    /** Appends the [catalog] entries of the tables, with their uuids; a failure is only logged (decision D241 ②). */
+    private suspend fun describe() {
+        if (catalog.isEmpty()) {
+            return
+        }
+        try {
+            val rows = catalog.mapNotNull { entry ->
+                val uuid = statements.uuid(schema.database, entry.table)
+                if (uuid == null) {
+                    logger.warn { "No uuid of ${schema.database}.${entry.table} is readable: wow_catalog gets no row of it." }
+                }
+                uuid?.let { ClickHouseCatalog.rowOf(schema.database, entry, it) }
+            }
+            if (rows.isNotEmpty()) {
+                val text = rows.joinToString(separator = "\n", postfix = "\n")
+                statements.insert(
+                    schema.qualified(ClickHouseCatalog.TABLE),
+                    text.toByteArray(Charsets.UTF_8),
+                    "catalog:" + ClickHouseCatalog.sha256(text),
+                )
+            }
+        } catch (
+            @Suppress("TooGenericExceptionCaught") // The catalog never fails the Sink's writes (decision D241 ②).
+            failure: Exception,
+        ) {
+            logger.warn(failure) { "The wow_catalog rows of ${schema.type} in ${schema.database} were not written." }
         }
     }
 
@@ -157,6 +196,8 @@ class ClickHouseSink internal constructor(
 
     @InternalWowApi
     companion object {
+        private val logger = KotlinLogging.logger {}
+
         /** The deduplication token of [batch]: its record's `ref@version`, or a digest of its records' ids. */
         fun tokenOf(batch: List<StateEventRecord>): String {
             batch.singleOrNull()?.let { return it.id }

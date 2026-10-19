@@ -16,9 +16,12 @@ package me.ahoo.wow.clickhouse.sink
 import me.ahoo.wow.api.annotation.InternalWowApi
 import java.util.Currency
 
-/** A column of a view: its [name], its ClickHouse [type] as `system.columns` reads it, and the [expression] it is. */
+/**
+ * A column of a view: its [name], its ClickHouse [type] as `system.columns` reads it, the [expression] it is, and the
+ * state's [property] it is read from.
+ */
 @InternalWowApi
-data class FlatColumn(val name: String, val type: String, val expression: String)
+data class FlatColumn(val name: String, val type: String, val expression: String, val property: String = name)
 
 /**
  * The typed columns of `<ctx>_<agg>_state_flat` (decision D142): one per top-level scalar property of the state
@@ -67,7 +70,7 @@ internal object FlatColumns {
             "boolean" -> extracted(key, "Bool", nullable)
             else -> return null
         }
-        return FlatColumn(if (name in reserved) "state_$name" else name, nullableOf(base, nullable), expression)
+        return FlatColumn(if (name in reserved) "state_$name" else name, nullableOf(base, nullable), expression, name)
     }
 
     private fun typesOf(type: Any?): List<String>? = when (type) {
