@@ -27,6 +27,7 @@ import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.caller.CallPermits
+import me.ahoo.wow.http.handingOver
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
@@ -67,7 +68,7 @@ internal data class CommandTarget(val context: String, val aggregate: String, va
  *   which is also the result answered without the event stream.
  *
  * The SSE results are collected in [scope], apart from the request, and handed over as the response is written; a
- * client that goes away cancels the collection.
+ * client that goes away, or a response that is never written, cancels the collection.
  */
 internal class CommandHandler(
     private val gateway: CommandGateway,
@@ -147,7 +148,7 @@ internal class CommandHandler(
                 .event(result.hop.stage.name.lowercase())
                 .build()
         }
-        return ServerResponse.ok().contentType(MediaType.TEXT_EVENT_STREAM).bodyAndAwait(events)
+        return results.handingOver { ServerResponse.ok().contentType(MediaType.TEXT_EVENT_STREAM).bodyAndAwait(events) }
     }
 
     companion object {

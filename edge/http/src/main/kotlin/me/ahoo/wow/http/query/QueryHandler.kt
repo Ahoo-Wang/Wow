@@ -37,6 +37,7 @@ import me.ahoo.wow.http.WowPaths
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.command.Negotiation
 import me.ahoo.wow.http.command.RequestHeaders
+import me.ahoo.wow.http.handingOver
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
@@ -331,7 +332,9 @@ internal class QueryHandler(
                 ).event(ERROR).build()
             )
         }
-        return ServerResponse.ok().rebuilding(rebuilding).contentType(MediaType.TEXT_EVENT_STREAM).bodyAndAwait(events)
+        return rows.handingOver {
+            ServerResponse.ok().rebuilding(rebuilding).contentType(MediaType.TEXT_EVENT_STREAM).bodyAndAwait(events)
+        }
     }
 
     private fun row(record: ObjectNode, index: Long): ServerSentEvent<String> =
