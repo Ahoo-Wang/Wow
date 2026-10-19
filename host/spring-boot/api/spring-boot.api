@@ -223,6 +223,7 @@ public final class me/ahoo/wow/spring/boot/QueryProperties {
 	public final fun getHttp ()Lme/ahoo/wow/spring/boot/QueryProperties$Http;
 	public final fun getInProcessTimeout ()Ljava/time/Duration;
 	public final fun getIndex ()Lme/ahoo/wow/spring/boot/QueryProperties$Index;
+	public final fun getMaxConcurrent ()Ljava/lang/Integer;
 	public final fun getMemory ()Lme/ahoo/wow/spring/boot/QueryProperties$Memory;
 	public final fun getRequireAuthenticatedScope ()Z
 	public final fun getRequireExplicitEntry ()Z
@@ -235,6 +236,7 @@ public final class me/ahoo/wow/spring/boot/QueryProperties {
 	public final fun setHttp (Lme/ahoo/wow/spring/boot/QueryProperties$Http;)V
 	public final fun setInProcessTimeout (Ljava/time/Duration;)V
 	public final fun setIndex (Lme/ahoo/wow/spring/boot/QueryProperties$Index;)V
+	public final fun setMaxConcurrent (Ljava/lang/Integer;)V
 	public final fun setMemory (Lme/ahoo/wow/spring/boot/QueryProperties$Memory;)V
 	public final fun setRequireAuthenticatedScope (Z)V
 	public final fun setRequireExplicitEntry (Z)V
@@ -277,7 +279,9 @@ public final class me/ahoo/wow/spring/boot/QueryProperties$Dataset {
 public final class me/ahoo/wow/spring/boot/QueryProperties$Events {
 	public fun <init> ()V
 	public final fun getMongoReadPreference ()Ljava/lang/String;
+	public final fun getUnpinned ()Lme/ahoo/wow/query/events/UnpinnedEvents;
 	public final fun setMongoReadPreference (Ljava/lang/String;)V
+	public final fun setUnpinned (Lme/ahoo/wow/query/events/UnpinnedEvents;)V
 }
 
 public final class me/ahoo/wow/spring/boot/QueryProperties$Http {
@@ -453,12 +457,14 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Aggregate {
 	public final fun getClickhouse ()Lme/ahoo/wow/spring/boot/WowProperties$AggregateClickHouse;
 	public final fun getIdGenerator ()Ljava/lang/String;
 	public final fun getLog ()Lme/ahoo/wow/spring/boot/WowProperties$AggregateStore;
+	public final fun getQuery ()Lme/ahoo/wow/spring/boot/WowProperties$AggregateQuery;
 	public final fun getRouting ()Lme/ahoo/wow/spring/boot/WowProperties$AggregateRouting;
 	public final fun getSnapshot ()Lme/ahoo/wow/spring/boot/WowProperties$AggregateSnapshot;
 	public final fun getTenant ()Ljava/lang/String;
 	public final fun setClickhouse (Lme/ahoo/wow/spring/boot/WowProperties$AggregateClickHouse;)V
 	public final fun setIdGenerator (Ljava/lang/String;)V
 	public final fun setLog (Lme/ahoo/wow/spring/boot/WowProperties$AggregateStore;)V
+	public final fun setQuery (Lme/ahoo/wow/spring/boot/WowProperties$AggregateQuery;)V
 	public final fun setRouting (Lme/ahoo/wow/spring/boot/WowProperties$AggregateRouting;)V
 	public final fun setSnapshot (Lme/ahoo/wow/spring/boot/WowProperties$AggregateSnapshot;)V
 	public final fun setTenant (Ljava/lang/String;)V
@@ -476,6 +482,12 @@ public final class me/ahoo/wow/spring/boot/WowProperties$AggregateHistory {
 	public final fun getTtl ()Ljava/time/Duration;
 	public final fun setEnabled (Ljava/lang/Boolean;)V
 	public final fun setTtl (Ljava/time/Duration;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$AggregateQuery {
+	public fun <init> ()V
+	public final fun getEvents ()Lme/ahoo/wow/spring/boot/WowProperties$QueryEvents;
+	public final fun setEvents (Lme/ahoo/wow/spring/boot/WowProperties$QueryEvents;)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$AggregateRouting : java/lang/Enum {
@@ -749,6 +761,12 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Publish {
 	public final fun setInterval (Ljava/time/Duration;)V
 }
 
+public final class me/ahoo/wow/spring/boot/WowProperties$QueryEvents {
+	public fun <init> ()V
+	public final fun getUnpinned ()Lme/ahoo/wow/query/events/UnpinnedEvents;
+	public final fun setUnpinned (Lme/ahoo/wow/query/events/UnpinnedEvents;)V
+}
+
 public final class me/ahoo/wow/spring/boot/WowProperties$Retry {
 	public static final field Companion Lme/ahoo/wow/spring/boot/WowProperties$Retry$Companion;
 	public fun <init> ()V
@@ -838,13 +856,27 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Store {
 	public final fun getDatabase ()Ljava/lang/String;
 	public final fun getDdl ()Lme/ahoo/wow/spi/StoreDdl;
 	public final fun getOptions ()Ljava/util/Map;
+	public final fun getQuery ()Lme/ahoo/wow/spring/boot/WowProperties$StoreQuery;
+	public final fun getQueryDataSource ()Ljava/lang/String;
 	public final fun getType ()Ljava/lang/String;
 	public final fun setClient (Ljava/lang/String;)V
 	public final fun setDataSource (Ljava/lang/String;)V
 	public final fun setDatabase (Ljava/lang/String;)V
 	public final fun setDdl (Lme/ahoo/wow/spi/StoreDdl;)V
 	public final fun setOptions (Ljava/util/Map;)V
+	public final fun setQuery (Lme/ahoo/wow/spring/boot/WowProperties$StoreQuery;)V
+	public final fun setQueryDataSource (Ljava/lang/String;)V
 	public final fun setType (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$StoreQuery {
+	public fun <init> ()V
+	public final fun getEvents ()Lme/ahoo/wow/spring/boot/WowProperties$QueryEvents;
+	public final fun getMaxConcurrent ()Ljava/lang/Integer;
+	public final fun getReadPreference ()Ljava/lang/String;
+	public final fun setEvents (Lme/ahoo/wow/spring/boot/WowProperties$QueryEvents;)V
+	public final fun setMaxConcurrent (Ljava/lang/Integer;)V
+	public final fun setReadPreference (Ljava/lang/String;)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Subscription {
@@ -921,10 +953,12 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Wait {
 	public fun <init> ()V
 	public final fun getDefaultTimeout ()Ljava/time/Duration;
 	public final fun getMaxHops ()I
+	public final fun getMaxRegistered ()I
 	public final fun getMaxTimeout ()Ljava/time/Duration;
 	public final fun getUnknownContexts ()Lme/ahoo/wow/runtime/wait/UnknownContexts;
 	public final fun setDefaultTimeout (Ljava/time/Duration;)V
 	public final fun setMaxHops (I)V
+	public final fun setMaxRegistered (I)V
 	public final fun setMaxTimeout (Ljava/time/Duration;)V
 	public final fun setUnknownContexts (Lme/ahoo/wow/runtime/wait/UnknownContexts;)V
 }

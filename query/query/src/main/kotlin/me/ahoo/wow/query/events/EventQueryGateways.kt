@@ -55,8 +55,10 @@ import tools.jackson.databind.node.ObjectNode
  *
  * Free filtering reads the write store: the PostgreSQL and MongoDB logs index only `(aggregateId, tenantId, version)`,
  * `(tenantId, requestId)` and `(partition, sequence)`, so a condition without the aggregate scans the type's log. The
- * entry's [QueryBudget][me.ahoo.wow.query.QueryBudget] (sizes, count limit, timeout) bounds it; an analytics-heavy
- * deployment serves the model from ClickHouse or Elasticsearch.
+ * entry's [QueryBudget][me.ahoo.wow.query.QueryBudget] (sizes, count limit, timeout) bounds it, the store's
+ * [QueryBulkhead][me.ahoo.wow.query.QueryBulkhead] bounds how many run at once, and [unpinned] may refuse it
+ * ([UnpinnedEvents.REFUSE], review R3.4-2); an analytics-heavy deployment serves the model from ClickHouse or
+ * Elasticsearch.
  */
 @InternalWowApi
 object EventQueryGateways {
@@ -78,17 +80,25 @@ object EventQueryGateways {
         tenants: QueryTenantPolicy = QueryTenantPolicy.CALLERS,
         masks: PayloadMasks = PayloadMasks.NONE,
         reading: (EventRecord) -> EventRecord? = { it },
-    ): QueryGateway = DefaultQueryGateway(
-        aggregateType = aggregateType,
-        backend = backend,
-        schemaProvider = schemaProvider,
-        filters = filters,
-        policies = policies + EventVisibilityPolicy(visibility, tenants),
-        observer = observer,
-        entryPolicy = entryPolicy,
-        counts = counts,
-        records = EventStreamRecords.reader(aggregateType, masks, reading),
-    )
+        unpinned: UnpinnedEvents = UnpinnedEvents.ALLOW,
+    ): QueryGateway {
+        val refuses = unpinned == UnpinnedEvents.REFUSE
+        return DefaultQueryGateway(
+            aggregateType = aggregateType,
+            backend = backend,
+            schemaProvider = schemaProvider,
+            filters = filters,
+            policies = policies + listOfNotNull(
+                UnpinnedEventsPolicy().takeIf { refuses },
+                EventVisibilityPolicy(visibility, tenants),
+            ),
+            observer = observer,
+            entryPolicy = entryPolicy,
+            counts = counts,
+            records = EventStreamRecords.reader(aggregateType, masks, reading),
+            constraints = listOfNotNull(UnpinnedEventsPolicy.CONSTRAINT.takeIf { refuses }),
+        )
+    }
 }
 
 /** The records of the `events` model (decision D235): a stream as stored, and how the gateway reads one. */

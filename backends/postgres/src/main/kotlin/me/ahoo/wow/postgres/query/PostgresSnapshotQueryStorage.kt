@@ -26,7 +26,9 @@ import javax.sql.DataSource
  * The snapshot query storage of one bounded context on PostgreSQL: the [PostgresQueryBackend] of each of its
  * aggregate types, over that aggregate's own snapshot table, which `PostgresSnapshotStore` writes (decision D161), with
  * the facts [PostgresQuerySchemaAdapter] reads from the table; and the management of the expression indexes its
- * aggregates declare ([manageIndexes], decision D151).
+ * aggregates declare ([manageIndexes], decision D151). The queries and the facts read [dataSource]; the indexes are
+ * created through [ddlDataSource], the store's own, so a [dataSource] of a read replica (`query-data-source`, review
+ * R3.4-2) never takes DDL.
  */
 @InternalWowApi
 class PostgresSnapshotQueryStorage @JvmOverloads constructor(
@@ -34,6 +36,7 @@ class PostgresSnapshotQueryStorage @JvmOverloads constructor(
     val context: String,
     val options: PostgresQueryOptions = PostgresQueryOptions(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    private val ddlDataSource: DataSource = dataSource,
 ) : AbstractQueryBackendFactory<PostgresQueryBackend>() {
     /** The snapshot table of [aggregateName], quoted. */
     fun table(aggregateName: String): String = PostgresSnapshotTables(context, aggregateName).snapshot
@@ -52,5 +55,5 @@ class PostgresSnapshotQueryStorage @JvmOverloads constructor(
      * [PostgresQueryOptions.indexDdl] says. Blocking: a host calls it once at startup, after the tables exist.
      */
     fun manageIndexes(indexes: List<PostgresQueryIndex>): PostgresQueryIndexReport =
-        PostgresQueryIndexes.manage(dataSource, options.indexDdl, indexes)
+        PostgresQueryIndexes.manage(ddlDataSource, options.indexDdl, indexes)
 }

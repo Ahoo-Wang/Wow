@@ -23,6 +23,7 @@ import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.http.ops.WebhookNotifier
 import me.ahoo.wow.kernel.HandlerRetry
+import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
@@ -72,7 +73,9 @@ import kotlin.time.toKotlinDuration
  *   store that names none; `wow.ddl` (`auto`, `validate` or `none`), how the stores manage the framework's
  *   tables (review A5-10), `wow.stores.<name>.ddl` per store.
  * - `wow.stores.<name>.*`: the named store instances (decision D177, [Store]); `wow.log.store` and
- *   `wow.snapshot.store`, the stores of the aggregates' logs and snapshots by default; per aggregate type,
+ *   `wow.snapshot.store`, the stores of the aggregates' logs and snapshots by default; `wow.stores.<name>.query.*`,
+ *   how its queries run (review R3.4-2, [StoreQuery]: `max-concurrent`, `read-preference`, `events.unpinned`) and, on
+ *   PostgreSQL, `wow.stores.<name>.query-data-source`, the `DataSource` bean they read through; per aggregate type,
  *   `wow.aggregates.[<context>.<aggregate>].log.store` and `.snapshot.store`. The aggregates whose logs are on one store
  *   form a log group, with its own partition sequences, checkpoints, parked entries and timers. Snapshots may have
  *   several targets (decision D172, [Snapshot]): `wow.snapshot.targets` and `wow.snapshot.primary`, per aggregate type
@@ -86,7 +89,8 @@ import kotlin.time.toKotlinDuration
  *   backend, which cannot route across nodes).
  * - `wow.wait.default-timeout` (10s), `max-timeout` (60s), `max-hops` (16, at most 32), `unknown-contexts` (`allow`
  *   or `reject`, decision D190): the default timeout is the node's ([ServiceNodeOptions.defaultWaitTimeout]), for every
- *   command whose request names none.
+ *   command whose request names none; `max-registered` (16384, review R3.4-3): the waits the node holds at once,
+ *   beyond which a command that waits past ACCEPTED is not run and is `wow.command.busy`.
  * - `wow.state-views.capacity` (4096), `max-age` (1m), `max-bytes` (64 MiB): the bounds of each context's state views
  *   (decision D133), see [StateViews].
  * - `wow.executor.lane-capacity` (1024), `wow.executor.max-in-flight` (4096, the node's commands in flight, beyond
@@ -125,6 +129,8 @@ import kotlin.time.toKotlinDuration
  * - `wow.calls.contexts.<context>.url`, `wow.calls.token`, `wow.calls.timeout` (10s), `wow.calls.connect-timeout`
  *   (2s): the synchronous calls of the sagas to other contexts' command gateways (decision D193), see [Calls].
  * - `wow.aggregates.[<context>.<aggregate>].tenant`: a fixed tenant per aggregate type (decision D116);
+ *   `wow.aggregates.[<context>.<aggregate>].query.events.unpinned` (`allow` or `refuse`, over its log store's and
+ *   `wow.query.events.unpinned`; review R3.4-2): whether its `events` queries that name no aggregate run;
  *   `wow.aggregates.[<context>.<aggregate>].id-generator`: the generator of its new ids (decision D171);
  *   `wow.aggregates.[<context>.<aggregate>].routing`: `cluster` (the default, the node's `wow.cluster.router`)
  *   or `kafka`, the `Kafka` router (decision D143), see [Aggregate].
@@ -301,11 +307,14 @@ class WowProperties {
      * PostgreSQL, the `DataSource` bean [dataSource] names (the only one when not set); on MongoDB, the `MongoClient`
      * bean [client] names (the only one when not set) and its [database] (`wow.mongo.database` when not set); any
      * other setting of its provider in [options] (`wow.stores.<name>.options.<key>`). Two stores of one type may serve
-     * different databases; two log stores may not share one.
+     * different databases; two log stores may not share one. On PostgreSQL, [queryDataSource] names the `DataSource`
+     * bean its queries read through (review R3.4-2), [dataSource]'s when not set; [query] bounds and places its
+     * queries.
      */
     class Store {
         var type: String? = null
         var dataSource: String? = null
+        var queryDataSource: String? = null
         var client: String? = null
         var database: String? = null
 
@@ -315,12 +324,41 @@ class WowProperties {
         /** How this store manages the framework's schema, over `wow.ddl`. */
         var ddl: StoreDdl? = null
 
+        /** How the store's snapshot and `events` queries run (review R3.4-2). */
+        var query: StoreQuery = StoreQuery()
+
         /** The settings its provider reads ([me.ahoo.wow.spi.store.StoreConfig.options]): [options] and the named ones. */
         internal fun options(): Map<String, String> = options + listOfNotNull(
             dataSource?.let { "data-source" to it },
+            queryDataSource?.let { "query-data-source" to it },
             client?.let { "client" to it },
             database?.let { "database" to it },
         )
+    }
+
+    /**
+     * How one store's queries run (`wow.stores.<name>.query.*`, review R3.4-2): [maxConcurrent], how many run at once,
+     * over `wow.query.max-concurrent` (beyond it a query is `wow.query.busy`, 429; `0` for no bound); [readPreference],
+     * the MongoDB read preference of its snapshot and `events` queries (`secondaryPreferred`, say), over
+     * `wow.query.events.mongo-read-preference` for the events; [events], its `events` queries.
+     */
+    class StoreQuery {
+        var maxConcurrent: Int? = null
+        var readPreference: String? = null
+        var events: QueryEvents = QueryEvents()
+    }
+
+    /**
+     * The `events` queries of a store or an aggregate type (review R3.4-2): [unpinned], whether one that names no
+     * aggregate runs, over the store's and `wow.query.events.unpinned`.
+     */
+    class QueryEvents {
+        var unpinned: UnpinnedEvents? = null
+    }
+
+    /** An aggregate type's queries (`wow.aggregates.[<context>.<aggregate>].query.*`). */
+    class AggregateQuery {
+        var events: QueryEvents = QueryEvents()
     }
 
     /**
@@ -442,6 +480,12 @@ class WowProperties {
          * the chain arrives, or `reject`.
          */
         var unknownContexts: UnknownContexts = UnknownContexts.ALLOW
+
+        /**
+         * The most waits the node holds at once (review R3.4-3): beyond it a command whose plan waits past ACCEPTED is
+         * not run and is answered `wow.command.busy` (429, with `Retry-After`), FAILED at ACCEPTED.
+         */
+        var maxRegistered: Int = WaitOptions.DEFAULT_MAX_REGISTERED
     }
 
     class Executor {
@@ -857,6 +901,9 @@ class WowProperties {
          * (review A5-10): over `wow.clickhouse.sink.aggregates.<context>.<aggregate>`, which is still read.
          */
         var clickhouse: AggregateClickHouse = AggregateClickHouse()
+
+        /** The type's queries: whether its `events` queries that name no aggregate run (review R3.4-2). */
+        var query: AggregateQuery = AggregateQuery()
     }
 
     /** An aggregate type's ClickHouse settings: `wow.aggregates.[<context>.<aggregate>].clickhouse.*`. */

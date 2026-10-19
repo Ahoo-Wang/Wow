@@ -16,13 +16,9 @@ package me.ahoo.wow.query.events
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregateIdsFilter
-import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.FilterCapable
 import me.ahoo.wow.api.query.FilterExpression
-import me.ahoo.wow.api.query.IdFilter
-import me.ahoo.wow.api.query.IdsFilter
-import me.ahoo.wow.api.query.InFilter
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.QueryField
@@ -62,11 +58,11 @@ class EventVisibilityPolicy(
         val type = context.aggregateType
         if (visibility.seesAll(type, caller)) return MatchAllFilter
         val filter = (context.query as FilterCapable<*>).filter
-        val conjuncts = conjuncts(filter)
-        val ids = aggregates(conjuncts)?.takeIf { it.size <= MAX_AGGREGATES } ?: throw QueryViolation.StorageUnsupported(
+        val conjuncts = EventFilters.conjuncts(filter)
+        val ids = EventFilters.aggregates(conjuncts)?.takeIf { it.size <= MAX_AGGREGATES } ?: throw QueryViolation.StorageUnsupported(
             "an events query that names no aggregate (at most $MAX_AGGREGATES) while snapshot query policies may " +
                 "hide some: name its aggregateId",
-            AGGREGATE_ID,
+            EventFilters.AGGREGATE_ID,
         ).rejection()
         val tenantId = tenants.tenantOf(type, caller) ?: tenant(conjuncts) ?: throw QueryViolation.StorageUnsupported(
             "an events query without a tenant: name its tenantId",
@@ -79,25 +75,6 @@ class EventVisibilityPolicy(
             else -> AggregateIdsFilter(visible)
         }
     }
-
-    private fun conjuncts(filter: FilterExpression): List<FilterExpression> = when (filter) {
-        is AndFilter -> filter.operands.flatMap(::conjuncts)
-        else -> listOf(filter)
-    }
-
-    /** The aggregate ids every match must have, intersected over [conjuncts]; null when none names any. */
-    private fun aggregates(conjuncts: List<FilterExpression>): List<String>? = conjuncts.mapNotNull { conjunct ->
-        when (conjunct) {
-            is IdFilter -> listOf(conjunct.value)
-            is AggregateIdFilter -> listOf(conjunct.value)
-            is IdsFilter -> conjunct.values
-            is AggregateIdsFilter -> conjunct.values
-            is EqualFilter -> (conjunct.value as? String)?.takeIf { conjunct.field == AGGREGATE_ID }?.let(::listOf)
-            is InFilter -> conjunct.values.takeIf { conjunct.field == AGGREGATE_ID && it.all { id -> id is String } }
-                ?.map { it as String }
-            else -> null
-        }
-    }.reduceOrNull { left, right -> left.filter { it in right } }?.distinct()
 
     private fun tenant(conjuncts: List<FilterExpression>): String? = conjuncts.firstNotNullOfOrNull { conjunct ->
         when (conjunct) {
@@ -112,7 +89,6 @@ class EventVisibilityPolicy(
         /** The most aggregates one events query may name while each must be checked. */
         const val MAX_AGGREGATES: Int = 100
 
-        private val AGGREGATE_ID = QueryField(EventStreamFields.AGGREGATE_ID)
         private val TENANT_ID = QueryField(EventStreamFields.TENANT_ID)
     }
 }

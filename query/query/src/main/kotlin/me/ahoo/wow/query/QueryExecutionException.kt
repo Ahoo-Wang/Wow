@@ -63,3 +63,18 @@ class QueryStorageUnavailableException(cause: Throwable? = null) :
     override val errorCode: String
         get() = QueryErrors.STORAGE_UNAVAILABLE
 }
+
+/**
+ * A query its store's [QueryBulkhead] did not admit (review R3.4-2): the [store] already runs [maxConcurrent] queries,
+ * so this one was not run. [QueryErrors.BUSY] (HTTP 429, with `Retry-After`); the same query may pass later. The
+ * message names no store: its name is the server's configuration.
+ */
+class QueryBusyException(
+    val store: String,
+    val maxConcurrent: Int,
+) : QueryExecutionException(
+    "The query's store already runs as many queries as it allows at once; retry later.",
+) {
+    override val errorCode: String
+        get() = QueryErrors.BUSY
+}

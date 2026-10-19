@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.mongo.query
 
+import com.mongodb.ReadPreference
 import com.mongodb.client.MongoClient
 import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -26,7 +27,9 @@ import me.ahoo.wow.spi.VirtualThreads
  * The snapshot query storage of one bounded context on MongoDB: the [MongoSnapshotQueryBackend] of each of its
  * aggregate types, over that aggregate's own snapshot collection, which `MongoSnapshotStore` writes (decision D161),
  * with the facts [MongoQuerySchemaAdapter] reads from the collection; and the management of its query indexes
- * ([manageIndexes], decision D151).
+ * ([manageIndexes], decision D151). [readPreference] moves the queries off the primary (`secondaryPreferred`, say;
+ * review R3.4-2), at the cost of reading snapshots a little behind the ones a command's default wait waited for; the
+ * primary's by default. The indexes are managed on the primary.
  */
 @InternalWowApi
 class MongoSnapshotQueryStorage @JvmOverloads constructor(
@@ -35,6 +38,7 @@ class MongoSnapshotQueryStorage @JvmOverloads constructor(
     val context: String,
     val options: MongoQueryOptions = MongoQueryOptions(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
+    private val readPreference: ReadPreference? = null,
 ) : AbstractQueryBackendFactory<MongoSnapshotQueryBackend>() {
     private val database = client.getDatabase(databaseName)
 
@@ -45,7 +49,12 @@ class MongoSnapshotQueryStorage @JvmOverloads constructor(
         require(aggregateType.context == context) { "$aggregateType is not in context $context." }
         val collection = collection(aggregateType.name)
         return QueryBackendBinding(
-            MongoSnapshotQueryBackend(aggregateType, database.getCollection(collection), options, dispatcher),
+            MongoSnapshotQueryBackend(
+                aggregateType,
+                database.getCollection(collection).let { read -> readPreference?.let(read::withReadPreference) ?: read },
+                options,
+                dispatcher,
+            ),
             MongoQuerySchemaAdapter(database, collection, dispatcher),
         )
     }

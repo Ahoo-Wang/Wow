@@ -575,7 +575,7 @@ public final class me/ahoo/wow/runtime/node/ServiceNodeOptions {
 	public static final field Companion Lme/ahoo/wow/runtime/node/ServiceNodeOptions$Companion;
 	public static final field DEFAULT_LANE_CAPACITY I
 	public static final field DEFAULT_STATE_CACHE_CAPACITY I
-	public synthetic fun <init> (Lme/ahoo/wow/runtime/cluster/ClusterOptions;Lme/ahoo/wow/runtime/node/Routing;JILme/ahoo/wow/runtime/subscription/SubscriptionOptions;Lme/ahoo/wow/runtime/log/AppendQueueOptions;IIJLme/ahoo/wow/runtime/state/StateViewOptions;Lme/ahoo/wow/runtime/timer/TimerOptions;Ljava/util/Map;Ljava/util/Set;Lme/ahoo/wow/runtime/wait/UnknownContexts;Lme/ahoo/wow/runtime/ledger/LedgerPublishing;Lme/ahoo/wow/runtime/snapshot/SnapshotOptions;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lme/ahoo/wow/runtime/cluster/ClusterOptions;Lme/ahoo/wow/runtime/node/Routing;JILme/ahoo/wow/runtime/subscription/SubscriptionOptions;Lme/ahoo/wow/runtime/log/AppendQueueOptions;IIJLme/ahoo/wow/runtime/state/StateViewOptions;Lme/ahoo/wow/runtime/timer/TimerOptions;Ljava/util/Map;Ljava/util/Set;Lme/ahoo/wow/runtime/wait/UnknownContexts;Lme/ahoo/wow/runtime/ledger/LedgerPublishing;Lme/ahoo/wow/runtime/snapshot/SnapshotOptions;IIILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getAppendQueue ()Lme/ahoo/wow/runtime/log/AppendQueueOptions;
 	public final fun getCluster ()Lme/ahoo/wow/runtime/cluster/ClusterOptions;
@@ -584,6 +584,7 @@ public final class me/ahoo/wow/runtime/node/ServiceNodeOptions {
 	public final fun getLaneCapacity ()I
 	public final fun getLedger ()Lme/ahoo/wow/runtime/ledger/LedgerPublishing;
 	public final fun getMaxInFlight ()I
+	public final fun getMaxRegisteredWaits ()I
 	public final fun getMaxWaitHops ()I
 	public final fun getMaxWaitTimeout-UwyO8pc ()J
 	public final fun getRouting ()Lme/ahoo/wow/runtime/node/Routing;
@@ -886,11 +887,13 @@ public final class me/ahoo/wow/runtime/wait/UnknownContexts : java/lang/Enum {
 public final class me/ahoo/wow/runtime/wait/WaitOptions {
 	public static final field Companion Lme/ahoo/wow/runtime/wait/WaitOptions$Companion;
 	public static final field DEFAULT_MAX_HOPS I
+	public static final field DEFAULT_MAX_REGISTERED I
 	public static final field MAX_HOPS_CAP I
-	public synthetic fun <init> (Lme/ahoo/wow/spi/wait/Origin;JIJLme/ahoo/wow/runtime/wait/UnknownContexts;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Lme/ahoo/wow/spi/wait/Origin;JIJLme/ahoo/wow/runtime/wait/UnknownContexts;IILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getDefaultTimeout-UwyO8pc ()J
 	public final fun getMaxHops ()I
+	public final fun getMaxRegistered ()I
 	public final fun getMaxTimeout-UwyO8pc ()J
 	public final fun getOrigin ()Lme/ahoo/wow/spi/wait/Origin;
 	public final fun getUnknownContexts ()Lme/ahoo/wow/runtime/wait/UnknownContexts;

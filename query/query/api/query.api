@@ -296,6 +296,13 @@ public final class me/ahoo/wow/query/QueryBudget$Companion {
 	public final fun getHTTP_DEFAULT ()Lme/ahoo/wow/query/QueryBudget;
 }
 
+public final class me/ahoo/wow/query/QueryBusyException : me/ahoo/wow/query/QueryExecutionException {
+	public fun <init> (Ljava/lang/String;I)V
+	public fun getErrorCode ()Ljava/lang/String;
+	public final fun getMaxConcurrent ()I
+	public final fun getStore ()Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/query/QueryCaller {
 	public static final field Companion Lme/ahoo/wow/query/QueryCaller$Companion;
 	public static final field IN_PROCESS Lme/ahoo/wow/query/QueryCaller;
@@ -2316,9 +2323,11 @@ public final class me/ahoo/wow/query/store/StoreQueryOptions {
 	public static final field DEFAULT Lme/ahoo/wow/query/store/StoreQueryOptions;
 	public final fun getEventsReadPreference ()Ljava/lang/String;
 	public final fun getIndexDdl ()Lme/ahoo/wow/query/index/QueryIndexDdl;
+	public final fun getSnapshotsReadPreference ()Ljava/lang/String;
 	public static final fun of ()Lme/ahoo/wow/query/store/StoreQueryOptions;
 	public static final fun of (Lme/ahoo/wow/query/index/QueryIndexDdl;)Lme/ahoo/wow/query/store/StoreQueryOptions;
 	public static final fun of (Lme/ahoo/wow/query/index/QueryIndexDdl;Ljava/lang/String;)Lme/ahoo/wow/query/store/StoreQueryOptions;
+	public static final fun of (Lme/ahoo/wow/query/index/QueryIndexDdl;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/query/store/StoreQueryOptions;
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -2326,12 +2335,20 @@ public final class me/ahoo/wow/query/store/StoreQueryOptions$Companion {
 	public final fun of ()Lme/ahoo/wow/query/store/StoreQueryOptions;
 	public final fun of (Lme/ahoo/wow/query/index/QueryIndexDdl;)Lme/ahoo/wow/query/store/StoreQueryOptions;
 	public final fun of (Lme/ahoo/wow/query/index/QueryIndexDdl;Ljava/lang/String;)Lme/ahoo/wow/query/store/StoreQueryOptions;
+	public final fun of (Lme/ahoo/wow/query/index/QueryIndexDdl;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/query/store/StoreQueryOptions;
 	public static synthetic fun of$default (Lme/ahoo/wow/query/store/StoreQueryOptions$Companion;Lme/ahoo/wow/query/index/QueryIndexDdl;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/query/store/StoreQueryOptions;
 }
 
 public abstract interface class me/ahoo/wow/query/store/StoreQueryProvider {
+	public static final field Companion Lme/ahoo/wow/query/store/StoreQueryProvider$Companion;
+	public static final field DEFAULT_MAX_CONCURRENT I
 	public fun events (Lme/ahoo/wow/spi/store/Store;Lme/ahoo/wow/query/store/StoreQueryOptions;)Lme/ahoo/wow/query/store/EventQueries;
 	public abstract fun getType ()Ljava/lang/String;
+	public fun maxConcurrent (Lme/ahoo/wow/spi/store/Store;)I
 	public fun snapshots (Lme/ahoo/wow/spi/store/Store;Lme/ahoo/wow/query/store/StoreQueryOptions;)Lme/ahoo/wow/query/store/SnapshotQueries;
+}
+
+public final class me/ahoo/wow/query/store/StoreQueryProvider$Companion {
+	public static final field DEFAULT_MAX_CONCURRENT I
 }
 

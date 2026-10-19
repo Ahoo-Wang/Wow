@@ -422,6 +422,7 @@ class ServiceNode @InternalWowApi constructor(
         options.maxWaitHops,
         options.defaultWaitTimeout,
         options.unknownWaitContexts,
+        options.maxRegisteredWaits,
     )
 
     /** Sends the commands of every context's sagas to the command topics of other contexts; null without a producer. */
