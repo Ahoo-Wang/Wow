@@ -18,18 +18,23 @@ import me.ahoo.wow.manifest.Manifest
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.ProjectDependency
 import org.gradle.api.attributes.Bundling
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.DocsType
 import org.gradle.api.attributes.LibraryElements
 import org.gradle.api.attributes.Usage
 import org.gradle.api.component.AdhocComponentWithVariants
+import org.gradle.api.file.FileCollection
+import org.gradle.api.file.FileTree
+import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskProvider
+import org.gradle.api.tasks.bundling.Jar
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.process.CommandLineArgumentProvider
@@ -54,8 +59,16 @@ import java.util.Properties
  *   Manifest with the committed baseline (`manifest/baseline.json`, [WowExtension.manifestBaseline]) and fails on a
  *   breaking change within the major version (decision D76), and [UPDATE_BASELINE_TASK] ([UpdateManifestBaseline]),
  *   which records the merged Manifest as the baseline;
- * - registers [COLLECT_PEERS_TASK] ([CollectPeerManifests]), which copies the merged Manifests of the services the
- *   [PEERS_CONFIGURATION] names into the module's resources, `META-INF/wow/peers/<service>.json` (decision D139).
+ * - registers [GENERATE_CONTRACT_TASK] ([GenerateContract]), which filters the completed fragment down to the peer
+ *   contract of the module's contexts (decision D234), offered as the variant [CONTRACT_ELEMENTS]; each project the
+ *   module declares in `api(...)` is its api module, whose jar carries that contract at `META-INF/wow/contract.json`:
+ *   the plugin gives it the configuration [CONTRACT_CONFIGURATION] and the task [ASSEMBLE_CONTRACT_TASK]
+ *   ([AssembleContract]), which fails when a context's command and event classes are not all in the api module.
+ *   A service then knows a peer context by depending on its api module alone.
+ *
+ * The pairing configures the api project from the domain module's, which Gradle's isolated projects forbid; the
+ * plugin is not compatible with them (decision D234: a settings plugin pairing `x-api` with `x-domain` by name takes
+ * its place once they are the default). The configuration cache is supported.
  *
  * The fragment, merge and compatibility tasks run their work in workers with an isolated class loader over
  * [TOOLS_CONFIGURATION]: the plugin itself depends on KSP and `wow-manifest` only, so it brings no Jackson, victools
@@ -87,7 +100,7 @@ class WowPlugin : Plugin<Project> {
             task.group = GROUP_NAME
             task.description = "Completes this module's Manifest fragment with the schemas of its types."
             task.fragments.from(compilerFragments)
-            task.classpath.from(main.output.classesDirs, runtimeClasspath)
+            task.classpath.from(main.output.classesDirs, classesOf(project, runtimeClasspath.get()))
             task.tools.from(tools)
             task.schemaOverrides.set(extension.schemaOverrides)
             task.outputDirectory.set(fragmentDirectory)
@@ -101,7 +114,7 @@ class WowPlugin : Plugin<Project> {
         val merge = project.tasks.register(MERGE_TASK, MergeManifest::class.java) { task ->
             task.group = GROUP_NAME
             task.description = "Merges the Manifest fragments on the runtime class path into the service's manifest.json."
-            // The module's own completed fragment and its dependencies': not its peers, which it may not resolve.
+            // The module's own completed fragment and its dependencies'.
             task.classpath.from(project.files(fragmentDirectory).builtBy(generate), runtimeClasspath)
             task.tools.from(tools)
             task.serviceName.set(extension.serviceName)
@@ -111,17 +124,82 @@ class WowPlugin : Plugin<Project> {
         mergedOutputs(project, merge)
         compatibility(project, extension, merge, tools)
 
-        val peers = peersConfiguration(project)
-        val peersDirectory = project.layout.buildDirectory.dir("wow/peers")
-        val collect = project.tasks.register(COLLECT_PEERS_TASK, CollectPeerManifests::class.java) { task ->
+        contract(project, project.files(fragmentDirectory).builtBy(generate).asFileTree)
+    }
+
+    /**
+     * The classes variants of [classpath]: a project's classes directories, never its jar, and a module's jar. The
+     * jar of an api module carries the contract of the domain modules that depend on it, so reading it to complete
+     * their fragments would be a cycle.
+     */
+    private fun classesOf(project: Project, classpath: Configuration): FileCollection =
+        classpath.incoming.artifactView { view ->
+            view.attributes {
+                it.attribute(
+                    LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE,
+                    project.objects.named(LibraryElements::class.java, LibraryElements.CLASSES),
+                )
+            }
+        }.files
+
+    /**
+     * The peer contract (decision D234): [GENERATE_CONTRACT_TASK] filters the completed [fragments], the
+     * [CONTRACT_ELEMENTS] variant offers the result, and every project dependency of `api` is paired as the
+     * module's api module ([pairApi]).
+     */
+    private fun contract(project: Project, fragments: FileTree) {
+        val generate = project.tasks.register(GENERATE_CONTRACT_TASK, GenerateContract::class.java) { task ->
             task.group = GROUP_NAME
-            task.description = "Copies the merged Manifests of the wowPeers services into META-INF/wow/peers."
-            task.peers.from(peers)
-            task.classpath.from(project.files(fragmentDirectory).builtBy(generate), runtimeClasspath)
-            task.serviceName.set(extension.serviceName)
-            task.outputDirectory.set(peersDirectory)
+            task.description = "Filters the module's Manifest fragment down to the contract its api modules carry."
+            task.fragments.from(fragments.matching { it.include("${Manifest.FRAGMENT_DIRECTORY}/*.json") })
+            task.outputFile.set(project.layout.buildDirectory.file("wow/contract.json"))
         }
-        main.output.dir(mapOf("builtBy" to collect), peersDirectory)
+        val elements = project.configurations.create(CONTRACT_ELEMENTS) { configuration ->
+            configuration.description = "The peer contract of the module's contexts, which its api modules carry."
+            configuration.isCanBeConsumed = true
+            configuration.isCanBeResolved = false
+            configuration.isVisible = false
+            documentationAttributes(project, configuration, CONTRACT_DOCS_TYPE)
+        }
+        project.artifacts.add(elements.name, generate.flatMap { it.outputFile }) { it.builtBy(generate) }
+        project.configurations.matching { it.name == API_CONFIGURATION }.configureEach { api ->
+            api.dependencies.withType(ProjectDependency::class.java).configureEach { dependency ->
+                pairApi(project.project(dependency.path), project.path)
+            }
+        }
+    }
+
+    /**
+     * Makes [api] carry the contract of the domain module [domain]: its [CONTRACT_CONFIGURATION] resolves the
+     * domain's [CONTRACT_ELEMENTS], and its jar includes what [ASSEMBLE_CONTRACT_TASK] keeps. Several domain modules
+     * may pair with one api module.
+     */
+    private fun pairApi(api: Project, domain: String) {
+        api.pluginManager.withPlugin("java") {
+            val contracts = api.configurations.findByName(CONTRACT_CONFIGURATION) ?: assembly(api)
+            api.dependencies.add(contracts.name, api.project(domain))
+        }
+    }
+
+    private fun assembly(api: Project): Configuration {
+        val contracts = api.configurations.create(CONTRACT_CONFIGURATION) { configuration ->
+            configuration.description = "The peer contracts of the domain modules whose api module this is."
+            configuration.isCanBeConsumed = false
+            configuration.isTransitive = false
+            configuration.isVisible = false
+            documentationAttributes(api, configuration, CONTRACT_DOCS_TYPE)
+        }
+        val main = api.extensions.getByType(SourceSetContainer::class.java).getByName(SourceSet.MAIN_SOURCE_SET_NAME)
+        val assemble = api.tasks.register(ASSEMBLE_CONTRACT_TASK, AssembleContract::class.java) { task ->
+            task.group = GROUP_NAME
+            task.description = "Takes the contracts of this api module's contexts from the domain modules that declare it."
+            task.contracts.from(contracts)
+            task.classes.from(main.output.classesDirs)
+            task.owner.set(api.path)
+            task.outputDirectory.set(api.layout.buildDirectory.dir("wow/contract"))
+        }
+        api.tasks.named(JavaPlugin.JAR_TASK_NAME, Jar::class.java) { it.from(assemble) }
+        return contracts
     }
 
     /** What the Manifest [merge] writes gives: the [MANIFEST_ELEMENTS] variant, and [OPENAPI_TASK]'s document. */
@@ -184,10 +262,9 @@ class WowPlugin : Plugin<Project> {
     }
 
     /**
-     * [MANIFEST_ELEMENTS]: the outgoing variant of the service's merged `manifest.json`, what a consumer's
-     * [PEERS_CONFIGURATION] selects (decision D139). Its attributes are those of a documentation variant (like the
-     * sources and Javadoc ones Gradle defines) of the docs type [MANIFEST_DOCS_TYPE], so no other variant matches a
-     * request for it. It is added to the `java` component as an optional variant: a publication carries the Manifest
+     * [MANIFEST_ELEMENTS]: the outgoing variant of the service's merged `manifest.json`, for tools that read a
+     * service's Manifest. Its attributes are those of a documentation variant (like the sources and Javadoc ones Gradle
+     * defines) of the docs type [MANIFEST_DOCS_TYPE], so no other variant matches a request for it. It is added to the `java` component as an optional variant: a publication carries the Manifest
      * as the artifact of classifier [MANIFEST_CLASSIFIER] (`<name>-<version>-wow-manifest.json`), and Gradle Module
      * Metadata lets a consumer select it by the same attributes.
      */
@@ -197,7 +274,7 @@ class WowPlugin : Plugin<Project> {
             configuration.isCanBeConsumed = true
             configuration.isCanBeResolved = false
             configuration.isVisible = false
-            manifestAttributes(project, configuration)
+            documentationAttributes(project, configuration, MANIFEST_DOCS_TYPE)
         }
         project.artifacts.add(elements.name, merge.flatMap { it.outputFile }) { artifact ->
             artifact.builtBy(merge)
@@ -211,28 +288,15 @@ class WowPlugin : Plugin<Project> {
         }
     }
 
-    /**
-     * [PEERS_CONFIGURATION]: the services whose merged Manifests this one takes as peers, a project
-     * (`wowPeers(project(":inventory-server"))`) or the coordinates of a published service
-     * (`wowPeers("com.example:inventory-server:1.0.0")`); it resolves their [MANIFEST_ELEMENTS] variant only, without
-     * their dependencies.
-     */
-    private fun peersConfiguration(project: Project): Configuration =
-        project.configurations.create(PEERS_CONFIGURATION) { configuration ->
-            configuration.description = "The services whose merged Wow Manifests this service takes as peers."
-            configuration.isCanBeConsumed = false
-            configuration.isTransitive = false
-            manifestAttributes(project, configuration)
-        }
-
-    private fun manifestAttributes(project: Project, configuration: Configuration) {
+    /** The attributes of a documentation variant of [docsType]: the merged Manifest's, or the peer contract's. */
+    private fun documentationAttributes(project: Project, configuration: Configuration, docsType: String) {
         val objects = project.objects
         configuration.attributes { attributes ->
             attributes.attribute(
                 Category.CATEGORY_ATTRIBUTE,
                 objects.named(Category::class.java, Category.DOCUMENTATION)
             )
-            attributes.attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType::class.java, MANIFEST_DOCS_TYPE))
+            attributes.attribute(DocsType.DOCS_TYPE_ATTRIBUTE, objects.named(DocsType::class.java, docsType))
             attributes.attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, Usage.JAVA_RUNTIME))
             attributes.attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling::class.java, Bundling.EXTERNAL))
         }
@@ -280,8 +344,10 @@ class WowPlugin : Plugin<Project> {
         const val MERGE_TASK = "mergeWowManifest"
         const val OPENAPI_TASK = "generateWowOpenApi"
         const val TOOLS_CONFIGURATION = "wowManifestTools"
-        const val COLLECT_PEERS_TASK = "collectWowPeers"
-        const val PEERS_CONFIGURATION = "wowPeers"
+        const val GENERATE_CONTRACT_TASK = "generateWowContract"
+        const val CONTRACT_ELEMENTS = "wowContractElements"
+        const val ASSEMBLE_CONTRACT_TASK = "assembleWowContract"
+        const val CONTRACT_CONFIGURATION = "wowContract"
         const val MANIFEST_ELEMENTS = "wowManifestElements"
         const val CHECK_COMPATIBILITY_TASK = "checkManifestCompatibility"
         const val UPDATE_BASELINE_TASK = "updateManifestBaseline"
@@ -292,6 +358,10 @@ class WowPlugin : Plugin<Project> {
         /** The docs type of the merged Manifest's variant, and the classifier of its published artifact. */
         const val MANIFEST_DOCS_TYPE = "wow-manifest"
         const val MANIFEST_CLASSIFIER = "wow-manifest"
+
+        /** The docs type of the peer contract's variant (decision D234). */
+        const val CONTRACT_DOCS_TYPE = "wow-contract"
+        private const val API_CONFIGURATION = "api"
         private const val MANIFEST_EXTENSION = "json"
         private const val GROUP_NAME = "wow"
         private const val GROUP = "me.ahoo.wow"
