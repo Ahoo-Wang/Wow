@@ -40,7 +40,10 @@ import kotlin.time.TimeSource
  */
 class QueryBulkheadTest {
     /** A call holding one of [bulkhead]'s permits until [gate] completes, started once it holds it. */
-    private suspend fun CoroutineScope.hold(bulkhead: QueryBulkhead, gate: CompletableDeferred<Unit>): Deferred<String> {
+    private suspend fun CoroutineScope.hold(
+        bulkhead: QueryBulkhead,
+        gate: CompletableDeferred<Unit>
+    ): Deferred<String> {
         val entered = CompletableDeferred<Unit>()
         return async(Dispatchers.Default) {
             bulkhead.run {
