@@ -74,8 +74,8 @@ class ScheduleSlotsTest {
         ScheduleSlots.expressionOf(ScheduleRule.Cron("0 0 0 * * *"))
         val before = ScheduleSlots.cachedExpressions
         assertThrownBy<IllegalArgumentException> { ScheduleSlots.validate(ScheduleRule.Cron("not a cron")) }
-        assertThrownBy<IllegalArgumentException> { ScheduleSlots.validate(ScheduleRule.Cron("0 0 0 * * *", "Mars/Base")) }
-            .hasMessageContaining("Mars/Base")
+        val mars = ScheduleRule.Cron("0 0 0 * * *", "Mars/Base")
+        assertThrownBy<IllegalArgumentException> { ScheduleSlots.validate(mars) }.hasMessageContaining("Mars/Base")
         ScheduleSlots.cachedExpressions.assert().isEqualTo(before)
         ScheduleSlots.zoneOf(ScheduleRule.Cron("0 0 0 * * *", "+05:30")).id.assert().isEqualTo("+05:30")
     }

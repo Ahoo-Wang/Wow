@@ -112,7 +112,9 @@ class WaitWithdrawalTest {
         val withdrawnFirst = coordinator(ahead = 10_000)
         val timedOut = withdraws(withdrawnFirst)
         timedOut.hop.stage.assert().isEqualTo(Stage.ACCEPTED)
-        timedOut.error!!.message.assert().isEqualTo("The wait timed out at accepted(shop), before the command's outcome was known.")
+        timedOut.error!!.message.assert().isEqualTo(
+            "The wait timed out at accepted(shop), before the command's outcome was known."
+        )
     }
 
     /**

@@ -242,11 +242,14 @@ class PartitionOwnership internal constructor(
         check(running == null) { "$node is already part of $group." }
         requireAddress(address)
         val started = mutableListOf<SubscriptionRuntime>()
+        var joined = false
         try {
             join(started)
-        } catch (failure: Throwable) {
-            withContext(NonCancellable) { abandon(started) }
-            throw failure
+            joined = true
+        } finally {
+            if (!joined) {
+                withContext(NonCancellable) { abandon(started) }
+            }
         }
     }
 
