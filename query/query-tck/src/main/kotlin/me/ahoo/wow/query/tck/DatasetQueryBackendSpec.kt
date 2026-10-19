@@ -104,7 +104,7 @@ data class DatasetTable(val name: String, val columns: List<DatasetColumn>, val 
  * The dataset backend contract (decision D126; the 9.x `DatasetQueryBackendSpec` of wow-tck): every dataset query
  * backend passes it over a flat table: the filter semantics matrix, records (sort, projection, offset and keyset
  * pages, counts), aggregation, the dataset's tenant column, and the gateway's scope over it. A backend's test supplies
- * its [factory][createDatasetQueryBackendFactory] and loads each table in [createTable].
+ * its factory ([createDatasetQueryBackendFactory]) and loads each table in [createTable].
  *
  * Queries run through trusted admission against the schema the Catalog compiles from the dataset's declaration and
  * the storage's facts, as a gateway would but without governance, except the gateway test.
