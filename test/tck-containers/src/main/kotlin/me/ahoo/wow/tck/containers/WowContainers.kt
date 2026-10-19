@@ -14,10 +14,13 @@
 package me.ahoo.wow.tck.containers
 
 import org.testcontainers.clickhouse.ClickHouseContainer
+import org.testcontainers.containers.wait.strategy.Wait
+import org.testcontainers.elasticsearch.ElasticsearchContainer
 import org.testcontainers.kafka.ConfluentKafkaContainer
 import org.testcontainers.mongodb.MongoDBContainer
 import org.testcontainers.postgresql.PostgreSQLContainer
 import org.testcontainers.utility.DockerImageName
+import java.time.Duration
 
 /**
  * The containers the V10 integration tests run against (decision D196): one image per backend, so every module tests
@@ -35,6 +38,9 @@ object WowContainers {
     const val KAFKA_IMAGE = "confluentinc/cp-kafka:7.4.0"
     const val CLICKHOUSE_IMAGE = "clickhouse/clickhouse-server:24.8.14.39-alpine"
 
+    /** The Elasticsearch image, the one 9.x's wow-tck tests against (`ContainerImages.ELASTICSEARCH_*`). */
+    const val ELASTICSEARCH_IMAGE = "docker.elastic.co/elasticsearch/elasticsearch:9.2.6"
+
     val postgres: PostgreSQLContainer by lazy { newPostgres().also { it.start() } }
 
     /** A single-node replica set: the MongoDB backend writes in transactions. */
@@ -44,6 +50,9 @@ object WowContainers {
 
     val clickHouse: ClickHouseContainer by lazy { newClickHouse().also { it.start() } }
 
+    /** A single node without security: connect over plain HTTP to its `httpHostAddress`. */
+    val elasticsearch: ElasticsearchContainer by lazy { newElasticsearch().also { it.start() } }
+
     fun newPostgres(): PostgreSQLContainer = PostgreSQLContainer(POSTGRES_IMAGE)
 
     /** A single-node replica set, not started; connect through its `replicaSetUrl`. */
@@ -52,4 +61,14 @@ object WowContainers {
     fun newKafka(): ConfluentKafkaContainer = ConfluentKafkaContainer(KAFKA_IMAGE)
 
     fun newClickHouse(): ClickHouseContainer = ClickHouseContainer(DockerImageName.parse(CLICKHOUSE_IMAGE))
+
+    /** A single node without security (plain HTTP, no password) and a small heap, not started. */
+    fun newElasticsearch(): ElasticsearchContainer =
+        ElasticsearchContainer(DockerImageName.parse(ELASTICSEARCH_IMAGE))
+            .withEnv("xpack.security.enabled", "false")
+            .withEnv("ES_JAVA_OPTS", "-Xms512m -Xmx512m")
+            .waitingFor(Wait.forHttp("/_cluster/health?wait_for_status=yellow").forPort(ELASTICSEARCH_PORT))
+            .withStartupTimeout(Duration.ofMinutes(5))
+
+    private const val ELASTICSEARCH_PORT = 9200
 }

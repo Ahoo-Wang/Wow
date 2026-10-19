@@ -336,6 +336,12 @@ component_management:
         - backends/clickhouse/src/main/**
       flag_regexes:
         - "^v10$"
+    - component_id: v10-elasticsearch
+      name: v10-elasticsearch
+      paths:
+        - backends/elasticsearch/src/main/**
+      flag_regexes:
+        - "^v10$"
     - component_id: v10-openapi
       name: v10-openapi
       paths:

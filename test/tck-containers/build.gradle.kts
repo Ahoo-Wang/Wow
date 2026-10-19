@@ -8,4 +8,5 @@ dependencies {
     api("org.testcontainers:testcontainers-mongodb")
     api("org.testcontainers:testcontainers-kafka")
     api("org.testcontainers:testcontainers-clickhouse")
+    api("org.testcontainers:testcontainers-elasticsearch")
 }
