@@ -330,6 +330,23 @@ class V10ArchitectureTest {
     }
 
     @Test
+    fun `entry rule should catch a state admitted past the read facade`(@TempDir root: File) {
+        root.writeSource(
+            V10Rules.HTTP.dir,
+            "me/ahoo/wow/http/read/Bad.kt",
+            """
+            package me.ahoo.wow.http.read
+
+            import me.ahoo.wow.query.engine.ReadFacade
+            import me.ahoo.wow.query.state.StateVisibility
+            """.trimIndent(),
+        )
+        V10Rules.ENTRIES_READ_THROUGH_FACADE.violations(root).assert().containsExactly(
+            "${V10Rules.HTTP.dir}/src/main/kotlin/me/ahoo/wow/http/read/Bad.kt:4: me.ahoo.wow.query.state.StateVisibility",
+        )
+    }
+
+    @Test
     fun `host rule should catch a query policy decided in the host`(@TempDir root: File) {
         root.writeSource(
             V10Rules.SPRING_BOOT.dir,

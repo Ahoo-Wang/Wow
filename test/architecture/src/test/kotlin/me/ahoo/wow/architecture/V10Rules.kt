@@ -324,6 +324,17 @@ object V10Rules {
     )
 
     /**
+     * Every entry reads an aggregate's state through one path (decision D237): `ReadFacade` (read, visibility, masks)
+     * of wow-query, which the query engine composes. An entry (HTTP, CoSec, the host, the runtime's call and ops paths)
+     * never admits or hides a state itself, so no entry can read a state past its policies or unmasked.
+     */
+    val ENTRIES_READ_THROUGH_FACADE = DependencyRule(
+        name = "the entries admit a state only through wow-query's ReadFacade",
+        modules = listOf(RUNTIME, HTTP, COSEC, OPENTELEMETRY, SPRING_BOOT).map { it.dir },
+        forbidden = listOf("me.ahoo.wow.query.state.StateVisibility", "me.ahoo.wow.query.events.EventVisibility"),
+    )
+
+    /**
      * Observability is wired at fixed seams (decision D174, 06 §3): only wow-opentelemetry and the host that wires it
      * import OpenTelemetry or Micrometer; the core exposes ports instead.
      */
@@ -397,6 +408,7 @@ object V10Rules {
         KERNEL_IGNORES_RUNTIME,
         HTTP_READS_ADAPT_ONLY,
         HOST_DECIDES_NO_QUERY_POLICY,
+        ENTRIES_READ_THROUGH_FACADE,
         ONLY_OPENTELEMETRY_OBSERVES,
         ONLY_HOST_USES_SPRING_BOOT,
         MANIFEST_IS_PLAIN_DATA,
