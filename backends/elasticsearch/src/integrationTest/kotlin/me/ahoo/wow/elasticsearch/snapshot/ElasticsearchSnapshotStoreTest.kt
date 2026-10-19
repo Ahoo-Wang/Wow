@@ -13,6 +13,11 @@
 
 package me.ahoo.wow.elasticsearch.snapshot
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
@@ -68,5 +73,53 @@ class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
         store.pending(type, 2, limit = 10).assert().containsExactly(newer.ref)
         ElasticsearchFixture.client.indices().delete { it.index(ElasticsearchFixture.names.snapshots(context, "aggregate")) }.get()
         store.load(newer.ref).assert().isNull()
+    }
+
+    @Test
+    fun `many first writes to a fresh index, from several stores at once, all land`(): Unit = runBlocking {
+        repeat(ROUNDS) {
+            val context = ElasticsearchFixture.newContext()
+            val type = AggregateType(context, "aggregate")
+            val stores = (1..STORES).map { createStore(context) }
+            val saved = coroutineScope {
+                (1..WRITERS).map { writer ->
+                    async(Dispatchers.Default) {
+                        stores[writer % STORES].save(snapshot("w$writer", 1, aggregate = type))
+                    }
+                }.awaitAll()
+            }
+            saved.assert().doesNotContain(false)
+            (1..WRITERS).forEach { writer ->
+                stores.first().load(type.ref("tenant", "w$writer"))?.version.assert().isEqualTo(1)
+            }
+        }
+    }
+
+    @Test
+    fun `a first write waits for an index whose primary is not active yet`(): Unit = runBlocking {
+        val context = ElasticsearchFixture.newContext()
+        val index = ElasticsearchFixture.names.snapshots(context, "aggregate")
+        // The index exists, as another node just created it, and its primary is not assigned yet.
+        val unassigned = ElasticsearchSnapshotIndex.DEFINITION.replace(
+            "\"index.mapping.ignore_malformed\": true",
+            "\"index.mapping.ignore_malformed\": true, \"index.routing.allocation.require._name\": \"nowhere\"",
+        )
+        ElasticsearchFixture.client.indices().create { it.index(index).waitForActiveShards { active -> active.count(0) }.withJson(java.io.StringReader(unassigned)) }.get()
+        val type = AggregateType(context, "aggregate")
+        val saving = async(Dispatchers.Default) { createStore(context).save(snapshot("a", 1, aggregate = type)) }
+        delay(ALLOCATION_DELAY)
+        saving.isCompleted.assert().isFalse()
+        ElasticsearchFixture.client.indices().putSettings {
+            it.index(index).withJson(java.io.StringReader("""{"index.routing.allocation.require._name": null}"""))
+        }.get()
+        saving.await().assert().isTrue()
+        createStore(context).load(type.ref("tenant", "a"))?.version.assert().isEqualTo(1)
+    }
+
+    private companion object {
+        const val ALLOCATION_DELAY = 1_500L
+        const val ROUNDS = 10
+        const val STORES = 8
+        const val WRITERS = 64
     }
 }

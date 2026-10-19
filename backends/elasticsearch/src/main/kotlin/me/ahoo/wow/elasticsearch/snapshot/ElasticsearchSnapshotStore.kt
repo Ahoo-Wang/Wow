@@ -35,6 +35,7 @@ import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments.AGGREGA
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments.STALE_VERSION
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments.STATE_REVISION
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments.TENANT_ID
+import me.ahoo.wow.elasticsearch.whenShardReady
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -198,7 +199,7 @@ class ElasticsearchSnapshotStore internal constructor(
             after?.let { search.searchAfter(FieldValue.of(it.tenantId), FieldValue.of(it.id)) }
             search
         }
-        val hits = client.search(request, ObjectNode::class.java).awaitElasticsearch().hits().hits()
+        val hits = whenShardReady { client.search(request, ObjectNode::class.java).awaitElasticsearch() }.hits().hits()
         return hits.mapNotNull { it.source() }.map { source ->
             type.ref(
                 source.path(TENANT_ID).stringValue(),
@@ -314,7 +315,9 @@ class ElasticsearchSnapshotStore internal constructor(
         )
     }
 
-    private suspend fun read(index: String, id: String): Stored? {
+    private suspend fun read(index: String, id: String): Stored? = whenShardReady { readNow(index, id) }
+
+    private suspend fun readNow(index: String, id: String): Stored? {
         val response = try {
             client.get(
                 GetRequest.of { it.index(index).id(id).realtime(true) },
@@ -333,7 +336,10 @@ class ElasticsearchSnapshotStore internal constructor(
     }
 
     /** Writes [document] in place of [stored], or creates it when [stored] is null; false when another write beat it. */
-    private suspend fun write(index: String, id: String, document: ObjectNode, stored: Stored?): Boolean {
+    private suspend fun write(index: String, id: String, document: ObjectNode, stored: Stored?): Boolean =
+        whenShardReady { writeNow(index, id, document, stored) }
+
+    private suspend fun writeNow(index: String, id: String, document: ObjectNode, stored: Stored?): Boolean {
         val request = IndexRequest.of<ObjectNode> { request ->
             request.index(index).id(id).document(document).refresh(refresh)
             if (stored == null) {

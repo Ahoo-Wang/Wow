@@ -15,6 +15,7 @@ package me.ahoo.wow.elasticsearch
 
 import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.transport.TransportException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.subscription.FailureClass
@@ -68,9 +69,54 @@ internal object ElasticsearchFailures {
         generateSequence(failure) { it.cause.takeIf { cause -> cause !== it } }.take(MAX_CAUSE_DEPTH)
             .any { it is ElasticsearchException && it.error().type() == INDEX_NOT_FOUND }
 
+    /**
+     * Whether [failure] says the index's shard cannot serve the request yet (a primary still recovering or not
+     * assigned): Elasticsearch answers `503` with one of [SHARD_NOT_READY] while a new index starts. Unwraps the
+     * [StorageUnavailableException] [translate] made of it.
+     */
+    fun isShardNotReady(failure: Throwable): Boolean =
+        generateSequence(failure) { it.cause.takeIf { cause -> cause !== it } }.take(MAX_CAUSE_DEPTH)
+            .filterIsInstance<ElasticsearchException>()
+            .any { exception ->
+                exception.status() == UNAVAILABLE && (
+                    exception.error().type() in SHARD_NOT_READY ||
+                        exception.error().rootCause().any { it.type() in SHARD_NOT_READY }
+                    )
+            }
+
+    private const val UNAVAILABLE = 503
+    private val SHARD_NOT_READY = setOf(
+        "no_shard_available_action_exception",
+        "illegal_index_shard_state_exception",
+        "unavailable_shards_exception",
+        "primary_missing_action_exception",
+    )
+
     private const val INDEX_NOT_FOUND = "index_not_found_exception"
     private const val MAX_CAUSE_DEPTH = 8
 }
+
+/**
+ * Runs [block], again after a short pause while it fails because the index's shard is not ready yet
+ * ([ElasticsearchFailures.isShardNotReady]), at most [attempts] times: the window right after an index is created or
+ * fails over. Any other failure, or the last one, is thrown.
+ */
+internal suspend fun <T> whenShardReady(attempts: Int = SHARD_READY_ATTEMPTS, block: suspend () -> T): T {
+    var attempt = 1
+    while (true) {
+        try {
+            return block()
+        } catch (failure: StorageUnavailableException) {
+            if (attempt >= attempts || !ElasticsearchFailures.isShardNotReady(failure)) throw failure
+        }
+        delay(SHARD_READY_PAUSE_MILLIS * attempt)
+        attempt++
+    }
+}
+
+/** How many times [whenShardReady] runs a call, and its first pause; the pauses grow linearly (about 5.5 s in all). */
+internal const val SHARD_READY_ATTEMPTS = 10
+internal const val SHARD_READY_PAUSE_MILLIS = 100L
 
 /** Awaits this request: a transient failure thrown as a [StorageUnavailableException] ([ElasticsearchFailures]). */
 internal suspend fun <T> CompletableFuture<T>.awaitElasticsearch(): T = try {

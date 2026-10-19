@@ -19,6 +19,7 @@ import co.elastic.clients.elasticsearch._types.HealthStatus
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch.indices.CreateIndexRequest
 import co.elastic.clients.elasticsearch.indices.GetMappingRequest
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.StoreDdl
 import java.io.StringReader
 
@@ -32,6 +33,10 @@ internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient
      * Makes sure of [index], of [kind] in [format], as [ddl] says: under `auto` creates it from [definition] when it is
      * missing, then (under `auto` and `validate`) checks the layout an existing one records; under `validate` a missing
      * index refuses the store; under `none` nothing is checked.
+     *
+     * Either way it returns once the index's primary shard serves requests ([awaitActive]): an index just created,
+     * here or by another node a moment ago, recovers its primary before it takes a read or a write, and a first write
+     * that races the recovery is answered `503`.
      */
     suspend fun ensure(index: String, kind: String, format: Int, definition: String, ddl: StoreDdl) {
         if (ddl == StoreDdl.NONE) return
@@ -39,9 +44,25 @@ internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient
         if (mapping == null) {
             check(ddl == StoreDdl.AUTO) { "The Elasticsearch index [$index] does not exist (ddl: validate)." }
             create(index, definition)
-            return
+        } else {
+            checkLayout(index, mapping, kind, format)
         }
-        checkLayout(index, mapping, kind, format)
+        awaitActive(index)
+    }
+
+    /**
+     * Waits until [index]'s primary shard is active (`_cluster/health/<index>?wait_for_status=yellow`), at most
+     * [ACTIVE_TIMEOUT]; a cluster that does not get there in time is unavailable for now.
+     */
+    suspend fun awaitActive(index: String) {
+        val health = client.cluster().health {
+            it.index(index).waitForStatus(HealthStatus.Yellow).timeout { time -> time.time(ACTIVE_TIMEOUT) }
+        }.awaitElasticsearch()
+        if (health.timedOut()) {
+            throw StorageUnavailableException(
+                "The Elasticsearch index [$index] has no active primary shard yet; retry later."
+            )
+        }
     }
 
     /** The mapping of [index], or null when it does not exist. */
@@ -58,10 +79,8 @@ internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient
                 CreateIndexRequest.of { it.index(index).withJson(StringReader(definition)) },
             ).awaitElasticsearch()
         } catch (failure: ElasticsearchException) {
+            // Another node, or another call of this one, created it meanwhile: [ensure] waits for its primary.
             if (!failure.isAlreadyExists()) throw failure
-            // Another node, or another call of this one, created it meanwhile: wait until its shard serves requests,
-            // as the creation itself waits.
-            client.cluster().health { it.index(index).waitForStatus(HealthStatus.Yellow) }.awaitElasticsearch()
         }
     }
 
@@ -71,6 +90,9 @@ internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient
         const val META_INDEX = "wow_index"
         const val META_FORMAT = "wow_format"
         private const val RESOURCE_ALREADY_EXISTS = "resource_already_exists_exception"
+
+        /** How long [awaitActive] waits for a primary shard. */
+        const val ACTIVE_TIMEOUT = "30s"
 
         /** Refuses [mapping] of [index] unless it records the layout of [kind] in [format]. */
         fun checkLayout(index: String, mapping: TypeMapping, kind: String, format: Int) {

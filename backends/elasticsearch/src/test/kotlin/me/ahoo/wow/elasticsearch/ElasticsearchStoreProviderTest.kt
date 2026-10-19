@@ -134,10 +134,61 @@ class ElasticsearchStoreProviderTest {
         }
     }
 
-    private fun elasticsearchException(status: Int) = ElasticsearchException(
-        "es/test",
-        ErrorResponse.of { response ->
-            response.status(status).error(ErrorCause.of { it.type("test_exception").reason("test") })
-        },
-    )
+    @Test
+    fun `a shard not ready yet is retried, any other failure is not`(): Unit = runBlocking {
+        val recovering = StorageUnavailableException(
+            "recovering",
+            elasticsearchException(503, "no_shard_available_action_exception", "illegal_index_shard_state_exception"),
+        )
+        ElasticsearchFailures.isShardNotReady(recovering).assert().isTrue()
+        ElasticsearchFailures.isShardNotReady(
+            elasticsearchException(503, "unavailable_shards_exception")
+        ).assert().isTrue()
+        ElasticsearchFailures.isShardNotReady(elasticsearchException(503)).assert().isFalse()
+        ElasticsearchFailures.isShardNotReady(
+            elasticsearchException(400, "no_shard_available_action_exception")
+        ).assert().isFalse()
+        var calls = 0
+        whenShardReady(attempts = 3) {
+            calls++
+            if (calls < 3) throw recovering
+            "ready"
+        }.assert().isEqualTo("ready")
+        calls.assert().isEqualTo(3)
+        calls = 0
+        assertThrownBy<StorageUnavailableException> {
+            runBlocking {
+                whenShardReady(attempts = 2) {
+                    calls++
+                    throw recovering
+                }
+            }
+        }
+        calls.assert().isEqualTo(2)
+        calls = 0
+        val other = StorageUnavailableException("down", elasticsearchException(503))
+        assertThrownBy<StorageUnavailableException> {
+            runBlocking {
+                whenShardReady(attempts = 5) {
+                    calls++
+                    throw other
+                }
+            }
+        }
+        calls.assert().isEqualTo(1)
+    }
+
+    private fun elasticsearchException(status: Int, type: String = "test_exception", rootType: String? = null) =
+        ElasticsearchException(
+            "es/test",
+            ErrorResponse.of { response ->
+                response.status(status).error(
+                    ErrorCause.of { cause ->
+                        cause.type(type).reason("test")
+                        rootType?.let { root -> cause.rootCause(ErrorCause.of { it.type(root).reason("root") }) }
+                        cause
+                    },
+                )
+            },
+        )
 }
