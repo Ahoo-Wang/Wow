@@ -3,6 +3,8 @@ description = "Wow Spring Boot: auto-configuration by classpath; wiring only"
 dependencies {
     api(project(":runtime"))
     api(project(":http"))
+    // The OpenAPI document of the public routes, and the security schemes an application declares for it (D233).
+    api(project(":openapi"))
     // The starter, as every Spring Boot starter has: auto-configuration, logging and SnakeYAML, so an application that
     // depends on the host alone reads its `application.yaml` (eShop DX gap G2).
     api("org.springframework.boot:spring-boot-starter")
@@ -26,10 +28,15 @@ dependencies {
     // Activated only when the application has it: a Bean Validation provider (D106). CosId's ids come from wow-cosid,
     // which wires itself (D171).
     compileOnly("jakarta.validation:jakarta.validation-api")
+    // The springdoc bridge (decision D233): the Wow routes join springdoc's documents when the application has it.
+    compileOnly("org.springdoc:springdoc-openapi-starter-common")
+    compileOnly(libs.swagger.core)
     testImplementation("org.springframework.boot:spring-boot-test")
     testImplementation("org.springframework.boot:spring-boot-starter-validation")
     testImplementation("org.springframework.boot:spring-boot-jackson")
     testImplementation("org.springframework:spring-test")
+    testImplementation("org.springdoc:springdoc-openapi-starter-webflux-api")
+    testImplementation(libs.json.schema.validator)
     testImplementation(testFixtures(project(":manifest")))
     testImplementation(project(":postgres"))
     testImplementation(project(":mongo"))

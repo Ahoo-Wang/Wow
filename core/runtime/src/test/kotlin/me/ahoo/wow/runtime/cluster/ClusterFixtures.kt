@@ -58,7 +58,9 @@ import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.subscription.CheckpointStore
+import me.ahoo.wow.spi.subscription.Lease
 import me.ahoo.wow.spi.subscription.LeaseStore
+import me.ahoo.wow.spi.subscription.Member
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
@@ -372,5 +374,49 @@ class EventCheckpoints(
     override suspend fun save(group: String, subscription: String, partition: Int, position: Long) {
         delegate.save(group, subscription, partition, position)
         events += "checkpoint $partition $position"
+    }
+
+    override suspend fun saveAll(group: String, checkpoints: List<me.ahoo.wow.spi.subscription.Checkpoint>) {
+        checkpoints.forEach { save(group, it.subscription, it.partition, it.position) }
+    }
+}
+
+/**
+ * A [LeaseStore] whose heartbeats, member reads and acquisitions throw while their count of failures to come is above
+ * zero, each failure counting one down (review R2.1-8): a store briefly unreachable.
+ */
+class FlakyLeases(private val delegate: LeaseStore) : LeaseStore by delegate {
+    val heartbeats = AtomicInteger()
+    val memberReads = AtomicInteger()
+
+    /** The member reads that pass before those of [memberReads] fail. */
+    val memberReadsFirst = AtomicInteger()
+    val acquisitions = AtomicInteger()
+
+    /** The calls that threw so far. */
+    val failures = AtomicInteger()
+
+    private fun failIf(pending: AtomicInteger, call: String) {
+        if (pending.getAndUpdate { if (it > 0) it - 1 else it } > 0) {
+            failures.incrementAndGet()
+            throw IllegalStateException("The lease store failed to $call.")
+        }
+    }
+
+    override suspend fun heartbeat(group: String, node: String, address: String, ttl: Duration): Member {
+        failIf(heartbeats, "heartbeat")
+        return delegate.heartbeat(group, node, address, ttl)
+    }
+
+    override suspend fun members(group: String): List<Member> {
+        if (memberReadsFirst.getAndUpdate { if (it > 0) it - 1 else it } == 0) {
+            failIf(memberReads, "read the members")
+        }
+        return delegate.members(group)
+    }
+
+    override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? {
+        failIf(acquisitions, "acquire")
+        return delegate.acquire(group, partition, owner, ttl)
     }
 }

@@ -13,7 +13,7 @@ export class ParkedSnapshotQueryClient extends SnapshotQueryClient<ParkedState, 
 }
 
 
-/** Queries the event streams of `ops.parked`, one aggregate at a time: `POST /ops/parked/events/query`. */
+/** Queries the event streams of `ops.parked`, one record per commit: `POST /ops/parked/events/query`. */
 export class ParkedEventQueryClient extends EventQueryClient<ParkedEvent> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {

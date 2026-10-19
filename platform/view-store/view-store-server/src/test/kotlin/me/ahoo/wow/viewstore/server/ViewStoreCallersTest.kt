@@ -45,7 +45,7 @@ class ViewStoreCallersTest {
         caller.subject.assert().isEqualTo("alice")
         caller.crossScope.assert().isFalse()
         caller.attributes.assert().containsEntry(ViewStoreCallers.ROLES_ATTRIBUTE, listOf("a", "b"))
-            .containsEntry(ViewStoreCallers.APP, listOf("console"))
+            .containsEntry(Caller.APP, listOf("console"))
     }
 
     @Test

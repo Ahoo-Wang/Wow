@@ -191,7 +191,10 @@ class HttpCommandCaller @JvmOverloads constructor(
             }
         }
 
-        /** The root command [call] acts for, as `Wow-Call` carries it. */
+        /**
+         * The root command [call] acts for, as `Wow-Call` carries it, with the request facts its command inherited
+         * that propagate (decision D236 ③): the target records the root request's application, not this service's.
+         */
         internal fun contextOf(call: OutgoingCall): CallContext {
             val command = call.command
             return CallContext(
@@ -201,6 +204,7 @@ class HttpCommandCaller @JvmOverloads constructor(
                 causation = checkNotNull(command.causation),
                 operator = command.operator,
                 wait = call.wait,
+                facts = command.headers,
             )
         }
 

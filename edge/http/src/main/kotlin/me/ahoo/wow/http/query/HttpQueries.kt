@@ -15,14 +15,17 @@ package me.ahoo.wow.http.query
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
+import me.ahoo.wow.query.dataset.DatasetVisibility
 import me.ahoo.wow.runtime.snapshot.SnapshotStatus
 
 /**
- * The query models the public routes serve (decisions D127, D131, D145), by aggregate type: the [snapshots] of each
- * aggregate a snapshot query backend serves, and the [events] of each aggregate. A model of the Manifest without one
- * here has no route: a request for it is the context's 404.
+ * The query models the public routes serve (decisions D127, D145, D235), by aggregate type: the [snapshots] of each
+ * aggregate a snapshot query backend serves, and the [events] of each aggregate an events backend serves, every one a
+ * [QueryGateway] on the one engine. A model of the Manifest without one here has no route: a request for it is the
+ * context's 404.
  *
  * The [datasets] (decision D75) are served under `/wow/dataset/{context}/{dataset}/query`, each by its gateway as it
  * is when the request comes: a dataset that joins or leaves while the node runs is served or not from then on.
@@ -36,7 +39,7 @@ import me.ahoo.wow.runtime.snapshot.SnapshotStatus
  */
 class HttpQueries @InternalWowApi constructor(
     snapshots: Collection<QueryGateway> = emptyList(),
-    events: Collection<EventQueryGateway> = emptyList(),
+    events: Collection<QueryGateway> = emptyList(),
     val defaultListSize: Int = DEFAULT_LIST_SIZE,
     val datasets: DatasetQueryGateways = DatasetQueryGateways.NONE,
     val datasetVisibility: DatasetVisibility = DatasetVisibility.DEFAULT,
@@ -44,7 +47,7 @@ class HttpQueries @InternalWowApi constructor(
     val snapshotStatus: SnapshotStatus = SnapshotStatus.NONE,
 ) {
     private val snapshots: Map<AggregateType, QueryGateway> = snapshots.associateBy { it.aggregateType }
-    private val events: Map<AggregateType, EventQueryGateway> = events.associateBy { it.aggregateType }
+    private val events: Map<AggregateType, QueryGateway> = events.associateBy { it.aggregateType }
 
     init {
         require(defaultListSize >= 0) { "defaultListSize must be greater than or equal to 0." }
@@ -55,9 +58,15 @@ class HttpQueries @InternalWowApi constructor(
     /** The snapshot query gateway of [type], or null when no backend serves its snapshots. */
     fun snapshots(type: AggregateType): QueryGateway? = snapshots[type]
 
-    /** The events query gateway of [type], or null when it has none. */
-    @InternalWowApi
-    fun events(type: AggregateType): EventQueryGateway? = events[type]
+    /** The events query gateway of [type], or null when no backend serves its events. */
+    fun events(type: AggregateType): QueryGateway? = events[type]
+
+    /** The gateway of [type]'s query [model] (`{model}` of its route), or null when none serves it. */
+    fun gateway(type: AggregateType, model: String): QueryGateway? = when (model) {
+        QueryRoutes.SNAPSHOT -> snapshots(type)
+        QueryRoutes.EVENTS -> events(type)
+        else -> null
+    }
 
     companion object {
         /** The default of [defaultListSize], as in 9.x. */

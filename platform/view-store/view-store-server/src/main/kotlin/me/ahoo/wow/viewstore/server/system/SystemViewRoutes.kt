@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.viewstore.server.system
 
+import io.github.oshai.kotlinlogging.KotlinLogging
+import kotlinx.coroutines.CancellationException
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.spi.json.WowJson
@@ -34,8 +36,11 @@ import org.springframework.web.reactive.function.server.coRouter
  * - `GET /view-store/system-views/{id}`: one of them, a `view-store.not-found` problem otherwise.
  *
  * The caller is the service's [CallerResolver]'s (401 `wow.auth.unauthenticated` when it accepts none); the
- * application is `CoSec-App-Id` (400 `view-store.app-required` without it). The route sits under the context's path,
- * so the service orders it before Wow's routes, whose catch-all answers any other path there with a 404.
+ * application is the caller's, the one its resolver authenticated ([me.ahoo.wow.api.caller.Caller.app], decision D232;
+ * 400 `view-store.app-required` without it). The route sits under the context's path,
+ * so the service orders it before Wow's routes, whose catch-all answers any other path there with a 404. A failure is
+ * a problem as on Wow's routes (review R2.3-8): a store that is unavailable is `wow.storage.unavailable` with
+ * `Retry-After`, anything else a 500 that says nothing of its cause, which is logged.
  */
 class SystemViewRoutes(private val views: StoredSystemViews, private val callers: CallerResolver) {
     fun routes(): RouterFunction<ServerResponse> = coRouter {
@@ -57,18 +62,35 @@ class SystemViewRoutes(private val views: StoredSystemViews, private val callers
         return json(view)
     }
 
+    @Suppress("TooGenericExceptionCaught") // Whatever a route throws is answered as a problem, not a bare 500.
     private suspend fun answering(
+        request: ServerRequest,
+        answer: suspend (tenantId: String, appId: String) -> ServerResponse,
+    ): ServerResponse = try {
+        authenticated(request, answer)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        val problem = Problem.ofFailure(failure)
+        if (problem.retryAfter == null) {
+            logger.error(failure) { "A system views request failed with an unexpected error." }
+        } else {
+            logger.warn(failure) { "A system views request failed: a store is unavailable." }
+        }
+        problem.respond()
+    }
+
+    private suspend fun authenticated(
         request: ServerRequest,
         answer: suspend (tenantId: String, appId: String) -> ServerResponse,
     ): ServerResponse {
         val caller = callers.resolve(request)
             ?: return problem(HttpStatus.UNAUTHORIZED, UNAUTHENTICATED, "The request carries no credentials accepted here.")
-        val appId = request.headers().firstHeader(ViewStoreContext.APP_ID_HEADER)?.trim()?.ifEmpty { null }
-            ?: return problem(
-                HttpStatus.BAD_REQUEST,
-                ViewStoreRejections.APP_REQUIRED,
-                "The request carries no ${ViewStoreContext.APP_ID_HEADER}.",
-            )
+        val appId = caller.app?.trim() ?: return problem(
+            HttpStatus.BAD_REQUEST,
+            ViewStoreRejections.APP_REQUIRED,
+            "The request carries no authenticated application (${ViewStoreContext.APP_ID_HEADER}).",
+        )
         return answer(caller.tenantId, appId)
     }
 
@@ -85,5 +107,6 @@ class SystemViewRoutes(private val views: StoredSystemViews, private val callers
         const val ID: String = "id"
         const val DEFINITION_ID: String = "definitionId"
         private const val UNAUTHENTICATED: String = "wow.auth.unauthenticated"
+        private val logger = KotlinLogging.logger {}
     }
 }

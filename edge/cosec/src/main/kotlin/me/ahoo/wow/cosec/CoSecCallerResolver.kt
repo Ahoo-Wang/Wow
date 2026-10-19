@@ -14,9 +14,14 @@
 package me.ahoo.wow.cosec
 
 import me.ahoo.cosec.api.context.SecurityContext
+import me.ahoo.cosec.api.context.request.Request
+import me.ahoo.cosec.api.policy.VerifyResult
 import me.ahoo.cosec.api.principal.CoSecPrincipal
 import me.ahoo.cosec.api.principal.SpacedRoleId
 import me.ahoo.cosec.api.tenant.Tenant
+import me.ahoo.cosec.authorization.RoleVerifyContext
+import me.ahoo.cosec.authorization.VerifyContext.Companion.getVerifyContext
+import me.ahoo.cosec.context.RequestSecurityContexts.getRequest
 import me.ahoo.cosec.webflux.ServerWebExchanges.getSecurityContext
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -38,6 +43,9 @@ import org.springframework.web.reactive.function.server.ServerRequest
  * - A principal is a service identity (decision D193) when it has one of [serviceRoles] or one of [servicePolicies],
  *   compared whole: another service of the system, authenticated by the token CoSec issued to its service account,
  *   which alone may assert the root command of a synchronous call (`Wow-Call`).
+ * - [trustInjectedApp] (decision D236 ②, `wow.cosec.trust-injected-app`, off by default) takes the application of a
+ *   security context CoSec's inject mode injected as the caller's ([CoSecCallerResolver]): a trust decision the host
+ *   makes for a service behind a CoSec gateway, which [CoSecAutoConfiguration] allows in that mode alone.
  *
  * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
@@ -51,6 +59,7 @@ class CoSecCallerOptions @InternalWowApi constructor(
     val tenantPolicies: Set<String> = emptySet(),
     val serviceRoles: Set<String> = emptySet(),
     val servicePolicies: Set<String> = emptySet(),
+    val trustInjectedApp: Boolean = false,
 ) {
     init {
         require(defaultTenant.isNotBlank()) { "The default tenant is not blank." }
@@ -65,7 +74,8 @@ class CoSecCallerOptions @InternalWowApi constructor(
     override fun toString(): String =
         "CoSecCallerOptions(defaultTenant=$defaultTenant, crossScopeRoles=$crossScopeRoles, " +
             "crossScopePolicies=$crossScopePolicies, attributePrefix=$attributePrefix, tenantRoles=$tenantRoles, " +
-            "tenantPolicies=$tenantPolicies, serviceRoles=$serviceRoles, servicePolicies=$servicePolicies)"
+            "tenantPolicies=$tenantPolicies, serviceRoles=$serviceRoles, servicePolicies=$servicePolicies, " +
+            "trustInjectedApp=$trustInjectedApp)"
 
     private fun valueFields(): List<Any?> = listOf(
         defaultTenant,
@@ -75,7 +85,8 @@ class CoSecCallerOptions @InternalWowApi constructor(
         tenantRoles,
         tenantPolicies,
         serviceRoles,
-        servicePolicies
+        servicePolicies,
+        trustInjectedApp,
     )
 
     companion object {
@@ -103,6 +114,24 @@ class CoSecCallerOptions @InternalWowApi constructor(
  *   no other principal is one, whatever headers its request carries.
  * - **Attributes**: the principal's roles ([ROLES]), its policies ([POLICIES]), and its ABAC attributes, keyed with
  *   their prefix (`abac.dept`); a value is a list, an array or a comma-separated string.
+ * - **Application** ([Caller.app], decision D232): the request's `CoSec-App-Id` only when CoSec's authorization of
+ *   this request granted it through a permission of that application's roles ([appOf]). CoSec does not authenticate
+ *   the header itself: its `Request.appId` is the header (or the query parameter) as the client sent it, and its
+ *   tokens carry no application. What CoSec does check is the application's role permissions, looked up by that id
+ *   (`AppRolePermissionRepository`): a request it allowed by one of them comes from a principal that holds a role of
+ *   the application which permits it. A request allowed otherwise (a global or principal policy, the root), or whose
+ *   security context was injected without CoSec's authorization (`ReactiveInjectSecurityContextWebFilter`, the
+ *   internal port), has no application, whatever header it sends (the trust boundary of decision D226).
+ * - **Injected application** (decision D236 ②): behind a CoSec gateway, in CoSec's inject mode
+ *   (`ReactiveInjectSecurityContextWebFilter`), the gateway authenticated and authorized the request and this service
+ *   only parses the token it forwards, so no request it sees carries CoSec's authorization. With
+ *   [CoSecCallerOptions.trustInjectedApp], a security context without one (no `VerifyContext`) takes the application
+ *   of the request the inject filter put on it: CoSec's `Request.appId`, the `CoSec-App-Id` header the gateway
+ *   forwarded (else the `CoSec-App-Id` query parameter), the very value the gateway authorized the request with. It is
+ *   a trust decision of the host (decision D226), off by default: the gateway's authorization checked the application
+ *   only when it allowed the request by that application's roles, so the host turns it on when nothing but the gateway
+ *   reaches the service and the gateway's policies hold every request to its application (or the gateway sets the
+ *   header itself). A blank one is none. A context CoSec authorized here keeps the rule above, whatever the option.
  */
 class CoSecCallerResolver(private val options: CoSecCallerOptions = CoSecCallerOptions()) : CallerResolver {
     override suspend fun resolve(request: ServerRequest): Caller? {
@@ -128,7 +157,9 @@ class CoSecCallerResolver(private val options: CoSecCallerOptions = CoSecCallerO
             subject = principal.id,
             crossScope = principal.roles.any { it in options.crossScopeRoles } ||
                 principal.policies.any { it in options.crossScopePolicies },
-            attributes = attributesOf(principal),
+            attributes = attributesOf(principal) + appOf(context, options.trustInjectedApp)?.let {
+                mapOf(Caller.APP to listOf(it))
+            }.orEmpty(),
             service = principal.roles.any { it in options.serviceRoles } ||
                 principal.policies.any { it in options.servicePolicies },
         )
@@ -158,6 +189,24 @@ class CoSecCallerResolver(private val options: CoSecCallerOptions = CoSecCallerO
     }
 
     companion object {
+        /**
+         * The application CoSec authorized the request of [context] in (decision D232): the request's `CoSec-App-Id`
+         * when CoSec's authorization allowed it by a permission of a role of that application ([RoleVerifyContext]);
+         * null when it was allowed otherwise, or names no application. A context CoSec did not authorize here has the
+         * application of its request only when [trustInjected] (decision D236 ②), none otherwise.
+         */
+        internal fun appOf(context: SecurityContext, trustInjected: Boolean = false): String? {
+            val verified = context.getVerifyContext()
+                ?: return if (trustInjected) requestAppOf(context) else null
+            if (verified !is RoleVerifyContext || verified.result != VerifyResult.ALLOW) {
+                return null
+            }
+            return requestAppOf(context)
+        }
+
+        private fun requestAppOf(context: SecurityContext): String? =
+            context.getRequest<Request>()?.appId?.trim()?.ifEmpty { null }
+
         /** The attribute of a [Caller] listing its principal's CoSec roles. */
         const val ROLES: String = "roles"
 

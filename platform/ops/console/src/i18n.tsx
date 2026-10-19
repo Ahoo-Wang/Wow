@@ -31,9 +31,17 @@ const SHELL = {
     language: "Language",
     caller: "Caller",
     signedOut: "No caller",
-    callerTitle: "Who is calling",
+    callerTitle: "Local run: who is calling",
     callerDescription:
-      "The ops service reads the caller from request headers, standing in for CoSec: X-User names the operator, X-Tenant its tenant, X-Role its roles. Acting on an entry needs the role ops.operator.",
+      "Only an ops service run with wow.platform.trust-identity-headers reads the caller from request headers, standing in for CoSec: X-User names the operator, X-Tenant its tenant, X-Role its roles. Acting on an entry needs the role ops.operator.",
+    signInTitle: "Sign in with CoSec",
+    signInDescription:
+      "Paste an access token your CoSec issued. The ops service verifies it and reads the operator from it: its tenant, its id and its roles. Reading the entries needs the role ops.viewer or ops.operator, acting on them ops.operator.",
+    token: "Access token",
+    signIn: "Sign in",
+    tokenRefused: "This is not a CoSec access token, or it has expired.",
+    signedInAs: "Signed in as {user} with a CoSec access token.",
+    signOutToken: "Sign out",
     user: "User",
     tenant: "Tenant",
     roles: "Roles",
@@ -42,7 +50,7 @@ const SHELL = {
     cancel: "Cancel",
     signOut: "Clear",
     needCaller:
-      "Name a caller to read the parked entries: the ops service answers an anonymous request with 401.",
+      "Sign in to read the parked entries, or name a caller for a local run: the ops service answers an anonymous request with 401.",
     readOnly:
       "This caller has no ops.operator role: it reads the entries, and the service refuses its actions.",
     cause: "Cause",
@@ -85,9 +93,17 @@ const SHELL = {
     language: "语言",
     caller: "调用者",
     signedOut: "未指定调用者",
-    callerTitle: "调用者",
+    callerTitle: "本地运行：调用者",
     callerDescription:
-      "运维服务从请求头读取调用者（代替 CoSec）：X-User 为操作员，X-Tenant 为其租户，X-Role 为其角色。操作条目需要 ops.operator 角色。",
+      "只有开启 wow.platform.trust-identity-headers 的运维服务才从请求头读取调用者（代替 CoSec）：X-User 为操作员，X-Tenant 为其租户，X-Role 为其角色。操作条目需要 ops.operator 角色。",
+    signInTitle: "使用 CoSec 登录",
+    signInDescription:
+      "粘贴 CoSec 签发的访问令牌。运维服务验证令牌并从中读取操作员：租户、标识与角色。查看条目需要 ops.viewer 或 ops.operator 角色，操作条目需要 ops.operator。",
+    token: "访问令牌",
+    signIn: "登录",
+    tokenRefused: "这不是 CoSec 访问令牌，或已过期。",
+    signedInAs: "已使用 CoSec 访问令牌登录：{user}。",
+    signOutToken: "退出登录",
     user: "用户",
     tenant: "租户",
     roles: "角色",
@@ -95,7 +111,8 @@ const SHELL = {
     save: "使用此调用者",
     cancel: "取消",
     signOut: "清除",
-    needCaller: "请先指定调用者：运维服务对匿名请求返回 401。",
+    needCaller:
+      "请先登录，或为本地运行指定调用者：运维服务对匿名请求返回 401。",
     readOnly:
       "此调用者没有 ops.operator 角色：可以查看条目，但服务会拒绝其操作。",
     cause: "原因",

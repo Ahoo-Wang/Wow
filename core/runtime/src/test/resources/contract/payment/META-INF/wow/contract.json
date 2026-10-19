@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "contexts": [
+    {
+      "name": "payment",
+      "aggregates": [
+        {
+          "name": "payment",
+          "state": { "schema": "#/$defs/sample.payment.PaymentState" },
+          "snapshot": { "enabled": false },
+          "commands": [
+            { "name": "Pay", "schema": "#/$defs/sample.payment.Pay", "creation": "REQUIRED" }
+          ],
+          "events": [{ "name": "Paid", "revision": 1, "schema": "#/$defs/sample.payment.Paid" }]
+        }
+      ],
+      "published": [{ "aggregate": "payment", "topic": "wow.payment.payment.state" }]
+    }
+  ],
+  "$defs": {}
+}

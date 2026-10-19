@@ -139,11 +139,12 @@ class ViewStoreNode(val context: ConfigurableApplicationContext) : AutoCloseable
 
 /**
  * Starts the view store server on random ports of the loopback interface, with [properties] over its
- * `application.yaml`, in [profiles].
+ * `application.yaml`, in [profiles], with the further configuration [sources].
  */
 fun startViewStore(
     vararg properties: Pair<String, Any>,
     profiles: List<String> = emptyList(),
+    sources: List<Class<*>> = emptyList(),
 ): ViewStoreNode {
     val arguments = mapOf(
         "spring.main.banner-mode" to "off",
@@ -156,7 +157,7 @@ fun startViewStore(
         "wow.wait.max-timeout" to "15s",
         ViewStoreConfiguration.TRUST_IDENTITY_HEADERS to true,
     ) + properties.toMap()
-    val context = SpringApplicationBuilder(ViewStoreServer::class.java)
+    val context = SpringApplicationBuilder(ViewStoreServer::class.java, *sources.toTypedArray())
         .profiles(*profiles.toTypedArray())
         .run(*arguments.map { (name, value) -> "--$name=$value" }.toTypedArray())
     return ViewStoreNode(context)

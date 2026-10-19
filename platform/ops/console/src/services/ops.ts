@@ -12,11 +12,13 @@
  */
 
 import { Fetcher } from "@ahoo-wang/fetcher";
+import { TokenStorage } from "@ahoo-wang/fetcher-cosec";
 import type { ViewEngine } from "@ahoo-wang/wow-view-engine";
 import { historySource, type HistorySource } from "@/detail/entryHistory.ts";
 import { createOpsEngine, parkedSource } from "@/views/engine.ts";
 import { parkedCommands, type ParkedCommands } from "@/views/parkedCommands.ts";
 import { CallerHeaders, CallerStore } from "./caller.ts";
+import { withCoSec } from "./cosec.ts";
 
 /** What the console talks to the ops service with. */
 export interface OpsServices {
@@ -31,12 +33,18 @@ export interface OpsServices {
 /**
  * The console's services on one fetcher, same-origin: the ops server serves
  * the console and the API from one place, and Vite forwards the API in
- * development. Every request carries the caller in force.
+ * development. Every request carries the caller in force: the CoSec token it
+ * signed in with, or the headers of a local run. A token the service refuses
+ * (401) signs the console out.
  */
 export function createOpsServices(
-  callers: CallerStore = new CallerStore(),
+  tokens: TokenStorage = new TokenStorage(),
+  callers: CallerStore = new CallerStore(undefined, tokens),
   fetcher: Fetcher = new Fetcher({ baseURL: "" }),
 ): OpsServices {
+  withCoSec(fetcher, tokens, () => {
+    if (callers.get()?.via === "cosec") callers.set(null);
+  });
   fetcher.interceptors.request.use(new CallerHeaders(callers.get));
   return {
     callers,

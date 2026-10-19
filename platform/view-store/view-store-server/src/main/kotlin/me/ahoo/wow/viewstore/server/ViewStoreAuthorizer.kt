@@ -29,12 +29,18 @@ import me.ahoo.wow.viewstore.api.ViewStoreContext
  *   [ViewStoreCallers.SHARED_WRITER], as the dataset wording, the whole tenant's, does.
  * - The owner `(system)`'s writes need [ViewStoreCallers.SYSTEM_WRITER].
  * - A user writes its own views; the kernel keeps it to them (decision D94).
+ * - A write in a scope without an owner is refused (review R2.3-2): the kernel checks only the parts of the scope a
+ *   command has (decision D189), so a tenant-level or anonymous caller, or `Wow-Scope` naming a tenant alone, would
+ *   reach every owner's views and preferences, the reserved owners' among them, without the roles above.
+ * - Preferences are written in the caller's own scope alone (review R2.3-3): [PreferencesTarget] derives their id
+ *   from the caller's owner, as a transformer does not see the scope `Wow-Scope` targets, so a caller acting as
+ *   another owner would write preferences of the wrong id. The callers of [ViewStoreCallers] act as `(shared)` with
+ *   that owner as their own, so they are not affected; a CoSec administrator writes the shared preferences once the
+ *   transformers see the target scope.
  */
 class ViewStoreAuthorizer : CommandAuthorizer {
     override suspend fun authorize(caller: Caller, action: CommandAction): Authorization {
-        if (action.type.name == Lifecycle.TRANSFER_OWNER) {
-            return Authorization.Denied("A view's owner changes only by sharing or claiming it.")
-        }
+        refusal(caller, action)?.let { return Authorization.Denied(it) }
         val role = when {
             action.ref.type.name == ViewStoreContext.DATASET_WORDING -> ViewStoreCallers.SHARED_WRITER
             action.scope.ownerId == ViewStoreContext.SHARED_OWNER_ID -> ViewStoreCallers.SHARED_WRITER
@@ -45,9 +51,24 @@ class ViewStoreAuthorizer : CommandAuthorizer {
         return if (role in roles) {
             Authorization.Allowed
         } else {
-            Authorization.Denied(
-                "${caller.subject ?: "An anonymous caller"} may not ${action.type.name}: it needs $role."
-            )
+            Authorization.Denied("${nameOf(caller)} may not ${action.type.name}: it needs $role.")
         }
     }
+
+    /** Why [action] is refused to [caller] whatever its roles, or null when its roles decide. */
+    private fun refusal(caller: Caller, action: CommandAction): String? = when {
+        action.type.name == Lifecycle.TRANSFER_OWNER -> "A view's owner changes only by sharing or claiming it."
+        action.ref.type.name == ViewStoreContext.VIEW_PREFERENCES && action.scope.ownerId != caller.scope.ownerId ->
+            "${nameOf(caller)} may not ${action.type.name} as ${action.scope.ownerId ?: "no owner"}: preferences are " +
+                "found by their caller's own owner (${caller.scope.ownerId ?: "none"}), so they are written in its " +
+                "own scope alone."
+
+        action.ref.type.name != ViewStoreContext.DATASET_WORDING && action.scope.ownerId == null ->
+            "${nameOf(caller)} may not ${action.type.name}: a write to the view store acts as an owner, a user or " +
+                "${ViewStoreContext.SHARED_OWNER_ID} or ${ViewStoreContext.SYSTEM_OWNER_ID}, and this one names none."
+
+        else -> null
+    }
+
+    private fun nameOf(caller: Caller): String = caller.subject ?: "An anonymous caller"
 }

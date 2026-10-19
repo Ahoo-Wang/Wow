@@ -157,6 +157,28 @@ class TopicSubscriptions internal constructor(
     @Volatile
     private var running: Running? = null
 
+    @Volatile
+    private var state: JoinState = JoinState.STOPPED
+
+    /**
+     * Where this node is in joining the topic's lease group (review R2.1-8), for a health model to report: a node
+     * [JoinState.JOINING] for long reads nothing of the topic. See [joinFailures] for why it waits.
+     */
+    val joinState: JoinState get() = state
+
+    /**
+     * The attempts to join that failed since the node last joined: to read the topic's partitions (none yet counts)
+     * or to join its lease group; zero once it reads them.
+     */
+    @Volatile
+    var joinFailures: Int = 0
+        private set
+
+    /** Why the last attempt to join failed, while [joinFailures] is not zero. */
+    @Volatile
+    var lastJoinFailure: Exception? = null
+        private set
+
     init {
         require(this.subscriptions.isNotEmpty()) { "Topic $topic has no subscription to read it." }
         this.subscriptions.groupBy { it.name }.filterValues { it.size > 1 }.keys.forEach {
@@ -172,29 +194,53 @@ class TopicSubscriptions internal constructor(
 
     /**
      * Joins the lease group in the background, as soon as the topic has partitions: reads them (retrying while it has
-     * none), then acquires this node's share and reads it.
+     * none), then acquires this node's share and reads it, retrying until it joins (review R2.1-8): a join that fails,
+     * the lease store unreachable say, is undone and tried again after [SubscriptionOptions.readRetry]'s backoff, and
+     * [joinState] stays [JoinState.JOINING] meanwhile.
      */
     suspend fun start(): Unit = lifecycle.withLock {
         check(scope == null) { "The subscriptions of $topic on $node are already started." }
         val root = CoroutineScope(context + SupervisorJob())
         scope = root
         started = CompletableDeferred()
+        joinFailures = 0
+        state = JoinState.JOINING
         val deferred = started
         joining = root.launch {
-            val partitions = retryForever(options.readRetry, { "read the partitions of $topic" }) {
+            val partitions = retryForever(options.readRetry, { "read the partitions of $topic" }, ::joinFailed) {
                 source.partitions(topic).also {
                     check(it.isNotEmpty()) { "Topic $topic has no partitions yet." }
                     check(it == it.indices.toList()) { "The partitions of $topic are not numbered from 0: $it." }
                 }
             }
-            val run = joinOver(partitions.size)
-            running = run
+            val run = join(partitions.size)
             deferred.complete(run)
             logger.info { "$node reads topic $topic (${partitions.size} partitions) for ${subscriptions.size} subscriptions." }
             if (partitionRefresh.isFinite()) {
                 refresh()
             }
         }
+    }
+
+    /**
+     * Joins the lease group over [partitions] partitions until it succeeds: each attempt that fails has undone itself
+     * ([PartitionOwnership.start]), so the next one starts afresh.
+     */
+    private suspend fun join(partitions: Int): Running {
+        state = JoinState.JOINING
+        val run = retryForever(options.readRetry, { "join $group over $partitions partitions" }, ::joinFailed) {
+            joinOver(partitions)
+        }
+        running = run
+        joinFailures = 0
+        lastJoinFailure = null
+        state = JoinState.READING
+        return run
+    }
+
+    private fun joinFailed(failure: Exception) {
+        joinFailures++
+        lastJoinFailure = failure
     }
 
     /** Joins the lease group over [partitions] partitions, reading this node's share of them. */
@@ -217,7 +263,10 @@ class TopicSubscriptions internal constructor(
         return Running(runtime, ownership, partitions)
     }
 
-    /** Reads the topic's partitions every [partitionRefresh], and joins again over them when there are more. */
+    /**
+     * Reads the topic's partitions every [partitionRefresh], and joins again over them when there are more: the held
+     * ones are handed off, then the group joined over all of them, retrying as [start] does until it succeeds.
+     */
     @Suppress("TooGenericExceptionCaught") // A refresh that fails is tried again at the next one.
     private suspend fun refresh() {
         while (true) {
@@ -234,11 +283,13 @@ class TopicSubscriptions internal constructor(
                 continue
             }
             if (count > current.partitions) {
-                // Not cancelled half-way: a stop waits for the new partitions to be joined, then hands them off.
+                // Not cancelled half-way: the held partitions are handed off with their checkpoints saved.
+                state = JoinState.JOINING
                 withContext(NonCancellable) {
                     current.ownership.stop()
-                    running = joinOver(count)
+                    running = null
                 }
+                join(count)
                 logger.info { "$node reads topic $topic over $count partitions, ${current.partitions} before." }
             }
         }
@@ -256,6 +307,7 @@ class TopicSubscriptions internal constructor(
             joining?.cancelAndJoin()
             running?.ownership?.stop()
         } finally {
+            state = JoinState.STOPPED
             running = null
             joining = null
             scope = null
@@ -280,6 +332,22 @@ class TopicSubscriptions internal constructor(
     }
 
     override fun toString(): String = "TopicSubscriptions($topic, ${subscriptions.map { it.name }})"
+
+    /** Where a node is in joining a topic's lease group ([joinState]). */
+    @InternalWowApi
+    enum class JoinState {
+        /** Not started, or stopped. */
+        STOPPED,
+
+        /**
+         * Started, but not reading the topic: waiting for its partitions, retrying a join that failed, or joining
+         * again over partitions added.
+         */
+        JOINING,
+
+        /** Joined: reading this node's share of the topic's partitions. */
+        READING,
+    }
 
     private companion object {
         val logger = KotlinLogging.logger {}

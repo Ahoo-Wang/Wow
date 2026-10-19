@@ -17,6 +17,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.copyWith
+import me.ahoo.wow.migrate.example.NineXCompensationExample
 import me.ahoo.wow.migrate.example.NineXExample
 import org.junit.jupiter.api.Test
 
@@ -267,5 +268,106 @@ class MappingCheckTest {
             NineXExample.plan.of(NineXAggregate("example-service", "payment"))
         }
         NineXExample.plan.of(order).ownership.assert().isEqualTo(me.ahoo.wow.api.aggregate.Ownership.OWNER)
+    }
+
+    private val compensation = InMemoryNineXCompensationSource(NineXCompensationExample.executions()).inventory()
+
+    private fun checkCompensation(
+        map: MigrationMap = NineXCompensationExample.map,
+        inventory: NineXCompensationInventory? = compensation,
+    ): MappingReport =
+        MappingCheck(MigrationPlan(map, NineXCompensationExample.manifest)).check(example, compensation = inventory)
+
+    @Test
+    fun `every 9x processor function with unresolved executions maps to a V10 subscription`() {
+        val report = checkCompensation()
+        report.passed.assert().isTrue()
+        report.warnings.assert().contains(
+            "1 unresolved executions of example-service.OrderProjector.onOrderPaid on example-service.order will " +
+                "not be imported: the V10 subscription OrderProjector.onOrderPaid of reporting does not read the log " +
+                "of example",
+        )
+        report.render().assert()
+            .contains("  9.x compensation: 5 unresolved executions of 4 functions, 2 resolved (history, not imported)")
+
+        // Without a mapping, a function's failures would be lost: the check fails.
+        val unmapped = MigrationMap.read(NineXCompensationExample.mapText("""{ "from": "example-service.CartSaga" }"""))
+        checkCompensation(unmapped).problems.assert().containsExactlyInAnyOrder(
+            "the 9.x processor function example-service.OrderProjector.onOrderPaid (1 unresolved executions) has no " +
+                "subscription mapping: its failures would be lost",
+            "the 9.x processor function example-service.OrderSaga.onEvent (1 unresolved executions) has no " +
+                "subscription mapping: its failures would be lost",
+            "the 9.x processor function example-service.OrderSaga.onStateEvent (1 unresolved executions) has no " +
+                "subscription mapping: its failures would be lost",
+        )
+    }
+
+    @Test
+    fun `a subscription missing from the Manifest or a processor mapped twice fails it, an unused mapping warns`() {
+        val map = MigrationMap.read(
+            NineXCompensationExample.mapText(
+                NineXCompensationExample.SUBSCRIPTIONS + """,
+                { "from": "example-service.CartSaga", "to": "BasketSaga" },
+                { "from": "example-service.PaymentSaga", "functions": { "onPaid": "onOrderPaid" } },
+                { "from": "example-service.ShippingSaga" }""",
+            ),
+        )
+        val report = checkCompensation(map)
+        report.problems.assert().containsExactlyInAnyOrder(
+            "the 9.x processor example-service.CartSaga is mapped twice",
+            "example-service.PaymentSaga: the V10 subscription PaymentSaga.onOrderPaid is not in the Manifest",
+            "the 9.x processor function example-service.CartSaga.onOrderCreated (2 unresolved executions) maps to " +
+                "the V10 subscription BasketSaga.onOrderCreated, which is not in the Manifest",
+        )
+        report.warnings.assert()
+            .contains("no unresolved 9.x execution is of the processor example-service.PaymentSaga")
+            .contains("no unresolved 9.x execution is of the processor example-service.ShippingSaga")
+
+        // A mapped function without unresolved executions warns; another service's executions are not this run's.
+        val functions = MigrationMap.read(
+            NineXCompensationExample.mapText(
+                NineXCompensationExample.SUBSCRIPTIONS.replace(
+                    """"onStateEvent": "onOrderState"""",
+                    """"onStateEvent": "onOrderState", "onOrderPaid": "onOrderCreated"""",
+                ),
+            ),
+        )
+        val other = compensation.copy(
+            unresolved = compensation.unresolved + NineXFailureGroup(
+                NineXFunction("payment-service", "PaymentSaga", "onPaid"),
+                NineXAggregate("payment-service", "payment"),
+                4,
+            ),
+        )
+        checkCompensation(functions, other).also {
+            it.passed.assert().isTrue()
+            it.warnings.assert().contains(
+                "no unresolved 9.x execution is of the processor function example-service.OrderSaga.onOrderPaid",
+            )
+        }
+    }
+
+    @Test
+    fun `executions on an aggregate the map does not import warn, and mappings without a database are unused`() {
+        val payment = compensation.copy(
+            unresolved = listOf(
+                NineXFailureGroup(
+                    NineXFunction("example-service", "CartSaga", "onOrderCreated"),
+                    NineXAggregate("example-service", "payment"),
+                    2,
+                ),
+            ),
+        )
+        checkCompensation(inventory = payment).warnings.assert().contains(
+            "2 unresolved executions of example-service.CartSaga.onOrderCreated on example-service.payment will not " +
+                "be imported: this map does not import the 9.x aggregate example-service.payment",
+        )
+        checkCompensation(inventory = null).also {
+            it.passed.assert().isTrue()
+            it.warnings.assert()
+                .contains("the configuration names no 9.x compensation database: the subscription mappings are unused")
+            it.render().assert().doesNotContain("9.x compensation:")
+        }
+        check().warnings.assert().noneMatch { it.contains("compensation") }
     }
 }

@@ -4,8 +4,7 @@
  * example applies this script instead, after setting `extra["wowService"]` to its service name.
  *
  * - `mergeWowManifestWithSchemas` merges the Manifest fragments of the server's runtime class path, with their schemas,
- *   into `build/wow/compatibility/manifest.json`, as the plugin's `mergeWowManifest` does (`ManifestTools.merge`);
- *   `wow-peers.gradle.kts` leaves the schemas out of the Manifest it offers the peers.
+ *   into `build/wow/compatibility/manifest.json`, as the plugin's `mergeWowManifest` does (`ManifestTools.merge`).
  * - `checkManifestCompatibility`, part of `check`, compares it with the committed baseline `manifest/baseline.json`
  *   (`ManifestTools.checkCompatibility`): a change that breaks the contract within the baseline's major version fails
  *   the build with each breaking change and its path; `build/wow/manifest-compatibility.txt` lists every change.

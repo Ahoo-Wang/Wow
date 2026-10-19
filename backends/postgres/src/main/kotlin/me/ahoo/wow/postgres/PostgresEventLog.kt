@@ -84,7 +84,8 @@ import kotlin.time.Duration.Companion.seconds
  *
  * **Polling** (finding A2-14). A tail polls every `pollInterval` (50 ms by default) while it finds entries; each poll
  * that finds none doubles the wait, up to `maxPollInterval` (1 s), so an idle cluster's partitions cost a statement a
- * second each rather than twenty. A commit this log makes wakes the partition's tails at once; an entry another node
+ * second each rather than twenty. A commit this log makes wakes the partition's tails at once, and a poll it woke
+ * that finds the partition caught up keeps the backoff, so a commit costs one read of the tail; an entry another node
  * appends is read within `maxPollInterval`. `LISTEN/NOTIFY` (design 03 §2) would wake the tails of every node; it is
  * not implemented: the bounded backoff and the wake on this log's commits keep an idle cluster cheap without a
  * listening connection per node.
@@ -124,7 +125,7 @@ class PostgresEventLog(
      * [createTable].
      */
     fun createSchema() {
-        dataSource.connection.use { connection ->
+        dataSource.autoCommitted { connection ->
             val structures = listOf(tables.partitionsBase, PostgresEventLogTables.REGISTRY)
                 .map { it to PostgresEventLogTables.FORMAT }
             PostgresFormat.schema(connection, ddl, structures) {
@@ -156,7 +157,7 @@ class PostgresEventLog(
      * another format version ([PostgresFormat]), and an aggregate whose table name another aggregate has.
      */
     fun createTable(aggregateName: String) {
-        dataSource.connection.use { tableOf(it, aggregateName) }
+        dataSource.autoCommitted { tableOf(it, aggregateName) }
     }
 
     /** The table of [aggregate], created and registered when this log has not yet made sure it is. */
@@ -212,7 +213,7 @@ class PostgresEventLog(
             require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
             val partition = Partitioner.partitionOf(stream.ref, partitions)
             try {
-                dataSource.connection.use { connection ->
+                dataSource.autoCommitted { connection ->
                     appendIn(connection, tableOf(connection, stream.ref.type), partition, stream, transport)
                 }
             } catch (failure: SQLException) {
@@ -285,7 +286,7 @@ class PostgresEventLog(
 
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = flow {
         val streams = dispatcher.jdbc {
-            dataSource.connection.use { connection ->
+            dataSource.autoCommitted { connection ->
                 val table = tableOf(connection, ref.type)
                 connection.prepareStatement(table.read).use { query ->
                     query.setString(1, ref.id)
@@ -301,7 +302,7 @@ class PostgresEventLog(
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = flow {
         val entries = dispatcher.jdbc {
-            dataSource.connection.use { connection ->
+            dataSource.autoCommitted { connection ->
                 val table = tableOf(connection, ref.type)
                 connection.prepareStatement(table.entries).use { query ->
                     query.setString(1, ref.id)
@@ -318,7 +319,7 @@ class PostgresEventLog(
     }
 
     override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = dispatcher.jdbc {
-        dataSource.connection.use { connection ->
+        dataSource.autoCommitted { connection ->
             connection.prepareStatement(tableOf(connection, ref.type).position).use { query ->
                 query.setString(1, ref.id)
                 query.setString(2, ref.tenantId)
@@ -333,7 +334,7 @@ class PostgresEventLog(
     /** The stream committed for [requestId] within [tenantId] in [type]'s table: one indexed read of one table. */
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
         dispatcher.jdbc {
-            dataSource.connection.use { connection ->
+            dataSource.autoCommitted { connection ->
                 findByRequestIdIn(connection, tableOf(connection, type), tenantId, requestId)
             }
         }
@@ -345,9 +346,9 @@ class PostgresEventLog(
      */
     override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
         dispatcher.jdbc {
-            dataSource.connection.use { connection ->
+            dataSource.autoCommitted { connection ->
                 val known = ((registered ?: register(connection)) + ensured.values).distinctBy { it.base }
-                if (known.isEmpty()) return@use null
+                if (known.isEmpty()) return@autoCommitted null
                 connection.prepareStatement(tables.byRequest(known)).use { query ->
                     known.indices.forEach { index ->
                         query.setString(index * 2 + 1, tenantId)
@@ -364,15 +365,18 @@ class PostgresEventLog(
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         var last = after ?: 0L
         var idle = pacer.interval
+        var woken = false
         while (true) {
             val mark = pacer.mark(partition)
-            val batch = dispatcher.jdbc { dataSource.connection.use { readTail(it, partition, last) } }
+            val batch = dispatcher.jdbc { dataSource.autoCommitted { readTail(it, partition, last) } }
             batch.entries.forEach {
                 emit(it)
                 last = it.position.sequence
             }
             if (!batch.again) {
-                idle = pacer.await(partition, mark, batch.entries.isNotEmpty(), idle)
+                val pace = pacer.await(partition, mark, batch.entries.isNotEmpty(), idle, woken && !batch.behind)
+                idle = pace.idle
+                woken = pace.woken
             }
         }
     }
@@ -414,15 +418,16 @@ class PostgresEventLog(
             run.size < expected -> register(connection).map { it.base } != known.map { it.base }
             else -> run.size == tailBatch
         }
-        return TailBatch(run, again)
+        return TailBatch(run, again, behind = run.size < expected)
     }
 
-    private class TailBatch(val entries: List<LogEntry>, val again: Boolean)
+    /** One read of a tail: its [entries], whether to read again at once, whether the counter is ahead of them. */
+    private class TailBatch(val entries: List<LogEntry>, val again: Boolean, val behind: Boolean)
 
     override suspend fun head(partition: Int): Long? {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         return dispatcher.jdbc {
-            dataSource.connection.use { connection ->
+            dataSource.autoCommitted { connection ->
                 connection.prepareStatement(tables.head).use { query ->
                     query.setInt(1, partition)
                     query.executeQuery().use { rows -> if (rows.next()) rows.getLong(1).takeIf { it > 0 } else null }

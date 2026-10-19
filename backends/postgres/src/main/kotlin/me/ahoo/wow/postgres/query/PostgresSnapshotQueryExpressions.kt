@@ -100,12 +100,8 @@ internal enum class PostgresQueryType(val sql: String, val catalogType: String) 
  * | [PostgresQueryType.NUMERIC] | `(CASE WHEN jsonb_typeof(state #> '{a}') = 'number' THEN (state #>> '{a}')::numeric END)` |
  * | [PostgresQueryType.BOOLEAN] | `(CASE WHEN jsonb_typeof(state #> '{a}') = 'boolean' THEN (state #>> '{a}')::boolean END)` |
  */
-internal object PostgresSnapshotQueryExpressions {
-    /** The characters a path segment may hold, as the query model's path segments do. */
-    val SEGMENT: Regex = Regex("[A-Za-z0-9_@-]+")
-
-    /** The columns of the system fields (decision D128), by logical name. */
-    val COLUMNS: Map<String, String> = mapOf(
+internal object PostgresSnapshotQueryExpressions : PostgresQueryExpressions(
+    columns = mapOf(
         SnapshotFields.TENANT_ID to "tenant_id",
         SnapshotFields.AGGREGATE_ID to "aggregate_id",
         SnapshotFields.VERSION to "version",
@@ -119,10 +115,8 @@ internal object PostgresSnapshotQueryExpressions {
         SnapshotFields.FIRST_OPERATOR to "first_operator",
         SnapshotFields.SCHEDULES to "schedules",
         SnapshotFields.STATE to "state",
-    )
-
-    /** The types of the system columns. */
-    val COLUMN_TYPES: Map<String, PostgresQueryType> = mapOf(
+    ),
+    columnTypes = mapOf(
         SnapshotFields.TENANT_ID to PostgresQueryType.TEXT,
         SnapshotFields.AGGREGATE_ID to PostgresQueryType.TEXT,
         SnapshotFields.VERSION to PostgresQueryType.INTEGER,
@@ -136,21 +130,37 @@ internal object PostgresSnapshotQueryExpressions {
         SnapshotFields.FIRST_OPERATOR to PostgresQueryType.JSONB,
         SnapshotFields.SCHEDULES to PostgresQueryType.JSONB,
         SnapshotFields.STATE to PostgresQueryType.JSONB,
-    )
+    ),
+)
 
-    private val JSONB_COLUMNS = setOf(
-        SnapshotFields.STATE,
-        SnapshotFields.TAGS,
-        SnapshotFields.OPERATOR,
-        SnapshotFields.FIRST_OPERATOR,
-        SnapshotFields.SCHEDULES,
-    )
+/**
+ * The SQL expressions of one query table's fields: [columns] holds the column of each top-level physical field, and
+ * [columnTypes] its type, `jsonb` for a column a path may go below (see [PostgresSnapshotQueryExpressions], whose
+ * table the snapshot queries read; the events model reads the log tables, [PostgresEventQueryExpressions]).
+ */
+internal open class PostgresQueryExpressions(
+    columns: Map<String, String>,
+    columnTypes: Map<String, PostgresQueryType>,
+) {
+    /** The columns of the system fields, by physical name. */
+    @Suppress("VariableNaming") // Kept the snapshot object's constant names.
+    val COLUMNS: Map<String, String> = columns
+
+    /** The types of the system columns, by physical name. */
+    @Suppress("VariableNaming")
+    val COLUMN_TYPES: Map<String, PostgresQueryType> = columnTypes
+
+    /** The characters a path segment may hold, as the query model's path segments do. */
+    @Suppress("VariableNaming")
+    val SEGMENT: Regex = Regex("[A-Za-z0-9_@-]+")
+
+    private val jsonbColumns = columnTypes.filterValues { it == PostgresQueryType.JSONB }.keys
 
     /** The typed value of the field at the absolute physical [path] of a snapshot row. */
     fun value(path: QueryField, type: PostgresQueryType): String {
         val (head, rest) = split(path)
         val column = column(head)
-        if (head !in JSONB_COLUMNS) {
+        if (head !in jsonbColumns) {
             requireExecution(rest.isEmpty()) { "Field [$path] is below the scalar column [$column]." }
             return column
         }
@@ -161,7 +171,7 @@ internal object PostgresSnapshotQueryExpressions {
     fun node(path: QueryField): String {
         val (head, rest) = split(path)
         val column = column(head)
-        if (head !in JSONB_COLUMNS) {
+        if (head !in jsonbColumns) {
             requireExecution(rest.isEmpty()) { "Field [$path] is below the scalar column [$column]." }
             // A scalar column always holds its field: a NULL owner is a JSON null, as the snapshot record shows it.
             return "coalesce(to_jsonb($column), 'null'::jsonb)"
@@ -190,7 +200,7 @@ internal object PostgresSnapshotQueryExpressions {
 
     /** The column of the system field [field]. */
     fun column(field: String): String =
-        COLUMNS[field] ?: throw QueryExecutionException("Field [$field] is not a field of the snapshot table.")
+        COLUMNS[field] ?: throw QueryExecutionException("Field [$field] is not a field of the query table.")
 
     private fun split(path: QueryField): Pair<String, List<String>> {
         val segments = path.path.split('.')

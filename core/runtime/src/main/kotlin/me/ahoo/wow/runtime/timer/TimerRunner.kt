@@ -27,6 +27,7 @@ import kotlinx.coroutines.sync.withPermit
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.kernel.schedule.ScheduleSlots
+import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.timer.Timer
@@ -64,7 +65,10 @@ import kotlin.time.TimeSource
  * - a technical failure (a contended or unknown outcome, a failing store, no transport, a target whose clock is too
  *   far behind, [me.ahoo.wow.runtime.wait.ResultCodes.SCHEDULE_NOT_DUE]): the timer stays PENDING, due again after
  *   [TimerOptions.retry]'s backoff, until its attempts are spent; it is then PARKED and its target recorded in the
- *   failure ledger under [TimerOptions.PARKED_SUBSCRIPTION], for an operator to [resume] or [skip].
+ *   failure ledger under [TimerOptions.PARKED_SUBSCRIPTION], for an operator to [resume] or [skip];
+ * - refused as busy ([me.ahoo.wow.runtime.wait.ResultCodes.BUSY], decision D228 ②): backpressure, not a failure
+ *   (review R2.1-1): the timer stays PENDING, due again after [TimerOptions.retry]'s first backoff, its attempts as
+ *   they were.
  *
  * A claim, a retry or a resume moves only the timer's [Timer.dueAt]: every send of the slot carries the slot's own due
  * time ([Timer.slotDueAt]), so its target never decides it before then (decision D198). A recurring timer whose slot is
@@ -295,8 +299,23 @@ class TimerRunner(
      * are spent.
      */
     private suspend fun failed(part: Part, timer: Timer, failure: Throwable, now: Long) {
-        val attempts = timer.attempts + 1
         val reason = "${failure.javaClass.name}: ${failure.message}"
+        if (failure is CommandBusyException) {
+            // Backpressure, not a failure (review R2.1-1): sent again after the first backoff, no attempt counted.
+            val backoff = options.retry.initialBackoff
+            logger.debug { "The target of the timer ${timer.id} is busy; sending it again in $backoff." }
+            settle(
+                part,
+                timer,
+                timer.copyWith(
+                    status = TimerStatus.PENDING,
+                    outcome = reason,
+                    dueAt = now + backoff.inWholeMilliseconds
+                ),
+            )
+            return
+        }
+        val attempts = timer.attempts + 1
         if (attempts < options.retry.maxAttempts) {
             val backoff = options.retry.backoff(attempts)
             logger.warn(failure) { "Sending the timer ${timer.id} failed (attempt $attempts); retrying in $backoff." }

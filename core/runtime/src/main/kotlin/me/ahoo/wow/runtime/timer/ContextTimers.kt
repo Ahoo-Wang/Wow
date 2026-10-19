@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.timer
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.CommandTypes
@@ -24,6 +25,7 @@ import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
+import me.ahoo.wow.runtime.wait.busyOf
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.timer.Timer
@@ -53,8 +55,9 @@ internal class ContextCommandTypes(models: Collection<AggregateModel<*>>, privat
  * The command's id and request id are the timer's id and slot (`timer#slot`), so a slot sent twice is decided once;
  * its headers carry the slot ([me.ahoo.wow.api.schedule.ScheduleContext], decision D198), which its target reads and
  * whose due time the target's kernel waits for. Its scope is the scheduling commit's (decision D189), its causation
- * that commit, and its other headers and operator the scheduling command's (decision D163). It is not waited for: a
- * scheduled command is in no caller's wait chain.
+ * that commit, its operator the scheduling command's (decision D163), and of the scheduling command's other headers
+ * only the request facts that propagate ([RequestFacts.PROPAGATED], decision D232), such as the calling application:
+ * not where its request came from. It is not waited for: a scheduled command is in no caller's wait chain.
  *
  * Each firing is observed by [observer] (decision D174), its outcome the [TimerOutcomes] it answers: the command goes
  * on in the firing's trace.
@@ -80,7 +83,7 @@ internal class ContextTimerFirer(
             requestId = timer.requestId,
             ref = timer.target,
             body = ClusterCodec.mapper.readTree(timer.body),
-            headers = timer.headers + timer.context.headers(),
+            headers = RequestFacts.propagatedOf(timer.headers) + timer.context.headers(),
             scope = timer.scope,
             causation = timer.causation,
             operator = timer.operator,
@@ -97,6 +100,8 @@ internal class ContextTimerFirer(
             }
             return TimerOutcomes.REJECTED
         }
+        // A busy node is backpressure: the runner sends it again without counting an attempt (review R2.1-1).
+        settlement.busyOf(command)?.let { throw it }
         check(!settlement.failed) {
             val error = settlement.committed.error
             "The command of the timer ${timer.id} on ${timer.target} failed: ${error?.code} ${error?.message}"

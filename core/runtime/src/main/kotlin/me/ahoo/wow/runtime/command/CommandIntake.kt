@@ -15,15 +15,25 @@ package me.ahoo.wow.runtime.command
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.withPermit
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.result.FunctionInfo
+import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.runtime.FrameworkCodes
+import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.CommandWire
@@ -32,11 +42,15 @@ import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.wait.WaitCoordinator
+import me.ahoo.wow.runtime.wait.busyOf
 import me.ahoo.wow.runtime.wait.toError
 import me.ahoo.wow.spi.observation.trace
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.TopicProducer
 import me.ahoo.wow.spi.wait.WaitContext
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The command intake of one bounded [context] (design 02 §2; decisions D135, D137): the subscription [NAME] of its
@@ -60,10 +74,21 @@ import me.ahoo.wow.spi.wait.WaitContext
  *    acknowledged by the broker **before** the entry completes, so the checkpoint never passes a rejection whose
  *    receipt is not durable. A crash in between handles the command again from the checkpoint: it is rejected again
  *    and its receipt sent again, which the sender drops by the command id (decision D136).
- * 3. **Technical failures** throw: an aggregate type or command type the context does not know, a contended or unknown
- *    outcome, an executor that is busy or closing, a receipt the broker does not acknowledge. The subscription retries
- *    them, then parks the aggregate in the context's failure ledger under [NAME], at the command's offset
+ * 3. **Technical failures** throw: a contended or unknown outcome, an executor that is closing, a store that is down,
+ *    a receipt the broker does not acknowledge. The subscription retries them, then parks the aggregate in the
+ *    context's failure ledger under [NAME], at the command's offset
  *    ([me.ahoo.wow.spi.ledger.ParkedAggregate.fromPosition]); its later commands wait until it is resumed or skipped.
+ *
+ * An aggregate type or command type the context does not know is the sender's mistake, or a contract the sender has
+ * and this service does not yet (review X-5): it is not this aggregate's failure, and parking it would hold its
+ * later commands for an operator. Such a command is rejected as [FrameworkCodes.UNHANDLED], with its receipt as in 2
+ * ([unhandled]).
+ *
+ * A command the node refuses as busy (decision D228 ②) is backpressure, not a failure (review R2.1-1): the intake
+ * throws a [me.ahoo.wow.runtime.CommandBusyException], which its subscription retries after a backoff without
+ * spending its retry budget. The intakes of a node execute at most [InFlightLimit.intakes] commands at once, half its
+ * in-flight bound, so a node that owns many partitions of a backlog leaves room for its callers, sagas and timers. A
+ * command a schedule sent waits in its lane for its due time first ([awaitDue], review R2.5-1).
  *
  * The checkpoint is the offset after the last command whose outcome is settled, every command before it settled too
  * (the subscription's contiguous low watermark), so a handover or a restart executes again at most what was in
@@ -80,6 +105,14 @@ class CommandIntake internal constructor(
     private val topics: SourceTopics,
     private val creations: CreationIds = CreationIds(),
     private val ledger: LedgerCommands = LedgerCommands(ParkedOps { emptyList() }),
+    /**
+     * The node's in-flight bound (decision D228 ②), whose [InFlightLimit.intakes] bound the commands the intakes of all
+     * its contexts execute at once (review R2.1-1).
+     */
+    private val limit: InFlightLimit = InFlightLimit(),
+    /** The longest the intake waits for a scheduled command's due time before it runs it (review R2.5-1). */
+    private val maxScheduleWait: Duration = DEFAULT_MAX_SCHEDULE_WAIT,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val models: Map<AggregateType, AggregateModel<*>> = models.associateBy { it.type }
     private val producer: TopicProducer = requireNotNull(topics.producer) { "An intake sends receipts." }
@@ -95,21 +128,22 @@ class CommandIntake internal constructor(
             ledger.execute(wire)?.let { reply(wire, it, null) }
             return
         }
-        val model = checkNotNull(models[wire.ref.type]) {
-            "Context $context has no aggregate ${wire.ref.type}, which the command ${wire.id} is sent to."
-        }
-        val received = checkNotNull(ClusterCodec.command(model, wire)) {
-            "${wire.ref.type} has no command type ${wire.type}, which the command ${wire.id} is."
-        }
+        val model = models[wire.ref.type]
+            ?: return unhandled(wire, wait, "Context $context has no aggregate ${wire.ref.type}.")
+        val received = ClusterCodec.command(model, wire)
+            ?: return unhandled(wire, wait, "${wire.ref.type} has no command type ${wire.type}.")
         // A creation that names no aggregate takes the id its request created, or a new one (decision D191).
         val command = creations.assign(model, received)
-        val settlement = coordinator.forward(model, command, wait)
+        awaitDue(command)
+        val settlement = limit.intakes.withPermit { coordinator.forward(model, command, wait) }
         // A receipt carries the rest of the command's chain on, past its commit (decision D192).
         val next = wait?.afterCommitted()?.takeIf { it.remaining.isNotEmpty() }
         settlement.rejection?.let { rejection ->
             reply(wire.copy(ref = command.ref), rejection.toError(), next)
             return
         }
+        // A busy node is backpressure: the subscription retries without spending its budget (review R2.1-1).
+        settlement.busyOf(command)?.let { throw it }
         if (settlement.failed) {
             val error = settlement.committed.error
             val failure = settlement.failure
@@ -120,6 +154,54 @@ class CommandIntake internal constructor(
             )
         }
         replyCommitted(wire, settlement.committed, next)
+    }
+
+    /**
+     * Refuses [wire], of an aggregate type or a command type this context does not know, as
+     * [FrameworkCodes.UNHANDLED] (review X-5): a sender's mistake, or a contract the sender has and this service does
+     * not yet, which no retry here mends. It is the sender's rejection, not a failure of the aggregate it names, so
+     * that aggregate's later commands go on: the node waiting on [wait] is signalled the rejection at the context's
+     * COMMITTED hop, and the receipt goes where [wire] says, as for a decide function's rejection; the sender's saga
+     * takes it in its `@OnRejected` handler, or parks there without one.
+     */
+    private suspend fun unhandled(wire: CommandWire, wait: WaitContext?, message: String) {
+        logger.warn { "Command ${wire.id} (${wire.type}) on ${wire.ref} is refused: $message" }
+        val error = ErrorInfo(FrameworkCodes.UNHANDLED, message)
+        wait?.takeUnless { it.expiredAt(clock()) }?.let { coordinator.signal(it, unhandledResult(wire, it, error)) }
+        reply(wire, error, null)
+    }
+
+    /** The REJECTED result of [wire], refused with [error] before any decide function, at [wait]'s COMMITTED hop. */
+    private fun unhandledResult(wire: CommandWire, wait: WaitContext, error: ErrorInfo): CommandResult {
+        val type = wire.ref.type
+        val hop = wait.remaining.takeWhile { it.stage != Stage.HANDLED }.firstOrNull { it.stage == Stage.COMMITTED }
+            ?: Hop.committed(type.context)
+        return CommandResult(
+            commandId = wire.id,
+            requestId = wire.requestId,
+            correlationId = wire.causation?.correlationId ?: wire.id,
+            ref = wire.ref,
+            hop = hop,
+            function = FunctionInfo(FunctionKind.COMMAND, type.context, type.name, wire.type.substringAfterLast('.')),
+            status = CommandResult.Status.REJECTED,
+            error = error,
+            signalTime = clock(),
+        )
+    }
+
+    /**
+     * Waits, in the command's lane, until the slot a schedule sent [command] for is due by this node's clock, at most
+     * [maxScheduleWait] (review R2.5-1): a command another context's timer sent (decision D198) whose firing node's
+     * clock runs ahead is not refused by the kernel as not due ([me.ahoo.wow.kernel.ScheduleNotDueException]), which
+     * would park the aggregate, since nothing sends it again once the broker took it. One due later than that still
+     * reaches the kernel, which refuses it, and the subscription retries it, then parks.
+     */
+    private suspend fun awaitDue(command: Command<*>) {
+        val due = command.schedule?.due ?: return
+        val early = (due - clock()).milliseconds
+        if (early.isPositive()) {
+            delay(minOf(early, maxScheduleWait))
+        }
     }
 
     /**
@@ -138,6 +220,7 @@ class CommandIntake internal constructor(
             executionId = replyTo.executionId(),
             operator = wire.operator,
             scope = wire.scope,
+            headers = RequestFacts.propagatedOf(wire.headers),
         )
         // The receipt goes on in the trace the command was executed in (decision D174).
         producer.send(
@@ -163,6 +246,7 @@ class CommandIntake internal constructor(
             executionId = replyTo.executionId(),
             operator = wire.operator,
             scope = wire.scope,
+            headers = RequestFacts.propagatedOf(wire.headers),
         )
         // The receipt goes on in the trace the command was executed in (decision D174).
         val trace = currentCoroutineContext().trace
@@ -177,6 +261,9 @@ class CommandIntake internal constructor(
         private const val LEDGER_PREFIX: String = "${Ledger.NAMESPACE}."
 
         private val logger = KotlinLogging.logger {}
+
+        /** The default of [maxScheduleWait]: as long as a timer's claim holds (`wow.timers.claim-timeout`). */
+        internal val DEFAULT_MAX_SCHEDULE_WAIT: Duration = 30.seconds
 
         /**
          * Fails unless [context]'s command topic in [source] has [partitions] partitions, its log's (decision D135):

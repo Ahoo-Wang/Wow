@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SourceTopics
@@ -83,8 +84,11 @@ class PaymentServerTest {
         node.hostedContexts.assert().containsExactly("eshop-payment")
         context.getBean(Manifest::class.java).contexts.single().aggregates.map { it.name }
             .assert().containsExactly("payment")
-        context.getBean(ContractDirectory::class.java).serviceOf("eshop-ordering")
-            .assert().isEqualTo("eshop-ordering-service")
+        // The ordering's contract is read from the jar of the ordering api; the payment's own, in the payment api's jar,
+        // is no peer of the node's own context (decision D234).
+        val contracts = context.getBean(ContractDirectory::class.java)
+        contracts.contextOf("eshop-ordering").assert().isNotNull()
+        contracts.peers.single().source.assert().contains("eshop-ordering-api").endsWith(PeerContracts.RESOURCE)
     }
 
     @Test

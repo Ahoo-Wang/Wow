@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -220,6 +221,16 @@ class ExecutorBusyException(val ref: AggregateRef, val capacity: Int, val node: 
     )
 
 /**
+ * A command the node's own code sent (a command topic's intake, a saga's derived command, a timer) was refused as
+ * busy ([me.ahoo.wow.runtime.wait.ResultCodes.BUSY]): its aggregate's lane was full or the node had its most commands
+ * in flight (decision D228 ②). It never ran. For an outside caller that is a 429 to back off from; for these sources
+ * it is backpressure, not a failure (review R2.1-1): a subscription retries the entry after a backoff without spending
+ * its retry budget, so a burst never parks an aggregate, and a timer is sent again without counting an attempt.
+ */
+internal class CommandBusyException(val ref: AggregateRef, val commandId: String, reason: String?) :
+    IllegalStateException("The command $commandId on $ref was refused as busy ($reason); it is sent again later.")
+
+/**
  * Command [commandId] of [ref] waited in its aggregate's lane past its wait's deadline and was withdrawn before it
  * entered the kernel (decision D228 ②): it never executed, so a retry with the same request id runs it.
  */
@@ -249,6 +260,13 @@ class InFlightLimit(val max: Int = DEFAULT_MAX) {
 
     /** The commands in flight now. */
     val inFlight: Int get() = count.get()
+
+    /**
+     * The commands the node's command intakes execute at once, all contexts together (review R2.1-1): half of [max],
+     * so a node that owns many partitions of a command topic's backlog never fills the bound alone, and the commands of
+     * callers, sagas and timers always have the other half.
+     */
+    val intakes: Semaphore = Semaphore((max / 2).coerceAtLeast(1))
 
     /** Takes one place, or false when all [max] are taken. */
     fun tryAcquire(): Boolean {

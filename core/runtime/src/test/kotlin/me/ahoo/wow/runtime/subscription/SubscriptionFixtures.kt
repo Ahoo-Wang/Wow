@@ -26,6 +26,7 @@ import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.Transport
+import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -94,9 +95,17 @@ class RecordingCheckpoints(
 ) : CheckpointStore by delegate {
     val saves = CopyOnWriteArrayList<Triple<String, Int, Long>>()
 
+    /** The size of each [saveAll] asked, in order. */
+    val batches = CopyOnWriteArrayList<Int>()
+
     override suspend fun save(group: String, subscription: String, partition: Int, position: Long) {
         saves += Triple(subscription, partition, position)
         delegate.save(group, subscription, partition, position)
+    }
+
+    override suspend fun saveAll(group: String, checkpoints: List<Checkpoint>) {
+        batches += checkpoints.size
+        checkpoints.forEach { save(group, it.subscription, it.partition, it.position) }
     }
 
     fun savesOf(subscription: String, partition: Int = 0): List<Long> =

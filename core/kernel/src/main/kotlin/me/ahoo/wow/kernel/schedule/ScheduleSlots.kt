@@ -23,7 +23,7 @@ import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.Timers
 import java.time.Instant
 import java.time.ZoneId
-import java.util.concurrent.ConcurrentHashMap
+import java.util.Collections
 
 /**
  * The slots of a schedule's rule (decision D198): when a timer is first due, which slot comes after one that fired,
@@ -43,18 +43,36 @@ object ScheduleSlots {
     /** How many missed slots are counted one by one before the rest are estimated. */
     const val MAX_COUNTED: Long = 100_000
 
-    private val expressions = ConcurrentHashMap<String, CronExpression>()
-    private val zones = ConcurrentHashMap<String, ZoneId>()
+    /**
+     * How many parsed expressions are kept, the least recently used dropped first (review X-11): an expression may
+     * come from a command (a job's rule override, or a rule a domain builds from a command's fields), so the cache
+     * must not grow with every distinct one. Parsing takes about 0.7 µs, a next time about 0.1 µs; the slots of one
+     * rule are stepped through with one parse ([latest]), so the cache only spares a parse per timer.
+     */
+    internal const val CACHED_EXPRESSIONS: Int = 512
+
+    private val expressions: MutableMap<String, CronExpression> = Collections.synchronizedMap(
+        object : LinkedHashMap<String, CronExpression>(16, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, CronExpression>): Boolean =
+                size > CACHED_EXPRESSIONS
+        }
+    )
+
+    /** How many parsed expressions are cached now. */
+    internal val cachedExpressions: Int get() = expressions.size
 
     /** The parsed expression of [rule], cached; an [IllegalArgumentException] when it is not valid. */
     @JvmStatic
     fun expressionOf(rule: ScheduleRule.Cron): CronExpression =
         expressions[rule.expression] ?: CronExpression.parse(rule.expression).also { expressions[rule.expression] = it }
 
-    /** The time zone of [rule]; an [IllegalArgumentException] when it is not one. */
+    /**
+     * The time zone of [rule]; an [IllegalArgumentException] when it is not one. Not cached (review X-11): the JDK
+     * keeps the rules of each region, and `ZoneId.of` takes some 20 ns.
+     */
     @JvmStatic
-    fun zoneOf(rule: ScheduleRule.Cron): ZoneId = zones[rule.zone] ?: try {
-        ZoneId.of(rule.zone).also { zones[rule.zone] = it }
+    fun zoneOf(rule: ScheduleRule.Cron): ZoneId = try {
+        ZoneId.of(rule.zone)
     } catch (invalid: java.time.DateTimeException) {
         throw IllegalArgumentException("\"${rule.zone}\" is not a time zone: ${invalid.message}", invalid)
     }
@@ -68,8 +86,15 @@ object ScheduleSlots {
 
     /** The first time after [after] (epoch milliseconds) that [rule] names, or null when it names none. */
     @JvmStatic
-    fun next(rule: ScheduleRule.Cron, after: Long): Long? =
-        expressionOf(rule).next(Instant.ofEpochMilli(after), zoneOf(rule))?.toEpochMilli()
+    fun next(rule: ScheduleRule.Cron, after: Long): Long? = Parsed(rule).next(after)
+
+    /** A rule's expression and zone, parsed once for the slots stepped through. */
+    private class Parsed(rule: ScheduleRule.Cron) {
+        private val expression = expressionOf(rule)
+        private val zone = zoneOf(rule)
+
+        fun next(after: Long): Long? = expression.next(Instant.ofEpochMilli(after), zone)?.toEpochMilli()
+    }
 
     /** When a schedule set by a commit at [commitTime] is first due: [Timers.NOT_EVALUATED] when never. */
     @JvmStatic
@@ -132,17 +157,18 @@ object ScheduleSlots {
      * none when the next one is not due yet.
      */
     private fun latest(rule: ScheduleRule.Cron, from: Long, now: Long): Pair<Long, Long> {
+        val parsed = Parsed(rule)
         var due = from
         var steps = 0L
         while (true) {
-            val next = next(rule, due) ?: return due to steps
+            val next = parsed.next(due) ?: return due to steps
             if (next > now) {
                 return due to steps
             }
             due = next
             steps++
             if (steps == MAX_COUNTED) {
-                return estimated(rule, from, due, steps, now)
+                return estimated(parsed, from, due, steps, now)
             }
         }
     }
@@ -151,7 +177,7 @@ object ScheduleSlots {
      * Past [MAX_COUNTED] slots counted from [from] to [due]: the rest are estimated by the period they took, and the
      * latest time due is searched from shortly before [now].
      */
-    private fun estimated(rule: ScheduleRule.Cron, from: Long, due: Long, steps: Long, now: Long): Pair<Long, Long> {
+    private fun estimated(parsed: Parsed, from: Long, due: Long, steps: Long, now: Long): Pair<Long, Long> {
         val period = maxOf(1L, (due - from) / steps)
         var latest = due
         var counted = steps
@@ -161,7 +187,7 @@ object ScheduleSlots {
             latest = probe
         }
         while (true) {
-            val next = next(rule, probe) ?: return latest to counted
+            val next = parsed.next(probe) ?: return latest to counted
             if (next > now) {
                 return latest to counted
             }

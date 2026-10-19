@@ -40,6 +40,9 @@ class MigrationPlan(val map: MigrationMap, val manifest: Manifest) {
         aggregate.mapping.reservations.map { it.from to ReservationPlan(aggregate, it) }
     }.toMap()
 
+    /** The 9.x compensation executions the map imports as V10 parked entries (roadmap 8b.4). */
+    val compensation: CompensationPlan = CompensationPlan(map.subscriptions, manifest, aggregates)
+
     /** The plan of [aggregate]; a [MigrationException] when the map does not name it. */
     fun of(aggregate: NineXAggregate): AggregatePlan =
         aggregates[aggregate] ?: throw MigrationException("migration-map.json does not map the 9.x aggregate $aggregate.")

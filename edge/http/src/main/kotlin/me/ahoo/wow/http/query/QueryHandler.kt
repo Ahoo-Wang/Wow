@@ -37,6 +37,7 @@ import me.ahoo.wow.http.WowPaths
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.command.Negotiation
 import me.ahoo.wow.http.command.RequestHeaders
+import me.ahoo.wow.http.handingOver
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
@@ -53,7 +54,6 @@ import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryStorageUnavailableException
 import me.ahoo.wow.query.dataset.DatasetQueryGateway
 import me.ahoo.wow.query.json.QueryJson
-import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.TargetScope
 import me.ahoo.wow.runtime.admission.TenantConflictException
@@ -85,7 +85,7 @@ internal data class DatasetEntry(
 )
 
 /**
- * Answers the query routes (decisions D127, D129, D130, D131, D145):
+ * Answers the query routes (decisions D127, D129, D130, D145, D235), one path for every model:
  *
  * - `POST /{context}/{aggregate}/{model}/query` runs the body's query on [target]'s model, as the caller the request
  *   authenticates as; with `Accept: text/event-stream`, a `list` streams its records as server-sent events
@@ -114,37 +114,27 @@ internal class QueryHandler(
             val caller = caller(request, target.type)
             val body = body(request)
             val eventStream = body.kind == QueryKind.LIST && Negotiation.wantsEventStream(request)
-            when (target.model) {
-                QueryRoutes.SNAPSHOT -> snapshots(
-                    checkNotNull(queries.snapshots(target.type)),
-                    body,
-                    caller,
-                    eventStream,
-                    queries.snapshotStatus.rebuilding(target.type),
-                )
-                else -> events(checkNotNull(queries.events(target.type)), body, caller, eventStream)
-            }
+            run(
+                checkNotNull(queries.gateway(target.type, target.model)),
+                body,
+                caller,
+                eventStream,
+                target.rebuilding()
+            )
         }
 
     suspend fun describe(request: ServerRequest, target: QueryTarget): ServerResponse =
         answering(target.type.context) {
             authenticator.authenticate(request)
             Negotiation.checkAcceptable(request, alsoEventStream = false)
-            val (version, descriptor) = when (target.model) {
-                QueryRoutes.SNAPSHOT -> {
-                    val gateway = checkNotNull(queries.snapshots(target.type))
-                    val described = gateway.describe(QueryEntry.HTTP, gateway.entryPolicy.http.listDefault())
-                    described.version to QueryJson.mapper.writeValueAsBytes(described)
-                }
-                else -> {
-                    val gateway = checkNotNull(queries.events(target.type))
-                    val described = gateway.describe(QueryEntry.HTTP, gateway.entryPolicy.http.listDefault())
-                    described.get("version").asString() to QueryJson.mapper.writeValueAsBytes(described)
-                }
-            }
-            val rebuilding = target.model == QueryRoutes.SNAPSHOT && queries.snapshotStatus.rebuilding(target.type)
-            tagged(request, version, descriptor, rebuilding)
+            val gateway = checkNotNull(queries.gateway(target.type, target.model))
+            val described = gateway.describe(QueryEntry.HTTP, gateway.entryPolicy.http.listDefault())
+            tagged(request, described.version, QueryJson.mapper.writeValueAsBytes(described), target.rebuilding())
         }
+
+    /** Whether [this] is a snapshot model whose snapshots are being rebuilt or backfilled (decision D172). */
+    private fun QueryTarget.rebuilding(): Boolean =
+        model == QueryRoutes.SNAPSHOT && queries.snapshotStatus.rebuilding(type)
 
     /**
      * `POST /wow/dataset/{context}/{dataset}/query` (decision D145): the body's query on the dataset [name], as on a
@@ -155,7 +145,7 @@ internal class QueryHandler(
             val caller = caller(request, name)
             val gateway = dataset(name, caller)
             val body = body(request)
-            snapshots(gateway, body, caller, body.kind == QueryKind.LIST && Negotiation.wantsEventStream(request))
+            run(gateway, body, caller, body.kind == QueryKind.LIST && Negotiation.wantsEventStream(request))
         }
 
     /** `GET /wow/dataset/{context}/{dataset}/query`: the dataset's descriptor, with its version as the `ETag`. */
@@ -241,7 +231,8 @@ internal class QueryHandler(
             ?: throw problem(FrameworkErrors.QUERY_MALFORMED, "The tenant of $type is fixed.", type)
     }
 
-    private suspend fun snapshots(
+    /** [body]'s query on [gateway], the one path of every model: snapshots, events and datasets alike. */
+    private suspend fun run(
         gateway: QueryGateway,
         body: QueryBody,
         caller: QueryCaller,
@@ -263,25 +254,6 @@ internal class QueryHandler(
             gateway.aggregateType.context,
             rebuilding,
         )
-    }
-
-    private suspend fun events(
-        gateway: EventQueryGateway,
-        body: QueryBody,
-        caller: QueryCaller,
-        eventStream: Boolean,
-    ): ServerResponse = when (body.kind) {
-        QueryKind.LIST -> {
-            val query = (body.query as ListQuery).withListDefault(gateway.entryPolicy.http)
-            rows(gateway.list(query, caller), eventStream, gateway.aggregateType.context)
-        }
-        QueryKind.PAGED -> json(gateway.paged(body.query as IPagedQuery, caller))
-        QueryKind.CURSOR -> json(gateway.cursor(body.query as ICursorQuery, caller))
-        QueryKind.SINGLE -> single(gateway.single(body.query as ISingleQuery, caller), gateway.aggregateType)
-        QueryKind.COUNT -> json(gateway.count(body.query as ICountQuery, caller))
-        QueryKind.AGGREGATE -> throw QueryViolation.StorageUnsupported(
-            "aggregation on the events model",
-        ).rejection()
     }
 
     /** The list default of [queries] under [budget]: what a list naming no limit runs with (0, every match). */
@@ -331,7 +303,9 @@ internal class QueryHandler(
                 ).event(ERROR).build()
             )
         }
-        return ServerResponse.ok().rebuilding(rebuilding).contentType(MediaType.TEXT_EVENT_STREAM).bodyAndAwait(events)
+        return rows.handingOver(events) {
+            ServerResponse.ok().rebuilding(rebuilding).contentType(MediaType.TEXT_EVENT_STREAM).bodyAndAwait(it)
+        }
     }
 
     private fun row(record: ObjectNode, index: Long): ServerSentEvent<String> =

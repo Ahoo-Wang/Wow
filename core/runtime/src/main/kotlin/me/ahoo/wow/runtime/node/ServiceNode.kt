@@ -278,7 +278,7 @@ class LogGroupNode internal constructor(
  * [service], and it and the [models] agree ([ManifestCheck]); otherwise the node is not built. Nor is it built
  * without a producer in [topics] when a saga of the [manifest] derives, schedules or handles the rejections of
  * commands of a context the node does not serve ([ContractDirectory.commandsOutside]). The [contracts] are
- * those of this [manifest] and its peers (decision D139), checked when they were built; each context's waits name
+ * those of this [manifest] and its peers (decisions D139, D234), checked when they were built; each context's waits name
  * subscriptions through them, so a chain may name one of another context.
  *
  * **Internal address**: the [address] the other nodes reach this node at, given when the node is built, or learned
@@ -402,7 +402,7 @@ class ServiceNode @InternalWowApi constructor(
 
     /** Delivers signals: to [waits] when they are this node's, through the remote sender otherwise. */
     @InternalWowApi
-    val signals: SignalSender = LocalSignalSender(node, waits, remoteSignals)
+    val signals: SignalSender = LocalSignalSender(node, service, waits, remoteSignals)
 
     private val waitOptions = WaitOptions(
         Origin(node, address.orEmpty(), service),
@@ -551,7 +551,7 @@ class ServiceNode @InternalWowApi constructor(
      */
     private val intakes: Map<ContextNode, CommandIntake> = contexts.values.filter { it.intake != null }.associateWith {
         val ledger = LedgerCommands(parked, options.ledger?.context ?: Ledger.OPS_CONTEXT) { ledgerPublisher }
-        CommandIntake(it.context, it.models, it.coordinator, topics!!, it.creations, ledger)
+        CommandIntake(it.context, it.models, it.coordinator, topics!!, it.creations, ledger, inFlight)
     }
 
     init {

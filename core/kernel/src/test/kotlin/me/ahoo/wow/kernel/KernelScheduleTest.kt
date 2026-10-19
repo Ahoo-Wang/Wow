@@ -24,6 +24,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
+import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.schedule.CancelSchedule
 import me.ahoo.wow.api.schedule.ScheduleCancelled
 import me.ahoo.wow.api.schedule.ScheduleContext
@@ -105,6 +106,7 @@ class KernelScheduleTest {
         }
         evolve<Placed> { }
         evolve<Paid> { paid = true }
+        alias<CancelOrder>("test.order.Abort")
     }
     private val log = InMemoryEventLog(partitions = 1)
     private val names = CommandTypes { target, command ->
@@ -237,6 +239,25 @@ class KernelScheduleTest {
         // A key the aggregate does not keep: nothing to cancel.
         send(CancelSchedule("ping")).assert().isInstanceOf(CommandOutcome.Unchanged::class.java)
         model.findCommandType(Schedules.SET)?.type.assert().isEqualTo(SetSchedule::class.java)
+    }
+
+    @Test
+    fun `a saga's schedule of a command type its target does not decide is rejected when it is set`(): Unit = runTest {
+        // Review X-7: a wrong name is found when the schedule is set, not when it fires months later.
+        send(Place())
+        val wrong = send(SetSchedule("ping", ScheduleRule.cron("0 0 3 * * *"), "test.order.CancelOrdr", "{}"))
+        val rejection = (wrong as CommandOutcome.Rejected).rejection
+        rejection.code.assert().isEqualTo(KernelRejections.UNHANDLED)
+        rejection.message.assert().contains("test.order.CancelOrdr").contains("ping")
+        // Another aggregate's command is not this one's either.
+        send(SetSchedule("ping", ScheduleRule.At(NOW + 9), "test.shipment.Notify", "{}"))
+            .assert().isInstanceOf(CommandOutcome.Rejected::class.java)
+        send(CancelSchedule("ping")).assert().isInstanceOf(CommandOutcome.Unchanged::class.java)
+        // A former name, a lifecycle command and a schedule system command are the aggregate's own.
+        listOf("test.order.Abort", Lifecycle.DELETE_AGGREGATE, Schedules.CANCEL).forEachIndexed { index, type ->
+            send(SetSchedule("ok-$index", ScheduleRule.At(NOW + 9), type, "{}"))
+                .assert().isInstanceOf(CommandOutcome.Committed::class.java)
+        }
     }
 
     @Test

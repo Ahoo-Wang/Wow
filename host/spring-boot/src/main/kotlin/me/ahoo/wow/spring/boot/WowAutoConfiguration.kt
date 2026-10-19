@@ -35,14 +35,14 @@ import me.ahoo.wow.http.internal.internalRoutes
 import me.ahoo.wow.http.ops.WebhookNotifier
 import me.ahoo.wow.http.ops.parkedRoutes
 import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.http.read.KernelStateReads
-import me.ahoo.wow.http.read.StateReads
 import me.ahoo.wow.http.wowRoutes
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.query.mask.PayloadMasks
+import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
@@ -61,6 +61,8 @@ import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.sink.PublishedSinks
+import me.ahoo.wow.runtime.state.KernelStateReads
+import me.ahoo.wow.runtime.state.StateReads
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.id.AggregateIdGenerator
@@ -106,11 +108,12 @@ import jakarta.validation.Validator as JakartaValidator
  * - **Models and Manifest**: the binding index on the classpath ([ModelProvider.load]) of the contexts
  *   `wow.contexts.include` / `exclude` select ([ContextSelection], decision D169; all by default), the models' parameters from the
  *   application's beans ([BeanFactoryDependencies]), the Manifest merged from the modules' fragments
- *   ([ManifestLoader], read with [WowJson.mapper], never Spring's mapper), and with it the peers' Manifests on the
- *   classpath ([ContractDirectory], decision D139).
+ *   ([ManifestLoader], read with [WowJson.mapper], never Spring's mapper), and with it the peer contracts on the
+ *   classpath ([ContractDirectory], decisions D139, D234).
  * - **Backend** (`wow.backend`, [BackendSelection]): PostgreSQL over the application's `DataSource`, MongoDB over its
- *   `MongoClient`, in memory (one node, with a warning) when it has neither, or the application's own
- *   [BackendFactory] bean. With `wow.stores`, the named store instances instead ([StoreInstances]), each aggregate's
+ *   `MongoClient`, in memory (one node, with a warning) when `wow.backend=memory`, or when it has neither and runs in
+ *   a development profile or on a loopback-only internal port (it refuses to start otherwise, review R3.5-1), or the
+ *   application's own [BackendFactory] bean. With `wow.stores`, the named store instances instead ([StoreInstances]), each aggregate's
  *   log and snapshots on the store `wow.log.store`, `wow.snapshot.store` and its `wow.aggregates.*` name
  *   ([StoreLayout], decision D177).
  * - **Admission**: the application's [CommandAuthorizer], [CommandTransformer]s (D182) and [CommandValidator]s, the Jakarta
@@ -209,7 +212,7 @@ class WowAutoConfiguration {
     fun wowManifest(loader: ManifestLoader, models: WowModels, identity: NodeIdentity): Manifest =
         loader.load(ServiceInfo(identity.service), models.providers)
 
-    /** The contracts of the service's Manifest and of its peers on the class path (decision D139). */
+    /** The contracts of the service's Manifest and the peer contracts on the class path (decisions D139, D234). */
     @Bean
     @ConditionalOnMissingBean
     fun wowContractDirectory(manifest: Manifest, beanFactory: ConfigurableListableBeanFactory): ContractDirectory =
@@ -229,22 +232,30 @@ class WowAutoConfiguration {
         models: WowModels,
         queries: ObjectProvider<QueryProperties>,
         identity: ObjectProvider<NodeIdentity>,
+        environment: Environment,
     ): HostBackends {
         factories.ifAvailable?.let { return HostBackends.of(it) }
         val memoryQueries = queries.ifAvailable?.memory?.enabled == true
+        val node = identity.ifAvailable
         val stores = StoreInstances.open(
             properties,
             beanFactory,
             beanFactory.beanClassLoader,
             memoryQueries,
-            identity.ifAvailable?.service.orEmpty(),
+            node?.service.orEmpty(),
+            BackendSelection.memoryOptIn(
+                environment.activeProfiles.toList(),
+                properties.internal.devProfiles,
+                node?.bindHost
+            ),
         )
         val layout = StoreLayout.of(properties, stores, models.models)
         val memory = (layout.logStores + layout.snapshotStores).filter { stores.getValue(it).kind == BackendKind.MEMORY }
         if (memory.isNotEmpty()) {
             logger.warn {
                 "Wow keeps data in memory on the stores $memory (wow.backend=memory, a store of type memory, or no " +
-                    "DataSource or MongoClient backs it): it does not outlive the node, and serves one node only."
+                    "DataSource or MongoClient backs it in a development profile or on a loopback internal port): " +
+                    "it does not outlive the node, and serves one node only."
             }
         }
         return HostBackends.of(stores, layout, properties.log.partitions)
@@ -282,6 +293,7 @@ class WowAutoConfiguration {
         identity: NodeIdentity,
         credential: ServiceCredential,
         observers: ObjectProvider<Observer>,
+        node: ObjectProvider<ServiceNode>,
     ): SignalSender = HttpSignalSender(
         client,
         queueCapacity = properties.internal.signalQueueCapacity,
@@ -289,6 +301,7 @@ class WowAutoConfiguration {
         clusterToken = clusterTokenOf(properties),
         credential = credential,
         observer = observers.getIfUnique { Observer.NONE },
+        members = NodeMembers(node::getIfAvailable),
     )
 
     /** The credential of the node's synchronous calls (decision D193): `wow.calls.token` as a bearer, else none. */
@@ -509,9 +522,20 @@ class WowAutoConfiguration {
         server.doOnChannelInit { _, channel, _ -> KeepAliveReads.install(channel) }
     }
 
+    /**
+     * The response masks of the state reads and the `events` model (09 §17 G-2): the Manifest's sensitive fields, with
+     * the application's [MaskStrategyResolver] for its custom strategies, as the snapshot queries mask them.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @InternalWowApi
+    fun wowPayloadMasks(manifest: Manifest, strategies: ObjectProvider<MaskStrategyResolver>): PayloadMasks =
+        PayloadMasks(manifest, strategies.getIfAvailable { MaskStrategyResolver.NONE })
+
     /** The public routes, served by the application's WebFlux server; the query routes when [QueryAutoConfiguration] gives them. */
     @Bean
     @InternalWowApi
+    @Suppress("LongParameterList") // One parameter per part of the routes, each a bean.
     fun wowRouterFunction(
         manifest: Manifest,
         node: ServiceNode,
@@ -519,6 +543,7 @@ class WowAutoConfiguration {
         callers: CallerResolver,
         options: WowHttpOptions,
         queries: ObjectProvider<HttpQueries>,
+        masks: PayloadMasks,
     ): RouterFunction<ServerResponse> = wowRoutes(
         manifest,
         node.gateway,
@@ -526,6 +551,7 @@ class WowAutoConfiguration {
         callers,
         options,
         queries.getIfAvailable { HttpQueries.NONE },
+        masks,
     )
 
     /**

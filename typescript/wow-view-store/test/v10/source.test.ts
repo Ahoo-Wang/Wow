@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { DatasetClient } from '@ahoo-wang/wow-client/v10';
+import { DatasetClient, EventQueryClient } from '@ahoo-wang/wow-client/v10';
 import { datasetCatalogOf, viewSourceOf } from '../../src/v10/index.js';
 import type { FakeDataset } from '../support/fakeV10ViewStore.js';
 import { actingAs, installFake } from './support.js';
@@ -78,6 +78,44 @@ describe('the V10 data sources', () => {
       descriptor: DESCRIPTOR,
       version: 'sha256:1',
     });
+  });
+
+  it('serve an aggregate type’s events as a source (decision D235)', async () => {
+    const fake = installFake();
+    const source = viewSourceOf(
+      new EventQueryClient(
+        { context: 'sales', name: 'order' },
+        { fetcher: actingAs({}) },
+      ),
+    );
+    const streams = [{ aggregateId: 'o1', version: 1, events: [] }];
+    fake.failNext(
+      /\/sales\/order\/events\/query$/,
+      () =>
+        new Response(JSON.stringify({ total: 1, exact: true, list: streams }), {
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    );
+    expect(
+      await source.paged({ filter: { op: 'MATCH_ALL' } } as never),
+    ).toEqual({ total: 1, list: streams });
+    fake.failNext(
+      /\/sales\/order\/events\/query$/,
+      () =>
+        new Response(
+          JSON.stringify([{ event: 'sales.order.OrderPaid', n: 2 }]),
+          {
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+    );
+    expect(
+      await source.aggregate({
+        elements: [{ path: 'events' }],
+        groupBy: [{ type: 'TERMS', field: 'name', alias: 'event' }],
+        metrics: [{ type: 'COUNT', alias: 'n' }],
+      } as never),
+    ).toEqual([{ event: 'sales.order.OrderPaid', n: 2 }]);
   });
 
   it('read a page whose total the service did not count as its rows', async () => {

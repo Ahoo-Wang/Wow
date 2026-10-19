@@ -117,7 +117,8 @@ import kotlin.time.Duration.Companion.seconds
  *
  * **Polling** (finding A2-14). A tail polls every `pollInterval` (50 ms by default) while it finds entries; each poll
  * that finds none doubles the wait, up to `maxPollInterval` (1 s). A commit this log makes wakes the partition's
- * tails at once; an entry another node appends is read within `maxPollInterval`. A change stream could wake the tails
+ * tails at once, and a poll it woke that finds the partition caught up keeps the backoff, so a commit costs one read
+ * of the tail; an entry another node appends is read within `maxPollInterval`. A change stream could wake the tails
  * of every node; it is not used, the backoff keeping an idle cluster cheap without a cursor per partition and node.
  *
  * Calls run on [dispatcher], virtual threads by default.
@@ -528,6 +529,7 @@ class MongoEventLog(
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         var last = after ?: 0L
         var idle = pacer.interval
+        var woken = false
         while (true) {
             val mark = pacer.mark(partition)
             val batch = dispatcher.mongo { readTail(partition, last) }
@@ -536,7 +538,9 @@ class MongoEventLog(
                 last = it.position.sequence
             }
             if (!batch.again) {
-                idle = pacer.await(partition, mark, batch.entries.isNotEmpty(), idle)
+                val pace = pacer.await(partition, mark, batch.entries.isNotEmpty(), idle, woken && !batch.behind)
+                idle = pace.idle
+                woken = pace.woken
             }
         }
     }
@@ -580,10 +584,11 @@ class MongoEventLog(
             run.size < expected -> register().map { it.name } != known.map { it.name }
             else -> run.size == tailBatch
         }
-        return TailBatch(run, again)
+        return TailBatch(run, again, behind = run.size < expected)
     }
 
-    private class TailBatch(val entries: List<LogEntry>, val again: Boolean)
+    /** One read of a tail: its [entries], whether to read again at once, whether the counter is ahead of them. */
+    private class TailBatch(val entries: List<LogEntry>, val again: Boolean, val behind: Boolean)
 
     override suspend fun head(partition: Int): Long? {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
@@ -719,7 +724,7 @@ class MongoEventLog(
         operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
     )
 
-    private companion object {
+    internal companion object {
         val DEFAULT_POLL_INTERVAL = 50.milliseconds
         val DEFAULT_MAX_POLL_INTERVAL = 1.seconds
         const val DEFAULT_TAIL_BATCH = 500

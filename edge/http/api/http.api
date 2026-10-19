@@ -60,6 +60,7 @@ public final class me/ahoo/wow/http/ops/OpsPaths {
 	public static final field LIMIT Ljava/lang/String;
 	public static final field MARK_RECOVERABLE Ljava/lang/String;
 	public static final field PARKED Ljava/lang/String;
+	public static final field READ Ljava/lang/String;
 	public static final field RESUME Ljava/lang/String;
 	public static final field SKIP Ljava/lang/String;
 	public static final field SUBSCRIPTION Ljava/lang/String;
@@ -120,26 +121,18 @@ public final class me/ahoo/wow/http/problem/Problem {
 }
 
 public final class me/ahoo/wow/http/problem/Problem$Companion {
+	public final fun ofFailure (Ljava/lang/Throwable;)Lme/ahoo/wow/http/problem/Problem;
 	public final fun ofStatus (Lorg/springframework/http/HttpStatus;Ljava/lang/String;)Lme/ahoo/wow/http/problem/Problem;
 	public static synthetic fun ofStatus$default (Lme/ahoo/wow/http/problem/Problem$Companion;Lorg/springframework/http/HttpStatus;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/http/problem/Problem;
-}
-
-public abstract interface class me/ahoo/wow/http/query/DatasetVisibility {
-	public static final field Companion Lme/ahoo/wow/http/query/DatasetVisibility$Companion;
-	public static final field DEFAULT Lme/ahoo/wow/http/query/DatasetVisibility;
-	public static fun of (Lme/ahoo/wow/query/AbacQueryOptions;)Lme/ahoo/wow/http/query/DatasetVisibility;
-	public abstract fun visible (Lme/ahoo/wow/query/dataset/QueryDataset;Lme/ahoo/wow/query/QueryCaller;)Z
-}
-
-public final class me/ahoo/wow/http/query/DatasetVisibility$Companion {
-	public final fun of (Lme/ahoo/wow/query/AbacQueryOptions;)Lme/ahoo/wow/http/query/DatasetVisibility;
 }
 
 public final class me/ahoo/wow/http/query/HttpQueries {
 	public static final field Companion Lme/ahoo/wow/http/query/HttpQueries$Companion;
 	public static final field DEFAULT_LIST_SIZE I
 	public static final field NONE Lme/ahoo/wow/http/query/HttpQueries;
-	public final fun getDatasetVisibility ()Lme/ahoo/wow/http/query/DatasetVisibility;
+	public final fun events (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/QueryGateway;
+	public final fun gateway (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;)Lme/ahoo/wow/query/QueryGateway;
+	public final fun getDatasetVisibility ()Lme/ahoo/wow/query/dataset/DatasetVisibility;
 	public final fun getDatasets ()Lme/ahoo/wow/query/dataset/DatasetQueryGateways;
 	public final fun getDefaultListSize ()I
 	public final fun snapshots (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/QueryGateway;

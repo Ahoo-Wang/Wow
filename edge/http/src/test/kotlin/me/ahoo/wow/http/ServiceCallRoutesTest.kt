@@ -22,6 +22,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
@@ -67,7 +68,12 @@ class ServiceCallRoutesTest {
 
     private val root = Causation("root-1", "basket/acme/alice@2")
 
-    private fun call(ref: String = "cart-1", body: Any = AddItem("mug"), id: String = "call-1"): OutgoingCall {
+    private fun call(
+        ref: String = "cart-1",
+        body: Any = AddItem("mug"),
+        id: String = "call-1",
+        headers: Map<String, String> = emptyMap(),
+    ): OutgoingCall {
         val type = AggregateType(CONTEXT, "cart")
         val target = if (ref.isEmpty()) type.unassigned(TENANT) else type.ref(TENANT, ref)
         val command = Command(
@@ -76,14 +82,15 @@ class ServiceCallRoutesTest {
             ref = target,
             body = body,
             scope = Scope("alice"),
+            headers = headers,
             causation = root,
             operator = Operator("alice", TENANT),
         )
         return OutgoingCall("$type.${body.javaClass.simpleName}", command)
     }
 
-    private fun callHeader(owner: String = "alice") = CallHeader.format(
-        CallContext("call-x", TENANT, Scope(owner), root, Operator(owner, TENANT)),
+    private fun callHeader(owner: String = "alice", facts: Map<String, String> = emptyMap()) = CallHeader.format(
+        CallContext("call-x", TENANT, Scope(owner), root, Operator(owner, TENANT), facts = facts),
     )
 
     @Test
@@ -98,6 +105,37 @@ class ServiceCallRoutesTest {
         command.scope.assert().isEqualTo(Scope("alice"))
         command.operator.assert().isEqualTo(Operator("alice", TENANT))
         command.causation.assert().isEqualTo(root)
+        // The internal port's peer is the calling service, not a client: no default request fact (09 §17 G-10).
+        command.headers.keys.assert().doesNotContain("remote_ip", "user_agent")
+    }
+
+    @Test
+    fun `a service's call should carry the root request's application to the target (D236)`(): Unit = runBlocking {
+        // The saga's command inherited the root request's propagating facts; the others never travel.
+        val inherited = mapOf(
+            RequestFacts.APP_ID to "console",
+            RequestFacts.REMOTE_IP to "203.0.113.9",
+            RequestFacts.USER_AGENT to "curl",
+            "X-Trace" to "t-1",
+        )
+        caller.call(call(headers = inherited)).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        node.commands.single().headers.assert().isEqualTo(mapOf(RequestFacts.APP_ID to "console"))
+    }
+
+    @Test
+    fun `a forged application should not reach the target's command (D236)`() {
+        val path = "/shop/cart/cart-1/add-item"
+        val forged = mapOf(RequestFacts.APP_ID to "forged")
+        // A caller that is no service identity is refused, its call's facts with it.
+        internalPost(path, mapOf("X-User" to "mallory", WowHeaders.CALL to callHeader(facts = forged)))
+            .assertForbidden()
+        node.commands.assert().isEmpty()
+        // A service's call carries the root request's application in its Wow-Call alone: no header sets it.
+        internalPost(
+            path,
+            mapOf("Authorization" to "Bearer $TOKEN", WowHeaders.CALL to callHeader(), RequestFacts.APP_ID to "forged"),
+        ).status.assert().isEqualTo(200)
+        node.commands.single().headers.keys.assert().doesNotContain(RequestFacts.APP_ID)
     }
 
     @Test
@@ -114,6 +152,25 @@ class ServiceCallRoutesTest {
         rejected.status.assert().isEqualTo(CommandResult.Status.REJECTED)
         rejected.error!!.code.assert().isEqualTo(FrameworkErrors.AGGREGATE_NOT_FOUND)
     }
+
+    @Test
+    fun `a call of a command the target does not decide should answer a rejection, not a failure (X-5)`(): Unit =
+        runBlocking {
+            // The caller's contract is newer than the target: a command the target has no route of.
+            val byId = caller.call(call().let { OutgoingCall("$CONTEXT.cart.AddItemV2", it.command) })
+            byId.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            byId.error!!.code.assert().isEqualTo(FrameworkErrors.COMMAND_UNHANDLED)
+            byId.commandId.assert().isEqualTo("call-1")
+            val creation = caller.call(call(ref = "").let { OutgoingCall("$CONTEXT.cart.OpenCartV2", it.command) })
+            creation.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            creation.error!!.code.assert().isEqualTo(FrameworkErrors.COMMAND_UNHANDLED)
+            val wishlist = call().command.copyWith(ref = AggregateType(CONTEXT, "wishlist").ref(TENANT, "w-1"))
+            val aggregate = caller.call(OutgoingCall("$CONTEXT.wishlist.AddItem", wishlist))
+            aggregate.error!!.code.assert().isEqualTo(FrameworkErrors.COMMAND_UNHANDLED)
+            node.commands.assert().isEmpty()
+            // Still a service's call alone: any other caller is refused first.
+            internalPost("/shop/cart/cart-1/add-item-v2", mapOf("X-User" to "mallory")).assertForbidden()
+        }
 
     @Test
     fun `a call with a token the target does not trust should fail`(): Unit = runBlocking {
@@ -271,6 +328,18 @@ class ServiceCallRoutesTest {
         CallHeader.parse(CallHeader.format(call)).assert().isEqualTo(call)
         val bare = CallContext("c-2", Caller.DEFAULT_TENANT, Scope.NONE, root)
         CallHeader.parse(" ${CallHeader.format(bare)} ").assert().isEqualTo(bare)
+        val withFacts =
+            CallContext("c-3", TENANT, Scope("alice"), root, facts = mapOf(RequestFacts.APP_ID to "console"))
+        CallHeader.parse(CallHeader.format(withFacts)).facts.assert().isEqualTo(mapOf(RequestFacts.APP_ID to "console"))
+        // Only the facts that propagate are taken from the header, whatever a caller puts in it.
+        val encoder = java.util.Base64.getUrlEncoder().withoutPadding()
+        val stuffed = encoder.encodeToString(
+            (
+                """{"commandId":"c","tenantId":"t","causation":{"correlationId":"a","causationId":"b"},""" +
+                    """"facts":{"app_id":"console","remote_ip":"10.0.0.1","user_agent":"x","X-Trace":"t"}}"""
+                ).toByteArray()
+        )
+        CallHeader.parse(stuffed).facts.assert().isEqualTo(mapOf(RequestFacts.APP_ID to "console"))
         assertThrownBy<IllegalArgumentException> { CallHeader.parse("%%%") }
         assertThrownBy<IllegalArgumentException> { CallHeader.parse("bm90LWpzb24") }
         // A call of a blank command id does not parse.

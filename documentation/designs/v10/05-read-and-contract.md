@@ -14,7 +14,7 @@
 **M6 的定稿**（D125～D131）：
 
 - **模块**：`:query-api` 是 9.x `api.query` 的纯数据移植，包名不变、不带 Jackson，查询字段注解也在这里（D125）；`:query` 是 9.x `wow-query` 的协程移植，身份是显式的 `QueryCaller`，schema 由 Manifest 的 `$defs` 加 `x-wow-*` 关键字编出，准入、预算、游标与残余窗口不变，数据集模型也在这里（D126）。
-- **后端**（D131）：M6 只做 PostgreSQL 与 MongoDB 的快照查询、限一个聚合的 `events` 模型（按版本或时间范围，由 `EventLog.read` 提供）与 ClickHouse 数据集后端。Elasticsearch 是 M6 之后的 6.7；自定义投影的查询模型、跨聚合的时间线与 ClickHouse 作快照查询后端推迟。
+- **后端**（D131）：M6 只做 PostgreSQL 与 MongoDB 的快照查询、限一个聚合的 `events` 模型（按版本或时间范围，由 `EventLog.read` 提供；**D235 撤销这一限制**：`events` 收进统一引擎，记录是事件流，能力由后端声明，按事件分析用 `expand("events")`）与 ClickHouse 数据集后端。Elasticsearch 是 M6 之后的 6.7；自定义投影的查询模型、跨聚合的时间线与 ClickHouse 作快照查询后端推迟。
 - **调用方**（D165）：命令与查询共用 `Caller` 与一个 `CallerResolver`；查询的 `QueryCaller` 只多执行上下文（入口、选择）。操作人的显示名由前端展示层按 `operator.id` 自行解析。
 - **操作人**（D163）：快照的系统字段恢复 `operator` 与 `firstOperator`（9.x 同名），可查询、可排序。
 - **归属**（D189）：`TENANT` 聚合（如商品）的查询不追加调用方的所有者条件，只按租户与空间；`OWNER` 聚合照常按调用方的作用域过滤。租户级调用方（作用域无所有者）读本租户全部聚合，动作由 CoSec 的动作级授权保护。`QueryCaller` 多一个 `scope`（准入追加的可信作用域过滤），`caller = null` 表示受信的进程内调用（D165 实现）。
@@ -73,7 +73,7 @@
   - Jackson 写出来不是对象的类型（自定义序列化器、`@JsonValue`），要在 `schemaOverrides` 显式给出 schema，否则任务失败，不猜（D84）。`$defs` 的键是类的二进制名，只引用一次的类型内联。
   - 状态 schema 指纹调用内核的 `EventCodec.stateSchemaFingerprint`，与运行时一致。限制：运行时若定制了 ObjectMapper，构建期的值会不同。
 - **查询**（D128，修订上面草案原先的上下文级、带 `capabilities` 的 `queries`）：`queries` 在聚合下，编译器在开启快照时写 `snapshot`，另加 `events`；能力不进 Manifest，因为它取决于按类路径选择的后端（D110），由查询路由的 `GET` 返回（D127）。可查询的快照字段：`tenantId`、`aggregateId`、`version`、`ownerId`、`spaceId`、`deleted`、`tags`、`firstEventTime`、`lastEventTime`、`state.*`；9.x 的 `eventId`、`snapshotTime` 去掉（`operator`、`firstOperator` 由 D163 恢复，见 §1）。
-- **对端 Manifest**（D139）：跨上下文的下游经 Gradle 插件的 `wowPeers` 配置在构建期引入上游合并后的 `manifest.json`（`META-INF/wow/peers/<服务>.json`），运行时加载进 `ContractDirectory`，用于跨上下文的链校验与命令类型名。
+- **对端契约**（D139，由 D234 修订）：上游 domain 的编译器片段筛出对端需要的部分，装进上游 `*-api` 的 jar（`META-INF/wow/contract/`）；下游只依赖上游的 api，运行时从类路径加载进 `ContractDirectory`，用于发送前的命令校验、跨上下文的链校验与命令类型名；`wowPeers` 删除。
 - **数据集不并入**（D75）：数据集由 dataset-registry 在运行时注册，作为查询侧的运行时目录单独提供；Manifest 只描述编译期的代码契约，view-engine 两者都读。
 - **兼容性门禁**（D76）：CI 比较本次构建与上一个已发布版本的 Manifest，把差异分为加法（新增可选字段、新增命令）与破坏（删除命令或事件、新增必填字段、事件 schema 变化却没有升 revision 或没有升级函数）。主版本内出现破坏即失败（D48、D59、R5-1）；线上契约的兼容性由它守，不靠 ABI 转储。
 
@@ -97,6 +97,7 @@ M5 的定稿（D92～D118）：准入顺序与扩展点（D92）、`Caller` 与 
 
 - `wow-client` 只保留 `FilterExpression` 与 Manifest 驱动的客户端，删除 `/legacy` 与 fetcher 旧名。
 - `wow-generator` 读 Manifest，不读 OpenAPI。
+- springdoc 桥接（D233）：有 springdoc 的 Spring Boot 宿主把 Manifest 的 OpenAPI 合并进 springdoc 的默认文档并另设 `wow` 分组；冲突即启动失败；securitySchemes 由宿主按调用方解析器填写；只含公开端口的路由。
 - view-engine 从 Manifest 派生默认视图。
 
 ## 5. 待细化

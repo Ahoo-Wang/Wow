@@ -25,4 +25,6 @@ dependencies {
     implementation(project(":query-api"))
     ksp(project(":compiler"))
     testImplementation(project(":test-dsl"))
+    // The Manifest fragment the compiler writes, which the tests read (the kernel does not bring :manifest, D231).
+    testImplementation(project(":manifest"))
 }

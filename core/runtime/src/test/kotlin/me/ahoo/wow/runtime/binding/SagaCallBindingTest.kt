@@ -22,6 +22,8 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
@@ -32,9 +34,13 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.subscribe.CallFailedException
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.CommandTypes
+import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.HandlerRetry
+import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.ProcessorBinding
+import me.ahoo.wow.kernel.aggregate
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
@@ -42,8 +48,12 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.runtime.Executor
+import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CommandBody
+import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.call.CommandCaller
 import me.ahoo.wow.runtime.call.OutgoingCall
 import me.ahoo.wow.runtime.call.SagaCalls
@@ -53,6 +63,11 @@ import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.runtime.wait.LocalSignalSender
+import me.ahoo.wow.runtime.wait.SubscriptionDirectory
+import me.ahoo.wow.runtime.wait.WaitCoordinator
+import me.ahoo.wow.runtime.wait.WaitOptions
+import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.AfterEach
@@ -62,6 +77,7 @@ import kotlin.time.Duration.Companion.seconds
 
 /** Delivers [items] to a mail box of the `mail` context, another service's. */
 data class Deliver(val items: List<String>)
+data class Delivered(val items: List<String>)
 
 /**
  * A saga's synchronous calls in a node (decision D193): through the node's [CommandCaller], named by the peers'
@@ -74,7 +90,7 @@ class SagaCallBindingTest {
 
     /** How the mail context answers: committed by default. */
     @Volatile
-    private var answer: (OutgoingCall) -> CommandResult = { resultOf(it, CommandResult.Status.SUCCEEDED) }
+    private var answer: suspend (OutgoingCall) -> CommandResult = { resultOf(it, CommandResult.Status.SUCCEEDED) }
 
     /** Calls the owner's mail box with the ordered items, then adds them to the owner's cart. */
     private val saga = ProcessorBinding.saga(
@@ -110,7 +126,12 @@ class SagaCallBindingTest {
     @AfterEach
     fun stop(): Unit = runBlocking { node.stop() }
 
-    private fun place(id: String, owner: String, wait: WaitPlan) = node.gateway.send(
+    private fun place(
+        id: String,
+        owner: String,
+        wait: WaitPlan,
+        headers: Map<String, String> = emptyMap(),
+    ) = node.gateway.send(
         CommandRequest(
             context = SHOP,
             aggregate = "order",
@@ -118,6 +139,7 @@ class SagaCallBindingTest {
             body = CommandBody.of("""{"items":["apple"]}"""),
             caller = Caller(TENANT, Scope(ownerId = owner)),
             aggregateId = id,
+            headers = headers,
             wait = wait,
         ),
     )
@@ -143,6 +165,45 @@ class SagaCallBindingTest {
         // The rest of the chain, after the saga's hop, goes with the call to the mail context.
         call.wait!!.remaining.assert().containsExactly(Hop.committed("mail"))
     }
+
+    @Test
+    fun `a saga's call should carry the root request's application to the command it runs (D236)`(): Unit =
+        runBlocking {
+            val delivered = CopyOnWriteArrayList<Command<*>>()
+            val mail = mailGateway(delivered)
+            val service = Caller(subject = "service:shop-service", service = true)
+            // The mail context's gateway takes the call as its internal port does (HttpCommandCaller, RequestHeaders):
+            // the facts the edge recorded are the calling service's own, its Wow-Call the command's inherited ones.
+            answer = { call ->
+                val command = call.command
+                mail.execute(
+                    CommandRequest(
+                        context = "mail",
+                        aggregate = "box",
+                        command = call.name,
+                        body = CommandBody.of((command.body as Deliver).items.joinToString(",", "{\"items\":[", "]}") { "\"$it\"" }),
+                        caller = service,
+                        aggregateId = command.ref.id,
+                        requestId = command.requestId,
+                        headers = mapOf(RequestFacts.APP_ID to "shop-service-app"),
+                        call = CallContext.of(
+                            command.id,
+                            command.ref.tenantId,
+                            command.scope,
+                            checkNotNull(command.causation),
+                            command.operator,
+                            facts = command.headers,
+                        ),
+                    ),
+                )
+            }
+            node.start()
+            val root = mapOf(RequestFacts.APP_ID to "console", RequestFacts.REMOTE_IP to "203.0.113.9")
+            val handled = place("o-9", "dave", toSaga, root).toList().last()
+            handled.status.assert().describedAs(handled.toString()).isEqualTo(CommandResult.Status.SUCCEEDED)
+            calls.single().command.headers.assert().isEqualTo(mapOf(RequestFacts.APP_ID to "console"))
+            delivered.single().headers.assert().isEqualTo(mapOf(RequestFacts.APP_ID to "console"))
+        }
 
     @Test
     fun `a call the target rejects should park the order at once and end the wait at the saga's hop`(): Unit =
@@ -221,6 +282,29 @@ class SagaCallBindingTest {
 
     private companion object {
         val BOX = AggregateType("mail", "box")
+
+        class Box
+
+        /** The mail context's gateway on a node of its own: its box takes [Deliver], recorded in [delivered]. */
+        fun mailGateway(delivered: MutableList<Command<*>>): CommandGateway {
+            val model = aggregate<Box>("mail", "box") {
+                initial { Box() }
+                decide<Deliver>(Creation.ALLOWED) { _, body ->
+                    delivered += command
+                    Decision.events(Delivered(body.items))
+                }
+                evolve<Delivered> { }
+            }
+            val registry = WaitRegistry()
+            val coordinator = WaitCoordinator(
+                Executor(Kernel(InMemoryEventLog(partitions = 2))),
+                registry,
+                SubscriptionDirectory.NONE,
+                LocalSignalSender("mail-node-1", registry),
+                WaitOptions(Origin("mail-node-1", "127.0.0.1:9191", "mail-service"), maxTimeout = 5.seconds),
+            )
+            return CommandGateway(ModelRegistry(listOf(model)), mapOf("mail" to coordinator))
+        }
 
         fun resultOf(call: OutgoingCall, status: CommandResult.Status) = CommandResult(
             commandId = call.command.id,

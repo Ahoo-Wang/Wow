@@ -18,6 +18,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.spi.wait.WaitContext
 import tools.jackson.databind.JsonNode
@@ -193,11 +194,14 @@ sealed interface CommandBody {
  * The root command a synchronous call acts for (decision D193), as the calling service asserts it: the call's command
  * id [commandId] (the id its saga derived, so a wait that follows the saga finds it), and the root command's tenant
  * [tenantId], [scope], [operator] (decisions D163, D189) and the [causation] that makes it a derived command (decision
- * D199), with the [wait] context a wait that follows the saga goes on with.
+ * D199), with the [wait] context a wait that follows the saga goes on with, and the root request's [facts] that
+ * propagate ([RequestFacts.PROPAGATED], decision D236 ③), such as the calling application: only those, whatever the
+ * map it is built with holds, so a call never carries the client's address or `User-Agent`.
  *
  * Admission trusts it only from a [service][Caller.service] identity, and then acts as for a command another context
  * sent through its command topic: the command is in [tenantId] and [scope], an aggregate it creates belongs to them, an
- * existing one is not checked against them, and its result is the one at COMMITTED.
+ * existing one is not checked against them, its propagating facts are [facts] (not the calling service's own), and its
+ * result is the one at COMMITTED.
  *
  * Fields may be added (decision D216): construct it with [of]; the constructor is internal to Wow.
  */
@@ -208,7 +212,11 @@ class CallContext @InternalWowApi constructor(
     val causation: Causation,
     val operator: Operator? = null,
     val wait: WaitContext? = null,
+    facts: Map<String, String> = emptyMap(),
 ) {
+    /** The root request's facts that propagate ([RequestFacts.PROPAGATED]), such as `app_id`. */
+    val facts: Map<String, String> = RequestFacts.propagatedOf(facts)
+
     init {
         require(commandId.isNotBlank()) { "A call names its command id." }
         require(tenantId.isNotBlank()) { "A call names its tenant." }
@@ -221,14 +229,15 @@ class CallContext @InternalWowApi constructor(
 
     override fun toString(): String =
         "CallContext(commandId=$commandId, tenantId=$tenantId, scope=$scope, causation=$causation, " +
-            "operator=$operator, wait=$wait)"
+            "operator=$operator, wait=$wait, facts=$facts)"
 
-    private fun valueFields(): List<Any?> = listOf(commandId, tenantId, scope, causation, operator, wait)
+    private fun valueFields(): List<Any?> = listOf(commandId, tenantId, scope, causation, operator, wait, facts)
 
     companion object {
         /**
          * The call [commandId] acting for a root command in [tenantId] and [scope], derived by [causation], with the
-         * root command's [operator] and the [wait] context a wait that follows the calling saga goes on with.
+         * root command's [operator], the [wait] context a wait that follows the calling saga goes on with, and the
+         * root request's [facts] that propagate.
          */
         @JvmStatic
         @JvmOverloads
@@ -239,6 +248,7 @@ class CallContext @InternalWowApi constructor(
             causation: Causation,
             operator: Operator? = null,
             wait: WaitContext? = null,
-        ): CallContext = CallContext(commandId, tenantId, scope, causation, operator, wait)
+            facts: Map<String, String> = emptyMap(),
+        ): CallContext = CallContext(commandId, tenantId, scope, causation, operator, wait, facts)
     }
 }

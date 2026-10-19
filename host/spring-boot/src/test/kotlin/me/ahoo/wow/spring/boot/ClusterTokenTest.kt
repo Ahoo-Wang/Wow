@@ -90,7 +90,8 @@ class ClusterTokenTest {
 
     @Test
     fun `a host on every interface without a cluster token should fail to start`() {
-        assertThrownBy<Exception> { startHost("wow.internal.host" to "0.0.0.0").close() }
+        // In memory on purpose: on every interface, auto would refuse the missing durable backend first (R3.5-1).
+        assertThrownBy<Exception> { startHost("wow.internal.host" to "0.0.0.0", "wow.backend" to "memory").close() }
             .hasStackTraceContaining("wow.internal.token")
     }
 
@@ -111,6 +112,23 @@ class ClusterTokenTest {
             signal("cluster-token-of-another-service-0123456789").assert().isEqualTo(403)
             // Taken, then read: this body is no signal.
             signal(PREVIOUS).assert().isEqualTo(400)
+        }
+    }
+
+    @Test
+    fun `a host's signals carry the cluster token to the members of its cluster alone (R2_3-1)`() {
+        startHost("wow.internal.token" to CURRENT).use { host ->
+            val node = host.node
+            val deadline = System.currentTimeMillis() + 10_000
+            fun members() = node.contexts.values.flatMap { it.ownership.routes.members }.map { it.address }
+            while (members().isEmpty() && System.currentTimeMillis() < deadline) {
+                Thread.sleep(20)
+            }
+            val members = NodeMembers { node }
+            members().forEach { address -> members.contains(address).assert().isTrue() }
+            members().assert().isNotEmpty()
+            members.contains("attacker.example:80").assert().isFalse()
+            NodeMembers { null }.contains(members().first()).assert().isFalse()
         }
     }
 

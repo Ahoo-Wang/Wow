@@ -39,7 +39,6 @@ import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.query.QueryHandler
 import me.ahoo.wow.http.query.QueryTarget
 import me.ahoo.wow.http.read.StateHandler
-import me.ahoo.wow.http.read.StateReads
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.CommandRoutes
 import me.ahoo.wow.manifest.ContextManifest
@@ -49,9 +48,12 @@ import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.openapi.ManifestOpenApi
 import me.ahoo.wow.openapi.OpenApiOptions
+import me.ahoo.wow.openapi.OpenApiSecurityScheme
 import me.ahoo.wow.query.QueryOwnership
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
+import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.runtime.admission.CommandGateway
+import me.ahoo.wow.runtime.state.StateReads
 import me.ahoo.wow.spi.StorageUnavailableException
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -78,7 +80,8 @@ import org.springframework.web.reactive.function.server.coRouter
  *   `DeleteAggregate`, `POST /{context}/{aggregate}/{id}/wow.lifecycle.<kebab>` the others;
  * - `GET /{context}/{aggregate}/{id}/state`, `?version=`, `?at=` and `GET …/{id}/state/trace` read [reads]
  *   (decisions D40, D112), in the tenant the gateway's [tenants][CommandGateway.tenants] decide, as for a command
- *   (decision D116);
+ *   (decision D116); each state and each event of a trace masked as a snapshot query masks it, by the snapshot query
+ *   gateway of [queries] or, without one, by [masks] (09 §17 G-2);
  * - `POST /{context}/{aggregate}/{model}/query` and its `GET` (decisions D127, D131) query the models of
  *   [AggregateManifest.queries] that [queries] serves, the snapshots and the events of each aggregate type;
  * - `POST /wow/dataset/{context}/{dataset}/query` and its `GET` query the datasets of [queries] (decision D145) as a
@@ -105,10 +108,12 @@ fun wowRoutes(
     callerResolver: CallerResolver = CallerResolver.ANONYMOUS,
     options: WowHttpOptions = WowHttpOptions(),
     queries: HttpQueries = HttpQueries.NONE,
+    masks: PayloadMasks = PayloadMasks(manifest),
 ): RouterFunction<ServerResponse> {
     val statuses = ErrorStatuses(manifest, options.errorStatuses)
     val authenticator = Authenticator(callerResolver, statuses)
-    val headers = RequestHeaders(statuses)
+    // The public port: its commands carry the default request facts (09 §17 G-10).
+    val headers = RequestHeaders(statuses, publicPort = true)
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val commands = CommandHandler(
         gateway = gateway,
@@ -121,7 +126,7 @@ fun wowRoutes(
     val queryHandler = QueryHandler(queries, authenticator, headers, statuses, gateway.tenants, scope)
     val ownerships = QueryOwnership.of(manifest)
     val states =
-        StateHandler(reads, authenticator, headers, statuses, gateway.tenants, ownerships::ownershipOf, queries)
+        StateHandler(reads, authenticator, headers, statuses, gateway.tenants, ownerships::ownershipOf, queries, masks)
     val served = withTransformedRoutes(manifest, gateway)
     return coRouter {
         if (options.manifestEndpoint) {
@@ -183,11 +188,31 @@ internal fun withTransformedRoutes(manifest: Manifest, gateway: CommandGateway):
 )
 
 /**
+ * The OpenAPI document of the routes [wowRoutes] serves from [manifest], [gateway], [options] and [queries], the one
+ * `GET /wow/openapi` answers, with the [securitySchemes] the host's caller resolver accepts (decision D233 ③): the
+ * document the host merges into springdoc's. The public port's routes alone: the internal port's call routes, cluster
+ * channel and signals are never in it (decision D226).
+ */
+@InternalWowApi
+fun wowOpenApi(
+    manifest: Manifest,
+    gateway: CommandGateway,
+    options: WowHttpOptions = WowHttpOptions(),
+    queries: HttpQueries = HttpQueries.NONE,
+    securitySchemes: Map<String, OpenApiSecurityScheme> = emptyMap(),
+): Map<String, Any?> = openApiOf(withTransformedRoutes(manifest, gateway), options, queries, securitySchemes)
+
+/**
  * The OpenAPI document of the routes of [served] (decision D182's transformed routes included) as [options] and
  * [queries] serve them: the query models [queries] serves, the datasets when it has them, the Manifest endpoint and the
- * error statuses the host configures.
+ * error statuses the host configures; the [securitySchemes] when it has them.
  */
-internal fun openApiOf(served: Manifest, options: WowHttpOptions, queries: HttpQueries): Map<String, Any?> {
+internal fun openApiOf(
+    served: Manifest,
+    options: WowHttpOptions,
+    queries: HttpQueries,
+    securitySchemes: Map<String, OpenApiSecurityScheme> = emptyMap(),
+): Map<String, Any?> {
     val documented = served.withContexts(
         served.contexts.map { context ->
             context.withAggregates(
@@ -205,16 +230,12 @@ internal fun openApiOf(served: Manifest, options: WowHttpOptions, queries: HttpQ
             manifestEndpoint = options.manifestEndpoint,
             openApiEndpoint = options.openApiEndpoint,
             errorStatuses = options.errorStatuses,
-        ),
+        ).withSecuritySchemes(securitySchemes),
     )
 }
 
 /** Whether [this] serves the query [model] of [type]: the snapshots and the events of the types it has gateways for. */
-private fun HttpQueries.serves(type: AggregateType, model: String): Boolean = when (model) {
-    QueryRoutes.SNAPSHOT -> snapshots(type) != null
-    QueryRoutes.EVENTS -> events(type) != null
-    else -> false
-}
+private fun HttpQueries.serves(type: AggregateType, model: String): Boolean = gateway(type, model) != null
 
 /** `GET [path]`: [body], as JSON, to an authenticated caller that accepts it. */
 private fun CoRouterFunctionDsl.document(
@@ -241,8 +262,11 @@ private fun CoRouterFunctionDsl.document(
  * `wow.auth.forbidden`. The public port
  * refuses `Wow-Call` ([wowRoutes]), so the root command a call asserts reaches a node only through its internal
  * network, from a service it trusts. A service calls only the commands [permits] lets it (decision D226, review A3-2):
- * the domain commands by default, a system command (`wow.*`: the lifecycle, the snapshot rebuild, the schedules)
- * only when listed; any other is answered 403 [CallPermits.COMMAND_FORBIDDEN].
+ * the domain commands by default, a system command (`wow.*`: the lifecycle, the snapshot rebuild, the schedules and the
+ * jobs, whose routes are the public port's too, review R2.3-5) only when listed; any other is answered 403
+ * [CallPermits.COMMAND_FORBIDDEN]. A call of a command route the Manifest does not have, in a context it serves, is
+ * answered 400 `wow.command.unhandled` with its REJECTED result (review X-5), not 404: the caller's contract names a
+ * command this service does not decide, which a retry does not mend.
  */
 @InternalWowApi
 fun callRoutes(
@@ -271,9 +295,30 @@ fun callRoutes(
     return coRouter {
         served.contexts.forEach { context ->
             context.aggregates.forEach { aggregate -> commandRoutes(context.name, aggregate, commands, statuses) }
+            // The snapshot rebuild and the job commands, which a service calls when its permits list them (D226).
+            systemRoutes(context, commands, statuses)
+        }
+        // A command route of a served context that is none of the above: a command the caller's contract names and
+        // this service does not decide, such as one of a newer version of it (review X-5). The gateway refuses it as
+        // `wow.command.unhandled` with its REJECTED result, which the calling saga takes as a rejection, not as a
+        // failure to retry.
+        served.contexts.forEach { context ->
+            POST("/${context.name}/{$AGGREGATE}/${CommandRoutes.ID}/{$COMMAND}") { request ->
+                statuses.answering { commands.handle(request, unknownTarget(context.name, request, byId = true)) }
+            }
+            POST("/${context.name}/{$AGGREGATE}/{$COMMAND}") { request ->
+                statuses.answering { commands.handle(request, unknownTarget(context.name, request, byId = false)) }
+            }
         }
     }
 }
+
+private const val AGGREGATE = "aggregate"
+private const val COMMAND = "command"
+
+/** The target of a call [request] to a command route of [context] that no route of the Manifest matched. */
+private fun unknownTarget(context: String, request: ServerRequest, byId: Boolean): CommandTarget =
+    CommandTarget(context, request.pathVariable(AGGREGATE), request.pathVariable(COMMAND), byId)
 
 /** The routes of [aggregate]'s commands and of the lifecycle commands it lists. */
 private fun CoRouterFunctionDsl.commandRoutes(

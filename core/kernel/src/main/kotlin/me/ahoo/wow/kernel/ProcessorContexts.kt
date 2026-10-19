@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionKind
@@ -81,7 +82,8 @@ class ExecutionSagaContext @InternalWowApi constructor(
      * and its causation links it to the commit (`ref@version`) and to the root command of the chain; its operator is
      * the commit's, the root command's (decision D163), and so is its scope (decision D189): the owner and space of
      * the commit, so an aggregate it creates belongs to them; an existing one it changes is not checked against
-     * them (decision D199), and they are recorded for the audit.
+     * them (decision D199), and they are recorded for the audit. It inherits the commit's request facts that
+     * propagate ([RequestFacts.PROPAGATED], decision D232), such as the calling application, and no other header.
      */
     override fun <C : Any> command(ref: AggregateRef, body: C): Command<C> {
         val id = derivedId(executionId, derived.getAndIncrement())
@@ -91,6 +93,7 @@ class ExecutionSagaContext @InternalWowApi constructor(
             ref = ref,
             body = body,
             scope = event.scope,
+            headers = RequestFacts.propagatedOf(event.headers),
             causation = Causation(event.correlationId, event.id),
             operator = event.operator,
         )

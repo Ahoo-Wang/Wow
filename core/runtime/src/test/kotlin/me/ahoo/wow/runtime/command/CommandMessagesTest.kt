@@ -22,6 +22,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
@@ -128,6 +129,7 @@ class CommandMessagesTest {
             execution,
             Operator("alice", "t0"),
             Scope("alice", "space-a"),
+            mapOf(RequestFacts.APP_ID to "console"),
         )
         val message = CommandMessages.receipt(rejected)
         message.key.assert().isEqualTo(execution.ref.toString())
@@ -168,6 +170,7 @@ class CommandMessagesTest {
             executionId = execution,
             operator = Operator("alice", "t0"),
             scope = Scope("alice", "space-a"),
+            headers = mapOf(RequestFacts.APP_ID to "console"),
         )
     }
 
@@ -211,6 +214,21 @@ class CommandMessagesTest {
         assertThrows<IllegalArgumentException> { CommandMessages.committedOf(command) }
         assertThrows<IllegalArgumentException> { CommandMessages.receiptOf(command) }
     }
+
+    @Test
+    fun `a receipt written before decision D232 carries no request facts`() {
+        listOf(CommandMessages.receipt(committed()), CommandMessages.receipt(committed().toRejected())).forEach {
+            val envelope = EnvelopeCodec.decode(it.value)
+            (envelope.payload as tools.jackson.databind.node.ObjectNode).remove("headers")
+            when (val receipt = CommandMessages.receiptOf(envelope)) {
+                is CommandCommitted<*> -> receipt.headers.assert().isEmpty()
+                else -> (receipt as CommandRejected<*>).headers.assert().isEmpty()
+            }
+        }
+    }
+
+    private fun CommandCommitted<Any>.toRejected(): CommandRejected<Any> =
+        CommandRejected(commandId, commandType, ref, ErrorInfo("e", "m"), causation, executionId, headers = headers)
 
     @Test
     fun `a reply should ask for the success receipt only when it says so, false for an older writer`() {
@@ -302,7 +320,7 @@ class CommandMessagesTest {
             sender.typeOf(Command("c", "r", ref, CancelSchedule("k"))).assert().isEqualTo(Schedules.CANCEL)
             sender.typeOf(Command("c", "r", ref, DeleteAggregate)).assert().isEqualTo(Lifecycle.DELETE_AGGREGATE)
             assertThrows<IllegalStateException> { sender.typeOf(Command("c", "r", ref, "not a command")) }
-                .message.assert().contains("wowPeers")
+                .message.assert().contains("depend on the api module of stock")
             val wrong = AggregateType(STOCK, "warehouse").ref(TENANT, "w")
             assertThrows<IllegalStateException> { sender.typeOf(Command("c", "r", wrong, Reserve(1))) }
                 .message.assert().contains("not one of stock.warehouse")
@@ -352,6 +370,32 @@ class CommandMessagesTest {
     }
 
     @Test
+    fun `a resume should not resolve an aggregate whose parked message moved to another partition`(): Unit =
+        runBlocking {
+            // Review R2.1-4: a topic that gained partitions maps the key elsewhere; the re-scan finds nothing there.
+            val entries = MessageEntries.commands(COMMANDS, topics, PARTITIONS)
+            val partition = Partitioner.partitionOf(ref, PARTITIONS)
+            val before = (partition + 1) % PARTITIONS
+            val other = generateSequence(0) { it + 1 }.map { ITEM.ref(TENANT, "i-$it") }
+                .first { Partitioner.partitionOf(it, PARTITIONS) == partition && it != ref }
+            val wire = { id: String, of: me.ahoo.wow.api.aggregate.AggregateRef ->
+                ClusterCodec.wire("stock.item.Reserve", Command(id, id, of, Reserve(1)))
+            }
+            // Parked at offset 0 of the partition its key mapped to before.
+            topics.send(COMMANDS, CommandMessages.command(wire("parked", ref), before))
+            // Nothing at that offset in the partition it maps to now.
+            assertThrows<UnrecoverableException> { runBlocking { entries.resume(ref, 1, 0).toList() } }
+                .message.assert().contains("partitions changed")
+            // Another aggregate's message at that offset there.
+            topics.send(COMMANDS, CommandMessages.command(wire("other", other), partition))
+            assertThrows<UnrecoverableException> { runBlocking { entries.resume(ref, 1, 0).toList() } }
+                .message.assert().contains("partitions changed")
+            // Where the message is, the re-scan goes on.
+            topics.send(COMMANDS, CommandMessages.command(wire("own", ref), partition))
+            entries.resume(ref, 1, 1).toList().map { (it.message as CommandWire).id }.assert().containsExactly("own")
+        }
+
+    @Test
     fun `a receipt should reach the handler once per command id with the command's class`(): Unit = runBlocking {
         val handled = CopyOnWriteArrayList<Pair<String, Class<*>>>()
         var answer: List<String>? = listOf("compensated")
@@ -389,6 +433,40 @@ class CommandMessagesTest {
         }
             .message.assert().contains("stock.item.Gone")
     }
+
+    @Test
+    fun `a commit after a rejection of the same command should reach the handler, a copy of either not`(): Unit =
+        runBlocking {
+            // Review R2.1-7: a rejection is not in the log (D47), so a command sent again may commit after it.
+            val handled = CopyOnWriteArrayList<String>()
+            val receipts = Receipts(
+                SALES,
+                ContractDirectory(salesManifest(), listOf(peer(stockManifest()))),
+                receiptHandler(
+                    rejected = { rejected, _ ->
+                        handled += "rejected:${rejected.commandId}"
+                        listOf("compensated")
+                    },
+                    committed = { committed, _ ->
+                        handled += "committed:${committed.commandId}"
+                        listOf("went on")
+                    },
+                ),
+            )
+            val rejected = CommandRejected<Any>(
+                "c-1",
+                "stock.item.Reserve",
+                ref,
+                ErrorInfo(INSUFFICIENT, "none"),
+                Causation("root", "o-1@3"),
+                execution,
+            )
+            receipts.handle(rejected)
+            receipts.handle(committed("c-1"))
+            receipts.handle(rejected)
+            receipts.handle(committed("c-1", duplicate = true))
+            handled.assert().containsExactly("rejected:c-1", "committed:c-1")
+        }
 
     @Test
     fun `combined factories should ask each for the handler of a receipt in turn`(): Unit = runBlocking {

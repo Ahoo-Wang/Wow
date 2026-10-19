@@ -322,9 +322,10 @@ class ManifestOpenApiTest {
         )
         operation("get", "/shop/cart/snapshot/query")["operationId"].assert().isEqualTo("shop.cart.snapshot.describe")
         val events = operation("post", "/shop/order/events/query")
-        events["description"].toString().assert().contains("this model does not aggregate")
+        // Every model aggregates on the unified engine (decision D235).
+        events["description"].toString().assert().contains("`aggregate` (an array of groups)")
         @Suppress("UNCHECKED_CAST")
-        ((schema(responses(events)["200"]) as Map<String, Any?>)["anyOf"] as List<Any?>).assert().hasSize(5)
+        ((schema(responses(events)["200"]) as Map<String, Any?>)["anyOf"] as List<Any?>).assert().hasSize(6)
         paths().containsKey("/shop/cart/custom/query").assert().isFalse()
         responses(events).keys.assert().containsExactly("200", "400", "401", "403", "404", "406", "415", "500", "503")
     }
@@ -357,6 +358,43 @@ class ManifestOpenApiTest {
             )
         }.assert().containsExactly("/wow/id/global")
         none["servers"].assert().isEqualTo(listOf(mapOf("url" to "https://shop.example")))
+    }
+
+    @Test
+    fun `the security schemes should be the document's components and its global security`() {
+        document.containsKey("security").assert().isFalse()
+        @Suppress("UNCHECKED_CAST")
+        (document["components"] as Map<String, Any?>).containsKey("securitySchemes").assert().isFalse()
+        val secured = ManifestOpenApi.write(
+            MANIFEST,
+            OpenApiOptions().withSecuritySchemes(
+                linkedMapOf(
+                    "bearer" to OpenApiSecurityScheme.bearer("JWT", "CoSec's access token."),
+                    "user" to OpenApiSecurityScheme.header("X-User"),
+                ),
+            ),
+        )
+        OpenApiChecks.check(secured)
+        secured["security"].assert().isEqualTo(
+            listOf(mapOf("bearer" to emptyList<String>()), mapOf("user" to emptyList()))
+        )
+        @Suppress("UNCHECKED_CAST")
+        (secured["components"] as Map<String, Any?>)["securitySchemes"].assert().isEqualTo(
+            mapOf(
+                "bearer" to mapOf(
+                    "type" to "http",
+                    "description" to "CoSec's access token.",
+                    "scheme" to "bearer",
+                    "bearerFormat" to "JWT",
+                ),
+                "user" to mapOf("type" to "apiKey", "name" to "X-User", "in" to "header"),
+            ),
+        )
+    }
+
+    @Test
+    fun `a header security scheme should name its header`() {
+        assertThrows<IllegalArgumentException> { OpenApiSecurityScheme.header(" ") }
     }
 
     @Test

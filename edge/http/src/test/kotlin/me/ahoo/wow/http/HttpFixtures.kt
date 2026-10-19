@@ -27,7 +27,6 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.http.read.KernelStateReads
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
@@ -58,6 +57,7 @@ import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.snapshot.SnapshotRebuildModel
+import me.ahoo.wow.runtime.state.KernelStateReads
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
@@ -94,6 +94,7 @@ data class ImportCart(val legacyNote: String = "")
 
 class Cart {
     var items = 0
+    var note = ""
 }
 
 data class CartOpened(val note: String)
@@ -131,7 +132,7 @@ fun cartModel(commands: MutableList<Command<*>>, mounted: Boolean = false) = agg
             else -> Decision.NoOp
         }
     }
-    evolve<CartOpened> { }
+    evolve<CartOpened> { note = it.note }
     evolve<ItemAdded> { items += it.quantity }
 }
 
@@ -244,6 +245,9 @@ class HttpNode(
 
         override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String) =
             ensureAvailable().let { log.findByRequestId(type, tenantId, requestId) }
+
+        // The events model in memory scans the log by its partitions' heads.
+        override suspend fun head(partition: Int): Long? = ensureAvailable().let { log.head(partition) }
 
         override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
             appendGate?.await()

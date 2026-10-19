@@ -12,20 +12,24 @@
  */
 
 import type { FetchExchange, RequestInterceptor } from "@ahoo-wang/fetcher";
+import type { TokenStorage } from "@ahoo-wang/fetcher-cosec";
 
 /**
- * Who calls the ops service. The service reads it from request headers
- * (`OpsCallers`), standing in for CoSec, whose resolver gives the same
- * callers from a token: `X-User` names the operator — without it the
- * service answers 401 — `X-Tenant` its tenant (`(0)`, the tenant the
- * services' ledgers publish to, when left out), `X-Role` its roles. A
- * deployment behind CoSec puts its token interceptor in place of
- * {@link CallerHeaders}.
+ * Who calls the ops service. A deployment (the server's `cosec` profile)
+ * reads it from the CoSec access token the operator signed in with
+ * (`via: "cosec"`): its subject, its tenant and its roles, which the console
+ * reads from the token too. A local run (`wow.platform.trust-identity-headers`)
+ * reads it from request headers instead (`OpsCallers`): `X-User` names the
+ * operator — without it the service answers 401 — `X-Tenant` its tenant
+ * (`(0)`, the tenant the services' ledgers publish to, when left out),
+ * `X-Role` its roles ({@link CallerHeaders}).
  */
 export interface OpsCaller {
   user: string;
   tenant: string;
   roles: readonly string[];
+  /** `cosec` when the caller is a CoSec token's; a caller of headers otherwise. */
+  via?: "cosec";
 }
 
 export const USER_HEADER = "X-User";
@@ -75,27 +79,91 @@ export function readCaller(value: string | null): OpsCaller | null {
   }
 }
 
+/**
+ * The caller of the CoSec token `tokens` holds, or `null` without one that is
+ * still valid. CoSec's default tenant is Wow's, `(0)`.
+ */
+export function tokenCaller(tokens: TokenStorage | null): OpsCaller | null {
+  if (!tokens?.authenticated) return null;
+  const payload = tokens.currentUser;
+  if (!payload?.sub) return null;
+  return {
+    user: payload.sub,
+    tenant: payload.tenantId || DEFAULT_TENANT,
+    roles: Array.isArray(payload.roles) ? payload.roles : [],
+    via: "cosec",
+  };
+}
+
 const STORAGE_KEY = "wow-ops-console.caller";
 
-/** The caller in force, kept on this machine, and who listens for a change. */
+/**
+ * The caller in force, and who listens for a change: the CoSec token's when
+ * one is signed in (`tokens`, kept where CoSec front ends keep it, so a single
+ * sign-on that stored one signs the console in too), else the caller of
+ * headers named for a local run, kept on this machine.
+ */
 export class CallerStore {
+  private headers: OpsCaller | null;
   private caller: OpsCaller | null;
   private readonly listeners = new Set<() => void>();
 
-  constructor(private readonly storage: Storage | null = safeStorage()) {
-    this.caller = readCaller(this.read());
+  constructor(
+    private readonly storage: Storage | null = safeStorage(),
+    private readonly tokens: TokenStorage | null = null,
+  ) {
+    this.headers = readCaller(this.read());
+    this.caller = this.current();
   }
 
   get = (): OpsCaller | null => this.caller;
 
+  /** Whether a CoSec token can be signed in with here. */
+  get signsIn(): boolean {
+    return this.tokens !== null;
+  }
+
+  /**
+   * Calls as the caller of headers `caller`, or as nobody with `null`: either
+   * way the CoSec token, if any, is signed out.
+   */
   set(caller: OpsCaller | null): void {
-    this.caller = caller;
+    this.tokens?.signOut();
+    this.keep(caller);
+    this.changed();
+  }
+
+  /**
+   * Signs in with the CoSec access token `accessToken`; `false`, and nobody
+   * signed in, when it is not one or has expired. The console cannot refresh
+   * it: the operator signs in again.
+   */
+  signIn(accessToken: string): boolean {
+    if (!this.tokens) return false;
+    this.tokens.signIn({ accessToken, refreshToken: accessToken });
+    const signedIn = tokenCaller(this.tokens) !== null;
+    if (signedIn) this.keep(null);
+    else this.tokens.signOut();
+    this.changed();
+    return signedIn;
+  }
+
+  private keep(caller: OpsCaller | null): void {
+    this.headers = caller;
     try {
       if (caller) this.storage?.setItem(STORAGE_KEY, JSON.stringify(caller));
       else this.storage?.removeItem(STORAGE_KEY);
     } catch {
       // Kept for this visit only.
     }
+  }
+
+  private current(): OpsCaller | null {
+    return tokenCaller(this.tokens) ?? this.headers;
+  }
+
+  private changed(): void {
+    this.caller = this.current();
     for (const listener of this.listeners) listener();
   }
 
@@ -121,7 +189,10 @@ function safeStorage(): Storage | null {
   }
 }
 
-/** Sends the caller in force as the headers the ops service reads. */
+/**
+ * Sends the caller of headers in force as the headers the ops service reads;
+ * a CoSec token's caller goes as its token instead (`withCoSec`).
+ */
 export class CallerHeaders implements RequestInterceptor {
   readonly name = "OpsCallerHeaders";
   readonly order = 0;
@@ -130,7 +201,7 @@ export class CallerHeaders implements RequestInterceptor {
 
   intercept(exchange: FetchExchange): void {
     const caller = this.caller();
-    if (!caller) return;
+    if (!caller || caller.via === "cosec") return;
     const headers = exchange.ensureRequestHeaders();
     headers[USER_HEADER] = caller.user;
     headers[TENANT_HEADER] = caller.tenant;

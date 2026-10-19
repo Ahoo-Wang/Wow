@@ -13,7 +13,7 @@ export class ViewPreferencesSnapshotQueryClient extends SnapshotQueryClient<View
 }
 
 
-/** Queries the event streams of `view-store.view_preferences`, one aggregate at a time: `POST /view-store/view_preferences/events/query`. */
+/** Queries the event streams of `view-store.view_preferences`, one record per commit: `POST /view-store/view_preferences/events/query`. */
 export class ViewPreferencesEventQueryClient extends EventQueryClient<ViewPreferencesEvent> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {

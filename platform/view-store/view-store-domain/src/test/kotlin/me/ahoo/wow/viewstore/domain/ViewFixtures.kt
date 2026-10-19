@@ -15,6 +15,7 @@ package me.ahoo.wow.viewstore.domain
 
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 
 /** What the view store's specifications send: owners, applications, operators and configs. */
@@ -27,7 +28,7 @@ object ViewFixtures {
 
     val APP_HEADERS: Map<String, String> = app(APP)
 
-    fun app(appId: String): Map<String, String> = mapOf(ViewStoreContext.APP_ID_HEADER to appId)
+    fun app(appId: String): Map<String, String> = mapOf(RequestFacts.APP_ID to appId)
 
     fun owner(ownerId: String): Scope = Scope(ownerId = ownerId)
 

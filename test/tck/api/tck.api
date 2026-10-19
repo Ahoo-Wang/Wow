@@ -159,6 +159,7 @@ protected final class me/ahoo/wow/tck/snapshot/SnapshotStoreSpec$Companion {
 }
 
 public abstract class me/ahoo/wow/tck/subscription/CheckpointStoreSpec {
+	public static final field BATCH_PARTITIONS I
 	public static final field CONCURRENT_SAVES J
 	protected static final field Companion Lme/ahoo/wow/tck/subscription/CheckpointStoreSpec$Companion;
 	public static final field GROUP_SUFFIX I
@@ -167,8 +168,10 @@ public abstract class me/ahoo/wow/tck/subscription/CheckpointStoreSpec {
 	public final fun a checkpoint saved at 0 is kept, and saved again changes nothing ()V
 	public final fun a subscription without a checkpoint loads null ()V
 	public final fun checkpoints are kept per group, subscription and partition ()V
+	public final fun concurrent batches leave the highest positions ()V
 	public final fun concurrent saves leave the highest position ()V
 	protected abstract fun createStore ()Lme/ahoo/wow/spi/subscription/CheckpointStore;
+	public final fun saving several checkpoints at once saves each as a save would ()V
 }
 
 protected final class me/ahoo/wow/tck/subscription/CheckpointStoreSpec$Companion {

@@ -128,7 +128,6 @@ internal class OpenApiPaths(
                 null,
                 type("object"),
                 parameters,
-                aggregation = true,
                 missing = missing,
             ),
         )
@@ -360,7 +359,6 @@ internal class OpenApiPaths(
                     tag,
                     record,
                     emptyList(),
-                    aggregation = query.model != QueryRoutes.EVENTS,
                     missing = null,
                 )
             }
@@ -374,23 +372,22 @@ internal class OpenApiPaths(
         tag: String?,
         record: Map<String, Any?>,
         pathParameters: List<String>,
-        aggregation: Boolean,
         missing: Pair<Int, String>?,
     ): Map<String, Any?> {
-        val kinds = listOfNotNull(
+        val kinds = listOf(
             array(record),
             refined(WowSchemas.PAGED_LIST, "list" to array(record)),
             refined(WowSchemas.CURSOR_PAGE, "list" to array(record)),
             record,
             schemaRef(WowSchemas.COUNT_RESULT),
-            array(type("object")).takeIf { aggregation },
+            array(type("object")),
         )
         return obj(
             "tags" to listOf(tag ?: ManifestOpenApi.FRAMEWORK_TAG),
             "summary" to summary,
             "description" to "The body's `kind` is the operation: `list` (an array, or with " +
-                "`Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count`" +
-                (if (aggregation) " or `aggregate` (an array of groups)." else "; this model does not aggregate."),
+                "`Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count` " +
+                "or `aggregate` (an array of groups).",
             "operationId" to operationId,
             "parameters" to (pathParameters + Http.SCOPE_HEADER).map(OpenApiParameters::ref),
             "requestBody" to obj("required" to true, "content" to json(schemaRef(WowSchemas.QUERY_REQUEST))),

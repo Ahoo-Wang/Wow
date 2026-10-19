@@ -13,7 +13,7 @@ export class BrandSnapshotQueryClient extends SnapshotQueryClient<BrandState, Br
 }
 
 
-/** Queries the event streams of `eshop-catalog.brand`, one aggregate at a time: `POST /eshop-catalog/brand/events/query`. */
+/** Queries the event streams of `eshop-catalog.brand`, one record per commit: `POST /eshop-catalog/brand/events/query`. */
 export class BrandEventQueryClient extends EventQueryClient<BrandEvent> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {

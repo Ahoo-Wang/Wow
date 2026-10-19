@@ -12,7 +12,8 @@
  */
 
 import type { FetchExchange } from "@ahoo-wang/fetcher";
-import { describe, expect, it, vi } from "vitest";
+import { TokenStorage } from "@ahoo-wang/fetcher-cosec";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CallerHeaders,
   CallerStore,
@@ -20,8 +21,10 @@ import {
   isOperator,
   parseRoles,
   readCaller,
+  tokenCaller,
   type OpsCaller,
 } from "./caller.ts";
+import { accessToken } from "./testing.ts";
 
 const ALICE: OpsCaller = {
   user: "alice",
@@ -101,5 +104,64 @@ describe("the caller", () => {
     const anonymous = exchange();
     interceptor.intercept(anonymous);
     expect(anonymous.headers).toEqual({});
+  });
+
+  it("is not sent as headers when it is a CoSec token's", () => {
+    const sent = exchange();
+    new CallerHeaders(() => ({ ...ALICE, via: "cosec" })).intercept(sent);
+    expect(sent.headers).toEqual({});
+  });
+});
+
+describe("the CoSec sign-in", () => {
+  afterEach(() => localStorage.clear());
+
+  it("reads the caller from the token: its subject, tenant and roles", () => {
+    const tokens = new TokenStorage();
+    expect(tokenCaller(tokens)).toBeNull();
+    expect(tokenCaller(null)).toBeNull();
+    const token = accessToken({ sub: "alice", roles: ["ops.operator"] });
+    tokens.signIn({ accessToken: token, refreshToken: token });
+    expect(tokenCaller(tokens)).toEqual({
+      user: "alice",
+      tenant: DEFAULT_TENANT,
+      roles: ["ops.operator"],
+      via: "cosec",
+    });
+    const other = accessToken({ sub: "olga", tenantId: "t-1" });
+    tokens.signIn({ accessToken: other, refreshToken: other });
+    expect(tokenCaller(tokens)).toMatchObject({ tenant: "t-1", roles: [] });
+  });
+
+  it("signs in over a caller of headers, and out again", () => {
+    const store = new CallerStore(localStorage, new TokenStorage());
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.set(ALICE);
+    expect(store.signsIn).toBe(true);
+    expect(store.signIn(accessToken({ sub: "bob" }))).toBe(true);
+    expect(store.get()).toMatchObject({ user: "bob", via: "cosec" });
+    // The single sign-on: another console of this browser is signed in too.
+    expect(new CallerStore(localStorage, new TokenStorage()).get()?.user).toBe(
+      "bob",
+    );
+    store.set(null);
+    expect(store.get()).toBeNull();
+    expect(new CallerStore(localStorage, new TokenStorage()).get()).toBeNull();
+    expect(listener).toHaveBeenCalledTimes(3);
+  });
+
+  it("refuses a token that is not one, or has expired, and keeps the caller", () => {
+    const store = new CallerStore(null, new TokenStorage());
+    store.set(ALICE);
+    expect(store.signIn("not-a-token")).toBe(false);
+    expect(
+      store.signIn(accessToken({ sub: "bob" }, Date.now() / 1000 - 60)),
+    ).toBe(false);
+    expect(store.get()).toEqual(ALICE);
+    expect(new CallerStore(null).signIn(accessToken({ sub: "bob" }))).toBe(
+      false,
+    );
+    expect(new CallerStore(null).signsIn).toBe(false);
   });
 });

@@ -1,5 +1,7 @@
 public final class me/ahoo/wow/cosec/CoSecAutoConfiguration {
 	public static final field AUTHORIZER_ENABLED Ljava/lang/String;
+	public static final field COSEC_AUTHORIZATION_ENABLED Ljava/lang/String;
+	public static final field COSEC_INJECT_ENABLED Ljava/lang/String;
 	public static final field CROSS_SCOPE_POLICIES Ljava/lang/String;
 	public static final field CROSS_SCOPE_ROLES Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/cosec/CoSecAutoConfiguration$Companion;
@@ -9,6 +11,7 @@ public final class me/ahoo/wow/cosec/CoSecAutoConfiguration {
 	public static final field SERVICE_ROLES Ljava/lang/String;
 	public static final field TENANT_POLICIES Ljava/lang/String;
 	public static final field TENANT_ROLES Ljava/lang/String;
+	public static final field TRUST_INJECTED_APP Ljava/lang/String;
 	public fun <init> ()V
 	public final fun wowCoSecCallAuthorizer (Lme/ahoo/cosec/api/authorization/Authorization;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/http/caller/CallAuthorizer;
 	public final fun wowCoSecCallerResolver (Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/cosec/CoSecCallerResolver;
@@ -33,6 +36,7 @@ public final class me/ahoo/wow/cosec/CoSecCallerOptions {
 	public final fun getServiceRoles ()Ljava/util/Set;
 	public final fun getTenantPolicies ()Ljava/util/Set;
 	public final fun getTenantRoles ()Ljava/util/Set;
+	public final fun getTrustInjectedApp ()Z
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

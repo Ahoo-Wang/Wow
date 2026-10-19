@@ -31,6 +31,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.WaitSignal
+import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.runtime.ZeroAwaitingCounter
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.runtime.wait.SignalSender
@@ -39,6 +40,7 @@ import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
+import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import java.time.Clock
 
@@ -118,6 +120,9 @@ internal class SubscriptionWorker(
         null
     }
     private val flushLock = Mutex()
+
+    /** The last position stored. Written under `flushLock`. */
+    @Volatile
     private var saved = checkpoint
 
     /** Set by [abandon] under the monitor: the lanes are cancelled, so a resume would never run. */
@@ -394,15 +399,26 @@ internal class SubscriptionWorker(
      * the handler's own `withTimeout` firing, or an [Error] such as [NotImplementedError], is a failure like any other, retried and
      * then parked, so the lane goes on and the checkpoint moves. Only the cancellation of the lane itself stops the
      * retries, and a [VirtualMachineError] (out of memory, say) propagates, logged first.
+     *
+     * A command the handler sent that the node refused as busy ([CommandBusyException], decision D228 ②) is
+     * backpressure, not a failure (review R2.1-1): the entry is tried again after the budget's backoff, as many times
+     * as it takes, without spending an attempt, so a burst holds the lane (and, with the in-flight bound, the
+     * partition's tail) instead of parking the aggregate.
      */
     @Suppress("TooGenericExceptionCaught")
     private suspend fun retried(sourced: SourcedEntry): Result<HandledEntry> {
         var failures = 0
+        var busy = 0
         while (true) {
             val failure = try {
                 return Result.success(attempt(sourced))
             } catch (rejected: HandlingRejectedException) {
                 return Result.failure(rejected)
+            } catch (refused: CommandBusyException) {
+                busy++
+                logger.debug { "Subscription ${subscription.name} met a busy node: ${refused.message}" }
+                delay(retry.backoff(busy))
+                continue
             } catch (fatal: VirtualMachineError) {
                 logger.error(fatal) {
                     "Subscription ${subscription.name} met a fatal error handling ${sourced.stream.ref}@" +
@@ -644,6 +660,22 @@ internal class SubscriptionWorker(
         if (position > saved) {
             checkpoints.save(group, subscription.name, partition, position)
             saved = position
+        }
+    }
+
+    /**
+     * The watermark when it moved since the last save, else null: what the runtime's periodic save stores, for all
+     * its workers at once ([CheckpointStore.saveAll]), then reports with [saved].
+     */
+    fun unsaved(): Checkpoint? {
+        val position = watermark
+        return if (position > saved) Checkpoint.of(subscription.name, partition, position) else null
+    }
+
+    /** Records that [checkpoint], from [unsaved], is stored. */
+    suspend fun saved(checkpoint: Checkpoint) = flushLock.withLock {
+        if (checkpoint.position > saved) {
+            saved = checkpoint.position
         }
     }
 

@@ -233,16 +233,38 @@ abstract class CatalogQueryContract {
     }
 
     @Test
-    fun `a product's events should be read by version, naming the product`() {
+    fun `a product's events should be read by version and analyzed per event`() {
         val product = storefront.product(storefront.category(), storefront.brand(), "3.00")
         val events = catalog.post(PRODUCT_EVENTS, """{"kind":"list","filter":{"op":"ID","value":"$product"}}""", BUYER)
             .assertOk().json
         events.values().map { it["version"].asInt() }.assert().containsExactly(1, 2)
         events.values().map { it["events"][0]["name"].asString() }.assert()
             .containsExactly("eshop-catalog.product.ProductCreated", "eshop-catalog.product.ProductPublished")
-        // The event model reads one aggregate's stream at a time.
-        catalog.post(PRODUCT_EVENTS, """{"kind":"list","filter":{"op":"MATCH_ALL"}}""", BUYER)
-            .assertProblem(BAD_REQUEST, "wow.query.invalid")
+        // On the unified engine (decision D235): an event condition is an element match; per-event analytics expand.
+        val published = """{"op":"ELEMENT_MATCH","field":"events","predicate":""" +
+            """{"op":"EQ","field":"name","value":"eshop-catalog.product.ProductPublished"}}"""
+        catalog.post(
+            PRODUCT_EVENTS,
+            """{"kind":"count","filter":{"op":"AND","operands":[{"op":"ID","value":"$product"},$published]}}""",
+            BUYER,
+        ).assertOk().json["count"].asLong().assert().isEqualTo(1)
+        val perEvent = catalog.post(
+            PRODUCT_EVENTS,
+            """{"kind":"aggregate","filter":{"op":"ID","value":"$product"},"elements":[{"path":"events"}],""" +
+                """"groupBy":[{"type":"TERMS","field":"name","alias":"event"}],"metrics":[{"type":"COUNT","alias":"n"}]}""",
+            BUYER,
+        ).assertOk().json
+        perEvent.values().map { it["event"].asString() to it["n"].asLong() }.assert().containsExactly(
+            "eshop-catalog.product.ProductCreated" to 1L,
+            "eshop-catalog.product.ProductPublished" to 1L,
+        )
+        // A root metric over an event field must expand the events first (review X-8).
+        catalog.post(
+            PRODUCT_EVENTS,
+            """{"kind":"aggregate","filter":{"op":"MATCH_ALL"},""" +
+                """"groupBy":[{"type":"TERMS","field":"events.name","alias":"event"}],"metrics":[{"type":"COUNT","alias":"n"}]}""",
+            BUYER,
+        ).assertProblem(BAD_REQUEST, "wow.query.invalid")
     }
 
     /**

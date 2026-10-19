@@ -1,0 +1,12 @@
+public.wow_checkpoint	0
+public.wow_failure_ledger	0
+public.wow_format	0
+public.wow_lease	0
+public.wow_lease_member	0
+public.wow_log__transfer__account	600
+public.wow_log__transfer__partition	0
+public.wow_log_aggregate	0
+public.wow_reservation	0
+public.wow_snapshot__transfer__account	0
+public.wow_snapshot_table	0
+public.wow_timer__transfer	0

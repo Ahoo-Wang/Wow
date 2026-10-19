@@ -40,7 +40,8 @@ import kotlin.time.Duration.Companion.seconds
  * - [maxEarlyWait]: the longest a scheduled command waits in its target's kernel for its due time on the target
  *   node's clock (`wow.timers.max-early-wait`, decision D198), holding the aggregate's queue meanwhile. One that
  *   arrives earlier than that, its firing node's clock that far ahead, fails at once as a technical failure
- *   ([me.ahoo.wow.runtime.wait.ResultCodes.SCHEDULE_NOT_DUE]), and the runner sends it again after its backoff.
+ *   ([me.ahoo.wow.runtime.wait.ResultCodes.SCHEDULE_NOT_DUE]), and the runner sends it again after its backoff. A
+ *   command sent to another context's command topic waits at its intake for its due time first (review R2.5-1).
  *
  * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.

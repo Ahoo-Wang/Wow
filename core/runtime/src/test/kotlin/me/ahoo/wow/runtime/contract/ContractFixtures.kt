@@ -30,12 +30,15 @@ import java.net.URLClassLoader
 const val SHOP_SERVICE = "shop-service"
 
 /** A class loader over the test resource directory [name] (`contract/<name>`) alone: its peers, no others. */
-fun peersLoader(name: String): ClassLoader =
-    URLClassLoader(arrayOf(requireNotNull(ContractFixtures::class.java.getResource("/contract/$name/"))), null)
+/** A class loader over the fixture directories `contract/<name>/`, each as an api jar would be on a class path. */
+fun contractsLoader(vararg names: String): ClassLoader = URLClassLoader(
+    names.map { requireNotNull(ContractFixtures::class.java.getResource("/contract/$it/")) }.toTypedArray(),
+    null,
+)
 
 object ContractFixtures {
-    /** The fixture peers of `contract/peers`: inventory-service (context inventory) and payment-service. */
-    val peers by lazy { PeerManifestReader(peersLoader("peers")).read() }
+    /** The fixture peer contracts of `contract/inventory` (context inventory) and `contract/payment`. */
+    val peers by lazy { ContractReader(contractsLoader("inventory", "payment")).read() }
 
     fun subscription(
         name: String,

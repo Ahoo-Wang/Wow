@@ -223,7 +223,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 
 ### M6p 能力补齐
 
-来自 [09 能力对照](09-capability-parity.md) §13 的补齐项（D184）；放弃的项见 D185～D188。P.1～P.5、P.9 与 P.10～P.13、C.1 是 M7 的入口门槛（D183、D196），6.0g 在 C.1 之前（D197），P.6～P.8 在 M8 之前；M7 前先核心后全能力（D196）。
+来自 [09 能力对照](09-capability-parity.md) 上一版 §13 的补齐项（D184；结案见 09 §18，2026-10-17 复核的缺口见 09 §17 与 D229）；放弃的项见 D185～D188。P.1～P.5、P.9 与 P.10～P.13、C.1 是 M7 的入口门槛（D183、D196），6.0g 在 C.1 之前（D197），P.6～P.8 在 M8 之前；M7 前先核心后全能力（D196）。
 
 | WP | 内容 | 规模 | 时机 | 出口 |
 |---|---|---|---|---|
@@ -240,6 +240,15 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | P.11 | 跨上下文成功回执 `@OnCommitted`（D192）：`CommandCommitted<C>`、`replyTo` 的成功回执标记、编译器与 Manifest、提交即发并在推进偏移量之前写回执主题 | S～M | M7 前 | 重投与重复请求下回执去重、单号不变的测试；eShop 的 `StockConfirmationSaga` 去掉读库存流的绕行（G23） |
 | P.12 | 跨上下文同步调用客户端（D193）：Saga 经它调用对方的 HTTP 命令网关，自动带确定的请求 ID、根作用域与操作人（服务凭证，目标 CoSec 只对服务身份信任声明的根作用域）、等待链头；对方地址配置 | M | M7 前 | 对方宕机时按预算重试后停放、恢复后单号不变；买家结账经同步调用创建的单据属于买家 |
 | P.13 | 订阅起点、指南发现的不一致与派生命令的作用域（D194、D195、D199）：派生命令不对已存在的目标做作用域检查，删除 `CartSaga` 的收窄；`@OnEvent(start)`、跨上下文订阅默认 `BEGINNING`；内部端口默认绑成员地址；`@AggregateRoot(snapshot = false)`；读重试 `max-attempts` 接上；指南写明 Decider DSL 只用于测试 | S～M | M7 前 | 新加入的库存服务不丢已发货订单（去掉 inventory 的 `start: beginning` 配置，G10）；关闭快照的聚合无 `SNAPSHOT` 阶段的等待测试 |
+| P.14 | 状态点读的响应脱敏（D229 G-2）：`GET …/state`、`?version=`、`?at=`、`/state/trace` 与 `events` 模型按查询 schema 应用遮罩；默认请求事实 `remote_ip`、`user_agent`（G-10） | S | GA 前（安全回归，beta 前） | 脱敏与请求事实的端到端测试 |
+| P.15 | 平台服务的生产形态（D229 G-3）：ops、view-store 服务带 `:cosec`、`:opentelemetry`；控制台 CoSec 登录；`deploy/v10/` 补平台服务的 K8s 清单 | S | GA 前（8c.1 之前） | 带 CoSec 的端到端；清单可在本地集群起服务 |
+| P.16 | `@Retry` 的可恢复性分类（D229 G-6）与系统性故障暂停（D243）：带默认值的 `recoverable`、`unrecoverable` 属性与可恢复分类端口；三类——不可恢复直接停放、可恢复按聚合重试后停放、系统性暂停整个分区并持续重试（指标 `wow.subscription.paused`） | M | GA 前 | 不可恢复的失败不重试；下游抖动不停放聚合、恢复后自动继续 |
+| T.1 | 测试 DSL 的 fork（D245）：复制运行时而不重放、可选的 `@TestFactory` 测试树、在断言块里 fork、处理器规范同样支持 | M | GA 前 | fork 不再调用 mock；一个 fork 失败不影响其他 fork；IDE 里显示场景树 |
+| P.17 | Java 用户体验的说明与冒烟测试（D229 G-8，Java 门面与阻塞桥在 10.x）；迁移 Skill 的漂移（09 复核 §4.2，含 G-13 请求头别名、`@QueryReference`、自定义 Jackson 模块、查询路由对照） | S | GA 前 | Java 领域的冒烟测试；Skill 评测通过 |
+| P.18 | 应用标识 `app_id`（D232）：标准请求事实 `app_id`（`CallerResolver` 只填已认证的值，CoSec 实现取认证过的应用）、`Caller` 标准属性 `app`、派生命令继承的可传播事实白名单；view-store 与 analytics 改读它并删除各自的解析；P.14 之后 | 事件流的请求头带认证过的 `app_id`；客户端自报的 `CoSec-App-Id` 不被采信；Saga 派生的命令带上游的 `app_id`；view-store 与 analytics 的行为不变 |
+| P.18b | `app_id` 的来源（D236）：注入模式的信任开关（默认关闭）；`Wow-Call` 携带根请求的可传播事实 | 注入模式开关开启时记录网关注入的应用；同步调用的目标记录根请求的 `app_id` |
+| P.19 | springdoc 桥接（D233，G-14）：`:spring-boot` 的 `compileOnly` springdoc 与 swagger-core、`OpenApiCustomizer` 合并 Manifest 文档进默认文档、`wow` 分组、路径或组件冲突启动失败、`OpenApiOptions` 的 securitySchemes 由宿主按调用方解析器填写、只含公开端口路由 | eShop 一个服务的 `/v3/api-docs` 同含 Wow 路由与应用的 Controller 并通过 3.1 schema 校验；`wow` 分组只含 Wow 路由；冲突的路径让启动失败；Swagger UI 打开且 Try it out 带身份；内部端口路由不在文档里 |
+| P.20 | 对端契约随 api 的 jar 发布（D234）：第一步 Gradle 插件（类视图读类路径、`generateWowContract`、domain 与 api 两侧的配置与装配、防错检查、功能测试）与运行时（从类路径读契约、删除 `wowPeers`、`CollectPeerManifests`、`serviceOf`），改写约 20 个测试与夹具及 eShop 的 3 个服务；第二步省略 ref 的写法与租户规则 | eShop 各服务不再写 `wowPeers`，跨上下文的命令、订阅与等待链校验照旧；发布的 api jar 带契约、POM 不提 domain；配置缓存可用；省略 ref 只在允许的处理函数里编译通过 |
 | C.1 | 核心加固（D196）：eShop 全链路的故障注入（杀节点、重启 PostgreSQL 与 Kafka）与 1 小时以上浸泡，核对不变量（事件不丢不重、检查点单调、停放为 0、等待不悬挂）；清理 `v10` CI 历史中的偶发失败；夜跑 | M | M7 前（核心阶段，P.9 之后） | 连续两轮无异常 |
 
 ### M7 平台迁移
@@ -268,6 +277,18 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | A.4 | 编程模型与工具：`:compiler`、Manifest 与兼容门、Gradle 插件、测试 DSL、迁移工具；冻结后的公开面（D216）在 beta 前的一致性与可演进性 | 同上 |
 | A.5 | 横切：设计文档与代码的一致性、热路径与分配、配置项的默认值与命名、错误码与拒绝的一致性 | 同上 |
 | A.F | 修复：P0、P1 全部修复；P2 逐条定去向（修、登记到 10.x、放弃）；审查结论交用户确认 | 用户确认审查通过 |
+| A.M | 读路径的模块归属（D231，P.14 之后，与 R2.3-6 合做）：`EventQueryGateway`、`StateVisibility`、`DatasetVisibility` 与 A3-11 的可见性组合移到 `:query`，`StateReads` 移到 `:runtime`；`:kernel` 去掉 `api(:manifest)`；架构测试新规则 | `:http` 的 `query`、`read` 包不直接读日志与内核；行为与 REST 不变 |
+| A.M2 | 三种查询模型共用一个引擎（D235）：第一步 `events` 收进 `QueryGateway`（事件日志后端 MongoDB、PostgreSQL 与内存，events 的 schema 提供者，A3-11 并入策略，HTTP 一个分支，TS 客户端与 view-engine 数据源，`expand("events")` 与准入规则）；第二步 ClickHouse 的 `events` 后端（`ARRAY JOIN`） | view-engine 能对事件流做过滤、分组与展开聚合；`EventQueryGateway` 删除；未展开的多值根级指标与排序被拒绝；退役事件不出现在结果里 |
+| R3-S | 读侧安全与宿主缺陷（R3.3-3、R3.4-1、X-13、X-14）：没有快照网关时 `events` 失败即关闭（以 `StateReads.committed` 评估策略，做不到即拒绝）；内存扫描只给内存存储并随 `wow.query.memory.enabled`；CoSec 两个解析器的 Bean 冲突；inject 模式内部解析器校验令牌 | ABAC 打开、`snapshot=false`、标签不匹配时读到 0 条事件；应用自带后端时不提供 `events`；CoSec 启用的宿主能启动；伪造的服务主体被拒 |
+| R3-D | 安全默认值（R3.5-1）：`wow.backend=AUTO` 找不到持久后端时启动失败，除非显式 `memory`、开发 profile 或内部端口只绑回环 | 缺持久后端的生产配置启动失败并说明原因 |
+| RT | 运行时批（R2.1-8、X-10、X-11、X-12）：主题订阅加入失败纳入重试与半启动恢复；`ClusterOptions` 的心跳与超时校验；定时缓存有界；`WaitWithdrawalTest` 去时序依赖 | 加入失败的节点最终读到主题；错误的心跳配置启动失败 |
+| R3-B | 读写隔离（R3.4-2、R3.4-3）：每个存储的查询并发舱壁（超出 429）、PG 只读 DataSource、写库上 `events` 默认收紧；等待登记上限 | 并发列表查询不拖慢命令；超额等待降级或 429 |
+| R3-H | 健康模型（R3.5-3）：Actuator 的 `wow` 健康组（ownership、subscriptions、stores、topics、ledger），区分 readiness 与 liveness；K8s 清单改用 `/actuator/health/*` | 存储宕机或分区为 0 时就绪探针失败 |
+| R3-A | 宿主瘦身与后端 SPI（D237、R3.1-1、R3.3-1、R3.2-1、R3.3-2）：`:query` 的 `ReadFacade` 与 `QueryEngine.Builder`，`:runtime` 的存储布局与后端选择，`HostStoreProvider` SPI（内置 PG、Mongo 也走它），共享工具下沉 `:spi`，查询与 Sink 合同进 `:tck`；拆 2～3 个 PR，在 ES 6.7 之前完成 | 非 Spring 宿主可用同一组合；社区后端只按 SPI 与 TCK 即可接入并保留按聚合放置 |
+| R3-F | 冻结前收窄（R3.2-3）：`:query` 的 schema 内部类型标 `@InternalWowApi` | `query.api` 只留策略、上下文与模型名 |
+| TS-9x | npm 包清理 9.x（D239 ①）：`wow-client`、`wow-view-store`、`wow-view-engine` 等删除 9.x 客户端与协议代码，根入口为 V10，补齐 V10 子入口里只在根入口有的公共能力；分析与补偿控制台改用 V10 客户端或随 9.x 线保留 | 根入口只有 V10；包里没有 9.x 协议代码；GA 前完成 |
+| PS-1 | 槽位间接层（D240 ①）：`Partitioner` 先算 4096 个槽位再取模 P，P 须为 2 的幂且整除 4096（启动校验）；分区元数据在格式 1 内预留父分区与纪元；TCK 证明现有分区结果不变 | 对现有日志、检查点、Kafka 分区零影响；非法 P 启动失败 |
+| PS-2 | 每个分区的空闲成本测量（D240 ②），决定默认 P；随 B.1 等用户通知 | 测量报告入库与默认 P 的结论 |
 | B.0 | 基准领域与负载工具（D224）：两边各实现一份语义相同的「账户 + 转账 Saga」基准领域（9.x 与 V10 各一个基准专用模块，逐行对齐业务逻辑）；Kotlin 开环负载生成器（JDK HttpClient、自写的对数线性直方图，独立 JVM，不加新依赖）；环境编排与资源采集 | 两边的基准服务能起、负载工具能跑通 E1 |
 | B.1 | E1 写入：客户端等到命令已处理；单节点；9.x MongoDB 加 Kafka，V10 MongoDB 与 PostgreSQL（V10 的 PostgreSQL 单列，不与 9.x 比） | 吞吐、p50/p99/p999、最差一秒 p99，与每节点 CPU、堆、GC、存储读写同时采集 |
 | B.2 | E2 写后读、E3 跨聚合链路：等到快照或投影可见再读到新状态；等到转账 Saga 两边入账 | 同上 |
@@ -281,10 +302,11 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | WP | 内容 | 出口 |
 |---|---|---|
 | 8a.1 | `skills/wow-migrate/references/v9-to-v10.md` 初稿；example 试点（M2 之后即可开始） | example 由 Skill 升级后通过测试；完成：9.x 到 V10 领域源码的参考（Ahoo-Wang/Wow#4316） |
-| 8a.2 | H5：5 个 9.x 领域作为 eval；`wow-client` 的 `v9-to-v10` 参考 | eval 通过率达标 |
+| 8a.2 | H5：5 个 9.x 领域作为 eval；`wow-client` 的 `v9-to-v10` 参考。**用户 2026-10-19：延期到代码稳定后再做**；准备已完成（门禁 G0～G8、每领域 3 次、≥ 80% 且无 UNSAFE、`scripts/eval-h5.mjs`、开跑前须修 Skill 漂移与写参照迁移） | eval 通过率达标 |
 | 8b.1 | `wow-migrate-data`：映射表核对、全量导入、增量追尾 | 9.x example 数据导入 |
 | 8b.2 | 逐聚合校验与快照生成 | 零差异报告 |
 | 8b.3 | 9.x `PrepareKey` 预留导入（D227 ③，审查 A4-8）：按所属聚合取租户、按映射写成已确认的 `TENANT` 或 `SYSTEM` 预留；映射核对覆盖全部预留名；`compare` 校验同 owner；全部事件被丢弃的流以 `retire` 导入（审查 A4-7） | 预留对比零差异 |
+| 8b.4 | 补偿数据迁移（D229 G-1）：9.x 补偿服务里未解决的 `ExecutionFailed` 导入各服务的停放台账（含重试规格与可恢复标记）；`compare` 校验 | 未解决执行的对比零差异；8c.1 前完成 |
 | 8c.1 | 蓝绿演练：example、compensation、view-store 的生产形数据 | 一次完整切换（含回滚演练，D32）（M8 出口） |
 
 ### M9 发布
@@ -296,7 +318,8 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | R.1 | 发布配置（D205）：V10 模块开启发布（artifactId 按 D87）、BOM、npm 预发布 dist-tag（`alpha`/`beta`，不动 `latest`）、Docker 预发布镜像不动 `latest`；发布与准入的工作流随之调整 | 发布演练（dry-run）通过；第一个预发布之前完成 |
 | 9.3 | 试用反馈收敛；第一个预发布 `10.0.0-alpha.1` 提前到 M7 完成后、R.1 与最小快速开始之后（D217，不做兼容性承诺）；之后的 alpha、beta 自行发布（D202） | 无阻塞问题 |
 | 9.3a | 平台目录搬迁到 `platform/`：取消 | 由 D146 取消：平台在 M7 新建于 `platform/<名字>/`，9.x 目录随 M9 删除 |
-| 9.3b | 7.2b dataset-registry（需 6.1d、6.4a）与 7.2c analytics（需两者与 ABAC，D129）跑在 V10 上（D201，由 M7 延期）；开工前先与用户讨论设计 | 各自端到端；analytics 服务的端到端（D145） |
+| 9.3b | 数仓数据集与注册表（D238，取代原「7.2b、7.2c 跑在 V10 上」）：**7.2b-1** 注册表服务（平台服务，聚合与生命周期）与数据源目录——`WarehouseCatalog` 的 ClickHouse 实现、Sink 写 `wow_catalog` 与信任规则（D241）、分析师宽表的起草（`system.columns`）与审查；**7.2b-2** 宽表定义的编译与发布（join、选列、过滤、计算列，敏感性血缘、租户 join、主体聚合）、来源变化时重新编译与「需要修订」；**7.2c-1** 分发（注册表发布流）与查询（注册表服务默认提供，其他服务可订阅）、行的聚合引用；**7.2c-2** 数据负责人的管理页面（控制台迁到 V10 客户端）与视图引擎按聚合引用给出操作；**7.2c-3** 视图引擎的独立数据集视图（跨服务看板，D238 ⑨） | 两类来源都能发布宽表并被查询；敏感字段按继承脱敏；来源 schema 变化后数据集标为需要修订而不出错；行上的操作发到拥有该聚合的服务；端到端（D145） |
+| 9.3c | **GA 前清理 v9**（D244）：最后一次前向合并后，分波删除 9.x——示例与测试 → 9.x 平台（compensation、view-store、dataset-registry、analytics）→ 24 个 `wow-*` 核心模块与 `test/wow-*` → 9.x 的 CI、部署、文档、构建与覆盖率的双轨配置；加架构规则禁止依赖已删模块；前提是 7.2b/7.2c、TS-9x 落地，B.1～B.4 的 9.x 基线已测 | `v10` 分支里没有 9.x 代码与 `wow.scope` 的 9.x 范围；全部 V10 门禁照常 |
 | 9.4 | rc（须用户确认，D202）；切 `release-9.x`；`v10` 合入 main；发 `10.0.0`（打标签前问用户） | GA |
 
 ## 4. 并行与关键路径

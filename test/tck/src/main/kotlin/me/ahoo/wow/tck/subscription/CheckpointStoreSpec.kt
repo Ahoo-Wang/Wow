@@ -19,6 +19,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import org.junit.jupiter.api.Test
 import java.util.UUID
@@ -90,7 +91,53 @@ abstract class CheckpointStoreSpec {
         store.load(group, "projection", 0).assert().isEqualTo(CONCURRENT_SAVES)
     }
 
+    @Test
+    fun `saving several checkpoints at once saves each as a save would`(): Unit = runBlocking {
+        val store = createStore()
+        val other = group + "_other"
+        store.save(group, "projection", 0, 10)
+        store.save(group, "saga", 1, 5)
+        store.save(other, "projection", 0, 1)
+        store.saveAll(group, emptyList())
+        store.saveAll(
+            group,
+            listOf(
+                Checkpoint.of("projection", 0, 4), // behind the stored 10: ignored
+                Checkpoint.of("saga", 1, 5), // the stored one: nothing changes
+                Checkpoint.of("saga", 0, 0), // new, at 0
+                Checkpoint.of("saga", 2, 7), // new
+                Checkpoint.of("projection", 1, 3), // new
+            ),
+        )
+        store.load(group, "projection", 0).assert().isEqualTo(10L)
+        store.load(group, "saga", 1).assert().isEqualTo(5L)
+        store.load(group, "saga", 0).assert().isEqualTo(0L)
+        store.load(group, "saga", 2).assert().isEqualTo(7L)
+        store.load(group, "projection", 1).assert().isEqualTo(3L)
+        store.load(other, "projection", 0).assert().isEqualTo(1L)
+        store.saveAll(group, listOf(Checkpoint.of("projection", 0, 11), Checkpoint.of("saga", 2, 6)))
+        store.load(group, "projection", 0).assert().isEqualTo(11L)
+        store.load(group, "saga", 2).assert().isEqualTo(7L)
+    }
+
+    @Test
+    fun `concurrent batches leave the highest positions`(): Unit = runBlocking {
+        val store = createStore()
+        val positions = (1L..CONCURRENT_SAVES).shuffled()
+        coroutineScope {
+            positions.map { position ->
+                async(Dispatchers.Default) {
+                    store.saveAll(group, (0 until BATCH_PARTITIONS).map { Checkpoint.of("projection", it, position) })
+                }
+            }.awaitAll()
+        }
+        (0 until BATCH_PARTITIONS).forEach {
+            store.load(group, "projection", it).assert().isEqualTo(CONCURRENT_SAVES)
+        }
+    }
+
     protected companion object {
+        const val BATCH_PARTITIONS = 4
         const val GROUP_SUFFIX = 12
         const val CONCURRENT_SAVES = 64L
     }

@@ -91,4 +91,26 @@ class StateVisibilityRoutesTest {
         events("c-two", "alice").body!!.size().assert().isEqualTo(0)
         events("c-two", "admin").body!!.size().assert().isEqualTo(1)
     }
+
+    @Test
+    fun `before its first snapshot an aggregate's events follow the same rule, on the state its log holds`() {
+        val tenantLevel = mapOf("X-Tenant-Level" to "true")
+        listOf("c-one" to 1, "c-two" to 2).forEach { (id, quantity) ->
+            node.http.post("/shop/cart/$id/add-item", """{"sku":"apple","quantity":$quantity}""", "admin", tenantLevel)
+                .status.assert().isEqualTo(200)
+        }
+        fun events(id: String, user: String) = node.query(
+            """{"kind":"list","filter":{"op":"EQ","field":"aggregateId","value":"$id"}}""",
+            user,
+            QueryRoutes.EVENTS,
+            tenantLevel,
+        )
+        // No snapshot is written: the state the log holds decides (review R2.3-6).
+        node.http.get("/shop/cart/c-two/state", "admin", tenantLevel).status.assert().isEqualTo(404)
+        events("c-one", "alice").body!!.size().assert().isEqualTo(1)
+        events("c-two", "alice").body!!.size().assert().isEqualTo(0)
+        events("c-two", "admin").body!!.size().assert().isEqualTo(1)
+        // An aggregate with no commit has no streams, for any caller.
+        events("c-none", "admin").body!!.size().assert().isEqualTo(0)
+    }
 }

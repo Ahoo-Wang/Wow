@@ -15,9 +15,8 @@ package me.ahoo.wow.http
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.http.query.EventQueryGateway
 import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.http.read.StateVisibility
+import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.copyWith
@@ -26,16 +25,24 @@ import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.QueryBackendStorages
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.QueryOwnership
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.ScopeQueryPolicy
+import me.ahoo.wow.query.events.EventQueryGateways
+import me.ahoo.wow.query.events.EventVisibility
+import me.ahoo.wow.query.mask.PayloadMasks
+import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
+import me.ahoo.wow.query.schema.EventsQuerySchemas
 import me.ahoo.wow.query.schema.ManifestQuerySchemaSource
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
+import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.snapshot.SnapshotStatus
+import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import org.springframework.http.MediaType
 
@@ -48,7 +55,13 @@ fun queryManifest(): Manifest {
         contexts = manifest.contexts.map { context ->
             context.copyWith(
                 aggregates = context.aggregates.map {
-                    it.copyWith(queries = QueryRoutes.queries(context.name, it.name, snapshots = true))
+                    it.copyWith(
+                        queries = QueryRoutes.queries(context.name, it.name, snapshots = true),
+                        events = listOf(
+                            EventManifest("CartOpened", schema = Manifest.schemaRef("CartOpened")),
+                            EventManifest("ItemAdded", schema = Manifest.schemaRef("ItemAdded")),
+                        ),
+                    )
                 },
             )
         },
@@ -60,7 +73,43 @@ fun queryManifest(): Manifest {
                     "note" to mapOf("type" to "string"),
                 ),
             ),
+            "CartOpened" to mapOf("type" to "object", "properties" to mapOf("note" to mapOf("type" to "string"))),
+            "ItemAdded" to mapOf(
+                "type" to "object",
+                "properties" to mapOf("sku" to mapOf("type" to "string"), "quantity" to mapOf("type" to "integer")),
+            ),
         ),
+    )
+}
+
+/**
+ * The events query gateway of the cart over [log] (decision D235), as the host builds one over a log in memory:
+ * the Manifest's events schema, the scope policy, [visibility] and [masks].
+ */
+@Suppress("LongParameterList")
+fun cartEvents(
+    log: EventLog,
+    entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
+    tenants: QueryTenantPolicy = QueryTenantPolicy.CALLERS,
+    manifest: Manifest = queryManifest(),
+    visibility: EventVisibility = EventVisibility.ALL,
+    masks: PayloadMasks = PayloadMasks.NONE,
+    storage: QueryBackendFactory<*> = InMemoryEventQueryStorage.of(log),
+): QueryGateway {
+    val schemas = EventsQuerySchemas(manifest)
+    val catalog = QuerySchemaCatalog(
+        QueryBackendStorages(events = { type -> storage.create(type) }),
+        QueryModelCompiler.of(events = schemas),
+    )
+    return EventQueryGateways.create(
+        cartType,
+        storage.create(cartType).backend,
+        catalog.provider(cartType, QueryModel.EVENTS),
+        policies = listOf(ScopeQueryPolicy(tenants, ownerships = QueryOwnership.of(manifest))),
+        entryPolicy = entryPolicy,
+        visibility = visibility,
+        tenants = tenants,
+        masks = masks,
     )
 }
 
@@ -70,10 +119,11 @@ fun cartSnapshots(
     entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
     tenants: QueryTenantPolicy = QueryTenantPolicy.CALLERS,
     policies: List<QueryPolicy> = emptyList(),
+    manifest: Manifest = queryManifest(),
 ): QueryGateway {
     val catalog = QuerySchemaCatalog(
         QueryBackendStorages(storage),
-        QueryModelCompiler.of(listOf(ManifestQuerySchemaSource(queryManifest()))),
+        QueryModelCompiler.of(listOf(ManifestQuerySchemaSource(manifest))),
     )
     return DefaultQueryGateway(
         cartType,
@@ -97,16 +147,27 @@ class QueryNode(
     snapshotStatus: SnapshotStatus = SnapshotStatus.NONE,
     /** The application's query policies of the cart's snapshots, beside the scope policy. */
     policies: List<QueryPolicy> = emptyList(),
+    /** The node's Manifest: the cart's query models and state schema, its sensitive fields among them. */
+    manifest: Manifest = queryManifest(),
 ) {
-    private val gateway = snapshots(cartSnapshots(storage, entryPolicy, policies = policies))
-    val http: HttpNode = HttpNode(manifest = queryManifest(), tenants = tenants) { log ->
+    private val gateway = snapshots(cartSnapshots(storage, entryPolicy, policies = policies, manifest = manifest))
+    val http: HttpNode = HttpNode(manifest = manifest, tenants = tenants) { log ->
         HttpQueries(
             snapshots = listOfNotNull(gateway),
             events = listOf(
-                EventQueryGateway(cartType, log, entryPolicy = entryPolicy, visibility = { ref, caller ->
-                    // As the host wires it: the latest state, visible through the snapshot queries (review A3-11).
-                    http.reads.latest(ref)?.let { StateVisibility.visible(gateway, caller, it) } ?: true
-                }),
+                cartEvents(
+                    log,
+                    entryPolicy = entryPolicy,
+                    manifest = manifest,
+                    // As the host wires it: the latest committed state, visible through the snapshot queries
+                    // (reviews A3-11, R2.3-6).
+                    visibility = EventVisibility.of({ gateway }, hides = policies.isNotEmpty()) { ref ->
+                        http.reads.committed(ref)?.let {
+                            CommittedState(it.ref, it.version, it.scope, it.deleted, it.tags, it.state)
+                        }
+                    },
+                    masks = PayloadMasks(manifest),
+                ),
             ),
             defaultListSize = defaultListSize,
             snapshotStatus = snapshotStatus,

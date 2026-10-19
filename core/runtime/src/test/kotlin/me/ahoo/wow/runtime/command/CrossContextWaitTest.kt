@@ -35,6 +35,7 @@ import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
 import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.manifest.copyWith
+import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
@@ -192,7 +193,7 @@ class CrossContextWaitTest {
         channel.bind(it.address, it.forwardHandler)
     }
 
-    private fun salesNode(): ServiceNode = ServiceNode(
+    private fun salesNode(stockContract: Manifest = stockManifest): ServiceNode = ServiceNode(
         SALES_SERVICE,
         "sales-1",
         "sales-1.internal:9090",
@@ -204,7 +205,7 @@ class CrossContextWaitTest {
         options = fastNodeOptions(),
         subscriptions = SubscriptionBindings(mapOf(SALES to listOf(orderSaga(rejections)))) +
             PublishedSinks.topics(salesManifest, topics, PREFIX).factory,
-        contracts = ContractDirectory(salesManifest, listOf(peer(stockManifest))),
+        contracts = ContractDirectory(salesManifest, listOf(peer(stockContract))),
         topics = SourceTopics(topics, PREFIX, topics),
     ).also {
         nodes += it
@@ -212,12 +213,12 @@ class CrossContextWaitTest {
     }
 
     /** Both services started, the stock node reading the order stream. */
-    private suspend fun started(): ServiceNode {
+    private suspend fun started(stockContract: Manifest = stockManifest): ServiceNode {
         stockNode().also {
             it.start()
             it.topicSubscriptions.getValue(ORDERS).awaitStarted()
         }
-        return salesNode().also { it.start() }
+        return salesNode(stockContract).also { it.start() }
     }
 
     private fun ServiceNode.place(id: String, quantity: Int, vararg hops: Hop, timeout: Duration = 10.seconds) =
@@ -312,6 +313,25 @@ class CrossContextWaitTest {
             eventually { cancelled.size == 1 }
             rejections.single().commandId.assert().isEqualTo(result.commandId)
         }
+
+    @Test
+    fun `a command type the other context does not know should end the wait REJECTED at once`(): Unit = runBlocking {
+        // Review X-5: the sales service has a newer stock contract; the stock intake rejects what it does not know.
+        val sales = started(renamed(stockManifest, "Reserve", "ReserveV2"))
+        val began = TimeSource.Monotonic.markNow()
+        val result = sales.place("o-v2", 1, Hop.committed(), SAGA_HOP, Hop.committed(STOCK)).toList().last()
+        began.elapsedNow().assert().isLessThan(5.seconds)
+        result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+        result.hop.assert().isEqualTo(Hop.committed(STOCK))
+        result.error!!.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
+        result.ref.assert().isEqualTo(ITEM.ref(TENANT, "o-v2"))
+        result.function.context.assert().isEqualTo(STOCK)
+        result.function.processor.assert().isEqualTo("item")
+        result.function.name.assert().isEqualTo("ReserveV2")
+        result.correlationId.assert().isEqualTo("place-o-v2")
+        eventually { cancelled.size == 1 }
+        rejections.single().commandId.assert().isEqualTo(result.commandId)
+    }
 
     @Test
     fun `a subscription of the published stream should signal its hop as a subscription of its own context`(): Unit =

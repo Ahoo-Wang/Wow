@@ -15,21 +15,23 @@ package me.ahoo.wow.viewstore.domain
 
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 
 /**
- * The application a command comes from: the request's `CoSec-App-Id`, which the service carries into the command's
- * headers as a request fact. Header names are matched without regard to case, as HTTP matches them.
+ * The application a command comes from: its standard request fact `app_id` ([RequestFacts.APP_ID], decision D232),
+ * the application the service's caller resolver authenticated for the request (CoSec's: the `CoSec-App-Id` CoSec
+ * authorized it in). A client's own header is never read.
  */
 object ViewApps {
-    /** The application of [command], or null when its request named none. */
-    fun appOf(command: Command<*>): String? = command.headers.entries
-        .firstOrNull { it.key.equals(ViewStoreContext.APP_ID_HEADER, ignoreCase = true) }
-        ?.value?.trim()?.ifEmpty { null }
+    /** The application of [command], or null when its request had none. */
+    fun appOf(command: Command<*>): String? = command.headers[RequestFacts.APP_ID]?.trim()?.ifEmpty { null }
 
     /** The rejection of a command whose request names no application. */
-    fun appRequired(): Decision =
-        Decision.reject(ViewStoreRejections.APP_REQUIRED, "The request carries no ${ViewStoreContext.APP_ID_HEADER}.")
+    fun appRequired(): Decision = Decision.reject(
+        ViewStoreRejections.APP_REQUIRED,
+        "The request carries no authenticated application (${ViewStoreContext.APP_ID_HEADER}).",
+    )
 
     /**
      * The rejection of [command] when it does not come from [stateAppId], the application the aggregate was written

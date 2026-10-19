@@ -18,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
@@ -110,12 +111,17 @@ class ScheduledCommandsTest {
         channel.bind(it.address, it.forwardHandler)
     }
 
-    private suspend fun ServiceNode.send(id: String, body: Any, wait: WaitPlan = WaitPlan.COMMITTED): CommandResult {
+    private suspend fun ServiceNode.send(
+        id: String,
+        body: Any,
+        wait: WaitPlan = WaitPlan.COMMITTED,
+        headers: Map<String, String> = emptyMap(),
+    ): CommandResult {
         val context = context(SHOP)
         val requestId = "$id-${body.javaClass.simpleName}-${System.nanoTime()}"
         return context.coordinator.execute(
             context.models.first(),
-            Command(requestId, requestId, order(id), body, wait = wait)
+            Command(requestId, requestId, order(id), body, headers = headers, wait = wait)
         )
     }
 
@@ -147,6 +153,29 @@ class ScheduledCommandsTest {
         cancelled.causation?.correlationId.assert().isEqualTo(streams.first().commandId)
         cancelled.commitTime.assert().isGreaterThanOrEqualTo(streams.first().commitTime + 200)
     }
+
+    @Test
+    fun `a timer's command inherits only the scheduling command's request facts that propagate`(): Unit =
+        runBlocking {
+            val node = node("node-1", TimedBackends()).also { it.start() }
+            val facts = mapOf(
+                RequestFacts.APP_ID to "console",
+                RequestFacts.REMOTE_IP to "10.0.0.7",
+                RequestFacts.USER_AGENT to "shop-app/1.0",
+                "X-Trace" to "t-1",
+            )
+            node.send("o-1", PlaceOrder(payWithinMillis = 100), headers = facts).status.assert()
+                .isEqualTo(CommandResult.Status.SUCCEEDED)
+            eventually { node.timer(order("o-1"), PAY_TIMEOUT)?.status == TimerStatus.FIRED }
+            val timer = checkNotNull(node.timer(order("o-1"), PAY_TIMEOUT))
+            val cancelled = node.streams("o-1").last()
+            cancelled.commandType.assert().isEqualTo("shop.order.CancelOrder")
+            // The application it was scheduled for, and the slot (decision D198); not where the request came from.
+            cancelled.headers.assert().isEqualTo(
+                mapOf(RequestFacts.APP_ID to "console") +
+                    ScheduleContext(timer.id, PAY_TIMEOUT, 1, timer.dueAt).headers(),
+            )
+        }
 
     @Test
     fun `paying before the timeout cancels the timer`(): Unit = runBlocking {
@@ -250,6 +279,22 @@ class ScheduledCommandsTest {
         rejected.single().commandType.assert().isEqualTo(Schedules.SET)
         rejected.single().error.code.assert().isEqualTo(KernelRejections.NOT_FOUND)
     }
+
+    @Test
+    fun `a schedule of a command type its target does not decide is rejected when set, and stores no timer`(): Unit =
+        runBlocking {
+            // Review X-7: a misspelt cron schedule fails now, not at its first firing.
+            val node = node("node-1", TimedBackends()).also { it.start() }
+            node.send("o-1", PlaceOrder(payWithinMillis = 60_000))
+            val placed = node.streams("o-1")
+            val set = SetSchedule("nightly", ScheduleRule.cron("0 0 3 * * *"), "shop.order.CancelOrdr", "{}")
+            val result = node.send("o-1", set)
+            result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            result.error!!.code.assert().isEqualTo(KernelRejections.UNHANDLED)
+            result.error!!.message.assert().contains("shop.order.CancelOrdr")
+            node.streams("o-1").assert().isEqualTo(placed)
+            node.timer(order("o-1"), "nightly").assert().isNull()
+        }
 
     @Test
     fun `a node whose clock is ahead fires early, and the target waits for the due time`(): Unit = runBlocking {

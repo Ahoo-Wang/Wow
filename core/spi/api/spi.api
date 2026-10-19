@@ -728,9 +728,25 @@ public final class me/ahoo/wow/spi/state/StateView$Companion {
 	public final fun of (ILjava/lang/String;Ltools/jackson/databind/JsonNode;)Lme/ahoo/wow/spi/state/StateView;
 }
 
+public final class me/ahoo/wow/spi/subscription/Checkpoint {
+	public static final field Companion Lme/ahoo/wow/spi/subscription/Checkpoint$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getPartition ()I
+	public final fun getPosition ()J
+	public final fun getSubscription ()Ljava/lang/String;
+	public fun hashCode ()I
+	public static final fun of (Ljava/lang/String;IJ)Lme/ahoo/wow/spi/subscription/Checkpoint;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/subscription/Checkpoint$Companion {
+	public final fun of (Ljava/lang/String;IJ)Lme/ahoo/wow/spi/subscription/Checkpoint;
+}
+
 public abstract interface class me/ahoo/wow/spi/subscription/CheckpointStore {
 	public abstract fun load (Ljava/lang/String;Ljava/lang/String;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun save (Ljava/lang/String;Ljava/lang/String;IJLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun saveAll (Ljava/lang/String;Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/spi/subscription/Lease {

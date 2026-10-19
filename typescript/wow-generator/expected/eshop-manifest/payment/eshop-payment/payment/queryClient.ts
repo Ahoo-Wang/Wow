@@ -13,7 +13,7 @@ export class PaymentSnapshotQueryClient extends SnapshotQueryClient<PaymentState
 }
 
 
-/** Queries the event streams of `eshop-payment.payment`, one aggregate at a time: `POST /eshop-payment/payment/events/query`. */
+/** Queries the event streams of `eshop-payment.payment`, one record per commit: `POST /eshop-payment/payment/events/query`. */
 export class PaymentEventQueryClient extends EventQueryClient<PaymentEvent> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {

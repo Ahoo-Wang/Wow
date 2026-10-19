@@ -52,16 +52,19 @@ internal open class RoutingQueryBackendFactory<B : QueryBackend>(
 
 /**
  * The storages of the query backends, as the [QuerySchemaCatalog][me.ahoo.wow.query.schema.QuerySchemaCatalog]
- * locates them: each aggregate's snapshots from [snapshots], each dataset of [datasets] from [datasetFactory]; `null`
- * for a model without a factory, a dataset that is not declared and any other model.
+ * locates them: each aggregate's snapshots from [snapshots], its event streams from [events] (decision D235), each
+ * dataset of [datasets] from [datasetFactory]; `null` for a model without a factory, a dataset that is not declared
+ * and any other model. [events] answers `null` for an aggregate type no events backend serves.
  */
 class QueryBackendStorages @JvmOverloads constructor(
     private val snapshots: QueryBackendFactory<QueryBackend>? = null,
     private val datasetFactory: DatasetQueryBackendFactory? = null,
     private val datasets: QueryDatasets = QueryDatasets.NONE,
+    private val events: ((AggregateType) -> QueryBackendBinding<QueryBackend>?)? = null,
 ) : QueryStorageLocator {
     override fun storage(aggregateType: AggregateType, model: QueryModel): QueryStorageAdapter? = when (model) {
         QueryModel.SNAPSHOT -> snapshots?.create(aggregateType)?.storage
+        QueryModel.EVENTS -> events?.invoke(aggregateType)?.storage
         QueryModel.DATASET -> datasets[aggregateType]?.let { datasetFactory?.create(it)?.storage }
         else -> null
     }

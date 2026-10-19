@@ -17,10 +17,13 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryReservationStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
+import me.ahoo.wow.migrate.example.NineXCompensationExample
 import me.ahoo.wow.migrate.example.NineXExample
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.reservation.ReservationStore
@@ -48,6 +51,8 @@ class MigrateDataTest {
     private val store = InMemorySnapshotStore()
     private val prepared = InMemoryNineXReservationSource()
     private val reservationStore = InMemoryReservationStore()
+    private var nineXCompensation: NineXCompensationSource? = null
+    private val ledger = InMemoryFailureLedger()
 
     private val connections = object : MigrationConnections {
         override val source: NineXEventSource get() = nineX
@@ -61,6 +66,10 @@ class MigrateDataTest {
         override val reservations: NineXReservationSource get() = prepared
 
         override fun reservationStore(): ReservationStore = reservationStore
+
+        override val compensation: NineXCompensationSource? get() = nineXCompensation
+
+        override fun failureLedger(): FailureLedger = ledger
 
         override fun close() {
             closed = true
@@ -179,7 +188,7 @@ class MigrateDataTest {
 
         run("compare", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
         printed.assert().contains("example-service.order compared: 1 of 1 instances have a 9.x snapshot (100.0%)")
-            .contains("Comparison done: every state compared equals its 9.x snapshot, and every confirmed 9.x key")
+            .contains("Comparison done: every state compared equals its 9.x snapshot, every confirmed 9.x key")
         run("snapshot", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
         printed.assert().contains("0 V10 snapshots written, 1 already there")
     }
@@ -213,6 +222,16 @@ class MigrateDataTest {
         // Resumable: the import is complete, so it reserves again only from a restart.
         run("import", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
         reservationStore.find(scope, "NO-1")!!.owner.assert().isEqualTo(owner)
+
+        // 9.x rolls the key back: compare reports V10 still holding it, and the final restart releases it, from the
+        // keys the import recorded beside the checkpoint file.
+        prepared.remove("order_no", "NO-1")
+        run("compare", "--config", config.toString()).assert().isEqualTo(MigrateData.DIFFERS)
+        printed.assert().contains("DIFFERS PrepareKey order_no/NO-1: V10 $owner, which 9.x no longer confirms it to")
+            .contains("1 imported keys are no longer confirmed to their owners in 9.x")
+        run("import", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
+        reservationStore.find(scope, "NO-1").assert().isNull()
+        run("compare", "--config", config.toString()).assert().isEqualTo(MigrateData.OK)
     }
 
     @Test
@@ -293,6 +312,73 @@ class MigrateDataTest {
         assertThrows<IllegalArgumentException> { TargetConfig("postgres") }
         assertThrows<IllegalArgumentException> { TargetConfig("mongo", uri = "mongodb://localhost") }
         assertThrows<IllegalArgumentException> { TargetConfig("mongo", database = "wow") }
+    }
+
+    @Test
+    fun `import parks the unresolved 9x executions, and compare checks them`(): Unit = runBlocking {
+        nineXCompensation = InMemoryNineXCompensationSource(NineXCompensationExample.executions())
+        Files.writeString(directory.resolve("migration-map.json"), NineXCompensationExample.mapText())
+        Files.writeString(directory.resolve("manifest.json"), NineXCompensationExample.MANIFEST_TEXT)
+        val config = directory.resolve("migrate-data.json")
+        Files.writeString(
+            config,
+            """
+            {
+              "map": "migration-map.json",
+              "manifests": ["manifest.json"],
+              "source": { "uri": "mongodb://localhost:27017", "database": "example_db" },
+              "target": { "type": "postgres", "jdbcUrl": "jdbc:postgresql://localhost:5432/wow" },
+              "partitions": { "example": 4 },
+              "compensation": { "database": "compensation_db", "service": "example-service" }
+            }
+            """.trimIndent(),
+        )
+        MigrationConfig.read(config).compensation.assert()
+            .isEqualTo(CompensationConfig("compensation_db", "example-service"))
+        run("import", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
+        printed.assert()
+            .contains("  9.x compensation: 5 unresolved executions of 4 functions, 2 resolved (history, not imported)")
+            .contains(
+                "9.x compensation done: 5 unresolved executions, 3 imported, 0 already parked, 2 not imported; 0 of " +
+                    "other services left",
+            )
+        val ref = NineXExample.orderModel.type.ref(NineXCompensationExample.TENANT, NineXCompensationExample.ORDER_ID)
+        ledger.parked(NineXCompensationExample.CART_SAGA, ref)!!.fromVersion.assert().isEqualTo(1)
+
+        run("compare", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
+        printed.assert().contains("9.x compensation compared: 3 unresolved executions, 0 differ, 2 not imported")
+            .contains("and every unresolved 9.x execution imported is parked; nothing imported was released")
+        ledger.resolve(NineXCompensationExample.CART_SAGA, ref)
+        run("compare", "--config", config.toString()).assert().isEqualTo(MigrateData.DIFFERS)
+        printed.assert().contains("DIFFERS 9.x execution 0VYC0mp1nA0001")
+            .contains("Comparison done: 1 unresolved 9.x executions are not parked in V10, and 0 imported entries")
+    }
+
+    @Test
+    fun `without a compensation database there is no failure ledger to write`() {
+        ConfiguredConnections(MigrationConfig.read(config())).use { configured ->
+            configured.compensation.assert().isNull()
+            assertThrows<MigrationException> { configured.failureLedger() }
+        }
+        assertThrows<IllegalArgumentException> { CompensationConfig(" ", "s") }
+        assertThrows<IllegalArgumentException> { CompensationConfig("compensation_db", " ") }
+        val bare = object : MigrationConnections {
+            override val source: NineXEventSource get() = nineX
+
+            override val snapshots: NineXSnapshotSource get() = nineXSnapshots
+
+            override fun logOf(context: String): EventLog = log
+
+            override fun snapshotStoreOf(context: String): SnapshotStore = store
+
+            override val reservations: NineXReservationSource get() = prepared
+
+            override fun reservationStore(): ReservationStore = reservationStore
+
+            override fun close() = Unit
+        }
+        bare.compensation.assert().isNull()
+        assertThrows<MigrationException> { bare.failureLedger() }
     }
 
     @Test
