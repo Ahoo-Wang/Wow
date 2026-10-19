@@ -15,7 +15,7 @@ package me.ahoo.wow.postgres.query
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.postgres.query.PostgresSnapshotQueryBackend.Companion.node
+import me.ahoo.wow.postgres.query.PostgresQueryBackend.Companion.node
 import me.ahoo.wow.query.CursorPosition
 import me.ahoo.wow.query.QueryExecutionException
 import org.junit.jupiter.api.Test
@@ -26,11 +26,11 @@ import java.time.Duration
 class PostgresSnapshotQueryBackendValuesTest {
     @Test
     fun `the statement timeout rounds up to whole milliseconds and never disables itself`() {
-        PostgresSnapshotQueryBackend.statementTimeout(Duration.ofNanos(1)).assert().isEqualTo(1L)
-        PostgresSnapshotQueryBackend.statementTimeout(Duration.ZERO).assert().isEqualTo(1L)
-        PostgresSnapshotQueryBackend.statementTimeout(Duration.ofMillis(250)).assert().isEqualTo(250L)
-        PostgresSnapshotQueryBackend.statementTimeout(Duration.ofNanos(250_000_001)).assert().isEqualTo(251L)
-        PostgresSnapshotQueryBackend.statementTimeout(Duration.ofDays(365)).assert().isEqualTo(Int.MAX_VALUE.toLong())
+        PostgresQueryBackend.statementTimeout(Duration.ofNanos(1)).assert().isEqualTo(1L)
+        PostgresQueryBackend.statementTimeout(Duration.ZERO).assert().isEqualTo(1L)
+        PostgresQueryBackend.statementTimeout(Duration.ofMillis(250)).assert().isEqualTo(250L)
+        PostgresQueryBackend.statementTimeout(Duration.ofNanos(250_000_001)).assert().isEqualTo(251L)
+        PostgresQueryBackend.statementTimeout(Duration.ofDays(365)).assert().isEqualTo(Int.MAX_VALUE.toLong())
     }
 
     @Test
@@ -52,11 +52,11 @@ class PostgresSnapshotQueryBackendValuesTest {
 
     @Test
     fun `sort values become positions`() {
-        PostgresSnapshotQueryBackend.position(7).assert().isEqualTo(BigDecimal.valueOf(7))
-        PostgresSnapshotQueryBackend.position(BigDecimal("1.5")).assert().isEqualTo(BigDecimal("1.5"))
-        PostgresSnapshotQueryBackend.position("a").assert().isEqualTo("a")
-        PostgresSnapshotQueryBackend.position(null).assert().isNull()
-        assertThrownBy<QueryExecutionException> { PostgresSnapshotQueryBackend.position(Any()) }
+        PostgresQueryBackend.position(7).assert().isEqualTo(BigDecimal.valueOf(7))
+        PostgresQueryBackend.position(BigDecimal("1.5")).assert().isEqualTo(BigDecimal("1.5"))
+        PostgresQueryBackend.position("a").assert().isEqualTo("a")
+        PostgresQueryBackend.position(null).assert().isNull()
+        assertThrownBy<QueryExecutionException> { PostgresQueryBackend.position(Any()) }
     }
 
     @Test

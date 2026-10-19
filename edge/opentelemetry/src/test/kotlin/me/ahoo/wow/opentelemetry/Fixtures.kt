@@ -46,6 +46,7 @@ import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
+import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.runtime.cluster.ClusterOptions
@@ -201,9 +202,11 @@ fun stockManifest(): Manifest = Manifest(
     ),
 )
 
-/** [manifest] as a peer's merged Manifest on the class path (decision D139). */
-fun peer(manifest: Manifest): ManifestFragment =
-    ManifestFragment("META-INF/wow/peers/${manifest.service!!.name}.json", manifest)
+/** [manifest]'s contexts as the peer contract their api jar carries on the class path (decision D234). */
+fun peer(manifest: Manifest): ManifestFragment = ManifestFragment(
+    "${manifest.contexts.first().name}-api.jar!/${PeerContracts.RESOURCE}",
+    Manifest(manifest.format, null, manifest.contexts, manifest.errors, manifest.defs),
+)
 
 /** In-memory stores of every context, timers included, opened once per context. */
 class InMemoryBackends(private val partitions: Int = 2) : BackendFactory {

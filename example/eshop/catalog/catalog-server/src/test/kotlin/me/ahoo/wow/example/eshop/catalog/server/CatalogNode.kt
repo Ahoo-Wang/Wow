@@ -53,8 +53,11 @@ class Answer(val status: Int, val headers: HttpHeaders, val body: JsonNode?) {
 class CatalogNode(val context: ConfigurableApplicationContext) : AutoCloseable {
     private val port: Int = context.environment.getRequiredProperty("local.server.port", Int::class.java)
 
+    /** The public port's base URL. */
+    val baseUrl: String = "http://127.0.0.1:$port"
+
     private val client: WebTestClient = WebTestClient.bindToServer()
-        .baseUrl("http://127.0.0.1:$port")
+        .baseUrl(baseUrl)
         .responseTimeout(Duration.ofSeconds(30))
         .build()
 
@@ -105,12 +108,13 @@ val BUYER: Map<String, String> = mapOf(CatalogCallers.USER to "alice")
 
 /**
  * Starts the catalog server on random ports of the loopback interface, with [properties] over its `application.yaml`,
- * in [profiles]. A request without headers is the anonymous caller; one
+ * in [profiles], with the application's [sources] beside it. A request without headers is the anonymous caller; one
  * with [EMPLOYEE]'s or [BUYER]'s is an employee or a buyer ([CatalogCallers], decision D189).
  */
 fun startCatalog(
     vararg properties: Pair<String, Any>,
     profiles: List<String> = emptyList(),
+    sources: List<Class<*>> = emptyList(),
 ): CatalogNode {
     val arguments = mapOf(
         "spring.main.banner-mode" to "off",
@@ -122,7 +126,7 @@ fun startCatalog(
         "wow.subscription.stop-timeout" to "2s",
         "wow.wait.max-timeout" to "15s",
     ) + properties.toMap()
-    val context = SpringApplicationBuilder(CatalogServer::class.java)
+    val context = SpringApplicationBuilder(CatalogServer::class.java, *sources.toTypedArray())
         .profiles(*profiles.toTypedArray())
         .run(*arguments.map { (name, value) -> "--$name=$value" }.toTypedArray())
     return CatalogNode(context)

@@ -39,6 +39,12 @@ data class QueryModel(
         /** A declared dataset: a table-like record set named within a bounded context, such as a BI wide table. */
         val DATASET = QueryModel("DATASET")
 
+        /**
+         * The event streams of an aggregate type (decision D235): one record per stream, the commit of one command at
+         * one version, its events under `events`.
+         */
+        val EVENTS = QueryModel("EVENTS")
+
         @JvmStatic
         fun from(value: String): QueryModel = QueryModel(value)
     }

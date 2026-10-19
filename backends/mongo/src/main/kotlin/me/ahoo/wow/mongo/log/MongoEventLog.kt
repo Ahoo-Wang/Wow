@@ -724,7 +724,7 @@ class MongoEventLog(
         operator = MongoOperators.of(document.get(OPERATOR, Document::class.java)),
     )
 
-    private companion object {
+    internal companion object {
         val DEFAULT_POLL_INTERVAL = 50.milliseconds
         val DEFAULT_MAX_POLL_INTERVAL = 1.seconds
         const val DEFAULT_TAIL_BATCH = 500

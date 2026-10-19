@@ -29,7 +29,7 @@ object QueryRoutes {
     /** The aggregate's snapshots, the default read model (design 03 §3), when the aggregate keeps them. */
     const val SNAPSHOT: String = "snapshot"
 
-    /** The aggregate's event streams, read one aggregate at a time (decision D131). */
+    /** The aggregate's event streams, one record per commit (decision D235). */
     const val EVENTS: String = "events"
 
     /** The query route of [model] of [aggregate] in [context], then the route of its capability descriptor. */

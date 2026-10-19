@@ -95,6 +95,14 @@ abstract class QueryModelProfile internal constructor(val model: QueryModel) {
     /** Rejects a projection that would return records the model cannot interpret. */
     open fun validateProjection(projection: Projection) = Unit
 
+    /**
+     * Whether the schema's response masks mask this model's records; `false` for a model whose gateway masks each
+     * record by its own rule (the `events` model masks each event's body by its event's schema). Masked fields stay
+     * protected from comparison and aggregation either way.
+     */
+    internal open val masksResponses: Boolean
+        get() = true
+
     companion object {
         /** The record metadata field of [field], common to every model; the identity is the model's own. */
         internal fun metadataField(field: SystemField): QueryField = when (field) {
@@ -115,14 +123,15 @@ abstract class QueryModelProfile internal constructor(val model: QueryModel) {
         /** Returns the profile of a built-in [model], or `null` for a custom model. */
         fun of(model: QueryModel): BuiltInQueryModelProfile? = when (model) {
             QueryModel.SNAPSHOT -> SnapshotQueryModelProfile
+            QueryModel.EVENTS -> EventsQueryModelProfile.DEFAULT
             else -> null
         }
     }
 }
 
 /**
- * The profile of an aggregate's read model: every record carries an identity, a payload, an event time and every
- * system field. The V10 `events` model (decision D131) is work package 6.2c's.
+ * The profile of an aggregate's read model: every record carries an identity, a payload and an event time: the
+ * snapshots ([SnapshotQueryModelProfile]) and the event streams ([EventsQueryModelProfile], decision D235).
  */
 sealed class BuiltInQueryModelProfile(model: QueryModel) : QueryModelProfile(model) {
     abstract override val identityField: QueryField
@@ -267,14 +276,14 @@ internal fun QueryModelSchema.cursorUniqueKey(): List<QueryField> {
 internal fun QueryModelSchema.requireIdentityField(): QueryField = profile?.identityField
     ?: throw QueryViolation.IdentityUndefined(model).rejection()
 
-private fun String.payloadField() = QueryField(this) to QueryFieldDeclaration(
+internal fun String.payloadField() = QueryField(this) to QueryFieldDeclaration(
     nullable = DeclarationValue.Set(false),
     required = DeclarationValue.Set(true),
 )
 
-private fun String.stringField(nullable: Boolean = false) = field(QueryValueType.STRING, nullable = nullable)
+internal fun String.stringField(nullable: Boolean = false) = field(QueryValueType.STRING, nullable = nullable)
 
-private fun String.integerField() = field(QueryValueType.INTEGER)
+internal fun String.integerField() = field(QueryValueType.INTEGER)
 
 private fun String.booleanField() = field(QueryValueType.BOOLEAN)
 
@@ -286,7 +295,7 @@ private fun String.objectField(dynamic: Boolean = false) = field(
     )
 }
 
-private fun String.operatorField() = QueryField(this) to QueryFieldDeclaration(
+internal fun String.operatorField() = QueryField(this) to QueryFieldDeclaration(
     valueTypes = DeclarationValue.Set(setOf(QueryValueType.OBJECT)),
     nullable = DeclarationValue.Set(true),
     required = DeclarationValue.Set(true),
@@ -340,18 +349,18 @@ private fun optionalProperty(valueType: QueryValueType) = QueryFieldDeclaration(
     required = DeclarationValue.Set(false),
 )
 
-private fun scalarProperty(valueType: QueryValueType) = QueryFieldDeclaration(
+internal fun scalarProperty(valueType: QueryValueType) = QueryFieldDeclaration(
     valueTypes = DeclarationValue.Set(setOf(valueType)),
     nullable = DeclarationValue.Set(false),
     required = DeclarationValue.Set(true),
 )
 
-private fun String.epochField() = field(
+internal fun String.epochField() = field(
     QueryValueType.INTEGER,
     DeclarationValue.Set(Temporal.Epoch(TimeUnit.MILLISECONDS)),
 )
 
-private fun String.field(
+internal fun String.field(
     valueType: QueryValueType,
     semanticType: DeclarationValue<QuerySemanticType?> = DeclarationValue.Unset,
     nullable: Boolean = false,

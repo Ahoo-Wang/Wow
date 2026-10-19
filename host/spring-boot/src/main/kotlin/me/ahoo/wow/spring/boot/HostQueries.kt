@@ -19,6 +19,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryRoutes
+import me.ahoo.wow.query.QueryBackend
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryTenantPolicy
@@ -144,6 +146,23 @@ class SnapshotQueryBackend(
                 serves = { type -> backendOf(type)?.serves(type) == true },
             )
         }
+    }
+}
+
+/**
+ * The `events` query backend of the node (decision D235): the [binding] of each aggregate type's events backend and
+ * storage facts, null for a type no backend serves (its events are then not queried).
+ */
+@InternalWowApi
+class EventQueryBackend(private val binding: (AggregateType) -> QueryBackendBinding<QueryBackend>?) {
+    /** The binding of [type]'s events backend, or null when none serves them. */
+    fun binding(type: AggregateType): QueryBackendBinding<QueryBackend>? = binding.invoke(type)
+
+    @InternalWowApi
+    companion object {
+        /** No backend: the node's events are not queried. */
+        @JvmField
+        val NONE: EventQueryBackend = EventQueryBackend { null }
     }
 }
 

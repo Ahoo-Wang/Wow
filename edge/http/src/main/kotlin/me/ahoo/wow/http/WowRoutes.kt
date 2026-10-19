@@ -48,6 +48,7 @@ import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.openapi.ManifestOpenApi
 import me.ahoo.wow.openapi.OpenApiOptions
+import me.ahoo.wow.openapi.OpenApiSecurityScheme
 import me.ahoo.wow.query.QueryOwnership
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.mask.PayloadMasks
@@ -187,11 +188,31 @@ internal fun withTransformedRoutes(manifest: Manifest, gateway: CommandGateway):
 )
 
 /**
+ * The OpenAPI document of the routes [wowRoutes] serves from [manifest], [gateway], [options] and [queries], the one
+ * `GET /wow/openapi` answers, with the [securitySchemes] the host's caller resolver accepts (decision D233 ③): the
+ * document the host merges into springdoc's. The public port's routes alone: the internal port's call routes, cluster
+ * channel and signals are never in it (decision D226).
+ */
+@InternalWowApi
+fun wowOpenApi(
+    manifest: Manifest,
+    gateway: CommandGateway,
+    options: WowHttpOptions = WowHttpOptions(),
+    queries: HttpQueries = HttpQueries.NONE,
+    securitySchemes: Map<String, OpenApiSecurityScheme> = emptyMap(),
+): Map<String, Any?> = openApiOf(withTransformedRoutes(manifest, gateway), options, queries, securitySchemes)
+
+/**
  * The OpenAPI document of the routes of [served] (decision D182's transformed routes included) as [options] and
  * [queries] serve them: the query models [queries] serves, the datasets when it has them, the Manifest endpoint and the
- * error statuses the host configures.
+ * error statuses the host configures; the [securitySchemes] when it has them.
  */
-internal fun openApiOf(served: Manifest, options: WowHttpOptions, queries: HttpQueries): Map<String, Any?> {
+internal fun openApiOf(
+    served: Manifest,
+    options: WowHttpOptions,
+    queries: HttpQueries,
+    securitySchemes: Map<String, OpenApiSecurityScheme> = emptyMap(),
+): Map<String, Any?> {
     val documented = served.withContexts(
         served.contexts.map { context ->
             context.withAggregates(
@@ -209,16 +230,12 @@ internal fun openApiOf(served: Manifest, options: WowHttpOptions, queries: HttpQ
             manifestEndpoint = options.manifestEndpoint,
             openApiEndpoint = options.openApiEndpoint,
             errorStatuses = options.errorStatuses,
-        ),
+        ).withSecuritySchemes(securitySchemes),
     )
 }
 
 /** Whether [this] serves the query [model] of [type]: the snapshots and the events of the types it has gateways for. */
-private fun HttpQueries.serves(type: AggregateType, model: String): Boolean = when (model) {
-    QueryRoutes.SNAPSHOT -> snapshots(type) != null
-    QueryRoutes.EVENTS -> events(type) != null
-    else -> false
-}
+private fun HttpQueries.serves(type: AggregateType, model: String): Boolean = gateway(type, model) != null
 
 /** `GET [path]`: [body], as JSON, to an authenticated caller that accepts it. */
 private fun CoRouterFunctionDsl.document(

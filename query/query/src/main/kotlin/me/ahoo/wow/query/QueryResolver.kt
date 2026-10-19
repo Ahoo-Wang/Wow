@@ -33,6 +33,7 @@ import me.ahoo.wow.api.query.EndsWithFilter
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ExistsFilter
 import me.ahoo.wow.api.query.ExpressionFilter
+import me.ahoo.wow.api.query.FieldPredicate
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.GreaterThanFilter
 import me.ahoo.wow.api.query.GreaterThanOrEqualFilter
@@ -76,6 +77,7 @@ import me.ahoo.wow.query.aggregation.requireSupported
 import me.ahoo.wow.query.filter.predicateField
 import me.ahoo.wow.query.filter.requiredCapability
 import me.ahoo.wow.query.filter.withPredicateField
+import me.ahoo.wow.query.schema.EventsQueryModelProfile
 import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryCardinality
 import me.ahoo.wow.query.schema.QueryFieldCapabilities
@@ -202,7 +204,7 @@ internal class QueryResolver(
             val reference = reference(element.path, scope, QueryCapability.ELEMENT_SCOPE)
             val path = register(reference, scope)
             scope = elementScope(reference, path)
-            AggregationElement(path, filter(element.filter, At(scope)))
+            AggregationElement(path, storedEvents(filter(element.filter, At(scope)), scope))
         }
         val inner = scope
         val aggregation = query.copy(
@@ -343,8 +345,52 @@ internal class QueryResolver(
         requireValid(!at.metric) { QueryViolation.MetricFilterElementMatch }
         val container = register(reference, at.scope)
         val inner = At(elementScope(reference, container), at.trusted, at.metric)
-        return ElementMatchFilter(container, filter(expression.predicate, inner))
+        return ElementMatchFilter(container, storedEvents(filter(expression.predicate, inner), inner.scope))
     }
+
+    /**
+     * [predicate], resolved in [scope], as the events model's log stores the events when [scope] is its `events`
+     * array ([EventsQueryModelProfile]): a condition on an event's name also matches the names the event is stored
+     * under (its aliases), and an event of a retired name (decision D219) never matches, since a record never shows
+     * one. Any other scope keeps [predicate].
+     */
+    private fun storedEvents(predicate: FilterExpression, scope: Scope): FilterExpression {
+        val profile = schema.profile as? EventsQueryModelProfile ?: return predicate
+        if (scope.logical != profile.eventsField) return predicate
+        val named = storedNames(predicate, profile)
+        if (profile.retired.isEmpty()) return named
+        val name = reference(profile.nameField, scope, QueryCapability.EXACT_MATCH)
+        val retired = NotInFilter(register(name, scope), profile.retired.toList())
+        return normalizer.simplifyAnd(listOf(named, retired))
+    }
+
+    /** [filter] with each equality of an event's name widened to the names the event is stored under. */
+    @Suppress("CyclomaticComplexMethod") // One branch per logical node and per name comparison.
+    private fun storedNames(filter: FilterExpression, profile: EventsQueryModelProfile): FilterExpression {
+        if (filter is AndFilter) return AndFilter(filter.operands.map { storedNames(it, profile) })
+        if (filter is OrFilter) return OrFilter(filter.operands.map { storedNames(it, profile) })
+        if (filter is NorFilter) return NorFilter(filter.operands.map { storedNames(it, profile) })
+        val field = (filter as? FieldPredicate)?.field?.takeIf { isEventName(it, profile) } ?: return filter
+        fun names(values: List<Any?>): List<Any?> = storedNameValues(values, profile)
+        return when (filter) {
+            is EqualFilter -> names(listOf(filter.value)).let { if (it.size > 1) InFilter(field, it) else filter }
+            is NotEqualFilter -> names(listOf(filter.value)).let { if (it.size > 1) NotInFilter(field, it) else filter }
+            is InFilter -> InFilter(field, names(filter.values))
+            is NotInFilter -> NotInFilter(field, names(filter.values))
+            else -> filter
+        }
+    }
+
+    /** Whether [field], a resolved reference, is the name of an event of [profile]'s `events`. */
+    private fun isEventName(field: QueryField, profile: EventsQueryModelProfile): Boolean =
+        fields[field]?.logicalField?.relativeTo(profile.eventsField) == profile.nameField
+
+    /** Each event name of [values] as the names it is stored under; any other value kept. */
+    private fun storedNameValues(values: List<Any?>, profile: EventsQueryModelProfile): List<Any?> =
+        values.flatMap { value ->
+            val name = value as? String ?: value.jsonValueOrNull()?.takeIf { it.isString }?.stringValue()
+            name?.let { profile.storedNamesOf(it).toList() } ?: listOf(value)
+        }.distinct()
 
     /** A predicate on one field: checked by its value rule, then lowered with the resolved value and registered. */
     private fun predicate(expression: FilterExpression, at: At): FilterExpression {

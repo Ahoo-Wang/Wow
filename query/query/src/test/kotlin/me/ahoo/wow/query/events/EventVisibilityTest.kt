@@ -81,4 +81,13 @@ class EventVisibilityTest {
         visibility.visible(ref, alice).assert().isTrue()
         read.assert().isFalse()
     }
+
+    @Test
+    fun `a caller sees all only when nothing could hide an aggregate`(): Unit = runBlocking {
+        EventVisibility.ALL.seesAll(type, alice).assert().isTrue()
+        EventVisibility.of({ snapshots }) { state(1) }.seesAll(type, alice).assert().isFalse()
+        EventVisibility.of({ snapshots }, hides = false) { state(1) }.seesAll(type, alice).assert().isTrue()
+        EventVisibility.of({ null }) { state(1) }.seesAll(type, alice).assert().isTrue()
+        EventVisibility { _, _ -> true }.seesAll(type, alice).assert().isFalse()
+    }
 }

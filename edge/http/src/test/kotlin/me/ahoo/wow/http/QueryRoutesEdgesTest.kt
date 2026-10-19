@@ -20,7 +20,6 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.copyWith
-import me.ahoo.wow.query.events.EventQueryGateway
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import org.junit.jupiter.api.Test
 
@@ -58,7 +57,7 @@ class QueryRoutesEdgesTest {
         }
         val storage = InMemoryQueryStorage()
         val node = HttpNode(manifest = manifest) { log ->
-            HttpQueries(listOf(cartSnapshots(storage)), listOf(EventQueryGateway(cartType, log)))
+            HttpQueries(listOf(cartSnapshots(storage)), listOf(cartEvents(log)))
         }
         node.post("/shop/cart/projection/query", """{"kind":"list","filter":{"op":"MATCH_ALL"}}""")
             .status.assert().isEqualTo(404)
@@ -73,7 +72,7 @@ class QueryRoutesEdgesTest {
         assertThrownBy<IllegalArgumentException> { HttpQueries(defaultListSize = -1) }
         assertThrownBy<IllegalArgumentException> { HttpQueries(listOf(cartSnapshots(storage), cartSnapshots(storage))) }
         assertThrownBy<IllegalArgumentException> {
-            HttpQueries(events = listOf(EventQueryGateway(cartType, log), EventQueryGateway(cartType, log)))
+            HttpQueries(events = listOf(cartEvents(log), cartEvents(log)))
         }
         HttpQueries.NONE.snapshots(cartType).assert().isNull()
         HttpQueries.NONE.events(cartType).assert().isNull()

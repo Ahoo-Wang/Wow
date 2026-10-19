@@ -198,7 +198,7 @@ class QuerySchemaCatalog(
     }
 
     private companion object {
-        val BUILT_IN_MODELS = listOf(QueryModel.SNAPSHOT)
+        val BUILT_IN_MODELS = listOf(QueryModel.SNAPSHOT, QueryModel.EVENTS)
         val log = KotlinLogging.logger { }
     }
 }
@@ -224,7 +224,8 @@ fun interface QueryModelCompiler {
     companion object {
         /**
          * Merges the declarations of [sources] into the logical model under [sensitivity] and compiles the storage's
-         * facts about it. [datasets] supplies each dataset model's fields and record layout.
+         * facts about it. [datasets] supplies each dataset model's fields and record layout, [events] each aggregate's
+         * `events` model's (decision D235): its declaration, its profile and the revision rule of its storage facts.
          */
         @JvmStatic
         @JvmOverloads
@@ -232,14 +233,19 @@ fun interface QueryModelCompiler {
             sources: List<QuerySchemaSource> = emptyList(),
             sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
             datasets: QueryDatasets = QueryDatasets.NONE,
+            events: EventsQuerySchemas? = null,
         ): QueryModelCompiler {
-            val declared = if (datasets === QueryDatasets.NONE) sources.toList() else sources + datasets.schemaSource
+            val declared = listOfNotNull(
+                datasets.schemaSource.takeUnless { datasets === QueryDatasets.NONE },
+                events,
+            ).let { sources + it }
             return QueryModelCompiler { context, storage ->
+                val eventsModel = events?.takeIf { context.model == QueryModel.EVENTS }
                 DefaultQueryModelSchemaProvider(
                     context = context,
                     sources = declared,
-                    adapter = storage,
-                    profile = datasets.profile(context),
+                    adapter = eventsModel?.adapter(context.aggregateType, storage) ?: storage,
+                    profile = eventsModel?.profile(context.aggregateType) ?: datasets.profile(context),
                     sensitivity = sensitivity,
                 )
             }

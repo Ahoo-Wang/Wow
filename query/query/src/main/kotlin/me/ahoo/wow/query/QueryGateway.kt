@@ -97,7 +97,11 @@ interface QueryGateway {
  *
  * With [counts], the counts and paged totals are cached ([QueryCountCache], decision D152): admitted as ever, then
  * served from the cache while the type's snapshot write checkpoint holds; a query served so ends its observation with
- * the outcome [QueryCountCache.CACHED_OUTCOME].
+ * the outcome [QueryCountCache.CACHED_OUTCOME]. A cache is keyed by aggregate type, not by model: give each model's
+ * gateways a cache of their own.
+ *
+ * Each record a backend returns is masked by the schema's response masks; with [records], it is read by [records]
+ * instead (the `events` model reads each event as its aggregate reads it now and masks it by its own schema).
  */
 @InternalWowApi
 class DefaultQueryGateway(
@@ -109,6 +113,7 @@ class DefaultQueryGateway(
     private val observer: QueryObserver = QueryObserver.NONE,
     override val entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
     private val counts: QueryCountCache? = null,
+    private val records: QueryRecordReader? = null,
 ) : QueryGateway {
     private val admission = QueryAdmission(aggregateType, filters, policies, entryPolicy)
 
@@ -149,8 +154,12 @@ class DefaultQueryGateway(
     override suspend fun describe(entry: QueryEntry, defaultListSize: Int?): QueryModelDescriptor =
         schemaProvider.schema().describe(entryPolicy.budget(entryPolicy.admit(entry)), defaultListSize)
 
-    /** Masks each backend record by the schema's response masks (every caller sees masked values). */
+    /**
+     * Reads each backend record by [records], else masks it by the schema's response masks (every caller sees masked
+     * values).
+     */
     private fun AdmittedQuery<*>.reader(): (ObjectNode) -> ObjectNode {
+        records?.let { return it::read }
         val masker = SchemaMasker.create(schema) ?: return { it }
         return masker::mask
     }
@@ -277,4 +286,14 @@ class DefaultQueryGateway(
         }
         trail?.let { observer.isolated { onAudit(it.audit(outcome)) } }
     }
+}
+
+/**
+ * How a gateway reads the records its backend returns, in place of the schema's response masks: a model whose records
+ * the backend returns as stored and the gateway reads as the model shows them (the `events` model, decision D235).
+ * The record is the backend's own, fresh instance; the reader may change it in place and return it.
+ */
+@InternalWowApi
+fun interface QueryRecordReader {
+    fun read(record: ObjectNode): ObjectNode
 }

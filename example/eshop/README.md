@@ -108,7 +108,7 @@ Work package E.5, after the classic eShop's `PaymentProcessor`. One aggregate, `
 - **Outcome.** A succeeded payment sends `PayOrder` (the payment's id and amount) to the ordering context; a failed one sends `CancelOrder`, and the cancelled order releases its stock as any cancelled order does.
 - **Refund.** An order that rejects its `PayOrder` (cancelled meanwhile, when its grace period passed, say) comes back as a receipt on `wow.eshop-payment.receipts`, and `OrderPaymentSaga.onPayRejected` refunds the payment.
 - **Chargeback.** The gateway calls back when a buyer disputes a payment with their bank: `ChargebackNotified` (`merchantReference`, `disputeId`, `reason`), in the gateway's shape, is a mounted command (`@MountedCommand(aggregate = "payment")`, decision D182) with no `@OnCommand`. The server's transformer, `Chargebacks`, turns it into the `RefundPayment` of the payment the reference names, and keeps the dispute in the `dispute-id` header. The gateway knows no payment id, so it posts to the route without one, `POST /eshop-payment/payment/chargeback-notified`; the result's `transformedFrom` and the stream's `wow.transformed-from` header name the callback, and the refund is authorized again as itself.
-- **Peers.** The payment server takes the ordering's Manifest as its peer (`wowPeers`). The ordering knows nothing of the payment.
+- **Peers.** The payment knows the ordering's contract from the jar of `eshop-ordering-api`, which its domain module depends on (decision D234). The ordering knows nothing of the payment.
 
 ## Sales
 

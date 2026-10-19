@@ -46,7 +46,11 @@ internal fun AdmittedQuery<*>.path(field: QueryField): String = MongoSnapshotDoc
  */
 internal object MongoAggregationCompiler {
     /** Compiles [admitted] to a pipeline that ends with `$limit` [limit], or returns every group when it is `null`. */
-    fun compile(admitted: AdmittedQuery<AggregationQuery>, limit: Int? = admitted.query.limit): List<Bson> = buildList {
+    fun compile(
+        admitted: AdmittedQuery<AggregationQuery>,
+        limit: Int? = admitted.query.limit,
+        tieBreakers: List<String> = MongoSnapshotDocuments.edgeTieBreakers,
+    ): List<Bson> = buildList {
         val query = admitted.query
         add(Aggregates.match(MongoMatchCompiler.compile(query.filter, admitted)))
 
@@ -74,7 +78,7 @@ internal object MongoAggregationCompiler {
         }
 
         edgeCandidates(query, admitted)?.let(::add)
-        add(group(query, groupId, admitted))
+        add(group(query, groupId, admitted, tieBreakers))
         if (dense != null) {
             addAll(denseStages(dense))
         }
@@ -97,6 +101,7 @@ internal object MongoAggregationCompiler {
         query: AggregationQuery,
         id: Document?,
         admitted: AdmittedQuery<AggregationQuery>,
+        tieBreakers: List<String>,
     ): Bson {
         val accumulators = buildList {
             query.metrics.forEach { metric ->
@@ -162,7 +167,8 @@ internal object MongoAggregationCompiler {
                         ),
                     )
                     is AggregationMetric.Derived -> Unit
-                    is AggregationMetric.Edge -> add(edgeAccumulator(query.metrics.indexOf(metric), metric, admitted))
+                    is AggregationMetric.Edge ->
+                        add(edgeAccumulator(query.metrics.indexOf(metric), metric, admitted, tieBreakers))
                 }
             }
         }
@@ -198,6 +204,7 @@ internal object MongoAggregationCompiler {
         index: Int,
         metric: AggregationMetric.Edge,
         admitted: AdmittedQuery<AggregationQuery>,
+        tieBreakers: List<String>,
     ): BsonField {
         val mark = edgeMark(index)
         val orderBy = admitted.path(checkNotNull(metric.orderBy) { "Admission names every FIRST / LAST orderBy." })
@@ -211,7 +218,7 @@ internal object MongoAggregationCompiler {
             ),
         )
         val sortBy = Document(mark, if (first) -1 else 1).append(orderBy, 1)
-        listOf(MongoSnapshotDocuments.AGGREGATE_ID, MongoSnapshotDocuments.TENANT_ID)
+        tieBreakers
             .filterNot(sortBy::containsKey)
             .forEach { sortBy.append(it, 1) }
         val accumulator = Document("sortBy", sortBy).append("output", output)

@@ -23,7 +23,7 @@ import me.ahoo.wow.query.QueryBackendBinding
 import javax.sql.DataSource
 
 /**
- * The snapshot query storage of one bounded context on PostgreSQL: the [PostgresSnapshotQueryBackend] of each of its
+ * The snapshot query storage of one bounded context on PostgreSQL: the [PostgresQueryBackend] of each of its
  * aggregate types, over that aggregate's own snapshot table, which `PostgresSnapshotStore` writes (decision D161), with
  * the facts [PostgresQuerySchemaAdapter] reads from the table; and the management of the expression indexes its
  * aggregates declare ([manageIndexes], decision D151).
@@ -34,15 +34,15 @@ class PostgresSnapshotQueryStorage @JvmOverloads constructor(
     val context: String,
     val options: PostgresQueryOptions = PostgresQueryOptions(),
     private val dispatcher: CoroutineDispatcher = VirtualThreads.dispatcher,
-) : AbstractQueryBackendFactory<PostgresSnapshotQueryBackend>() {
+) : AbstractQueryBackendFactory<PostgresQueryBackend>() {
     /** The snapshot table of [aggregateName], quoted. */
     fun table(aggregateName: String): String = PostgresSnapshotTables(context, aggregateName).snapshot
 
-    override fun createBinding(aggregateType: AggregateType): QueryBackendBinding<PostgresSnapshotQueryBackend> {
+    override fun createBinding(aggregateType: AggregateType): QueryBackendBinding<PostgresQueryBackend> {
         require(aggregateType.context == context) { "$aggregateType is not in context $context." }
         val tables = PostgresSnapshotTables(context, aggregateType.name)
         return QueryBackendBinding(
-            PostgresSnapshotQueryBackend(aggregateType, dataSource, tables, options, dispatcher),
+            PostgresQueryBackend(aggregateType, dataSource, tables.snapshot, options, dispatcher),
             PostgresQuerySchemaAdapter(dataSource, tables, dispatcher),
         )
     }

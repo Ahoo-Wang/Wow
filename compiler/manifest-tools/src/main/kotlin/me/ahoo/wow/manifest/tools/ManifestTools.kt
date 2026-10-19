@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.manifest.tools
 
+import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.ManifestMerger
+import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.ServiceInfo
 import java.io.File
 
@@ -77,6 +79,32 @@ object ManifestTools {
             }
         }
         return result.breaking.size
+    }
+
+    /**
+     * Writes the peer contract of a domain module's completed [fragments] into [output] ([PeerContracts.contractOf],
+     * decision D234), what the Gradle plugin's `generateWowContract` does.
+     */
+    @JvmStatic
+    fun generateContract(fragments: List<File>, output: File) {
+        ManifestJson.write(PeerContracts.contractOf(fragments.sortedBy { it.name }.map(ManifestJson::read)), output)
+    }
+
+    /**
+     * Writes the contract the api module [owner] carries, of the domain modules' [contracts] the contexts whose command
+     * and event classes are all in its [classes] directories ([PeerContracts.assemble], decision D234), into
+     * [output]; what the Gradle plugin's `assembleWowContract` does. Returns whether the api module carries one: with
+     * no context of its own, [output] is not written.
+     */
+    @JvmStatic
+    fun assembleContract(contracts: List<File>, classes: List<File>, owner: String, output: File): Boolean {
+        val fragments = contracts.sorted().map { ManifestFragment(it.path, ManifestJson.read(it)) }
+        val contract = PeerContracts.assemble(owner, fragments) { binary ->
+            val path = binary.replace('.', '/') + ".class"
+            classes.any { File(it, path).isFile }
+        } ?: return false
+        ManifestJson.write(contract, output)
+        return true
     }
 
     private const val UPDATE_BASELINE_TASK = "updateManifestBaseline"

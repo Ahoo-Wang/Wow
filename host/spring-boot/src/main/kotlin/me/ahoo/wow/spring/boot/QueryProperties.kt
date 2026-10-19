@@ -49,6 +49,9 @@ import kotlin.time.toKotlinDuration
  *   of the same dataset. The datasets of both are served when a dataset backend is wired (ClickHouse's, say).
  * - `wow.query.memory.enabled` (false; D209): whether the snapshots on a store in memory are queried, from the
  *   in-memory reference query backend: for local runs, demos and tests, not for production.
+ * - `wow.query.events.*` (D235): the `events` model, served from each aggregate's log store:
+ *   `mongo-read-preference` (none, the primary), the MongoDB read preference of its queries (`secondaryPreferred`,
+ *   say), so a free filter scans a secondary rather than the primary the log appends to.
  */
 @ConfigurationProperties(prefix = QueryProperties.PREFIX)
 class QueryProperties {
@@ -63,6 +66,7 @@ class QueryProperties {
     var dataset: Dataset = Dataset()
     var countCache: CountCache = CountCache()
     var memory: Memory = Memory()
+    var events: Events = Events()
 
     /** The entry policy these settings give every gateway. */
     fun entryPolicy(): QueryEntryPolicy = QueryEntryPolicy(
@@ -136,6 +140,10 @@ class QueryProperties {
 
     class Memory {
         var enabled: Boolean = false
+    }
+
+    class Events {
+        var mongoReadPreference: String? = null
     }
 
     class Dataset {
