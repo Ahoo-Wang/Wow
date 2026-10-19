@@ -63,29 +63,28 @@ val generateWowContract = tasks.register("generateWowContract") {
     description = "Filters the module's Manifest fragment down to the contract its api module carries."
     val fragments = completedFragments
     val apiClasses: FileCollection = files(wowContractApi)
-    val contractPath = contractDirectoryName
     val output = contractDirectory
     val domain = domainPath
     inputs.files(fragments).withPathSensitivity(PathSensitivity.NAME_ONLY).withPropertyName("fragments")
     inputs.files(apiClasses).withNormalizer(ClasspathNormalizer::class.java).withPropertyName("apiClasses")
     outputs.dir(output)
     doLast {
-        val root = output.get().asFile.apply { deleteRecursively() }
-        val directory = File(root, contractPath).apply { mkdirs() }
-        val names = mutableListOf<String>()
+        val root = output.get().asFile.apply { deleteRecursively(); mkdirs() }
         fragments.files.sortedBy { it.name }.forEach { fragment ->
             @Suppress("UNCHECKED_CAST")
             val tree = JsonSlurper().parse(fragment) as Map<String, Any?>
             val defs = (tree["\$defs"] as Map<String, Any?>?).orEmpty()
             (tree["contexts"] as List<Map<String, Any?>>).forEach { context ->
                 val contract = ContractTools.contractOf(tree, context, defs)
-                ContractTools.guard(domain, context["name"] as String, contract, apiClasses.files)
-                val name = "${context["name"]}.json"
-                File(directory, name).writeText(JsonOutput.prettyPrint(JsonOutput.toJson(contract)))
-                names += name
+                // Every class the contract names must be one of the domain's api modules'.
+                val foreign = ContractTools.typesOf(contract).filterNot { ContractTools.has(apiClasses.files, it) }
+                check(apiClasses.files.isNotEmpty() && foreign.isEmpty()) {
+                    "$domain: the contract of context ${context["name"]} names classes none of its api modules " +
+                        "(${apiClasses.files.joinToString { it.path }}) has: ${foreign.joinToString()}"
+                }
+                File(root, "${context["name"]}.json").writeText(JsonOutput.prettyPrint(JsonOutput.toJson(contract)))
             }
         }
-        File(directory, "index").writeText(names.sorted().joinToString("\n", postfix = "\n"))
     }
 }
 
@@ -96,23 +95,67 @@ val wowContractElements: Configuration = configurations.create("wowContractEleme
     outgoing.artifact(contractDirectory) { builtBy(generateWowContract) }
 }
 
-// The pairing (the cross-project part): each candidate api of this domain takes its contract into its jar.
+// The pairing (the cross-project part): each candidate api of this domain resolves the domain's contracts, keeps the
+// contexts whose commands and events are its own classes, and puts them into its jar.
 configurations.named("api") {
     dependencies.withType<ProjectDependency>().configureEach {
         if (isCandidate(this)) {
-            val apiPath = path
-            project(apiPath) {
-                val contract = configurations.maybeCreate("wowContract").apply {
-                    isCanBeConsumed = false
-                    isCanBeResolved = true
-                    isTransitive = false
-                    attributes { wowContract() }
-                }
-                dependencies.add(contract.name, project(domainPath))
-                tasks.named<Jar>("jar") { from(contract) }
-            }
+            project(path) { pairedApi(domainPath) }
         }
     }
+}
+
+fun Project.pairedApi(domain: String) {
+    val contract = configurations.findByName("wowContract")
+    if (contract != null) {
+        dependencies.add(contract.name, project(domain))
+        return
+    }
+    val created = configurations.create("wowContract") {
+        isCanBeConsumed = false
+        isCanBeResolved = true
+        isTransitive = false
+        attributes { wowContract() }
+    }
+    dependencies.add(created.name, project(domain))
+    val main = the<SourceSetContainer>().named("main").get()
+    val assembled = layout.buildDirectory.dir("wow/contract")
+    val assemble = tasks.register("assembleWowContract") {
+        group = "wow"
+        description = "Takes the contracts of this api module's contexts from the domain modules that declare it."
+        val contracts: FileCollection = files(created)
+        val classes: FileCollection = main.output.classesDirs
+        val output = assembled
+        val contractPath = contractDirectoryName
+        val api = path
+        inputs.files(contracts).withPropertyName("contracts")
+        inputs.files(classes).withNormalizer(ClasspathNormalizer::class.java).withPropertyName("classes")
+        outputs.dir(output)
+        doLast {
+            val directory = File(output.get().asFile.apply { deleteRecursively() }, contractPath).apply { mkdirs() }
+            val names = mutableListOf<String>()
+            contracts.files.flatMap { it.listFiles { file -> file.extension == "json" }.orEmpty().toList() }
+                .sortedBy { it.name }
+                .forEach { file ->
+                    @Suppress("UNCHECKED_CAST")
+                    val contract = JsonSlurper().parse(file) as Map<String, Any?>
+                    val types = ContractTools.typesOf(contract)
+                    val own = types.filter { ContractTools.has(classes.files, it) }
+                    if (own.isEmpty()) {
+                        return@forEach
+                    }
+                    check(own.size == types.size) {
+                        "$api: the contract ${file.name} of ${file.parentFile} names classes of this api module and " +
+                            "classes of another: ${(types - own.toSet()).joinToString()}"
+                    }
+                    check(file.name !in names) { "$api: two domain modules give the contract ${file.name}" }
+                    file.copyTo(File(directory, file.name))
+                    names += file.name
+                }
+            File(directory, "index").writeText(names.sorted().joinToString("\n", postfix = "\n"))
+        }
+    }
+    tasks.named<Jar>("jar") { from(assemble) }
 }
 
 /** The filter and the guard; an object, so the task action captures no script reference (configuration cache). */
@@ -169,26 +212,19 @@ object ContractTools {
         return linkedMapOf("format" to tree["format"], "contexts" to listOf(filtered), "\$defs" to reachable)
     }
 
-    /**
-     * Fails when a command or event class of the contract of [context] is not a class of the api module ([apiClasses],
-     * its classes directories): the contract would name a type the api does not ship.
-     */
+    /** The binary names of the command and event classes of [contract]. */
     @Suppress("UNCHECKED_CAST")
-    fun guard(domain: String, context: String, contract: Map<String, Any?>, apiClasses: Set<File>) {
-        check(apiClasses.isNotEmpty()) { "$domain: context $context has no api module to carry its contract" }
-        val prefix = "#/\$defs/"
-        val aggregates = (contract["contexts"] as List<Map<String, Any?>>).single()["aggregates"] as List<Map<String, Any?>>
-        val types = aggregates.flatMap { aggregate ->
-            ((aggregate["commands"] as List<Map<String, Any?>>) + (aggregate["events"] as List<Map<String, Any?>>))
-                .map { (it["schema"] as String).removePrefix(prefix) }
+    fun typesOf(contract: Map<String, Any?>): List<String> =
+        (contract["contexts"] as List<Map<String, Any?>>).flatMap { context ->
+            (context["aggregates"] as List<Map<String, Any?>>).flatMap { aggregate ->
+                ((aggregate["commands"] as List<Map<String, Any?>>) + (aggregate["events"] as List<Map<String, Any?>>))
+                    .map { (it["schema"] as String).removePrefix("#/\$defs/") }
+            }
         }
-        val foreign = types.filterNot { binary ->
-            val file = binary.replace('.', '/') + ".class"
-            apiClasses.any { File(it, file).isFile }
-        }
-        check(foreign.isEmpty()) {
-            "$domain: the contract of context $context names classes its api module does not have " +
-                "(${apiClasses.joinToString { it.path }}): ${foreign.joinToString()}"
-        }
+
+    /** Whether one of the classes directories [classes] holds the class of binary name [binary]. */
+    fun has(classes: Set<File>, binary: String): Boolean {
+        val file = binary.replace('.', '/') + ".class"
+        return classes.any { File(it, file).isFile }
     }
 }
