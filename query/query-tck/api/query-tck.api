@@ -235,6 +235,7 @@ public final class me/ahoo/wow/query/tck/SemanticProbe {
 	public static final field ONE Ljava/lang/String;
 	public static final field OTHER Ljava/lang/String;
 	public static final field THREE Ljava/lang/String;
+	public static final field TRAILING_NEWLINE Ljava/lang/String;
 	public static final field TWO Ljava/lang/String;
 	public static final field VALUE Ljava/lang/String;
 	public static final field VALUE_AND_OTHER Ljava/lang/String;
