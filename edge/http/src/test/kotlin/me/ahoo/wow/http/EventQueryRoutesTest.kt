@@ -28,7 +28,6 @@ import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.TenantIdFilter
-import me.ahoo.wow.http.query.EventQueryGateway
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.QueryRoutes
@@ -37,6 +36,7 @@ import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryRequestException
 import me.ahoo.wow.query.QueryTimeoutException
+import me.ahoo.wow.query.events.EventQueryGateway
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord

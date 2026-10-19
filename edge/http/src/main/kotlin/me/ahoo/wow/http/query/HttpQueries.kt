@@ -17,6 +17,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
+import me.ahoo.wow.query.dataset.DatasetVisibility
+import me.ahoo.wow.query.events.EventQueryGateway
 import me.ahoo.wow.runtime.snapshot.SnapshotStatus
 
 /**

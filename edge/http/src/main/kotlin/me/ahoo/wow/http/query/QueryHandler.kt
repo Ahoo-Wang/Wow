@@ -53,6 +53,7 @@ import me.ahoo.wow.query.QueryErrors
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryStorageUnavailableException
 import me.ahoo.wow.query.dataset.DatasetQueryGateway
+import me.ahoo.wow.query.events.EventQueryGateway
 import me.ahoo.wow.query.json.QueryJson
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.runtime.FrameworkCodes

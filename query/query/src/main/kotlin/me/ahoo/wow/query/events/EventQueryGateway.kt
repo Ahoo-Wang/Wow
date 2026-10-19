@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.http.query
+package me.ahoo.wow.query.events
 
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.Flow
@@ -26,7 +26,6 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.withTimeout
-import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
@@ -99,14 +98,14 @@ import kotlin.time.toJavaDuration
  *
  * The caller's scope applies as on snapshots (decision D129): the tenant is [tenants]', and a stream whose scope (the
  * aggregate's owner and space after it, D56) is outside the caller's [principal][QueryCaller.principal] is not
- * returned; the principal's owner is not checked for an aggregate of its tenant ([ownership], decision D189). The HTTP entry runs under [entryPolicy]'s HTTP budget: its list, page and count limits and its timeout. An aggregate
- * the snapshot queries of its type hide from the caller ([visibility]: ABAC and the application's query policies on its
- * latest state, review A3-11) has no streams for it.
+ * returned; the principal's owner is not checked for an aggregate of its tenant ([ownership], decision D189). The HTTP entry runs under [entryPolicy]'s HTTP budget: its list, page and count limits and its
+ * timeout. An aggregate the snapshot queries of its type hide from the caller ([visibility], [EventVisibility.of]:
+ * ABAC and the application's query policies on its latest state, reviews A3-11 and R2.3-6) has no streams for it.
  *
  * A record is the stream: `aggregateId`, `tenantId`, `version`, `commitTime`, `commandId`, `requestId`,
  * `commandType`, `ownerId` and `spaceId` when set, `operator` (`{id, tenantId, crossScope}`, decision D163) when the
  * stream has one, and `events`, each `{name, revision, body}` as [reading] gives it: the host reads each event as the
- * aggregate's model does now (finding A4-16, [me.ahoo.wow.kernel.EventCodec.current]), under its current name, at
+ * aggregate's model does now (finding A4-16, the kernel's `EventCodec.current`), under its current name, at
  * its current revision and upgraded to it, an event the aggregate retired left out, so the records match the event
  * types the Manifest gives clients. Without a model, as the log stores it. Each body is masked by the sensitive fields
  * of its event's schema ([masks], 09 §17 G-2), for every caller alike, as a snapshot query masks a state.
@@ -119,8 +118,8 @@ class EventQueryGateway(
     val entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
     /** Who the aggregate belongs to besides its tenant, as its Manifest says (decision D189). */
     val ownership: Ownership = Ownership.OWNER,
-    /** Whether a caller sees an aggregate ([StateVisibility]); every one by default. */
-    private val visibility: suspend (AggregateRef, QueryCaller) -> Boolean = { _, _ -> true },
+    /** Whether a caller sees an aggregate ([EventVisibility.of], review A3-11); every one by default. */
+    private val visibility: EventVisibility = EventVisibility.ALL,
     /** How each event's body is masked (09 §17 G-2): by its schema's sensitive fields, for every caller alike. */
     private val masks: PayloadMasks = PayloadMasks.NONE,
     /** How an event of the log reads in a record: null leaves it out; as the log stores it by default. */
@@ -281,7 +280,7 @@ class EventQueryGateway(
         if (range.empty || range.fromVersion > range.toVersion) return emptyFlow()
         val ref = aggregateType.ref(tenantId, range.aggregateId)
         return flow {
-            if (visibility(ref, caller)) {
+            if (visibility.visible(ref, caller)) {
                 emitAll(
                     log.read(ref, range.fromVersion, range.toVersion)
                         .takeWhile { it.commitTime <= range.toTime }

@@ -597,6 +597,17 @@ public final class me/ahoo/wow/query/dataset/DatasetQueryModelProfile : me/ahoo/
 	public fun toString ()Ljava/lang/String;
 }
 
+public abstract interface class me/ahoo/wow/query/dataset/DatasetVisibility {
+	public static final field Companion Lme/ahoo/wow/query/dataset/DatasetVisibility$Companion;
+	public static final field DEFAULT Lme/ahoo/wow/query/dataset/DatasetVisibility;
+	public static fun of (Lme/ahoo/wow/query/AbacQueryOptions;)Lme/ahoo/wow/query/dataset/DatasetVisibility;
+	public abstract fun visible (Lme/ahoo/wow/query/dataset/QueryDataset;Lme/ahoo/wow/query/QueryCaller;)Z
+}
+
+public final class me/ahoo/wow/query/dataset/DatasetVisibility$Companion {
+	public final fun of (Lme/ahoo/wow/query/AbacQueryOptions;)Lme/ahoo/wow/query/dataset/DatasetVisibility;
+}
+
 public final class me/ahoo/wow/query/dataset/DefaultDatasetQueryGateway : me/ahoo/wow/query/QueryGateway, me/ahoo/wow/query/dataset/DatasetQueryGateway {
 	public fun <init> (Lme/ahoo/wow/query/dataset/QueryDataset;Lme/ahoo/wow/query/dataset/DatasetQueryBackend;Lme/ahoo/wow/query/schema/QueryModelSchemaProvider;)V
 	public fun <init> (Lme/ahoo/wow/query/dataset/QueryDataset;Lme/ahoo/wow/query/dataset/DatasetQueryBackend;Lme/ahoo/wow/query/schema/QueryModelSchemaProvider;Ljava/util/List;)V

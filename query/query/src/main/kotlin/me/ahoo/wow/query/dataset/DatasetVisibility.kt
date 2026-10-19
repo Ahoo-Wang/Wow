@@ -11,14 +11,12 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.http.query
+package me.ahoo.wow.query.dataset
 
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.query.AbacQueryOptions
 import me.ahoo.wow.query.AbacQueryPolicy
 import me.ahoo.wow.query.QueryCaller
-import me.ahoo.wow.query.dataset.QueryDataset
-import me.ahoo.wow.query.dataset.QueryDatasetScope
 
 /**
  * Which datasets a caller sees (decision D145): those `GET /wow/dataset` lists, and those whose routes answer it; the

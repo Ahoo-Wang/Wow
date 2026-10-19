@@ -2,7 +2,6 @@ description = "Wow Kernel: the aggregate model and the decide, evolve, append lo
 
 dependencies {
     api(project(":spi"))
-    api(project(":manifest"))
     api("tools.jackson.core:jackson-databind")
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("io.github.oshai:kotlin-logging-jvm")

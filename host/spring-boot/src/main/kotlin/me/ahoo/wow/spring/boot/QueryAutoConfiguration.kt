@@ -14,20 +14,14 @@
 package me.ahoo.wow.spring.boot
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.http.query.DatasetVisibility
-import me.ahoo.wow.http.query.EventQueryGateway
 import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.http.read.StateReads
-import me.ahoo.wow.http.read.StateVisibility
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.AbacQueryPolicy
 import me.ahoo.wow.query.DefaultQueryGateway
 import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.QueryBackendStorages
-import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryCountCache
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryLogObserver
@@ -38,7 +32,10 @@ import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.ScopeQueryPolicy
 import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
+import me.ahoo.wow.query.dataset.DatasetVisibility
 import me.ahoo.wow.query.dataset.QueryDatasets
+import me.ahoo.wow.query.events.EventQueryGateway
+import me.ahoo.wow.query.events.EventVisibility
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.schema.MaskStrategyResolver
@@ -46,7 +43,9 @@ import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.runtime.state.StateReads
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -274,10 +273,11 @@ class QueryAutoConfiguration {
                 }
             }
             val byType = snapshots.associateBy { it.aggregateType }
-            // An aggregate the snapshot queries hide is hidden from the events model too (review A3-11).
-            val visible: suspend (AggregateRef, QueryCaller) -> Boolean = { ref, caller ->
-                val latest = reads.ifAvailable?.latest(ref)
-                latest == null || StateVisibility.visible(byType[ref.type], caller, latest)
+            // An aggregate the snapshot queries hide is hidden from the events model too (reviews A3-11, R2.3-6).
+            val eventVisibility = EventVisibility.of(byType::get) { ref ->
+                reads.ifAvailable?.committed(ref)?.let {
+                    CommittedState(it.ref, it.version, it.scope, it.deleted, it.tags, it.state)
+                }
             }
             val events = queryTypes(manifest, contexts, QueryRoutes.EVENTS).map { type ->
                 val context = node.contexts.getValue(type.context)
@@ -289,7 +289,7 @@ class QueryAutoConfiguration {
                     tenants,
                     entryPolicy,
                     QueryOwnership.of(manifest).ownershipOf(type),
-                    visible,
+                    eventVisibility,
                     masks,
                 ) { record -> if (model == null) record else context.codec.current(model, record) }
             }

@@ -27,7 +27,6 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.http.read.KernelStateReads
 import me.ahoo.wow.kernel.Creation
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.aggregate
@@ -58,6 +57,7 @@ import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.snapshot.SnapshotRebuildModel
+import me.ahoo.wow.runtime.state.KernelStateReads
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator

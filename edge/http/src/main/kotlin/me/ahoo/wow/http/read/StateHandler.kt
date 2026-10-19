@@ -31,10 +31,15 @@ import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryError
 import me.ahoo.wow.query.mask.PayloadMasks
+import me.ahoo.wow.query.state.CommittedState
+import me.ahoo.wow.query.state.StateVisibility
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.TargetScope
 import me.ahoo.wow.runtime.admission.TenantConflictException
 import me.ahoo.wow.runtime.admission.TenantPolicy
+import me.ahoo.wow.runtime.state.CommitView
+import me.ahoo.wow.runtime.state.StateReadView
+import me.ahoo.wow.runtime.state.StateReads
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -45,7 +50,7 @@ import java.time.Instant
 import java.time.format.DateTimeParseException
 
 /**
- * The state reads of the public port (decisions D40, D112):
+ * The state reads of the public port (decisions D40, D112), over the node's [StateReads] (`:runtime`, decision D231):
  *
  * - `GET /{context}/{aggregate}/{id}/state`, `?version=` and `?at=` ([handle]): the [StateReadView] of [reads], with
  *   `ETag: "<version>"`; 304 when `If-None-Match` names that tag. `?at=` takes an ISO-8601 instant (an offset is
@@ -82,7 +87,7 @@ internal class StateHandler(
         val (scope, ref, caller) = reader(request, type)
         val view = read(request, ref)
         checkScope(scope, view.scope, ref)
-        val state = admitted(type) { StateVisibility.admitted(queries.snapshots(type), caller, view, masks) }
+        val state = admitted(type) { StateVisibility.admitted(queries.snapshots(type), caller, view.committed(), masks) }
             ?: throw problem(FrameworkCodes.NOT_FOUND, "No state of $ref.", type)
         // The masks are the same for every caller, so the version tags the one body every caller gets.
         val tag = "\"${view.version}\""
@@ -105,7 +110,7 @@ internal class StateHandler(
         commits.forEach { checkScope(scope, it.scope, ref) }
         val gateway = queries.snapshots(type)
         val masked = commits.map { commit ->
-            val state = admitted(type) { StateVisibility.admitted(gateway, caller, ref, commit, masks) }
+            val state = admitted(type) { StateVisibility.admitted(gateway, caller, commit.committed(ref), masks) }
                 ?: throw problem(FrameworkCodes.NOT_FOUND, "No commit of $ref from version $from.", type)
             commit.copy(
                 state = state,
@@ -209,6 +214,10 @@ internal class StateHandler(
         /** Whether this scope, the reader's, admits a state of [scope]: a field it names, the state has too. */
         private fun Scope.covers(scope: Scope): Boolean =
             (ownerId == null || ownerId == scope.ownerId) && (spaceId == null || spaceId == scope.spaceId)
+
+        private fun StateReadView.committed() = CommittedState(ref, version, scope, deleted, tags, state)
+
+        private fun CommitView.committed(ref: AggregateRef) = CommittedState(ref, version, scope, deleted, tags, state)
 
         private fun matches(ifNoneMatch: String, tag: String): Boolean =
             ifNoneMatch.split(',').map { it.trim().removePrefix("W/") }.any { it == "*" || it == tag }
