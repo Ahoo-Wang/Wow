@@ -18,6 +18,7 @@ import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -137,7 +138,8 @@ private const val CONNECTION_TIMEOUT_MS = 3000L
 /**
  * Queries on PostgreSQL apart from the appends (review R3.4-2): with a tiny pool the appends share, as many list
  * queries as there are connections, each holding its connection, do not delay a command beyond a bound, since the
- * store's bulkhead lets a quarter of the pool (at least two) run and answers the rest `wow.query.busy`; with a
+ * store's bulkhead lets a quarter of the pool (at least two) run and answers the rest `wow.query.busy` once they have
+ * waited `wow.query.max-wait` in its queue (decision D247) for a permit the held queries never give back; with a
  * `query-data-source` of their own, the queries never take an append's connection and may use their whole pool.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -196,6 +198,7 @@ class PostgresQueryIsolationTest {
     private fun isolated(host: Host, pool: GatedDataSource, id: String, admitted: Int) {
         val gate = CountDownLatch(1)
         pool.gate.set(gate)
+        val sent = System.nanoTime()
         val answers = (1..CLIENTS).map {
             clients.submit<Answer> {
                 host.post("/bank/account/snapshot/query", """{"kind":"list","filter":{"op":"MATCH_ALL"},"limit":10}""")
@@ -203,6 +206,9 @@ class PostgresQueryIsolationTest {
         }
         try {
             eventually { pool.held.get() == admitted && answers.count { it.isDone } == CLIENTS - admitted }
+            // The others waited in the queue for the default max-wait (D247), then were refused.
+            TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - sent)
+                .assert().isGreaterThanOrEqualTo(QueryBulkhead.DEFAULT_MAX_WAIT.inWholeMilliseconds)
             answers.filter { it.isDone }.map { it.get() }.forEach { answer ->
                 answer.status.assert().isEqualTo(429)
                 answer.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_BUSY)
