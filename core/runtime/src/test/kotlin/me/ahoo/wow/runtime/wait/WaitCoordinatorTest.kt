@@ -58,6 +58,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /** Design 04 §6 in one service: the stages, chains, duplicates and timeouts of waits (decisions D61–D65, D69). */
+@Suppress("LargeClass") // One service's fixture for every kind of wait, its bound among them (review R3.4-3).
 class WaitCoordinatorTest {
     data class Place(val items: Int = 1, val reject: Boolean = false)
     data class Touch(val note: String = "")

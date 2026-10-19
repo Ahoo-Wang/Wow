@@ -48,13 +48,10 @@ class MongoSnapshotQueryStorage @JvmOverloads constructor(
     override fun createBinding(aggregateType: AggregateType): QueryBackendBinding<MongoSnapshotQueryBackend> {
         require(aggregateType.context == context) { "$aggregateType is not in context $context." }
         val collection = collection(aggregateType.name)
+        val documents = database.getCollection(collection)
+        val read = readPreference?.let(documents::withReadPreference) ?: documents
         return QueryBackendBinding(
-            MongoSnapshotQueryBackend(
-                aggregateType,
-                database.getCollection(collection).let { read -> readPreference?.let(read::withReadPreference) ?: read },
-                options,
-                dispatcher,
-            ),
+            MongoSnapshotQueryBackend(aggregateType, read, options, dispatcher),
             MongoQuerySchemaAdapter(database, collection, dispatcher),
         )
     }

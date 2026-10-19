@@ -24,6 +24,7 @@ import kotlinx.coroutines.yield
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.FrameworkErrors
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 /** A store's query bulkhead (review R3.4-2): a query beyond its bound fails at once, `wow.query.busy`. */
 class QueryBulkheadTest {
@@ -85,6 +86,6 @@ class QueryBulkheadTest {
 
     @Test
     fun `a bound below one should be refused`() {
-        runCatching { QueryBulkhead("main", 0) }.exceptionOrNull().assert().isInstanceOf(IllegalArgumentException::class.java)
+        assertThrows<IllegalArgumentException> { QueryBulkhead("main", 0) }
     }
 }

@@ -59,7 +59,8 @@ class EventVisibilityPolicy(
         if (visibility.seesAll(type, caller)) return MatchAllFilter
         val filter = (context.query as FilterCapable<*>).filter
         val conjuncts = EventFilters.conjuncts(filter)
-        val ids = EventFilters.aggregates(conjuncts)?.takeIf { it.size <= MAX_AGGREGATES } ?: throw QueryViolation.StorageUnsupported(
+        val named = EventFilters.aggregates(conjuncts)
+        val ids = named?.takeIf { it.size <= MAX_AGGREGATES } ?: throw QueryViolation.StorageUnsupported(
             "an events query that names no aggregate (at most $MAX_AGGREGATES) while snapshot query policies may " +
                 "hide some: name its aggregateId",
             EventFilters.AGGREGATE_ID,

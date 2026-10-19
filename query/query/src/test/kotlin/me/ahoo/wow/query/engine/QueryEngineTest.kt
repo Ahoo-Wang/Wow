@@ -41,13 +41,13 @@ import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryError
 import me.ahoo.wow.query.QueryPolicy
-import me.ahoo.wow.query.events.UnpinnedEvents
-import me.ahoo.wow.query.events.UnpinnedEventsPolicy
-import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.QueryDatasets
+import me.ahoo.wow.query.events.UnpinnedEvents
+import me.ahoo.wow.query.events.UnpinnedEventsPolicy
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.SnapshotPolicyGateway
 import me.ahoo.wow.spi.json.WowJson

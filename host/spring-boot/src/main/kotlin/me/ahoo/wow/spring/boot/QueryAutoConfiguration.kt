@@ -113,9 +113,8 @@ class QueryAutoConfiguration {
                 providers.queriesOf(store.type)?.snapshots(store, options)?.let(SnapshotQueryBackend::of)
             }
             val types = ManifestTypes.snapshots(manifest, node.contexts.keys)
-            val backend = SnapshotQueryBackend.routing(types, { type -> backends.snapshotStoreOf(type)?.name }) { type ->
-                backends.snapshotStoreOf(type)?.let { byStore[it.name] }
-            }
+            val storeOf = { type: AggregateType -> backends.snapshotStoreOf(type)?.name }
+            val backend = SnapshotQueryBackend.routing(types, storeOf) { type -> storeOf(type)?.let(byStore::get) }
             val unserved = types.filterNot(backend::serves)
             if (unserved.isNotEmpty()) {
                 logger.info {
