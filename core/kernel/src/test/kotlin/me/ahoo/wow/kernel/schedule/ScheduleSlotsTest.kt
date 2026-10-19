@@ -71,6 +71,7 @@ class ScheduleSlotsTest {
 
     @Test
     fun `an invalid expression or time zone should be refused and nothing cached for it`() {
+        ScheduleSlots.expressionOf(ScheduleRule.Cron("0 0 0 * * *"))
         val before = ScheduleSlots.cachedExpressions
         assertThrownBy<IllegalArgumentException> { ScheduleSlots.validate(ScheduleRule.Cron("not a cron")) }
         assertThrownBy<IllegalArgumentException> { ScheduleSlots.validate(ScheduleRule.Cron("0 0 0 * * *", "Mars/Base")) }
