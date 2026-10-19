@@ -19,6 +19,8 @@ import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.DatasetVisibility
+import me.ahoo.wow.query.engine.QueryEngine
+import me.ahoo.wow.query.engine.ReadFacade
 import me.ahoo.wow.runtime.snapshot.SnapshotStatus
 
 /**
@@ -39,7 +41,8 @@ import me.ahoo.wow.runtime.snapshot.SnapshotStatus
  *
  * [policies] are the gateways that admit the states of each aggregate type whose snapshots are not queried while
  * query policies may hide one (review R3.3-3, [me.ahoo.wow.query.state.SnapshotPolicyGateway]); no route serves them,
- * and a state read sees a state as [visibility] says.
+ * and a state read sees a state as [visibility] says. [reads] is the read path of the state reads
+ * ([ReadFacade], decision D237), the [QueryEngine]'s when it comes from one ([of]).
  */
 class HttpQueries @InternalWowApi constructor(
     snapshots: Collection<QueryGateway> = emptyList(),
@@ -50,6 +53,8 @@ class HttpQueries @InternalWowApi constructor(
     @InternalWowApi
     val snapshotStatus: SnapshotStatus = SnapshotStatus.NONE,
     policies: Collection<QueryGateway> = emptyList(),
+    @InternalWowApi
+    val reads: ReadFacade? = null,
 ) {
     private val snapshots: Map<AggregateType, QueryGateway> = snapshots.associateBy { it.aggregateType }
     private val events: Map<AggregateType, QueryGateway> = events.associateBy { it.aggregateType }
@@ -92,5 +97,25 @@ class HttpQueries @InternalWowApi constructor(
         /** No query model: the query routes are not served. */
         @JvmField
         val NONE: HttpQueries = HttpQueries()
+
+        /**
+         * The query models [engine] composed (decision D237), with [defaultListSize] and the [snapshotStatus] of the
+         * node's snapshots.
+         */
+        @InternalWowApi
+        fun of(
+            engine: QueryEngine,
+            defaultListSize: Int = DEFAULT_LIST_SIZE,
+            snapshotStatus: SnapshotStatus = SnapshotStatus.NONE,
+        ): HttpQueries = HttpQueries(
+            engine.snapshots,
+            engine.events,
+            defaultListSize,
+            engine.datasets,
+            engine.datasetVisibility,
+            snapshotStatus,
+            engine.policies,
+            engine.reads,
+        )
     }
 }

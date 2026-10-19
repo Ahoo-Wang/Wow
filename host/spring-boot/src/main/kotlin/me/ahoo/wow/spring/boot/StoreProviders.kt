@@ -15,26 +15,9 @@ package me.ahoo.wow.spring.boot
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.store.StoreQueryProvider
+import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.spi.store.StoreProvider
-import java.util.Locale
 import java.util.ServiceLoader
-
-/**
- * The store types the host knows by name (review R3.3-1): `auto` (`wow.backend` only), and the built-in backends'
- * types. Any other type is a community backend's, served when its [StoreProvider] is on the classpath or a bean.
- */
-internal object StoreTypes {
-    const val AUTO = "auto"
-    const val MEMORY = "memory"
-    const val POSTGRES = "postgres"
-    const val MONGO = "mongo"
-
-    /** The module of each built-in durable backend, which a failure names when it is missing. */
-    val MODULES: Map<String, String> = mapOf(POSTGRES to "wow-postgres", MONGO to "wow-mongo")
-
-    /** [type] as the providers name it: trimmed and lowercase (`MONGO`, as an enum was configured, is `mongo`). */
-    fun of(type: String): String = type.trim().lowercase(Locale.ROOT)
-}
 
 /**
  * The store providers of the node (review R3.3-1), by type: the memory provider built into the host, those on the
@@ -44,20 +27,15 @@ internal object StoreTypes {
  */
 @InternalWowApi
 class StoreProviders internal constructor(
-    private val stores: Map<String, StoreProvider>,
+    /** The store providers, by type. */
+    val stores: Map<String, StoreProvider>,
     private val queries: Map<String, StoreQueryProvider> = emptyMap(),
 ) {
     /** The types of the providers, built-in first. */
     val types: List<String> get() = stores.keys.toList()
 
-    /** The providers that can open a durable store from the application's resources alone, by type. */
-    internal val durable: Collection<StoreProvider> get() = stores.values.filter { it.type != StoreTypes.MEMORY }
-
     /** The provider of [type], which [key] configures; fails naming the module of a built-in one when it is missing. */
-    internal fun of(type: String, key: String): StoreProvider = stores[type] ?: throw IllegalStateException(
-        StoreTypes.MODULES[type]?.let { "$key is $type, which needs $it on the classpath." }
-            ?: "$key is $type, which no store provider offers: ${types.joinToString()}.",
-    )
+    internal fun of(type: String, key: String): StoreProvider = StoreTypes.provider(stores, type, key)
 
     /** The query provider of the stores of [type], or null when they are not queried. */
     fun queriesOf(type: String): StoreQueryProvider? = queries[type]

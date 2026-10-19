@@ -303,6 +303,27 @@ object V10Rules {
     )
 
     /**
+     * The read side is composed once, in wow-query (decision D237, review R3.1-1): the Spring Boot host maps its
+     * properties and the application's beans onto `QueryEngine.Builder` and decides no query policy itself, so a host
+     * that is not Spring Boot (A10) cannot miss one. Its main code constructs no query gateway, policy, policy gateway
+     * or visibility.
+     */
+    val HOST_DECIDES_NO_QUERY_POLICY = DependencyRule(
+        name = "wow-spring-boot composes no query gateway, policy or visibility: QueryEngine.Builder does",
+        modules = listOf(SPRING_BOOT.dir),
+        forbidden = listOf(
+            "me.ahoo.wow.query.AbacQueryPolicy",
+            "me.ahoo.wow.query.ScopeQueryPolicy",
+            "me.ahoo.wow.query.QueryOwnership",
+            "me.ahoo.wow.query.DefaultQueryGateway",
+            "me.ahoo.wow.query.state.SnapshotPolicyGateway",
+            "me.ahoo.wow.query.state.StateVisibility",
+            "me.ahoo.wow.query.events.EventVisibility",
+            "me.ahoo.wow.query.events.EventQueryGateways",
+        ),
+    )
+
+    /**
      * Observability is wired at fixed seams (decision D174, 06 §3): only wow-opentelemetry and the host that wires it
      * import OpenTelemetry or Micrometer; the core exposes ports instead.
      */
@@ -375,6 +396,7 @@ object V10Rules {
         TEST_MODULES_ARE_FRAMEWORK_FREE,
         KERNEL_IGNORES_RUNTIME,
         HTTP_READS_ADAPT_ONLY,
+        HOST_DECIDES_NO_QUERY_POLICY,
         ONLY_OPENTELEMETRY_OBSERVES,
         ONLY_HOST_USES_SPRING_BOOT,
         MANIFEST_IS_PLAIN_DATA,

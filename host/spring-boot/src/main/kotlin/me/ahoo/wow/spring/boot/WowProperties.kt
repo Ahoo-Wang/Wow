@@ -32,6 +32,8 @@ import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.state.StateViewOptions
+import me.ahoo.wow.runtime.store.AggregatePlacement
+import me.ahoo.wow.runtime.store.StorePlacements
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RetryPolicy
@@ -177,6 +179,17 @@ class WowProperties {
 
     /** The keys wow-cosid reads (`wow.cosid.*`), bound here as [cosec] is. */
     var cosid: CosId = CosId()
+
+    /** Where `wow.log`, `wow.snapshot` and `wow.aggregates` place the logs and snapshots (decisions D172, D177). */
+    internal fun storePlacements(): StorePlacements = StorePlacements(
+        log = log.store,
+        snapshot = snapshot.store,
+        snapshotTargets = snapshot.targets,
+        snapshotPrimary = snapshot.primary,
+        aggregates = aggregates.mapValues { (_, aggregate) ->
+            AggregatePlacement(aggregate.log.store, aggregate.snapshot.store, aggregate.snapshot.primary)
+        },
+    )
 
     /** The named store instances (decision D177), by name: `wow.stores.<name>.type` and its settings. */
     var stores: MutableMap<String, Store> = LinkedHashMap()

@@ -64,6 +64,8 @@ import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.runtime.state.KernelStateReads
 import me.ahoo.wow.runtime.state.StateReads
+import me.ahoo.wow.runtime.store.BackendSelection
+import me.ahoo.wow.runtime.store.StoreLayout
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.id.AggregateIdGenerator
@@ -275,7 +277,7 @@ class WowAutoConfiguration {
                 node?.bindHost
             ),
         )
-        val layout = StoreLayout.of(properties, stores, models.models)
+        val layout = StoreLayout.of(properties.storePlacements(), stores, models.models.map { it.type })
         val memory = (layout.logStores + layout.snapshotStores).filterNot { stores.getValue(it).durable }
         if (memory.isNotEmpty()) {
             logger.warn {
