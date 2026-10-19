@@ -80,3 +80,7 @@ main.output.dir(mapOf("builtBy" to generateWowManifestFragment), completedDirect
 tasks.named<ProcessResources>(main.processResourcesTaskName) {
     exclude("$fragmentDirectoryName/**")
 }
+
+// SPIKE D234: what the plugin would do for every domain module, with no configuration: its contract goes into the jar
+// of the api module it declares in `api(...)`.
+apply(from = rootProject.file("example/wow-contract.gradle.kts"))
