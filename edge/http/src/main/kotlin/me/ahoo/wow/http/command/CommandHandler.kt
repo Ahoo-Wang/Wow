@@ -148,7 +148,9 @@ internal class CommandHandler(
                 .event(result.hop.stage.name.lowercase())
                 .build()
         }
-        return results.handingOver { ServerResponse.ok().contentType(MediaType.TEXT_EVENT_STREAM).bodyAndAwait(events) }
+        return results.handingOver(events) {
+            ServerResponse.ok().contentType(MediaType.TEXT_EVENT_STREAM).bodyAndAwait(it)
+        }
     }
 
     companion object {

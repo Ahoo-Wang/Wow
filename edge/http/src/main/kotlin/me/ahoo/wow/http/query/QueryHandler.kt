@@ -332,8 +332,8 @@ internal class QueryHandler(
                 ).event(ERROR).build()
             )
         }
-        return rows.handingOver {
-            ServerResponse.ok().rebuilding(rebuilding).contentType(MediaType.TEXT_EVENT_STREAM).bodyAndAwait(events)
+        return rows.handingOver(events) {
+            ServerResponse.ok().rebuilding(rebuilding).contentType(MediaType.TEXT_EVENT_STREAM).bodyAndAwait(it)
         }
     }
 

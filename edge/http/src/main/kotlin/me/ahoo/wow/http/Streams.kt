@@ -17,9 +17,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onStart
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.server.ServerWebExchange
 import reactor.core.publisher.Mono
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * The first element of a stream a producer hands to a server-sent response, read before the response starts (so a
@@ -43,29 +47,36 @@ internal suspend fun <T> ReceiveChannel<T>.receiveFirst(): T? {
 }
 
 /**
- * The response [respond] builds, whose body reads the rest of this channel after the handler returned, with the
- * channel cancelled whenever that body will not read it: when building the response fails or is cancelled, when the
- * request's coroutine ends cancelled after it (WebFlux then drops the response unwritten), and when the response's
- * write ends, fails or is cancelled (a client that left before the body was subscribed). Otherwise the producer, which
- * runs outside the request, would wait on its next send for ever, and so would what it reads.
+ * The response [respond] builds to answer [body], a flow that reads the rest of this channel after the handler
+ * returned, with the channel cancelled whenever that body ends or will not read it: when [body] ends, however it ends
+ * (a client that left while the body still emitted what it held before reading the channel); when building the
+ * response fails or is cancelled; when the request's coroutine ends cancelled after it (WebFlux then drops the
+ * response unwritten); and when the response's write ends before it started [body]. Otherwise the producer, which runs
+ * outside the request, would wait on its next send for ever, and so would what it reads.
  */
 @Suppress("TooGenericExceptionCaught") // Whatever ends the handover cancels the channel, and is rethrown.
-internal suspend fun ReceiveChannel<*>.handingOver(respond: suspend () -> ServerResponse): ServerResponse {
+internal suspend fun <T> ReceiveChannel<*>.handingOver(
+    body: Flow<T>,
+    respond: suspend (Flow<T>) -> ServerResponse,
+): ServerResponse {
+    val started = AtomicBoolean()
+    val handedOver = body.onStart { started.set(true) }.onCompletion { cancel() }
     val response = try {
-        respond()
+        respond(handedOver)
     } catch (failure: Throwable) {
         cancel()
         throw failure
     }
     currentCoroutineContext()[Job]?.invokeOnCompletion { cause -> if (cause != null) cancel() }
-    return HandedOver(response, this)
+    return HandedOver(response) { if (!started.get()) cancel() }
 }
 
-/** [response], cancelling [channel] once its write ends, however it ends. */
-private class HandedOver(
-    private val response: ServerResponse,
-    private val channel: ReceiveChannel<*>,
-) : ServerResponse by response {
+/**
+ * [response], calling [ended] once its write ends, however it ends. A write may end before the client read the body
+ * (a test client reads it after the write), so only a body never started is the write's to cancel.
+ */
+private class HandedOver(private val response: ServerResponse, private val ended: () -> Unit) :
+    ServerResponse by response {
     override fun writeTo(exchange: ServerWebExchange, context: ServerResponse.Context): Mono<Void> =
-        response.writeTo(exchange, context).doFinally { channel.cancel() }
+        response.writeTo(exchange, context).doFinally { ended() }
 }
