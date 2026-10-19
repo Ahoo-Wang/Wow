@@ -247,7 +247,9 @@ private fun CoRouterFunctionDsl.document(
  * network, from a service it trusts. A service calls only the commands [permits] lets it (decision D226, review A3-2):
  * the domain commands by default, a system command (`wow.*`: the lifecycle, the snapshot rebuild, the schedules and the
  * jobs, whose routes are the public port's too, review R2.3-5) only when listed; any other is answered 403
- * [CallPermits.COMMAND_FORBIDDEN].
+ * [CallPermits.COMMAND_FORBIDDEN]. A call of a command route the Manifest does not have, in a context it serves, is
+ * answered 400 `wow.command.unhandled` with its REJECTED result (review X-5), not 404: the caller's contract names a
+ * command this service does not decide, which a retry does not mend.
  */
 @InternalWowApi
 fun callRoutes(
@@ -279,8 +281,27 @@ fun callRoutes(
             // The snapshot rebuild and the job commands, which a service calls when its permits list them (D226).
             systemRoutes(context, commands, statuses)
         }
+        // A command route of a served context that is none of the above: a command the caller's contract names and
+        // this service does not decide, such as one of a newer version of it (review X-5). The gateway refuses it as
+        // `wow.command.unhandled` with its REJECTED result, which the calling saga takes as a rejection, not as a
+        // failure to retry.
+        served.contexts.forEach { context ->
+            POST("/${context.name}/{$AGGREGATE}/${CommandRoutes.ID}/{$COMMAND}") { request ->
+                statuses.answering { commands.handle(request, unknownTarget(context.name, request, byId = true)) }
+            }
+            POST("/${context.name}/{$AGGREGATE}/{$COMMAND}") { request ->
+                statuses.answering { commands.handle(request, unknownTarget(context.name, request, byId = false)) }
+            }
+        }
     }
 }
+
+private const val AGGREGATE = "aggregate"
+private const val COMMAND = "command"
+
+/** The target of a call [request] to a command route of [context] that no route of the Manifest matched. */
+private fun unknownTarget(context: String, request: ServerRequest, byId: Boolean): CommandTarget =
+    CommandTarget(context, request.pathVariable(AGGREGATE), request.pathVariable(COMMAND), byId)
 
 /** The routes of [aggregate]'s commands and of the lifecycle commands it lists. */
 private fun CoRouterFunctionDsl.commandRoutes(
