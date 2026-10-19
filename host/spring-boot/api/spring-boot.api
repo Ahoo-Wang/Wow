@@ -334,6 +334,18 @@ public abstract interface class me/ahoo/wow/spring/boot/ServiceNodeListener {
 	public abstract fun onStep (Lme/ahoo/wow/runtime/node/ServiceNode$Step;)V
 }
 
+public final class me/ahoo/wow/spring/boot/SpringdocAutoConfiguration {
+	public static final field Companion Lme/ahoo/wow/spring/boot/SpringdocAutoConfiguration$Companion;
+	public static final field DEFAULT_GROUP Ljava/lang/String;
+	public fun <init> ()V
+	public final fun wowGroupedOpenApi (Lme/ahoo/wow/spring/boot/SpringdocDocument;Lme/ahoo/wow/spring/boot/WowProperties;)Lorg/springdoc/core/models/GroupedOpenApi;
+	public final fun wowOpenApiCustomizer (Lme/ahoo/wow/spring/boot/SpringdocDocument;)Lorg/springdoc/core/customizers/OpenApiCustomizer;
+	public final fun wowOpenApiSecurity (Lme/ahoo/wow/http/caller/CallerResolver;)Lme/ahoo/wow/spring/boot/WowOpenApiSecurity;
+}
+
+public final class me/ahoo/wow/spring/boot/SpringdocAutoConfiguration$Companion {
+}
+
 public final class me/ahoo/wow/spring/boot/WowAutoConfiguration {
 	public static final field Companion Lme/ahoo/wow/spring/boot/WowAutoConfiguration$Companion;
 	public static final field INTERNAL_HTTP_CLIENT Ljava/lang/String;
@@ -358,6 +370,22 @@ public final class me/ahoo/wow/spring/boot/WowAutoConfiguration$Companion {
 
 public final class me/ahoo/wow/spring/boot/WowAutoConfiguration$JakartaValidation {
 	public fun <init> ()V
+}
+
+public final class me/ahoo/wow/spring/boot/WowOpenApiSecurity {
+	public static final field BEARER Ljava/lang/String;
+	public static final field Companion Lme/ahoo/wow/spring/boot/WowOpenApiSecurity$Companion;
+	public fun <init> (Ljava/util/Map;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getSchemes ()Ljava/util/Map;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spring/boot/WowOpenApiSecurity$Companion {
+	public final fun getCOSEC ()Lme/ahoo/wow/spring/boot/WowOpenApiSecurity;
+	public final fun getNONE ()Lme/ahoo/wow/spring/boot/WowOpenApiSecurity;
+	public final fun of (Lme/ahoo/wow/http/caller/CallerResolver;)Lme/ahoo/wow/spring/boot/WowOpenApiSecurity;
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties {
@@ -612,7 +640,9 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Http$Manifest {
 public final class me/ahoo/wow/spring/boot/WowProperties$Http$OpenApi {
 	public fun <init> ()V
 	public final fun getEnabled ()Z
+	public final fun getSpringdoc ()Lme/ahoo/wow/spring/boot/WowProperties$Http$Springdoc;
 	public final fun setEnabled (Z)V
+	public final fun setSpringdoc (Lme/ahoo/wow/spring/boot/WowProperties$Http$Springdoc;)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Http$Service {
@@ -621,6 +651,14 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Http$Service {
 	public final fun getTokens ()Ljava/util/List;
 	public final fun setCommands (Ljava/util/List;)V
 	public final fun setTokens (Ljava/util/List;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Http$Springdoc {
+	public fun <init> ()V
+	public final fun getEnabled ()Z
+	public final fun getGroup ()Ljava/lang/String;
+	public final fun setEnabled (Z)V
+	public final fun setGroup (Ljava/lang/String;)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Internal {

@@ -44,6 +44,12 @@ class CoSecCallerResolverTest {
     )
 
     @Test
+    fun `the resolver's name should be the one the host's springdoc bridge knows it by`() {
+        // wow-spring-boot declares CoSec's bearer token for this resolver, by its name (WowOpenApiSecurity, D233).
+        CoSecCallerResolver::class.java.name.assert().isEqualTo("me.ahoo.wow.cosec.CoSecCallerResolver")
+    }
+
+    @Test
     fun `an authenticated principal is the caller in its tenant, as its own owner and subject`() {
         val caller = resolver.callerOf(securityContext("alice", tenant = "acme"))!!
         caller.assert().isEqualTo(Caller("acme", Scope("alice"), subject = "alice"))
