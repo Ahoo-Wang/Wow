@@ -36,12 +36,16 @@ import java.time.Instant
  */
 @InternalWowApi
 interface StateReads {
-    /** The latest state of [ref] the read model holds, or null when it holds none. */
+    /**
+     * The latest state of [ref]: the one the read model holds, else, before its first snapshot is written (or with
+     * its snapshots off), the state its log holds (decision D246 ⑥); null when no commit of [ref] is known. A read
+     * that replays the log runs under the node's [ReplayGate] (its log store's query bulkhead, review R3.4-2).
+     */
     suspend fun latest(ref: AggregateRef): StateReadView?
 
     /**
-     * The latest committed state of [ref]: the one the read model holds ([latest]), else, before its first snapshot
-     * is written, the state its log holds (review R2.3-6); null when no commit of [ref] is known.
+     * The latest committed state of [ref], as [latest] reads it (review R2.3-6) but outside any [ReplayGate]: the
+     * events model reads it while its query holds a permit of its store's bulkhead, which it must not wait for again.
      */
     suspend fun committed(ref: AggregateRef): StateReadView?
 
@@ -75,6 +79,28 @@ interface StateReads {
 
             override suspend fun trace(ref: AggregateRef, fromVersion: Int, toVersion: Int, limit: Int): List<CommitView> =
                 emptyList()
+        }
+    }
+}
+
+/**
+ * How a node's state reads that replay the log run (review R3.4-2): [KernelStateReads] replays an aggregate's latest
+ * state without a snapshot inside [replay], which the host runs under the query bulkhead of the aggregate's log store,
+ * so that reads of aggregates without snapshots cannot take every connection the store's appends draw from.
+ */
+@InternalWowApi
+interface ReplayGate {
+    /** Runs [read], the replay of [ref]'s log, or throws to refuse it (the bulkhead's `wow.query.busy`). */
+    suspend fun <T> replay(ref: AggregateRef, read: suspend () -> T): T
+
+    @InternalWowApi
+    companion object {
+        /** Runs every replay at once. */
+        @JvmField
+        val OPEN: ReplayGate = object : ReplayGate {
+            override suspend fun <T> replay(ref: AggregateRef, read: suspend () -> T): T = read()
+
+            override fun toString(): String = "ReplayGate.OPEN"
         }
     }
 }
@@ -116,33 +142,38 @@ data class EventView(val name: String, val revision: Int, val body: JsonNode)
 
 /**
  * [StateReads] of the contexts a node serves: the latest state is the snapshot ([SnapshotStore], the default read
- * model, design 03 §3); a state at a version or a time, and a trace, are the log replayed by the context's [Kernel]
- * ([Kernel.stateAt], [Kernel.trace]) from the snapshot when it comes before what is asked, else from version 1.
+ * model, design 03 §3), else, while an aggregate has none, its log replayed by the context's [Kernel] from version 1
+ * ([Kernel.stateAt], as the write side loads a state without a snapshot; decision D246 ⑥) under [gate]; a state at a
+ * version or a time, and a trace, are the log replayed ([Kernel.stateAt], [Kernel.trace]) from the snapshot when it
+ * comes before what is asked, else from version 1.
  *
- * An aggregate whose model [registry] does not know, or whose context has no [ContextReads], is not found. So is the
- * latest state of an aggregate without a snapshot: reads come from the read model, not the log; its [committed] state
- * is the log replayed then. States are trees of Wow's JSON (decision D122), so a decimal keeps its digits and its
- * scale.
+ * A snapshot behind the log's head is the latest state as it is: the snapshot is the read model, which the default
+ * wait (`SNAPSHOT`, decision D69) has caught up before a command's answer. An aggregate whose model [registry] does
+ * not know, or whose context has no [ContextReads], is not found, and so is one with no commit. States are trees of
+ * Wow's JSON (decision D122), so a decimal keeps its digits and its scale.
  */
 @InternalWowApi
-class KernelStateReads(private val registry: ModelRegistry, contexts: Map<String, ContextReads>) : StateReads {
+class KernelStateReads(
+    private val registry: ModelRegistry,
+    contexts: Map<String, ContextReads>,
+    private val gate: ReplayGate = ReplayGate.OPEN,
+) : StateReads {
     private val contexts: Map<String, ContextReads> = contexts.toMap()
 
     /** What [KernelStateReads] reads a context from: its kernel and its snapshot store. */
     @InternalWowApi
     class ContextReads(val kernel: Kernel, val snapshots: SnapshotStore)
 
-    override suspend fun latest(ref: AggregateRef): StateReadView? {
-        val reads = contexts[ref.type.context] ?: return null
-        registry.find(ref.type) ?: return null
-        return reads.snapshots.load(ref)?.view()
-    }
+    override suspend fun latest(ref: AggregateRef): StateReadView? = latest(ref, gate)
 
-    override suspend fun committed(ref: AggregateRef): StateReadView? {
+    override suspend fun committed(ref: AggregateRef): StateReadView? = latest(ref, ReplayGate.OPEN)
+
+    /** The snapshot of [ref], else its log replayed under [gate]. */
+    private suspend fun latest(ref: AggregateRef, gate: ReplayGate): StateReadView? {
         val reads = contexts[ref.type.context] ?: return null
         val model = registry.find(ref.type)?.erased() ?: return null
         reads.snapshots.load(ref)?.let { return it.view() }
-        return reads.kernel.stateAt(model, ref, Instant.MAX)?.view(ref)
+        return gate.replay(ref) { reads.kernel.stateAt(model, ref, Instant.MAX) }?.view(ref)
     }
 
     override suspend fun at(ref: AggregateRef, version: Int): StateReadView? {

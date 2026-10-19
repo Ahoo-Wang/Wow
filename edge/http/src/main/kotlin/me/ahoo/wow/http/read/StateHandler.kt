@@ -53,7 +53,8 @@ import java.time.format.DateTimeParseException
  * The state reads of the public port (decisions D40, D112), over the node's [StateReads] (`:runtime`, decision D231):
  *
  * - `GET /{context}/{aggregate}/{id}/state`, `?version=` and `?at=` ([handle]): the [StateReadView] of [reads], with
- *   `ETag: "<version>"`; 304 when `If-None-Match` names that tag. `?at=` takes an ISO-8601 instant (an offset is
+ *   `ETag: "<version>"`; 304 when `If-None-Match` names that tag. The latest state is the snapshot, else, before
+ *   the aggregate's first snapshot, its log replayed (decision D246 ⑥), each read alike. `?at=` takes an ISO-8601 instant (an offset is
  *   read as the instant it names, `+` written `%2B`) and reads the state after the last commit at or before it.
  * - `GET /{context}/{aggregate}/{id}/state/trace?from=&to=&limit=` ([trace]): `{"ref", "commits"}`, the commits from
  *   version `from` (default 1) up to `to` (default the last), at most `limit` of them (default [DEFAULT_TRACE_LIMIT],

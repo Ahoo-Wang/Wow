@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot
 
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
+import com.mongodb.client.model.Filters
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.runtime.node.Routing
@@ -74,6 +75,22 @@ class MongoHostTest {
         val state = host.get("/bank/account/$id/state")
         state.status.assert().isEqualTo(200)
         state.body!!["state"]["balance"].asLong().assert().isEqualTo(3)
+    }
+
+    @Test
+    fun `a state without a snapshot should be read from the log on MongoDB (decision D246)`() {
+        val opened = host.post("/bank/account/open-account", """{"owner":"log-mona"}""")
+        opened.status.assert().isEqualTo(200)
+        val id = opened.body!!["ref"]["id"].asString()
+        host.post("/bank/account/$id/deposit", """{"amount":4}""").status.assert().isEqualTo(200)
+        host.context.getBean(MongoClient::class.java).getDatabase("host_test")
+            .getCollection("wow_snapshot__bank__account").deleteOne(Filters.eq("aggregate_id", id))
+            .deletedCount.assert().isEqualTo(1)
+        val state = host.get("/bank/account/$id/state")
+        state.status.assert().isEqualTo(200)
+        state.headers.eTag.assert().isEqualTo("\"2\"")
+        state.body!!["state"]["balance"].asLong().assert().isEqualTo(4)
+        host.get("/bank/account/none-$id/state").status.assert().isEqualTo(404)
     }
 
     @Test

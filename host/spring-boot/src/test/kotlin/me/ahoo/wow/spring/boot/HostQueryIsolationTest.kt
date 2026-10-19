@@ -27,6 +27,7 @@ import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.events.UnpinnedEventsPolicy
 import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.runtime.node.ContextBackends
+import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.wait.WaitOptions
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
@@ -68,6 +69,36 @@ class HostQueryIsolationTest {
             host.post("/bank/account/snapshot/query", """{"kind":"list","filter":{"op":"MATCH_ALL"}}""")
                 .status.assert().isEqualTo(200)
         }
+    }
+
+    @Test
+    fun `a state read replaying the log should run under its log store's bulkhead (D246)`() {
+        startHost("wow.query.memory.enabled" to true).use { host ->
+            val id = host.openAccount("replay")
+            val bulkhead = host.context.getBean(QueryStores::class.java).bulkheads
+                .getValue(ContextBackends.DEFAULT_STORE)
+            hold(bulkhead.maxConcurrent, bulkhead) {
+                // No snapshot of it: its log would be replayed, which waits for a permit.
+                val busy = host.get("/bank/account/unknown/state")
+                busy.status.assert().isEqualTo(429)
+                busy.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_BUSY)
+                // A snapshot is read without one.
+                host.get("/bank/account/$id/state").status.assert().isEqualTo(200)
+            }
+            host.get("/bank/account/unknown/state").status.assert().isEqualTo(404)
+        }
+    }
+
+    @Test
+    fun `a replay should run at once without a bulkhead of its log store`(): Unit = runBlocking {
+        val ref = account.ref("t", "a-1")
+        HostQueryBulkheads.replays(emptyMap()) { "main" }.assert().isSameAs(ReplayGate.OPEN)
+        val gate = HostQueryBulkheads.replays(mapOf("main" to QueryBulkhead("main", 1))) { type ->
+            "main".takeIf { type == account }
+        }
+        gate.replay(ref) { 1 }.assert().isEqualTo(1)
+        gate.replay(AggregateType(BANK, "other").ref("t", "o-1")) { 2 }.assert().isEqualTo(2)
+        gate.toString().assert().contains("main")
     }
 
     @Test
