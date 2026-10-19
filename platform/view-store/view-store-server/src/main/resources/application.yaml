@@ -3,6 +3,10 @@ spring:
     name: view-store-service
 server:
   port: 8080
+# No identity provider until the `cosec` profile: every request is answered 401, unless a local run takes its callers
+# from headers (wow.platform.trust-identity-headers).
+cosec:
+  enabled: false
 wow:
   service: view-store-service
   # One node, its data in memory: the default, for trying the view store out. The `postgres` profile below keeps the
@@ -21,6 +25,35 @@ wow:
     # (wow.internal.dev-profiles: dev, local, test, demo) or with its internal port on the loopback interface alone.
   # The calling application, which every view, preference and wording is kept in, is the caller's authenticated one:
   # the edge records it as each command's request fact app_id (decision D232); no request-facts entry is needed.
+---
+# CoSec (roadmap P.15): the service verifies each request's CoSec token (Authorization: Bearer, signed HMAC256 with
+# cosec.jwt.secret, COSEC_JWT_SECRET) and the edge reads the user from it: its tenant, its id (the owner of its views),
+# its roles (view-store.shared-writer, view-store.system-writer). CoSec's inject mode, without CoSec's own
+# authorization of each path, so no application is authorized here (decision D236): set wow.cosec.trust-injected-app
+# (WOW_COSEC_TRUSTINJECTEDAPP) behind a CoSec gateway that authorizes each request's CoSec-App-Id by the application's
+# roles, and only where nothing else reaches the service, or every query is refused for want of an application. A
+# service that authorizes its requests itself (cosec.authorization.enabled, with CoSec's policy and app role permission
+# repositories) records the application its roles were authorized in, with no switch.
+spring:
+  config:
+    activate:
+      on-profile: cosec
+cosec:
+  enabled: true
+  jwt:
+    secret: ${COSEC_JWT_SECRET}
+  inject:
+    enabled: true
+  authorization:
+    enabled: false
+  authentication:
+    enabled: false
+  audit:
+    enabled: false
+  ip2region:
+    enabled: false
+  limiter:
+    enabled: false
 ---
 spring:
   config:

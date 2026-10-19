@@ -14,6 +14,10 @@
 package me.ahoo.wow.viewstore.server
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.cosec.context.DefaultSecurityContextParser
+import me.ahoo.cosec.context.SecurityContextParser
+import me.ahoo.cosec.token.TokenVerifier
+import me.ahoo.wow.cosec.CoSecCallerResolver
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.query.QueryPolicy
@@ -25,7 +29,7 @@ import me.ahoo.wow.viewstore.server.system.StoredSystemViews
 import me.ahoo.wow.viewstore.server.system.SystemViewRoutes
 import me.ahoo.wow.viewstore.server.system.ViewStoreProperties
 import org.springframework.beans.factory.ObjectProvider
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass
+import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
@@ -41,8 +45,11 @@ import org.springframework.web.reactive.function.server.ServerResponse
  *
  * Its callers: with `wow.platform.trust-identity-headers=true` ([TRUST_IDENTITY_HEADERS]), the callers the request
  * headers name ([ViewStoreCallers]), for local runs, demos and tests only, with a warning at startup: any client names
- * any user, tenant and role there. Otherwise CoSec's resolver when `wow-cosec` is on the class path, and without it no
- * caller at all ([REFUSED]): every request is answered 401, never served on a client's word.
+ * any user, tenant and role there. Otherwise CoSec's: the edge's resolver reads the user, its roles and the application
+ * CoSec authorized the request in (decisions D232, D236) from the security context CoSec put on the request, which the
+ * `cosec` profile has it verify from the request's token ([securityContextParser]), behind the view store's reserved
+ * owners ([ReservedScopeCallers]); without CoSec (`cosec.enabled=false`, the default profile) no request has one, and
+ * each is answered 401, never served on a client's word.
  */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(ViewStoreProperties::class)
@@ -57,16 +64,16 @@ class ViewStoreConfiguration {
         return ViewStoreCallers()
     }
 
+    /**
+     * CoSec's inject mode with each token verified (the `cosec` profile): CoSec's own parser of that mode trusts any
+     * well-formed token, as a gateway in front of the service would have verified it, so here the service verifies
+     * the token's signature itself (`cosec.jwt.secret`), on the internal port too, whose service principals the edge
+     * parses with this parser (decision D226).
+     */
     @Bean
-    @ConditionalOnProperty(TRUST_IDENTITY_HEADERS, havingValue = "false", matchIfMissing = true)
-    @ConditionalOnMissingClass(COSEC_CALLER_RESOLVER)
-    fun viewStoreRefusedCallers(): CallerResolver {
-        logger.warn {
-            "The view store has no identity provider: every request is answered 401. Put wow-cosec on the class " +
-                "path, or set $TRUST_IDENTITY_HEADERS=true for a local run."
-        }
-        return REFUSED
-    }
+    @ConditionalOnProperty(name = [COSEC_ENABLED, COSEC_INJECT_ENABLED], havingValue = "true")
+    fun securityContextParser(tokenVerifier: TokenVerifier): SecurityContextParser =
+        DefaultSecurityContextParser(tokenVerifier, false)
 
     @Bean
     fun viewStoreAuthorizer(): CommandAuthorizer = ViewStoreAuthorizer()
@@ -107,12 +114,19 @@ class ViewStoreConfiguration {
         /** The switch that takes the callers from the request headers ([ViewStoreCallers]): off by default. */
         const val TRUST_IDENTITY_HEADERS: String = "wow.platform.trust-identity-headers"
 
-        /** CoSec's caller resolver, which serves the view store when `wow-cosec` is on the class path. */
-        const val COSEC_CALLER_RESOLVER: String = "me.ahoo.wow.cosec.CoSecCallerResolver"
+        /** Whether CoSec runs at all; the default profile turns it off, the `cosec` profile on. */
+        const val COSEC_ENABLED: String = "cosec.enabled"
 
-        /** No caller for any request: each is answered 401. */
-        @JvmField
-        val REFUSED: CallerResolver = CallerResolver { null }
+        /** CoSec's inject mode: the security context from the request's token, no authorization of CoSec's own. */
+        const val COSEC_INJECT_ENABLED: String = "cosec.inject.enabled"
+
+        /** Puts CoSec's callers behind the view store's reserved owners ([ReservedScopeCallers]). */
+        @Bean
+        @JvmStatic
+        fun reservedScopeCoSecCallers(): BeanPostProcessor = object : BeanPostProcessor {
+            override fun postProcessAfterInitialization(bean: Any, beanName: String): Any =
+                if (bean is CoSecCallerResolver) ReservedScopeCallers(bean) else bean
+        }
 
         private val logger = KotlinLogging.logger {}
     }

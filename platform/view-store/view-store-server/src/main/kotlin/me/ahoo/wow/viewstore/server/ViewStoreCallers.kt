@@ -25,7 +25,8 @@ import org.springframework.web.reactive.function.server.ServerRequest
 /**
  * Who calls the view store: the 9.x CoSec gateway rules, as the callers of decision D189. It reads request headers
  * and stands in for CoSec (`wow-cosec`), whose resolver gives the same callers from a token, so the service runs
- * without an identity provider; a deployment puts CoSec's resolver in its place.
+ * without an identity provider; a deployment puts CoSec's resolver in its place (the `cosec` profile), behind the
+ * same reserved owners ([ReservedScopeCallers]).
  *
  * - `X-User: <id>`: the user, an owner-level caller whose owner is the user, in the tenant `X-Tenant` (`(0)` without
  *   it); `X-Role` lists its roles, comma-separated ([SHARED_WRITER], [SYSTEM_WRITER]).
@@ -59,16 +60,17 @@ class ViewStoreCallers : CallerResolver {
         )
     }
 
-    /**
-     * The reserved scope [value] names, when it names only one: the owner `(shared)` alone, or the tenant `(platform)`
-     * with the owner `(system)`. Null for no header, one that does not parse (admission answers it) and any other.
-     */
-    private fun reservedTarget(value: String?): TargetScope? {
-        val target = value?.let { runCatching { ScopeHeader.parse(it) }.getOrNull() } ?: return null
-        return target.takeIf { it in RESERVED }
-    }
-
     companion object {
+        /**
+         * The reserved scope [value] names, when it names only one: the owner `(shared)` alone, or the tenant
+         * `(platform)` with the owner `(system)`. Null for no header, one that does not parse (admission answers it)
+         * and any other.
+         */
+        internal fun reservedTarget(value: String?): TargetScope? {
+            val target = value?.let { runCatching { ScopeHeader.parse(it) }.getOrNull() } ?: return null
+            return target.takeIf { it in RESERVED }
+        }
+
         /** The header naming the user. */
         const val USER: String = "X-User"
 
