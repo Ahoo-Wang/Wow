@@ -301,11 +301,13 @@ status() {
 }
 
 # Refuses to run the night tier beside another build or benchmark, then runs the full tier with the machine kept
-# awake (caffeinate: no idle, disk or system sleep).
+# awake (caffeinate: no idle, disk or system sleep). A build is a Gradle client (it lives as long as its build), a
+# Gradle or Kotlin daemon using more than 10% of a core (an idle daemon stays for hours and is no build), or a
+# benchmark server.
 night() {
   local busy
-  busy=$(ps -Ao pid,args | grep -E 'GradleDaemon|GradleWrapperMain|KotlinCompileDaemon|org\.gradle\.launcher|e2e-bench-(9x|v10)/' \
-    | grep -v grep || true)
+  busy=$( { ps -Ao pid,args | grep -E 'GradleWrapperMain|org\.gradle\.launcher\.GradleMain|e2e-bench-(9x|v10)/' || true
+    ps -Ao pid,%cpu,args | grep -E 'GradleDaemon|KotlinCompileDaemon' | awk '$2 > 10' || true; } | grep -v grep || true)
   if [ -n "$busy" ]; then
     log "refusing to start: other Gradle or Java builds (or benchmark servers) are running:"
     echo "$busy" | cut -c1-160 >&2
