@@ -24,8 +24,10 @@ import me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.test.publishedEvent
 import me.ahoo.wow.test.sagaSpec
+import me.ahoo.wow.test.sagaSpecTests
 import me.ahoo.wow.test.stateEvent
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestFactory
 import java.math.BigDecimal
 
 class OrderPaymentSagaTest {
@@ -93,6 +95,22 @@ class OrderPaymentSagaTest {
                 )
                 expectDeterministic()
             }
+        }
+    }
+
+    /** A payment's outcomes as a tree of tests: the order paid, or refusing it, forked from the same handling. */
+    @TestFactory
+    fun `a payment's outcomes`() = sagaSpecTests(handlers) {
+        whenEvent(paymentEvent(PaymentSucceeded("transaction-1"))) {
+            val pay = expectCommand(PayOrder(ORDER, TOTAL), to = order)
+            fork("order refused") {
+                whenRejected(pay, code = "eshop-ordering.order.wrong-status", message = "Cancelled.") {
+                    expectCommand(RefundPayment("The order alice-1 refused the payment: Cancelled."), to = payment)
+                }
+            }
+        }
+        whenEvent(paymentEvent(PaymentFailed("declined"))) {
+            expectCommand(CancelOrder("The payment failed: declined"), to = order)
         }
     }
 

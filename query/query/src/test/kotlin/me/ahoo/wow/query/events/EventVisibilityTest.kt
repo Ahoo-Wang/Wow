@@ -72,22 +72,29 @@ class EventVisibilityTest {
     }
 
     @Test
-    fun `a type without a snapshot query gateway reads no state and shows every aggregate`(): Unit = runBlocking {
+    fun `a type without a snapshot query gateway fails closed while policies may hide one`(): Unit = runBlocking {
         var read = false
         val visibility = EventVisibility.of({ null }) {
             read = true
-            state(2)
+            state(1)
         }
-        visibility.visible(ref, alice).assert().isTrue()
+        visibility.visible(ref, admin).assert().isFalse()
         read.assert().isFalse()
     }
+
+    @Test
+    fun `a type without a snapshot query gateway shows every aggregate when nothing could hide one`(): Unit =
+        runBlocking {
+            EventVisibility.of({ null }, hides = false) { null }.visible(ref, alice).assert().isTrue()
+        }
 
     @Test
     fun `a caller sees all only when nothing could hide an aggregate`(): Unit = runBlocking {
         EventVisibility.ALL.seesAll(type, alice).assert().isTrue()
         EventVisibility.of({ snapshots }) { state(1) }.seesAll(type, alice).assert().isFalse()
         EventVisibility.of({ snapshots }, hides = false) { state(1) }.seesAll(type, alice).assert().isTrue()
-        EventVisibility.of({ null }) { state(1) }.seesAll(type, alice).assert().isTrue()
+        EventVisibility.of({ null }) { state(1) }.seesAll(type, alice).assert().isFalse()
+        EventVisibility.of({ null }, hides = false) { state(1) }.seesAll(type, alice).assert().isTrue()
         EventVisibility { _, _ -> true }.seesAll(type, alice).assert().isFalse()
     }
 }

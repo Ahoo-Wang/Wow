@@ -15,15 +15,20 @@ package me.ahoo.wow.runtime.node
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.log.Partitioner
 
 /**
  * A topic one of a node's contexts owns (decision D168): its name, the [partitions] it is created with, whether a
- * topic of another count is refused ([exact], a command topic), and what it is for, as a failed check says.
+ * topic of another count is refused ([exact], a command topic), and what it is for, as a failed check says. An exact
+ * topic has as many partitions as a log, so its count must be a valid one ([Partitioner.requirePartitions], D240).
  */
 @InternalWowApi
 data class TopicRequirement(val topic: String, val partitions: Int, val exact: Boolean, val purpose: String) {
     init {
         require(partitions >= 1) { "A topic has at least one partition." }
+        if (exact) {
+            Partitioner.requirePartitions(partitions)
+        }
     }
 }
 

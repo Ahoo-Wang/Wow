@@ -26,7 +26,9 @@ import me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment
 import me.ahoo.wow.example.eshop.payment.api.payment.RequestPayment
 import me.ahoo.wow.test.AggregateSpec
 import me.ahoo.wow.test.aggregateSpec
+import me.ahoo.wow.test.aggregateSpecTests
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.TestFactory
 import java.math.BigDecimal
 
 /** The payment's state machine on the kernel, through the model the compiler generated. */
@@ -136,6 +138,32 @@ class PaymentSpec {
         fork(from = "requested") {
             whenCommand(FailPayment(DECLINED)) { expectEvents(PaymentFailed(DECLINED)) }
         }
+    }
+
+    /**
+     * The same lifecycle as a tree of tests: each command is a test and each fork a container, forked from the checks
+     * of the request, so a failing branch is reported on its own and the others still run.
+     */
+    @TestFactory
+    fun `a payment's lifecycle`() = aggregateSpecTests(paymentModel(PaymentContext.NAME), id = ORDER) {
+        whenCommand(RequestPayment(ORDER, AMOUNT)) {
+            expectEventTypes(PaymentRequested::class)
+            fork("confirmed") {
+                whenCommand(ConfirmPayment(TRANSACTION)) {
+                    expectEventTypes(PaymentSucceeded::class)
+                    fork("refunded") {
+                        whenCommand(RefundPayment(REFUSED)) { expectEvents(PaymentRefunded(REFUSED)) }
+                        whenCommand(ConfirmPayment(TRANSACTION)) { expectRejected(PaymentRejections.WRONG_STATUS) }
+                    }
+                }
+                whenCommand(FailPayment("too late")) { expectRejected(PaymentRejections.WRONG_STATUS) }
+            }
+            fork("failed") {
+                whenCommand(FailPayment(DECLINED)) { expectEvents(PaymentFailed(DECLINED)) }
+                whenCommand(RefundPayment(REFUSED)) { expectRejected(PaymentRejections.WRONG_STATUS) }
+            }
+        }
+        whenCommand(RefundPayment(REFUSED)) { expectRejected(PaymentRejections.WRONG_STATUS) }
     }
 
     @Test

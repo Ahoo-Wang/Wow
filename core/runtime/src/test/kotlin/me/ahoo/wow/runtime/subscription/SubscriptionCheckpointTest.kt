@@ -120,7 +120,7 @@ class SubscriptionCheckpointTest {
     fun `the periodic save stores every moved checkpoint in one call, and a failed one again on the next tick`(): Unit =
         runBlocking {
             // B.D diagnostics: one round trip a tick for all the subscriptions and partitions, not one each.
-            val log = InMemoryEventLog(partitions = 3)
+            val log = InMemoryEventLog(partitions = 4)
             val appender = Appender(log)
             val failures = AtomicInteger(1)
             val failingOnce = object : CheckpointStore by checkpoints {
@@ -141,15 +141,15 @@ class SubscriptionCheckpointTest {
                 testOptions(checkpointInterval = 200.milliseconds),
             )
             repeat(30) { appender.append("a$it") }
-            runtime.start(setOf(0, 1, 2))
+            runtime.start(setOf(0, 1, 2, 3))
             eventually {
-                (0..2).all { partition ->
+                (0..3).all { partition ->
                     listOf("one", "two").all { checkpoints.load("group", it, partition) == appender.ends[partition] }
                 }
             }
             runtime.stop()
             failures.get().assert().isLessThan(0)
-            checkpoints.batches.assert().contains(6)
+            checkpoints.batches.assert().contains(8)
         }
 
     @Test

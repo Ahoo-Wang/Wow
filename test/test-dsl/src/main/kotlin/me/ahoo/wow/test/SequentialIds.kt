@@ -20,8 +20,8 @@ import me.ahoo.wow.api.id.Ids
  * The ids the test DSL gives domain code (decision D171), the same on every run: the n-th global id is `id-n`, the
  * n-th id of an aggregate type is `<aggregate>-n` (`order-1`, `order-2`), each counted from 1.
  *
- * An [aggregateSpec] counts across the whole specification (a fork replays its prefix, so it counts as the
- * specification did up to there); a [sagaSpec] counts anew for each handling, as each handling of a commit gets a
+ * An [aggregateSpec] counts across the whole specification (a fork copies the counts, so it goes on from where
+ * the specification was); a [sagaSpec] counts anew for each handling, as each handling of a commit gets a
  * context of its own, so handling it again takes the same ids.
  */
 class SequentialIds : Ids {
@@ -33,6 +33,13 @@ class SequentialIds : Ids {
 
     @Synchronized
     override fun next(type: AggregateType): String = "${type.name}-${aggregates.merge(type, 1, Int::plus)}"
+
+    /** A copy of these ids, counting on from where they are: a fork's (decision D245). */
+    @Synchronized
+    internal fun copy(): SequentialIds = SequentialIds().also { copy ->
+        copy.global = global
+        copy.aggregates.putAll(aggregates)
+    }
 
     companion object {
         /** The prefix of the global ids. */

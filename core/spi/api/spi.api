@@ -322,6 +322,7 @@ public abstract interface class me/ahoo/wow/spi/log/EventLog {
 	public abstract fun findByRequestId (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;Ljava/lang/String;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun getPartitions ()I
 	public abstract fun head (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun lineage (ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun positionOf (Lme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun read (Lme/ahoo/wow/api/aggregate/AggregateRef;II)Lkotlinx/coroutines/flow/Flow;
 	public static synthetic fun read$default (Lme/ahoo/wow/spi/log/EventLog;Lme/ahoo/wow/api/aggregate/AggregateRef;IIILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
@@ -407,11 +408,30 @@ public final class me/ahoo/wow/spi/log/LogPosition {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/spi/log/PartitionLineage {
+	public static final field Companion Lme/ahoo/wow/spi/log/PartitionLineage$Companion;
+	public static final field ROOT Lme/ahoo/wow/spi/log/PartitionLineage;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getEpoch ()I
+	public final fun getParent ()Ljava/lang/Integer;
+	public fun hashCode ()I
+	public static final fun of (Ljava/lang/Integer;I)Lme/ahoo/wow/spi/log/PartitionLineage;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/log/PartitionLineage$Companion {
+	public final fun of (Ljava/lang/Integer;I)Lme/ahoo/wow/spi/log/PartitionLineage;
+}
+
 public final class me/ahoo/wow/spi/log/Partitioner {
 	public static final field INSTANCE Lme/ahoo/wow/spi/log/Partitioner;
+	public static final field SLOTS I
 	public final fun hash (Ljava/lang/String;)J
+	public final fun isValidPartitions (I)Z
 	public final fun key (Lme/ahoo/wow/api/aggregate/AggregateRef;)Ljava/lang/String;
 	public final fun partitionOf (Lme/ahoo/wow/api/aggregate/AggregateRef;I)I
+	public final fun requirePartitions (I)I
+	public final fun slotOf (Lme/ahoo/wow/api/aggregate/AggregateRef;)I
 }
 
 public final class me/ahoo/wow/spi/log/TailPacer {

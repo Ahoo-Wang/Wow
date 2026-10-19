@@ -33,6 +33,7 @@ import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
+import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.TailPacer
 import me.ahoo.wow.spi.log.Transport
@@ -60,6 +61,8 @@ import kotlin.time.Duration.Companion.seconds
  *
  * The log takes one table per aggregate type, `wow_log__<context>__<aggregate>` (decision D162); a context-level
  * table holds one counter row per partition, so partitions, their sequences, leases and checkpoints stay per context.
+ * A counter row also holds its partition's lineage, `parent` (null) and `epoch` (0) (decision D240): format 1 reserves
+ * them for the online splits of 10.x, and [lineage] reads them back.
  * An append is one autocommitted statement (see [AggregateLogTable.append]): it bumps its partition's counter, which
  * locks the row until the statement commits, and inserts the stream into its aggregate's table at that sequence only
  * if the aggregate is exactly one version behind. Because the lock is held until commit, the sequence order is the
@@ -108,7 +111,8 @@ class PostgresEventLog(
 ) : EventLog {
     private val tables = PostgresEventLogTables(context)
 
-    private val pacer = TailPacer(partitions, pollInterval, maxPollInterval)
+    /** Validates the partition count first (decision D240): a log of another count is refused when it is built. */
+    private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
 
     /** The aggregate tables whose creation and registration this log has made sure of. */
     private val ensured = ConcurrentHashMap<String, AggregateLogTable>()
@@ -116,10 +120,6 @@ class PostgresEventLog(
     /** The aggregate tables of the context, as of the last read of the registry, in registry order. */
     @Volatile
     private var registered: List<AggregateLogTable>? = null
-
-    init {
-        require(partitions >= 1) { "There is at least one partition." }
-    }
 
     /**
      * Creates the partition counters and the registry when missing; refuses a different partition count, and a log
@@ -133,6 +133,8 @@ class PostgresEventLog(
             PostgresFormat.schema(connection, ddl, structures) {
                 connection.createStatement().use { statement ->
                     tables.ddl().forEach { statement.execute(it) }
+                    // A counter table created before the lineage columns (D240) gets them before its counters are written.
+                    statement.execute(tables.partitionAdditions)
                     statement.execute(tables.initializePartitions(partitions))
                 }
                 // A table created before format 1's added columns (D163, D166) gets them, so the tail reads every table.
@@ -426,6 +428,28 @@ class PostgresEventLog(
     /** One read of a tail: its [entries], whether to read again at once, whether the counter is ahead of them. */
     private class TailBatch(val entries: List<LogEntry>, val again: Boolean, val behind: Boolean)
 
+    /**
+     * The lineage of [partition] from its counter row (decision D240): its `parent` and `epoch`, read as
+     * [PartitionLineage.ROOT] when the columns are null or missing (a schema created before them).
+     */
+    override suspend fun lineage(partition: Int): PartitionLineage {
+        require(partition in 0 until partitions) { "No partition $partition among $partitions." }
+        return dispatcher.jdbc {
+            dataSource.autoCommitted { connection ->
+                connection.prepareStatement(tables.partitionRow).use { query ->
+                    query.setInt(1, partition)
+                    query.executeQuery().use { rows ->
+                        check(rows.next()) { "The log of $context has no counter of partition $partition." }
+                        val columns = (1..rows.metaData.columnCount).map { rows.metaData.getColumnName(it) }.toSet()
+                        val parent = if (PARENT in columns) rows.getInt(PARENT).takeUnless { rows.wasNull() } else null
+                        val epoch = if (EPOCH in columns) rows.getInt(EPOCH) else 0
+                        PartitionLineage.of(parent, epoch)
+                    }
+                }
+            }
+        }
+    }
+
     override suspend fun head(partition: Int): Long? {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         return dispatcher.jdbc {
@@ -507,6 +531,10 @@ class PostgresEventLog(
         val DEFAULT_POLL_INTERVAL = 50.milliseconds
         val DEFAULT_MAX_POLL_INTERVAL = 1.seconds
         const val DEFAULT_TAIL_BATCH = 500
+
+        /** The lineage columns of a partition's counter row (decision D240). */
+        const val PARENT = "parent"
+        const val EPOCH = "epoch"
 
         /** The entries of [entries], in sequence order, that continue `last` without a gap. */
         fun contiguousRun(entries: List<LogEntry>, last: Long): List<LogEntry> {

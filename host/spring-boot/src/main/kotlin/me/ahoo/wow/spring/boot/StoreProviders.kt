@@ -70,7 +70,7 @@ class StoreProviders internal constructor(
         fun load(
             classLoader: ClassLoader?,
             memory: StoreProvider = MemoryStoreProvider(),
-            memoryQueries: StoreQueryProvider = MemoryQueryProvider,
+            memoryQueries: StoreQueryProvider = MemoryQueryProvider(),
             beans: List<StoreProvider> = emptyList(),
             queryBeans: List<StoreQueryProvider> = emptyList(),
         ): StoreProviders {

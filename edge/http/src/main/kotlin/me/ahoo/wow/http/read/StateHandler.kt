@@ -87,7 +87,7 @@ internal class StateHandler(
         val (scope, ref, caller) = reader(request, type)
         val view = read(request, ref)
         checkScope(scope, view.scope, ref)
-        val state = admitted(type) { StateVisibility.admitted(queries.snapshots(type), caller, view.committed(), masks) }
+        val state = admitted(type) { StateVisibility.admitted(queries.visibility(type), caller, view.committed(), masks) }
             ?: throw problem(FrameworkCodes.NOT_FOUND, "No state of $ref.", type)
         // The masks are the same for every caller, so the version tags the one body every caller gets.
         val tag = "\"${view.version}\""
@@ -108,7 +108,7 @@ internal class StateHandler(
             throw problem(FrameworkCodes.NOT_FOUND, "No commit of $ref from version $from.", type)
         }
         commits.forEach { checkScope(scope, it.scope, ref) }
-        val gateway = queries.snapshots(type)
+        val gateway = queries.visibility(type)
         val masked = commits.map { commit ->
             val state = admitted(type) { StateVisibility.admitted(gateway, caller, commit.committed(ref), masks) }
                 ?: throw problem(FrameworkCodes.NOT_FOUND, "No commit of $ref from version $from.", type)

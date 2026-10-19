@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.cosec
 
-import me.ahoo.cosec.context.SecurityContextParser
 import me.ahoo.cosec.context.request.RequestParser
+import me.ahoo.cosec.token.TokenVerifier
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallAuthorizer
@@ -45,6 +45,10 @@ import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
  *   identities, decision D193), comma-separated or indexed lists, and `wow.cosec.trust-injected-app` (false), whether
  *   a service in CoSec's inject mode records the application of the requests its gateway forwards (decision D236 ②,
  *   [trustInjectedApp]).
+ * - [CoSecInternalCallerResolver] is the host's [InternalCallerResolver], the callers of the internal port's call
+ *   routes, when the application has CoSec's request parser and [TokenVerifier] and no internal resolver of its own: it
+ *   verifies each service principal's token itself, in every CoSec mode (review X-14). It is not a [CallerResolver],
+ *   so the public port's resolver stays the only one (review X-13).
  * - The CoSec request fact `CoSec-Device-Id` ([CoSecRequestFacts]) joins the edge's request-fact list
  *   (`wow.http.request-facts`); the application CoSec authorized a request in is the standard fact `app_id` (D232).
  * - [CoSecCommandAuthorizer] is the host's [CommandAuthorizer] when `wow.cosec.authorizer.enabled` is true, the
@@ -63,19 +67,21 @@ class CoSecAutoConfiguration {
         CoSecCallerResolver(callerOptions(environment))
 
     /**
-     * The callers of the internal port's call routes (decision D193): CoSec's service principals, parsed from their
-     * tokens by CoSec's own parsers, since the internal port runs no CoSec filter.
+     * The callers of the internal port's call routes (decision D193): CoSec's service principals, from their tokens
+     * verified by CoSec's [TokenVerifier], since the internal port runs no CoSec filter; never by the application's
+     * [me.ahoo.cosec.context.SecurityContextParser], which in CoSec's inject mode does not verify a token's signature
+     * (review X-14).
      */
     @Bean
     @Conditional(InternalCallersAvailable::class)
     fun wowCoSecInternalCallerResolver(
         requests: RequestParser<ServerWebExchange>,
-        contexts: SecurityContextParser,
+        tokens: TokenVerifier,
         environment: Environment,
     ): CoSecInternalCallerResolver =
         CoSecInternalCallerResolver(
             requests,
-            contexts,
+            tokens,
             // A service's call is never an injected request: it has the application its Wow-Call carries (D236).
             CoSecCallerResolver(callerOptions(environment, injectedApps = false)),
         )
@@ -100,14 +106,14 @@ class CoSecAutoConfiguration {
     }
 
     /**
-     * The application has CoSec's request and security-context parsers, and no
+     * The application has CoSec's request parser and token verifier, and no
      * [me.ahoo.wow.http.caller.InternalCallerResolver] of its own.
      */
     internal class InternalCallersAvailable : Condition {
         override fun matches(context: ConditionContext, metadata: AnnotatedTypeMetadata): Boolean {
             val beans = context.beanFactory ?: return false
             return beans.getBeanNamesForType(RequestParser::class.java, true, false).isNotEmpty() &&
-                beans.getBeanNamesForType(SecurityContextParser::class.java, true, false).isNotEmpty() &&
+                beans.getBeanNamesForType(TokenVerifier::class.java, true, false).isNotEmpty() &&
                 beans.getBeanNamesForType(InternalCallerResolver::class.java, true, false).isEmpty()
         }
     }

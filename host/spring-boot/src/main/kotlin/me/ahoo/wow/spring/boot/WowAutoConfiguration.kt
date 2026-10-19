@@ -238,12 +238,16 @@ class WowAutoConfiguration {
         queries: ObjectProvider<QueryProperties>,
         providers: ObjectProvider<StoreProvider>,
         queryProviders: ObjectProvider<StoreQueryProvider>,
-    ): StoreProviders = StoreProviders.load(
-        beanFactory.beanClassLoader,
-        memory = MemoryStoreProvider(memoryQueries = queries.ifAvailable?.memory?.enabled == true),
-        beans = providers.orderedStream().toList(),
-        queryBeans = queryProviders.orderedStream().toList(),
-    )
+    ): StoreProviders {
+        val memoryQueries = queries.ifAvailable?.memory?.enabled == true
+        return StoreProviders.load(
+            beanFactory.beanClassLoader,
+            memory = MemoryStoreProvider(memoryQueries),
+            memoryQueries = MemoryQueryProvider(memoryQueries),
+            beans = providers.orderedStream().toList(),
+            queryBeans = queryProviders.orderedStream().toList(),
+        )
+    }
 
     @Bean
     @ConditionalOnMissingBean
@@ -461,7 +465,8 @@ class WowAutoConfiguration {
         options: WowHttpOptions,
         environment: Environment,
     ): InternalServer {
-        val services = serviceTokens(properties).resolver(internalCallers.ifAvailable ?: callers)
+        val internal = internalCallers.ifAvailable?.let { resolver -> CallerResolver { resolver.resolve(it) } }
+        val services = serviceTokens(properties).resolver(internal ?: callers)
         return InternalServer(
             properties.internal.port,
             identity.bindHost,

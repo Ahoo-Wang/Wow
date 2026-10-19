@@ -164,11 +164,11 @@ class SnapshotQueryBackend(
 }
 
 /**
- * The queries of a store in memory, built into the host: its snapshots when `wow.query.memory.enabled` gave it the
- * in-memory reference query backend ([MemoryStore.queries], decision D209), and its logs scanned in memory
- * ([InMemoryEventQueryStorage.of]) for the `events` model.
+ * The queries of a store in memory, built into the host, both only when `wow.query.memory.enabled` ([enabled]) is on
+ * (decision D209, review R3.4-1): its snapshots from the in-memory reference query backend it was given
+ * ([MemoryStore.queries]), and its logs scanned in memory ([InMemoryEventQueryStorage.of]) for the `events` model.
  */
-internal object MemoryQueryProvider : StoreQueryProvider {
+internal class MemoryQueryProvider(private val enabled: Boolean = false) : StoreQueryProvider {
     override val type: String = StoreTypes.MEMORY
 
     override fun snapshots(store: Store, options: StoreQueryOptions): SnapshotQueries? =
@@ -178,7 +178,8 @@ internal object MemoryQueryProvider : StoreQueryProvider {
             }
         }
 
-    override fun events(store: Store, options: StoreQueryOptions): EventQueries {
+    override fun events(store: Store, options: StoreQueryOptions): EventQueries? {
+        if (!enabled) return null
         val scanned = ConcurrentHashMap<String, InMemoryEventQueryStorage>()
         return EventQueries { type ->
             store.openedLog(type.context)?.let { log ->
@@ -211,6 +212,12 @@ class EventQueryBackend(private val binding: (AggregateType) -> QueryBackendBind
  */
 internal fun snapshotTypes(manifest: Manifest, contexts: Set<String>): List<AggregateType> =
     queryTypes(manifest, contexts, QueryRoutes.SNAPSHOT)
+
+/** Every aggregate type of [manifest] in [contexts]. */
+internal fun hostedTypes(manifest: Manifest, contexts: Set<String>): List<AggregateType> =
+    manifest.contexts.filter { it.name in contexts }.flatMap { context ->
+        context.aggregates.map { AggregateType(context.name, it.name) }
+    }
 
 /** The aggregate types of [manifest] in [contexts] whose [model] the Manifest lists. */
 internal fun queryTypes(manifest: Manifest, contexts: Set<String>, model: String): List<AggregateType> =
