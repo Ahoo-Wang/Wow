@@ -200,9 +200,11 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/WowSpi : j
 
 public final class me/ahoo/wow/api/caller/Caller {
 	public static final field ANONYMOUS Lme/ahoo/wow/api/caller/Caller;
+	public static final field APP Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/api/caller/Caller$Companion;
 	public static final field DEFAULT_TENANT Ljava/lang/String;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getApp ()Ljava/lang/String;
 	public final fun getAttributes ()Ljava/util/Map;
 	public final fun getCrossScope ()Z
 	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
@@ -361,6 +363,15 @@ public final class me/ahoo/wow/api/decide/Rejection$Companion {
 	public final fun of (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/decide/Rejection;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/api/decide/Rejection;
 	public static synthetic fun of$default (Lme/ahoo/wow/api/decide/Rejection$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/api/decide/Rejection;
+}
+
+public final class me/ahoo/wow/api/decide/RequestFacts {
+	public static final field APP_ID Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/api/decide/RequestFacts;
+	public static final field PROPAGATED Ljava/util/Set;
+	public static final field REMOTE_IP Ljava/lang/String;
+	public static final field STANDARD Ljava/util/Set;
+	public static final field USER_AGENT Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/api/decide/ReservationTenancy : java/lang/Enum {
@@ -1308,6 +1319,7 @@ public final class me/ahoo/wow/api/subscribe/CommandCommitted {
 	public final fun getCommandId ()Ljava/lang/String;
 	public final fun getCommandType ()Ljava/lang/String;
 	public final fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
+	public final fun getHeaders ()Ljava/util/Map;
 	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
 	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun getResult ()Lme/ahoo/wow/api/result/CommandResult;
@@ -1324,6 +1336,7 @@ public final class me/ahoo/wow/api/subscribe/CommandRejected {
 	public final fun getCommandType ()Ljava/lang/String;
 	public final fun getError ()Lme/ahoo/wow/api/result/ErrorInfo;
 	public final fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
+	public final fun getHeaders ()Ljava/util/Map;
 	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
 	public final fun getRef ()Lme/ahoo/wow/api/aggregate/AggregateRef;
 	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;

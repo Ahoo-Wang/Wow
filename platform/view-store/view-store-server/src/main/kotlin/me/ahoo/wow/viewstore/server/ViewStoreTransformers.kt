@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.viewstore.server
 
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.runtime.admission.CommandInput
 import me.ahoo.wow.runtime.admission.CommandTarget
@@ -59,10 +60,8 @@ class WordingClearTarget : CommandTransformer {
     }
 }
 
-/** The application of [input]: its request fact `CoSec-App-Id`, matched without regard to case. */
-private fun appOf(input: CommandInput): String? = input.headers.entries
-    .firstOrNull { it.key.equals(ViewStoreContext.APP_ID_HEADER, ignoreCase = true) }
-    ?.value?.trim()?.ifEmpty { null }
+/** The application of [input]: its standard request fact `app_id` (decision D232), as the aggregate reads it. */
+private fun appOf(input: CommandInput): String? = input.headers[RequestFacts.APP_ID]?.trim()?.ifEmpty { null }
 
 /** The command type of [commandClass] of [aggregate], named after its class (decision D55). */
 private fun command(aggregate: String, commandClass: Class<*>): CommandType =

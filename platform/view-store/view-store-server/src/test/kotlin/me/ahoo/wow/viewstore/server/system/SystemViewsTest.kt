@@ -123,7 +123,11 @@ class SystemViewsTest {
     @OptIn(InternalWowApi::class)
     private fun views(records: () -> Flow<ObjectNode>): WebTestClient {
         val views = storedViews(records)
-        val callers = CallerResolver { Caller(tenantId = "t1") }
+        // The application the resolver authenticated, from the header as the view store's own resolver takes it.
+        val callers = CallerResolver { request ->
+            val app = request.headers().firstHeader(ViewStoreContext.APP_ID_HEADER)
+            Caller(tenantId = "t1", attributes = app?.let { mapOf(Caller.APP to listOf(it)) }.orEmpty())
+        }
         return WebTestClient.bindToRouterFunction(SystemViewRoutes(views, callers).routes()).build()
     }
 

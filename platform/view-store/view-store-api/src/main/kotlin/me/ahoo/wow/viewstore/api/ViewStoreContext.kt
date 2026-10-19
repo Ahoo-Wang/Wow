@@ -42,8 +42,10 @@ object ViewStoreContext {
     const val SYSTEM_TENANT_ID: String = "(platform)"
 
     /**
-     * The request header naming the calling application, which CoSec authenticates. The service carries it into each
-     * command as a request fact (`wow.http.request-facts`), under this name.
+     * The request header naming the calling application. The service does not copy it as the client sent it: its
+     * caller resolver authenticates the application (CoSec's: the one CoSec authorized the request in by that
+     * application's roles), and the edge records it as the standard request fact `app_id` and the caller's attribute
+     * `app` (decision D232), which the view store reads.
      */
     const val APP_ID_HEADER: String = "CoSec-App-Id"
 

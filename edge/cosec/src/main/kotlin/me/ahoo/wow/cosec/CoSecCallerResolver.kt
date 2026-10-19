@@ -176,8 +176,7 @@ class CoSecCallerResolver(private val options: CoSecCallerOptions = CoSecCallerO
          * when CoSec's authorization allowed it by a permission of a role of that application ([RoleVerifyContext]);
          * null when it was allowed otherwise, not authorized here, or names no application.
          */
-        @JvmStatic
-        fun appOf(context: SecurityContext): String? {
+        internal fun appOf(context: SecurityContext): String? {
             val verified = context.getVerifyContext() as? RoleVerifyContext ?: return null
             if (verified.result != VerifyResult.ALLOW) {
                 return null

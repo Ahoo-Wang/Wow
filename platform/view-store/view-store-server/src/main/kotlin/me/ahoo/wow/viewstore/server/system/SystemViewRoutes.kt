@@ -36,7 +36,8 @@ import org.springframework.web.reactive.function.server.coRouter
  * - `GET /view-store/system-views/{id}`: one of them, a `view-store.not-found` problem otherwise.
  *
  * The caller is the service's [CallerResolver]'s (401 `wow.auth.unauthenticated` when it accepts none); the
- * application is `CoSec-App-Id` (400 `view-store.app-required` without it). The route sits under the context's path,
+ * application is the caller's, the one its resolver authenticated ([me.ahoo.wow.api.caller.Caller.app], decision D232;
+ * 400 `view-store.app-required` without it). The route sits under the context's path,
  * so the service orders it before Wow's routes, whose catch-all answers any other path there with a 404. A failure is
  * a problem as on Wow's routes (review R2.3-8): a store that is unavailable is `wow.storage.unavailable` with
  * `Retry-After`, anything else a 500 that says nothing of its cause, which is logged.
@@ -85,12 +86,11 @@ class SystemViewRoutes(private val views: StoredSystemViews, private val callers
     ): ServerResponse {
         val caller = callers.resolve(request)
             ?: return problem(HttpStatus.UNAUTHORIZED, UNAUTHENTICATED, "The request carries no credentials accepted here.")
-        val appId = request.headers().firstHeader(ViewStoreContext.APP_ID_HEADER)?.trim()?.ifEmpty { null }
-            ?: return problem(
-                HttpStatus.BAD_REQUEST,
-                ViewStoreRejections.APP_REQUIRED,
-                "The request carries no ${ViewStoreContext.APP_ID_HEADER}.",
-            )
+        val appId = caller.app?.trim() ?: return problem(
+            HttpStatus.BAD_REQUEST,
+            ViewStoreRejections.APP_REQUIRED,
+            "The request carries no authenticated application (${ViewStoreContext.APP_ID_HEADER}).",
+        )
         return answer(caller.tenantId, appId)
     }
 

@@ -38,8 +38,8 @@ class ViewStoreQueryPolicy : QueryPolicy {
         if (caller.caller == null || context.schema.model != QueryModel.SNAPSHOT) {
             return MatchAllFilter
         }
-        val app = caller.attributes[ViewStoreCallers.APP]?.firstOrNull() ?: throw QueryRequestException(
-            "The request carries no ${ViewStoreContext.APP_ID_HEADER}.",
+        val app = caller.caller?.app ?: throw QueryRequestException(
+            "The request carries no authenticated application (${ViewStoreContext.APP_ID_HEADER}).",
             APP_REQUIRED,
         )
         return filter { APP_ID eq app }

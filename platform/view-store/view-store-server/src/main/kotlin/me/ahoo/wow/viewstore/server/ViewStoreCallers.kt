@@ -29,7 +29,9 @@ import org.springframework.web.reactive.function.server.ServerRequest
  *
  * - `X-User: <id>`: the user, an owner-level caller whose owner is the user, in the tenant `X-Tenant` (`(0)` without
  *   it); `X-Role` lists its roles, comma-separated ([SHARED_WRITER], [SYSTEM_WRITER]).
- * - `CoSec-App-Id`: the calling application, an attribute ([APP]) the query policy keeps the queries in.
+ * - `CoSec-App-Id`: the calling application, the caller's standard attribute [Caller.APP] (decision D232), which the
+ *   edge records as each command's request fact `app_id` and the query policy keeps the queries in. Like the user,
+ *   it is taken as the request sends it here; CoSec's resolver takes only the application CoSec authorized.
  * - `Wow-Scope` naming the owner `(shared)`, or the tenant `(platform)` with the owner `(system)`: the caller acts as
  *   that reserved owner, which 9.x addressed by the path `…/owner/(shared)/…`. Every caller may read there; the
  *   [ViewStoreAuthorizer] decides who writes. Any other `Wow-Scope` is refused by admission (`wow.auth.forbidden`):
@@ -45,7 +47,7 @@ class ViewStoreCallers : CallerResolver {
         val app = headers.firstHeader(ViewStoreContext.APP_ID_HEADER)?.trim()?.ifEmpty { null }
         val attributes = listOfNotNull(
             ROLES_ATTRIBUTE to roles,
-            app?.let { APP to listOf(it) },
+            app?.let { Caller.APP to listOf(it) },
         ).toMap().filterValues { it.isNotEmpty() }
         val reserved = reservedTarget(headers.firstHeader(WowHeaders.SCOPE))
         return Caller.of(
@@ -78,9 +80,6 @@ class ViewStoreCallers : CallerResolver {
 
         /** The caller attribute listing its roles, as CoSec's resolver names it. */
         const val ROLES_ATTRIBUTE: String = "roles"
-
-        /** The caller attribute naming its application, the request's `CoSec-App-Id`. */
-        const val APP: String = "app"
 
         /** The role that writes the owner `(shared)`'s views and preferences and the tenant's dataset wording. */
         const val SHARED_WRITER: String = "view-store.shared-writer"
