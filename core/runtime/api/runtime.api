@@ -57,6 +57,7 @@ public final class me/ahoo/wow/runtime/admission/CallContext {
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCausation ()Lme/ahoo/wow/api/decide/Causation;
 	public final fun getCommandId ()Ljava/lang/String;
+	public final fun getFacts ()Ljava/util/Map;
 	public final fun getOperator ()Lme/ahoo/wow/api/caller/Operator;
 	public final fun getScope ()Lme/ahoo/wow/api/aggregate/Scope;
 	public final fun getTenantId ()Ljava/lang/String;
@@ -65,6 +66,7 @@ public final class me/ahoo/wow/runtime/admission/CallContext {
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;)Lme/ahoo/wow/runtime/admission/CallContext;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/runtime/admission/CallContext;
 	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/wait/WaitContext;)Lme/ahoo/wow/runtime/admission/CallContext;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/wait/WaitContext;Ljava/util/Map;)Lme/ahoo/wow/runtime/admission/CallContext;
 	public fun toString ()Ljava/lang/String;
 }
 
@@ -72,7 +74,8 @@ public final class me/ahoo/wow/runtime/admission/CallContext$Companion {
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;)Lme/ahoo/wow/runtime/admission/CallContext;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;)Lme/ahoo/wow/runtime/admission/CallContext;
 	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/wait/WaitContext;)Lme/ahoo/wow/runtime/admission/CallContext;
-	public static synthetic fun of$default (Lme/ahoo/wow/runtime/admission/CallContext$Companion;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/wait/WaitContext;ILjava/lang/Object;)Lme/ahoo/wow/runtime/admission/CallContext;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/wait/WaitContext;Ljava/util/Map;)Lme/ahoo/wow/runtime/admission/CallContext;
+	public static synthetic fun of$default (Lme/ahoo/wow/runtime/admission/CallContext$Companion;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;Lme/ahoo/wow/api/decide/Causation;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/spi/wait/WaitContext;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/runtime/admission/CallContext;
 }
 
 public final class me/ahoo/wow/runtime/admission/CommandAction {

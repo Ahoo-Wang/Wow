@@ -29,6 +29,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
@@ -82,9 +83,9 @@ import kotlin.time.Duration
  *      own tenant, marked as acting elsewhere when a target was named; none for an anonymous caller;
  *    - a synchronous call's [CommandRequest.call] (decision D193) is [FrameworkCodes.AUTH_FORBIDDEN] unless the caller
  *      is a [service][me.ahoo.wow.api.caller.Caller.service] identity, and [FrameworkCodes.MALFORMED] beside a target;
- *      from a service, the command's id, tenant, scope, operator and causation are the call's: a derived command
- *      (decision D199), executed with the call's wait context as one from another context's command topic, and
- *      answered at COMMITTED;
+ *      from a service, the command's id, tenant, scope, operator, causation and propagating request facts
+ *      ([CallContext.facts], decision D236) are the call's: a derived command (decision D199), executed with the
+ *      call's wait context as one from another context's command topic, and answered at COMMITTED;
  *    - a request header in the framework's namespace (`Wow-…`, `wow.…`) is refused: identity, ids and the wait have
  *      fields of their own.
  * 3. Authorize the action with [authorizer], before the body is decoded.
@@ -345,13 +346,14 @@ class CommandGateway @InternalWowApi constructor(
         val decoded = decode(request.body, commandType)
             ?: return facts.refuse(FrameworkCodes.MALFORMED, "The body is not a ${commandType.name}.")
         // 5. The transformation.
-        var command = Resolved(model, commandType, decoded.value, request.headers)
+        val headers = headersOf(request)
+        var command = Resolved(model, commandType, decoded.value, headers)
         if (transformer != null) {
             val input = CommandInput(
                 commandType,
                 decoded.value,
                 request.aggregateId,
-                request.headers,
+                headers,
                 facts.requestId,
                 request.caller,
                 tenantId,
@@ -425,6 +427,15 @@ class CommandGateway @InternalWowApi constructor(
             wait = plan.within(minOf(plan.timeout, coordinator.options.maxTimeout)),
         )
         return Admission.Admitted(command.model, admitted, facts.transformedFrom, call)
+    }
+
+    /**
+     * The request facts of [request]'s command: a service's synchronous call carries those of its root request that
+     * propagate ([CallContext.facts], decision D236 ③) in place of the ones the edge recorded for the calling service.
+     */
+    private fun headersOf(request: CommandRequest): Map<String, String> {
+        val call = request.call ?: return request.headers
+        return request.headers.filterKeys { it !in RequestFacts.PROPAGATED } + call.facts
     }
 
     /**

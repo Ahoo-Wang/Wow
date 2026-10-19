@@ -129,9 +129,22 @@ class RuntimeValuesTest {
         )
         call.toString().assert().isEqualTo(
             "CallContext(commandId=call-1, tenantId=t-1, scope=${Scope("alice")}, causation=$causation, " +
-                "operator=null, wait=null)",
+                "operator=null, wait=null, facts={})",
         )
         call.wait.assert().isNull()
+        // Only the facts that propagate travel with a call (decision D236).
+        CallContext.of(
+            "call-1",
+            "t-1",
+            Scope("alice"),
+            causation,
+            facts = mapOf("app_id" to "console", "remote_ip" to "10.0.0.1", "user_agent" to "curl", "X-Trace" to "t"),
+        ).facts.assert().isEqualTo(mapOf("app_id" to "console"))
+        valueSemantics(
+            CallContext.of("call-1", "t-1", Scope("alice"), causation, facts = mapOf("app_id" to "console")),
+            CallContext.of("call-1", "t-1", Scope("alice"), causation, facts = mapOf("app_id" to "console")),
+            call,
+        )
     }
 
     @Test

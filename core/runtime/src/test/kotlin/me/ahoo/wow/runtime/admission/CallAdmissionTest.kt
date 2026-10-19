@@ -22,6 +22,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
@@ -91,13 +92,19 @@ class CallAdmissionTest {
     private val buyer = Caller(TENANT, Scope("mallory"), subject = "mallory")
     private val root = Causation("root-1", "basket/t/alice@2")
 
-    private fun call(commandId: String = "call-1", owner: String = "alice", wait: WaitContext? = null) = CallContext(
+    private fun call(
+        commandId: String = "call-1",
+        owner: String = "alice",
+        wait: WaitContext? = null,
+        facts: Map<String, String> = emptyMap(),
+    ) = CallContext(
         commandId = commandId,
         tenantId = TENANT,
         scope = Scope(owner),
         causation = root,
         operator = Operator(owner, TENANT),
         wait = wait,
+        facts = facts,
     )
 
     private fun request(
@@ -106,6 +113,7 @@ class CallAdmissionTest {
         aggregateId: String? = "cart-1",
         requestId: String = "request-1",
         target: TargetScope? = null,
+        headers: Map<String, String> = emptyMap(),
     ) = CommandRequest(
         context = CONTEXT,
         aggregate = "cart",
@@ -115,6 +123,7 @@ class CallAdmissionTest {
         aggregateId = aggregateId,
         target = target,
         requestId = requestId,
+        headers = headers,
         call = call,
     )
 
@@ -154,6 +163,22 @@ class CallAdmissionTest {
         // command was authorized where it was admitted.
         val other = gateway().execute(request(service, call("call-2", owner = "bob"), requestId = "request-2"))
         other.status.assert().describedAs(other.toString()).isEqualTo(CommandResult.Status.SUCCEEDED)
+    }
+
+    @Test
+    fun `a call should carry its root request's propagating facts, not the calling service's`(): Unit = runBlocking {
+        // The edge recorded the calling service's own application; the call carries the root request's.
+        val serviceFacts = mapOf(RequestFacts.APP_ID to "basket-service", "X-Trace" to "t-1")
+        val result = gateway().execute(
+            request(service, call(facts = mapOf(RequestFacts.APP_ID to "console")), headers = serviceFacts),
+        )
+        result.status.assert().describedAs(result.toString()).isEqualTo(CommandResult.Status.SUCCEEDED)
+        commands.single().headers.assert().isEqualTo(mapOf("X-Trace" to "t-1", RequestFacts.APP_ID to "console"))
+
+        // A root request without an application leaves the call without one: never the calling service's.
+        val bare = gateway().execute(request(service, call("call-2"), requestId = "request-2", headers = serviceFacts))
+        bare.status.assert().describedAs(bare.toString()).isEqualTo(CommandResult.Status.SUCCEEDED)
+        commands.last().headers.assert().isEqualTo(mapOf("X-Trace" to "t-1"))
     }
 
     @Test

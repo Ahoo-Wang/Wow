@@ -117,7 +117,14 @@ internal class RequestHeaders(private val statuses: ErrorStatuses, private val p
             "Dropped the wait ${wait.waitId} of call ${call.commandId} from service $service: its origin is a node " +
                 "of service ${wait.origin.service}, not of the caller's (review R2.3-1)."
         }
-        return CallContext.of(call.commandId, call.tenantId, call.scope, call.causation, call.operator)
+        return CallContext.of(
+            call.commandId,
+            call.tenantId,
+            call.scope,
+            call.causation,
+            call.operator,
+            facts = call.facts
+        )
     }
 
     private fun parseCall(value: String): CallContext = try {
@@ -134,7 +141,8 @@ internal class RequestHeaders(private val statuses: ErrorStatuses, private val p
      * ([RequestFacts]) the framework fills itself:
      *
      * - [RequestFacts.APP_ID], the [app][Caller.app] of the [caller] its resolver authenticated (decision D232), on
-     *   either port: on the internal port the calling service's own; none for a caller without one;
+     *   either port: on the internal port the calling service's own, which admission replaces with the root
+     *   request's, the facts its `Wow-Call` carries (decision D236 ③); none for a caller without one;
      * - on the public port (09 §17 G-10), as 9.x's header appenders wrote them, [RequestFacts.USER_AGENT], the
      *   request's `User-Agent`, when it has one, and [RequestFacts.REMOTE_IP], the address literal of the request's
      *   remote address (never a host name, which a reverse DNS lookup would block the event loop for; an unresolved
