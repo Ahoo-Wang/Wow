@@ -19,13 +19,34 @@ public final class me/ahoo/wow/openapi/OpenApiOptions {
 	public final fun getErrorStatuses ()Ljava/util/Map;
 	public final fun getManifestEndpoint ()Z
 	public final fun getOpenApiEndpoint ()Z
+	public final fun getSecuritySchemes ()Ljava/util/Map;
 	public final fun getServers ()Ljava/util/List;
 	public final fun getTitle ()Ljava/lang/String;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+	public final fun withSecuritySchemes (Ljava/util/Map;)Lme/ahoo/wow/openapi/OpenApiOptions;
 }
 
 public final class me/ahoo/wow/openapi/OpenApiOptions$Companion {
+}
+
+public final class me/ahoo/wow/openapi/OpenApiSecurityScheme {
+	public static final field Companion Lme/ahoo/wow/openapi/OpenApiSecurityScheme$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getBearerFormat ()Ljava/lang/String;
+	public final fun getDescription ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getScheme ()Ljava/lang/String;
+	public final fun getType ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/openapi/OpenApiSecurityScheme$Companion {
+	public final fun bearer (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/openapi/OpenApiSecurityScheme;
+	public static synthetic fun bearer$default (Lme/ahoo/wow/openapi/OpenApiSecurityScheme$Companion;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/openapi/OpenApiSecurityScheme;
+	public final fun header (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/openapi/OpenApiSecurityScheme;
+	public static synthetic fun header$default (Lme/ahoo/wow/openapi/OpenApiSecurityScheme$Companion;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/openapi/OpenApiSecurityScheme;
 }
 
 public final class me/ahoo/wow/openapi/WowHttpContract {

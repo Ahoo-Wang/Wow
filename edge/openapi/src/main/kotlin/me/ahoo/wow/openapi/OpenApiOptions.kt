@@ -23,17 +23,40 @@ package me.ahoo.wow.openapi
  *   backend; [manifestEndpoint] `GET /wow/manifest`; [openApiEndpoint] `GET /wow/openapi`.
  * - [errorStatuses] are the statuses the host configures for error codes (`wow.http.errors.[<code>].status`, decision
  *   D102), which win over the Manifest's tables as they do at the edge.
+ * - [securitySchemes] ([withSecuritySchemes]) are how a caller presents its identity, which the host fills from its
+ *   caller resolver (decision D233 ③).
  *
  * Fields may be added (decision D216): pass the constructor's arguments by name.
  */
-class OpenApiOptions(
-    val title: String = DEFAULT_TITLE,
-    val servers: List<String> = emptyList(),
-    val datasets: Boolean = true,
-    val manifestEndpoint: Boolean = true,
-    val openApiEndpoint: Boolean = true,
-    val errorStatuses: Map<String, Int> = emptyMap(),
+class OpenApiOptions private constructor(
+    val title: String,
+    val servers: List<String>,
+    val datasets: Boolean,
+    val manifestEndpoint: Boolean,
+    val openApiEndpoint: Boolean,
+    val errorStatuses: Map<String, Int>,
+    /**
+     * The ways a caller presents its identity, by scheme name (decision D233 ③): the document's
+     * `components.securitySchemes`, and its global `security`, any one of them. None by default.
+     */
+    val securitySchemes: Map<String, OpenApiSecurityScheme>,
 ) {
+    /** The default options; a constructor of its own, as the JVM has it for a class whose arguments all default. */
+    constructor() : this(DEFAULT_TITLE)
+
+    constructor(
+        title: String = DEFAULT_TITLE,
+        servers: List<String> = emptyList(),
+        datasets: Boolean = true,
+        manifestEndpoint: Boolean = true,
+        openApiEndpoint: Boolean = true,
+        errorStatuses: Map<String, Int> = emptyMap(),
+    ) : this(title, servers, datasets, manifestEndpoint, openApiEndpoint, errorStatuses, emptyMap())
+
+    /** These options with [schemes] as the [securitySchemes]. */
+    fun withSecuritySchemes(schemes: Map<String, OpenApiSecurityScheme>): OpenApiOptions =
+        OpenApiOptions(title, servers, datasets, manifestEndpoint, openApiEndpoint, errorStatuses, schemes.toMap())
+
     override fun equals(other: Any?): Boolean =
         this === other || other is OpenApiOptions && valueFields() == other.valueFields()
 
@@ -41,7 +64,8 @@ class OpenApiOptions(
 
     override fun toString(): String =
         "OpenApiOptions(title=$title, servers=$servers, datasets=$datasets, " +
-            "manifestEndpoint=$manifestEndpoint, openApiEndpoint=$openApiEndpoint, errorStatuses=$errorStatuses)"
+            "manifestEndpoint=$manifestEndpoint, openApiEndpoint=$openApiEndpoint, errorStatuses=$errorStatuses, " +
+            "securitySchemes=$securitySchemes)"
 
     private fun valueFields(): List<Any?> = listOf(
         title,
@@ -49,7 +73,8 @@ class OpenApiOptions(
         datasets,
         manifestEndpoint,
         openApiEndpoint,
-        errorStatuses
+        errorStatuses,
+        securitySchemes,
     )
 
     companion object {

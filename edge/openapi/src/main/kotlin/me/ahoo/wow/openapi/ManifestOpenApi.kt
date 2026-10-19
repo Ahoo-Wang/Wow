@@ -29,6 +29,8 @@ import me.ahoo.wow.manifest.Manifest
  *   as [OpenApiOptions] says the host serves them.
  * - Errors as RFC 9457 problems, one response per status listing the codes answered with it ([ErrorResponses]): the
  *   framework's table (`wow.storage.unavailable`, `wow.schedule.not-due`, ...) and each context's domain codes.
+ * - The security schemes of [OpenApiOptions.securitySchemes] (decision D233 ③), under `components.securitySchemes`, and
+ *   the global `security` that accepts any one of them; none when the options have none.
  * - `components.schemas`: the Manifest's JSON Schemas ([SchemaComponents]) and the framework's ([WowSchemas]); the
  *   body of a lifecycle command is the Manifest's when its `$defs` holds it under the command's name (roadmap 5a.1c).
  *
@@ -62,6 +64,7 @@ object ManifestOpenApi {
                     "(format ${manifest.format}).",
             ),
             "servers" to options.servers.map { Json.obj("url" to it) }.takeIf { it.isNotEmpty() },
+            "security" to options.securitySchemes.keys.map { mapOf(it to emptyList<String>()) }.takeIf { it.isNotEmpty() },
             "tags" to tags(manifest),
             "paths" to paths,
             "components" to Json.obj(
@@ -69,6 +72,7 @@ object ManifestOpenApi {
                 ErrorResponses.RESPONSES to routes.responses,
                 Json.PARAMETERS to OpenApiParameters.all(),
                 Json.HEADERS to OpenApiParameters.headers(),
+                SECURITY_SCHEMES to options.securitySchemes.mapValues { it.value.write() }.takeIf { it.isNotEmpty() },
             ),
         )
     }
@@ -91,6 +95,9 @@ object ManifestOpenApi {
             ).takeIf { context.aggregates.any { it.snapshot.enabled } },
         )
     } + Json.obj("name" to FRAMEWORK_TAG, "description" to "The framework's own endpoints.")
+
+    /** The components of the security schemes. */
+    private const val SECURITY_SCHEMES = "securitySchemes"
 
     /** The tag of the framework's own endpoints. */
     const val FRAMEWORK_TAG: String = "wow"

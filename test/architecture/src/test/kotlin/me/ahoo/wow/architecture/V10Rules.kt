@@ -164,7 +164,18 @@ object V10Rules {
         OPENTELEMETRY to setOf("runtime", "query", "http"),
         // postgres and mongo compileOnly: the backend follows the application's classpath (decision D110).
         // query, kafka, clickhouse and opentelemetry compileOnly too: each is wired when the application has it.
-        SPRING_BOOT to setOf("runtime", "http", "postgres", "mongo", "query", "kafka", "clickhouse", "opentelemetry"),
+        // openapi for the springdoc bridge (decision D233).
+        SPRING_BOOT to setOf(
+            "runtime",
+            "http",
+            "openapi",
+            "postgres",
+            "mongo",
+            "query",
+            "kafka",
+            "clickhouse",
+            "opentelemetry",
+        ),
         // CosId's generators as the node's (decision D171): the id SPIs only; it wires itself before the host.
         COSID to setOf("spi"),
         // Domain code's API only (decision D187); the compiler only for the tests, which compile a sample tree.

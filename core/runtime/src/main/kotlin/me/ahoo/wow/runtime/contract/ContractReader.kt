@@ -15,43 +15,35 @@ package me.ahoo.wow.runtime.contract
 
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.ManifestTree
-import me.ahoo.wow.manifest.PeerManifests
+import me.ahoo.wow.manifest.PeerContracts
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.json.JsonMapper
 import java.io.IOException
-import java.net.URI
+import java.net.URL
 
 /**
- * Reads the peer Manifests on a class path (decision D139): every [PeerManifests.INDEX] (one per jar or directory
- * that holds peers, as the Gradle plugin writes them), and each `META-INF/wow/peers/<service>.json` it lists, read
- * from beside that index. The same Manifest found twice (two modules of the service built against one peer) is read
- * once.
+ * Reads the peer contracts on a class path (decision D234): every [PeerContracts.RESOURCE], one per api jar (or
+ * directory) that carries the contracts of its contexts. The same contract found twice is read once.
  *
- * Fails with a [ContractException] listing every peer that is missing or does not read as a Manifest.
+ * Fails with a [ContractException] listing every contract that cannot be read or does not read as a Manifest.
  */
-internal class PeerManifestReader(
+internal class ContractReader(
     private val classLoader: ClassLoader = Thread.currentThread().contextClassLoader,
     private val mapper: JsonMapper = JsonMapper.builder().build(),
 ) {
     fun read(): List<ManifestFragment> {
         val problems = mutableListOf<String>()
-        val peers = classLoader.getResources(PeerManifests.INDEX).toList().flatMap { index ->
-            val base = index.toString().removeSuffix(INDEX_NAME)
-            index.openStream().use { it.readBytes() }.decodeToString().lines()
-                .map { it.trim() }
-                .filter { it.isNotEmpty() && !it.startsWith("#") }
-                .mapNotNull { name -> read(base + name, problems) }
-        }
+        val contracts = classLoader.getResources(PeerContracts.RESOURCE).toList().mapNotNull { read(it, problems) }
         if (problems.isNotEmpty()) {
             throw ContractException(problems)
         }
-        return peers.distinctBy { it.manifest }
+        return contracts.distinctBy { it.manifest }
     }
 
-    private fun read(source: String, problems: MutableList<String>): ManifestFragment? {
+    private fun read(resource: URL, problems: MutableList<String>): ManifestFragment? {
         val problem = try {
-            val bytes = URI.create(source).toURL().openStream().use { it.readBytes() }
-            return ManifestFragment(source, ManifestTree.read(mapper.readValue(bytes, Map::class.java)))
+            val bytes = resource.openStream().use { it.readBytes() }
+            return ManifestFragment(resource.toString(), ManifestTree.read(mapper.readValue(bytes, Map::class.java)))
         } catch (malformed: JacksonException) {
             "is not JSON: ${malformed.originalMessage}"
         } catch (invalid: IllegalArgumentException) {
@@ -59,11 +51,7 @@ internal class PeerManifestReader(
         } catch (missing: IOException) {
             "cannot be read: $missing"
         }
-        problems += "peer Manifest $source $problem"
+        problems += "contract $resource $problem"
         return null
-    }
-
-    private companion object {
-        val INDEX_NAME: String = PeerManifests.INDEX.substringAfterLast('/')
     }
 }

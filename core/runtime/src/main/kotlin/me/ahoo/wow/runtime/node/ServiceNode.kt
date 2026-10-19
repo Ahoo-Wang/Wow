@@ -278,7 +278,7 @@ class LogGroupNode internal constructor(
  * [service], and it and the [models] agree ([ManifestCheck]); otherwise the node is not built. Nor is it built
  * without a producer in [topics] when a saga of the [manifest] derives, schedules or handles the rejections of
  * commands of a context the node does not serve ([ContractDirectory.commandsOutside]). The [contracts] are
- * those of this [manifest] and its peers (decision D139), checked when they were built; each context's waits name
+ * those of this [manifest] and its peers (decisions D139, D234), checked when they were built; each context's waits name
  * subscriptions through them, so a chain may name one of another context.
  *
  * **Internal address**: the [address] the other nodes reach this node at, given when the node is built, or learned

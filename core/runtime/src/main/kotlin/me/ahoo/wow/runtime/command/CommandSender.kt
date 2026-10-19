@@ -36,8 +36,8 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * - **Type**: the command's full type name (`ctx.agg.Command`) is the one the [contracts] give its class
  *   ([ContractDirectory.commandTypeOf] of the schema `#/$defs/<binary name>`, decision D157): the target's Manifest,
- *   which a peer's reaches the service through `wowPeers` (decision D139). A class no Manifest declares, or one of
- *   another aggregate than the command's, fails the send.
+ *   or a peer's contract, which reaches the service in the jar of the context's api module (decision D234). A class
+ *   no Manifest declares, or one of another aggregate than the command's, fails the send.
  * - **Topic and partition**: `wow.<ctx>.commands` after the prefix ([SourceTopics.commandsOf]), in the partition the
  *   log's [Partitioner] gives the aggregate among the topic's partitions, which the target keeps equal to its log's
  *   (decision D135), so the owner of the aggregate's log partition reads it; a creation that names no aggregate goes
@@ -81,8 +81,8 @@ class CommandSender(private val contracts: ContractDirectory, private val topics
         val type = command.body.javaClass
         (Lifecycle.nameOf(type) ?: Schedules.nameOf(type) ?: Ledger.nameOf(type))?.let { return it }
         val named = checkNotNull(contracts.commandTypeOf(Manifest.schemaRef(type.name))) {
-            "No Manifest of the service or its peers declares the command ${type.name} sent to ${command.ref}: add " +
-                "the service of ${command.ref.type.context} to wowPeers (decision D139)."
+            "No Manifest of the service or its peers declares the command ${type.name} sent to ${command.ref}: depend " +
+                "on the api module of ${command.ref.type.context}, whose jar carries its contract (decision D234)."
         }
         check(named.startsWith("${command.ref.type}.")) {
             "${type.name} is the command $named, not one of ${command.ref.type}, the aggregate it is sent to."

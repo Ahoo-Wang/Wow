@@ -360,6 +360,43 @@ class ManifestOpenApiTest {
     }
 
     @Test
+    fun `the security schemes should be the document's components and its global security`() {
+        document.containsKey("security").assert().isFalse()
+        @Suppress("UNCHECKED_CAST")
+        (document["components"] as Map<String, Any?>).containsKey("securitySchemes").assert().isFalse()
+        val secured = ManifestOpenApi.write(
+            MANIFEST,
+            OpenApiOptions().withSecuritySchemes(
+                linkedMapOf(
+                    "bearer" to OpenApiSecurityScheme.bearer("JWT", "CoSec's access token."),
+                    "user" to OpenApiSecurityScheme.header("X-User"),
+                ),
+            ),
+        )
+        OpenApiChecks.check(secured)
+        secured["security"].assert().isEqualTo(
+            listOf(mapOf("bearer" to emptyList<String>()), mapOf("user" to emptyList()))
+        )
+        @Suppress("UNCHECKED_CAST")
+        (secured["components"] as Map<String, Any?>)["securitySchemes"].assert().isEqualTo(
+            mapOf(
+                "bearer" to mapOf(
+                    "type" to "http",
+                    "description" to "CoSec's access token.",
+                    "scheme" to "bearer",
+                    "bearerFormat" to "JWT",
+                ),
+                "user" to mapOf("type" to "apiKey", "name" to "X-User", "in" to "header"),
+            ),
+        )
+    }
+
+    @Test
+    fun `a header security scheme should name its header`() {
+        assertThrows<IllegalArgumentException> { OpenApiSecurityScheme.header(" ") }
+    }
+
+    @Test
     fun `the host's error statuses should win over the tables`() {
         val document = ManifestOpenApi.write(
             MANIFEST,
