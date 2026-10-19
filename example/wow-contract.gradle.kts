@@ -62,7 +62,8 @@ val generateWowContract = tasks.register("generateWowContract") {
     group = "wow"
     description = "Filters the module's Manifest fragment down to the contract its api module carries."
     val fragments = completedFragments
-    val apiClasses = wowContractApi
+    val apiClasses: FileCollection = files(wowContractApi)
+    val contractPath = contractDirectoryName
     val output = contractDirectory
     val domain = domainPath
     inputs.files(fragments).withPathSensitivity(PathSensitivity.NAME_ONLY).withPropertyName("fragments")
@@ -70,15 +71,15 @@ val generateWowContract = tasks.register("generateWowContract") {
     outputs.dir(output)
     doLast {
         val root = output.get().asFile.apply { deleteRecursively() }
-        val directory = File(root, contractDirectoryName).apply { mkdirs() }
+        val directory = File(root, contractPath).apply { mkdirs() }
         val names = mutableListOf<String>()
         fragments.files.sortedBy { it.name }.forEach { fragment ->
             @Suppress("UNCHECKED_CAST")
             val tree = JsonSlurper().parse(fragment) as Map<String, Any?>
             val defs = (tree["\$defs"] as Map<String, Any?>?).orEmpty()
             (tree["contexts"] as List<Map<String, Any?>>).forEach { context ->
-                val contract = contractOf(tree, context, defs)
-                guard(domain, context["name"] as String, contract, apiClasses.files)
+                val contract = ContractTools.contractOf(tree, context, defs)
+                ContractTools.guard(domain, context["name"] as String, contract, apiClasses.files)
                 val name = "${context["name"]}.json"
                 File(directory, name).writeText(JsonOutput.prettyPrint(JsonOutput.toJson(contract)))
                 names += name
@@ -114,77 +115,80 @@ configurations.named("api") {
     }
 }
 
-/** The consumer-facing part of [context]: what a peer reads, with the `$defs` it references. */
-@Suppress("UNCHECKED_CAST")
-fun contractOf(tree: Map<String, Any?>, context: Map<String, Any?>, defs: Map<String, Any?>): Map<String, Any?> {
-    fun Map<String, Any?>.pick(vararg keys: String) = keys.filter { it in this }.associateWith { this[it] }
-    val aggregates = (context["aggregates"] as List<Map<String, Any?>>).map { aggregate ->
-        linkedMapOf(
-            "name" to aggregate["name"],
-            "description" to aggregate["description"],
-            "state" to aggregate["state"],
-            "snapshot" to aggregate["snapshot"],
-            "commands" to (aggregate["commands"] as List<Map<String, Any?>>)
-                .filterNot { it["mounted"] == true }
-                .map { it.pick("name", "aliases", "schema", "creation", "produces", "description") },
-            "events" to (aggregate["events"] as List<Map<String, Any?>>?).orEmpty()
-                .map { it.pick("name", "aliases", "revision", "schema", "description") },
-        ).filterValues { it != null }
-    }
-    val subscriptions = (context["subscriptions"] as List<Map<String, Any?>>?).orEmpty()
-        .map { it.pick("name", "kind", "source", "function", "derives", "rejected", "committed", "start") }
-    val filtered = linkedMapOf(
-        "name" to context["name"],
-        "description" to context["description"],
-        "aggregates" to aggregates,
-        "subscriptions" to subscriptions,
-        "published" to context["published"],
-        "errors" to context["errors"],
-    ).filterValues { it != null }
-    // The `$defs` the contract references, transitively.
-    val reachable = sortedMapOf<String, Any?>()
-    val prefix = "#/\$defs/"
-    fun visit(node: Any?) {
-        when (node) {
-            is Map<*, *> -> node.forEach { (key, value) ->
-                if (key == "\$ref" && value is String && value.startsWith(prefix)) {
-                    val name = value.removePrefix(prefix)
-                    if (name in defs && name !in reachable) {
-                        reachable[name] = defs[name]
-                        visit(defs[name])
-                    }
-                } else {
-                    visit(value)
-                }
-            }
-
-            is List<*> -> node.forEach(::visit)
-            is String -> if (node.startsWith(prefix)) visit(mapOf("\$ref" to node))
+/** The filter and the guard; an object, so the task action captures no script reference (configuration cache). */
+object ContractTools {
+    /** The consumer-facing part of [context]: what a peer reads, with the `$defs` it references. */
+    @Suppress("UNCHECKED_CAST")
+    fun contractOf(tree: Map<String, Any?>, context: Map<String, Any?>, defs: Map<String, Any?>): Map<String, Any?> {
+        fun Map<String, Any?>.pick(vararg keys: String) = keys.filter { it in this }.associateWith { this[it] }
+        val aggregates = (context["aggregates"] as List<Map<String, Any?>>).map { aggregate ->
+            linkedMapOf(
+                "name" to aggregate["name"],
+                "description" to aggregate["description"],
+                "state" to aggregate["state"],
+                "snapshot" to aggregate["snapshot"],
+                "commands" to (aggregate["commands"] as List<Map<String, Any?>>)
+                    .filterNot { it["mounted"] == true }
+                    .map { it.pick("name", "aliases", "schema", "creation", "produces", "description") },
+                "events" to (aggregate["events"] as List<Map<String, Any?>>?).orEmpty()
+                    .map { it.pick("name", "aliases", "revision", "schema", "description") },
+            ).filterValues { it != null }
         }
-    }
-    visit(aggregates)
-    return linkedMapOf("format" to tree["format"], "contexts" to listOf(filtered), "\$defs" to reachable)
-}
+        val subscriptions = (context["subscriptions"] as List<Map<String, Any?>>?).orEmpty()
+            .map { it.pick("name", "kind", "source", "function", "derives", "rejected", "committed", "start") }
+        val filtered = linkedMapOf(
+            "name" to context["name"],
+            "description" to context["description"],
+            "aggregates" to aggregates,
+            "subscriptions" to subscriptions,
+            "published" to context["published"],
+            "errors" to context["errors"],
+        ).filterValues { it != null }
+        // The `$defs` the contract references, transitively.
+        val reachable = sortedMapOf<String, Any?>()
+        val prefix = "#/\$defs/"
+        fun visit(node: Any?) {
+            when (node) {
+                is Map<*, *> -> node.forEach { (key, value) ->
+                    if (key == "\$ref" && value is String && value.startsWith(prefix)) {
+                        val name = value.removePrefix(prefix)
+                        if (name in defs && name !in reachable) {
+                            reachable[name] = defs[name]
+                            visit(defs[name])
+                        }
+                    } else {
+                        visit(value)
+                    }
+                }
 
-/**
- * Fails when a command or event class of the contract of [context] is not a class of the api module ([apiClasses],
- * its classes directories): the contract would name a type the api does not ship.
- */
-@Suppress("UNCHECKED_CAST")
-fun guard(domain: String, context: String, contract: Map<String, Any?>, apiClasses: Set<File>) {
-    check(apiClasses.isNotEmpty()) { "$domain: context $context has no api module to carry its contract" }
-    val prefix = "#/\$defs/"
-    val aggregates = (contract["contexts"] as List<Map<String, Any?>>).single()["aggregates"] as List<Map<String, Any?>>
-    val types = aggregates.flatMap { aggregate ->
-        ((aggregate["commands"] as List<Map<String, Any?>>) + (aggregate["events"] as List<Map<String, Any?>>))
-            .map { (it["schema"] as String).removePrefix(prefix) }
+                is List<*> -> node.forEach(::visit)
+                is String -> if (node.startsWith(prefix)) visit(mapOf("\$ref" to node))
+            }
+        }
+        visit(aggregates)
+        return linkedMapOf("format" to tree["format"], "contexts" to listOf(filtered), "\$defs" to reachable)
     }
-    val foreign = types.filterNot { binary ->
-        val file = binary.replace('.', '/') + ".class"
-        apiClasses.any { File(it, file).isFile }
-    }
-    check(foreign.isEmpty()) {
-        "$domain: the contract of context $context names classes its api module does not have " +
-            "(${apiClasses.joinToString { it.path }}): ${foreign.joinToString()}"
+
+    /**
+     * Fails when a command or event class of the contract of [context] is not a class of the api module ([apiClasses],
+     * its classes directories): the contract would name a type the api does not ship.
+     */
+    @Suppress("UNCHECKED_CAST")
+    fun guard(domain: String, context: String, contract: Map<String, Any?>, apiClasses: Set<File>) {
+        check(apiClasses.isNotEmpty()) { "$domain: context $context has no api module to carry its contract" }
+        val prefix = "#/\$defs/"
+        val aggregates = (contract["contexts"] as List<Map<String, Any?>>).single()["aggregates"] as List<Map<String, Any?>>
+        val types = aggregates.flatMap { aggregate ->
+            ((aggregate["commands"] as List<Map<String, Any?>>) + (aggregate["events"] as List<Map<String, Any?>>))
+                .map { (it["schema"] as String).removePrefix(prefix) }
+        }
+        val foreign = types.filterNot { binary ->
+            val file = binary.replace('.', '/') + ".class"
+            apiClasses.any { File(it, file).isFile }
+        }
+        check(foreign.isEmpty()) {
+            "$domain: the contract of context $context names classes its api module does not have " +
+                "(${apiClasses.joinToString { it.path }}): ${foreign.joinToString()}"
+        }
     }
 }

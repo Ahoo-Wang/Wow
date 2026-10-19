@@ -50,7 +50,8 @@ val generateWowManifestFragment = tasks.register("generateWowManifestFragment") 
         }
     }.files
     val classpath = files(main.output.classesDirs, runtimeClasses)
-    val tools = wowManifestTools
+    val tools: FileCollection = files(wowManifestTools)
+    val directoryName = fragmentDirectoryName
     val output = completedDirectory
     inputs.files(fragments).withPathSensitivity(PathSensitivity.NAME_ONLY).withPropertyName("fragments")
     inputs.files(classpath).withNormalizer(ClasspathNormalizer::class.java).withPropertyName("classpath")
@@ -64,7 +65,7 @@ val generateWowManifestFragment = tasks.register("generateWowManifestFragment") 
             val complete = Class.forName("me.ahoo.wow.manifest.tools.ManifestTools", true, loader).methods
                 .single { it.name == "completeFragment" }
             fragments.files.sortedBy { it.name }.forEach { fragment ->
-                val completed = File(root, "$fragmentDirectoryName/${fragment.name}")
+                val completed = File(root, "$directoryName/${fragment.name}")
                 try {
                     complete.invoke(null, fragment, completed, emptyMap<String, String>())
                 } catch (failure: java.lang.reflect.InvocationTargetException) {
