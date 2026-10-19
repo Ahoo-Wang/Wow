@@ -425,22 +425,22 @@ component_management:
         - platform/view-store/view-store-server/src/main/**
       flag_regexes:
         - "^v10$"
-    - component_id: v10-dataset-registry-api
-      name: v10-dataset-registry-api
+    - component_id: v10-analytics-catalog-api
+      name: v10-analytics-catalog-api
       paths:
-        - platform/dataset-registry/dataset-registry-api/src/main/**
+        - platform/analytics/catalog/api/src/main/**
       flag_regexes:
         - "^v10$"
-    - component_id: v10-dataset-registry-domain
-      name: v10-dataset-registry-domain
+    - component_id: v10-analytics-catalog-domain
+      name: v10-analytics-catalog-domain
       paths:
-        - platform/dataset-registry/dataset-registry-domain/src/main/**
+        - platform/analytics/catalog/domain/src/main/**
       flag_regexes:
         - "^v10$"
-    - component_id: v10-dataset-registry-server
-      name: v10-dataset-registry-server
+    - component_id: v10-analytics-catalog-server
+      name: v10-analytics-catalog-server
       paths:
-        - platform/dataset-registry/dataset-registry-server/src/main/**
+        - platform/analytics/catalog/server/src/main/**
       flag_regexes:
         - "^v10$"
     - component_id: wow-client

@@ -78,16 +78,16 @@ object V10Rules {
     /** The view store's domain: the view, view preferences and dataset wording aggregates (roadmap 7.2a). */
     val VIEW_STORE_DOMAIN = V10Module("view-store-domain", "platform/view-store/view-store-domain")
 
-    /** The dataset registry's API: the commands, events and value types of its data sources (roadmap 9.3b). */
-    val DATASET_REGISTRY_API = V10Module("dataset-registry-api", "platform/dataset-registry/dataset-registry-api")
+    /** The analytics catalog's API: the commands, events and value types of its data sources (roadmap 9.3b). */
+    val ANALYTICS_CATALOG_API = V10Module("analytics-catalog-api", "platform/analytics/catalog/api")
 
-    /** The dataset registry's domain: the source aggregate and its warehouse catalog port (decisions D238, D241). */
-    val DATASET_REGISTRY_DOMAIN =
-        V10Module("dataset-registry-domain", "platform/dataset-registry/dataset-registry-domain")
+    /** The analytics catalog's domain: the source aggregate and its warehouse catalog port (decisions D238, D241). */
+    val ANALYTICS_CATALOG_DOMAIN =
+        V10Module("analytics-catalog-domain", "platform/analytics/catalog/domain")
 
     /** The platform modules (roadmap M7): domains of their own, built on the kernel as an application's domain is. */
     val PLATFORM_MODULES =
-        listOf(OPS_API, OPS_DOMAIN, VIEW_STORE_API, VIEW_STORE_DOMAIN, DATASET_REGISTRY_API, DATASET_REGISTRY_DOMAIN)
+        listOf(OPS_API, OPS_DOMAIN, VIEW_STORE_API, VIEW_STORE_DOMAIN, ANALYTICS_CATALOG_API, ANALYTICS_CATALOG_DOMAIN)
 
     /** The ops service (roadmap 7.1a): an application of the V10 modules, on the Spring Boot host. */
     val OPS_SERVER = V10Module("ops-server", "platform/ops/ops-server")
@@ -95,15 +95,15 @@ object V10Rules {
     /** The view store service (roadmap 7.2a): an application of the V10 modules, on the Spring Boot host. */
     val VIEW_STORE_SERVER = V10Module("view-store-server", "platform/view-store/view-store-server")
 
-    /** The dataset registry service (roadmap 9.3b): an application of the V10 modules, on the Spring Boot host. */
-    val DATASET_REGISTRY_SERVER =
-        V10Module("dataset-registry-server", "platform/dataset-registry/dataset-registry-server")
+    /** The analytics catalog service (roadmap 9.3b): an application of the V10 modules, on the Spring Boot host. */
+    val ANALYTICS_CATALOG_SERVER =
+        V10Module("analytics-catalog-server", "platform/analytics/catalog/server")
 
     /**
      * The platform's services (roadmap M7): applications of the V10 modules, as the eShop's servers are, not modules
      * of the framework, so the rules of [MODULES] (Spring Boot only in the host, say) do not apply to them.
      */
-    val PLATFORM_SERVERS = listOf(VIEW_STORE_SERVER, OPS_SERVER, DATASET_REGISTRY_SERVER)
+    val PLATFORM_SERVERS = listOf(VIEW_STORE_SERVER, OPS_SERVER, ANALYTICS_CATALOG_SERVER)
 
     val MODULES = listOf(
         API, MANIFEST, QUERY_API, SPI, KERNEL, RUNTIME, REACTOR, QUERY, POSTGRES, MONGO, KAFKA, CLICKHOUSE, OPENAPI, HTTP,
@@ -246,8 +246,8 @@ object V10Rules {
         VIEW_STORE_API to setOf("api"),
         VIEW_STORE_DOMAIN to setOf("view-store-api", "kernel", "compiler"),
         // The sources' sensitivity is the query engine's `SensitivityLevel`, which a dataset's masks are compiled from.
-        DATASET_REGISTRY_API to setOf("api", "query-api"),
-        DATASET_REGISTRY_DOMAIN to setOf("dataset-registry-api", "kernel", "compiler", "query-api"),
+        ANALYTICS_CATALOG_API to setOf("api", "query-api"),
+        ANALYTICS_CATALOG_DOMAIN to setOf("analytics-catalog-api", "kernel", "compiler", "query-api"),
     )
 
     /**
@@ -259,8 +259,8 @@ object V10Rules {
         OPS_SERVER to setOf("ops-domain", "spring-boot", "kafka", "postgres", "query", "cosec", "opentelemetry"),
         VIEW_STORE_SERVER to setOf("view-store-domain", "spring-boot", "postgres", "query", "cosec", "opentelemetry"),
         // ClickHouse: the warehouse its catalog reads (decision D241), whose client the host builds.
-        DATASET_REGISTRY_SERVER to setOf(
-            "dataset-registry-domain",
+        ANALYTICS_CATALOG_SERVER to setOf(
+            "analytics-catalog-domain",
             "spring-boot",
             "postgres",
             "clickhouse",
