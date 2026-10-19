@@ -35,7 +35,8 @@ public abstract interface class me/ahoo/wow/http/caller/CallerResolver {
 public final class me/ahoo/wow/http/caller/CallerResolver$Companion {
 }
 
-public abstract interface class me/ahoo/wow/http/caller/InternalCallerResolver : me/ahoo/wow/http/caller/CallerResolver {
+public abstract interface class me/ahoo/wow/http/caller/InternalCallerResolver {
+	public abstract fun resolve (Lorg/springframework/web/reactive/function/server/ServerRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 
 public final class me/ahoo/wow/http/command/CallHeader {

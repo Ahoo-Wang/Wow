@@ -430,7 +430,8 @@ class WowAutoConfiguration {
         options: WowHttpOptions,
         environment: Environment,
     ): InternalServer {
-        val services = serviceTokens(properties).resolver(internalCallers.ifAvailable ?: callers)
+        val internal = internalCallers.ifAvailable?.let { resolver -> CallerResolver { resolver.resolve(it) } }
+        val services = serviceTokens(properties).resolver(internal ?: callers)
         return InternalServer(
             properties.internal.port,
             identity.bindHost,

@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.cosec
 
+import me.ahoo.cosec.context.DefaultSecurityContextParser
 import me.ahoo.cosec.context.SecurityContextParser
 import me.ahoo.cosec.context.request.RequestParser
+import me.ahoo.cosec.token.TokenVerifier
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.caller.InternalCallerResolver
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -22,17 +24,23 @@ import org.springframework.web.server.ServerWebExchange
 
 /**
  * The callers of the internal port's call routes from CoSec (decision D193): the internal port runs no CoSec web
- * filter, so this parses the request's security context itself, with CoSec's [requests] and [contexts] parsers (its
- * token, validated as CoSec's filter validates it), and gives the caller [callers] makes of it. A principal of
- * `wow.cosec.service.roles` / `wow.cosec.service.policies` is a service identity, the only one the call routes serve;
- * a request without a valid token, or with an expired one, is no caller (401).
+ * filter, so this parses the request's security context itself, from its `Authorization` token, which [tokens]
+ * verifies (signature and time claims, CoSec's [TokenVerifier]), and gives the caller [callers] makes of it. A
+ * principal of `wow.cosec.service.roles` / `wow.cosec.service.policies` is a service identity, the only one the call
+ * routes serve; a request without a valid token, or with an expired one, is no caller (401).
+ *
+ * The token is always verified here, whatever parser the public port uses (review X-14, decision D226): CoSec's inject
+ * mode parses a token without checking its signature, trusting the gateway in front of the public port, but no gateway
+ * stands in front of the internal port, where such a parser would take a forged service principal.
  */
 class CoSecInternalCallerResolver(
     private val requests: RequestParser<ServerWebExchange>,
-    private val contexts: SecurityContextParser,
+    tokens: TokenVerifier,
     private val callers: CoSecCallerResolver,
 ) : InternalCallerResolver {
-    @Suppress("TooGenericExceptionCaught") // A token that does not parse or has expired authenticates no one.
+    private val contexts: SecurityContextParser = DefaultSecurityContextParser(tokens)
+
+    @Suppress("TooGenericExceptionCaught") // A token that does not verify or has expired authenticates no one.
     override suspend fun resolve(request: ServerRequest): Caller? {
         val context = try {
             contexts.parse(requests.parse(request.exchange()))
