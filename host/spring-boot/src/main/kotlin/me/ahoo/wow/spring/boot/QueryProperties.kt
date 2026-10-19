@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.query.AbacQueryOptions
 import me.ahoo.wow.query.QueryBudget
+import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.QueryCountCacheOptions
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.events.UnpinnedEvents
@@ -64,7 +65,9 @@ import kotlin.time.toKotlinDuration
  *   the appends share, at least 2, or all of a `query-data-source` of its own, 16 otherwise; review R3.4-2): how many
  *   snapshot and `events` queries each store runs at once, whichever entry asks, beyond which a query is
  *   `wow.query.busy` (429, with `Retry-After`); `wow.stores.<name>.query.max-concurrent` takes its place for one store;
- *   `0` for no bound.
+ *   `0` for no bound. A query beyond the bound waits in a FIFO queue (decision D247) at most `wow.query.max-wait`
+ *   (200ms) for a permit, and is refused when the wait runs out or when `wow.query.max-queued` (4 per permit) queries
+ *   wait already; `wow.stores.<name>.query.max-wait` and `.max-queued` take their place for one store.
  */
 @ConfigurationProperties(prefix = QueryProperties.PREFIX)
 class QueryProperties {
@@ -81,6 +84,8 @@ class QueryProperties {
     var memory: Memory = Memory()
     var events: Events = Events()
     var maxConcurrent: Int? = null
+    var maxWait: Duration = QueryBulkhead.DEFAULT_MAX_WAIT.toJavaDuration()
+    var maxQueued: Int? = null
 
     /** The entry policy these settings give every gateway. */
     fun entryPolicy(): QueryEntryPolicy = QueryEntryPolicy(

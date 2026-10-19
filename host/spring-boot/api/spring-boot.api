@@ -231,6 +231,8 @@ public final class me/ahoo/wow/spring/boot/QueryProperties {
 	public final fun getInProcessTimeout ()Ljava/time/Duration;
 	public final fun getIndex ()Lme/ahoo/wow/spring/boot/QueryProperties$Index;
 	public final fun getMaxConcurrent ()Ljava/lang/Integer;
+	public final fun getMaxQueued ()Ljava/lang/Integer;
+	public final fun getMaxWait ()Ljava/time/Duration;
 	public final fun getMemory ()Lme/ahoo/wow/spring/boot/QueryProperties$Memory;
 	public final fun getRequireAuthenticatedScope ()Z
 	public final fun getRequireExplicitEntry ()Z
@@ -244,6 +246,8 @@ public final class me/ahoo/wow/spring/boot/QueryProperties {
 	public final fun setInProcessTimeout (Ljava/time/Duration;)V
 	public final fun setIndex (Lme/ahoo/wow/spring/boot/QueryProperties$Index;)V
 	public final fun setMaxConcurrent (Ljava/lang/Integer;)V
+	public final fun setMaxQueued (Ljava/lang/Integer;)V
+	public final fun setMaxWait (Ljava/time/Duration;)V
 	public final fun setMemory (Lme/ahoo/wow/spring/boot/QueryProperties$Memory;)V
 	public final fun setRequireAuthenticatedScope (Z)V
 	public final fun setRequireExplicitEntry (Z)V
@@ -942,9 +946,13 @@ public final class me/ahoo/wow/spring/boot/WowProperties$StoreQuery {
 	public fun <init> ()V
 	public final fun getEvents ()Lme/ahoo/wow/spring/boot/WowProperties$QueryEvents;
 	public final fun getMaxConcurrent ()Ljava/lang/Integer;
+	public final fun getMaxQueued ()Ljava/lang/Integer;
+	public final fun getMaxWait ()Ljava/time/Duration;
 	public final fun getReadPreference ()Ljava/lang/String;
 	public final fun setEvents (Lme/ahoo/wow/spring/boot/WowProperties$QueryEvents;)V
 	public final fun setMaxConcurrent (Ljava/lang/Integer;)V
+	public final fun setMaxQueued (Ljava/lang/Integer;)V
+	public final fun setMaxWait (Ljava/time/Duration;)V
 	public final fun setReadPreference (Ljava/lang/String;)V
 }
 

@@ -347,12 +347,16 @@ class WowProperties {
 
     /**
      * How one store's queries run (`wow.stores.<name>.query.*`, review R3.4-2): [maxConcurrent], how many run at once,
-     * over `wow.query.max-concurrent` (beyond it a query is `wow.query.busy`, 429; `0` for no bound); [readPreference],
+     * over `wow.query.max-concurrent` (beyond it a query is `wow.query.busy`, 429; `0` for no bound); [maxWait] and
+     * [maxQueued], how long and how many queries beyond it wait for a permit (decision D247), over `wow.query.max-wait`
+     * and `wow.query.max-queued`; [readPreference],
      * the MongoDB read preference of its snapshot and `events` queries (`secondaryPreferred`, say), over
      * `wow.query.events.mongo-read-preference` for the events; [events], its `events` queries.
      */
     class StoreQuery {
         var maxConcurrent: Int? = null
+        var maxWait: Duration? = null
+        var maxQueued: Int? = null
         var readPreference: String? = null
         var events: QueryEvents = QueryEvents()
     }

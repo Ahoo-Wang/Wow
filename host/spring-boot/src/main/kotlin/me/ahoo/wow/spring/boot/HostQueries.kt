@@ -41,6 +41,7 @@ import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.spi.store.Store
 import org.springframework.context.SmartLifecycle
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.toKotlinDuration
 
 /**
  * The query tenant policy over the host's [TenantPolicy] (decision D116): a query of an aggregate type whose tenant
@@ -183,21 +184,27 @@ class EventQueryBackend(
  * The query bulkheads of the node's [stores] (review R3.4-2), by store name: each store's bound is
  * `wow.stores.<name>.query.max-concurrent` ([settings]), else `wow.query.max-concurrent` ([global]), else its query
  * provider's ([StoreQueryProvider.maxConcurrent], from its pool); `0` sets none. A store whose type has no query
- * provider has no queries to bound.
+ * provider has no queries to bound. A query beyond the bound waits (decision D247) at most
+ * `wow.stores.<name>.query.max-wait`, else `wow.query.max-wait` (200ms), in a queue of at most
+ * `wow.stores.<name>.query.max-queued`, else `wow.query.max-queued` (4 per permit).
  */
 internal object HostQueryBulkheads {
     fun of(
         stores: Map<String, Store>,
         providers: StoreProviders,
-        global: Int?,
+        global: QueryProperties,
         settings: Map<String, WowProperties.Store>,
     ): Map<String, QueryBulkhead> = stores.mapNotNull { (name, store) ->
         val provider = providers.queriesOf(store.type) ?: return@mapNotNull null
-        val max = settings[name]?.query?.maxConcurrent ?: global ?: provider.maxConcurrent(store)
+        val own = settings[name]?.query
+        val max = own?.maxConcurrent ?: global.maxConcurrent ?: provider.maxConcurrent(store)
         check(max >= 0) {
             "wow.stores.$name.query.max-concurrent (or wow.query.max-concurrent) is $max: 0 for no bound, or more."
         }
-        if (max == 0) null else name to QueryBulkhead(name, max)
+        if (max == 0) return@mapNotNull null
+        val wait = own?.maxWait ?: global.maxWait
+        val queued = own?.maxQueued ?: global.maxQueued ?: (max * QueryBulkhead.DEFAULT_QUEUE_FACTOR)
+        name to QueryBulkhead(name, max, wait.toKotlinDuration(), queued)
     }.toMap()
 
     /**

@@ -272,7 +272,7 @@ class QueryAutoConfiguration {
             val bulkheads = HostQueryBulkheads.of(
                 backends.stores,
                 providers,
-                properties.maxConcurrent,
+                properties,
                 settings?.stores.orEmpty(),
             )
             if (bulkheads.isNotEmpty()) {

@@ -30,6 +30,8 @@ import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.wait.WaitOptions
 import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The isolation of the queries from the appends, as the host configures it (review R3.4-2, R3.4-3): each store's query
@@ -76,10 +78,24 @@ class HostQueryIsolationTest {
             "wow.stores.main.query.max-concurrent" to 5,
             "wow.stores.side.type" to "memory",
             "wow.log.store" to "main",
+            "wow.query.max-wait" to "1s",
+            "wow.stores.main.query.max-wait" to "50ms",
+            "wow.stores.main.query.max-queued" to 2,
         ).use { host ->
             val bulkheads = host.context.getBean(QueryStores::class.java).bulkheads
-            bulkheads.getValue("main").maxConcurrent.assert().isEqualTo(5)
-            bulkheads.getValue("side").maxConcurrent.assert().isEqualTo(3)
+            val main = bulkheads.getValue("main")
+            main.maxConcurrent.assert().isEqualTo(5)
+            main.maxWait.assert().isEqualTo(50.milliseconds)
+            main.maxQueued.assert().isEqualTo(2)
+            val side = bulkheads.getValue("side")
+            side.maxConcurrent.assert().isEqualTo(3)
+            side.maxWait.assert().isEqualTo(1.seconds)
+            side.maxQueued.assert().isEqualTo(3 * QueryBulkhead.DEFAULT_QUEUE_FACTOR)
+        }
+        startHost("wow.query.max-queued" to 1).use { host ->
+            val bulkhead = host.context.getBean(QueryStores::class.java).bulkheads.values.single()
+            bulkhead.maxQueued.assert().isEqualTo(1)
+            bulkhead.maxWait.assert().isEqualTo(QueryBulkhead.DEFAULT_MAX_WAIT)
         }
         startHost("wow.query.max-concurrent" to 0).use { host ->
             host.context.getBean(QueryStores::class.java).bulkheads.assert().isEmpty()
