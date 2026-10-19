@@ -22,7 +22,9 @@
 #
 # Options: --isolation=restart|keys|fresh (between cells; restart by default), --timing=auto|long|short (auto: 20 s
 # warm-up and 45 s measured once stability.py has accepted it in the report folder, else 30 and 60), --threshold=5
-# (the percent two repetitions may differ by before a third runs), --scenarios=E1,E2,E3 --setups=... --dists=...
+# (the percent two repetitions may differ by before a third runs) --rep-metric=p50|p99 (what they are compared on,
+# beside the throughput: p50 by default, since a 45 to 60 s run's p99 moves by 20-30% between repetitions even at a
+# low rate, so p99 would ask for a third run almost always), --scenarios=E1,E2,E3 --setups=... --dists=...
 # --percents=50,80 (narrow a tier), --start-concurrency=4 --max-concurrency=1024 (the saturation search's range).
 #
 # Every cell is resumable: a cell whose result is in the report folder is skipped. Each setup keeps one session (its
@@ -42,12 +44,14 @@ BENCH_LIB=1
 REPORTS="${TIER_REPORTS:-$REPO/wow-benchmarks/results/reports}"
 SCRATCH="${TIER_SCRATCH:-$REPO/wow-benchmarks/results/e2e/tiers}"
 
-# Seconds each step takes, for the plan's estimate (measured on the harness: a node restart with clearing about 15 s,
-# a container start about 35 s, a saturation search about 90 s).
+# Seconds each step takes, for the plan's estimate (the harness's smoke run on an M4 Pro: emptying the stores and
+# restarting a node, seeding and checking about 10 s between cells, a container start about 6 s more, about 7 s from
+# the end of a run's measured phase to the next cell; a saturation search, 5 s steps, about 90 s).
 EST_SATURATION=90
-EST_RESTART=15
-EST_FRESH=40
-EST_KEYS=4
+EST_RESTART=10
+EST_FRESH=16
+EST_KEYS=3
+EST_DRAIN=7
 
 TIER_OPTIONS=""
 topt() {
@@ -77,6 +81,7 @@ tier_defaults() {
   TIER_PERCENTS=$(topt percents "$TIER_PERCENTS")
   ISOLATION=$(topt isolation restart)
   THRESHOLD=$(topt threshold 5)
+  REP_METRIC=$(topt rep-metric p50)
 }
 
 list() { echo "$1" | tr ',' ' '; }
@@ -125,13 +130,14 @@ timing_of() {
   fi
 }
 
-# Whether repetitions $@ (result.json files) differ by more than THRESHOLD percent in p99 or throughput.
+# Whether repetitions $@ (result.json files) differ by more than THRESHOLD percent in REP_METRIC or throughput.
 differ() {
-  python3 -I - "$THRESHOLD" "$@" <<'EOF'
+  python3 -I - "$THRESHOLD" "$REP_METRIC" "$@" <<'EOF'
 import json, sys
 threshold = float(sys.argv[1]) / 100
-results = [json.load(open(p))["results"] for p in sys.argv[2:]]
-for key in (lambda r: r["latencyMs"]["p99"], lambda r: r["throughput"]):
+metric = sys.argv[2]
+results = [json.load(open(p))["results"] for p in sys.argv[3:]]
+for key in (lambda r: r["latencyMs"][metric], lambda r: r["throughput"]):
     values = [key(r) for r in results]
     if min(values) <= 0 or (max(values) - min(values)) / min(values) > threshold:
         sys.exit(0)
@@ -263,11 +269,13 @@ plan() {
     done
   done
   case "$ISOLATION" in restart) per=$EST_RESTART ;; fresh) per=$EST_FRESH ;; keys) per=$EST_KEYS ;; esac
+  local timing
   for timing in "30 60" "20 45"; do
     warm=${timing% *}; measure=${timing#* }
-    # A third repetition for about a quarter of the cells (two runs of the same cell differ by more than 5% in p99).
-    seconds=$((sats * (EST_SATURATION + per) + (runs + runs / 8) * (warm + measure + per + 3)))
-    echo "tier $1: $sats saturation searches, $runs runs (+ about $((runs / 8)) third repetitions), isolation" \
+    # A third repetition for about one cell in four (two runs whose p50 differs by more than 5%), a guess until the
+    # first tier on the measuring machine shows the rate.
+    seconds=$((sats * (EST_SATURATION + per) + (runs + runs / 4) * (warm + measure + per + EST_DRAIN)))
+    echo "tier $1: $sats saturation searches, $runs runs (+ about $((runs / 4)) third repetitions), isolation" \
       "$ISOLATION, ${warm}s + ${measure}s: about $((seconds / 60)) min"
   done
 }

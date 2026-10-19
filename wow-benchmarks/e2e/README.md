@@ -105,8 +105,8 @@ Decision D224's implementation note of 2026-10-19 splits the measurements by wha
 
 **Timing** (`harness/tiers.sh`) needs a machine of its own; it runs only when the user says so:
 
-- `tiers.sh quick`: V10 MongoDB against 9.x MongoDB, E1, uniform and Zipf keys, each side at 80% of both sides' saturation, two repetitions (about 40 minutes).
-- `tiers.sh full`: E1 to E3, the three setups, uniform, Zipf and hot keys, at 50% and 80%.
+- `tiers.sh quick`: V10 MongoDB against 9.x MongoDB, E1, uniform and Zipf keys, each side at 80% of both sides' saturation, two repetitions (about 42 minutes, 34 once the shorter phases are accepted).
+- `tiers.sh full`: E1 to E3, the three setups, uniform, Zipf and hot keys, at 50% and 80% (about 7.5 hours, 6 with the shorter phases; E1 alone, `--scenarios=E1`, about 2.5 and 2).
 - `tiers.sh night`: `full`, unattended; it refuses to start while a Gradle build or another benchmark runs and keeps the machine awake (`caffeinate`).
 - `tiers.sh plan quick|full` prints the cells and an estimate; `tiers.sh status quick|full` the cells that have results.
 
@@ -114,7 +114,7 @@ What makes a tier cheaper than one `bench.sh run` per cell:
 
 - **Sessions.** A setup's containers stay up across its cells. Between cells (`--isolation`), `restart` (the default) empties the stores and the topics and restarts the server JVMs; `keys` keeps the JVMs too and gives each cell an account set of its own (`--account-prefix`), at the cost of stores that grow over the cells; `fresh` starts new containers, as `bench.sh run` does. A running V10 node cannot have its store emptied under it (its state cache, partition counters and leases would outlive the data), and the framework has no hook for it, so clearing always restarts the nodes.
 - **Saturation by bisection.** The finder doubles the concurrency from 4 with 5 s steps after a 2 s warm-up, then bisects between the knee and the concurrency below it (3 more steps), instead of 10 s steps from 1.
-- **Adaptive repetitions.** Two runs per cell; a third only when they differ by more than 5% in p99 or throughput.
+- **Adaptive repetitions.** Two runs per cell; a third only when they differ by more than 5% in p50 or throughput (`--rep-metric=p99` compares p99 instead, but a run's p99 moves by 20% to 30% between repetitions, so it would ask for a third almost always). A cell's result is the median of its runs.
 - **Shorter phases once shown stable.** The load generator records the warm-up's per-second latencies. `harness/stability.py` compares, on runs of 30 s warm-up and 60 s measured, the window a 20 s warm-up and 45 s measured phase would have used; once four or more runs differ by at most 5% in throughput, median per-second p50 and p99, `stability.json` accepts the shortening and `--timing=auto` uses it.
 - **Resumable.** A cell whose result is in the report folder is skipped. Results go to `wow-benchmarks/results/reports/v10-vs-9x-e1/` (and `-e2`, `-e3`), `<setup>/<distribution>/<rate>-r<repetition>/`; `v10-vs-9x-e1/aggregate.py <folder>` makes the tables.
 
