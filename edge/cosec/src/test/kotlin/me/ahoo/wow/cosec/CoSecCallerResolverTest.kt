@@ -14,6 +14,10 @@
 package me.ahoo.wow.cosec
 
 import kotlinx.coroutines.test.runTest
+import me.ahoo.cosec.api.context.request.AppIdCapable
+import me.ahoo.cosec.api.policy.VerifyResult
+import me.ahoo.cosec.authorization.RoleVerifyContext
+import me.ahoo.cosec.authorization.RootVerifyContext
 import me.ahoo.cosec.context.SimpleSecurityContext
 import me.ahoo.cosec.principal.SimpleTenantPrincipal
 import me.ahoo.cosec.tenant.SimpleTenant
@@ -146,6 +150,37 @@ class CoSecCallerResolverTest {
         resolver.resolve(request(exchange)).assert().isNull()
         exchange.setSecurityContext(securityContext("alice", "acme", setOf("a@s1", "b@s2")))
         resolver.resolve(request(exchange))!!.scope.assert().isEqualTo(Scope("alice", "s2"))
+    }
+
+    @Test
+    fun `the application is the CoSec-App-Id CoSec authorized the request in by one of the application's roles`() {
+        val exchange = MockServerWebExchange.from(
+            MockServerHttpRequest.post("/view-store/view/v-1/edit").header(AppIdCapable.APP_ID_KEY, " console "),
+        )
+        val byAppRole = securityContext("alice").authorized(coSecRequest(exchange), appRolePermission)
+        val caller = resolver.callerOf(byAppRole)!!
+        caller.app.assert().isEqualTo("console")
+        caller.attributes.assert().isEqualTo(mapOf(Caller.APP to listOf("console")))
+    }
+
+    @Test
+    fun `no application when CoSec allowed the request otherwise, denied it, did not authorize it or none is named`() {
+        val named = MockServerWebExchange.from(
+            MockServerHttpRequest.post("/view-store/view/v-1/edit").header(AppIdCapable.APP_ID_KEY, "console"),
+        )
+        val unnamed = MockServerWebExchange.from(MockServerHttpRequest.post("/view-store/view/v-1/edit"))
+        val denied = RoleVerifyContext(
+            appRolePermission.roleId,
+            appRolePermission.permission,
+            VerifyResult.EXPLICIT_DENY,
+        )
+        listOf(
+            securityContext("root").authorized(coSecRequest(named), RootVerifyContext),
+            securityContext("alice").authorized(coSecRequest(named), denied),
+            securityContext("alice").authorized(coSecRequest(unnamed), appRolePermission),
+            // Injected from a token without CoSec's authorization, as the inject filter and the internal port do.
+            securityContext("alice"),
+        ).forEach { context -> resolver.callerOf(context)!!.app.assert().isNull() }
     }
 
     @Test

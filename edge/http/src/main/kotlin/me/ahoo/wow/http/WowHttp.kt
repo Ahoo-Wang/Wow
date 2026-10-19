@@ -62,9 +62,10 @@ object WowHeaders {
  * What the host configures of the public routes (decision D102 and the `wow.http.*` properties of the host).
  *
  * - [requestFacts] are the request headers copied into a command's headers, as they are named here; a name the
- *   framework reserves (`Wow-*`, `wow.*`) cannot be one. Beside them the public port records the default request
- *   facts `user_agent` and `remote_ip` (09 §17 G-10), which no request header sets: a listed name that is one of
- *   them is not copied.
+ *   framework reserves (`Wow-*`, `wow.*`) cannot be one. Beside them the edge records the standard request facts
+ *   ([me.ahoo.wow.api.decide.RequestFacts]), which no request header sets: `app_id`, the caller's authenticated
+ *   application (decision D232), and on the public port `user_agent` and `remote_ip` (09 §17 G-10); a listed name
+ *   that is one of them is not copied.
  * - [errorStatuses] overrides the HTTP status of an error code, a domain rejection's (422 by default) or a framework
  *   one's.
  * - [manifestEndpoint] serves `GET /wow/manifest`; [openApiEndpoint] serves `GET /wow/openapi`.

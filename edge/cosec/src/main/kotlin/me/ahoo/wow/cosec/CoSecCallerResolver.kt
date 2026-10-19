@@ -14,9 +14,14 @@
 package me.ahoo.wow.cosec
 
 import me.ahoo.cosec.api.context.SecurityContext
+import me.ahoo.cosec.api.context.request.Request
+import me.ahoo.cosec.api.policy.VerifyResult
 import me.ahoo.cosec.api.principal.CoSecPrincipal
 import me.ahoo.cosec.api.principal.SpacedRoleId
 import me.ahoo.cosec.api.tenant.Tenant
+import me.ahoo.cosec.authorization.RoleVerifyContext
+import me.ahoo.cosec.authorization.VerifyContext.Companion.getVerifyContext
+import me.ahoo.cosec.context.RequestSecurityContexts.getRequest
 import me.ahoo.cosec.webflux.ServerWebExchanges.getSecurityContext
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
@@ -103,6 +108,14 @@ class CoSecCallerOptions @InternalWowApi constructor(
  *   no other principal is one, whatever headers its request carries.
  * - **Attributes**: the principal's roles ([ROLES]), its policies ([POLICIES]), and its ABAC attributes, keyed with
  *   their prefix (`abac.dept`); a value is a list, an array or a comma-separated string.
+ * - **Application** ([Caller.app], decision D232): the request's `CoSec-App-Id` only when CoSec's authorization of
+ *   this request granted it through a permission of that application's roles ([appOf]). CoSec does not authenticate
+ *   the header itself: its `Request.appId` is the header (or the query parameter) as the client sent it, and its
+ *   tokens carry no application. What CoSec does check is the application's role permissions, looked up by that id
+ *   (`AppRolePermissionRepository`): a request it allowed by one of them comes from a principal that holds a role of
+ *   the application which permits it. A request allowed otherwise (a global or principal policy, the root), or whose
+ *   security context was injected without CoSec's authorization (`ReactiveInjectSecurityContextWebFilter`, the
+ *   internal port), has no application, whatever header it sends (the trust boundary of decision D226).
  */
 class CoSecCallerResolver(private val options: CoSecCallerOptions = CoSecCallerOptions()) : CallerResolver {
     override suspend fun resolve(request: ServerRequest): Caller? {
@@ -128,7 +141,7 @@ class CoSecCallerResolver(private val options: CoSecCallerOptions = CoSecCallerO
             subject = principal.id,
             crossScope = principal.roles.any { it in options.crossScopeRoles } ||
                 principal.policies.any { it in options.crossScopePolicies },
-            attributes = attributesOf(principal),
+            attributes = attributesOf(principal) + appOf(context)?.let { mapOf(Caller.APP to listOf(it)) }.orEmpty(),
             service = principal.roles.any { it in options.serviceRoles } ||
                 principal.policies.any { it in options.servicePolicies },
         )
@@ -158,6 +171,20 @@ class CoSecCallerResolver(private val options: CoSecCallerOptions = CoSecCallerO
     }
 
     companion object {
+        /**
+         * The application CoSec authorized the request of [context] in (decision D232): the request's `CoSec-App-Id`
+         * when CoSec's authorization allowed it by a permission of a role of that application ([RoleVerifyContext]);
+         * null when it was allowed otherwise, not authorized here, or names no application.
+         */
+        @JvmStatic
+        fun appOf(context: SecurityContext): String? {
+            val verified = context.getVerifyContext() as? RoleVerifyContext ?: return null
+            if (verified.result != VerifyResult.ALLOW) {
+                return null
+            }
+            return context.getRequest<Request>()?.appId?.trim()?.ifEmpty { null }
+        }
+
         /** The attribute of a [Caller] listing its principal's CoSec roles. */
         const val ROLES: String = "roles"
 
