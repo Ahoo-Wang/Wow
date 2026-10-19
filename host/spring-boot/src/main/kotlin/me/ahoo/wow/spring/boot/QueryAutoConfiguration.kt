@@ -27,6 +27,7 @@ import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.QueryBackendStorages
 import me.ahoo.wow.query.QueryCountCache
 import me.ahoo.wow.query.QueryEntryPolicy
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryLogObserver
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.QueryOwnership
@@ -332,6 +333,7 @@ class QueryAutoConfiguration {
             val observer = observerOf(observers)
             val scope = scopePolicies(manifest, tenants, properties)
             val applicationPolicies = policies.orderedStream().toList()
+            val gatewayPolicies = scope + applicationPolicies
             val factory = backend.factory
             val snapshots = if (factory == null) {
                 emptyList()
@@ -342,7 +344,7 @@ class QueryAutoConfiguration {
                         backend = factory.create(type).backend,
                         schemaProvider = catalog.provider(type, QueryModel.SNAPSHOT),
                         filters = filters.orderedStream().toList(),
-                        policies = scope + applicationPolicies,
+                        policies = gatewayPolicies,
                         observer = observer,
                         entryPolicy = entryPolicy,
                         counts = counts.ifAvailable,
@@ -350,22 +352,10 @@ class QueryAutoConfiguration {
                 }
             }
             // An aggregate the snapshot queries hide is hidden from the events model and its state reads too (reviews
-            // A3-11, R2.3-6); only ABAC and the application's policies hide one from a caller of its scope. A type whose
-            // snapshots are not queried has its policies evaluated on its states alone (review R3.3-3).
+            // A3-11, R2.3-6); only ABAC and the application's policies hide one from a caller of its scope.
             val hides = properties.abac.enabled || applicationPolicies.isNotEmpty()
-            val policyGateways = if (hides) {
-                hostedTypes(manifest, contexts).filterNot { type -> snapshots.any { it.aggregateType == type } }
-                    .map { type ->
-                        SnapshotPolicyGateway(type, catalog.policyProvider(type), scope + applicationPolicies, entryPolicy)
-                    }
-            } else {
-                emptyList()
-            }
-            val byType = (snapshots + policyGateways).associateBy { it.aggregateType }
-            val eventVisibility = EventVisibility.of(byType::get, hides) { ref ->
-                reads.ifAvailable?.committed(ref)?.let {
-                    CommittedState(it.ref, it.version, it.scope, it.deleted, it.tags, it.state)
-                }
+            val policyGateways = policyGateways(hides, hostedTypes(manifest, contexts), snapshots) { type ->
+                SnapshotPolicyGateway(type, catalog.policyProvider(type), gatewayPolicies, entryPolicy)
             }
             val eventGateways = eventGateways(
                 manifest,
@@ -374,7 +364,7 @@ class QueryAutoConfiguration {
                     events,
                     catalog,
                     filters.orderedStream().toList(),
-                    scope + applicationPolicies,
+                    gatewayPolicies,
                     observer,
                     entryPolicy,
                     counts.ifAvailable?.let {
@@ -383,7 +373,7 @@ class QueryAutoConfiguration {
                             properties.countCache.options()
                         )
                     },
-                    eventVisibility,
+                    eventVisibility(snapshots + policyGateways, hides, reads),
                     tenants,
                     masks,
                 ),
@@ -397,6 +387,39 @@ class QueryAutoConfiguration {
                 node.snapshotStatus,
                 policyGateways,
             )
+        }
+
+        /**
+         * When policies [hides] an aggregate from a caller of its scope, the [SnapshotPolicyGateway] [gateway] gives for
+         * each of [types] no gateway of [snapshots] queries, so its policies are evaluated on its states alone (review
+         * R3.3-3); none otherwise.
+         */
+        private fun policyGateways(
+            hides: Boolean,
+            types: List<AggregateType>,
+            snapshots: List<QueryGateway>,
+            gateway: (AggregateType) -> SnapshotPolicyGateway,
+        ): List<QueryGateway> {
+            if (!hides) return emptyList()
+            val queried = snapshots.map { it.aggregateType }.toSet()
+            return types.filterNot(queried::contains).map(gateway)
+        }
+
+        /**
+         * The events model's visibility: the latest committed state [reads] reads, under the gateway of its type among
+         * [gateways].
+         */
+        private fun eventVisibility(
+            gateways: List<QueryGateway>,
+            hides: Boolean,
+            reads: ObjectProvider<StateReads>,
+        ): EventVisibility {
+            val byType = gateways.associateBy { it.aggregateType }
+            return EventVisibility.of(byType::get, hides) { ref ->
+                reads.ifAvailable?.committed(ref)?.let {
+                    CommittedState(it.ref, it.version, it.scope, it.deleted, it.tags, it.state)
+                }
+            }
         }
 
         /** What every events gateway of [eventGateways] is built of, the beans and policies [wowHttpQueries] holds. */

@@ -74,7 +74,16 @@ class QueryRoutesEdgesTest {
         assertThrownBy<IllegalArgumentException> {
             HttpQueries(events = listOf(cartEvents(log), cartEvents(log)))
         }
+        val snapshots = cartSnapshots(storage)
+        assertThrownBy<IllegalArgumentException> {
+            HttpQueries(policies = listOf(snapshots, cartSnapshots(storage)))
+        }
+        // A policy gateway is for a type whose snapshots are not queried (review R3.3-3).
+        assertThrownBy<IllegalArgumentException> { HttpQueries(listOf(snapshots), policies = listOf(snapshots)) }
+        HttpQueries(listOf(snapshots)).visibility(cartType).assert().isSameAs(snapshots)
+        HttpQueries(policies = listOf(snapshots)).visibility(cartType).assert().isSameAs(snapshots)
         HttpQueries.NONE.snapshots(cartType).assert().isNull()
         HttpQueries.NONE.events(cartType).assert().isNull()
+        HttpQueries.NONE.visibility(cartType).assert().isNull()
     }
 }

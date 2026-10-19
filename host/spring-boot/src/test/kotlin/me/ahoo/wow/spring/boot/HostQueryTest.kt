@@ -34,17 +34,21 @@ import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.index.QueryIndexDdl
+import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.query.state.SnapshotPolicyGateway
 import me.ahoo.wow.runtime.admission.TenantPolicy
+import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.junit.jupiter.api.Test
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.time.Duration
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.toKotlinDuration
 
 private val ACCOUNT = AggregateType(BANK, "account")
@@ -70,6 +74,23 @@ class MemorySnapshotQueries {
         HostBackends.memory(properties.log.partitions) { QueriedSnapshots(InMemorySnapshotStore(), queries) }
 }
 
+/**
+ * The application's own `events` backend, without a snapshot query backend: each context's log scanned in memory, as
+ * an application with a [me.ahoo.wow.runtime.node.BackendFactory] of its own would give one.
+ */
+@Configuration(proxyBeanMethods = false)
+class ScannedEvents {
+    @Bean
+    fun applicationEvents(node: ServiceNode): EventQueryBackend {
+        val storages = ConcurrentHashMap<String, InMemoryEventQueryStorage>()
+        return EventQueryBackend { type ->
+            node.contexts[type.context]?.let { context ->
+                storages.computeIfAbsent(type.context) { InMemoryEventQueryStorage.of(context.log) }.create(type)
+            }
+        }
+    }
+}
+
 /** The query plane of a host on the memory backend (work package 6.2c). */
 class HostQueryTest {
     private fun Host.openAccount(owner: String): String {
@@ -79,27 +100,55 @@ class HostQueryTest {
     }
 
     @Test
-    fun `on the memory backend the events should be queried, the snapshots not served`() {
+    fun `on the memory backend neither the snapshots nor the events should be served by default`() {
         startHost().use { host ->
             val queries = host.context.getBean(HttpQueries::class.java)
-            queries.events(ACCOUNT).assert().isNotNull()
+            // The in-memory events scan follows wow.query.memory.enabled, as the snapshots do (review R3.4-1).
+            queries.events(ACCOUNT).assert().isNull()
             queries.snapshots(ACCOUNT).assert().isNull()
             host.context.getBean(SnapshotQueryBackend::class.java).assert().isSameAs(SnapshotQueryBackend.NONE)
+            host.context.getBean(EventQueryBackend::class.java).binding(ACCOUNT).assert().isNull()
             val id = host.openAccount("mona")
-            host.post("/bank/account/$id/deposit", """{"amount":3}""").status.assert().isEqualTo(200)
 
-            val events = host.post(
-                "/bank/account/events/query",
-                """{"kind":"list","filter":{"op":"ID","value":"$id"}}"""
-            )
-            events.status.assert().isEqualTo(200)
-            events.body!!.values().map { it["version"].asInt() }.assert().containsExactly(1, 2)
-            events.body!![1]["events"][0]["body"]["amount"].asLong().assert().isEqualTo(3)
-            host.get("/bank/account/events/query").status.assert().isEqualTo(200)
-
+            host.post("/bank/account/events/query", """{"kind":"list","filter":{"op":"ID","value":"$id"}}""")
+                .status.assert().isEqualTo(404)
             host.post("/bank/account/snapshot/query", """{"kind":"list","filter":{"op":"MATCH_ALL"}}""")
                 .status.assert().isEqualTo(404)
             host.context.getBean(QueryIndexesLifecycle::class.java).reports.assert().isEmpty()
+        }
+    }
+
+    @Test
+    fun `without a snapshot query gateway the events model should stay under ABAC`() {
+        startHost(
+            "wow.query.abac.enabled" to true,
+            "wow.query.abac.match-missing-tag-key" to false,
+            sources = listOf(HostTestApp::class.java, ScannedEvents::class.java),
+        ).use { host ->
+            val id = host.openAccount("mona")
+            val queries = host.context.getBean(HttpQueries::class.java)
+            queries.snapshots(ACCOUNT).assert().isNull()
+            queries.visibility(ACCOUNT).assert().isInstanceOf(SnapshotPolicyGateway::class.java)
+            val events = queries.events(ACCOUNT)!!
+            fun eventsOf(tier: String) = runBlocking {
+                val caller = QueryCaller(Caller(attributes = mapOf("abac.$TIER" to listOf(tier))))
+                events.list(ListQuery(AggregateIdFilter(id)), caller).toList()
+            }
+            // Review R3.3-3: a caller whose tags the account's do not match reads none of its events.
+            eventsOf("gold").assert().isEmpty()
+            eventsOf("standard").map { it["version"].asInt() }.assert().containsExactly(1)
+        }
+    }
+
+    @Test
+    fun `without ABAC or a query policy no snapshot policy gateway is built`() {
+        startHost(sources = listOf(HostTestApp::class.java, ScannedEvents::class.java)).use { host ->
+            val id = host.openAccount("mona")
+            val queries = host.context.getBean(HttpQueries::class.java)
+            queries.visibility(ACCOUNT).assert().isNull()
+            val events = host.post("/bank/account/events/query", """{"kind":"list","filter":{"op":"MATCH_ALL"}}""")
+            events.status.assert().isEqualTo(200)
+            events.body!!.values().map { it["aggregateId"].asString() }.assert().containsExactly(id)
         }
     }
 
@@ -112,6 +161,8 @@ class HostQueryTest {
             "wow.query.http.timeout" to "5s",
             "wow.query.abac.enabled" to true,
             "wow.query.index.ddl" to "validate",
+            // The events of the log in memory are scanned (review R3.4-1).
+            "wow.query.memory.enabled" to true,
             sources = listOf(HostTestApp::class.java, MemorySnapshotQueries::class.java),
         ).use { host ->
             listOf("mona", "lisa", "nina").forEach { host.openAccount(it) }
@@ -196,9 +247,9 @@ class HostQueryTest {
     }
 
     @Test
-    fun `wow-query-memory-enabled should serve the snapshots of the memory backend`() {
+    fun `wow-query-memory-enabled should serve the snapshots and the events of the memory backend`() {
         startHost("wow.query.memory.enabled" to true).use { host ->
-            listOf("mona", "lisa").forEach { host.openAccount(it) }
+            val id = listOf("mona", "lisa").map { host.openAccount(it) }.first()
             host.context.getBean(HttpQueries::class.java).snapshots(ACCOUNT).assert().isNotNull()
 
             val listed = host.post(
@@ -207,6 +258,17 @@ class HostQueryTest {
             )
             listed.status.assert().isEqualTo(200)
             listed.body!!.values().map { it["state"]["owner"].asString() }.assert().containsExactly("lisa", "mona")
+
+            // Its log is scanned in memory for the events model (review R3.4-1).
+            host.post("/bank/account/$id/deposit", """{"amount":3}""").status.assert().isEqualTo(200)
+            val events = host.post(
+                "/bank/account/events/query",
+                """{"kind":"list","filter":{"op":"ID","value":"$id"}}"""
+            )
+            events.status.assert().isEqualTo(200)
+            events.body!!.values().map { it["version"].asInt() }.assert().containsExactly(1, 2)
+            events.body!![1]["events"][0]["body"]["amount"].asLong().assert().isEqualTo(3)
+            host.get("/bank/account/events/query").status.assert().isEqualTo(200)
         }
     }
 
