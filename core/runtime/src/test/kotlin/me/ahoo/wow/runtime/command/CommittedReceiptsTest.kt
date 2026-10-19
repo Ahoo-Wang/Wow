@@ -307,10 +307,12 @@ class CommittedReceiptsTest {
         val unassigned = ITEM.unassigned(TENANT)
         val creation = Command("new-1", "r-new-1", unassigned, Reserve(1))
         send(creation)
-        eventually { checkpoint(unassigned) == 1L }
+        // Its partition is its request's (review R2.1-2).
+        val lane = ITEM.ref(TENANT, "(none):r-new-1")
+        eventually { checkpoint(lane) == 1L }
         // The same request again (a saga that handled its commit again): the same id, decided once.
         send(creation)
-        eventually { checkpoint(unassigned) == 2L }
+        eventually { checkpoint(lane) == 2L }
         val (first, again) = receipts().map { it as CommandCommitted<*> }
         first.ref.isAssigned.assert().isTrue()
         again.ref.assert().isEqualTo(first.ref)

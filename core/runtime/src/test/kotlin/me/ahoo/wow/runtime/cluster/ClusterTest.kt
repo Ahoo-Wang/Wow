@@ -26,8 +26,13 @@ import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.wait.ResultCodes
 import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.wait.Origin
+import me.ahoo.wow.spi.wait.WaitContext
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -404,4 +409,50 @@ class ClusterTest {
         // Review A5-11: each forward without the owner's settlement is observed, by outcome.
         failed.assert().containsExactly("local", "local", "local", "unknown", "unknown")
     }
+
+    @Test
+    fun `a forward whose wait ran out before it was sent is withdrawn, not unknown nor run here`(): Unit =
+        runBlocking {
+            // Review R2.1-9: withTimeoutOrNull(0) never sends, so no reply is not an unknown outcome.
+            val (one) = cluster.start("node-1", "node-2")
+            cluster.awaitStable()
+            val id = (0 until 64).map { "acc-$it" }.first { ownerOf(it) == "node-2" }
+            val now = AtomicLong(System.currentTimeMillis())
+            val sent = AtomicInteger()
+            val channel = object : ClusterChannel {
+                override suspend fun forward(address: String, request: ForwardCommand): ForwardReply {
+                    sent.incrementAndGet()
+                    error("Never sent.")
+                }
+
+                // Connected just as the wait runs out.
+                override suspend fun connect(address: String) {
+                    now.addAndGet(1_000)
+                }
+            }
+            val failed = CopyOnWriteArrayList<String>()
+            val observer = object : Observer {
+                override fun forwardFailed(type: AggregateType, outcome: String) {
+                    failed += outcome
+                }
+            }
+            val router = PartitionedRouter(listOf(one.ownership), channel, cluster.options, observer) { now.get() }
+            val command = one.command(id)
+            val wait = WaitContext(
+                "w-1",
+                Origin("node-1", one.address, "bank"),
+                listOf(Hop.committed(CONTEXT)),
+                now.get() + 500
+            )
+            val settlement = router.route(
+                one.model,
+                command,
+                wait
+            ) { one.coordinator.executeHere(one.model, command, wait) }
+            settlement.committed.status.assert().isEqualTo(CommandResult.Status.FAILED)
+            settlement.committed.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
+            sent.get().assert().isZero()
+            one.decided.assert().isEmpty()
+            failed.assert().isEmpty()
+        }
 }

@@ -52,10 +52,12 @@ interface ReceiptHandler {
  * handler goes on, and what either derives is executed with ids derived from the command's, so a second execution
  * derives the same requests.
  *
- * - **Deduplicated by command id** (decisions D136, D192): the target may send a receipt more than once (a crash
- *   between the receipt and its checkpoint, or a duplicate request answered again), so a receipt whose command was
- *   handled here recently ([REMEMBERED] of them) is dropped; an older copy, after a restart, reaches the handler again,
- *   whose commands the kernel does not decide twice.
+ * - **Deduplicated by command id and kind** (decisions D136, D192): the target may send a receipt more than once (a
+ *   crash between the receipt and its checkpoint, or a duplicate request answered again), so a receipt of the same
+ *   kind whose command was handled here recently ([REMEMBERED] of them) is dropped; an older copy, after a restart,
+ *   reaches the handler again, whose commands the kernel does not decide twice. A commit after a rejection of the same
+ *   command is not a copy (review R2.1-7): the target logs no rejection (D47), so the command sent again was decided
+ *   again; the commit reaches the `@OnCommitted` handler, with a warning that the rejection was compensated before.
  * - A receipt no handler takes is logged and passed over: the saga's hop was complete when the command was accepted.
  * - A command type the contracts do not know, a class that cannot be loaded, a handler that throws, or a command it
  *   derives that fails or is rejected, fails the receipt: retried, then the saga's aggregate parks under the
@@ -81,7 +83,7 @@ internal class Receipts internal constructor(
     }
 
     /** Hands [rejected] to the handler once per command id. */
-    internal suspend fun handle(rejected: CommandRejected<*>) = once(rejected.commandId) {
+    internal suspend fun handle(rejected: CommandRejected<*>) = once(rejected.commandId, REJECTED) {
         if (handler.rejected(rejected, commandClassOf(rejected.commandType)) == null) {
             logger.warn {
                 "No @OnRejected handler of ${rejected.executionId.subscription} in $context takes the rejection of " +
@@ -91,24 +93,41 @@ internal class Receipts internal constructor(
     }
 
     /** Hands [committed], with the [wait] its receipt carries, to the handler once per command id. */
-    internal suspend fun handle(committed: CommandCommitted<*>, wait: WaitContext? = null) = once(committed.commandId) {
-        if (handler.committed(committed, commandClassOf(committed.commandType), wait) == null) {
-            logger.warn {
-                "No @OnCommitted handler of ${committed.executionId.subscription} in $context takes the receipt of " +
-                    "${committed.commandType} ${committed.commandId} on ${committed.ref}."
+    internal suspend fun handle(committed: CommandCommitted<*>, wait: WaitContext? = null) =
+        once(committed.commandId, COMMITTED) {
+            if (synchronized(handled) { key(committed.commandId, REJECTED) in handled }) {
+                // A rejection is not in the log (D47), so the command, sent again, was decided again (review R2.1-7).
+                logger.warn {
+                    "${committed.commandType} ${committed.commandId} on ${committed.ref} committed after its rejection " +
+                        "was handled: ${committed.executionId.subscription} in $context compensated a command that " +
+                        "then committed."
+                }
+            }
+            if (handler.committed(committed, commandClassOf(committed.commandType), wait) == null) {
+                logger.warn {
+                    "No @OnCommitted handler of ${committed.executionId.subscription} in $context takes the receipt " +
+                        "of ${committed.commandType} ${committed.commandId} on ${committed.ref}."
+                }
             }
         }
-    }
 
-    /** Runs [handle] unless the receipt of [commandId] was handled recently, and remembers it once it was. */
-    private suspend fun once(commandId: String, handle: suspend () -> Unit) {
-        if (synchronized(handled) { commandId in handled }) {
-            logger.debug { "Dropping a copy of the receipt of $commandId." }
+    /**
+     * Runs [handle] unless the receipt of [commandId] of [kind] was handled recently, and remembers it once it was.
+     * A commit and a rejection of one command are told apart (review R2.1-7): a target does not log a rejection
+     * (decision D47), so a command a saga sent again with its id after a rejection is decided again and may commit;
+     * the commit then reaches the `@OnCommitted` handler instead of being dropped as a copy of the rejection.
+     */
+    private suspend fun once(commandId: String, kind: String, handle: suspend () -> Unit) {
+        val key = key(commandId, kind)
+        if (synchronized(handled) { key in handled }) {
+            logger.debug { "Dropping a copy of the $kind receipt of $commandId." }
             return
         }
         handle()
-        synchronized(handled) { handled[commandId] = true }
+        synchronized(handled) { handled[key] = true }
     }
+
+    private fun key(commandId: String, kind: String): String = "$kind:$commandId"
 
     /**
      * The class of the command type [commandType] (`ctx.agg.Command`), by its schema in the contracts; a ledger command
@@ -124,8 +143,10 @@ internal class Receipts internal constructor(
     }
 
     companion object {
-        /** How many command ids a context remembers handling the receipt of. */
+        /** How many receipts, by command id and kind, a context remembers handling. */
         const val REMEMBERED: Int = 4_096
+        private const val REJECTED = "rejected"
+        private const val COMMITTED = "committed"
         private const val LOAD_FACTOR = 0.75f
         private val logger = KotlinLogging.logger {}
 

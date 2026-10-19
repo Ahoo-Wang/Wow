@@ -30,6 +30,7 @@ import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.subscription.HandlingRejectedException
 import me.ahoo.wow.runtime.wait.Settlement
 import me.ahoo.wow.runtime.wait.WaitCoordinator
+import me.ahoo.wow.runtime.wait.busyOf
 import me.ahoo.wow.runtime.wait.toError
 import me.ahoo.wow.spi.wait.WaitContext
 
@@ -61,8 +62,11 @@ import me.ahoo.wow.spi.wait.WaitContext
  * - **Scope** (decision D199): a derived command is not checked against the caller's scope on an existing target; the
  *   root command was authorized at its admission. Each carries a causation, so the kernel tells it from a caller's
  *   ([me.ahoo.wow.kernel.isDerived]): one a handler built without it is given itself as its root.
+ * - **Backpressure**: a command the node refused as busy (its lane full, or the node at its most commands in flight,
+ *   decision D228 ②) fails the handling with a [me.ahoo.wow.runtime.CommandBusyException], which the subscription
+ *   retries after a backoff without spending its retry budget (review R2.1-1).
  * - **Technical failures** fail the handling: a command whose outcome is contended or unknown, or that the executor
- *   did not take (its lane full, the node closing), a command the broker
+ *   did not take (the node closing), a command the broker
  *   did not acknowledge, one to another context with no sender (a node without a Kafka transport), and one to an
  *   aggregate type its own context does not have. The subscription retries the handling, which derives the same
  *   requests again, then parks the aggregate.
@@ -137,6 +141,8 @@ internal class DerivedCommands(
         if (!settlement.failed) {
             return null
         }
+        // A busy node is backpressure: the subscription retries without spending its budget (review R2.1-1).
+        settlement.busyOf(command)?.let { return it }
         val error = settlement.committed.error
         val failure = settlement.failure
         return IllegalStateException(

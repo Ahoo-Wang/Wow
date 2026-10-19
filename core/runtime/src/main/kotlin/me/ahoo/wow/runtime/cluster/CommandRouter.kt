@@ -77,6 +77,8 @@ fun interface CommandRouter {
  *   known owner, the peer's [ClusterOptions.maxInFlightPerPeer] reached, the peer unreachable or not connected by the
  *   wait's deadline ([ClusterChannelException.unsent]), or a refusal ([Refusal.NOT_OWNER], [Refusal.EXPIRED], or a
  *   type the peer does not know): the peer did not run it.
+ * - A forward whose wait ran out before it could be sent is withdrawn ([ResultCodes.WAIT_TIMEOUT], review R2.1-9):
+ *   neither sent nor run here, so it is not reported unknown.
  * - A forward that was sent and got no reply by its deadline, or failed after it was sent, does not degrade (decision
  *   D223, revising D80): the owner may be deciding it still, and deciding it here too would run a decide that does
  *   I/O twice (D46). Its outcome is [ResultCodes.UNKNOWN]; a retry with the same request id is answered from the
@@ -141,6 +143,14 @@ class PartitionedRouter(
             } catch (failure: Exception) {
                 return unsent(ownership, command, peer, failure.toString())
             } ?: return unsent(ownership, command, peer, "not connected by the wait's deadline")
+            if (request.deadline <= clock()) {
+                // Nothing left to send it in (review R2.1-9): it was not sent, so its outcome is not unknown.
+                return if (wait != null && wait.deadline <= clock()) {
+                    expired(model, command)
+                } else {
+                    unsent(ownership, command, peer, "no time left to send it")
+                }
+            }
             return send(ownership, peer, model, command, request)
         } finally {
             // An idle peer's counter goes (review A5-14): a peer that left, or changed its address in a rolling
@@ -209,6 +219,28 @@ class PartitionedRouter(
         observer.forwardFailed(command.ref.type, FORWARD_LOCAL)
         ownership.refreshSoon()
         return null
+    }
+
+    /**
+     * The wait of [command] ran out before it could be forwarded (review R2.1-9): it was not sent, so it is not run
+     * here either, past its wait, and it is withdrawn as a command waiting in its lane past its deadline is
+     * ([ResultCodes.WAIT_TIMEOUT], decision D228 ②): it committed nothing, and a retry with the same request id runs it.
+     */
+    private fun expired(model: AggregateModel<*>, command: Command<*>): Settlement {
+        logger.debug { "The wait of ${command.id} ran out before it was forwarded; it is withdrawn, not sent." }
+        val committed = reachedResult(
+            command,
+            commandFunction(model, command),
+            Hop.committed(command.ref.type.context),
+            clock(),
+        )
+        return Settlement(
+            committed.failed(
+                ResultCodes.WAIT_TIMEOUT,
+                "The wait timed out before command ${command.id} on ${command.ref} was sent to its owner; it was " +
+                    "withdrawn, not executed.",
+            ),
+        )
     }
 
     /**

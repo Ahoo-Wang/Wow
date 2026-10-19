@@ -20,6 +20,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
+import me.ahoo.wow.runtime.CommandBusyException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Clock
@@ -83,6 +84,29 @@ class SubscriptionRetryTest {
             ledger.isParked("slow", cart("y")).assert().isFalse()
             ledger.isParked("failing", cart("y")).assert().isFalse()
         }
+
+    @Test
+    fun `a busy node is backpressure, retried past the budget without parking`(): Unit = runBlocking {
+        // Review R2.1-1: a command the node refused as busy never parks the aggregate that sent it.
+        val attempts = AtomicInteger()
+        val busy = Subscription("busy", SubscriptionFilter("shop")) { entry ->
+            if (attempts.incrementAndGet() <= BUSY_ROUNDS) {
+                throw CommandBusyException(
+                    entry.ref,
+                    "c-${entry.version}",
+                    "The node already has 1 commands in flight."
+                )
+            }
+        }
+        val runtime = runtime(listOf(busy))
+        appender.append("x")
+        runtime.start(setOf(0, 1))
+        eventually { reachedEnd("busy") }
+        runtime.stop()
+
+        attempts.get().assert().isEqualTo(BUSY_ROUNDS + 1)
+        ledger.isParked("busy", cart("x")).assert().isFalse()
+    }
 
     @Test
     fun `a handler's own timeout or an error parks its aggregate and the checkpoint moves on`(): Unit = runBlocking {
@@ -205,5 +229,10 @@ class SubscriptionRetryTest {
         assertThrows<IllegalArgumentException> { runtime(listOf(subscription)) }
             .message.assert().contains("broken")
         assertThrows<IllegalArgumentException> { RetryPolicy(timeout = Duration.ZERO) }
+    }
+
+    private companion object {
+        /** More busy rounds than the three attempts of the budget. */
+        const val BUSY_ROUNDS = 6
     }
 }
