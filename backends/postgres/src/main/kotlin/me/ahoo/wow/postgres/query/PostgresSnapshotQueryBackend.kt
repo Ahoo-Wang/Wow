@@ -25,6 +25,8 @@ import me.ahoo.wow.api.query.ICountQuery
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.postgres.PostgresFailures
+import me.ahoo.wow.postgres.autoCommitted
+import me.ahoo.wow.postgres.inTransaction
 import me.ahoo.wow.postgres.query.PostgresSnapshotSqlCompiler.Companion.keepsState
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
 import me.ahoo.wow.query.AdmittedQuery
@@ -180,10 +182,8 @@ class PostgresSnapshotQueryBackend internal constructor(
      * when it throws. A table that does not exist yet is empty: the answer is [missing]'s.
      */
     private inline fun <T> transaction(timeout: Duration?, missing: () -> T, block: (Connection) -> T): T = try {
-        dataSource.connection.use { connection ->
-            connection.autoCommit = false
-            var committed = false
-            try {
+        dataSource.autoCommitted { connection ->
+            inTransaction(connection) {
                 timeout?.let { limit ->
                     connection.createStatement().use {
                         it.execute(
@@ -191,13 +191,7 @@ class PostgresSnapshotQueryBackend internal constructor(
                         )
                     }
                 }
-                block(connection).also {
-                    connection.commit()
-                    committed = true
-                }
-            } finally {
-                if (!committed) connection.rollback()
-                connection.autoCommit = true
+                block(connection)
             }
         }
     } catch (error: SQLException) {

@@ -75,6 +75,8 @@ class ReservationImporterTest {
     private fun scope(tenantId: String, namespace: String = "order.no") =
         ReservationScope.of(NineXExample.CONTEXT, tenantId, namespace)
 
+    private val imported = InMemoryImportedKeys()
+
     private fun importer(options: ImportOptions = ImportOptions(pageSize = 2)) = ReservationImporter(
         events,
         keys,
@@ -85,9 +87,10 @@ class ReservationImporterTest {
         { reports += it.render() },
         { reports += it },
         { now },
+        imported,
     )
 
-    private fun comparison() = ReservationComparison(events, keys, plan, { store }, 2) { reports += it }
+    private fun comparison() = ReservationComparison(events, keys, plan, { store }, 2, imported) { reports += it }
 
     @Test
     fun `confirmed keys are reserved for their owners in their tenants, pending and expired ones skipped`(): Unit =
@@ -162,7 +165,10 @@ class ReservationImporterTest {
     fun `compare finds every confirmed key reserved for its owner, and reports one that is not`(): Unit = runTest {
         importer().importAll("order_no")
         comparison().compare("order_no").assert().isEqualTo(ReservationComparisonResult("order_no", 2, 0, 2))
-        reports.assert().contains("PrepareKey order_no compared: 2 confirmed keys, 0 differ, 2 without an owner")
+        reports.assert().contains(
+            "PrepareKey order_no compared: 2 confirmed keys, 0 differ, 2 without an owner; 0 imported keys no longer " +
+                "confirmed to their owner in 9.x",
+        )
 
         store.release(scope("(0)"), "NO-1", owner)
         store.reserve(scope("(0)"), "NO-1", owner, "hold", 1.hours)
@@ -176,6 +182,78 @@ class ReservationImporterTest {
         store.confirm(scope("tenant-b"), "NO-2", owner)
         comparison().compare("order_no")
         reports.assert().contains("DIFFERS PrepareKey order_no/NO-2: 9.x $ownerB, V10 $owner")
+    }
+
+    @Test
+    fun `a key 9x released after the import is released by the restart, and compare reports it`(): Unit = runTest {
+        importer().importAll("order_no").imported.assert().isEqualTo(2)
+        imported.all.map { it.key }.assert().containsExactly("NO-1", "NO-2")
+
+        // 9.x rolls NO-1 back during the migration window (a rename): compare finds V10 still holding it.
+        keys.remove("order_no", "NO-1")
+        val stale = comparison().compare("order_no")
+        stale.stale.assert().isEqualTo(1)
+        stale.passed.assert().isFalse()
+        reports.assert().contains("DIFFERS PrepareKey order_no/NO-1: V10 $owner, which 9.x no longer confirms it to")
+
+        // A resumed run does not converge; the final restart releases it and forgets it.
+        importer(ImportOptions(pageSize = 2, restart = true)).importAll("order_no")
+            .assert().isEqualTo(ReservationProgress("order_no", 0, 1, 1, 1, 2, true, released = 1))
+        store.find(scope("(0)"), "NO-1").assert().isNull()
+        store.find(scope("tenant-b"), "NO-2")!!.owner.assert().isEqualTo(ownerB)
+        imported.all.map { it.key }.assert().containsExactly("NO-2")
+        reports.assert().contains("RELEASED PrepareKey order_no/NO-1 of $owner: 9.x no longer confirms it to them")
+        comparison().compare("order_no").passed.assert().isTrue()
+    }
+
+    @Test
+    fun `a key 9x gave to another owner moves to it on the final restart instead of stopping the import`(): Unit =
+        runTest {
+            importer().importAll("order_code").imported.assert().isEqualTo(1)
+            val system = scope(ReservationScope.SYSTEM_TENANT, "order.code")
+            store.find(system, "C-1")!!.owner.assert().isEqualTo(owner)
+
+            // 9.x reprepares C-1 for order-b.
+            keys.update(key("order_code", "C-1", "\"order-b\""))
+            comparison().compare("order_code").also {
+                it.differ.assert().isEqualTo(1)
+                it.stale.assert().isEqualTo(1)
+            }
+            importer(ImportOptions(restart = true)).importAll("order_code")
+                .assert().isEqualTo(ReservationProgress("order_code", 1, 0, 0, 0, 0, true, released = 1))
+            store.find(system, "C-1")!!.also {
+                it.owner.assert().isEqualTo(ownerB)
+                it.confirmed.assert().isTrue()
+            }
+            imported.all.map { it.owner() }.assert().containsExactly(ownerB)
+            comparison().compare("order_code").passed.assert().isTrue()
+        }
+
+    @Test
+    fun `keys V10 holds that the import did not confirm are never released`(): Unit = runTest {
+        // V10 already holds NO-1 for its owner, and holds NO-9 of its own, which 9.x never had.
+        store.confirm(scope("(0)"), "NO-1", owner)
+        store.confirm(scope("(0)"), "NO-9", owner)
+        importer().importAll("order_no").assert().isEqualTo(ReservationProgress("order_no", 1, 1, 1, 1, 2, true))
+        imported.all.map { it.key }.assert().containsExactly("NO-2")
+
+        keys.remove("order_no", "NO-1")
+        importer(ImportOptions(pageSize = 2, restart = true)).importAll("order_no").released.assert().isEqualTo(0)
+        store.find(scope("(0)"), "NO-1")!!.owner.assert().isEqualTo(owner)
+        store.find(scope("(0)"), "NO-9")!!.owner.assert().isEqualTo(owner)
+        comparison().compare("order_no").stale.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `a recorded key V10 no longer holds for its owner is forgotten, not released`(): Unit = runTest {
+        importer().importAll("order_no")
+        // Released in V10 (an operator), then taken by another owner.
+        store.release(scope("(0)"), "NO-1", owner)
+        store.confirm(scope("(0)"), "NO-1", ownerB)
+        keys.remove("order_no", "NO-1")
+        importer(ImportOptions(pageSize = 2, restart = true)).importAll("order_no").released.assert().isEqualTo(0)
+        store.find(scope("(0)"), "NO-1")!!.owner.assert().isEqualTo(ownerB)
+        imported.all.map { it.key }.assert().containsExactly("NO-2")
     }
 
     @Test
