@@ -291,13 +291,15 @@ class V10ArchitectureTest {
     }
 
     @Test
-    fun `module graph should allow the test modules to a module's tests only`(@TempDir root: File) {
+    fun `module graph should allow the test modules and the Manifest to a module's tests only`(@TempDir root: File) {
         File(root, V10Rules.POSTGRES.dir).apply { mkdirs() }.resolve("build.gradle.kts").writeText(
             """
             dependencies {
                 api(project(":spi"))
                 implementation(project(":tck-containers"))
                 testImplementation(project(":test-dsl"))
+                testImplementation(project(":manifest"))
+                testImplementation(testFixtures(project(":manifest")))
                 integrationTestImplementation(project( ":tck" ))
                 integrationTestImplementation(project(":runtime"))
             }

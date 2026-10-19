@@ -370,17 +370,19 @@ object V10Rules {
     )
 
     /**
-     * The Manifest model's test fixtures (its `copyWith` helpers, decision D59: the model has no `copy`) declared in a
-     * test configuration. Every module that reads a Manifest reaches `:manifest` through its main dependencies.
+     * The Manifest model, or its test fixtures (its `copyWith` helpers, decision D59: the model has no `copy`), declared
+     * in a test configuration: a domain's tests read the Manifest fragment the compiler writes, which the kernel does not
+     * bring (decision D231). Every module whose main code reads a Manifest declares `:manifest` in its main
+     * dependencies.
      */
     private val TEST_SCOPED_MANIFEST_FIXTURES = Regex(
-        """\b(?:test\w*|\w+Test\w*)\(\s*testFixtures\(\s*project\(\s*":${MANIFEST.name}"\s*\)\s*\)\s*\)""",
+        """\b(?:test\w*|\w+Test\w*)\(\s*(?:testFixtures\(\s*)?project\(\s*":${MANIFEST.name}"\s*\)\s*\)?\s*\)""",
     )
 
     /**
      * The projects [module]'s build script depends on, in any configuration but for a test module its tests use
-     * ([TEST_MODULES]) and the Manifest's test fixtures ([TEST_SCOPED_MANIFEST_FIXTURES]): those are allowed to every
-     * module.
+     * ([TEST_MODULES]) and the Manifest or its test fixtures in a test configuration ([TEST_SCOPED_MANIFEST_FIXTURES]):
+     * those are allowed to every module.
      */
     fun projectDependencies(repositoryRoot: File, module: V10Module): Set<String> =
         PROJECT_DEPENDENCY.findAll(

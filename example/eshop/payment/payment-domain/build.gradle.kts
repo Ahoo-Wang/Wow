@@ -24,6 +24,8 @@ dependencies {
     api(project(":kernel"))
     ksp(project(":compiler"))
     testImplementation(project(":test-dsl"))
+    // The Manifest fragment the compiler writes, which the tests read (the kernel does not bring :manifest, D231).
+    testImplementation(project(":manifest"))
     // The sagas' suspending handler and an `@OnRejected` handler's binding are invoked from a coroutine.
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
 }
