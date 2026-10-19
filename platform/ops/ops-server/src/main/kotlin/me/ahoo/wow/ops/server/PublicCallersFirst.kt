@@ -29,7 +29,8 @@ import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 class PublicCallersFirst : BeanFactoryPostProcessor {
     override fun postProcessBeanFactory(beanFactory: ConfigurableListableBeanFactory) {
         val internal = beanFactory.getBeanNamesForType(InternalCallerResolver::class.java, true, false).toSet()
-        val public = beanFactory.getBeanNamesForType(CallerResolver::class.java, true, false).filterNot { it in internal }
+        val callers = beanFactory.getBeanNamesForType(CallerResolver::class.java, true, false)
+        val public = callers.filterNot { it in internal }
         if (internal.isEmpty() || public.size != 1) {
             return
         }
