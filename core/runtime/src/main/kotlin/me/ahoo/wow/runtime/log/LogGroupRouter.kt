@@ -21,13 +21,14 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
+import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Transport
 
 /**
  * The log of a context whose aggregates are in several log groups (decision D177), as its kernel and its readers by
  * aggregate see it: each call by aggregate goes to the log of the aggregate's group, [groups] for the types they name,
  * [default] for the others. A partition's entries are read per group, by the subscription runtime of each group, so
- * [tail] and [head] are not served here: each group's log has its own sequences.
+ * [tail], [head] and [lineage] are not served here: each group's log has its own sequences.
  *
  * Every group has the context's partitions; an append of streams of several groups appends each group's streams to
  * its own log, and the outcomes come back in the order of the streams.
@@ -87,6 +88,9 @@ internal class LogGroupRouter(
 
     override suspend fun head(partition: Int): Long? =
         throw UnsupportedOperationException("Each log group has a head of its own: its sequences are its own.")
+
+    override suspend fun lineage(partition: Int): PartitionLineage =
+        throw UnsupportedOperationException("Each log group has partitions of its own, and their lineage.")
 
     companion object {
         /** [default] alone when no type is in another group, else the router over them. */

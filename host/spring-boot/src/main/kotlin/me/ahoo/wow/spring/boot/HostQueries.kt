@@ -181,6 +181,12 @@ data class QueryIndexReport(
 internal fun snapshotTypes(manifest: Manifest, contexts: Set<String>): List<AggregateType> =
     queryTypes(manifest, contexts, QueryRoutes.SNAPSHOT)
 
+/** Every aggregate type of [manifest] in [contexts]. */
+internal fun hostedTypes(manifest: Manifest, contexts: Set<String>): List<AggregateType> =
+    manifest.contexts.filter { it.name in contexts }.flatMap { context ->
+        context.aggregates.map { AggregateType(context.name, it.name) }
+    }
+
 /** The aggregate types of [manifest] in [contexts] whose [model] the Manifest lists. */
 internal fun queryTypes(manifest: Manifest, contexts: Set<String>, model: String): List<AggregateType> =
     manifest.contexts.filter { it.name in contexts }.flatMap { context ->

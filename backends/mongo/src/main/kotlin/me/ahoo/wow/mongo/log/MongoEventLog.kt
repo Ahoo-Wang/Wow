@@ -59,6 +59,7 @@ import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
+import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
@@ -77,7 +78,8 @@ import kotlin.time.Duration.Companion.seconds
  *
  * The log takes one collection per aggregate type, `wow_log__<context>__<aggregate>` (decision D162); a context-level
  * collection holds one counter document per partition, so partitions, their sequences, leases and checkpoints stay
- * per context. An append is one multi-document transaction: read the aggregate's version from its collection, `$inc`
+ * per context. A counter also holds its partition's lineage, `parent` (null) and `epoch` (0) (decision D240): format 1
+ * reserves them for the online splits of 10.x, and [lineage] reads them back. An append is one multi-document transaction: read the aggregate's version from its collection, `$inc`
  * the partition's counter, insert the stream into its aggregate's collection at that sequence. Two transactions
  * bumping one counter conflict and the later one aborts and retries (the driver retries transient transaction
  * errors), so the sequence order is the order commits become visible, whichever collection they land in, and no
@@ -136,7 +138,8 @@ class MongoEventLog(
     /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
     private val ddl: StoreDdl = StoreDdl.AUTO,
 ) : EventLog {
-    private val pacer = TailPacer(partitions, pollInterval, maxPollInterval)
+    /** Validates the partition count first (decision D240): a log of another count is refused when it is built. */
+    private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
 
     private val database = client.getDatabase(databaseName)
     private val countersName = MongoNames.of(PREFIX, context, PARTITION_COUNTERS)
@@ -165,10 +168,6 @@ class MongoEventLog(
         val committed: MongoCollection<Document> = log.withReadConcern(ReadConcern.MAJORITY)
     }
 
-    init {
-        require(partitions >= 1) { "There is at least one partition." }
-    }
-
     /**
      * Creates the partition counters when missing; refuses a different partition count, and a log recorded in another
      * format version ([MongoFormat]). The aggregate collections are created on first use, or by [createCollection].
@@ -181,13 +180,14 @@ class MongoEventLog(
         // and refuses another one before it adds a counter.
         val existingCounters = counters.countDocuments()
         val marker = "$countersName$PARTITIONS_MARKER"
-        upsertOnce(registry, marker, PARTITIONS, if (existingCounters > 0) existingCounters.toInt() else partitions)
+        upsertOnce(registry, marker, PARTITIONS to if (existingCounters > 0) existingCounters.toInt() else partitions)
         val recorded = registry.find(Filters.eq(ID, marker)).first()!!.getInteger(PARTITIONS)
         check(recorded == partitions) {
             "The log of $context has $recorded partitions, not $partitions: changing it is a repartition."
         }
+        // Each counter carries its partition's lineage (D240): no parent, epoch 0, reserved for the splits of 10.x.
         for (partition in 0 until partitions) {
-            upsertOnce(counters, partition, SEQUENCE, 0L)
+            upsertOnce(counters, partition, SEQUENCE to 0L, PARENT to null, EPOCH to 0)
         }
         val existing = counters.countDocuments()
         check(existing == partitions.toLong()) {
@@ -195,10 +195,11 @@ class MongoEventLog(
         }
     }
 
-    /** Inserts [field] = [value] into the document [id] of [collection] unless it exists; a concurrent insert wins. */
-    private fun upsertOnce(collection: MongoCollection<Document>, id: Any, field: String, value: Any) {
+    /** Inserts the document [id] of [collection] with [fields] unless it exists; a concurrent insert wins. */
+    private fun upsertOnce(collection: MongoCollection<Document>, id: Any, vararg fields: Pair<String, Any?>) {
         try {
-            collection.updateOne(Filters.eq(ID, id), Updates.setOnInsert(field, value), UpdateOptions().upsert(true))
+            val insert = Updates.combine(fields.map { (field, value) -> Updates.setOnInsert(field, value) })
+            collection.updateOne(Filters.eq(ID, id), insert, UpdateOptions().upsert(true))
         } catch (raced: MongoWriteException) {
             if (!raced.isDuplicateKey()) {
                 throw raced
@@ -590,6 +591,20 @@ class MongoEventLog(
     /** One read of a tail: its [entries], whether to read again at once, whether the counter is ahead of them. */
     private class TailBatch(val entries: List<LogEntry>, val again: Boolean, val behind: Boolean)
 
+    /**
+     * The lineage of [partition] from its counter document (decision D240): its `parent` and `epoch`, read as
+     * [PartitionLineage.ROOT] when they are null or missing (a counter written before them).
+     */
+    override suspend fun lineage(partition: Int): PartitionLineage {
+        require(partition in 0 until partitions) { "No partition $partition among $partitions." }
+        return dispatcher.mongo {
+            val counter = checkNotNull(committedCounters.find(Filters.eq(ID, partition)).firstOrNull()) {
+                "The log of $context has no counter of partition $partition."
+            }
+            PartitionLineage.of(counter.getInteger(PARENT), counter.getInteger(EPOCH) ?: 0)
+        }
+    }
+
     override suspend fun head(partition: Int): Long? {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         return dispatcher.mongo {
@@ -737,6 +752,10 @@ class MongoEventLog(
         /** The registry document recording a log's partition count: its counters' name, then this. */
         const val PARTITIONS_MARKER = "#partitions"
         const val PARTITIONS = "partitions"
+
+        /** The lineage fields of a partition's counter document (decision D240). */
+        const val PARENT = "parent"
+        const val EPOCH = "epoch"
         const val AGGREGATE = "aggregate"
         const val BRANCH = "branch"
         const val HEAD = "head"

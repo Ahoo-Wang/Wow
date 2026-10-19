@@ -48,6 +48,7 @@ class Expectations<S : Any> @InternalWowApi constructor(
     private val version: Int,
     private val stateAt: (Int) -> S,
     private val tagsAt: (Int) -> Map<String, List<String>> = { emptyMap() },
+    private val forker: ((String, AggregateSpec<S>.() -> Unit) -> Unit)? = null,
 ) {
     private var errorChecked = false
     private var outcomeChecked = false
@@ -61,6 +62,25 @@ class Expectations<S : Any> @InternalWowApi constructor(
 
     /** What the command's decide function threw; null when it returned a decision. */
     val error: Throwable? get() = result.exceptionOrNull()
+
+    /**
+     * Runs [block] on a copy of the aggregate as this command left it, as [AggregateSpec.fork] does (decision D245),
+     * so that the scenarios after a command branch from its checks, as 9.x's `VerifiedStage.fork` did:
+     *
+     * ```kotlin
+     * whenCommand(PlaceOrder(...)) {
+     *     expectEventTypes(OrderPlaced::class)
+     *     fork("paid") { whenCommand(PayOrder(...)) { expectEventTypes(OrderPaid::class) } }
+     *     fork("cancelled") { whenCommand(CancelOrder(...)) { expectEventTypes(OrderCancelled::class) } }
+     * }
+     * ```
+     *
+     * A check that fails before it ends the block, so the forks after it do not run.
+     */
+    fun fork(name: String = "", block: AggregateSpec<S>.() -> Unit) {
+        val forker = checkNotNull(forker) { "These expectations were not made by an AggregateSpec: nothing to fork." }
+        forker(name, block)
+    }
 
     /** The command committed exactly [events], in order. */
     fun expectEvents(vararg events: Any) {

@@ -40,6 +40,7 @@ import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.state.CommittedState
+import me.ahoo.wow.query.state.SnapshotPolicyGateway
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.snapshot.SnapshotStatus
 import me.ahoo.wow.spi.log.EventLog
@@ -151,6 +152,19 @@ class QueryNode(
     manifest: Manifest = queryManifest(),
 ) {
     private val gateway = snapshots(cartSnapshots(storage, entryPolicy, policies = policies, manifest = manifest))
+
+    /** As the host builds one (review R3.3-3): the policies of a cart whose snapshots are not queried. */
+    private val policyGateway = if (gateway == null && policies.isNotEmpty()) {
+        val catalog = QuerySchemaCatalog(compiler = QueryModelCompiler.of(listOf(ManifestQuerySchemaSource(manifest))))
+        SnapshotPolicyGateway(
+            cartType,
+            catalog.policyProvider(cartType),
+            listOf(ScopeQueryPolicy(QueryTenantPolicy.CALLERS)) + policies,
+            entryPolicy,
+        )
+    } else {
+        null
+    }
     val http: HttpNode = HttpNode(manifest = manifest, tenants = tenants) { log ->
         HttpQueries(
             snapshots = listOfNotNull(gateway),
@@ -161,7 +175,10 @@ class QueryNode(
                     manifest = manifest,
                     // As the host wires it: the latest committed state, visible through the snapshot queries
                     // (reviews A3-11, R2.3-6).
-                    visibility = EventVisibility.of({ gateway }, hides = policies.isNotEmpty()) { ref ->
+                    visibility = EventVisibility.of(
+                        { gateway ?: policyGateway },
+                        hides = policies.isNotEmpty()
+                    ) { ref ->
                         http.reads.committed(ref)?.let {
                             CommittedState(it.ref, it.version, it.scope, it.deleted, it.tags, it.state)
                         }
@@ -171,6 +188,7 @@ class QueryNode(
             ),
             defaultListSize = defaultListSize,
             snapshotStatus = snapshotStatus,
+            policies = listOfNotNull(policyGateway),
         )
     }
 
