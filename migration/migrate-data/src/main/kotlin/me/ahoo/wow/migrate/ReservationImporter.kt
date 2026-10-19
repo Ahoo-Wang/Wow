@@ -132,7 +132,7 @@ class ReservationImporter(
         if (!options.dryRun && checkpoint.after == null && !checkpoint.completed) {
             // Saved first: a run stopped while it converges walks from the first key again, and so confirms the keys
             // that moved to another owner after it released them.
-            checkpoints.save(checkpoints.load().with(name, checkpoint))
+            checkpoints.update { it.with(name, checkpoint) }
             checkpoint = checkpoint.copy(released = converge(name, reservationPlan))
         }
         val permits = Semaphore(options.concurrency)
@@ -151,7 +151,7 @@ class ReservationImporter(
                 }
                 checkpoint.counted(page.last().key, resolved.map { (it as? KeyStep.Done)?.outcome ?: KeyOutcome.IMPORTED })
             }
-            checkpoints.save(checkpoints.load().with(name, checkpoint))
+            checkpoints.update { it.with(name, checkpoint) }
             if (!checkpoint.completed) {
                 progress(checkpoint.progress(name))
             }

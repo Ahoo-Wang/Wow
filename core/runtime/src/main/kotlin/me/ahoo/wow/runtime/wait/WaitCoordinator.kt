@@ -77,6 +77,11 @@ import kotlin.time.Duration.Companion.seconds
  * - [unknownContexts] is what a chain may name of a context this node knows no Manifest of (decision D190).
  * - [defaultTimeout] is the timeout of a command whose caller names no wait plan (decision D64), capped by
  *   [maxTimeout] as any other; [me.ahoo.wow.runtime.admission.CommandGateway] applies it to every entry.
+ * - [maxRegistered] is how many waits the node holds at once (review R3.4-3): [DEFAULT_MAX_REGISTERED] by default. A
+ *   command whose wait would be one more is not run: it is answered FAILED at ACCEPTED with
+ *   [ResultCodes.BUSY] (`wow.command.busy`, 429 with `Retry-After`), as a command beyond the node's in-flight limit
+ *   is (decision D228 ②), so a retry with the same request id is safe. A plan answered at ACCEPTED registers no wait
+ *   and is never refused so.
  *
  * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
@@ -87,12 +92,14 @@ class WaitOptions @InternalWowApi constructor(
     val maxHops: Int = DEFAULT_MAX_HOPS,
     val defaultTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT,
     val unknownContexts: UnknownContexts = UnknownContexts.ALLOW,
+    val maxRegistered: Int = DEFAULT_MAX_REGISTERED,
 ) {
     init {
         require(maxTimeout.isPositive()) { "The maximum wait timeout is positive." }
         require(maxHops >= 1) { "A wait chain has at least one hop." }
         require(maxHops <= MAX_HOPS_CAP) { "A wait chain has at most $MAX_HOPS_CAP hops, not $maxHops." }
         require(defaultTimeout.isPositive()) { "The default wait timeout is positive." }
+        require(maxRegistered >= 1) { "A node holds at least one wait, not $maxRegistered." }
     }
 
     /** This WaitOptions with the given fields replaced: Wow's own copy, left out of the ABI. */
@@ -103,7 +110,8 @@ class WaitOptions @InternalWowApi constructor(
         maxHops: Int = this.maxHops,
         defaultTimeout: Duration = this.defaultTimeout,
         unknownContexts: UnknownContexts = this.unknownContexts,
-    ): WaitOptions = WaitOptions(origin, maxTimeout, maxHops, defaultTimeout, unknownContexts)
+        maxRegistered: Int = this.maxRegistered,
+    ): WaitOptions = WaitOptions(origin, maxTimeout, maxHops, defaultTimeout, unknownContexts, maxRegistered)
 
     override fun equals(other: Any?): Boolean =
         this === other || other is WaitOptions && valueFields() == other.valueFields()
@@ -112,9 +120,10 @@ class WaitOptions @InternalWowApi constructor(
 
     override fun toString(): String =
         "WaitOptions(origin=$origin, maxTimeout=$maxTimeout, maxHops=$maxHops, " +
-            "defaultTimeout=$defaultTimeout, unknownContexts=$unknownContexts)"
+            "defaultTimeout=$defaultTimeout, unknownContexts=$unknownContexts, maxRegistered=$maxRegistered)"
 
-    private fun valueFields(): List<Any?> = listOf(origin, maxTimeout, maxHops, defaultTimeout, unknownContexts)
+    private fun valueFields(): List<Any?> =
+        listOf(origin, maxTimeout, maxHops, defaultTimeout, unknownContexts, maxRegistered)
 
     companion object {
         val DEFAULT_MAX_TIMEOUT: Duration = 60.seconds
@@ -122,6 +131,13 @@ class WaitOptions @InternalWowApi constructor(
 
         /** The most hops a node lets a wait chain have, whatever it is configured with (decision D190). */
         const val MAX_HOPS_CAP = 32
+
+        /**
+         * The waits a node holds at once by default (review R3.4-3): four times the commands it has in flight by
+         * default ([me.ahoo.wow.runtime.InFlightLimit.DEFAULT_MAX]), since a wait outlives its command's execution
+         * while it waits for the later hops (the default plan's snapshot, decision D69).
+         */
+        const val DEFAULT_MAX_REGISTERED = 16_384
     }
 }
 
@@ -307,7 +323,19 @@ class WaitCoordinator(
         val timeout = minOf(command.wait.timeout, options.maxTimeout)
         val deadline = clock() + timeout.inWholeMilliseconds
         val waitId = waitIds()
-        val waiting = registry.register(waitId, chain.hops, command.id)
+        val waiting = registry.register(waitId, chain.hops, command.id, options.maxRegistered)
+        if (waiting == null) {
+            // Over the node's waits (R3.4-3): refused before it runs, as a busy node refuses it (D228).
+            observer.refused(command.ref.type, ResultCodes.BUSY)
+            emit(
+                reachedResult(command, function, Hop.accepted(context), clock()).failed(
+                    ResultCodes.BUSY,
+                    "The node holds the ${options.maxRegistered} waits it allows at once; the command was not run. " +
+                        "Retry it later.",
+                ),
+            )
+            return
+        }
         val settled = AtomicBoolean()
         var expiry: ScheduledFuture<*>? = null
         val topic = topicRouter?.takeIf { it.routes(command.ref.type) }

@@ -398,7 +398,7 @@ internal class OpenApiPaths(
                 ),
             ) + errors.of(
                 if (missing == null) "query" else "dataset-query",
-                ErrorResponses.QUERY,
+                if (missing == null) ErrorResponses.QUERY else ErrorResponses.DATASET_QUERY,
                 http = listOfNotNull(missing, ErrorResponses.NOT_ACCEPTABLE, ErrorResponses.UNSUPPORTED_MEDIA_TYPE).toMap(),
             ),
         )

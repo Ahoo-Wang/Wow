@@ -14,9 +14,14 @@
 package me.ahoo.wow.migrate
 
 import me.ahoo.wow.spi.json.WowJson
+import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Where the import of one 9.x aggregate stands, so a stopped run resumes (design 07 §6):
@@ -146,29 +151,100 @@ interface CheckpointRepository {
     fun load(): ImportCheckpoints
 
     fun save(checkpoints: ImportCheckpoints)
+
+    /**
+     * Keeps [change] of the checkpoints kept, as one step against every other writer of them (finding R2.4-4): the
+     * tail, a comparison and a snapshot writing may run at once, each changing its own entries, and none loses
+     * another's. Returns the checkpoints kept.
+     */
+    fun update(change: (ImportCheckpoints) -> ImportCheckpoints): ImportCheckpoints {
+        val changed = change(load())
+        save(changed)
+        return changed
+    }
 }
 
 /** In memory: a dry run's, and the tests'. */
 class InMemoryCheckpointRepository(private var checkpoints: ImportCheckpoints = ImportCheckpoints()) :
     CheckpointRepository {
-    override fun load(): ImportCheckpoints = checkpoints
+    private val lock = Any()
+
+    override fun load(): ImportCheckpoints = synchronized(lock) { checkpoints }
 
     override fun save(checkpoints: ImportCheckpoints) {
-        this.checkpoints = checkpoints
+        synchronized(lock) { this.checkpoints = checkpoints }
     }
+
+    override fun update(change: (ImportCheckpoints) -> ImportCheckpoints): ImportCheckpoints =
+        synchronized(lock) { change(checkpoints).also { checkpoints = it } }
 }
 
-/** A JSON file at [path], replaced atomically on each save, so a run stopped mid-write leaves the last one whole. */
-class FileCheckpointRepository(private val path: Path) : CheckpointRepository {
-    override fun load(): ImportCheckpoints = if (Files.exists(path)) {
-        WowJson.mapper.readValue(path.toFile(), ImportCheckpoints::class.java)
+/**
+ * A JSON file at [path], replaced atomically on each save, so a run stopped mid-write leaves the last one whole
+ * (finding R2.4-4):
+ *
+ * - each save and [update] holds an exclusive lock on the sibling file `<file>.lock`, which other processes of the
+ *   tool respect, and threads of one process wait for each other's, so that an [update] reads and writes the file as
+ *   one step and two runs at once, the tail beside a comparison or a snapshot writing, never lose each other's;
+ * - each writes a temporary file of its own beside it (`<file>.<random>.tmp`) and forces it to the disk before it
+ *   moves it over the file, then forces the directory where the platform allows it, so that a crash leaves the old
+ *   checkpoints or the new ones, not an empty file.
+ *
+ * The lock file stays: it is empty and the next run takes it again.
+ */
+class FileCheckpointRepository(path: Path) : CheckpointRepository {
+    private val file: Path = path.toAbsolutePath().normalize()
+    private val lockFile: Path = file.resolveSibling("${file.fileName}.lock")
+
+    override fun load(): ImportCheckpoints = if (Files.exists(file)) {
+        WowJson.mapper.readValue(file.toFile(), ImportCheckpoints::class.java)
     } else {
         ImportCheckpoints()
     }
 
     override fun save(checkpoints: ImportCheckpoints) {
-        val temporary = path.resolveSibling("${path.fileName}.tmp")
-        Files.writeString(temporary, WowJson.mapper.writerWithDefaultPrettyPrinter().writeValueAsString(checkpoints))
-        Files.move(temporary, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+        locked { write(checkpoints) }
+    }
+
+    override fun update(change: (ImportCheckpoints) -> ImportCheckpoints): ImportCheckpoints =
+        locked { change(load()).also { write(it) } }
+
+    /** Runs [action] holding this file's lock: the process's threads one at a time, then the file lock. */
+    private fun <T> locked(action: () -> T): T = synchronized(monitors.computeIfAbsent(lockFile) { Any() }) {
+        FileChannel.open(lockFile, StandardOpenOption.CREATE, StandardOpenOption.WRITE).use { channel ->
+            channel.lock().use { action() }
+        }
+    }
+
+    private fun write(checkpoints: ImportCheckpoints) {
+        val bytes = WowJson.mapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(checkpoints)
+        val temporary = Files.createTempFile(file.parent, "${file.fileName}.", ".tmp")
+        try {
+            FileChannel.open(temporary, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING).use { channel ->
+                val buffer = ByteBuffer.wrap(bytes)
+                while (buffer.hasRemaining()) {
+                    channel.write(buffer)
+                }
+                channel.force(true)
+            }
+            Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+        } finally {
+            Files.deleteIfExists(temporary)
+        }
+        forceDirectory()
+    }
+
+    /** Forces the directory's entries, the move included, to the disk; not every platform opens a directory. */
+    private fun forceDirectory() {
+        try {
+            FileChannel.open(file.parent, StandardOpenOption.READ).use { it.force(true) }
+        } catch (_: IOException) {
+            // Windows does not open a directory as a channel; the move is as durable as the platform makes it.
+        }
+    }
+
+    private companion object {
+        /** One monitor per lock file: a JVM holds a file lock once, so its threads take turns before it. */
+        val monitors = ConcurrentHashMap<Path, Any>()
     }
 }

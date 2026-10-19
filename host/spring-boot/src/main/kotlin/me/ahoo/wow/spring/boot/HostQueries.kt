@@ -21,8 +21,10 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryBackendFactory
+import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryTenantPolicy
+import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
@@ -39,6 +41,7 @@ import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.spi.store.Store
 import org.springframework.context.SmartLifecycle
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.toKotlinDuration
 
 /**
  * The query tenant policy over the host's [TenantPolicy] (decision D116): a query of an aggregate type whose tenant
@@ -62,6 +65,8 @@ class SnapshotQueryBackend(
     private val indexes: ((AggregateType, QueryModelSchema, List<QueryIndexDeclaration>) -> QueryIndexReport)? = null,
     /** Whether the backend queries [AggregateType]'s snapshots: every type's, when it has a [factory]. */
     private val serves: (AggregateType) -> Boolean = { factory != null },
+    /** The store whose query bulkhead [AggregateType]'s snapshot queries run under; none for the application's own. */
+    private val store: (AggregateType) -> String? = { null },
 ) {
     /** Whether the host manages this backend's indexes; an application's own backend manages its own. */
     val managesIndexes: Boolean get() = factory != null && indexes != null
@@ -71,6 +76,9 @@ class SnapshotQueryBackend(
 
     /** Makes sure [type]'s storage exists, so its facts are the storage's own. */
     fun prepare(type: AggregateType) = prepare.invoke(type)
+
+    /** The store [type]'s snapshot queries run on (review R3.4-2), or null when the host does not know it. */
+    fun storeOf(type: AggregateType): String? = store.invoke(type)
 
     /** Manages [declarations], [type]'s indexes on its query model [schema], as `wow.query.index.ddl` says. */
     fun manageIndexes(
@@ -93,12 +101,13 @@ class SnapshotQueryBackend(
         )
 
         /**
-         * The backend of each aggregate type's snapshot store (decision D177): [backendOf] gives it, null when its
-         * store has none, whose snapshots are then not queried. [NONE] when no type's store has one.
+         * The backend of each aggregate type's snapshot store (decision D177), [storeOf]: [backendOf] gives it, null
+         * when its store has none, whose snapshots are then not queried. [NONE] when no type's store has one.
          */
         fun routing(
             types: Collection<AggregateType>,
-            backendOf: (AggregateType) -> SnapshotQueryBackend?
+            storeOf: (AggregateType) -> String? = { null },
+            backendOf: (AggregateType) -> SnapshotQueryBackend?,
         ): SnapshotQueryBackend {
             if (types.none { backendOf(it) != null }) {
                 return NONE
@@ -115,6 +124,7 @@ class SnapshotQueryBackend(
                     backendOf(type)?.manageIndexes(type, schema, declarations) ?: QueryIndexReport.NONE
                 },
                 serves = { type -> backendOf(type)?.serves(type) == true },
+                store = { type -> storeOf(type)?.takeIf { backendOf(type) != null } },
             )
         }
     }
@@ -148,12 +158,19 @@ internal class MemoryQueryProvider(private val enabled: Boolean = false) : Store
 
 /**
  * The `events` query backend of the node (decision D235): the [binding] of each aggregate type's events backend and
- * storage facts, null for a type no backend serves (its events are then not queried).
+ * storage facts, null for a type no backend serves (its events are then not queried), and the [store] its queries run
+ * on (review R3.4-2), null for the application's own backend.
  */
 @InternalWowApi
-class EventQueryBackend(private val binding: (AggregateType) -> QueryBackendBinding<QueryBackend>?) {
+class EventQueryBackend(
+    private val store: (AggregateType) -> String? = { null },
+    private val binding: (AggregateType) -> QueryBackendBinding<QueryBackend>?,
+) {
     /** The binding of [type]'s events backend, or null when none serves them. */
     fun binding(type: AggregateType): QueryBackendBinding<QueryBackend>? = binding.invoke(type)
+
+    /** The store [type]'s events queries run on, or null when the host does not know it. */
+    fun storeOf(type: AggregateType): String? = store.invoke(type)
 
     @InternalWowApi
     companion object {
@@ -161,6 +178,47 @@ class EventQueryBackend(private val binding: (AggregateType) -> QueryBackendBind
         @JvmField
         val NONE: EventQueryBackend = EventQueryBackend { null }
     }
+}
+
+/**
+ * The query bulkheads of the node's [stores] (review R3.4-2), by store name: each store's bound is
+ * `wow.stores.<name>.query.max-concurrent` ([settings]), else `wow.query.max-concurrent` ([global]), else its query
+ * provider's ([StoreQueryProvider.maxConcurrent], from its pool); `0` sets none. A store whose type has no query
+ * provider has no queries to bound. A query beyond the bound waits (decision D247) at most
+ * `wow.stores.<name>.query.max-wait`, else `wow.query.max-wait` (200ms), in a queue of at most
+ * `wow.stores.<name>.query.max-queued`, else `wow.query.max-queued` (4 per permit).
+ */
+internal object HostQueryBulkheads {
+    fun of(
+        stores: Map<String, Store>,
+        providers: StoreProviders,
+        global: QueryProperties,
+        settings: Map<String, WowProperties.Store>,
+    ): Map<String, QueryBulkhead> = stores.mapNotNull { (name, store) ->
+        val provider = providers.queriesOf(store.type) ?: return@mapNotNull null
+        val own = settings[name]?.query
+        val max = own?.maxConcurrent ?: global.maxConcurrent ?: provider.maxConcurrent(store)
+        check(max >= 0) {
+            "wow.stores.$name.query.max-concurrent (or wow.query.max-concurrent) is $max: 0 for no bound, or more."
+        }
+        if (max == 0) return@mapNotNull null
+        val wait = own?.maxWait ?: global.maxWait
+        val queued = own?.maxQueued ?: global.maxQueued ?: (max * QueryBulkhead.DEFAULT_QUEUE_FACTOR)
+        name to QueryBulkhead(name, max, wait.toKotlinDuration(), queued)
+    }.toMap()
+
+    /**
+     * Whether [type]'s events queries that name no aggregate run (review R3.4-2): its
+     * `wow.aggregates.[<context>.<aggregate>].query.events.unpinned`, else that of its log [store], else [global].
+     */
+    fun unpinned(
+        type: AggregateType,
+        store: String?,
+        global: UnpinnedEvents,
+        properties: WowProperties?,
+    ): UnpinnedEvents = properties?.aggregates?.get("${type.context}.${type.name}")?.query?.events?.unpinned
+        ?: store?.let { properties?.stores?.get(it)?.query?.events?.unpinned }
+        ?: global
 }
 
 /**

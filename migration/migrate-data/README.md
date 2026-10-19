@@ -165,7 +165,7 @@ The summary of each aggregate gives the share of instances that have a 9.x snaps
 
 ## Checkpoints
 
-The checkpoint file (format 1) keeps, per 9.x aggregate, where the import, the tail, the comparison and the snapshot writing stand; per `PrepareKey`, where its reservation import stands; and where the compensation import stands. The keys the reservation import reserved are kept beside it, in `<checkpoint>.reservations.jsonl`: keep the two together. A stopped run repeats at most one page. A resumed comparison keeps the counts of the earlier runs, so it still exits with `3` when they found differences. `--restart` starts a pass again from the first instance, and another `--sample` restarts the comparison.
+The checkpoint file (format 1) keeps, per 9.x aggregate, where the import, the tail, the comparison and the snapshot writing stand; per `PrepareKey`, where its reservation import stands; and where the compensation import stands. The keys the reservation import reserved are kept beside it, in `<checkpoint>.reservations.jsonl`: keep the two together. Commands may run at once over the same checkpoint file, the tail beside `compare` or `snapshot`: each change of it holds a lock on `<checkpoint>.lock` (left in place, empty) and replaces the file atomically after forcing the new content to the disk, so none loses another's progress. A stopped run repeats at most one page. A resumed comparison keeps the counts of the earlier runs, so it still exits with `3` when they found differences. `--restart` starts a pass again from the first instance, and another `--sample` restarts the comparison.
 
 ## Limits
 

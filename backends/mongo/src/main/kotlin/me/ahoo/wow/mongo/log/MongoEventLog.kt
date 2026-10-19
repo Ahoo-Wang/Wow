@@ -65,6 +65,7 @@ import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
+import org.bson.BsonMaximumSizeExceededException
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.util.concurrent.ConcurrentHashMap
@@ -299,9 +300,13 @@ class MongoEventLog(
                     }
                 }, transaction)
             }
+        } catch (tooLarge: BsonMaximumSizeExceededException) {
+            // The driver refused the document before sending it, so the transaction wrote nothing (finding R2.2-2).
+            AppendOutcome.Rejected(tooLarge)
         } catch (failure: MongoException) {
             // Inside a transaction a duplicate key may surface as a write or a command error: go by its code.
             when {
+                MongoFailures.isTooLarge(failure) -> AppendOutcome.Rejected(failure)
                 !failure.isDuplicateKey() -> AppendOutcome.Unknown(failure)
                 failure.message.orEmpty().contains(REQUEST_KEY) ->
                     findByRequestIdIn(collection, stream.ref.tenantId, stream.requestId)
@@ -315,7 +320,9 @@ class MongoEventLog(
 
     /**
      * [stream]'s document in [partition], its sequence still to be set: encoded before any transaction, so a stream
-     * MongoDB cannot store ([ExactBson]'s [IllegalArgumentException]) is refused alone (finding A2-5).
+     * MongoDB cannot store ([ExactBson]'s [IllegalArgumentException]) is refused alone (finding A2-5). A document beyond
+     * MongoDB's size limit is only known when the driver writes it: [appendNow] refuses it, and [commitGroup] falls
+     * back to one append per stream, so it fails alone as well (finding R2.2-2).
      */
     private fun encode(partition: Int, stream: EventStreamRecord, transport: Transport?): Result<Document> = try {
         Result.success(documentOf(partition, stream, transport))
@@ -399,6 +406,10 @@ class MongoEventLog(
                     outcome
                 }
             }
+        } catch (tooLarge: BsonMaximumSizeExceededException) {
+            // A member's document is beyond the size limit; the driver never sent it, so the group is aborted for
+            // sure: each stream appended alone gets its own outcome, the oversized one its refusal (finding R2.2-2).
+            members.map { null }
         } catch (failure: MongoException) {
             if (MongoFailures.isCommitUnknown(failure)) {
                 members.map { AppendOutcome.Unknown(failure) }

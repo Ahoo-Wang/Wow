@@ -129,6 +129,7 @@ public final class me/ahoo/wow/manifest/FrameworkErrors {
 	public static final field NODE_CLOSING Ljava/lang/String;
 	public static final field PRECONDITION_FAILED_STATUS I
 	public static final field PREFIX Ljava/lang/String;
+	public static final field QUERY_BUSY Ljava/lang/String;
 	public static final field QUERY_FAILED Ljava/lang/String;
 	public static final field QUERY_INVALID Ljava/lang/String;
 	public static final field QUERY_MALFORMED Ljava/lang/String;

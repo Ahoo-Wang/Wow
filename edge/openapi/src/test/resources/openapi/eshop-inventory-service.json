@@ -1338,6 +1338,9 @@
           "415" : {
             "$ref" : "#/components/responses/wow.query.415"
           },
+          "429" : {
+            "$ref" : "#/components/responses/wow.query.429"
+          },
           "500" : {
             "$ref" : "#/components/responses/wow.query.500"
           },
@@ -1480,6 +1483,9 @@
           },
           "415" : {
             "$ref" : "#/components/responses/wow.query.415"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.query.429"
           },
           "500" : {
             "$ref" : "#/components/responses/wow.query.500"
@@ -3158,6 +3164,17 @@
             }
           }
         }
+      },
+      "wow.query.429" : {
+        "description" : "`wow.query.busy`: The query was not run: its store has as many queries running as it allows; retry later.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.busy" ]
       },
       "wow.query.500" : {
         "description" : "`wow.query.failed`: The query backend failed to run the query.",

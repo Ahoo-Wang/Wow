@@ -24,5 +24,6 @@
   { "code": "wow.query.malformed", "status": 400 },
   { "code": "wow.query.invalid", "status": 400 },
   { "code": "wow.query.failed", "status": 500 },
-  { "code": "wow.query.timeout", "status": 503 }
+  { "code": "wow.query.timeout", "status": 503 },
+  { "code": "wow.query.busy", "status": 429 }
 ]
