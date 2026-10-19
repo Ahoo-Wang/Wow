@@ -27,8 +27,6 @@ import me.ahoo.wow.api.query.Queryable
 import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.inTransaction
-import me.ahoo.wow.postgres.query.PostgresSnapshotSqlCompiler.Companion.keepsState
-import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.BackendPage
 import me.ahoo.wow.query.CursorPosition
@@ -53,30 +51,32 @@ import java.time.Duration
 import javax.sql.DataSource
 
 /**
- * The snapshot query backend of one aggregate type on PostgreSQL (decision D131): the four primitives over the
- * aggregate type's own snapshot table (decision D161), compiled to parameterized SQL ([PostgresSnapshotSqlCompiler],
- * [PostgresAggregationCompiler]) on the bindings of [PostgresSnapshotStorageAdapter]. Records have the shape of
- * `SnapshotRecord.toQueryRecord()`; a projection is applied to each record as it is read, and a row without any
- * kept state field does not read the state at all.
+ * A query backend of one aggregate type on PostgreSQL: the four primitives over one of the aggregate type's own tables,
+ * read as [layout] says, compiled to parameterized SQL ([PostgresSnapshotSqlCompiler], [PostgresAggregationCompiler]):
+ * its snapshot table (decisions D131, D161, on the bindings of [PostgresSnapshotStorageAdapter]; records of the shape
+ * of `SnapshotRecord.toQueryRecord()`, a row without any kept state field not reading the state at all) or its log
+ * table (decisions D162, D235, on the bindings of [PostgresEventStorageAdapter]; one record per stream, as stored). A
+ * projection is applied to each record as it is read.
  *
  * Every statement runs in its own read transaction under `SET LOCAL statement_timeout` of the admitted timeout
  * (decision D150); PostgreSQL cancelling it there is a [QueryTimeoutException]. JDBC calls run on [dispatcher],
- * virtual threads by default (decision D29). A table not created yet (no snapshot of the aggregate type was saved)
- * holds no records: every primitive answers as over an empty table, as the provisional facts of
+ * virtual threads by default (decision D29). A table not created yet (no snapshot of the aggregate type was saved, no
+ * stream appended) holds no records: every primitive answers as over an empty table, as the provisional facts of
  * [PostgresQuerySchemaAdapter] describe it.
  */
 @InternalWowApi
-class PostgresSnapshotQueryBackend internal constructor(
+class PostgresQueryBackend internal constructor(
     override val aggregateType: AggregateType,
     private val dataSource: DataSource,
-    tables: PostgresSnapshotTables,
+    table: String,
     private val options: PostgresQueryOptions,
     private val dispatcher: CoroutineDispatcher,
+    private val layout: PostgresQueryLayout = PostgresQueryLayout.SNAPSHOT,
 ) : QueryBackend {
     override val cursorPositions: CursorPositionCodec = PostgresCursorPositionCodec
 
-    private val records = PostgresSnapshotSqlCompiler(tables.snapshot)
-    private val aggregations = PostgresAggregationCompiler(tables.snapshot)
+    private val records = PostgresSnapshotSqlCompiler(table, layout)
+    private val aggregations = PostgresAggregationCompiler(table, layout)
 
     /**
      * The records of [query], read in full in their transaction, which then ends and gives its connection back, and
@@ -86,13 +86,13 @@ class PostgresSnapshotQueryBackend internal constructor(
      */
     override fun stream(query: AdmittedQuery<IListQuery>): Flow<ObjectNode> = flow {
         val statement = records.list(query)
-        val state = query.query.projection.keepsState()
+        val projection = query.query.projection
         val read = transaction(query.timeout, { emptyList() }) { connection ->
             statement.prepare(connection).use { prepared ->
                 prepared.fetchSize = options.fetchSize
                 prepared.executeQuery().use { rows ->
                     val result = ArrayList<ObjectNode>()
-                    while (rows.next()) result += project(query, record(rows, state))
+                    while (rows.next()) result += project(query, layout.record(rows, projection))
                     result
                 }
             }
@@ -119,22 +119,22 @@ class PostgresSnapshotQueryBackend internal constructor(
         } else {
             null
         }
-        val state = query.query.projection.keepsState()
+        val projection = query.query.projection
         return transaction(query.timeout, { BackendPage(emptyList(), count?.let { 0L }) }) { connection ->
-            val rows = read(connection, statement) { project(query, record(it, state)) }
+            val rows = read(connection, statement) { project(query, layout.record(it, projection)) }
             BackendPage(rows, count?.let { count(connection, it) })
         }
     }
 
     private fun keyset(query: AdmittedQuery<Queryable<*>>, window: PageWindow.Keyset): BackendPage {
         val statement = records.keyset(query, window)
-        val state = query.query.projection.keepsState()
+        val projection = query.query.projection
         val keys = query.query.sort.size
         return transaction(query.timeout, { BackendPage(emptyList(), positions = emptyList()) }) { connection ->
             val positions = ArrayList<CursorPosition>()
             val rows = read(connection, statement) { row ->
                 positions += CursorPosition((0 until keys).map { position(row.getObject(PostgresSnapshotSqlCompiler.key(it))) })
-                project(query, record(row, state))
+                project(query, layout.record(row, projection))
             }
             BackendPage(rows, positions = positions)
         }

@@ -46,12 +46,15 @@ import java.time.ZoneOffset
  * matched. Dense fill and the windows are the core's (`StorageSupport` RESIDUAL): they never arrive here. The columns
  * carry generated names, so no alias of the query reaches the SQL text.
  */
-internal class PostgresAggregationCompiler(private val table: String) {
+internal class PostgresAggregationCompiler(
+    private val table: String,
+    private val layout: PostgresQueryLayout = PostgresQueryLayout.SNAPSHOT,
+) {
     @Suppress("LongMethod")
     fun compile(admitted: AdmittedQuery<AggregationQuery>, window: GroupWindow): SqlStatement {
         val query = admitted.query
         val parameters = SqlParameters()
-        val compiler = PostgresFilterCompiler(admitted, parameters)
+        val compiler = PostgresFilterCompiler(admitted, parameters, layout.expressions)
         val columns = HashMap<String, String>()
         query.groupBy.forEachIndexed { index, group -> columns[group.alias] = group(index) }
         query.metrics.forEachIndexed { index, metric -> columns[metric.alias] = metric(index) }
@@ -173,7 +176,7 @@ internal class PostgresAggregationCompiler(private val table: String) {
         }
         is AggregationMetric.Any -> {
             val node = compiler.node(admitted.field(metric.field))
-            "(array_agg($node ORDER BY t.aggregate_id, t.tenant_id) FILTER (WHERE " +
+            "(array_agg($node ORDER BY ${ties("")}) FILTER (WHERE " +
                 "coalesce(jsonb_typeof($node), 'null') <> 'null'" + and(compiler, metric.filter) + "))[1]"
         }
         is AggregationMetric.Edge -> {
@@ -182,11 +185,15 @@ internal class PostgresAggregationCompiler(private val table: String) {
                 admitted.field(checkNotNull(metric.orderBy) { "Admission names every FIRST / LAST orderBy." }),
             ).first
             val direction = if (metric is AggregationMetric.First) "ASC" else "DESC"
-            "(array_agg($node ORDER BY $orderBy $direction, t.aggregate_id $direction, t.tenant_id $direction) " +
+            "(array_agg($node ORDER BY $orderBy $direction, ${ties(" $direction")}) " +
                 "FILTER (WHERE $orderBy IS NOT NULL" + and(compiler, metric.filter) + "))[1]"
         }
         is AggregationMetric.Derived -> throw QueryExecutionException("A derived metric is not a column of the groups.")
     }
+
+    /** The layout's tie-breakers on the table's rows, each in [direction] (`""` for ascending). */
+    private fun ties(direction: String): String =
+        layout.tieBreakers.joinToString(", ") { (_, column) -> "t.$column$direction" }
 
     private fun filter(compiler: PostgresFilterCompiler, filter: FilterExpression): String =
         if (filter === MatchAllFilter) "" else " FILTER (WHERE ${compiler.filter(filter)})"

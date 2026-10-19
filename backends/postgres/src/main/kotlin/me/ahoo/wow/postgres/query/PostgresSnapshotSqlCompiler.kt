@@ -26,20 +26,25 @@ import me.ahoo.wow.query.schema.SnapshotFields
 import java.math.BigDecimal
 
 /**
- * Compiles the record primitives of one aggregate type over its own snapshot table (`table`, quoted, decision D161):
- * a list, an offset page, a keyset page and a bounded count. The table holds that aggregate type alone, so no
- * statement names it; admission has already added the tenant, the caller's scope and the deletion state to the filter.
+ * Compiles the record primitives of one aggregate type over one of its own tables (`table`, quoted), read as [layout]
+ * says: its snapshot table (decision D161) or its log table (D162, D235): a list, an offset page, a keyset page and a
+ * bounded count. The table holds that aggregate type alone, so no statement names it; admission has already added the
+ * tenant, the caller's scope and the deletion state to the filter.
  *
  * Sorts read the typed value of each field, ascending with `NULLS FIRST` and descending with `NULLS LAST`: a missing
- * field and `null` sort lowest, as in MongoDB. A list and an offset page end with the aggregate ID and the tenant, so
- * their order is total; a keyset page orders by the cursor's sort alone, which admission ended with the identity.
+ * field and `null` sort lowest, as in MongoDB. A list and an offset page end with the layout's tie-breakers (the
+ * aggregate ID and the tenant of a snapshot), so their order is total; a keyset page orders by the cursor's sort alone,
+ * which admission ended with the model's unique key.
  */
-internal class PostgresSnapshotSqlCompiler(private val table: String) {
+internal class PostgresSnapshotSqlCompiler(
+    private val table: String,
+    private val layout: PostgresQueryLayout = PostgresQueryLayout.SNAPSHOT,
+) {
     /** The rows of a list: all of them when its limit is `0`. */
     fun list(query: AdmittedQuery<IListQuery>): SqlStatement {
         val parameters = SqlParameters()
-        val compiler = PostgresFilterCompiler(query, parameters)
-        val sql = StringBuilder(select(query.query.projection))
+        val compiler = PostgresFilterCompiler(query, parameters, layout.expressions)
+        val sql = StringBuilder(layout.select(query.query.projection))
             .append(" FROM ").append(table)
             .append(" WHERE ").append(compiler.filter(query.query.filter))
             .append(" ORDER BY ").append(order(query, compiler, query.query.sort, total = true))
@@ -54,8 +59,8 @@ internal class PostgresSnapshotSqlCompiler(private val table: String) {
     /** The rows of an offset window. */
     fun page(query: AdmittedQuery<Queryable<*>>, window: PageWindow.Offset): SqlStatement {
         val parameters = SqlParameters()
-        val compiler = PostgresFilterCompiler(query, parameters)
-        val sql = StringBuilder(select(query.query.projection))
+        val compiler = PostgresFilterCompiler(query, parameters, layout.expressions)
+        val sql = StringBuilder(layout.select(query.query.projection))
             .append(" FROM ").append(table)
             .append(" WHERE ").append(compiler.filter(query.query.filter))
             .append(" ORDER BY ").append(order(query, compiler, query.query.sort, total = true))
@@ -71,9 +76,9 @@ internal class PostgresSnapshotSqlCompiler(private val table: String) {
      */
     fun keyset(query: AdmittedQuery<Queryable<*>>, window: PageWindow.Keyset): SqlStatement {
         val parameters = SqlParameters()
-        val compiler = PostgresFilterCompiler(query, parameters)
+        val compiler = PostgresFilterCompiler(query, parameters, layout.expressions)
         val keys = query.query.sort.map { compiler.typed(query.field(it.field)) }
-        val sql = StringBuilder(select(query.query.projection))
+        val sql = StringBuilder(layout.select(query.query.projection))
         keys.forEachIndexed { index, (value, _) -> sql.append(", ").append(value).append(" AS ").append(key(index)) }
         sql.append(" FROM ").append(table)
             .append(" WHERE ").append(compiler.filter(query.query.filter))
@@ -89,7 +94,7 @@ internal class PostgresSnapshotSqlCompiler(private val table: String) {
      */
     fun count(query: AdmittedQuery<*>, filter: FilterExpression, limit: Long?): SqlStatement {
         val parameters = SqlParameters()
-        val compiler = PostgresFilterCompiler(query, parameters)
+        val compiler = PostgresFilterCompiler(query, parameters, layout.expressions)
         val where = compiler.filter(filter)
         if (limit == null) return parameters.statement("SELECT count(*) FROM $table WHERE $where")
         val bound = parameters.bind(SqlParameter.Int8(limit))
@@ -101,10 +106,9 @@ internal class PostgresSnapshotSqlCompiler(private val table: String) {
             ArrayList()
         ) { order -> direction(compiler.typed(query.field(order.field)).first, order.direction) }
         if (total) {
-            if (sort.none { query.physicalPath(it.field) == SnapshotFields.AGGREGATE_ID }) {
-                terms += "aggregate_id ASC"
+            layout.tieBreakers.forEach { (field, column) ->
+                if (sort.none { query.physicalPath(it.field) == field }) terms += "$column ASC"
             }
-            terms += "tenant_id ASC"
         }
         return terms.joinToString(", ")
     }
