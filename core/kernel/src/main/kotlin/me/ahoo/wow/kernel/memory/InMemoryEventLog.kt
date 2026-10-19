@@ -28,16 +28,22 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
+import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.Transport
 
 /**
  * An [EventLog] in memory, for tests and samples. Appends are serialized by one lock, so the sequence within a
  * partition is trivially the order commits became visible. As the durable backends, it keeps the request key per
- * aggregate type (decision D162).
+ * aggregate type (decision D162). Each partition keeps its [PartitionLineage], [PartitionLineage.ROOT] as created
+ * (decision D240).
  */
 @InternalWowApi
 class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) : EventLog {
+    init {
+        Partitioner.requirePartitions(partitions)
+    }
+
     private val lock = Mutex()
     private val streams = HashMap<AggregateRef, MutableList<EventStreamRecord>>()
 
@@ -46,10 +52,7 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) : Even
     private val aggregateEntries = HashMap<AggregateRef, MutableList<LogEntry>>()
     private val entries = List(partitions) { ArrayList<LogEntry>() }
     private val appended = List(partitions) { MutableStateFlow(0L) }
-
-    init {
-        require(partitions >= 1) { "There is at least one partition." }
-    }
+    private val lineages = List(partitions) { PartitionLineage.ROOT }
 
     override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome = lock.withLock {
         val request = stream.ref.tenantId to stream.requestId
@@ -93,6 +96,11 @@ class InMemoryEventLog(override val partitions: Int = DEFAULT_PARTITIONS) : Even
     override suspend fun head(partition: Int): Long? {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         return lock.withLock { entries[partition].size.toLong().takeIf { it > 0 } }
+    }
+
+    override suspend fun lineage(partition: Int): PartitionLineage {
+        require(partition in 0 until partitions) { "No partition $partition among $partitions." }
+        return lineages[partition]
     }
 
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> = flow {

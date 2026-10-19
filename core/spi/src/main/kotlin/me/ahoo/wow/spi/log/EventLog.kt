@@ -28,11 +28,18 @@ import me.ahoo.wow.api.annotation.WowSpi
  * - an aggregate's first stream is version 1 and each next stream is exactly one more;
  * - a stream lands in the partition [Partitioner] assigns its ref, and the sequence within a partition is the order
  *   in which commits became visible: [tail] never skips a committed entry and reads the same entries again from the
- *   same position.
+ *   same position;
+ * - [partitions] is a power of two that divides [Partitioner.SLOTS] (decision D240): a log of another count fails
+ *   when it is created;
+ * - each partition stores its [PartitionLineage] beside its counter, [PartitionLineage.ROOT] for every partition the
+ *   log was created with, and [lineage] reads it back (format 1's reservation for the online splits of 10.x).
  */
 @WowSpi
 interface EventLog {
-    /** The number of partitions, fixed for the context's lifetime. */
+    /**
+     * The number of partitions, fixed for the context's lifetime: a power of two that divides [Partitioner.SLOTS]
+     * (decision D240), so that 10.x can split partitions online by doubling it.
+     */
     val partitions: Int
 
     /**
@@ -95,4 +102,14 @@ interface EventLog {
      * that starts from the end starts after it.
      */
     suspend fun head(partition: Int): Long?
+
+    /**
+     * The lineage of [partition] as stored (decision D240): [PartitionLineage.ROOT] for a partition the log was created
+     * with, which today is every partition. Format 1 reserves it for the online splits of 10.x, which nothing reads
+     * yet. A backend that stores no lineage answers [PartitionLineage.ROOT].
+     */
+    suspend fun lineage(partition: Int): PartitionLineage {
+        require(partition in 0 until partitions) { "No partition $partition among $partitions." }
+        return PartitionLineage.ROOT
+    }
 }

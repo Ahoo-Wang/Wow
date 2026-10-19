@@ -21,6 +21,7 @@ import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.mongodb.client.TransactionBody
 import com.mongodb.client.model.Filters
+import com.mongodb.client.model.Updates
 import com.mongodb.event.CommandListener
 import com.mongodb.event.CommandStartedEvent
 import io.mockk.every
@@ -48,6 +49,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
+import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.tck.containers.WowContainers
 import me.ahoo.wow.tck.log.EventLogSpec
@@ -66,6 +68,28 @@ class MongoEventLogTest : EventLogSpec() {
     )
 
     private fun collection(context: String, aggregate: String) = "wow_log__${context.replace('-', '_')}__$aggregate"
+
+    @Test
+    fun `a partition's stored lineage reads back, and a counter written without it reads as created`(): Unit =
+        runBlocking {
+            val context = MongoLogFixture.newContext()
+            val log = MongoLogFixture.log(2, context)
+            val counters = MongoLogFixture.client.getDatabase(MongoLogFixture.DATABASE)
+                .getCollection(MongoNames.of("wow_log", context, "partition"))
+            counters.find(Filters.eq("_id", 0)).first()!!.let { counter ->
+                counter.containsKey("parent").assert().isTrue()
+                counter["parent"].assert().isNull()
+                counter.getInteger("epoch").assert().isZero()
+            }
+            // What an online split of 10.x writes: partition 1 split from partition 0 (decision D240).
+            counters.updateOne(Filters.eq("_id", 1), Updates.combine(Updates.set("parent", 0), Updates.set("epoch", 1)))
+            log.lineage(0).assert().isEqualTo(PartitionLineage.ROOT)
+            log.lineage(1).assert().isEqualTo(PartitionLineage.of(0, 1))
+            // A counter of format 1 written before the lineage fields reads as a partition the log was created with.
+            counters.updateOne(Filters.eq("_id", 1), Updates.combine(Updates.unset("parent"), Updates.unset("epoch")))
+            log.lineage(1).assert().isEqualTo(PartitionLineage.ROOT)
+            MongoLogFixture.log(2, context).lineage(1).assert().isEqualTo(PartitionLineage.ROOT)
+        }
 
     @Test
     fun `creating the schema twice is harmless`() {

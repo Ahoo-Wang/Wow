@@ -31,6 +31,7 @@ import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
+import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.tck.log.EventLogSpec
 import org.junit.jupiter.api.Test
 import java.util.UUID
@@ -46,6 +47,28 @@ class PostgresEventLogTest : EventLogSpec() {
     )
 
     private fun table(context: String, aggregate: String) = "wow_log__${context.replace('-', '_')}__$aggregate"
+
+    @Test
+    fun `a partition's stored lineage reads back, and a counter table created without it gets it`(): Unit =
+        runBlocking {
+            val context = PostgresFixture.newContext()
+            val log = PostgresFixture.log(2, context)
+            val counters = PostgresEventLogTables(context).partitions
+            // What an online split of 10.x writes: partition 1 split from partition 0 (decision D240).
+            execute("UPDATE $counters SET parent = 0, epoch = 1 WHERE partition = 1")
+            log.lineage(0).assert().isEqualTo(PartitionLineage.ROOT)
+            log.lineage(1).assert().isEqualTo(PartitionLineage.of(0, 1))
+            // A counter table of format 1 created before the lineage columns reads as the partitions it was created with.
+            execute("ALTER TABLE $counters DROP COLUMN parent, DROP COLUMN epoch")
+            log.lineage(1).assert().isEqualTo(PartitionLineage.ROOT)
+            log.createSchema()
+            execute("UPDATE $counters SET parent = 0, epoch = 1 WHERE partition = 1")
+            log.lineage(1).assert().isEqualTo(PartitionLineage.of(0, 1))
+        }
+
+    private fun execute(sql: String) {
+        PostgresFixture.dataSource.connection.use { connection -> connection.createStatement().use { it.execute(sql) } }
+    }
 
     @Test
     fun `a key too long for its index is rejected, not unknown`(): Unit = runBlocking {

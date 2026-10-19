@@ -42,6 +42,7 @@ import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
+import me.ahoo.wow.spi.log.Partitioner
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.net.URI
 import java.time.Duration
@@ -72,9 +73,10 @@ import kotlin.time.toKotlinDuration
  *   several targets (decision D172, [Snapshot]): `wow.snapshot.targets` and `wow.snapshot.primary`, per aggregate type
  *   `.snapshot.store` as a list and `.snapshot.primary`; `wow.snapshot.interval`, `batch` and `pages` tune the
  *   snapshot maintenance.
- * - `wow.log.partitions` (64) and `wow.log.append-queue.*`, whose defaults are the backend's preset;
- *   `wow.log.poll-interval` (50ms) and `wow.log.max-poll-interval` (1s), how often the tails of a PostgreSQL or MongoDB
- *   log poll: at the first while they find entries, backing off to the second while they find none (finding A2-14).
+ * - `wow.log.partitions` (64; a power of two that divides 4096, decision D240) and `wow.log.append-queue.*`, whose
+ *   defaults are the backend's preset; `wow.log.poll-interval` (50ms) and `wow.log.max-poll-interval` (1s), how often
+ *   the tails of a PostgreSQL or MongoDB log poll: at the first while they find entries, backing off to the second
+ *   while they find none (finding A2-14).
  * - `wow.cluster.*` ([ClusterOptions]) and `wow.cluster.router`: `partitioned`, or `local` (the default on the memory
  *   backend, which cannot route across nodes).
  * - `wow.wait.default-timeout` (10s), `max-timeout` (60s), `max-hops` (16, at most 32), `unknown-contexts` (`allow`
@@ -235,8 +237,14 @@ class WowProperties {
     }
 
     class Log {
-        /** The partitions of each context's log: fixed once the log holds entries. */
+        /**
+         * The partitions of each context's log: fixed once the log holds entries, a power of two that divides 4096
+         * (decision D240), refused at start otherwise.
+         */
         var partitions: Int = DEFAULT_PARTITIONS
+            set(value) {
+                field = Partitioner.requirePartitions(value)
+            }
         var appendQueue: AppendQueue = AppendQueue()
 
         /** How often a tail polls while it finds entries (finding A2-14). */
