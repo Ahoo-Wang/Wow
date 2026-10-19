@@ -571,7 +571,7 @@ test('the V10 store, what its suites import, the service and its modules run the
     'api/api/src/main/kotlin/A.kt',
     'compiler/compiler/src/main/kotlin/A.kt',
     'core/kernel/src/main/kotlin/A.kt',
-    'query/query/src/testFixtures/kotlin/A.kt',
+    'query/query-tck/src/main/kotlin/A.kt',
     'backends/postgres/src/main/kotlin/A.kt',
     'edge/http/src/main/kotlin/A.kt',
     'host/spring-boot/src/main/kotlin/A.kt',
