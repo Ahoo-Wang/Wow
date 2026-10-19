@@ -14,7 +14,7 @@
 **M6 的定稿**（D125～D131）：
 
 - **模块**：`:query-api` 是 9.x `api.query` 的纯数据移植，包名不变、不带 Jackson，查询字段注解也在这里（D125）；`:query` 是 9.x `wow-query` 的协程移植，身份是显式的 `QueryCaller`，schema 由 Manifest 的 `$defs` 加 `x-wow-*` 关键字编出，准入、预算、游标与残余窗口不变，数据集模型也在这里（D126）。
-- **后端**（D131）：M6 只做 PostgreSQL 与 MongoDB 的快照查询、限一个聚合的 `events` 模型（按版本或时间范围，由 `EventLog.read` 提供）与 ClickHouse 数据集后端。Elasticsearch 是 M6 之后的 6.7；自定义投影的查询模型、跨聚合的时间线与 ClickHouse 作快照查询后端推迟。
+- **后端**（D131）：M6 只做 PostgreSQL 与 MongoDB 的快照查询、限一个聚合的 `events` 模型（按版本或时间范围，由 `EventLog.read` 提供；**D235 撤销这一限制**：`events` 收进统一引擎，记录是事件流，能力由后端声明，按事件分析用 `expand("events")`）与 ClickHouse 数据集后端。Elasticsearch 是 M6 之后的 6.7；自定义投影的查询模型、跨聚合的时间线与 ClickHouse 作快照查询后端推迟。
 - **调用方**（D165）：命令与查询共用 `Caller` 与一个 `CallerResolver`；查询的 `QueryCaller` 只多执行上下文（入口、选择）。操作人的显示名由前端展示层按 `operator.id` 自行解析。
 - **操作人**（D163）：快照的系统字段恢复 `operator` 与 `firstOperator`（9.x 同名），可查询、可排序。
 - **归属**（D189）：`TENANT` 聚合（如商品）的查询不追加调用方的所有者条件，只按租户与空间；`OWNER` 聚合照常按调用方的作用域过滤。租户级调用方（作用域无所有者）读本租户全部聚合，动作由 CoSec 的动作级授权保护。`QueryCaller` 多一个 `scope`（准入追加的可信作用域过滤），`caller = null` 表示受信的进程内调用（D165 实现）。

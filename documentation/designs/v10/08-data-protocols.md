@@ -203,9 +203,9 @@ value    = { "format": 1, "kind": "state-event" | "command" | "command-receipt",
 
 | 表 | 谁写 | 引擎与键 | 内容 |
 |---|---|---|---|
-| `<ctx>_<agg>_state_events` | Sink | MergeTree，按 `commit_time` 的月分区，`ORDER BY (tenant_id, aggregate_id, version)` | 每个 `StateEventRecord` 一行：系统列、`operator`、事件数组与状态的 JSON；即完整历史 |
+| `<ctx>_<agg>_state_events` | Sink | ReplacingMergeTree（以 `ref@version` 去重），按 `commit_time` 的月分区，`ORDER BY (tenant_id, aggregate_id, version)` | 每个 `StateEventRecord` 一行：系统列、`operator`、事件数组与状态的 JSON；即完整历史 |
 | `<ctx>_<agg>_state` | 物化视图 | ReplacingMergeTree(version)，ORDER BY (tenant_id, aggregate_id) | 当前状态 |
-| `<ctx>_<agg>_events` | 物化视图（`ARRAY JOIN events`） | MergeTree | 每个事件一行 |
+| `<ctx>_<agg>_events` | 物化视图（`ARRAY JOIN events`） | ReplacingMergeTree | 每个事件一行 |
 | `<ctx>_<agg>_state_flat` | 视图（建在 `_state` 上） | — | Manifest 状态 schema 的顶层标量展开为类型化列，作为数据集源表；嵌套展开推迟 |
 
 按聚合可配 `history.ttl`（历史保留期）或 `history=false`（只留当前状态）；物化视图链路开 `deduplicate_blocks_in_dependent_materialized_views`，重试插入不重复。

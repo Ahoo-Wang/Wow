@@ -131,7 +131,7 @@
 | 查询策略 SPI、作用域 | `QueryPolicy`、`QueryScope` | A | `QueryPolicy`、`ScopeQueryPolicy`、`QueryCaller` |
 | 快照查询 MongoDB | `wow-mongo` `query` | A | `backends/mongo/.../query/*`（6.2b） |
 | 快照查询 Elasticsearch | `wow-elasticsearch` `query` | D | D167（6.7） |
-| 跨聚合事件流查询与聚合（Mongo/ES） | `event/list`、`event/aggregation` | D | D131 推迟「跨聚合的时间线」，事件检索 Sink 随 6.7（D167）；Mongo 用户在此之前无替代 |
+| 跨聚合事件流查询与聚合（Mongo/ES） | `event/list`、`event/aggregation` | D | D235 撤销 D131 的限制：`events` 收进统一引擎，能力由后端声明（MongoDB、PostgreSQL、ClickHouse，ES 随 6.7），按事件分析用 `expand("events")`；工作包 A.M2 |
 | HTTP 查询路由 | `snapshot/list` 等 | B | `POST /{ctx}/{agg}/{model}/query`（D127）；Skill 只写了「查询改 FilterExpression」，未写路由对照 |
 | 列表流式返回 | `StreamingJsonArrayResponse` | A | `Accept: text/event-stream`（`edge/http/.../query/QueryHandler.kt:91`） |
 | 查询 schema 路由与刷新、actuator `wowQuerySchema` | `QuerySchemaHandlerFunction` | B | `GET` 能力描述（D127），schema 来自 Manifest（D37），无需刷新 |
