@@ -17,9 +17,11 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.dataset.QueryDatasetChange
 import me.ahoo.wow.query.dataset.QueryDatasetListener
 import me.ahoo.wow.query.dataset.QueryDatasets
+import me.ahoo.wow.query.memory.InMemoryQueryStorageAdapter
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 
@@ -69,6 +71,7 @@ class QuerySchemaCatalog(
     private val aggregates = aggregates.distinct()
     private val aggregateNames = this.aggregates.toSet()
     private val providers = ConcurrentHashMap<Pair<AggregateType, QueryModel>, QueryModelSchemaProvider>()
+    private val policyProviders = ConcurrentHashMap<AggregateType, QueryModelSchemaProvider>()
     private val inFlight = ConcurrentHashMap<QueryModelSchemaProvider, CompletableDeferred<Status>>()
 
     init {
@@ -111,6 +114,18 @@ class QuerySchemaCatalog(
     /** The schema provider of [aggregateType]'s [model], compiled once and shared by every reader. */
     fun provider(aggregateType: AggregateType, model: QueryModel): QueryModelSchemaProvider =
         providers.computeIfAbsent(aggregateType to model) { create(aggregateType, model) }
+
+    /**
+     * The snapshot schema [aggregateType]'s query policies are evaluated against when no backend serves its snapshot
+     * queries (review R3.3-3): compiled from its declaration over the in-memory storage's facts, so a state of it can
+     * be admitted in memory ([me.ahoo.wow.query.state.SnapshotPolicyGateway]) though it is never queried. It reads no
+     * storage, so it is not revalidated.
+     */
+    @InternalWowApi
+    fun policyProvider(aggregateType: AggregateType): QueryModelSchemaProvider =
+        policyProviders.computeIfAbsent(aggregateType) {
+            compiler.compile(QuerySchemaContext(it, QueryModel.SNAPSHOT), InMemoryQueryStorageAdapter)
+        }
 
     /** The current schema of [aggregateType]'s [model]. */
     suspend fun schema(aggregateType: AggregateType, model: QueryModel): QueryModelSchema =
