@@ -22,6 +22,7 @@ import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.TargetScope
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.InvalidMediaTypeException
 import org.springframework.http.MediaType
@@ -31,8 +32,11 @@ import kotlin.time.Duration
 /**
  * Reads the Wow headers of a request (decisions D95, D98, D99); a header that does not parse is answered as a problem
  * before the command has a ref: `wow.wait.invalid` for the wait, `wow.command.malformed` for the others.
+ *
+ * [publicPort] is whether the requests come to the public port, the one port whose commands carry the default request
+ * facts ([facts]): on the internal port the peer is a service of the cluster, not the client.
  */
-internal class RequestHeaders(private val statuses: ErrorStatuses) {
+internal class RequestHeaders(private val statuses: ErrorStatuses, private val publicPort: Boolean = false) {
     /**
      * The wait plan of `Wow-Wait` and `Wow-Wait-Timeout`; null when neither is given (the default plan, D69, within the
      * node's default timeout). A plan given without a timeout waits [defaultTimeout], the node's.
@@ -107,13 +111,51 @@ internal class RequestHeaders(private val statuses: ErrorStatuses) {
     /** The request id of `Wow-Request-Id`, or null without it. */
     fun requestId(request: ServerRequest): String? = request.header(WowHeaders.REQUEST_ID)
 
-    /** The request facts [names] lists that [request] carries, as named in [names]. */
-    fun facts(request: ServerRequest, names: Set<String>): Map<String, String> =
-        names.mapNotNull { name -> request.header(name)?.let { name to it } }.toMap()
+    /**
+     * The request facts [names] lists that [request] carries, as named in [names], and on the public port the default
+     * request facts (09 §17 G-10), as 9.x's header appenders wrote them:
+     *
+     * - [USER_AGENT], the request's `User-Agent`, when it has one;
+     * - [REMOTE_IP], the address literal of the request's remote address (never a host name, which a reverse DNS
+     *   lookup would block the event loop for; an unresolved address as it was given), when the server knows it.
+     *
+     * The remote address is the server's: the connection's peer or, when the host trusts a proxy in front of it, the
+     * client that proxy forwarded for. `X-Forwarded-For` and `Forwarded` are never read here: 9.x took the first
+     * `X-Forwarded-For` entry as it came, which any client can forge. Trusting a proxy is the host's decision, made
+     * where its server is configured: Spring Boot's `server.forward-headers-strategy` (`native` or `framework`)
+     * rewrites the remote address from the forwarded headers before the routes see the request.
+     *
+     * No request sets either fact itself (the trust boundary of decision D226): a listed name that is one of them is
+     * not copied, on either port, and on the internal port, whose peer is a service of the cluster, neither is
+     * recorded. A command forwarded to its owner over the cluster channel keeps the facts the public port recorded.
+     */
+    fun facts(request: ServerRequest, names: Set<String>): Map<String, String> {
+        val listed = names.filter { it.lowercase() !in DEFAULT_FACTS }
+            .mapNotNull { name -> request.header(name)?.let { name to it } }
+            .toMap()
+        if (!publicPort) {
+            return listed
+        }
+        val defaults = buildMap {
+            request.header(HttpHeaders.USER_AGENT)?.takeIf { it.isNotEmpty() }?.let { put(USER_AGENT, it) }
+            request.remoteAddress().ifPresent { put(REMOTE_IP, it.address?.hostAddress ?: it.hostString) }
+        }
+        return listed + defaults
+    }
 
     private fun problem(code: String, detail: String) = ProblemException(statuses.problemOf(code, detail))
 
     private fun ServerRequest.header(name: String): String? = headers().firstHeader(name)?.trim()
+
+    companion object {
+        /** The command header of the client's `User-Agent`, a default request fact of the public port (G-10). */
+        const val USER_AGENT: String = "user_agent"
+
+        /** The command header of the client's address, a default request fact of the public port (G-10). */
+        const val REMOTE_IP: String = "remote_ip"
+
+        private val DEFAULT_FACTS = setOf(USER_AGENT, REMOTE_IP)
+    }
 }
 
 /** The media types a public route answers in. */

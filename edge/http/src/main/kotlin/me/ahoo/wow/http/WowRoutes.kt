@@ -111,7 +111,8 @@ fun wowRoutes(
 ): RouterFunction<ServerResponse> {
     val statuses = ErrorStatuses(manifest, options.errorStatuses)
     val authenticator = Authenticator(callerResolver, statuses)
-    val headers = RequestHeaders(statuses)
+    // The public port: its commands carry the default request facts (09 §17 G-10).
+    val headers = RequestHeaders(statuses, publicPort = true)
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val commands = CommandHandler(
         gateway = gateway,

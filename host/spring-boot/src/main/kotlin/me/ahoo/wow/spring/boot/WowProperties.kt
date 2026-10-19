@@ -664,7 +664,11 @@ class WowProperties {
     }
 
     class Http {
-        /** The request headers copied into a command's headers. */
+        /**
+         * The request headers copied into a command's headers, beside the default request facts `user_agent` and
+         * `remote_ip` the public port records (09 §17 G-10). `remote_ip` is the server's remote address: behind a
+         * proxy, set `server.forward-headers-strategy` to have the server take it from the proxy's forwarded headers.
+         */
         var requestFacts: MutableSet<String> = LinkedHashSet()
 
         /** The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`). */

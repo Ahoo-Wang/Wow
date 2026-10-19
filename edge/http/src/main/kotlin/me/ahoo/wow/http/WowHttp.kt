@@ -19,7 +19,8 @@ import tools.jackson.databind.json.JsonMapper
 
 /**
  * The request headers of the public port (decisions D95, D96, D98, D99). A request header that is neither one of these
- * nor a request fact the host lists ([WowHttpOptions.requestFacts]) is ignored.
+ * nor a request fact the host lists ([WowHttpOptions.requestFacts]) is ignored, but for `User-Agent`, which the public
+ * port records as the default request fact `user_agent` beside the client's address, `remote_ip` (09 §17 G-10).
  */
 object WowHeaders {
     /** The caller's id of the request, kept as the command's request id: a retry with the same one is deduplicated. */
@@ -61,7 +62,9 @@ object WowHeaders {
  * What the host configures of the public routes (decision D102 and the `wow.http.*` properties of the host).
  *
  * - [requestFacts] are the request headers copied into a command's headers, as they are named here; a name the
- *   framework reserves (`Wow-*`, `wow.*`) cannot be one.
+ *   framework reserves (`Wow-*`, `wow.*`) cannot be one. Beside them the public port records the default request
+ *   facts `user_agent` and `remote_ip` (09 §17 G-10), which no request header sets: a listed name that is one of
+ *   them is not copied.
  * - [errorStatuses] overrides the HTTP status of an error code, a domain rejection's (422 by default) or a framework
  *   one's.
  * - [manifestEndpoint] serves `GET /wow/manifest`; [openApiEndpoint] serves `GET /wow/openapi`.

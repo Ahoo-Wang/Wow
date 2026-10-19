@@ -98,6 +98,8 @@ class ServiceCallRoutesTest {
         command.scope.assert().isEqualTo(Scope("alice"))
         command.operator.assert().isEqualTo(Operator("alice", TENANT))
         command.causation.assert().isEqualTo(root)
+        // The internal port's peer is the calling service, not a client: no default request fact (09 §17 G-10).
+        command.headers.keys.assert().doesNotContain("remote_ip", "user_agent")
     }
 
     @Test
