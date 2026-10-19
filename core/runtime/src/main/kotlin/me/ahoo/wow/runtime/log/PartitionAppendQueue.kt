@@ -72,8 +72,8 @@ class AppendQueueOptions @InternalWowApi constructor(
 
         /**
          * PostgreSQL: off, appends go straight to the log. One autocommit statement allocates the sequence (D10);
-         * contending writers queue on the counter row instead of aborting, and the log commits a group one stream at
-         * a time, so the queue would only serialize. Not measured to be faster; turn it on where it is.
+         * contending writers queue on the counter row instead of aborting. The log commits a group in one statement
+         * too (D248), but batching is not measured to be faster yet; turn it on where it is.
          */
         val POSTGRES = AppendQueueOptions(enabled = false)
     }

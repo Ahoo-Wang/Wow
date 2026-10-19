@@ -124,6 +124,56 @@ internal class PostgresEventLogTables(val context: String) {
     /** A partition's counter is the sequence of its last committed entry: the bump commits with the insert. */
     val head = "SELECT sequence FROM $partitions WHERE partition = ?"
 
+    /**
+     * The group commit of streams of [partition] across [tables] as one autocommitted statement, the multi-row form of
+     * [AggregateLogTable.append]; [branches] is the index in [tables] of each stream's table, in the group's order:
+     *
+     * - `input` holds the streams, each with its place in the group (`ord`) and its table (`branch`);
+     * - `current` reads each aggregate's version from its table, `fits` keeps the streams exactly one version ahead of
+     *   it, ranked in the group's order;
+     * - `bump` takes as many sequences from the partition's counter as streams fit (locking its row until the statement
+     *   commits), none when none fits;
+     * - one insert per table writes its fitting streams at `bump - fits + rank`: the group's sequences are contiguous
+     *   and in its order, whichever tables they land in.
+     *
+     * A concurrent append that took a version a fitting stream needed, or a request key a stream repeats, makes the
+     * insert hit a unique key, which rolls the whole statement back, the bump included: no sequence is ever skipped.
+     * Parameters per stream: [AggregateLogTable.STREAM_PARAMETERS] of it. Returns per stream, in the group's order:
+     * `ord`, the aggregate's current `version`, and the `sequence` it was committed at, null when it did not fit.
+     */
+    fun appendGroup(partition: Int, tables: List<AggregateLogTable>, branches: List<Int>): String {
+        val values = branches.withIndex().joinToString(", ") { (ord, branch) ->
+            "($ord, $branch, ?::text, ?::text, ?::integer, ?::text, ?::text, ?::text, ?::bigint, ?::jsonb, ?::text, " +
+                "?::text, ?::text, ?::text, ?::jsonb, ?::jsonb, ?::text, ?::text, ?::boolean)"
+        }
+        val current = tables.withIndex().joinToString(" UNION ALL ") { (branch, table) ->
+            "SELECT input.ord, coalesce((SELECT max(log.version) FROM ${table.log} AS log " +
+                "WHERE log.aggregate_id = input.aggregate_id AND log.tenant_id = input.tenant_id), 0) AS version " +
+                "FROM input WHERE input.branch = $branch"
+        }
+        val inserts = tables.withIndex().joinToString("") { (branch, table) ->
+            ", appended_$branch AS (INSERT INTO ${table.log} (partition, sequence, ${AggregateLogTable.COLUMNS}) " +
+                "SELECT $partition, bump.sequence - fits.total + fits.rank, " +
+                AggregateLogTable.COLUMNS.split(", ").joinToString(", ") { "fits.$it" } +
+                " FROM fits, bump WHERE fits.branch = $branch RETURNING sequence)"
+        }
+        return """
+            WITH input (ord, branch, ${AggregateLogTable.COLUMNS}) AS (VALUES $values),
+            current AS ($current),
+            fits AS (
+                SELECT input.*, row_number() OVER (ORDER BY input.ord) AS rank, count(*) OVER () AS total
+                FROM input JOIN current ON current.ord = input.ord WHERE current.version = input.version - 1
+            ), bump AS (
+                UPDATE $partitions SET sequence = sequence + (SELECT count(*) FROM fits)
+                WHERE partition = $partition AND EXISTS (SELECT 1 FROM fits)
+                RETURNING sequence
+            )$inserts
+            SELECT current.ord, current.version, bump.sequence - fits.total + fits.rank AS sequence
+            FROM current LEFT JOIN fits ON fits.ord = current.ord LEFT JOIN bump ON true
+            ORDER BY current.ord
+        """.trimIndent()
+    }
+
     companion object {
         /** The version of this layout. */
         const val FORMAT = 1
@@ -226,6 +276,14 @@ internal class AggregateLogTable(val aggregate: String, val base: String, privat
     val byRequest = "SELECT $FACTS FROM $log WHERE tenant_id = ? AND request_id = ?"
 
     companion object {
+        /** The columns a stream is written to besides its position, in the order of its parameters. */
+        const val COLUMNS = "tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, " +
+            "events, owner_id, space_id, correlation_id, causation_id, headers, transport, operator_id, " +
+            "operator_tenant_id, operator_cross_scope"
+
+        /** The parameters of one stream in [PostgresEventLogTables.appendGroup]: one per column of [COLUMNS]. */
+        const val STREAM_PARAMETERS = 17
+
         /** The facts of a stream: every column but the position and the transport. */
         const val FACTS = "tenant_id, aggregate_id, version, command_id, request_id, command_type, commit_time, " +
             "events, owner_id, space_id, correlation_id, causation_id, headers, operator_id, operator_tenant_id, " +
