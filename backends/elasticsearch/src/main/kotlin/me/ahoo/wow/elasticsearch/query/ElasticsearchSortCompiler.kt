@@ -21,7 +21,7 @@ import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.ResolvedField
 import me.ahoo.wow.query.schema.QueryViolation
 
-object ElasticsearchSortCompiler {
+internal object ElasticsearchSortCompiler {
     /** Metadata sorts (`_score`, `_doc`, `_shard_doc`) keep Elasticsearch's own missing policy. */
     fun compile(sort: List<Sort>, admitted: AdmittedQuery<*>): List<SortOptions> =
         compilePhysical(sort, admitted, missingOnMetadata = false)

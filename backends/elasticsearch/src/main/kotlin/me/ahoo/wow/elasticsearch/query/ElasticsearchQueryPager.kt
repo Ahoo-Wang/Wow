@@ -66,7 +66,11 @@ internal class ElasticsearchQueryPager(
                         .size(pageSize)
                         .allowPartialSearchResults(false)
                         .trackTotalHits { trackHits -> trackHits.enabled(false) }
-                        .pit { pitBuilder -> pitBuilder.id(pit.id).keepAlive { time -> time.time(pointInTime.keepAliveValue) } }
+                        .pit { pitBuilder ->
+                            pitBuilder.id(
+                                pit.id
+                            ).keepAlive { time -> time.time(pointInTime.keepAliveValue) }
+                        }
                         .sort(sort)
                     if (searchAfter.isNotEmpty()) it.searchAfter(searchAfter)
                     if (sourceFilter != null) it.source { source -> source.filter(sourceFilter) }

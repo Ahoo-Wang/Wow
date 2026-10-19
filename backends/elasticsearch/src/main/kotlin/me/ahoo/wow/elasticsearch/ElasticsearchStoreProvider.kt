@@ -113,7 +113,9 @@ internal class ElasticsearchStore(
     override fun openTimers(context: String): TimerStore = noLog()
 
     private fun noLog(): Nothing =
-        throw UnsupportedOperationException("The Elasticsearch store $name holds no log (decision D13): snapshots only.")
+        throw UnsupportedOperationException(
+            "The Elasticsearch store $name holds no log (decision D13): snapshots only."
+        )
 
     companion object {
         /** An asynchronous client over [restClient] that reads and writes Wow's JSON. */

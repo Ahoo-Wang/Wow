@@ -18,7 +18,7 @@ import me.ahoo.wow.api.query.Projection
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.AdmittedQuery
 
-object ElasticsearchProjectionCompiler {
+internal object ElasticsearchProjectionCompiler {
     /** The source filter of an empty projection: immutable, so built once. */
     private val EMPTY: SourceFilter = SourceFilter.of { it.includes(emptyList()).excludes(emptyList()) }
 

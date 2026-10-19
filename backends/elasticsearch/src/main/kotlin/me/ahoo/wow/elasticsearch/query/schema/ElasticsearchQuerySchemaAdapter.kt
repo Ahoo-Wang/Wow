@@ -16,19 +16,18 @@ package me.ahoo.wow.elasticsearch.query.schema
 import co.elastic.clients.elasticsearch._types.mapping.Property
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.query.schema.QueryCapability
-import me.ahoo.wow.query.schema.QueryModel
-import me.ahoo.wow.query.schema.QueryValueKind
-import me.ahoo.wow.query.schema.QueryValueType
-import me.ahoo.wow.query.spec.MetricSpec
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMapping
 import me.ahoo.wow.elasticsearch.query.ElasticsearchIndexMappingResolver
 import me.ahoo.wow.elasticsearch.query.ElasticsearchMappedField
+import me.ahoo.wow.elasticsearch.query.hasArrayBranch
+import me.ahoo.wow.elasticsearch.query.isElementScope
 import me.ahoo.wow.query.schema.AbsentValues
 import me.ahoo.wow.query.schema.AggregationSupport
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.PagingSupport
+import me.ahoo.wow.query.schema.QueryCapability
 import me.ahoo.wow.query.schema.QueryFieldBindingTemplate
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryPathSegment
 import me.ahoo.wow.query.schema.QueryPathTemplate
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
@@ -37,14 +36,15 @@ import me.ahoo.wow.query.schema.QueryStorageFacts
 import me.ahoo.wow.query.schema.QueryStorageFamily
 import me.ahoo.wow.query.schema.QueryStorageType
 import me.ahoo.wow.query.schema.QueryValueBindings
+import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueSchema
+import me.ahoo.wow.query.schema.QueryValueType
 import me.ahoo.wow.query.schema.StorageSupport
 import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.query.schema.alternativesOrSelf
-import me.ahoo.wow.elasticsearch.query.hasArrayBranch
-import me.ahoo.wow.elasticsearch.query.isElementScope
 import me.ahoo.wow.query.schema.operationValues
 import me.ahoo.wow.query.schema.storageFamilies
+import me.ahoo.wow.query.spec.MetricSpec
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -74,7 +74,10 @@ internal class ElasticsearchQuerySchemaAdapter(
     } catch (error: QuerySchemaUnavailableException) {
         throw error
     } catch (error: Exception) {
-        throw QuerySchemaUnavailableException("Failed to resolve Elasticsearch query schema for index [$indexName].", error)
+        throw QuerySchemaUnavailableException(
+            "Failed to resolve Elasticsearch query schema for index [$indexName].",
+            error
+        )
     }
 
     companion object {

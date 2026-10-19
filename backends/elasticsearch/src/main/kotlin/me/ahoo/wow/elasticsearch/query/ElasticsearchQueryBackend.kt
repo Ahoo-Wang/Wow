@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient
+import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.SortOptions
 import co.elastic.clients.elasticsearch._types.SortOrder
@@ -192,7 +193,7 @@ internal class ElasticsearchQueryBackend(
         }
         val compiled = ElasticsearchProjectionCompiler.compile(projection, admitted)
         if (compiled.includes().isNotEmpty()) return compiled
-        return SourceFilter.of { it.includes(compiled.includes()).excludes(compiled.excludes() + documents.storeFields) }
+        return SourceFilter.of { it.excludes(compiled.excludes() + documents.storeFields) }
     }
 
     /**
@@ -226,7 +227,7 @@ internal class ElasticsearchQueryBackend(
     private suspend fun <T> orMissing(query: AdmittedQuery<*>, missing: () -> T, block: suspend () -> T): T {
         val result = try {
             block()
-        } catch (failure: Throwable) {
+        } catch (failure: ElasticsearchException) {
             if (ElasticsearchFailures.isIndexNotFound(failure)) return missing()
             throw failure
         }
@@ -237,7 +238,7 @@ internal class ElasticsearchQueryBackend(
     private fun Flow<ObjectNode>.orMissing(query: AdmittedQuery<*>): Flow<ObjectNode> = flow {
         try {
             collect { emit(it) }
-        } catch (failure: Throwable) {
+        } catch (failure: ElasticsearchException) {
             if (ElasticsearchFailures.isIndexNotFound(failure)) return@flow
             throw failure
         }
@@ -251,10 +252,11 @@ internal class ElasticsearchQueryBackend(
 
     private companion object {
         /** The tie-breaker of a stream over a point in time: each shard's document order. */
-        val SHARD_DOC_SORT: SortOptions = SortOptions.of { it.field { field -> field.field("_shard_doc").order(SortOrder.Asc) } }
+        val SHARD_DOC_SORT: SortOptions = SortOptions.of {
+            it.field { field -> field.field("_shard_doc").order(SortOrder.Asc) }
+        }
     }
 }
 
 /** Converts an aggregation row built from response values; the core checks that it is standard JSON. */
 internal fun Map<*, *>.toObjectNode(): ObjectNode = WowJson.mapper.valueToTree(this)
-

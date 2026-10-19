@@ -81,7 +81,11 @@ internal class ElasticsearchStateMappings(
         ).awaitElasticsearch()
         mappingResolver.evict(index)
         // The documents written before the fields were mapped are indexed again, in the background.
-        client.updateByQuery { it.index(index).conflicts(Conflicts.Proceed).waitForCompletion(false) }.awaitElasticsearch()
+        client.updateByQuery {
+            it.index(
+                index
+            ).conflicts(Conflicts.Proceed).waitForCompletion(false)
+        }.awaitElasticsearch()
         managed[index] = schema
         return QueryIndexReport(created = plan.created, invalid = plan.invalid)
     }
@@ -94,7 +98,9 @@ internal class ElasticsearchStateMappings(
         /** The mapping of [value] at [path], with only what the index lacks. */
         fun properties(path: String, value: QueryValueSchema): ObjectNode {
             val properties = nodes.objectNode()
-            objectProperties(value)?.forEach { (name, child) -> field("$path.$name", child)?.let { properties.set(name, it) } }
+            objectProperties(
+                value
+            )?.forEach { (name, child) -> field("$path.$name", child)?.let { properties.set(name, it) } }
             return nodes.objectNode().also { it.set("properties", properties) }
         }
 
@@ -102,7 +108,11 @@ internal class ElasticsearchStateMappings(
         private fun field(path: String, value: QueryValueSchema): ObjectNode? {
             val single = value.single() ?: return null
             return when {
-                single.kind == QueryValueKind.OBJECT && single.additionalProperties != null -> leaf(path, FLATTENED, flattened())
+                single.kind == QueryValueKind.OBJECT && single.additionalProperties != null -> leaf(
+                    path,
+                    FLATTENED,
+                    flattened()
+                )
                 single.kind == QueryValueKind.OBJECT -> container(path, Property.Kind.Object, single)
                 single.kind == QueryValueKind.ARRAY -> {
                     val items = checkNotNull(single.items).single() ?: return null
@@ -136,10 +146,18 @@ internal class ElasticsearchStateMappings(
         private fun scalar(path: String, value: QueryValueSchema): ObjectNode? {
             val types = value.valueTypes
             return when {
-                value.semanticType == Temporal.Date && types == setOf(QueryValueType.STRING) -> leaf(path, Property.Kind.Date, date())
+                value.semanticType == Temporal.Date && types == setOf(QueryValueType.STRING) -> leaf(
+                    path,
+                    Property.Kind.Date,
+                    date()
+                )
                 types == setOf(QueryValueType.STRING) -> leaf(path, Property.Kind.Keyword, keyword())
                 types == setOf(QueryValueType.INTEGER) -> leaf(path, Property.Kind.Long, typed("long"))
-                types == setOf(QueryValueType.DECIMAL) || types == NUMBERS -> leaf(path, Property.Kind.Double, typed("double"))
+                types == setOf(QueryValueType.DECIMAL) || types == NUMBERS -> leaf(
+                    path,
+                    Property.Kind.Double,
+                    typed("double")
+                )
                 types == setOf(QueryValueType.BOOLEAN) -> leaf(path, Property.Kind.Boolean, typed("boolean"))
                 else -> null
             }
@@ -170,7 +188,9 @@ internal class ElasticsearchStateMappings(
 
         fun typed(type: String): ObjectNode = nodes.objectNode().put("type", type)
 
-        fun keyword(): ObjectNode = typed("keyword").put("ignore_above", ElasticsearchSnapshotIndex.KEYWORD_LIMIT).also {
+        fun keyword(): ObjectNode = typed(
+            "keyword"
+        ).put("ignore_above", ElasticsearchSnapshotIndex.KEYWORD_LIMIT).also {
             it.putObject("fields").set("text", typed("text"))
         }
 

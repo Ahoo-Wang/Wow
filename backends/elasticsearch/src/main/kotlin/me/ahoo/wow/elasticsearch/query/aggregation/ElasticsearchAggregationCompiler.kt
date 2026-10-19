@@ -27,15 +27,15 @@ import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.Sort
-import me.ahoo.wow.query.schema.QueryCardinality
-import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.elasticsearch.query.ElasticsearchFilterCompiler
 import me.ahoo.wow.elasticsearch.query.ElasticsearchSortCompiler.toSortOrder
+import me.ahoo.wow.elasticsearch.query.checkExecution
+import me.ahoo.wow.elasticsearch.query.metricSorted
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.QueryExecutionException
 import me.ahoo.wow.query.aggregation.denseGroup
-import me.ahoo.wow.elasticsearch.query.metricSorted
-import me.ahoo.wow.elasticsearch.query.checkExecution
+import me.ahoo.wow.query.schema.QueryCardinality
+import me.ahoo.wow.query.schema.Temporal
 
 internal object ElasticsearchAggregationCompiler {
     /**

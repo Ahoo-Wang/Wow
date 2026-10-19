@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch.query
 
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient
+import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch._types.mapping.BooleanProperty
 import co.elastic.clients.elasticsearch._types.mapping.CountedKeywordProperty
 import co.elastic.clients.elasticsearch._types.mapping.DateNanosProperty
@@ -61,7 +62,7 @@ internal class ElasticsearchIndexMappingResolver(
 
     suspend fun refresh(indexName: String): ElasticsearchIndexMapping = try {
         existing(indexName).also { mappings[indexName] = it }
-    } catch (failure: Throwable) {
+    } catch (failure: ElasticsearchException) {
         if (!ElasticsearchFailures.isIndexNotFound(failure)) throw failure
         mappings.remove(indexName)
         ElasticsearchIndexMapping.from(indexName, provisional(indexName), provisional = true, singleShard = true)

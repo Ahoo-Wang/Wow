@@ -14,6 +14,7 @@
 package me.ahoo.wow.elasticsearch
 
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient
+import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch._types.HealthStatus
 import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
 import co.elastic.clients.elasticsearch.indices.CreateIndexRequest
@@ -47,7 +48,7 @@ internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient
     suspend fun mapping(index: String): TypeMapping? = try {
         client.indices().getMapping(GetMappingRequest.of { it.index(index) }).awaitElasticsearch()
             .mappings().values.firstOrNull()?.mappings()
-    } catch (failure: Throwable) {
+    } catch (failure: ElasticsearchException) {
         if (ElasticsearchFailures.isIndexNotFound(failure)) null else throw failure
     }
 
@@ -56,7 +57,7 @@ internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient
             client.indices().create(
                 CreateIndexRequest.of { it.index(index).withJson(StringReader(definition)) },
             ).awaitElasticsearch()
-        } catch (failure: Throwable) {
+        } catch (failure: ElasticsearchException) {
             if (!failure.isAlreadyExists()) throw failure
             // Another node, or another call of this one, created it meanwhile: wait until its shard serves requests,
             // as the creation itself waits.
@@ -64,9 +65,7 @@ internal class ElasticsearchIndices(private val client: ElasticsearchAsyncClient
         }
     }
 
-    private fun Throwable.isAlreadyExists(): Boolean =
-        this is co.elastic.clients.elasticsearch._types.ElasticsearchException &&
-            error().type() == RESOURCE_ALREADY_EXISTS
+    private fun ElasticsearchException.isAlreadyExists(): Boolean = error().type() == RESOURCE_ALREADY_EXISTS
 
     companion object {
         const val META_INDEX = "wow_index"

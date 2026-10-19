@@ -58,7 +58,10 @@ internal object ElasticsearchFailures {
         }
 
     /** Whether [failure] is Elasticsearch's answer of [status]. */
-    fun hasStatus(failure: Throwable, status: Int): Boolean = failure is ElasticsearchException && failure.status() == status
+    fun hasStatus(
+        failure: Throwable,
+        status: Int
+    ): Boolean = failure is ElasticsearchException && failure.status() == status
 
     /** Whether [failure] says the index does not exist. */
     fun isIndexNotFound(failure: Throwable): Boolean =

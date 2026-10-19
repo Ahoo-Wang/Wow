@@ -14,9 +14,11 @@
 package me.ahoo.wow.elasticsearch.snapshot
 
 import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient
+import co.elastic.clients.elasticsearch._types.ElasticsearchException
 import co.elastic.clients.elasticsearch._types.FieldValue
 import co.elastic.clients.elasticsearch._types.OpType
 import co.elastic.clients.elasticsearch._types.Refresh
+import co.elastic.clients.elasticsearch._types.SortOptions
 import co.elastic.clients.elasticsearch._types.SortOrder
 import co.elastic.clients.elasticsearch._types.query_dsl.Query
 import co.elastic.clients.elasticsearch.core.GetRequest
@@ -29,6 +31,10 @@ import me.ahoo.wow.elasticsearch.ElasticsearchFailures
 import me.ahoo.wow.elasticsearch.ElasticsearchIndices
 import me.ahoo.wow.elasticsearch.ElasticsearchNames
 import me.ahoo.wow.elasticsearch.awaitElasticsearch
+import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments.AGGREGATE_ID
+import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments.STALE_VERSION
+import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments.STATE_REVISION
+import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments.TENANT_ID
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -85,7 +91,13 @@ class ElasticsearchSnapshotStore internal constructor(
     private suspend fun indexOf(aggregate: String): String {
         val index = names.snapshots(context, aggregate)
         if (index !in ensured) {
-            indices.ensure(index, ElasticsearchSnapshotIndex.KIND, ElasticsearchSnapshotIndex.FORMAT, ElasticsearchSnapshotIndex.DEFINITION, ddl)
+            indices.ensure(
+                index,
+                ElasticsearchSnapshotIndex.KIND,
+                ElasticsearchSnapshotIndex.FORMAT,
+                ElasticsearchSnapshotIndex.DEFINITION,
+                ddl
+            )
             ensured += index
         }
         return index
@@ -114,7 +126,13 @@ class ElasticsearchSnapshotStore internal constructor(
                     if (stale != null && stale >= snapshot.version) {
                         Decision.Keep(false)
                     } else {
-                        Decision.Write(stored.source.deepCopy().put(ElasticsearchSnapshotDocuments.STALE_VERSION, snapshot.version), false)
+                        Decision.Write(
+                            stored.source.deepCopy().put(
+                                ElasticsearchSnapshotDocuments.STALE_VERSION,
+                                snapshot.version
+                            ),
+                            false
+                        )
                     }
                 }
                 else -> Decision.Write(replacement(snapshot, stored.source), true)
@@ -170,38 +188,21 @@ class ElasticsearchSnapshotStore internal constructor(
         require(type.context == context) { "$type is not in context $context." }
         require(limit >= 1) { "A page holds at least one ref." }
         val index = indexOf(type.name)
-        val pending = Query.of { query ->
-            query.bool { bool ->
-                bool.should(
-                    Query.of { q ->
-                        q.bool { other ->
-                            other.mustNot(
-                                Query.of { term ->
-                                    term.term { it.field(ElasticsearchSnapshotDocuments.STATE_REVISION).value(revision.toLong()) }
-                                },
-                            )
-                        }
-                    },
-                    Query.of { q -> q.exists { it.field(ElasticsearchSnapshotDocuments.STALE_VERSION) } },
-                ).minimumShouldMatch("1")
-            }
-        }
         val request = SearchRequest.of { search ->
             search.index(index)
-                .query(pending)
+                .query(pendingAt(revision))
                 .size(limit)
                 .trackTotalHits { it.enabled(false) }
-                .source { it.filter { filter -> filter.includes(ElasticsearchSnapshotDocuments.TENANT_ID, ElasticsearchSnapshotDocuments.AGGREGATE_ID) } }
-                .sort({ it.field { field -> field.field(ElasticsearchSnapshotDocuments.TENANT_ID).order(SortOrder.Asc) } })
-                .sort({ it.field { field -> field.field(ElasticsearchSnapshotDocuments.AGGREGATE_ID).order(SortOrder.Asc) } })
+                .source { it.filter { filter -> filter.includes(TENANT_ID, AGGREGATE_ID) } }
+                .sort(ascending(TENANT_ID), ascending(AGGREGATE_ID))
             after?.let { search.searchAfter(FieldValue.of(it.tenantId), FieldValue.of(it.id)) }
             search
         }
         val hits = client.search(request, ObjectNode::class.java).awaitElasticsearch().hits().hits()
         return hits.mapNotNull { it.source() }.map { source ->
             type.ref(
-                source.path(ElasticsearchSnapshotDocuments.TENANT_ID).stringValue(),
-                source.path(ElasticsearchSnapshotDocuments.AGGREGATE_ID).stringValue(),
+                source.path(TENANT_ID).stringValue(),
+                source.path(AGGREGATE_ID).stringValue(),
             )
         }
     }
@@ -260,6 +261,26 @@ class ElasticsearchSnapshotStore internal constructor(
         return marked
     }
 
+    /** The snapshots a rebuild at state [revision] has to rewrite: of another state revision, or marked stale. */
+    private fun pendingAt(revision: Int): Query = Query.of { query ->
+        query.bool { bool ->
+            bool.should(
+                Query.of { other ->
+                    other.bool {
+                        it.mustNot(
+                            Query.of { term -> term.term { it.field(STATE_REVISION).value(revision.toLong()) } }
+                        )
+                    }
+                },
+                Query.of { stale -> stale.exists { it.field(STALE_VERSION) } },
+            ).minimumShouldMatch("1")
+        }
+    }
+
+    private fun ascending(field: String): SortOptions = SortOptions.of {
+        it.field { sort -> sort.field(field).order(SortOrder.Asc) }
+    }
+
     private fun checkContext(ref: AggregateRef) {
         require(ref.type.context == context) { "$ref is not in context $context." }
     }
@@ -288,18 +309,27 @@ class ElasticsearchSnapshotStore internal constructor(
                 is Decision.Write -> if (write(index, id, decision.document, stored)) return decision.result
             }
         }
-        throw IllegalStateException("The document [$id] of [$index] kept changing over $MAX_ATTEMPTS attempts to write it.")
+        throw IllegalStateException(
+            "The document [$id] of [$index] kept changing over $MAX_ATTEMPTS attempts to write it."
+        )
     }
 
     private suspend fun read(index: String, id: String): Stored? {
         val response = try {
-            client.get(GetRequest.of { it.index(index).id(id).realtime(true) }, ObjectNode::class.java).awaitElasticsearch()
-        } catch (failure: Throwable) {
+            client.get(
+                GetRequest.of { it.index(index).id(id).realtime(true) },
+                ObjectNode::class.java
+            ).awaitElasticsearch()
+        } catch (failure: ElasticsearchException) {
             if (ElasticsearchFailures.isIndexNotFound(failure)) return null
             throw failure
         }
         if (!response.found()) return null
-        return Stored(checkNotNull(response.source()), checkNotNull(response.seqNo()), checkNotNull(response.primaryTerm()))
+        return Stored(
+            checkNotNull(response.source()),
+            checkNotNull(response.seqNo()),
+            checkNotNull(response.primaryTerm())
+        )
     }
 
     /** Writes [document] in place of [stored], or creates it when [stored] is null; false when another write beat it. */
@@ -316,7 +346,7 @@ class ElasticsearchSnapshotStore internal constructor(
         return try {
             client.index(request).awaitElasticsearch()
             true
-        } catch (failure: Throwable) {
+        } catch (failure: ElasticsearchException) {
             when {
                 ElasticsearchFailures.hasStatus(failure, ElasticsearchFailures.CONFLICT) -> false
                 // A document Elasticsearch cannot take (a field name it refuses, say) is refused as a value.

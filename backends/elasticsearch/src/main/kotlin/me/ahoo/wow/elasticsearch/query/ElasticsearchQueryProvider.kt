@@ -98,7 +98,11 @@ internal class ElasticsearchSnapshotQueries(
         schema: QueryModelSchema,
         declarations: List<QueryIndexDeclaration>,
     ): QueryIndexReport = runBlocking {
-        stateMappings.manage(names.snapshots(type.context, type.name), schema.definition, indexDdl == QueryIndexDdl.AUTO)
+        stateMappings.manage(
+            names.snapshots(type.context, type.name),
+            schema.definition,
+            indexDdl == QueryIndexDdl.AUTO
+        )
     }
 
     /** The snapshot documents as snapshot records. */

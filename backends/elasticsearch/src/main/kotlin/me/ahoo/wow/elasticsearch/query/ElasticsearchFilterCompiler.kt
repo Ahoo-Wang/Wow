@@ -44,10 +44,7 @@ import me.ahoo.wow.query.requiredOperandValue
  * Compiles admitted filters to Elasticsearch queries. Every field, system fields included, compiles at the physical
  * path its admission resolved; a root exact match on `_id` becomes an `ids` query.
  */
-object ElasticsearchFilterCompiler {
-    /** Compiles an admitted count filter. */
-    fun compile(admitted: AdmittedQuery<FilterExpression>): Query = compile(admitted.query, admitted)
-
+internal object ElasticsearchFilterCompiler {
     /**
      * Compiles [filter], a filter of [admitted] at any scope: each field's resolution carries its absolute physical
      * path, which nested queries and nested aggregations both address.

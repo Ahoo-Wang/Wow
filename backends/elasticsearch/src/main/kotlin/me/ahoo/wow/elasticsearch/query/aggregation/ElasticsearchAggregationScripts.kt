@@ -26,8 +26,8 @@ import me.ahoo.wow.api.query.ComparisonOperator
 import me.ahoo.wow.api.query.DerivedExpression
 import me.ahoo.wow.api.query.ExpressionFilter
 import me.ahoo.wow.api.query.QueryField
-import me.ahoo.wow.query.schema.Temporal
 import me.ahoo.wow.query.AdmittedQuery
+import me.ahoo.wow.query.schema.Temporal
 
 internal fun AggregationMetric.Derived.toDerivedPlan(
     expression: DerivedExpression,

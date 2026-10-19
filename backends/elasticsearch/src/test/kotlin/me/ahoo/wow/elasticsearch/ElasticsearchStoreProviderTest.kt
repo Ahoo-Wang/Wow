@@ -19,6 +19,7 @@ import co.elastic.clients.elasticsearch._types.ErrorResponse
 import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.transport.TransportException
 import co.elastic.clients.transport.rest5_client.low_level.Rest5Client
+import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
@@ -32,7 +33,6 @@ import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.FailureClassifier
-import io.mockk.mockk
 import org.apache.hc.core5.http.HttpHost
 import org.junit.jupiter.api.Test
 import java.io.IOException
@@ -52,7 +52,9 @@ class ElasticsearchStoreProviderTest {
     @Test
     fun `the providers are found on the classpath`() {
         ServiceLoader.load(StoreProvider::class.java).map { it.type }.assert().contains(ElasticsearchStoreProvider.TYPE)
-        ServiceLoader.load(StoreQueryProvider::class.java).map { it.type }.assert().contains(ElasticsearchStoreProvider.TYPE)
+        ServiceLoader.load(
+            StoreQueryProvider::class.java
+        ).map { it.type }.assert().contains(ElasticsearchStoreProvider.TYPE)
         ServiceLoader.load(FailureClassifier::class.java).any { it is ElasticsearchFailureClassifier }.assert().isTrue()
     }
 
@@ -61,7 +63,9 @@ class ElasticsearchStoreProviderTest {
         val provider = ElasticsearchStoreProvider()
         provider.available(StoreResources.of(mapOf("elasticsearch" to restClient))).assert().isFalse()
         provider.requirement.assert().contains("Rest5Client")
-        val store = provider.open(config(mapOf(ElasticsearchStoreProvider.INDEX_PREFIX to "Prod-A"))) as ElasticsearchStore
+        val store = provider.open(
+            config(mapOf(ElasticsearchStoreProvider.INDEX_PREFIX to "Prod-A"))
+        ) as ElasticsearchStore
         store.holdsLogs.assert().isFalse()
         store.holdsSnapshots.assert().isTrue()
         store.location.assert().isSameAs(restClient)
@@ -76,7 +80,9 @@ class ElasticsearchStoreProviderTest {
         assertThrownBy<UnsupportedOperationException> { store.reservations }
         store.createSchemas()
         ElasticsearchQueryProvider().snapshots(store, StoreQueryOptions.DEFAULT)
-            .binding(AggregateType("ctx", "order")).backend.aggregateType.assert().isEqualTo(AggregateType("ctx", "order"))
+            .binding(
+                AggregateType("ctx", "order")
+            ).backend.aggregateType.assert().isEqualTo(AggregateType("ctx", "order"))
     }
 
     @Test
