@@ -162,7 +162,9 @@ enum class UnknownContexts {
  *   whole wait, the command's execution included (decision D64): the command is routed and executed in a supervised
  *   scope this coordinator owns, so a wait that times out before the command's outcome is known answers at ACCEPTED
  *   while the execution goes on, not cancelled half-way through a commit. Its outcome is then only logged; a retry
- *   with the same request id finds it, as the kernel deduplicates by request id.
+ *   with the same request id finds it, as the kernel deduplicates by request id. A command withdrawn because the
+ *   deadline passed while it waited in its lane (decision D228 ②) or before it was forwarded (review R2.1-9) ends the
+ *   wait the same way, whichever noticed the deadline first (review X-12).
  * - The deadline is the wait's, not its caller's: the runtime's own deadline thread ends the wait when it passes,
  *   whatever the caller's coroutine context. A caller's own timers, such as a WebFlux handler's, run in
  *   `Dispatchers.Unconfined` on kotlinx's one `DefaultExecutor` thread, which also runs inline whatever such a
@@ -330,6 +332,12 @@ class WaitCoordinator(
             expiry = expireAt(deadline, waiting, settled)
             val wait = WaitContext(waitId, options.origin, chain.hops, deadline)
             settle(model, command, wait, waiting)?.let { settlement ->
+                if (withdrawn(settlement)) {
+                    // Withdrawn because the deadline passed (review X-12): the wait ends as the deadline ends it,
+                    // whichever of the lane's timer and the deadline thread fired first.
+                    waiting.expire(clock()) { hop -> timedOut(hop, settled = false) }
+                    return@let
+                }
                 settled.set(true)
                 waiting.offer(settlement.committed)
                 settlement.reached.forEach { waiting.offer(it) }
@@ -356,17 +364,27 @@ class WaitCoordinator(
     private fun expireAt(deadline: Long, waiting: Waiting, settled: AtomicBoolean): ScheduledFuture<*> =
         DEADLINES[ThreadLocalRandom.current().nextInt(DEADLINES.size)].schedule(
             {
-                waiting.expire(clock()) { hop ->
-                    if (settled.get()) {
-                        "The wait timed out after reaching $hop."
-                    } else {
-                        "The wait timed out at $hop, before the command's outcome was known."
-                    }
-                }
+                waiting.expire(clock()) { hop -> timedOut(hop, settled.get()) }
             },
             (deadline - clock()).coerceAtLeast(0),
             TimeUnit.MILLISECONDS,
         )
+
+    /** The message of a wait that timed out at [hop], once the command's outcome was known ([settled]) or before. */
+    private fun timedOut(hop: Hop, settled: Boolean): String = if (settled) {
+        "The wait timed out after reaching $hop."
+    } else {
+        "The wait timed out at $hop, before the command's outcome was known."
+    }
+
+    /**
+     * Whether [settlement] is a command withdrawn because its wait's deadline passed before it ran (decision D228 ②)
+     * or before it was forwarded (review R2.1-9): FAILED with [ResultCodes.WAIT_TIMEOUT] at COMMITTED, nothing
+     * committed.
+     */
+    private fun withdrawn(settlement: Settlement): Boolean =
+        settlement.committed.status == CommandResult.Status.FAILED &&
+            settlement.committed.error?.code == ResultCodes.WAIT_TIMEOUT
 
     /**
      * Accepts [command], whose wait plan has only an ACCEPTED hop ([isAcceptedOnly], a chain that is always valid),

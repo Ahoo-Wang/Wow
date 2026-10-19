@@ -16,6 +16,7 @@ package me.ahoo.wow.runtime.wait
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -80,8 +81,14 @@ class WaitWithdrawalTest {
             observed += "timed out at $stage"
         }
     }
-    private val coordinator = WaitCoordinator(
-        Executor(Kernel(log)),
+    private val coordinator = coordinator()
+
+    /**
+     * A coordinator whose executor reads a clock [ahead] of the coordinator's: a lane wait then reaches its deadline
+     * that much before the deadline thread does (review X-12).
+     */
+    private fun coordinator(ahead: Long = 0) = WaitCoordinator(
+        Executor(Kernel(log), clock = { System.currentTimeMillis() + ahead }),
         registry,
         directory,
         LocalSignalSender(origin.node, registry),
@@ -95,29 +102,49 @@ class WaitWithdrawalTest {
     @Test
     fun `a command still queued in its lane when its wait times out is withdrawn and never executes`(): Unit =
         runBlocking {
-            val first = async(Dispatchers.Default) {
-                coordinator.execute(model, command("c-1", Hold(), "r-1", WaitPlan.COMMITTED))
-            }
-            withTimeout(5.seconds) { deciding.await() }
-            val queued = command("c-2", Add("queued"), "r-2", WaitPlan.COMMITTED.within(200.milliseconds))
-            val timedOut = withTimeout(5.seconds) { coordinator.execute(model, queued) }
-            timedOut.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
-            // The withdrawal settles its execution while the lane is still held.
-            withTimeout(5.seconds) {
-                while (coordinator.executing > 1) {
-                    delay(10)
-                }
-            }
-
-            gate.complete(Unit)
-            withTimeout(5.seconds) { first.await() }.version.assert().isEqualTo(1)
-            withTimeout(5.seconds) { coordinator.join() }
-            log.findByRequestId("t", "r-2").assert().isNull()
-            // Review A5-11: the timeout and the withdrawal are both observed.
-            observed.assert().containsExactlyInAnyOrder("timed out at ACCEPTED", "refused ${ResultCodes.WAIT_TIMEOUT}")
-            val retry = coordinator.execute(model, command("c-3", Add("queued"), "r-2", WaitPlan.COMMITTED))
-            retry.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
-            retry.duplicate.assert().isFalse()
-            retry.version.assert().isEqualTo(2)
+            withdraws(coordinator)
         }
+
+    @Test
+    fun `a command withdrawn before the deadline thread ends its wait is answered as the deadline answers it`():
+        Unit = runBlocking {
+        // Review X-12: the lane's timer fires first, by the clock's lead; the answer is the same.
+        val withdrawnFirst = coordinator(ahead = 10_000)
+        val timedOut = withdraws(withdrawnFirst)
+        timedOut.hop.stage.assert().isEqualTo(Stage.ACCEPTED)
+        timedOut.error!!.message.assert().isEqualTo("The wait timed out at accepted(shop), before the command's outcome was known.")
+    }
+
+    /**
+     * Holds the lane with one command, times out a second one queued behind it, and checks that it was withdrawn: it
+     * never ran, the wait timed out at ACCEPTED, and a retry runs it. The answer of the timed-out wait.
+     */
+    private suspend fun withdraws(coordinator: WaitCoordinator): CommandResult = coroutineScope {
+        val first = async(Dispatchers.Default) {
+            coordinator.execute(model, command("c-1", Hold(), "r-1", WaitPlan.COMMITTED))
+        }
+        withTimeout(5.seconds) { deciding.await() }
+        val queued = command("c-2", Add("queued"), "r-2", WaitPlan.COMMITTED.within(200.milliseconds))
+        val timedOut = withTimeout(5.seconds) { coordinator.execute(model, queued) }
+        timedOut.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
+        timedOut.hop.stage.assert().isEqualTo(Stage.ACCEPTED)
+        // The withdrawal settles its execution while the lane is still held.
+        withTimeout(5.seconds) {
+            while (coordinator.executing > 1) {
+                delay(10)
+            }
+        }
+
+        gate.complete(Unit)
+        withTimeout(5.seconds) { first.await() }.version.assert().isEqualTo(1)
+        withTimeout(5.seconds) { coordinator.join() }
+        log.findByRequestId("t", "r-2").assert().isNull()
+        // Review A5-11: the timeout and the withdrawal are both observed, whichever noticed the deadline first.
+        observed.assert().containsExactlyInAnyOrder("timed out at ACCEPTED", "refused ${ResultCodes.WAIT_TIMEOUT}")
+        val retry = coordinator.execute(model, command("c-3", Add("queued"), "r-2", WaitPlan.COMMITTED))
+        retry.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        retry.duplicate.assert().isFalse()
+        retry.version.assert().isEqualTo(2)
+        timedOut
+    }
 }
