@@ -1,0 +1,38 @@
+# The public HTTP port: the view store's routes (/view-store/..., /wow/...), for the CoSec gateway in front of it
+# (networkpolicy.yaml).
+apiVersion: v1
+kind: Service
+metadata:
+  name: view-store
+  labels:
+    app.kubernetes.io/name: view-store
+spec:
+  selector:
+    app.kubernetes.io/name: view-store
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+---
+# The cluster channel and the wait signals (decisions D89, D173): a headless service that gives each node the DNS name
+# it advertises, <pod>.view-store-cluster.<namespace>.svc.cluster.local. It publishes the nodes that are not ready, so a node
+# that is starting or draining still gets its peers' forwarded commands and signals. Never expose it outside the
+# cluster (decision D226): its forwards and signals take the cluster token (WOW_INTERNAL_TOKEN), but it is the
+# service's inside.
+apiVersion: v1
+kind: Service
+metadata:
+  name: view-store-cluster
+  labels:
+    app.kubernetes.io/name: view-store
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app.kubernetes.io/name: view-store
+  ports:
+    - name: internal
+      port: 9090
+      targetPort: internal
+      protocol: TCP

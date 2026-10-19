@@ -1,0 +1,31 @@
+# The settings every node shares, as environment variables. They override the application.yaml in the image, its
+# postgres and cosec profiles included.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: view-store-config
+  labels:
+    app.kubernetes.io/name: view-store
+data:
+  # The postgres profile keeps the views, preferences and wording on PostgreSQL and serves their snapshot queries; the
+  # cosec profile verifies each request's CoSec token (COSEC_JWT_SECRET, secret.yaml).
+  SPRING_PROFILES_ACTIVE: postgres,cosec
+  SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/view_store
+  # Behind a CoSec gateway (decision D236 ②): the gateway authorizes each request's CoSec-App-Id by the application's
+  # roles and forwards it, and the view store keeps every view in that application (the request fact app_id, decision
+  # D232). Trusted only because nothing but the gateway reaches the HTTP port (networkpolicy.yaml): turn it off, and
+  # every query is refused for want of an application, unless the service authorizes its requests itself
+  # (cosec.authorization.enabled, with CoSec's policy and app role permission repositories). The property is
+  # wow.cosec.trust-injected-app, read as it is named: the variable keeps the dashes as underscores.
+  WOW_COSEC_TRUST_INJECTED_APP: "true"
+  # Fixed once the context's log holds entries.
+  WOW_LOG_PARTITIONS: "64"
+  JAVA_OPTS: -XX:MaxRAMPercentage=75.0
+  # Traces and metrics (decision D174): the node's spans and Micrometer meters go through the OpenTelemetry Java agent,
+  # which the OpenTelemetry Operator injects (the pod's instrumentation.opentelemetry.io/inject-java annotation, with
+  # an Instrumentation resource in the namespace). Without the agent they are no-ops. The agent exports to the
+  # collector below over OTLP, and bridges Micrometer's global registry.
+  OTEL_SERVICE_NAME: view-store-service
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_INSTRUMENTATION_MICROMETER_ENABLED: "true"
