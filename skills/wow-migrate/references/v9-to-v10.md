@@ -26,6 +26,10 @@ Status: first draft. V10 is still moving: verify every annotation, signature, ro
 | `wow-spring-boot-starter` with capability variants (`mongo-support`, `kafka-support`, ...) | `wow-spring-boot` (wiring only) plus one module per technology the host uses: `wow-postgres`, `wow-mongo`, `wow-kafka`, `wow-http`, `wow-cosec` |
 | `wow-core`, `wow-spring`, `wow-webflux`, `wow-rest-contract`, `wow-mock`, `wow-metadata`, `wow-schema` | Replaced: `wow-kernel` and `wow-runtime` (core), `wow-http` (routes, problem+json, SSE), `wow-manifest` (contract) |
 | `wow-redis`, `wow-bi` | Removed (no Redis backend; ClickHouse sink replaces BI sync) |
+| `wow-apiclient`, `wow-cocache` | Removed (decision D187); see [Clients of other services](#clients-of-other-services) |
+| `wow-compensation-*` (the 9.x compensation service) | Retired: each node's failure ledger and its operator routes, see [Compensation and failed executions](#compensation-and-failed-executions) |
+| `wow-query` (protocol, DSL and engine) | `wow-query-api` (query types, the Kotlin DSL `me.ahoo.wow.api.query.dsl`, the field annotations) for domain and client code; `wow-query` (the engine, `QueryGateway`), which `wow-http` brings to a server; see [Queries](#queries) |
+| `wow-bom` 9.x | `wow-bom` of the V10 version, which constrains the V10 modules only |
 | `wow-models` (`EnumText`, `StatusCapable`, the `*Capable` interfaces, the `Tree` aggregate) | `wow-models` of the V10 version (the project `:models`, `extensions/models`, decision D187): the same packages (`me.ahoo.wow.models.common`, `me.ahoo.wow.models.tree`), so imports stay; a `Tree` subclass binds through the compiler (annotate its concrete create command `@AllowCreate`) |
 | `ksp("me.ahoo.wow:wow-compiler")` by hand | Gradle plugin `id("me.ahoo.wow")`: applies KSP with `wow-compiler` of its own version, excludes the 9.x processors, and adds `generateWowManifestFragment` and `mergeWowManifest` |
 | `wow-test` (`AggregateSpec<A, S>`) | The functional `aggregateSpec` and `sagaSpec` DSL (`me.ahoo.wow.test`), still the artifact `wow-test` (the project `:test-dsl` in the Wow repository): `testImplementation("me.ahoo.wow:wow-test:<version>")` |
