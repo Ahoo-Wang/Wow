@@ -41,6 +41,7 @@ import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.runtime.admission.TenantPolicy
+import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.spi.store.Store
 import org.springframework.context.SmartLifecycle
 import java.util.concurrent.ConcurrentHashMap

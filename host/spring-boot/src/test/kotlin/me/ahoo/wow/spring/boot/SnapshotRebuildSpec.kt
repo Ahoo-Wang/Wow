@@ -47,6 +47,7 @@ import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotMaintenance
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotPlacement
+import me.ahoo.wow.runtime.store.StoreLayout
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.spi.snapshot.SnapshotRecord

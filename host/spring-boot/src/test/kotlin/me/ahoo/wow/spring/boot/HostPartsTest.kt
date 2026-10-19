@@ -27,6 +27,7 @@ import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.ContextNode
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.runtime.node.SubscriptionFactory
+import me.ahoo.wow.runtime.store.BackendSelection
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
@@ -59,7 +60,7 @@ class BackendSelectionTest {
 
             override fun <T : Any> resource(type: Class<T>, name: String?, key: String): T = error("not opened")
         }
-        return BackendSelection.select(configured, providers, resources, memoryOptIn)
+        return BackendSelection.select(configured, providers.stores, resources, memoryOptIn)
     }
 
     /** Memory's, and PostgreSQL's and MongoDB's from the classpath. */
@@ -120,7 +121,7 @@ class BackendSelectionTest {
         assertThrows<IllegalStateException> {
             BackendSelection.select(
                 "postgres",
-                StoreProviders(mapOf("memory" to MemoryStoreProvider())),
+                mapOf("memory" to MemoryStoreProvider()),
                 StoreResources.NONE
             )
         }.message.assert().isEqualTo("wow.backend is postgres, which needs wow-postgres on the classpath.")
