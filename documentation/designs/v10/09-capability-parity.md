@@ -136,9 +136,9 @@
 | 列表流式返回 | `StreamingJsonArrayResponse` | A | `Accept: text/event-stream`（`edge/http/.../query/QueryHandler.kt:91`） |
 | 查询 schema 路由与刷新、actuator `wowQuerySchema` | `QuerySchemaHandlerFunction` | B | `GET` 能力描述（D127），schema 来自 Manifest（D37），无需刷新 |
 | 数据集目录、网关、路由 | `wow-query` `dataset` | A | `query/.../dataset/*`、`/wow/dataset`（6.1d，`WowRoutes.kt:372`） |
-| 数据集动态注册 | dataset-registry | D | D201（7.2b） |
+| 数据集动态注册 | dataset-registry | D | D238：集中注册表服务，Wow 来源异步登记与分析师宽表（7.2b-1、7.2b-2） |
 | ClickHouse 数据集后端 | `wow-clickhouse` | A | `backends/clickhouse/.../query/*`（6.4a） |
-| ClickHouse 数据集草稿 | `ClickHouseDatasetDrafts` | D | 随 7.2b（D201） |
+| ClickHouse 数据集草稿 | `ClickHouseDatasetDrafts` | D | D238 ③(b)：分析师宽表从 `system.columns` 起草（7.2b-1） |
 | 预算、计数、游标 | `QueryBudget` 等 | A | `query/.../QueryBudget.kt`、计数缓存（D152） |
 
 ## 7. 消息、外部存储与 BI
@@ -209,8 +209,8 @@
 | 平台服务的 CoSec/OTel/K8s 清单/控制台登录 | compensation-server、`deploy/compensation` | E | G-3 |
 | 补偿数据迁移 | — | E | G-1 |
 | view-store | `view-store/*` | A | `platform/view-store`（7.2a） |
-| dataset-registry | `dataset-registry/*` | D | D201（7.2b） |
-| analytics 服务与控制台 | `analytics/*` | D | D201（7.2c） |
+| dataset-registry | `dataset-registry/*` | D | D238（7.2b） |
+| analytics 服务与控制台 | `analytics/*` | D | D238：注册表服务默认提供查询，管理页面随之（7.2c）；集中的分析部署物不再单列 |
 
 ## 13. 扩展模块
 
