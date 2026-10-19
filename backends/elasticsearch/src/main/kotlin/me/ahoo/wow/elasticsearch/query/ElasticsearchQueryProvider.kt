@@ -58,9 +58,9 @@ internal class ElasticsearchQueryProvider : StoreQueryProvider {
      * per-route connections of the HTTP pool its queries use. With the default wait `SNAPSHOT` (D69) a command waits
      * for its snapshot's write, so queries that share the writes' pool take a quarter of it (at least [MIN_SHARED])
      * and never hold the connections the writes wait for; a pool of the queries' own (`query-client`) is theirs whole.
-     * The bulkhead of `:query` applies it (R3-B): this becomes the override of `StoreQueryProvider.maxConcurrent`.
+     * The bulkhead of `:query` (R3-B) applies it.
      */
-    fun maxConcurrent(store: Store): Int {
+    override fun maxConcurrent(store: Store): Int {
         val elasticsearch = store as ElasticsearchStore
         val pool = (elasticsearch.queryRestClient ?: elasticsearch.restClient).maxConnectionsPerRoute()
         return maxConcurrent(pool, elasticsearch.queriesShareWrites)
