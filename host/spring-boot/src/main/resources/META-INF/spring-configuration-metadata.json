@@ -430,7 +430,7 @@
   }, {
     "name" : "wow.http.request-facts",
     "type" : "java.util.Set<java.lang.String>",
-    "description" : "The request headers copied into a command's headers.",
+    "description" : "The request headers copied into a command's headers, beside the default request facts `user_agent` and `remote_ip` the public port records (09 §17 G-10). `remote_ip` is the server's remote address: behind a proxy, set `server.forward-headers-strategy` to have the server take it from the proxy's forwarded headers.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Http"
   }, {
     "name" : "wow.http.services",
