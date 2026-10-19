@@ -66,7 +66,11 @@ class QueryStorageFacts(
      *   cursor-sortable;
      * - temporal aggregation reads instants, so it needs one date or epoch encoding shared by every value;
      * - an element scope is an array of objects, a union of objects included ([isElementScope]); storages only say
-     *   whether their native structures can match one element.
+     *   whether their native structures can match one element;
+     * - a multi-valued value (any array alternative) has no single number or instant per record, so it is granted
+     *   no numeric or temporal aggregation (review X-8: a root sum over an array silently under-counted); terms still
+     *   group it by each of its values. A value inside an element scope is single-valued there: expand the element
+     *   (`AggregationQuery.elements`) to aggregate it.
      */
     @JvmOverloads
     fun compile(
@@ -92,6 +96,7 @@ class QueryStorageFacts(
                 QueryCapability.CURSOR_SORT -> path.segments.none { it == QueryPathSegment.Item } && !value.hasArrayBranch()
                 QueryCapability.AGGREGATE_TEMPORAL -> value.sharedTemporal().encodesInstant
                 QueryCapability.ELEMENT_SCOPE -> value.isElementScope()
+                QueryCapability.AGGREGATE_NUMERIC, QueryCapability.AGGREGATE_TEMPORAL -> !value.hasArrayBranch()
                 else -> true
             }
         }

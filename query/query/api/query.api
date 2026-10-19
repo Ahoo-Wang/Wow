@@ -234,7 +234,8 @@ public final class me/ahoo/wow/query/QueryBackendStorages : me/ahoo/wow/query/sc
 	public fun <init> (Lme/ahoo/wow/query/QueryBackendFactory;)V
 	public fun <init> (Lme/ahoo/wow/query/QueryBackendFactory;Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;)V
 	public fun <init> (Lme/ahoo/wow/query/QueryBackendFactory;Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;Lme/ahoo/wow/query/dataset/QueryDatasets;)V
-	public synthetic fun <init> (Lme/ahoo/wow/query/QueryBackendFactory;Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;Lme/ahoo/wow/query/dataset/QueryDatasets;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Lme/ahoo/wow/query/QueryBackendFactory;Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;Lme/ahoo/wow/query/dataset/QueryDatasets;Lkotlin/jvm/functions/Function1;)V
+	public synthetic fun <init> (Lme/ahoo/wow/query/QueryBackendFactory;Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;Lme/ahoo/wow/query/dataset/QueryDatasets;Lkotlin/jvm/functions/Function1;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun storage (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/query/schema/QueryModel;)Lme/ahoo/wow/query/schema/QueryStorageAdapter;
 }
 
@@ -866,6 +867,12 @@ public final class me/ahoo/wow/query/index/QueryIndexDeclaration$Companion {
 	public final fun of (Lme/ahoo/wow/manifest/Manifest;Ljava/lang/String;Ljava/lang/String;)Ljava/util/List;
 }
 
+public final class me/ahoo/wow/query/memory/InMemoryEventQueryStorage : me/ahoo/wow/query/QueryBackendFactory {
+	public fun <init> (Lkotlin/jvm/functions/Function2;Ljava/time/Duration;)V
+	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;Ljava/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun create (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/QueryBackendBinding;
+}
+
 public final class me/ahoo/wow/query/memory/InMemoryQueryBackend : me/ahoo/wow/query/QueryBackend {
 	public fun aggregate (Lme/ahoo/wow/query/AdmittedQuery;Lme/ahoo/wow/query/GroupWindow;)Lkotlinx/coroutines/flow/Flow;
 	public fun count (Lme/ahoo/wow/query/AdmittedQuery;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
@@ -962,6 +969,28 @@ public final class me/ahoo/wow/query/schema/DeclarationValue$Unset : me/ahoo/wow
 	public fun equals (Ljava/lang/Object;)Z
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/query/schema/EventFields {
+	public static final field BODY Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/query/schema/EventFields;
+	public static final field NAME Ljava/lang/String;
+	public static final field REVISION Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/query/schema/EventStreamFields {
+	public static final field AGGREGATE_ID Ljava/lang/String;
+	public static final field COMMAND_ID Ljava/lang/String;
+	public static final field COMMAND_TYPE Ljava/lang/String;
+	public static final field COMMIT_TIME Ljava/lang/String;
+	public static final field EVENTS Ljava/lang/String;
+	public static final field INSTANCE Lme/ahoo/wow/query/schema/EventStreamFields;
+	public static final field OPERATOR Ljava/lang/String;
+	public static final field OWNER_ID Ljava/lang/String;
+	public static final field REQUEST_ID Ljava/lang/String;
+	public static final field SPACE_ID Ljava/lang/String;
+	public static final field TENANT_ID Ljava/lang/String;
+	public static final field VERSION Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/query/schema/LogicalQuerySchema {
@@ -1198,6 +1227,7 @@ public final class me/ahoo/wow/query/schema/QueryModel {
 public final class me/ahoo/wow/query/schema/QueryModel$Companion {
 	public final fun from (Ljava/lang/String;)Lme/ahoo/wow/query/schema/QueryModel;
 	public final fun getDATASET ()Lme/ahoo/wow/query/schema/QueryModel;
+	public final fun getEVENTS ()Lme/ahoo/wow/query/schema/QueryModel;
 	public final fun getSNAPSHOT ()Lme/ahoo/wow/query/schema/QueryModel;
 }
 
@@ -1208,6 +1238,7 @@ public abstract interface class me/ahoo/wow/query/schema/QueryModelCompiler {
 	public static fun of (Ljava/util/List;)Lme/ahoo/wow/query/schema/QueryModelCompiler;
 	public static fun of (Ljava/util/List;Lme/ahoo/wow/query/schema/QuerySensitivityPolicy;)Lme/ahoo/wow/query/schema/QueryModelCompiler;
 	public static fun of (Ljava/util/List;Lme/ahoo/wow/query/schema/QuerySensitivityPolicy;Lme/ahoo/wow/query/dataset/QueryDatasets;)Lme/ahoo/wow/query/schema/QueryModelCompiler;
+	public static fun of (Ljava/util/List;Lme/ahoo/wow/query/schema/QuerySensitivityPolicy;Lme/ahoo/wow/query/dataset/QueryDatasets;Lme/ahoo/wow/query/schema/EventsQuerySchemas;)Lme/ahoo/wow/query/schema/QueryModelCompiler;
 }
 
 public final class me/ahoo/wow/query/schema/QueryModelCompiler$Companion {
@@ -1215,7 +1246,8 @@ public final class me/ahoo/wow/query/schema/QueryModelCompiler$Companion {
 	public final fun of (Ljava/util/List;)Lme/ahoo/wow/query/schema/QueryModelCompiler;
 	public final fun of (Ljava/util/List;Lme/ahoo/wow/query/schema/QuerySensitivityPolicy;)Lme/ahoo/wow/query/schema/QueryModelCompiler;
 	public final fun of (Ljava/util/List;Lme/ahoo/wow/query/schema/QuerySensitivityPolicy;Lme/ahoo/wow/query/dataset/QueryDatasets;)Lme/ahoo/wow/query/schema/QueryModelCompiler;
-	public static synthetic fun of$default (Lme/ahoo/wow/query/schema/QueryModelCompiler$Companion;Ljava/util/List;Lme/ahoo/wow/query/schema/QuerySensitivityPolicy;Lme/ahoo/wow/query/dataset/QueryDatasets;ILjava/lang/Object;)Lme/ahoo/wow/query/schema/QueryModelCompiler;
+	public final fun of (Ljava/util/List;Lme/ahoo/wow/query/schema/QuerySensitivityPolicy;Lme/ahoo/wow/query/dataset/QueryDatasets;Lme/ahoo/wow/query/schema/EventsQuerySchemas;)Lme/ahoo/wow/query/schema/QueryModelCompiler;
+	public static synthetic fun of$default (Lme/ahoo/wow/query/schema/QueryModelCompiler$Companion;Ljava/util/List;Lme/ahoo/wow/query/schema/QuerySensitivityPolicy;Lme/ahoo/wow/query/dataset/QueryDatasets;Lme/ahoo/wow/query/schema/EventsQuerySchemas;ILjava/lang/Object;)Lme/ahoo/wow/query/schema/QueryModelCompiler;
 }
 
 public abstract class me/ahoo/wow/query/schema/QueryModelProfile {
