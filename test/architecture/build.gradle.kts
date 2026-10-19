@@ -10,7 +10,8 @@ val v10ModuleDirs = listOf(
 ) + listOf("catalog", "basket", "ordering", "inventory", "payment").flatMap { context ->
     listOf("api", "domain", "server").map { "example/eshop/$context/$context-$it" }
 } + "example/eshop/e2e" + listOf("ops-api", "ops-domain", "ops-server").map { "platform/ops/$it" } +
-    listOf("api", "domain", "server").map { "platform/view-store/view-store-$it" }
+    listOf("api", "domain", "server").map { "platform/view-store/view-store-$it" } +
+    listOf("api", "domain", "server").map { "platform/dataset-registry/dataset-registry-$it" }
 tasks.named<Test>("test") {
     systemProperty("wow.repository.root", projectDir.toPath().relativize(rootDir.toPath()).toString())
     inputs.files(

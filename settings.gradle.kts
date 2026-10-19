@@ -231,6 +231,14 @@ include(":view-store-domain")
 project(":view-store-domain").projectDir = file("platform/view-store/view-store-domain")
 include(":view-store-server")
 project(":view-store-server").projectDir = file("platform/view-store/view-store-server")
+// The dataset registry (roadmap 9.3b, decisions D238, D241): the warehouse's data sources and their review, the
+// registry of the wide tables built on them; in place of the 9.x dataset-registry/, which stays until 9.3c.
+include(":dataset-registry-api")
+project(":dataset-registry-api").projectDir = file("platform/dataset-registry/dataset-registry-api")
+include(":dataset-registry-domain")
+project(":dataset-registry-domain").projectDir = file("platform/dataset-registry/dataset-registry-domain")
+include(":dataset-registry-server")
+project(":dataset-registry-server").projectDir = file("platform/dataset-registry/dataset-registry-server")
 if (nineX) {
     include(":kernel-benchmarks")
     project(":kernel-benchmarks").projectDir = file("test/kernel-benchmarks")
