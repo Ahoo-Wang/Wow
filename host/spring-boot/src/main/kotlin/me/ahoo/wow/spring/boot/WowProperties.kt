@@ -105,7 +105,8 @@ import kotlin.time.toKotlinDuration
  *   its start.
  * - `wow.tenant.default`: the tenant of a caller that has none (D97).
  * - `wow.http.request-facts`, `wow.http.errors.[<code>].status`, `wow.http.manifest.enabled`,
- *   `wow.http.openapi.enabled` (`GET /wow/openapi`, the OpenAPI document of the routes);
+ *   `wow.http.openapi.enabled` (`GET /wow/openapi`, the OpenAPI document of the routes),
+ *   `wow.http.openapi.springdoc.enabled` and `group` (the springdoc bridge, decision D233);
  *   `wow.http.services.<service>.tokens`: the service identities the internal port trusts without CoSec (decision
  *   D193), and `wow.http.services.<service>.commands`, the commands each may call there (decision D226), see
  *   [Http.Service].
@@ -711,6 +712,22 @@ class WowProperties {
         class OpenApi {
             /** Serves `GET /wow/openapi`, the OpenAPI 3.1 document of the routes (roadmap 5a.2). */
             var enabled: Boolean = true
+
+            /** The springdoc bridge (decision D233), when the application has springdoc. */
+            var springdoc: Springdoc = Springdoc()
+        }
+
+        /**
+         * The springdoc bridge (decision D233, SpringdocAutoConfiguration): with springdoc on the classpath, the
+         * document of the public routes joins springdoc's default document (`/v3/api-docs` and Swagger UI) beside the
+         * application's own controllers, and the [group] lists the Wow routes alone.
+         */
+        class Springdoc {
+            /** Merges the Wow routes into springdoc's documents. */
+            var enabled: Boolean = true
+
+            /** The springdoc group of the Wow routes alone: `/v3/api-docs/<group>`. */
+            var group: String = SpringdocAutoConfiguration.DEFAULT_GROUP
         }
     }
 
