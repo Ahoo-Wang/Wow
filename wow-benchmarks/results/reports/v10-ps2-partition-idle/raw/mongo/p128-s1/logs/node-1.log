@@ -1,0 +1,8 @@
+kotlin-logging: initializing... active logger factory: Slf4jLoggerFactory
+2026-10-19T08:56:31.388-07:00  WARN 24391 --- [transfer-service] [           main] m.a.w.spring.boot.WowAutoConfiguration   : No CallerResolver bean: every request to the public port is served as the anonymous caller (tenant (0), no scope).
+2026-10-19T08:56:32.259-07:00  INFO 24391 --- [transfer-service] [           main] me.ahoo.wow.spring.boot.InternalServer   : Wow internal port bound at /127.0.0.1:19090.
+2026-10-19T08:56:35.692-07:00  INFO 24391 --- [transfer-service] [           main] o.s.boot.reactor.netty.NettyWebServer    : Netty started on port 18080 (http)
+2026-10-19T08:56:36.202-07:00  WARN 24391 --- [transfer-service] [ctor-http-nio-3] m.a.w.h.caller.AnonymousCallerResolver   : No CallerResolver is configured: every request is served as the anonymous caller (tenant (0), no scope).
+2026-10-19T08:58:40.087-07:00  INFO 24391 --- [transfer-service] [ionShutdownHook] o.s.boot.reactor.netty.GracefulShutdown  : Commencing graceful shutdown. Waiting for active requests to complete
+2026-10-19T08:58:40.088-07:00  INFO 24391 --- [transfer-service] [ netty-shutdown] o.s.boot.reactor.netty.GracefulShutdown  : Graceful shutdown complete
+2026-10-19T08:58:40.117-07:00  INFO 24391 --- [transfer-service] [ionShutdownHook] me.ahoo.wow.spring.boot.InternalServer   : Wow internal port stopped.

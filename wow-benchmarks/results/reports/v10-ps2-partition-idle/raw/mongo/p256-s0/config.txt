@@ -1,0 +1,9 @@
+version=v10
+backend=mongo
+commit=7fd6dfe1f40d9c281ddf930864ea9398024e86f7
+dirty=0
+serverArgs=--wow.log.partitions=256 --bench.extra-subscriptions=0
+accounts=1000
+machine=Apple M4 Pro, 14 cores
+jvm=openjdk version "21.0.12.1" 2026-08-18 LTS
+partitions=256 extraSubscriptions=0 idle=60 trickleRate=10 trickle=30

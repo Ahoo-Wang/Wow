@@ -23,7 +23,7 @@
 # Options: --isolation=restart|keys|fresh (between cells; restart by default), --timing=auto|long|short (auto: 20 s
 # warm-up and 45 s measured once stability.py has accepted it in the report folder, else 30 and 60), --threshold=5
 # (the percent two repetitions may differ by before a third runs), --scenarios=E1,E2,E3 --setups=... --dists=...
-# (narrow a tier).
+# --percents=50,80 (narrow a tier), --start-concurrency=4 --max-concurrency=1024 (the saturation search's range).
 #
 # Every cell is resumable: a cell whose result is in the report folder is skipped. Each setup keeps one session (its
 # containers, and with --isolation=keys its server JVMs too) across its cells:
@@ -180,8 +180,8 @@ saturate_cell() {
   next_cell
   log "saturation: $scenario $setup $dist"
   cell_saturate "$SCRATCH/$setup-$scenario-$dist-saturation" --scenario="$scenario" --distribution="$dist" \
-    --account-prefix="$PREFIX" --start-concurrency=4 --max-concurrency=1024 --warm-up=2 --step=5 --flat-steps=2 \
-    --refine=3
+    --account-prefix="$PREFIX" --start-concurrency="$(topt start-concurrency 4)" \
+    --max-concurrency="$(topt max-concurrency 1024)" --warm-up=2 --step=5 --flat-steps=2 --refine=3
   mkdir -p "$dest"
   cp "$SCRATCH/$setup-$scenario-$dist-saturation/saturation.json" "$dest/"
 }

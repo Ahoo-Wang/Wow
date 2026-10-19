@@ -208,7 +208,7 @@ ps2() {
       profile_dump "$dir"
       # The subscriptions the node runs, from its checkpoints (one per subscription and partition it moved).
       if [ "$STORE" = mongo ]; then
-        mongo_eval "db.getSiblingDB('transfer_v10').wow_checkpoint.distinct('_id.subscription').forEach(s => print(s))" \
+        mongo_eval "db.getSiblingDB('transfer_v10').wow_checkpoint.distinct('subscription').sort().forEach(s => print(s))" \
           >"$dir/subscriptions.txt" 2>/dev/null || true
       else
         psql_ "select distinct subscription from wow_checkpoint order by 1" >"$dir/subscriptions.txt" 2>/dev/null || true
