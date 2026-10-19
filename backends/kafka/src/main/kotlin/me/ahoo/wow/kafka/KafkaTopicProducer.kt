@@ -17,6 +17,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.transport.TopicMessage
 import me.ahoo.wow.spi.transport.TopicProducer
 import org.apache.kafka.clients.producer.KafkaProducer

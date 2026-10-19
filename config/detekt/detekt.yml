@@ -63,6 +63,14 @@ style:
       - java.util.*
       - org.assertj.core.api.Assertions.*
 naming:
+  FunctionNaming:
+    # The contract specs name their tests as sentences, as tests do; :query-tck's are main code outside `test/`.
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/commonTest/**'
+      - '**/jvmTest/**'
+      - '**/query-tck/**'
   MemberNameEqualsClassName:
     active: false
   MatchingDeclarationName:

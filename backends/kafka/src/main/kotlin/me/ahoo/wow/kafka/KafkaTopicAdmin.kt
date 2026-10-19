@@ -16,6 +16,7 @@ package me.ahoo.wow.kafka
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.transport.TopicAdmin
 import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.admin.Admin

@@ -27,8 +27,11 @@ import me.ahoo.wow.runtime.snapshot.SnapshotPlacement
 import me.ahoo.wow.runtime.snapshot.SnapshotStoreRouter
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
+import me.ahoo.wow.spi.log.TailPolling
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import me.ahoo.wow.spi.store.Store
+import me.ahoo.wow.spi.store.StoreConfig
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.timer.TimerStore
@@ -45,7 +48,16 @@ class HostStoresTest {
     private val models = BankModels().models(Dependencies.of(DecidedCommands()))
     private val account = AggregateType(BANK, "account")
 
-    private fun memory(vararg names: String): Map<String, HostStore> = names.associateWith { MemoryStore(it) }
+    private fun memory(vararg names: String): Map<String, Store> = names.associateWith { MemoryStore(it) }
+
+    private val providers = StoreProviders.load(javaClass.classLoader)
+
+    private fun open(
+        properties: WowProperties,
+        beans: DefaultListableBeanFactory,
+        service: String = "",
+        memoryOptIn: String? = null,
+    ): Map<String, Store> = StoreInstances.open(properties, providers, BeanStoreResources(beans), service, memoryOptIn)
 
     private fun properties(block: WowProperties.() -> Unit = {}): WowProperties = WowProperties().apply(block)
 
@@ -198,7 +210,7 @@ class HostStoresTest {
 
     @Test
     fun `a store that holds no log is refused as a log store`() {
-        val stores = mapOf("auto" to Unopened("auto", BackendKind.AUTO), "a" to MemoryStore("a"))
+        val stores = mapOf("auto" to Unopened("auto", "acme", holdsLogs = false), "a" to MemoryStore("a"))
         assertThrows<IllegalStateException> { StoreLayout.of(properties { log.store = "auto" }, stores, models) }
             .message.assert().contains("holds no log")
     }
@@ -208,8 +220,8 @@ class HostStoresTest {
         val database = Any()
         val stores =
             mapOf(
-                "a" to Unopened("a", BackendKind.POSTGRES, database),
-                "b" to Unopened("b", BackendKind.POSTGRES, database)
+                "a" to Unopened("a", "postgres", database),
+                "b" to Unopened("b", "postgres", database)
             )
         assertThrows<IllegalStateException> {
             StoreLayout.of(
@@ -257,7 +269,8 @@ class HostStoresTest {
         backends.factory.backends("ledger").groups.single().store.assert().isEqualTo("c")
         backends.snapshotStoreOf(account)?.name.assert().isEqualTo("c")
         backends.snapshotStoreOf(other)?.name.assert().isEqualTo("a")
-        backends.kind.assert().isEqualTo(BackendKind.MEMORY)
+        backends.type.assert().isEqualTo("memory")
+        backends.local.assert().isTrue()
         backends.appendQueue.assert().isEqualTo(AppendQueueOptions())
         backends.createSchemas()
         bank.log.read(account.ref("t", "x")).toList().assert().isEmpty()
@@ -266,32 +279,33 @@ class HostStoresTest {
 
     @Test
     fun `the append queue follows the log stores, MongoDB first`() {
-        val mongo = Unopened("m", BackendKind.MONGO)
-        val postgres = Unopened("p", BackendKind.POSTGRES)
+        val mongo = Unopened("m", "mongo", queuesAppends = true)
+        val postgres = Unopened("p", "postgres", queuesAppends = false)
         val layout = StoreLayout("p", logs = mapOf(account to "m"))
         HostBackends.of(mapOf("m" to mongo, "p" to postgres), layout, 1).let {
             it.appendQueue.assert().isEqualTo(AppendQueueOptions.MONGO)
-            it.kind.assert().isEqualTo(BackendKind.POSTGRES)
+            it.type.assert().isEqualTo("postgres")
+            it.local.assert().isFalse()
         }
         HostBackends.of(mapOf("p" to postgres), StoreLayout("p"), 1).appendQueue.assert()
             .isEqualTo(AppendQueueOptions.POSTGRES)
+        // A store with no preset leaves the queue on.
+        HostBackends.of(mapOf("x" to Unopened("x", "acme")), StoreLayout("x"), 1).appendQueue.assert()
+            .isEqualTo(AppendQueueOptions())
     }
 
     @Test
     fun `the stores of wow-stores are opened by their types`() {
         val beans = DefaultListableBeanFactory()
-        val stores = StoreInstances.open(
+        val stores = open(
             properties {
-                stores["a"] = WowProperties.Store().apply { type = BackendKind.MEMORY }
-                stores["b"] = WowProperties.Store().apply { type = BackendKind.MEMORY }
+                stores["a"] = WowProperties.Store().apply { type = "memory" }
+                stores["b"] = WowProperties.Store().apply { type = "MEMORY" }
             },
             beans,
-            javaClass.classLoader,
         )
-        stores.mapValues { it.value.kind }.assert().isEqualTo(
-            mapOf("a" to BackendKind.MEMORY, "b" to BackendKind.MEMORY)
-        )
-        StoreInstances.open(properties(), beans, javaClass.classLoader, memoryOptIn = "profile dev").keys.assert()
+        stores.mapValues { it.value.type }.assert().isEqualTo(mapOf("a" to "memory", "b" to "memory"))
+        open(properties(), beans, memoryOptIn = "profile dev").keys.assert()
             .containsExactly(ContextBackends.DEFAULT_STORE)
     }
 
@@ -300,34 +314,30 @@ class HostStoresTest {
         val beans = DefaultListableBeanFactory()
         // Review R3.5-1: no DataSource and no MongoClient, outside a development node.
         assertThrows<IllegalStateException> {
-            StoreInstances.open(properties(), beans, javaClass.classLoader)
+            open(properties(), beans)
         }.message.assert().contains("No durable backend")
-        StoreInstances.open(properties { backend = BackendKind.MEMORY }, beans, javaClass.classLoader)
-            .values.single().kind.assert().isEqualTo(BackendKind.MEMORY)
+        open(properties { backend = "memory" }, beans).values.single().type.assert().isEqualTo("memory")
         beans.registerBeanDefinition("dataSource", RootBeanDefinition(Unpooled::class.java))
-        StoreInstances.open(properties(), beans, javaClass.classLoader).values.single().kind
-            .assert().isEqualTo(BackendKind.POSTGRES)
+        open(properties(), beans).values.single().type.assert().isEqualTo("postgres")
     }
 
     @Test
     fun `the stores' logs poll as wow-log says`() {
         // Finding A2-14: the tails polled every 50 ms, idle or not, whatever the host said.
         val beans = DefaultListableBeanFactory()
-        val stores = StoreInstances.open(
+        val stores = open(
             properties {
                 log.pollInterval = java.time.Duration.ofMillis(20)
                 log.maxPollInterval = java.time.Duration.ofSeconds(2)
-                stores["a"] = WowProperties.Store().apply { type = BackendKind.MEMORY }
+                stores["a"] = WowProperties.Store().apply { type = "memory" }
             },
             beans,
-            javaClass.classLoader,
         )
-        stores.getValue("a").tailPolling.assert().isEqualTo(TailPolling(20.milliseconds, 2.seconds))
+        stores.getValue("a").config.polling.assert().isEqualTo(TailPolling(20.milliseconds, 2.seconds))
         // Each store keeps the ledger of the service it was opened for (finding A2-13).
-        StoreInstances.open(properties(), beans, javaClass.classLoader, service = "orders", memoryOptIn = "dev")
-            .values.single().service
+        open(properties(), beans, service = "orders", memoryOptIn = "dev").values.single().config.service
             .assert().isEqualTo("orders")
-        StoreInstances.open(properties(), beans, javaClass.classLoader, memoryOptIn = "dev").values.single().tailPolling
+        open(properties(), beans, memoryOptIn = "dev").values.single().config.polling
             .assert().isEqualTo(TailPolling.DEFAULT)
         assertThrows<IllegalArgumentException> {
             WowProperties.Log().apply { maxPollInterval = java.time.Duration.ofMillis(10) }.tailPolling()
@@ -339,21 +349,23 @@ class HostStoresTest {
     fun `a store that cannot be opened is refused`() {
         val beans = DefaultListableBeanFactory()
         fun open(block: WowProperties.() -> Unit) = assertThrows<IllegalStateException> {
-            StoreInstances.open(properties(block), beans, javaClass.classLoader)
+            open(properties(block), beans)
         }.message!!
         open { stores["a"] = WowProperties.Store() }.assert().contains("wow.stores.a.type is not set")
-        open { stores["a"] = WowProperties.Store().apply { type = BackendKind.AUTO } }.assert().contains("is auto")
+        open { stores["a"] = WowProperties.Store().apply { type = "auto" } }.assert().contains("is auto")
         open {
-            backend = BackendKind.MEMORY
-            stores["a"] = WowProperties.Store().apply { type = BackendKind.MEMORY }
-        }.assert().contains("wow.backend is MEMORY")
-        open { stores["a"] = WowProperties.Store().apply { type = BackendKind.POSTGRES } }.assert()
+            backend = "memory"
+            stores["a"] = WowProperties.Store().apply { type = "memory" }
+        }.assert().contains("wow.backend is memory")
+        open { stores["a"] = WowProperties.Store().apply { type = "nope" } }.assert()
+            .contains("wow.stores.a.type is nope, which no store provider offers: memory")
+        open { stores["a"] = WowProperties.Store().apply { type = "postgres" } }.assert()
             .contains("no DataSource bean")
-        open { stores["a"] = WowProperties.Store().apply { type = BackendKind.MONGO } }.assert()
+        open { stores["a"] = WowProperties.Store().apply { type = "mongo" } }.assert()
             .contains("no MongoClient bean")
         open {
             stores["a"] = WowProperties.Store().apply {
-                type = BackendKind.POSTGRES
+                type = "postgres"
                 dataSource = "missing"
             }
         }.assert().contains("names missing, which is no DataSource bean")
@@ -364,18 +376,19 @@ class HostStoresTest {
         val beans = DefaultListableBeanFactory()
         beans.registerBeanDefinition("first", RootBeanDefinition(Unpooled::class.java))
         beans.registerBeanDefinition("second", RootBeanDefinition(Unpooled::class.java))
-        val stores = StoreInstances.open(
+        val stores = open(
             properties {
                 stores["a"] = WowProperties.Store().apply {
-                    type = BackendKind.POSTGRES
+                    type = "postgres"
                     dataSource = "second"
                 }
             },
             beans,
-            javaClass.classLoader,
         )
-        (stores.getValue("a") as PostgresStore).dataSource.assert().isSameAs(beans.getBean("second"))
-        stores.getValue("a").toString().assert().isEqualTo("a (POSTGRES)")
+        stores.getValue("a").location.assert().isSameAs(beans.getBean("second"))
+        stores.getValue("a").config.options.assert().containsEntry("data-source", "second")
+            .containsEntry("database", WowProperties.DEFAULT_MONGO_DATABASE)
+        stores.getValue("a").toString().assert().isEqualTo("a (postgres)")
     }
 
     @Test
@@ -408,9 +421,11 @@ class HostStoresTest {
     /** A store whose parts are never opened: for the layout's checks. */
     private class Unopened(
         name: String,
-        kind: BackendKind,
-        override val location: Any = Any()
-    ) : HostStore(name, kind) {
+        type: String,
+        override val location: Any = Any(),
+        override val holdsLogs: Boolean = true,
+        override val queuesAppends: Boolean? = null,
+    ) : Store(StoreConfig(name, type)) {
         override fun openCheckpoints(): CheckpointStore = error("unused")
 
         override fun openLeases(): LeaseStore = error("unused")

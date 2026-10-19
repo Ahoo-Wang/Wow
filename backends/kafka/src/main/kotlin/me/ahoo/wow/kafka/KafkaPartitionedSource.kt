@@ -23,6 +23,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.transport.PartitionOffsets
 import me.ahoo.wow.spi.transport.PartitionedSource
 import me.ahoo.wow.spi.transport.SourceMessage

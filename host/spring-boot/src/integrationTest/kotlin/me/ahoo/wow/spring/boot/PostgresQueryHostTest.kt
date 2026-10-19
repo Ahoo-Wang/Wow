@@ -16,6 +16,7 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
@@ -61,7 +62,7 @@ class PostgresQueryHostTest {
             sources = listOf(HostTestApp::class.java, PostgresDataSource::class.java),
         ).use { validating ->
             val validated = validating.context.getBean(QueryIndexesLifecycle::class.java).reports.getValue(account)
-            validated.assert().isEqualTo(QueryIndexReport())
+            validated.assert().isEqualTo(QueryIndexReport.NONE)
         }
     }
 

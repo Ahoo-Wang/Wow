@@ -14,9 +14,8 @@
 package me.ahoo.wow.kernel
 
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.asCoroutineDispatcher
 import me.ahoo.wow.api.annotation.InternalWowApi
-import java.util.concurrent.Executors
+import me.ahoo.wow.spi.VirtualThreads
 
 /**
  * The dispatcher every `@Blocking` call runs on (design 01 §4, decisions D36, D227): a virtual thread per call (JDK 21,
@@ -25,8 +24,6 @@ import java.util.concurrent.Executors
  */
 @InternalWowApi
 object BlockingDispatcher {
-    /** A virtual thread per call. */
-    val dispatcher: CoroutineDispatcher by lazy {
-        Executors.newVirtualThreadPerTaskExecutor().asCoroutineDispatcher()
-    }
+    /** A virtual thread per call: the backends' [VirtualThreads.dispatcher], one executor per node. */
+    val dispatcher: CoroutineDispatcher get() = VirtualThreads.dispatcher
 }

@@ -85,7 +85,7 @@ class HostTest {
         node.manifest.service!!.name.assert().isEqualTo("bank-service")
         host.context.getBean(Manifest::class.java).assert().isSameAs(node.manifest)
         host.context.getBean(WowModels::class.java).providers.single().assert().isInstanceOf(BankModels::class.java)
-        host.context.getBean(HostBackends::class.java).kind.assert().isEqualTo(BackendKind.MEMORY)
+        host.context.getBean(HostBackends::class.java).type.assert().isEqualTo("memory")
         host.context.getBean(Dependencies::class.java).assert().isInstanceOf(BeanFactoryDependencies::class.java)
         host.context.getBean(ClusterChannel::class.java).assert().isInstanceOf(HttpClusterChannel::class.java)
         host.context.getBean(SignalSender::class.java).assert().isNotNull()

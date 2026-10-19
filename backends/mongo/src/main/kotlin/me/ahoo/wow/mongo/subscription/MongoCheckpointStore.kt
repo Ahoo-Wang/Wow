@@ -27,10 +27,10 @@ import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.MongoFormat
-import me.ahoo.wow.mongo.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import org.bson.Document
