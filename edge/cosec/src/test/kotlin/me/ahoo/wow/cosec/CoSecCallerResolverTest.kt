@@ -18,6 +18,7 @@ import me.ahoo.cosec.api.context.request.AppIdCapable
 import me.ahoo.cosec.api.policy.VerifyResult
 import me.ahoo.cosec.authorization.RoleVerifyContext
 import me.ahoo.cosec.authorization.RootVerifyContext
+import me.ahoo.cosec.context.RequestSecurityContexts.setRequest
 import me.ahoo.cosec.context.SimpleSecurityContext
 import me.ahoo.cosec.principal.SimpleTenantPrincipal
 import me.ahoo.cosec.tenant.SimpleTenant
@@ -181,6 +182,28 @@ class CoSecCallerResolverTest {
             // Injected from a token without CoSec's authorization, as the inject filter and the internal port do.
             securityContext("alice"),
         ).forEach { context -> resolver.callerOf(context)!!.app.assert().isNull() }
+    }
+
+    @Test
+    fun `a host that trusts injected applications takes the one of a request CoSec did not authorize here`() {
+        val trusting = CoSecCallerResolver(CoSecCallerOptions(trustInjectedApp = true))
+        val named = MockServerWebExchange.from(
+            MockServerHttpRequest.post("/view-store/view/v-1/edit").header(AppIdCapable.APP_ID_KEY, " console "),
+        )
+        val blank = MockServerWebExchange.from(
+            MockServerHttpRequest.post("/view-store/view/v-1/edit").header(AppIdCapable.APP_ID_KEY, " "),
+        )
+        val injected = securityContext("alice").also { it.setRequest(coSecRequest(named)) }
+        trusting.callerOf(injected)!!.app.assert().isEqualTo("console")
+        resolver.callerOf(injected)!!.app.assert().isNull()
+        trusting.callerOf(securityContext("alice").also { it.setRequest(coSecRequest(blank)) })!!.app.assert().isNull()
+        // No request on the context, as on the internal port.
+        trusting.callerOf(securityContext("alice"))!!.app.assert().isNull()
+        // A request CoSec authorized here keeps needing a permission of the application's roles.
+        trusting.callerOf(securityContext("root").authorized(coSecRequest(named), RootVerifyContext))!!.app.assert()
+            .isNull()
+        trusting.callerOf(securityContext("bob").authorized(coSecRequest(named), appRolePermission))!!.app.assert()
+            .isEqualTo("console")
     }
 
     @Test

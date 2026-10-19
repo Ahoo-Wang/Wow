@@ -799,6 +799,14 @@ class WowProperties {
         /** The service identities (decision D193), whose synchronous calls the internal port takes. */
         var service: Principals = Principals()
 
+        /**
+         * Whether a service in CoSec's inject mode, behind a CoSec gateway (`cosec.inject.enabled=true` with
+         * `cosec.authorization.enabled=false`), records the application of the requests the gateway forwards, their
+         * `CoSec-App-Id`, as the caller's app and the request fact `app_id` (decision D236): a trust decision, off by
+         * default; in any other mode it fails the startup.
+         */
+        var trustInjectedApp: Boolean = false
+
         class Authorizer {
             /**
              * Whether CoSec authorizes every command as its caller (`CoSecCommandAuthorizer`), not only the public

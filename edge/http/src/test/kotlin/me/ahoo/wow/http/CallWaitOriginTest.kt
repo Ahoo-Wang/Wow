@@ -18,6 +18,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitSignal
@@ -70,7 +71,8 @@ class CallWaitOriginTest {
     private fun callWith(origin: Origin): Answer {
         val wait = WaitContext("w-1", origin, listOf(Hop.committed(CONTEXT)), System.currentTimeMillis() + 60_000)
         val root = Causation("root-1", "basket/acme/alice@2")
-        val call = CallContext("call-1", TENANT, Scope("alice"), root, Operator("alice", TENANT), wait)
+        val facts = mapOf(RequestFacts.APP_ID to "console")
+        val call = CallContext("call-1", TENANT, Scope("alice"), root, Operator("alice", TENANT), wait, facts)
         return calls.post().uri("/shop/cart/open-cart")
             .header("Authorization", "Bearer $TOKEN")
             .header(WowHeaders.CALL, CallHeader.format(call))
@@ -93,6 +95,8 @@ class CallWaitOriginTest {
         callWith(Origin("n", "attacker.example:80", TARGET_SERVICE)).status.assert().isEqualTo(200)
         commands.assert().hasSize(1)
         sent.assert().isEmpty()
+        // The call goes on without its wait, still with the root request's facts (decision D236).
+        commands.single().headers[RequestFacts.APP_ID].assert().isEqualTo("console")
     }
 
     @Test

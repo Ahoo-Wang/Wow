@@ -149,14 +149,20 @@ fun coSecRequest(exchange: ServerWebExchange): Request = ReactiveRequestParser(R
 /**
  * Stands in for CoSec's WebFilter: puts the security context [contexts] gives the request's `X-User` (and `X-Roles`,
  * comma-separated) on the exchange, as CoSec does once it has authenticated and authorized a request: by a permission
- * of its application's roles ([appRolePermission]) when `X-Granted` is `app-role`, by the root otherwise.
+ * of its application's roles ([appRolePermission]) when `X-Granted` is `app-role`, by the root otherwise. With
+ * `X-Granted: injected` it stands in for CoSec's inject filter instead: the request is on the context, unauthorized.
  */
 fun coSecFilter(tenant: String = "acme"): WebFilter = WebFilter { exchange, chain ->
     val headers = exchange.request.headers
     headers.getFirst("X-User")?.let { user ->
         val roles = headers.getFirst("X-Roles")?.split(',')?.toSet().orEmpty()
-        val verified = if (headers.getFirst("X-Granted") == "app-role") appRolePermission else RootVerifyContext
-        exchange.setSecurityContext(securityContext(user, tenant, roles).authorized(coSecRequest(exchange), verified))
+        val context = securityContext(user, tenant, roles)
+        when (headers.getFirst("X-Granted")) {
+            "injected" -> context.setRequest(coSecRequest(exchange))
+            "app-role" -> context.authorized(coSecRequest(exchange), appRolePermission)
+            else -> context.authorized(coSecRequest(exchange), RootVerifyContext)
+        }
+        exchange.setSecurityContext(context)
     }
     chain.filter(exchange)
 }

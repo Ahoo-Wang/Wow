@@ -388,6 +388,12 @@
     "type" : "java.util.Set<java.lang.String>",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec$Principals"
   }, {
+    "name" : "wow.cosec.trust-injected-app",
+    "type" : "java.lang.Boolean",
+    "description" : "Whether a service in CoSec's inject mode, behind a CoSec gateway (`cosec.inject.enabled=true` with `cosec.authorization.enabled=false`), records the application of the requests the gateway forwards, their `CoSec-App-Id`, as the caller's app and the request fact `app_id` (decision D236): a trust decision, off by default; in any other mode it fails the startup.",
+    "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$CoSec",
+    "defaultValue" : false
+  }, {
     "name" : "wow.cosid.global-generator",
     "type" : "java.lang.String",
     "description" : "The CosId generator of the node's global ids (command ids, wait ids); CosId's own `cosid` when not set.",
