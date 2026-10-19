@@ -31,20 +31,23 @@ import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.StateCache
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
-import me.ahoo.wow.kernel.memory.InMemoryReservationStore
-import me.ahoo.wow.kernel.memory.InMemoryTimerStore
 import me.ahoo.wow.kernel.schedule.ScheduleSlots
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.reservation.ReservationScope
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.Timers
+import org.junit.jupiter.api.DynamicContainer
+import org.junit.jupiter.api.DynamicNode
+import org.junit.jupiter.api.DynamicTest
 import java.time.Instant
+import java.util.stream.Stream
 import kotlin.time.Duration
 
 /**
@@ -83,8 +86,13 @@ import kotlin.time.Duration
  * The ids a decide function takes ([me.ahoo.wow.api.decide.DecideScope.ids], decision D171) are [SequentialIds]:
  * `id-1`, `id-2`… and `<aggregate>-1`… for aggregate ids, counted across the specification.
  *
- * Scenarios that share a prefix [AggregateSpec.fork] from it, at the current point or at one marked with
- * [AggregateSpec.ref]: each fork runs on its own copy of the aggregate, so its commands do not reach the others.
+ * Scenarios that share a prefix [AggregateSpec.fork] from it, at the current point, at one marked with
+ * [AggregateSpec.ref], or after a command from inside its checks ([Expectations.fork]): each fork runs on its own
+ * copy of the aggregate, its log, timers, reservations, ids and time (decision D245), so its commands do not reach
+ * the others, and nothing before the fork runs again: a domain service the decide functions call is not called
+ * again for the prefix.
+ *
+ * The whole specification is one test; [aggregateSpecTests] makes the same specification a tree of tests instead.
  */
 fun <S : Any> aggregateSpec(
     model: AggregateModel<S>,
@@ -96,6 +104,39 @@ fun <S : Any> aggregateSpec(
     AggregateSpec(model, model.type.ref(tenantId, id), start).block()
 }
 
+/**
+ * The specification [aggregateSpec] runs, as a tree of tests for a JUnit `@TestFactory` (decision D245): each
+ * [AggregateSpec.whenCommand], [AggregateSpec.advanceTime] and [AggregateSpec.expectNothingDue] is a test of its own,
+ * and each [AggregateSpec.fork] a container of the tests it runs, named by the fork. A failing check fails its own
+ * test only: the specification goes on, so the other steps and forks still run and report on their own.
+ *
+ * ```kotlin
+ * @TestFactory
+ * fun order() = aggregateSpecTests(orderModel) {
+ *     whenCommand(PlaceOrder(...)) {
+ *         expectEventTypes(OrderPlaced::class)
+ *         fork("paid") { whenCommand(PayOrder(...)) { expectEventTypes(OrderPaid::class) } }
+ *         fork("cancelled") { whenCommand(CancelOrder(...)) { expectEventTypes(OrderCancelled::class) } }
+ *     }
+ * }
+ * ```
+ *
+ * The specification runs as the tree is built, as 9.x's did; the tests report what each step found. An exception
+ * outside a step (a [AggregateSpec.given] that cannot commit, say) ends its fork, or the specification, and is
+ * reported as a failing test `Error`.
+ */
+fun <S : Any> aggregateSpecTests(
+    model: AggregateModel<S>,
+    id: String = "aggregate-1",
+    tenantId: String = "tenant",
+    start: Instant = DEFAULT_START,
+    block: AggregateSpec<S>.() -> Unit,
+): Stream<DynamicNode> {
+    val tree = TestTree()
+    AggregateSpec(model, model.type.ref(tenantId, id), start, tree).run(tree, block)
+    return tree.nodes.stream()
+}
+
 /** Where the time of an [aggregateSpec] starts by default. */
 val DEFAULT_START: Instant = Instant.parse("2026-01-01T00:00:00Z")
 
@@ -103,16 +144,27 @@ val DEFAULT_START: Instant = Instant.parse("2026-01-01T00:00:00Z")
 const val ANOTHER_AGGREGATE: String = "another-aggregate"
 
 @Suppress("TooManyFunctions") // The DSL's verbs.
-class AggregateSpec<S : Any>(
+class AggregateSpec<S : Any> private constructor(
     private val model: AggregateModel<S>,
     val ref: AggregateRef,
-    private val start: Instant = DEFAULT_START,
+    private val start: Instant,
+    origin: Snapshot?,
+    /** Where the steps report when the specification is a tree of tests ([aggregateSpecTests]); null otherwise. */
+    private val tree: TestTree?,
 ) {
+    constructor(model: AggregateModel<S>, ref: AggregateRef, start: Instant = DEFAULT_START) :
+        this(model, ref, start, null, null)
+
+    /** A specification that reports to [tree] ([aggregateSpecTests]). */
+    internal constructor(model: AggregateModel<S>, ref: AggregateRef, start: Instant, tree: TestTree) :
+        this(model, ref, start, null, tree)
+
     private val codec = EventCodec()
     private val log = GivenStateLog(InMemoryEventLog(partitions = 1))
-    private var millis = start.toEpochMilli()
-    private var given: GivenState? = null
-    private val reservations = InMemoryReservationStore()
+    private var millis = origin?.millis ?: start.toEpochMilli()
+    private var given: GivenState? = origin?.given
+    private val reservations = ForkableReservationStore(origin?.reservations.orEmpty())
+    private val ids = origin?.ids?.copy() ?: SequentialIds()
     private val kernel = Kernel(
         log,
         codec,
@@ -120,15 +172,22 @@ class AggregateSpec<S : Any>(
         verifyDecidePurity = true,
         reservations = reservations,
         states = GivenStates(),
-        ids = SequentialIds(),
+        ids = ids,
     )
-    private val timers = InMemoryTimerStore()
-    private var sequence = 0
+    private val timers = ForkableTimerStore(origin?.timers.orEmpty())
+    private var sequence = origin?.sequence ?: 0
+    private var forks = 0
 
-    /** What the specification did so far, without the checks: a fork replays a prefix of it on its own copy. */
-    private val steps = ArrayList<AggregateSpec<S>.() -> Unit>()
-    private val marks = LinkedHashMap<String, Mark>()
+    /** The points marked with [ref]: a fork from one starts on a copy of it. */
+    private val marks = LinkedHashMap<String, Snapshot>(origin?.marks.orEmpty())
     private var forkName: String? = null
+
+    init {
+        if (origin != null) {
+            log.offset = origin.offset
+            runBlocking { log.restore(origin.log) }
+        }
+    }
 
     /** The time the specification is at. */
     val now: Instant get() = Instant.ofEpochMilli(millis)
@@ -160,7 +219,6 @@ class AggregateSpec<S : Any>(
     ) {
         require(owner != ref) { "$owner is the aggregate under test: a command of it reserves the key." }
         require(owner.type.context == ref.type.context) { "$owner reserves keys of its own context only." }
-        steps += { givenReservation(namespace, key, owner, tenancy) }
         runBlocking {
             val scope = ReservationScope.of(owner, ReservationKey(namespace, key, tenancy == ReservationTenancy.SYSTEM))
             reservations.confirm(scope, key, owner)
@@ -173,7 +231,7 @@ class AggregateSpec<S : Any>(
      * command was due. [expect] checks the outcome of the last one sent, and fails when none was due: use
      * [expectNothingDue] to show that none is, after a schedule was cancelled, say.
      */
-    fun advanceTime(duration: Duration, expect: (Expectations<S>.() -> Unit)? = null) {
+    fun advanceTime(duration: Duration, expect: (Expectations<S>.() -> Unit)? = null) = step("advanceTime($duration)") {
         val fired = tick(duration)
         if (expect != null) {
             val last = fired.lastOrNull() ?: throw AssertionError(
@@ -187,7 +245,7 @@ class AggregateSpec<S : Any>(
      * Moves the time on by [within], and fails when a command the aggregate scheduled for itself is due by then: a
      * cancelled schedule, say, does not fire. Nothing is sent.
      */
-    fun expectNothingDue(within: Duration) {
+    fun expectNothingDue(within: Duration) = step("expectNothingDue($within)") {
         require(!within.isNegative()) { "Time only moves on." }
         val due = runBlocking { dueTimers(millis + within.inWholeMilliseconds) }
         if (due.isNotEmpty()) {
@@ -203,7 +261,6 @@ class AggregateSpec<S : Any>(
     /** Moves the time on and sends the due commands, as [advanceTime] does: the outcome of each, in order. */
     private fun tick(duration: Duration): List<Result<CommandOutcome>> {
         require(!duration.isNegative()) { "Time only moves on." }
-        steps += { tick(duration) }
         millis += duration.inWholeMilliseconds
         val fired = ArrayList<Result<CommandOutcome>>()
         runBlocking {
@@ -270,7 +327,6 @@ class AggregateSpec<S : Any>(
     fun givenState(state: S, version: Int = 1, scope: Scope = Scope.NONE) {
         require(version >= 1) { "A given state is at a version from 1." }
         check(given == null && currentVersion() == 0) { "givenState is the first step of a specification." }
-        steps += { givenState(state, version, scope) }
         given = GivenState(codec.stateText(state), version, scope)
         log.offset = version
     }
@@ -286,7 +342,6 @@ class AggregateSpec<S : Any>(
      */
     fun given(vararg events: Any, scope: Scope? = null) {
         require(events.isNotEmpty()) { "given needs at least one event." }
-        steps += { given(*events, scope = scope) }
         commitGiven(events.map { codec.encode(model, it) }, scope)
     }
 
@@ -297,7 +352,6 @@ class AggregateSpec<S : Any>(
      */
     fun givenRecords(vararg records: EventRecord, scope: Scope? = null) {
         require(records.isNotEmpty()) { "givenRecords needs at least one record." }
-        steps += { givenRecords(*records, scope = scope) }
         commitGiven(records.toList(), scope)
     }
 
@@ -333,7 +387,7 @@ class AggregateSpec<S : Any>(
         headers: Map<String, String> = emptyMap(),
         operator: Operator? = null,
         expect: Expectations<S>.() -> Unit,
-    ) {
+    ) = step("whenCommand(${command.javaClass.simpleName})") {
         val result = send(
             Command(
                 "command-${++sequence}",
@@ -365,31 +419,44 @@ class AggregateSpec<S : Any>(
     /** The events of [stream], one of this aggregate's, decoded, without those the model retired (D219). */
     internal fun decoded(stream: EventStreamRecord): List<Any> = codec.decodeEvents(model, stream.events)
 
-    private fun send(command: Command<*>): Result<CommandOutcome> {
-        steps += { send(command) }
-        return runBlocking { execute(command) }
-    }
+    private fun send(command: Command<*>): Result<CommandOutcome> = runBlocking { execute(command) }
 
     private fun verify(result: Result<CommandOutcome>, expect: Expectations<S>.() -> Unit) {
-        val expectations = Expectations(model, codec, result, currentVersion(), ::currentState, ::currentTags)
+        val forker: (String, AggregateSpec<S>.() -> Unit) -> Unit = { name, block -> fork(name, null, block) }
+        val expectations = Expectations(model, codec, result, currentVersion(), ::currentState, ::currentTags, forker)
         expectations.expect()
         expectations.verify()
     }
 
+    /** Runs [action], one step of the specification: a test of its own in a [tree], which reports its failure. */
+    private fun step(name: String, action: () -> Unit) {
+        val tree = tree ?: return action()
+        // The forks the step's checks start come after it.
+        val at = tree.nodes.size
+        val failure = tree.failureOf(action)
+        tree.nodes.add(at, DynamicTest.dynamicTest(name) { failure?.let { throw it } })
+    }
+
     /**
      * Marks the current point as [name]: a later [fork] from it starts the aggregate where it is now, whatever the
-     * specification does in between.
+     * specification does in between. The mark is a copy of the aggregate, its log, timers, reservations, ids and
+     * time (decision D245).
      */
     fun ref(name: String) {
         require(name.isNotBlank()) { "A ref needs a name." }
         require(name !in marks) { "The ref $name is marked already." }
-        marks[name] = Mark(steps.size, sequence)
+        marks[name] = snapshot()
     }
 
     /**
      * Runs [block] on a copy of the aggregate as it is at the ref [from] ([ref]), or now when [from] is null, so that
      * several scenarios share a prefix: what [block] does stays in the fork, and the specification goes on from where
      * it was. A failure in the fork names it ([name], or [from]).
+     *
+     * The fork starts on a copy of everything the specification holds (decision D245): the aggregate's log, its given
+     * state, its timers, the reservations, the ids counted so far and the time. Nothing before the fork runs again,
+     * so a domain service the decide functions called before it is not called again, however many forks there are.
+     * In a tree of tests ([aggregateSpecTests]) the fork is a container named by it.
      *
      * ```kotlin
      * aggregateSpec(orderModel) {
@@ -399,19 +466,23 @@ class AggregateSpec<S : Any>(
      * }
      * ```
      */
-    @Suppress("ThrowsCount")
     fun fork(name: String = "", from: String? = null, block: AggregateSpec<S>.() -> Unit) {
-        val mark = if (from == null) {
-            Mark(steps.size, sequence)
+        val origin = if (from == null) {
+            snapshot()
         } else {
             marks[from] ?: throw IllegalArgumentException("No ref $from: the refs are ${marks.keys}.")
         }
-        val fork = AggregateSpec(model, ref, start)
-        val label = name.ifBlank { from ?: "fork ${steps.size}" }
+        val label = name.ifBlank { from ?: "fork ${++forks}" }
+        if (tree != null) {
+            val branch = TestTree()
+            val fork = AggregateSpec(model, ref, start, origin, branch)
+            fork.forkName = forkName?.let { "$it > $label" } ?: label
+            fork.run(branch, block)
+            tree.nodes += DynamicContainer.dynamicContainer(label, branch.nodes)
+            return
+        }
+        val fork = AggregateSpec(model, ref, start, origin, null)
         fork.forkName = forkName?.let { "$it > $label" } ?: label
-        steps.subList(0, mark.steps).forEach { step -> fork.step() }
-        fork.sequence = mark.sequence
-        marks.filterValues { it.steps <= mark.steps }.forEach { (key, value) -> fork.marks[key] = value }
         try {
             fork.block()
         } catch (failure: ForkAssertionError) {
@@ -420,6 +491,24 @@ class AggregateSpec<S : Any>(
             throw ForkAssertionError("In fork \"${fork.forkName}\": ${failure.message}", failure)
         }
     }
+
+    /** Runs [block] on this specification, a tree of tests, reporting an exception outside a step as `Error`. */
+    internal fun run(tree: TestTree, block: AggregateSpec<S>.() -> Unit) {
+        tree.failureOf { block() }?.let { failure -> tree.nodes += DynamicTest.dynamicTest("Error") { throw failure } }
+    }
+
+    /** A copy of everything the specification holds now, which a fork starts from. */
+    private fun snapshot(): Snapshot = Snapshot(
+        log = runBlocking { log.entries() },
+        offset = log.offset,
+        given = given,
+        millis = millis,
+        sequence = sequence,
+        ids = ids.copy(),
+        timers = timers.writes,
+        reservations = reservations.writes,
+        marks = LinkedHashMap(marks),
+    )
 
     /** The version of the aggregate's last stream: its given state's when nothing followed it, 0 before anything. */
     private fun currentVersion(): Int =
@@ -463,7 +552,22 @@ class AggregateSpec<S : Any>(
         override fun put(ref: AggregateRef, state: CachedState) = Unit
     }
 
-    private data class Mark(val steps: Int, val sequence: Int)
+    /**
+     * Everything a specification holds at a point, which a fork copies (decision D245): the entries of its log, as
+     * appended, and the given state under them, the writes its timers and reservations took, the ids and the time,
+     * the commands sent so far ([sequence]) and the refs marked before it. It is not changed after it is taken.
+     */
+    private class Snapshot(
+        val log: List<LogEntry>,
+        val offset: Int,
+        val given: GivenState?,
+        val millis: Long,
+        val sequence: Int,
+        val ids: SequentialIds,
+        val timers: List<TimerWrite>,
+        val reservations: List<ReservationWrite>,
+        val marks: Map<String, Snapshot>,
+    )
 }
 
 /** A failure in a [AggregateSpec.fork], which names the fork. */

@@ -15,6 +15,8 @@ package me.ahoo.wow.test
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.spi.log.AppendOutcome
@@ -65,6 +67,21 @@ internal class GivenStateLog(private val delegate: EventLog) : EventLog by deleg
     override fun tail(partition: Int, after: Long?): Flow<LogEntry> =
         delegate.tail(partition, after).map { it.shifted(offset) }
 
+    /** The entries the log holds, as appended: a fork appends them to a log of its own (decision D245). */
+    suspend fun entries(): List<LogEntry> {
+        val head = delegate.head(PARTITION) ?: return emptyList()
+        return delegate.tail(PARTITION, null).take(head.toInt()).toList()
+    }
+
+    /** Appends [entries], another log's [entries], as they were appended there. */
+    suspend fun restore(entries: List<LogEntry>) {
+        entries.forEach { entry ->
+            check(delegate.append(entry.stream, entry.transport) is AppendOutcome.Committed) {
+                "Could not copy ${entry.stream.ref} at ${entry.position}."
+            }
+        }
+    }
+
     private fun from(version: Int): Int = (version - offset).coerceAtLeast(1)
 
     private fun to(version: Int): Int = if (version == Int.MAX_VALUE) version else version - offset
@@ -74,3 +91,6 @@ internal class GivenStateLog(private val delegate: EventLog) : EventLog by deleg
 
     private fun LogEntry.shifted(by: Int): LogEntry = if (by == 0) this else copyWith(stream = stream.shifted(by))
 }
+
+/** A specification's log has one partition. */
+private const val PARTITION = 0
