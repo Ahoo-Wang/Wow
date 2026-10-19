@@ -665,9 +665,11 @@ class WowProperties {
 
     class Http {
         /**
-         * The request headers copied into a command's headers, beside the default request facts `user_agent` and
-         * `remote_ip` the public port records (09 §17 G-10). `remote_ip` is the server's remote address: behind a
-         * proxy, set `server.forward-headers-strategy` to have the server take it from the proxy's forwarded headers.
+         * The request headers copied into a command's headers, beside the standard request facts the edge records:
+         * `app_id`, the application the caller resolver authenticated (decision D232), and on the public port
+         * `user_agent` and `remote_ip` (09 §17 G-10); none of the three can be listed. `remote_ip` is the server's
+         * remote address: behind a proxy, set `server.forward-headers-strategy` to have the server take it from the
+         * proxy's forwarded headers.
          */
         var requestFacts: MutableSet<String> = LinkedHashSet()
 
