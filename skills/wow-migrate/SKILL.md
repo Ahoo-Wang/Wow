@@ -49,7 +49,7 @@ Execute only the stages required by the requested mode and explicitly authorized
 |---|---|
 | Platform, source, generated metadata, runtime or custom store audit | `references/migration-risk-map.md` |
 | Spring Boot 3 to 4 platform, starter/capability, configuration or Jackson migration | `references/spring-boot-3-to-4.md` |
-| Wow 9.x to V10 domain source: modules, annotations, command identity, handlers, rejections, events, upgrades and retired events, state and tags, sagas, reserved keys, routes, tenancy, REST clients | `references/v9-to-v10.md` |
+| Wow 9.x to V10 domain source: Gradle build, modules, annotations, command identity, handlers, rejections, request facts, events, upgrades and retired events, state and tags, sagas, reserved keys, routes and queries, tenancy, compensation, peer contexts, JSON, Java domains, REST clients, tests, `migration-map.json` | `references/v9-to-v10.md` |
 | Runtime dependency, isolated startup, HTTP/REST or actual transport, and shutdown validation | `references/runtime-rest-validation.md` |
 | Data inventory, rehearsal, cutover, reconciliation or rollback | `references/cutover-evidence.md` |
 | Static discovery of v6 exposure | Read `scripts/audit-v6-usage.sh`, run it with `--help`, then execute it with the explicit target application/module root—not a monorepo default |

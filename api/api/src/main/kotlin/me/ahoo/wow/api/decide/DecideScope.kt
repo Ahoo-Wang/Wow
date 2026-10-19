@@ -60,6 +60,9 @@ interface DecideScope {
      * aggregate, and if the process dies first it expires (finding R8). A key the aggregate already holds confirmed
      * stays held whatever this attempt does. A rename reserves the new key and [release]s the old one in one
      * decision.
+     *
+     * It is a `suspend` function, so a Java decide function cannot call it (decision D229 G-8; a blocking bridge is
+     * planned for 10.x): a decide function that reserves keys is written in Kotlin.
      */
     suspend fun reserve(namespace: String, key: String): Boolean
 

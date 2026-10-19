@@ -15,6 +15,7 @@ package me.ahoo.wow.gradle
 
 import com.google.devtools.ksp.gradle.KspExtension
 import me.ahoo.wow.manifest.Manifest
+import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
@@ -42,7 +43,11 @@ import org.gradle.process.CommandLineArgumentProvider
 import java.util.Properties
 
 /**
- * `me.ahoo.wow`: builds a V10 domain module. Once the Kotlin JVM plugin is applied, it
+ * `me.ahoo.wow`: builds a V10 domain module. It needs the Kotlin JVM plugin (`kotlin("jvm")`), also for a module of
+ * Java sources only: KSP processes the module's Java sources within the Kotlin compilation, and the models it
+ * generates are Kotlin. A module that applies this plugin without it fails to configure, naming the fix, instead of
+ * building without models (decision D229 G-8). V10 builds with Gradle only (decision D239 ②). Once the Kotlin JVM
+ * plugin is applied, it
  *
  * - applies KSP with `wow-compiler` (of the plugin's version, unless [WowExtension.addCompilerDependency] is false)
  *   in `generate` mode, so the module's aggregates compile into models and its Manifest fragment
@@ -83,6 +88,23 @@ class WowPlugin : Plugin<Project> {
         extension.serviceVersion.convention(project.provider { project.version.toString() })
         extension.manifestBaseline.convention(project.layout.projectDirectory.file(BASELINE_FILE))
         project.pluginManager.withPlugin(KOTLIN_JVM) { configure(project, extension) }
+        if (project.state.executed) {
+            requireKotlinJvm(project)
+        } else {
+            project.afterEvaluate(::requireKotlinJvm)
+        }
+    }
+
+    /**
+     * Fails the build of a module that applies the plugin without the Kotlin JVM plugin (decision D229 G-8): KSP runs
+     * only within a Kotlin compilation, and the models it generates are Kotlin, so such a module, a pure Java one in
+     * particular, would otherwise get no models and no Manifest fragment, silently. Its Java sources are processed
+     * once it applies `kotlin("jvm")` too.
+     */
+    private fun requireKotlinJvm(project: Project) {
+        if (!project.pluginManager.hasPlugin(KOTLIN_JVM)) {
+            throw GradleException(missingKotlinJvm(project.path))
+        }
     }
 
     private fun configure(project: Project, extension: WowExtension) {
@@ -383,6 +405,13 @@ class WowPlugin : Plugin<Project> {
             "me.ahoo.wow.compiler.query.QuerySymbolProcessorProvider",
             "me.ahoo.wow.compiler.aggregate.metadata.AggregatesMetadataSymbolProcessorProvider",
         )
+
+        /** Why a module that applies the plugin without the Kotlin JVM plugin fails ([requireKotlinJvm]). */
+        internal fun missingKotlinJvm(path: String): String =
+            "Project '$path' applies the Wow plugin (me.ahoo.wow) without the Kotlin JVM plugin " +
+                "(org.jetbrains.kotlin.jvm), so it would compile no Wow models: the Wow compiler runs as a KSP " +
+                "processor of the Kotlin compilation. Apply kotlin(\"jvm\") in the module as well; a module of " +
+                "Java sources only needs it too, and its Java sources are then processed."
 
         /** The plugin's version, which is also the version of `wow-compiler` it adds. */
         val version: String by lazy {

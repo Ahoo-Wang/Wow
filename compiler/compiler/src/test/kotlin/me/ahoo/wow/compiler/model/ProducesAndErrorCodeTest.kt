@@ -260,4 +260,70 @@ class ProducesAndErrorCodeTest {
         ErrorCodeResolver.literal("const val X = ", 1, "X").assert().isNull()
         ErrorCodeResolver.literal("const val Y = ${quote}a$quote", 1, "X").assert().isNull()
     }
+
+    @Test
+    fun `a Java static final String field should be an error code`() {
+        val javaErrors = SourceFile.java(
+            "OrderJavaErrors.java",
+            """
+            package sample;
+
+            import me.ahoo.wow.api.annotation.ErrorCode;
+
+            public final class OrderJavaErrors {
+                @ErrorCode(description = "Read from Java", status = 409)
+                public static final String HELD = "orders.held";
+
+                @ErrorCode
+                public static final String PRICED =
+                    "orders.priced-in-$"; // A Java literal has no templates.
+
+                private OrderJavaErrors() {
+                }
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compileModel("generate", context, javaErrors)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        fragment(compilation).contexts.single().errors.assert().containsExactly(
+            ErrorManifest("orders.held", 409, "Read from Java"),
+            ErrorManifest("orders.priced-in-$", 422),
+        )
+    }
+
+    @Test
+    fun `a Java error code should be a static final String field holding a literal`() {
+        val bad = SourceFile.java(
+            "BadJava.java",
+            """
+            package sample;
+
+            import me.ahoo.wow.api.annotation.ErrorCode;
+
+            public class BadJava {
+                @ErrorCode public static String MUTABLE = "orders.mutable";
+                @ErrorCode public final String INSTANCE = "orders.instance";
+                @ErrorCode public static final int NUMBER = 7;
+                @ErrorCode public static final String JOINED = "orders." + "joined";
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModel("generate", context, bad)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains(
+            "@ErrorCode property sample.BadJava.MUTABLE must be a static final String field",
+            "@ErrorCode property sample.BadJava.INSTANCE must be a static final String field",
+            "@ErrorCode property sample.BadJava.NUMBER must be a static final String field",
+            "@ErrorCode property sample.BadJava.JOINED must be initialized with a string literal without templates",
+        )
+    }
+
+    @Test
+    fun `a Java literal should be read with its escapes and a literal dollar`() {
+        val quote = "\""
+        val backslash = "\\"
+        ErrorCodeResolver.literal("String X = ${quote}a${'$'}b${backslash}t$quote;", 1, "X", java = true)
+            .assert().isEqualTo("a${'$'}b\t")
+        ErrorCodeResolver.literal("int X = 7;", 1, "X", java = true).assert().isNull()
+    }
 }
