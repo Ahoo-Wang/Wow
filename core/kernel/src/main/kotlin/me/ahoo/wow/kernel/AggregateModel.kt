@@ -183,7 +183,8 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
     private val systemCommands: Set<Class<*>> = this.lifecycle + KernelLifecycle.SCHEDULE_COMMANDS
 
     private val deciders: Map<Class<*>, DecideFunction<S>> =
-        systemCommands.filterNot { it in deciders }.associateWith { KernelLifecycle.decider(it, ::tagsOf, ::decides) } + deciders
+        systemCommands.filterNot { it in deciders }
+            .associateWith { KernelLifecycle.decider(it, ::tagsOf, ::decides) } + deciders
     private val evolvers: Map<Class<*>, (S, Any) -> S> =
         SYSTEM_EVENTS.values.filterNot { it in evolvers }.associateWith { { state: S, _: Any -> state } } +
             evolvers

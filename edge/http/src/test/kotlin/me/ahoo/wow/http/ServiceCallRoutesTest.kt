@@ -164,7 +164,7 @@ class ServiceCallRoutesTest {
             val creation = caller.call(call(ref = "").let { OutgoingCall("$CONTEXT.cart.OpenCartV2", it.command) })
             creation.status.assert().isEqualTo(CommandResult.Status.REJECTED)
             creation.error!!.code.assert().isEqualTo(FrameworkErrors.COMMAND_UNHANDLED)
-            val wishlist = call().command.let { it.copyWith(ref = AggregateType(CONTEXT, "wishlist").ref(TENANT, "w-1")) }
+            val wishlist = call().command.copyWith(ref = AggregateType(CONTEXT, "wishlist").ref(TENANT, "w-1"))
             val aggregate = caller.call(OutgoingCall("$CONTEXT.wishlist.AddItem", wishlist))
             aggregate.error!!.code.assert().isEqualTo(FrameworkErrors.COMMAND_UNHANDLED)
             node.commands.assert().isEmpty()
