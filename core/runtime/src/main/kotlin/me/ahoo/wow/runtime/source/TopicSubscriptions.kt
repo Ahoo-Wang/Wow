@@ -36,6 +36,9 @@ import me.ahoo.wow.runtime.subscription.EntrySource
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
+import me.ahoo.wow.runtime.subscription.FailureClassification
+import me.ahoo.wow.runtime.subscription.PausedPartition
+import me.ahoo.wow.runtime.subscription.SubscriptionPauses
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.subscription.retryForever
 import me.ahoo.wow.runtime.wait.SignalSender
@@ -100,7 +103,9 @@ class TopicSubscriptions internal constructor(
     private val partitionRefresh: Duration = Duration.INFINITE,
     /** Sees each message its subscriptions consume (decision D174). */
     private val observer: Observer = Observer.NONE,
-) {
+    /** How its subscriptions classify their handlers' failures (decisions D229 G-6, D243). */
+    private val classification: FailureClassification = FailureClassification.DEFAULT,
+) : SubscriptionPauses {
     @Suppress("LongParameterList") // The parts of the subscriptions, as the primary constructor takes them.
     constructor(
         service: String,
@@ -120,6 +125,7 @@ class TopicSubscriptions internal constructor(
         notifier: ParkedNotifier = ParkedNotifier.NONE,
         partitionRefresh: Duration = Duration.INFINITE,
         observer: Observer = Observer.NONE,
+        classification: FailureClassification = FailureClassification.DEFAULT,
     ) : this(
         service,
         topic,
@@ -139,6 +145,7 @@ class TopicSubscriptions internal constructor(
         notifier,
         partitionRefresh,
         observer,
+        classification,
     )
 
     /** The lease group of the topic's partitions: `(service, "topic:<topic>")`. */
@@ -188,6 +195,9 @@ class TopicSubscriptions internal constructor(
 
     /** The runtime reading the partitions, once started. */
     val runtime: SubscriptionRuntime? get() = running?.runtime
+
+    /** The partitions of the topic its subscriptions have paused on a systemic failure here (decision D243). */
+    override fun paused(): List<PausedPartition> = runtime?.paused().orEmpty()
 
     /** This node's ownership of the topic's partitions, once started. */
     val ownership: PartitionOwnership? get() = running?.ownership
@@ -257,6 +267,7 @@ class TopicSubscriptions internal constructor(
             signals,
             notifier,
             observer,
+            classification,
         )
         val ownership = PartitionOwnership(group, node, addressOf, partitions, leases, cluster, runtime, context)
         ownership.start()

@@ -42,6 +42,7 @@ import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
+import me.ahoo.wow.spi.subscription.FailureClass
 import java.time.Clock
 
 /**
@@ -66,7 +67,9 @@ import java.time.Clock
  * checkpoint.
  *
  * A handler that fails is retried, then parks its aggregate; one that fails with a [HandlingRejectedException], a
- * business outcome, parks it at once.
+ * business outcome, or with an unrecoverable failure, parks it at once. A systemic failure pauses the partition
+ * instead ([PartitionPause], decision D243): no aggregate is charged or parked until a handling succeeds, and the
+ * ledger is not written meanwhile.
  *
  * The [source] is the context's log or another context's topic (decision D134). A park records where the entry lies
  * in a topic ([EntrySource.sourcePosition]), since a topic is not read by aggregate: a resume re-scans from there,
@@ -97,8 +100,16 @@ internal class SubscriptionWorker(
     parked: Map<AggregateRef, Long>,
     private val notifier: ParkedNotifier = ParkedNotifier.NONE,
     private val observer: Observer = Observer.NONE,
+    /** How the handler's failures are classified (decisions D229 G-6, D243). */
+    private val classification: FailureClassification = FailureClassification.DEFAULT,
 ) {
     private val permits = Semaphore(options.maxInFlight)
+
+    /** Whether the partition is paused on a systemic failure (decision D243), and the gate of each attempt. */
+    private val pause = PartitionPause(group, subscription.name, partition, options.systemic, clock, observer)
+
+    /** The pause of the partition now, null while it runs (decision D243). */
+    val paused: PausedPartition? get() = pause.state
 
     /** How the handler is retried before its aggregate is parked: its subscription's budget (roadmap P.3). */
     private val retry: RetryPolicy = options.retryOf(subscription)
@@ -400,28 +411,38 @@ internal class SubscriptionWorker(
      * then parked, so the lane goes on and the checkpoint moves. Only the cancellation of the lane itself stops the
      * retries, and a [VirtualMachineError] (out of memory, say) propagates, logged first.
      *
+     * Each failure is classified ([classification], decisions D229 G-6, D243): an unrecoverable one returns at once, so
+     * the aggregate parks without a retry; a recoverable one is retried within the budget; a systemic one, or any
+     * failure while the partition is paused, is the partition's ([pause]): the entry is tried again once the pause lets
+     * it, spending no attempt.
+     *
      * A command the handler sent that the node refused as busy ([CommandBusyException], decision D228 ②) is
      * backpressure, not a failure (review R2.1-1): the entry is tried again after the budget's backoff, as many times
      * as it takes, without spending an attempt, so a burst holds the lane (and, with the in-flight bound, the
      * partition's tail) instead of parking the aggregate.
      */
-    @Suppress("TooGenericExceptionCaught")
+    @Suppress("TooGenericExceptionCaught", "CyclomaticComplexMethod")
     private suspend fun retried(sourced: SourcedEntry): Result<HandledEntry> {
+        val ref = sourced.stream.ref
         var failures = 0
         var busy = 0
         while (true) {
+            val probing = pause.admit()
             val failure = try {
-                return Result.success(attempt(sourced))
+                val handled = attempt(sourced)
+                pause.succeeded(ref)
+                return Result.success(handled)
             } catch (rejected: HandlingRejectedException) {
+                // The handler reached a decision: what it depends on answers.
+                pause.succeeded(ref)
                 return Result.failure(rejected)
             } catch (refused: CommandBusyException) {
                 busy++
                 logger.debug { "Subscription ${subscription.name} met a busy node: ${refused.message}" }
-                delay(retry.backoff(busy))
-                continue
+                null
             } catch (fatal: VirtualMachineError) {
                 logger.error(fatal) {
-                    "Subscription ${subscription.name} met a fatal error handling ${sourced.stream.ref}@" +
+                    "Subscription ${subscription.name} met a fatal error handling $ref@" +
                         "${sourced.stream.version}; its lane stops."
                 }
                 throw fatal
@@ -429,9 +450,19 @@ internal class SubscriptionWorker(
                 // The lane's own cancellation propagates; any other is the handler's failure.
                 currentCoroutineContext().ensureActive()
                 failure
+            } finally {
+                pause.release(probing)
+            }
+            if (failure == null) {
+                delay(retry.backoff(busy))
+                continue
+            }
+            val kind = classification.classify(failure, subscription.retry)
+            if (pause.failed(ref, kind, failure, probing)) {
+                continue
             }
             failures++
-            if (failures >= retry.maxAttempts) {
+            if (kind == FailureClass.UNRECOVERABLE || failures >= retry.maxAttempts) {
                 return Result.failure(failure)
             }
             delay(retry.backoff(failures))
@@ -473,9 +504,16 @@ internal class SubscriptionWorker(
             source.sourcePosition(sourced),
         )
         logger.warn(failure) {
-            val after = if (failure is HandlingRejectedException) "a rejection" else "${retry.maxAttempts} attempts"
+            val after = when {
+                failure is HandlingRejectedException -> "a rejection"
+                classification.classify(failure, subscription.retry) == FailureClass.UNRECOVERABLE ->
+                    "an unrecoverable failure"
+                else -> "${retry.maxAttempts} attempts"
+            }
             "Subscription ${subscription.name} parks ${stream.ref} from version ${stream.version} after $after."
         }
+        // The ledger may sit on what paused the partition: it is written once the partition runs again.
+        pause.awaitRunning()
         val changed = retryForever(options.readRetry, { "park ${stream.ref} for ${subscription.name}" }) {
             ledger.park(entry)
         }
@@ -627,6 +665,7 @@ internal class SubscriptionWorker(
     }
 
     private suspend fun repark(entry: ParkedAggregate) {
+        pause.awaitRunning()
         retryForever(options.readRetry, { "repark ${entry.ref} for ${subscription.name}" }) { ledger.repark(entry) }
     }
 

@@ -14,6 +14,7 @@
 package me.ahoo.wow.kernel
 
 import me.ahoo.wow.api.annotation.Retry
+import me.ahoo.wow.spi.subscription.FailureClass
 import kotlin.time.Duration
 
 /**
@@ -25,6 +26,8 @@ import kotlin.time.Duration
  * - [initialBackoff]: the wait after the first failure; [maxBackoff]: the longest wait; [multiplier]: how much
  *   longer each next wait is.
  * - [timeout]: how long one attempt may run before it is cancelled and counted as failed.
+ * - [recoverable], [unrecoverable]: the exception classes the handler classifies itself (decisions D229 G-6, D243),
+ *   each with its subclasses ([classify]); null when not given, never empty.
  */
 data class HandlerRetry(
     val maxAttempts: Int? = null,
@@ -32,6 +35,8 @@ data class HandlerRetry(
     val maxBackoff: Duration? = null,
     val multiplier: Double? = null,
     val timeout: Duration? = null,
+    val recoverable: List<Class<out Throwable>>? = null,
+    val unrecoverable: List<Class<out Throwable>>? = null,
 ) {
     init {
         require(
@@ -41,6 +46,9 @@ data class HandlerRetry(
         require(maxBackoff == null || !maxBackoff.isNegative()) { "A backoff is never negative." }
         require(multiplier == null || multiplier >= 1.0) { "A backoff never shrinks." }
         require(timeout == null || timeout.isPositive()) { "The timeout of an attempt is positive." }
+        require(recoverable?.isEmpty() != true && unrecoverable?.isEmpty() != true) {
+            "An exception class list that is given holds at least one class."
+        }
     }
 
     /** Whether no setting is given. */
@@ -57,7 +65,26 @@ data class HandlerRetry(
             maxBackoff ?: base.maxBackoff,
             multiplier ?: base.multiplier,
             timeout ?: base.timeout,
+            recoverable ?: base.recoverable,
+            unrecoverable ?: base.unrecoverable,
         )
+    }
+
+    /**
+     * The class of [failure] by the handler's own lists (9.x `Retry.recoverable`): [FailureClass.UNRECOVERABLE] when
+     * an [unrecoverable] class is nearer to it in its class hierarchy than every [recoverable] one,
+     * [FailureClass.RECOVERABLE] when a [recoverable] class is at least as near; null when neither list holds a class
+     * it is an instance of.
+     */
+    fun classify(failure: Throwable): FailureClass? {
+        val recoverableDistance = recoverable.nearest(failure.javaClass)
+        val unrecoverableDistance = unrecoverable.nearest(failure.javaClass)
+        return when {
+            unrecoverableDistance != null && (recoverableDistance == null || unrecoverableDistance < recoverableDistance) ->
+                FailureClass.UNRECOVERABLE
+            recoverableDistance != null -> FailureClass.RECOVERABLE
+            else -> null
+        }
     }
 
     companion object {
@@ -75,6 +102,20 @@ data class HandlerRetry(
             initialBackoff: String = "",
             maxBackoff: String = "",
             timeout: String = ""
+        ): HandlerRetry? = of(maxAttempts, initialBackoff, maxBackoff, timeout, emptyList(), emptyList())
+
+        /**
+         * The budget of the `@Retry` settings given, as [of] without the exception classes, and the classes of
+         * `@Retry(recoverable, unrecoverable)`: an empty list is not given.
+         */
+        @JvmStatic
+        fun of(
+            maxAttempts: Int,
+            initialBackoff: String,
+            maxBackoff: String,
+            timeout: String,
+            recoverable: List<Class<out Throwable>>,
+            unrecoverable: List<Class<out Throwable>>,
         ): HandlerRetry? {
             require(maxAttempts >= 0) { "@Retry(maxAttempts) is at least 1, or 0 for not given; not $maxAttempts." }
             return HandlerRetry(
@@ -82,13 +123,23 @@ data class HandlerRetry(
                 initialBackoff = duration("initialBackoff", initialBackoff),
                 maxBackoff = duration("maxBackoff", maxBackoff),
                 timeout = duration("timeout", timeout),
+                recoverable = recoverable.takeUnless { it.isEmpty() },
+                unrecoverable = unrecoverable.takeUnless { it.isEmpty() },
             ).takeUnless { it.isEmpty }
         }
 
         /** The budget [retry] gives; null when it is absent or gives nothing. */
         @JvmStatic
-        fun of(retry: Retry?): HandlerRetry? =
-            retry?.let { of(it.maxAttempts, it.initialBackoff, it.maxBackoff, it.timeout) }
+        fun of(retry: Retry?): HandlerRetry? = retry?.let {
+            of(
+                it.maxAttempts,
+                it.initialBackoff,
+                it.maxBackoff,
+                it.timeout,
+                it.recoverable.map { type -> type.java },
+                it.unrecoverable.map { type -> type.java },
+            )
+        }
 
         /**
          * The budget of a handler annotated [function] in a processor annotated [processor]: the handler's settings,
@@ -111,3 +162,9 @@ data class HandlerRetry(
         }
     }
 }
+
+/** How many superclasses up from [type] the nearest of these classes is, null when [type] is an instance of none. */
+private fun List<Class<out Throwable>>?.nearest(type: Class<out Throwable>): Int? =
+    this?.mapNotNull { listed ->
+        generateSequence<Class<*>>(type) { it.superclass }.indexOf(listed).takeIf { it >= 0 }
+    }?.minOrNull()
