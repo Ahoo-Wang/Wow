@@ -79,11 +79,10 @@ import me.ahoo.wow.runtime.snapshot.SnapshotSubscription
 import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.state.StateViewReader
 import me.ahoo.wow.runtime.state.StateViews
+import me.ahoo.wow.runtime.subscription.FailureClassification
 import me.ahoo.wow.runtime.subscription.LogGroupDirectory
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.subscription.Subscription
-import me.ahoo.wow.runtime.subscription.FailureClassification
-import me.ahoo.wow.runtime.subscription.SubscriptionPauses
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import me.ahoo.wow.runtime.timer.ContextCommandTypes
 import me.ahoo.wow.runtime.timer.ContextTimerFirer
@@ -101,8 +100,8 @@ import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.observation.Observer
-import me.ahoo.wow.spi.subscription.FailureClassifier
 import me.ahoo.wow.spi.subscription.CheckpointStore
+import me.ahoo.wow.spi.subscription.FailureClassifier
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerStore
 import me.ahoo.wow.spi.wait.Origin
@@ -313,6 +312,8 @@ class LogGroupNode internal constructor(
  * forwards and signals of the other nodes until then → close the backends. Its shutdown phase allows at least
  * `maxWaitTimeout + drainTimeout`.
  */
+// The node's composition root: it wires every part of every context, which the parts themselves implement.
+@Suppress("LargeClass")
 class ServiceNode @InternalWowApi constructor(
     val service: String,
     val node: String,
@@ -355,11 +356,7 @@ class ServiceNode @InternalWowApi constructor(
     failureClassifiers: List<FailureClassifier> = emptyList(),
 ) {
     /** How every subscription of the node classifies its handler's failures. */
-    private val classification: FailureClassification = if (failureClassifiers.isEmpty()) {
-        FailureClassification.DEFAULT
-    } else {
-        FailureClassification.of(failureClassifiers)
-    }
+    private val classification = FailureClassification.of(failureClassifiers)
 
     init {
         require(service.isNotBlank()) { "A node names its service." }
@@ -549,16 +546,6 @@ class ServiceNode @InternalWowApi constructor(
         contexts.values.flatMap { context ->
             (context.logGroups.map { it.subscriptions } + listOfNotNull(context.intake)).map { ParkedOps.Scope.of(it) }
         } + topicSubscriptions.values.map { ParkedOps.Scope.of(it, options.subscription.parked) }
-    }
-
-    /**
-     * The partitions the node's subscriptions have paused on a systemic failure (decision D243), the built-in ones,
-     * the intakes' and those of other contexts' topics included: what the health model reads (review R3-H).
-     */
-    @InternalWowApi
-    val pauses: SubscriptionPauses = SubscriptionPauses.of {
-        contexts.values.flatMap { context -> context.logGroups.map { it.subscriptions } + listOfNotNull(context.intake) } +
-            topicSubscriptions.values
     }
 
     /**

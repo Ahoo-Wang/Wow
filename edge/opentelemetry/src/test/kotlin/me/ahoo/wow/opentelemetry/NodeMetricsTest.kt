@@ -23,8 +23,10 @@ import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.SubscriptionFactory
+import me.ahoo.wow.runtime.node.pauses
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
+import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import org.junit.jupiter.api.AfterEach
@@ -59,10 +61,17 @@ class NodeMetricsTest {
         )
     }
 
+    /** While set, the board's view store is unavailable: the board pauses its partitions (decision D243). */
+    @Volatile
+    private var down = false
+
     /** A projection of the orders that fails on the orders whose id starts with `bad`, which it parks at once. */
     private val board = SubscriptionFactory {
         listOf(
             Subscription(BOARD, SubscriptionFilter(SALES)) { entry ->
+                if (down) {
+                    throw StorageUnavailableException("The board's view store is unavailable; retry later.")
+                }
                 check(!entry.ref.id.startsWith("bad")) { "The board cannot show ${entry.ref}." }
             },
         )
@@ -120,6 +129,28 @@ class NodeMetricsTest {
         capped.meters.find(WowMetrics.PARKED).tags(WowMetrics.SUBSCRIPTION, BOARD).gauge()!!.value()
             .assert().isEqualTo(1.0)
     }
+
+    @Test
+    fun `a sample should gauge the partitions paused on a systemic failure, and none once resumed`(): Unit =
+        runBlocking {
+            node.start()
+            down = true
+            place("good-1")
+            eventually { node.pauses.paused().isNotEmpty() }
+            val paused = node.pauses.paused().single()
+            paused.subscription.assert().isEqualTo(BOARD)
+            val metrics = NodeMetrics(node, telemetry.meters)
+            metrics.sample()
+            val board = arrayOf(WowMetrics.GROUP, paused.group, WowMetrics.SUBSCRIPTION, BOARD)
+            gauge(WowMetrics.PAUSED, *board, WowMetrics.PARTITION, paused.partition.toString()).assert()
+                .containsExactly(1.0)
+            gauge(WowMetrics.PAUSED, *board).sum().assert().isEqualTo(1.0)
+            down = false
+            eventually { node.pauses.paused().isEmpty() }
+            metrics.sample()
+            gauge(WowMetrics.PAUSED, *board).assert().containsOnly(0.0)
+            node.parked.list(BOARD).entries.assert().isEmpty()
+        }
 
     @Test
     fun `a node that no longer runs a partition removes its gauges, and the parked count with partition 0`(): Unit =

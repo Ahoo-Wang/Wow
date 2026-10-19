@@ -29,6 +29,7 @@ import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
+import me.ahoo.wow.runtime.subscription.SystemicFailureOptions
 import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.AggregateIdGeneratorSource
@@ -239,6 +240,10 @@ class WowPropertiesTest {
             "wow.cluster.drain-timeout" to "500ms",
             "wow.subscription.read-retry.max-attempts" to "3",
             "wow.subscription.read-retry.max-backoff" to "1s",
+            "wow.subscription.systemic.failing-aggregates" to "0",
+            "wow.subscription.systemic.window" to "30s",
+            "wow.subscription.systemic.initial-backoff" to "2s",
+            "wow.subscription.systemic.max-backoff" to "1m",
             "wow.http.errors.[shop.cart.full].status" to "409",
             "wow.http.request-facts[0]" to "X-App",
             "wow.aggregates.[shop.cart].tenant" to "t0",
@@ -256,6 +261,15 @@ class WowPropertiesTest {
         properties.cluster.options().drainTimeout.assert().isEqualTo(500.milliseconds)
         properties.subscription.options().readRetry.maxAttempts.assert().isEqualTo(3)
         properties.subscription.options().readRetry.maxBackoff.assert().isEqualTo(1.seconds)
+        properties.subscription.options().systemic.assert().isEqualTo(
+            SystemicFailureOptions(
+                failingAggregates = 0,
+                window = 30.seconds,
+                initialBackoff = 2.seconds,
+                maxBackoff = 60.seconds,
+            ),
+        )
+        bind().subscription.options().systemic.assert().isEqualTo(SystemicFailureOptions())
         properties.http.errors.getValue("shop.cart.full").status.assert().isEqualTo(409)
         properties.http.requestFacts.assert().containsExactly("X-App")
         properties.aggregates.getValue("shop.cart").tenant.assert().isEqualTo("t0")

@@ -20,8 +20,8 @@ import com.mongodb.MongoNotPrimaryException
 import com.mongodb.MongoSocketOpenException
 import com.mongodb.MongoTimeoutException
 import com.mongodb.ServerAddress
-import com.mongodb.connection.ServerId
 import com.mongodb.connection.ClusterId
+import com.mongodb.connection.ServerId
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.subscription.FailureClass
 import me.ahoo.wow.spi.subscription.FailureClassifier

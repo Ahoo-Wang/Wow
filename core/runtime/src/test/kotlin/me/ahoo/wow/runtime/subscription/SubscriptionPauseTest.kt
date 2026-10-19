@@ -292,7 +292,10 @@ class SubscriptionPauseTest {
             handled.record(entry)
         }
         val scanning = options.copyWith(
-            parked = ParkedRetryOptions(spec = ParkedRetrySpec(minBackoff = 1.milliseconds), scanInterval = 5.milliseconds),
+            parked = ParkedRetryOptions(
+                spec = ParkedRetrySpec(minBackoff = 1.milliseconds),
+                scanInterval = 5.milliseconds
+            ),
         )
         val runtime = runtime(projection, options = scanning)
         appender.append("p")

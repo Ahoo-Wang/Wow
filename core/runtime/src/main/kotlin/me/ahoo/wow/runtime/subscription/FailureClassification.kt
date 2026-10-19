@@ -54,11 +54,11 @@ class FailureClassification(private val classifiers: List<FailureClassifier>) {
         }
 
         /** The backends' classifiers ([LOADED]), then the runtime's own ([BuiltInFailures]). */
-        val DEFAULT: FailureClassification by lazy { of() }
+        val DEFAULT: FailureClassification by lazy { FailureClassification(LOADED + BuiltInFailures) }
 
         /** The [application]'s classifiers, then the backends' ([LOADED]), then the runtime's own. */
         fun of(application: List<FailureClassifier> = emptyList()): FailureClassification =
-            FailureClassification(application + LOADED + BuiltInFailures)
+            if (application.isEmpty()) DEFAULT else FailureClassification(application + DEFAULT.classifiers)
 
         private fun causes(failure: Throwable): Sequence<Throwable> {
             val seen = HashSet<Throwable>()

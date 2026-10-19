@@ -45,7 +45,7 @@ import kotlin.reflect.KClass
  *   of a [recoverable] class is retried within this budget, then parks the aggregate, even where the subscription
  *   would take it for a systemic failure (a store or a connection down), which pauses the whole partition instead.
  *   When both lists hold a class the failure is an instance of, the nearer one in its class hierarchy decides, and
- *   [recoverable] on a tie. A class neither list holds is classified by the host's classifiers (the runtime's
+ *   [recoverable] on a tie. A class neither list holds is classified by the host's classifiers (the SPI's
  *   `FailureClassifier`), else retried within the budget. A handler's own lists replace its processor's.
  *
  * ```kotlin

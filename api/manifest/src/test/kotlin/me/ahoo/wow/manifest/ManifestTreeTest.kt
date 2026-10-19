@@ -219,7 +219,9 @@ class ManifestTreeTest {
         aggregates[1].containsKey("ownership").assert().isFalse()
         val subscriptions = (context["subscriptions"] as List<*>).map { it as Map<*, *> }
         subscriptions[0]["retry"].assert()
-            .isEqualTo(mapOf("maxAttempts" to 3, "timeout" to "PT2S", "unrecoverable" to listOf("sample.InvalidAddress")))
+            .isEqualTo(
+                mapOf("maxAttempts" to 3, "timeout" to "PT2S", "unrecoverable" to listOf("sample.InvalidAddress"))
+            )
         ManifestTree.read(mapper.readValue(mapper.writeValueAsString(tree), Map::class.java)).contexts.single()
             .subscriptions[0].retry!!.copyWith(recoverable = listOf("sample.Busy")).recoverable.assert()
             .containsExactly("sample.Busy")
