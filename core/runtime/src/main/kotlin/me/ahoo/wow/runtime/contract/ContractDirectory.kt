@@ -86,6 +86,7 @@ class ContractDirectory(
 
     private val commandsBySchema = HashMap<String, String>()
     private val schemasByCommand = HashMap<String, String>()
+    private val aggregatesBySchema = HashMap<String, MutableSet<AggregateType>>()
 
     init {
         manifests.forEach { manifest ->
@@ -95,6 +96,8 @@ class ContractDirectory(
                     aggregate.commands.filterNot { it.mounted }.forEach { command ->
                         val type = "${context.name}.${aggregate.name}.${command.name}"
                         commandsBySchema.putIfAbsent(command.schema, type)
+                        aggregatesBySchema.getOrPut(command.schema, ::LinkedHashSet) +=
+                            AggregateType(context.name, aggregate.name)
                         schemasByCommand[type] = command.schema
                     }
                 }
@@ -135,6 +138,13 @@ class ContractDirectory(
         } else {
             reference.takeIf { it in schemasByCommand }
         }
+
+    /**
+     * The aggregate types whose contract, the service's or a peer's, lists a command of the schema [schema]
+     * (`#/$defs/<binary name>`), a mounted one left out: where a saga sends a command of that class whose ref it
+     * leaves out (decision D234 ⑤). Empty when none does.
+     */
+    fun aggregatesOf(schema: String): List<AggregateType> = aggregatesBySchema[schema].orEmpty().toList()
 
     /** The schema reference of the command type [commandType] (`ctx.agg.Command`), as its context's Manifest gives it. */
     fun schemaOf(commandType: String): String? = schemasByCommand[commandType]

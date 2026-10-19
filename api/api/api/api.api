@@ -1374,6 +1374,8 @@ public abstract interface class me/ahoo/wow/api/subscribe/ReactContext : me/ahoo
 public abstract interface class me/ahoo/wow/api/subscribe/SagaContext : me/ahoo/wow/api/subscribe/SubscriptionContext {
 	public fun call (Lme/ahoo/wow/api/decide/Command;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun cancel (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/decide/Command;
+	public fun command (Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
+	public fun command (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
 	public abstract fun command (Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
 	public fun command (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
 	public abstract fun getIds ()Lme/ahoo/wow/api/id/Ids;

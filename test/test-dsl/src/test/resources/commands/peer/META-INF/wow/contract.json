@@ -1,0 +1,27 @@
+{
+  "contexts": [
+    {
+      "name": "inventory",
+      "aggregates": [
+        {
+          "name": "stock",
+          "state": { "schema": "#/$defs/sample.StockState" },
+          "commands": [
+            { "name": "Reserve", "schema": "#/$defs/me.ahoo.wow.test.ClassPathCommandTypesTest$Reserve" },
+            { "name": "Note", "schema": "#/$defs/me.ahoo.wow.test.ClassPathCommandTypesTest$Note" },
+            {
+              "name": "Import",
+              "schema": "#/$defs/me.ahoo.wow.test.ClassPathCommandTypesTest$Import",
+              "mounted": true
+            }
+          ]
+        },
+        {
+          "name": "warehouse",
+          "state": { "schema": "#/$defs/sample.WarehouseState" },
+          "commands": [{ "name": "Note", "schema": "#/$defs/me.ahoo.wow.test.ClassPathCommandTypesTest$Note" }]
+        }
+      ]
+    }
+  ]
+}

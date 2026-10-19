@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.example.eshop.ordering.domain.order
 
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.OnCommitted
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
@@ -23,7 +22,6 @@ import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
-import me.ahoo.wow.example.eshop.inventory.api.InventoryContext
 import me.ahoo.wow.example.eshop.inventory.api.stock.CommitReservation
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReleaseReservation
 import me.ahoo.wow.example.eshop.inventory.api.stock.ReserveStock
@@ -52,18 +50,22 @@ import me.ahoo.wow.example.eshop.ordering.api.order.OrderSubmitted
  *
  * [onReserveCommitted] is a hop of a wait chain: a checkout's `Wow-Wait` follows the reservations to their commit in
  * the inventory, then their receipts back to it, and on into the confirmations it derives.
+ *
+ * Each handler names only its target's id (decision D234): the contract the inventory api's jar carries assigns
+ * the reservations to the inventory's stock (whose id is the product's), the ordering's own Manifest assigns
+ * the order's commands to the order, and each command is in the tenant of the commit or receipt it answers.
  */
 @Saga
 class OrderProcessSaga {
     @OnEvent
     fun onOrderSubmitted(event: StateEvent<OrderState>, context: SagaContext): Command<AwaitStockValidation>? =
-        if (event.events.any { it is OrderSubmitted }) context.command(event.ref, AwaitStockValidation) else null
+        if (event.events.any { it is OrderSubmitted }) context.command(event.ref.id, AwaitStockValidation) else null
 
     @OnEvent
     fun onOrderAwaitingValidation(event: StateEvent<OrderState>, context: SagaContext): List<Command<ReserveStock>> =
         if (event.events.any { it is OrderAwaitingValidation }) {
             event.state.quantities().map { (productId, quantity) ->
-                context.command(STOCK.ref(event.ref.tenantId, productId), ReserveStock(event.ref.id, quantity))
+                context.command(productId, ReserveStock(event.ref.id, quantity))
             }
         } else {
             emptyList()
@@ -75,13 +77,13 @@ class OrderProcessSaga {
         committed: CommandCommitted<ReserveStock>,
         context: SagaContext
     ): Command<ConfirmOrderStock> =
-        context.command(committed.executionId.ref, ConfirmOrderStock(committed.aggregateId))
+        context.command(committed.executionId.ref.id, ConfirmOrderStock(committed.aggregateId))
 
     /** A product the inventory cannot reserve cancels the order that asked for it. */
     @OnRejected
     fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: SagaContext): Command<CancelOrder> =
         context.command(
-            rejected.executionId.ref,
+            rejected.executionId.ref.id,
             CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}"),
         )
 
@@ -89,7 +91,7 @@ class OrderProcessSaga {
     fun onOrderCancelled(event: StateEvent<OrderState>, context: SagaContext): List<Command<ReleaseReservation>> =
         if (event.events.any { it is OrderCancelled }) {
             event.state.products().map { productId ->
-                context.command(STOCK.ref(event.ref.tenantId, productId), ReleaseReservation(event.ref.id))
+                context.command(productId, ReleaseReservation(event.ref.id))
             }
         } else {
             emptyList()
@@ -107,13 +109,9 @@ class OrderProcessSaga {
     fun onOrderShipped(event: StateEvent<OrderState>, context: SagaContext): List<Command<CommitReservation>> =
         if (event.events.any { it is OrderShipped }) {
             event.state.products().map { productId ->
-                context.command(STOCK.ref(event.ref.tenantId, productId), CommitReservation(event.ref.id))
+                context.command(productId, CommitReservation(event.ref.id))
             }
         } else {
             emptyList()
         }
-
-    private companion object {
-        val STOCK = AggregateType(InventoryContext.NAME, InventoryContext.STOCK)
-    }
 }

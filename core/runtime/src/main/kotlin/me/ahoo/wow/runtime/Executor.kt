@@ -254,12 +254,22 @@ class CommandWithdrawnException(val ref: AggregateRef, val commandId: String) :
 class InFlightLimit(val max: Int = DEFAULT_MAX) {
     private val count = AtomicInteger()
 
+    /** When a command last finished, or the first was taken while none was in flight: `System.nanoTime()`. */
+    @Volatile
+    private var progressedAt: Long = System.nanoTime()
+
     init {
         require(max >= 1) { "A node takes at least one command in flight." }
     }
 
     /** The commands in flight now. */
     val inFlight: Int get() = count.get()
+
+    /**
+     * When the executors last made progress, as `System.nanoTime()` (review R3.5-3): a command finished, or one was
+     * taken while none was in flight. With commands in flight and no progress for long, the kernel is stuck.
+     */
+    internal val lastProgress: Long get() = progressedAt
 
     /**
      * The commands the node's command intakes execute at once, all contexts together (review R2.1-1): half of [max],
@@ -276,6 +286,9 @@ class InFlightLimit(val max: Int = DEFAULT_MAX) {
                 return false
             }
             if (count.compareAndSet(current, current + 1)) {
+                if (current == 0) {
+                    progressedAt = System.nanoTime()
+                }
                 return true
             }
         }
@@ -284,6 +297,7 @@ class InFlightLimit(val max: Int = DEFAULT_MAX) {
     /** Gives back a place [tryAcquire] took. */
     fun release() {
         count.decrementAndGet()
+        progressedAt = System.nanoTime()
     }
 
     companion object {

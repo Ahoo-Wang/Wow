@@ -32,6 +32,10 @@ distributions {
 dependencies {
     implementation(project(":ops-domain"))
     implementation(project(":spring-boot"))
+    // Actuator's health endpoint, which the host gives the node's readiness and liveness (review R3.5-3): the
+    // deployment's probes read /actuator/health/readiness and /actuator/health/liveness.
+    implementation("org.springframework.boot:spring-boot-health")
+    implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
     // The `kafka` profile: the services' ledger records come in on wow.ops.commands, and an operator's action goes out
     // to the owning context's command topic as the ledger's system command.
     implementation(project(":kafka"))

@@ -64,6 +64,7 @@ import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.command.MessageEntries
 import me.ahoo.wow.runtime.command.Receipts
 import me.ahoo.wow.runtime.contract.ContractDirectory
+import me.ahoo.wow.runtime.health.NodeStores
 import me.ahoo.wow.runtime.ledger.LedgerCommands
 import me.ahoo.wow.runtime.ledger.LedgerPublisher
 import me.ahoo.wow.runtime.log.LogGroupRouter
@@ -387,14 +388,14 @@ class ServiceNode @InternalWowApi constructor(
         options.schedules,
     )
 
-    /** The backends of each context the [models] are of, opened once. */
+    /** The backends of each context the [models] are of, opened once, each call recorded (review R3.5-3). */
     private val opened: Map<String, ContextBackends> =
-        models.mapTo(LinkedHashSet()) { it.type.context }.associateWith { backends.backends(it) }
+        models.mapTo(LinkedHashSet()) { it.type.context }.associateWith { NodeStores.track(it, backends.backends(it)) }
 
     private val nodeSnapshots = NodeSnapshots(manifest)
 
     /** The commands in flight in the executors of every context (decision D228 ②): one bound for the node. */
-    private val inFlight = InFlightLimit(options.maxInFlight)
+    internal val inFlight = InFlightLimit(options.maxInFlight)
 
     /**
      * The models the node runs: the [models] of the Manifest, the built-in job aggregate of each context's [jobs], and

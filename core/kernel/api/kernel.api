@@ -284,6 +284,8 @@ public final class me/ahoo/wow/kernel/ExecutionSagaContext : me/ahoo/wow/api/sub
 	public synthetic fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/subscribe/StateEvent;Lme/ahoo/wow/api/id/Ids;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun call (Lme/ahoo/wow/api/decide/Command;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun cancel (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/decide/Command;
+	public fun command (Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
+	public fun command (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
 	public fun command (Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
 	public static final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;I)Ljava/lang/String;
 	public fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;

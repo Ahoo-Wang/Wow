@@ -13,7 +13,6 @@
 
 package me.ahoo.wow.example.eshop.payment.domain.payment
 
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.OnEvent
 import me.ahoo.wow.api.annotation.OnRejected
 import me.ahoo.wow.api.annotation.Saga
@@ -21,10 +20,8 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
-import me.ahoo.wow.example.eshop.ordering.api.OrderingContext
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
 import me.ahoo.wow.example.eshop.ordering.api.order.PayOrder
-import me.ahoo.wow.example.eshop.payment.api.PaymentContext
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentSucceeded
 import me.ahoo.wow.example.eshop.payment.api.payment.RefundPayment
@@ -47,16 +44,17 @@ import java.math.BigDecimal
  *
  * A `CancelOrder` the order rejects has no handler: only a paid order rejects it, and a failed payment paid nothing,
  * so such a rejection parks the payment for [onPaymentFailed], to be looked at.
+ *
+ * Each handler names only its target's id (decision D234): the contract the ordering api's jar carries assigns
+ * `PayOrder` and `CancelOrder` to the ordering's order, the payment's own Manifest assigns `RequestPayment` and
+ * `RefundPayment` to the payment, and each command is in the tenant of the commit or receipt it answers.
  */
 @Saga
 class OrderPaymentSaga {
     @OnEvent(aggregates = [ORDER])
     fun onOrderStockConfirmed(event: StateEvent<OrderView>, context: SagaContext): Command<RequestPayment>? =
         if (event.events.any { it is StateEventPayload && it.name == ORDER_STOCK_CONFIRMED }) {
-            context.command(
-                PAYMENT.ref(event.ref.tenantId, event.ref.id),
-                RequestPayment(event.ref.id, event.state.totalAmount),
-            )
+            context.command(event.ref.id, RequestPayment(event.ref.id, event.state.totalAmount))
         } else {
             null
         }
@@ -64,7 +62,7 @@ class OrderPaymentSaga {
     @OnEvent
     fun onPaymentSucceeded(event: StateEvent<PaymentState>, context: SagaContext): Command<PayOrder>? =
         if (event.events.any { it is PaymentSucceeded }) {
-            context.command(orderOf(event), PayOrder(event.ref.id, event.state.amount))
+            context.command(event.state.orderId, PayOrder(event.ref.id, event.state.amount))
         } else {
             null
         }
@@ -72,26 +70,21 @@ class OrderPaymentSaga {
     @OnEvent
     fun onPaymentFailed(event: StateEvent<PaymentState>, context: SagaContext): Command<CancelOrder>? {
         val failed = event.events.filterIsInstance<PaymentFailed>().firstOrNull() ?: return null
-        return context.command(orderOf(event), CancelOrder("The payment failed: ${failed.reason}"))
+        return context.command(event.state.orderId, CancelOrder("The payment failed: ${failed.reason}"))
     }
 
     /** An order that refuses its payment has the payment refunded. */
     @OnRejected
     fun onPayRejected(rejected: CommandRejected<PayOrder>, context: SagaContext): Command<RefundPayment> =
         context.command(
-            rejected.executionId.ref,
+            rejected.executionId.ref.id,
             RefundPayment("The order ${rejected.ref.id} refused the payment: ${rejected.error.message}"),
         )
-
-    private fun orderOf(event: StateEvent<PaymentState>) =
-        ORDER_TYPE.ref(event.ref.tenantId, event.state.orderId)
 
     companion object {
         /** The ordering context's order, which publishes its stream. */
         const val ORDER = "eshop-ordering.order"
         const val ORDER_STOCK_CONFIRMED = "eshop-ordering.order.OrderStockConfirmed"
-        private val ORDER_TYPE = AggregateType(OrderingContext.NAME, OrderingContext.ORDER)
-        private val PAYMENT = AggregateType(PaymentContext.NAME, PaymentContext.PAYMENT)
     }
 }
 

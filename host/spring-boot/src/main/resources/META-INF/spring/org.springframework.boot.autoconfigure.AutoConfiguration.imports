@@ -4,3 +4,4 @@ me.ahoo.wow.spring.boot.KafkaAutoConfiguration
 me.ahoo.wow.spring.boot.ClickHouseAutoConfiguration
 me.ahoo.wow.spring.boot.ObservabilityAutoConfiguration
 me.ahoo.wow.spring.boot.SpringdocAutoConfiguration
+me.ahoo.wow.spring.boot.HealthAutoConfiguration

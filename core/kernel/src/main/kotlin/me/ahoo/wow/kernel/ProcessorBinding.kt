@@ -291,7 +291,7 @@ class ProcessorBinding<S> private constructor(
                             due = ticked.due,
                             partition = state.partition,
                         )
-                        handle(tick, context as SagaContext)
+                        handle(tick, ScheduleJobSagaContext(context as SagaContext, "$processor.$function"))
                     }
                 }
             }
