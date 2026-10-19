@@ -64,6 +64,8 @@ class PostgresEventLogTest : EventLogSpec() {
             log.createSchema()
             execute("UPDATE $counters SET parent = 0, epoch = 1 WHERE partition = 1")
             log.lineage(1).assert().isEqualTo(PartitionLineage.of(0, 1))
+            execute("DELETE FROM $counters WHERE partition = 1")
+            runCatching { log.lineage(1) }.exceptionOrNull().assert().isInstanceOf(IllegalStateException::class.java)
         }
 
     private fun execute(sql: String) {

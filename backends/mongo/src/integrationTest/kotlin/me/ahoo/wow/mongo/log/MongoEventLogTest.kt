@@ -89,6 +89,8 @@ class MongoEventLogTest : EventLogSpec() {
             counters.updateOne(Filters.eq("_id", 1), Updates.combine(Updates.unset("parent"), Updates.unset("epoch")))
             log.lineage(1).assert().isEqualTo(PartitionLineage.ROOT)
             MongoLogFixture.log(2, context).lineage(1).assert().isEqualTo(PartitionLineage.ROOT)
+            counters.deleteOne(Filters.eq("_id", 1))
+            runCatching { log.lineage(1) }.exceptionOrNull().assert().isInstanceOf(IllegalStateException::class.java)
         }
 
     @Test

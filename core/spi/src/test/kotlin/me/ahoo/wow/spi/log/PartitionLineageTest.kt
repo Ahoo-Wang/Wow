@@ -27,6 +27,8 @@ class PartitionLineageTest {
         PartitionLineage.ROOT.parent.assert().isNull()
         PartitionLineage.ROOT.epoch.assert().isZero()
         PartitionLineage.of(null, 0).assert().isSameAs(PartitionLineage.ROOT)
+        PartitionLineage.ROOT.assert().isEqualTo(PartitionLineage.ROOT)
+        PartitionLineage.ROOT.hashCode().assert().isNotEqualTo(PartitionLineage.of(0, 1).hashCode())
         PartitionLineage.ROOT.toString().assert().isEqualTo("PartitionLineage(parent=null, epoch=0)")
     }
 
@@ -57,5 +59,6 @@ class PartitionLineageTest {
         coEvery { log.lineage(any()) } coAnswers { callOriginal() }
         (0 until 4).forEach { log.lineage(it).assert().isEqualTo(PartitionLineage.ROOT) }
         assertThrows<IllegalArgumentException> { log.lineage(4) }
+        assertThrows<IllegalArgumentException> { log.lineage(-1) }
     }
 }
