@@ -73,7 +73,7 @@
   - Jackson 写出来不是对象的类型（自定义序列化器、`@JsonValue`），要在 `schemaOverrides` 显式给出 schema，否则任务失败，不猜（D84）。`$defs` 的键是类的二进制名，只引用一次的类型内联。
   - 状态 schema 指纹调用内核的 `EventCodec.stateSchemaFingerprint`，与运行时一致。限制：运行时若定制了 ObjectMapper，构建期的值会不同。
 - **查询**（D128，修订上面草案原先的上下文级、带 `capabilities` 的 `queries`）：`queries` 在聚合下，编译器在开启快照时写 `snapshot`，另加 `events`；能力不进 Manifest，因为它取决于按类路径选择的后端（D110），由查询路由的 `GET` 返回（D127）。可查询的快照字段：`tenantId`、`aggregateId`、`version`、`ownerId`、`spaceId`、`deleted`、`tags`、`firstEventTime`、`lastEventTime`、`state.*`；9.x 的 `eventId`、`snapshotTime` 去掉（`operator`、`firstOperator` 由 D163 恢复，见 §1）。
-- **对端 Manifest**（D139）：跨上下文的下游经 Gradle 插件的 `wowPeers` 配置在构建期引入上游合并后的 `manifest.json`（`META-INF/wow/peers/<服务>.json`），运行时加载进 `ContractDirectory`，用于跨上下文的链校验与命令类型名。
+- **对端契约**（D139，由 D234 修订）：上游 domain 的编译器片段筛出对端需要的部分，装进上游 `*-api` 的 jar（`META-INF/wow/contract/`）；下游只依赖上游的 api，运行时从类路径加载进 `ContractDirectory`，用于发送前的命令校验、跨上下文的链校验与命令类型名；`wowPeers` 删除。
 - **数据集不并入**（D75）：数据集由 dataset-registry 在运行时注册，作为查询侧的运行时目录单独提供；Manifest 只描述编译期的代码契约，view-engine 两者都读。
 - **兼容性门禁**（D76）：CI 比较本次构建与上一个已发布版本的 Manifest，把差异分为加法（新增可选字段、新增命令）与破坏（删除命令或事件、新增必填字段、事件 schema 变化却没有升 revision 或没有升级函数）。主版本内出现破坏即失败（D48、D59、R5-1）；线上契约的兼容性由它守，不靠 ABI 转储。
 

@@ -247,6 +247,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | P.18 | 应用标识 `app_id`（D232）：标准请求事实 `app_id`（`CallerResolver` 只填已认证的值，CoSec 实现取认证过的应用）、`Caller` 标准属性 `app`、派生命令继承的可传播事实白名单；view-store 与 analytics 改读它并删除各自的解析；P.14 之后 | 事件流的请求头带认证过的 `app_id`；客户端自报的 `CoSec-App-Id` 不被采信；Saga 派生的命令带上游的 `app_id`；view-store 与 analytics 的行为不变 |
 | P.18b | `app_id` 的来源（D236）：注入模式的信任开关（默认关闭）；`Wow-Call` 携带根请求的可传播事实 | 注入模式开关开启时记录网关注入的应用；同步调用的目标记录根请求的 `app_id` |
 | P.19 | springdoc 桥接（D233，G-14）：`:spring-boot` 的 `compileOnly` springdoc 与 swagger-core、`OpenApiCustomizer` 合并 Manifest 文档进默认文档、`wow` 分组、路径或组件冲突启动失败、`OpenApiOptions` 的 securitySchemes 由宿主按调用方解析器填写、只含公开端口路由 | eShop 一个服务的 `/v3/api-docs` 同含 Wow 路由与应用的 Controller 并通过 3.1 schema 校验；`wow` 分组只含 Wow 路由；冲突的路径让启动失败；Swagger UI 打开且 Try it out 带身份；内部端口路由不在文档里 |
+| P.20 | 对端契约随 api 的 jar 发布（D234）：第一步 Gradle 插件（类视图读类路径、`generateWowContract`、domain 与 api 两侧的配置与装配、防错检查、功能测试）与运行时（从类路径读契约、删除 `wowPeers`、`CollectPeerManifests`、`serviceOf`），改写约 20 个测试与夹具及 eShop 的 3 个服务；第二步省略 ref 的写法与租户规则 | eShop 各服务不再写 `wowPeers`，跨上下文的命令、订阅与等待链校验照旧；发布的 api jar 带契约、POM 不提 domain；配置缓存可用；省略 ref 只在允许的处理函数里编译通过 |
 | C.1 | 核心加固（D196）：eShop 全链路的故障注入（杀节点、重启 PostgreSQL 与 Kafka）与 1 小时以上浸泡，核对不变量（事件不丢不重、检查点单调、停放为 0、等待不悬挂）；清理 `v10` CI 历史中的偶发失败；夜跑 | M | M7 前（核心阶段，P.9 之后） | 连续两轮无异常 |
 
 ### M7 平台迁移
