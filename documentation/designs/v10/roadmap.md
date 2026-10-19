@@ -278,6 +278,13 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | A.F | 修复：P0、P1 全部修复；P2 逐条定去向（修、登记到 10.x、放弃）；审查结论交用户确认 | 用户确认审查通过 |
 | A.M | 读路径的模块归属（D231，P.14 之后，与 R2.3-6 合做）：`EventQueryGateway`、`StateVisibility`、`DatasetVisibility` 与 A3-11 的可见性组合移到 `:query`，`StateReads` 移到 `:runtime`；`:kernel` 去掉 `api(:manifest)`；架构测试新规则 | `:http` 的 `query`、`read` 包不直接读日志与内核；行为与 REST 不变 |
 | A.M2 | 三种查询模型共用一个引擎（D235）：第一步 `events` 收进 `QueryGateway`（事件日志后端 MongoDB、PostgreSQL 与内存，events 的 schema 提供者，A3-11 并入策略，HTTP 一个分支，TS 客户端与 view-engine 数据源，`expand("events")` 与准入规则）；第二步 ClickHouse 的 `events` 后端（`ARRAY JOIN`） | view-engine 能对事件流做过滤、分组与展开聚合；`EventQueryGateway` 删除；未展开的多值根级指标与排序被拒绝；退役事件不出现在结果里 |
+| R3-S | 读侧安全与宿主缺陷（R3.3-3、R3.4-1、X-13、X-14）：没有快照网关时 `events` 失败即关闭（以 `StateReads.committed` 评估策略，做不到即拒绝）；内存扫描只给内存存储并随 `wow.query.memory.enabled`；CoSec 两个解析器的 Bean 冲突；inject 模式内部解析器校验令牌 | ABAC 打开、`snapshot=false`、标签不匹配时读到 0 条事件；应用自带后端时不提供 `events`；CoSec 启用的宿主能启动；伪造的服务主体被拒 |
+| R3-D | 安全默认值（R3.5-1）：`wow.backend=AUTO` 找不到持久后端时启动失败，除非显式 `memory`、开发 profile 或内部端口只绑回环 | 缺持久后端的生产配置启动失败并说明原因 |
+| RT | 运行时批（R2.1-8、X-10、X-11、X-12）：主题订阅加入失败纳入重试与半启动恢复；`ClusterOptions` 的心跳与超时校验；定时缓存有界；`WaitWithdrawalTest` 去时序依赖 | 加入失败的节点最终读到主题；错误的心跳配置启动失败 |
+| R3-B | 读写隔离（R3.4-2、R3.4-3）：每个存储的查询并发舱壁（超出 429）、PG 只读 DataSource、写库上 `events` 默认收紧；等待登记上限 | 并发列表查询不拖慢命令；超额等待降级或 429 |
+| R3-H | 健康模型（R3.5-3）：Actuator 的 `wow` 健康组（ownership、subscriptions、stores、topics、ledger），区分 readiness 与 liveness；K8s 清单改用 `/actuator/health/*` | 存储宕机或分区为 0 时就绪探针失败 |
+| R3-A | 宿主瘦身与后端 SPI（D237、R3.1-1、R3.3-1、R3.2-1、R3.3-2）：`:query` 的 `ReadFacade` 与 `QueryEngine.Builder`，`:runtime` 的存储布局与后端选择，`HostStoreProvider` SPI（内置 PG、Mongo 也走它），共享工具下沉 `:spi`，查询与 Sink 合同进 `:tck`；拆 2～3 个 PR，在 ES 6.7 之前完成 | 非 Spring 宿主可用同一组合；社区后端只按 SPI 与 TCK 即可接入并保留按聚合放置 |
+| R3-F | 冻结前收窄（R3.2-3）：`:query` 的 schema 内部类型标 `@InternalWowApi` | `query.api` 只留策略、上下文与模型名 |
 | B.0 | 基准领域与负载工具（D224）：两边各实现一份语义相同的「账户 + 转账 Saga」基准领域（9.x 与 V10 各一个基准专用模块，逐行对齐业务逻辑）；Kotlin 开环负载生成器（JDK HttpClient、自写的对数线性直方图，独立 JVM，不加新依赖）；环境编排与资源采集 | 两边的基准服务能起、负载工具能跑通 E1 |
 | B.1 | E1 写入：客户端等到命令已处理；单节点；9.x MongoDB 加 Kafka，V10 MongoDB 与 PostgreSQL（V10 的 PostgreSQL 单列，不与 9.x 比） | 吞吐、p50/p99/p999、最差一秒 p99，与每节点 CPU、堆、GC、存储读写同时采集 |
 | B.2 | E2 写后读、E3 跨聚合链路：等到快照或投影可见再读到新状态；等到转账 Saga 两边入账 | 同上 |
@@ -291,7 +298,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | WP | 内容 | 出口 |
 |---|---|---|
 | 8a.1 | `skills/wow-migrate/references/v9-to-v10.md` 初稿；example 试点（M2 之后即可开始） | example 由 Skill 升级后通过测试；完成：9.x 到 V10 领域源码的参考（Ahoo-Wang/Wow#4316） |
-| 8a.2 | H5：5 个 9.x 领域作为 eval；`wow-client` 的 `v9-to-v10` 参考 | eval 通过率达标 |
+| 8a.2 | H5：5 个 9.x 领域作为 eval；`wow-client` 的 `v9-to-v10` 参考。**用户 2026-10-19：延期到代码稳定后再做**；准备已完成（门禁 G0～G8、每领域 3 次、≥ 80% 且无 UNSAFE、`scripts/eval-h5.mjs`、开跑前须修 Skill 漂移与写参照迁移） | eval 通过率达标 |
 | 8b.1 | `wow-migrate-data`：映射表核对、全量导入、增量追尾 | 9.x example 数据导入 |
 | 8b.2 | 逐聚合校验与快照生成 | 零差异报告 |
 | 8b.3 | 9.x `PrepareKey` 预留导入（D227 ③，审查 A4-8）：按所属聚合取租户、按映射写成已确认的 `TENANT` 或 `SYSTEM` 预留；映射核对覆盖全部预留名；`compare` 校验同 owner；全部事件被丢弃的流以 `retire` 导入（审查 A4-7） | 预留对比零差异 |
