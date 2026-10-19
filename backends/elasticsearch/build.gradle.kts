@@ -9,6 +9,7 @@ dependencies {
     // through Spring Data); a store opens over the application's low-level Rest5Client.
     api("co.elastic.clients:elasticsearch-java")
     implementation("tools.jackson.core:jackson-databind")
+    implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation(project(":query-tck"))
     integrationTestImplementation(project(":tck"))
     integrationTestImplementation(project(":tck-containers"))

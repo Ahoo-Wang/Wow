@@ -1,0 +1,109 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.elasticsearch.query.aggregation
+
+import co.elastic.clients.elasticsearch._types.Script
+import co.elastic.clients.elasticsearch._types.SortOrder
+import co.elastic.clients.elasticsearch._types.aggregations.CompositeAggregationSource
+import co.elastic.clients.elasticsearch._types.mapping.RuntimeField
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import co.elastic.clients.util.NamedValue
+import me.ahoo.wow.api.query.AggregationFunction
+import me.ahoo.wow.api.query.Sort
+
+internal data class ElasticsearchAggregationPlan(
+    val rootQuery: Query,
+    val elements: List<ElasticsearchAggregationElement>,
+    val groupSources: List<NamedValue<CompositeAggregationSource>>,
+    val metrics: List<ElasticsearchAggregationMetric>,
+    val runtimeMappings: Map<String, RuntimeField>,
+    val effectiveSort: List<Sort>,
+    /**
+     * The sources of the groups that read the root record while the query expands elements, in sort order. They
+     * form an outer composite over the root records, outside the nested scopes; [groupSources] then holds only the
+     * element groups, grouped inside each outer bucket.
+     */
+    val rootSources: List<NamedValue<CompositeAggregationSource>> = emptyList(),
+    /**
+     * The order of a native top-N by a metric: one TERMS group taken by `terms` ordered by these paths, its first
+     * `limit` groups in one request. Empty for every other plan.
+     */
+    val metricOrder: List<NamedValue<SortOrder>> = emptyList(),
+)
+
+internal data class ElasticsearchAggregationElement(
+    val path: String,
+    val filter: Query,
+)
+
+internal sealed interface ElasticsearchAggregationMetric {
+    val alias: String
+    val filter: Query?
+
+    data class Count(
+        override val alias: String,
+        override val filter: Query? = null,
+    ) : ElasticsearchAggregationMetric
+
+    data class Numeric(
+        override val alias: String,
+        val function: AggregationFunction,
+        val field: String,
+        override val filter: Query? = null,
+    ) : ElasticsearchAggregationMetric
+
+    data class Any(
+        override val alias: String,
+        val field: String,
+        override val filter: Query? = null,
+    ) : ElasticsearchAggregationMetric
+
+    data class DistinctCount(
+        override val alias: String,
+        val field: String,
+        override val filter: Query? = null,
+    ) : ElasticsearchAggregationMetric
+
+    /**
+     * FIRST ([last] `false`) or LAST: the doc value of [field] on the top hit by [orderBy], among the documents
+     * [filter] keeps (they have both fields and pass the metric filter). [epochMillis] reads a `date` field's value
+     * as epoch milliseconds.
+     */
+    data class Edge(
+        override val alias: String,
+        val field: String,
+        val orderBy: String,
+        val last: Boolean,
+        val epochMillis: Boolean,
+        override val filter: Query,
+    ) : ElasticsearchAggregationMetric
+
+    data class Percentile(
+        override val alias: String,
+        val field: String,
+        val percentile: Double,
+        override val filter: Query? = null,
+    ) : ElasticsearchAggregationMetric
+
+    data class Derived(
+        override val alias: String,
+        val bucketsPath: Map<String, String>,
+        val script: Script,
+    ) : ElasticsearchAggregationMetric {
+        override val filter: Query? = null
+    }
+}
+
+internal val ElasticsearchAggregationMetric.valueCountAlias: String
+    get() = "__wow_value_count_$alias"

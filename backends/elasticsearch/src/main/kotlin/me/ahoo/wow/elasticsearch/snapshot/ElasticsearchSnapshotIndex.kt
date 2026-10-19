@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.elasticsearch.snapshot
 
+import co.elastic.clients.elasticsearch._types.mapping.TypeMapping
+import java.io.StringReader
+
 /**
  * The definition of an aggregate type's snapshot index (decision D161), format [FORMAT].
  *
@@ -27,6 +30,9 @@ package me.ahoo.wow.elasticsearch.snapshot
  * - The schema fingerprint is kept, not indexed.
  */
 internal object ElasticsearchSnapshotIndex {
+    /** [MAPPINGS] as the client's mapping. */
+    fun typeMapping(): TypeMapping = TypeMapping.of { it.withJson(StringReader(MAPPINGS)) }
+
     /** The kind and the version of this layout (decision D59), recorded in the mapping's `_meta`. */
     const val KIND = "snapshot"
     const val FORMAT = 1
@@ -34,12 +40,9 @@ internal object ElasticsearchSnapshotIndex {
     /** The longest keyword Elasticsearch indexes: Lucene's 32766-byte term limit at four UTF-8 bytes a character. */
     const val KEYWORD_LIMIT = 8191
 
-    val DEFINITION: String = """
-        {
-          "settings": {
-            "index.mapping.ignore_malformed": true
-          },
-          "mappings": {
+    /** The mappings of the index (without its settings): what a missing index's queries are admitted against. */
+    val MAPPINGS: String = """
+          {
             "_meta": { "wow_index": "$KIND", "wow_format": $FORMAT },
             "dynamic": false,
             "date_detection": false,
@@ -81,6 +84,14 @@ internal object ElasticsearchSnapshotIndex {
               "staleVersion": { "type": "integer" }
             }
           }
+    """.trimIndent()
+
+    val DEFINITION: String = """
+        {
+          "settings": {
+            "index.mapping.ignore_malformed": true
+          },
+          "mappings": $MAPPINGS
         }
     """.trimIndent()
 }
