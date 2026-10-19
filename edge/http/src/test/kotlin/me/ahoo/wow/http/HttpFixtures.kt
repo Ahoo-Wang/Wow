@@ -246,6 +246,9 @@ class HttpNode(
         override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String) =
             ensureAvailable().let { log.findByRequestId(type, tenantId, requestId) }
 
+        // The events model in memory scans the log by its partitions' heads.
+        override suspend fun head(partition: Int): Long? = ensureAvailable().let { log.head(partition) }
+
         override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome {
             appendGate?.await()
             return log.append(stream, transport)

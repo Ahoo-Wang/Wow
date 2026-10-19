@@ -333,12 +333,13 @@ internal object WowSchemas {
             "commandId" to STRING,
             "requestId" to STRING,
             "commandType" to STRING,
-            "ownerId" to STRING,
-            "spaceId" to STRING,
-            "operator" to schemaRef(OPERATOR),
+            "ownerId" to NULLABLE_STRING,
+            "spaceId" to NULLABLE_STRING,
+            "operator" to nullable(schemaRef(OPERATOR)),
             "events" to array(schemaRef(EVENT_VIEW)),
         ),
-        description = "An event stream of one aggregate (decision D131); `ownerId`, `spaceId` and `operator` when set.",
+        description = "An event stream, the commit of one command (decision D235): `ownerId`, `spaceId` and `operator` " +
+            "are null when unset; a projection leaves fields out.",
     )
 
     private fun queryRequest(): Map<String, Any?> = objectSchema(

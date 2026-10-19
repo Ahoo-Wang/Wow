@@ -868,9 +868,18 @@ public final class me/ahoo/wow/query/index/QueryIndexDeclaration$Companion {
 }
 
 public final class me/ahoo/wow/query/memory/InMemoryEventQueryStorage : me/ahoo/wow/query/QueryBackendFactory {
+	public static final field Companion Lme/ahoo/wow/query/memory/InMemoryEventQueryStorage$Companion;
 	public fun <init> (Lkotlin/jvm/functions/Function2;Ljava/time/Duration;)V
 	public synthetic fun <init> (Lkotlin/jvm/functions/Function2;Ljava/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun create (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/QueryBackendBinding;
+	public static final fun of (Lme/ahoo/wow/spi/log/EventLog;)Lme/ahoo/wow/query/memory/InMemoryEventQueryStorage;
+	public static final fun of (Lme/ahoo/wow/spi/log/EventLog;Ljava/time/Duration;)Lme/ahoo/wow/query/memory/InMemoryEventQueryStorage;
+}
+
+public final class me/ahoo/wow/query/memory/InMemoryEventQueryStorage$Companion {
+	public final fun of (Lme/ahoo/wow/spi/log/EventLog;)Lme/ahoo/wow/query/memory/InMemoryEventQueryStorage;
+	public final fun of (Lme/ahoo/wow/spi/log/EventLog;Ljava/time/Duration;)Lme/ahoo/wow/query/memory/InMemoryEventQueryStorage;
+	public static synthetic fun of$default (Lme/ahoo/wow/query/memory/InMemoryEventQueryStorage$Companion;Lme/ahoo/wow/spi/log/EventLog;Ljava/time/Duration;ILjava/lang/Object;)Lme/ahoo/wow/query/memory/InMemoryEventQueryStorage;
 }
 
 public final class me/ahoo/wow/query/memory/InMemoryQueryBackend : me/ahoo/wow/query/QueryBackend {

@@ -13,10 +13,13 @@
 
 package me.ahoo.wow.query.memory
 
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.flow.transformWhile
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.events.EventStreamRecords
+import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventStreamRecord
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
@@ -44,4 +47,25 @@ class InMemoryEventQueryStorage(
                 InMemoryQueryStorageAdapter,
             )
         }
+
+    companion object {
+        /**
+         * The events of [log], every aggregate type's: each query reads every partition up to its head and keeps the
+         * streams of its type, in `(tenantId, aggregateId, version)` order. For a log in memory, or one a host has no
+         * events backend for; it scans the whole log on every query.
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun of(log: EventLog, delay: Duration = Duration.ZERO): InMemoryEventQueryStorage =
+            InMemoryEventQueryStorage({ type -> scan(log, type) }, delay)
+
+        private suspend fun scan(log: EventLog, type: AggregateType): List<EventStreamRecord> =
+            (0 until log.partitions).flatMap { partition ->
+                val head = log.head(partition) ?: return@flatMap emptyList()
+                log.tail(partition).transformWhile { entry ->
+                    emit(entry)
+                    entry.position.sequence < head
+                }.toList().map { it.stream }.filter { it.ref.type == type }
+            }.sortedWith(compareBy({ it.ref.tenantId }, { it.ref.id }, { it.version }))
+    }
 }
