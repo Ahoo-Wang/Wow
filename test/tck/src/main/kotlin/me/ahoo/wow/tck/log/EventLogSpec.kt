@@ -496,6 +496,43 @@ abstract class EventLogSpec {
             .assert().isEqualTo((1L..13L).toList())
     }
 
+    @Suppress("DestructuringDeclarationWithTooManyEntries")
+    @Test
+    fun `appendAll sequences the streams around a conflict without a gap`(): Unit = runBlocking {
+        val log = createLog(partitions = 4)
+        val (first, gap, taken, last) = idsInPartitionZero(4, 4)
+        log.append(stream(taken, 1))
+        val outcomes = log.appendAll(
+            listOf(stream(first, 1) to null, stream(gap, 2) to null, stream(taken, 1) to null, stream(last, 1) to null),
+        )
+        outcomes[1].assert().isEqualTo(AppendOutcome.Conflict(0))
+        outcomes[2].assert().isEqualTo(AppendOutcome.Conflict(1))
+        listOf(outcomes[0], outcomes[3]).map { (it as AppendOutcome.Committed).position.sequence }
+            .assert().isEqualTo(listOf(2L, 3L))
+        log.head(0).assert().isEqualTo(3L)
+        withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(3).toList() }.map { it.stream.ref.id }
+            .assert().isEqualTo(listOf(taken, first, last))
+    }
+
+    @Test
+    fun `appendAll commits a request id repeated in a group once, the repeat is a duplicate`(): Unit = runBlocking {
+        val log = createLog(partitions = 4)
+        val (first, repeat, other) = idsInPartitionZero(3, 4)
+        val outcomes = log.appendAll(
+            listOf(
+                stream(first, 1, requestId = "request") to null,
+                stream(repeat, 1, requestId = "request") to null,
+                stream(other, 1) to null,
+            ),
+        )
+        outcomes[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        (outcomes[1] as AppendOutcome.AlreadyCommitted).existing.ref.id.assert().isEqualTo(first)
+        outcomes[2].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        log.read(type.ref("tenant", repeat)).toList().assert().isEmpty()
+        withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }.map { it.position.sequence }
+            .assert().isEqualTo(listOf(1L, 2L))
+    }
+
     @Test
     fun `tail resumes after a position with the same entries`(): Unit = runBlocking {
         val log = createLog(partitions = 1)
