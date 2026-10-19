@@ -2,15 +2,20 @@
 
 Use this reference only when a downstream domain module written against Wow 9.x is rewritten for V10, or a 9.x platform module of the Wow repository is ported to a V10 project under `platform/`. It maps 9.x constructs to their V10 form; the before/after pairs come from the hand port of the 9.x example (`example-api`, `example-domain`) to V10 (the first V10 example, the shop, since folded into the eShop). For a complete V10 application to compare against, read the eShop (`example/eshop` on the `v10` branch): five contexts, each an API, a domain and a server module, with their end-to-end tests. For a 9.x domain that came with a Spring Boot starter of its own routes, reserved owners and owner moves, read the V10 view store (`platform/view-store`), ported from the 9.x `view-store/` with this reference (roadmap 7.2a).
 
-Status: first draft. V10 is still moving: verify every annotation, signature, route and configuration key against the pinned V10 target, not against this page. V10 has no release yet; a target pinned to a `v10` commit is a source baseline, not a published artifact, so record the artifact, plugin and repository availability as `MISSING EVIDENCE` until the target tag exists.
+Status: first draft. V10 is still moving: verify every annotation, signature, route and configuration key against the pinned V10 target, not against this page. V10 ships pre-releases only (`v10.0.0-alpha.<n>` tags, without a compatibility promise): pin the exact pre-release, or a `v10` commit as a source baseline, and check that every artifact the build names exists for that version. For `10.0.0-alpha.3`, `wow-bom`, `wow-kernel`, `wow-gradle-plugin` and the plugin marker of `me.ahoo.wow` are on Maven Central, so the plugin resolves with `mavenCentral()` in `pluginManagement.repositories`; whether the Gradle Plugin Portal serves it was not confirmed. Record what you could not resolve as `MISSING EVIDENCE`.
 
 ## Preconditions and gates
 
 - Upgrade the application to the last 9.x minor first. V10 migrates from that minor only; the migration layer lives through 10.x and leaves in 11.0.
 - V10 needs JDK 21, Kotlin with KSP, and Jackson 3 (`tools.jackson`) in domain code that touches JSON.
+- V10 builds with **Gradle only** (decision D239 ②): models and the Manifest are bound at build time by KSP and the Gradle plugin's Manifest tasks, which have no Maven counterpart. A 9.x service built with Maven moves its build to Gradle as part of the migration, or stays on 9.x; say which before any source rewrite. A Java domain is supported with limits ([Java domains](#java-domains)).
 - Source migration is a semantic rewrite done here; stored history is converted by the data tool `wow-migrate-data`. Never hand-edit stored events to fit the new source.
 - Accept the source when the domain compiles under the V10 compiler and its domain tests pass. Accept the data only when every aggregate rebuilt by V10 matches its 9.x snapshot or each difference class is explained and signed off (`references/cutover-evidence.md`).
 - Each rewrite that changes an event's or command's name, context, revision or shape becomes an entry of `migration-map.json`, which the data tool checks against the event types in the 9.x store and the V10 Manifest before it imports anything; a 9.x event or command the store holds without an entry stops the import. Format 1 (`migration/migrate-data`, `MigrationMap`): `{"format": 1, "headers": {"<9.x request header>": "<V10 name>"}, "aggregates": [{"from": "<9.x contextName.aggregateName>", "to": "<V10 context.aggregate>", "commands": [{"from": "create_order", "to": "CreateOrder"}], "events": [{"from": "order_created", "fromRevision": "0.0.1", "to": "OrderCreated", "toRevision": 1, "upgrade": "upgradeOrderCreatedFrom1"}, {"from": "order_archived", "to": "OrderArchived", "retire": true}, {"from": "order_noted", "drop": true}]}]}`. A 9.x event the V10 aggregate no longer has (the 9.x `DroppedEvent`) is mapped with `"retire": true` to a name the aggregate lists in `@AggregateRoot(retiredEvents)` (see [Retired events](#retired-events-9x-droppedevent)): the record is imported under that name and skipped when V10 loads it, so its stream keeps its version, and the check fails when the name is not retired. `"drop": true` leaves the event out of its stream; the check refuses a map that would leave a stream with no event (a command whose only event is dropped), so prefer `retire` for deleted events. A V10 name without a dot is in the target aggregate's namespace; a system name (`wow.lifecycle.OwnerTransferred`) is written whole, with `"fields": {"toOwnerId": "ownerId"}` to rename a 9.x lifecycle event's fields. `toRevision` is the revision the stored 9.x shape has in V10 (1 unless the 9.x store holds a later 9.x shape); `upgrade` names the V10 upgrade function and is recorded, not run. Map every 9.x command the streams name (their `upstream_name`), not only renamed ones. When a rewrite renames a state property, add `"state": {"fields": {"<9.x name>": "<V10 name>"}}` to the aggregate's entry; list a property only one side has by design in `"state": {"ignore": ["<V10 name or dotted path>"]}` and report it as an explained difference. The data tool's `compare` reads them when it compares each 9.x snapshot with the rebuilt V10 state. Every 9.x `PrepareKey` the store holds needs an entry under the aggregate whose instances own its keys, `"reservations": [{"from": "<9.x PrepareKey name>", "namespace": "<V10 namespace>", "tenancy": "TENANT" | "SYSTEM", "ownerId": "<dotted path of the owner's id in the 9.x value>"}]`, with the namespace and tenancy the V10 decide function reserves the key with (see [Reserved keys](#reserved-keys-9x-preparekey)); the import reserves each confirmed 9.x key for its owner in V10, and a `PrepareKey` without an entry fails the check.
+- The rest of format 1 (`MigrationMap.kt` of `wow-migrate-data`; the tool refuses a property the format does not define):
+  - `"defaultCommand": "<V10 command>"` on an aggregate entry names the command of a 9.x stream that records no command name; without it such a stream fails the check.
+  - `"headers"` keeps 9.x stream headers as V10 request facts, every other header is dropped, and a 9.x framework header cannot be listed. The application id 9.x CoSec recorded (`app_id`) is the V10 standard fact of the same name (`RequestFacts.APP_ID`), so keep it as `"headers": {"app_id": "app_id"}` when the domain or its clients read it from history; 9.x `device_id` is V10's CoSec fact `CoSec-Device-Id`.
+  - `"subscriptions"`, at the top level beside `"aggregates"`: the 9.x processors whose failed executions the 9.x compensation service still holds, `[{"from": "<9.x contextName.processorName>", "to": "<V10 processor>", "functions": {"<9.x function>": "<V10 function or processor.function>"}}]`. Each unresolved execution of a mapped processor is imported as a parked entry of the V10 subscription `<to>.<function>` (`to` defaults to the 9.x processor name, a function to its own name, and a value with a dot is the whole subscription name). The check fails when that subscription is not in the Manifest, when the map does not import the aggregate the execution is about, or when the subscription reads another context's published stream, which parks by topic offset. The import runs only when the tool's configuration names the compensation database (`"compensation": {"database": "compensation_db", "service": "<V10 service>"}`). See [Compensation and failed executions](#compensation-and-failed-executions).
 - `wow-migrate-data` reads a 9.x **MongoDB** event store only, and the 9.x `PrepareKey`s kept in that MongoDB (`prepare_<name>` collections). History or `PrepareKey`s kept in a 9.x **Redis** store (`wow-redis`) cannot be imported yet: report it as `MISSING EVIDENCE` for the data migration and do not plan a cut-over on it. A cut-over without the reservations imported leaves every key 9.x holds free in V10, so uniqueness silently breaks. The tool writes nothing to the 9.x store unless told to; its tail needs a `(createTime, _id)` index on each `<aggregate>_event_stream` collection, which the operator creates (or lets the tool create with `source.createCommitTimeIndex`).
 - When a rewrite is uncertain, ask the user, or leave `TODO(wow-migrate)` in code that does not compile. Never guess a semantic rewrite into code that compiles.
 
@@ -76,7 +81,7 @@ V10 annotations keep the package `me.ahoo.wow.api.annotation`, so kept names nee
 | `@Event(revision = "0.0.1")` | `@Revision(n)` | Integer revision; a migrated 9.x shape is revision 1. |
 | `EventUpgrader` (SPI class) | `@Upgrade(event = X::class, from = n)` on a function | See [Events](#events). |
 | none | `@Alias("OldName")` | Former names of a command or event, for later renames. |
-| none | `@ErrorCode(description, status = 422)` | On a `const val` rejection code. |
+| none | `@ErrorCode(description, status = 422)` | On a `const val` rejection code (in Java, a `static final String` field). |
 | `@StatelessSaga` | `@Saga` | See [Sagas, projections, reactors](#sagas-projections-reactors). |
 | `@ProjectionProcessor` | `@Projection` | Same. |
 | `@EventProcessor` | `@Reactor` | Same. |
@@ -91,7 +96,8 @@ V10 annotations keep the package `me.ahoo.wow.api.annotation`, so kept names nee
 | `@AggregateRoute`, `@CommandRoute` (`PathVariable`, `HeaderVariable`) | Removed | Routes come from the Manifest. |
 | `@AggregateOwner(OwnerPolicy.*)`, `@Spaced` | Removed; `@AggregateRoot(ownership = Ownership.OWNER \| TENANT)` | Owner and space come from the principal. `OwnerPolicy.ALWAYS` (and no policy) is `Ownership.OWNER`, the default: an owner-level caller reads and writes only its own. A resource 9.x kept under one reserved owner for the whole tenant (such as `(shared)`) is `Ownership.TENANT`: no owner recorded, every caller of the tenant reads it, writes guarded by the host's `CommandAuthorizer`. See [Ownership and owner moves](#ownership-and-owner-moves). |
 | `@VoidCommand`, `@Order`, `@EntityObject`, `@ValueObject`, `@Generated` | Removed | No counterpart; drop them. |
-| `@QueryReference`, other `api.query.annotation` | Not in V10 yet | Drop and report; the query protocol moves to `wow-query-api`. |
+| `@QueryReference`, `@QueryAlias`, `@Sensitive` (with `Mask`), `@QueryTemporal`, `@QueryDuration`, `@QueryDecimal`, `@QueryMoney` | Same names and package, `me.ahoo.wow.api.query.annotation`, in `wow-query-api` | Keep them; add `implementation("me.ahoo.wow:wow-query-api")` to the module that declares them (the kernel does not bring it). The Gradle plugin writes them into the state's schema as `x-wow-*` keywords, which the query admission, masking and descriptors read. They target fields and getters; their KDoc writes `@field:QueryAlias(...)` on Kotlin properties. |
+| none | `@QueryIndex(name, on, with)` | New in V10: declares a query index on a state property, or on the state class with `on`; the backend creates it as `wow.query.index.ddl` (`auto`, `validate`, `none`) says. Add one where a 9.x deployment had a hand-made index on the snapshot collection, and report it. |
 | `@Tag`, `@Schema(name)` (swagger) | Not read | Schemas come from Jackson introspection at build time. |
 
 ## Command bodies carry no identity
@@ -148,7 +154,13 @@ Events lose identity fields the same way: the 9.x `OrderCreated.orderId` is now 
 
 `Command<X>` is erased on the JVM: two functions `onCommand(command: Command<A>)` and `onCommand(command: Command<B>)` of one aggregate do not compile (platform declaration clash). Name each such function after its command (`onCreate`, `onSave`) and annotate it `@OnCommand`; overloads that take the bodies themselves (`onCommand(command: A)`) keep the one name.
 
-A request fact a 9.x handler read from `CommandMessage.header` (an application id, say) reaches `command.headers` only when the host lists the request header in `wow.http.request-facts`, under the name listed there; a 9.x `CommandMessage.aggregateId.tenantId` is `command.ref.tenantId`, the authenticated user is `command.operator?.id` (null for an anonymous caller).
+Request facts a 9.x handler read from `CommandMessage.header`:
+
+- **The application id** (9.x `app_id`, which CoSec's `CoSec-App-Id` request header set) is the standard request fact `app_id` (`RequestFacts.APP_ID`, decisions D232, D236): read `command.headers[RequestFacts.APP_ID]`. The edge records it from the caller its `CallerResolver` authenticated (`Caller.app`), never from a request header, so it cannot be listed in `wow.http.request-facts`. With CoSec (`wow-cosec`) it is recorded only when CoSec authorized the request by that application's roles; a service behind a gateway in CoSec's inject mode records the injected application only with `wow.cosec.trust-injected-app: true` (default false). A command a saga, an `@OnRejected` or `@OnCommitted` handler or a timer derives inherits it (`RequestFacts.PROPAGATED`), as 9.x's `CoSecMessagePropagator` propagated it. An ABAC rule or query policy that read the 9.x header reads `Caller.app` instead.
+- `remote_ip` and `user_agent` are standard facts too, on the public port only, and are not propagated.
+- **Any other header** reaches `command.headers` only when the host lists it in `wow.http.request-facts`, under the name listed there (CoSec's `CoSec-Device-Id` is listed for you when CoSec is wired).
+
+A 9.x `CommandMessage.aggregateId.tenantId` is `command.ref.tenantId`; the authenticated user is `command.operator?.id` (null for an anonymous caller).
 
 Before, `Order.onCommand(CreateOrder)` in 9.x:
 
@@ -496,7 +508,17 @@ Routes of the 9.x example, from its generated OpenAPI, next to its V10 port's (c
 | `GET /tenant/{tenantId}/owner/{ownerId}/sales-order/{id}/state/{version}` | `GET /example/order/{id}/state?version={version}` |
 | `MockVariableCommand` with path and header variables | No equivalent; dropped |
 
-9.x also served snapshot, event and state-event query, resend, regenerate and compensate routes per aggregate; their V10 counterparts arrive with the query and operations milestones, so check the pinned target and report each one a client uses.
+9.x also served query, resend, regenerate and compensation routes per aggregate. Their V10 counterparts, all from the Manifest and served by `wow-http` (verify each on the pinned target and report every one a client uses):
+
+| 9.x route | V10 |
+|---|---|
+| `POST {aggregate}/snapshot/single`, `list`, `paged`, `cursor`, `count`, `aggregation` (and their `/state` variants) | `POST /{context}/{aggregate}/snapshot/query`, the operation in the body's `kind`: `single`, `list`, `paged`, `cursor`, `count` or `aggregate`, beside the query's own fields (`filter`, `sort`, `projection`, …); `GET` of the same path answers the model's capability descriptor (9.x `{aggregate}/snapshot/schema`, which needs no refresh: the schema comes from the Manifest). A list answers a stream with `Accept: text/event-stream`. There is no `/state` variant: the record is the snapshot, its state under `state` (see [Queries](#queries)) |
+| `POST {aggregate}/event/list`, `paged`, `cursor`, `count`, `aggregation`; `GET …/{id}/event/{headVersion}/{tailVersion}` | `POST /{context}/{aggregate}/events/query` (decision D235): one record per committed event stream (`aggregateId`, `version`, `commitTime`, `commandType`, `requestId`, `operator`, `events: [{name, revision, body}]`), so `count` counts commits; filter `aggregateId` and a `version` range for one aggregate's streams; an event condition is an element match on `events`, and per-event analytics expand it in an `aggregate` query (`expand("events")`) |
+| `GET …/{id}/state/tracing` | `GET /{context}/{aggregate}/{id}/state/trace`; a past state is `GET …/{id}/state?version=` or `?at=` |
+| `PUT …/{id}/snapshot` (regenerate), `PUT …/snapshot/{afterId}/{limit}` (batch regenerate) | `POST /{context}/snapshot/{aggregate}/wow.snapshot.rebuild` (decision D172) with `{"ids": [...]}`: rebuilds those aggregates' snapshots from the log in the background (a bounded list of ids per request, `SnapshotRebuilds.MAX_IDS`; no "after id" sweep) |
+| `POST …/state/{afterId}/{limit}` (state-event resend), `PUT …/{id}/{version}/compensate` (re-dispatch one version) | No targeted resend or replay: deferred to 10.x (09 §17 G-9); report it. A version whose handling failed is a parked entry, resumed under `/wow/ops/parked` |
+| The 9.x compensation service's routes and dashboard | The node's parked entries under `/wow/ops/parked` (`wow.ops.enabled: true`), see [Compensation and failed executions](#compensation-and-failed-executions) |
+| Datasets (`wow-query` dataset routes) | `POST /wow/dataset/{context}/{dataset}/query` and its `GET`; `GET /wow/dataset` lists those the caller sees |
 
 Read the 9.x paths from the application's generated 9.x OpenAPI, not from annotations; every client, gateway rule and CoSec policy that names a 9.x path must change.
 
@@ -565,7 +587,16 @@ Kotlin callers of 9.x `CommandGateway` move to the V10 `CommandGateway` (`me.aho
 
 ## Tests
 
-Rewrite `AggregateSpec<A, S>({ on { ... } })` to the functional DSL on the generated model: `given` events, `whenCommand` with an optional `scope`, request-fact `headers` (9.x `whenCommand(command, header, ownerId)`) and `operator`, then `expectEvents`, `expectRejected(code)`, `expectState`, `expectScope`. Keep every 9.x scenario; add one for each new rejection code, for the kernel's scope guard where an ownership policy was removed, and for each upgrade function. 9.x `givenState(state, version)` stays `givenState`; `ref`/`fork` stay `ref(name)` and `fork(name, from)`; `expectError` by exception type is `expectError<T>()`, and an error code is `expectRejected(code)`. 9.x `SagaSpec` becomes `sagaSpec(<saga>Handlers(Dependencies.of(…))) { whenEvent(stateEvent(…)) { expectCommand… } }`.
+Rewrite `AggregateSpec<A, S>({ on { ... } })` to the functional DSL on the generated model: `given` events, `whenCommand` with an optional `scope`, request-fact `headers` (9.x `whenCommand(command, header, ownerId)`) and `operator`, then `expectEvents`, `expectRejected(code)`, `expectState`, `expectScope`. Keep every 9.x scenario; add one for each new rejection code, for the kernel's scope guard where an ownership policy was removed, and for each upgrade function. 9.x `givenState(state, version)` stays `givenState`; `expectError` by exception type is `expectError<T>()`, and an error code is `expectRejected(code)`. 9.x `SagaSpec` becomes `sagaSpec(<saga>Handlers(Dependencies.of(…))) { whenEvent(stateEvent(…)) { expectCommand… } }`.
+
+Forks and test trees (decision D245):
+
+| 9.x | V10 |
+|---|---|
+| `ref("name")` on a verified stage | `ref("name")` in the spec: marks the current point |
+| `fork("name") { … }` after `expect…` (9.x `VerifiedStage.fork`) | `fork("name") { … }` inside the `whenCommand(…) { … }` checks, or `fork(name, from = "ref") { … }` in the spec |
+| A fork replayed the steps before it | A fork starts on a copy of everything the spec holds (log, given state, timers, reservations, ids, clock): nothing before it runs again, so a mocked domain service is not called again for the prefix and its call counts and state stay as the prefix left them. Rewrite assertions that counted the replayed calls |
+| `AggregateSpec` as a JUnit test factory, one test per step and fork | `@TestFactory fun x() = aggregateSpecTests(model) { … }` returns `Stream<DynamicNode>`: each step a test, each fork a container, a failing fork leaves the others running. `aggregateSpec(model) { … }` stays one test. `sagaSpecTests`, `projectionSpecTests` and `reactorSpecTests` do the same for processors, which fork too (9.x's `SagaSpec` could not) |
 
 ```kotlin
 class CartSpec {
@@ -577,6 +608,72 @@ class CartSpec {
     }
 }
 ```
+
+## Queries
+
+9.x queried snapshots through `SnapshotQueryService`/`SnapshotQueryGateway<S>` (`wow-query`), with Reactor results and typed `MaterializedSnapshot<S>`. V10 has one query engine for every model (decisions D126, D235):
+
+| 9.x | V10 |
+|---|---|
+| `me.ahoo.wow.query.dsl.singleQuery { condition { … } }`, `listQuery`, `pagedQuery`, `condition { }` | `me.ahoo.wow.api.query.dsl.singleQuery { filter { … } }`, `listQuery`, `pagedQuery`, `cursorQuery`, `countQuery`, `aggregation` in `wow-query-api`; the 9.x `Condition` protocol is gone (decision D125): every `condition { }` becomes `filter { }` (`FilterExpression`) |
+| `.query(snapshotQueryGateway)` returning `Mono<MaterializedSnapshot<S>>`, `.toState()` | The aggregate type's `QueryGateway` (`me.ahoo.wow.query`, in `wow-query`): `suspend single(query, caller)`, `list(…)` as a `Flow`, `paged`, `cursor`, `count`, `aggregate`. Records are `ObjectNode`s (the state under `state`); read a typed state with `WowJson.mapper.treeToValue(record["state"], OrderState::class.java)` |
+| A gateway bean injected per aggregate | The host's `HttpQueries` bean (`wow-http`): `snapshots(type)` and `events(type)` give the type's gateway, null when no backend serves it. Look it up lazily (`ObjectProvider<HttpQueries>`), as the V10 view store does (`platform/view-store`, `QueriedBoardReferences`) |
+| The Reactor `ContextView` that carried the caller | An explicit `QueryCaller`: the HTTP edge passes the request's; in-process code passes `QueryCaller.IN_PROCESS`, which is not scoped to a tenant, so filter the tenant (`tenantId(…)`) and owner yourself |
+| A snapshot on the memory backend | Not queried unless `wow.query.memory.enabled` is on; PostgreSQL and MongoDB snapshots are |
+
+Snapshot record fields (`SnapshotProperties`): `tenantId`, `aggregateId`, `version`, `ownerId`, `spaceId` (null when unset, 9.x wrote empty strings), `deleted`, `tags`, `firstEventTime`, `lastEventTime` (9.x `eventTime`), `operator` and `firstOperator` as `{id, tenantId, crossScope}` (9.x strings: filter `operator.id`), `schedules` and `state`. 9.x `eventId`, `snapshotTime`, `contextName` and `aggregateName` have no record field; a client that read them changes. The compiler generates a `<State>Properties` object (`OrderStateProperties.STATE__STATUS`) for each state when the module has `wow-query-api` on its class path.
+
+A `SnapshotQueryBackend`, `QueryService` or query SPI implementation of 9.x has no one-to-one port: V10 backends implement `QueryBackend` of `wow-query`; ask before porting one.
+
+## Request headers
+
+V10 takes a command's request id and space from `Wow-Request-Id` and `Wow-Space` alone ([REST clients](#rest-clients)). The 9.x request-header aliases (`IdentityHeaderAliases`: CoSec's `CoSec-Request-Id` and `CoSec-Space-Id`, read when `Command-Request-Id` or `Wow-Space-Id` was absent) are not carried over (09 §17 G-13): a gateway in front of the service rewrites an alias to `Wow-Request-Id` or `Wow-Space`. Report every alias a client sends.
+
+## Compensation and failed executions
+
+The 9.x compensation service (`wow-compensation-*` and its dashboard) is retired, not ported: a V10 node keeps its own failure ledger (decisions D14, D141). A subscription handler that fails retries in process (`@Retry`, `wow.subscription.retry.*`), then parks its aggregate; a parked entry is retried on the long horizon by `wow.subscription.parked.*` (per subscription `wow.subscriptions.[<processor.function>].parked.max-retries`, `min-backoff`, `execution-timeout`, the 9.x retry spec), and an operator acts on it:
+
+- HTTP, with `wow.ops.enabled: true`: `GET /wow/ops/parked?subscription=&after=&limit=`, one entry at `GET /wow/ops/parked/{subscription}/{context}/{aggregate}/{tenant}/{id}`, and `POST` of `{entry}/resume`, `{entry}/skip`, `{entry}/mark-recoverable` and `{entry}/apply-retry-spec` (9.x `MarkRecoverable` and `ApplyRetrySpec`).
+- Authorization: each action is authorized by the host's `CommandAuthorizer` (CoSec's, with `wow.cosec.authorizer.enabled`) as a system command on the parked aggregate, and reads as `wow.ledger.Read`; without an authorizer every action and read is refused.
+- Notifications: `wow.ops.webhook.url`, `format` (`generic` or `wecom`), `events` (`parked`, `exhausted`) replace the 9.x compensation notifications.
+- A console across services: the V10 ops service (`platform/ops`) reads each service's ledger, which a service publishes with `wow.ops.publish.enabled: true`.
+
+The 9.x executions still unresolved are imported by `wow-migrate-data` through the map's `subscriptions` (see [Preconditions and gates](#preconditions-and-gates)); a 9.x execution of a processor the map does not list is not imported, so list every processor that still has one, or record the decision to drop them with the user.
+
+## Peer contexts
+
+A context that sends commands to, or reads the published streams of, another context needs that context's contract. In V10 (decision D234) the contract travels in the other context's **api jar** (`META-INF/wow/contract.json`, which the Gradle plugin assembles from the domain module that declares the api module in `api(project(…))`): depend on the peer's `*-api` artifact and nothing else. There is no `wowPeers` configuration, peer Manifest file or service name to configure; a target older than D234 needs it, so check. A 9.x service that called another service's commands through `wow-apiclient` or a hand-written client keeps its transport choice ([Clients of other services](#clients-of-other-services)); only sagas send derived commands through Kafka (`wow.<target>.commands`) or, with `SagaContext.call`, synchronously (decision D193).
+
+## Clients of other services
+
+`wow-apiclient` (CoApi interfaces of a service's routes) is dropped (decision D187). TypeScript clients are generated from the V10 Manifest (`wow-generator`, rewritten with the `wow-client` Skill). A Kotlin or Java caller has no generated client: write a `WebClient` (or any HTTP client) against the Manifest's routes, or generate one from the service's OpenAPI document (`GET /wow/openapi`, or the plugin's `generateWowOpenApi`); a saga uses `SagaContext.call` or derives the command. Report each 9.x `@CoApi` interface and what replaces it.
+
+## JSON
+
+9.x `JsonSerializer` (`me.ahoo.wow.serialization`) became `WowJson.mapper` (`me.ahoo.wow.spi.json.WowJson`, in `wow-spi`, which the kernel brings): `toJsonString()`, `toObject()` and `toJsonNode()` become `WowJson.mapper.writeValueAsString`, `readValue`, `readTree`, `treeToValue`. It is configured differently, and stored and sent data depends on it (decisions D48, D122):
+
+- It registers the Kotlin module only and never discovers modules on the class path: a 9.x Jackson module registered by SPI (joda-money, a custom `Module`) is not applied. Give such a type its own `@JsonSerialize`/`@JsonDeserialize` or `@JsonValue`/`@JsonCreator`, or a plain field type, and cover it with a round-trip test; how the Manifest schema describes such a type was not verified here.
+- 9.x read and wrote fields of any visibility; V10 uses Jackson's default visibility, so a property without a public getter (a Java field with neither getter nor annotation) is left out of events, state and snapshots. Check each event and state class.
+- Unknown properties are ignored, and decimals read into untyped values stay `BigDecimal`.
+
+## Datasets
+
+9.x `me.ahoo.wow.query.schema.QueryDataset` is `me.ahoo.wow.query.dataset.QueryDataset` in V10 `wow-query`, an `@ExperimentalWowApi` (opt in with `@OptIn(ExperimentalWowApi::class)`): named by an `AggregateType` (`QueryDataset.nameOf("<context>.<dataset>")`) instead of a `MaterializedNamedAggregate`, declared with `QueryDataset.of(name) { … }` or a dataset file (`QueryDatasetFiles`: `<config directory>/wow/dataset/`, then `META-INF/wow/dataset/` on the class path). Its scope names the tenant column or declares the dataset platform-level. Datasets are served under `/wow/dataset` ([Routing](#routing)); a 9.x dataset backend other than ClickHouse needs a `DatasetQueryBackendFactory`.
+
+## Custom message functions
+
+A 9.x `MessageFunction` written by hand or registered at runtime (a function registrar entry, an `EventProcessor` built without annotations) has no V10 counterpart: subscriptions come from annotated processors, which the compiler turns into `ProcessorBinding`s and the Manifest's `subscriptions`. Rewrite each as a `@Projection`, `@Reactor` or `@Saga` class ([Sagas, projections, reactors](#sagas-projections-reactors)); a handler set only known at runtime is a question for the user.
+
+## Java domains
+
+A domain written in Java migrates like a Kotlin one, within these limits (decision D229 G-8; a Java facade and a blocking bridge are planned for 10.x):
+
+- The module applies `kotlin("jvm")` beside `id("me.ahoo.wow")`, even with Java sources only: KSP runs in the Kotlin compilation and the generated models are Kotlin. The plugin fails a module that applies it without the Kotlin JVM plugin.
+- Decide functions are plain Java methods returning an event or a `Decision` built with the statics `Decision.events(…)`, `Decision.reject(code, message)` and `Decision.NoOp.INSTANCE`; `@OnCommand(produces = …)` names the events of a `Decision`.
+- `@ErrorCode` goes on a `public static final String` field initialized with a string literal.
+- The `suspend` functions of the API cannot be called from Java: `DecideScope.reserve` (a decide function that reserves keys is Kotlin) and `SagaContext.call` (a Java saga derives commands instead).
+- The test DSL is Kotlin only: the domain's tests are Kotlin (`aggregateSpec`, `sagaSpec`) over the generated models. 9.x Java tests on `AggregateVerifier` are rewritten in Kotlin.
+- State and event classes need public getters, or record components, to be serialized ([JSON](#json)).
 
 ## Known gaps
 
@@ -593,12 +690,18 @@ class CartSpec {
 | `CommandValidator.validate()` | No V10 counterpart in the domain API; Jakarta at the edge or a decide rejection. The example's China-only address rule was dropped. |
 | `@Order`, swagger `@Tag`/`@Schema` | No equivalent; dropped. |
 | `@EntityObject`, `@ValueObject`, `Identifier` | Removed. |
-| `@QueryReference` and other query annotations | No V10 counterpart yet; dropped. |
 | `ErrorInfo` on events | Plain data. |
 | Private `onSourcing`; events without one; `lateinit` state | Must be rewritten (see [State classes](#state-classes)). |
 | Test DSL artifact | `wow-test` (`:test-dsl`), the V10 test DSL (`aggregateSpec`, `sagaSpec`); the eShop's domain tests use it. |
+| A Maven build | Not supported (decision D239 ②): move the build to Gradle or stay on 9.x. |
+| Java tests (`AggregateVerifier`), Java calls of `suspend` APIs (`DecideScope.reserve`, `SagaContext.call`) | Kotlin only until 10.x ([Java domains](#java-domains)). |
+| Request-header aliases (`CoSec-Request-Id`, `CoSec-Space-Id`) | Dropped (G-13); a gateway rewrites them ([Request headers](#request-headers)). |
+| `wow-apiclient` | Dropped (D187); TypeScript clients are generated, JVM callers write their own ([Clients of other services](#clients-of-other-services)). |
+| Jackson modules discovered on the class path, any-visibility fields | Not applied by `WowJson` ([JSON](#json)). |
+| State-event resend and per-version re-dispatch | None until 10.x (G-9); parked entries are resumed instead. |
+| A `MessageFunction` registered at runtime | No counterpart; an annotated processor ([Custom message functions](#custom-message-functions)). |
 
-Gaps the port reported that later V10 work closed, so do not report them as missing: qualifying an injected service (`@Name` on the parameter), declaring `produces` for functions returning `Decision` (`@OnCommand(produces)`), declaring rejection codes in the Manifest (`@ErrorCode`), mounted commands (`@MountedCommand` with a `CommandTransformer`, D182; the 9.x `CommandBuilderRewriter` maps to the transformer too), ids in decide (`DecideScope.ids`, D171), `wow-models` (ported, with `Tree`, D187), tags derived from state (`@Tags`, D220), deleted events (`retiredEvents`, D219), `@Blocking` on command functions (D227), saga, projection and reactor bindings (generated, D149) and `PrepareKey` data (imported by `wow-migrate-data`, D227). Verify each against the pinned target.
+Gaps the port reported that later V10 work closed, so do not report them as missing: qualifying an injected service (`@Name` on the parameter), declaring `produces` for functions returning `Decision` (`@OnCommand(produces)`), declaring rejection codes in the Manifest (`@ErrorCode`), mounted commands (`@MountedCommand` with a `CommandTransformer`, D182; the 9.x `CommandBuilderRewriter` maps to the transformer too), ids in decide (`DecideScope.ids`, D171), `wow-models` (ported, with `Tree`, D187), tags derived from state (`@Tags`, D220), deleted events (`retiredEvents`, D219), `@Blocking` on command functions (D227), saga, projection and reactor bindings (generated, D149), `PrepareKey` data (imported by `wow-migrate-data`, D227), the query field annotations (`wow-query-api`), the query, events, dataset and trace routes (D127, D235), the application id as a request fact (D232, D236), the failure ledger with its operator routes and the import of unresolved 9.x executions (D141, D229 G-1), peer contracts in api jars (D234), and forks and test trees in the test DSL (D245). Verify each against the pinned target.
 
 ## Completion
 
