@@ -63,6 +63,7 @@ import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.runtime.state.KernelStateReads
+import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.state.StateReads
 import me.ahoo.wow.runtime.store.BackendSelection
 import me.ahoo.wow.runtime.store.StoreLayout
@@ -517,12 +518,13 @@ class WowAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @InternalWowApi
-    fun wowStateReads(node: ServiceNode, backends: HostBackends): StateReads {
+    fun wowStateReads(node: ServiceNode, backends: HostBackends, gate: ObjectProvider<ReplayGate>): StateReads {
         val opened = backends.contexts
         val contexts = node.contexts.mapNotNull { (name, context) ->
             opened[name]?.snapshots?.let { name to KernelStateReads.ContextReads(context.kernel, it) }
         }.toMap()
-        return KernelStateReads(node.registry, contexts)
+        // The query plane's gate runs a state read's replay under its log store's bulkhead (decision D246 ⑥).
+        return KernelStateReads(node.registry, contexts, gate.getIfAvailable { ReplayGate.OPEN })
     }
 
     @Bean

@@ -72,6 +72,25 @@ class PostgresQueryHostTest {
     }
 
     @Test
+    fun `a state without a snapshot should be read from the log on PostgreSQL (decision D246)`() {
+        val opened = host.post("/bank/account/open-account", """{"owner":"log-pat"}""")
+        opened.status.assert().isEqualTo(200)
+        val id = opened.body!!["ref"]["id"].asString()
+        host.post("/bank/account/$id/deposit", """{"amount":4}""").status.assert().isEqualTo(200)
+        host.context.getBean(DataSource::class.java).connection.use { connection ->
+            connection.prepareStatement("DELETE FROM wow_snapshot__bank__account WHERE aggregate_id = ?").use {
+                it.setString(1, id)
+                it.executeUpdate().assert().isEqualTo(1)
+            }
+        }
+        val state = host.get("/bank/account/$id/state")
+        state.status.assert().isEqualTo(200)
+        state.headers.eTag.assert().isEqualTo("\"2\"")
+        state.body!!["state"]["balance"].asLong().assert().isEqualTo(4)
+        host.get("/bank/account/none-$id/state").status.assert().isEqualTo(404)
+    }
+
+    @Test
     fun `the snapshots should be queried over HTTP on PostgreSQL`() {
         host.context.getBean(HttpQueries::class.java).snapshots(account).assert().isNotNull()
         val ids = listOf("pia", "ola").map { owner ->

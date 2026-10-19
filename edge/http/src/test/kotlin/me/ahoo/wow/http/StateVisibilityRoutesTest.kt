@@ -105,8 +105,10 @@ class StateVisibilityRoutesTest {
             QueryRoutes.EVENTS,
             tenantLevel,
         )
-        // No snapshot is written: the state the log holds decides (review R2.3-6).
-        node.http.get("/shop/cart/c-two/state", "admin", tenantLevel).status.assert().isEqualTo(404)
+        // No snapshot is written: the state the log holds decides (review R2.3-6), for the state read too (D246).
+        node.http.get("/shop/cart/c-two/state", "admin", tenantLevel).status.assert().isEqualTo(200)
+        node.http.get("/shop/cart/c-two/state", "alice", tenantLevel).assertNotFound()
+        node.http.get("/shop/cart/c-one/state", "alice", tenantLevel).status.assert().isEqualTo(200)
         events("c-one", "alice").body!!.size().assert().isEqualTo(1)
         events("c-two", "alice").body!!.size().assert().isEqualTo(0)
         events("c-two", "admin").body!!.size().assert().isEqualTo(1)
