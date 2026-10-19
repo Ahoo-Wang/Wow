@@ -114,6 +114,23 @@ class ClusterTokenTest {
         }
     }
 
+    @Test
+    fun `a host's signals carry the cluster token to the members of its cluster alone (R2_3-1)`() {
+        startHost("wow.internal.token" to CURRENT).use { host ->
+            val node = host.node
+            val deadline = System.currentTimeMillis() + 10_000
+            fun members() = node.contexts.values.flatMap { it.ownership.routes.members }.map { it.address }
+            while (members().isEmpty() && System.currentTimeMillis() < deadline) {
+                Thread.sleep(20)
+            }
+            val members = NodeMembers { node }
+            members().forEach { address -> members.contains(address).assert().isTrue() }
+            members().assert().isNotEmpty()
+            members.contains("attacker.example:80").assert().isFalse()
+            NodeMembers { null }.contains(members().first()).assert().isFalse()
+        }
+    }
+
     private companion object {
         const val CURRENT = "cluster-token-current-0123456789abcdef"
         const val PREVIOUS = "cluster-token-previous-0123456789abcdef"

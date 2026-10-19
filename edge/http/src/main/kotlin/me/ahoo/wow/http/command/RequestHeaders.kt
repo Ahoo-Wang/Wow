@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.http.command
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.http.WowHeaders
+import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
@@ -81,6 +83,11 @@ internal class RequestHeaders(private val statuses: ErrorStatuses) {
      * (decision D173). On the internal port every request is a call: one without it, or from a caller that is not a
      * [service][Caller.service] identity, is answered 403 too. One that does not parse is a problem with
      * [FrameworkCodes.MALFORMED]; null on the public port without it.
+     *
+     * A call's wait context goes on only when its origin is a node of the calling service (review R2.3-1): the target
+     * sends the wait's signals, with a credential, to the origin's address, so a caller must not point them at another
+     * service's nodes, this one's among them, or at an address of its choosing in their name. A wait of another
+     * origin is dropped, logged: the command runs, and the waiter, if any, times out instead of seeing its signals.
      */
     fun call(request: ServerRequest, caller: Caller, internal: Boolean): CallContext? {
         val value = request.header(WowHeaders.CALL)
@@ -95,7 +102,17 @@ internal class RequestHeaders(private val statuses: ErrorStatuses) {
             else -> null
         }
         refusal?.let { throw problem(FrameworkCodes.AUTH_FORBIDDEN, it) }
-        return parseCall(checkNotNull(value))
+        val call = parseCall(checkNotNull(value))
+        val wait = call.wait ?: return call
+        val service = CallPermits.serviceOf(caller)
+        if (wait.origin.service == service) {
+            return call
+        }
+        logger.warn {
+            "Dropped the wait ${wait.waitId} of call ${call.commandId} from service $service: its origin is a node " +
+                "of service ${wait.origin.service}, not of the caller's (review R2.3-1)."
+        }
+        return CallContext.of(call.commandId, call.tenantId, call.scope, call.causation, call.operator)
     }
 
     private fun parseCall(value: String): CallContext = try {
@@ -114,6 +131,10 @@ internal class RequestHeaders(private val statuses: ErrorStatuses) {
     private fun problem(code: String, detail: String) = ProblemException(statuses.problemOf(code, detail))
 
     private fun ServerRequest.header(name: String): String? = headers().firstHeader(name)?.trim()
+
+    private companion object {
+        private val logger = KotlinLogging.logger {}
+    }
 }
 
 /** The media types a public route answers in. */

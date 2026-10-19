@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.viewstore.server.system
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.flow.toList
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.dsl.listQuery
@@ -63,7 +64,15 @@ class StoredSystemViews(
             }
             limit(MAX_STORED)
         }
-        return gateway.list(query, QueryCaller.IN_PROCESS).toList().map { it.toSystemView() }
+        return gateway.list(query, QueryCaller.IN_PROCESS).toList().mapNotNull { node ->
+            // One stored view that no longer passes the checks is left out, not every tenant's list (review R2.3-7).
+            runCatching { node.toSystemView() }.onFailure { failure ->
+                logger.warn(failure) {
+                    "Stored system view [${node["aggregateId"]?.asString()}] of $appId is not a valid system view; " +
+                        "it is left out."
+                }
+            }.getOrNull()
+        }
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -83,5 +92,6 @@ class StoredSystemViews(
         /** The most stored system views one application lists, the client's list budget: the oldest are served. */
         const val MAX_STORED: Int = 1000
         private val VIEW = AggregateType(ViewStoreContext.NAME, ViewStoreContext.VIEW)
+        private val logger = KotlinLogging.logger {}
     }
 }

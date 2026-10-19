@@ -139,6 +139,20 @@ abstract class ViewStoreContract {
     }
 
     @Test
+    fun `a write that acts as no owner should reach no view (R2_3-2)`() {
+        // The kernel checks only the parts of the scope a command has (D189): without the authorizer's rule, the
+        // anonymous caller, whose scope has no owner, would rename or delete the shared view of its tenant.
+        val shared = create(CAROL.shared, definition())
+        store.post("/view-store/view/$shared/rename-view", """{"title":"Anyone's"}""", Who.ANONYMOUS)
+            .assertProblem(FORBIDDEN, "wow.auth.forbidden")
+        store.delete("/view-store/view/$shared", Who.ANONYMOUS).assertProblem(FORBIDDEN, "wow.auth.forbidden")
+        val mine = create(ALICE, definition())
+        store.post("/view-store/view/$mine/rename-view", """{"title":"Anyone's"}""", Who.ANONYMOUS)
+            .assertProblem(FORBIDDEN, "wow.auth.forbidden")
+        store.post("/view-store/view/$shared/rename-view", """{"title":"Renamed"}""", CAROL.shared).assertOk()
+    }
+
+    @Test
     fun `a view's owner should change only by sharing or claiming`() {
         val id = create(ALICE, definition())
         store.post("/view-store/view/$id/wow.lifecycle.transfer-owner", """{"ownerId":"bob"}""", ALICE)
@@ -185,8 +199,9 @@ abstract class ViewStoreContract {
             .assertProblem(BAD_REQUEST, "wow.query.malformed")
         store.post(VIEWS, """{"definitionId":"$definition","title":"Open","config":{"kind":"chart"}}""", ALICE)
             .assertProblem(BAD_REQUEST, ViewStoreRejections.INVALID)
+        // A write that acts as no owner is refused before the aggregate sees it (review R2.3-2).
         store.post(VIEWS, """{"definitionId":"$definition","title":"Nobody's","config":$RECORD}""", Who.ANONYMOUS)
-            .assertProblem(BAD_REQUEST, ViewStoreRejections.OWNER_REQUIRED)
+            .assertProblem(FORBIDDEN, "wow.auth.forbidden")
     }
 
     @Test
