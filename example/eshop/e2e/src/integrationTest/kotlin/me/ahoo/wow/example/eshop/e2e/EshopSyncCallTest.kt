@@ -78,6 +78,8 @@ class EshopSyncCallTest {
                 result["hop"]["stage"].asString().assert().isEqualTo("COMMITTED")
                 result["ref"]["id"].asString().assert().isEqualTo("alice-1")
 
+                // The state read is the snapshot's, written after the COMMITTED answer.
+                eventually("alice-1 submitted") { ordering.ownerOf("alice-1") != null }
                 ordering.ownerOf("alice-1").assert().isEqualTo("alice")
                 val submitted = ordering.submitCommits("alice-1").single()
                 submitted["operator"]["id"].asString().assert().isEqualTo("alice")
@@ -174,6 +176,8 @@ class EshopSyncCallTest {
                 TOKEN,
             )
             trusted.status.assert().describedAs(trusted.body).isEqualTo(OK)
+            // A call is answered at COMMITTED (D193); the state read is the snapshot's, written right after.
+            eventually("carol-1 submitted") { ordering.ownerOf("carol-1") != null }
             ordering.ownerOf("carol-1").assert().isEqualTo("carol")
         }
     }

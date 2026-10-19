@@ -181,12 +181,12 @@ class HostRefusalTest {
             "wow.internal.host" to "0.0.0.0",
             "wow.internal.token" to CLUSTER_TOKEN,
             "wow.backend" to "memory"
-        ).use { it.context.getBean(HostBackends::class.java).kind.assert().isEqualTo(BackendKind.MEMORY) }
+        ).use { it.context.getBean(HostBackends::class.java).type.assert().isEqualTo("memory") }
         SpringApplicationBuilder(HostTestApp::class.java)
             .properties(hostProperties + mapOf("wow.internal.host" to "0.0.0.0", "wow.internal.token" to CLUSTER_TOKEN))
             .profiles("dev")
             .run()
-            .use { it.getBean(HostBackends::class.java).kind.assert().isEqualTo(BackendKind.MEMORY) }
+            .use { it.getBean(HostBackends::class.java).type.assert().isEqualTo("memory") }
     }
 
     @Test

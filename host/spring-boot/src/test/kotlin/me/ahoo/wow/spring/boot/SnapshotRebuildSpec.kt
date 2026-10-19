@@ -47,11 +47,13 @@ import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotMaintenance
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotPlacement
+import me.ahoo.wow.runtime.store.StoreLayout
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
+import me.ahoo.wow.spi.store.Store
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import java.util.UUID
@@ -73,11 +75,11 @@ import me.ahoo.wow.manifest.Creation as ManifestCreation
  */
 abstract class SnapshotRebuildSpec {
     /** A new store named [name] of the backend; `a` holds the logs too. */
-    protected abstract fun store(name: String): HostStore
+    protected abstract fun store(name: String): Store
 
     private val context = "rebuild-" + UUID.randomUUID().toString().take(ID_LENGTH)
     private val type = AggregateType(context, COUNTER)
-    private val stores: Map<String, HostStore> by lazy { listOf(A, B).associateWith(::store) }
+    private val stores: Map<String, Store> by lazy { listOf(A, B).associateWith(::store) }
     private val channel = LoopbackClusterChannel()
     private val nodes = ConcurrentHashMap<String, ServiceNode>()
 
@@ -405,7 +407,7 @@ abstract class SnapshotRebuildSpec {
 
 /** [SnapshotRebuildSpec] in memory. */
 class MemorySnapshotRebuildTest : SnapshotRebuildSpec() {
-    override fun store(name: String): HostStore = MemoryStore(name)
+    override fun store(name: String): Store = MemoryStore(name)
 }
 
 /**
@@ -413,7 +415,7 @@ class MemorySnapshotRebuildTest : SnapshotRebuildSpec() {
  * as on a loaded machine, so no assertion may rely on `a` keeping up with `b` or with a wait it does not answer.
  */
 class SlowStoreSnapshotRebuildTest : SnapshotRebuildSpec() {
-    override fun store(name: String): HostStore = if (name != A) {
+    override fun store(name: String): Store = if (name != A) {
         MemoryStore(name)
     } else {
         MemoryStore(name) { SlowSaves(InMemorySnapshotStore()) }

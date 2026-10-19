@@ -395,6 +395,7 @@ public final class me/ahoo/wow/runtime/contract/ContractDirectory : me/ahoo/wow/
 	public fun <init> (Lme/ahoo/wow/manifest/Manifest;Ljava/util/List;Ljava/util/Set;)V
 	public synthetic fun <init> (Lme/ahoo/wow/manifest/Manifest;Ljava/util/List;Ljava/util/Set;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun aggregateOf (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/manifest/AggregateManifest;
+	public final fun aggregatesOf (Ljava/lang/String;)Ljava/util/List;
 	public final fun commandTypeOf (Ljava/lang/String;)Ljava/lang/String;
 	public final fun commandsOutside (Ljava/util/Set;)Ljava/util/Map;
 	public final fun contextOf (Ljava/lang/String;)Lme/ahoo/wow/manifest/ContextManifest;
@@ -815,7 +816,7 @@ public final class me/ahoo/wow/runtime/subscription/RetryPolicy {
 }
 
 public final class me/ahoo/wow/runtime/subscription/SubscriptionOptions {
-	public synthetic fun <init> (ILme/ahoo/wow/runtime/subscription/RetryPolicy;JJLme/ahoo/wow/runtime/subscription/RetryPolicy;Ljava/util/Map;Lme/ahoo/wow/runtime/subscription/ParkedRetryOptions;Ljava/util/Map;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (ILme/ahoo/wow/runtime/subscription/RetryPolicy;JJLme/ahoo/wow/runtime/subscription/RetryPolicy;Ljava/util/Map;Lme/ahoo/wow/runtime/subscription/ParkedRetryOptions;Ljava/util/Map;Lme/ahoo/wow/runtime/subscription/SystemicFailureOptions;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getCheckpointInterval-UwyO8pc ()J
 	public final fun getMaxInFlight ()I
@@ -825,6 +826,18 @@ public final class me/ahoo/wow/runtime/subscription/SubscriptionOptions {
 	public final fun getRetry ()Lme/ahoo/wow/runtime/subscription/RetryPolicy;
 	public final fun getStarts ()Ljava/util/Map;
 	public final fun getStopTimeout-UwyO8pc ()J
+	public final fun getSystemic ()Lme/ahoo/wow/runtime/subscription/SystemicFailureOptions;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/runtime/subscription/SystemicFailureOptions {
+	public synthetic fun <init> (IJJJILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFailingAggregates ()I
+	public final fun getInitialBackoff-UwyO8pc ()J
+	public final fun getMaxBackoff-UwyO8pc ()J
+	public final fun getWindow-UwyO8pc ()J
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

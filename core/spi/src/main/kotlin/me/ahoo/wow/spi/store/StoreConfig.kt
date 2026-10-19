@@ -1,0 +1,109 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.spi.store
+
+import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.WowSpi
+import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.log.TailPolling
+
+/**
+ * What a [StoreProvider] opens one store instance from (decision D177): the store's [name] and [type], how it manages
+ * the framework's schema ([ddl], `wow.stores.<name>.ddl` over `wow.ddl`), its own settings ([options]), how the tails
+ * of its logs poll ([polling], `wow.log.poll-interval`), the [service] whose failure ledger it keeps (the key of its
+ * entries, finding A2-13), and the application's [resources].
+ *
+ * Fields may be added (decision D216): the host builds it, so the constructor is internal to Wow; a provider's test
+ * builds one with [of].
+ */
+@WowSpi
+class StoreConfig @InternalWowApi constructor(
+    val name: String,
+    val type: String,
+    val ddl: StoreDdl = StoreDdl.AUTO,
+    val options: Map<String, String> = emptyMap(),
+    val polling: TailPolling = TailPolling.DEFAULT,
+    val service: String = "",
+    val resources: StoreResources = StoreResources.NONE,
+) {
+    init {
+        require(name.isNotBlank()) { "A store needs a name." }
+        require(type.isNotBlank()) { "A store needs a type." }
+    }
+
+    /** The configuration key of this store's settings, `wow.stores.<name>`, for a provider's failures to name. */
+    val key: String get() = "wow.stores.$name"
+
+    /** The setting [name] of [options], or null when it is not set or blank. */
+    fun option(name: String): String? = options[name]?.takeIf { it.isNotBlank() }
+
+    override fun toString(): String = "StoreConfig(name=$name, type=$type, ddl=$ddl, options=$options)"
+
+    companion object {
+        /** A configuration of the given fields; parameters added later come last, with a default. */
+        @JvmStatic
+        @JvmOverloads
+        fun of(
+            name: String,
+            type: String,
+            ddl: StoreDdl = StoreDdl.AUTO,
+            options: Map<String, String> = emptyMap(),
+            polling: TailPolling = TailPolling.DEFAULT,
+            service: String = "",
+            resources: StoreResources = StoreResources.NONE,
+        ): StoreConfig = StoreConfig(name, type, ddl, options, polling, service, resources)
+    }
+}
+
+/**
+ * The application's objects a store is opened over (a `DataSource`, a `MongoClient`): in the Spring Boot host, its
+ * beans.
+ */
+@WowSpi
+interface StoreResources {
+    /** Whether the application has an object of [type]. */
+    fun has(type: Class<*>): Boolean
+
+    /**
+     * The application's object of [type] that [name] names, else its only (or primary) one; fails naming [key], the
+     * setting that names it, when there is none.
+     */
+    fun <T : Any> resource(type: Class<T>, name: String?, key: String): T
+
+    companion object {
+        /** No resources: a store that needs none (memory), or a test's. */
+        @JvmField
+        val NONE: StoreResources = of(emptyMap())
+
+        /** The [objects] by name, each of its own class. */
+        @JvmStatic
+        fun of(objects: Map<String, Any>): StoreResources = object : StoreResources {
+            override fun has(type: Class<*>): Boolean = objects.values.any(type::isInstance)
+
+            override fun <T : Any> resource(type: Class<T>, name: String?, key: String): T {
+                val found = if (name.isNullOrBlank()) {
+                    objects.values.filter(type::isInstance).let {
+                        check(it.size == 1) { "$key is not set, and there is not exactly one ${type.simpleName}." }
+                        it.single()
+                    }
+                } else {
+                    checkNotNull(objects[name]?.takeIf(type::isInstance)) {
+                        "$key names $name, which is no ${type.simpleName}."
+                    }
+                }
+                return type.cast(found)
+            }
+        }
+    }
+}

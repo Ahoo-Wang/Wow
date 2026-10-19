@@ -105,6 +105,18 @@ fun rejectionContextOf(
     handler: RejectionBinding<*>,
     rejected: CommandRejected<*>,
     ids: Ids = IdGenerators.DEFAULT,
+): SagaContext = rejectionContextOf(handler, rejected, ids, CommandTypes.NONE)
+
+/**
+ * The context an `@OnRejected` handler gets for [rejected], as [rejectionContextOf] gives it, whose commands without a
+ * ref go to the aggregate type [commandTypes] assigns their class (decision D234 ⑤).
+ */
+@InternalWowApi
+fun rejectionContextOf(
+    handler: RejectionBinding<*>,
+    rejected: CommandRejected<*>,
+    ids: Ids,
+    commandTypes: CommandTypes,
 ): SagaContext = ReceiptSagaContext(
     ExecutionId(handler.name, rejected.executionId.ref, rejected.executionId.version),
     rejected.commandId,
@@ -113,6 +125,7 @@ fun rejectionContextOf(
     rejected.scope,
     ids,
     rejected.headers,
+    commandTypes,
 )
 
 /**
@@ -148,8 +161,23 @@ class ReceiptSagaContext(
     private val scope: Scope,
     override val ids: Ids = IdGenerators.DEFAULT,
     private val headers: Map<String, String> = emptyMap(),
+    /** Assigns the commands whose ref the handler leaves out their aggregate type (decision D234 ⑤). */
+    private val commandTypes: CommandTypes = CommandTypes.NONE,
 ) : SagaContext {
     private val calls = AtomicInteger()
+
+    /**
+     * A command to the aggregate [id] of the type that decides [body]'s class ([CommandTypes.aggregatesOf]), in the
+     * tenant of the commit whose saga execution derived the receipt's command (decision D234 ⑤).
+     */
+    override fun <C : Any> command(id: String, body: C): Command<C> = command(
+        commandTypes.omittedTargetOf(body.javaClass, executionId.subscription).ref(executionId.ref.tenantId, id),
+        body,
+    )
+
+    /** A creation without an id (decision D191) of the type that decides [body]'s class (decision D234 ⑤). */
+    override fun <C : Any> command(body: C): Command<C> =
+        command(commandTypes.omittedTargetOf(body.javaClass, executionId.subscription), body)
 
     override fun <C : Any> command(ref: AggregateRef, body: C): Command<C> {
         val id = compensationId(executionId, receiptOf, calls.getAndIncrement())

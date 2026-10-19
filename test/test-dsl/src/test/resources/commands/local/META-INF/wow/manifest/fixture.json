@@ -1,0 +1,14 @@
+{
+  "contexts": [
+    {
+      "name": "shop",
+      "aggregates": [
+        {
+          "name": "order",
+          "state": { "schema": "#/$defs/sample.OrderState" },
+          "commands": [{ "name": "Place", "schema": "#/$defs/me.ahoo.wow.test.ClassPathCommandTypesTest$Place" }]
+        }
+      ]
+    }
+  ]
+}

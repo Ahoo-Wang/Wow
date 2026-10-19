@@ -13,11 +13,14 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.annotation.WowSpi
+
 /**
  * A storage's port into the Catalog (design §5.2, §5.5): it reports what its native structures (indexes, mappings,
  * validators) prove about a logical model, and nothing else. The Catalog merges the model's sources and compiles the
  * reported facts into a [QueryModelSchema], applying every rule that does not depend on the storage.
  */
+@WowSpi
 interface QueryStorageAdapter {
     /** The storage's facts about [logicalSchema], from its current native structures. */
     suspend fun facts(logicalSchema: LogicalQuerySchema): QueryStorageFacts

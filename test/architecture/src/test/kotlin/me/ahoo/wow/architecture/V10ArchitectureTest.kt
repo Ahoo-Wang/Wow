@@ -330,6 +330,44 @@ class V10ArchitectureTest {
     }
 
     @Test
+    fun `entry rule should catch a state admitted past the read facade`(@TempDir root: File) {
+        root.writeSource(
+            V10Rules.HTTP.dir,
+            "me/ahoo/wow/http/read/Bad.kt",
+            """
+            package me.ahoo.wow.http.read
+
+            import me.ahoo.wow.query.engine.ReadFacade
+            import me.ahoo.wow.query.state.StateVisibility
+            """.trimIndent(),
+        )
+        V10Rules.ENTRIES_READ_THROUGH_FACADE.violations(root).assert().containsExactly(
+            "${V10Rules.HTTP.dir}/src/main/kotlin/me/ahoo/wow/http/read/Bad.kt:4: me.ahoo.wow.query.state.StateVisibility",
+        )
+    }
+
+    @Test
+    fun `host rule should catch a query policy decided in the host`(@TempDir root: File) {
+        root.writeSource(
+            V10Rules.SPRING_BOOT.dir,
+            "me/ahoo/wow/spring/boot/Bad.kt",
+            """
+            package me.ahoo.wow.spring.boot
+
+            import me.ahoo.wow.query.AbacQueryPolicy
+            import me.ahoo.wow.query.engine.QueryEngine
+
+            val gateway = me.ahoo.wow.query.state.SnapshotPolicyGateway::class
+            """.trimIndent(),
+        )
+        val bad = "${V10Rules.SPRING_BOOT.dir}/src/main/kotlin/me/ahoo/wow/spring/boot/Bad.kt"
+        V10Rules.HOST_DECIDES_NO_QUERY_POLICY.violations(root).assert().containsExactly(
+            "$bad:3: me.ahoo.wow.query.AbacQueryPolicy",
+            "$bad:6: me.ahoo.wow.query.state.SnapshotPolicyGateway",
+        )
+    }
+
+    @Test
     fun `module graph should read the projects and their directories from the settings`(@TempDir root: File) {
         File(root, "settings.gradle.kts").writeText(
             """
@@ -442,7 +480,13 @@ class V10ArchitectureTest {
 
     @Test
     fun `eShop domain modules should be its APIs and domains, not its servers or e2e tests`() {
-        listOf("eshop-catalog-api", "eshop-catalog-domain", "eshop-payment-api", "eshop-payment-domain").forEach {
+        listOf(
+            "eshop-catalog-api",
+            "eshop-catalog-domain",
+            "eshop-payment-api",
+            "eshop-payment-domain",
+            "java-smoke"
+        ).forEach {
             V10Rules.isExampleDomain(it).assert().describedAs(it).isTrue()
         }
         listOf("eshop-catalog-server", "eshop-payment-server", "eshop-e2e", "quickstart").forEach {

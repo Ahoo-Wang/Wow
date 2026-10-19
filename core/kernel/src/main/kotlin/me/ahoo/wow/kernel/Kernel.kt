@@ -1098,6 +1098,14 @@ class Kernel(
 fun interface CommandTypes {
     fun nameOf(target: AggregateType, command: Class<*>): String?
 
+    /**
+     * The aggregate types that decide commands of the class [command] (decision D234 ⑤): those of the context's
+     * models and of every contract the service knows (its Manifest and the peer contracts on its class path), a
+     * mounted command (decision D182) left out. A saga's handler that leaves a command's ref out sends it to the one
+     * type this gives; none is a missing contract, several a class it must address in full. None by default.
+     */
+    fun aggregatesOf(command: Class<*>): List<AggregateType> = emptyList()
+
     @InternalWowApi
     companion object {
         /** Names none: a decide function schedules commands of its own aggregate type only. */

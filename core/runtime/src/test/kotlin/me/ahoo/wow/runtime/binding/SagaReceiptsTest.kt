@@ -216,6 +216,39 @@ class SagaReceiptsTest {
         }
 
     @Test
+    fun `handlers that leave the ref out should send to the aggregate the node's models assign`(): Unit = runBlocking {
+        // Decision D234 ⑤: the saga, its compensation and its receipt handler name only the cart's id.
+        val omitting = ProcessorBinding.saga(
+            "CartSaga",
+            "onOrderPlaced",
+            OrderState::class.java,
+            rejections = listOf(
+                RejectionBinding.of("CartSaga", "onRemoveRejected", RemoveItems::class.java) { rejected, context ->
+                    rejections += rejected
+                    listOf(context.command(rejected.ref.id, AddItems(listOf("restored"))))
+                },
+            ),
+            commits = listOf(
+                CommittedBinding.of("CartSaga", "onRemoved", RemoveItems::class.java) { committed, context ->
+                    commits += committed
+                    listOf(context.command(committed.ref.id, AddItems(listOf("thanks"))))
+                },
+            ),
+        ) { event, context ->
+            val owner = event.scope.ownerId ?: return@saga emptyList()
+            event.events.filterIsInstance<Placed>().map { context.command(owner, RemoveItems(it.items)) }
+        }
+        val node = start(omitting)
+        node.fill()
+        node.place("o-r", FORBIDDEN_ITEM).last().status.assert().isEqualTo(CommandResult.Status.REJECTED)
+        rejections.single().ref.assert().isEqualTo(cart)
+        log.findByRequestId(TENANT, compensationId("o-r"))!!.ref.assert().isEqualTo(cart)
+        node.place("o-c", "apple").last().status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        commits.single().ref.assert().isEqualTo(cart)
+        log.findByRequestId(TENANT, compensationId("o-c", "CartSaga.onRemoved"))!!.ref.assert().isEqualTo(cart)
+    }
+
+    @Test
     fun `a wait naming the @OnCommitted handler's hop should go on into the commands it derives`(): Unit = runBlocking {
         val node = start(saga(onRemoveRejected, commits = listOf(onRemoved)))
         node.fill()

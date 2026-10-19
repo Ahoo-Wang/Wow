@@ -32,17 +32,21 @@ import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.state.StateViewOptions
+import me.ahoo.wow.runtime.store.AggregatePlacement
+import me.ahoo.wow.runtime.store.StorePlacements
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
+import me.ahoo.wow.runtime.subscription.SystemicFailureOptions
 import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.log.TailPolling
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.net.URI
 import java.time.Duration
@@ -63,8 +67,9 @@ import kotlin.time.toKotlinDuration
  *   that may go without one (decision D226), see [Internal].
  * - `wow.contexts.include`, `wow.contexts.exclude`: the bounded contexts the node serves among the domain modules on
  *   the class path, by default all of them (decision D169), see [Contexts].
- * - `wow.backend`: `auto` (the default), `memory`, `postgres` or `mongo` ([BackendKind]); `wow.mongo.database`: the one
- *   store of a node that names none; `wow.ddl` (`auto`, `validate` or `none`), how the stores manage the framework's
+ * - `wow.backend`: `auto` (the default), `memory`, `postgres`, `mongo`, or the type of a community backend's store
+ *   provider (`me.ahoo.wow.spi.store.StoreProvider`, review R3.3-1); `wow.mongo.database`: the database of a MongoDB
+ *   store that names none; `wow.ddl` (`auto`, `validate` or `none`), how the stores manage the framework's
  *   tables (review A5-10), `wow.stores.<name>.ddl` per store.
  * - `wow.stores.<name>.*`: the named store instances (decision D177, [Store]); `wow.log.store` and
  *   `wow.snapshot.store`, the stores of the aggregates' logs and snapshots by default; per aggregate type,
@@ -95,6 +100,11 @@ import kotlin.time.toKotlinDuration
  * - `wow.subscription.retry.max-attempts` (5), `initial-backoff` (100ms), `max-backoff` (5s), `multiplier` (2.0),
  *   `timeout` (none): the in-process retries of a failing handler before its aggregate parks; per subscription,
  *   `wow.subscriptions.[<subscription>].retry.*` (roadmap P.3), over the handler's `@Retry`, see [RetrySpec].
+ * - `wow.subscription.systemic.failing-aggregates` (3, 0 for none), `window` (10s), `initial-backoff` (1s),
+ *   `max-backoff` (30s): a subscription pauses its partition on a systemic failure (decision D243), or when that many
+ *   different aggregates failed within the window, and probes it at that backoff until a handling succeeds, see
+ *   [Systemic]. A handler's failures are classified by its `@Retry(recoverable, unrecoverable)`, then the
+ *   `FailureClassifier` beans, the backends' and the runtime's own (decision D229 G-6).
  * - `wow.ops.enabled` (false): the operator's routes under `/wow/ops/parked`; `wow.ops.webhook.url`, `format`
  *   (`generic` or `wecom`), `events` (`parked`, `exhausted`), `timeout` (5s), `headers`: the webhook told when an
  *   entry parks or spends its retries, see [Ops] and [Webhook]; `wow.ops.publish.enabled` (false), `context` (`ops`),
@@ -137,7 +147,7 @@ class WowProperties {
      * unless a profile of `wow.internal.dev-profiles` is active or the internal port binds the loopback interface
      * alone; `memory` keeps the data in memory on purpose, for one node whose data does not outlive it.
      */
-    var backend: BackendKind = BackendKind.AUTO
+    var backend: String = "auto"
 
     /**
      * How the stores manage the framework's tables, collections and indexes (review A5-10): `auto` creates what is
@@ -175,6 +185,17 @@ class WowProperties {
 
     /** The keys wow-cosid reads (`wow.cosid.*`), bound here as [cosec] is. */
     var cosid: CosId = CosId()
+
+    /** Where `wow.log`, `wow.snapshot` and `wow.aggregates` place the logs and snapshots (decisions D172, D177). */
+    internal fun storePlacements(): StorePlacements = StorePlacements(
+        log = log.store,
+        snapshot = snapshot.store,
+        snapshotTargets = snapshot.targets,
+        snapshotPrimary = snapshot.primary,
+        aggregates = aggregates.mapValues { (_, aggregate) ->
+            AggregatePlacement(aggregate.log.store, aggregate.snapshot.store, aggregate.snapshot.primary)
+        },
+    )
 
     /** The named store instances (decision D177), by name: `wow.stores.<name>.type` and its settings. */
     var stores: MutableMap<String, Store> = LinkedHashMap()
@@ -276,21 +297,30 @@ class WowProperties {
 
     /**
      * A named store instance (decision D177, `wow.stores.<name>`), as 9.x's `storage-routing` binds one: its [type],
-     * `memory`, `postgres` or `mongo`; on PostgreSQL, the `DataSource` bean [dataSource] names (the only one when not
-     * set); on MongoDB, the `MongoClient` bean [client] names (the only one when not set) and its [database] (`wow`
-     * when not set). Two stores of one type may serve different databases; two log stores may not share one.
+     * `memory`, `postgres`, `mongo` or a community backend's (the type of its store provider, review R3.3-1); on
+     * PostgreSQL, the `DataSource` bean [dataSource] names (the only one when not set); on MongoDB, the `MongoClient`
+     * bean [client] names (the only one when not set) and its [database] (`wow.mongo.database` when not set); any
+     * other setting of its provider in [options] (`wow.stores.<name>.options.<key>`). Two stores of one type may serve
+     * different databases; two log stores may not share one.
      */
     class Store {
-        var type: BackendKind? = null
+        var type: String? = null
         var dataSource: String? = null
         var client: String? = null
         var database: String? = null
 
+        /** The settings of the store's provider beyond the ones above, by key. */
+        var options: MutableMap<String, String> = LinkedHashMap()
+
         /** How this store manages the framework's schema, over `wow.ddl`. */
         var ddl: StoreDdl? = null
 
-        /** [ddl], else the node's [default] (`wow.ddl`). */
-        internal fun ddlOr(default: StoreDdl): StoreDdl = ddl ?: default
+        /** The settings its provider reads ([me.ahoo.wow.spi.store.StoreConfig.options]): [options] and the named ones. */
+        internal fun options(): Map<String, String> = options + listOfNotNull(
+            dataSource?.let { "data-source" to it },
+            client?.let { "client" to it },
+            database?.let { "database" to it },
+        )
     }
 
     /**
@@ -460,6 +490,9 @@ class WowProperties {
         /** How the parked entries are retried over the long horizon (roadmap P.1). */
         var parked: Parked = Parked()
 
+        /** When a partition pauses on a systemic failure (decision D243). */
+        var systemic: Systemic = Systemic()
+
         /** These options, with the starts, the parked retry specs and the retry budgets [subscriptions] configure. */
         fun options(subscriptions: Map<String, SubscriptionSettings> = emptyMap()): SubscriptionOptions {
             val spec = parked.spec()
@@ -485,8 +518,29 @@ class WowProperties {
                 retries = subscriptions.mapNotNull { (name, settings) ->
                     settings.retry.handlerRetry()?.let { name to it }
                 }.toMap(),
+                systemic = systemic.options(),
             )
         }
+    }
+
+    /**
+     * When a subscription pauses its partition on a systemic failure (decision D243): at once on a failure classified
+     * systemic, and when [failingAggregates] different aggregates failed within [window] with no handling succeeding
+     * since (0 turns that off). While paused, one attempt at a time probes, the first [initialBackoff] after the pause,
+     * doubling to at most [maxBackoff].
+     */
+    class Systemic {
+        var failingAggregates: Int = DEFAULT_SYSTEMIC.failingAggregates
+        var window: Duration = DEFAULT_SYSTEMIC.window.toJavaDuration()
+        var initialBackoff: Duration = DEFAULT_SYSTEMIC.initialBackoff.toJavaDuration()
+        var maxBackoff: Duration = DEFAULT_SYSTEMIC.maxBackoff.toJavaDuration()
+
+        fun options(): SystemicFailureOptions = SystemicFailureOptions(
+            failingAggregates = failingAggregates,
+            window = window.toKotlinDuration(),
+            initialBackoff = initialBackoff.toKotlinDuration(),
+            maxBackoff = maxBackoff.toKotlinDuration(),
+        )
     }
 
     /**
@@ -885,23 +939,6 @@ class WowProperties {
         private val DEFAULT_SUBSCRIPTION = SubscriptionOptions()
         private val DEFAULT_TIMERS = TimerOptions()
         private val DEFAULT_PARKED = ParkedRetryOptions()
+        private val DEFAULT_SYSTEMIC = SystemicFailureOptions()
     }
-}
-
-/** The backend of a node's log and stores (`wow.backend`, decision D110). */
-enum class BackendKind {
-    /**
-     * PostgreSQL or MongoDB by what the classpath and the application's beans offer; when neither, memory in a
-     * development profile or on a loopback-only internal port, and a failed startup otherwise (review R3.5-1).
-     */
-    AUTO,
-
-    /** In memory: for one node, whose data does not outlive it. */
-    MEMORY,
-
-    /** PostgreSQL, through the application's `DataSource`. */
-    POSTGRES,
-
-    /** MongoDB, through the application's `MongoClient`. */
-    MONGO,
 }

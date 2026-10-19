@@ -170,7 +170,9 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/Retry : ja
 	public abstract fun initialBackoff ()Ljava/lang/String;
 	public abstract fun maxAttempts ()I
 	public abstract fun maxBackoff ()Ljava/lang/String;
+	public abstract fun recoverable ()[Ljava/lang/Class;
 	public abstract fun timeout ()Ljava/lang/String;
+	public abstract fun unrecoverable ()[Ljava/lang/Class;
 }
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/Revision : java/lang/annotation/Annotation {
@@ -306,10 +308,14 @@ public abstract interface class me/ahoo/wow/api/decide/DecideScope {
 
 public abstract interface class me/ahoo/wow/api/decide/Decision {
 	public static final field Companion Lme/ahoo/wow/api/decide/Decision$Companion;
+	public static fun events ([Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Decision;
+	public static fun reject (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/decide/Decision;
+	public static fun reject (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/api/decide/Decision;
 }
 
 public final class me/ahoo/wow/api/decide/Decision$Companion {
 	public final fun events ([Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Decision;
+	public final fun reject (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/api/decide/Decision;
 	public final fun reject (Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;)Lme/ahoo/wow/api/decide/Decision;
 	public static synthetic fun reject$default (Lme/ahoo/wow/api/decide/Decision$Companion;Ljava/lang/String;Ljava/lang/String;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/api/decide/Decision;
 }
@@ -1368,6 +1374,8 @@ public abstract interface class me/ahoo/wow/api/subscribe/ReactContext : me/ahoo
 public abstract interface class me/ahoo/wow/api/subscribe/SagaContext : me/ahoo/wow/api/subscribe/SubscriptionContext {
 	public fun call (Lme/ahoo/wow/api/decide/Command;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun cancel (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/decide/Command;
+	public fun command (Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
+	public fun command (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
 	public abstract fun command (Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
 	public fun command (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
 	public abstract fun getIds ()Lme/ahoo/wow/api/id/Ids;

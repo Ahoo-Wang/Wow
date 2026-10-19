@@ -15,10 +15,8 @@ dependencies {
     implementation("io.projectreactor.netty:reactor-netty-http")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core")
     implementation("io.github.oshai:kotlin-logging-jvm")
-    // The backend follows what the application puts on the classpath (`wow.backend`, D110): the host wires either
-    // and brings neither.
-    compileOnly(project(":postgres"))
-    compileOnly(project(":mongo"))
+    // The backend follows what the application puts on the classpath (`wow.backend`, D110): each backend's store
+    // provider is found by ServiceLoader (review R3.3-1), so the host neither brings nor compiles against them.
     // The Kafka transport and the ClickHouse Sink are wired when the application has them; the query plane comes
     // with wow-http.
     compileOnly(project(":kafka"))

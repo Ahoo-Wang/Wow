@@ -6,7 +6,7 @@ val v10ModuleDirs = listOf(
     "api/api", "api/manifest", "api/query-api", "core/spi", "core/kernel", "core/runtime",
     "core/reactor", "query/query", "backends/postgres", "backends/mongo", "backends/kafka", "backends/clickhouse",
     "edge/openapi", "edge/http", "edge/cosec", "edge/opentelemetry", "host/spring-boot", "extensions/cosid", "extensions/models", "migration/migrate-data", "compiler/compiler",
-    "compiler/gradle-plugin", "compiler/manifest-tools", "test/test-dsl", "test/tck", "test/tck-containers",
+    "compiler/gradle-plugin", "compiler/manifest-tools", "test/test-dsl", "test/tck", "query/query-tck", "test/tck-containers",
 ) + listOf("catalog", "basket", "ordering", "inventory", "payment").flatMap { context ->
     listOf("api", "domain", "server").map { "example/eshop/$context/$context-$it" }
 } + "example/eshop/e2e" + listOf("ops-api", "ops-domain", "ops-server").map { "platform/ops/$it" } +

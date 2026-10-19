@@ -60,8 +60,9 @@ val eshopProjects = listOf("catalog", "basket", "ordering", "inventory", "paymen
     listOf("api", "domain", "server").map { "eshop-$context-$it" }
 } + "eshop-e2e"
 // The V10 quickstart (D217): the sample of documentation/docs/{en,zh}/guide/v10/quickstart.md, one module that is its
-// domain and its server, built and tested like the eShop, never published.
-val v10ExampleNames = eshopProjects + "quickstart"
+// domain and its server, built and tested like the eShop, never published. The Java smoke test (D229 G-8): a domain
+// written in Java, built by the compiler and tested with the test DSL, never published.
+val v10ExampleNames = eshopProjects + "quickstart" + "java-smoke"
 val v10ExampleProjects = includedProjects(*v10ExampleNames.map { ":$it" }.toTypedArray())
 val exampleProjects =
     exampleLibraries + includedProjects(":example-server", ":example-transfer-server", ":wow-compensation-server") +
@@ -76,9 +77,10 @@ val benchmarksProject = includedProjects(":wow-benchmarks")
 val e2eBenchmarkProjects = includedProjects(":e2e-bench-9x", ":e2e-bench-v10", ":e2e-bench-load")
 // The V10 modules (documentation/designs/v10/06-modules.md). Every module builds on JDK 21 (decision D29); these stay
 // incubating until their API settles; :architecture (V10's dependency rules), :kernel-benchmarks (spike H3),
-// :routing-spike (spike H2), :lease-spike (spike H6) and the examples (:eshop-*, :quickstart) are never published.
+// :routing-spike (spike H2), :lease-spike (spike H6) and the examples (:eshop-*, :quickstart, :java-smoke) are
+// never published.
 val v10Projects = listOf(
-    "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query",
+    "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query", "query-tck",
     "postgres", "mongo", "kafka", "clickhouse", "openapi", "http", "cosec", "opentelemetry", "spring-boot", "cosid",
     "models", "migrate-data", "architecture",
     "test-dsl", "tck", "tck-containers", "ops-api", "ops-domain", "ops-server",
@@ -94,7 +96,7 @@ val v10Projects = listOf(
 val v10PublishedProjects = includedProjects(
     ":api", ":manifest", ":query-api", ":spi", ":kernel", ":runtime", ":reactor", ":query",
     ":postgres", ":mongo", ":kafka", ":clickhouse", ":openapi", ":http", ":cosec", ":opentelemetry", ":spring-boot",
-    ":cosid", ":models", ":test-dsl", ":tck", ":tck-containers", ":ops-api", ":view-store-api",
+    ":cosid", ":models", ":test-dsl", ":tck", ":query-tck", ":tck-containers", ":ops-api", ":view-store-api",
     ":compiler", ":gradle-plugin",
 )
 // What a 10.x release publishes to Maven (R.1, D205): the published modules above, :migrate-data and :manifest-tools
@@ -597,8 +599,8 @@ configure(publishProjects - v10ReleaseProjects - dependenciesProject) {
     tasks.withType<PublishToMavenLocal>().configureEach { enabled = false }
 }
 
-// A V10 module's test fixtures (`:query`'s `QueryBackendSpec`) are for Wow's own modules and stay unpublished
-// (09-capability-parity.md, "端口 TCK"); the published TCK is `:tck`. `java-test-fixtures` would add them to the `java`
+// A V10 module's test fixtures (`:manifest`'s, say) are for Wow's own modules and stay unpublished
+// (09-capability-parity.md, "端口 TCK"); the published TCKs are `:tck` and `:query-tck` (review R3.3-2). `java-test-fixtures` would add them to the `java`
 // component, so the release would build and ship a `-test-fixtures` jar.
 configure(v10ReleaseProjects) {
     pluginManager.withPlugin("java-test-fixtures") {

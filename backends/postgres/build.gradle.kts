@@ -6,10 +6,10 @@ dependencies {
     api(project(":query"))
     api("org.postgresql:postgresql")
     implementation("tools.jackson.core:jackson-databind")
-    testImplementation(testFixtures(project(":query")))
+    testImplementation(project(":query-tck"))
     integrationTestImplementation(project(":tck"))
     integrationTestImplementation(project(":tck-containers"))
-    integrationTestImplementation(testFixtures(project(":query")))
+    integrationTestImplementation(project(":query-tck"))
     integrationTestImplementation("com.zaxxer:HikariCP")
 }
 

@@ -118,6 +118,8 @@ object ManifestTree {
                 "initialBackoff" to it.initialBackoff,
                 "maxBackoff" to it.maxBackoff,
                 "timeout" to it.timeout,
+                "recoverable" to it.recoverable,
+                "unrecoverable" to it.unrecoverable,
             )
         },
         "job" to subscription.job?.let {
@@ -250,6 +252,8 @@ object ManifestTree {
                     initialBackoff = it.stringOrNull("initialBackoff"),
                     maxBackoff = it.stringOrNull("maxBackoff"),
                     timeout = it.stringOrNull("timeout"),
+                    recoverable = if (it.has("recoverable")) it.strings("recoverable") else null,
+                    unrecoverable = if (it.has("unrecoverable")) it.strings("unrecoverable") else null,
                 )
             },
             job = node.objOrNull("job")?.let {

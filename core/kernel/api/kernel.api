@@ -284,6 +284,8 @@ public final class me/ahoo/wow/kernel/ExecutionSagaContext : me/ahoo/wow/api/sub
 	public synthetic fun <init> (Lme/ahoo/wow/api/subscribe/ExecutionId;Lme/ahoo/wow/api/subscribe/StateEvent;Lme/ahoo/wow/api/id/Ids;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun call (Lme/ahoo/wow/api/decide/Command;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public fun cancel (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;)Lme/ahoo/wow/api/decide/Command;
+	public fun command (Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
+	public fun command (Ljava/lang/String;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
 	public fun command (Lme/ahoo/wow/api/aggregate/AggregateRef;Ljava/lang/Object;)Lme/ahoo/wow/api/decide/Command;
 	public static final fun derivedId (Lme/ahoo/wow/api/subscribe/ExecutionId;I)Ljava/lang/String;
 	public fun getExecutionId ()Lme/ahoo/wow/api/subscribe/ExecutionId;
@@ -299,24 +301,30 @@ public final class me/ahoo/wow/kernel/HandlerRetry {
 	public static final field Companion Lme/ahoo/wow/kernel/HandlerRetry$Companion;
 	public static final field NONE Lme/ahoo/wow/kernel/HandlerRetry;
 	public fun <init> ()V
-	public synthetic fun <init> (Ljava/lang/Integer;Lkotlin/time/Duration;Lkotlin/time/Duration;Ljava/lang/Double;Lkotlin/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public synthetic fun <init> (Ljava/lang/Integer;Lkotlin/time/Duration;Lkotlin/time/Duration;Ljava/lang/Double;Lkotlin/time/Duration;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/lang/Integer;Lkotlin/time/Duration;Lkotlin/time/Duration;Ljava/lang/Double;Lkotlin/time/Duration;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (Ljava/lang/Integer;Lkotlin/time/Duration;Lkotlin/time/Duration;Ljava/lang/Double;Lkotlin/time/Duration;Ljava/util/List;Ljava/util/List;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun classify (Ljava/lang/Throwable;)Lme/ahoo/wow/spi/subscription/FailureClass;
 	public final fun component1 ()Ljava/lang/Integer;
 	public final fun component2-FghU774 ()Lkotlin/time/Duration;
 	public final fun component3-FghU774 ()Lkotlin/time/Duration;
 	public final fun component4 ()Ljava/lang/Double;
 	public final fun component5-FghU774 ()Lkotlin/time/Duration;
-	public final fun copy-FTZxyAM (Ljava/lang/Integer;Lkotlin/time/Duration;Lkotlin/time/Duration;Ljava/lang/Double;Lkotlin/time/Duration;)Lme/ahoo/wow/kernel/HandlerRetry;
-	public static synthetic fun copy-FTZxyAM$default (Lme/ahoo/wow/kernel/HandlerRetry;Ljava/lang/Integer;Lkotlin/time/Duration;Lkotlin/time/Duration;Ljava/lang/Double;Lkotlin/time/Duration;ILjava/lang/Object;)Lme/ahoo/wow/kernel/HandlerRetry;
+	public final fun component6 ()Ljava/util/List;
+	public final fun component7 ()Ljava/util/List;
+	public final fun copy-_5n2W18 (Ljava/lang/Integer;Lkotlin/time/Duration;Lkotlin/time/Duration;Ljava/lang/Double;Lkotlin/time/Duration;Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/kernel/HandlerRetry;
+	public static synthetic fun copy-_5n2W18$default (Lme/ahoo/wow/kernel/HandlerRetry;Ljava/lang/Integer;Lkotlin/time/Duration;Lkotlin/time/Duration;Ljava/lang/Double;Lkotlin/time/Duration;Ljava/util/List;Ljava/util/List;ILjava/lang/Object;)Lme/ahoo/wow/kernel/HandlerRetry;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getInitialBackoff-FghU774 ()Lkotlin/time/Duration;
 	public final fun getMaxAttempts ()Ljava/lang/Integer;
 	public final fun getMaxBackoff-FghU774 ()Lkotlin/time/Duration;
 	public final fun getMultiplier ()Ljava/lang/Double;
+	public final fun getRecoverable ()Ljava/util/List;
 	public final fun getTimeout-FghU774 ()Lkotlin/time/Duration;
+	public final fun getUnrecoverable ()Ljava/util/List;
 	public fun hashCode ()I
 	public final fun isEmpty ()Z
 	public static final fun of (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/kernel/HandlerRetry;
+	public static final fun of (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/kernel/HandlerRetry;
 	public static final fun of (Lme/ahoo/wow/api/annotation/Retry;)Lme/ahoo/wow/kernel/HandlerRetry;
 	public static final fun of (Lme/ahoo/wow/api/annotation/Retry;Lme/ahoo/wow/api/annotation/Retry;)Lme/ahoo/wow/kernel/HandlerRetry;
 	public final fun over (Lme/ahoo/wow/kernel/HandlerRetry;)Lme/ahoo/wow/kernel/HandlerRetry;
@@ -325,6 +333,7 @@ public final class me/ahoo/wow/kernel/HandlerRetry {
 
 public final class me/ahoo/wow/kernel/HandlerRetry$Companion {
 	public final fun of (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/kernel/HandlerRetry;
+	public final fun of (ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)Lme/ahoo/wow/kernel/HandlerRetry;
 	public final fun of (Lme/ahoo/wow/api/annotation/Retry;)Lme/ahoo/wow/kernel/HandlerRetry;
 	public final fun of (Lme/ahoo/wow/api/annotation/Retry;Lme/ahoo/wow/api/annotation/Retry;)Lme/ahoo/wow/kernel/HandlerRetry;
 	public static synthetic fun of$default (Lme/ahoo/wow/kernel/HandlerRetry$Companion;ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/kernel/HandlerRetry;
