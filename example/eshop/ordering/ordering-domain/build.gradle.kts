@@ -15,6 +15,8 @@ ksp {
 // The plugin's completion of the fragment with the schemas of the types (decision D73), so the Manifest carries the
 // state schemas the snapshot queries read.
 apply(from = rootProject.file("example/wow-manifest-fragment.gradle.kts"))
+// SPIKE D234: the contract into :eshop-ordering-api's jar.
+apply(from = rootProject.file("example/wow-contract.gradle.kts"))
 
 dependencies {
     api(project(":eshop-ordering-api"))

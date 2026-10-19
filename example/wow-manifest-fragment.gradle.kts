@@ -42,7 +42,14 @@ val generateWowManifestFragment = tasks.register("generateWowManifestFragment") 
     group = "wow"
     description = "Completes this module's Manifest fragment with the schemas of its types."
     val fragments = compilerFragments
-    val classpath = files(main.output.classesDirs, configurations.named(main.runtimeClasspathConfigurationName))
+    // SPIKE D234: the runtime class path's classes variants (a project's classes directories, a module's jar), never
+    // a project's jar: the api module's jar carries this module's contract, so reading it would be a task cycle.
+    val runtimeClasses = configurations.getByName(main.runtimeClasspathConfigurationName).incoming.artifactView {
+        attributes {
+            attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.CLASSES))
+        }
+    }.files
+    val classpath = files(main.output.classesDirs, runtimeClasses)
     val tools = wowManifestTools
     val output = completedDirectory
     inputs.files(fragments).withPathSensitivity(PathSensitivity.NAME_ONLY).withPropertyName("fragments")
