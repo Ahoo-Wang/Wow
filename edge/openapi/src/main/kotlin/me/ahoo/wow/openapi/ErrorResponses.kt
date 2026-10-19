@@ -125,6 +125,12 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
             FrameworkErrors.ALL.map { it.code }.filter { it.startsWith(QUERY_PREFIX) } +
             listOf(FrameworkErrors.AGGREGATE_NOT_FOUND, FrameworkErrors.STORAGE_UNAVAILABLE)
 
+        /**
+         * The codes a dataset query answers: a query's, but `wow.query.busy`, which only the stores' query bulkheads
+         * answer (review R3.4-2), and a dataset backend has none.
+         */
+        val DATASET_QUERY: List<String> = QUERY - FrameworkErrors.QUERY_BUSY
+
         /** The codes a query model's capability descriptor answers. */
         val DESCRIPTOR: List<String> = listOf(
             FrameworkErrors.AUTH_UNAUTHENTICATED,
