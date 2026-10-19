@@ -18,6 +18,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.log.AppendQueueOptions
@@ -25,6 +26,7 @@ import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotPlacement
 import me.ahoo.wow.runtime.snapshot.SnapshotStoreRouter
+import me.ahoo.wow.runtime.store.StoreLayout
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.TailPolling
@@ -61,9 +63,12 @@ class HostStoresTest {
 
     private fun properties(block: WowProperties.() -> Unit = {}): WowProperties = WowProperties().apply(block)
 
+    private fun layoutOf(properties: WowProperties, stores: Map<String, Store>, models: List<AggregateModel<*>>) =
+        StoreLayout.of(properties.storePlacements(), stores, models.map { it.type })
+
     @Test
     fun `the only store holds every log and every snapshot`() {
-        val layout = StoreLayout.of(properties(), memory("only"), models)
+        val layout = layoutOf(properties(), memory("only"), models)
         layout.log.assert().isEqualTo("only")
         layout.snapshot.assert().isEqualTo("only")
         layout.logStoreOf(account).assert().isEqualTo("only")
@@ -73,7 +78,7 @@ class HostStoresTest {
 
     @Test
     fun `an aggregate type's log and snapshots go to the stores it names`() {
-        val layout = StoreLayout.of(
+        val layout = layoutOf(
             properties {
                 log.store = "a"
                 snapshot.store = "b"
@@ -95,7 +100,7 @@ class HostStoresTest {
 
     @Test
     fun `snapshots may have several targets, by default or per type, each with its primary (D172)`() {
-        val layout = StoreLayout.of(
+        val layout = layoutOf(
             properties {
                 log.store = "a"
                 snapshot.targets = mutableListOf("a", "b")
@@ -117,7 +122,7 @@ class HostStoresTest {
         targets.stores.keys.assert().containsExactlyInAnyOrder("a", "b", "c")
         targets.primaryOf(account).assert().isSameAs(stores.getValue("c").snapshots(BANK))
         // A type that names its primary alone keeps the default targets.
-        StoreLayout.of(
+        layoutOf(
             properties {
                 log.store = "a"
                 snapshot.targets = mutableListOf("a", "b")
@@ -127,10 +132,10 @@ class HostStoresTest {
             models,
         ).snapshotPlacementOf(account).assert().isEqualTo(SnapshotPlacement(listOf("a", "b"), "b"))
         assertThrows<IllegalStateException> {
-            StoreLayout.of(properties { snapshot.targets = mutableListOf("z") }, memory("a"), models)
+            layoutOf(properties { snapshot.targets = mutableListOf("z") }, memory("a"), models)
         }.message.assert().contains("wow.snapshot.targets names the store z")
         assertThrows<IllegalStateException> {
-            StoreLayout.of(
+            layoutOf(
                 properties {
                     log.store = "a"
                     snapshot.primary = "b"
@@ -140,7 +145,7 @@ class HostStoresTest {
             )
         }.message.assert().contains("wow.snapshot.primary names b, which is not one of its targets")
         assertThrows<IllegalStateException> {
-            StoreLayout.of(
+            layoutOf(
                 properties {
                     log.store = "a"
                     aggregates["$BANK.account"] = WowProperties.Aggregate().apply {
@@ -171,12 +176,12 @@ class HostStoresTest {
     @Test
     fun `a layout that does not add up is refused`() {
         val two = memory("a", "b")
-        assertThrows<IllegalStateException> { StoreLayout.of(properties(), two, models) }.message.assert()
+        assertThrows<IllegalStateException> { layoutOf(properties(), two, models) }.message.assert()
             .contains("wow.log.store")
-        assertThrows<IllegalStateException> { StoreLayout.of(properties { log.store = "c" }, two, models) }
+        assertThrows<IllegalStateException> { layoutOf(properties { log.store = "c" }, two, models) }
             .message.assert().contains("wow.log.store names the store c")
         assertThrows<IllegalStateException> {
-            StoreLayout.of(
+            layoutOf(
                 properties {
                     log.store = "a"
                     snapshot.store = "c"
@@ -186,7 +191,7 @@ class HostStoresTest {
             )
         }.message.assert().contains("wow.snapshot.store")
         assertThrows<IllegalStateException> {
-            StoreLayout.of(
+            layoutOf(
                 properties {
                     log.store = "a"
                     aggregates["$BANK.ghost"] = WowProperties.Aggregate().apply { log.store = "b" }
@@ -196,7 +201,7 @@ class HostStoresTest {
             )
         }.message.assert().contains("$BANK.ghost")
         assertThrows<IllegalStateException> {
-            StoreLayout.of(
+            layoutOf(
                 properties {
                     log.store = "a"
                     aggregates["$BANK.account"] = WowProperties.Aggregate().apply { snapshot.store = mutableListOf("z") }
@@ -205,13 +210,13 @@ class HostStoresTest {
                 models,
             )
         }.message.assert().contains("wow.aggregates.[$BANK.account].snapshot.store")
-        assertThrows<IllegalArgumentException> { StoreLayout.of(properties(), emptyMap(), models) }
+        assertThrows<IllegalArgumentException> { layoutOf(properties(), emptyMap(), models) }
     }
 
     @Test
     fun `a store that holds no log is refused as a log store`() {
         val stores = mapOf("auto" to Unopened("auto", "acme", holdsLogs = false), "a" to MemoryStore("a"))
-        assertThrows<IllegalStateException> { StoreLayout.of(properties { log.store = "auto" }, stores, models) }
+        assertThrows<IllegalStateException> { layoutOf(properties { log.store = "auto" }, stores, models) }
             .message.assert().contains("holds no log")
     }
 
@@ -224,7 +229,7 @@ class HostStoresTest {
                 "b" to Unopened("b", "postgres", database)
             )
         assertThrows<IllegalStateException> {
-            StoreLayout.of(
+            layoutOf(
                 properties {
                     log.store = "a"
                     aggregates["$BANK.account"] = WowProperties.Aggregate().apply { log.store = "b" }
@@ -234,7 +239,7 @@ class HostStoresTest {
             )
         }.message.assert().contains("one database")
         // Snapshots may share one with a log.
-        StoreLayout.of(
+        layoutOf(
             properties {
                 log.store = "a"
                 snapshot.store = "b"

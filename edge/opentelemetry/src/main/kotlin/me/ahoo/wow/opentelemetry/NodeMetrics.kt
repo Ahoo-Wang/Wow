@@ -28,6 +28,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.node.ParkedKey
 import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.runtime.node.pauses
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.coroutines.CoroutineContext
@@ -110,6 +111,16 @@ class NodeMetrics(
             taken += gauge(WowMetrics.EXECUTOR_LANES, tags, context.executor.activeLanes.toDouble())
             taken += gauge(WowMetrics.APPEND_QUEUE_DEPTH, tags, context.log.queued.toDouble())
         }
+        val paused = node.pauses.paused().mapTo(HashSet()) {
+            Tags.of(
+                WowMetrics.GROUP,
+                it.group,
+                WowMetrics.SUBSCRIPTION,
+                it.subscription,
+                WowMetrics.PARTITION,
+                it.partition.toString(),
+            )
+        }
         node.contexts.values.flatMap { it.logGroups }.forEach { group ->
             val runtime = group.subscriptions
             val heads = HashMap<Int, Long>()
@@ -126,8 +137,11 @@ class NodeMetrics(
                 taken += gauge(WowMetrics.POSITION, tags, position.watermark.toDouble())
                 taken += gauge(WowMetrics.BACKLOG, tags, (head - position.watermark).coerceAtLeast(0).toDouble())
                 taken += gauge(WowMetrics.PROGRESS, tags, progress(position.watermark, head))
+                taken += gauge(WowMetrics.PAUSED, tags, if (tags in paused) 1.0 else 0.0)
             }
         }
+        // The paused partitions of the intakes and of other contexts' topics, which have no position here.
+        paused.forEach { taken += gauge(WowMetrics.PAUSED, it, 1.0) }
         (gauges.keys - taken).forEach { key -> gauges.remove(key)?.let { (_, gauge) -> meters.remove(gauge) } }
     }
 

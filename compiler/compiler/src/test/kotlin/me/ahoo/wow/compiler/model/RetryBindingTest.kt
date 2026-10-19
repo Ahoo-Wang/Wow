@@ -53,11 +53,15 @@ class RetryBindingTest {
 
         class OrderState(val id: String)
 
+        class Carrier {
+            class BusyException : RuntimeException()
+        }
+
         @Reactor
-        @Retry(maxAttempts = 3, timeout = "2s")
+        @Retry(maxAttempts = 3, timeout = "2s", unrecoverable = [IllegalArgumentException::class])
         object Notifier {
             @OnEvent
-            @Retry(initialBackoff = "500ms", timeout = "PT5S")
+            @Retry(initialBackoff = "500ms", timeout = "PT5S", recoverable = [Carrier.BusyException::class])
             fun onEvent(event: StateEvent<OrderState>) = Unit
 
             @OnEvent
@@ -87,10 +91,19 @@ class RetryBindingTest {
             result.classLoader
         )
         val bindings = ModelProvider.load(loader).single().processors(Dependencies.NONE).associateBy { it.name }
-        bindings.getValue("Notifier.onEvent").retry.assert()
-            .isEqualTo(HandlerRetry(maxAttempts = 3, initialBackoff = 500.milliseconds, timeout = 5.seconds))
+        val busy = loader.loadClass("sample.shop.Carrier\$BusyException").asSubclass(Throwable::class.java)
+        val invalid = listOf(IllegalArgumentException::class.java)
+        bindings.getValue("Notifier.onEvent").retry.assert().isEqualTo(
+            HandlerRetry(
+                maxAttempts = 3,
+                initialBackoff = 500.milliseconds,
+                timeout = 5.seconds,
+                recoverable = listOf(busy),
+                unrecoverable = invalid,
+            ),
+        )
         bindings.getValue("Notifier.inherited").retry.assert()
-            .isEqualTo(HandlerRetry(maxAttempts = 3, timeout = 2.seconds))
+            .isEqualTo(HandlerRetry(maxAttempts = 3, timeout = 2.seconds, unrecoverable = invalid))
         bindings.getValue("Board.onEvent").retry.assert().isNull()
         bindings.getValue("Board.own").retry.assert().isEqualTo(HandlerRetry(maxBackoff = 60.seconds))
 
@@ -98,9 +111,18 @@ class RetryBindingTest {
             .first { it.isFile && it.parentFile.invariantSeparatorsPath.endsWith(Manifest.FRAGMENT_DIRECTORY) }
         val subscriptions = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
             .contexts.single().subscriptions.associateBy { it.name }
-        subscriptions.getValue("Notifier.onEvent").retry.assert()
-            .isEqualTo(RetryManifest(maxAttempts = 3, initialBackoff = "PT0.500S", timeout = "PT5S"))
-        subscriptions.getValue("Notifier.inherited").retry.assert().isEqualTo(RetryManifest(3, timeout = "PT2S"))
+        subscriptions.getValue("Notifier.onEvent").retry.assert().isEqualTo(
+            RetryManifest(
+                maxAttempts = 3,
+                initialBackoff = "PT0.500S",
+                timeout = "PT5S",
+                recoverable = listOf("sample.shop.Carrier.BusyException"),
+                unrecoverable = listOf("java.lang.IllegalArgumentException"),
+            ),
+        )
+        subscriptions.getValue("Notifier.inherited").retry.assert().isEqualTo(
+            RetryManifest(3, timeout = "PT2S", unrecoverable = listOf("java.lang.IllegalArgumentException")),
+        )
         subscriptions.getValue("Board.onEvent").retry.assert().isNull()
         subscriptions.getValue("Board.own").retry.assert().isEqualTo(RetryManifest(maxBackoff = "PT1M"))
     }

@@ -144,6 +144,25 @@ class OtelObserverTest {
     }
 
     @Test
+    fun `the pauses of a partition and its resumes should be counted`() {
+        observer.partitionPaused("sales", "Board.onEvent", 3, "a systemic failure")
+        observer.partitionResumed("sales", "Board.onEvent", 3, 1_500)
+        observer.partitionPaused("sales", "Board.onEvent", 3, "a systemic failure")
+        val board = arrayOf(
+            WowMetrics.GROUP,
+            "sales",
+            WowMetrics.SUBSCRIPTION,
+            "Board.onEvent",
+            WowMetrics.PARTITION,
+            "3"
+        )
+        telemetry.meters.get(WowMetrics.PAUSED_NOTICES).tags(*board, WowMetrics.KIND, WowMetrics.PAUSED_KIND)
+            .counter().count().assert().isEqualTo(2.0)
+        telemetry.meters.get(WowMetrics.PAUSED_NOTICES).tags(*board, WowMetrics.KIND, WowMetrics.RESUMED_KIND)
+            .counter().count().assert().isEqualTo(1.0)
+    }
+
+    @Test
     fun `a failure should be recorded on the span, a cancellation only named`(): Unit = runBlocking {
         assertThrows<IllegalStateException> {
             observer.executing(command).observe { error("The store is down.") }

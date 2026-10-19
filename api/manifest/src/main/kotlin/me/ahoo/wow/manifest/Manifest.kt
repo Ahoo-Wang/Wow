@@ -546,7 +546,8 @@ class JobManifest(
 
 /**
  * A subscription handler's in-process retry budget as `@Retry` declares it (roadmap P.3): each setting null when it
- * is not given. Durations are ISO-8601 (`PT2S`).
+ * is not given. Durations are ISO-8601 (`PT2S`). [recoverable] and [unrecoverable] are the qualified names of the
+ * exception classes the handler classifies itself (`@Retry(recoverable, unrecoverable)`, decisions D229 G-6, D243).
  *
  * Fields may be added (decision D59): pass the constructor's arguments by name.
  */
@@ -555,6 +556,8 @@ class RetryManifest(
     val initialBackoff: String? = null,
     val maxBackoff: String? = null,
     val timeout: String? = null,
+    val recoverable: List<String>? = null,
+    val unrecoverable: List<String>? = null,
 ) {
     override fun equals(other: Any?): Boolean =
         this === other || other is RetryManifest && valueFields() == other.valueFields()
@@ -563,9 +566,10 @@ class RetryManifest(
 
     override fun toString(): String =
         "RetryManifest(maxAttempts=$maxAttempts, initialBackoff=$initialBackoff, maxBackoff=$maxBackoff, " +
-            "timeout=$timeout)"
+            "timeout=$timeout, recoverable=$recoverable, unrecoverable=$unrecoverable)"
 
-    private fun valueFields(): List<Any?> = listOf(maxAttempts, initialBackoff, maxBackoff, timeout)
+    private fun valueFields(): List<Any?> =
+        listOf(maxAttempts, initialBackoff, maxBackoff, timeout, recoverable, unrecoverable)
 }
 
 enum class SubscriptionKind { PROJECTION, REACTOR, SAGA }

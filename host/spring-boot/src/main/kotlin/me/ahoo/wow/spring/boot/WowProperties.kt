@@ -33,11 +33,14 @@ import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.schedule.JobOptions
 import me.ahoo.wow.runtime.snapshot.SnapshotOptions
 import me.ahoo.wow.runtime.state.StateViewOptions
+import me.ahoo.wow.runtime.store.AggregatePlacement
+import me.ahoo.wow.runtime.store.StorePlacements
 import me.ahoo.wow.runtime.subscription.ParkedNotice
 import me.ahoo.wow.runtime.subscription.ParkedRetryOptions
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
+import me.ahoo.wow.runtime.subscription.SystemicFailureOptions
 import me.ahoo.wow.runtime.timer.TimerOptions
 import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.runtime.wait.WaitOptions
@@ -98,6 +101,11 @@ import kotlin.time.toKotlinDuration
  * - `wow.subscription.retry.max-attempts` (5), `initial-backoff` (100ms), `max-backoff` (5s), `multiplier` (2.0),
  *   `timeout` (none): the in-process retries of a failing handler before its aggregate parks; per subscription,
  *   `wow.subscriptions.[<subscription>].retry.*` (roadmap P.3), over the handler's `@Retry`, see [RetrySpec].
+ * - `wow.subscription.systemic.failing-aggregates` (3, 0 for none), `window` (10s), `initial-backoff` (1s),
+ *   `max-backoff` (30s): a subscription pauses its partition on a systemic failure (decision D243), or when that many
+ *   different aggregates failed within the window, and probes it at that backoff until a handling succeeds, see
+ *   [Systemic]. A handler's failures are classified by its `@Retry(recoverable, unrecoverable)`, then the
+ *   `FailureClassifier` beans, the backends' and the runtime's own (decision D229 G-6).
  * - `wow.ops.enabled` (false): the operator's routes under `/wow/ops/parked`; `wow.ops.webhook.url`, `format`
  *   (`generic` or `wecom`), `events` (`parked`, `exhausted`), `timeout` (5s), `headers`: the webhook told when an
  *   entry parks or spends its retries, see [Ops] and [Webhook]; `wow.ops.publish.enabled` (false), `context` (`ops`),
@@ -183,6 +191,17 @@ class WowProperties {
 
     /** The keys wow-cosid reads (`wow.cosid.*`), bound here as [cosec] is. */
     var cosid: CosId = CosId()
+
+    /** Where `wow.log`, `wow.snapshot` and `wow.aggregates` place the logs and snapshots (decisions D172, D177). */
+    internal fun storePlacements(): StorePlacements = StorePlacements(
+        log = log.store,
+        snapshot = snapshot.store,
+        snapshotTargets = snapshot.targets,
+        snapshotPrimary = snapshot.primary,
+        aggregates = aggregates.mapValues { (_, aggregate) ->
+            AggregatePlacement(aggregate.log.store, aggregate.snapshot.store, aggregate.snapshot.primary)
+        },
+    )
 
     /** The named store instances (decision D177), by name: `wow.stores.<name>.type` and its settings. */
     var stores: MutableMap<String, Store> = LinkedHashMap()
@@ -480,6 +499,9 @@ class WowProperties {
         /** How the parked entries are retried over the long horizon (roadmap P.1). */
         var parked: Parked = Parked()
 
+        /** When a partition pauses on a systemic failure (decision D243). */
+        var systemic: Systemic = Systemic()
+
         /** These options, with the starts, the parked retry specs and the retry budgets [subscriptions] configure. */
         fun options(subscriptions: Map<String, SubscriptionSettings> = emptyMap()): SubscriptionOptions {
             val spec = parked.spec()
@@ -505,8 +527,29 @@ class WowProperties {
                 retries = subscriptions.mapNotNull { (name, settings) ->
                     settings.retry.handlerRetry()?.let { name to it }
                 }.toMap(),
+                systemic = systemic.options(),
             )
         }
+    }
+
+    /**
+     * When a subscription pauses its partition on a systemic failure (decision D243): at once on a failure classified
+     * systemic, and when [failingAggregates] different aggregates failed within [window] with no handling succeeding
+     * since (0 turns that off). While paused, one attempt at a time probes, the first [initialBackoff] after the pause,
+     * doubling to at most [maxBackoff].
+     */
+    class Systemic {
+        var failingAggregates: Int = DEFAULT_SYSTEMIC.failingAggregates
+        var window: Duration = DEFAULT_SYSTEMIC.window.toJavaDuration()
+        var initialBackoff: Duration = DEFAULT_SYSTEMIC.initialBackoff.toJavaDuration()
+        var maxBackoff: Duration = DEFAULT_SYSTEMIC.maxBackoff.toJavaDuration()
+
+        fun options(): SystemicFailureOptions = SystemicFailureOptions(
+            failingAggregates = failingAggregates,
+            window = window.toKotlinDuration(),
+            initialBackoff = initialBackoff.toKotlinDuration(),
+            maxBackoff = maxBackoff.toKotlinDuration(),
+        )
     }
 
     /**
@@ -991,5 +1034,6 @@ class WowProperties {
         private val DEFAULT_TIMERS = TimerOptions()
         private val DEFAULT_PARKED = ParkedRetryOptions()
         private val DEFAULT_HEALTH = HealthOptions()
+        private val DEFAULT_SYSTEMIC = SystemicFailureOptions()
     }
 }

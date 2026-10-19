@@ -94,6 +94,8 @@ data class RetryPolicy(
  * - [retries]: by subscription name, the in-process retry budget the host gives it (roadmap P.3), as
  *   `wow.subscriptions.[<name>].retry.*` configures it: each setting given replaces the handler's own (`@Retry`,
  *   [Subscription.retry]), each one not given is the handler's, else [retry]'s.
+ * - [systemic]: when a subscription takes its failures for systemic and pauses its partition instead of charging and
+ *   parking the aggregates (decision D243).
  *
  * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
@@ -111,6 +113,7 @@ class SubscriptionOptions @InternalWowApi constructor(
     val starts: Map<String, SubscriptionStart> = emptyMap(),
     val parked: ParkedRetryOptions = ParkedRetryOptions(),
     val retries: Map<String, HandlerRetry> = emptyMap(),
+    val systemic: SystemicFailureOptions = SystemicFailureOptions(),
 ) {
     init {
         require(maxInFlight >= 1) { "A subscription holds at least one entry in flight." }
@@ -147,6 +150,7 @@ class SubscriptionOptions @InternalWowApi constructor(
         starts: Map<String, SubscriptionStart> = this.starts,
         parked: ParkedRetryOptions = this.parked,
         retries: Map<String, HandlerRetry> = this.retries,
+        systemic: SystemicFailureOptions = this.systemic,
     ): SubscriptionOptions = SubscriptionOptions(
         maxInFlight,
         retry,
@@ -156,6 +160,7 @@ class SubscriptionOptions @InternalWowApi constructor(
         starts,
         parked,
         retries,
+        systemic,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -165,7 +170,8 @@ class SubscriptionOptions @InternalWowApi constructor(
 
     override fun toString(): String =
         "SubscriptionOptions(maxInFlight=$maxInFlight, retry=$retry, checkpointInterval=$checkpointInterval, " +
-            "stopTimeout=$stopTimeout, readRetry=$readRetry, starts=$starts, parked=$parked, retries=$retries)"
+            "stopTimeout=$stopTimeout, readRetry=$readRetry, starts=$starts, parked=$parked, retries=$retries, " +
+            "systemic=$systemic)"
 
     private fun valueFields(): List<Any?> = listOf(
         maxInFlight,
@@ -175,8 +181,52 @@ class SubscriptionOptions @InternalWowApi constructor(
         readRetry,
         starts,
         parked,
-        retries
+        retries,
+        systemic,
     )
+}
+
+/**
+ * When a subscription pauses a partition on a systemic failure (decision D243): at once on a failure classified
+ * [me.ahoo.wow.spi.subscription.FailureClass.SYSTEMIC]; and when [failingAggregates] different aggregates failed with
+ * a recoverable one within [window], with no handling succeeding since (0 turns that off). While paused, one attempt
+ * at a time probes whether what failed is back, the first [initialBackoff] after the pause, each next one twice as long
+ * after the previous one failed, at most [maxBackoff].
+ *
+ * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
+ * to Wow.
+ */
+class SystemicFailureOptions @InternalWowApi constructor(
+    val failingAggregates: Int = 3,
+    val window: Duration = 10.seconds,
+    val initialBackoff: Duration = 1.seconds,
+    val maxBackoff: Duration = 30.seconds,
+) {
+    init {
+        require(failingAggregates == 0 || failingAggregates >= 2) {
+            "A pause takes at least two failing aggregates, or 0 for none; not $failingAggregates."
+        }
+        require(window.isPositive()) { "The window of the failing aggregates is positive." }
+        require(initialBackoff.isPositive() && initialBackoff <= maxBackoff) {
+            "The probe backoff is positive and at most the maximum backoff."
+        }
+    }
+
+    private val probes = RetryPolicy(initialBackoff = initialBackoff, maxBackoff = maxBackoff)
+
+    /** The wait before the probe after [failures] failed probes and the one that paused (1 for the first probe). */
+    internal fun backoff(failures: Int): Duration = probes.backoff(failures)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is SystemicFailureOptions && valueFields() == other.valueFields()
+
+    override fun hashCode(): Int = valueFields().hashCode()
+
+    override fun toString(): String =
+        "SystemicFailureOptions(failingAggregates=$failingAggregates, window=$window, initialBackoff=$initialBackoff, " +
+            "maxBackoff=$maxBackoff)"
+
+    private fun valueFields(): List<Any?> = listOf(failingAggregates, window, initialBackoff, maxBackoff)
 }
 
 /**

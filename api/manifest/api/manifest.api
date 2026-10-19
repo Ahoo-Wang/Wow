@@ -286,13 +286,15 @@ public final class me/ahoo/wow/manifest/QueryRoutes {
 
 public final class me/ahoo/wow/manifest/RetryManifest {
 	public fun <init> ()V
-	public fun <init> (Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
-	public synthetic fun <init> (Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/lang/Integer;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getInitialBackoff ()Ljava/lang/String;
 	public final fun getMaxAttempts ()Ljava/lang/Integer;
 	public final fun getMaxBackoff ()Ljava/lang/String;
+	public final fun getRecoverable ()Ljava/util/List;
 	public final fun getTimeout ()Ljava/lang/String;
+	public final fun getUnrecoverable ()Ljava/util/List;
 	public fun hashCode ()I
 	public fun toString ()Ljava/lang/String;
 }

@@ -29,6 +29,8 @@ import me.ahoo.wow.runtime.node.ParkedKey
 import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.source.TopicSubscriptions
+import me.ahoo.wow.runtime.subscription.PausedPartition
+import me.ahoo.wow.runtime.subscription.SubscriptionPauses
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeoutException
@@ -55,7 +57,7 @@ import kotlin.time.Duration.Companion.seconds
  *   `DOWN` while it is joining when [HealthOptions.topicsRequired], `DEGRADED` otherwise.
  * - `subscriptions`: each subscription of each runtime, from the last sample: its lag behind the log's head in the
  *   partitions it runs here, its parked entries (the service's, from the ledgers), and the partitions it has paused
- *   ([SubscriptionHealth], the extension point of P.16, decision D243). Never `DOWN`: a subscription that falls behind
+ *   ([SubscriptionPauses], each runtime's systemic pauses of P.16, decision D243). Never `DOWN`: a subscription that falls behind
  *   does not stop the node from serving.
  * - `executor`: the commands in flight against `wow.executor.max-in-flight` (decision D228 ②), and per context the
  *   executor's commands and the appends queued; `DEGRADED` at [HealthOptions.executorSaturation].
@@ -80,10 +82,12 @@ class NodeHealth(
     private val context: CoroutineContext = Dispatchers.Default,
     private val nanos: () -> Long = System::nanoTime,
     /**
-     * The partitions a runtime has paused (decision D243): by default what it tells as a [SubscriptionHealth], the
-     * extension point of P.16; a host or a test may give another source.
+     * The partitions a runtime has paused (decision D243): by default what it tells as [SubscriptionPauses]; a host or
+     * a test may give another source.
      */
-    private val pausedOf: (SubscriptionRuntime) -> List<PausedPartition> = ::pausedByRuntime,
+    private val pausedOf: (SubscriptionRuntime) -> List<PausedPartition> = SubscriptionRuntime::paused,
+    /** The wall clock the pauses' `since` is of (epoch milliseconds). */
+    private val millis: () -> Long = System::currentTimeMillis,
 ) : AutoCloseable {
     @Volatile
     private var running: Job? = null
@@ -356,7 +360,7 @@ class NodeHealth(
             details["paused"] = paused.map {
                 mapOf(
                     "partition" to it.partition,
-                    "pausedMillis" to it.pausedFor.inWholeMilliseconds,
+                    "pausedMillis" to (millis() - it.since).coerceAtLeast(0),
                     "reason" to it.reason,
                 )
             }
@@ -508,10 +512,5 @@ class NodeHealth(
         private const val TICKS_PER_STALL = 4
         private val MIN_PROBE_TIMEOUT: Duration = 1.seconds
         private val logger = KotlinLogging.logger {}
-
-        /** The partitions [runtime] has paused, when it tells them (P.16 implements [SubscriptionHealth]). */
-        fun pausedByRuntime(runtime: SubscriptionRuntime): List<PausedPartition> =
-            // A cast through Any: SubscriptionRuntime implements SubscriptionHealth once P.16 lands (decision D243).
-            ((runtime as Any) as? SubscriptionHealth)?.paused().orEmpty()
     }
 }

@@ -76,7 +76,9 @@ class SubscriptionRuntime internal constructor(
     private val notifier: ParkedNotifier = ParkedNotifier.NONE,
     /** Sees each entry its subscriptions handle (decision D174). */
     private val observer: Observer = Observer.NONE,
-) : SubscriptionDirectory {
+    /** How its subscriptions classify their handlers' failures (decisions D229 G-6, D243). */
+    private val classification: FailureClassification = FailureClassification.DEFAULT,
+) : SubscriptionDirectory, SubscriptionPauses {
     @Suppress("LongParameterList") // The parts of a runtime, as the primary constructor takes them.
     constructor(
         group: String,
@@ -90,6 +92,7 @@ class SubscriptionRuntime internal constructor(
         signals: SignalSender = SignalSender.NONE,
         notifier: ParkedNotifier = ParkedNotifier.NONE,
         observer: Observer = Observer.NONE,
+        classification: FailureClassification = FailureClassification.DEFAULT,
     ) : this(
         group,
         LogSource(log),
@@ -102,6 +105,7 @@ class SubscriptionRuntime internal constructor(
         signals,
         notifier,
         observer,
+        classification,
     )
 
     private val lifecycle = Mutex()
@@ -169,8 +173,9 @@ class SubscriptionRuntime internal constructor(
     @Suppress("TooGenericExceptionCaught") // A failed read of the ledger is retried on the next scan.
     private suspend fun scanQuietly(run: Running) {
         try {
+            // A paused partition's entries wait: their resumes would fail the same way, and the ledger may be down.
             retries.scan(run.scope, directory.keys.sorted()) { subscription, ref ->
-                run.workers[subscription to source.partitionOf(ref)]
+                run.workers[subscription to source.partitionOf(ref)]?.takeIf { it.paused == null }
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -350,6 +355,12 @@ class SubscriptionRuntime internal constructor(
         SubscriptionPosition(it.subscription.name, it.partition, it.watermark)
     }.orEmpty()
 
+    /**
+     * The partitions this runtime's subscriptions have paused on a systemic failure (decision D243), each a
+     * subscription in a partition this node runs; empty while the runtime is stopped.
+     */
+    override fun paused(): List<PausedPartition> = running?.workers?.values?.mapNotNull { it.paused }.orEmpty()
+
     private suspend fun workerOf(subscription: String, ref: AggregateRef): SubscriptionWorker? {
         val workers = running?.workers ?: return null
         return workers[subscription to source.partitionOf(ref)]
@@ -380,6 +391,7 @@ class SubscriptionRuntime internal constructor(
             signals = signals,
             notifier = notifier,
             observer = observer,
+            classification = classification,
             checkpoint = checkpoint,
             parked = parked[partition].orEmpty(),
         ).also {

@@ -19,12 +19,10 @@ import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
+import me.ahoo.wow.runtime.store.StoreLayout
+import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.store.Store
-import me.ahoo.wow.spi.store.StoreProvider
-import me.ahoo.wow.spi.store.StoreResources
-import java.net.InetAddress
-import java.net.UnknownHostException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -115,65 +113,4 @@ class HostBackends @InternalWowApi constructor(
         fun of(factory: BackendFactory): HostBackends =
             HostBackends(null, AppendQueueOptions(), local = false) { context, _ -> factory.backends(context) }
     }
-}
-
-/** Which backend a node runs on (`wow.backend`, decision D110). */
-internal object BackendSelection {
-    /**
-     * The store type [configured], `auto` resolved by what is available: the one durable provider of [providers] that
-     * [resources] are enough for ([StoreProvider.available]: PostgreSQL with a `DataSource` bean, MongoDB with a
-     * `MongoClient` bean). Several available is ambiguous, and a type configured but unavailable fails.
-     *
-     * None available fails too (review R3.5-1): a node in memory loses every committed fact when it stops, and two
-     * of them would each own every partition. Auto falls back to memory only with a [memoryOptIn], the reason a
-     * development node may keep its data there (see [memoryOptIn] below); a node meant to run in memory names it,
-     * `wow.backend=memory`.
-     */
-    fun select(
-        configured: String,
-        providers: StoreProviders,
-        resources: StoreResources,
-        memoryOptIn: String? = null,
-    ): String {
-        val type = StoreTypes.of(configured)
-        if (type == StoreTypes.AUTO) {
-            val available = providers.durable.filter { it.available(resources) }.map(StoreProvider::type)
-            check(available.size <= 1) {
-                "Several backends can back Wow (${available.joinToString()}): set wow.backend to one of them."
-            }
-            return available.singleOrNull() ?: StoreTypes.MEMORY.also { checkNotNull(memoryOptIn) { NO_DURABLE_BACKEND } }
-        }
-        val provider = providers.of(type, "wow.backend")
-        check(type == StoreTypes.MEMORY || provider.available(resources)) {
-            "wow.backend=$type needs ${provider.requirement}."
-        }
-        return type
-    }
-
-    /**
-     * Why a node may fall back to memory when `wow.backend` is auto and no durable backend is available, or null when
-     * it may not: an active profile of [devProfiles] (`wow.internal.dev-profiles`), or an internal port bound to
-     * [bindHost], a loopback address, alone, the rule a node without a cluster token follows (decision D226).
-     */
-    fun memoryOptIn(activeProfiles: Collection<String>, devProfiles: Set<String>, bindHost: String?): String? {
-        val dev = activeProfiles.filter { it in devProfiles }
-        return when {
-            dev.isNotEmpty() -> "profile ${dev.joinToString()}"
-            bindHost != null && isLoopback(bindHost) -> "internal port on loopback $bindHost"
-            else -> null
-        }
-    }
-
-    private fun isLoopback(host: String): Boolean = try {
-        InetAddress.getByName(host).isLoopbackAddress
-    } catch (_: UnknownHostException) {
-        false
-    }
-
-    const val NO_DURABLE_BACKEND: String =
-        "No durable backend for Wow: wow.backend is auto, but neither PostgreSQL (wow-postgres on the classpath and a " +
-            "DataSource bean) nor MongoDB (wow-mongo and a MongoClient bean) is available, and a node in memory loses " +
-            "every command it committed when it stops (review R3.5-1). Add the backend's module and its DataSource or " +
-            "MongoClient, or set wow.backend=memory to keep the data in memory on purpose. A profile of " +
-            "wow.internal.dev-profiles, or an internal port bound to the loopback interface alone, also runs in memory."
 }

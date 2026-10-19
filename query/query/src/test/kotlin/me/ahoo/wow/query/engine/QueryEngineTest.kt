@@ -1,0 +1,145 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.query.engine
+
+import kotlinx.coroutines.runBlocking
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.MatchNoneFilter
+import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.manifest.QueryManifest
+import me.ahoo.wow.manifest.QueryRoutes
+import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.query.AbacQueryOptions
+import me.ahoo.wow.query.QueryCaller
+import me.ahoo.wow.query.QueryPolicy
+import me.ahoo.wow.query.dataset.DatasetQueryGateways
+import me.ahoo.wow.query.dataset.QueryDatasets
+import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
+import me.ahoo.wow.query.memory.InMemoryQueryStorage
+import me.ahoo.wow.query.state.CommittedState
+import me.ahoo.wow.query.state.SnapshotPolicyGateway
+import me.ahoo.wow.spi.json.WowJson
+import org.junit.jupiter.api.Test
+
+/** The read side composed once (decision D237): which gateways the builder gives, and its fail-closed rules (R3.3-3). */
+class QueryEngineTest {
+    private val order = AggregateType("shop", "order")
+    private val cart = AggregateType("shop", "cart")
+    private val manifest = Manifest(
+        contexts = listOf(
+            ContextManifest(
+                "shop",
+                aggregates = listOf(aggregate("order"), aggregate("cart")),
+            ),
+        ),
+    )
+
+    private fun aggregate(name: String) = AggregateManifest(
+        name,
+        state = StateManifest(Manifest.schemaRef(name)),
+        queries = listOf(QueryManifest(QueryRoutes.SNAPSHOT), QueryManifest(QueryRoutes.EVENTS)),
+    )
+
+    /** Only the orders' snapshots are queried; the carts' are not, as `snapshot = false` would leave them. */
+    private fun builder() = QueryEngine.Builder(manifest).snapshots(InMemoryQueryStorage()) { it == order }
+
+    private fun state(type: AggregateType, region: String) = CommittedState(
+        ref = type.ref("acme", "x-1"),
+        version = 1,
+        scope = Scope("alice", null),
+        deleted = false,
+        tags = mapOf("region" to listOf(region)),
+        state = WowJson.mapper.createObjectNode().put("items", 2),
+    )
+
+    private fun tagged(region: String) =
+        QueryCaller(
+            Caller(tenantId = "acme", scope = Scope("alice", null), attributes = mapOf("abac.region" to listOf(region)))
+        )
+
+    @Test
+    fun `without ABAC or an application policy, the scope alone decides and no policy gateway is built`(): Unit =
+        runBlocking {
+            val engine = builder().build()
+            engine.snapshots.map { it.aggregateType }.assert().containsExactly(order)
+            engine.events.assert().isEmpty()
+            engine.policies.assert().isEmpty()
+            engine.visibility(cart).assert().isNull()
+            engine.datasets.assert().isSameAs(DatasetQueryGateways.NONE)
+            engine.reads.admitted(tagged("west"), state(cart, "east"))!!["items"].asInt().assert().isEqualTo(2)
+        }
+
+    @Test
+    fun `with ABAC, a type whose snapshots are not queried fails closed through its policy gateway`(): Unit =
+        runBlocking {
+            val engine = builder().abac(AbacQueryOptions(enabled = true, matchMissingTagKey = false)).build()
+            engine.policies.map { it.aggregateType }.assert().containsExactly(cart)
+            engine.visibility(cart).assert().isInstanceOf(SnapshotPolicyGateway::class.java)
+            engine.visibility(order).assert().isSameAs(engine.snapshots.single())
+            engine.reads.admitted(tagged("west"), state(cart, "east")).assert().isNull()
+            engine.reads.admitted(tagged("east"), state(cart, "east")).assert().isNotNull()
+            engine.reads.admitted(tagged("west"), state(order, "east")).assert().isNull()
+        }
+
+    @Test
+    fun `an application policy makes the policy gateways too, and the facade reads through them`(): Unit =
+        runBlocking {
+            val denying =
+                QueryPolicy { caller, _ -> if (caller.subject == "admin") MatchAllFilter else MatchNoneFilter }
+            val engine = builder().policies(listOf(denying)).build()
+            engine.policies.map { it.aggregateType }.assert().containsExactly(cart)
+            val alice = QueryCaller(Caller(subject = "alice", tenantId = "acme", scope = Scope("alice", null)))
+            val admin = QueryCaller(Caller(subject = "admin", tenantId = "acme", scope = Scope("alice", null)))
+            val cartState = state(cart, "east")
+            engine.reads.read(alice, { cartState }, { it }).assert().isSameAs(ReadFacade.Read.Hidden)
+            engine.reads.read(alice, {
+                null
+            }, { committed: CommittedState -> committed }).assert().isSameAs(ReadFacade.Read.Missing)
+            val visible = engine.reads.read(admin, { cartState }, { it }) as ReadFacade.Read.Visible
+            visible.view.assert().isSameAs(cartState)
+            visible.state["items"].asInt().assert().isEqualTo(2)
+        }
+
+    @Test
+    fun `the events of a type an events backend serves are queried, hidden as its snapshots are`(): Unit =
+        runBlocking {
+            val events = InMemoryEventQueryStorage({ emptyList() })
+            val engine = builder()
+                .contexts(setOf("shop"))
+                .events { type -> events.create(type).takeIf { type == cart } }
+                .abac(AbacQueryOptions(enabled = true, matchMissingTagKey = false))
+                .committedStates { ref -> state(ref.type, "east").copy(ref = ref) }
+                .datasets(QueryDatasets.NONE, null)
+                .build()
+            engine.events.map { it.aggregateType }.assert().containsExactly(cart)
+            engine.catalog.assert().isNotNull()
+        }
+
+    @Test
+    fun `the facade with no policy reads every state as it is`(): Unit = runBlocking {
+        val read = ReadFacade.NONE.read(QueryCaller.IN_PROCESS, { state(cart, "east") }, { it })
+        (read as ReadFacade.Read.Visible).state["items"].asInt().assert().isEqualTo(2)
+        ReadFacade.NONE.event(cart, "added", WowJson.mapper.createObjectNode()).isEmpty.assert().isTrue()
+        ManifestTypes.hosted(manifest, setOf("shop")).assert().containsExactly(order, cart)
+        ManifestTypes.hosted(manifest, emptySet()).assert().isEmpty()
+        ManifestStateSchemas(manifest).declares(order).assert().isFalse()
+        ManifestStateSchemas(manifest).declares(AggregateType("shop", "none")).assert().isFalse()
+    }
+}

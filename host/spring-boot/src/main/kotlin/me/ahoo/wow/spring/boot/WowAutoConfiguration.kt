@@ -64,6 +64,8 @@ import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.sink.PublishedSinks
 import me.ahoo.wow.runtime.state.KernelStateReads
 import me.ahoo.wow.runtime.state.StateReads
+import me.ahoo.wow.runtime.store.BackendSelection
+import me.ahoo.wow.runtime.store.StoreLayout
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.id.AggregateIdGenerator
@@ -73,6 +75,7 @@ import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.store.StoreProvider
+import me.ahoo.wow.spi.subscription.FailureClassifier
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
@@ -275,7 +278,7 @@ class WowAutoConfiguration {
                 node?.bindHost
             ),
         )
-        val layout = StoreLayout.of(properties, stores, models.models)
+        val layout = StoreLayout.of(properties.storePlacements(), stores, models.models.map { it.type })
         val memory = (layout.logStores + layout.snapshotStores).filterNot { stores.getValue(it).durable }
         if (memory.isNotEmpty()) {
             logger.warn {
@@ -384,6 +387,7 @@ class WowAutoConfiguration {
         notifiers: ObjectProvider<ParkedNotifier>,
         observers: ObjectProvider<Observer>,
         callers: ObjectProvider<CommandCaller>,
+        classifiers: ObjectProvider<FailureClassifier>,
     ): ServiceNode {
         checkShutdownTimeout(environment)
         val routing = routing(properties, backends.local)
@@ -445,6 +449,7 @@ class WowAutoConfiguration {
             parkedNotifier = ParkedNotifier.of(notifiers.orderedStream().toList()),
             observer = observers.getIfUnique { Observer.NONE },
             caller = callers.ifAvailable,
+            failureClassifiers = classifiers.orderedStream().toList(),
         )
     }
 

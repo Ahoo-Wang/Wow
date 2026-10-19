@@ -47,6 +47,7 @@ import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.node.accountsManifest
 import me.ahoo.wow.runtime.node.fastNodeOptions
+import me.ahoo.wow.runtime.subscription.PausedPartition
 import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.eventually
@@ -66,7 +67,6 @@ import java.util.concurrent.Executors
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * The node's health (review R3.5-3): the readiness follows the node's state, its lease store, its event log and its
@@ -370,11 +370,12 @@ class NodeHealthTest {
                     )
                 },
             )
-            val paused = PausedPartition("Slow.onDeposit", 1, 2.seconds, "StorageUnavailableException")
+            val paused = PausedPartition("g", "Slow.onDeposit", 1, 1_000, "StorageUnavailableException")
             val health = NodeHealth(
                 node,
                 HealthOptions(storeDownAfter = Duration.ZERO, lagDegradedAt = 1, parkedDegradedAt = 5),
                 pausedOf = { listOf(paused) },
+                millis = { 3_000 },
             ).also { healths += it }
             node.start()
             // A first sample, before anything parks: the parked count grows from it.
@@ -396,16 +397,38 @@ class NodeHealthTest {
             behind.details["paused"].assert().isEqualTo(
                 listOf(mapOf("partition" to 1, "pausedMillis" to 2_000L, "reason" to "StorageUnavailableException")),
             )
-            paused.assert().isEqualTo(PausedPartition("Slow.onDeposit", 1, 2.seconds, "StorageUnavailableException"))
-            paused.hashCode().assert().isEqualTo(
-                PausedPartition("Slow.onDeposit", 1, 2.seconds, "StorageUnavailableException").hashCode(),
-            )
-            paused.toString().assert().contains("Slow.onDeposit")
-            // A runtime that does not tell its pauses pauses nothing.
-            NodeHealth.pausedByRuntime(node.context(BANK).subscriptions).assert().isEmpty()
             // Subscriptions never take the node out of service.
             health.readiness().status.assert().isEqualTo(HealthStatus.UP)
             slow.complete(Unit)
+        }
+
+    @Test
+    fun `a partition the runtime paused on a systemic failure should degrade its subscription only (D243)`(): Unit =
+        runBlocking {
+            val node = node(
+                subscriptions = {
+                    listOf(
+                        Subscription("Mirror.onDeposit", SubscriptionFilter(BANK)) {
+                            throw StorageUnavailableException("The mirror's store is down.")
+                        },
+                    )
+                },
+            )
+            val health = health(node)
+            node.start()
+            node.gateway.execute(deposit("a-1"))
+            eventually { node.context(BANK).subscriptions.paused().isNotEmpty() }
+            health.sample()
+            val mirror = health.health().component(NodeHealth.SUBSCRIPTIONS)!!.components.single()
+                .component("Mirror.onDeposit")!!
+            mirror.status.assert().isEqualTo(HealthStatus.DEGRADED)
+            @Suppress("UNCHECKED_CAST")
+            val paused = (mirror.details["paused"] as List<Map<String, Any?>>).single()
+            paused["partition"].assert().isEqualTo(node.context(BANK).subscriptions.paused().single().partition)
+            (paused["reason"] as String).assert().isNotBlank()
+            // A pause waits for what it depends on: the node stays ready and live.
+            health.readiness().status.assert().isEqualTo(HealthStatus.UP)
+            health.liveness().status.assert().isEqualTo(HealthStatus.UP)
         }
 
     @Test

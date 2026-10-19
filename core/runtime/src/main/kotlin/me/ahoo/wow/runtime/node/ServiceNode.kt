@@ -80,6 +80,7 @@ import me.ahoo.wow.runtime.snapshot.SnapshotSubscription
 import me.ahoo.wow.runtime.source.TopicSubscriptions
 import me.ahoo.wow.runtime.state.StateViewReader
 import me.ahoo.wow.runtime.state.StateViews
+import me.ahoo.wow.runtime.subscription.FailureClassification
 import me.ahoo.wow.runtime.subscription.LogGroupDirectory
 import me.ahoo.wow.runtime.subscription.ParkedNotifier
 import me.ahoo.wow.runtime.subscription.Subscription
@@ -101,6 +102,7 @@ import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.subscription.CheckpointStore
+import me.ahoo.wow.spi.subscription.FailureClassifier
 import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerStore
 import me.ahoo.wow.spi.wait.Origin
@@ -311,6 +313,8 @@ class LogGroupNode internal constructor(
  * forwards and signals of the other nodes until then → close the backends. Its shutdown phase allows at least
  * `maxWaitTimeout + drainTimeout`.
  */
+// The node's composition root: it wires every part of every context, which the parts themselves implement.
+@Suppress("LargeClass")
 class ServiceNode @InternalWowApi constructor(
     val service: String,
     val node: String,
@@ -346,7 +350,15 @@ class ServiceNode @InternalWowApi constructor(
      * synchronously; none by default, and a call then fails.
      */
     private val caller: CommandCaller? = null,
+    /**
+     * The application's classifiers of its handlers' failures (decisions D229 G-6, D243), asked before the backends'
+     * and the runtime's own ([FailureClassification.of]); none by default.
+     */
+    failureClassifiers: List<FailureClassifier> = emptyList(),
 ) {
+    /** How every subscription of the node classifies its handler's failures. */
+    private val classification = FailureClassification.of(failureClassifiers)
+
     init {
         require(service.isNotBlank()) { "A node names its service." }
         require(node.isNotBlank()) { "A node has an id." }
@@ -855,6 +867,7 @@ class ServiceNode @InternalWowApi constructor(
                 notifier = notifiers,
                 partitionRefresh = topics!!.partitionRefresh,
                 observer = observer,
+                classification = classification,
             )
         }
     }
@@ -889,6 +902,7 @@ class ServiceNode @InternalWowApi constructor(
                 entries = { partitions -> MessageEntries.receipts(topic, sources.source, partitions, observer) },
                 partitionRefresh = sources.partitionRefresh,
                 observer = observer,
+                classification = classification,
             )
         }.toMap()
     }
@@ -908,6 +922,7 @@ class ServiceNode @InternalWowApi constructor(
                 signals = signals,
                 notifier = notifiers,
                 observer = observer,
+                classification = classification,
             )
         }
 
@@ -996,6 +1011,7 @@ class ServiceNode @InternalWowApi constructor(
             signals = signals,
             notifier = notifiers,
             observer = observer,
+            classification = classification,
         )
         return LogGroupNode(part.store, part.types, part.log, runtime, timers)
     }
