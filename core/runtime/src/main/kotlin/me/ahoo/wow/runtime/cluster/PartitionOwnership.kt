@@ -233,12 +233,30 @@ class PartitionOwnership internal constructor(
     /** Whether the node takes part in the group. */
     val isRunning: Boolean get() = running != null
 
-    /** Joins the group: heartbeats, reconciles at once and keeps doing so until [stop]. */
+    /**
+     * Joins the group: heartbeats, reconciles at once and keeps doing so until [stop]. A start that fails, the lease
+     * store unreachable say, undoes what it did before it throws (review R2.1-8): it leaves the members, hands off
+     * what it acquired and stops the runtimes it started, so the ownership can be started again.
+     */
     suspend fun start(): Unit = lifecycle.withLock {
         check(running == null) { "$node is already part of $group." }
         requireAddress(address)
-        runtimes.filterNot { it.isRunning }.forEach { it.start() }
+        val started = mutableListOf<SubscriptionRuntime>()
+        try {
+            join(started)
+        } catch (failure: Throwable) {
+            withContext(NonCancellable) { abandon(started) }
+            throw failure
+        }
+    }
+
+    private suspend fun join(started: MutableList<SubscriptionRuntime>) {
+        runtimes.filterNot { it.isRunning }.forEach {
+            started += it
+            it.start()
+        }
         if (intake != null && !intake.isRunning) {
+            started += intake
             intake.start()
         }
         leases.heartbeat(group.name, node, address, options.memberTtl)
@@ -267,6 +285,29 @@ class PartitionOwnership internal constructor(
                 withTimeoutOrNull(options.routeRefreshInterval) { wakeRefresh.receive() }
                 quietly("refresh routes") { refreshRoutes() }
             }
+        }
+    }
+
+    /**
+     * Undoes a [start] that failed half-way, as [stop] would: leaves the members, hands off what the first reconcile
+     * acquired, then stops the runtimes this start [started], not those already running before it.
+     */
+    private suspend fun abandon(started: List<SubscriptionRuntime>) {
+        val run = running
+        try {
+            run?.membershipJob?.cancelAndJoin()
+            quietly("leave $group") { leases.leave(group.name, node) }
+            reconcileLock.withLock {
+                target = emptySet()
+                handOff(gates.keys.toList())
+            }
+            timers.forEach { quietly("stop the timers of $group") { it.stop() } }
+            started.asReversed().forEach { quietly("stop the subscriptions of $group") { it.stop() } }
+        } finally {
+            running = null
+            seenPeers.clear()
+            lastMembers = emptySet()
+            run?.root?.cancelAndJoin()
         }
     }
 
