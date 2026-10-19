@@ -88,14 +88,20 @@ class NodeHealth(
     @Volatile
     private var lastTick: Long = StoreActivity.NONE
 
+    /** The node's logs and lease stores, with what was seen of their calls. */
+    private val stores: NodeStores = NodeStores.of(node)
+
     /** Since when each lease group's owned partitions differ from its share, by group name. */
     private val mismatches = ConcurrentHashMap<String, Long>()
 
     @Volatile
     private var lastSample: Sample = Sample.EMPTY
 
+    /** How often the dispatcher ticks: every second, or four times within a shorter stall timeout. */
+    private val tick: Duration = minOf(TICK, options.stallTimeout / TICKS_PER_STALL)
+
     /**
-     * Starts the dispatcher's tick, every second, and the sampling, every [HealthOptions.sampleInterval], the first
+     * Starts the dispatcher's tick, every second (more often within a short stall timeout), and the sampling, every [HealthOptions.sampleInterval], the first
      * sample at once. Starting twice does nothing.
      */
     @Synchronized
@@ -108,7 +114,7 @@ class NodeHealth(
             scope.launch {
                 while (true) {
                     lastTick = nanos()
-                    delay(TICK)
+                    delay(tick)
                 }
             },
             scope.launch {
@@ -139,8 +145,8 @@ class NodeHealth(
         if (node.state != ServiceNode.State.RUNNING) {
             return
         }
-        node.stores.logs.forEach { store -> probe(store.activity) { store.log.head(0) } }
-        node.stores.leases.forEach { store ->
+        stores.logs.forEach { store -> probe(store.activity) { store.log.head(0) } }
+        stores.leases.forEach { store ->
             val group = node.contexts[store.context]?.group?.name ?: return@forEach
             probe(store.activity) { store.leases.members(group) }
         }
@@ -164,7 +170,7 @@ class NodeHealth(
     /** Whether the process is stuck (see the class description): `DOWN` only then. */
     fun liveness(): ComponentHealth {
         val now = nanos()
-        val limit = node.inFlightLimit
+        val limit = node.inFlight
         val inFlight = limit.inFlight
         val tickAge = ago(now, lastTick)
         val progressAge = (now - limit.lastProgress).nanoseconds
@@ -182,7 +188,7 @@ class NodeHealth(
             details["stalled"] = "dispatcher"
             return ComponentHealth(LIVENESS, HealthStatus.DOWN, details)
         }
-        val storesAnswer = node.stores.logs.all { store -> ago(now, store.activity.lastSuccess)?.let { it < stall } == true }
+        val storesAnswer = stores.logs.all { store -> ago(now, store.activity.lastSuccess)?.let { it < stall } == true }
         if (inFlight > 0 && progressAge >= stall && storesAnswer) {
             details["stalled"] = "kernel"
             return ComponentHealth(LIVENESS, HealthStatus.DOWN, details)
@@ -198,7 +204,7 @@ class NodeHealth(
 
     private fun stores(): ComponentHealth = ComponentHealth.of(
         STORES,
-        node.stores.logs.map { store ->
+        stores.logs.map { store ->
             storeHealth(store.activity.name, store.activity, mapOf("context" to store.context, "store" to store.store))
         },
     )
@@ -227,7 +233,7 @@ class NodeHealth(
     }
 
     private fun ownership(): ComponentHealth {
-        val leases = node.stores.leases.associateBy { it.context }
+        val leases = stores.leases.associateBy { it.context }
         val groups = node.contexts.values.map { context ->
             ownershipHealth(context.ownership, leases[context.context]?.activity)
         } + node.topicSubscriptions.values.mapNotNull { topic -> topic.ownership?.let { ownershipHealth(it, null) } }
@@ -352,7 +358,7 @@ class NodeHealth(
     }
 
     private fun executor(): ComponentHealth {
-        val limit = node.inFlightLimit
+        val limit = node.inFlight
         val saturated = limit.inFlight >= limit.max * options.executorSaturation
         return ComponentHealth(
             EXECUTOR,
@@ -375,18 +381,42 @@ class NodeHealth(
         context.logGroups.map { it.subscriptions } + listOfNotNull(context.intake)
     } + node.topicSubscriptions.values.mapNotNull { it.runtime }
 
+    /**
+     * The lag of each subscription of each log group, and the parked entries of each subscription; a group whose
+     * heads, or a subscription whose ledger, cannot be read now is left out of this sample (its store shows why).
+     */
     private suspend fun sampleSubscriptions(): Sample {
         val lags = HashMap<Pair<String, String>, Long>()
         node.contexts.values.flatMap { it.logGroups }.forEach { group ->
-            val heads = HashMap<Int, Long>()
-            group.subscriptions.positions().forEach { position ->
-                val head = heads.getOrPut(position.partition) { group.log.head(position.partition) ?: 0L }
-                val key = group.subscriptions.group to position.subscription
-                lags[key] = (lags[key] ?: 0L) + (head - position.watermark).coerceAtLeast(0)
+            quietly("read the heads of ${group.subscriptions.group}") {
+                val heads = HashMap<Int, Long>()
+                val sampled = HashMap<Pair<String, String>, Long>()
+                group.subscriptions.positions().forEach { position ->
+                    val head = heads.getOrPut(position.partition) { group.log.head(position.partition) ?: 0L }
+                    val key = group.subscriptions.group to position.subscription
+                    sampled[key] = (sampled[key] ?: 0L) + (head - position.watermark).coerceAtLeast(0)
+                }
+                lags += sampled
             }
         }
-        val parked = node.parked.subscriptions.associateWith { countParked(node.parked, it) }
+        val parked = HashMap<String, Int>()
+        node.parked.subscriptions.forEach { subscription ->
+            quietly("count the parked entries of $subscription") {
+                parked[subscription] = countParked(node.parked, subscription)
+            }
+        }
         return Sample(nanos(), lags, parked, lastSample.parked)
+    }
+
+    @Suppress("TooGenericExceptionCaught") // Left out of the sample; the next one tries again.
+    private suspend fun quietly(action: String, block: suspend () -> Unit) {
+        try {
+            block()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            logger.debug(failure) { "Node ${node.node} failed to $action for its health; sampling again." }
+        }
     }
 
     /** How many entries [subscription] has parked, up to [HealthOptions.parkedDegradedAt]. */
@@ -461,6 +491,7 @@ class NodeHealth(
         const val EXECUTOR: String = "executor"
         const val LEASE_STORE: String = "leaseStore"
         private val TICK: Duration = 1.seconds
+        private const val TICKS_PER_STALL = 4
         private val MIN_PROBE_TIMEOUT: Duration = 1.seconds
         private val logger = KotlinLogging.logger {}
 

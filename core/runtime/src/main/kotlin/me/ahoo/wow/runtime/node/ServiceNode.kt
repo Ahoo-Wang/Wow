@@ -376,24 +376,14 @@ class ServiceNode @InternalWowApi constructor(
         options.schedules,
     )
 
-    /**
-     * The event logs and lease stores of every context, each call of them recorded (review R3.5-3): what
-     * [me.ahoo.wow.runtime.health.NodeHealth] reports of the stores without calling them.
-     */
-    @InternalWowApi
-    val stores: NodeStores = NodeStores()
-
-    /** The backends of each context the [models] are of, opened once, their logs and lease stores in [stores]. */
+    /** The backends of each context the [models] are of, opened once, each call recorded (review R3.5-3). */
     private val opened: Map<String, ContextBackends> =
-        models.mapTo(LinkedHashSet()) { it.type.context }.associateWith { stores.track(it, backends.backends(it)) }
+        models.mapTo(LinkedHashSet()) { it.type.context }.associateWith { NodeStores.track(it, backends.backends(it)) }
 
     private val nodeSnapshots = NodeSnapshots(manifest)
 
     /** The commands in flight in the executors of every context (decision D228 ②): one bound for the node. */
-    private val inFlight = InFlightLimit(options.maxInFlight)
-
-    /** [inFlight], as the health model reads it. */
-    internal val inFlightLimit: InFlightLimit get() = inFlight
+    internal val inFlight = InFlightLimit(options.maxInFlight)
 
     /**
      * The models the node runs: the [models] of the Manifest, the built-in job aggregate of each context's [jobs], and

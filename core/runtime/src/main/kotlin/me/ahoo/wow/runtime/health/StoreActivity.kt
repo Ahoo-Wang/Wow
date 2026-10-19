@@ -155,9 +155,18 @@ private fun anyFailure(failure: Throwable): Boolean = failure !is CancellationEx
 internal fun trackedLog(log: EventLog, activity: StoreActivity): EventLog = TrackedEventLog(log, activity)
 
 /** [leases], every call recorded in [activity]. */
-internal fun trackedLeases(leases: LeaseStore, activity: StoreActivity): LeaseStore = TrackedLeaseStore(leases, activity)
+internal fun trackedLeases(
+    leases: LeaseStore,
+    activity: StoreActivity
+): LeaseStore = TrackedLeaseStore(leases, activity)
 
-private class TrackedEventLog(private val log: EventLog, private val activity: StoreActivity) : EventLog {
+/** The record of [log]'s calls, when it is tracked. */
+internal fun activityOf(log: EventLog): StoreActivity? = (log as? TrackedEventLog)?.activity
+
+/** The record of [leases]' calls, when it is tracked. */
+internal fun activityOf(leases: LeaseStore): StoreActivity? = (leases as? TrackedLeaseStore)?.activity
+
+private class TrackedEventLog(private val log: EventLog, val activity: StoreActivity) : EventLog {
     override val partitions: Int get() = log.partitions
 
     override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
@@ -208,7 +217,7 @@ private class TrackedEventLog(private val log: EventLog, private val activity: S
     override fun toString(): String = log.toString()
 }
 
-private class TrackedLeaseStore(private val leases: LeaseStore, private val activity: StoreActivity) : LeaseStore {
+private class TrackedLeaseStore(private val leases: LeaseStore, val activity: StoreActivity) : LeaseStore {
     override suspend fun acquire(group: String, partition: Int, owner: String, ttl: Duration): Lease? =
         activity.call(::anyFailure) { leases.acquire(group, partition, owner, ttl) }
 
