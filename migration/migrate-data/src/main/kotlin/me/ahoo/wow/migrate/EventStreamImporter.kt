@@ -304,7 +304,7 @@ class EventStreamImporter(
 
     private fun save(aggregate: NineXAggregate, checkpoint: AggregateCheckpoint) {
         if (!options.dryRun) {
-            checkpoints.save(checkpoints.load().with(aggregate, checkpoint))
+            checkpoints.update { it.with(aggregate, checkpoint) }
         }
     }
 

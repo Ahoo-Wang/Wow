@@ -239,7 +239,7 @@ class CompensationImporter(
         if (!options.dryRun && checkpoint.after == null && !checkpoint.completed) {
             // Saved first: a run stopped while it converges walks from the first execution again, and so parks again
             // what another execution still holds of an aggregate whose entry it resolved.
-            checkpoints.save(checkpoints.load().with(checkpoint))
+            checkpoints.update { it.with(checkpoint) }
             checkpoint = checkpoint.copy(resolved = converge())
         }
         while (!checkpoint.completed) {
@@ -256,7 +256,7 @@ class CompensationImporter(
                     }
                 }
             }
-            checkpoints.save(checkpoints.load().with(checkpoint))
+            checkpoints.update { it.with(checkpoint) }
             if (!checkpoint.completed) {
                 progress(checkpoint.progress())
             }

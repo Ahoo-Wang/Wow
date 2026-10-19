@@ -65,7 +65,7 @@ class ClickHouseSinkSchemaTest {
     @Test
     fun `the views should fill the current state and the events from the base table`() {
         val ddl = ClickHouseSinkSchema(ORDER, "analytics", AggregateSinkOptions(historyTtl = 1.days), flat, 50).ddl
-        ddl.size.assert().isEqualTo(6)
+        ddl.size.assert().isEqualTo(5)
         ddl[1].assert().startsWith("CREATE TABLE IF NOT EXISTS `analytics`.`shop_order_state`\n(\n    `id` String,")
         ddl[1].assert().endsWith(
             "ENGINE = ReplacingMergeTree(version)\nORDER BY (tenant_id, aggregate_id)\n" +
@@ -89,19 +89,25 @@ class ClickHouseSinkSchemaTest {
                 "FROM `analytics`.`shop_order_state_events`\n" +
                 "ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence",
         )
-        ddl[5].assert().isEqualTo(
+        val schema = ClickHouseSinkSchema(ORDER, "analytics", AggregateSinkOptions(historyTtl = 1.days), flat, 50)
+        schema.flatView(FlatLineage(listOf("0a", schema.flatFingerprint))).assert().isEqualTo(
             "CREATE OR REPLACE VIEW `analytics`.`shop_order_state_flat` AS\n" +
                 "SELECT `id`, `tenant_id`, `aggregate_id`, `version`, `commit_time`, `owner_id`, `space_id`, `deleted`, " +
                 "`tags`, toDecimal128OrZero(state_numbers['total'], 2) AS `total`\n" +
-                "FROM `analytics`.`shop_order_state` FINAL",
+                "FROM `analytics`.`shop_order_state` FINAL\n" +
+                "COMMENT 'wow-sink-flat:0a,${schema.flatFingerprint}'",
         )
+        // The fingerprint is the definition's, whatever the database.
+        schema.flatFingerprint.assert().hasSize(16)
+            .isEqualTo(ClickHouseSinkSchema(ORDER, "default", AggregateSinkOptions(), flat).flatFingerprint)
+            .isNotEqualTo(ClickHouseSinkSchema(ORDER, "default", AggregateSinkOptions(), emptyList()).flatFingerprint)
     }
 
     @Test
     fun `without the history only the current state and its flat view should exist`() {
         val schema = ClickHouseSinkSchema(ORDER, "default", AggregateSinkOptions(history = false), flat)
         schema.target.assert().isEqualTo("shop_order_state")
-        schema.ddl.size.assert().isEqualTo(2)
+        schema.ddl.size.assert().isEqualTo(1)
         schema.ddl[0].assert().contains("ReplacingMergeTree(version)").doesNotContain("TTL")
         schema.expected.map { it.name }.assert().containsExactly("shop_order_state", "shop_order_state_flat")
     }

@@ -143,14 +143,20 @@ class KafkaAutoConfiguration {
     @ConditionalOnClass(name = [MICROMETER])
     @ConditionalOnProperty(prefix = KafkaProperties.PREFIX, name = ["bootstrap-servers"])
     class KafkaMetrics {
-        /** Counts the gaps of the node's source when it is Kafka's; an application's own source counts none. */
+        /**
+         * Counts the gaps of the node's source when it is Kafka's; an application's own source counts none.
+         *
+         * The counting function captures [sources], so the meter holds it strongly (finding R2.3-4): Micrometer only
+         * weakly references a function counter's object, and the injected provider has no other holder, so a counter
+         * reading it through that object would freeze at its last value on the first garbage collection.
+         */
         @Bean
         fun wowKafkaOffsetGaps(
             sources: ObjectProvider<PartitionedSource>,
             meters: ObjectProvider<MeterRegistry>,
         ): FunctionCounter =
-            FunctionCounter.builder(OFFSET_GAPS, sources) {
-                (it.getIfUnique() as? KafkaPartitionedSource)?.offsetGaps?.toDouble() ?: 0.0
+            FunctionCounter.builder(OFFSET_GAPS, sources) { _ ->
+                (sources.getIfUnique() as? KafkaPartitionedSource)?.offsetGaps?.toDouble() ?: 0.0
             }
                 .description("Offsets a Kafka read was to start from that its partition no longer holds.")
                 .register(meters.getIfUnique { Metrics.globalRegistry })

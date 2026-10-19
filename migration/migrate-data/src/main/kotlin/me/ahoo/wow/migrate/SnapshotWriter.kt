@@ -99,7 +99,7 @@ class SnapshotWriter(
                     skipped = checkpoint.skipped + written.count { !it },
                 )
             }
-            checkpoints.save(checkpoints.load().with(aggregate, checkpoint))
+            checkpoints.update { it.with(aggregate, checkpoint) }
             if (!checkpoint.completed) {
                 progress(progressOf(aggregate, checkpoint))
             }
