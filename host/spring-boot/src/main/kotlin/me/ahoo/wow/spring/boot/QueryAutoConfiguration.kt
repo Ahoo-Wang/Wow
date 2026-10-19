@@ -114,18 +114,16 @@ class QueryAutoConfiguration {
             node: ServiceNode,
             properties: QueryProperties,
             backends: HostBackends,
+            providers: StoreProviders,
             factories: ObjectProvider<QueryBackendFactory<*>>,
         ): SnapshotQueryBackend {
             factories.ifAvailable?.let { return SnapshotQueryBackend(it) }
-            val ddl = properties.index.ddl
-            // One backend per store the snapshots are on (decision D177), each type's routed to its store's.
+            val options = properties.storeQueryOptions()
+            // One backend per store the snapshots are on (decision D177), each type's routed to its store's, from the
+            // query provider of the store's type (review R3.3-1).
             val byStore = backends.layout?.snapshotStores.orEmpty().associateWith { name ->
                 val store = backends.stores.getValue(name)
-                when (store.kind) {
-                    BackendKind.POSTGRES -> PostgresQueries.open(store, ddl)
-                    BackendKind.MONGO -> MongoQueries.open(store, ddl)
-                    else -> MemoryQueries.open(store)
-                }
+                providers.queriesOf(store.type)?.snapshots(store, options)?.let(SnapshotQueryBackend::of)
             }
             val types = snapshotTypes(manifest, node.contexts.keys)
             val backend = SnapshotQueryBackend.routing(types) { type ->
@@ -134,7 +132,7 @@ class QueryAutoConfiguration {
             val unserved = types.filterNot(backend::serves)
             if (unserved.isNotEmpty()) {
                 logger.info {
-                    "No snapshot query backend serves the snapshots of $unserved (${backends.kind ?: "the application's"} " +
+                    "No snapshot query backend serves the snapshots of $unserved (${backends.type ?: "the application's"} " +
                         "stores): they are not queried; give the node a QueryBackendFactory bean to query them, or set " +
                         "wow.query.memory.enabled on the memory backend."
                 }
@@ -144,8 +142,9 @@ class QueryAutoConfiguration {
 
         /**
          * The `events` query backend of each aggregate type (decision D235), by the store its log is on (D177): the
-         * application's own [EventQueryBackend] bean when it has one, else PostgreSQL's or MongoDB's over the log in
-         * place (`wow.query.events.mongo-read-preference`), and any other log, in memory or the application's own,
+         * application's own [EventQueryBackend] bean when it has one, else the one of the query provider of the store's
+         * type (review R3.3-1): PostgreSQL's or MongoDB's over the log in place
+         * (`wow.query.events.mongo-read-preference`), memory's scanned in memory; any other log, a store's without one or the application's own,
          * scanned in memory.
          */
         @Bean
@@ -155,20 +154,18 @@ class QueryAutoConfiguration {
             node: ServiceNode,
             properties: QueryProperties,
             backends: HostBackends,
+            providers: StoreProviders,
         ): EventQueryBackend {
             val layout = backends.layout
+            val options = properties.storeQueryOptions()
             val byStore = layout?.logStores.orEmpty().associateWith { name ->
                 val store = backends.stores.getValue(name)
-                when (store.kind) {
-                    BackendKind.POSTGRES -> EventQueryBackends.postgres(store)
-                    BackendKind.MONGO -> EventQueryBackends.mongo(store, properties.events.mongoReadPreference)
-                    else -> null
-                }
+                providers.queriesOf(store.type)?.events(store, options)
             }
             val scanned = ConcurrentHashMap<String, InMemoryEventQueryStorage>()
             return EventQueryBackend { type ->
                 val stored = layout?.let { byStore[it.logStoreOf(type)] }
-                stored?.invoke(type) ?: node.contexts[type.context]?.let { context ->
+                stored?.binding(type) ?: node.contexts[type.context]?.let { context ->
                     scanned.computeIfAbsent(type.context) { InMemoryEventQueryStorage.of(context.log) }.create(type)
                 }
             }

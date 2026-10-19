@@ -86,7 +86,7 @@ class PostgresClusterTest {
     @Test
     fun `the hosts should run on PostgreSQL with partitioned routing`() {
         hosts.forEach { host ->
-            host.context.getBean(HostBackends::class.java).kind.assert().isEqualTo(BackendKind.POSTGRES)
+            host.context.getBean(HostBackends::class.java).type.assert().isEqualTo("postgres")
             host.node.options.routing.assert().isEqualTo(Routing.PARTITIONED)
             host.node.options.appendQueue.enabled.assert().isFalse()
         }

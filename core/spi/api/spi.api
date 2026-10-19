@@ -767,6 +767,85 @@ public final class me/ahoo/wow/spi/state/StateView$Companion {
 	public final fun of (ILjava/lang/String;Ltools/jackson/databind/JsonNode;)Lme/ahoo/wow/spi/state/StateView;
 }
 
+public abstract class me/ahoo/wow/spi/store/Store {
+	public fun <init> (Lme/ahoo/wow/spi/store/StoreConfig;)V
+	public final fun createSchemas ()V
+	public final fun getCheckpoints ()Lme/ahoo/wow/spi/subscription/CheckpointStore;
+	public final fun getConfig ()Lme/ahoo/wow/spi/store/StoreConfig;
+	public fun getDurable ()Z
+	public fun getHoldsLogs ()Z
+	public fun getHoldsSnapshots ()Z
+	public final fun getLeases ()Lme/ahoo/wow/spi/subscription/LeaseStore;
+	public final fun getLedger ()Lme/ahoo/wow/spi/ledger/FailureLedger;
+	public abstract fun getLocation ()Ljava/lang/Object;
+	public final fun getName ()Ljava/lang/String;
+	public fun getQueuesAppends ()Ljava/lang/Boolean;
+	public final fun getReservations ()Lme/ahoo/wow/spi/reservation/ReservationStore;
+	public final fun getType ()Ljava/lang/String;
+	public final fun log (Ljava/lang/String;I)Lme/ahoo/wow/spi/log/EventLog;
+	protected abstract fun openCheckpoints ()Lme/ahoo/wow/spi/subscription/CheckpointStore;
+	protected abstract fun openLeases ()Lme/ahoo/wow/spi/subscription/LeaseStore;
+	protected abstract fun openLedger ()Lme/ahoo/wow/spi/ledger/FailureLedger;
+	protected abstract fun openLog (Ljava/lang/String;I)Lme/ahoo/wow/spi/log/EventLog;
+	protected abstract fun openReservations ()Lme/ahoo/wow/spi/reservation/ReservationStore;
+	protected abstract fun openSnapshots (Ljava/lang/String;)Lme/ahoo/wow/spi/snapshot/SnapshotStore;
+	protected abstract fun openTimers (Ljava/lang/String;)Lme/ahoo/wow/spi/timer/TimerStore;
+	public final fun openedLog (Ljava/lang/String;)Lme/ahoo/wow/spi/log/EventLog;
+	protected final fun schema (Lkotlin/jvm/functions/Function0;)V
+	public final fun snapshots (Ljava/lang/String;)Lme/ahoo/wow/spi/snapshot/SnapshotStore;
+	public final fun timers (Ljava/lang/String;)Lme/ahoo/wow/spi/timer/TimerStore;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/store/StoreConfig {
+	public static final field Companion Lme/ahoo/wow/spi/store/StoreConfig$Companion;
+	public final fun getDdl ()Lme/ahoo/wow/spi/StoreDdl;
+	public final fun getKey ()Ljava/lang/String;
+	public final fun getName ()Ljava/lang/String;
+	public final fun getOptions ()Ljava/util/Map;
+	public final fun getPolling ()Lme/ahoo/wow/spi/log/TailPolling;
+	public final fun getResources ()Lme/ahoo/wow/spi/store/StoreResources;
+	public final fun getService ()Ljava/lang/String;
+	public final fun getType ()Ljava/lang/String;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;Ljava/util/Map;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public static final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public final fun option (Ljava/lang/String;)Ljava/lang/String;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/store/StoreConfig$Companion {
+	public final fun of (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;Ljava/util/Map;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public final fun of (Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;)Lme/ahoo/wow/spi/store/StoreConfig;
+	public static synthetic fun of$default (Lme/ahoo/wow/spi/store/StoreConfig$Companion;Ljava/lang/String;Ljava/lang/String;Lme/ahoo/wow/spi/StoreDdl;Ljava/util/Map;Lme/ahoo/wow/spi/log/TailPolling;Ljava/lang/String;Lme/ahoo/wow/spi/store/StoreResources;ILjava/lang/Object;)Lme/ahoo/wow/spi/store/StoreConfig;
+}
+
+public abstract interface class me/ahoo/wow/spi/store/StoreProvider {
+	public fun available (Lme/ahoo/wow/spi/store/StoreResources;)Z
+	public fun getRequirement ()Ljava/lang/String;
+	public abstract fun getType ()Ljava/lang/String;
+	public abstract fun open (Lme/ahoo/wow/spi/store/StoreConfig;)Lme/ahoo/wow/spi/store/Store;
+}
+
+public abstract interface class me/ahoo/wow/spi/store/StoreResources {
+	public static final field Companion Lme/ahoo/wow/spi/store/StoreResources$Companion;
+	public static final field NONE Lme/ahoo/wow/spi/store/StoreResources;
+	public abstract fun has (Ljava/lang/Class;)Z
+	public static fun of (Ljava/util/Map;)Lme/ahoo/wow/spi/store/StoreResources;
+	public abstract fun resource (Ljava/lang/Class;Ljava/lang/String;Ljava/lang/String;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/spi/store/StoreResources$Companion {
+	public final fun of (Ljava/util/Map;)Lme/ahoo/wow/spi/store/StoreResources;
+}
+
 public final class me/ahoo/wow/spi/subscription/Checkpoint {
 	public static final field Companion Lme/ahoo/wow/spi/subscription/Checkpoint$Companion;
 	public fun equals (Ljava/lang/Object;)Z

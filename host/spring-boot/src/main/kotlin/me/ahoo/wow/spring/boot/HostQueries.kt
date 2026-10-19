@@ -26,6 +26,7 @@ import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.index.QueryIndexDeclaration
+import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.schema.ManifestQuerySchemaSource
 import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.query.schema.QueryModel
@@ -34,7 +35,13 @@ import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaDeclaration
 import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.store.EventQueries
+import me.ahoo.wow.query.store.QueryIndexReport
+import me.ahoo.wow.query.store.SnapshotQueries
+import me.ahoo.wow.query.store.StoreQueryOptions
+import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.runtime.admission.TenantPolicy
+import me.ahoo.wow.spi.store.Store
 import org.springframework.context.SmartLifecycle
 import java.util.concurrent.ConcurrentHashMap
 
@@ -113,13 +120,20 @@ class SnapshotQueryBackend(
         type: AggregateType,
         schema: QueryModelSchema,
         declarations: List<QueryIndexDeclaration>,
-    ): QueryIndexReport = indexes?.invoke(type, schema, declarations) ?: QueryIndexReport()
+    ): QueryIndexReport = indexes?.invoke(type, schema, declarations) ?: QueryIndexReport.NONE
 
     @InternalWowApi
     companion object {
         /** No backend: the node's snapshots are not queried. */
         @JvmField
         val NONE: SnapshotQueryBackend = SnapshotQueryBackend(null)
+
+        /** The snapshot queries of one store ([StoreQueryProvider.snapshots]) as a backend. */
+        fun of(queries: SnapshotQueries): SnapshotQueryBackend = SnapshotQueryBackend(
+            factory = QueryBackendFactory { type -> queries.binding(type) },
+            prepare = queries::prepare,
+            indexes = queries::manageIndexes.takeIf { queries.managesIndexes },
+        )
 
         /**
          * The backend of each aggregate type's snapshot store (decision D177): [backendOf] gives it, null when its
@@ -141,10 +155,35 @@ class SnapshotQueryBackend(
                 },
                 prepare = { type -> backendOf(type)?.prepare(type) },
                 indexes = { type, schema, declarations ->
-                    backendOf(type)?.manageIndexes(type, schema, declarations) ?: QueryIndexReport()
+                    backendOf(type)?.manageIndexes(type, schema, declarations) ?: QueryIndexReport.NONE
                 },
                 serves = { type -> backendOf(type)?.serves(type) == true },
             )
+        }
+    }
+}
+
+/**
+ * The queries of a store in memory, built into the host: its snapshots when `wow.query.memory.enabled` gave it the
+ * in-memory reference query backend ([MemoryStore.queries], decision D209), and its logs scanned in memory
+ * ([InMemoryEventQueryStorage.of]) for the `events` model.
+ */
+internal object MemoryQueryProvider : StoreQueryProvider {
+    override val type: String = StoreTypes.MEMORY
+
+    override fun snapshots(store: Store, options: StoreQueryOptions): SnapshotQueries? =
+        (store as? MemoryStore)?.queries?.let { queries ->
+            object : SnapshotQueries {
+                override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = queries.create(type)
+            }
+        }
+
+    override fun events(store: Store, options: StoreQueryOptions): EventQueries {
+        val scanned = ConcurrentHashMap<String, InMemoryEventQueryStorage>()
+        return EventQueries { type ->
+            store.openedLog(type.context)?.let { log ->
+                scanned.computeIfAbsent(type.context) { InMemoryEventQueryStorage.of(log) }.create(type)
+            }
         }
     }
 }
@@ -165,14 +204,6 @@ class EventQueryBackend(private val binding: (AggregateType) -> QueryBackendBind
         val NONE: EventQueryBackend = EventQueryBackend { null }
     }
 }
-
-/** What managing one aggregate's indexes did: the indexes it created, and those it found missing or broken. */
-@InternalWowApi
-data class QueryIndexReport(
-    val created: List<String> = emptyList(),
-    val missing: List<String> = emptyList(),
-    val invalid: List<String> = emptyList(),
-)
 
 /**
  * The aggregate types of [manifest] in [contexts] whose snapshots are queried: the Manifest lists their

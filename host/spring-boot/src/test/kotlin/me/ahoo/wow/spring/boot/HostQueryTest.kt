@@ -38,6 +38,7 @@ import me.ahoo.wow.query.memory.InMemoryQueryStorage
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaContext
+import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -292,7 +293,11 @@ class HostQueryTest {
         SnapshotQueryBackend.NONE.managesIndexes.assert().isFalse()
         SnapshotQueryBackend(InMemoryQueryStorage()).managesIndexes.assert().isFalse()
         SnapshotQueryBackend(InMemoryQueryStorage())
-            .manageIndexes(ACCOUNT, runBlocking { catalogSchema() }, emptyList()).assert().isEqualTo(QueryIndexReport())
+            .manageIndexes(
+                ACCOUNT,
+                runBlocking { catalogSchema() },
+                emptyList()
+            ).assert().isEqualTo(QueryIndexReport.NONE)
     }
 
     @Test
