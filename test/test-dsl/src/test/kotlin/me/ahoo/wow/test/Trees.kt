@@ -18,16 +18,25 @@ import org.junit.jupiter.api.DynamicNode
 import org.junit.jupiter.api.DynamicTest
 import java.util.stream.Stream
 
-/** Runs the tests of [this] tree as JUnit would, giving what each threw (null when it passed) by its path. */
-fun Stream<DynamicNode>.results(): Map<String, Throwable?> {
-    val results = LinkedHashMap<String, Throwable?>()
+/** Runs the tests of [this] tree as JUnit would, giving each one's path and what it threw (null when it passed). */
+fun Stream<DynamicNode>.results(): List<Pair<String, Throwable?>> {
+    val results = ArrayList<Pair<String, Throwable?>>()
     fun visit(node: DynamicNode, parent: String?) {
         val path = parent?.let { "$it/${node.displayName}" } ?: node.displayName
         when (node) {
             is DynamicContainer -> node.children.forEach { visit(it, path) }
-            is DynamicTest -> results[path] = runCatching { node.executable.execute() }.exceptionOrNull()
+            is DynamicTest -> results += path to runCatching { node.executable.execute() }.exceptionOrNull()
         }
     }
     forEach { visit(it, null) }
     return results
 }
+
+/** The paths of the tests. */
+val List<Pair<String, Throwable?>>.paths: List<String> get() = map { it.first }
+
+/** The paths of the tests that failed. */
+val List<Pair<String, Throwable?>>.failed: List<String> get() = filter { it.second != null }.map { it.first }
+
+/** What the test at [path] threw. */
+fun List<Pair<String, Throwable?>>.failureOf(path: String): Throwable? = single { it.first == path }.second

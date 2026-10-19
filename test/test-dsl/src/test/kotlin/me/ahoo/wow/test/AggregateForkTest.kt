@@ -215,7 +215,7 @@ class AggregateForkTest {
             expectNothingDue(within = 1.minutes)
             whenCommand(Deposit(1)) { expectEventTypes(Deposited::class) }
         }.results()
-        results.keys.assert().containsExactly(
+        results.paths.assert().containsExactly(
             "whenCommand(Open)",
             "fails/whenCommand(Close)",
             "passes/whenCommand(Close)",
@@ -224,8 +224,8 @@ class AggregateForkTest {
             "expectNothingDue(1m)",
             "whenCommand(Deposit)",
         )
-        results.filterValues { it != null }.keys.assert().containsExactly("fails/whenCommand(Close)", "advanceTime(30m)")
-        results["fails/whenCommand(Close)"].assert().isInstanceOf(AssertionError::class.java)
+        results.failed.assert().containsExactly("fails/whenCommand(Close)", "advanceTime(30m)")
+        results.failureOf("fails/whenCommand(Close)").assert().isInstanceOf(AssertionError::class.java)
     }
 
     @Test
@@ -239,10 +239,10 @@ class AggregateForkTest {
             fork("whole") { whenCommand(Close("x")) { expectEventTypes(Closed::class) } }
             givenState(Account(ref.id))
         }.results()
-        results.keys.assert().containsExactly("whenCommand(Open)", "broken/Error", "whole/whenCommand(Close)", "Error")
-        results["broken/Error"].assert().isInstanceOf(IllegalArgumentException::class.java)
-        results["Error"].assert().isInstanceOf(IllegalStateException::class.java)
-        results["whole/whenCommand(Close)"].assert().isNull()
+        results.paths.assert().containsExactly("whenCommand(Open)", "broken/Error", "whole/whenCommand(Close)", "Error")
+        results.failureOf("broken/Error").assert().isInstanceOf(IllegalArgumentException::class.java)
+        results.failureOf("Error").assert().isInstanceOf(IllegalStateException::class.java)
+        results.failureOf("whole/whenCommand(Close)").assert().isNull()
     }
 
     @TestFactory
