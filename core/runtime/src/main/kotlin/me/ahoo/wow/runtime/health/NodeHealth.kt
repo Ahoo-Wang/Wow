@@ -24,6 +24,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.runtime.cluster.PartitionOwnership
+import me.ahoo.wow.runtime.node.LogGroupNode
 import me.ahoo.wow.runtime.node.ParkedKey
 import me.ahoo.wow.runtime.node.ParkedOps
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -78,6 +79,11 @@ class NodeHealth(
     val options: HealthOptions = HealthOptions(),
     private val context: CoroutineContext = Dispatchers.Default,
     private val nanos: () -> Long = System::nanoTime,
+    /**
+     * The partitions a runtime has paused (decision D243): by default what it tells as a [SubscriptionHealth], the
+     * extension point of P.16; a host or a test may give another source.
+     */
+    private val pausedOf: (SubscriptionRuntime) -> List<PausedPartition> = ::pausedByRuntime,
 ) : AutoCloseable {
     @Volatile
     private var running: Job? = null
@@ -93,6 +99,9 @@ class NodeHealth(
 
     @Volatile
     private var lastSample: Sample = Sample.EMPTY
+
+    /** How long a probe or a sampled read may take: [HealthOptions.storeDownAfter], at least a second. */
+    private val probeTimeout: Duration = options.storeDownAfter.coerceAtLeast(MIN_PROBE_TIMEOUT)
 
     /** How often the dispatcher ticks: every second, or four times within a shorter stall timeout. */
     private val tick: Duration = minOf(TICK, options.stallTimeout / TICKS_PER_STALL)
@@ -387,23 +396,30 @@ class NodeHealth(
         val lags = HashMap<Pair<String, String>, Long>()
         node.contexts.values.flatMap { it.logGroups }.forEach { group ->
             quietly("read the heads of ${group.subscriptions.group}") {
-                val heads = HashMap<Int, Long>()
-                val sampled = HashMap<Pair<String, String>, Long>()
-                group.subscriptions.positions().forEach { position ->
-                    val head = heads.getOrPut(position.partition) { group.log.head(position.partition) ?: 0L }
-                    val key = group.subscriptions.group to position.subscription
-                    sampled[key] = (sampled[key] ?: 0L) + (head - position.watermark).coerceAtLeast(0)
-                }
-                lags += sampled
+                withTimeoutOrNull(probeTimeout) { lagsOf(group, lags) }
             }
         }
         val parked = HashMap<String, Int>()
         node.parked.subscriptions.forEach { subscription ->
             quietly("count the parked entries of $subscription") {
-                parked[subscription] = countParked(node.parked, subscription)
+                withTimeoutOrNull(
+                    probeTimeout
+                ) { countParked(node.parked, subscription) }?.let { parked[subscription] = it }
             }
         }
         return Sample(nanos(), lags, parked, lastSample.parked)
+    }
+
+    /** Adds the lag of each subscription of [group] in the partitions it runs here to [lags]. */
+    private suspend fun lagsOf(group: LogGroupNode, lags: MutableMap<Pair<String, String>, Long>) {
+        val heads = HashMap<Int, Long>()
+        val sampled = HashMap<Pair<String, String>, Long>()
+        group.subscriptions.positions().forEach { position ->
+            val head = heads.getOrPut(position.partition) { group.log.head(position.partition) ?: 0L }
+            val key = group.subscriptions.group to position.subscription
+            sampled[key] = (sampled[key] ?: 0L) + (head - position.watermark).coerceAtLeast(0)
+        }
+        lags += sampled
     }
 
     @Suppress("TooGenericExceptionCaught") // Left out of the sample; the next one tries again.
@@ -435,7 +451,7 @@ class NodeHealth(
     private suspend fun probe(activity: StoreActivity, call: suspend () -> Unit) {
         activity.probeStarted()
         try {
-            val answered = withTimeoutOrNull(options.storeDownAfter.coerceAtLeast(MIN_PROBE_TIMEOUT)) {
+            val answered = withTimeoutOrNull(probeTimeout) {
                 call()
                 true
             }
@@ -494,7 +510,7 @@ class NodeHealth(
         private val logger = KotlinLogging.logger {}
 
         /** The partitions [runtime] has paused, when it tells them (P.16 implements [SubscriptionHealth]). */
-        private fun pausedOf(runtime: SubscriptionRuntime): List<PausedPartition> =
+        fun pausedByRuntime(runtime: SubscriptionRuntime): List<PausedPartition> =
             // A cast through Any: SubscriptionRuntime implements SubscriptionHealth once P.16 lands (decision D243).
             ((runtime as Any) as? SubscriptionHealth)?.paused().orEmpty()
     }

@@ -44,8 +44,11 @@ import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.runtime.node.NODE_SERVICE
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.node.ServiceNodeOptions
+import me.ahoo.wow.runtime.node.SubscriptionFactory
 import me.ahoo.wow.runtime.node.accountsManifest
 import me.ahoo.wow.runtime.node.fastNodeOptions
+import me.ahoo.wow.runtime.subscription.Subscription
+import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.log.AppendOutcome
@@ -63,6 +66,7 @@ import java.util.concurrent.Executors
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * The node's health (review R3.5-3): the readiness follows the node's state, its lease store, its event log and its
@@ -75,9 +79,14 @@ class NodeHealthTest {
     private val log = FlakyLog(InMemoryEventLog(PARTITIONS))
     private val leases = FlakyLeases(InMemoryLeaseStore())
 
+    /** What a slow subscription waits for. */
+    private val slow = CompletableDeferred<Unit>()
+
     @AfterEach
     fun stop(): Unit = runBlocking {
+        log.hang?.complete(Unit)
         log.hang = null
+        slow.complete(Unit)
         healths.forEach { it.close() }
         nodes.forEach { it.stop() }
     }
@@ -95,6 +104,7 @@ class NodeHealthTest {
     private fun node(
         model: AggregateModel<Account> = account(),
         options: ServiceNodeOptions = fastNodeOptions(),
+        subscriptions: SubscriptionFactory = SubscriptionFactory.NONE,
     ): ServiceNode = ServiceNode(
         NODE_SERVICE,
         "node-1",
@@ -104,6 +114,7 @@ class NodeHealthTest {
         backends,
         channel,
         options = options,
+        subscriptions = subscriptions,
     ).also {
         nodes += it
         channel.bind(it.address, it.forwardHandler)
@@ -347,6 +358,55 @@ class NodeHealthTest {
         leases.down = false
         eventually { health.readiness().status == HealthStatus.UP }
     }
+
+    @Test
+    fun `a subscription behind, parking or paused should be degraded, and leave the node ready`(): Unit =
+        runBlocking {
+            val node = node(
+                subscriptions = {
+                    listOf(
+                        Subscription("Slow.onDeposit", SubscriptionFilter(BANK)) { slow.await() },
+                        Subscription("Failing.onDeposit", SubscriptionFilter(BANK)) { error("Always fails.") },
+                    )
+                },
+            )
+            val paused = PausedPartition("Slow.onDeposit", 1, 2.seconds, "StorageUnavailableException")
+            val health = NodeHealth(
+                node,
+                HealthOptions(storeDownAfter = Duration.ZERO, lagDegradedAt = 1, parkedDegradedAt = 5),
+                pausedOf = { listOf(paused) },
+            ).also { healths += it }
+            node.start()
+            // A first sample, before anything parks: the parked count grows from it.
+            health.sample()
+            node.gateway.execute(deposit("a-1"))
+            eventually {
+                health.sample()
+                health.health().component(NodeHealth.SUBSCRIPTIONS)!!.components.single()
+                    .component("Failing.onDeposit")!!.details["parked"] == 1
+            }
+            val group = health.health().component(NodeHealth.SUBSCRIPTIONS)!!.components.single()
+            group.status.assert().isEqualTo(HealthStatus.DEGRADED)
+            val failing = group.component("Failing.onDeposit")!!
+            failing.status.assert().isEqualTo(HealthStatus.DEGRADED)
+            failing.details["parkedGrowing"].assert().isEqualTo(true)
+            val behind = group.component("Slow.onDeposit")!!
+            behind.status.assert().isEqualTo(HealthStatus.DEGRADED)
+            (behind.details["lag"] as Long).assert().isGreaterThanOrEqualTo(1L)
+            behind.details["paused"].assert().isEqualTo(
+                listOf(mapOf("partition" to 1, "pausedMillis" to 2_000L, "reason" to "StorageUnavailableException")),
+            )
+            paused.assert().isEqualTo(PausedPartition("Slow.onDeposit", 1, 2.seconds, "StorageUnavailableException"))
+            paused.hashCode().assert().isEqualTo(
+                PausedPartition("Slow.onDeposit", 1, 2.seconds, "StorageUnavailableException").hashCode(),
+            )
+            paused.toString().assert().contains("Slow.onDeposit")
+            // A runtime that does not tell its pauses pauses nothing.
+            NodeHealth.pausedByRuntime(node.context(BANK).subscriptions).assert().isEmpty()
+            // Subscriptions never take the node out of service.
+            health.readiness().status.assert().isEqualTo(HealthStatus.UP)
+            slow.complete(Unit)
+        }
 
     @Test
     fun `options should refuse thresholds out of their range`() {
