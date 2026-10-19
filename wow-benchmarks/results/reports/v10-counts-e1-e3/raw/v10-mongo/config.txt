@@ -1,0 +1,9 @@
+version=v10
+backend=mongo
+commit=19ffd37859ff963fbf05e6f1b0605bc2bdeabc62
+dirty=0
+serverArgs=
+accounts=1000
+machine=Apple M4 Pro, 14 cores
+jvm=openjdk version "21.0.12.1" 2026-08-18 LTS
+rate=20 seconds=60 idle=60
