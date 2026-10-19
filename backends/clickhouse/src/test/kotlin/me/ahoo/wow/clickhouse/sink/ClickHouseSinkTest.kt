@@ -39,7 +39,10 @@ class ClickHouseSinkTest {
         sink.write(listOf(recordOf(version = 1)))
         sink.write(listOf(recordOf(version = 2)))
         sink.write(emptyList())
-        statements.executed.assert().isEqualTo(listOf(ClickHouseCatalog.ddl("default")) + sink.schema.ddl)
+        statements.executed.assert().isEqualTo(
+            listOf(ClickHouseCatalog.ddl("default")) + sink.schema.ddl +
+                sink.schema.flatView(FlatLineage(listOf(sink.schema.flatFingerprint))),
+        )
         statements.inserts.map { it.first }.assert().containsOnly("`default`.`shop_order_state_events`")
         statements.inserts.map { it.third }.assert()
             .containsExactly("shop.order/tenant-1/order-1@1", "shop.order/tenant-1/order-1@2")

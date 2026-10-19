@@ -26,6 +26,8 @@ import me.ahoo.wow.manifest.FrameworkErrors
  * - [TIMEOUT] (503): the query ran out of its execution time;
  * - [STORAGE_UNAVAILABLE] (503): the storage could not be reached or did not answer in time; the same query may pass
  *   later.
+ * - [BUSY] (429, with `Retry-After`): the query's store already runs as many queries as its bulkhead allows
+ *   ([QueryBulkhead], review R3.4-2); the query was not run, and the same query may pass later.
  *
  * They are the codes of [FrameworkErrors], whose table gives each its HTTP status; a caller the query scope does not
  * admit is answered with [FORBIDDEN].
@@ -37,6 +39,7 @@ object QueryErrors {
     const val FAILED: String = FrameworkErrors.QUERY_FAILED
     const val TIMEOUT: String = FrameworkErrors.QUERY_TIMEOUT
     const val STORAGE_UNAVAILABLE: String = FrameworkErrors.STORAGE_UNAVAILABLE
+    const val BUSY: String = FrameworkErrors.QUERY_BUSY
 
     /** The caller may not run this query. */
     const val FORBIDDEN: String = FrameworkErrors.AUTH_FORBIDDEN

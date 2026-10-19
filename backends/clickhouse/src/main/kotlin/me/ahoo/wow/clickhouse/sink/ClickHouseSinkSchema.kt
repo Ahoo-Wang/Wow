@@ -16,6 +16,7 @@ package me.ahoo.wow.clickhouse.sink
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.clickhouse.sink.ClickHouseSql.identifier
+import java.security.MessageDigest
 
 /** A column as `system.columns` reads it: its [name] and its [type]. */
 @InternalWowApi
@@ -38,7 +39,9 @@ data class ClickHouseObject(val name: String, val columns: List<ClickHouseColumn
  *   per event: filled by `<ctx>_<agg>_events_mv`, which `ARRAY JOIN`s the
  *   base table's `events`; under the same TTL.
  * - `<ctx>_<agg>_state_flat`, a view of `_state FINAL`: the system columns and the state schema's top-level scalars
- *   as typed columns ([FlatColumns]).
+ *   as typed columns ([FlatColumns]); its definition's [flatFingerprint] and those of the writers before it are kept
+ *   in its comment ([FlatLineage], finding X-15), so that during a rolling upgrade an older writer leaves a newer
+ *   writer's view as it is.
  *
  * Without the history ([AggregateSinkOptions.history] false) only `_state` and `_state_flat` exist, and the Sink
  * inserts into `_state` directly ([target]).
@@ -72,7 +75,10 @@ class ClickHouseSinkSchema(
     /** [name] in [database], quoted. */
     fun qualified(name: String): String = "${identifier(database)}.${identifier(name)}"
 
-    /** The statements that create what is missing, in order: the tables, then the views that fill or read them. */
+    /**
+     * The statements that create what is missing, in order: the tables, then the materialized views that fill them.
+     * The flat view is not among them: it is replaced only when its writers' lineage allows ([flatView]).
+     */
     val ddl: List<String>
         get() = buildList {
             if (aggregate.history) {
@@ -97,11 +103,24 @@ class ClickHouseSinkSchema(
                         "ARRAY JOIN events AS event, arrayEnumerate(events) AS sequence",
                 )
             }
-            add(
-                "CREATE OR REPLACE VIEW ${qualified(stateFlat)} AS\n" +
-                    "SELECT ${flatSelect().joinToString(", ")}\nFROM ${qualified(state)} FINAL",
-            )
         }
+
+    /**
+     * The fingerprint of the flat view's definition (finding X-15): the first 16 hex digits of the SHA-256 of its
+     * `SELECT`, its database aside, so that every writer of the same state schema has the same.
+     */
+    val flatFingerprint: String by lazy {
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(flatDefinition(identifier(state)).toByteArray(Charsets.UTF_8))
+        digest.joinToString("") { "%02x".format(it) }.take(FINGERPRINT_LENGTH)
+    }
+
+    /** The statement that creates or replaces the flat view, its comment the writers' [lineage], this one's last. */
+    fun flatView(lineage: FlatLineage): String =
+        "CREATE OR REPLACE VIEW ${qualified(stateFlat)} AS\n" + flatDefinition(qualified(state)) +
+            "\nCOMMENT ${ClickHouseSql.literal(lineage.comment)}"
+
+    private fun flatDefinition(from: String): String = "SELECT ${flatSelect().joinToString(", ")}\nFROM $from FINAL"
 
     /** What [DdlMode.VALIDATE] checks: every table and view with its columns, the materialized views by name. */
     val expected: List<ClickHouseObject>
@@ -217,6 +236,72 @@ class ClickHouseSinkSchema(
         /** The names of [type]'s tables start with `<ctx>_<agg>`, lower case, other characters than `[a-z0-9_]` as `_`. */
         fun prefixOf(type: AggregateType): String = "${type.context}_${type.name}".lowercase().replace(INVALID, "_")
 
+        /** The names of every table and view of [type], whether it keeps its history or not. */
+        fun namesOf(type: AggregateType): List<String> = prefixOf(type).let { prefix ->
+            SUFFIXES.map { prefix + it }
+        }
+
+        /**
+         * The tables and views that several of [types] would share (finding X-16): [prefixOf] maps distinct names to
+         * one (`order-item` and `order_item`, `Order` and `order`, context `a_b` and aggregate `c` with context `a` and
+         * aggregate `b_c`), and one aggregate's table may be another's (`order`'s `_state_events` is `order_state`'s
+         * `_events`). By name, each with the aggregates that would share it; empty when there is none.
+         */
+        fun collisionsOf(types: Collection<AggregateType>): Map<String, List<AggregateType>> =
+            types.distinct()
+                .flatMap { type -> namesOf(type).map { it to type } }
+                .groupBy({ it.first }, { it.second })
+                .filterValues { it.size > 1 }
+                .toSortedMap()
+
         private val INVALID = Regex("[^a-z0-9_]")
+        private val SUFFIXES = listOf("_state_events", "_state", "_events", "_state_flat", "_state_mv", "_events_mv")
+        private const val FINGERPRINT_LENGTH = 16
+    }
+}
+
+/**
+ * The fingerprints of the flat view's definitions that writers created it with, oldest first, as its comment keeps
+ * them (`wow-sink-flat:<fingerprint>,<fingerprint>`, finding X-15): the last is the view's definition.
+ *
+ * During a rolling upgrade, instances of two versions start and restart in turn, each creating the view of its own
+ * state schema. A writer replaces the view only when its own fingerprint is not in the lineage yet, a newer
+ * definition than every one before it; one whose fingerprint is there but not last was replaced by a newer writer and
+ * leaves the view as it is. The lineage keeps the last [MAX] fingerprints; a view without one (created by an earlier
+ * Wow, or by an operator) has an empty lineage, which the first writer replaces.
+ */
+@InternalWowApi
+class FlatLineage(val fingerprints: List<String>) {
+    /** The fingerprint of the view's definition; null when the lineage is empty. */
+    val current: String? get() = fingerprints.lastOrNull()
+
+    /** The comment that keeps this lineage. */
+    val comment: String get() = PREFIX + fingerprints.joinToString(",")
+
+    /** Whether a writer after the one of [fingerprint] replaced the view: that writer's definition is older. */
+    fun supersedes(fingerprint: String): Boolean = fingerprint in fingerprints && current != fingerprint
+
+    /** This lineage with [fingerprint] last, the oldest dropped beyond [MAX]. */
+    fun then(fingerprint: String): FlatLineage = FlatLineage((fingerprints - fingerprint + fingerprint).takeLast(MAX))
+
+    override fun equals(other: Any?): Boolean = this === other || other is FlatLineage && fingerprints == other.fingerprints
+
+    override fun hashCode(): Int = fingerprints.hashCode()
+
+    override fun toString(): String = "FlatLineage($fingerprints)"
+
+    @InternalWowApi
+    companion object {
+        const val PREFIX: String = "wow-sink-flat:"
+        const val MAX: Int = 16
+        val EMPTY: FlatLineage = FlatLineage(emptyList())
+
+        /** The lineage a view's [comment] keeps; empty when it keeps none. */
+        fun of(comment: String?): FlatLineage =
+            if (comment == null || !comment.startsWith(PREFIX)) {
+                EMPTY
+            } else {
+                FlatLineage(comment.removePrefix(PREFIX).split(',').map { it.trim() }.filter { it.isNotEmpty() })
+            }
     }
 }

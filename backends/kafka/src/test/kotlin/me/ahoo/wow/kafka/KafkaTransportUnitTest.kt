@@ -36,6 +36,7 @@ import org.apache.kafka.clients.producer.MockProducer
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.PartitionInfo
 import org.apache.kafka.common.TopicPartition
+import org.apache.kafka.common.errors.WakeupException
 import org.apache.kafka.common.header.internals.RecordHeader
 import org.apache.kafka.common.header.internals.RecordHeaders
 import org.apache.kafka.common.record.TimestampType
@@ -423,6 +424,51 @@ class KafkaTransportUnitTest {
         val source = KafkaPartitionedSource({ mock }, 1.milliseconds, Dispatchers.IO, OffsetGapPolicy.EARLIEST)
         withTimeout(10.seconds) { source.read(topic, 0, 0, 6).toList() }.map { it.offset }
             .assert().containsExactly(4L, 5L)
+        source.offsetGaps.assert().isEqualTo(1L)
+        source.close()
+    }
+
+    @Test
+    fun `a join or leave waking the consumer while it places a deleted offset again should not end the session`():
+        Unit = runBlocking {
+        // Finding R2.2-3: the wakeup escaped the out-of-range handling and failed every tail of the consumer.
+        val zero = TopicPartition(topic, 0)
+        var wakeups = 0
+        val mock = object : MockConsumer<String, ByteArray>("earliest") {
+            var waking = false
+
+            override fun beginningOffsets(partitions: Collection<TopicPartition>): Map<TopicPartition, Long> {
+                if (waking) {
+                    waking = false
+                    wakeups++
+                    throw WakeupException()
+                }
+                return super.beginningOffsets(partitions)
+            }
+        }
+        mock.updateBeginningOffsets(mapOf(zero to 0L))
+        mock.updateEndOffsets(mapOf(zero to 6L))
+        mock.schedulePollTask {
+            mock.updateBeginningOffsets(mapOf(zero to 4L))
+            mock.waking = true
+            mock.setPollException(OffsetOutOfRangeException("deleted", mapOf(zero to 0L)))
+        }
+        mock.schedulePollTask { (4L..5L).forEach { mock.addRecord(record(it, "v$it")) } }
+        var made = 0
+        val source = KafkaPartitionedSource(
+            {
+                made++
+                mock
+            },
+            1.milliseconds,
+            Dispatchers.IO,
+            OffsetGapPolicy.EARLIEST,
+        )
+        // A tail: it shares the topic's consumer, which joins and leaves wake.
+        withTimeout(10.seconds) { source.read(topic, 0, 0).take(2).toList() }.map { it.offset }
+            .assert().containsExactly(4L, 5L)
+        wakeups.assert().isEqualTo(1)
+        made.assert().isEqualTo(1)
         source.offsetGaps.assert().isEqualTo(1L)
         source.close()
     }

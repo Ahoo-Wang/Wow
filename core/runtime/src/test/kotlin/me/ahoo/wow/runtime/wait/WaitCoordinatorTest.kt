@@ -58,6 +58,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /** Design 04 §6 in one service: the stages, chains, duplicates and timeouts of waits (decisions D61–D65, D69). */
+@Suppress("LargeClass") // One service's fixture for every kind of wait, its bound among them (review R3.4-3).
 class WaitCoordinatorTest {
     data class Place(val items: Int = 1, val reject: Boolean = false)
     data class Touch(val note: String = "")
@@ -241,6 +242,31 @@ class WaitCoordinatorTest {
         answered.commandId.assert().isEqualTo(command.id)
         snapshotted.assert().contains("${command.ref.id}@1")
         registry.size.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `a wait beyond the node's bound is refused busy before its command runs (R3-4-3)`(): Unit = runBlocking {
+        started()
+        val gate = CompletableDeferred<Unit>().also { snapshotGate = it }
+        val capped = coordinator(WaitOptions(origin, maxRegistered = 1))
+        val first = place()
+        val held = async { capped.execute(order, first) }
+        eventually { registry.size == 1 }
+        val second = place()
+        val refused = capped.execute(order, second)
+        refused.status.assert().isEqualTo(CommandResult.Status.FAILED)
+        refused.error!!.code.assert().isEqualTo(ResultCodes.BUSY)
+        refused.hop.assert().isEqualTo(Hop.accepted("shop"))
+        log.findByRequestId("t", second.requestId).assert().isNull()
+        // A COMMITTED wait is registered too, and the stream refuses it alike.
+        capped.stream(order, place(wait = WaitPlan.COMMITTED)).toList().single().error!!.code
+            .assert().isEqualTo(ResultCodes.BUSY)
+        gate.complete(Unit)
+        withTimeout(5.seconds) { held.await() }.hop.assert().isEqualTo(Hop.snapshot("shop"))
+        registry.size.assert().isEqualTo(0)
+        capped.execute(order, second).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        assertThrows<IllegalArgumentException> { WaitOptions(origin, maxRegistered = 0) }
+        WaitOptions(origin).maxRegistered.assert().isEqualTo(WaitOptions.DEFAULT_MAX_REGISTERED)
     }
 
     @Test

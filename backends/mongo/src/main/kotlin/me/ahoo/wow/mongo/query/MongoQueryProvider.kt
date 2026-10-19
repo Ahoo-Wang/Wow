@@ -32,7 +32,9 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * The queries of a MongoDB store (review R3.3-1): its snapshot collections (6.2b), with the `x-wow-index` indexes
  * (decision D151), and its log collections in place for the `events` model (decision D235), read from the replica
- * [StoreQueryOptions.eventsReadPreference] names; one storage per context, opened once. Found by `ServiceLoader`.
+ * [StoreQueryOptions.eventsReadPreference] names, and the snapshot queries from the one
+ * [StoreQueryOptions.snapshotsReadPreference] names (review R3.4-2), each the primary when not set; one storage per
+ * context, opened once. Found by `ServiceLoader`.
  */
 internal class MongoQueryProvider : StoreQueryProvider {
     override val type: String = MongoStoreProvider.TYPE
@@ -54,10 +56,11 @@ internal class MongoQueryProvider : StoreQueryProvider {
 
 private class MongoSnapshotQueries(private val store: MongoStore, options: StoreQueryOptions) : SnapshotQueries {
     private val queryOptions = MongoQueryOptions(indexDdl = options.indexDdl)
+    private val readPreference = options.snapshotsReadPreference?.let(ReadPreference::valueOf)
     private val storages = ConcurrentHashMap<String, MongoSnapshotQueryStorage>()
 
     private fun storage(context: String) = storages.computeIfAbsent(context) {
-        MongoSnapshotQueryStorage(store.client, store.database, it, queryOptions)
+        MongoSnapshotQueryStorage(store.client, store.database, it, queryOptions, readPreference = readPreference)
     }
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = storage(type.context).create(type)

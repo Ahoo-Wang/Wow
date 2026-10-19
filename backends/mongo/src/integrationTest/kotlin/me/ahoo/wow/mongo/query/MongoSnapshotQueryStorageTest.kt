@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.mongo.query
 
+import com.mongodb.ReadPreference
 import com.mongodb.client.model.Accumulators
 import com.mongodb.client.model.Aggregates
 import com.mongodb.client.model.IndexOptions
@@ -132,6 +133,20 @@ class MongoSnapshotQueryStorageTest {
         // Once the aggregate's first snapshot creates the collection, its structures prove the facts.
         store(type).save(QueryFixtures.snapshot(type, "a", """{"status":"NEW"}"""))
         QueryFixtures.schema(type, binding.storage).provisional.assert().isFalse()
+    }
+
+    @Test
+    fun `the snapshot queries may read from a secondary (review R3-4-2)`(): Unit = runBlocking {
+        val type = newType()
+        store(type).save(QueryFixtures.snapshot(type, "a", """{"status":"NEW"}""")).assert().isTrue()
+        val secondary = MongoSnapshotQueryStorage(
+            MongoLogFixture.client,
+            MongoLogFixture.DATABASE,
+            type.context,
+            readPreference = ReadPreference.secondaryPreferred(),
+        ).create(type).backend
+        // The test replica set has one member: the read falls back to the primary.
+        secondary.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema(type))).toList().assert().hasSize(1)
     }
 
     @Test

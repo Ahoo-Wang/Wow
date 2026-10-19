@@ -41,6 +41,9 @@ internal interface ClickHouseStatements {
 
     /** The `system.tables.uuid` of [database]'s table or view [name]; null when there is none the account sees. */
     suspend fun uuid(database: String, name: String): String?
+
+    /** The comment of [database]'s table or view [name], empty when it has none; null when there is no such one. */
+    suspend fun comment(database: String, name: String): String?
 }
 
 /**
@@ -81,6 +84,13 @@ internal class ClientStatements(private val client: Client) : ClickHouseStatemen
             "SELECT toString(uuid) AS uuid FROM system.tables WHERE database = {database:String} AND name = {name:String}",
             mapOf<String, Any>("database" to database, "name" to name),
         ).firstOrNull()?.getString("uuid")
+    }
+
+    override suspend fun comment(database: String, name: String): String? = withContext(Dispatchers.IO) {
+        client.queryAll(
+            "SELECT comment FROM system.tables WHERE database = {database:String} AND name = {name:String}",
+            mapOf<String, Any>("database" to database, "name" to name),
+        ).firstOrNull()?.getString("comment")
     }
 
     companion object {

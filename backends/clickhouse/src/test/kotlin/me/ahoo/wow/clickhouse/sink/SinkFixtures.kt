@@ -113,8 +113,12 @@ internal class RecordingStatements : ClickHouseStatements {
     /** Completed by the first insert that waits on [gate]. */
     val waiting = kotlinx.coroutines.CompletableDeferred<Unit>()
 
+    /** The comments of the views, by `database.name`, as the flat view statements executed set them. */
+    val comments = mutableMapOf<String, String>()
+
     override suspend fun execute(sql: String) {
         executed += sql
+        VIEW.find(sql)?.let { comments["${it.groupValues[1]}.${it.groupValues[2]}"] = it.groupValues[3] }
     }
 
     override suspend fun insert(table: String, body: ByteArray, token: String) {
@@ -131,8 +135,11 @@ internal class RecordingStatements : ClickHouseStatements {
         inserts += Triple(table, body.toString(Charsets.UTF_8), token)
     }
 
+    /** The uuids [uuid] answers instead of [uuidOf]'s, by `<database>.<name>`. */
+    val uuids = mutableMapOf<String, String>()
+
     override suspend fun uuid(database: String, name: String): String? =
-        if ("$database.$name" in tables) uuidOf(name) else null
+        if ("$database.$name" in tables) uuids["$database.$name"] ?: uuidOf(name) else null
 
     override suspend fun exists(database: String, name: String): Boolean = "$database.$name" in tables
 
@@ -142,8 +149,18 @@ internal class RecordingStatements : ClickHouseStatements {
     /** The uuid [uuid] answers for the table [name]. */
     fun uuidOf(name: String): String = java.util.UUID.nameUUIDFromBytes(name.toByteArray()).toString()
 
+    override suspend fun comment(database: String, name: String): String? =
+        comments["$database.$name"] ?: "".takeIf { "$database.$name" in tables }
+
+    /** The flat view statements executed. */
+    val flatViews: List<String> get() = executed.filter { it.startsWith("CREATE OR REPLACE VIEW") }
+
     /** Declares every object of [schema] as the Sink expects it. */
     fun create(schema: ClickHouseSinkSchema) {
         schema.expected.forEach { tables["${schema.database}.${it.name}"] = it.columns ?: emptyList() }
+    }
+
+    private companion object {
+        val VIEW = Regex("^CREATE OR REPLACE VIEW `([^`]+)`\\.`([^`]+)`[\\s\\S]*\\nCOMMENT '([^']*)'$")
     }
 }

@@ -148,8 +148,9 @@ class MongoMatchCompilerTest {
         )
         json(StartsWithFilter(name, "a", StringComparison.CASE_INSENSITIVE)).assert()
             .isEqualTo("""{"state.name": {"${'$'}regularExpression": {"pattern": "^a", "options": "i"}}}""")
+        // `\z`, not `$`, which would also match before a trailing newline (finding R2.2-4).
         json(EndsWithFilter(name, "a")).assert()
-            .isEqualTo("""{"state.name": {"${'$'}regularExpression": {"pattern": "a${'$'}", "options": ""}}}""")
+            .isEqualTo("""{"state.name": {"${'$'}regularExpression": {"pattern": "a\\z", "options": ""}}}""")
     }
 
     @Test

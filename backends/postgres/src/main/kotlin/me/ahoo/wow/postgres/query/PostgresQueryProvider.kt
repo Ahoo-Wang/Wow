@@ -28,11 +28,13 @@ import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.spi.store.Store
 import java.util.concurrent.ConcurrentHashMap
+import javax.sql.DataSource
 
 /**
  * The queries of a PostgreSQL store (review R3.3-1): its snapshot tables (6.2a), with the `x-wow-index` indexes
  * (decision D151), and its log tables in place for the `events` model (decision D235); one storage per context, opened
- * once. Found by `ServiceLoader`.
+ * once. Both read through the store's [query DataSource][PostgresStore.queryDataSource] (review R3.4-2); the indexes
+ * are created through the store's own. Found by `ServiceLoader`.
  */
 internal class PostgresQueryProvider : StoreQueryProvider {
     override val type: String = PostgresStoreProvider.TYPE
@@ -44,9 +46,39 @@ internal class PostgresQueryProvider : StoreQueryProvider {
         val postgres = store as PostgresStore
         val storages = ConcurrentHashMap<String, PostgresEventQueryStorage>()
         return EventQueries { type ->
-            storages.computeIfAbsent(type.context) { PostgresEventQueryStorage(postgres.dataSource, it) }.create(type)
+            storages.computeIfAbsent(type.context) { PostgresEventQueryStorage(postgres.queryDataSource, it) }
+                .create(type)
         }
     }
+
+    /**
+     * A bound from the query pool's size when the pool says it (HikariCP's `maximumPoolSize`): all of a pool of the
+     * queries' own; a quarter of one the appends share (at least [MIN_SHARED]), so the queries never hold most of the
+     * connections the commands wait for. [StoreQueryProvider.DEFAULT_MAX_CONCURRENT] for a pool that does not say.
+     */
+    override fun maxConcurrent(store: Store): Int {
+        val postgres = store as PostgresStore
+        val size = postgres.queryDataSource.maximumPoolSize() ?: return StoreQueryProvider.DEFAULT_MAX_CONCURRENT
+        return if (postgres.queriesShareAppends) maxOf(MIN_SHARED, size / SHARED_FRACTION) else size
+    }
+
+    companion object {
+        /** The fewest queries a store whose queries share the appends' pool runs at once. */
+        const val MIN_SHARED: Int = 2
+
+        /** The share of the appends' pool the queries take: one connection in four. */
+        const val SHARED_FRACTION: Int = 4
+    }
+}
+
+/**
+ * The most connections this pool opens, when it says (HikariCP's `getMaximumPoolSize`, read without depending on
+ * HikariCP); null for a pool that does not.
+ */
+internal fun DataSource.maximumPoolSize(): Int? = try {
+    (javaClass.getMethod("getMaximumPoolSize").invoke(this) as? Int)?.takeIf { it > 0 }
+} catch (ignored: ReflectiveOperationException) {
+    null
 }
 
 private class PostgresSnapshotQueries(private val store: PostgresStore, options: StoreQueryOptions) : SnapshotQueries {
@@ -54,7 +86,7 @@ private class PostgresSnapshotQueries(private val store: PostgresStore, options:
     private val storages = ConcurrentHashMap<String, PostgresSnapshotQueryStorage>()
 
     private fun storage(context: String) = storages.computeIfAbsent(context) {
-        PostgresSnapshotQueryStorage(store.dataSource, it, queryOptions)
+        PostgresSnapshotQueryStorage(store.queryDataSource, it, queryOptions, ddlDataSource = store.dataSource)
     }
 
     override fun binding(type: AggregateType): QueryBackendBinding<QueryBackend> = storage(type.context).create(type)

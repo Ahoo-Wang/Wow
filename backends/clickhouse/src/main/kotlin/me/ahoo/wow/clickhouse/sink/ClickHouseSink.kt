@@ -24,6 +24,8 @@ import me.ahoo.wow.spi.sink.Sink
 import me.ahoo.wow.spi.state.StateEventRecord
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentLinkedQueue
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.minutes
 
 /**
  * The [Sink] of one aggregate type into ClickHouse (design 08 §8, decisions D142, D164): each record one row of the
@@ -39,8 +41,13 @@ import java.util.concurrent.ConcurrentLinkedQueue
  *   window is dropped at once, the views' included. Beyond it, and for a batch made up differently, the history tables
  *   are `ReplacingMergeTree`s keyed by `ref@version` ([ClickHouseSinkSchema]): a replayed record is merged away, and a
  *   read with `FINAL` never sees it twice.
- * - **DDL**: before its first write, the Sink creates or validates its tables as [ddl] says; a failure fails the write,
- *   which the subscription retries.
+ * - **DDL**: before its first write, and again once [recheckEvery] has passed since (finding X-15), the Sink creates
+ *   or validates its tables as [ddl] says; a failure fails the write, which the subscription retries. The check
+ *   repeated finds what changed since: a table dropped or altered fails the writes until it is as the Sink expects.
+ * - **The flat view across versions** (finding X-15): during a rolling upgrade, writers of two state schemas run at
+ *   once. The view's comment keeps the fingerprints of the definitions it was created with ([FlatLineage]): a writer
+ *   replaces it only when its own definition is newer than every one before it, so an older instance that restarts
+ *   leaves a newer one's view as it is, and validates it by existence only.
  * - **Catalog** (decision D241 ②): once its tables are created or validated (at once with `ddl=none`), the Sink
  *   appends the [catalog] entries of its tables to the database's `wow_catalog` ([ClickHouseCatalog]), each with the
  *   table's current uuid; `auto` creates `wow_catalog` when it is missing. A table whose uuid the account cannot read
@@ -53,14 +60,30 @@ class ClickHouseSink internal constructor(
     private val ddl: DdlMode = DdlMode.AUTO,
     private val batchSize: Int = ClickHouseSinkOptions.DEFAULT_BATCH_SIZE,
     private val catalog: List<CatalogEntry> = emptyList(),
+    private val recheckEvery: Duration = DEFAULT_RECHECK,
+    private val clock: () -> Long = System::currentTimeMillis,
 ) : Sink {
     private val preparation = Mutex()
 
+    /** When the tables were last created or validated, by [clock]; null before the first time. */
     @Volatile
-    private var prepared = false
+    private var checkedAt: Long? = null
+
+    /** Whether a newer writer's flat view was found at the last check: logged when it changes. */
+    @Volatile
+    private var superseded = false
+
+    /** The `wow_catalog` rows appended last; null before the first ([describe]). */
+    @Volatile
+    private var described: String? = null
+
+    /** With `ddl=none`, whether the one attempt to append the `wow_catalog` rows was made. */
+    @Volatile
+    private var catalogTried = false
 
     init {
         require(batchSize >= 1) { "A batch holds at least one record." }
+        require(recheckEvery.isPositive()) { "The tables are checked again after a positive interval." }
     }
 
     /** The writes waiting for an insert, in arrival order. */
@@ -122,28 +145,37 @@ class ClickHouseSink internal constructor(
         }
     }
 
-    /** Creates or validates the tables once, as [ddl] says. */
+    /**
+     * Creates or validates the tables as [ddl] says, before the first write and again once [recheckEvery] has passed
+     * since the last time (finding X-15).
+     */
     suspend fun prepare() {
-        if (prepared) {
+        if (ddl == DdlMode.NONE && !catalogTried) {
+            preparation.withLock {
+                if (!catalogTried) {
+                    describe()
+                    catalogTried = true
+                }
+            }
+        }
+        if (!due()) {
             return
         }
         preparation.withLock {
-            if (prepared) {
+            if (!due()) {
                 return
             }
-            if (ddl == DdlMode.AUTO) {
-                statements.execute(ClickHouseCatalog.ddl(schema.database))
-                schema.ddl.forEach { statements.execute(it) }
-            }
-            if (ddl != DdlMode.NONE) {
-                validate()
-            }
+            val lineage = if (ddl == DdlMode.AUTO) create() else lineage()
+            validate(lineage)
             describe()
-            prepared = true
+            checkedAt = clock()
         }
     }
 
-    /** Appends the [catalog] entries of the tables, with their uuids; a failure is only logged (decision D241 ②). */
+    /**
+     * Appends the [catalog] entries of the tables, with their uuids, when they differ from the ones appended last (a
+     * view replaced has another uuid); a failure is only logged, and tried again at the next check (decision D241 ②).
+     */
     private suspend fun describe() {
         if (catalog.isEmpty()) {
             return
@@ -156,13 +188,14 @@ class ClickHouseSink internal constructor(
                 }
                 uuid?.let { ClickHouseCatalog.rowOf(schema.database, entry, it) }
             }
-            if (rows.isNotEmpty()) {
-                val text = rows.joinToString(separator = "\n", postfix = "\n")
+            val text = rows.joinToString(separator = "\n", postfix = "\n")
+            if (rows.isNotEmpty() && text != described) {
                 statements.insert(
                     schema.qualified(ClickHouseCatalog.TABLE),
                     text.toByteArray(Charsets.UTF_8),
                     "catalog:" + ClickHouseCatalog.sha256(text),
                 )
+                described = text
             }
         } catch (
             @Suppress("TooGenericExceptionCaught") // The catalog never fails the Sink's writes (decision D241 ②).
@@ -172,9 +205,45 @@ class ClickHouseSink internal constructor(
         }
     }
 
-    private suspend fun validate() {
+    private fun due(): Boolean {
+        if (ddl == DdlMode.NONE) {
+            return false
+        }
+        val last = checkedAt ?: return true
+        return clock() - last >= recheckEvery.inWholeMilliseconds
+    }
+
+    /** The lineage of the flat view as its comment keeps it; empty when there is no view. */
+    private suspend fun lineage(): FlatLineage = FlatLineage.of(statements.comment(schema.database, schema.stateFlat))
+
+    /**
+     * Creates what is missing, and the flat view unless its lineage has this writer's definition already or a newer
+     * one ([FlatLineage.supersedes]). Returns the flat view's lineage.
+     */
+    private suspend fun create(): FlatLineage {
+        statements.execute(ClickHouseCatalog.ddl(schema.database))
+        schema.ddl.forEach { statements.execute(it) }
+        val lineage = lineage()
+        val fingerprint = schema.flatFingerprint
+        if (lineage.current == fingerprint || lineage.supersedes(fingerprint)) {
+            return lineage
+        }
+        return lineage.then(fingerprint).also { statements.execute(schema.flatView(it)) }
+    }
+
+    private suspend fun validate(lineage: FlatLineage) {
+        val newer = lineage.supersedes(schema.flatFingerprint)
+        if (newer != superseded) {
+            superseded = newer
+            if (newer) {
+                logger.warn {
+                    "The flat view ${schema.database}.${schema.stateFlat} is a newer writer's (definitions " +
+                        "${lineage.fingerprints}, this one's ${schema.flatFingerprint}): left as it is."
+                }
+            }
+        }
         val problems = schema.expected.mapNotNull { expected ->
-            if (expected.columns == null) {
+            if (expected.columns == null || newer && expected.name == schema.stateFlat) {
                 expected.name.takeUnless { statements.exists(schema.database, it) }?.let { "$it does not exist" }
             } else {
                 val actual = statements.columns(schema.database, expected.name)
@@ -196,6 +265,9 @@ class ClickHouseSink internal constructor(
 
     @InternalWowApi
     companion object {
+        /** How long the Sink writes before it checks its tables again (finding X-15). */
+        val DEFAULT_RECHECK: Duration = 1.minutes
+
         private val logger = KotlinLogging.logger {}
 
         /** The deduplication token of [batch]: its record's `ref@version`, or a digest of its records' ids. */

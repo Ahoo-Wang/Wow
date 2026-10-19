@@ -26,6 +26,7 @@ import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.milliseconds
 
 class ClickHouseCatalogTest {
     private val statements = RecordingStatements()
@@ -125,6 +126,32 @@ class ClickHouseCatalogTest {
         row.has("writer").assert().isFalse()
         row.has("written_at").assert().isFalse()
         statements.inserts.size.assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `each check should append the rows again only when they changed`(): Unit = runTest {
+        val schema = sinks().schemaOf(CatalogFixtures.MEMBER)
+        var now = 0L
+        val sink = ClickHouseSink(
+            schema,
+            statements,
+            DdlMode.VALIDATE,
+            catalog = sinks().catalogOf(CatalogFixtures.MEMBER),
+            recheckEvery = 1.milliseconds,
+            clock = {
+                now += 10
+                now
+            },
+        )
+        statements.create(schema)
+        statements.comments["default.crm_member_state_flat"] = FlatLineage(listOf(schema.flatFingerprint)).comment
+        sink.write(listOf(recordOf(type = CatalogFixtures.MEMBER)))
+        sink.write(listOf(recordOf(type = CatalogFixtures.MEMBER, version = 2)))
+        statements.catalog.size.assert().isEqualTo(1)
+        // The flat view replaced by another writer: another uuid, so another row.
+        statements.uuids["default.crm_member_state_flat"] = "00000000-0000-0000-0000-000000000001"
+        sink.write(listOf(recordOf(type = CatalogFixtures.MEMBER, version = 3)))
+        statements.catalog.size.assert().isEqualTo(2)
     }
 
     @Test

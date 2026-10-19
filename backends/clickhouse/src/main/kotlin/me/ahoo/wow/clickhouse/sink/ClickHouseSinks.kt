@@ -34,6 +34,19 @@ class ClickHouseSinks internal constructor(
     private val manifest: Manifest,
     val options: ClickHouseSinkOptions = ClickHouseSinkOptions(),
 ) {
+    init {
+        val types = manifest.contexts.flatMap { context ->
+            context.aggregates.map { AggregateType(context.name, it.name) }
+        }
+        val collisions = ClickHouseSinkSchema.collisionsOf(types)
+        check(collisions.isEmpty()) {
+            "The ClickHouse Sink would write several aggregates of the Manifest into the same tables (finding X-16): " +
+                collisions.entries.joinToString("; ") { (name, shared) -> "$name of ${shared.joinToString(" and ")}" } +
+                ". Table names are the aggregate's `<context>_<aggregate>` in lower case, other characters than " +
+                "[a-z0-9_] as `_`, and are part of the storage format: rename one of the aggregates."
+        }
+    }
+
     /** The Sinks over a client-v2 [client]; the client is the caller's to close. */
     constructor(client: Client, manifest: Manifest, options: ClickHouseSinkOptions = ClickHouseSinkOptions()) :
         this(ClientStatements(client), manifest, options)

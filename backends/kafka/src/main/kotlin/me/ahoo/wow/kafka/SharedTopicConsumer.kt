@@ -159,7 +159,9 @@ internal class SharedTopicConsumer(
                 } catch (_: WakeupException) {
                     // Another join or leave woke the consumer: the next round applies it.
                 } catch (outOfRange: OffsetOutOfRangeException) {
-                    place(consumer, assigned, outOfRange.partitions().mapNotNull { assigned[it.partition()] })
+                    if (!placeOutOfRange(consumer, assigned, outOfRange)) {
+                        reassigning = true
+                    }
                 }
                 if (endedEmpty(session)) {
                     return
@@ -240,6 +242,22 @@ internal class SharedTopicConsumer(
             reader.channel.close(gap)
         }
         consumer.assign(assigned.keys.map { TopicPartition(topic, it) })
+    }
+
+    /**
+     * Places the partitions [outOfRange] names again ([place]); false when a join or leave woke the consumer meanwhile
+     * (finding R2.2-3), so that the next round assigns and places every partition again, as for any other wakeup,
+     * instead of ending the session.
+     */
+    private fun placeOutOfRange(
+        consumer: Consumer<String, ByteArray>,
+        assigned: HashMap<Int, Reader>,
+        outOfRange: OffsetOutOfRangeException,
+    ): Boolean = try {
+        place(consumer, assigned, outOfRange.partitions().mapNotNull { assigned[it.partition()] })
+        true
+    } catch (_: WakeupException) {
+        false
     }
 
     /** Ends [session] when its readers have all failed alone ([place]): nothing is left to poll for. */
