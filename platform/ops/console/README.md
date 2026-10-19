@@ -51,4 +51,6 @@ pnpm --dir platform/ops/console build
 pnpm --dir platform/ops/console test:e2e   # OPS_E2E_CHANNEL=chrome uses the installed Chrome
 ```
 
-`WOW_OPS_URL` runs the suite against a server already running with the same configuration.
+A second server runs in its `cosec` profile, as a deployment does, for `e2e/cosec.spec.ts`: the operator signs in with a CoSec access token the suite signs with that server's secret (`OPS_E2E_COSEC_SECRET`; port `OPS_E2E_COSEC_PORT`, 18189), a viewer's actions are refused, a token the server does not take signs the console out, and no identity header is trusted.
+
+`WOW_OPS_URL` runs the suite (without the CoSec part) against a server already running with the same configuration.

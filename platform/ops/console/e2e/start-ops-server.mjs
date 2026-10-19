@@ -24,6 +24,10 @@
  * - and `LedgerSimulatorRoutes`: `POST /testing/ledger/{parked,resolved}`, the
  *   owning services' ledgers, which the suite publishes its entries through.
  *
+ * With `OPS_E2E_COSEC_SECRET` it runs in its `cosec` profile instead, as a
+ * deployment does (roadmap P.15): it verifies each request's CoSec token,
+ * signed with that secret, and trusts no identity header.
+ *
  * Build them first, from the repository root, with JDK 21:
  *
  *   ./gradlew -Pwow.scope=v10 :ops-server:installDist :ops-server:testClasses
@@ -47,6 +51,7 @@ const BUILD =
   "./gradlew -Pwow.scope=v10 :ops-server:installDist :ops-server:testClasses";
 
 const port = process.env.OPS_E2E_PORT ?? "18188";
+const cosecSecret = process.env.OPS_E2E_COSEC_SECRET;
 
 function classPath() {
   const lib = join(SERVER, "install/ops-server/lib");
@@ -82,8 +87,11 @@ const server = spawn(
     "--wow.log.partitions=2",
     "--wow.subscription.checkpoint-interval=100ms",
     "--wow.query.memory.enabled=true",
-    // The console names its caller in headers, which the server trusts only when told to (a local run).
-    "--wow.platform.trust-identity-headers=true",
+    ...(cosecSecret
+      ? // A deployment's callers: CoSec's tokens, verified with the secret they are signed with.
+        ["--spring.profiles.active=cosec", `--cosec.jwt.secret=${cosecSecret}`]
+      : // The console names its caller in headers, which the server trusts only when told to (a local run).
+        ["--wow.platform.trust-identity-headers=true"]),
     `--spring.main.sources=${SOURCES.join(",")}`,
     `--spring.web.resources.static-locations=${new URL(`file://${CONSOLE}`).href}`,
   ],

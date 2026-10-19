@@ -11,8 +11,13 @@
  * limitations under the License.
  */
 
-import type { Fetcher } from "@ahoo-wang/fetcher";
+import type {
+  Fetcher,
+  FetchExchange,
+  ResponseInterceptor,
+} from "@ahoo-wang/fetcher";
 import {
+  AUTHORIZATION_RESPONSE_INTERCEPTOR_ORDER,
   CoSecConfigurer,
   type TokenRefresher,
   type TokenStorage,
@@ -24,9 +29,9 @@ export const APP_ID = "ops-console";
 /**
  * The console holds a token the enterprise's CoSec issued, and the ops service
  * issues none, so there is nothing to refresh it with: an expired token is
- * refused, which signs the console out (`onUnauthorized`). It is still a
- * refresher: fetcher-cosec puts the token on a request only when one is
- * configured (as the analytics console found).
+ * refused, which signs the console out ({@link SignOutOnUnauthorized}). It
+ * is still a refresher: fetcher-cosec puts the token on a request only when
+ * one is configured (as the analytics console found).
  */
 export const noRefresh: TokenRefresher = {
   refresh: () =>
@@ -34,6 +39,27 @@ export const noRefresh: TokenRefresher = {
       new Error("The console cannot refresh a token; sign in again."),
     ),
 };
+
+/**
+ * Calls `onUnauthorized` when the service answers a request 401: the token
+ * expired, or the service does not take it. A response interceptor, right
+ * before fetcher-cosec's own, which tries to refresh the token, fails (the
+ * console has no refresher) and ends the exchange with that failure, so
+ * fetcher-cosec's error interceptor (its `onUnauthorized`) does not take it
+ * for a 401.
+ */
+export class SignOutOnUnauthorized implements ResponseInterceptor {
+  readonly name = "OpsSignOutOnUnauthorized";
+  readonly order = AUTHORIZATION_RESPONSE_INTERCEPTOR_ORDER - 1;
+
+  constructor(private readonly onUnauthorized: () => void) {}
+
+  intercept(exchange: FetchExchange): void {
+    if (exchange.response?.status === UNAUTHORIZED) this.onUnauthorized();
+  }
+}
+
+const UNAUTHORIZED = 401;
 
 /**
  * Sends the CoSec token `tokens` holds with every request of `fetcher`, with
@@ -49,7 +75,7 @@ export function withCoSec(
     appId: APP_ID,
     tokenStorage: tokens,
     tokenRefresher: noRefresh,
-    onUnauthorized,
   }).applyTo(fetcher);
+  fetcher.interceptors.response.use(new SignOutOnUnauthorized(onUnauthorized));
   return fetcher;
 }
