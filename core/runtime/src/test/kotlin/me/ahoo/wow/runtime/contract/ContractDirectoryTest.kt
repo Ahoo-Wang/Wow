@@ -22,10 +22,13 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.PublishedManifest
+import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.manifest.copyWith
@@ -75,6 +78,38 @@ class ContractDirectoryTest {
         directory.schemaOf("inventory.stock.ReserveStock")
             .assert().isEqualTo(Manifest.schemaRef("sample.inventory.ReserveStock"))
         directory.schemaOf("inventory.stock.Unknown").assert().isNull()
+    }
+
+    @Test
+    fun `a command's schema should give the aggregate types that decide it, mounted ones left out`() {
+        // Decision D234 ⑤: where a saga sends a command whose ref it leaves out.
+        directory.aggregatesOf(Manifest.schemaRef("sample.inventory.ReserveStock"))
+            .assert().containsExactly(AggregateType("inventory", "stock"))
+        directory.aggregatesOf(
+            Manifest.schemaRef("sample.shop.AddItem")
+        ).assert().containsExactly(AggregateType("shop", "cart"))
+        directory.aggregatesOf(Manifest.schemaRef("sample.Unknown")).assert().isEmpty()
+        val note = Manifest.schemaRef("sample.Note")
+        val shared = ContractDirectory(
+            shop(
+                contexts = listOf(
+                    ContextManifest(
+                        "billing",
+                        aggregates = listOf("ledger", "invoice", "archive").map { name ->
+                            AggregateManifest(
+                                name,
+                                state = StateManifest(Manifest.schemaRef("sample.billing.State")),
+                                commands = listOf(CommandManifest("Note", schema = note, mounted = name == "archive")),
+                            )
+                        },
+                    ),
+                ),
+            ),
+            ContractFixtures.peers,
+        )
+        shared.aggregatesOf(
+            note
+        ).assert().containsExactly(AggregateType("billing", "ledger"), AggregateType("billing", "invoice"))
     }
 
     @Test

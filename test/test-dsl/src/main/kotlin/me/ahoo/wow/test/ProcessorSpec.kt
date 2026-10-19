@@ -28,6 +28,7 @@ import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.CommandCalls
+import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.ExecutionSagaContext
 import me.ahoo.wow.kernel.ProcessorBinding
@@ -232,6 +233,12 @@ class ProcessorSpec private constructor(
     /** A specification that reports to [tree] ([sagaSpecTests]). */
     internal constructor(handlers: List<ProcessorBinding<*>>, kind: FunctionKind, tree: TestTree) :
         this(handlers, kind, null, tree)
+
+    /**
+     * Assigns a command whose ref a handler leaves out its aggregate type (decision D234 ⑤), as the service would:
+     * from the Manifest fragments and the peer contracts on the test's class path.
+     */
+    private val commandTypes: CommandTypes = origin?.commandTypes ?: ClassPathCommandTypes.of()
 
     /** The executions that derived each command, by command id: a rejection of one goes back to its saga. */
     private val derivedBy: MutableMap<String, ExecutionId> = HashMap(origin?.derivedBy.orEmpty())
@@ -438,7 +445,14 @@ class ProcessorSpec private constructor(
             answer(command)
         }
         called.forEach { handler ->
-            val context = contextOf(handler.kind, handler.name, event, SequentialIds(), calls = answering)
+            val context = contextOf(
+                handler.kind,
+                handler.name,
+                event,
+                SequentialIds(),
+                commandTypes,
+                answering,
+            )
             val derived = runBlocking { handler.invoke(event, context) }
             derived.forEach { derivedBy[it.id] = context.executionId }
             commands += derived
@@ -448,7 +462,7 @@ class ProcessorSpec private constructor(
 
     private fun reject(handler: RejectionBinding<*>, rejected: CommandRejected<*>): Result<Handled> =
         runCatchingAll {
-            val context = rejectionContextOf(handler, rejected, SequentialIds())
+            val context = rejectionContextOf(handler, rejected, SequentialIds(), commandTypes)
             val derived = runBlocking { handler.invoke(rejected, context) }
             derived.forEach { derivedBy[it.id] = context.executionId }
             Handled(derived)
@@ -456,7 +470,7 @@ class ProcessorSpec private constructor(
 
     private fun commit(handler: CommittedBinding<*>, committed: CommandCommitted<*>): Result<Handled> =
         runCatchingAll {
-            val context = committedContextOf(handler, committed, SequentialIds())
+            val context = committedContextOf(handler, committed, SequentialIds(), commandTypes)
             val derived = runBlocking { handler.invoke(committed, context) }
             derived.forEach { derivedBy[it.id] = context.executionId }
             Handled(derived)
