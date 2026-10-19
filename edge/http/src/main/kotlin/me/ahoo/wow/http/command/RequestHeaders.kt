@@ -160,7 +160,9 @@ internal class RequestHeaders(private val statuses: ErrorStatuses, private val p
             if (publicPort) {
                 request.header(HttpHeaders.USER_AGENT)?.takeIf { it.isNotEmpty() }
                     ?.let { put(RequestFacts.USER_AGENT, it) }
-                request.remoteAddress().ifPresent { put(RequestFacts.REMOTE_IP, it.address?.hostAddress ?: it.hostString) }
+                request.remoteAddress().ifPresent { remote ->
+                    put(RequestFacts.REMOTE_IP, remote.address?.hostAddress ?: remote.hostString)
+                }
             }
         }
         return listed + standard

@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Rejection
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.subscribe.CallRejectedException
@@ -181,6 +182,7 @@ internal class DerivedCommands(
             executionId = execution,
             operator = command.operator,
             scope = command.scope,
+            headers = RequestFacts.propagatedOf(command.headers),
         )
     }
 
@@ -199,6 +201,7 @@ internal class DerivedCommands(
             executionId = execution,
             operator = command.operator,
             scope = command.scope,
+            headers = RequestFacts.propagatedOf(command.headers),
         )
     }
 

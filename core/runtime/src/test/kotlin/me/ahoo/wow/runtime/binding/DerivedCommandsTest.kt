@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.kernel.Kernel
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
@@ -138,5 +139,17 @@ class DerivedCommandsTest {
         val failure = DerivedCommandRejectedException(rejected, rejection.rejection)
         failure.error.code.assert().isEqualTo(FORBIDDEN)
         failure.message!!.assert().contains("c-2", FORBIDDEN)
+    }
+
+    @Test
+    fun `a receipt should carry only the request facts that propagate of its command`(): Unit = runBlocking {
+        val facts = mapOf(RequestFacts.APP_ID to "console", RequestFacts.REMOTE_IP to "10.0.0.7", "X-Trace" to "t")
+        val added = command("c-1", AddItems(listOf("apple"))).copyWith(headers = facts)
+        val removed = command("c-2", RemoveItems(listOf(FORBIDDEN_ITEM))).copyWith(headers = facts)
+        val executed = derived.execute(listOf(added, removed), null)
+        val execution = ExecutionId("CartSaga.onEvent", ORDER.ref(TENANT, "o-1"), 2)
+        val propagated = mapOf(RequestFacts.APP_ID to "console")
+        executed.committed.single().toCommandCommitted(execution).headers.assert().isEqualTo(propagated)
+        executed.rejected!!.toCommandRejected(execution).headers.assert().isEqualTo(propagated)
     }
 }

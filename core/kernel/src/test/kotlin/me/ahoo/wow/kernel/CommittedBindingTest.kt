@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
@@ -135,6 +136,11 @@ class CommittedBindingTest {
             command.causation.assert().isEqualTo(Causation("root", "c-1"))
             command.operator.assert().isEqualTo(committed.operator)
             command.scope.assert().isEqualTo(Scope("alice", "space-a"))
+            command.headers.assert().isEmpty()
+            // The request facts the receipt's command inherited are inherited in turn (decision D232).
+            val inApp = committed.copyWith(headers = mapOf(RequestFacts.APP_ID to "console"))
+            handler.invoke(inApp, committedContextOf(handler, inApp)).single().headers.assert()
+                .isEqualTo(mapOf(RequestFacts.APP_ID to "console"))
             // Handling the same receipt again derives the same request.
             handler.invoke(committed, committedContextOf(handler, committed)).single().id.assert().isEqualTo(command.id)
             // A receipt's handler does not schedule.

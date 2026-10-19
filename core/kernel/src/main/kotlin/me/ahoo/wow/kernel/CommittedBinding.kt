@@ -100,4 +100,5 @@ fun committedContextOf(
     committed.operator,
     committed.scope,
     ids,
+    committed.headers,
 )

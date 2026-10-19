@@ -21,6 +21,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.ExecutionId
@@ -130,7 +131,12 @@ class RejectionBindingTest {
                 it.causation.assert().isEqualTo(Causation("root", "c-1"))
                 it.operator.assert().isEqualTo(rejected.operator)
                 it.scope.assert().isEqualTo(Scope("alice", "space-a"))
+                it.headers.assert().isEmpty()
             }
+            // The compensations inherit the request facts the rejected command inherited (decision D232).
+            val inApp = rejected.copyWith(headers = mapOf(RequestFacts.APP_ID to "console"))
+            handler.invoke(inApp, rejectionContextOf(handler, inApp)).map { it.headers }.assert()
+                .containsOnly(mapOf(RequestFacts.APP_ID to "console"))
             commands[0].id.assert().isEqualTo(ReceiptSagaContext.compensationId(context.executionId, "c-1", 0))
             // Handling the same rejection again derives the same requests; another rejection, others.
             handler.invoke(rejected, rejectionContextOf(handler, rejected)).map { it.id }

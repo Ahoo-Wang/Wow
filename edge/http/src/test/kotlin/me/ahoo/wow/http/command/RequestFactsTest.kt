@@ -54,7 +54,11 @@ class RequestFactsTest {
 
     @Test
     fun `an unresolved remote address is recorded as it was given`() {
-        publicPort.facts(request(remote = InetSocketAddress.createUnresolved("proxied-client", 80)), emptySet(), Caller.ANONYMOUS)
+        publicPort.facts(
+            request(remote = InetSocketAddress.createUnresolved("proxied-client", 80)),
+            emptySet(),
+            Caller.ANONYMOUS
+        )
             .assert().isEqualTo(mapOf("remote_ip" to "proxied-client"))
     }
 
@@ -62,7 +66,11 @@ class RequestFactsTest {
     fun `no listed name sets a default fact, on either port`() {
         val forged = request("REMOTE_IP" to "203.0.113.9", "user_agent" to "forged", "X-App-Id" to "app-1")
         val names = setOf("REMOTE_IP", "user_agent", "X-App-Id")
-        publicPort.facts(forged, names, Caller.ANONYMOUS).assert().isEqualTo(mapOf("X-App-Id" to "app-1", "remote_ip" to "10.0.0.7"))
+        publicPort.facts(
+            forged,
+            names,
+            Caller.ANONYMOUS
+        ).assert().isEqualTo(mapOf("X-App-Id" to "app-1", "remote_ip" to "10.0.0.7"))
         internalPort.facts(forged, names, Caller.ANONYMOUS).assert().isEqualTo(mapOf("X-App-Id" to "app-1"))
     }
 

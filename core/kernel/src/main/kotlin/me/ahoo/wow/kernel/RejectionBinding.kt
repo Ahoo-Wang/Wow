@@ -112,6 +112,7 @@ fun rejectionContextOf(
     rejected.operator,
     rejected.scope,
     ids,
+    rejected.headers,
 )
 
 /**
@@ -134,7 +135,8 @@ internal fun <B : Any> nearestHandlerOf(handlers: List<B>, command: Class<*>, ty
  * again, after a retry or a second delivery, derives the same requests, which the kernel does not decide twice: the
  * n-th [command]'s id and request id are [compensationId] of [receiptOf], this execution and the call's index. Each
  * command's [causation][Command.causation] is the command [receiptOf], in the chain of its root ([causation]), and
- * its operator and scope are that command's (decisions D163, D189).
+ * its operator and scope are that command's (decisions D163, D189), and so are its [headers], the request facts it
+ * inherited ([me.ahoo.wow.api.decide.RequestFacts.PROPAGATED], decision D232).
  */
 @InternalWowApi
 class ReceiptSagaContext(
@@ -145,6 +147,7 @@ class ReceiptSagaContext(
     private val operator: Operator?,
     private val scope: Scope,
     override val ids: Ids = IdGenerators.DEFAULT,
+    private val headers: Map<String, String> = emptyMap(),
 ) : SagaContext {
     private val calls = AtomicInteger()
 
@@ -156,6 +159,7 @@ class ReceiptSagaContext(
             ref = ref,
             body = body,
             scope = scope,
+            headers = headers,
             causation = Causation(causation.correlationId, receiptOf),
             operator = operator,
         )
