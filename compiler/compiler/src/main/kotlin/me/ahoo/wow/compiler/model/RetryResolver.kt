@@ -14,7 +14,9 @@
 package me.ahoo.wow.compiler.model
 
 import com.google.devtools.ksp.symbol.KSAnnotated
+import com.google.devtools.ksp.symbol.KSDeclaration
 import com.google.devtools.ksp.symbol.KSType
+import com.google.devtools.ksp.symbol.KSTypeAlias
 import me.ahoo.wow.api.annotation.Retry
 import me.ahoo.wow.manifest.RetryManifest
 import kotlin.time.Duration
@@ -119,7 +121,7 @@ internal object RetryResolver {
 
     private fun classes(value: Any?): List<String>? =
         (value as? List<*>).orEmpty()
-            .mapNotNull { (it as? KSType)?.declaration?.qualifiedName?.asString() }
+            .mapNotNull { (it as? KSType)?.declaration?.unaliased()?.qualifiedName?.asString() }
             .distinct()
             .takeUnless { it.isEmpty() }
 
@@ -144,4 +146,8 @@ internal object RetryResolver {
         problems += "$where is annotated @Retry($setting = \"$text\"): it $problem"
         return null
     }
+
+    /** The class a type alias (`kotlin.IllegalArgumentException`) stands for, or this declaration. */
+    private fun KSDeclaration.unaliased(): KSDeclaration =
+        generateSequence(this) { (it as? KSTypeAlias)?.type?.resolve()?.declaration }.last()
 }
