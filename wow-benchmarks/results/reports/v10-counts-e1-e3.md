@@ -1,4 +1,6 @@
-# V10 against 9.x: what each operation costs, counted (E1 to E3, low load)
+# V10 against 9.x: what each operation costs, counted (E1 to E3, low load) — PRELIMINARY
+
+**PRELIMINARY: measured on V10 `origin/v10` `4251e3463`, before R3-A (store opening, append-queue presets, backend selection), R3-B (wait cap, read and write pool isolation) and P.16 (subscription runtime), which change the paths E1 to E3 take. These numbers will be rerun once those merge; do not cite them as V10's cost.**
 
 **The count-based tier of decision D224 (implementation note of 2026-10-19): counts, not timings.** Store round trips, store operations, Kafka messages and heap allocations do not depend on the machine's load, so these were measured at a low rate (20 operations/s) on a shared machine. Nothing here says anything about latency, throughput or saturation; those wait for the time-based tiers on a machine of their own (`wow-benchmarks/e2e/harness/tiers.sh`). E4 (reads) and E5 (cluster) are not measured: their designs are changing (R3-A/R3-B, R3-H).
 

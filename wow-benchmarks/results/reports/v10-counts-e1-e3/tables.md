@@ -1,3 +1,5 @@
+**PRELIMINARY** (V10 `4251e3463`, before R3-A, R3-B and P.16; to be rerun): see [`../v10-counts-e1-e3.md`](../v10-counts-e1-e3.md).
+
 ### E1
 
 | Kind | 9.x MongoDB | V10 MongoDB | V10 PostgreSQL |
