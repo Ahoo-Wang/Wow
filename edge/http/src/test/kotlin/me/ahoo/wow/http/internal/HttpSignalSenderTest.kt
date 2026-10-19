@@ -53,7 +53,13 @@ class HttpSignalSenderTest {
         queueCapacity: Int = HttpSignalSender.DEFAULT_QUEUE_CAPACITY,
         concurrency: Int = HttpSignalSender.DEFAULT_CONCURRENCY,
         idle: Duration = HttpSignalSender.DEFAULT_IDLE_TIMEOUT,
-    ) = HttpSignalSender(queueCapacity = queueCapacity, concurrency = concurrency, idleTimeout = idle)
+        maxBatch: Int = HttpSignalSender.DEFAULT_MAX_BATCH,
+    ) = HttpSignalSender(
+        queueCapacity = queueCapacity,
+        concurrency = concurrency,
+        idleTimeout = idle,
+        maxBatch = maxBatch,
+    )
         .also { senders += it }
 
     @AfterEach
@@ -117,17 +123,19 @@ class HttpSignalSenderTest {
                 }
             },
         ).use { stuck ->
-            val sender = sender(queueCapacity = 1, concurrency = 1)
+            // One signal a request: a batch drains the queue while the sends refill it, so how many signals a batch
+            // takes from a queue of one depends on how the two interleave (review A5-12); the batches have their test.
+            val sender = sender(queueCapacity = 1, concurrency = 1, maxBatch = 1)
             val elapsed = measureTimeMillis {
                 (1..10).forEach { sender.send(origin(stuck.address), signal(it)) }
             }
             elapsed.assert().isLessThan(1_000)
-            // At most one is in flight, a batch taken off the queue for the next request (the one it took and the one it
-            // drained, review A5-12) and one queued; the rest are dropped at once.
-            sender.dropped.assert().isGreaterThanOrEqualTo(6)
+            // At most one is in flight, one taken off the queue for the next request and one queued; the rest are
+            // dropped at once.
+            sender.dropped.assert().isGreaterThanOrEqualTo(7)
             release.complete(Unit)
             eventually { arrived.get() + sender.dropped == 10L }
-            arrived.get().assert().isLessThanOrEqualTo(4)
+            arrived.get().assert().isLessThanOrEqualTo(3)
         }
     }
 
