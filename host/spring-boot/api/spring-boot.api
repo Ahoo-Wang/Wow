@@ -855,6 +855,7 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Subscription {
 	public final fun getReadRetry ()Lme/ahoo/wow/spring/boot/WowProperties$Retry;
 	public final fun getRetry ()Lme/ahoo/wow/spring/boot/WowProperties$Retry;
 	public final fun getStopTimeout ()Ljava/time/Duration;
+	public final fun getSystemic ()Lme/ahoo/wow/spring/boot/WowProperties$Systemic;
 	public final fun options (Ljava/util/Map;)Lme/ahoo/wow/runtime/subscription/SubscriptionOptions;
 	public static synthetic fun options$default (Lme/ahoo/wow/spring/boot/WowProperties$Subscription;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/runtime/subscription/SubscriptionOptions;
 	public final fun setCheckpointInterval (Ljava/time/Duration;)V
@@ -863,6 +864,7 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Subscription {
 	public final fun setReadRetry (Lme/ahoo/wow/spring/boot/WowProperties$Retry;)V
 	public final fun setRetry (Lme/ahoo/wow/spring/boot/WowProperties$Retry;)V
 	public final fun setStopTimeout (Ljava/time/Duration;)V
+	public final fun setSystemic (Lme/ahoo/wow/spring/boot/WowProperties$Systemic;)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$SubscriptionSettings {
@@ -873,6 +875,19 @@ public final class me/ahoo/wow/spring/boot/WowProperties$SubscriptionSettings {
 	public final fun setParked (Lme/ahoo/wow/spring/boot/WowProperties$ParkedSpec;)V
 	public final fun setRetry (Lme/ahoo/wow/spring/boot/WowProperties$RetrySpec;)V
 	public final fun setStart (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Systemic {
+	public fun <init> ()V
+	public final fun getFailingAggregates ()I
+	public final fun getInitialBackoff ()Ljava/time/Duration;
+	public final fun getMaxBackoff ()Ljava/time/Duration;
+	public final fun getWindow ()Ljava/time/Duration;
+	public final fun options ()Lme/ahoo/wow/runtime/subscription/SystemicFailureOptions;
+	public final fun setFailingAggregates (I)V
+	public final fun setInitialBackoff (Ljava/time/Duration;)V
+	public final fun setMaxBackoff (Ljava/time/Duration;)V
+	public final fun setWindow (Ljava/time/Duration;)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Tenant {

@@ -143,7 +143,9 @@ fun RetryManifest.copyWith(
     initialBackoff: String? = this.initialBackoff,
     maxBackoff: String? = this.maxBackoff,
     timeout: String? = this.timeout,
-): RetryManifest = RetryManifest(maxAttempts, initialBackoff, maxBackoff, timeout)
+    recoverable: List<String>? = this.recoverable,
+    unrecoverable: List<String>? = this.unrecoverable,
+): RetryManifest = RetryManifest(maxAttempts, initialBackoff, maxBackoff, timeout, recoverable, unrecoverable)
 
 fun SubscriptionSource.copyWith(
     context: String? = this.context,

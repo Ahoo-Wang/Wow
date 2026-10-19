@@ -170,7 +170,9 @@ public abstract interface annotation class me/ahoo/wow/api/annotation/Retry : ja
 	public abstract fun initialBackoff ()Ljava/lang/String;
 	public abstract fun maxAttempts ()I
 	public abstract fun maxBackoff ()Ljava/lang/String;
+	public abstract fun recoverable ()[Ljava/lang/Class;
 	public abstract fun timeout ()Ljava/lang/String;
+	public abstract fun unrecoverable ()[Ljava/lang/Class;
 }
 
 public abstract interface annotation class me/ahoo/wow/api/annotation/Revision : java/lang/annotation/Annotation {

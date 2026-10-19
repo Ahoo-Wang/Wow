@@ -94,6 +94,16 @@ interface Observer {
         topic: String?,
     ): Observation = Observation.NONE
 
+    /**
+     * [subscription] of the subscription [group] paused [partition] on a systemic failure (decision D243), [reason]
+     * saying which: it handles nothing there but one probe at a time, spending no aggregate's retries and parking none,
+     * until a handling succeeds ([partitionResumed]).
+     */
+    fun partitionPaused(group: String, subscription: String, partition: Int, reason: String) = Unit
+
+    /** [subscription] of the subscription [group] resumed [partition], paused for [pausedMillis] ([partitionPaused]). */
+    fun partitionResumed(group: String, subscription: String, partition: Int, pausedMillis: Long) = Unit
+
     /** The firing of [timer]: its command sent to its target. */
     fun firing(timer: Timer): Observation = Observation.NONE
 

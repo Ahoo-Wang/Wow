@@ -57,6 +57,9 @@ import kotlin.coroutines.EmptyCoroutineContext
  * | handling, of a topic | `<topic> process` | CONSUMER | [WowMetrics.SUBSCRIPTION_LAG] |
  * | timer firing | `fire <command type>` | INTERNAL | [WowMetrics.TIMER_DELAY] |
  *
+ * A subscription's partition paused on a systemic failure, and resumed (decision D243), counts in
+ * [WowMetrics.PAUSED_NOTICES]; [NodeMetrics] samples [WowMetrics.PAUSED].
+ *
  * A stage that starts from what arrived (a request's trace, an entry's or a message's [me.ahoo.wow.spi.log.Transport.trace])
  * is the child of the span those propagation fields name, as [openTelemetry]'s propagators extract them; any other is
  * the child of the current span. [clock] is the wall clock the lag and the timer delay are measured by.
@@ -118,6 +121,28 @@ class OtelObserver(
             topic,
             WowMetrics.OUTCOME,
             if (parked) WowMetrics.PARKED_OUTCOME else WowMetrics.SKIPPED_OUTCOME,
+        ).increment()
+    }
+
+    override fun partitionPaused(group: String, subscription: String, partition: Int, reason: String) {
+        pausedNotice(group, subscription, partition, WowMetrics.PAUSED_KIND)
+    }
+
+    override fun partitionResumed(group: String, subscription: String, partition: Int, pausedMillis: Long) {
+        pausedNotice(group, subscription, partition, WowMetrics.RESUMED_KIND)
+    }
+
+    private fun pausedNotice(group: String, subscription: String, partition: Int, kind: String) {
+        cached.counter(
+            WowMetrics.PAUSED_NOTICES,
+            WowMetrics.GROUP,
+            group,
+            WowMetrics.SUBSCRIPTION,
+            subscription,
+            WowMetrics.PARTITION,
+            partition.toString(),
+            WowMetrics.KIND,
+            kind,
         ).increment()
     }
 

@@ -16,6 +16,7 @@ package me.ahoo.wow.kernel
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.annotation.Retry
+import me.ahoo.wow.spi.subscription.FailureClass
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import kotlin.time.Duration.Companion.milliseconds
@@ -91,5 +92,51 @@ class HandlerRetryTest {
         ProcessorBinding.saga<Any>("Saga", "derive", null, retry = retry) { _, _ -> emptyList() }.retry.assert()
             .isEqualTo(retry)
         ProcessorBinding.project<Any>("View", "other", null) { _, _ -> }.retry.assert().isNull()
+    }
+
+    @Retry(unrecoverable = [IllegalArgumentException::class], recoverable = [NumberFormatException::class])
+    private class Classifying {
+        @Retry(recoverable = [IllegalStateException::class])
+        fun own() = Unit
+
+        fun inherited() = Unit
+    }
+
+    private fun classifying(name: String): HandlerRetry? = HandlerRetry.of(
+        Classifying::class.java.getDeclaredMethod(name).getAnnotation(Retry::class.java),
+        Classifying::class.java.getAnnotation(Retry::class.java),
+    )
+
+    @Test
+    fun `the exception classes a handler classifies replace its processor's, list by list`() {
+        classifying("inherited").assert().isEqualTo(
+            HandlerRetry(
+                recoverable = listOf(NumberFormatException::class.java),
+                unrecoverable = listOf(IllegalArgumentException::class.java),
+            ),
+        )
+        classifying("own").assert().isEqualTo(
+            HandlerRetry(
+                recoverable = listOf(IllegalStateException::class.java),
+                unrecoverable = listOf(IllegalArgumentException::class.java),
+            ),
+        )
+        HandlerRetry.of(0, "", "", "", emptyList(), emptyList()).assert().isNull()
+        assertThrows<IllegalArgumentException> { HandlerRetry(recoverable = emptyList()) }
+        assertThrows<IllegalArgumentException> { HandlerRetry(unrecoverable = emptyList()) }
+    }
+
+    @Test
+    fun `the nearer listed class decides, the recoverable one on a tie`() {
+        val retry = checkNotNull(classifying("inherited"))
+        // NumberFormatException extends IllegalArgumentException: its own class is nearer.
+        retry.classify(NumberFormatException("x")).assert().isEqualTo(FailureClass.RECOVERABLE)
+        retry.classify(IllegalArgumentException("x")).assert().isEqualTo(FailureClass.UNRECOVERABLE)
+        retry.classify(IllegalStateException("x")).assert().isNull()
+        HandlerRetry(
+            recoverable = listOf(RuntimeException::class.java),
+            unrecoverable = listOf(RuntimeException::class.java),
+        ).classify(IllegalStateException("x")).assert().isEqualTo(FailureClass.RECOVERABLE)
+        HandlerRetry(maxAttempts = 2).classify(IllegalStateException("x")).assert().isNull()
     }
 }

@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.api.annotation
 
+import kotlin.reflect.KClass
+
 /**
  * The in-process retry budget of a subscription handler (V10, roadmap P.3, in place of 9.x `@Retry`): how often a
  * failing call is attempted, how long it waits between attempts, and how long one attempt may run, before the
@@ -38,6 +40,20 @@ package me.ahoo.wow.api.annotation
  * - [maxBackoff]: the longest wait between attempts.
  * - [timeout]: how long one attempt may run; an attempt that runs longer is cancelled and counts as failed.
  *
+ * - [recoverable], [unrecoverable]: the exception classes this handler classifies itself (decisions D229 G-6, D243),
+ *   each with its subclasses. A failure of an [unrecoverable] class parks the aggregate at once, without a retry; one
+ *   of a [recoverable] class is retried within this budget, then parks the aggregate, even where the subscription
+ *   would take it for a systemic failure (a store or a connection down), which pauses the whole partition instead.
+ *   When both lists hold a class the failure is an instance of, the nearer one in its class hierarchy decides, and
+ *   [recoverable] on a tie. A class neither list holds is classified by the host's classifiers (the SPI's
+ *   `FailureClassifier`), else retried within the budget. A handler's own lists replace its processor's.
+ *
+ * ```kotlin
+ * @OnEvent
+ * @Retry(unrecoverable = [IllegalArgumentException::class], recoverable = [CarrierBusyException::class])
+ * suspend fun onShipped(event: StateEvent<OrderState>) = carrier.notify(event.state.id)
+ * ```
+ *
  * A rejection (a business outcome, decision D153) is never retried. Once the aggregate is parked, the long-horizon
  * retries of the failure ledger (`wow.subscription.parked.*`) take over.
  */
@@ -48,4 +64,6 @@ annotation class Retry(
     val initialBackoff: String = "",
     val maxBackoff: String = "",
     val timeout: String = "",
+    val recoverable: Array<KClass<out Throwable>> = [],
+    val unrecoverable: Array<KClass<out Throwable>> = [],
 )
