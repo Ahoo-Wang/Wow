@@ -43,12 +43,17 @@ flag_management:
         - host/**
         - migration/**
         - platform/**
+        - extensions/**
         - example/eshop/**
         - example/quickstart/**
+        - example/java-smoke/**
         - test/architecture/**
         - test/kernel-benchmarks/**
         - test/routing-spike/**
         - test/lease-spike/**
+        - test/test-dsl/**
+        - test/tck/**
+        - test/tck-containers/**
     - name: local
       paths:
         - wow-*/**
