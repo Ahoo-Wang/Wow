@@ -15,6 +15,7 @@ package me.ahoo.wow.manifest.tools
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.Manifest.Companion.schemaRef
@@ -139,4 +140,31 @@ class ManifestToolsTest {
         }.message.assert().contains("refers to schemas no fragment holds").contains(CartState::class.java.name)
         File(directory, "manifest.json").exists().assert().isFalse()
     }
+
+    @Test
+    fun `a domain module's contract should be assembled into the api module that holds its classes`() {
+        val created = CommandManifest("CreateCart", schema = schemaRef(CreateCart::class.java.name))
+        val shop = fragment("shop", CartState::class.java).let { fragment ->
+            val aggregate = fragment.contexts.single().aggregates.single().withCommands(listOf(created))
+            fragment.withContexts(listOf(fragment.contexts.single().withAggregates(listOf(aggregate))))
+        }
+        val fragmentFile = File(directory, "fragment/shop.json").also { ManifestJson.write(shop, it) }
+        val contractFile = File(directory, "domain/contract.json")
+        ManifestTools.generateContract(listOf(fragmentFile), contractFile)
+        ManifestJson.read(contractFile).contexts.map { it.name }.assert().containsExactly("shop")
+
+        val classes = File(directory, "api-classes")
+        File(classes, CreateCart::class.java.name.replace('.', '/') + ".class").apply { parentFile.mkdirs() }
+            .writeText("")
+        val output = File(directory, "api/contract.json")
+        ManifestTools.assembleContract(listOf(contractFile), listOf(classes), ":shop-api", output).assert().isTrue()
+        ManifestJson.read(output).contexts.single().aggregates.single().commands.map { it.name }
+            .assert().containsExactly("CreateCart")
+
+        val other = File(directory, "other/contract.json")
+        ManifestTools.assembleContract(listOf(contractFile), emptyList(), ":other-api", other).assert().isFalse()
+        other.exists().assert().isFalse()
+    }
+
+    class CreateCart(val id: String)
 }

@@ -77,7 +77,7 @@ internal class SagaCalls(
         val client = caller ?: return CommandCalls.NONE.call(command)
         val type = requireNotNull(commandTypes.nameOf(command.ref.type, command.body.javaClass)) {
             "No Manifest of the service or its peers declares the command ${command.body.javaClass.name} called on " +
-                "${command.ref}: add the service of $context to wowPeers (decision D139)."
+                "${command.ref}: depend on the api module of $context, whose jar carries its contract (decision D234)."
         }
         val derived = command.causation?.let { command } ?: command.copyWith(causation = Causation(command.id, command.id))
         val result = client.call(OutgoingCall(type, derived, wait))

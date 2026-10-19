@@ -34,7 +34,7 @@ import org.gradle.api.tasks.TaskAction
  * (decision D182), the query models and datasets its backends serve, and the error statuses it configures.
  *
  * `wow-openapi` is plain data like `wow-manifest`, so the task runs in the plugin's own class loader and writes the
- * document with the JSON writer Gradle ships (Groovy's), as [CollectPeerManifests] reads Manifests.
+ * document with the JSON writer Gradle ships (Groovy's), as [GenerateContract] reads and writes Manifests.
  */
 @CacheableTask
 abstract class GenerateOpenApi : DefaultTask() {

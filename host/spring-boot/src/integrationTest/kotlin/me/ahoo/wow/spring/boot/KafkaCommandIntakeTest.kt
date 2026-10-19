@@ -45,6 +45,7 @@ import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
+import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
@@ -173,7 +174,7 @@ class KafkaCommandIntakeTest {
         orderModel(),
         salesManifest(),
         topics,
-        ContractDirectory(salesManifest(), listOf(ManifestFragment("META-INF/wow/peers/$STOCK_SERVICE.json", stockManifest()))),
+        ContractDirectory(salesManifest(), listOf(ManifestFragment("stock-api.jar!/${PeerContracts.RESOURCE}", stockManifest()))),
         SubscriptionBindings(mapOf(SALES to listOf(orderSaga(committed)))),
     )
 

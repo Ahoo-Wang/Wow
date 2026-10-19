@@ -410,7 +410,6 @@ public final class me/ahoo/wow/runtime/contract/ContractDirectory : me/ahoo/wow/
 	public final fun over (Lme/ahoo/wow/runtime/wait/SubscriptionDirectory;Ljava/lang/String;)Lme/ahoo/wow/runtime/wait/SubscriptionDirectory;
 	public final fun publishedOf (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/manifest/PublishedManifest;
 	public final fun schemaOf (Ljava/lang/String;)Ljava/lang/String;
-	public final fun serviceOf (Ljava/lang/String;)Ljava/lang/String;
 	public final fun subscriptionOf (Ljava/lang/String;Ljava/lang/String;)Lme/ahoo/wow/manifest/SubscriptionManifest;
 }
 

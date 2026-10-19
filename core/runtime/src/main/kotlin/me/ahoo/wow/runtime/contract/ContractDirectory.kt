@@ -22,7 +22,7 @@ import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
-import me.ahoo.wow.manifest.PeerManifests
+import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.PublishedManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
@@ -31,13 +31,13 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import tools.jackson.databind.json.JsonMapper
 
 /**
- * The contracts a service knows (decision D139): its own Manifest, [local], and the merged Manifests of its peers,
- * [peers] (`META-INF/wow/peers/<service>.json`, which the Gradle plugin's `wowPeers` configuration puts on the class
- * path; [load] reads them), without the contexts [local] serves ([PeerManifests.outside], DX gap G21: on a class path
- * that several services share, another server's copy of this service's Manifest is no peer of it). It answers, for any
- * context of either:
+ * The contracts a service knows (decisions D139, D234): its own Manifest, [local], and the peer contracts, [peers]
+ * (`META-INF/wow/contract.json` of each api jar on the class path, which the Gradle plugin packages from the context's
+ * domain module; [load] reads them), without the contexts [local] serves ([PeerContracts.outside], DX gap G21: the
+ * service's own api is on its class path, and on a class path that several services share, another service's api
+ * carries no contract of this one). It answers, for any context of either:
  *
- * - which service a context belongs to ([serviceOf], [isLocal]), and its contract ([contextOf], [aggregateOf]);
+ * - whether a context is the service's own ([isLocal]), and its contract ([contextOf], [aggregateOf]);
  * - the stream a context publishes for an aggregate, with its topic and whether it carries the state ([publishedOf]);
  * - the full type name of a command a Manifest refers to by its schema, `#/$defs/<binary name>` (decision D157), and
  *   back ([commandTypeOf], [schemaOf]);
@@ -47,8 +47,7 @@ import tools.jackson.databind.json.JsonMapper
  *
  * **Startup checks**: building it fails with a [ContractException] listing every problem:
  *
- * - the peers conflict ([PeerManifests.conflicts]): two peers of different services declare one context, or one
- *   service is two different peers;
+ * - the peer contracts conflict ([PeerContracts.conflicts]): two of them declare one context;
  * - a subscription of [local] reads another context (`@OnEvent(aggregates = ["ctx.agg"])`, decision D138) that no
  *   Manifest declares, an aggregate the context does not have, or one it does not publish;
  * - such a subscription reads a stream published without the state (`includeState = false`) but its handler takes a
@@ -73,20 +72,15 @@ class ContractDirectory(
         context.subscriptions.filter { it.source.nullableState }.map { it.name }
     }
 
-    /** The peers given, each without the contexts [local] serves, and without those left with none. */
-    val peers: List<ManifestFragment> = PeerManifests.outside(local.contexts.map { it.name }, peers)
+    /** The peer contracts given, each without the contexts [local] serves, and without those left with none. */
+    val peers: List<ManifestFragment> = PeerContracts.outside(local.contexts.map { it.name }, peers)
 
     private val manifests: List<Manifest> = listOf(local) + this.peers.map { it.manifest }
 
-    /** Every context by its name; on a conflict, which fails the build, the service's own or the first peer's. */
+    /** Every context by its name; on a conflict, which fails the startup, the service's own or the first peer's. */
     private val contexts: Map<String, Owned> = HashMap<String, Owned>().also { contexts ->
         manifests.forEach { manifest ->
-            manifest.contexts.forEach {
-                contexts.putIfAbsent(
-                    it.name,
-                    Owned(manifest.service?.name, it, manifest === local)
-                )
-            }
+            manifest.contexts.forEach { contexts.putIfAbsent(it.name, Owned(it, manifest === local)) }
         }
     }
 
@@ -106,19 +100,15 @@ class ContractDirectory(
                 }
             }
         }
-        // The peers no longer hold a context of the service, so what is left to refuse is among the peers alone: a
-        // peer of the service itself keeps only contexts the node does not serve, which is no conflict.
-        val problems = PeerManifests.conflicts(null, emptyList(), this.peers) +
+        // The peers no longer hold a context of the service, so what is left to refuse is among the peers alone.
+        val problems = PeerContracts.conflicts(this.peers) +
             local.contexts.flatMap { context -> context.subscriptions.flatMap { sourceProblems(context, it) } }
         if (problems.isNotEmpty()) {
             throw ContractException(problems)
         }
     }
 
-    private class Owned(val service: String?, val context: ContextManifest, val local: Boolean)
-
-    /** The service [context] belongs to, this one's or a peer's; null when no Manifest declares it. */
-    fun serviceOf(context: String): String? = contexts[context]?.service
+    private class Owned(val context: ContextManifest, val local: Boolean)
 
     /** Whether [context] is one of this service's own. */
     fun isLocal(context: String): Boolean = contexts[context]?.local == true
@@ -301,15 +291,15 @@ class ContractDirectory(
         }
 
         /**
-         * The directory of [local] and the peer Manifests on [classLoader] ([PeerManifestReader]); fails with a
-         * [ContractException] when a peer cannot be read, as when the directory cannot be built.
+         * The directory of [local] and the peer contracts on [classLoader] ([ContractReader]); fails with a
+         * [ContractException] when a contract cannot be read, as when the directory cannot be built.
          */
         fun load(
             local: Manifest,
             classLoader: ClassLoader = Thread.currentThread().contextClassLoader,
             mapper: JsonMapper = JsonMapper.builder().build(),
             nullableStates: Set<String> = emptySet(),
-        ): ContractDirectory = ContractDirectory(local, PeerManifestReader(classLoader, mapper).read(), nullableStates)
+        ): ContractDirectory = ContractDirectory(local, ContractReader(classLoader, mapper).read(), nullableStates)
     }
 }
 

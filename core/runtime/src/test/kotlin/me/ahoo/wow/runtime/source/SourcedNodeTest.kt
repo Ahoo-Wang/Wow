@@ -28,7 +28,6 @@ import me.ahoo.wow.manifest.FunctionManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.PublishedManifest
-import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionManifest
@@ -283,9 +282,8 @@ class SourcedNodeTest {
 
         /** The sales service publishes its orders without their state. */
         val SALES = ManifestFragment(
-            "META-INF/wow/peers/sales-service.json",
+            "sales-api.jar!/META-INF/wow/contract.json",
             Manifest(
-                service = ServiceInfo("sales-service"),
                 contexts = listOf(
                     ContextManifest(
                         "sales",

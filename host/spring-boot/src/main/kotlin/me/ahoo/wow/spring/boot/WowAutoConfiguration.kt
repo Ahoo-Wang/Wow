@@ -108,8 +108,8 @@ import jakarta.validation.Validator as JakartaValidator
  * - **Models and Manifest**: the binding index on the classpath ([ModelProvider.load]) of the contexts
  *   `wow.contexts.include` / `exclude` select ([ContextSelection], decision D169; all by default), the models' parameters from the
  *   application's beans ([BeanFactoryDependencies]), the Manifest merged from the modules' fragments
- *   ([ManifestLoader], read with [WowJson.mapper], never Spring's mapper), and with it the peers' Manifests on the
- *   classpath ([ContractDirectory], decision D139).
+ *   ([ManifestLoader], read with [WowJson.mapper], never Spring's mapper), and with it the peer contracts on the
+ *   classpath ([ContractDirectory], decisions D139, D234).
  * - **Backend** (`wow.backend`, [BackendSelection]): PostgreSQL over the application's `DataSource`, MongoDB over its
  *   `MongoClient`, in memory (one node, with a warning) when it has neither, or the application's own
  *   [BackendFactory] bean. With `wow.stores`, the named store instances instead ([StoreInstances]), each aggregate's
@@ -211,7 +211,7 @@ class WowAutoConfiguration {
     fun wowManifest(loader: ManifestLoader, models: WowModels, identity: NodeIdentity): Manifest =
         loader.load(ServiceInfo(identity.service), models.providers)
 
-    /** The contracts of the service's Manifest and of its peers on the class path (decision D139). */
+    /** The contracts of the service's Manifest and the peer contracts on the class path (decisions D139, D234). */
     @Bean
     @ConditionalOnMissingBean
     fun wowContractDirectory(manifest: Manifest, beanFactory: ConfigurableListableBeanFactory): ContractDirectory =
