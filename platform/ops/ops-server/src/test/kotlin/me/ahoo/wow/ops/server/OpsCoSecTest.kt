@@ -89,6 +89,12 @@ class OpsCoSecTest {
     }
 
     @Test
+    fun `the deployment's probes should answer without a token (R3-H)`() {
+        eventually("ready") { ops.get("/actuator/health/readiness", Who.NOBODY).status == OK }
+        ops.get("/actuator/health/liveness", Who.NOBODY).status.assert().isEqualTo(OK)
+    }
+
+    @Test
     fun `a signed-in operator should read an entry and resume it, which goes to the owning context in its name`() {
         val id = ops.publish(entry("shop-resume", "p-1"))
         val operator = signedIn("alice", OpsCallers.OPERATOR)
