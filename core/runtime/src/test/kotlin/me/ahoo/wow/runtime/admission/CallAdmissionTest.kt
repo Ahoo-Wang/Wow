@@ -13,8 +13,10 @@
 
 package me.ahoo.wow.runtime.admission
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -43,11 +45,13 @@ import me.ahoo.wow.runtime.RecordingObserver
 import me.ahoo.wow.runtime.cluster.CommandRouter
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.ResultCodes
+import me.ahoo.wow.runtime.wait.Settlement
 import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
+import me.ahoo.wow.runtime.wait.failed
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.wait.Origin
 import me.ahoo.wow.spi.wait.WaitContext
@@ -88,6 +92,17 @@ class CallAdmissionTest {
     @Volatile
     private var hold: CompletableDeferred<Unit>? = null
 
+    /** Completed once a command reached the router. */
+    private val routed = CompletableDeferred<Unit>()
+
+    /** Fails every command's routing with it, when set, after [hold]: a forward that throws. */
+    @Volatile
+    private var failure: Exception? = null
+
+    /** Settles every routed command FAILED after it ran, when set: an outcome with an error. */
+    @Volatile
+    private var failLate: Boolean = false
+
     private fun coordinator(defaultTimeout: Duration = WaitPlan.DEFAULT_TIMEOUT) = WaitCoordinator(
         Executor(Kernel(log), laneCapacity = 4),
         registry,
@@ -95,8 +110,10 @@ class CallAdmissionTest {
         LocalSignalSender(origin.node, registry, SignalSender { _, signal -> remote += signal }),
         WaitOptions(origin, maxTimeout = 30.seconds, defaultTimeout = defaultTimeout),
         router = CommandRouter { _, _, _, local ->
+            routed.complete(Unit)
             hold?.await()
-            local()
+            failure?.let { throw it }
+            local().let { if (failLate) Settlement(it.committed.failed(ResultCodes.FAILED, "Late.")) else it }
         },
     )
 
@@ -253,6 +270,54 @@ class CallAdmissionTest {
             again.status.assert().describedAs(again.toString()).isEqualTo(CommandResult.Status.SUCCEEDED)
             again.duplicate.assert().isTrue()
         }
+
+    @Test
+    fun `a call whose forward throws should fail its caller with the failure`(): Unit = runBlocking {
+        failure = IllegalStateException("The route failed.")
+        assertThrownBy<IllegalStateException> { runBlocking { gateway().execute(request(service, call())) } }
+            .hasMessage("The route failed.")
+        commands.assert().isEmpty()
+    }
+
+    @Test
+    fun `a call whose forward throws after its timeout should only be logged`(): Unit = runBlocking {
+        val slow = coordinator(defaultTimeout = 100.milliseconds)
+        val held = CompletableDeferred<Unit>().also { hold = it }
+        val result = gateway(coordinator = slow).execute(request(service, call()))
+        result.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
+        failure = IllegalStateException("The route failed late.")
+        held.complete(Unit)
+        slow.join()
+        slow.executing.assert().isEqualTo(0)
+        commands.assert().isEmpty()
+    }
+
+    @Test
+    fun `a call that fails after its timeout should only be logged`(): Unit = runBlocking {
+        val slow = coordinator(defaultTimeout = 100.milliseconds)
+        val held = CompletableDeferred<Unit>().also { hold = it }
+        failLate = true
+        val result = gateway(coordinator = slow).execute(request(service, call()))
+        result.error!!.code.assert().isEqualTo(ResultCodes.WAIT_TIMEOUT)
+        held.complete(Unit)
+        slow.join()
+        slow.executing.assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `a call should end with its execution when its stopping coordinator cancels it`(): Unit = runBlocking {
+        val stopping = coordinator()
+        hold = CompletableDeferred()
+        val caller = async(Dispatchers.Default) {
+            runCatching { gateway(coordinator = stopping).execute(request(service, call())) }
+        }
+        // Cancelled while it routes, not before it starts.
+        routed.await()
+        // A node that stops cancels what still executes once it has joined it for long enough.
+        stopping.close()
+        caller.await().exceptionOrNull().assert().isInstanceOf(CancellationException::class.java)
+        commands.assert().isEmpty()
+    }
 
     @Test
     fun `a call should not be cancelled with its caller`(): Unit = runBlocking {
