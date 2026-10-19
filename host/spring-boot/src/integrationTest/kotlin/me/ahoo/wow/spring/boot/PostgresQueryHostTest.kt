@@ -97,4 +97,28 @@ class PostgresQueryHostTest {
         described.status.assert().isEqualTo(200)
         described.headers.eTag.assert().isEqualTo("\"${described.body!!["version"].asString()}\"")
     }
+
+    @Test
+    fun `the events should be queried over HTTP from the log in place (decision D235)`() {
+        val opened = host.post("/bank/account/open-account", """{"owner":"events-pg"}""")
+        opened.status.assert().isEqualTo(200)
+        val id = opened.body!!["ref"]["id"].asString()
+        host.post("/bank/account/$id/deposit", """{"amount":7}""").status.assert().isEqualTo(200)
+        val listed = host.post("/bank/account/events/query", """{"kind":"list","filter":{"op":"ID","value":"$id"}}""")
+        listed.status.assert().isEqualTo(200)
+        listed.body!!.values().map { it["version"].asInt() }.assert().containsExactly(1, 2)
+        // Per-event analytics expand the events; a commit's events are counted one by one.
+        val expanded = host.post(
+            "/bank/account/events/query",
+            """{"kind":"aggregate","filter":{"op":"ID","value":"$id"},"elements":[{"path":"events"}],""" +
+                """"metrics":[{"type":"COUNT","alias":"n"}]}""",
+        )
+        expanded.status.assert().isEqualTo(200)
+        expanded.body!![0]["n"].asLong().assert().isEqualTo(
+            listed.body!!.values().sumOf { it["events"].size() }.toLong(),
+        )
+        val counted = host.post("/bank/account/events/query", """{"kind":"count","filter":{"op":"MATCH_ALL"}}""")
+        counted.body!!["count"].asLong().assert().isGreaterThanOrEqualTo(2)
+        host.get("/bank/account/events/query").body!!["model"].asString().assert().isEqualTo("EVENTS")
+    }
 }
