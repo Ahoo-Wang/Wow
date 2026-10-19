@@ -15,6 +15,7 @@ package me.ahoo.wow.http.caller
 
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.manifest.FrameworkErrors
 
 /**
  * The commands each service may call on the internal port's call routes (decision D226, review A3-2), by service
@@ -70,7 +71,7 @@ class CallPermits(services: Map<String, Collection<String>>) {
     @InternalWowApi
     companion object {
         /** The code of a call to a command the calling service may not call: answered 403. */
-        const val COMMAND_FORBIDDEN: String = "wow.call.command-forbidden"
+        const val COMMAND_FORBIDDEN: String = FrameworkErrors.CALL_COMMAND_FORBIDDEN
 
         /** The framework's namespace of command names. */
         private const val SYSTEM_PREFIX: String = "wow."

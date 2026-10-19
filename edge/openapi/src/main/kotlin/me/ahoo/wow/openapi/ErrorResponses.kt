@@ -106,9 +106,12 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
         private const val DOMAIN_REJECTION =
             "A rejection by the domain, with the code it chose (decision D121); the problem carries the command's result."
 
-        /** The codes a command route answers: every framework code but the query ones. */
-        val COMMAND: List<String> =
-            FrameworkErrors.ALL.map { it.code }.filterNot { it.startsWith(QUERY_PREFIX) }
+        /**
+         * The codes a command route answers: every framework code but the query ones and the internal port's call
+         * code ([FrameworkErrors.CALL_COMMAND_FORBIDDEN]), which no documented route answers.
+         */
+        val COMMAND: List<String> = FrameworkErrors.ALL.map { it.code }
+            .filterNot { it.startsWith(QUERY_PREFIX) || it == FrameworkErrors.CALL_COMMAND_FORBIDDEN }
 
         /** The codes a state read or a trace answers. */
         val STATE: List<String> = listOf(

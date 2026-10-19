@@ -72,6 +72,8 @@ export const FrameworkErrorCodes = {
   QUERY_FAILED: 'wow.query.failed',
   /** 503: the query ran longer than its budget allows. */
   QUERY_TIMEOUT: 'wow.query.timeout',
+  /** 403: the calling service may not call this command (a synchronous call on the internal port, decision D226). */
+  CALL_COMMAND_FORBIDDEN: 'wow.call.command-forbidden',
 } as const;
 
 /** A {@link FrameworkErrorCodes} value. */

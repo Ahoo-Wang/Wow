@@ -19,9 +19,15 @@ package me.ahoo.wow.manifest
  *
  * The query codes (decisions D130, D150) are answered by the query routes (`POST /{context}/{aggregate}/{model}/query`).
  *
- * The kernel and the runtime define the codes they produce themselves (`KernelRejections`, `ResultCodes`); the
- * strings are the same. A domain rejection's code is not here: it is answered with [DOMAIN_REJECTION_STATUS] unless
- * the host configures another status for it.
+ * The call code ([CALL_COMMAND_FORBIDDEN], decision D226) is answered by the internal port alone, to a service's
+ * synchronous call (decision D193).
+ *
+ * This table is the one source of truth of the framework's codes (review R2.5-4): the runtime's codes (`FrameworkCodes`,
+ * `ResultCodes`), the query's (`QueryErrors`) and the edge's (`CallPermits`) are its constants; the kernel, which does
+ * not depend on this module, repeats its strings (`KernelRejections`, `ScheduleJobModel.JOB_INVALID`). A test of
+ * `wow-http` (`FrameworkErrorTableTest`) fails when a code one of them produces is missing here, or a code here is
+ * produced by none of them. A domain rejection's code is not here: it is answered with [DOMAIN_REJECTION_STATUS]
+ * unless the host configures another status for it.
  *
  * The TypeScript client's code table (`@ahoo-wang/wow-client`, `FrameworkErrorCodes`) is checked against this one
  * through the snapshot `framework-errors.json` of this module's tests (review A5-8): changing a code or a status here
@@ -54,6 +60,7 @@ object FrameworkErrors {
     const val QUERY_INVALID: String = "wow.query.invalid"
     const val QUERY_FAILED: String = "wow.query.failed"
     const val QUERY_TIMEOUT: String = "wow.query.timeout"
+    const val CALL_COMMAND_FORBIDDEN: String = "wow.call.command-forbidden"
 
     /** The status of a domain rejection, a code the domain chose, unless the host configures another for the code. */
     const val DOMAIN_REJECTION_STATUS: Int = 422
@@ -137,6 +144,11 @@ object FrameworkErrors {
             QUERY_TIMEOUT,
             503,
             "The query ran longer than its budget allows; narrow it, or retry later.",
+        ),
+        ErrorManifest(
+            CALL_COMMAND_FORBIDDEN,
+            403,
+            "The calling service may not call this command: its wow.http.services.<service>.commands do not list it.",
         ),
     )
 
