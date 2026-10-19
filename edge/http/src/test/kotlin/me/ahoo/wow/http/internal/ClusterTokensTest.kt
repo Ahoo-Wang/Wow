@@ -146,6 +146,7 @@ class ClusterTokensTest {
                 service = "bank-service",
                 clusterToken = CURRENT,
                 credential = ServiceCredential.bearer(SERVICE_TOKEN),
+                members = { it == server.address },
             ).use { sender ->
                 sender.send(
                     Origin("node-1", server.address, "bank-service"),
@@ -168,6 +169,34 @@ class ClusterTokensTest {
             }
             signals.assert().hasSize(2)
         }
+
+    @Test
+    fun `a sender sends the cluster token to no address outside its cluster`(): Unit = runBlocking {
+        // An origin naming this service, at an address the lease store does not show as a member: whoever started or
+        // carried the wait chose it, so it is sent no credential, and a node of this service refuses it.
+        HttpSignalSender(
+            client,
+            service = "bank-service",
+            clusterToken = CURRENT,
+            credential = ServiceCredential.bearer(SERVICE_TOKEN),
+            members = { it == "10.0.0.1:9191" },
+        ).use { sender ->
+            sender.send(
+                Origin("node-1", server.address, "bank-service"),
+                WaitSignal(waitId = "w-exfiltrated", result = committed("c-1"))
+            )
+            eventually { sender.dropped == 1L }
+        }
+        // Without members, the same.
+        HttpSignalSender(client, service = "bank-service", clusterToken = CURRENT).use { sender ->
+            sender.send(
+                Origin("node-1", server.address, "bank-service"),
+                WaitSignal(waitId = "w-unknown", result = committed("c-2"))
+            )
+            eventually { sender.dropped == 1L }
+        }
+        signals.assert().isEmpty()
+    }
 
     @Test
     fun `a cluster token is long enough`() {

@@ -97,6 +97,7 @@ M5 的定稿（D92～D118）：准入顺序与扩展点（D92）、`Caller` 与 
 
 - `wow-client` 只保留 `FilterExpression` 与 Manifest 驱动的客户端，删除 `/legacy` 与 fetcher 旧名。
 - `wow-generator` 读 Manifest，不读 OpenAPI。
+- springdoc 桥接（D233）：有 springdoc 的 Spring Boot 宿主把 Manifest 的 OpenAPI 合并进 springdoc 的默认文档并另设 `wow` 分组；冲突即启动失败；securitySchemes 由宿主按调用方解析器填写；只含公开端口的路由。
 - view-engine 从 Manifest 派生默认视图。
 
 ## 5. 待细化

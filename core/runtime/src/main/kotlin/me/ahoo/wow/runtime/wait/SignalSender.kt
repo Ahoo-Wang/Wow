@@ -38,19 +38,30 @@ fun interface SignalSender {
 }
 
 /**
- * The in-process [SignalSender]: a signal whose origin is this [node] goes straight to its [registry]; any other goes
- * to [remote], the sender to other nodes' internal signal entries (roadmap 4.2 and 6.6), which drops it by default.
+ * The in-process [SignalSender]: a signal whose origin is this [node] of this [service] goes straight to its
+ * [registry]; any other goes to [remote], the sender to other nodes' internal signal entries (roadmap 4.2 and 6.6),
+ * which drops it by default.
+ *
+ * A node id is unique within its service only (its lease groups are the service's), so two services may both have a
+ * `node-1` when their ids are configured (review R2.1-6): the origin's service must match too, or a signal for another
+ * service's wait would be dropped here. Without a [service], the node id alone decides, for a node that serves no
+ * other service's waits.
  */
 @InternalWowApi
-class LocalSignalSender(
-    private val node: String,
+class LocalSignalSender private constructor(
     private val registry: WaitRegistry,
-    private val remote: SignalSender = SignalSender { origin, signal ->
-        logger.debug { "No sender to ${origin.node}; dropping the signal of wait ${signal.waitId}." }
-    },
+    private val node: String,
+    private val service: String?,
+    private val remote: SignalSender,
 ) : SignalSender {
+    /** The sender of [node] of [service]. */
+    constructor(node: String, service: String, registry: WaitRegistry, remote: SignalSender = DROP) :
+        this(registry, node, service, remote)
+
+    /** The sender of [node], whichever service a signal's origin names. */
+    constructor(node: String, registry: WaitRegistry, remote: SignalSender = DROP) : this(registry, node, null, remote)
     override suspend fun send(origin: Origin, signal: WaitSignal) {
-        if (origin.node == node) {
+        if (origin.node == node && (service == null || origin.service == service)) {
             registry.signal(signal)
         } else {
             remote.send(origin, signal)
@@ -59,5 +70,9 @@ class LocalSignalSender(
 
     private companion object {
         val logger = KotlinLogging.logger {}
+
+        val DROP = SignalSender { origin, signal ->
+            logger.debug { "No sender to ${origin.node}; dropping the signal of wait ${signal.waitId}." }
+        }
     }
 }

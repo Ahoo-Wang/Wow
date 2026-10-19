@@ -16,6 +16,8 @@ package me.ahoo.wow.http.problem
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.http.HttpJson
+import me.ahoo.wow.manifest.FrameworkErrors
+import me.ahoo.wow.spi.StorageUnavailableException
 import org.springframework.core.io.buffer.DataBufferLimitException
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
@@ -78,6 +80,27 @@ data class Problem(
         /** A problem that is the HTTP [status] alone. */
         fun ofStatus(status: HttpStatus, detail: String? = null): Problem =
             Problem(status.value(), status.reasonPhrase, detail, null)
+
+        /**
+         * The problem a route answers an unexpected [failure] with (reviews A3-6, R2.3-8): a store that is unavailable
+         * is 503 `wow.storage.unavailable` with `Retry-After`, a body larger than the codecs take is 413, and anything
+         * else a 500 that says nothing of its cause, which the route logs. Never Spring's bare error page.
+         */
+        fun ofFailure(failure: Throwable): Problem {
+            val unavailable = generateSequence(failure) { it.cause }.firstOrNull { it is StorageUnavailableException }
+            if (unavailable != null) {
+                val status = HttpStatus.SERVICE_UNAVAILABLE
+                return Problem(
+                    status.value(),
+                    status.reasonPhrase,
+                    unavailable.message,
+                    FrameworkErrors.STORAGE_UNAVAILABLE,
+                    retryAfter = ErrorStatuses.STORAGE_RETRY_AFTER_SECONDS,
+                )
+            }
+            return tooLargeProblem(failure)
+                ?: ofStatus(HttpStatus.INTERNAL_SERVER_ERROR, "The request failed with an unexpected error.")
+        }
     }
 }
 

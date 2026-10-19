@@ -51,7 +51,9 @@ data class LeaseGroup(val service: String, val context: String) {
  * - [leaseTtl], renewed every [renewInterval]: how long a partition stays with a node that stopped renewing. A
  *   renewal round renews the held leases concurrently, at most [leaseParallelism] at a time, and acquisitions are
  *   bounded the same way: a round then takes about `owned / leaseParallelism × store latency`, which must stay well
- *   inside `leaseTtl − renewInterval` (spike H6).
+ *   inside `leaseTtl − renewInterval` (spike H6). A lease left unrenewed that long is taken as lost (finding A1-8), so
+ *   [renewInterval] is less than half of [leaseTtl] (review R2.1-5): otherwise every lease would be lost between two
+ *   rounds.
  * - [memberTtl], refreshed every [heartbeatInterval]: how long a node stays a member after its last heartbeat.
  * - [reconcileInterval]: how often a node compares the partitions it holds with its HRW target; a change of the
  *   members it notices reconciles at once.
@@ -86,6 +88,11 @@ class ClusterOptions @InternalWowApi constructor(
 ) {
     init {
         require(renewInterval.isPositive() && renewInterval < leaseTtl) { "A lease is renewed before it expires." }
+        // A lease unrenewed for leaseTtl - renewInterval is taken as lost (finding A1-8): a round must come before that.
+        require(renewInterval * 2 < leaseTtl) {
+            "The renew interval $renewInterval must be less than half the lease TTL $leaseTtl: a lease unrenewed for " +
+                "leaseTtl - renewInterval is taken as lost, so a longer interval loses every lease between two rounds."
+        }
         require(heartbeatInterval.isPositive() && heartbeatInterval < memberTtl) {
             "A member heartbeats before its membership expires."
         }

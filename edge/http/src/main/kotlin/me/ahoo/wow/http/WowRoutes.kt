@@ -245,8 +245,9 @@ private fun CoRouterFunctionDsl.document(
  * `wow.auth.forbidden`. The public port
  * refuses `Wow-Call` ([wowRoutes]), so the root command a call asserts reaches a node only through its internal
  * network, from a service it trusts. A service calls only the commands [permits] lets it (decision D226, review A3-2):
- * the domain commands by default, a system command (`wow.*`: the lifecycle, the snapshot rebuild, the schedules)
- * only when listed; any other is answered 403 [CallPermits.COMMAND_FORBIDDEN].
+ * the domain commands by default, a system command (`wow.*`: the lifecycle, the snapshot rebuild, the schedules and the
+ * jobs, whose routes are the public port's too, review R2.3-5) only when listed; any other is answered 403
+ * [CallPermits.COMMAND_FORBIDDEN].
  */
 @InternalWowApi
 fun callRoutes(
@@ -275,6 +276,8 @@ fun callRoutes(
     return coRouter {
         served.contexts.forEach { context ->
             context.aggregates.forEach { aggregate -> commandRoutes(context.name, aggregate, commands, statuses) }
+            // The snapshot rebuild and the job commands, which a service calls when its permits list them (D226).
+            systemRoutes(context, commands, statuses)
         }
     }
 }

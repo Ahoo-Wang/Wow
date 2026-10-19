@@ -58,9 +58,49 @@ class ConfigurationKeysTest {
     }
 
     @Test
+    fun `the keys of a service identity and a call target are checked to their properties (R2_5-3)`() {
+        val known = environment(
+            "wow.http.services.basket.tokens[0]" to "t",
+            "wow.http.services.basket.commands[0]" to "shop.order.SubmitOrder",
+            "wow.http.services.[ordering.v2].commands" to "Checkout",
+            "wow.http.services.ordering.tokens" to "a,b",
+            "wow.calls.contexts.ordering.url" to "http://ordering:9090",
+            "wow.calls.token" to "t",
+            "wow.internal.token" to "t",
+        )
+        keys.unknown(known).assert().isEmpty()
+        keys.check(known)
+        // The map holds the entry, but its value has no such property: commands stays empty, which opens every
+        // domain command to the service (D226), so the typo refuses the startup.
+        val mistyped = environment(
+            "wow.http.services.basket.command[0]" to "shop.order.SubmitOrder",
+            "wow.http.services.basket" to "t",
+            "wow.calls.contexts.ordering.uri" to "http://ordering:9090",
+            "wow.calls.tokens" to "t",
+            "wow.internal.tokens" to "t",
+        )
+        keys.unknown(mistyped).assert().containsExactlyInAnyOrder(
+            "wow.http.services.basket.command[0]",
+            "wow.http.services.basket",
+            "wow.calls.contexts.ordering.uri",
+            "wow.calls.tokens",
+            "wow.internal.tokens",
+        )
+        val failure = assertThrows<IllegalStateException> { keys.check(mistyped) }
+        failure.message.assert().contains("wow.http.services.basket.command[0]")
+    }
+
+    @Test
     fun `a host whose security key is mistyped does not start`() {
         val failure = runCatching { startHost("wow.cosec.authorizer.enable" to true).close() }.exceptionOrNull()
         generateSequence(failure) { it.cause }.any { it.message.orEmpty().contains("wow.cosec.authorizer.enable") }
             .assert().isTrue()
+    }
+
+    @Test
+    fun `a host whose service's commands are mistyped does not start`() {
+        val key = "wow.http.services.basket.command[0]"
+        val failure = runCatching { startHost(key to "shop.order.SubmitOrder").close() }.exceptionOrNull()
+        generateSequence(failure) { it.cause }.any { it.message.orEmpty().contains(key) }.assert().isTrue()
     }
 }

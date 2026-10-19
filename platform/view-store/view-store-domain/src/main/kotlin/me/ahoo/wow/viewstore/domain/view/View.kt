@@ -20,6 +20,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
 import me.ahoo.wow.api.lifecycle.TransferOwner
+import me.ahoo.wow.viewstore.api.SystemView
 import me.ahoo.wow.viewstore.api.ViewAudience
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import me.ahoo.wow.viewstore.api.view.ClaimView
@@ -59,6 +60,7 @@ class View(private val state: ViewState) {
         )
         val body = command.body
         val problem = ownerProblem(ownerId, command.ref.tenantId)
+            ?: idProblem(command.ref.id)
             ?: ViewConfigs.definitionProblem(body.definitionId)
             ?: ViewConfigs.titleProblem(body.title)
             ?: ViewConfigs.problemOf(body.config)
@@ -146,6 +148,17 @@ class View(private val state: ViewState) {
         ViewStoreRejections.SYSTEM_VIEW_READ_ONLY,
         "A system view never moves audience: it is neither shared nor claimed.",
     )
+
+    /**
+     * The prefix `system:` is kept for the system views declared in code (review R2.3-7): a stored view of that id
+     * would not be a system view the service can list, so it is refused whoever creates it.
+     */
+    private fun idProblem(id: String): String? = if (id.startsWith(SystemView.CODE_SYSTEM_VIEW_PREFIX)) {
+        "A view's id [$id] must not start with [${SystemView.CODE_SYSTEM_VIEW_PREFIX}]: the prefix is kept for the " +
+            "system views declared in code."
+    } else {
+        null
+    }
 
     /**
      * Parentheses mark a reserved owner, and only `(shared)` and `(system)` are ones: a view is not created under

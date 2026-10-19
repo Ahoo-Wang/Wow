@@ -107,7 +107,7 @@ internal val EventStreamRecord.correlationId: String get() = causation?.correlat
  * | outcome | status | |
  * |---|---|---|
  * | Committed | SUCCEEDED | the new version, with the decide function's results |
- * | AlreadyCommitted | SUCCEEDED | `duplicate`, the committed version, no results |
+ * | AlreadyCommitted | SUCCEEDED | `duplicate`, the committed stream's ref and version, no results |
  * | Unchanged | SUCCEEDED | the unchanged version |
  * | Rejected | REJECTED | the rejection's code |
  * | Contended | FAILED | [ResultCodes.CONTENDED] |
@@ -129,7 +129,13 @@ internal fun CommandOutcome.toResult(command: Command<*>, function: FunctionInfo
     )
     return when (this) {
         is CommandOutcome.Committed -> result.copyWith(version = stream.version, results = results)
-        is CommandOutcome.AlreadyCommitted -> result.copyWith(version = stream.version, duplicate = true)
+        // The committed stream's aggregate, not the command's (review R2.1-3): a creation without an id retried
+        // after its first id was committed may have been given another one (decision D191).
+        is CommandOutcome.AlreadyCommitted -> result.copyWith(
+            ref = stream.ref,
+            version = stream.version,
+            duplicate = true
+        )
         is CommandOutcome.Unchanged -> result.copyWith(version = version)
         is CommandOutcome.Rejected -> result.copyWith(
             status = CommandResult.Status.REJECTED,

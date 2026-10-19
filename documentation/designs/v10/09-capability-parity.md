@@ -169,7 +169,8 @@
 | 元数据 `wow-metadata.json` 与 `/wow/metadata` | `wow-metadata`、`wow-compiler` | B | Manifest、`GET /wow/manifest`（D17、D74） |
 | JSON schema 生成 | `wow-schema` | B | `compiler/manifest-tools/.../SchemaIntrospector.kt`（D73）；Joda Money 改为 `@QueryMoney` |
 | 自定义 Jackson 模块（如 joda-money） | `JsonSerializer` 可注册模块 | C | D48、D122：`WowJson` 只注册 Kotlin 模块（`core/spi/.../json/WowJson.kt:28`）；**Skill 未覆盖** |
-| OpenAPI | `wow-openapi` + springdoc | A | `edge/openapi`、`GET /wow/openapi`、Gradle `GenerateOpenApi`（5a.2） |
+| OpenAPI 文档 | `wow-openapi` | A | `edge/openapi`、`GET /wow/openapi`、Gradle `GenerateOpenApi`（5a.2） |
+| springdoc 集成（Swagger UI、与应用接口合并） | `wow-spring-boot-starter` 的 `WowOpenApiCustomizer` | D | **缺口 G-14**（2026-10-19 补登，原误判为 A）：无 Swagger UI、不与应用自己的接口合并、文档无 securitySchemes；D233、P.19 |
 | 错误体 | `ErrorInfo` | B | problem+json（D101）；Skill 覆盖 |
 | `wow-rest-contract` 词汇 | 模块 | B | `edge/http`、Manifest |
 
@@ -252,7 +253,7 @@
 
 ## 17. 缺口与去向（2026-10-17 复核，D229）
 
-复核在 `v10` `facbe4e83` 上逐项核对 9.x 的 156 项面向用户的能力：A 已有 64、B 替代 41、C 放弃 24、D 推迟或计划 14、E 无决定 13。E 类的去向由用户按推荐确定（D229）：
+复核在 `v10` `facbe4e83` 上逐项核对 9.x 的 156 项面向用户的能力：A 已有 64、B 替代 41、C 放弃 24、D 推迟或计划 14、E 无决定 13（2026-10-19 补登 G-14 后为 157 项，D 15）。E 类的去向由用户按推荐确定（D229）：
 
 | ID | 9.x 能力 | V10 现状 | 去向（D229） | 工作包 | 阻塞 M8 |
 |---|---|---|---|---|---|
@@ -269,6 +270,7 @@
 | G-11 | 补偿通知的控制台链接与模板 | webhook 固定格式 | **10.x** | — | 否 |
 | G-12 | Kafka 生产者、消费者分开的配置与接收调优 | 只有一个 `wow.kafka.properties` | **10.x** | — | 否 |
 | G-13 | 请求 ID、空间的请求头别名 | 只认 `Wow-Request-Id`、`Wow-Space` | **放弃**：网关改写请求头；迁移 Skill 写一行 | P.17（Skill） | 否 |
+| G-14 | springdoc 集成：Swagger UI、与应用接口合并、鉴权方案（2026-10-19 补登，原误判为 A） | 只有 `GET /wow/openapi` 的 JSON | **GA 前补**（D233） | P.19 | 否 |
 
 D 类里最大的一项是 Elasticsearch 后端（6.7，D167：快照存储、快照查询、事件检索，规模 L），按 D167 须在 M8c 之前完成，目前尚无模块，排在上述 GA 前补齐项之后。已决定但未实现、也没有工作包的还有 D178（跨上下文事件带类型解码）与 D142（嵌套展开），登记为 10.x。
 

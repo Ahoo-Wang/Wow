@@ -244,6 +244,8 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | P.15 | 平台服务的生产形态（D229 G-3）：ops、view-store 服务带 `:cosec`、`:opentelemetry`；控制台 CoSec 登录；`deploy/v10/` 补平台服务的 K8s 清单 | S | GA 前（8c.1 之前） | 带 CoSec 的端到端；清单可在本地集群起服务 |
 | P.16 | `@Retry` 的可恢复性分类（D229 G-6）：带默认值的 `recoverable`、`unrecoverable` 属性与可恢复分类端口，不可恢复的失败直接停放 | S | GA 前 | 不可恢复异常不进入长周期重试的测试；迁移 Skill 映射 |
 | P.17 | Java 用户体验的说明与冒烟测试（D229 G-8，Java 门面与阻塞桥在 10.x）；迁移 Skill 的漂移（09 复核 §4.2，含 G-13 请求头别名、`@QueryReference`、自定义 Jackson 模块、查询路由对照） | S | GA 前 | Java 领域的冒烟测试；Skill 评测通过 |
+| P.18 | 应用标识 `app_id`（D232）：标准请求事实 `app_id`（`CallerResolver` 只填已认证的值，CoSec 实现取认证过的应用）、`Caller` 标准属性 `app`、派生命令继承的可传播事实白名单；view-store 与 analytics 改读它并删除各自的解析；P.14 之后 | 事件流的请求头带认证过的 `app_id`；客户端自报的 `CoSec-App-Id` 不被采信；Saga 派生的命令带上游的 `app_id`；view-store 与 analytics 的行为不变 |
+| P.19 | springdoc 桥接（D233，G-14）：`:spring-boot` 的 `compileOnly` springdoc 与 swagger-core、`OpenApiCustomizer` 合并 Manifest 文档进默认文档、`wow` 分组、路径或组件冲突启动失败、`OpenApiOptions` 的 securitySchemes 由宿主按调用方解析器填写、只含公开端口路由 | eShop 一个服务的 `/v3/api-docs` 同含 Wow 路由与应用的 Controller 并通过 3.1 schema 校验；`wow` 分组只含 Wow 路由；冲突的路径让启动失败；Swagger UI 打开且 Try it out 带身份；内部端口路由不在文档里 |
 | C.1 | 核心加固（D196）：eShop 全链路的故障注入（杀节点、重启 PostgreSQL 与 Kafka）与 1 小时以上浸泡，核对不变量（事件不丢不重、检查点单调、停放为 0、等待不悬挂）；清理 `v10` CI 历史中的偶发失败；夜跑 | M | M7 前（核心阶段，P.9 之后） | 连续两轮无异常 |
 
 ### M7 平台迁移
@@ -272,6 +274,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | A.4 | 编程模型与工具：`:compiler`、Manifest 与兼容门、Gradle 插件、测试 DSL、迁移工具；冻结后的公开面（D216）在 beta 前的一致性与可演进性 | 同上 |
 | A.5 | 横切：设计文档与代码的一致性、热路径与分配、配置项的默认值与命名、错误码与拒绝的一致性 | 同上 |
 | A.F | 修复：P0、P1 全部修复；P2 逐条定去向（修、登记到 10.x、放弃）；审查结论交用户确认 | 用户确认审查通过 |
+| A.M | 读路径的模块归属（D231，P.14 之后，与 R2.3-6 合做）：`EventQueryGateway`、`StateVisibility`、`DatasetVisibility` 与 A3-11 的可见性组合移到 `:query`，`StateReads` 移到 `:runtime`；`:kernel` 去掉 `api(:manifest)`；架构测试新规则 | `:http` 的 `query`、`read` 包不直接读日志与内核；行为与 REST 不变 |
 | B.0 | 基准领域与负载工具（D224）：两边各实现一份语义相同的「账户 + 转账 Saga」基准领域（9.x 与 V10 各一个基准专用模块，逐行对齐业务逻辑）；Kotlin 开环负载生成器（JDK HttpClient、自写的对数线性直方图，独立 JVM，不加新依赖）；环境编排与资源采集 | 两边的基准服务能起、负载工具能跑通 E1 |
 | B.1 | E1 写入：客户端等到命令已处理；单节点；9.x MongoDB 加 Kafka，V10 MongoDB 与 PostgreSQL（V10 的 PostgreSQL 单列，不与 9.x 比） | 吞吐、p50/p99/p999、最差一秒 p99，与每节点 CPU、堆、GC、存储读写同时采集 |
 | B.2 | E2 写后读、E3 跨聚合链路：等到快照或投影可见再读到新状态；等到转账 Saga 两边入账 | 同上 |

@@ -24,6 +24,7 @@ import me.ahoo.wow.runtime.cluster.CommandWire
 import me.ahoo.wow.runtime.command.CommandSender
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
+import me.ahoo.wow.runtime.wait.busyOf
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.timer.Timer
@@ -97,6 +98,8 @@ internal class ContextTimerFirer(
             }
             return TimerOutcomes.REJECTED
         }
+        // A busy node is backpressure: the runner sends it again without counting an attempt (review R2.1-1).
+        settlement.busyOf(command)?.let { throw it }
         check(!settlement.failed) {
             val error = settlement.committed.error
             "The command of the timer ${timer.id} on ${timer.target} failed: ${error?.code} ${error?.message}"

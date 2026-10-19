@@ -156,6 +156,17 @@ class ViewSpec {
     }
 
     @Test
+    fun `a view should not take an id of the system views declared in code (R2_3-7)`() = aggregateSpec(
+        viewModel(ViewStoreContext.NAME, references),
+        id = "system:x",
+        tenantId = TENANT,
+    ) {
+        whenCommand(CreateView("orders", "Open", recordConfig()), scope = owner(ALICE), headers = APP_HEADERS) {
+            expectRejected(ViewStoreRejections.INVALID) { message.assert().contains("system:") }
+        }
+    }
+
+    @Test
     fun `a personal view should be shared once, and its owner moved by the saga`() = viewSpec {
         created(ALICE)
         whenCommand(ShareView, scope = owner(ALICE), headers = APP_HEADERS) {
