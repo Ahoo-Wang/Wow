@@ -15,6 +15,7 @@ package me.ahoo.wow.ops.server
 
 import kotlinx.coroutines.runBlocking
 import me.ahoo.cosec.api.authorization.AuthorizeResult
+import me.ahoo.cosec.api.tenant.Tenant
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
@@ -41,16 +42,22 @@ class OpsConfigurationTest {
     /** A caller without the operator's role, whom only CoSec's policies may let act. */
     private val granted = Caller.of(subject = "grace")
 
-    private fun authorize(policies: CoSecAuthorization?, authorizerEnabled: Boolean): Authorization {
+    private fun authorize(
+        policies: CoSecAuthorization?,
+        authorizerEnabled: Boolean,
+        caller: Caller = granted,
+        defaultTenant: String? = null,
+    ): Authorization {
         val beans = StaticListableBeanFactory()
         policies?.let { beans.addBean("cosecAuthorization", it) }
         val environment = MockEnvironment()
             .withProperty(OpsConfiguration.COSEC_AUTHORIZER_ENABLED, authorizerEnabled.toString())
+        defaultTenant?.let { environment.setProperty(OpsConfiguration.DEFAULT_TENANT, it) }
         val authorizer = OpsConfiguration().opsAuthorizer(
             beans.getBeanProvider(CoSecAuthorization::class.java),
             environment
         )
-        return runBlocking { authorizer.authorize(granted, resume) }
+        return runBlocking { authorizer.authorize(caller, resume) }
     }
 
     @Test
@@ -66,5 +73,18 @@ class OpsConfigurationTest {
         authorize({ _, _ -> Mono.just(AuthorizeResult.ALLOW) }, authorizerEnabled = false).assert()
             .isInstanceOf(Authorization.Denied::class.java)
         authorize(null, authorizerEnabled = true).assert().isInstanceOf(Authorization.Denied::class.java)
+    }
+
+    @Test
+    fun `CoSec's policies should see Wow's default tenant, as configured, as CoSec's default one`() {
+        val tenants = mutableListOf<String>()
+        val policies = CoSecAuthorization { _, context ->
+            tenants += context.tenant.tenantId
+            Mono.just(AuthorizeResult.ALLOW)
+        }
+        authorize(policies, authorizerEnabled = true, caller = Caller.of(tenantId = "platform", subject = "grace"))
+        authorize(policies, true, Caller.of(tenantId = "platform", subject = "grace"), defaultTenant = "platform")
+        authorize(policies, true, Caller.of(subject = "grace"), defaultTenant = " ")
+        tenants.assert().containsExactly("platform", Tenant.DEFAULT_TENANT_ID, Tenant.DEFAULT_TENANT_ID)
     }
 }

@@ -71,7 +71,7 @@ class OpsConfiguration {
         val policies = authorization.ifUnique
             ?.takeIf { environment.getProperty(COSEC_AUTHORIZER_ENABLED, Boolean::class.java, false) }
             ?: return OpsAuthorizer()
-        val defaultTenant = environment.getProperty(DEFAULT_TENANT)?.takeIf { it.isNotBlank() } ?: Caller.DEFAULT_TENANT
+        val defaultTenant = environment.getProperty(DEFAULT_TENANT).orEmpty().ifBlank { Caller.DEFAULT_TENANT }
         return OpsAuthorizer(CoSecCommandAuthorizer(policies, defaultTenant))
     }
 
@@ -88,7 +88,8 @@ class OpsConfiguration {
         /** Whether CoSec's policies decide who is an operator, where CoSec authorizes the requests itself. */
         const val COSEC_AUTHORIZER_ENABLED: String = "wow.cosec.authorizer.enabled"
 
-        private const val DEFAULT_TENANT: String = "wow.tenant.default"
+        /** Wow's default tenant, which CoSec's policies see as CoSec's default one. */
+        const val DEFAULT_TENANT: String = "wow.tenant.default"
 
         /** The public port's resolver first, beside CoSec's internal one ([PublicCallersFirst]). */
         @Bean
