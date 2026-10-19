@@ -34,15 +34,15 @@
 | 编译 | `wow-gradle-plugin` | Gradle 插件 `me.ahoo.wow`：接好 KSP，构建期内省 schema、合并服务级 Manifest（D83） | wow-schema 的构建期部分 |
 | 内核 | `wow-spi` | 全部端口（日志、快照、检查点、租约、失败台账、预留键、`Sink`、`TopicProducer`、`PartitionedSource`）与值类型（含 `StateEventRecord`、`StateView`、Kafka 信封与其编解码，D132），`@WowSpi` | wow-core 的 SPI |
 | 内核 | `wow-kernel` | `AggregateModel`、decide → evolve → append 循环、结局查明、事件编解码与 revision 升级、状态版本视图、内存日志 | wow-core 的内核 |
-| 内核 | `wow-runtime` | Gateway 与准入、Router、集群通道、Executor 与状态缓存、订阅运行时、等待、观测接缝、生命周期 | wow-core 的其余部分 |
+| 内核 | `wow-runtime` | Gateway 与准入、Router、集群通道、Executor 与状态缓存、订阅运行时、等待、观测接缝、生命周期；状态点读（最新、按版本、按时间、轨迹，D231） | wow-core 的其余部分 |
 | 内核 | `wow-reactor` | 领域处理函数的 Reactor 适配：返回 `Mono`/`Flux` 的处理函数（`awaitResult`，D9）；只依赖 `wow-kernel`，领域模块用它不会带上运行时（D149，#4328）。调用方用的 `ReactiveCommandGateway`、`ReactiveQueryGateway` 需要运行时，不放这里：有需求时另设 `wow-runtime-reactor`（依赖 `wow-runtime` 与 `wow-reactor`） | wow-core 的 Reactor 形态 |
-| 查询 | `wow-query` | 查询引擎：准入、能力表、编译到后端；数据集；`QueryJson`；后端合同测试 `QueryBackendSpec`。9.x 的协程移植（D126） | wow-query |
+| 查询 | `wow-query` | 查询引擎：准入、能力表、编译到后端；快照、数据集与 `events` 三个查询模型的网关；读的可见性（状态、数据集）；数据集；`QueryJson`；后端合同测试 `QueryBackendSpec`。9.x 的协程移植（D126、D231） | wow-query |
 | 后端 | `wow-postgres` | 日志、快照、查询、检查点、租约、台账、预留键（D10、D27） | （新增） |
 | 后端 | `wow-mongo` | 同上，MongoDB（D11） | wow-mongo |
 | 后端 | `wow-elasticsearch` | 快照、查询、事件检索 Sink（D13）；M6 之后的 6.7（D131） | wow-elasticsearch |
 | 后端 | `wow-clickhouse` | 数据集查询后端、数仓 Sink（D18、D142） | wow-clickhouse、wow-bi |
 | 后端 | `wow-kafka` | Kafka Router、Sink、Kafka 来源的订阅、跨上下文命令的传输；只依赖 `wow-spi` 与 `kafka-clients`，语义在运行时（D31、D33、D132） | wow-kafka |
-| 边缘 | `wow-http` | 由 Manifest 物化路由、problem+json、SSE、信号入口（D30、D35） | wow-webflux、wow-rest-contract |
+| 边缘 | `wow-http` | 由 Manifest 物化路由、problem+json、SSE、信号入口（D30、D35）；只做协议适配，读的语义在 `wow-query` 与 `wow-runtime`（D231） | wow-webflux、wow-rest-contract |
 | 边缘 | `wow-openapi` | Manifest → OpenAPI；swagger 依赖只在这里 | wow-openapi、wow-schema |
 | 集成 | `wow-cosec` | 准入与查询的授权策略（身份作用域、ABAC 标签） | wow-cosec |
 | 集成 | `wow-opentelemetry` | 观测接缝的追踪与指标 | wow-opentelemetry |

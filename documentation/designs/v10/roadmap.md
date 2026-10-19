@@ -272,6 +272,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | A.4 | 编程模型与工具：`:compiler`、Manifest 与兼容门、Gradle 插件、测试 DSL、迁移工具；冻结后的公开面（D216）在 beta 前的一致性与可演进性 | 同上 |
 | A.5 | 横切：设计文档与代码的一致性、热路径与分配、配置项的默认值与命名、错误码与拒绝的一致性 | 同上 |
 | A.F | 修复：P0、P1 全部修复；P2 逐条定去向（修、登记到 10.x、放弃）；审查结论交用户确认 | 用户确认审查通过 |
+| A.M | 读路径的模块归属（D231，P.14 之后，与 R2.3-6 合做）：`EventQueryGateway`、`StateVisibility`、`DatasetVisibility` 与 A3-11 的可见性组合移到 `:query`，`StateReads` 移到 `:runtime`；`:kernel` 去掉 `api(:manifest)`；架构测试新规则 | `:http` 的 `query`、`read` 包不直接读日志与内核；行为与 REST 不变 |
 | B.0 | 基准领域与负载工具（D224）：两边各实现一份语义相同的「账户 + 转账 Saga」基准领域（9.x 与 V10 各一个基准专用模块，逐行对齐业务逻辑）；Kotlin 开环负载生成器（JDK HttpClient、自写的对数线性直方图，独立 JVM，不加新依赖）；环境编排与资源采集 | 两边的基准服务能起、负载工具能跑通 E1 |
 | B.1 | E1 写入：客户端等到命令已处理；单节点；9.x MongoDB 加 Kafka，V10 MongoDB 与 PostgreSQL（V10 的 PostgreSQL 单列，不与 9.x 比） | 吞吐、p50/p99/p999、最差一秒 p99，与每节点 CPU、堆、GC、存储读写同时采集 |
 | B.2 | E2 写后读、E3 跨聚合链路：等到快照或投影可见再读到新状态；等到转账 Saga 两边入账 | 同上 |
