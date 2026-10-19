@@ -19,7 +19,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -77,13 +76,11 @@ import kotlin.time.Duration.Companion.seconds
 class NodeHealth(
     val node: ServiceNode,
     val options: HealthOptions = HealthOptions(),
-    context: CoroutineContext = Dispatchers.Default,
+    private val context: CoroutineContext = Dispatchers.Default,
     private val nanos: () -> Long = System::nanoTime,
 ) : AutoCloseable {
-    private val scope = CoroutineScope(SupervisorJob() + context)
-
     @Volatile
-    private var running: List<Job> = emptyList()
+    private var running: Job? = null
 
     @Volatile
     private var lastTick: Long = StoreActivity.NONE
@@ -106,35 +103,36 @@ class NodeHealth(
      */
     @Synchronized
     fun start() {
-        if (running.isNotEmpty()) {
+        if (running != null) {
             return
         }
         lastTick = nanos()
-        running = listOf(
-            scope.launch {
-                while (true) {
-                    lastTick = nanos()
-                    delay(tick)
-                }
-            },
-            scope.launch {
-                while (true) {
-                    sampleQuietly()
-                    delay(options.sampleInterval)
-                }
-            },
-        )
+        val root = SupervisorJob()
+        val scope = CoroutineScope(context + root)
+        scope.launch {
+            while (true) {
+                lastTick = nanos()
+                delay(tick)
+            }
+        }
+        scope.launch {
+            while (true) {
+                sampleQuietly()
+                delay(options.sampleInterval)
+            }
+        }
+        running = root
     }
 
-    /** Stops the tick and the sampling. */
+    /** Stops the tick and the sampling; [start] starts them again. */
     @Synchronized
     override fun close() {
-        running = emptyList()
-        scope.cancel()
+        running?.cancel()
+        running = null
     }
 
     /** Whether [start]ed and not [close]d. */
-    val isRunning: Boolean get() = running.isNotEmpty()
+    val isRunning: Boolean get() = running != null
 
     /**
      * Takes one sample, while the node runs: probes each log's head and each context's lease store, so a store the

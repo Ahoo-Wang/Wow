@@ -25,6 +25,7 @@ import me.ahoo.wow.http.ops.WebhookNotifier
 import me.ahoo.wow.kernel.HandlerRetry
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.cluster.ClusterOptions
+import me.ahoo.wow.runtime.health.HealthOptions
 import me.ahoo.wow.runtime.ledger.LedgerPublishing
 import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.Routing
@@ -119,6 +120,11 @@ import kotlin.time.toKotlinDuration
  *   `wow.aggregates.[<context>.<aggregate>].routing`: `cluster` (the default, the node's `wow.cluster.router`)
  *   or `kafka`, the `Kafka` router (decision D143), see [Aggregate].
  * - `wow.cosec.*` and `wow.cosid.*`: the keys wow-cosec and wow-cosid read, see [CoSec] and [CosId].
+ * - `wow.health.*` (review R3.5-3): the node's health under Actuator's `wow`, `readiness` and `liveness` groups,
+ *   when the application has Spring Boot Actuator; `wow.health.enabled` (true), `sample-interval` (10s),
+ *   `stores.down-after` (15s), `stores.window` (1m), `ownership.handover-grace` (1m), `topics.required` (true),
+ *   `executor.saturation` (0.9), `subscriptions.lag-degraded-at` (10000), `subscriptions.parked-degraded-at` (100),
+ *   `liveness.stall-timeout` (3m), see [Health].
  *
  * Every key is in the host's configuration metadata (`META-INF/spring-configuration-metadata.json`, review A5-9), and
  * a `wow.*` key that no property of the host or of a module names is reported at startup ([ConfigurationKeys]).
@@ -181,6 +187,9 @@ class WowProperties {
 
     /** Where the snapshots are by default (decision D177): `wow.snapshot.store`. */
     var snapshot: Snapshot = Snapshot()
+
+    /** The node's health and its probes (review R3.5-3): `wow.health.*`. */
+    var health: Health = Health()
 
     class Node {
         /** This node's id among the nodes of the service; a new one each start when not set. */
@@ -857,6 +866,91 @@ class WowProperties {
         }
     }
 
+    /**
+     * The node's health (review R3.5-3, me.ahoo.wow.runtime.health.NodeHealth): with Spring Boot Actuator on the class
+     * path, the contributor `wow` (every component), and `wowReadiness` and `wowLiveness`, which the host adds to
+     * Actuator's `readiness` and `liveness` groups (`/actuator/health/readiness`, `/actuator/health/liveness`) unless
+     * the application configures their members itself. The thresholds are conservative: a probe that fails too soon
+     * takes nodes out of service, or restarts them, for what a retry would have absorbed.
+     */
+    class Health {
+        /** Whether the host contributes the node's health to Actuator and its probe groups. */
+        var enabled: Boolean = true
+
+        /**
+         * How often the node samples what a probe must not wait for (the logs' heads, the subscriptions' lag and
+         * parked entries) and probes its stores.
+         */
+        var sampleInterval: Duration = DEFAULT_HEALTH.sampleInterval.toJavaDuration()
+        var stores: HealthStores = HealthStores()
+        var ownership: HealthOwnership = HealthOwnership()
+        var topics: HealthTopics = HealthTopics()
+        var executor: HealthExecutor = HealthExecutor()
+        var subscriptions: HealthSubscriptions = HealthSubscriptions()
+        var liveness: HealthLiveness = HealthLiveness()
+
+        @InternalWowApi
+        fun options(): HealthOptions = HealthOptions(
+            sampleInterval = sampleInterval.toKotlinDuration(),
+            storeDownAfter = stores.downAfter.toKotlinDuration(),
+            storeWindow = stores.window.toKotlinDuration(),
+            handoverGrace = ownership.handoverGrace.toKotlinDuration(),
+            topicsRequired = topics.required,
+            executorSaturation = executor.saturation,
+            lagDegradedAt = subscriptions.lagDegradedAt,
+            parkedDegradedAt = subscriptions.parkedDegradedAt,
+            stallTimeout = liveness.stallTimeout.toKotlinDuration(),
+        )
+    }
+
+    /** The node's event logs, as its own calls and a probe of their heads see them. */
+    class HealthStores {
+        /** A log whose calls have failed for this long, with no success since, is down: the node is not ready. */
+        var downAfter: Duration = DEFAULT_HEALTH.storeDownAfter.toJavaDuration()
+
+        /** A log with a failure this recent is degraded. */
+        var window: Duration = DEFAULT_HEALTH.storeWindow.toJavaDuration()
+    }
+
+    /** The node's share of each lease group's partitions. */
+    class HealthOwnership {
+        /**
+         * How long the owned partitions may differ from the node's share (a hand-over) before the group is degraded,
+         * and down (the node not ready) when it owns none of a share that is not empty.
+         */
+        var handoverGrace: Duration = DEFAULT_HEALTH.handoverGrace.toJavaDuration()
+    }
+
+    /** The topics of other contexts the node reads (decision D134). */
+    class HealthTopics {
+        /** Whether a topic the node is still joining makes it not ready; degraded only when false. */
+        var required: Boolean = DEFAULT_HEALTH.topicsRequired
+    }
+
+    /** The node's executors (decision D228 ②). */
+    class HealthExecutor {
+        /** The share of `wow.executor.max-in-flight` in flight at which the executor is degraded. */
+        var saturation: Double = DEFAULT_HEALTH.executorSaturation
+    }
+
+    /** The node's subscriptions, never a reason to take it out of service. */
+    class HealthSubscriptions {
+        /** The entries a subscription may be behind the log's head before it is degraded. */
+        var lagDegradedAt: Long = DEFAULT_HEALTH.lagDegradedAt
+
+        /** The parked entries of a subscription, counted up to this, at which it is degraded (as when they grow). */
+        var parkedDegradedAt: Int = DEFAULT_HEALTH.parkedDegradedAt
+    }
+
+    /** Whether the node is stuck, so a restart helps; a storage outage never fails it. */
+    class HealthLiveness {
+        /**
+         * How long the node's dispatcher may not tick, or commands in flight not finish while every log answers,
+         * before the node is not live.
+         */
+        var stallTimeout: Duration = DEFAULT_HEALTH.stallTimeout.toJavaDuration()
+    }
+
     /** CosId's settings (wow-cosid, decision D171), which that module reads from the environment. */
     class CosId {
         /** The CosId generator of the node's global ids (command ids, wait ids); CosId's own `cosid` when not set. */
@@ -885,6 +979,7 @@ class WowProperties {
         private val DEFAULT_SUBSCRIPTION = SubscriptionOptions()
         private val DEFAULT_TIMERS = TimerOptions()
         private val DEFAULT_PARKED = ParkedRetryOptions()
+        private val DEFAULT_HEALTH = HealthOptions()
     }
 }
 

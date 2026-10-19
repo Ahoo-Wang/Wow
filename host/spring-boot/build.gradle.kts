@@ -28,10 +28,15 @@ dependencies {
     // Activated only when the application has it: a Bean Validation provider (D106). CosId's ids come from wow-cosid,
     // which wires itself (D171).
     compileOnly("jakarta.validation:jakarta.validation-api")
+    // The node's health in Actuator (review R3.5-3): its contributors and probe groups when the application has
+    // Spring Boot Actuator.
+    compileOnly("org.springframework.boot:spring-boot-health")
     // The springdoc bridge (decision D233): the Wow routes join springdoc's documents when the application has it.
     compileOnly("org.springdoc:springdoc-openapi-starter-common")
     compileOnly(libs.swagger.core)
     testImplementation("org.springframework.boot:spring-boot-test")
+    testImplementation("org.springframework.boot:spring-boot-health")
+    testImplementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
     testImplementation("org.springframework.boot:spring-boot-starter-validation")
     testImplementation("org.springframework.boot:spring-boot-jackson")
     testImplementation("org.springframework:spring-test")
