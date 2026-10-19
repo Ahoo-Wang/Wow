@@ -13,7 +13,7 @@ export class CategorySnapshotQueryClient extends SnapshotQueryClient<CategorySta
 }
 
 
-/** Queries the event streams of `eshop-catalog.category`, one aggregate at a time: `POST /eshop-catalog/category/events/query`. */
+/** Queries the event streams of `eshop-catalog.category`, one record per commit: `POST /eshop-catalog/category/events/query`. */
 export class CategoryEventQueryClient extends EventQueryClient<CategoryEvent> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {

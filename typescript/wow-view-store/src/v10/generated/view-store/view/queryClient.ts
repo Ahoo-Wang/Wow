@@ -13,7 +13,7 @@ export class ViewSnapshotQueryClient extends SnapshotQueryClient<ViewState, View
 }
 
 
-/** Queries the event streams of `view-store.view`, one aggregate at a time: `POST /view-store/view/events/query`. */
+/** Queries the event streams of `view-store.view`, one record per commit: `POST /view-store/view/events/query`. */
 export class ViewEventQueryClient extends EventQueryClient<ViewEvent> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {

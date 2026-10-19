@@ -242,9 +242,12 @@ export class SnapshotQueryClient<
 }
 
 /**
- * Queries an aggregate type's event streams (decision D131), one aggregate
- * at a time: a filter names its `aggregateId`, and may bound `version` or
- * `commitTime`.
+ * Queries an aggregate type's event streams (decision D235) on the same
+ * engine as its snapshots: one record per commit, `count` counts commits, a
+ * condition on an event is an `elementMatch` on `events`, and per-event
+ * analytics expand `events` in an aggregation (`elements`). A filter need
+ * not name the aggregate, but one that does not reads the log the service
+ * appends to: the budget bounds it.
  *
  * @typeParam E - The events' type.
  */

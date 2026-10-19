@@ -13,7 +13,7 @@ export class BasketSnapshotQueryClient extends SnapshotQueryClient<BasketState, 
 }
 
 
-/** Queries the event streams of `eshop-basket.basket`, one aggregate at a time: `POST /eshop-basket/basket/events/query`. */
+/** Queries the event streams of `eshop-basket.basket`, one record per commit: `POST /eshop-basket/basket/events/query`. */
 export class BasketEventQueryClient extends EventQueryClient<BasketEvent> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {

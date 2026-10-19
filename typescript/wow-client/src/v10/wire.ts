@@ -359,15 +359,35 @@ export interface EventStreamRecord<E extends EventView = EventView> {
   readonly commandId: string;
   readonly requestId: string;
   readonly commandType: string;
-  readonly ownerId?: string;
-  readonly spaceId?: string;
-  readonly operator?: Operator;
+  /** Null when the stream has none (`Scope.NONE`). */
+  readonly ownerId?: string | null;
+  readonly spaceId?: string | null;
+  /** Null for an anonymous caller (decision D163). */
+  readonly operator?: Operator | null;
   readonly events: readonly E[];
 }
 
-/** The fields of an event stream record a query can filter and sort on. */
+/**
+ * The fields of an event stream record a query names (decision D235): its
+ * system fields and `events`, the array an `elementMatch` filter and an
+ * aggregation's `elements` reach an event through, by the event's own
+ * `name`, `revision` and `body.*`.
+ */
 export type EventStreamField =
-  'aggregateId' | 'tenantId' | 'version' | 'commitTime';
+  | 'aggregateId'
+  | 'tenantId'
+  | 'version'
+  | 'commitTime'
+  | 'commandId'
+  | 'requestId'
+  | 'commandType'
+  | 'ownerId'
+  | 'spaceId'
+  | 'operator'
+  | 'operator.id'
+  | 'operator.tenantId'
+  | 'operator.crossScope'
+  | 'events';
 
 /** How an aggregate belongs to its callers (decision D189). */
 export type Ownership = 'OWNER' | 'TENANT';
