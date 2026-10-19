@@ -195,11 +195,12 @@ object V10Rules {
 
     /**
      * The project dependencies each platform service may declare: its domain, the host and the backends it runs on
-     * (decision D110), and the query module's test fixtures for its tests.
+     * (decision D110), CoSec and OpenTelemetry for its production shape (roadmap P.15), and the query module's test
+     * fixtures for its tests.
      */
     val ALLOWED_SERVER_DEPENDENCIES: Map<V10Module, Set<String>> = mapOf(
-        OPS_SERVER to setOf("ops-domain", "spring-boot", "kafka", "postgres", "query"),
-        VIEW_STORE_SERVER to setOf("view-store-domain", "spring-boot", "postgres", "query"),
+        OPS_SERVER to setOf("ops-domain", "spring-boot", "kafka", "postgres", "query", "cosec", "opentelemetry"),
+        VIEW_STORE_SERVER to setOf("view-store-domain", "spring-boot", "postgres", "query", "cosec", "opentelemetry"),
     )
 
     /**

@@ -14,20 +14,33 @@
 package me.ahoo.wow.ops.server
 
 import io.github.oshai.kotlinlogging.KotlinLogging
+import me.ahoo.cosec.api.authorization.Authorization
+import me.ahoo.cosec.context.DefaultSecurityContextParser
+import me.ahoo.cosec.context.SecurityContextParser
+import me.ahoo.cosec.token.TokenVerifier
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingClass
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.env.Environment
 
 /**
  * The ops service's beans: who calls it, and what each caller may send.
  *
  * Who calls it: with `wow.platform.trust-identity-headers=true` ([TRUST_IDENTITY_HEADERS]), the callers the request
  * headers name ([OpsCallers]), for local runs, demos and tests only, with a warning at startup: any client names any
- * operator and tenant there. Otherwise CoSec's resolver when `wow-cosec` is on the class path, and without it no
- * caller at all ([REFUSED]): every request is answered 401, never served on a client's word.
+ * operator and tenant there. Otherwise CoSec's: the edge's resolver reads the operator from the security context
+ * CoSec put on the request, which the `cosec` profile has it verify from the request's token ([securityContextParser]);
+ * without CoSec (`cosec.enabled=false`, the default profile) no request has one, and each is answered 401, never
+ * served on a client's word.
+ *
+ * What each caller may send is [OpsAuthorizer]'s to say; whether a caller is an operator, CoSec's policies when CoSec
+ * authorizes the service's requests itself and `wow.cosec.authorizer.enabled` is on ([CoSecCommandAuthorizer]), else
+ * the operator's role among its CoSec roles ([OperatorRole]).
  */
 @Configuration(proxyBeanMethods = false)
 class OpsConfiguration {
@@ -41,30 +54,40 @@ class OpsConfiguration {
         return OpsCallers()
     }
 
+    /**
+     * CoSec's inject mode with each token verified (the `cosec` profile): CoSec's own parser of that mode trusts any
+     * well-formed token, as a gateway in front of the service would have verified it, so here the service verifies
+     * the token's signature itself (`cosec.jwt.secret`), on the internal port too, whose service principals the edge
+     * parses with this parser (decision D226).
+     */
     @Bean
-    @ConditionalOnProperty(TRUST_IDENTITY_HEADERS, havingValue = "false", matchIfMissing = true)
-    @ConditionalOnMissingClass(COSEC_CALLER_RESOLVER)
-    fun opsRefusedCallers(): CallerResolver {
-        logger.warn {
-            "The ops service has no identity provider: every request is answered 401. Put wow-cosec on the class " +
-                "path, or set $TRUST_IDENTITY_HEADERS=true for a local run."
-        }
-        return REFUSED
-    }
+    @ConditionalOnProperty(name = [COSEC_ENABLED, COSEC_INJECT_ENABLED], havingValue = "true")
+    fun securityContextParser(tokenVerifier: TokenVerifier): SecurityContextParser =
+        DefaultSecurityContextParser(tokenVerifier, false)
 
     @Bean
-    fun opsAuthorizer(): CommandAuthorizer = OpsAuthorizer()
+    fun opsAuthorizer(authorization: ObjectProvider<Authorization>, environment: Environment): CommandAuthorizer {
+        val policies = authorization.ifUnique
+            ?.takeIf { environment.getProperty(COSEC_AUTHORIZER_ENABLED, Boolean::class.java, false) }
+            ?: return OpsAuthorizer()
+        val defaultTenant = environment.getProperty(DEFAULT_TENANT)?.takeIf { it.isNotBlank() } ?: Caller.DEFAULT_TENANT
+        return OpsAuthorizer(CoSecCommandAuthorizer(policies, defaultTenant))
+    }
 
     companion object {
         /** The switch that takes the callers from the request headers ([OpsCallers]): off by default. */
         const val TRUST_IDENTITY_HEADERS: String = "wow.platform.trust-identity-headers"
 
-        /** CoSec's caller resolver, which serves the service when `wow-cosec` is on the class path. */
-        const val COSEC_CALLER_RESOLVER: String = "me.ahoo.wow.cosec.CoSecCallerResolver"
+        /** Whether CoSec runs at all; the default profile turns it off, the `cosec` profile on. */
+        const val COSEC_ENABLED: String = "cosec.enabled"
 
-        /** No caller for any request: each is answered 401. */
-        @JvmField
-        val REFUSED: CallerResolver = CallerResolver { null }
+        /** CoSec's inject mode: the security context from the request's token, no authorization of CoSec's own. */
+        const val COSEC_INJECT_ENABLED: String = "cosec.inject.enabled"
+
+        /** Whether CoSec's policies decide who is an operator, where CoSec authorizes the requests itself. */
+        const val COSEC_AUTHORIZER_ENABLED: String = "wow.cosec.authorizer.enabled"
+
+        private const val DEFAULT_TENANT: String = "wow.tenant.default"
 
         private val logger = KotlinLogging.logger {}
     }

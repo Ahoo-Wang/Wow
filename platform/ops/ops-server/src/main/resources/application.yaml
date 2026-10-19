@@ -8,6 +8,10 @@ spring:
       static-locations: file:./ui/, file:../console/dist/
 server:
   port: 8088
+# No identity provider until the `cosec` profile: every request is answered 401, unless a local run takes its callers
+# from headers (wow.platform.trust-identity-headers).
+cosec:
+  enabled: false
 wow:
   service: ops-service
   # One node, its data in memory, for trying the service out. The `postgres` profile keeps the entries on PostgreSQL
@@ -23,6 +27,38 @@ wow:
     # The operator's routes over this node's own parked entries (/wow/ops/parked): the ops saga's sends to an owning
     # context that failed park here.
     enabled: true
+---
+# CoSec (roadmap P.15): the service verifies each request's CoSec token (Authorization: Bearer, signed HMAC256 with
+# cosec.jwt.secret, COSEC_JWT_SECRET) and the edge reads the operator from it: its tenant, its id, its roles. CoSec's
+# inject mode, without CoSec's own authorization of each path: what an operator may do is the service's to say
+# (OpsAuthorizer), by the role ops.operator among the token's roles.
+spring:
+  config:
+    activate:
+      on-profile: cosec
+cosec:
+  enabled: true
+  jwt:
+    secret: ${COSEC_JWT_SECRET}
+  inject:
+    enabled: true
+  authorization:
+    enabled: false
+  authentication:
+    enabled: false
+  audit:
+    enabled: false
+  ip2region:
+    enabled: false
+  limiter:
+    enabled: false
+wow:
+  cosec:
+    # Tenant-level callers (decision D189): their scope has no owner, so they read every entry of their tenant. An
+    # operator acts on the entries, a viewer reads them; the services' ledgers publish to Wow's default tenant, (0),
+    # which a principal of CoSec's default tenant is in. A principal with neither role reads nothing.
+    tenant-level:
+      roles: ops.operator, ops.viewer
 ---
 spring:
   config:
