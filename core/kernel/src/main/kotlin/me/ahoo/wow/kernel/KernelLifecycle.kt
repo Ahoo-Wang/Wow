@@ -41,8 +41,10 @@ import me.ahoo.wow.api.snapshot.SnapshotRebuilds
  * decide functions, which read the aggregate's metadata rather than its state, and how their events evolve that
  * metadata. The events leave the user's state as it is unless the model declares an evolve function for them.
  *
- * `wow.schedule.Set` sets the schedule of its key on the aggregate it is sent to, which must exist; `wow.schedule.Cancel`
- * cancels it, a no-op when the aggregate keeps no schedule of that key.
+ * `wow.schedule.Set` sets the schedule of its key on the aggregate it is sent to, which must exist and must decide the
+ * command type it names (review X-7): a name it does not know is rejected as [KernelRejections.UNHANDLED] when the
+ * schedule is set, not found when it fires, which may be months later for a cron. `wow.schedule.Cancel` cancels it, a
+ * no-op when the aggregate keeps no schedule of that key.
  */
 internal object KernelLifecycle {
     /** Every lifecycle command, enabled on a model unless it says otherwise. */
@@ -54,16 +56,18 @@ internal object KernelLifecycle {
     /**
      * The kernel's decide function for the lifecycle or schedule command [commandType]. [tagsOf] gives the tags of a
      * state with the applied tags it is given ([AggregateModel.tagsOf], decision D220): what `ApplyTags` would leave.
+     * [decides] tells whether the aggregate decides the command type of a name or an alias, which a schedule names.
      */
     fun <S : Any> decider(
         commandType: Class<*>,
         tagsOf: (S, Map<String, List<String>>) -> Map<String, List<String>>,
+        decides: (String) -> Boolean,
     ): DecideFunction<S> {
         require(commandType in COMMANDS || commandType in SCHEDULE_COMMANDS) {
             "${commandType.name} is not a lifecycle command."
         }
         return DecideFunction.Sync(Creation.NONE) { state, body ->
-            decide((this as MetadataScope).loaded, body, command.ref) { applied -> tagsOf(state, applied) }
+            decide((this as MetadataScope).loaded, body, command.ref, decides) { applied -> tagsOf(state, applied) }
         }
     }
 
@@ -83,7 +87,8 @@ internal object KernelLifecycle {
 
     /**
      * Decides lifecycle command [body] on the metadata of [loaded]. A command that would change nothing is a no-op;
-     * one to a deleted aggregate never gets here unless it restores it.
+     * one to a deleted aggregate never gets here unless it restores it. A `SetSchedule` whose command type the
+     * aggregate does not decide ([decides]) is rejected.
      *
      * `ApplyTags` is a no-op when the tags it would leave, [tagsOf] its tags (the keys the state derives overriding
      * them, decision D220), are the aggregate's tags already. The loaded tags are the effective ones: comparing them
@@ -93,9 +98,17 @@ internal object KernelLifecycle {
         loaded: CachedState,
         body: Any,
         ref: AggregateRef,
+        decides: (String) -> Boolean,
         tagsOf: (Map<String, List<String>>) -> Map<String, List<String>>,
     ): Decision = when (body) {
-        is SetSchedule -> Decision.events(ScheduleSet(body.key, body.rule, ref, body.commandType, body.command))
+        is SetSchedule -> if (decides(body.commandType)) {
+            Decision.events(ScheduleSet(body.key, body.rule, ref, body.commandType, body.command))
+        } else {
+            Decision.reject(
+                KernelRejections.UNHANDLED,
+                "${ref.type} has no command type ${body.commandType}, which the schedule ${body.key} would send.",
+            )
+        }
         is CancelSchedule -> changeOrNoOp(body.key !in loaded.schedules) { ScheduleCancelled(body.key) }
         DeleteAggregate -> Decision.events(AggregateDeleted)
         RestoreAggregate -> if (loaded.deleted) Decision.events(AggregateRestored) else Decision.NoOp

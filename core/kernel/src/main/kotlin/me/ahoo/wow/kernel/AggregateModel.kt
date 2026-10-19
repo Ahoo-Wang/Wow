@@ -183,7 +183,7 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
     private val systemCommands: Set<Class<*>> = this.lifecycle + KernelLifecycle.SCHEDULE_COMMANDS
 
     private val deciders: Map<Class<*>, DecideFunction<S>> =
-        systemCommands.filterNot { it in deciders }.associateWith { KernelLifecycle.decider(it, ::tagsOf) } + deciders
+        systemCommands.filterNot { it in deciders }.associateWith { KernelLifecycle.decider(it, ::tagsOf, ::decides) } + deciders
     private val evolvers: Map<Class<*>, (S, Any) -> S> =
         SYSTEM_EVENTS.values.filterNot { it in evolvers }.associateWith { { state: S, _: Any -> state } } +
             evolvers
@@ -330,6 +330,12 @@ class AggregateModel<S : Any> @InternalWowApi constructor(
      * arrives in its wire form (design 08 §3, a forwarded one) finds the class its body is read as.
      */
     fun findCommandType(name: String): CommandType? = commandsByName[name]
+
+    /**
+     * Whether this aggregate decides the command type named [name] (or formerly named so): what a schedule set on it
+     * may send (review X-7); a mounted command is not decided, so a schedule cannot send it.
+     */
+    private fun decides(name: String): Boolean = findCommandType(name) != null
 
     /** The command mounted under this aggregate named [name] (or formerly named so), or null when none is. */
     fun findMountedCommandType(name: String): CommandType? = mountedByName[name]
