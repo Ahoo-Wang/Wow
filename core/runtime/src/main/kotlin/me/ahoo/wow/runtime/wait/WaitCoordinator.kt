@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.wait
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -641,6 +642,82 @@ class WaitCoordinator(
         signal(wait, settlement.committed.copyWith(hop = hop))
         // A command that changed nothing, or a duplicate whose subscription is past it (D63): no entry signals them.
         settlement.reached.forEach { signal(wait, it) }
+        return settlement
+    }
+
+    /**
+     * Executes [command], a synchronous call another context's saga made (decision D193), as [forward] does with the
+     * call's [wait] context, and returns its result at COMMITTED, the target's answer to the call (review R2.5-2):
+     *
+     * - The execution runs in this coordinator's supervised scope and execution context, apart from the caller, as a
+     *   waited command's does ([stream]): an HTTP request that is cancelled (its client gave up, its connection
+     *   closed) does not cancel the command half-way through its commit, and a stopping node [join]s it. It runs in
+     *   the caller's trace (decision D174).
+     * - Its plan's timeout bounds it (decision D64): the admission's default wait timeout, capped by the maximum
+     *   ([WaitOptions.defaultTimeout], [WaitOptions.maxTimeout]). A command whose outcome is not known by then is
+     *   answered FAILED with [ResultCodes.WAIT_TIMEOUT] at ACCEPTED and goes on executing, its outcome logged: the
+     *   calling saga retries with the same request id, which the kernel deduplicates (decision D191).
+     */
+    suspend fun call(model: AggregateModel<*>, command: Command<*>, wait: WaitContext?): CommandResult {
+        val timeout = minOf(command.wait.timeout, options.maxTimeout)
+        val deadline = CompletableDeferred<Unit>()
+        val expiry = DEADLINES[ThreadLocalRandom.current().nextInt(DEADLINES.size)].schedule(
+            { deadline.complete(Unit) },
+            timeout.inWholeMilliseconds,
+            TimeUnit.MILLISECONDS,
+        )
+        val taken = AtomicBoolean()
+        val execution: Deferred<Settlement> = executions.async(currentCoroutineContext().traceContext) {
+            forwardReporting(model, command, wait, taken)
+        }
+        try {
+            val settlement = select {
+                execution.onAwait { it }
+                deadline.onAwait { null }
+            } ?: if (taken.compareAndSet(false, true)) null else execution.await()
+            return settlement?.committed ?: reachedResult(
+                command,
+                commandFunction(model, command),
+                Hop.accepted(command.ref.type.context),
+                clock(),
+            ).failed(
+                ResultCodes.WAIT_TIMEOUT,
+                "The call timed out after $timeout, before the command's outcome was known. Retry it with the same " +
+                    "request id.",
+            ).also { observer.waitTimedOut(command.ref.type, Stage.ACCEPTED) }
+        } catch (cancelled: CancellationException) {
+            taken.set(true)
+            throw cancelled
+        } finally {
+            expiry.cancel(false)
+        }
+    }
+
+    /** [forward]s [command]; logs its outcome when its caller has gone ([taken] already set). */
+    @Suppress("TooGenericExceptionCaught") // What the execution throws is the caller's, or logged once it has gone.
+    private suspend fun forwardReporting(
+        model: AggregateModel<*>,
+        command: Command<*>,
+        wait: WaitContext?,
+        taken: AtomicBoolean,
+    ): Settlement {
+        val settlement = try {
+            forward(model, command, wait)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            if (!taken.compareAndSet(false, true)) {
+                logger.warn(failure) { "Call ${command.id} on ${command.ref} failed after its caller had gone." }
+            }
+            throw failure
+        }
+        if (!taken.compareAndSet(false, true)) {
+            val committed = settlement.committed
+            logger.info {
+                "Call ${command.id} on ${command.ref} settled ${committed.status} after its caller had gone: " +
+                    (committed.error?.toString() ?: "version ${committed.version}")
+            }
+        }
         return settlement
     }
 
