@@ -90,7 +90,8 @@ class ClusterTokenTest {
 
     @Test
     fun `a host on every interface without a cluster token should fail to start`() {
-        assertThrownBy<Exception> { startHost("wow.internal.host" to "0.0.0.0").close() }
+        // In memory on purpose: on every interface, auto would refuse the missing durable backend first (R3.5-1).
+        assertThrownBy<Exception> { startHost("wow.internal.host" to "0.0.0.0", "wow.backend" to "memory").close() }
             .hasStackTraceContaining("wow.internal.token")
     }
 

@@ -128,6 +128,13 @@ class WowProperties {
     var node: Node = Node()
     var internal: Internal = Internal()
     var contexts: Contexts = Contexts()
+
+    /**
+     * The backend of a node that names no `wow.stores` (decision D110): `auto` (the default) takes PostgreSQL or
+     * MongoDB by the application's `DataSource` or `MongoClient`, and refuses to start without either (review R3.5-1)
+     * unless a profile of `wow.internal.dev-profiles` is active or the internal port binds the loopback interface
+     * alone; `memory` keeps the data in memory on purpose, for one node whose data does not outlive it.
+     */
     var backend: BackendKind = BackendKind.AUTO
 
     /**
@@ -212,7 +219,10 @@ class WowProperties {
          */
         var token: MutableList<String> = ArrayList()
 
-        /** The profiles in which the internal port may run without [token]: `dev`, `local`, `test` and `demo`. */
+        /**
+         * The development profiles, `dev`, `local`, `test` and `demo`: in them the internal port may run without
+         * [token], and `wow.backend=auto` falls back to memory when no durable backend is available (review R3.5-1).
+         */
         var devProfiles: MutableSet<String> = linkedSetOf("dev", "local", "test", "demo")
     }
 
@@ -872,7 +882,10 @@ class WowProperties {
 
 /** The backend of a node's log and stores (`wow.backend`, decision D110). */
 enum class BackendKind {
-    /** PostgreSQL or MongoDB by what the classpath and the application's beans offer; memory when neither. */
+    /**
+     * PostgreSQL or MongoDB by what the classpath and the application's beans offer; when neither, memory in a
+     * development profile or on a loopback-only internal port, and a failed startup otherwise (review R3.5-1).
+     */
     AUTO,
 
     /** In memory: for one node, whose data does not outlive it. */

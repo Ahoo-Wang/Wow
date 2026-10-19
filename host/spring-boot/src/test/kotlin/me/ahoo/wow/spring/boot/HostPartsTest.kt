@@ -59,8 +59,32 @@ class BackendSelectionTest {
         BackendSelection.select(
             BackendKind.AUTO,
             postgres = false,
-            mongo = false
+            mongo = false,
+            memoryOptIn = "profile dev",
         ).assert().isEqualTo(BackendKind.MEMORY)
+    }
+
+    @Test
+    fun `auto without a durable backend should fail unless a development node opts in to memory`() {
+        // Review R3.5-1: auto fell back to memory with a warning, and lost every command on a restart.
+        assertThrows<IllegalStateException> {
+            BackendSelection.select(BackendKind.AUTO, postgres = false, mongo = false)
+        }.message.assert().isEqualTo(BackendSelection.NO_DURABLE_BACKEND).contains("wow.backend=memory")
+        BackendSelection.select(BackendKind.MEMORY, postgres = false, mongo = false)
+            .assert().isEqualTo(BackendKind.MEMORY)
+    }
+
+    @Test
+    fun `a development profile or a loopback internal port should opt in to memory`() {
+        val dev = setOf("dev", "test")
+        BackendSelection.memoryOptIn(listOf("prod", "test"), dev, "10.0.0.1").assert().isEqualTo("profile test")
+        BackendSelection.memoryOptIn(listOf("prod"), dev, "127.0.0.1").assert()
+            .isEqualTo("internal port on loopback 127.0.0.1")
+        BackendSelection.memoryOptIn(emptyList(), dev, "::1").assert().isNotNull()
+        BackendSelection.memoryOptIn(listOf("prod"), dev, "10.0.0.1").assert().isNull()
+        BackendSelection.memoryOptIn(listOf("prod"), dev, "0.0.0.0").assert().isNull()
+        BackendSelection.memoryOptIn(emptyList(), dev, null).assert().isNull()
+        BackendSelection.memoryOptIn(emptyList(), dev, "no-such-host.invalid").assert().isNull()
     }
 
     @Test

@@ -111,8 +111,9 @@ import jakarta.validation.Validator as JakartaValidator
  *   ([ManifestLoader], read with [WowJson.mapper], never Spring's mapper), and with it the peer contracts on the
  *   classpath ([ContractDirectory], decisions D139, D234).
  * - **Backend** (`wow.backend`, [BackendSelection]): PostgreSQL over the application's `DataSource`, MongoDB over its
- *   `MongoClient`, in memory (one node, with a warning) when it has neither, or the application's own
- *   [BackendFactory] bean. With `wow.stores`, the named store instances instead ([StoreInstances]), each aggregate's
+ *   `MongoClient`, in memory (one node, with a warning) when `wow.backend=memory`, or when it has neither and runs in
+ *   a development profile or on a loopback-only internal port (it refuses to start otherwise, review R3.5-1), or the
+ *   application's own [BackendFactory] bean. With `wow.stores`, the named store instances instead ([StoreInstances]), each aggregate's
  *   log and snapshots on the store `wow.log.store`, `wow.snapshot.store` and its `wow.aggregates.*` name
  *   ([StoreLayout], decision D177).
  * - **Admission**: the application's [CommandAuthorizer], [CommandTransformer]s (D182) and [CommandValidator]s, the Jakarta
@@ -231,22 +232,30 @@ class WowAutoConfiguration {
         models: WowModels,
         queries: ObjectProvider<QueryProperties>,
         identity: ObjectProvider<NodeIdentity>,
+        environment: Environment,
     ): HostBackends {
         factories.ifAvailable?.let { return HostBackends.of(it) }
         val memoryQueries = queries.ifAvailable?.memory?.enabled == true
+        val node = identity.ifAvailable
         val stores = StoreInstances.open(
             properties,
             beanFactory,
             beanFactory.beanClassLoader,
             memoryQueries,
-            identity.ifAvailable?.service.orEmpty(),
+            node?.service.orEmpty(),
+            BackendSelection.memoryOptIn(
+                environment.activeProfiles.toList(),
+                properties.internal.devProfiles,
+                node?.bindHost
+            ),
         )
         val layout = StoreLayout.of(properties, stores, models.models)
         val memory = (layout.logStores + layout.snapshotStores).filter { stores.getValue(it).kind == BackendKind.MEMORY }
         if (memory.isNotEmpty()) {
             logger.warn {
                 "Wow keeps data in memory on the stores $memory (wow.backend=memory, a store of type memory, or no " +
-                    "DataSource or MongoClient backs it): it does not outlive the node, and serves one node only."
+                    "DataSource or MongoClient backs it in a development profile or on a loopback internal port): " +
+                    "it does not outlive the node, and serves one node only."
             }
         }
         return HostBackends.of(stores, layout, properties.log.partitions)

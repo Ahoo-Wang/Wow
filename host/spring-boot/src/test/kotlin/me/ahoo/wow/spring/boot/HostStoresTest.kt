@@ -291,8 +291,22 @@ class HostStoresTest {
         stores.mapValues { it.value.kind }.assert().isEqualTo(
             mapOf("a" to BackendKind.MEMORY, "b" to BackendKind.MEMORY)
         )
-        StoreInstances.open(properties(), beans, javaClass.classLoader).keys.assert()
+        StoreInstances.open(properties(), beans, javaClass.classLoader, memoryOptIn = "profile dev").keys.assert()
             .containsExactly(ContextBackends.DEFAULT_STORE)
+    }
+
+    @Test
+    fun `auto opens the durable backend and refuses memory without an opt-in`() {
+        val beans = DefaultListableBeanFactory()
+        // Review R3.5-1: no DataSource and no MongoClient, outside a development node.
+        assertThrows<IllegalStateException> {
+            StoreInstances.open(properties(), beans, javaClass.classLoader)
+        }.message.assert().contains("No durable backend")
+        StoreInstances.open(properties { backend = BackendKind.MEMORY }, beans, javaClass.classLoader)
+            .values.single().kind.assert().isEqualTo(BackendKind.MEMORY)
+        beans.registerBeanDefinition("dataSource", RootBeanDefinition(Unpooled::class.java))
+        StoreInstances.open(properties(), beans, javaClass.classLoader).values.single().kind
+            .assert().isEqualTo(BackendKind.POSTGRES)
     }
 
     @Test
@@ -310,9 +324,10 @@ class HostStoresTest {
         )
         stores.getValue("a").tailPolling.assert().isEqualTo(TailPolling(20.milliseconds, 2.seconds))
         // Each store keeps the ledger of the service it was opened for (finding A2-13).
-        StoreInstances.open(properties(), beans, javaClass.classLoader, service = "orders").values.single().service
+        StoreInstances.open(properties(), beans, javaClass.classLoader, service = "orders", memoryOptIn = "dev")
+            .values.single().service
             .assert().isEqualTo("orders")
-        StoreInstances.open(properties(), beans, javaClass.classLoader).values.single().tailPolling
+        StoreInstances.open(properties(), beans, javaClass.classLoader, memoryOptIn = "dev").values.single().tailPolling
             .assert().isEqualTo(TailPolling.DEFAULT)
         assertThrows<IllegalArgumentException> {
             WowProperties.Log().apply { maxPollInterval = java.time.Duration.ofMillis(10) }.tailPolling()
