@@ -626,6 +626,53 @@ describe('query clients', () => {
     expect(requests[0].headers.get('Accept')).toBe('text/event-stream');
   });
 
+  it('queries the events model on the unified engine (decision D235)', async () => {
+    const { requests } = stubFetch(request =>
+      request.method === 'GET'
+        ? new Response(JSON.stringify({ model: 'EVENTS', version: 'v2' }), {
+            status: 200,
+            headers: { ETag: '"v2"', 'Content-Type': 'application/json' },
+          })
+        : jsonResponse({ count: 2, exact: true }),
+    );
+    const events = new EventQueryClient(PRODUCT, client());
+    const added = filter.elementMatch(
+      'events',
+      filter.eq('name', 'eshop-catalog.product.ProductAdded'),
+    );
+    expect(await events.count({ filter: added })).toEqual({
+      count: 2,
+      exact: true,
+    });
+    await events.cursor({ filter: filter.eq('commandType', 'x'), size: 10 });
+    await events.aggregate({
+      elements: [aggregation.element('events')],
+      groupBy: [aggregation.terms('name', 'event')],
+      metrics: [aggregation.count('n')],
+    });
+    const described = await events.describe();
+    expect(described).toMatchObject({ notModified: false, version: 'v2' });
+    expect(new Set(requests.map(r => r.url))).toEqual(
+      new Set([`${BASE_URL}/eshop-catalog/product/events/query`]),
+    );
+    expect(requests[0].body).toEqual({
+      kind: 'count',
+      filter: {
+        op: 'ELEMENT_MATCH',
+        field: 'events',
+        predicate: {
+          op: 'EQ',
+          field: 'name',
+          value: 'eshop-catalog.product.ProductAdded',
+        },
+      },
+    });
+    expect(requests[2].body).toMatchObject({
+      kind: 'aggregate',
+      elements: [{ path: 'events' }],
+    });
+  });
+
   it('ends a stream whose error event is no problem with a 500', async () => {
     stubFetch(() => sseResponse('event:error\ndata:{}\n\n'));
     const stream = await new EventQueryClient(PRODUCT, client()).listStream({

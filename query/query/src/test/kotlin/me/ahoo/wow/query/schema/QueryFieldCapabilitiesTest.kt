@@ -118,8 +118,9 @@ class QueryFieldCapabilitiesTest {
         tags.granted.assert().doesNotContain(QueryCapability.CURSOR_SORT, QueryCapability.ELEMENT_SCOPE)
         tags.operators.assert().contains(FilterOperator.CONTAINS_ALL, FilterOperator.IS_EMPTY, FilterOperator.EQ)
         tags.operators.assert().doesNotContain(FilterOperator.IS_EMPTY_STRING)
-        tags.metrics.assert().doesNotContain(MetricSpec.ANY, MetricSpec.FIRST, MetricSpec.LAST)
-        tags.metrics.assert().contains(MetricSpec.NUMERIC, MetricSpec.DISTINCT_COUNT)
+        // No single number per record (review X-8): a numeric metric over a collection is rejected, terms still group it.
+        tags.metrics.assert().doesNotContain(MetricSpec.ANY, MetricSpec.FIRST, MetricSpec.LAST, MetricSpec.NUMERIC)
+        tags.metrics.assert().contains(MetricSpec.DISTINCT_COUNT)
     }
 
     @Test

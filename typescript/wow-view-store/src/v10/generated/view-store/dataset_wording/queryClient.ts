@@ -13,7 +13,7 @@ export class DatasetWordingSnapshotQueryClient extends SnapshotQueryClient<Datas
 }
 
 
-/** Queries the event streams of `view-store.dataset_wording`, one aggregate at a time: `POST /view-store/dataset_wording/events/query`. */
+/** Queries the event streams of `view-store.dataset_wording`, one record per commit: `POST /view-store/dataset_wording/events/query`. */
 export class DatasetWordingEventQueryClient extends EventQueryClient<DatasetWordingEvent> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {

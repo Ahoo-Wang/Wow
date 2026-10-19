@@ -146,7 +146,10 @@ class HostQueryTest {
             // The application's backend manages its own indexes.
             host.context.getBean(QueryIndexesLifecycle::class.java).reports.assert().isEmpty()
             host.context.getBean(QuerySchemaCatalog::class.java).let { catalog ->
-                runBlocking { catalog.versions() }.single().error.assert().isNull()
+                // The snapshot model and, on the same engine, the events model (decision D235).
+                val versions = runBlocking { catalog.versions() }
+                versions.map { it.model }.assert().containsExactly(QueryModel.SNAPSHOT, QueryModel.EVENTS)
+                versions.forEach { it.error.assert().isNull() }
             }
             // In process, the same gateway answers without the HTTP budget.
             runBlocking {

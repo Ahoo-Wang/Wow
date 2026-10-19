@@ -27,9 +27,9 @@ import java.util.concurrent.ConcurrentHashMap
  * Nothing is introspected at run time. The snapshot's system fields come from the model's profile
  * ([SnapshotQueryModelProfile]), not from here.
  *
- * Only the snapshot model has a query schema: the `events` model of decision D131 is read one aggregate at a time
- * from the event log, not filtered freely, so it is not a [QueryModel]. An aggregate whose snapshots are disabled, or
- * that the Manifest does not hold, has no declaration here.
+ * Only the snapshot model's `state` is declared here; the `events` model's `events` is [EventsQuerySchemas]'
+ * (decision D235). An aggregate whose snapshots are disabled, or that the Manifest does not hold, has no declaration
+ * here.
  *
  * Custom mask strategies (`x-wow-mask.strategy`) are resolved through [strategies]: the runtime does not load classes
  * by name, so an unregistered one fails the schema build.

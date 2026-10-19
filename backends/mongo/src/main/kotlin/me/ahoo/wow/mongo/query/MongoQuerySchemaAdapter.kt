@@ -97,38 +97,20 @@ internal class MongoQuerySchemaAdapter internal constructor(
         val RULES: QueryStorageFamilyRules = QueryStorageFamilyRules(dateOperands = false, strictValueTypes = false)
 
         /**
-         * The BSON types the snapshot store writes for the system fields, which no validator need declare: a
-         * validator, when the collection has one, can only narrow them.
-         */
-        private val SYSTEM_TYPES: Map<String, Set<String>> = mapOf(
-            "tenant_id" to STRING_TYPES,
-            "aggregate_id" to STRING_TYPES,
-            "version" to setOf("int"),
-            "owner_id" to STRING_TYPES,
-            "space_id" to STRING_TYPES,
-            "deleted" to BOOLEAN_TYPES,
-            "first_event_time" to setOf("long"),
-            "last_event_time" to setOf("long"),
-            "tags" to OBJECT_TYPES,
-            "operator" to OBJECT_TYPES,
-            "first_operator" to OBJECT_TYPES,
-            "schedules" to OBJECT_TYPES,
-            "state" to OBJECT_TYPES,
-        )
-
-        /**
          * What the collection's indexes and validator prove about [logicalSchema]: per path, the capabilities its
          * BSON types can execute (the Catalog applies the storage-independent rules), and model-wide text search
          * where a text index covers the collection. Every logical path binds to its document path
-         * ([MongoSnapshotDocuments.physical]); a record names it by its logical path.
+         * ([MongoQueryDocuments.physical] of [documents], a snapshot's by default); a record names it by its logical
+         * path.
          */
         internal fun facts(
             logicalSchema: LogicalQuerySchema,
             indexes: List<Document>,
             validatorSchema: Document?,
             provisional: Boolean = false,
+            documents: MongoQueryDocuments = MongoSnapshotDocuments,
         ): QueryStorageFacts {
-            val storageSchemas = SYSTEM_TYPES.entries.associate { (field, types) ->
+            val storageSchemas = documents.systemTypes.entries.associate { (field, types) ->
                 QueryPathTemplate(listOf(QueryPathSegment.Property(field))) to
                     MongoStorageSchema(types.mapTo(linkedSetOf(), ::QueryStorageType))
             }.toMutableMap()
@@ -138,7 +120,7 @@ internal class MongoQuerySchemaAdapter internal constructor(
             val nativeArrays = storageSchemas.filterValues { facts ->
                 facts.types?.any { it.value in ARRAY_TYPES } == true
             }.keys
-            val nativePaths = storageSchemas.keys.map(MongoSnapshotDocuments::logical)
+            val nativePaths = storageSchemas.keys.map(documents::logical)
             val paths = (
                 logicalSchema.values.keys + nativePaths +
                     nativePaths.filter { it !in logicalSchema.values }.flatMap { native ->
@@ -147,13 +129,13 @@ internal class MongoQuerySchemaAdapter internal constructor(
                 ).filter { it.segments.isNotEmpty() && logicalSchema.value(it) != null }.toSet()
             val bindings = paths.associateWith { path ->
                 val value = checkNotNull(logicalSchema.value(path))
-                val physical = MongoSnapshotDocuments.physical(path)
+                val physical = documents.physical(path)
                 val storage = storageSchemas.storageAt(physical)
                 val invalidAncestor = (1..path.segments.size).any { size ->
                     val ancestor = QueryPathTemplate(path.segments.take(size))
                     val logical = logicalSchema.value(ancestor)
                     logical != null &&
-                        !logical.containerSupported(storageSchemas.storageAt(MongoSnapshotDocuments.physical(ancestor)))
+                        !logical.containerSupported(storageSchemas.storageAt(documents.physical(ancestor)))
                 }
                 if (invalidAncestor) return@associateWith QueryValueBindings()
                 // A validator may declare an array the logical model does not know of (the Catalog rules out logical ones).

@@ -13,7 +13,7 @@ export class OrderSnapshotQueryClient extends SnapshotQueryClient<OrderState, Or
 }
 
 
-/** Queries the event streams of `eshop-ordering.order`, one aggregate at a time: `POST /eshop-ordering/order/events/query`. */
+/** Queries the event streams of `eshop-ordering.order`, one record per commit: `POST /eshop-ordering/order/events/query`. */
 export class OrderEventQueryClient extends EventQueryClient<OrderEvent> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {

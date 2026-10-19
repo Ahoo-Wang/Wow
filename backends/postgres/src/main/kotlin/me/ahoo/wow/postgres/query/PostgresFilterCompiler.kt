@@ -66,7 +66,7 @@ import java.math.BigDecimal
 import java.util.concurrent.TimeUnit
 
 /**
- * Compiles the admitted filters and expressions of one statement to SQL over the snapshot table, with the canonical
+ * Compiles the admitted filters and expressions of one statement to SQL over a query table, with the canonical
  * semantics of the filter matrix (`FilterSemantics`, MongoDB's): a missing field and a JSON `null` are both null, a
  * negation matches the records without the field, a range or a literal match never does, and on a multi-valued
  * field a scalar operand matches any element while an array operand of `EQ` / `NE` is the whole array.
@@ -83,6 +83,8 @@ import java.util.concurrent.TimeUnit
 internal class PostgresFilterCompiler(
     private val query: AdmittedQuery<*>,
     private val parameters: SqlParameters,
+    /** The expressions of the table the statement reads: the snapshot table's by default. */
+    private val expressions: PostgresQueryExpressions = PostgresSnapshotQueryExpressions,
 ) {
     private val scopes = HashMap<QueryField, String>()
     private var aliases = 0
@@ -135,7 +137,7 @@ internal class PostgresFilterCompiler(
     }
 
     private fun systemColumn(filter: FilterExpression): String =
-        PostgresSnapshotQueryExpressions.value(query.systemField(filter).physicalField, PostgresQueryType.TEXT)
+        expressions.value(query.systemField(filter).physicalField, PostgresQueryType.TEXT)
 
     private fun system(filter: FilterExpression, value: String): String =
         "${systemColumn(filter)} = ${parameters.bind(SqlParameter.Text(value))}"
@@ -144,7 +146,7 @@ internal class PostgresFilterCompiler(
         "${systemColumn(filter)} = ANY(${parameters.bind(SqlParameter.Array(TEXT_ARRAY, values))})"
 
     private fun deletion(filter: DeletionFilter): String {
-        val column = PostgresSnapshotQueryExpressions.value(
+        val column = expressions.value(
             query.systemField(filter).physicalField,
             PostgresQueryType.BOOLEAN
         )
@@ -241,7 +243,7 @@ internal class PostgresFilterCompiler(
         val type = type(field)
         if (!field.multiValued) return "(${predicate(typed(field).first, type)})"
         val alias = nextAlias()
-        val element = PostgresSnapshotQueryExpressions.value("$alias.v", emptyList(), type)
+        val element = expressions.value("$alias.v", emptyList(), type)
         return "EXISTS (SELECT 1 FROM jsonb_array_elements(${asArray(node(field))}) AS $alias(v) " +
             "WHERE ${predicate(element, type)})"
     }
@@ -251,9 +253,9 @@ internal class PostgresFilterCompiler(
         val type = type(field)
         val value = locate(field) { base, segments ->
             if (base == null) {
-                PostgresSnapshotQueryExpressions.value(field.physicalField, type)
+                expressions.value(field.physicalField, type)
             } else {
-                PostgresSnapshotQueryExpressions.value(base, segments, type)
+                expressions.value(base, segments, type)
             }
         }
         return value to type
@@ -262,9 +264,9 @@ internal class PostgresFilterCompiler(
     /** The `jsonb` node of [field], read where [field] lies. */
     fun node(field: ResolvedField): String = locate(field) { base, segments ->
         if (base == null) {
-            PostgresSnapshotQueryExpressions.node(field.physicalField)
+            expressions.node(field.physicalField)
         } else {
-            PostgresSnapshotQueryExpressions.node(base, segments)
+            expressions.node(base, segments)
         }
     }
 

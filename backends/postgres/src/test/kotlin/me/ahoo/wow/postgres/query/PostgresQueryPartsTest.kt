@@ -167,21 +167,21 @@ class PostgresQueryPartsTest {
     @Test
     fun `a projection walks into arrays of objects only`() {
         val record = WowJson.mapper.readTree("""{"lines":[{"sku":"A","n":1},2,{"n":3}],"name":"x"}""") as ObjectNode
-        nodes.objectNode().also { PostgresSnapshotQueryBackend.include(record, it, listOf("lines", "sku")) }.toString()
+        nodes.objectNode().also { PostgresQueryBackend.include(record, it, listOf("lines", "sku")) }.toString()
             .assert().isEqualTo("""{"lines":[{"sku":"A"},{},{}]}""")
         nodes.objectNode().also {
-            PostgresSnapshotQueryBackend.include(
+            PostgresQueryBackend.include(
                 record,
                 it,
                 listOf("missing", "sku")
             )
         }.toString()
             .assert().isEqualTo("{}")
-        nodes.objectNode().also { PostgresSnapshotQueryBackend.include(record, it, listOf("name", "sku")) }.toString()
+        nodes.objectNode().also { PostgresQueryBackend.include(record, it, listOf("name", "sku")) }.toString()
             .assert().isEqualTo("{}")
-        record.deepCopy().also { PostgresSnapshotQueryBackend.exclude(it, listOf("lines", "n")) }.toString()
+        record.deepCopy().also { PostgresQueryBackend.exclude(it, listOf("lines", "n")) }.toString()
             .assert().isEqualTo("""{"lines":[{"sku":"A"},2,{}],"name":"x"}""")
-        record.deepCopy().also { PostgresSnapshotQueryBackend.exclude(it, listOf("missing", "n")) }.toString()
+        record.deepCopy().also { PostgresQueryBackend.exclude(it, listOf("missing", "n")) }.toString()
             .assert().isEqualTo(record.toString())
     }
 

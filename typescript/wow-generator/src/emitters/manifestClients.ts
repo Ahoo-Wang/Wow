@@ -364,7 +364,7 @@ function emitQueryClient(
     v10.push('EventQueryClient');
     addStatement(
       module,
-      `${doc([`Queries the event streams of \`${aggregate.context}.${aggregate.name}\`, one aggregate at a time: \`POST /${aggregate.context}/${aggregate.name}/events/query\`.`])}export class ${name}EventQueryClient extends EventQueryClient<${name}Event> {\n${constructor}\n}`,
+      `${doc([`Queries the event streams of \`${aggregate.context}.${aggregate.name}\`, one record per commit: \`POST /${aggregate.context}/${aggregate.name}/events/query\`.`])}export class ${name}EventQueryClient extends EventQueryClient<${name}Event> {\n${constructor}\n}`,
     );
   }
   addStatement(

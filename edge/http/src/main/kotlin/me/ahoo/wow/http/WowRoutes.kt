@@ -235,11 +235,7 @@ internal fun openApiOf(
 }
 
 /** Whether [this] serves the query [model] of [type]: the snapshots and the events of the types it has gateways for. */
-private fun HttpQueries.serves(type: AggregateType, model: String): Boolean = when (model) {
-    QueryRoutes.SNAPSHOT -> snapshots(type) != null
-    QueryRoutes.EVENTS -> events(type) != null
-    else -> false
-}
+private fun HttpQueries.serves(type: AggregateType, model: String): Boolean = gateway(type, model) != null
 
 /** `GET [path]`: [body], as JSON, to an authenticated caller that accepts it. */
 private fun CoRouterFunctionDsl.document(

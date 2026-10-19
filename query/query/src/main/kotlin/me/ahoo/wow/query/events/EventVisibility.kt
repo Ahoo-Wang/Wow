@@ -22,19 +22,30 @@ import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.query.state.StateVisibility
 
 /**
- * Whether a caller sees an aggregate's event streams in the events model ([EventQueryGateway], decision D131); an
- * aggregate it does not see has no streams for it.
+ * Whether a caller sees an aggregate's event streams in the events model ([EventQueryGateways], decision D235); an
+ * aggregate it does not see has no streams for it. [EventVisibilityPolicy] applies it at admission step 2.
  */
 @InternalWowApi
 fun interface EventVisibility {
     /** Whether [caller] sees the event streams of [ref]. */
     suspend fun visible(ref: AggregateRef, caller: QueryCaller): Boolean
 
+    /**
+     * Whether [caller] sees the streams of every aggregate of [type] without a check of each: nothing that could hide
+     * one applies. An events query that names no aggregate needs this, since its aggregates cannot be checked one by
+     * one; none does by default.
+     */
+    suspend fun seesAll(type: AggregateType, caller: QueryCaller): Boolean = false
+
     @InternalWowApi
     companion object {
         /** Every aggregate is visible. */
         @JvmField
-        val ALL: EventVisibility = EventVisibility { _, _ -> true }
+        val ALL: EventVisibility = object : EventVisibility {
+            override suspend fun visible(ref: AggregateRef, caller: QueryCaller): Boolean = true
+
+            override suspend fun seesAll(type: AggregateType, caller: QueryCaller): Boolean = true
+        }
 
         /**
          * An aggregate the snapshot queries of its type hide from the caller is hidden from the events model too
@@ -48,13 +59,24 @@ fun interface EventVisibility {
          * state (null) shows nothing: it has no streams yet, and one committed between the check and the read is not
          * shown unchecked. A type without a snapshot query gateway has no policies to apply: every aggregate of it is
          * visible, and no state is read.
+         *
+         * [hides] says whether the snapshot queries may hide an aggregate from a caller of its scope at all: ABAC or an
+         * application's query policy is configured. When they cannot, or the type has no snapshot query gateway, a
+         * caller [seesAll] the type's aggregates, so an events query need not name its aggregate.
          */
+        @JvmOverloads
         fun of(
             snapshots: (AggregateType) -> QueryGateway?,
+            hides: Boolean = true,
             latest: suspend (AggregateRef) -> CommittedState?,
-        ): EventVisibility = EventVisibility { ref, caller ->
-            val gateway = snapshots(ref.type)
-            gateway == null || latest(ref)?.let { StateVisibility.visible(gateway, caller, it) } == true
+        ): EventVisibility = object : EventVisibility {
+            override suspend fun visible(ref: AggregateRef, caller: QueryCaller): Boolean {
+                val gateway = snapshots(ref.type)
+                return gateway == null || latest(ref)?.let { StateVisibility.visible(gateway, caller, it) } == true
+            }
+
+            override suspend fun seesAll(type: AggregateType, caller: QueryCaller): Boolean =
+                !hides || snapshots(type) == null
         }
     }
 }

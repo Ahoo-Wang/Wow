@@ -13,7 +13,7 @@ export class ProductSnapshotQueryClient extends SnapshotQueryClient<ProductState
 }
 
 
-/** Queries the event streams of `eshop-catalog.product`, one aggregate at a time: `POST /eshop-catalog/product/events/query`. */
+/** Queries the event streams of `eshop-catalog.product`, one record per commit: `POST /eshop-catalog/product/events/query`. */
 export class ProductEventQueryClient extends EventQueryClient<ProductEvent> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {
