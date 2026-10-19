@@ -357,8 +357,8 @@ class HostStoresTest {
             backend = "memory"
             stores["a"] = WowProperties.Store().apply { type = "memory" }
         }.assert().contains("wow.backend is memory")
-        open { stores["a"] = WowProperties.Store().apply { type = "acme" } }.assert()
-            .contains("wow.stores.a.type is acme, which no store provider offers: memory")
+        open { stores["a"] = WowProperties.Store().apply { type = "nope" } }.assert()
+            .contains("wow.stores.a.type is nope, which no store provider offers: memory")
         open { stores["a"] = WowProperties.Store().apply { type = "postgres" } }.assert()
             .contains("no DataSource bean")
         open { stores["a"] = WowProperties.Store().apply { type = "mongo" } }.assert()

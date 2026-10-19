@@ -115,8 +115,8 @@ class BackendSelectionTest {
             )
         assertThrows<IllegalStateException> { select("mongo", postgres = true, mongo = false) }
             .message.assert().contains("a MongoClient bean")
-        assertThrows<IllegalStateException> { select("acme", postgres = true, mongo = false) }
-            .message.assert().contains("wow.backend is acme, which no store provider offers")
+        assertThrows<IllegalStateException> { select("nope", postgres = true, mongo = false) }
+            .message.assert().contains("wow.backend is nope, which no store provider offers")
         assertThrows<IllegalStateException> {
             BackendSelection.select(
                 "postgres",
