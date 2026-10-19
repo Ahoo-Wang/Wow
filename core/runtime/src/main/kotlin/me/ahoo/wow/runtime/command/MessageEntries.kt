@@ -27,6 +27,7 @@ import me.ahoo.wow.runtime.subscription.SourcedEntry
 import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.subscription.UndecodableMessage
 import me.ahoo.wow.runtime.subscription.UnrecoverableException
+import me.ahoo.wow.runtime.subscription.parkedAt
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
@@ -112,6 +113,7 @@ internal class MessageEntries private constructor(
         }
         val key = ref.toString()
         return source.read(topic, partition, fromPosition, offsets.end)
+            .parkedAt(topic, partition, key, fromPosition, offsets.end)
             .filter { it.key == key }
             .mapNotNull { entryOf(partition, it) }
             .filter { it.stream.ref == ref }
@@ -177,7 +179,8 @@ internal class MessageEntries private constructor(
             observer,
         ) { envelope ->
             val wire = CommandMessages.commandOf(envelope)
-            Decoded(wire.ref, wire.id, wire.requestId, wire.type, wire.scope, wire.causation, wire)
+            // A creation that names no aggregate runs, and parks, by its request (review R2.1-2).
+            Decoded(CommandMessages.laneOf(wire), wire.id, wire.requestId, wire.type, wire.scope, wire.causation, wire)
         }
 
         /**

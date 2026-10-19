@@ -15,6 +15,7 @@ package me.ahoo.wow.postgres.query
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
+import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
 import me.ahoo.wow.query.schema.LogicalQuerySchema
 import me.ahoo.wow.query.schema.QuerySchemaUnavailableException
@@ -56,7 +57,7 @@ internal class PostgresQuerySchemaAdapter internal constructor(
     }
 
     /** The catalog type of each column of the table; none when the table does not exist. */
-    private fun columns(): Map<String, String> = dataSource.connection.use { connection ->
+    private fun columns(): Map<String, String> = dataSource.autoCommitted { connection ->
         connection.prepareStatement(
             "SELECT a.attname, t.typname FROM pg_attribute a JOIN pg_type t ON t.oid = a.atttypid " +
                 "WHERE a.attrelid = to_regclass(?) AND a.attnum > 0 AND NOT a.attisdropped",

@@ -14,6 +14,8 @@
 package me.ahoo.wow.migrate
 
 import com.mongodb.client.MongoDatabase
+import com.mongodb.client.model.Filters
+import com.mongodb.client.model.Updates
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.kernel.StartFrom
@@ -144,7 +146,7 @@ class NineXCompensationImportTest {
                     ORDER_CREATED,
                     ref,
                     1,
-                    "Conflict: stock reserved twice",
+                    "Conflict: stock reserved twice [9.x execution 0VYC0mp1nA0002]",
                     FAILED_AT + 181_000,
                     retries = 1,
                     retryAt = FAILED_AT + 180_000,
@@ -152,7 +154,9 @@ class NineXCompensationImportTest {
                     recoverable = Recoverable.RECOVERABLE,
                 ),
             )
-            ledger.parked(CART_SAGA, ref)!!.reason.assert().isEqualTo("IllegalState: the order $ORDER_ID failed in CartSaga")
+            ledger.parked(CART_SAGA, ref)!!.reason.assert().isEqualTo(
+                "IllegalState: the order $ORDER_ID failed in CartSaga [9.x execution 0VYC0mp1nA0001]",
+            )
             ledger.parked(ORDER_STATE, ref)!!.recoverable.assert().isEqualTo(Recoverable.UNRECOVERABLE)
             // Only this service's ledger holds them.
             MongoFailureLedger(NineXMongoStore.client, TARGET, service = "another-service").list(CART_SAGA).assert().isEmpty()
@@ -229,6 +233,21 @@ class NineXCompensationImportTest {
         }
         run("compare", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
         printed.assert().contains("9.x compensation compared: 3 unresolved executions, 0 differ, 2 not imported")
+
+        // 9.x retries execution 2 successfully during the window (finding R2.4-1): compare reports the entry the
+        // import parked for it, and the final restart resolves it.
+        compensation.getCollection(MongoNineXCompensationSource.COLLECTION)
+            .updateOne(Filters.eq("_id", "0VYC0mp1nA0002"), Updates.set("state.status", "SUCCEEDED"))
+        run("compare", "--config", config.toString()).assert().isEqualTo(MigrateData.DIFFERS)
+        printed.assert().contains(
+            "DIFFERS V10 $ORDER_CREATED $ref parked from v1: the 9.x execution 0VYC0mp1nA0002 (example-service." +
+                "OrderSaga.onEvent on example-service.order/(0)/$ORDER_ID v1) it was imported for is succeeded in 9.x",
+        )
+        run("import", "--config", config.toString(), "--restart").assert().describedAs(printed).isEqualTo(MigrateData.OK)
+        printed.assert().contains("RESOLVED $ORDER_CREATED $ref from v1")
+        ledger.parked(ORDER_CREATED, ref).assert().isNull()
+        ledger.parked(CART_SAGA, ref).assert().isNotNull()
+        run("compare", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
     }
 
     private companion object {

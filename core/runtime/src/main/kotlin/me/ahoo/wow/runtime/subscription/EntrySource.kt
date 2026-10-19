@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime.subscription
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.log.EventLog
@@ -24,6 +25,7 @@ import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.state.StateEventRecord
+import me.ahoo.wow.spi.transport.SourceMessage
 
 /**
  * One entry a [SubscriptionRuntime] hands its subscriptions: a committed [stream] at its [position] in the source's
@@ -100,6 +102,38 @@ internal interface EntrySource {
 
 /** The source no longer holds what a parked aggregate is resumed from: it can only be skipped. */
 internal class UnrecoverableException(message: String) : IllegalStateException(message)
+
+/**
+ * The messages of [partition] of [topic] from [fromPosition], where the message an aggregate keyed [key] was parked at
+ * lies, checked to be there (review R2.1-4): a topic that gained partitions since (decision D168) maps the key to
+ * another partition, which holds the parked message at no offset, or another message at that offset. A re-scan there
+ * would find nothing of the aggregate and resolve the entry, losing what was skipped; it fails with an
+ * [UnrecoverableException] instead, so the entry stays parked, marked for an operator to skip once they have dealt
+ * with what it skipped. A message no longer retained cannot be checked: the re-scan goes on.
+ *
+ * The ledger records the parked message's offset only, not its partition ([ParkedAggregate.fromPosition]); recording
+ * the partition would let the resume follow the message, at the cost of a field in every backend's ledger.
+ */
+internal fun Flow<SourceMessage>.parkedAt(
+    topic: String,
+    partition: Int,
+    key: String,
+    fromPosition: Long,
+    end: Long,
+): Flow<SourceMessage> {
+    if (fromPosition >= end) {
+        throw UnrecoverableException(moved(topic, partition, key, fromPosition))
+    }
+    return onEach {
+        if (it.offset == fromPosition && it.key != key) {
+            throw UnrecoverableException(moved(topic, partition, key, fromPosition))
+        }
+    }
+}
+
+private fun moved(topic: String, partition: Int, key: String, offset: Long): String =
+    "Partition $partition of $topic holds no message keyed $key at offset $offset: the topic's partitions changed " +
+        "since it was parked, and the message is in another partition."
 
 /** The context's [log]. */
 internal class LogSource(private val log: EventLog) : EntrySource {

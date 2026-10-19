@@ -22,6 +22,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
+import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.json.WowJson
@@ -81,7 +82,7 @@ class PostgresSnapshotStore(
      */
     private fun tables(aggregateName: String): PostgresSnapshotTables = created[aggregateName]
         ?: PostgresSnapshotTables(context, aggregateName).also { tables ->
-            dataSource.connection.use { connection ->
+            dataSource.autoCommitted { connection ->
                 PostgresFormat.schema(connection, ddl, listOf(tables.base to PostgresSnapshotTables.FORMAT)) {
                     connection.createStatement().use { statement -> tables.ddl().forEach { statement.execute(it) } }
                 }
@@ -92,7 +93,7 @@ class PostgresSnapshotStore(
     override suspend fun save(snapshot: SnapshotRecord): Boolean = dispatcher.jdbc {
         require(snapshot.ref.type.context == context) { "${snapshot.ref} is not in context $context." }
         val tables = tables(snapshot.ref.type.name)
-        dataSource.connection.use { connection ->
+        dataSource.autoCommitted { connection ->
             upsert(connection, tables.save, snapshot).also { written ->
                 if (!written) {
                     connection.prepareStatement(tables.markRefused).use { mark ->
@@ -110,7 +111,7 @@ class PostgresSnapshotStore(
 
     override suspend fun rewrite(snapshot: SnapshotRecord): Boolean = dispatcher.jdbc {
         require(snapshot.ref.type.context == context) { "${snapshot.ref} is not in context $context." }
-        dataSource.connection.use { upsert(it, tables(snapshot.ref.type.name).rewrite, snapshot) }
+        dataSource.autoCommitted { upsert(it, tables(snapshot.ref.type.name).rewrite, snapshot) }
     }
 
     /** Runs the upsert [statement] of [snapshot]; whether it wrote the row. */
@@ -136,7 +137,7 @@ class PostgresSnapshotStore(
 
     override suspend fun markStale(ref: AggregateRef): Boolean = dispatcher.jdbc {
         require(ref.type.context == context) { "$ref is not in context $context." }
-        dataSource.connection.use { connection ->
+        dataSource.autoCommitted { connection ->
             connection.prepareStatement(tables(ref.type.name).markStale).use { mark ->
                 mark.setString(1, ref.tenantId)
                 mark.setString(2, ref.id)
@@ -154,7 +155,7 @@ class PostgresSnapshotStore(
         require(type.context == context) { "$type is not in context $context." }
         require(limit >= 1) { "A page holds at least one ref." }
         val tables = tables(type.name)
-        dataSource.connection.use { connection ->
+        dataSource.autoCommitted { connection ->
             connection.prepareStatement(if (after == null) tables.pendingFirst else tables.pendingAfter).use { query ->
                 query.setInt(1, revision)
                 if (after == null) {
@@ -178,14 +179,14 @@ class PostgresSnapshotStore(
     override suspend fun table(type: AggregateType): SnapshotTable? = dispatcher.jdbc {
         require(type.context == context) { "$type is not in context $context." }
         val tables = tables(type.name)
-        dataSource.connection.use { connection -> recorded(connection, tables) }
+        dataSource.autoCommitted { connection -> recorded(connection, tables) }
     }
 
     override suspend fun claim(type: AggregateType, revision: Int, lower: Boolean): SnapshotTable = dispatcher.jdbc {
         require(type.context == context) { "$type is not in context $context." }
         require(revision >= 1) { "A state revision starts at 1." }
         val tables = tables(type.name)
-        dataSource.connection.use { connection ->
+        dataSource.autoCommitted { connection ->
             connection.prepareStatement(tables.claim).use { claim ->
                 claim.setString(1, tables.base)
                 claim.setInt(2, revision)
@@ -204,7 +205,7 @@ class PostgresSnapshotStore(
     ): SnapshotTable? = dispatcher.jdbc {
         require(type.context == context) { "$type is not in context $context." }
         val tables = tables(type.name)
-        dataSource.connection.use { connection ->
+        dataSource.autoCommitted { connection ->
             connection.prepareStatement(tables.mark).use { mark ->
                 mark.setNullableBoolean(1, rebuilding)
                 mark.setNullableBoolean(2, backfilled)
@@ -229,7 +230,7 @@ class PostgresSnapshotStore(
 
     override suspend fun load(ref: AggregateRef): SnapshotRecord? = dispatcher.jdbc {
         require(ref.type.context == context) { "$ref is not in context $context." }
-        dataSource.connection.use { connection ->
+        dataSource.autoCommitted { connection ->
             connection.prepareStatement(tables(ref.type.name).load).use { query ->
                 query.setString(1, ref.tenantId)
                 query.setString(2, ref.id)

@@ -23,6 +23,7 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
+import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.json.WowJson
@@ -59,7 +60,7 @@ class PostgresTimerStore(
 
     /** Creates the context's timer table and its indexes when missing; refuses one recorded in another format. */
     fun createSchema() {
-        dataSource.connection.use { connection ->
+        dataSource.autoCommitted { connection ->
             PostgresFormat.schema(connection, ddl, listOf(tables.base to PostgresTimerTables.FORMAT)) {
                 connection.createStatement().use { statement -> tables.ddl().forEach { statement.execute(it) } }
             }
@@ -217,7 +218,7 @@ class PostgresTimerStore(
     )
 
     private suspend fun <T> jdbc(block: (Connection) -> T): T =
-        dispatcher.jdbc { dataSource.connection.use(block) }
+        dispatcher.jdbc { dataSource.autoCommitted(block) }
 
     private companion object {
         val json = WowJson.mapper

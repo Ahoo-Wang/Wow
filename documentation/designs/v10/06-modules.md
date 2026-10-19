@@ -34,15 +34,15 @@
 | 编译 | `wow-gradle-plugin` | Gradle 插件 `me.ahoo.wow`：接好 KSP，构建期内省 schema、合并服务级 Manifest（D83） | wow-schema 的构建期部分 |
 | 内核 | `wow-spi` | 全部端口（日志、快照、检查点、租约、失败台账、预留键、`Sink`、`TopicProducer`、`PartitionedSource`）与值类型（含 `StateEventRecord`、`StateView`、Kafka 信封与其编解码，D132），`@WowSpi` | wow-core 的 SPI |
 | 内核 | `wow-kernel` | `AggregateModel`、decide → evolve → append 循环、结局查明、事件编解码与 revision 升级、状态版本视图、内存日志 | wow-core 的内核 |
-| 内核 | `wow-runtime` | Gateway 与准入、Router、集群通道、Executor 与状态缓存、订阅运行时、等待、观测接缝、生命周期 | wow-core 的其余部分 |
+| 内核 | `wow-runtime` | Gateway 与准入、Router、集群通道、Executor 与状态缓存、订阅运行时、等待、观测接缝、生命周期；状态点读（最新、按版本、按时间、轨迹，D231） | wow-core 的其余部分 |
 | 内核 | `wow-reactor` | 领域处理函数的 Reactor 适配：返回 `Mono`/`Flux` 的处理函数（`awaitResult`，D9）；只依赖 `wow-kernel`，领域模块用它不会带上运行时（D149，#4328）。调用方用的 `ReactiveCommandGateway`、`ReactiveQueryGateway` 需要运行时，不放这里：有需求时另设 `wow-runtime-reactor`（依赖 `wow-runtime` 与 `wow-reactor`） | wow-core 的 Reactor 形态 |
-| 查询 | `wow-query` | 查询引擎：准入、能力表、编译到后端；数据集；`QueryJson`；后端合同测试 `QueryBackendSpec`。9.x 的协程移植（D126） | wow-query |
+| 查询 | `wow-query` | 查询引擎：准入、能力表、编译到后端；快照、数据集与 `events` 三个查询模型的网关；读的可见性（状态、数据集）；数据集；`QueryJson`；后端合同测试 `QueryBackendSpec`。9.x 的协程移植（D126、D231） | wow-query |
 | 后端 | `wow-postgres` | 日志、快照、查询、检查点、租约、台账、预留键（D10、D27） | （新增） |
 | 后端 | `wow-mongo` | 同上，MongoDB（D11） | wow-mongo |
 | 后端 | `wow-elasticsearch` | 快照、查询、事件检索 Sink（D13）；M6 之后的 6.7（D131） | wow-elasticsearch |
 | 后端 | `wow-clickhouse` | 数据集查询后端、数仓 Sink（D18、D142） | wow-clickhouse、wow-bi |
 | 后端 | `wow-kafka` | Kafka Router、Sink、Kafka 来源的订阅、跨上下文命令的传输；只依赖 `wow-spi` 与 `kafka-clients`，语义在运行时（D31、D33、D132） | wow-kafka |
-| 边缘 | `wow-http` | 由 Manifest 物化路由、problem+json、SSE、信号入口（D30、D35） | wow-webflux、wow-rest-contract |
+| 边缘 | `wow-http` | 由 Manifest 物化路由、problem+json、SSE、信号入口（D30、D35）；只做协议适配，读的语义在 `wow-query` 与 `wow-runtime`（D231） | wow-webflux、wow-rest-contract |
 | 边缘 | `wow-openapi` | Manifest → OpenAPI；swagger 依赖只在这里 | wow-openapi、wow-schema |
 | 集成 | `wow-cosec` | 准入与查询的授权策略（身份作用域、ABAC 标签） | wow-cosec |
 | 集成 | `wow-opentelemetry` | 观测接缝的追踪与指标 | wow-opentelemetry |
@@ -141,7 +141,7 @@ documentation/  docs/  skills/  build-logic/  config/  （同 9.x）
 
 **搬迁时机**：`v10` 分支每周合入 main（[路线图](roadmap.md) §1）。main 上仍在活跃变化的目录（`typescript/`、`view-store/`、`dataset-registry/`、`analytics/`、`compensation/dashboard/`、`documentation/`）若在分支上提早搬家，每次前向合并都会冲突。所以：
 
-- V10 **新名字**的模块在 M0 就按新结构建立：`wow-manifest`、`wow-query-api`、`wow-spi`、`wow-kernel`、`wow-runtime`、`wow-reactor`、`wow-postgres`、`wow-http`、`wow-spring-boot`、`wow-migrate-data`，以及架构测试 `wow-architecture`（`test/`）。它们在孵化中：照常构建与测试，不发布、不做 ABI 校验，用 JDK 21（D29）。
+- V10 **新名字**的模块在 M0 就按新结构建立：`wow-manifest`、`wow-query-api`、`wow-spi`、`wow-kernel`、`wow-runtime`、`wow-reactor`、`wow-postgres`、`wow-http`、`wow-spring-boot`、`wow-migrate-data`，以及架构测试 `wow-architecture`（`test/`）。起初在孵化中、不发布；R.1 起作为 10.x 预发布发布，`v10PublishedProjects` 的 ABI 自 M7 出口冻结起由转储校验（D216，见 AGENTS.md 的「Releasing a V10 pre-release」），用 JDK 21（D29）。
 - 与 9.x **同名**的模块（`wow-api`、`wow-query`、`wow-compiler`、`wow-mongo`、`wow-elasticsearch`、`wow-clickhouse`、`wow-kafka`、`wow-openapi`、`wow-cosec`、`wow-opentelemetry`、`wow-test`、`wow-tck`、BOM）**不原地演进**（D85）：V10 重写时在新目录另起模块，只放 V10 代码，项目名不带前缀（D87），artifactId 是 `wow-<名字>`；9.x 模块的项目名与目录不动，前向合并照常，`v10` 不发布它们，但保留它们的 ABI 校验（D90）；架构测试禁止同时依赖新旧两边（H3 的 `:kernel-benchmarks` 具名豁免）。项目名与 artifactId 可以不同，所以同名的 artifact 不妨碍新旧模块并存。
 - 被整体替换的 9.x 模块（`wow-core`、`wow-spring`、`wow-spring-boot-starter`、`wow-webflux`、`wow-rest-contract`、`wow-redis`、`wow-bi`、`wow-schema`、`wow-metadata`、`wow-mock`）留在原地，在替换它的里程碑里删除。
 - 平台模块不搬迁（D146，修订原先 M9 前「只做搬迁的提交」）：M7 在 `platform/<名字>/` 新建 V10 项目，9.x 的平台目录留在原地、移植后只修缺陷，M9 随 9.x 删除；新项目的 CI 路径过滤（`ci-scope.mjs`）与部署工作流的 `paths` 随项目建立。
@@ -156,4 +156,4 @@ documentation/  docs/  skills/  build-logic/  config/  （同 9.x）
 ## 6. 待细化
 
 - `wow-it` 的内容：端到端、多节点、迁移演练是否各成模块。
-- 发布模块清单（ABI 转储从 M7 出口的 API 冻结开始，D88、D147）。
+- 发布模块清单：已定（R.1、D216），即 `build.gradle.kts` 的 `v10PublishedProjects` 加 `:migrate-data`、`:manifest-tools`。

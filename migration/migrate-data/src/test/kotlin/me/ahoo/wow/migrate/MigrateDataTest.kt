@@ -222,6 +222,16 @@ class MigrateDataTest {
         // Resumable: the import is complete, so it reserves again only from a restart.
         run("import", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
         reservationStore.find(scope, "NO-1")!!.owner.assert().isEqualTo(owner)
+
+        // 9.x rolls the key back: compare reports V10 still holding it, and the final restart releases it, from the
+        // keys the import recorded beside the checkpoint file.
+        prepared.remove("order_no", "NO-1")
+        run("compare", "--config", config.toString()).assert().isEqualTo(MigrateData.DIFFERS)
+        printed.assert().contains("DIFFERS PrepareKey order_no/NO-1: V10 $owner, which 9.x no longer confirms it to")
+            .contains("1 imported keys are no longer confirmed to their owners in 9.x")
+        run("import", "--config", config.toString(), "--restart").assert().isEqualTo(MigrateData.OK)
+        reservationStore.find(scope, "NO-1").assert().isNull()
+        run("compare", "--config", config.toString()).assert().isEqualTo(MigrateData.OK)
     }
 
     @Test
@@ -337,11 +347,11 @@ class MigrateDataTest {
 
         run("compare", "--config", config.toString()).assert().describedAs(printed).isEqualTo(MigrateData.OK)
         printed.assert().contains("9.x compensation compared: 3 unresolved executions, 0 differ, 2 not imported")
-            .contains("and every unresolved 9.x execution imported is parked.")
+            .contains("and every unresolved 9.x execution imported is parked; nothing imported was released")
         ledger.resolve(NineXCompensationExample.CART_SAGA, ref)
         run("compare", "--config", config.toString()).assert().isEqualTo(MigrateData.DIFFERS)
         printed.assert().contains("DIFFERS 9.x execution 0VYC0mp1nA0001")
-            .contains("Comparison done: 1 unresolved 9.x executions are not parked in V10: run the import again")
+            .contains("Comparison done: 1 unresolved 9.x executions are not parked in V10, and 0 imported entries")
     }
 
     @Test

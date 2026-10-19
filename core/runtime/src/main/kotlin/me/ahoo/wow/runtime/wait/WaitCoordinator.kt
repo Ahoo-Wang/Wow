@@ -43,6 +43,7 @@ import me.ahoo.wow.api.result.WaitSignal
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandOutcome
 import me.ahoo.wow.kernel.ScheduleNotDueException
+import me.ahoo.wow.runtime.CommandBusyException
 import me.ahoo.wow.runtime.CommandWithdrawnException
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.ExecutorBusyException
@@ -522,8 +523,9 @@ class WaitCoordinator(
      * execution a store failed with a transient failure ([StorageUnavailableException], such as the request id's
      * lookup during a restart): [ResultCodes.STORAGE_UNAVAILABLE], which a retry with the same request id may pass, as
      * the kernel deduplicates it. So is a scheduled command due longer from now than the kernel waits for one
-     * ([ScheduleNotDueException], decision D198): [ResultCodes.SCHEDULE_NOT_DUE], logged with the clock skew, which
-     * its firing runner sends again later. An append whose outcome is unknown is [ResultCodes.UNKNOWN], from the
+     * ([ScheduleNotDueException], decision D198): [ResultCodes.SCHEDULE_NOT_DUE], logged with the clock skew; a timer
+     * of this context sends it again later, and the intake of a command another context's timer sent waits for its
+     * due time before it runs it, then retries it as any technical failure (review R2.5-1). An append whose outcome is unknown is [ResultCodes.UNKNOWN], from the
      * kernel. Any other failure of its handling (a decide function or an after hook that throws, a missing
      * dependency), which the kernel compensated, is [ResultCodes.FAILED], logged with its cause and answered without
      * it: the owner of a forwarded command answers it so, not with an error the sender could not tell from a lost
@@ -735,3 +737,12 @@ data class Settlement(
     /** Whether [committed] is FAILED: a technical failure, such as contention, an unknown outcome or a busy lane. */
     val failed: Boolean get() = committed.status == CommandResult.Status.FAILED
 }
+
+/**
+ * The backpressure [command] met when this settlement says the node refused it as busy ([ResultCodes.BUSY], here or
+ * on its partition's owner): what the node's own sources throw instead of a technical failure (review R2.1-1).
+ */
+internal fun Settlement.busyOf(command: Command<*>): CommandBusyException? =
+    committed.error?.takeIf { failed && it.code == ResultCodes.BUSY }?.let {
+        CommandBusyException(command.ref, command.id, it.message)
+    }
