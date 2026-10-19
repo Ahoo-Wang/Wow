@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@ahoo-wang/fetcher": "catalog:",
+    "@ahoo-wang/fetcher-cosec": "catalog:",
     "@ahoo-wang/fetcher-decorator": "catalog:",
     "@ahoo-wang/fetcher-eventstream": "catalog:",
     "@ahoo-wang/wow-client": "workspace:*",

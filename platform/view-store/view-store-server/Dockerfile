@@ -1,9 +1,10 @@
 # The V10 view store service image (R.1): `./gradlew -Pwow.scope=v10 :view-store-server:installDist`.
 # v10-image-deploy.yml builds it and tags only the release version: a pre-release never moves `latest`, which stays
 # on the 9.x image of the same name (view-store-deploy.yml).
-# Callers: the image trusts no identity header. Without wow-cosec on its class path every request is answered 401
-# until a deployment gives it an identity provider; WOW_PLATFORM_TRUSTIDENTITYHEADERS=true (the property
-# wow.platform.trust-identity-headers) takes them from X-User, X-Tenant and X-Role instead, for a local demo only.
+# Callers: the image trusts no identity header, and runs CoSec only in its `cosec` profile
+# (SPRING_PROFILES_ACTIVE=cosec, with COSEC_JWT_SECRET), which verifies each request's CoSec token; without it every
+# request is answered 401. WOW_PLATFORM_TRUSTIDENTITYHEADERS=true (the property wow.platform.trust-identity-headers)
+# takes them from X-User, X-Tenant and X-Role instead, for a local demo only. deploy/v10 runs it on Kubernetes.
 ARG APP_NAME=view-store-server
 ARG WORK_HOME=/opt/${APP_NAME}
 
@@ -19,9 +20,10 @@ COPY build/install/${APP_NAME} .
 FROM base AS run
 ARG WORK_HOME
 
-RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+# A numeric user, so a pod's runAsNonRoot can verify it (deploy/v10).
+RUN groupadd -r -g 10001 appgroup && useradd -r -u 10001 -g appgroup appuser
 
-COPY --from=build --chown=appuser:appgroup ${WORK_HOME} ${WORK_HOME}
+COPY --from=build --chown=10001:10001 ${WORK_HOME} ${WORK_HOME}
 
 WORKDIR ${WORK_HOME}
 # The HTTP routes; 9090 is the node's internal port (wow.internal.port). Run the image with WOW_INTERNAL_TOKEN, the
@@ -31,7 +33,7 @@ EXPOSE 8080 9090
 HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
   CMD ["bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080"]
 
-USER appuser
+USER 10001
 STOPSIGNAL SIGTERM
 
 ENTRYPOINT ["bin/view-store-server"]

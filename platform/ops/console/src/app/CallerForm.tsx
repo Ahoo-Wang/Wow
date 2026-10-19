@@ -38,13 +38,119 @@ import {
 import { useCaller, useServices } from "./services.tsx";
 
 /**
- * Names the caller the console sends (`X-User`, `X-Tenant`, `X-Role`), the
- * ops service's stand-in for CoSec. It is kept on this machine.
+ * Signs in with a CoSec access token, which a deployment of the ops service
+ * verifies and reads the operator from; or, for a local run, names the
+ * caller the console sends as headers (`X-User`, `X-Tenant`, `X-Role`), the
+ * ops service's stand-in for CoSec, kept on this machine.
  */
 export function CallerForm({ onDone }: { onDone?: () => void }) {
-  const { t } = useI18n();
   const { callers } = useServices();
   const current = useCaller();
+  return (
+    <div className="flex w-full max-w-md flex-col gap-4">
+      {callers.signsIn ? (
+        current?.via === "cosec" ? (
+          <SignedIn user={current.user} onDone={onDone} />
+        ) : (
+          <TokenForm onDone={onDone} />
+        )
+      ) : null}
+      <HeadersForm onDone={onDone} />
+    </div>
+  );
+}
+
+/** Who is signed in with a CoSec token, and the way out. */
+function SignedIn({ user, onDone }: { user: string; onDone?: () => void }) {
+  const { t } = useI18n();
+  const { callers } = useServices();
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("signInTitle")}</CardTitle>
+        <CardDescription>{t("signedInAs", { user })}</CardDescription>
+      </CardHeader>
+      <CardFooter>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            callers.set(null);
+            onDone?.();
+          }}
+        >
+          {t("signOutToken")}
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
+/** Signs in with an access token the enterprise's CoSec issued. */
+function TokenForm({ onDone }: { onDone?: () => void }) {
+  const { t } = useI18n();
+  const { callers } = useServices();
+  const [token, setToken] = useState("");
+  const [refused, setRefused] = useState(false);
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    const value = token.trim().replace(/^Bearer\s+/i, "");
+    if (value === "") return;
+    if (!callers.signIn(value)) {
+      setRefused(true);
+      return;
+    }
+    onDone?.();
+  };
+
+  return (
+    <Card>
+      <form onSubmit={submit} aria-label={t("signInTitle")}>
+        <CardHeader>
+          <CardTitle>{t("signInTitle")}</CardTitle>
+          <CardDescription>{t("signInDescription")}</CardDescription>
+        </CardHeader>
+        <CardContent className="py-4">
+          <Field data-invalid={refused || undefined}>
+            <FieldLabel htmlFor="caller-token">{t("token")}</FieldLabel>
+            <Input
+              id="caller-token"
+              type="password"
+              value={token}
+              autoComplete="off"
+              aria-invalid={refused || undefined}
+              onChange={(event) => {
+                setToken(event.target.value);
+                setRefused(false);
+              }}
+            />
+            {refused ? (
+              <FieldDescription role="alert">
+                {t("tokenRefused")}
+              </FieldDescription>
+            ) : null}
+          </Field>
+        </CardContent>
+        <CardFooter>
+          <Button type="submit" disabled={token.trim() === ""}>
+            {t("signIn")}
+          </Button>
+        </CardFooter>
+      </form>
+    </Card>
+  );
+}
+
+/**
+ * Names the caller the console sends as headers, for a local run of the ops
+ * service (`wow.platform.trust-identity-headers`).
+ */
+function HeadersForm({ onDone }: { onDone?: () => void }) {
+  const { t } = useI18n();
+  const { callers } = useServices();
+  const caller = useCaller();
+  const current = caller?.via === "cosec" ? null : caller;
   const [user, setUser] = useState(current?.user ?? "");
   const [tenant, setTenant] = useState(current?.tenant ?? DEFAULT_TENANT);
   const [roles, setRoles] = useState(
@@ -54,17 +160,17 @@ export function CallerForm({ onDone }: { onDone?: () => void }) {
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (user.trim() === "") return;
-    const caller: OpsCaller = {
+    const named: OpsCaller = {
       user: user.trim(),
       tenant: tenant.trim() || DEFAULT_TENANT,
       roles: parseRoles(roles),
     };
-    callers.set(caller);
+    callers.set(named);
     onDone?.();
   };
 
   return (
-    <Card className="w-full max-w-md">
+    <Card>
       <form onSubmit={submit} aria-label={t("callerTitle")}>
         <CardHeader>
           <CardTitle>{t("callerTitle")}</CardTitle>

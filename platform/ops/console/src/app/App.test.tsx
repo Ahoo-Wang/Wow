@@ -12,16 +12,18 @@
  */
 
 import { Fetcher } from "@ahoo-wang/fetcher";
+import { TokenStorage } from "@ahoo-wang/fetcher-cosec";
 import { MemoryViewStore } from "@ahoo-wang/wow-view-engine";
 import { memorySource } from "@ahoo-wang/wow-view-engine/testing";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider, type Locale } from "@/i18n.tsx";
 import { ROUTES } from "@/router.tsx";
 import { CallerStore, type OpsCaller } from "@/services/caller.ts";
 import type { OpsServices } from "@/services/ops.ts";
+import { accessToken } from "@/services/testing.ts";
 import { createOpsEngine } from "@/views/engine.ts";
 import { ServicesProvider } from "./services.tsx";
 
@@ -75,9 +77,13 @@ const ENTRIES = [
 
 function console_(
   caller: OpsCaller | null,
-  { locale = "en" as Locale, path = "/parked" } = {},
+  {
+    locale = "en" as Locale,
+    path = "/parked",
+    tokens = null as TokenStorage | null,
+  } = {},
 ) {
-  const callers = new CallerStore(null);
+  const callers = new CallerStore(null, tokens);
   if (caller) callers.set(caller);
   const commands = {
     resume: vi.fn(async () => ({})),
@@ -131,10 +137,12 @@ const OPERATOR: OpsCaller = {
 };
 
 describe("the console", () => {
+  afterEach(() => localStorage.clear());
+
   it("asks for a caller first, then lists the entries that need attention", async () => {
     const { callers } = console_(null);
     expect(
-      screen.getByText(/Name a caller to read the parked entries/),
+      screen.getByText(/Sign in to read the parked entries/),
     ).toBeVisible();
     await userEvent.type(screen.getByLabelText("User"), "alice");
     await userEvent.click(
@@ -147,6 +155,36 @@ describe("the console", () => {
     ).toBeVisible();
     expect(within(table).queryByText("Retrying.")).toBeNull();
     expect(screen.getByRole("link", { name: "Caller: alice" })).toBeVisible();
+  });
+
+  it("signs in with a CoSec access token, and out again", async () => {
+    const { callers, router } = console_(null, { tokens: new TokenStorage() });
+    const token = screen.getByLabelText("Access token");
+    await userEvent.type(token, "not-a-token");
+    await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(
+      await screen.findByText(/This is not a CoSec access token/),
+    ).toBeVisible();
+    expect(callers.get()).toBeNull();
+
+    await userEvent.clear(token);
+    await userEvent.type(
+      token,
+      `Bearer ${accessToken({ sub: "alice", roles: ["ops.operator"] })}`,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(callers.get()).toEqual({ ...OPERATOR, via: "cosec" });
+    expect(
+      await screen.findByRole("table", { name: "Needs attention" }),
+    ).toBeVisible();
+
+    await router.navigate("/caller");
+    expect(
+      await screen.findByText("Signed in as alice with a CoSec access token."),
+    ).toBeVisible();
+    await userEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    expect(callers.get()).toBeNull();
+    expect(router.state.location.pathname).toBe("/parked");
   });
 
   it("says a caller without ops.operator only reads", async () => {
@@ -191,7 +229,7 @@ describe("the console", () => {
   it("opens on the overview board, which asks for a caller first", async () => {
     console_(null, { path: "/" });
     expect(
-      screen.getByText(/Name a caller to read the parked entries/),
+      screen.getByText(/Sign in to read the parked entries/),
     ).toBeVisible();
   });
 
