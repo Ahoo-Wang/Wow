@@ -38,6 +38,7 @@ import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.runtime.wait.handledResult
 import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.ParkedAggregate
+import me.ahoo.wow.spi.ledger.Recoverable
 import me.ahoo.wow.spi.observation.Observer
 import me.ahoo.wow.spi.observation.observe
 import me.ahoo.wow.spi.subscription.Checkpoint
@@ -67,7 +68,8 @@ import java.time.Clock
  * checkpoint.
  *
  * A handler that fails is retried, then parks its aggregate; one that fails with a [HandlingRejectedException], a
- * business outcome, or with an unrecoverable failure, parks it at once. A systemic failure pauses the partition
+ * business outcome, or with an unrecoverable failure, parks it at once (the latter marked
+ * [Recoverable.UNRECOVERABLE], so the parked retries leave it to an operator). A systemic failure pauses the partition
  * instead ([PartitionPause], decision D243): no aggregate is charged or parked until a handling succeeds, and the
  * ledger is not written meanwhile.
  *
@@ -495,6 +497,8 @@ internal class SubscriptionWorker(
      */
     private suspend fun park(sourced: SourcedEntry, failure: Throwable) {
         val stream = sourced.stream
+        val unrecoverable = failure !is HandlingRejectedException &&
+            classification.classify(failure, subscription.retry) == FailureClass.UNRECOVERABLE
         val entry = ParkedAggregate(
             subscription.name,
             stream.ref,
@@ -502,12 +506,13 @@ internal class SubscriptionWorker(
             reason(failure),
             clock.millis(),
             source.sourcePosition(sourced),
+            // As 9.x records its RecoverableType: an unrecoverable failure is not retried automatically either.
+            recoverable = if (unrecoverable) Recoverable.UNRECOVERABLE else Recoverable.UNKNOWN,
         )
         logger.warn(failure) {
             val after = when {
                 failure is HandlingRejectedException -> "a rejection"
-                classification.classify(failure, subscription.retry) == FailureClass.UNRECOVERABLE ->
-                    "an unrecoverable failure"
+                unrecoverable -> "an unrecoverable failure, which it does not retry automatically"
                 else -> "${retry.maxAttempts} attempts"
             }
             "Subscription ${subscription.name} parks ${stream.ref} from version ${stream.version} after $after."

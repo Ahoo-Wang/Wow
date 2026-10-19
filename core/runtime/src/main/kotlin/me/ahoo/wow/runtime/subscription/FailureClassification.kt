@@ -68,14 +68,12 @@ class FailureClassification(private val classifiers: List<FailureClassifier>) {
 }
 
 /**
- * The failures the runtime classifies itself, whatever the backends:
- *
- * - [FailureClass.SYSTEMIC]: a store a port could not reach ([StorageUnavailableException]), a socket that could not
- *   connect or was reset ([SocketException]: refused, no route, reset, broken pipe), a host name that did not resolve,
- *   an HTTP connection that timed out, and a JDBC connection that failed ([SQLTransientConnectionException],
- *   [SQLNonTransientConnectionException], SQL state class `08`).
- * - [FailureClass.UNRECOVERABLE]: an entry this version cannot decode ([UndecodableEntryException]): decoding it again
- *   fails the same way, until a deploy that can; the parked retries take it from there.
+ * The failures the runtime classifies itself, whatever the backends, as [FailureClass.SYSTEMIC]: a store a port could
+ * not reach ([StorageUnavailableException]), a socket that could not connect or was reset ([SocketException]: refused,
+ * no route, reset, broken pipe), a host name that did not resolve, an HTTP connection that timed out, and a JDBC
+ * connection that failed ([SQLTransientConnectionException], [SQLNonTransientConnectionException], SQL state class
+ * `08`). It takes nothing for unrecoverable: an entry this version cannot decode, say, is retried and parked, and its
+ * parked retries handle it once a version that can runs.
  */
 internal object BuiltInFailures : FailureClassifier {
     private const val CONNECTION_EXCEPTION_CLASS = "08"
@@ -91,7 +89,6 @@ internal object BuiltInFailures : FailureClassifier {
         is SQLException -> FailureClass.SYSTEMIC.takeIf {
             failure.sqlState?.startsWith(CONNECTION_EXCEPTION_CLASS) == true
         }
-        is UndecodableEntryException -> FailureClass.UNRECOVERABLE
         else -> null
     }
 }
