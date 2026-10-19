@@ -66,7 +66,8 @@ data class SnapshotCheckpoint(
 /**
  * Where the reservation import of one 9.x `PrepareKey` stands ([ReservationImporter]): [after] is the last key
  * imported or skipped, in key order, [completed] is set once every key is, and the counts are those of every run
- * since it started.
+ * since it started; [released] counts the imported keys released before the walk started, 9.x no longer confirming
+ * them to their owner (finding R2.4-2).
  */
 data class ReservationCheckpoint(
     val after: String? = null,
@@ -76,13 +77,30 @@ data class ReservationCheckpoint(
     val pending: Long = 0,
     val expired: Long = 0,
     val unresolved: Long = 0,
+    val released: Long = 0,
+)
+
+/**
+ * Where the import of the 9.x compensation service's unresolved executions stands ([CompensationImporter]): [after]
+ * is the last execution imported or reported, in id order, [completed] is set once every one is, and the counts are
+ * those of every run since it started; [resolved] counts the imported entries resolved before the walk started,
+ * their executions no longer unresolved in 9.x (finding R2.4-1).
+ */
+data class CompensationCheckpoint(
+    val after: String? = null,
+    val completed: Boolean = false,
+    val imported: Long = 0,
+    val already: Long = 0,
+    val unresolved: Long = 0,
+    val others: Long = 0,
+    val resolved: Long = 0,
 )
 
 /**
  * The checkpoints of a migration, by 9.x aggregate (`contextName.aggregateName`), in format [format]: the import's
  * ([aggregates]), the state comparison's ([compared]) and the snapshot writing's ([snapshots]); and the reservation
- * import's by 9.x `PrepareKey` name ([reservations]). The last three joined format 1 as optional properties (roadmap
- * 8b.2, finding A4-8): a file without them reads as before.
+ * import's by 9.x `PrepareKey` name ([reservations]); and the compensation import's ([compensation]). The last four
+ * joined format 1 as optional properties (roadmap 8b.2, 8b.4, finding A4-8): a file without them reads as before.
  */
 data class ImportCheckpoints(
     val format: Int = FORMAT,
@@ -90,6 +108,7 @@ data class ImportCheckpoints(
     val compared: Map<String, CompareCheckpoint> = emptyMap(),
     val snapshots: Map<String, SnapshotCheckpoint> = emptyMap(),
     val reservations: Map<String, ReservationCheckpoint> = emptyMap(),
+    val compensation: CompensationCheckpoint? = null,
 ) {
     init {
         require(format == FORMAT) { "Checkpoint format $format is not supported; this tool reads format $FORMAT." }
@@ -114,6 +133,8 @@ data class ImportCheckpoints(
 
     fun with(name: String, checkpoint: ReservationCheckpoint): ImportCheckpoints =
         copy(reservations = reservations + (name to checkpoint))
+
+    fun with(checkpoint: CompensationCheckpoint): ImportCheckpoints = copy(compensation = checkpoint)
 
     companion object {
         const val FORMAT: Int = 1

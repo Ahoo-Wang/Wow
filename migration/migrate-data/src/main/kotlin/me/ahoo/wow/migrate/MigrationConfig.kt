@@ -18,13 +18,16 @@ import com.mongodb.client.MongoClients
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestTree
+import me.ahoo.wow.mongo.ledger.MongoFailureLedger
 import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.mongo.reservation.MongoReservationStore
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.postgres.PostgresEventLog
+import me.ahoo.wow.postgres.ledger.PostgresFailureLedger
 import me.ahoo.wow.postgres.reservation.PostgresReservationStore
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
 import me.ahoo.wow.spi.json.WowJson
+import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotStore
@@ -48,7 +51,8 @@ import java.util.concurrent.ConcurrentHashMap
  *   "target": { "type": "postgres", "jdbcUrl": "jdbc:postgresql://localhost:5432/wow", "username": "wow",
  *               "password": "env:WOW_PG_PASSWORD" },
  *   "partitions": { "example": 16 },
- *   "classpath": ["libs"]
+ *   "classpath": ["libs"],
+ *   "compensation": { "database": "compensation_db", "service": "example-service" }
  * }
  * ```
  *
@@ -57,6 +61,8 @@ import java.util.concurrent.ConcurrentHashMap
  *   `compare` and `snapshot` rebuild states with their V10 models ([MigrationModels]). Empty, the models are those on
  *   the tool's own class path.
  * - [source] is the 9.x MongoDB event store ([SourceConfig]); [target] the V10 log ([TargetConfig]).
+ * - [compensation], when given, is the 9.x compensation service's database, whose unresolved executions are imported
+ *   into the V10 service's failure ledger ([CompensationConfig]).
  * - [partitions] gives each V10 context its partition count, which must be the services' own: a log refuses another.
  * - [pageSize], [streamBatch], [concurrency] and [lookbackMillis] are [ImportOptions]; [pollIntervalMillis] is the
  *   pause between two tail passes.
@@ -74,6 +80,7 @@ data class MigrationConfig(
     val lookbackMillis: Long = 300_000,
     val pollIntervalMillis: Long = 1_000,
     val classpath: List<String> = emptyList(),
+    val compensation: CompensationConfig? = null,
 ) {
     /** The options of an import, a dry run when [dryRun], a final complete pass when [restart]. */
     fun options(dryRun: Boolean = false, restart: Boolean = false): ImportOptions = ImportOptions(
@@ -126,6 +133,19 @@ data class MigrationConfig(
 data class SourceConfig(val uri: String, val database: String, val createCommitTimeIndex: Boolean = false)
 
 /**
+ * The 9.x compensation service's MongoDB [database] (`compensation_db` in its distribution), on the server of [uri],
+ * the source's when null; the tool only reads it. Its unresolved executions go to the failure ledger of the V10
+ * [service], on the target backend: the ledger the service's host opens, keyed by its name (`wow.service`, else
+ * `spring.application.name`).
+ */
+data class CompensationConfig(val database: String, val service: String, val uri: String? = null) {
+    init {
+        require(database.isNotBlank()) { "The 9.x compensation database needs a name." }
+        require(service.isNotBlank()) { "The 9.x compensation import needs the V10 service whose ledger it writes." }
+    }
+}
+
+/**
  * The V10 log: [type] `postgres` (with [jdbcUrl], [username] and [password]) or `mongo` (with [uri] and [database],
  * a replica set). Per-aggregate log stores (decision D177) are migrated by one run per store, each with a map of the
  * aggregates that store holds.
@@ -174,6 +194,12 @@ interface MigrationConnections : Closeable {
 
     /** The V10 reservation store, one for every context, on the target backend; its schema created. */
     fun reservationStore(): ReservationStore
+
+    /** The 9.x compensation service's executions; null when the configuration names no compensation database. */
+    val compensation: NineXCompensationSource? get() = null
+
+    /** The V10 service's failure ledger on the target backend, its schema created; only with [compensation]. */
+    fun failureLedger(): FailureLedger = throw MigrationException("The configuration names no 9.x compensation.")
 }
 
 /**
@@ -234,8 +260,29 @@ class ConfiguredConnections(private val config: MigrationConfig) : MigrationConn
 
     override fun reservationStore(): ReservationStore = reservationStore
 
+    private val compensationClient: MongoClient? = config.compensation?.uri
+        ?.let { MongoClients.create(requireNotNull(MigrationConfig.resolve(it))) }
+
+    override val compensation: NineXCompensationSource? = config.compensation?.let {
+        MongoNineXCompensationSource((compensationClient ?: sourceClient).getDatabase(it.database))
+    }
+
+    private val failureLedger: FailureLedger by lazy {
+        val service = config.compensation?.service
+            ?: throw MigrationException("The configuration names no 9.x compensation.")
+        if (targetClient != null) {
+            MongoFailureLedger(targetClient, requireNotNull(config.target.database), service = service)
+                .also { it.createSchema() }
+        } else {
+            PostgresFailureLedger(dataSource, service = service).also { it.createSchema() }
+        }
+    }
+
+    override fun failureLedger(): FailureLedger = failureLedger
+
     override fun close() {
         sourceClient.close()
+        compensationClient?.close()
         targetClient?.close()
     }
 }

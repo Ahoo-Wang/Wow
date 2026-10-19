@@ -38,7 +38,11 @@ import kotlin.system.exitProcess
  *   its checkpoint. `--dry-run` converts every stream and appends none; `--restart` walks every instance again, the
  *   final complete pass once 9.x has stopped writing; `--snapshots` then writes the V10 snapshots, as `snapshot` does.
  *   After the streams it imports the confirmed keys of every mapped 9.x `PrepareKey` as V10 reservations
- *   ([ReservationImporter]), resuming from their checkpoints too.
+ *   ([ReservationImporter]), and, when the configuration names the 9.x compensation database, the unresolved 9.x
+ *   executions as parked entries of the V10 service's failure ledger ([CompensationImporter]), resuming from their
+ *   checkpoints too. A walk of either from the first (the first run, or `--restart`) first undoes what an earlier run
+ *   imported and 9.x has since released or resolved (findings R2.4-1, R2.4-2); the keys it confirmed are recorded
+ *   beside the checkpoint file ([IMPORTED_KEYS]).
  * - `tail` follows what 9.x commits after the full import until it is stopped (or after one pass with `--once`), the
  *   increment until cut-over. It reads the 9.x store by commit time, which needs an index 9.x did not create: without
  *   it the tail refuses to start and prints the command that creates it, unless `source.createCommitTimeIndex` lets
@@ -46,8 +50,10 @@ import kotlin.system.exitProcess
  * - `compare` compares each 9.x snapshot with the V10 state rebuilt from the imported log at its version
  *   ([StateComparison]), resuming from its checkpoint; `--sample` compares that percentage of the instances, the same
  *   ones on every run, and `--restart` compares from the first again. It then checks that every confirmed 9.x
- *   `PrepareKey` key is reserved in V10 for the same owner ([ReservationComparison], every key on every run). It
- *   prints each instance and key that differs, and exits with [DIFFERS] when one does.
+ *   `PrepareKey` key is reserved in V10 for the same owner and every key it imported is still confirmed to that
+ *   owner in 9.x ([ReservationComparison], every key on every run), and that every unresolved 9.x execution is
+ *   parked in V10 and every entry it imported still stands for an unresolved execution ([CompensationComparison]). It prints each instance, key
+ *   and execution that differs, and exits with [DIFFERS] when one does.
  * - `snapshot` writes the V10 snapshot of every imported instance at its last version ([SnapshotWriter]), resuming
  *   from its checkpoint; `--restart` walks every instance again (the snapshots already written are skipped).
  *
@@ -121,7 +127,11 @@ class MigrateData(
         options.zipWithNext().firstOrNull { it.first == name }?.second
 
     private fun check(plan: MigrationPlan, connections: MigrationConnections): Int {
-        val report = MappingCheck(plan).check(connections.source.inventory(), connections.reservations.prepareKeys())
+        val report = MappingCheck(plan).check(
+            connections.source.inventory(),
+            connections.reservations.prepareKeys(),
+            connections.compensation?.inventory(),
+        )
         out.println(report.render())
         return if (report.passed) OK else FAILED
     }
@@ -152,8 +162,21 @@ class MigrateData(
             options = config.options(dryRun, RESTART in options),
             progress = { out.println(it.render()) },
             report = out::println,
+            imported = if (dryRun) InMemoryImportedKeys() else importedKeys(config),
         )
         plan.reservations.keys.forEach { reservations.importAll(it) }
+        connections.compensation?.let { compensation ->
+            CompensationImporter(
+                source = compensation,
+                plan = plan,
+                logOf = connections::logOf,
+                ledger = connections::failureLedger,
+                checkpoints = checkpoints,
+                options = config.options(dryRun, RESTART in options),
+                progress = { out.println(it.render()) },
+                report = out::println,
+            ).importAll()
+        }
         out.println(if (dryRun) "Dry run done: nothing was appended." else "Import done.")
         return if (SNAPSHOTS in options) snapshot(plan, config, connections, RESTART in options) else OK
     }
@@ -182,12 +205,15 @@ class MigrateData(
             store = connections::reservationStore,
             pageSize = config.pageSize,
             report = out::println,
+            imported = importedKeys(config),
         )
         val differingKeys = plan.reservations.keys.map { reservations.compare(it) }.filterNot { it.passed }
-        if (differing.isEmpty() && differingKeys.isEmpty()) {
+        val executions = compareCompensation(plan, config, connections)
+        if (differing.isEmpty() && differingKeys.isEmpty() && executions?.passed != false) {
             out.println(
-                "Comparison done: every state compared equals its 9.x snapshot, and every confirmed 9.x key is " +
-                    "reserved for its owner.",
+                "Comparison done: every state compared equals its 9.x snapshot, every confirmed 9.x key is " +
+                    "reserved for its owner, and every unresolved 9.x execution imported is parked; nothing " +
+                    "imported was released or resolved in 9.x since.",
             )
             return OK
         }
@@ -201,11 +227,35 @@ class MigrateData(
         if (differingKeys.isNotEmpty()) {
             out.println(
                 "Comparison done: ${differingKeys.sumOf { it.differ }} confirmed keys of the PrepareKeys " +
-                    "${differingKeys.map { it.name }} are not reserved for their owners in V10: run the import " +
-                    "again before the cut-over.",
+                    "${differingKeys.map { it.name }} are not reserved for their owners in V10, and " +
+                    "${differingKeys.sumOf { it.stale }} imported keys are no longer confirmed to their owners in " +
+                    "9.x: run the import again with $RESTART before the cut-over.",
+            )
+        }
+        if (executions?.passed == false) {
+            out.println(
+                "Comparison done: ${executions.differ} unresolved 9.x executions are not parked in V10, and " +
+                    "${executions.stale} imported entries are no longer unresolved in 9.x: run the import again with " +
+                    "$RESTART before the cut-over.",
             )
         }
         return DIFFERS
+    }
+
+    /** Compares the unresolved 9.x executions with the V10 parked entries; null without a compensation database. */
+    private suspend fun compareCompensation(
+        plan: MigrationPlan,
+        config: MigrationConfig,
+        connections: MigrationConnections,
+    ): CompensationComparisonResult? = connections.compensation?.let { compensation ->
+        CompensationComparison(
+            source = compensation,
+            plan = plan,
+            logOf = connections::logOf,
+            ledger = connections::failureLedger,
+            pageSize = config.pageSize,
+            report = out::println,
+        ).compare()
     }
 
     private suspend fun snapshot(
@@ -266,6 +316,10 @@ class MigrateData(
         append("or set \"source\": { \"createCommitTimeIndex\": true } to let the tail create it.")
     }
 
+    /** The keys the reservation import confirmed (finding R2.4-2), beside the checkpoint file. */
+    private fun importedKeys(config: MigrationConfig): ImportedKeys =
+        FileImportedKeys(Path.of("${config.checkpoint}$IMPORTED_KEYS"))
+
     private fun importer(
         plan: MigrationPlan,
         options: ImportOptions,
@@ -296,6 +350,9 @@ class MigrateData(
         private const val SNAPSHOTS = "--snapshots"
         private const val ONCE = "--once"
         private const val SAMPLE = "--sample"
+
+        /** The suffix of the file of the keys the import confirmed, after the checkpoint file's name. */
+        const val IMPORTED_KEYS = ".reservations.jsonl"
         private val COMMANDS = setOf(CHECK, IMPORT, TAIL, COMPARE, SNAPSHOT)
         private val KNOWN_OPTIONS = mapOf(
             CHECK to setOf(CONFIG),

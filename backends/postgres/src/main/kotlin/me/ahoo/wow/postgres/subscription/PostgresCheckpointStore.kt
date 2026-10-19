@@ -17,6 +17,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
+import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.subscription.Checkpoint
@@ -39,7 +40,7 @@ class PostgresCheckpointStore(
 ) : CheckpointStore {
     /** Claims the table's format ([PostgresFormat], decision D59) and creates it when missing. */
     fun createSchema() {
-        dataSource.connection.use { connection ->
+        dataSource.autoCommitted { connection ->
             PostgresFormat.schema(connection, ddl, listOf(TABLE to FORMAT)) {
                 connection.createStatement().use { it.execute(DDL) }
             }
@@ -47,7 +48,7 @@ class PostgresCheckpointStore(
     }
 
     override suspend fun load(group: String, subscription: String, partition: Int): Long? = dispatcher.jdbc {
-        dataSource.connection.use { connection ->
+        dataSource.autoCommitted { connection ->
             connection.prepareStatement(LOAD).use { query ->
                 query.setString(1, group)
                 query.setString(2, subscription)
@@ -59,7 +60,7 @@ class PostgresCheckpointStore(
 
     override suspend fun save(group: String, subscription: String, partition: Int, position: Long) {
         dispatcher.jdbc {
-            dataSource.connection.use { connection ->
+            dataSource.autoCommitted { connection ->
                 connection.prepareStatement(SAVE).use { save ->
                     save.setString(1, group)
                     save.setString(2, subscription)
@@ -80,7 +81,7 @@ class PostgresCheckpointStore(
             return
         }
         dispatcher.jdbc {
-            dataSource.connection.use { connection ->
+            dataSource.autoCommitted { connection ->
                 connection.prepareStatement(SAVE).use { save ->
                     checkpoints.sortedWith(compareBy({ it.subscription }, { it.partition })).forEach {
                         save.setString(1, group)

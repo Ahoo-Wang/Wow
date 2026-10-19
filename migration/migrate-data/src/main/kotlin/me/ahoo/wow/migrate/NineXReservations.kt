@@ -16,6 +16,7 @@ package me.ahoo.wow.migrate
 import com.mongodb.client.MongoDatabase
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.Sorts
+import org.bson.Document
 import tools.jackson.databind.JsonNode
 
 /**
@@ -56,6 +57,9 @@ interface NineXReservationSource {
 
     /** At most [limit] keys of the `PrepareKey` [name] after the key [after] (from the first when null), in key order. */
     fun keys(name: String, after: String?, limit: Int): List<NineXPreparedKey>
+
+    /** The key [key] of the `PrepareKey` [name]; null when 9.x does not hold it (never prepared, or rolled back). */
+    fun key(name: String, key: String): NineXPreparedKey?
 }
 
 /** The 9.x `PrepareKey`s of the MongoDB [database], one collection `prepare_<name>` each. */
@@ -70,15 +74,18 @@ class MongoNineXReservationSource(private val database: MongoDatabase) : NineXRe
             .find(after?.let { Filters.gt(ID, it) } ?: Filters.empty())
             .sort(Sorts.ascending(ID))
             .limit(limit)
-            .map { document ->
-                NineXPreparedKey(
-                    name = name,
-                    key = document.get(ID).toString(),
-                    value = MongoNineXEventSource.toNode(document[VALUE]),
-                    ttlAt = document.getDate(TTL_AT)?.time,
-                )
-            }
+            .map { keyOf(name, it) }
             .toList()
+
+    override fun key(name: String, key: String): NineXPreparedKey? =
+        database.getCollection(PREFIX + name).find(Filters.eq(ID, key)).first()?.let { keyOf(name, it) }
+
+    private fun keyOf(name: String, document: Document) = NineXPreparedKey(
+        name = name,
+        key = document.get(ID).toString(),
+        value = MongoNineXEventSource.toNode(document[VALUE]),
+        ttlAt = document.getDate(TTL_AT)?.time,
+    )
 
     companion object {
         /** The prefix of a 9.x `PrepareKey`'s collection. */

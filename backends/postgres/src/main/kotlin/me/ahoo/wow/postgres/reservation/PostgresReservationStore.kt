@@ -19,6 +19,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.VirtualThreads
+import me.ahoo.wow.postgres.autoCommitted
+import me.ahoo.wow.postgres.inTransaction
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.reservation.ConfirmOutcome
@@ -60,7 +62,7 @@ class PostgresReservationStore(
      * one without a record ([PostgresFormat], decision D59).
      */
     fun createSchema() {
-        dataSource.connection.use { connection ->
+        dataSource.autoCommitted { connection ->
             PostgresFormat.schema(connection, ddl, listOf(tables.name to PostgresReservationTables.FORMAT)) {
                 connection.createStatement().use { statement -> tables.ddl.forEach { statement.execute(it) } }
             }
@@ -92,8 +94,7 @@ class PostgresReservationStore(
 
     override suspend fun abandon(scope: ReservationScope, key: String, owner: AggregateRef, hold: String): Boolean =
         jdbc { connection ->
-            connection.autoCommit = false
-            try {
+            inTransaction(connection) {
                 val left = connection.prepareStatement(tables.abandon).use { abandon ->
                     abandon.setString(1, hold)
                     val index = abandon.setOwner(abandon.setKey(2, scope, key), owner)
@@ -106,16 +107,7 @@ class PostgresReservationStore(
                         free.executeUpdate()
                     }
                 }
-                connection.commit()
                 left != null
-            } catch (
-                @Suppress("TooGenericExceptionCaught") // Rolls back whatever failed, then rethrows it unchanged.
-                failure: Throwable,
-            ) {
-                connection.rollback()
-                throw failure
-            } finally {
-                connection.autoCommit = true
             }
         }
 
@@ -160,7 +152,7 @@ class PostgresReservationStore(
     }
 
     private suspend fun <T> jdbc(block: (Connection) -> T): T =
-        dispatcher.jdbc { dataSource.connection.use(block) }
+        dispatcher.jdbc { dataSource.autoCommitted(block) }
 
     private companion object {
         const val DEFAULT_TABLE = "wow_reservation"
