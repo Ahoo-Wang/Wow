@@ -54,6 +54,33 @@ class ScheduleSlotsTest {
     )
 
     @Test
+    fun `the parsed expressions cached should be bounded, the least recently used dropped first`() {
+        // Review X-11: an expression may come from a command, so each distinct one must not stay forever.
+        val kept = ScheduleRule.Cron("0 0 12 * * *")
+        val first = ScheduleSlots.expressionOf(kept)
+        (0 until 24).flatMap { hour -> (0 until 60).map { minute -> "0 $minute $hour * * *" } }.forEach {
+            ScheduleSlots.expressionOf(ScheduleRule.Cron(it))
+            ScheduleSlots.expressionOf(kept)
+        }
+        ScheduleSlots.cachedExpressions.assert().isEqualTo(ScheduleSlots.CACHED_EXPRESSIONS)
+        ScheduleSlots.expressionOf(kept).assert().isSameAs(first)
+        ScheduleSlots.expressionOf(ScheduleRule.Cron("0 0 0 * * *")).assert().isNotSameAs(
+            ScheduleSlots.expressionOf(ScheduleRule.Cron("0 1 0 * * *"))
+        )
+    }
+
+    @Test
+    fun `an invalid expression or time zone should be refused and nothing cached for it`() {
+        ScheduleSlots.expressionOf(ScheduleRule.Cron("0 0 0 * * *"))
+        val before = ScheduleSlots.cachedExpressions
+        assertThrownBy<IllegalArgumentException> { ScheduleSlots.validate(ScheduleRule.Cron("not a cron")) }
+        val mars = ScheduleRule.Cron("0 0 0 * * *", "Mars/Base")
+        assertThrownBy<IllegalArgumentException> { ScheduleSlots.validate(mars) }.hasMessageContaining("Mars/Base")
+        ScheduleSlots.cachedExpressions.assert().isEqualTo(before)
+        ScheduleSlots.zoneOf(ScheduleRule.Cron("0 0 0 * * *", "+05:30")).id.assert().isEqualTo("+05:30")
+    }
+
+    @Test
     fun `a rule due once is first due as it says, a cron rule at its first time after the commit`() {
         val commit = at("2026-01-15T10:00:00Z")
         ScheduleSlots.firstDue(ScheduleRule.At(5), commit).assert().isEqualTo(5L)

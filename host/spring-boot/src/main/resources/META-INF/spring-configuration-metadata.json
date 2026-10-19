@@ -219,6 +219,7 @@
   }, {
     "name" : "wow.backend",
     "type" : "me.ahoo.wow.spring.boot.BackendKind",
+    "description" : "The backend of a node that names no `wow.stores` (decision D110): `auto` (the default) takes PostgreSQL or MongoDB by the application's `DataSource` or `MongoClient`, and refuses to start without either (review R3.5-1) unless a profile of `wow.internal.dev-profiles` is active or the internal port binds the loopback interface alone; `memory` keeps the data in memory on purpose, for one node whose data does not outlive it.",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties",
     "defaultValue" : "auto"
   }, {
@@ -473,7 +474,7 @@
   }, {
     "name" : "wow.internal.dev-profiles",
     "type" : "java.util.Set<java.lang.String>",
-    "description" : "The profiles in which the internal port may run without token: `dev`, `local`, `test` and `demo`.",
+    "description" : "The development profiles, `dev`, `local`, `test` and `demo`: in them the internal port may run without token, and `wow.backend=auto` falls back to memory when no durable backend is available (review R3.5-1).",
     "sourceType" : "me.ahoo.wow.spring.boot.WowProperties$Internal",
     "defaultValue" : [ "dev", "local", "test", "demo" ]
   }, {

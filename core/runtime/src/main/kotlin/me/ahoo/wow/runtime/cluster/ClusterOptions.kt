@@ -55,6 +55,8 @@ data class LeaseGroup(val service: String, val context: String) {
  *   [renewInterval] is less than half of [leaseTtl] (review R2.1-5): otherwise every lease would be lost between two
  *   rounds.
  * - [memberTtl], refreshed every [heartbeatInterval]: how long a node stays a member after its last heartbeat.
+ *   [heartbeatInterval] is less than half of [memberTtl] (review X-10), so a heartbeat late by up to another interval
+ *   keeps the node a member.
  * - [reconcileInterval]: how often a node compares the partitions it holds with its HRW target; a change of the
  *   members it notices reconciles at once.
  * - [routeRefreshInterval]: how often the route table is read from the leases and members; a failed forward refreshes
@@ -68,7 +70,8 @@ data class LeaseGroup(val service: String, val context: String) {
  * - [drainTimeout]: how long a hand-off waits for the partition's commands in flight before it moves on.
  * - [reconcileTimeout]: how long one reconcile may run before the node takes itself as stuck: it stops heartbeating
  *   and leaves the members until the reconcile ends, so the others take the partitions it cannot run (finding C.1
- *   F1). Well above what a hand-off takes: the drain, then the stop of each runtime.
+ *   F1). Well above what a hand-off takes: the drain, then the stop of each runtime; longer than [drainTimeout] at least
+ *   (review X-10).
  *
  * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
@@ -96,6 +99,12 @@ class ClusterOptions @InternalWowApi constructor(
         require(heartbeatInterval.isPositive() && heartbeatInterval < memberTtl) {
             "A member heartbeats before its membership expires."
         }
+        // Heartbeats follow one another, each after the interval and the call (review X-10): one slow call must not
+        // let the membership expire and move the partitions away.
+        require(heartbeatInterval * 2 < memberTtl) {
+            "The heartbeat interval $heartbeatInterval must be less than half the member TTL $memberTtl: a node " +
+                "whose heartbeat is late once would otherwise drop out of the members and lose its partitions."
+        }
         require(reconcileInterval.isPositive()) { "The reconcile interval is positive." }
         require(routeRefreshInterval.isPositive()) { "The route refresh interval is positive." }
         require(forwardTimeout.isPositive()) { "The forward timeout is positive." }
@@ -103,6 +112,12 @@ class ClusterOptions @InternalWowApi constructor(
         require(!drainTimeout.isNegative()) { "The drain timeout is never negative." }
         require(leaseParallelism >= 1) { "At least one lease call runs at a time." }
         require(reconcileTimeout.isPositive()) { "The reconcile timeout is positive." }
+        // A reconcile hands partitions off, each waiting up to the drain timeout (review X-10).
+        require(reconcileTimeout > drainTimeout) {
+            "The reconcile timeout $reconcileTimeout must be longer than the drain timeout $drainTimeout: a " +
+                "hand-off waits up to the drain timeout, and a node reconciling longer takes itself as stuck and " +
+                "leaves the members."
+        }
     }
 
     override fun equals(other: Any?): Boolean =
