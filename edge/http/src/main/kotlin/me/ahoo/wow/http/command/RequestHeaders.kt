@@ -13,15 +13,19 @@
 
 package me.ahoo.wow.http.command
 
+import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.http.WowHeaders
+import me.ahoo.wow.http.caller.CallPermits
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.Problem
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.TargetScope
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
 import org.springframework.http.InvalidMediaTypeException
 import org.springframework.http.MediaType
@@ -31,8 +35,11 @@ import kotlin.time.Duration
 /**
  * Reads the Wow headers of a request (decisions D95, D98, D99); a header that does not parse is answered as a problem
  * before the command has a ref: `wow.wait.invalid` for the wait, `wow.command.malformed` for the others.
+ *
+ * [publicPort] is whether the requests come to the public port, the one port whose commands carry the client's address
+ * and `User-Agent` ([facts]): on the internal port the peer is a service of the cluster, not the client.
  */
-internal class RequestHeaders(private val statuses: ErrorStatuses) {
+internal class RequestHeaders(private val statuses: ErrorStatuses, private val publicPort: Boolean = false) {
     /**
      * The wait plan of `Wow-Wait` and `Wow-Wait-Timeout`; null when neither is given (the default plan, D69, within the
      * node's default timeout). A plan given without a timeout waits [defaultTimeout], the node's.
@@ -81,6 +88,11 @@ internal class RequestHeaders(private val statuses: ErrorStatuses) {
      * (decision D173). On the internal port every request is a call: one without it, or from a caller that is not a
      * [service][Caller.service] identity, is answered 403 too. One that does not parse is a problem with
      * [FrameworkCodes.MALFORMED]; null on the public port without it.
+     *
+     * A call's wait context goes on only when its origin is a node of the calling service (review R2.3-1): the target
+     * sends the wait's signals, with a credential, to the origin's address, so a caller must not point them at another
+     * service's nodes, this one's among them, or at an address of its choosing in their name. A wait of another
+     * origin is dropped, logged: the command runs, and the waiter, if any, times out instead of seeing its signals.
      */
     fun call(request: ServerRequest, caller: Caller, internal: Boolean): CallContext? {
         val value = request.header(WowHeaders.CALL)
@@ -95,7 +107,24 @@ internal class RequestHeaders(private val statuses: ErrorStatuses) {
             else -> null
         }
         refusal?.let { throw problem(FrameworkCodes.AUTH_FORBIDDEN, it) }
-        return parseCall(checkNotNull(value))
+        val call = parseCall(checkNotNull(value))
+        val wait = call.wait ?: return call
+        val service = CallPermits.serviceOf(caller)
+        if (wait.origin.service == service) {
+            return call
+        }
+        logger.warn {
+            "Dropped the wait ${wait.waitId} of call ${call.commandId} from service $service: its origin is a node " +
+                "of service ${wait.origin.service}, not of the caller's (review R2.3-1)."
+        }
+        return CallContext.of(
+            call.commandId,
+            call.tenantId,
+            call.scope,
+            call.causation,
+            call.operator,
+            facts = call.facts
+        )
     }
 
     private fun parseCall(value: String): CallContext = try {
@@ -107,13 +136,53 @@ internal class RequestHeaders(private val statuses: ErrorStatuses) {
     /** The request id of `Wow-Request-Id`, or null without it. */
     fun requestId(request: ServerRequest): String? = request.header(WowHeaders.REQUEST_ID)
 
-    /** The request facts [names] lists that [request] carries, as named in [names]. */
-    fun facts(request: ServerRequest, names: Set<String>): Map<String, String> =
-        names.mapNotNull { name -> request.header(name)?.let { name to it } }.toMap()
+    /**
+     * The request facts [names] lists that [request] carries, as named in [names], and the standard request facts
+     * ([RequestFacts]) the framework fills itself:
+     *
+     * - [RequestFacts.APP_ID], the [app][Caller.app] of the [caller] its resolver authenticated (decision D232), on
+     *   either port: on the internal port the calling service's own, which admission replaces with the root
+     *   request's, the facts its `Wow-Call` carries (decision D236 ③); none for a caller without one;
+     * - on the public port (09 §17 G-10), as 9.x's header appenders wrote them, [RequestFacts.USER_AGENT], the
+     *   request's `User-Agent`, when it has one, and [RequestFacts.REMOTE_IP], the address literal of the request's
+     *   remote address (never a host name, which a reverse DNS lookup would block the event loop for; an unresolved
+     *   address as it was given), when the server knows it.
+     *
+     * The remote address is the server's: the connection's peer or, when the host trusts a proxy in front of it, the
+     * client that proxy forwarded for. `X-Forwarded-For` and `Forwarded` are never read here: 9.x took the first
+     * `X-Forwarded-For` entry as it came, which any client can forge. Trusting a proxy is the host's decision, made
+     * where its server is configured: Spring Boot's `server.forward-headers-strategy` (`native` or `framework`)
+     * rewrites the remote address from the forwarded headers before the routes see the request.
+     *
+     * No request sets a standard fact itself (the trust boundary of decision D226): a listed name that is one of them,
+     * in any case, is not copied, on either port, and on the internal port, whose peer is a service of the cluster,
+     * neither the address nor the `User-Agent` is recorded. A command forwarded to its owner over the cluster channel
+     * keeps the facts the edge recorded.
+     */
+    fun facts(request: ServerRequest, names: Set<String>, caller: Caller): Map<String, String> {
+        val listed = names.filter { it.lowercase() !in RequestFacts.STANDARD }
+            .mapNotNull { name -> request.header(name)?.let { name to it } }
+            .toMap()
+        val standard = buildMap {
+            caller.app?.let { put(RequestFacts.APP_ID, it.trim()) }
+            if (publicPort) {
+                request.header(HttpHeaders.USER_AGENT)?.takeIf { it.isNotEmpty() }
+                    ?.let { put(RequestFacts.USER_AGENT, it) }
+                request.remoteAddress().ifPresent { remote ->
+                    put(RequestFacts.REMOTE_IP, remote.address?.hostAddress ?: remote.hostString)
+                }
+            }
+        }
+        return listed + standard
+    }
 
     private fun problem(code: String, detail: String) = ProblemException(statuses.problemOf(code, detail))
 
     private fun ServerRequest.header(name: String): String? = headers().firstHeader(name)?.trim()
+
+    companion object {
+        private val logger = KotlinLogging.logger {}
+    }
 }
 
 /** The media types a public route answers in. */

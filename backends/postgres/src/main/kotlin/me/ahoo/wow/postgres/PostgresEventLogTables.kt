@@ -17,7 +17,9 @@ package me.ahoo.wow.postgres
  * The tables and statements of one context's log (decision D162). Names derive from the context and the aggregate
  * types (rule of D161, [PostgresNames]) and are part of the format, whose version is [FORMAT] (decision D59):
  *
- * - `wow_log__<context>__partition`: one counter row per partition, the context's;
+ * - `wow_log__<context>__partition`: one counter row per partition, the context's, with the partition's lineage
+ *   (decision D240): `parent` (null) and `epoch` (0) for every partition the log is created with, reserved for the
+ *   online splits of 10.x;
  * - `wow_log__<context>__<aggregate>`: the streams of one aggregate type ([AggregateLogTable]);
  * - [REGISTRY], shared by every context: which aggregate tables each context's log has, so that a tail finds them all.
  */
@@ -29,7 +31,9 @@ internal class PostgresEventLogTables(val context: String) {
         """
         CREATE TABLE IF NOT EXISTS $partitions (
             partition integer PRIMARY KEY,
-            sequence bigint NOT NULL
+            sequence bigint NOT NULL,
+            parent integer,
+            epoch integer NOT NULL DEFAULT 0
         )
         """.trimIndent(),
         """
@@ -42,10 +46,28 @@ internal class PostgresEventLogTables(val context: String) {
         """.trimIndent(),
     )
 
-    /** Creates the partition counters of an empty counter table; a table that has counters keeps them. */
+    /**
+     * The lineage columns of the counter table (decision D240), added within format 1 to a table created without them:
+     * its rows read as partitions the log was created with.
+     */
+    val partitionAdditions = "ALTER TABLE $partitions ADD COLUMN IF NOT EXISTS parent integer, " +
+        "ADD COLUMN IF NOT EXISTS epoch integer NOT NULL DEFAULT 0"
+
+    /**
+     * Creates the partition counters of an empty counter table, each with no parent at epoch 0; a table that has
+     * counters keeps them.
+     */
     fun initializePartitions(partitionCount: Int) =
-        "INSERT INTO $partitions (partition, sequence) SELECT p, 0 FROM generate_series(0, ${partitionCount - 1}) AS p " +
+        "INSERT INTO $partitions (partition, sequence, parent, epoch) " +
+            "SELECT p, 0, NULL, 0 FROM generate_series(0, ${partitionCount - 1}) AS p " +
             "WHERE NOT EXISTS (SELECT 1 FROM $partitions) ON CONFLICT (partition) DO NOTHING"
+
+    /**
+     * A partition's counter row, its lineage columns included when it has them: partition. `*` rather than the
+     * columns, so that a log only validating a schema created before them (ddl validate) reads its partitions as the
+     * log was created with them.
+     */
+    val partitionRow = "SELECT * FROM $partitions WHERE partition = ?"
 
     /** The table of [aggregate]; refuses a name that takes the counter table's. */
     fun aggregate(aggregate: String): AggregateLogTable {

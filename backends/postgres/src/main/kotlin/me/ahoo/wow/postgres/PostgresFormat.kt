@@ -94,25 +94,15 @@ internal object PostgresFormat {
     /**
      * Runs [block], which claims and creates structures, in one transaction under an advisory lock, so that nodes and
      * threads creating one structure at once neither race its format record nor `CREATE TABLE IF NOT EXISTS` (which
-     * can fail on a concurrent create). Rolls back whatever [block] did when it fails.
+     * can fail on a concurrent create). Rolls back whatever [block] did when it fails, and leaves [connection] in the
+     * autocommit mode it found it in (finding R2.2-1).
      */
-    internal fun <T> creating(connection: Connection, block: () -> T): T {
-        connection.autoCommit = false
-        try {
-            connection.prepareStatement("SELECT pg_advisory_xact_lock(?)").use { lock ->
-                lock.setLong(1, CREATION_LOCK)
-                lock.executeQuery().close()
-            }
-            return block().also { connection.commit() }
-        } catch (
-            @Suppress("TooGenericExceptionCaught") // Rolls back whatever failed, then rethrows it unchanged.
-            failure: Throwable,
-        ) {
-            connection.rollback()
-            throw failure
-        } finally {
-            connection.autoCommit = true
+    internal fun <T> creating(connection: Connection, block: () -> T): T = inTransaction(connection) {
+        connection.prepareStatement("SELECT pg_advisory_xact_lock(?)").use { lock ->
+            lock.setLong(1, CREATION_LOCK)
+            lock.executeQuery().close()
         }
+        block()
     }
 
     /** The key of the advisory lock [creating] takes. */

@@ -17,6 +17,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.http.Answer
@@ -27,6 +28,7 @@ import me.ahoo.wow.http.headerCallers
 import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CommandAction
@@ -39,6 +41,8 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
 import me.ahoo.wow.runtime.subscription.SubscriptionRuntime
+import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.ledger.LedgerRequest
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
@@ -149,9 +153,16 @@ class ParkedRoutesTest {
         client.get("${OpsPaths.PARKED}?after=bm90LWEtY3Vyc29y").status.assert().isEqualTo(400)
         client.get("${OpsPaths.PARKED}?limit=0").status.assert().isEqualTo(400)
         client.get("${OpsPaths.PARKED}?limit=x").status.assert().isEqualTo(400)
-        // Reads are authenticated, not authorized as an action.
         client.get(OpsPaths.PARKED, user = null).status.assert().isEqualTo(401)
-        actions.assert().isEmpty()
+        // Reads are authorized as wow.ledger.Read on each entry's aggregate (review R2.3-9).
+        actions.map { it.second.type.name }.toSet().assert().containsExactly(OpsPaths.READ)
+        actions.first().second.ref.assert().isEqualTo(type.ref(TENANT, "a"))
+        val hidden = client.get("${OpsPaths.PARKED}?limit=2", user = "mallory")
+        hidden.status.assert().isEqualTo(200)
+        hidden.body!!["entries"].toList().assert().isEmpty()
+        val refused = client.get(entry("a"), user = "mallory")
+        refused.status.assert().isEqualTo(403)
+        refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
     }
 
     @Test
@@ -284,7 +295,11 @@ class ParkedRoutesTest {
         refused.status.assert().isEqualTo(403)
         refused.body!!["code"].asString().assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         refused.body!!["detail"].asString().assert().contains("no CommandAuthorizer")
-        unauthorized.get(entry("a")).status.assert().isEqualTo(200)
+        // Nor is any read (review R2.3-9).
+        unauthorized.get(entry("a")).status.assert().isEqualTo(403)
+        val list = unauthorized.get(OpsPaths.PARKED)
+        list.status.assert().isEqualTo(403)
+        list.body!!["detail"].asString().assert().contains("no CommandAuthorizer")
         ledger.parked(NAME, type.ref(TENANT, "a"))!!.request.assert().isNull()
     }
 
@@ -315,7 +330,7 @@ class ParkedRoutesTest {
                 it.retrySpec.assert().isNull()
             }
             // Refused before it is authorized: the authorizer never hears of another tenant's entry.
-            actions.assert().isEmpty()
+            actions.map { it.second.ref.tenantId }.toSet().assert().containsExactly(TENANT)
 
             val admin = client.get().uri("${OpsPaths.PARKED}?limit=10")
                 .headers {
@@ -330,6 +345,23 @@ class ParkedRoutesTest {
                     it.set("X-Admin", "true")
                 }.answer().status.assert().isEqualTo(202)
         }
+
+    @Test
+    fun `a ledger that is unavailable is a problem the client retries after a while (R2_3-8)`() {
+        val down = object : FailureLedger by ledger {
+            override suspend fun parked(subscription: String, ref: AggregateRef): ParkedAggregate? =
+                throw StorageUnavailableException("The ledger is unavailable.")
+        }
+        val broken = SubscriptionRuntime("group", log, InMemoryCheckpointStore(), down, listOf(failing), options)
+        val answer = WebTestClient
+            .bindToRouterFunction(parkedRoutes(ParkedOps.of(listOf(broken)), cartManifest(), authorizer, headerCallers))
+            .build()
+            .get(entry("a"))
+        answer.status.assert().isEqualTo(503)
+        answer.contentType.assert().contains("problem+json")
+        answer.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.STORAGE_UNAVAILABLE)
+        answer.headers.getFirst("Retry-After").assert().isEqualTo("1")
+    }
 
     private fun Answer.assertMalformed() {
         status.assert().isEqualTo(400)

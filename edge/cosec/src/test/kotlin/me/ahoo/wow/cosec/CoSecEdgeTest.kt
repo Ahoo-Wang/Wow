@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.cosec
 
+import me.ahoo.cosec.api.context.request.AppIdCapable
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.kernel.CommandType
@@ -88,12 +90,13 @@ class CoSecEdgeTest {
     }
 
     @Test
-    fun `the CoSec request facts reach the command beside the host's own`() {
+    fun `the CoSec request facts and the application CoSec authorized reach the command beside the host's own`() {
         node.post(
             "/shop/cart/open-cart",
             headers = mapOf(
                 "X-User" to "alice",
-                CoSecRequestFacts.APP_ID to "shop-app",
+                "X-Granted" to "app-role",
+                AppIdCapable.APP_ID_KEY to "shop-app",
                 CoSecRequestFacts.DEVICE_ID to "device-1",
                 "X-Trace" to "t-1",
                 "X-Other" to "ignored",
@@ -101,9 +104,66 @@ class CoSecEdgeTest {
         ).assertSucceeded()
         headers.single().assert().isEqualTo(
             mapOf(
-                CoSecRequestFacts.APP_ID to "shop-app",
+                RequestFacts.APP_ID to "shop-app",
                 CoSecRequestFacts.DEVICE_ID to "device-1",
                 "X-Trace" to "t-1",
+            ),
+        )
+    }
+
+    @Test
+    fun `a CoSec-App-Id CoSec did not authorize the request in is not recorded`() {
+        node.post(
+            "/shop/cart/open-cart",
+            headers = mapOf("X-User" to "root", AppIdCapable.APP_ID_KEY to "shop-app", "app_id" to "forged"),
+        ).assertSucceeded()
+        headers.single().assert().isEmpty()
+    }
+
+    @Test
+    fun `the application of an injected request is not recorded unless the host trusts it`() {
+        val injected = mapOf("X-User" to "alice", "X-Granted" to "injected", AppIdCapable.APP_ID_KEY to "shop-app")
+        node.post("/shop/cart/open-cart", headers = injected).assertSucceeded()
+        headers.single().assert().isEmpty()
+    }
+
+    @Test
+    fun `a host that trusts injected applications records the one the gateway forwarded, and no other`() {
+        val recorded = CopyOnWriteArrayList<Map<String, String>>()
+        val trusting = CoSecNode(
+            callers = CoSecCallerResolver(CoSecCallerOptions(trustInjectedApp = true)),
+            transformers = listOf(
+                object : CommandTransformer {
+                    override val input = CommandType("$CONTEXT.cart.OpenCart", OpenCart::class.java)
+
+                    override suspend fun transform(input: CommandInput): CommandTarget {
+                        recorded += input.headers
+                        return CommandTarget(input.type, input.aggregateId, input.body, input.headers)
+                    }
+                },
+            ),
+        )
+        val injected = mapOf("X-User" to "alice", "X-Granted" to "injected")
+        trusting.post("/shop/cart/open-cart", headers = injected + (AppIdCapable.APP_ID_KEY to " shop-app "))
+            .assertSucceeded()
+        trusting.post("/shop/cart/open-cart", headers = injected + (AppIdCapable.APP_ID_KEY to " ")).assertSucceeded()
+        trusting.post("/shop/cart/open-cart", headers = injected + ("app_id" to "forged")).assertSucceeded()
+        // A request CoSec authorized here still needs the application's role, whatever the option.
+        trusting.post(
+            "/shop/cart/open-cart",
+            headers = mapOf("X-User" to "root", AppIdCapable.APP_ID_KEY to "shop-app"),
+        ).assertSucceeded()
+        trusting.post(
+            "/shop/cart/open-cart",
+            headers = mapOf("X-User" to "bob", "X-Granted" to "app-role", AppIdCapable.APP_ID_KEY to "console"),
+        ).assertSucceeded()
+        recorded.toList().assert().isEqualTo(
+            listOf(
+                mapOf(RequestFacts.APP_ID to "shop-app"),
+                emptyMap(),
+                emptyMap(),
+                emptyMap(),
+                mapOf(RequestFacts.APP_ID to "console"),
             ),
         )
     }

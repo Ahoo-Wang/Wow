@@ -42,6 +42,7 @@ import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
+import me.ahoo.wow.spi.log.Partitioner
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.net.URI
 import java.time.Duration
@@ -72,9 +73,10 @@ import kotlin.time.toKotlinDuration
  *   several targets (decision D172, [Snapshot]): `wow.snapshot.targets` and `wow.snapshot.primary`, per aggregate type
  *   `.snapshot.store` as a list and `.snapshot.primary`; `wow.snapshot.interval`, `batch` and `pages` tune the
  *   snapshot maintenance.
- * - `wow.log.partitions` (64) and `wow.log.append-queue.*`, whose defaults are the backend's preset;
- *   `wow.log.poll-interval` (50ms) and `wow.log.max-poll-interval` (1s), how often the tails of a PostgreSQL or MongoDB
- *   log poll: at the first while they find entries, backing off to the second while they find none (finding A2-14).
+ * - `wow.log.partitions` (64; a power of two that divides 4096, decision D240) and `wow.log.append-queue.*`, whose
+ *   defaults are the backend's preset; `wow.log.poll-interval` (50ms) and `wow.log.max-poll-interval` (1s), how often
+ *   the tails of a PostgreSQL or MongoDB log poll: at the first while they find entries, backing off to the second
+ *   while they find none (finding A2-14).
  * - `wow.cluster.*` ([ClusterOptions]) and `wow.cluster.router`: `partitioned`, or `local` (the default on the memory
  *   backend, which cannot route across nodes).
  * - `wow.wait.default-timeout` (10s), `max-timeout` (60s), `max-hops` (16, at most 32), `unknown-contexts` (`allow`
@@ -105,7 +107,8 @@ import kotlin.time.toKotlinDuration
  *   its start.
  * - `wow.tenant.default`: the tenant of a caller that has none (D97).
  * - `wow.http.request-facts`, `wow.http.errors.[<code>].status`, `wow.http.manifest.enabled`,
- *   `wow.http.openapi.enabled` (`GET /wow/openapi`, the OpenAPI document of the routes);
+ *   `wow.http.openapi.enabled` (`GET /wow/openapi`, the OpenAPI document of the routes),
+ *   `wow.http.openapi.springdoc.enabled` and `group` (the springdoc bridge, decision D233);
  *   `wow.http.services.<service>.tokens`: the service identities the internal port trusts without CoSec (decision
  *   D193), and `wow.http.services.<service>.commands`, the commands each may call there (decision D226), see
  *   [Http.Service].
@@ -127,6 +130,13 @@ class WowProperties {
     var node: Node = Node()
     var internal: Internal = Internal()
     var contexts: Contexts = Contexts()
+
+    /**
+     * The backend of a node that names no `wow.stores` (decision D110): `auto` (the default) takes PostgreSQL or
+     * MongoDB by the application's `DataSource` or `MongoClient`, and refuses to start without either (review R3.5-1)
+     * unless a profile of `wow.internal.dev-profiles` is active or the internal port binds the loopback interface
+     * alone; `memory` keeps the data in memory on purpose, for one node whose data does not outlive it.
+     */
     var backend: BackendKind = BackendKind.AUTO
 
     /**
@@ -211,7 +221,10 @@ class WowProperties {
          */
         var token: MutableList<String> = ArrayList()
 
-        /** The profiles in which the internal port may run without [token]: `dev`, `local`, `test` and `demo`. */
+        /**
+         * The development profiles, `dev`, `local`, `test` and `demo`: in them the internal port may run without
+         * [token], and `wow.backend=auto` falls back to memory when no durable backend is available (review R3.5-1).
+         */
         var devProfiles: MutableSet<String> = linkedSetOf("dev", "local", "test", "demo")
     }
 
@@ -234,8 +247,14 @@ class WowProperties {
     }
 
     class Log {
-        /** The partitions of each context's log: fixed once the log holds entries. */
+        /**
+         * The partitions of each context's log: fixed once the log holds entries, a power of two that divides 4096
+         * (decision D240), refused at start otherwise.
+         */
         var partitions: Int = DEFAULT_PARTITIONS
+            set(value) {
+                field = Partitioner.requirePartitions(value)
+            }
         var appendQueue: AppendQueue = AppendQueue()
 
         /** How often a tail polls while it finds entries (finding A2-14). */
@@ -664,7 +683,13 @@ class WowProperties {
     }
 
     class Http {
-        /** The request headers copied into a command's headers. */
+        /**
+         * The request headers copied into a command's headers, beside the standard request facts the edge records:
+         * `app_id`, the application the caller resolver authenticated (decision D232), and on the public port
+         * `user_agent` and `remote_ip` (09 §17 G-10); none of the three can be listed. `remote_ip` is the server's
+         * remote address: behind a proxy, set `server.forward-headers-strategy` to have the server take it from the
+         * proxy's forwarded headers.
+         */
         var requestFacts: MutableSet<String> = LinkedHashSet()
 
         /** The HTTP status of an error code, by code (bracketed in a property name: `wow.http.errors.[a.b].status`). */
@@ -705,6 +730,22 @@ class WowProperties {
         class OpenApi {
             /** Serves `GET /wow/openapi`, the OpenAPI 3.1 document of the routes (roadmap 5a.2). */
             var enabled: Boolean = true
+
+            /** The springdoc bridge (decision D233), when the application has springdoc. */
+            var springdoc: Springdoc = Springdoc()
+        }
+
+        /**
+         * The springdoc bridge (decision D233, SpringdocAutoConfiguration): with springdoc on the classpath, the
+         * document of the public routes joins springdoc's default document (`/v3/api-docs` and Swagger UI) beside the
+         * application's own controllers, and the [group] lists the Wow routes alone.
+         */
+        class Springdoc {
+            /** Merges the Wow routes into springdoc's documents. */
+            var enabled: Boolean = true
+
+            /** The springdoc group of the Wow routes alone: `/v3/api-docs/<group>`. */
+            var group: String = SpringdocAutoConfiguration.DEFAULT_GROUP
         }
     }
 
@@ -793,6 +834,14 @@ class WowProperties {
         /** The service identities (decision D193), whose synchronous calls the internal port takes. */
         var service: Principals = Principals()
 
+        /**
+         * Whether a service in CoSec's inject mode, behind a CoSec gateway (`cosec.inject.enabled=true` with
+         * `cosec.authorization.enabled=false`), records the application of the requests the gateway forwards, their
+         * `CoSec-App-Id`, as the caller's app and the request fact `app_id` (decision D236): a trust decision, off by
+         * default; in any other mode it fails the startup.
+         */
+        var trustInjectedApp: Boolean = false
+
         class Authorizer {
             /**
              * Whether CoSec authorizes every command as its caller (`CoSecCommandAuthorizer`), not only the public
@@ -841,7 +890,10 @@ class WowProperties {
 
 /** The backend of a node's log and stores (`wow.backend`, decision D110). */
 enum class BackendKind {
-    /** PostgreSQL or MongoDB by what the classpath and the application's beans offer; memory when neither. */
+    /**
+     * PostgreSQL or MongoDB by what the classpath and the application's beans offer; when neither, memory in a
+     * development profile or on a loopback-only internal port, and a failed startup otherwise (review R3.5-1).
+     */
     AUTO,
 
     /** In memory: for one node, whose data does not outlive it. */

@@ -36,7 +36,7 @@ class StateVisibilityRoutesTest {
     }
     private val node = QueryNode(policies = listOf(hideTwoItems))
 
-    private fun cart(id: String, quantity: Int) {
+    private fun cart(id: String, quantity: Int, node: QueryNode = this.node) {
         node.http.post(
             "/shop/cart/$id/add-item",
             """{"sku":"apple","quantity":$quantity}""",
@@ -90,5 +90,50 @@ class StateVisibilityRoutesTest {
         events("c-one", "alice").body!!.size().assert().isEqualTo(1)
         events("c-two", "alice").body!!.size().assert().isEqualTo(0)
         events("c-two", "admin").body!!.size().assert().isEqualTo(1)
+    }
+
+    @Test
+    fun `before its first snapshot an aggregate's events follow the same rule, on the state its log holds`() {
+        val tenantLevel = mapOf("X-Tenant-Level" to "true")
+        listOf("c-one" to 1, "c-two" to 2).forEach { (id, quantity) ->
+            node.http.post("/shop/cart/$id/add-item", """{"sku":"apple","quantity":$quantity}""", "admin", tenantLevel)
+                .status.assert().isEqualTo(200)
+        }
+        fun events(id: String, user: String) = node.query(
+            """{"kind":"list","filter":{"op":"EQ","field":"aggregateId","value":"$id"}}""",
+            user,
+            QueryRoutes.EVENTS,
+            tenantLevel,
+        )
+        // No snapshot is written: the state the log holds decides (review R2.3-6).
+        node.http.get("/shop/cart/c-two/state", "admin", tenantLevel).status.assert().isEqualTo(404)
+        events("c-one", "alice").body!!.size().assert().isEqualTo(1)
+        events("c-two", "alice").body!!.size().assert().isEqualTo(0)
+        events("c-two", "admin").body!!.size().assert().isEqualTo(1)
+        // An aggregate with no commit has no streams, for any caller.
+        events("c-none", "admin").body!!.size().assert().isEqualTo(0)
+    }
+
+    @Test
+    fun `without snapshot queries the policies still hide the state and the events`() {
+        // Review R3.3-3: the cart's snapshots are not queried, so its policies are evaluated on its state alone.
+        val unqueried = QueryNode(policies = listOf(hideTwoItems), snapshots = { null })
+        cart("c-one", 1, unqueried)
+        cart("c-two", 2, unqueried)
+        val tenantLevel = mapOf("X-Tenant-Level" to "true")
+        fun events(id: String, user: String) = unqueried.query(
+            """{"kind":"list","filter":{"op":"EQ","field":"aggregateId","value":"$id"}}""",
+            user,
+            QueryRoutes.EVENTS,
+            tenantLevel,
+        )
+        unqueried.http.get("/shop/cart/c-one/state", "alice", tenantLevel).status.assert().isEqualTo(200)
+        unqueried.http.get("/shop/cart/c-two/state", "alice", tenantLevel).assertNotFound()
+        unqueried.http.get("/shop/cart/c-two/state", "admin", tenantLevel).status.assert().isEqualTo(200)
+        events("c-one", "alice").body!!.size().assert().isEqualTo(1)
+        events("c-two", "alice").body!!.size().assert().isEqualTo(0)
+        events("c-two", "admin").body!!.size().assert().isEqualTo(1)
+        unqueried.query("""{"kind":"list","filter":{"op":"MATCH_ALL"}}""", "admin", headers = tenantLevel)
+            .status.assert().isEqualTo(404)
     }
 }

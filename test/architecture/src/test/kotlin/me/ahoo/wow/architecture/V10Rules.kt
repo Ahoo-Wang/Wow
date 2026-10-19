@@ -141,8 +141,9 @@ object V10Rules {
         MANIFEST to emptySet(),
         QUERY_API to emptySet(),
         SPI to setOf("api"),
-        KERNEL to setOf("spi", "manifest"),
-        RUNTIME to setOf("kernel"),
+        KERNEL to setOf("spi"),
+        // manifest: the node is built from the Manifest (decision D231 ③).
+        RUNTIME to setOf("kernel", "manifest"),
         // The kernel only: a domain module with Reactor handlers depends on the kernel and this (decision D149).
         REACTOR to setOf("kernel"),
         // The query engine and its backend SPI (decision D126).
@@ -163,7 +164,18 @@ object V10Rules {
         OPENTELEMETRY to setOf("runtime", "query", "http"),
         // postgres and mongo compileOnly: the backend follows the application's classpath (decision D110).
         // query, kafka, clickhouse and opentelemetry compileOnly too: each is wired when the application has it.
-        SPRING_BOOT to setOf("runtime", "http", "postgres", "mongo", "query", "kafka", "clickhouse", "opentelemetry"),
+        // openapi for the springdoc bridge (decision D233).
+        SPRING_BOOT to setOf(
+            "runtime",
+            "http",
+            "openapi",
+            "postgres",
+            "mongo",
+            "query",
+            "kafka",
+            "clickhouse",
+            "opentelemetry",
+        ),
         // CosId's generators as the node's (decision D171): the id SPIs only; it wires itself before the host.
         COSID to setOf("spi"),
         // Domain code's API only (decision D187); the compiler only for the tests, which compile a sample tree.
@@ -194,11 +206,12 @@ object V10Rules {
 
     /**
      * The project dependencies each platform service may declare: its domain, the host and the backends it runs on
-     * (decision D110), and the query module's test fixtures for its tests.
+     * (decision D110), CoSec and OpenTelemetry for its production shape (roadmap P.15), and the query module's test
+     * fixtures for its tests.
      */
     val ALLOWED_SERVER_DEPENDENCIES: Map<V10Module, Set<String>> = mapOf(
-        OPS_SERVER to setOf("ops-domain", "spring-boot", "kafka", "postgres", "query"),
-        VIEW_STORE_SERVER to setOf("view-store-domain", "spring-boot", "postgres", "query"),
+        OPS_SERVER to setOf("ops-domain", "spring-boot", "kafka", "postgres", "query", "cosec", "opentelemetry"),
+        VIEW_STORE_SERVER to setOf("view-store-domain", "spring-boot", "postgres", "query", "cosec", "opentelemetry"),
     )
 
     /**
@@ -262,6 +275,22 @@ object V10Rules {
         name = "wow-kernel imports nothing from the runtime",
         modules = listOf(KERNEL.dir),
         forbidden = listOf("me.ahoo.wow.runtime"),
+    )
+
+    /** The packages of wow-http's read routes: the query routes and the state reads. */
+    private val HTTP_READ_PACKAGES = setOf("me.ahoo.wow.http.query", "me.ahoo.wow.http.read")
+
+    /**
+     * wow-http only adapts the read routes to HTTP (decision D231): the query semantics are wow-query's (the events
+     * model, the state and dataset visibility) and the state point reads are the runtime's (`StateReads`), so every
+     * entry shares one visibility and masking. Its read packages read neither the log, the snapshot store nor the
+     * kernel's state replay.
+     */
+    val HTTP_READS_ADAPT_ONLY = DependencyRule(
+        name = "wow-http's query and read packages import no log, snapshot store or kernel",
+        modules = listOf(HTTP.dir),
+        forbidden = listOf("me.ahoo.wow.spi.log", "me.ahoo.wow.spi.snapshot", "me.ahoo.wow.kernel"),
+        appliesToPackage = { it in HTTP_READ_PACKAGES },
     )
 
     /**
@@ -336,6 +365,7 @@ object V10Rules {
         CORE_IS_FRAMEWORK_FREE,
         TEST_MODULES_ARE_FRAMEWORK_FREE,
         KERNEL_IGNORES_RUNTIME,
+        HTTP_READS_ADAPT_ONLY,
         ONLY_OPENTELEMETRY_OBSERVES,
         ONLY_HOST_USES_SPRING_BOOT,
         MANIFEST_IS_PLAIN_DATA,
@@ -352,17 +382,19 @@ object V10Rules {
     )
 
     /**
-     * The Manifest model's test fixtures (its `copyWith` helpers, decision D59: the model has no `copy`) declared in a
-     * test configuration. Every module that reads a Manifest reaches `:manifest` through its main dependencies.
+     * The Manifest model, or its test fixtures (its `copyWith` helpers, decision D59: the model has no `copy`), declared
+     * in a test configuration: a domain's tests read the Manifest fragment the compiler writes, which the kernel does not
+     * bring (decision D231). Every module whose main code reads a Manifest declares `:manifest` in its main
+     * dependencies.
      */
     private val TEST_SCOPED_MANIFEST_FIXTURES = Regex(
-        """\b(?:test\w*|\w+Test\w*)\(\s*testFixtures\(\s*project\(\s*":${MANIFEST.name}"\s*\)\s*\)\s*\)""",
+        """\b(?:test\w*|\w+Test\w*)\(\s*(?:testFixtures\(\s*)?project\(\s*":${MANIFEST.name}"\s*\)\s*\)?\s*\)""",
     )
 
     /**
      * The projects [module]'s build script depends on, in any configuration but for a test module its tests use
-     * ([TEST_MODULES]) and the Manifest's test fixtures ([TEST_SCOPED_MANIFEST_FIXTURES]): those are allowed to every
-     * module.
+     * ([TEST_MODULES]) and the Manifest or its test fixtures in a test configuration ([TEST_SCOPED_MANIFEST_FIXTURES]):
+     * those are allowed to every module.
      */
     fun projectDependencies(repositoryRoot: File, module: V10Module): Set<String> =
         PROJECT_DEPENDENCY.findAll(

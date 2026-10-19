@@ -15,6 +15,7 @@ package me.ahoo.wow.http
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -23,6 +24,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.kernel.CommandType
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
@@ -41,6 +43,7 @@ import org.springframework.web.reactive.function.server.ServerResponse
 import reactor.netty.http.server.HttpServer
 import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -138,14 +141,55 @@ class StreamCancellationTest {
         }
         val node = HttpNode(transformers = listOf(slow))
         serving(node.routes) { client ->
-            val left = runCatching {
-                client.stream("/shop/cart/c-1/add-item", """{"sku":"apple"}""")
-                    .timeout(Duration.ofMillis(500)).blockFirst()
+            // The client leaves once the admission is under way, not after a fixed time: a cold server on a busy
+            // machine may not have reached the admission yet, and a client that leaves before it never starts one.
+            val received = CopyOnWriteArrayList<String>()
+            val subscription = client.stream("/shop/cart/c-1/add-item", """{"sku":"apple"}""")
+                .subscribe({ received += it }, {})
+            try {
+                runBlocking { withTimeout(10.seconds) { started.await() } }
+            } finally {
+                subscription.dispose()
             }
-            left.isFailure.assert().isTrue()
-            runBlocking { withTimeout(10.seconds) { started.await() } }
             ended(cancelled).assert().isInstanceOf(CancellationException::class.java)
+            received.assert().isEmpty()
         }
+        node.commands.assert().isEmpty()
+    }
+
+    @Test
+    fun `a client that leaves a command stream before its admission starts never starts it`() {
+        val authenticating = CompletableDeferred<Unit>()
+        val authenticationEnded = CompletableDeferred<Throwable?>()
+        val held = CallerResolver { _ ->
+            authenticating.complete(Unit)
+            try {
+                awaitCancellation()
+            } catch (cancellation: CancellationException) {
+                authenticationEnded.complete(cancellation)
+                throw cancellation
+            }
+        }
+        val transformed = CompletableDeferred<Unit>()
+        val transformer = object : CommandTransformer {
+            override val input: CommandType = CommandType("$CONTEXT.cart.AddItem", AddItem::class.java)
+
+            override suspend fun transform(input: CommandInput): CommandTarget {
+                transformed.complete(Unit)
+                return CommandTarget(this.input, input.aggregateId, input.body)
+            }
+        }
+        val node = HttpNode(transformers = listOf(transformer), callers = held)
+        serving(node.routes) { client ->
+            val subscription = client.stream("/shop/cart/c-1/add-item", """{"sku":"apple"}""").subscribe({}, {})
+            try {
+                runBlocking { withTimeout(10.seconds) { authenticating.await() } }
+            } finally {
+                subscription.dispose()
+            }
+            ended(authenticationEnded).assert().isInstanceOf(CancellationException::class.java)
+        }
+        transformed.isCompleted.assert().isFalse()
         node.commands.assert().isEmpty()
     }
 }

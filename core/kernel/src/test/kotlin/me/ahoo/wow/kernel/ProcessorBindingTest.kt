@@ -21,6 +21,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.ProjectContext
@@ -168,6 +169,23 @@ class ProcessorBindingTest {
         val root = event.copyWith(causation = null)
         ExecutionSagaContext(execution, root).command(cart.ref("t", "alice"), "x").causation!!.correlationId
             .assert().isEqualTo("c-3")
+    }
+
+    @Test
+    fun `a saga's command should inherit only the commit's request facts that propagate`() {
+        val execution = ExecutionId("CartSaga.onOrderPlaced", event.ref, event.version)
+        val requested = event.copyWith(
+            headers = mapOf(
+                RequestFacts.APP_ID to "console",
+                RequestFacts.REMOTE_IP to "10.0.0.7",
+                RequestFacts.USER_AGENT to "shop-app/1.0",
+                "X-Trace" to "t-1",
+            ),
+        )
+        ExecutionSagaContext(execution, requested).command(cart.ref("t", "alice"), "x").headers.assert()
+            .isEqualTo(mapOf(RequestFacts.APP_ID to "console"))
+        ExecutionSagaContext(execution, event.copyWith(headers = emptyMap())).command(cart.ref("t", "alice"), "x")
+            .headers.assert().isEmpty()
     }
 
     @Test

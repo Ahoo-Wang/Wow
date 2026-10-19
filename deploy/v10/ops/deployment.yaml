@@ -1,0 +1,109 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ops
+  labels:
+    app.kubernetes.io/name: ops
+spec:
+  # The nodes share the partitions through leases in PostgreSQL: no ZooKeeper, no consumer group.
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ops
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ops
+        app.kubernetes.io/part-of: wow-platform
+      annotations:
+        # The OpenTelemetry Operator injects its Java agent (decision D174; configmap.yaml): ignored without it.
+        instrumentation.opentelemetry.io/inject-java: "true"
+    spec:
+      # With the headless service of this name, each pod has the DNS name <pod>.ops-cluster.<namespace>...
+      subdomain: ops-cluster
+      # The host's shutdown: the public server finishes its requests, the waits among them (wow.wait.max-timeout,
+      # 60s); the node then hands its partitions off after their commands in flight (wow.cluster.drain-timeout, 10s)
+      # and saves its checkpoints. 5s of preStop, 60s and 10s, with room to spare: raise it with those settings.
+      terminationGracePeriodSeconds: 90
+      containers:
+        - name: ops
+          # Built from this repository (README.md), or the released ahoowang/wow-ops-server:<version>.
+          image: wow-ops-server:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8088
+              protocol: TCP
+            - name: internal
+              containerPort: 9098
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: ops-config
+            - secretRef:
+                name: ops-postgres
+            # The cluster token of the internal port (decision D226) and CoSec's token secret.
+            - secretRef:
+                name: ops-tokens
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: SERVER_PORT
+              value: "8088"
+            - name: WOW_INTERNAL_PORT
+              value: "9098"
+            # The node id is the pod's name: a replaced pod is a new member.
+            - name: WOW_NODE_ID
+              value: $(POD_NAME)
+            # D173: the internal port binds the pod's private address only, and the node advertises its headless name.
+            - name: WOW_INTERNAL_HOST
+              value: $(POD_IP)
+            - name: WOW_NODE_ADDRESS
+              value: $(POD_NAME).ops-cluster.$(POD_NAMESPACE).svc.cluster.local:9098
+          # The public server starts only once the node has started (its backends, internal port and partitions) and
+          # stops first, so its port is the node's readiness. The internal port serves until the node has stopped, so
+          # it is the liveness: a draining node is not restarted.
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            tcpSocket:
+              port: internal
+            periodSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            # Time for the endpoints to drop the pod before Spring Boot stops taking requests.
+            preStop:
+              exec:
+                command: ["sleep", "5"]
+          resources:
+            requests:
+              cpu: 250m
+              memory: 768Mi
+            limits:
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true

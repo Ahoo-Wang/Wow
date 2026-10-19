@@ -342,6 +342,8 @@ internal object StoreInstances {
      * named [ContextBackends.DEFAULT_STORE]. A store on PostgreSQL needs wow-postgres and a `DataSource` bean, one on
      * MongoDB wow-mongo and a `MongoClient` bean: the one its `data-source` or `client` names, else the only one. A
      * store in memory keeps its snapshots queryable when [memoryQueries] (`wow.query.memory.enabled`, decision D209).
+     * `wow.backend=auto` without a durable backend opens a store in memory only with a [memoryOptIn]
+     * ([BackendSelection.memoryOptIn]), and fails otherwise (review R3.5-1).
      */
     fun open(
         properties: WowProperties,
@@ -349,9 +351,10 @@ internal object StoreInstances {
         classLoader: ClassLoader?,
         memoryQueries: Boolean = false,
         service: String = "",
+        memoryOptIn: String? = null,
     ): Map<String, HostStore> {
         val polling = properties.log.tailPolling()
-        return stores(properties, beanFactory, classLoader, memoryQueries).onEach { (_, store) ->
+        return stores(properties, beanFactory, classLoader, memoryQueries, memoryOptIn).onEach { (_, store) ->
             store.tailPolling = polling
             store.service = service
         }
@@ -361,7 +364,8 @@ internal object StoreInstances {
         properties: WowProperties,
         beanFactory: ListableBeanFactory,
         classLoader: ClassLoader?,
-        memoryQueries: Boolean = false,
+        memoryQueries: Boolean,
+        memoryOptIn: String?,
     ): Map<String, HostStore> {
         fun memory(name: String) = MemoryStore(name, queries = InMemoryQueryStorage().takeIf { memoryQueries })
         val postgresModule = ClassUtils.isPresent(POSTGRES_LOG, classLoader)
@@ -372,7 +376,7 @@ internal object StoreInstances {
             val postgres = postgresModule && beanFactory.getBeanNamesForType(DataSource::class.java).isNotEmpty()
             val mongo = mongoClient != null && beanFactory.getBeanNamesForType(mongoClient).isNotEmpty()
             val name = ContextBackends.DEFAULT_STORE
-            val store = when (BackendSelection.select(properties.backend, postgres, mongo)) {
+            val store = when (BackendSelection.select(properties.backend, postgres, mongo, memoryOptIn)) {
                 BackendKind.POSTGRES -> PostgresStore.open(
                     name,
                     beanFactory.getBean(DataSource::class.java),

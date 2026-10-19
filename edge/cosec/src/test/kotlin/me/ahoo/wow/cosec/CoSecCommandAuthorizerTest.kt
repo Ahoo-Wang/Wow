@@ -16,6 +16,7 @@ package me.ahoo.wow.cosec
 import kotlinx.coroutines.test.runTest
 import me.ahoo.cosec.api.authorization.AuthorizeResult
 import me.ahoo.cosec.api.context.SecurityContext
+import me.ahoo.cosec.api.context.request.AppIdCapable
 import me.ahoo.cosec.api.context.request.Request
 import me.ahoo.cosec.api.tenant.Tenant
 import me.ahoo.test.asserts.assert
@@ -85,7 +86,7 @@ class CoSecCommandAuthorizerTest {
                 CoSecCommandAuthorizer.CREATION to "ALLOWED",
             ),
         )
-        request.getHeader(CoSecRequestFacts.APP_ID).assert().isEmpty()
+        request.getHeader(AppIdCapable.APP_ID_KEY).assert().isEmpty()
         request.getQuery("q").assert().isEmpty()
         request.getCookieValue("c").assert().isEmpty()
         request.remoteIp.assert().isEmpty()

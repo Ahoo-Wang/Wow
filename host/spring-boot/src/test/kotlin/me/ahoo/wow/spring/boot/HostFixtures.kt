@@ -149,6 +149,8 @@ val hostProperties: Map<String, Any> = mapOf(
     "wow.subscription.checkpoint-interval" to "100ms",
     "wow.subscription.stop-timeout" to "2s",
     "wow.wait.max-timeout" to "15s",
+    // springdoc is on the tests' classpath for the bridge's tests (HostSpringdocTest), which turn it on.
+    "wow.http.openapi.springdoc.enabled" to false,
 )
 
 /** Starts a host of [sources] with [hostProperties] and [properties] over them. */

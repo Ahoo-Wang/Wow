@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
@@ -35,6 +36,9 @@ import me.ahoo.wow.kernel.committedContextOf
 import me.ahoo.wow.kernel.contextOf
 import me.ahoo.wow.kernel.rejectionContextOf
 import me.ahoo.wow.kernel.schedule.JobState
+import me.ahoo.wow.spi.state.StateEventPayload
+import org.junit.jupiter.api.DynamicNode
+import java.util.stream.Stream
 import kotlin.reflect.KClass
 
 /**
@@ -71,6 +75,28 @@ fun sagaSpec(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() -> Uni
 }
 
 /**
+ * The specification [sagaSpec] runs, as a tree of tests for a JUnit `@TestFactory` (decision D245): each
+ * [ProcessorSpec.whenEvent], [ProcessorSpec.whenRejected] and [ProcessorSpec.whenCommitted] is a test of its own, and
+ * each [ProcessorSpec.fork] a container named by it; a failing check fails its own test only, as
+ * [aggregateSpecTests] does:
+ *
+ * ```kotlin
+ * @TestFactory
+ * fun orderSaga() = sagaSpecTests(orderSagaHandlers(Dependencies.NONE)) {
+ *     whenEvent(stateEvent(order, OrderState("order-1"), orderCreated)) {
+ *         expectCommands(ReserveStock("order-1", 2))
+ *         fork("out of stock") {
+ *             whenRejected(commands.single(), code = "inventory.stock.insufficient") { expectCommandTypes(CancelOrder::class) }
+ *         }
+ *         fork("reserved") { whenCommitted(commands.single()) { expectCommandTypes(ConfirmStock::class) } }
+ *     }
+ * }
+ * ```
+ */
+fun sagaSpecTests(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() -> Unit): Stream<DynamicNode> =
+    processorSpecTests(handlers, FunctionKind.SAGA, block)
+
+/**
  * Specifies a projection's behaviour: given a commit (a [StateEvent], built with [stateEvent]), what its handlers
  * write. [handlers] are the projection's, from the function the compiler generated for it
  * (`<processor>Handlers`), with a fake of the port it writes to, which the expectations then read:
@@ -89,9 +115,27 @@ fun projectionSpec(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() 
     ProcessorSpec(handlers, FunctionKind.PROJECT).block()
 }
 
+/** The specification [projectionSpec] runs, as a tree of tests for a JUnit `@TestFactory`, as [sagaSpecTests]. */
+fun projectionSpecTests(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() -> Unit): Stream<DynamicNode> =
+    processorSpecTests(handlers, FunctionKind.PROJECT, block)
+
 /** Specifies a reactor's behaviour as [projectionSpec] does a projection's: given a commit, its side effects. */
 fun reactorSpec(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() -> Unit) {
     ProcessorSpec(handlers, FunctionKind.REACT).block()
+}
+
+/** The specification [reactorSpec] runs, as a tree of tests for a JUnit `@TestFactory`, as [sagaSpecTests]. */
+fun reactorSpecTests(handlers: List<ProcessorBinding<*>>, block: ProcessorSpec.() -> Unit): Stream<DynamicNode> =
+    processorSpecTests(handlers, FunctionKind.REACT, block)
+
+private fun processorSpecTests(
+    handlers: List<ProcessorBinding<*>>,
+    kind: FunctionKind,
+    block: ProcessorSpec.() -> Unit,
+): Stream<DynamicNode> {
+    val tree = TestTree()
+    tree.run { ProcessorSpec(handlers, kind, tree).block() }
+    return tree.nodes.stream()
 }
 
 /**
@@ -121,6 +165,7 @@ fun commandRejected(
     causation = command.causation ?: Causation(command.id, command.id),
     executionId = executionId,
     operator = command.operator,
+    headers = RequestFacts.propagatedOf(command.headers),
 )
 
 /**
@@ -162,16 +207,40 @@ fun commandCommitted(
         executionId = executionId,
         operator = command.operator,
         scope = command.scope,
+        headers = RequestFacts.propagatedOf(command.headers),
     )
 }
 
-/** Calls the [handlers] of one processor of [kind] as the runtime would, one commit or receipt at a time. */
-class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: FunctionKind) {
+/**
+ * Calls the [handlers] of one processor of [kind] as the runtime would, one commit or receipt at a time.
+ *
+ * Scenarios that share a prefix [fork] from it, at the current point or after a handling from inside its checks
+ * ([ProcessorExpectations.fork]): the fork starts on a copy of what the specification holds (decision D245), the
+ * executions that derived each command, so a rejection or receipt in it goes back to the right handler, and how
+ * calls are answered. A processor keeps no state between handlings, so that is all a fork copies: the fakes a
+ * projection or reactor writes to are the test's own, shared by the forks.
+ */
+class ProcessorSpec private constructor(
+    val handlers: List<ProcessorBinding<*>>,
+    private val kind: FunctionKind,
+    origin: ProcessorSpec?,
+    /** Where the steps report when the specification is a tree of tests ([sagaSpecTests]); null otherwise. */
+    private val tree: TestTree?,
+) {
+    constructor(handlers: List<ProcessorBinding<*>>, kind: FunctionKind) : this(handlers, kind, null, null)
+
+    /** A specification that reports to [tree] ([sagaSpecTests]). */
+    internal constructor(handlers: List<ProcessorBinding<*>>, kind: FunctionKind, tree: TestTree) :
+        this(handlers, kind, null, tree)
+
     /** The executions that derived each command, by command id: a rejection of one goes back to its saga. */
-    private val derivedBy = HashMap<String, ExecutionId>()
+    private val derivedBy: MutableMap<String, ExecutionId> = HashMap(origin?.derivedBy.orEmpty())
 
     /** How the targets answer the saga's synchronous calls. */
-    private var answer: (Command<*>) -> CommandResult = { committedResult(it) }
+    private var answer: (Command<*>) -> CommandResult = origin?.answer ?: { committedResult(it) }
+
+    private var forkName: String? = null
+    private var forks = 0
 
     /**
      * Answers each synchronous call a saga's handler makes (decision D193) with what [answer] returns for its command,
@@ -196,13 +265,34 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
     val processor: String = handlers.first().processor
 
     /**
+     * Runs [block] on a copy of the specification as it is now, so that several scenarios share a prefix (decision
+     * D245): what [block] does stays in the fork, and the specification goes on from where it was. A failure in the
+     * fork names it ([name]); in a tree of tests ([sagaSpecTests]) the fork is a container named by it. Nothing before
+     * the fork runs again.
+     */
+    fun fork(name: String = "", block: ProcessorSpec.() -> Unit) {
+        val label = name.ifBlank { "fork ${++forks}" }
+        val path = forkName?.let { "$it > $label" } ?: label
+        val fork: (TestTree?) -> ProcessorSpec = { branch ->
+            ProcessorSpec(handlers, kind, this, branch).also {
+                it.forkName = path
+            }
+        }
+        runFork(tree, label, path, fork, block)
+    }
+
+    /**
      * Hands [event] to each handler that reads it, as its subscription would: those that name its aggregate type in
      * `aggregates`, or that name none and take its state type (or `StateEvent<*>`). [handler] names the only one to
      * call instead, by its function name (`onOrderCreated`) or its subscription name (`OrderSaga.onOrderCreated`).
      * [expect] checks what they did. An exception a handler throws fails the specification, unless [expect] checks
      * it with [ProcessorExpectations.expectError].
      */
-    fun whenEvent(event: StateEvent<*>, handler: String? = null, expect: ProcessorExpectations.() -> Unit) {
+    fun whenEvent(
+        event: StateEvent<*>,
+        handler: String? = null,
+        expect: ProcessorExpectations.() -> Unit,
+    ) = step(tree, "whenEvent(${event.describe()})") {
         val called = if (handler == null) {
             handlers.filter { reads(it, event) }.ifEmpty {
                 throw AssertionError(
@@ -214,7 +304,7 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
             listOf(find(handler))
         }
         val call = { handle(called, event) }
-        verify(ProcessorExpectations(called.map { it.name }, call(), call), expect)
+        verify(ProcessorExpectations(called.map { it.name }, call(), call, ::fork), expect)
     }
 
     /**
@@ -230,16 +320,12 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
         message: String = code,
         commandType: String = commandTypeOf(command),
         expect: ProcessorExpectations.() -> Unit,
-    ) {
+    ) = step(tree, "whenRejected(${command.body.javaClass.simpleName}, $code)") {
         val execution = derivedBy[command.id] ?: throw IllegalArgumentException(
             "${command.id} is not a command this specification derived: hand over commandRejected(command, " +
                 "executionId, code) instead, with the execution that derived it.",
         )
-        whenRejected(
-            commandRejected(command, execution, code, message, commandType),
-            command.body.javaClass.kotlin,
-            expect
-        )
+        reject(commandRejected(command, execution, code, message, commandType), command.body.javaClass.kotlin, expect)
     }
 
     /**
@@ -248,7 +334,13 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
      * with [commandRejected]. [expect] checks the compensating commands; it fails when the saga has no handler of that
      * rejection.
      */
-    fun whenRejected(rejected: CommandRejected<*>, command: KClass<*>, expect: ProcessorExpectations.() -> Unit) {
+    fun whenRejected(
+        rejected: CommandRejected<*>,
+        command: KClass<*>,
+        expect: ProcessorExpectations.() -> Unit,
+    ) = step(tree, "whenRejected(${command.simpleName}, ${rejected.error.code})") { reject(rejected, command, expect) }
+
+    private fun reject(rejected: CommandRejected<*>, command: KClass<*>, expect: ProcessorExpectations.() -> Unit) {
         require(kind == FunctionKind.SAGA) { "Only a saga takes the rejections of the commands it derived." }
         val subscription = rejected.executionId.subscription
         val saga = handlers.firstOrNull { it.name == subscription } ?: throw IllegalArgumentException(
@@ -258,7 +350,7 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
             "$processor has no @OnRejected handler of the rejections of ${command.qualifiedName}.",
         )
         val call = { reject(onRejected, rejected) }
-        verify(ProcessorExpectations(listOf(onRejected.name), call(), call), expect)
+        verify(ProcessorExpectations(listOf(onRejected.name), call(), call, ::fork), expect)
     }
 
     /**
@@ -278,13 +370,13 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
         duplicate: Boolean = false,
         commandType: String = commandTypeOf(command),
         expect: ProcessorExpectations.() -> Unit,
-    ) {
+    ) = step(tree, "whenCommitted(${command.body.javaClass.simpleName})") {
         val execution = derivedBy[command.id] ?: throw IllegalArgumentException(
             "${command.id} is not a command this specification derived: hand over commandCommitted(command, " +
                 "executionId) instead, with the execution that derived it.",
         )
         val committed = commandCommitted(command, execution, version, aggregateId, duplicate, commandType)
-        whenCommitted(committed, command.body.javaClass.kotlin, expect)
+        commit(committed, command.body.javaClass.kotlin, expect)
     }
 
     /**
@@ -293,7 +385,13 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
      * it with [commandCommitted]. [expect] checks the commands the handler derives; it fails when the saga has no
      * handler of that receipt.
      */
-    fun whenCommitted(committed: CommandCommitted<*>, command: KClass<*>, expect: ProcessorExpectations.() -> Unit) {
+    fun whenCommitted(
+        committed: CommandCommitted<*>,
+        command: KClass<*>,
+        expect: ProcessorExpectations.() -> Unit,
+    ) = step(tree, "whenCommitted(${command.simpleName})") { commit(committed, command, expect) }
+
+    private fun commit(committed: CommandCommitted<*>, command: KClass<*>, expect: ProcessorExpectations.() -> Unit) {
         require(kind == FunctionKind.SAGA) { "Only a saga takes the receipts of the commands it derived." }
         val subscription = committed.executionId.subscription
         val saga = handlers.firstOrNull { it.name == subscription } ?: throw IllegalArgumentException(
@@ -303,7 +401,7 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
             "$processor has no @OnCommitted handler of the receipts of ${command.qualifiedName}.",
         )
         val call = { commit(onCommitted, committed) }
-        verify(ProcessorExpectations(listOf(onCommitted.name), call(), call), expect)
+        verify(ProcessorExpectations(listOf(onCommitted.name), call(), call, ::fork), expect)
     }
 
     /**
@@ -368,6 +466,10 @@ class ProcessorSpec(val handlers: List<ProcessorBinding<*>>, private val kind: F
     internal data class Handled(val commands: List<Command<*>>, val calls: List<Command<*>> = emptyList())
 
     private companion object {
+        /** The events of [this], by name, for a step's test. */
+        fun StateEvent<*>.describe(): String =
+            events.joinToString { (it as? StateEventPayload)?.name ?: it.javaClass.simpleName }
+
         /** Whether [handler]'s subscription hands it [event]; a job's handler only its own job's ticks. */
         fun reads(handler: ProcessorBinding<*>, event: StateEvent<*>): Boolean {
             val job = handler.job

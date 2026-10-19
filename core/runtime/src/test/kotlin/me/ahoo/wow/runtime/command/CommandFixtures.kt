@@ -31,8 +31,10 @@ import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
+import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.spi.wait.WaitContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -226,9 +228,27 @@ fun stockManifest(): Manifest = Manifest(
     ),
 )
 
-/** [manifest] as a peer's merged Manifest on the class path (decision D139). */
-fun peer(manifest: Manifest): ManifestFragment =
-    ManifestFragment("META-INF/wow/peers/${manifest.service!!.name}.json", manifest)
+/**
+ * [manifest] with its command [from] named [to], the same schema: the contract of a newer version of its service, as
+ * a peer that upgraded first has it.
+ */
+fun renamed(manifest: Manifest, from: String, to: String): Manifest = manifest.copyWith(
+    contexts = manifest.contexts.map { context ->
+        context.copyWith(
+            aggregates = context.aggregates.map { aggregate ->
+                aggregate.copyWith(
+                    commands = aggregate.commands.map { if (it.name == from) it.copyWith(name = to) else it },
+                )
+            },
+        )
+    },
+)
+
+/** [manifest]'s contexts as the peer contract their api jar carries on the class path (decision D234). */
+fun peer(manifest: Manifest): ManifestFragment = ManifestFragment(
+    "${manifest.contexts.first().name}-api.jar!/${PeerContracts.RESOURCE}",
+    Manifest(manifest.format, null, manifest.contexts, manifest.errors, manifest.defs),
+)
 
 /** A receipt handler of the given [rejected] and [committed] answers; by default it takes none. */
 fun receiptHandler(

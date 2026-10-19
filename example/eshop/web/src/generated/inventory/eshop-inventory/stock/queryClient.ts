@@ -13,7 +13,7 @@ export class StockSnapshotQueryClient extends SnapshotQueryClient<StockState, St
 }
 
 
-/** Queries the event streams of `eshop-inventory.stock`, one aggregate at a time: `POST /eshop-inventory/stock/events/query`. */
+/** Queries the event streams of `eshop-inventory.stock`, one record per commit: `POST /eshop-inventory/stock/events/query`. */
 export class StockEventQueryClient extends EventQueryClient<StockEvent> {
   /** @param options - How the service is reached */
   constructor(options?: WowClientOptions) {

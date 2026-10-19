@@ -120,7 +120,7 @@ class InMemoryQueryStorage(
  */
 class InMemoryQueryBackend internal constructor(
     override val aggregateType: AggregateType,
-    private val records: () -> List<ObjectNode>,
+    private val records: suspend () -> List<ObjectNode>,
     private val delay: Duration,
 ) : QueryBackend {
     override val cursorPositions: CursorPositionCodec = CursorPositionCodec.JSON
@@ -136,7 +136,7 @@ class InMemoryQueryBackend internal constructor(
         if (!delay.isZero) delay(delay.toMillis())
     }
 
-    private fun matched(query: AdmittedQuery<Queryable<*>>): List<ObjectNode> {
+    private suspend fun matched(query: AdmittedQuery<Queryable<*>>): List<ObjectNode> {
         val filters = InMemoryFilters(query)
         val matched = records().filter { filters.matches(query.query.filter, RecordScope(it)) }
         return matched.sortedWith(comparator(query, query.query.sort))

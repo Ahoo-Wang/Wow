@@ -14,22 +14,20 @@
 package me.ahoo.wow.spring.boot
 
 import io.github.oshai.kotlinlogging.KotlinLogging
-import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.http.query.DatasetVisibility
-import me.ahoo.wow.http.query.EventQueryGateway
 import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.http.read.StateReads
-import me.ahoo.wow.http.read.StateVisibility
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.AbacQueryPolicy
 import me.ahoo.wow.query.DefaultQueryGateway
+import me.ahoo.wow.query.QueryBackend
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.QueryBackendStorages
-import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryCountCache
 import me.ahoo.wow.query.QueryEntryPolicy
+import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryLogObserver
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.QueryOwnership
@@ -38,14 +36,23 @@ import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.ScopeQueryPolicy
 import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
+import me.ahoo.wow.query.dataset.DatasetVisibility
 import me.ahoo.wow.query.dataset.QueryDatasets
+import me.ahoo.wow.query.events.EventQueryGateways
+import me.ahoo.wow.query.events.EventVisibility
 import me.ahoo.wow.query.filter.QueryFilter
+import me.ahoo.wow.query.mask.PayloadMasks
+import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
+import me.ahoo.wow.query.schema.EventsQuerySchemas
 import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaSource
+import me.ahoo.wow.query.state.CommittedState
+import me.ahoo.wow.query.state.SnapshotPolicyGateway
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.runtime.state.StateReads
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
 import org.springframework.boot.autoconfigure.AutoConfiguration
@@ -57,6 +64,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.nio.file.Path
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The query plane (decisions D126–D131, D150, D151), active when wow-query is on the classpath (wow-http brings it)
@@ -72,8 +80,13 @@ import java.nio.file.Path
  * - a gateway per aggregate type the node hosts: [DefaultQueryGateway] for its snapshots, under the
  *   [ScopeQueryPolicy] (tenant by [HostQueryTenants], D116), the [AbacQueryPolicy] (`wow.query.abac`) and the
  *   application's [QueryPolicy] and [QueryFilter] beans, observed by [QueryLogObserver] and the [QueryObserver] beans,
- *   its counts and paged totals cached in the [QueryCountCache] (`wow.query.count-cache`, D152); and
- *   [EventQueryGateway] for its events, over the context's log;
+ *   its counts and paged totals cached in the [QueryCountCache] (`wow.query.count-cache`, D152); and, on the same
+ *   engine, policies, filters and observers, the gateway of its events ([EventQueryGateways], D235) over the
+ *   [EventQueryBackend] of its log store (PostgreSQL or MongoDB in place, a log in memory scanned in memory under
+ *   `wow.query.memory.enabled`, any other log not queried), the events' schema from the Manifest
+ *   ([EventsQuerySchemas]), A3-11 visibility as a policy, and a count cache of its own; with ABAC or an application's
+ *   policy, a [SnapshotPolicyGateway] for each type whose snapshots are not queried, so its events and state reads
+ *   stay under those policies (review R3.3-3);
  * - the [QueryDatasets] of the dataset files (decisions D75, D145; [HostDatasets]), compiled by the same Catalog
  *   against the storage of the application's [DatasetQueryBackendFactory] bean (ClickHouse's, when wow-clickhouse
  *   is wired), and their [DatasetQueryGateways] under the same policies, filters and observers;
@@ -136,6 +149,57 @@ class QueryAutoConfiguration {
         }
 
         /**
+         * The `events` query backend of each aggregate type (decision D235), by the store its log is on (D177): the
+         * application's own [EventQueryBackend] bean when it has one, else PostgreSQL's or MongoDB's over the log in
+         * place (`wow.query.events.mongo-read-preference`), and a log in memory scanned in memory when
+         * `wow.query.memory.enabled` is on, as its snapshots are queried then (review R3.4-1). Any other log, in memory
+         * without it or the application's own, is not queried: its `events` model is not served, and an info log says
+         * so.
+         */
+        @Bean
+        @ConditionalOnMissingBean
+        @InternalWowApi
+        fun wowEventQueryBackend(
+            manifest: Manifest,
+            node: ServiceNode,
+            properties: QueryProperties,
+            backends: HostBackends,
+        ): EventQueryBackend {
+            val layout = backends.layout
+            val scanned = ConcurrentHashMap<String, InMemoryEventQueryStorage>()
+            val byStore = layout?.logStores.orEmpty().associateWith { name ->
+                val store = backends.stores.getValue(name)
+                when (store.kind) {
+                    BackendKind.POSTGRES -> EventQueryBackends.postgres(store)
+                    BackendKind.MONGO -> EventQueryBackends.mongo(store, properties.events.mongoReadPreference)
+                    BackendKind.MEMORY -> if (properties.memory.enabled) scan(node, scanned) else null
+                    else -> null
+                }
+            }
+            val backend = EventQueryBackend { type -> layout?.let { byStore[it.logStoreOf(type)] }?.invoke(type) }
+            val unserved = queryTypes(manifest, node.contexts.keys, QueryRoutes.EVENTS)
+                .filter { backend.binding(it) == null }
+            if (unserved.isNotEmpty()) {
+                logger.info {
+                    "No events query backend serves the logs of $unserved (${backends.kind ?: "the application's"} " +
+                        "stores): their events are not queried; give the node an EventQueryBackend bean to query them, " +
+                        "or set wow.query.memory.enabled on the memory backend."
+                }
+            }
+            return backend
+        }
+
+        /** The log of [type]'s context on [node] scanned in memory, one storage per context. */
+        private fun scan(
+            node: ServiceNode,
+            scanned: ConcurrentHashMap<String, InMemoryEventQueryStorage>,
+        ): (AggregateType) -> QueryBackendBinding<QueryBackend>? = { type ->
+            node.contexts[type.context]?.let { context ->
+                scanned.computeIfAbsent(type.context) { InMemoryEventQueryStorage.of(context.log) }.create(type)
+            }
+        }
+
+        /**
          * The datasets of the dataset files (decisions D75, D145), `wow.query.dataset.config-directory` first, then
          * the classpath; an application may give its own [QueryDatasets], or add to this one while the node runs.
          */
@@ -156,20 +220,32 @@ class QueryAutoConfiguration {
             node: ServiceNode,
             properties: QueryProperties,
             backend: SnapshotQueryBackend,
+            events: EventQueryBackend,
             datasets: QueryDatasets,
             datasetBackends: ObjectProvider<DatasetQueryBackendFactory>,
             strategies: ObjectProvider<MaskStrategyResolver>,
             sources: ObjectProvider<QuerySchemaSource>,
         ): QuerySchemaCatalog {
-            val manifestSource = ManifestStateSchemas(manifest, strategies.getIfAvailable { MaskStrategyResolver.NONE })
+            val resolver = strategies.getIfAvailable { MaskStrategyResolver.NONE }
+            val manifestSource = ManifestStateSchemas(manifest, resolver)
+            val contexts = node.contexts.keys
             return QuerySchemaCatalog(
-                storages = QueryBackendStorages(backend.factory, datasetBackends.ifAvailable, datasets),
+                storages = QueryBackendStorages(
+                    backend.factory,
+                    datasetBackends.ifAvailable,
+                    datasets,
+                    events::binding
+                ),
                 compiler = QueryModelCompiler.of(
                     listOf(manifestSource) + sources.orderedStream().toList(),
                     properties.sensitivity.policy(),
                     datasets,
+                    EventsQuerySchemas(manifest, resolver),
                 ),
-                aggregates = snapshotTypes(manifest, node.contexts.keys).filter(backend::serves),
+                aggregates = (
+                    snapshotTypes(manifest, contexts).filter(backend::serves) +
+                        queryTypes(manifest, contexts, QueryRoutes.EVENTS)
+                    ).distinct(),
                 datasets = datasets,
             )
         }
@@ -240,6 +316,7 @@ class QueryAutoConfiguration {
             node: ServiceNode,
             properties: QueryProperties,
             backend: SnapshotQueryBackend,
+            events: EventQueryBackend,
             catalog: QuerySchemaCatalog,
             entryPolicy: QueryEntryPolicy,
             tenants: QueryTenantPolicy,
@@ -250,10 +327,13 @@ class QueryAutoConfiguration {
             visibility: ObjectProvider<DatasetVisibility>,
             counts: ObjectProvider<QueryCountCache>,
             reads: ObjectProvider<StateReads>,
+            masks: PayloadMasks,
         ): HttpQueries {
             val contexts = node.contexts.keys
             val observer = observerOf(observers)
             val scope = scopePolicies(manifest, tenants, properties)
+            val applicationPolicies = policies.orderedStream().toList()
+            val gatewayPolicies = scope + applicationPolicies
             val factory = backend.factory
             val snapshots = if (factory == null) {
                 emptyList()
@@ -264,41 +344,123 @@ class QueryAutoConfiguration {
                         backend = factory.create(type).backend,
                         schemaProvider = catalog.provider(type, QueryModel.SNAPSHOT),
                         filters = filters.orderedStream().toList(),
-                        policies = scope + policies.orderedStream().toList(),
+                        policies = gatewayPolicies,
                         observer = observer,
                         entryPolicy = entryPolicy,
                         counts = counts.ifAvailable,
                     )
                 }
             }
-            val byType = snapshots.associateBy { it.aggregateType }
-            // An aggregate the snapshot queries hide is hidden from the events model too (review A3-11).
-            val visible: suspend (AggregateRef, QueryCaller) -> Boolean = { ref, caller ->
-                val latest = reads.ifAvailable?.latest(ref)
-                latest == null || StateVisibility.visible(byType[ref.type], caller, latest)
+            // An aggregate the snapshot queries hide is hidden from the events model and its state reads too (reviews
+            // A3-11, R2.3-6); only ABAC and the application's policies hide one from a caller of its scope.
+            val hides = properties.abac.enabled || applicationPolicies.isNotEmpty()
+            val policyGateways = policyGateways(hides, hostedTypes(manifest, contexts), snapshots) { type ->
+                SnapshotPolicyGateway(type, catalog.policyProvider(type), gatewayPolicies, entryPolicy)
             }
-            val events = queryTypes(manifest, contexts, QueryRoutes.EVENTS).map { type ->
-                val context = node.contexts.getValue(type.context)
-                // Events read as the model reads them now (finding A4-16): current names and revisions, as typed.
-                val model = context.models.firstOrNull { it.type == type }
-                EventQueryGateway(
-                    type,
-                    context.log,
-                    tenants,
+            val eventGateways = eventGateways(
+                manifest,
+                node,
+                EventGatewayParts(
+                    events,
+                    catalog,
+                    filters.orderedStream().toList(),
+                    gatewayPolicies,
+                    observer,
                     entryPolicy,
-                    QueryOwnership.of(manifest).ownershipOf(type),
-                    visible,
-                ) { record -> if (model == null) record else context.codec.current(model, record) }
-            }
+                    counts.ifAvailable?.let {
+                        QueryCountCache(
+                            node::snapshotCheckpointOf,
+                            properties.countCache.options()
+                        )
+                    },
+                    eventVisibility(snapshots + policyGateways, hides, reads),
+                    tenants,
+                    masks,
+                ),
+            )
             return HttpQueries(
                 snapshots,
-                events,
+                eventGateways,
                 properties.http.defaultListSize,
                 datasets,
                 visibility.getIfAvailable { DatasetVisibility.of(properties.abac.options()) },
                 node.snapshotStatus,
+                policyGateways,
             )
         }
+
+        /**
+         * When policies [hides] an aggregate from a caller of its scope, the [SnapshotPolicyGateway] [gateway] gives for
+         * each of [types] no gateway of [snapshots] queries, so its policies are evaluated on its states alone (review
+         * R3.3-3); none otherwise.
+         */
+        private fun policyGateways(
+            hides: Boolean,
+            types: List<AggregateType>,
+            snapshots: List<QueryGateway>,
+            gateway: (AggregateType) -> SnapshotPolicyGateway,
+        ): List<QueryGateway> {
+            if (!hides) return emptyList()
+            val queried = snapshots.map { it.aggregateType }.toSet()
+            return types.filterNot(queried::contains).map(gateway)
+        }
+
+        /**
+         * The events model's visibility: the latest committed state [reads] reads, under the gateway of its type among
+         * [gateways].
+         */
+        private fun eventVisibility(
+            gateways: List<QueryGateway>,
+            hides: Boolean,
+            reads: ObjectProvider<StateReads>,
+        ): EventVisibility {
+            val byType = gateways.associateBy { it.aggregateType }
+            return EventVisibility.of(byType::get, hides) { ref ->
+                reads.ifAvailable?.committed(ref)?.let {
+                    CommittedState(it.ref, it.version, it.scope, it.deleted, it.tags, it.state)
+                }
+            }
+        }
+
+        /** What every events gateway of [eventGateways] is built of, the beans and policies [wowHttpQueries] holds. */
+        private class EventGatewayParts(
+            val events: EventQueryBackend,
+            val catalog: QuerySchemaCatalog,
+            val filters: List<QueryFilter>,
+            val policies: List<QueryPolicy>,
+            val observer: QueryObserver,
+            val entryPolicy: QueryEntryPolicy,
+            /**
+             * The events' own count cache (a cache is keyed by type, not by model), valid while the type's snapshot
+             * write checkpoint holds, which moves as the snapshots follow the log.
+             */
+            val counts: QueryCountCache?,
+            val visibility: EventVisibility,
+            val tenants: QueryTenantPolicy,
+            val masks: PayloadMasks,
+        )
+
+        /** The events gateway of each aggregate type an [EventQueryBackend] serves (decision D235). */
+        private fun eventGateways(manifest: Manifest, node: ServiceNode, parts: EventGatewayParts) =
+            queryTypes(manifest, node.contexts.keys, QueryRoutes.EVENTS).mapNotNull { type ->
+                val binding = parts.events.binding(type) ?: return@mapNotNull null
+                val context = node.contexts.getValue(type.context)
+                // Events read as the model reads them now (finding A4-16): current names and revisions, as typed.
+                val model = context.models.firstOrNull { it.type == type }
+                EventQueryGateways.create(
+                    aggregateType = type,
+                    backend = binding.backend,
+                    schemaProvider = parts.catalog.provider(type, QueryModel.EVENTS),
+                    filters = parts.filters,
+                    policies = parts.policies,
+                    observer = parts.observer,
+                    entryPolicy = parts.entryPolicy,
+                    counts = parts.counts,
+                    visibility = parts.visibility,
+                    tenants = parts.tenants,
+                    masks = parts.masks,
+                ) { record -> if (model == null) record else context.codec.current(model, record) }
+            }
 
         @Bean
         @InternalWowApi
@@ -341,3 +503,7 @@ class QueryAutoConfiguration {
 
 /** A class of wow-query, present only when the application has the module. */
 internal const val QUERY_MODULE = "me.ahoo.wow.query.QueryModule"
+
+/** The snapshot write checkpoint of [type] on this node, or null when its context is not hosted here. */
+private suspend fun ServiceNode.snapshotCheckpointOf(type: AggregateType): Long? =
+    contexts[type.context]?.snapshotCheckpoint(type)

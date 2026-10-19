@@ -108,16 +108,21 @@ export async function ledgerCommands(
   return answer.json();
 }
 
-/** Waits until the ops service lists `entry` to an operator. */
+/**
+ * Waits until the ops service lists `entry` to an operator, who calls with
+ * `headers`: a caller of headers by default, a CoSec token's on a server in
+ * its `cosec` profile.
+ */
 export async function listed(
   request: APIRequestContext,
   entry: Parked,
+  headers: Record<string, string> = { "X-User": "e2e" },
 ): Promise<void> {
   await expect
     .poll(async () => {
       const answer = await request.get(
         `/ops/parked/${encodeURIComponent(entry.id)}/state`,
-        { headers: { "X-User": "e2e" } },
+        { headers },
       );
       return answer.status();
     })

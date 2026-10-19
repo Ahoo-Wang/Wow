@@ -23,9 +23,23 @@ class InMemoryNineXReservationSource(keys: Collection<NineXPreparedKey> = emptyL
         keys += key
     }
 
+    /** Removes the key [key] of [name], as 9.x's `rollback` does. */
+    fun remove(name: String, key: String) {
+        keys.removeIf { it.name == name && it.key == key }
+    }
+
+    /** Replaces the key of [key]'s name and key, as 9.x's `reprepare` does. */
+    fun update(key: NineXPreparedKey) {
+        remove(key.name, key.key)
+        keys += key
+    }
+
     override fun prepareKeys(): Map<String, Long> =
         keys.groupingBy { it.name }.eachCount().mapValues { it.value.toLong() }.toSortedMap()
 
     override fun keys(name: String, after: String?, limit: Int): List<NineXPreparedKey> =
         keys.filter { it.name == name && (after == null || it.key > after) }.sortedBy { it.key }.take(limit)
+
+    override fun key(name: String, key: String): NineXPreparedKey? =
+        keys.lastOrNull { it.name == name && it.key == key }
 }

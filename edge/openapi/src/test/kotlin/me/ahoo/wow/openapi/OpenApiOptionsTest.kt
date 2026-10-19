@@ -21,6 +21,22 @@ class OpenApiOptionsTest {
     @Test
     fun `an option equals another with the same fields, and prints them`() {
         valueSemantics(OpenApiOptions(), OpenApiOptions(), OpenApiOptions(title = "Shop"))
+        val bearer = mapOf("bearer" to OpenApiSecurityScheme.bearer())
+        valueSemantics(
+            OpenApiOptions().withSecuritySchemes(bearer),
+            OpenApiOptions(title = OpenApiOptions.DEFAULT_TITLE).withSecuritySchemes(bearer),
+            OpenApiOptions(),
+        )
+        OpenApiOptions().withSecuritySchemes(bearer).securitySchemes.assert().isEqualTo(bearer)
+    }
+
+    @Test
+    fun `a security scheme equals another of the same fields, and prints them`() {
+        valueSemantics(
+            OpenApiSecurityScheme.bearer("JWT"),
+            OpenApiSecurityScheme.bearer("JWT"),
+            OpenApiSecurityScheme.header("X-User"),
+        )
     }
 
     private fun valueSemantics(value: Any, same: Any, other: Any) {

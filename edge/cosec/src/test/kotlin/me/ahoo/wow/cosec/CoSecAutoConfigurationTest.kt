@@ -88,6 +88,35 @@ class CoSecAutoConfigurationTest {
     }
 
     @Test
+    fun `the injected application is trusted only when the host turns it on, in CoSec's inject mode`() {
+        val injectMode = arrayOf("cosec.inject.enabled=true", "cosec.authorization.enabled=false")
+        runner.withPropertyValues(*injectMode).run { context ->
+            CoSecAutoConfiguration.callerOptions(context.environment).trustInjectedApp.assert().isFalse()
+        }
+        runner.withPropertyValues("wow.cosec.trust-injected-app=true", *injectMode).run { context ->
+            CoSecAutoConfiguration.callerOptions(context.environment).trustInjectedApp.assert().isTrue()
+            // Never on the internal port, whose callers are services.
+            CoSecAutoConfiguration.callerOptions(context.environment, injectedApps = false).trustInjectedApp.assert()
+                .isFalse()
+        }
+    }
+
+    @Test
+    fun `trusting injected applications outside CoSec's inject mode fails the startup`() {
+        listOf(
+            arrayOf("wow.cosec.trust-injected-app=true"),
+            arrayOf("wow.cosec.trust-injected-app=true", "cosec.inject.enabled=true"),
+            arrayOf("wow.cosec.trust-injected-app=true", "cosec.authorization.enabled=false"),
+        ).forEach { properties ->
+            runner.withPropertyValues(*properties).run { context ->
+                context.startupFailure.assert().isNotNull()
+                generateSequence(context.startupFailure) { it.cause }
+                    .any { it.message.orEmpty().contains("wow.cosec.trust-injected-app") }.assert().isTrue()
+            }
+        }
+    }
+
+    @Test
     fun `the application's own resolver and authorizer win`() {
         runner.withUserConfiguration(Application::class.java, CoSec::class.java)
             .withPropertyValues("wow.cosec.authorizer.enabled=true")
@@ -116,7 +145,7 @@ class CoSecAutoConfigurationTest {
     fun `the CoSec request facts join the edge's options`() {
         runner.withUserConfiguration(CoSec::class.java).run { context ->
             context.getBean(WowHttpOptions::class.java).requestFacts.assert()
-                .containsExactlyInAnyOrder("X-Trace", CoSecRequestFacts.APP_ID, CoSecRequestFacts.DEVICE_ID)
+                .containsExactlyInAnyOrder("X-Trace", CoSecRequestFacts.DEVICE_ID)
         }
     }
 

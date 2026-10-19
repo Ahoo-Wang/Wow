@@ -15,20 +15,31 @@ package me.ahoo.wow.runtime.command
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
+import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.api.schedule.ScheduleContext
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.memory.InMemoryTopics
+import me.ahoo.wow.manifest.ManifestFragment
+import me.ahoo.wow.runtime.FrameworkCodes
+import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
+import me.ahoo.wow.runtime.cluster.ClusterCodec
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
+import me.ahoo.wow.runtime.cluster.ReplyTo
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.runtime.node.ServiceNodeOptions
 import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.fastNodeOptions
 import me.ahoo.wow.runtime.subscription.eventually
@@ -70,6 +81,7 @@ class CommandIntakeTest {
         name: String = "stock-1",
         producer: TopicProducer = topics,
         backends: BackendFactory = stockBackends,
+        options: ServiceNodeOptions = fastNodeOptions(),
     ): ServiceNode = ServiceNode(
         STOCK_SERVICE,
         name,
@@ -78,7 +90,7 @@ class CommandIntakeTest {
         stockManifest(),
         backends,
         channel,
-        options = fastNodeOptions(),
+        options = options,
         contracts = ContractDirectory(stockManifest()),
         topics = SourceTopics(topics, PREFIX, producer, intake = true),
     ).also {
@@ -86,7 +98,7 @@ class CommandIntakeTest {
         channel.bind(it.address, it.forwardHandler)
     }
 
-    private fun salesNode(): ServiceNode = ServiceNode(
+    private fun salesNode(peer: ManifestFragment = peer(stockManifest())): ServiceNode = ServiceNode(
         SALES_SERVICE,
         "sales-1",
         "sales-1.internal:9090",
@@ -96,18 +108,29 @@ class CommandIntakeTest {
         channel,
         options = fastNodeOptions(),
         subscriptions = SubscriptionBindings(mapOf(SALES to listOf(orderSaga(rejections)))),
-        contracts = ContractDirectory(salesManifest(), listOf(peer(stockManifest()))),
+        contracts = ContractDirectory(salesManifest(), listOf(peer)),
         topics = SourceTopics(topics, PREFIX, topics),
     ).also {
         nodes += it
         channel.bind(it.address, it.forwardHandler)
     }
 
-    private suspend fun ServiceNode.place(id: String, quantity: Int): CommandResult {
+    private suspend fun ServiceNode.place(
+        id: String,
+        quantity: Int,
+        headers: Map<String, String> = emptyMap(),
+    ): CommandResult {
         val context = context(SALES)
         return context.coordinator.execute(
             context.models.first(),
-            Command("place-$id", "place-$id", ORDER.ref(TENANT, id), PlaceOrder(quantity), wait = WaitPlan.COMMITTED),
+            Command(
+                "place-$id",
+                "place-$id",
+                ORDER.ref(TENANT, id),
+                PlaceOrder(quantity),
+                headers = headers,
+                wait = WaitPlan.COMMITTED,
+            ),
         )
     }
 
@@ -156,15 +179,36 @@ class CommandIntakeTest {
             val unassigned = ITEM.unassigned(TENANT)
             val reserve = Command("new-1", "r-new-1", unassigned, Reserve(1))
             sender.send(reserve)
+            // Keyed and partitioned by its request (review R2.1-2).
+            val lane = ITEM.ref(TENANT, "(none):r-new-1")
+            topics.messages(COMMANDS).single().key.assert().isEqualTo(lane.toString())
             // Decided is not yet committed: the intake's checkpoint moves once the commit is in the log.
-            eventually { checkpoint(stockNode, unassigned) == 1L }
+            eventually { checkpoint(stockNode, lane) == 1L }
             val created = checkNotNull(stockBackends.backends(STOCK).log.findByRequestId(ITEM, TENANT, "r-new-1"))
             created.ref.isAssigned.assert().isTrue()
             // Sent again (a saga that handled its commit again): the same request finds the item it created.
             sender.send(reserve.copyWith(id = "new-1-again"))
-            eventually { checkpoint(stockNode, unassigned) == 2L }
+            eventually { checkpoint(stockNode, lane) == 2L }
             stock.decided.assert().containsExactly("new-1")
         }
+
+    @Test
+    fun `a creation that names no item and fails should park only its own request`(): Unit = runBlocking {
+        // Review R2.1-2: the creations of one type and tenant do not share one lane nor one parking key.
+        stockNode().also { it.start() }
+        val broken = Command("new-b", "r-new-b", ITEM.unassigned(TENANT), Reserve(BREAKING)).also { sender.send(it) }
+        val ledger = stockBackends.backends(STOCK).ledger
+        val lane = ITEM.ref(TENANT, "(none):r-new-b")
+        eventually { ledger.isParked(CommandIntake.NAME, lane) }
+        ledger.isParked(CommandIntake.NAME, ITEM.unassigned(TENANT)).assert().isFalse()
+        // Every other creation of the type and tenant goes on, whichever partition it lands in.
+        val others = (1..4).map { Command("new-$it", "r-new-$it", ITEM.unassigned(TENANT), Reserve(1)) }
+        others.forEach { sender.send(it) }
+        eventually { stock.decided.containsAll(others.map { it.id }) }
+        stock.decided.assert().doesNotContain(broken.id)
+        others.map { Partitioner.partitionOf(ITEM.ref(TENANT, "(none):${it.requestId}"), PARTITIONS) }.toSet().size
+            .assert().isGreaterThan(1)
+    }
 
     @Test
     fun `a rejected command should send a receipt that the saga's handler takes once`(): Unit = runBlocking {
@@ -193,6 +237,26 @@ class CommandIntakeTest {
         rejections.size.assert().isEqualTo(1)
         cancelled.size.assert().isEqualTo(1)
     }
+
+    @Test
+    fun `a saga's command, its receipt and the compensation should carry only the facts that propagate`(): Unit =
+        runBlocking {
+            stockNode().start()
+            val sales = salesNode().also { it.start() }
+            val facts = mapOf(RequestFacts.APP_ID to "console", RequestFacts.REMOTE_IP to "10.0.0.7", "X-T" to "t")
+            sales.place("o-3", AVAILABLE + 1, facts)
+            eventually { cancelled.size == 1 }
+            val propagated = mapOf(RequestFacts.APP_ID to "console")
+            // Decision D232: the application goes along the chain, the client's address does not.
+            CommandMessages.commandOf(EnvelopeCodec.decode(topics.messages(COMMANDS).single().value)).headers
+                .assert().isEqualTo(propagated)
+            CommandMessages.rejectedOf(EnvelopeCodec.decode(topics.messages(RECEIPTS).single().value)).headers
+                .assert().isEqualTo(propagated)
+            rejections.single().headers.assert().isEqualTo(propagated)
+            val compensated = salesBackends.backends(SALES).log.read(ORDER.ref(TENANT, "o-3")).toList().last()
+            compensated.commandType.assert().isEqualTo("sales.order.CancelOrder")
+            compensated.headers.assert().isEqualTo(propagated)
+        }
 
     @Test
     fun `the intake should not start unless its command topic has the log's partitions`(): Unit = runBlocking {
@@ -330,23 +394,66 @@ class CommandIntakeTest {
         }
 
     @Test
-    fun `a command the context does not know should park its aggregate`(): Unit = runBlocking {
-        val node = stockNode().also { it.start() }
-        val unknown = Command("c-u", "r-c-u", ITEM.ref(TENANT, "i-u"), Reserve(1))
-        val wire = me.ahoo.wow.runtime.cluster.ClusterCodec.wire("stock.item.Unknown", unknown)
-        val partition = Partitioner.partitionOf(unknown.ref, PARTITIONS)
-        topics.send(COMMANDS, CommandMessages.command(wire, partition))
-        // Not a command at all: passed over.
-        topics.send(COMMANDS, TopicMessage(unknown.ref.toString(), "{}".toByteArray(), partition = partition))
-        val ledger = stockBackends.backends(STOCK).ledger
-        eventually { ledger.isParked(CommandIntake.NAME, unknown.ref) }
-        ledger.parked(CommandIntake.NAME, unknown.ref)!!.reason.assert().contains("no command type stock.item.Unknown")
-        // The checkpoint passes what was passed over with the next command it takes.
-        val next = generateSequence(0) { it + 1 }.map { "i-$it" }
-            .first { Partitioner.partitionOf(ITEM.ref(TENANT, it), PARTITIONS) == partition }
-        reserve("c-next", 1, item = next)
-        eventually { checkpoint(node, unknown.ref) == 3L }
-    }
+    fun `a command type the context does not know should be rejected, not park its aggregate`(): Unit =
+        runBlocking {
+            // Review X-5: a sender's mistake is its rejection; the aggregate it names takes its later commands.
+            val node = stockNode().also { it.start() }
+            val unknown = Command("c-u", "r-c-u", ITEM.ref(TENANT, "i-u"), Reserve(1))
+            val partition = Partitioner.partitionOf(unknown.ref, PARTITIONS)
+            val replyTo = ReplyTo(SALES, "OrderSaga.onOrderPlaced", ORDER.ref(TENANT, "o-u"), 1)
+            val wire = ClusterCodec.wire("stock.item.Unknown", unknown, replyTo)
+            topics.send(COMMANDS, CommandMessages.command(wire, partition))
+            val later = reserve("c-u-later", 1, item = "i-u")
+            eventually { later.id in stock.decided }
+            val ledger = stockBackends.backends(STOCK).ledger
+            ledger.isParked(CommandIntake.NAME, unknown.ref).assert().isFalse()
+            eventually { checkpoint(node, unknown.ref) == 2L }
+            val rejected = CommandMessages.rejectedOf(EnvelopeCodec.decode(topics.messages(RECEIPTS).single().value))
+            rejected.commandId.assert().isEqualTo("c-u")
+            rejected.commandType.assert().isEqualTo("stock.item.Unknown")
+            rejected.ref.assert().isEqualTo(unknown.ref)
+            rejected.error.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
+            rejected.error.message.assert().contains("no command type stock.item.Unknown")
+            rejected.executionId.ref.assert().isEqualTo(ORDER.ref(TENANT, "o-u"))
+        }
+
+    @Test
+    fun `an aggregate type the context does not know should be rejected without a receipt when none is asked`(): Unit =
+        runBlocking {
+            val node = stockNode().also { it.start() }
+            val ref = AggregateRef(AggregateType(STOCK, "shelf"), TENANT, "s-1")
+            val partition = Partitioner.partitionOf(ref, PARTITIONS)
+            val wire = ClusterCodec.wire(
+                "stock.shelf.Reserve",
+                Command("c-s", "r-c-s", ref, Reserve(1)),
+            )
+            topics.send(COMMANDS, CommandMessages.command(wire, partition))
+            eventually { checkpoint(node, ref) == 1L }
+            stockBackends.backends(STOCK).ledger.isParked(CommandIntake.NAME, ref).assert().isFalse()
+            topics.messages(RECEIPTS).assert().isEmpty()
+        }
+
+    @Test
+    fun `a saga's command of a type the other context does not know yet should come back as its rejection`(): Unit =
+        runBlocking {
+            // Review X-5: the sales service has a newer stock contract, which names the reservation ReserveV2.
+            val stockNode = stockNode().also { it.start() }
+            val sales = salesNode(peer = peer(renamed(stockManifest(), "Reserve", "ReserveV2"))).also { it.start() }
+            sales.place("o-v2", 1).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            // The saga's @OnRejected handler takes the rejection and cancels the order.
+            eventually { cancelled.size == 1 }
+            val rejected = rejections.single()
+            rejected.commandType.assert().isEqualTo("stock.item.ReserveV2")
+            rejected.error.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
+            rejected.ref.assert().isEqualTo(ITEM.ref(TENANT, "o-v2"))
+            stock.decided.assert().isEmpty()
+            // The stock item is not parked: its later commands are executed.
+            val item = ITEM.ref(TENANT, "o-v2")
+            stockBackends.backends(STOCK).ledger.isParked(CommandIntake.NAME, item).assert().isFalse()
+            val later = reserve("c-v2-later", 1, item = "o-v2")
+            eventually { later.id in stock.decided }
+            eventually { checkpoint(stockNode, item) == 2L }
+        }
 
     @Test
     fun `a message of an aggregate that holds no command should park the aggregate there`(): Unit = runBlocking {
@@ -366,6 +473,76 @@ class CommandIntakeTest {
         val later = reserve("c-later-garbled", 1, item = "i-garbled")
         eventually { later.id in stock.decided }
     }
+
+    @Test
+    fun `a command the node refuses as busy should wait for room instead of parking its aggregate`(): Unit =
+        runBlocking {
+            // Review R2.1-1: the node's in-flight bound is backpressure for the intake, not a technical failure.
+            val node = stockNode(options = fastNodeOptions().copyWith(maxInFlight = 2)).also { it.start() }
+            val context = node.context(STOCK)
+            val items = listOf("i-h1", "i-h2")
+            val held = items.map { item -> CompletableDeferred<Unit>().also { stock.gates[item] = it } }
+            val callers = items.map { item ->
+                launch {
+                    context.coordinator.execute(
+                        stock.model,
+                        Command("h-$item", "h-$item", ITEM.ref(TENANT, item), Reserve(1), wait = WaitPlan.COMMITTED),
+                    )
+                }
+            }
+            val ledger = stockBackends.backends(STOCK).ledger
+            val busy = try {
+                eventually { context.executor.commandsInFlight == 2 }
+                reserve("c-busy", 1, item = "i-busy").also { busy ->
+                    // Far longer than the subscription's three attempts take.
+                    delay(300.milliseconds)
+                    ledger.isParked(CommandIntake.NAME, busy.ref).assert().isFalse()
+                    stock.decided.assert().doesNotContain(busy.id)
+                }
+            } finally {
+                // Never left holding the node's stop.
+                held.forEach { it.complete(Unit) }
+            }
+            callers.forEach { it.join() }
+            eventually { busy.id in stock.decided }
+            eventually { checkpoint(node, busy.ref) == 1L }
+            ledger.isParked(CommandIntake.NAME, busy.ref).assert().isFalse()
+        }
+
+    @Test
+    fun `the intakes of a node should execute at most half its in-flight bound at once`(): Unit = runBlocking {
+        // Review R2.1-1: a backlog over many partitions leaves room for callers, sagas and timers.
+        InFlightLimit().intakes.availablePermits.assert().isEqualTo(InFlightLimit.DEFAULT_MAX / 2)
+        InFlightLimit(1).intakes.availablePermits.assert().isEqualTo(1)
+        val node = stockNode(options = fastNodeOptions().copyWith(maxInFlight = 4)).also { it.start() }
+        val items = (1..4).map { "i-s$it" }
+        val gates = items.map { item -> CompletableDeferred<Unit>().also { stock.gates[item] = it } }
+        try {
+            items.forEach { reserve("c-$it", 1, item = it) }
+            delay(300.milliseconds)
+            node.context(STOCK).executor.commandsInFlight.assert().isEqualTo(2)
+        } finally {
+            gates.forEach { it.complete(Unit) }
+        }
+        eventually { stock.decided.containsAll(items.map { "c-$it" }) }
+    }
+
+    @Test
+    fun `a scheduled command early by the target's clock should wait for its due time, not park`(): Unit =
+        runBlocking {
+            // Review R2.5-1: nothing sends another context's timer command again once the broker took it.
+            val defaults = fastNodeOptions()
+            val timers = defaults.timers.copyWith(maxEarlyWait = 50.milliseconds)
+            val node = stockNode(options = defaults.copyWith(timers = timers)).also { it.start() }
+            val due = System.currentTimeMillis() + 1_000
+            val slot = ScheduleContext("timer-1", "release", 1, due)
+            val scheduled = Command("t-1", "timer-1#1", ITEM.ref(TENANT, "i-t"), Reserve(1), headers = slot.headers())
+            sender.send(scheduled)
+            eventually { scheduled.id in stock.decided }
+            System.currentTimeMillis().assert().isGreaterThanOrEqualTo(due)
+            stockBackends.backends(STOCK).ledger.isParked(CommandIntake.NAME, scheduled.ref).assert().isFalse()
+            eventually { checkpoint(node, scheduled.ref) == 1L }
+        }
 
     /** A checkpoint store that never saves: the node crashes before each save. */
     private object DroppedCheckpoints : CheckpointStore {

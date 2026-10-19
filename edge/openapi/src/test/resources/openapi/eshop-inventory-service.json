@@ -1391,7 +1391,7 @@
       "post" : {
         "tags" : [ "eshop-inventory.stock" ],
         "summary" : "Queries the events model (decision D127).",
-        "description" : "The body's `kind` is the operation: `list` (an array, or with `Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count`; this model does not aggregate.",
+        "description" : "The body's `kind` is the operation: `list` (an array, or with `Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count` or `aggregate` (an array of groups).",
         "operationId" : "eshop-inventory.stock.events.query",
         "parameters" : [ {
           "$ref" : "#/components/parameters/Wow-Scope"
@@ -1441,6 +1441,11 @@
                     "$ref" : "#/components/schemas/wow.EventStreamRecord"
                   }, {
                     "$ref" : "#/components/schemas/wow.CountResult"
+                  }, {
+                    "type" : "array",
+                    "items" : {
+                      "type" : "object"
+                    }
                   } ]
                 }
               },
@@ -2057,7 +2062,7 @@
       },
       "wow.EventStreamRecord" : {
         "type" : "object",
-        "description" : "An event stream of one aggregate (decision D131); `ownerId`, `spaceId` and `operator` when set.",
+        "description" : "An event stream, the commit of one command (decision D235): `ownerId`, `spaceId` and `operator` are null when unset; a projection leaves fields out.",
         "properties" : {
           "aggregateId" : {
             "type" : "string"
@@ -2081,13 +2086,17 @@
             "type" : "string"
           },
           "ownerId" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "spaceId" : {
-            "type" : "string"
+            "type" : [ "string", "null" ]
           },
           "operator" : {
-            "$ref" : "#/components/schemas/wow.Operator"
+            "anyOf" : [ {
+              "$ref" : "#/components/schemas/wow.Operator"
+            }, {
+              "type" : "null"
+            } ]
           },
           "events" : {
             "type" : "array",

@@ -20,6 +20,8 @@ import me.ahoo.wow.runtime.log.AppendQueueOptions
 import me.ahoo.wow.runtime.node.BackendFactory
 import me.ahoo.wow.runtime.node.ContextBackends
 import me.ahoo.wow.spi.snapshot.SnapshotStore
+import java.net.InetAddress
+import java.net.UnknownHostException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
 
@@ -114,10 +116,20 @@ class HostBackends @InternalWowApi constructor(
 internal object BackendSelection {
     /**
      * The backend [configured], [BackendKind.AUTO] resolved by what is available: PostgreSQL when [postgres] (its
-     * module on the classpath and a `DataSource` bean), MongoDB when [mongo] (its module and a `MongoClient` bean),
-     * memory when neither. Both available is ambiguous, and a backend configured but unavailable fails.
+     * module on the classpath and a `DataSource` bean), MongoDB when [mongo] (its module and a `MongoClient` bean).
+     * Both available is ambiguous, and a backend configured but unavailable fails.
+     *
+     * Neither available fails too (review R3.5-1): a node in memory loses every committed fact when it stops, and two
+     * of them would each own every partition. AUTO falls back to memory only with a [memoryOptIn], the reason a
+     * development node may keep its data there (see [memoryOptIn] below); a node meant to run in memory names it,
+     * `wow.backend=memory`.
      */
-    fun select(configured: BackendKind, postgres: Boolean, mongo: Boolean): BackendKind = when (configured) {
+    fun select(
+        configured: BackendKind,
+        postgres: Boolean,
+        mongo: Boolean,
+        memoryOptIn: String? = null,
+    ): BackendKind = when (configured) {
         BackendKind.AUTO -> {
             check(!(postgres && mongo)) {
                 "Both PostgreSQL (a DataSource) and MongoDB (a MongoClient) can back Wow: set wow.backend to one of them."
@@ -125,7 +137,7 @@ internal object BackendSelection {
             when {
                 postgres -> BackendKind.POSTGRES
                 mongo -> BackendKind.MONGO
-                else -> BackendKind.MEMORY
+                else -> BackendKind.MEMORY.also { checkNotNull(memoryOptIn) { NO_DURABLE_BACKEND } }
             }
         }
 
@@ -139,4 +151,31 @@ internal object BackendSelection {
 
         BackendKind.MEMORY -> configured
     }
+
+    /**
+     * Why a node may fall back to memory when `wow.backend` is auto and no durable backend is available, or null when
+     * it may not: an active profile of [devProfiles] (`wow.internal.dev-profiles`), or an internal port bound to
+     * [bindHost], a loopback address, alone, the rule a node without a cluster token follows (decision D226).
+     */
+    fun memoryOptIn(activeProfiles: Collection<String>, devProfiles: Set<String>, bindHost: String?): String? {
+        val dev = activeProfiles.filter { it in devProfiles }
+        return when {
+            dev.isNotEmpty() -> "profile ${dev.joinToString()}"
+            bindHost != null && isLoopback(bindHost) -> "internal port on loopback $bindHost"
+            else -> null
+        }
+    }
+
+    private fun isLoopback(host: String): Boolean = try {
+        InetAddress.getByName(host).isLoopbackAddress
+    } catch (_: UnknownHostException) {
+        false
+    }
+
+    const val NO_DURABLE_BACKEND: String =
+        "No durable backend for Wow: wow.backend is auto, but neither PostgreSQL (wow-postgres on the classpath and a " +
+            "DataSource bean) nor MongoDB (wow-mongo and a MongoClient bean) is available, and a node in memory loses " +
+            "every command it committed when it stops (review R3.5-1). Add the backend's module and its DataSource or " +
+            "MongoClient, or set wow.backend=memory to keep the data in memory on purpose. A profile of " +
+            "wow.internal.dev-profiles, or an internal port bound to the loopback interface alone, also runs in memory."
 }

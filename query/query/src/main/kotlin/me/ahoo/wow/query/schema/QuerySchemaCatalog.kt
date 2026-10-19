@@ -17,9 +17,11 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.dataset.QueryDatasetChange
 import me.ahoo.wow.query.dataset.QueryDatasetListener
 import me.ahoo.wow.query.dataset.QueryDatasets
+import me.ahoo.wow.query.memory.InMemoryQueryStorageAdapter
 import java.time.Duration
 import java.util.concurrent.ConcurrentHashMap
 
@@ -69,6 +71,7 @@ class QuerySchemaCatalog(
     private val aggregates = aggregates.distinct()
     private val aggregateNames = this.aggregates.toSet()
     private val providers = ConcurrentHashMap<Pair<AggregateType, QueryModel>, QueryModelSchemaProvider>()
+    private val policyProviders = ConcurrentHashMap<AggregateType, QueryModelSchemaProvider>()
     private val inFlight = ConcurrentHashMap<QueryModelSchemaProvider, CompletableDeferred<Status>>()
 
     init {
@@ -111,6 +114,18 @@ class QuerySchemaCatalog(
     /** The schema provider of [aggregateType]'s [model], compiled once and shared by every reader. */
     fun provider(aggregateType: AggregateType, model: QueryModel): QueryModelSchemaProvider =
         providers.computeIfAbsent(aggregateType to model) { create(aggregateType, model) }
+
+    /**
+     * The snapshot schema [aggregateType]'s query policies are evaluated against when no backend serves its snapshot
+     * queries (review R3.3-3): compiled from its declaration over the in-memory storage's facts, so a state of it can
+     * be admitted in memory ([me.ahoo.wow.query.state.SnapshotPolicyGateway]) though it is never queried. It reads no
+     * storage, so it is not revalidated.
+     */
+    @InternalWowApi
+    fun policyProvider(aggregateType: AggregateType): QueryModelSchemaProvider =
+        policyProviders.computeIfAbsent(aggregateType) {
+            compiler.compile(QuerySchemaContext(it, QueryModel.SNAPSHOT), InMemoryQueryStorageAdapter)
+        }
 
     /** The current schema of [aggregateType]'s [model]. */
     suspend fun schema(aggregateType: AggregateType, model: QueryModel): QueryModelSchema =
@@ -198,7 +213,7 @@ class QuerySchemaCatalog(
     }
 
     private companion object {
-        val BUILT_IN_MODELS = listOf(QueryModel.SNAPSHOT)
+        val BUILT_IN_MODELS = listOf(QueryModel.SNAPSHOT, QueryModel.EVENTS)
         val log = KotlinLogging.logger { }
     }
 }
@@ -224,7 +239,8 @@ fun interface QueryModelCompiler {
     companion object {
         /**
          * Merges the declarations of [sources] into the logical model under [sensitivity] and compiles the storage's
-         * facts about it. [datasets] supplies each dataset model's fields and record layout.
+         * facts about it. [datasets] supplies each dataset model's fields and record layout, [events] each aggregate's
+         * `events` model's (decision D235): its declaration, its profile and the revision rule of its storage facts.
          */
         @JvmStatic
         @JvmOverloads
@@ -232,14 +248,19 @@ fun interface QueryModelCompiler {
             sources: List<QuerySchemaSource> = emptyList(),
             sensitivity: QuerySensitivityPolicy = QuerySensitivityPolicy.DEFAULT,
             datasets: QueryDatasets = QueryDatasets.NONE,
+            events: EventsQuerySchemas? = null,
         ): QueryModelCompiler {
-            val declared = if (datasets === QueryDatasets.NONE) sources.toList() else sources + datasets.schemaSource
+            val declared = listOfNotNull(
+                datasets.schemaSource.takeUnless { datasets === QueryDatasets.NONE },
+                events,
+            ).let { sources + it }
             return QueryModelCompiler { context, storage ->
+                val eventsModel = events?.takeIf { context.model == QueryModel.EVENTS }
                 DefaultQueryModelSchemaProvider(
                     context = context,
                     sources = declared,
-                    adapter = storage,
-                    profile = datasets.profile(context),
+                    adapter = eventsModel?.adapter(context.aggregateType, storage) ?: storage,
+                    profile = eventsModel?.profile(context.aggregateType) ?: datasets.profile(context),
                     sensitivity = sensitivity,
                 )
             }

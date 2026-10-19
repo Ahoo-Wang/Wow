@@ -28,8 +28,10 @@ import java.util.Base64
  * service identity only, and refuses it from any other caller.
  *
  * It is the framework's own header between its services, opaque to clients: its JSON members are the call's
- * `commandId`, the root command's `tenantId`, `ownerId` and `spaceId`, its `causation` and `operator`, and the `wait`
- * context a wait that follows the calling saga goes on with.
+ * `commandId`, the root command's `tenantId`, `ownerId` and `spaceId`, its `causation` and `operator`, the `wait`
+ * context a wait that follows the calling saga goes on with, and `facts`, the root request's facts that propagate
+ * (decision D236 ③, such as `{"app_id":"console"}`): any other member of it is dropped as it is parsed
+ * ([CallContext.facts]).
  */
 object CallHeader {
     /** [call] as the header's value. */
@@ -62,6 +64,7 @@ object CallHeader {
         val causation: Causation,
         val operator: Operator? = null,
         val wait: WaitWire? = null,
+        val facts: Map<String, String> = emptyMap(),
     ) {
         fun toContext(): CallContext = CallContext(
             commandId = commandId,
@@ -70,6 +73,7 @@ object CallHeader {
             causation = causation,
             operator = operator,
             wait = wait?.toContext(),
+            facts = facts,
         )
 
         companion object {
@@ -81,6 +85,7 @@ object CallHeader {
                 causation = call.causation,
                 operator = call.operator,
                 wait = call.wait?.let(WaitWire::of),
+                facts = call.facts,
             )
         }
     }

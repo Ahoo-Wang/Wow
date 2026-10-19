@@ -90,15 +90,16 @@ Each entry gets a heading `### G<n>. <short title>`, followed by these fields:
 - **Blocks M7**: yes, for the documentation. The default context is not blocking.
 - **Resolved**: by #4379, for the documentation. `guide/v10/testing` says where `aggregateSpec` lives (the kernel's test fixtures, `me.ahoo.wow.kernel.test`) and lists its expectations; `guide/v10/generated-code` describes the model factories (the context a parameter), the processor bindings, the binding index's name and package, the fragment and the routes. The test DSL still has no artifact of its own, and the factory still takes the context: neither blocks M7.
 
-### G6. `wowPeers` cannot be used in the build that produces the Gradle plugin
+### G6. The Gradle plugin cannot be applied in the build that produces it
 
 - **Work package**: 6.3e (the shop's inventory, found while wiring the example's two services)
 - **Area**: build
 - **What happened**: The shop and the inventory are each other's peers (decision D139): the shop sends the inventory's commands, and the inventory reads the shop's order stream. The Gradle plugin's `wowPeers(project(":inventory-server"))` is the documented way to put a peer's Manifest on the class path. The plugin cannot be applied to a project of the build that produces it, so neither server could call `wowPeers`. Without the peer Manifest, the shop's saga fails on the inventory's command type, and the inventory does not start.
 - **Where they looked**: `v9-to-v10.md`; the plugin's sources (`CollectPeerManifests`).
-- **Workaround**: `example/wow-peers.gradle.kts` does what the plugin does for both servers:
-  - merges the server's fragments into its Manifest and offers it as `wowManifestElements`;
-  - collects peers into `META-INF/wow/peers`.
+- **Workaround**: The repository's scripts do what the plugin does:
+  - `example/wow-manifest-fragment.gradle.kts` completes a domain module's fragment;
+  - `example/wow-contract.gradle.kts` filters it into the module's peer contract and packages it into the jar of each api module the domain declares in `api(...)` (decision D234). Since work package P.20 the servers need no peers: a domain module depends on the api modules of the contexts it talks to, and their jars carry the contracts. `wowPeers` and `example/wow-peers.gradle.kts` are gone;
+  - `example/eshop/wow-manifest-compatibility.gradle.kts` merges a server's Manifest and checks it against its baseline.
 - **Proposed fix**: Share that script, or a `build-logic` convention, with the eShop. The eShop's ordering and inventory services hit the same wall. Alternatively, build the plugin as an included build so the repository's own examples can apply it.
 - **Blocks M7**: no. Users apply the published plugin. It blocks the eShop's cross-context work packages until a shared workaround exists.
 

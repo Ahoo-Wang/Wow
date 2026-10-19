@@ -27,7 +27,8 @@ import me.ahoo.wow.api.result.CommandResult
  * outcome at its `committed` hop. A request the target had already committed is answered with its original aggregate
  * and version, [CommandResult.duplicate] set. [causation], [executionId], [operator] and [scope] are a
  * [CommandRejected]'s: they link the receipt to the saga's execution that derived the command, so what the handler
- * derives in turn is deterministic too.
+ * derives in turn is deterministic too; so are [headers], the request facts the command inherited
+ * ([me.ahoo.wow.api.decide.RequestFacts.PROPAGATED], decision D232), which the handler's commands inherit in turn.
  *
  * The receipt carries no state: the contract across contexts is the command's result (decisions D33, D192); a saga
  * that follows the target's later state reads its published stream. [C] says which commands' receipts a handler
@@ -47,6 +48,7 @@ class CommandCommitted<C : Any> @InternalWowApi constructor(
     val executionId: ExecutionId,
     val operator: Operator? = null,
     val scope: Scope = Scope.NONE,
+    val headers: Map<String, String> = emptyMap(),
 ) {
     init {
         require(commandId.isNotBlank()) { "A receipt names its command." }
@@ -70,6 +72,7 @@ class CommandCommitted<C : Any> @InternalWowApi constructor(
         executionId: ExecutionId = this.executionId,
         operator: Operator? = this.operator,
         scope: Scope = this.scope,
+        headers: Map<String, String> = this.headers,
     ): CommandCommitted<C> = CommandCommitted(
         commandId,
         commandType,
@@ -80,6 +83,7 @@ class CommandCommitted<C : Any> @InternalWowApi constructor(
         executionId,
         operator,
         scope,
+        headers,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -89,9 +93,10 @@ class CommandCommitted<C : Any> @InternalWowApi constructor(
 
     override fun toString(): String =
         "CommandCommitted(commandId=$commandId, commandType=$commandType, ref=$ref, version=$version, " +
-            "result=$result, causation=$causation, executionId=$executionId, operator=$operator, scope=$scope)"
+            "result=$result, causation=$causation, executionId=$executionId, operator=$operator, scope=$scope, " +
+            "headers=$headers)"
 
     private fun valueFields(): List<Any?> = listOf(
-        commandId, commandType, ref, version, result, causation, executionId, operator, scope
+        commandId, commandType, ref, version, result, causation, executionId, operator, scope, headers
     )
 }

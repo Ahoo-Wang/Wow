@@ -28,6 +28,7 @@ import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.openapi.ManifestOpenApi
+import me.ahoo.wow.openapi.OpenApiSecurityScheme
 import me.ahoo.wow.openapi.WowHttpContract
 import me.ahoo.wow.runtime.admission.CommandInput
 import me.ahoo.wow.runtime.admission.CommandTarget
@@ -105,6 +106,24 @@ class OpenApiRouteTest {
         val document = HttpNode(transformers = listOf(transformer)).get(WowPaths.OPENAPI).body!!
         document["paths"]["/shop/cart/checkout"]["post"]["operationId"].asString()
             .assert().isEqualTo("shop.cart.Checkout.withoutId")
+    }
+
+    @Test
+    fun `the host's document should be the one the node serves, with the security schemes it is given`() {
+        val transformer = object : CommandTransformer {
+            override val input: CommandType = CommandType("$CONTEXT.cart.Checkout", Checkout::class.java)
+
+            override suspend fun transform(input: CommandInput): CommandTarget =
+                CommandTarget(input.type, input.aggregateId, input.body, input.headers)
+        }
+        val node = HttpNode(transformers = listOf(transformer))
+        val served = node.get(WowPaths.OPENAPI).body!!
+        val document = wowOpenApi(cartManifest(), node.gateway)
+        HttpJson.mapper.readTree(HttpJson.write(document)).assert().isEqualTo(served)
+        val bearer = mapOf("bearer" to OpenApiSecurityScheme.bearer("JWT"))
+        val secured = wowOpenApi(cartManifest(), node.gateway, securitySchemes = bearer)
+        secured["security"].assert().isEqualTo(listOf(mapOf("bearer" to emptyList<String>())))
+        (secured["paths"] as Map<*, *>).keys.assert().contains("/shop/cart/checkout")
     }
 
     @Test

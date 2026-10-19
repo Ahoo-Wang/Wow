@@ -19,6 +19,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryRoutes
+import me.ahoo.wow.query.QueryBackend
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryTenantPolicy
@@ -147,6 +149,23 @@ class SnapshotQueryBackend(
     }
 }
 
+/**
+ * The `events` query backend of the node (decision D235): the [binding] of each aggregate type's events backend and
+ * storage facts, null for a type no backend serves (its events are then not queried).
+ */
+@InternalWowApi
+class EventQueryBackend(private val binding: (AggregateType) -> QueryBackendBinding<QueryBackend>?) {
+    /** The binding of [type]'s events backend, or null when none serves them. */
+    fun binding(type: AggregateType): QueryBackendBinding<QueryBackend>? = binding.invoke(type)
+
+    @InternalWowApi
+    companion object {
+        /** No backend: the node's events are not queried. */
+        @JvmField
+        val NONE: EventQueryBackend = EventQueryBackend { null }
+    }
+}
+
 /** What managing one aggregate's indexes did: the indexes it created, and those it found missing or broken. */
 @InternalWowApi
 data class QueryIndexReport(
@@ -161,6 +180,12 @@ data class QueryIndexReport(
  */
 internal fun snapshotTypes(manifest: Manifest, contexts: Set<String>): List<AggregateType> =
     queryTypes(manifest, contexts, QueryRoutes.SNAPSHOT)
+
+/** Every aggregate type of [manifest] in [contexts]. */
+internal fun hostedTypes(manifest: Manifest, contexts: Set<String>): List<AggregateType> =
+    manifest.contexts.filter { it.name in contexts }.flatMap { context ->
+        context.aggregates.map { AggregateType(context.name, it.name) }
+    }
 
 /** The aggregate types of [manifest] in [contexts] whose [model] the Manifest lists. */
 internal fun queryTypes(manifest: Manifest, contexts: Set<String>, model: String): List<AggregateType> =

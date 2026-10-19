@@ -220,13 +220,20 @@ class ParkedRetryOptions @InternalWowApi constructor(
  * Calls [block] until it succeeds, waiting [policy]'s backoff between failures and logging each one as a failure
  * to [action]; cancellation stops it.
  *
+ * [failed] hears each failure, before the backoff.
+ *
  * [RetryPolicy.maxAttempts] is the budget of attempts before the failure is taken as lasting (decision D195,
  * `wow.subscription.read-retry.max-attempts`): until it is spent, each failure is a warning and the backoff grows; once
  * it is, each further failure is an error, for an operator to see, and the call is retried at the maximum backoff. It
  * is never given up: nothing would read the partition again, and the node keeps its lease (decision D71).
  */
 @Suppress("TooGenericExceptionCaught") // Whatever failed is retried; only cancellation stops.
-internal suspend fun <T> retryForever(policy: RetryPolicy, action: () -> String, block: suspend () -> T): T {
+internal suspend fun <T> retryForever(
+    policy: RetryPolicy,
+    action: () -> String,
+    failed: (Exception) -> Unit = {},
+    block: suspend () -> T,
+): T {
     var failures = 0
     while (true) {
         try {
@@ -235,6 +242,7 @@ internal suspend fun <T> retryForever(policy: RetryPolicy, action: () -> String,
             throw cancelled
         } catch (failure: Exception) {
             failures++
+            failed(failure)
             val backoff = readBackoff(policy, failures)
             if (failures < policy.maxAttempts) {
                 logger.warn(failure) { "Failed to ${action()} (attempt $failures); retrying in $backoff." }

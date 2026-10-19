@@ -6,16 +6,16 @@
     "view-store/dataset_wording/aggregate.ts": "dad3638d2e8aa55d8390dcb6dae34a3e7f3e134d4a02e965ccfcbe4e6a5768c3",
     "view-store/dataset_wording/commandClient.ts": "35d28cbc9f9f75946634d77733346780e30e4dc5927c7ccd389e4aeddca845c1",
     "view-store/dataset_wording/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
-    "view-store/dataset_wording/queryClient.ts": "66867702bd942c456c8dbb19ad14a5a2cc5be30c536f1427e7c75579078d5bec",
+    "view-store/dataset_wording/queryClient.ts": "75775491e24c02e916a8cadae0e3da2a2e98e9f1601a165e246b8fa9b161c4f7",
     "view-store/index.ts": "52de570d94e95e46cdaa1128eb7911400d6ea83f955c1cf6ac123c03fb1a942f",
     "view-store/types.ts": "2a06ae9f23b63a3696d5874a89bb9daf143ef754f421157dc9ce3dc30d83766f",
     "view-store/view/aggregate.ts": "1ffd53da1d97b05a9b68c3e256272f6a8786846e2752ede5ec94616a0c547c9c",
     "view-store/view/commandClient.ts": "55995f83a14133d4ad8756dc242a12338ba1eced2398a8caad08225c3331f01e",
     "view-store/view/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
-    "view-store/view/queryClient.ts": "0c2a87c5739c2e54bb7ae4a0180093de68dc84e5d5770b164464b1c70be6fcf0",
+    "view-store/view/queryClient.ts": "0be9b2e2a82a24cc8240a594358acf9a80ca81a2d33d19e0970503e9dad0b133",
     "view-store/view_preferences/aggregate.ts": "7386d452ac610a5c2e734b46cd6100f558b54acfc9f1adc217f5b6ad35d5fd20",
     "view-store/view_preferences/commandClient.ts": "192a3740f993a0a8454e8c02b6cbb9120ba3346d1f3b8c828a25478ef03cdfe6",
     "view-store/view_preferences/index.ts": "93009e30d8920000d82a5628a33424d1dd4c38c65d6a354bdad8e4e8634633b7",
-    "view-store/view_preferences/queryClient.ts": "4beca60b9d77e9a79dfb4ed0087c4731e9589ba3b681e2e07b32d92e4f72c925"
+    "view-store/view_preferences/queryClient.ts": "9ebd6bddd2fd20774863a29a0f3fc11b1ed6d0069e74562079f00256126005c0"
   }
 }

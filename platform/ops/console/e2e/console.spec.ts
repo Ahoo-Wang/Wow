@@ -92,7 +92,7 @@ test("the ops server serves the console, which asks for a caller first", async (
 }) => {
   await open(page, null);
   await expect(
-    page.getByText("Name a caller to read the parked entries"),
+    page.getByText("Sign in to read the parked entries"),
   ).toBeVisible();
   await page.getByLabel("User").fill(OPERATOR.user);
   await page.getByLabel("Roles").fill(OPERATOR.roles.join(","));

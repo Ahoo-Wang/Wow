@@ -66,7 +66,8 @@ data class SnapshotCheckpoint(
 /**
  * Where the reservation import of one 9.x `PrepareKey` stands ([ReservationImporter]): [after] is the last key
  * imported or skipped, in key order, [completed] is set once every key is, and the counts are those of every run
- * since it started.
+ * since it started; [released] counts the imported keys released before the walk started, 9.x no longer confirming
+ * them to their owner (finding R2.4-2).
  */
 data class ReservationCheckpoint(
     val after: String? = null,
@@ -76,12 +77,14 @@ data class ReservationCheckpoint(
     val pending: Long = 0,
     val expired: Long = 0,
     val unresolved: Long = 0,
+    val released: Long = 0,
 )
 
 /**
  * Where the import of the 9.x compensation service's unresolved executions stands ([CompensationImporter]): [after]
  * is the last execution imported or reported, in id order, [completed] is set once every one is, and the counts are
- * those of every run since it started.
+ * those of every run since it started; [resolved] counts the imported entries resolved before the walk started,
+ * their executions no longer unresolved in 9.x (finding R2.4-1).
  */
 data class CompensationCheckpoint(
     val after: String? = null,
@@ -90,6 +93,7 @@ data class CompensationCheckpoint(
     val already: Long = 0,
     val unresolved: Long = 0,
     val others: Long = 0,
+    val resolved: Long = 0,
 )
 
 /**

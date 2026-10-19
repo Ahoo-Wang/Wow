@@ -1,0 +1,26 @@
+# Decision D173: only the service's own nodes reach the internal port. The services whose ledgers ops shows reach it
+# through Kafka (wow.ops.commands), never through its internal port; anyone the cluster lets in reaches the HTTP port,
+# where a CoSec token decides who is an operator. Enforced where the cluster's network plugin enforces NetworkPolicy.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ops
+  labels:
+    app.kubernetes.io/name: ops
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: ops
+  policyTypes:
+    - Ingress
+  ingress:
+    - ports:
+        - port: http
+          protocol: TCP
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ops
+      ports:
+        - port: internal
+          protocol: TCP

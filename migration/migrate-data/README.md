@@ -90,9 +90,11 @@ A 9.x event the V10 aggregate no longer has (the 9.x `DroppedEvent`) is mapped i
 - `tenancy` is `TENANT` (the default of `DecideScope.reserve`: unique within the owner's tenant) or `SYSTEM` (unique across tenants, as every 9.x key was). It must be the tenancy the V10 code reserves with.
 - `ownerId` is the dotted path of the owner's id in the 9.x value; without it the value itself is the id.
 
-The owner is that aggregate's instance with the id, in the tenant its 9.x streams record. A key prepared forever becomes a confirmed reservation; a key prepared with a time to live (a decision in flight, or one that never committed) and an expired key are skipped. A key whose owner has no 9.x stream, or whose id is in streams of several tenants, is printed as `UNRESOLVED` and not imported. A key another owner already holds in V10 stops the import. The import is checkpointed per `PrepareKey` and idempotent: a key already reserved for its owner is skipped. `compare` checks that every confirmed 9.x key is reserved in V10 for the same owner and prints each that is not.
+The owner is that aggregate's instance with the id, in the tenant its 9.x streams record. A key prepared forever becomes a confirmed reservation; a key prepared with a time to live (a decision in flight, or one that never committed) and an expired key are skipped. A key whose owner has no 9.x stream, or whose id is in streams of several tenants, is printed as `UNRESOLVED` and not imported. A key another owner already holds in V10, which this import did not reserve, stops the import. The import is checkpointed per `PrepareKey` and idempotent: a key already reserved for its owner is skipped.
 
-The reservation store is the target backend's, under its default name, as the V10 host uses it. `tail` does not follow `PrepareKey`s: the final `import --restart`, once 9.x has stopped writing, reserves the keys 9.x confirmed since.
+9.x keeps serving while the migration runs, so a key it confirmed may be rolled back (a rename) or reprepared for another owner after an import reserved it. The import records each key it reserves in `<checkpoint>.reservations.jsonl`, beside the checkpoint file, before reserving it. A walk from the first key (the first `import`, or `--restart`) first releases each recorded key that V10 still holds for the recorded owner and 9.x no longer confirms to that owner (printed as `RELEASED`), then reserves what 9.x holds now, so a key that moved is reserved for its new owner instead of stopping the import. A key V10 holds without a record, which V10 reserved itself, is never released; a recorded key V10 no longer holds for its owner is forgotten. `compare` checks both ways: every confirmed 9.x key is reserved in V10 for the same owner, and every recorded key V10 still holds is still confirmed to that owner in 9.x; it prints each that is not.
+
+The reservation store is the target backend's, under its default name, as the V10 host uses it. `tail` does not follow `PrepareKey`s: the final `import --restart`, once 9.x has stopped writing, reserves the keys 9.x confirmed since and releases those it gave up.
 
 ## Compensation (9.x `ExecutionFailed`)
 
@@ -123,13 +125,15 @@ Each execution becomes one parked entry of its subscription:
 | subscription | the mapping of `function` |
 | aggregate | the mapped V10 type of `eventId.aggregateId`, with its id and tenant |
 | from version | `eventId.version` (the import keeps the versions) |
-| reason | `<errorCode>: <errorMsg>`; the ops console groups by the part before the colon. No stack trace (D215) |
+| reason | `<errorCode>: <errorMsg> [9.x execution <id>]`; the ops console groups by the part before the colon, and the mark names the execution the entry was imported for. No stack trace (D215) |
 | failed at | `executeAt`, the last attempt |
 | retries, retry at | `retryState.retries`, and `retryState.retryAt` once a retry was made |
 | retry spec | `retrySpec`, seconds |
 | recoverable | `recoverable` (9.x `MarkRecoverable`) |
 
-An execution whose processor is not mapped, whose aggregate this map does not import, whose subscription reads another context's published events (it parks by topic offset, which a 9.x execution has none of), or whose version the V10 log does not hold is printed as `UNRESOLVED` and not imported; the check warns about the first three before the import. The import is checkpointed and idempotent: an aggregate the subscription already parks from that version or an earlier one is left as it is. `compare` checks that every unresolved execution has an entry of its subscription and aggregate from its version or an earlier one, prints each that has none as `DIFFERS` and exits with `3`.
+An execution whose processor is not mapped, whose aggregate this map does not import, whose subscription reads another context's published events (it parks by topic offset, which a 9.x execution has none of), or whose version the V10 log does not hold is printed as `UNRESOLVED` and not imported; the check warns about the first three before the import. The import is checkpointed and idempotent: an aggregate the subscription already parks from that version or an earlier one is left as it is.
+
+9.x keeps retrying while the migration runs, so an execution an early import parked may succeed, or be skipped, before the cut-over. A walk from the first execution (the first `import`, or `--restart`) first resolves each entry whose reason names a 9.x execution that is no longer unresolved, or no longer parks that aggregate from that version under the map (printed as `RESOLVED`), then parks the executions still unresolved, so an aggregate another execution still holds is parked again from that one's version. An entry without the mark, which V10 parked itself or parked again after a failed resume, is never touched. `compare` checks both ways: every unresolved execution has an entry of its subscription and aggregate from its version or an earlier one, and every entry with the mark still stands for an unresolved execution; it prints each that does not as `DIFFERS` and exits with `3`.
 
 Cut-over notes:
 
@@ -137,6 +141,7 @@ Cut-over notes:
 - Two executions of one subscription and aggregate become one entry, from the earlier version, with the retry state of the first one imported.
 - `tail` does not follow the compensation service. Stop the 9.x compensation service with the application, then run the final `import --restart`.
 - After the cut-over the V10 service owns the retries, and an entry resolved in V10 is no longer parked, so a later `compare` reports it.
+- Entries and keys imported before the import recorded their origin (the reason's mark, the keys file) cannot be told from V10's own: run the import from a fresh V10 target, or with `--restart` after removing them.
 
 ## Comparing states
 
@@ -160,7 +165,7 @@ The summary of each aggregate gives the share of instances that have a 9.x snaps
 
 ## Checkpoints
 
-The checkpoint file (format 1) keeps, per 9.x aggregate, where the import, the tail, the comparison and the snapshot writing stand; per `PrepareKey`, where its reservation import stands; and where the compensation import stands. A stopped run repeats at most one page. A resumed comparison keeps the counts of the earlier runs, so it still exits with `3` when they found differences. `--restart` starts a pass again from the first instance, and another `--sample` restarts the comparison.
+The checkpoint file (format 1) keeps, per 9.x aggregate, where the import, the tail, the comparison and the snapshot writing stand; per `PrepareKey`, where its reservation import stands; and where the compensation import stands. The keys the reservation import reserved are kept beside it, in `<checkpoint>.reservations.jsonl`: keep the two together. A stopped run repeats at most one page. A resumed comparison keeps the counts of the earlier runs, so it still exits with `3` when they found differences. `--restart` starts a pass again from the first instance, and another `--sample` restarts the comparison.
 
 ## Limits
 

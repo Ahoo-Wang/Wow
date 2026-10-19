@@ -32,6 +32,7 @@ import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
+import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
@@ -58,6 +59,8 @@ import kotlin.time.Duration.Companion.seconds
  *
  * The log takes one table per aggregate type, `wow_log__<context>__<aggregate>` (decision D162); a context-level
  * table holds one counter row per partition, so partitions, their sequences, leases and checkpoints stay per context.
+ * A counter row also holds its partition's lineage, `parent` (null) and `epoch` (0) (decision D240): format 1 reserves
+ * them for the online splits of 10.x, and [lineage] reads them back.
  * An append is one autocommitted statement (see [AggregateLogTable.append]): it bumps its partition's counter, which
  * locks the row until the statement commits, and inserts the stream into its aggregate's table at that sequence only
  * if the aggregate is exactly one version behind. Because the lock is held until commit, the sequence order is the
@@ -106,7 +109,8 @@ class PostgresEventLog(
 ) : EventLog {
     private val tables = PostgresEventLogTables(context)
 
-    private val pacer = TailPacer(partitions, pollInterval, maxPollInterval)
+    /** Validates the partition count first (decision D240): a log of another count is refused when it is built. */
+    private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
 
     /** The aggregate tables whose creation and registration this log has made sure of. */
     private val ensured = ConcurrentHashMap<String, AggregateLogTable>()
@@ -115,22 +119,20 @@ class PostgresEventLog(
     @Volatile
     private var registered: List<AggregateLogTable>? = null
 
-    init {
-        require(partitions >= 1) { "There is at least one partition." }
-    }
-
     /**
      * Creates the partition counters and the registry when missing; refuses a different partition count, and a log
      * recorded in another format version ([PostgresFormat]). The aggregate tables are created on first use, or by
      * [createTable].
      */
     fun createSchema() {
-        dataSource.connection.use { connection ->
+        dataSource.autoCommitted { connection ->
             val structures = listOf(tables.partitionsBase, PostgresEventLogTables.REGISTRY)
                 .map { it to PostgresEventLogTables.FORMAT }
             PostgresFormat.schema(connection, ddl, structures) {
                 connection.createStatement().use { statement ->
                     tables.ddl().forEach { statement.execute(it) }
+                    // A counter table created before the lineage columns (D240) gets them before its counters are written.
+                    statement.execute(tables.partitionAdditions)
                     statement.execute(tables.initializePartitions(partitions))
                 }
                 // A table created before format 1's added columns (D163, D166) gets them, so the tail reads every table.
@@ -157,7 +159,7 @@ class PostgresEventLog(
      * another format version ([PostgresFormat]), and an aggregate whose table name another aggregate has.
      */
     fun createTable(aggregateName: String) {
-        dataSource.connection.use { tableOf(it, aggregateName) }
+        dataSource.autoCommitted { tableOf(it, aggregateName) }
     }
 
     /** The table of [aggregate], created and registered when this log has not yet made sure it is. */
@@ -213,7 +215,7 @@ class PostgresEventLog(
             require(stream.ref.type.context == context) { "${stream.ref} is not in context $context." }
             val partition = Partitioner.partitionOf(stream.ref, partitions)
             try {
-                dataSource.connection.use { connection ->
+                dataSource.autoCommitted { connection ->
                     appendIn(connection, tableOf(connection, stream.ref.type), partition, stream, transport)
                 }
             } catch (failure: SQLException) {
@@ -286,7 +288,7 @@ class PostgresEventLog(
 
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = flow {
         val streams = dispatcher.jdbc {
-            dataSource.connection.use { connection ->
+            dataSource.autoCommitted { connection ->
                 val table = tableOf(connection, ref.type)
                 connection.prepareStatement(table.read).use { query ->
                     query.setString(1, ref.id)
@@ -302,7 +304,7 @@ class PostgresEventLog(
 
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = flow {
         val entries = dispatcher.jdbc {
-            dataSource.connection.use { connection ->
+            dataSource.autoCommitted { connection ->
                 val table = tableOf(connection, ref.type)
                 connection.prepareStatement(table.entries).use { query ->
                     query.setString(1, ref.id)
@@ -319,7 +321,7 @@ class PostgresEventLog(
     }
 
     override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = dispatcher.jdbc {
-        dataSource.connection.use { connection ->
+        dataSource.autoCommitted { connection ->
             connection.prepareStatement(tableOf(connection, ref.type).position).use { query ->
                 query.setString(1, ref.id)
                 query.setString(2, ref.tenantId)
@@ -334,7 +336,7 @@ class PostgresEventLog(
     /** The stream committed for [requestId] within [tenantId] in [type]'s table: one indexed read of one table. */
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
         dispatcher.jdbc {
-            dataSource.connection.use { connection ->
+            dataSource.autoCommitted { connection ->
                 findByRequestIdIn(connection, tableOf(connection, type), tenantId, requestId)
             }
         }
@@ -346,9 +348,9 @@ class PostgresEventLog(
      */
     override suspend fun findByRequestId(tenantId: String, requestId: String): EventStreamRecord? =
         dispatcher.jdbc {
-            dataSource.connection.use { connection ->
+            dataSource.autoCommitted { connection ->
                 val known = ((registered ?: register(connection)) + ensured.values).distinctBy { it.base }
-                if (known.isEmpty()) return@use null
+                if (known.isEmpty()) return@autoCommitted null
                 connection.prepareStatement(tables.byRequest(known)).use { query ->
                     known.indices.forEach { index ->
                         query.setString(index * 2 + 1, tenantId)
@@ -368,7 +370,7 @@ class PostgresEventLog(
         var woken = false
         while (true) {
             val mark = pacer.mark(partition)
-            val batch = dispatcher.jdbc { dataSource.connection.use { readTail(it, partition, last) } }
+            val batch = dispatcher.jdbc { dataSource.autoCommitted { readTail(it, partition, last) } }
             batch.entries.forEach {
                 emit(it)
                 last = it.position.sequence
@@ -424,10 +426,32 @@ class PostgresEventLog(
     /** One read of a tail: its [entries], whether to read again at once, whether the counter is ahead of them. */
     private class TailBatch(val entries: List<LogEntry>, val again: Boolean, val behind: Boolean)
 
+    /**
+     * The lineage of [partition] from its counter row (decision D240): its `parent` and `epoch`, read as
+     * [PartitionLineage.ROOT] when the columns are null or missing (a schema created before them).
+     */
+    override suspend fun lineage(partition: Int): PartitionLineage {
+        require(partition in 0 until partitions) { "No partition $partition among $partitions." }
+        return dispatcher.jdbc {
+            dataSource.autoCommitted { connection ->
+                connection.prepareStatement(tables.partitionRow).use { query ->
+                    query.setInt(1, partition)
+                    query.executeQuery().use { rows ->
+                        check(rows.next()) { "The log of $context has no counter of partition $partition." }
+                        val columns = (1..rows.metaData.columnCount).map { rows.metaData.getColumnName(it) }.toSet()
+                        val parent = if (PARENT in columns) rows.getInt(PARENT).takeUnless { rows.wasNull() } else null
+                        val epoch = if (EPOCH in columns) rows.getInt(EPOCH) else 0
+                        PartitionLineage.of(parent, epoch)
+                    }
+                }
+            }
+        }
+    }
+
     override suspend fun head(partition: Int): Long? {
         require(partition in 0 until partitions) { "No partition $partition among $partitions." }
         return dispatcher.jdbc {
-            dataSource.connection.use { connection ->
+            dataSource.autoCommitted { connection ->
                 connection.prepareStatement(tables.head).use { query ->
                     query.setInt(1, partition)
                     query.executeQuery().use { rows -> if (rows.next()) rows.getLong(1).takeIf { it > 0 } else null }
@@ -505,6 +529,10 @@ class PostgresEventLog(
         val DEFAULT_POLL_INTERVAL = 50.milliseconds
         val DEFAULT_MAX_POLL_INTERVAL = 1.seconds
         const val DEFAULT_TAIL_BATCH = 500
+
+        /** The lineage columns of a partition's counter row (decision D240). */
+        const val PARENT = "parent"
+        const val EPOCH = "epoch"
 
         /** The entries of [entries], in sequence order, that continue `last` without a gap. */
         fun contiguousRun(entries: List<LogEntry>, last: Long): List<LogEntry> {

@@ -14,11 +14,22 @@
 package me.ahoo.wow.cosec
 
 import me.ahoo.cosec.api.context.SecurityContext
+import me.ahoo.cosec.api.context.request.Request
+import me.ahoo.cosec.api.policy.VerifyResult
 import me.ahoo.cosec.api.tenant.Tenant
+import me.ahoo.cosec.authorization.RoleVerifyContext
+import me.ahoo.cosec.authorization.RootVerifyContext
+import me.ahoo.cosec.authorization.VerifyContext
+import me.ahoo.cosec.authorization.VerifyContext.Companion.setVerifyContext
+import me.ahoo.cosec.context.RequestSecurityContexts.setRequest
 import me.ahoo.cosec.context.SimpleSecurityContext
+import me.ahoo.cosec.permission.PermissionData
+import me.ahoo.cosec.policy.action.AllActionMatcher
 import me.ahoo.cosec.principal.SimplePrincipal
 import me.ahoo.cosec.principal.SimpleTenantPrincipal
 import me.ahoo.cosec.tenant.SimpleTenant
+import me.ahoo.cosec.webflux.ReactiveRemoteIpResolver
+import me.ahoo.cosec.webflux.ReactiveRequestParser
 import me.ahoo.cosec.webflux.ServerWebExchanges.setSecurityContext
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.http.WowHttpOptions
@@ -49,6 +60,7 @@ import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.runtime.wait.WaitRegistry
 import me.ahoo.wow.spi.wait.Origin
 import org.springframework.test.web.reactive.server.WebTestClient
+import org.springframework.web.server.ServerWebExchange
 import org.springframework.web.server.WebFilter
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
@@ -117,15 +129,40 @@ fun securityContext(
     return SimpleSecurityContext(principal, simpleTenant)
 }
 
+/** A permission of an application's role that grants every action, as CoSec's app role permissions are. */
+val appRolePermission: RoleVerifyContext = RoleVerifyContext(
+    roleId = "editor",
+    permission = PermissionData(id = "app.all", name = "all", action = AllActionMatcher.INSTANCE),
+    result = VerifyResult.ALLOW,
+)
+
+/** [this] as CoSec's authorization leaves it: the [request] it authorized, allowed by [verified]. */
+fun SecurityContext.authorized(request: Request, verified: VerifyContext): SecurityContext {
+    setRequest(request)
+    setVerifyContext(verified)
+    return this
+}
+
+/** CoSec's request of [exchange], as its WebFilter parses it. */
+fun coSecRequest(exchange: ServerWebExchange): Request = ReactiveRequestParser(ReactiveRemoteIpResolver).parse(exchange)
+
 /**
  * Stands in for CoSec's WebFilter: puts the security context [contexts] gives the request's `X-User` (and `X-Roles`,
- * comma-separated) on the exchange, as CoSec does once it has authenticated and authorized a request.
+ * comma-separated) on the exchange, as CoSec does once it has authenticated and authorized a request: by a permission
+ * of its application's roles ([appRolePermission]) when `X-Granted` is `app-role`, by the root otherwise. With
+ * `X-Granted: injected` it stands in for CoSec's inject filter instead: the request is on the context, unauthorized.
  */
 fun coSecFilter(tenant: String = "acme"): WebFilter = WebFilter { exchange, chain ->
     val headers = exchange.request.headers
     headers.getFirst("X-User")?.let { user ->
         val roles = headers.getFirst("X-Roles")?.split(',')?.toSet().orEmpty()
-        exchange.setSecurityContext(securityContext(user, tenant, roles))
+        val context = securityContext(user, tenant, roles)
+        when (headers.getFirst("X-Granted")) {
+            "injected" -> context.setRequest(coSecRequest(exchange))
+            "app-role" -> context.authorized(coSecRequest(exchange), appRolePermission)
+            else -> context.authorized(coSecRequest(exchange), RootVerifyContext)
+        }
+        exchange.setSecurityContext(context)
     }
     chain.filter(exchange)
 }

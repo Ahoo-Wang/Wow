@@ -21,6 +21,12 @@ class CoSecCallerOptionsTest {
     @Test
     fun `an option equals another with the same fields, and prints them`() {
         valueSemantics(CoSecCallerOptions(), CoSecCallerOptions(), CoSecCallerOptions(defaultTenant = "t-1"))
+        valueSemantics(
+            CoSecCallerOptions(trustInjectedApp = true),
+            CoSecCallerOptions(trustInjectedApp = true),
+            CoSecCallerOptions(),
+        )
+        CoSecCallerOptions(trustInjectedApp = true).toString().assert().contains("trustInjectedApp=true")
     }
 
     private fun valueSemantics(value: Any, same: Any, other: Any) {

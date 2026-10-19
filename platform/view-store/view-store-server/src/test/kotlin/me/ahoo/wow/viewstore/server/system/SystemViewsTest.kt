@@ -13,13 +13,32 @@
 
 package me.ahoo.wow.viewstore.server.system
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
+import io.mockk.every
+import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.spi.StorageUnavailableException
+import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import org.springframework.test.web.reactive.server.WebTestClient
+import tools.jackson.databind.node.ObjectNode
 
 /** The configured system views: checked at startup, matched by tenant and application, revised by content. */
 class SystemViewsTest {
@@ -80,5 +99,96 @@ class SystemViewsTest {
             .expectStatus().isUnauthorized
             .expectBody(String::class.java).returnResult().responseBody.assert()
             .contains("\"code\":\"wow.auth.unauthenticated\"")
+    }
+
+    private fun stored(id: String, title: String) = WowJson.mapper.createObjectNode().apply {
+        put("aggregateId", id)
+        put("version", 1)
+        putObject("state").apply {
+            put("definitionId", "orders")
+            put("title", title)
+            putObject("config").put("kind", "record")
+        }
+    }
+
+    @OptIn(InternalWowApi::class)
+    private fun storedViews(records: () -> Flow<ObjectNode>): StoredSystemViews {
+        val gateway = mockk<QueryGateway> {
+            every { aggregateType } returns AggregateType(ViewStoreContext.NAME, ViewStoreContext.VIEW)
+            every { list(any(), any()) } answers { records() }
+        }
+        return StoredSystemViews(ConfiguredSystemViews(emptyList())) { HttpQueries(listOf(gateway)) }
+    }
+
+    @OptIn(InternalWowApi::class)
+    private fun views(records: () -> Flow<ObjectNode>): WebTestClient {
+        val views = storedViews(records)
+        // The application the resolver authenticated, from the header as the view store's own resolver takes it.
+        val callers = CallerResolver { request ->
+            val app = request.headers().firstHeader(ViewStoreContext.APP_ID_HEADER)
+            Caller(tenantId = "t1", attributes = app?.let { mapOf(Caller.APP to listOf(it)) }.orEmpty())
+        }
+        return WebTestClient.bindToRouterFunction(SystemViewRoutes(views, callers).routes()).build()
+    }
+
+    @Test
+    fun `a stored view that no longer passes the checks should be left out, not fail the list (R2_3-7)`() {
+        val client = views { flowOf(stored("kept", "Kept"), stored("system:x", "Broken"), stored("blank", " ")) }
+        val listed = client.get().uri(SystemViewRoutes.SYSTEM_VIEWS)
+            .header(ViewStoreContext.APP_ID_HEADER, "app")
+            .exchange()
+            .expectStatus().isOk
+            .expectBody(String::class.java).returnResult().responseBody!!
+        WowJson.mapper.readTree(listed).toList().map { it["id"].asString() }.assert().containsExactly("kept")
+    }
+
+    @Test
+    fun `a store that is unavailable should be a problem the client retries after a while (R2_3-8)`() {
+        val unavailable = views { flow { throw StorageUnavailableException("The snapshots are unavailable.") } }
+        unavailable.get().uri(SystemViewRoutes.SYSTEM_VIEWS)
+            .header(ViewStoreContext.APP_ID_HEADER, "app")
+            .exchange()
+            .expectStatus().isEqualTo(503)
+            .expectHeader().valueEquals("Retry-After", "1")
+            .expectHeader().contentType("application/problem+json")
+            .expectBody(String::class.java).returnResult().responseBody!!
+            .let { WowJson.mapper.readTree(it)["code"].asString() }.assert().isEqualTo("wow.storage.unavailable")
+        val broken = views { flow { error("A bug.") } }
+        broken.get().uri("${SystemViewRoutes.SYSTEM_VIEWS}/kept")
+            .header(ViewStoreContext.APP_ID_HEADER, "app")
+            .exchange()
+            .expectStatus().isEqualTo(500)
+            .expectHeader().contentType("application/problem+json")
+    }
+
+    @Test
+    fun `a stored view failing the checks should be logged by its id, or without one, and left out (R2_3-7)`() {
+        val nameless = stored("nameless", "Nameless").apply { remove("aggregateId") }
+        val broken = stored("system:x", "Broken")
+        val views = storedViews { flowOf(stored("kept", "Kept"), broken, nameless) }
+        val logger = LoggerFactory.getLogger(StoredSystemViews::class.java) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+        val listed = try {
+            runBlocking { views.systemViews("t1", "app") }
+        } finally {
+            logger.detachAppender(appender)
+        }
+        listed.map { it.id }.assert().containsExactly("kept")
+        val warnings = appender.list.filter { it.level == Level.WARN }.map { it.formattedMessage }
+        warnings.assert().hasSize(2)
+        warnings[0].assert().contains("[system:x] of app is not a valid system view")
+        warnings[1].assert().contains("[null] of app is not a valid system view")
+    }
+
+    @Test
+    fun `a cancelled request should stay cancelled, not be answered as a problem (R2_3-8)`() {
+        val cancelled = views { flow { throw CancellationException("The client went away.") } }
+        cancelled.get().uri(SystemViewRoutes.SYSTEM_VIEWS)
+            .header(ViewStoreContext.APP_ID_HEADER, "app")
+            .exchange()
+            .expectStatus().isEqualTo(500)
+            .expectHeader().doesNotExist("Content-Type")
+            .expectBody().isEmpty()
     }
 }

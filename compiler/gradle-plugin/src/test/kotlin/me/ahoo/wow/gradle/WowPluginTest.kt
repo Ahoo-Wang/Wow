@@ -18,12 +18,15 @@ import groovy.json.JsonSlurper
 import io.mockk.every
 import io.mockk.mockk
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.manifest.AggregateManifest
+import me.ahoo.wow.manifest.CommandManifest
 import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.PeerManifests
+import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.manifest.tools.ManifestJson
 import org.gradle.api.Action
@@ -34,6 +37,7 @@ import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.DocsType
 import org.gradle.api.internal.component.SoftwareComponentInternal
 import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.api.tasks.bundling.Jar
 import org.gradle.language.jvm.tasks.ProcessResources
 import org.gradle.testfixtures.ProjectBuilder
 import org.gradle.workers.WorkQueue
@@ -42,8 +46,6 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.io.FileNotFoundException
-import java.util.zip.ZipEntry
-import java.util.zip.ZipOutputStream
 
 /** The plugin's wiring, in process (ProjectBuilder); [WowPluginFunctionalTest] builds a real service with it. */
 class WowPluginTest {
@@ -257,107 +259,27 @@ class WowPluginTest {
     }
 
     @Test
-    fun `the peers and the manifest variant should be wired`() {
+    fun `the manifest and contract variants should be wired`() {
         val project = project()
-        val peers = project.configurations.getByName(WowPlugin.PEERS_CONFIGURATION)
-        peers.isCanBeConsumed.assert().isFalse()
-        peers.isTransitive.assert().isFalse()
         val elements = project.configurations.getByName(WowPlugin.MANIFEST_ELEMENTS)
-        elements.isCanBeConsumed.assert().isTrue()
-        elements.isCanBeResolved.assert().isFalse()
-        listOf(peers, elements).forEach { configuration ->
-            configuration.attributes.getAttribute(DocsType.DOCS_TYPE_ATTRIBUTE)?.name
-                .assert().isEqualTo(WowPlugin.MANIFEST_DOCS_TYPE)
-            configuration.attributes.getAttribute(Category.CATEGORY_ATTRIBUTE)?.name
-                .assert().isEqualTo(Category.DOCUMENTATION)
-        }
+        val contract = project.configurations.getByName(WowPlugin.CONTRACT_ELEMENTS)
+        mapOf(elements to WowPlugin.MANIFEST_DOCS_TYPE, contract to WowPlugin.CONTRACT_DOCS_TYPE)
+            .forEach { (configuration, docsType) ->
+                configuration.isCanBeConsumed.assert().isTrue()
+                configuration.isCanBeResolved.assert().isFalse()
+                configuration.attributes.getAttribute(DocsType.DOCS_TYPE_ATTRIBUTE)?.name.assert().isEqualTo(docsType)
+                configuration.attributes.getAttribute(Category.CATEGORY_ATTRIBUTE)?.name
+                    .assert().isEqualTo(Category.DOCUMENTATION)
+            }
         elements.outgoing.artifacts.single().let {
             it.classifier.assert().isEqualTo(WowPlugin.MANIFEST_CLASSIFIER)
             it.extension.assert().isEqualTo("json")
             it.file.name.assert().isEqualTo("manifest.json")
         }
-        val collect = project.tasks.getByName(WowPlugin.COLLECT_PEERS_TASK) as CollectPeerManifests
-        collect.serviceName.get().assert().isEqualTo("shop")
-        val output = File(directory, "build/wow/peers").canonicalFile
-        collect.outputDirectory.get().asFile.canonicalFile.assert().isEqualTo(output)
-        project.extensions.getByType(SourceSetContainer::class.java).getByName("main").output.dirs.files
-            .map { it.canonicalFile }.assert().contains(output)
-    }
-
-    private fun peerFile(service: String?, vararg contexts: String): File =
-        File(directory, "peers/${service ?: "fragment"}/manifest.json").also { file ->
-            file.parentFile.mkdirs()
-            ManifestJson.write(
-                Manifest(service = service?.let { ServiceInfo(it) }, contexts = contexts.map { ContextManifest(it) }),
-                file,
-            )
-        }
-
-    /** A collect task of service `shop`, whose own fragment declares the context `shop`, in a directory and a jar. */
-    private fun collectTask(vararg peers: File): CollectPeerManifests {
-        val project = project()
-        val classes = File(directory, "classes")
-        ManifestJson.write(
-            Manifest(contexts = listOf(ContextManifest("shop"))),
-            File(classes, "${Manifest.FRAGMENT_DIRECTORY}/shop.json"),
-        )
-        val fragment = File(directory, "billing.json").also {
-            ManifestJson.write(Manifest(contexts = listOf(ContextManifest("billing"))), it)
-        }
-        val jar = File(directory, "billing.jar")
-        ZipOutputStream(jar.outputStream()).use { zip ->
-            zip.putNextEntry(ZipEntry("${Manifest.FRAGMENT_DIRECTORY}/"))
-            zip.putNextEntry(ZipEntry("${Manifest.FRAGMENT_DIRECTORY}/billing.json"))
-            zip.write(fragment.readBytes())
-            zip.putNextEntry(ZipEntry("${Manifest.FRAGMENT_DIRECTORY}/nested/ignored.json"))
-            zip.write("not json".toByteArray())
-        }
-        return (project.tasks.getByName(WowPlugin.COLLECT_PEERS_TASK) as CollectPeerManifests).apply {
-            this.peers.setFrom(*peers)
-            classpath.setFrom(classes, jar, File(directory, "missing"))
-        }
-    }
-
-    @Test
-    fun `collecting should copy each peer's manifest with an index`() {
-        val inventory = peerFile("inventory", "inventory")
-        val task = collectTask(inventory, peerFile("payment", "payment"))
-        val output = File(directory, "build/wow/peers")
-        File(output, "stale.txt").apply { parentFile.mkdirs() }.writeText("stale")
-
-        task.collect()
-
-        File(output, "stale.txt").exists().assert().isFalse()
-        File(output, PeerManifests.resource("inventory")).readBytes().assert().isEqualTo(inventory.readBytes())
-        File(output, PeerManifests.INDEX).readText().assert().isEqualTo("inventory.json\npayment.json\n")
-    }
-
-    @Test
-    fun `collecting no peer should leave the output empty`() {
-        val task = collectTask()
-        task.collect()
-        File(directory, "build/wow/peers").list().orEmpty().toList().assert().isEmpty()
-    }
-
-    @Test
-    fun `collecting should fail on every conflict and every unreadable file`() {
-        val malformed = File(directory, "malformed.json").apply { writeText("{") }
-        val array = File(directory, "array.json").apply { writeText("[]") }
-        val task = collectTask(
-            peerFile("inventory", "inventory", "billing"),
-            peerFile("warehouse", "inventory"),
-            peerFile(null, "other"),
-            malformed,
-            array,
-        )
-        val failure = assertThrows<GradleException> { task.collect() }
-        failure.message.assert().contains(
-            "context billing is declared by service shop and by its peer inventory",
-            "context inventory is declared by the peers inventory",
-            "is not a service's merged Manifest",
-            "malformed.json is not a Manifest",
-            "array.json is not a JSON object",
-        )
+        contract.outgoing.artifacts.single().file.canonicalFile
+            .assert().isEqualTo(File(directory, "build/wow/contract.json").canonicalFile)
+        val generate = project.tasks.getByName(WowPlugin.GENERATE_CONTRACT_TASK) as GenerateContract
+        generate.outputFile.get().asFile.name.assert().isEqualTo("contract.json")
     }
 
     @Test
@@ -365,29 +287,114 @@ class WowPluginTest {
         val project = project()
         val component = project.components.getByName("java") as SoftwareComponentInternal
         component.usages.map { it.name }.assert().contains(WowPlugin.MANIFEST_ELEMENTS)
+        component.usages.map { it.name }.assert().doesNotContain(WowPlugin.CONTRACT_ELEMENTS)
+    }
+
+    /** A build of `:shop-api` (plain Kotlin) and the domain modules [domains], each declaring it in `api(...)`. */
+    private fun paired(vararg domains: String): Project {
+        val root = ProjectBuilder.builder().withProjectDir(directory).withName("services").build()
+        val api = ProjectBuilder.builder().withParent(root).withName("shop-api")
+            .withProjectDir(File(directory, "shop-api")).build()
+        api.pluginManager.apply("org.jetbrains.kotlin.jvm")
+        domains.forEach { name ->
+            val domain = ProjectBuilder.builder().withParent(root).withName(name)
+                .withProjectDir(File(directory, name)).build()
+            domain.pluginManager.apply("me.ahoo.wow")
+            domain.pluginManager.apply("org.jetbrains.kotlin.jvm")
+            domain.dependencies.add("api", domain.dependencies.project(mapOf("path" to ":shop-api")))
+            domain.dependencies.add("implementation", "sample:library:1.0.0")
+        }
+        return api
     }
 
     @Test
-    fun `collecting should fail on a fragment of the service that does not read`() {
-        val task = collectTask()
-        File(directory, "classes/${Manifest.FRAGMENT_DIRECTORY}/broken.json").writeText("{")
-        val jar = File(directory, "broken.jar")
-        ZipOutputStream(jar.outputStream()).use { zip ->
-            zip.putNextEntry(ZipEntry("${Manifest.FRAGMENT_DIRECTORY}/broken.json"))
-            zip.write("[]".toByteArray())
-            zip.putNextEntry(ZipEntry("${Manifest.FRAGMENT_DIRECTORY}/notes.txt"))
-            zip.write("not a fragment".toByteArray())
-            zip.putNextEntry(ZipEntry("other/shop.json"))
-            zip.write("{".toByteArray())
+    fun `an api project of a domain module should carry its contract`() {
+        val api = paired("shop-domain", "audit-domain")
+        val contracts = api.configurations.getByName(WowPlugin.CONTRACT_CONFIGURATION)
+        contracts.isCanBeConsumed.assert().isFalse()
+        contracts.isTransitive.assert().isFalse()
+        contracts.attributes.getAttribute(DocsType.DOCS_TYPE_ATTRIBUTE)?.name
+            .assert().isEqualTo(WowPlugin.CONTRACT_DOCS_TYPE)
+        contracts.dependencies.map { it.name }.assert().containsExactlyInAnyOrder("shop-domain", "audit-domain")
+        val assemble = api.tasks.getByName(WowPlugin.ASSEMBLE_CONTRACT_TASK) as AssembleContract
+        assemble.owner.get().assert().isEqualTo(":shop-api")
+        assemble.outputDirectory.get().asFile.canonicalFile
+            .assert().isEqualTo(File(directory, "shop-api/build/wow/contract").canonicalFile)
+        (api.tasks.getByName("jar") as Jar).taskDependencies.getDependencies(null).map { it.name }
+            .assert().contains(WowPlugin.ASSEMBLE_CONTRACT_TASK)
+        // A module dependency is no api module of the domain.
+        api.rootProject.allprojects.mapNotNull { it.configurations.findByName(WowPlugin.CONTRACT_CONFIGURATION) }
+            .assert().hasSize(1)
+    }
+
+    private fun contractFile(name: String, vararg classes: String): File =
+        File(directory, "contracts/$name/contract.json").also { file ->
+            val aggregate = AggregateManifest(
+                name = "cart",
+                state = StateManifest(Manifest.schemaRef("sample.CartState")),
+                commands = classes.map { CommandManifest(it.substringAfterLast('.'), schema = Manifest.schemaRef(it)) },
+            )
+            ManifestJson.write(
+                Manifest(
+                    contexts = listOf(ContextManifest(name, aggregates = listOf(aggregate))),
+                    defs = mapOf("sample.CartState" to mapOf("type" to "object")),
+                ),
+                file,
+            )
         }
-        val notes = File(directory, "notes.txt").apply { writeText("not a class path entry") }
-        task.classpath.from(jar, notes)
-        val failure = assertThrows<GradleException> { task.collect() }
-        failure.message.assert().contains(
-            "broken.json is not a Manifest",
-            "broken.jar!/${Manifest.FRAGMENT_DIRECTORY}/broken.json is not a JSON object"
-        )
-        failure.message.assert().doesNotContain("notes.txt", "other/shop.json")
+
+    private fun assembleTask(vararg contracts: File): AssembleContract {
+        val api = paired("shop-domain")
+        val classes = File(directory, "api-classes")
+        File(classes, "sample/AddItem.class").apply { parentFile.mkdirs() }.writeText("")
+        return (api.tasks.getByName(WowPlugin.ASSEMBLE_CONTRACT_TASK) as AssembleContract).apply {
+            this.contracts.setFrom(*contracts)
+            this.classes.setFrom(classes, File(directory, "missing"))
+        }
+    }
+
+    @Test
+    fun `assembling should keep the contexts whose classes are the api module's`() {
+        val task = assembleTask(contractFile("shop", "sample.AddItem"), contractFile("billing", "sample.Pay"))
+        val output = File(directory, "shop-api/build/wow/contract")
+        File(output, "stale.txt").apply { parentFile.mkdirs() }.writeText("stale")
+
+        task.assemble()
+
+        File(output, "stale.txt").exists().assert().isFalse()
+        val contract = ManifestJson.read(File(output, PeerContracts.RESOURCE))
+        contract.contexts.map { it.name }.assert().containsExactly("shop")
+        contract.defs.keys.assert().containsExactly("sample.CartState")
+    }
+
+    @Test
+    fun `assembling no context of the api module should write no contract`() {
+        val task = assembleTask(contractFile("billing", "sample.Pay"))
+        task.assemble()
+        File(directory, "shop-api/build/wow/contract").list().orEmpty().toList().assert().isEmpty()
+    }
+
+    @Test
+    fun `assembling a context with classes outside the api module should fail naming them`() {
+        val task = assembleTask(contractFile("shop", "sample.AddItem", "sample.RemoveItem"))
+        assertThrows<GradleException> { task.assemble() }.message.assert()
+            .contains("context shop of ", "has classes that are not in :shop-api: sample.RemoveItem")
+    }
+
+    @Test
+    fun `generating should filter the completed fragments down to the contract`() {
+        val project = project()
+        val fragment = File(directory, "fragments/${Manifest.FRAGMENT_DIRECTORY}/shop.json")
+        ManifestJson.write(Manifest(contexts = listOf(ContextManifest("shop"))), fragment)
+        val task = (project.tasks.getByName(WowPlugin.GENERATE_CONTRACT_TASK) as GenerateContract).apply {
+            fragments.setFrom(fragment)
+        }
+
+        task.generate()
+
+        val contract = ManifestJson.read(File(directory, "build/wow/contract.json"))
+        contract.service.assert().isNull()
+        contract.contexts.map { it.name }.assert().containsExactly("shop")
     }
 
     @Test

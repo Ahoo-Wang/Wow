@@ -189,6 +189,16 @@ class LeaseRenewalTest {
         assertThrows<IllegalArgumentException> { ClusterOptions(leaseParallelism = 0) }
     }
 
+    @Test
+    fun `a lease is renewed more than twice within its TTL`() {
+        // Review R2.1-5: one unrenewed for leaseTtl - renewInterval is taken as lost, before the next round.
+        assertThrows<IllegalArgumentException> { ClusterOptions(leaseTtl = 10.seconds, renewInterval = 6.seconds) }
+            .message.assert().contains("less than half the lease TTL")
+        assertThrows<IllegalArgumentException> { ClusterOptions(leaseTtl = 10.seconds, renewInterval = 5.seconds) }
+        ClusterOptions(leaseTtl = 10.seconds, renewInterval = 4_999.milliseconds).renewInterval
+            .assert().isEqualTo(4_999.milliseconds)
+    }
+
     private fun TestScope.ownership(
         store: LeaseStore,
         rounds: MutableList<RenewalRound>,

@@ -15,14 +15,17 @@ package me.ahoo.wow.http.query
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
+import me.ahoo.wow.query.dataset.DatasetVisibility
 import me.ahoo.wow.runtime.snapshot.SnapshotStatus
 
 /**
- * The query models the public routes serve (decisions D127, D131, D145), by aggregate type: the [snapshots] of each
- * aggregate a snapshot query backend serves, and the [events] of each aggregate. A model of the Manifest without one
- * here has no route: a request for it is the context's 404.
+ * The query models the public routes serve (decisions D127, D145, D235), by aggregate type: the [snapshots] of each
+ * aggregate a snapshot query backend serves, and the [events] of each aggregate an events backend serves, every one a
+ * [QueryGateway] on the one engine. A model of the Manifest without one here has no route: a request for it is the
+ * context's 404.
  *
  * The [datasets] (decision D75) are served under `/wow/dataset/{context}/{dataset}/query`, each by its gateway as it
  * is when the request comes: a dataset that joins or leaves while the node runs is served or not from then on.
@@ -33,31 +36,54 @@ import me.ahoo.wow.runtime.snapshot.SnapshotStatus
  *
  * [snapshotStatus] tells whether an aggregate type's snapshots are being rebuilt or backfilled (decision D172): its
  * snapshot query and descriptor then answer with `Wow-Rebuilding: true`.
+ *
+ * [policies] are the gateways that admit the states of each aggregate type whose snapshots are not queried while
+ * query policies may hide one (review R3.3-3, [me.ahoo.wow.query.state.SnapshotPolicyGateway]); no route serves them,
+ * and a state read sees a state as [visibility] says.
  */
 class HttpQueries @InternalWowApi constructor(
     snapshots: Collection<QueryGateway> = emptyList(),
-    events: Collection<EventQueryGateway> = emptyList(),
+    events: Collection<QueryGateway> = emptyList(),
     val defaultListSize: Int = DEFAULT_LIST_SIZE,
     val datasets: DatasetQueryGateways = DatasetQueryGateways.NONE,
     val datasetVisibility: DatasetVisibility = DatasetVisibility.DEFAULT,
     @InternalWowApi
     val snapshotStatus: SnapshotStatus = SnapshotStatus.NONE,
+    policies: Collection<QueryGateway> = emptyList(),
 ) {
     private val snapshots: Map<AggregateType, QueryGateway> = snapshots.associateBy { it.aggregateType }
-    private val events: Map<AggregateType, EventQueryGateway> = events.associateBy { it.aggregateType }
+    private val events: Map<AggregateType, QueryGateway> = events.associateBy { it.aggregateType }
+    private val policies: Map<AggregateType, QueryGateway> = policies.associateBy { it.aggregateType }
 
     init {
         require(defaultListSize >= 0) { "defaultListSize must be greater than or equal to 0." }
         require(this.snapshots.size == snapshots.size) { "One snapshot query gateway per aggregate type." }
         require(this.events.size == events.size) { "One events query gateway per aggregate type." }
+        require(this.policies.size == policies.size) { "One snapshot policy gateway per aggregate type." }
+        require(this.policies.keys.none(this.snapshots::containsKey)) {
+            "A snapshot policy gateway is only for an aggregate type whose snapshots are not queried."
+        }
     }
 
     /** The snapshot query gateway of [type], or null when no backend serves its snapshots. */
     fun snapshots(type: AggregateType): QueryGateway? = snapshots[type]
 
-    /** The events query gateway of [type], or null when it has none. */
+    /**
+     * The gateway whose policies decide which of [type]'s states a caller sees ([me.ahoo.wow.query.state.StateVisibility]):
+     * its snapshot query gateway, else its snapshot policy gateway; null when no policy applies to it.
+     */
     @InternalWowApi
-    fun events(type: AggregateType): EventQueryGateway? = events[type]
+    fun visibility(type: AggregateType): QueryGateway? = snapshots[type] ?: policies[type]
+
+    /** The events query gateway of [type], or null when no backend serves its events. */
+    fun events(type: AggregateType): QueryGateway? = events[type]
+
+    /** The gateway of [type]'s query [model] (`{model}` of its route), or null when none serves it. */
+    fun gateway(type: AggregateType, model: String): QueryGateway? = when (model) {
+        QueryRoutes.SNAPSHOT -> snapshots(type)
+        QueryRoutes.EVENTS -> events(type)
+        else -> null
+    }
 
     companion object {
         /** The default of [defaultListSize], as in 9.x. */

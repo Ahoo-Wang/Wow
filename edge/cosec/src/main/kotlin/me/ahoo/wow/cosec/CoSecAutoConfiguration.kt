@@ -13,8 +13,8 @@
 
 package me.ahoo.wow.cosec
 
-import me.ahoo.cosec.context.SecurityContextParser
 import me.ahoo.cosec.context.request.RequestParser
+import me.ahoo.cosec.token.TokenVerifier
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.caller.CallAuthorizer
@@ -42,8 +42,15 @@ import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
  *   default steps aside. Its options are `wow.tenant.default`, `wow.cosec.cross-scope.roles` /
  *   `wow.cosec.cross-scope.policies` and `wow.cosec.tenant-level.roles` / `wow.cosec.tenant-level.policies` (the
  *   tenant-level callers, decision D189), `wow.cosec.service.roles` / `wow.cosec.service.policies` (the service
- *   identities, decision D193), comma-separated or indexed lists.
- * - The CoSec request facts ([CoSecRequestFacts]) join the edge's request-fact list (`wow.http.request-facts`).
+ *   identities, decision D193), comma-separated or indexed lists, and `wow.cosec.trust-injected-app` (false), whether
+ *   a service in CoSec's inject mode records the application of the requests its gateway forwards (decision D236 ②,
+ *   [trustInjectedApp]).
+ * - [CoSecInternalCallerResolver] is the host's [InternalCallerResolver], the callers of the internal port's call
+ *   routes, when the application has CoSec's request parser and [TokenVerifier] and no internal resolver of its own: it
+ *   verifies each service principal's token itself, in every CoSec mode (review X-14). It is not a [CallerResolver],
+ *   so the public port's resolver stays the only one (review X-13).
+ * - The CoSec request fact `CoSec-Device-Id` ([CoSecRequestFacts]) joins the edge's request-fact list
+ *   (`wow.http.request-facts`); the application CoSec authorized a request in is the standard fact `app_id` (D232).
  * - [CoSecCommandAuthorizer] is the host's [CommandAuthorizer] when `wow.cosec.authorizer.enabled` is true, the
  *   application has CoSec's `Authorization` and no authorizer of its own. On the public port CoSec's WebFilter
  *   already authorizes the command routes by path and method.
@@ -60,17 +67,24 @@ class CoSecAutoConfiguration {
         CoSecCallerResolver(callerOptions(environment))
 
     /**
-     * The callers of the internal port's call routes (decision D193): CoSec's service principals, parsed from their
-     * tokens by CoSec's own parsers, since the internal port runs no CoSec filter.
+     * The callers of the internal port's call routes (decision D193): CoSec's service principals, from their tokens
+     * verified by CoSec's [TokenVerifier], since the internal port runs no CoSec filter; never by the application's
+     * [me.ahoo.cosec.context.SecurityContextParser], which in CoSec's inject mode does not verify a token's signature
+     * (review X-14).
      */
     @Bean
     @Conditional(InternalCallersAvailable::class)
     fun wowCoSecInternalCallerResolver(
         requests: RequestParser<ServerWebExchange>,
-        contexts: SecurityContextParser,
+        tokens: TokenVerifier,
         environment: Environment,
     ): CoSecInternalCallerResolver =
-        CoSecInternalCallerResolver(requests, contexts, CoSecCallerResolver(callerOptions(environment)))
+        CoSecInternalCallerResolver(
+            requests,
+            tokens,
+            // A service's call is never an injected request: it has the application its Wow-Call carries (D236).
+            CoSecCallerResolver(callerOptions(environment, injectedApps = false)),
+        )
 
     /** The authorizer of the services' calls (decision D226): CoSec's policies, as the service principal. */
     @Bean
@@ -92,14 +106,14 @@ class CoSecAutoConfiguration {
     }
 
     /**
-     * The application has CoSec's request and security-context parsers, and no
+     * The application has CoSec's request parser and token verifier, and no
      * [me.ahoo.wow.http.caller.InternalCallerResolver] of its own.
      */
     internal class InternalCallersAvailable : Condition {
         override fun matches(context: ConditionContext, metadata: AnnotatedTypeMetadata): Boolean {
             val beans = context.beanFactory ?: return false
             return beans.getBeanNamesForType(RequestParser::class.java, true, false).isNotEmpty() &&
-                beans.getBeanNamesForType(SecurityContextParser::class.java, true, false).isNotEmpty() &&
+                beans.getBeanNamesForType(TokenVerifier::class.java, true, false).isNotEmpty() &&
                 beans.getBeanNamesForType(InternalCallerResolver::class.java, true, false).isEmpty()
         }
     }
@@ -132,6 +146,13 @@ class CoSecAutoConfiguration {
         const val SERVICE_ROLES: String = "$PREFIX.service.roles"
         const val SERVICE_POLICIES: String = "$PREFIX.service.policies"
         const val AUTHORIZER_ENABLED: String = "$PREFIX.authorizer.enabled"
+        const val TRUST_INJECTED_APP: String = "$PREFIX.trust-injected-app"
+
+        /** CoSec's inject mode (`ReactiveInjectSecurityContextWebFilter`), off by default. */
+        const val COSEC_INJECT_ENABLED: String = "cosec.inject.enabled"
+
+        /** CoSec's own authorization filter, on by default. */
+        const val COSEC_AUTHORIZATION_ENABLED: String = "cosec.authorization.enabled"
         const val DEFAULT_TENANT: String = "wow.tenant.default"
 
         /** Adds the CoSec request facts to the edge's options, whoever defines them. */
@@ -142,7 +163,7 @@ class CoSecAutoConfiguration {
                 if (bean is WowHttpOptions) CoSecRequestFacts.addTo(bean) else bean
         }
 
-        internal fun callerOptions(environment: Environment) = CoSecCallerOptions(
+        internal fun callerOptions(environment: Environment, injectedApps: Boolean = true) = CoSecCallerOptions(
             defaultTenant = defaultTenant(environment),
             crossScopeRoles = environment.list(CROSS_SCOPE_ROLES),
             crossScopePolicies = environment.list(CROSS_SCOPE_POLICIES),
@@ -150,7 +171,28 @@ class CoSecAutoConfiguration {
             tenantPolicies = environment.list(TENANT_POLICIES),
             serviceRoles = environment.list(SERVICE_ROLES),
             servicePolicies = environment.list(SERVICE_POLICIES),
+            trustInjectedApp = injectedApps && trustInjectedApp(environment),
         )
+
+        /**
+         * Whether the host trusts the application of a request CoSec's inject mode injected (decision D236 ②,
+         * [TRUST_INJECTED_APP], off by default). It applies to that mode alone, [COSEC_INJECT_ENABLED] with CoSec's own
+         * authorization off ([COSEC_AUTHORIZATION_ENABLED]): a service that authorizes its requests itself records the
+         * application CoSec authorized them in, never the header a client sent. Turned on in any other mode, it fails
+         * the startup rather than be ignored.
+         */
+        internal fun trustInjectedApp(environment: Environment): Boolean {
+            if (!environment.getProperty(TRUST_INJECTED_APP, Boolean::class.java, false)) {
+                return false
+            }
+            val injectMode = environment.getProperty(COSEC_INJECT_ENABLED, Boolean::class.java, false) &&
+                !environment.getProperty(COSEC_AUTHORIZATION_ENABLED, Boolean::class.java, true)
+            check(injectMode) {
+                "$TRUST_INJECTED_APP applies to CoSec's inject mode alone, behind a CoSec gateway " +
+                    "($COSEC_INJECT_ENABLED=true, $COSEC_AUTHORIZATION_ENABLED=false; decision D236)."
+            }
+            return true
+        }
 
         private fun defaultTenant(environment: Environment): String =
             environment.getProperty(DEFAULT_TENANT)?.takeIf { it.isNotBlank() } ?: Caller.DEFAULT_TENANT

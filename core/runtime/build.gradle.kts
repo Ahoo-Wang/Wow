@@ -2,6 +2,9 @@ description = "Wow Runtime: gateway, router, cluster channel, executor, subscrip
 
 dependencies {
     api(project(":kernel"))
+    // The Manifest the node is built from: its contexts, routes and contracts (decision D231 ③: the kernel does not
+    // bring it).
+    api(project(":manifest"))
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("io.github.oshai:kotlin-logging-jvm")
 }

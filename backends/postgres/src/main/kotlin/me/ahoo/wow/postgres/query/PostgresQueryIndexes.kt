@@ -16,6 +16,7 @@ package me.ahoo.wow.postgres.query
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.postgres.PostgresIdentifiers
+import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotTables
 import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.index.QueryIndexDeclaration
@@ -119,7 +120,7 @@ object PostgresQueryIndexes {
         mode: QueryIndexDdl,
         table: String,
         indexes: List<PostgresQueryIndex>,
-    ): PostgresQueryIndexReport = dataSource.connection.use { connection ->
+    ): PostgresQueryIndexReport = dataSource.autoCommitted { connection ->
         val valid = connection.prepareStatement(
             "SELECT c.relname, i.indisvalid FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid " +
                 "WHERE i.indrelid = to_regclass(?) AND c.relname = ANY(?)",
@@ -142,7 +143,10 @@ object PostgresQueryIndexes {
                     QueryIndexDdl.PROPERTY,
                 )
             }
-            return@use PostgresQueryIndexReport(missing = missing.map { it.name }, invalid = invalid.map { it.name })
+            return@autoCommitted PostgresQueryIndexReport(
+                missing = missing.map { it.name },
+                invalid = invalid.map { it.name },
+            )
         }
         // CONCURRENTLY runs outside a transaction and does not block the snapshot writes while it builds.
         connection.createStatement().use { statement ->

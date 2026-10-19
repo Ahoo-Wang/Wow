@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.http.caller
 
+import me.ahoo.wow.api.caller.Caller
+import org.springframework.web.reactive.function.server.ServerRequest
+
 /**
  * Resolves the callers of the internal port's call routes (decision D193, [me.ahoo.wow.http.callRoutes]) where the
  * public port's [CallerResolver] cannot: the internal port runs none of the application's web filters, so a resolver
@@ -20,5 +23,11 @@ package me.ahoo.wow.http.caller
  * authenticates the request itself, such as CoSec's service principals from their tokens. The host takes it when the
  * application, or a module, gives one; the public port's resolver otherwise. Only a
  * [service][me.ahoo.wow.api.caller.Caller.service] identity it resolves is served.
+ *
+ * It is not a [CallerResolver] (review X-13): beside the public port's resolver it is a bean of its own type, so the
+ * host injects each where it belongs, and an internal resolver never answers the public port.
  */
-fun interface InternalCallerResolver : CallerResolver
+fun interface InternalCallerResolver {
+    /** The caller of [request], or null when it authenticates none (401). */
+    suspend fun resolve(request: ServerRequest): Caller?
+}

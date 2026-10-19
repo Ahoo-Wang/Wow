@@ -160,6 +160,9 @@ interface NineXCompensationSource {
 
     /** At most [limit] unresolved executions after the id [after] (from the first when null), in id order. */
     fun unresolved(after: String?, limit: Int): List<NineXExecutionFailed>
+
+    /** The execution [id] whatever its status, resolved or not; null when the store has none of that id. */
+    fun execution(id: String): NineXExecutionFailed?
 }
 
 /**
@@ -199,6 +202,10 @@ class MongoNineXCompensationSource(private val database: MongoDatabase) : NineXC
             .limit(limit)
             .map { NineXExecutionFailed.parse(MongoNineXEventSource.toNode(it)) }
             .toList()
+
+    override fun execution(id: String): NineXExecutionFailed? =
+        collection.find(Filters.and(COMPENSATION, Filters.eq(ID, id))).first()
+            ?.let { NineXExecutionFailed.parse(MongoNineXEventSource.toNode(it)) }
 
     companion object {
         /** The 9.x compensation service's snapshot collection of its `execution_failed` aggregate. */

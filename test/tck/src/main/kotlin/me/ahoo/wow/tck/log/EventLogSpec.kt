@@ -31,6 +31,7 @@ import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
+import me.ahoo.wow.spi.log.PartitionLineage
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
@@ -39,6 +40,7 @@ import me.ahoo.wow.spi.wait.WaitContext
 import me.ahoo.wow.tck.ExactJson
 import org.junit.jupiter.api.Assumptions
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import java.util.UUID
 
 /**
@@ -277,6 +279,27 @@ abstract class EventLogSpec {
         log.head(0).assert().isEqualTo(4L)
         log.append(stream(ids.first(), 2)).assert().isEqualTo(AppendOutcome.Conflict(2))
         log.head(0).assert().isEqualTo(4L)
+    }
+
+    @Test
+    fun `every partition is created with no parent at epoch 0, and keeps that lineage as entries land`(): Unit =
+        runBlocking {
+            val log = createLog(partitions = 4)
+            (0 until 4).forEach { log.lineage(it).assert().isEqualTo(PartitionLineage.ROOT) }
+            idsInPartitionZero(2, 4).forEach { log.append(stream(it, 1)) }
+            (0 until 4).forEach { log.lineage(it).assert().isEqualTo(PartitionLineage.ROOT) }
+            PartitionLineage.ROOT.parent.assert().isNull()
+            PartitionLineage.ROOT.epoch.assert().isZero()
+            assertThrows<IllegalArgumentException> { log.lineage(4) }
+            assertThrows<IllegalArgumentException> { log.lineage(-1) }
+        }
+
+    @Test
+    fun `a partition count that is not a power of two dividing 4096 is refused`() {
+        listOf(0, 3, 6, 100, 8192).forEach { partitions ->
+            assertThrows<IllegalArgumentException> { createLog(context, partitions) }
+                .message.assert().contains("D240")
+        }
     }
 
     @Test

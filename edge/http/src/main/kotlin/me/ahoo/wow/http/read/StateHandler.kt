@@ -30,10 +30,16 @@ import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryError
+import me.ahoo.wow.query.mask.PayloadMasks
+import me.ahoo.wow.query.state.CommittedState
+import me.ahoo.wow.query.state.StateVisibility
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.TargetScope
 import me.ahoo.wow.runtime.admission.TenantConflictException
 import me.ahoo.wow.runtime.admission.TenantPolicy
+import me.ahoo.wow.runtime.state.CommitView
+import me.ahoo.wow.runtime.state.StateReadView
+import me.ahoo.wow.runtime.state.StateReads
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerRequest
@@ -44,7 +50,7 @@ import java.time.Instant
 import java.time.format.DateTimeParseException
 
 /**
- * The state reads of the public port (decisions D40, D112):
+ * The state reads of the public port (decisions D40, D112), over the node's [StateReads] (`:runtime`, decision D231):
  *
  * - `GET /{context}/{aggregate}/{id}/state`, `?version=` and `?at=` ([handle]): the [StateReadView] of [reads], with
  *   `ETag: "<version>"`; 304 when `If-None-Match` names that tag. `?at=` takes an ISO-8601 instant (an offset is
@@ -62,7 +68,9 @@ import java.time.format.DateTimeParseException
  * (decision D189); in a trace, every commit's state is checked so, as each `?version=` read would be. A
  * missing state, or a trace with no commit, is 404 `wow.aggregate.not-found`, and so is a state the snapshot queries of
  * its type hide from the caller ([StateVisibility]: ABAC and the application's query policies, review A3-11), each
- * commit of a trace checked so too. A deleted aggregate's state is read as any other, `deleted` set. A query parameter that cannot be read is 400 `wow.command.malformed`, the code of a
+ * commit of a trace checked so too. Every state, and every event of a trace, is masked as the snapshot queries mask
+ * a state, for every caller alike ([StateVisibility.admitted], [PayloadMasks], 09 §17 G-2); since the masks do not
+ * depend on the caller, the `ETag` (the version) still tags the one body every caller reads. A deleted aggregate's state is read as any other, `deleted` set. A query parameter that cannot be read is 400 `wow.command.malformed`, the code of a
  * request the edge cannot read, as for a `Wow-Scope` it cannot.
  */
 internal class StateHandler(
@@ -73,20 +81,21 @@ internal class StateHandler(
     private val tenants: TenantPolicy = TenantPolicy.CALLERS,
     private val ownerships: (AggregateType) -> Ownership = { Ownership.OWNER },
     private val queries: HttpQueries = HttpQueries.NONE,
+    private val masks: PayloadMasks = PayloadMasks.NONE,
 ) {
     suspend fun handle(request: ServerRequest, type: AggregateType): ServerResponse {
         val (scope, ref, caller) = reader(request, type)
         val view = read(request, ref)
         checkScope(scope, view.scope, ref)
-        if (!admitted(type) { StateVisibility.visible(queries.snapshots(type), caller, view) }) {
-            throw problem(FrameworkCodes.NOT_FOUND, "No state of $ref.", type)
-        }
+        val state = admitted(type) { StateVisibility.admitted(queries.visibility(type), caller, view.committed(), masks) }
+            ?: throw problem(FrameworkCodes.NOT_FOUND, "No state of $ref.", type)
+        // The masks are the same for every caller, so the version tags the one body every caller gets.
         val tag = "\"${view.version}\""
         if (request.headers().header(HttpHeaders.IF_NONE_MATCH).any { matches(it, tag) }) {
             return ServerResponse.status(NOT_MODIFIED).eTag(tag).buildAndAwait()
         }
         return ServerResponse.ok().eTag(tag).contentType(MediaType.APPLICATION_JSON)
-            .bodyValueAndAwait(HttpJson.write(view))
+            .bodyValueAndAwait(HttpJson.write(view.copy(state = state)))
     }
 
     suspend fun trace(request: ServerRequest, type: AggregateType): ServerResponse {
@@ -99,12 +108,17 @@ internal class StateHandler(
             throw problem(FrameworkCodes.NOT_FOUND, "No commit of $ref from version $from.", type)
         }
         commits.forEach { checkScope(scope, it.scope, ref) }
-        val gateway = queries.snapshots(type)
-        if (commits.any { commit -> !admitted(type) { StateVisibility.visible(gateway, caller, ref, commit) } }) {
-            throw problem(FrameworkCodes.NOT_FOUND, "No commit of $ref from version $from.", type)
+        val gateway = queries.visibility(type)
+        val masked = commits.map { commit ->
+            val state = admitted(type) { StateVisibility.admitted(gateway, caller, commit.committed(ref), masks) }
+                ?: throw problem(FrameworkCodes.NOT_FOUND, "No commit of $ref from version $from.", type)
+            commit.copy(
+                state = state,
+                events = commit.events.map { it.copy(body = masks.event(type, it.name, it.body)) }
+            )
         }
         return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
-            .bodyValueAndAwait(HttpJson.write(mapOf("ref" to ref, "commits" to commits)))
+            .bodyValueAndAwait(HttpJson.write(mapOf("ref" to ref, "commits" to masked)))
     }
 
     /** Authenticates and negotiates [request]: the scope the caller reads in, the ref it reads, and its query caller. */
@@ -131,7 +145,7 @@ internal class StateHandler(
      */
     // QueryError is an interface of the query exceptions, which a catch cannot name: anything else propagates.
     @Suppress("TooGenericExceptionCaught", "InstanceOfCheckForException")
-    private suspend inline fun admitted(type: AggregateType, check: () -> Boolean): Boolean = try {
+    private suspend inline fun <T> admitted(type: AggregateType, check: () -> T): T = try {
         check()
     } catch (refused: Exception) {
         if (refused !is QueryError) throw refused
@@ -200,6 +214,10 @@ internal class StateHandler(
         /** Whether this scope, the reader's, admits a state of [scope]: a field it names, the state has too. */
         private fun Scope.covers(scope: Scope): Boolean =
             (ownerId == null || ownerId == scope.ownerId) && (spaceId == null || spaceId == scope.spaceId)
+
+        private fun StateReadView.committed() = CommittedState(ref, version, scope, deleted, tags, state)
+
+        private fun CommitView.committed(ref: AggregateRef) = CommittedState(ref, version, scope, deleted, tags, state)
 
         private fun matches(ifNoneMatch: String, tag: String): Boolean =
             ifNoneMatch.split(',').map { it.trim().removePrefix("W/") }.any { it == "*" || it == tag }

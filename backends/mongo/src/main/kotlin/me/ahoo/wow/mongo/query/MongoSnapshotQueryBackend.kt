@@ -53,15 +53,16 @@ import java.time.Duration
 import java.util.concurrent.TimeUnit
 
 /**
- * The snapshot query backend of one aggregate type on MongoDB (decision D131): the four primitives over the aggregate
- * type's own snapshot collection (decision D161), which `MongoSnapshotStore` writes, compiled by the 9.x filter, sort
- * and aggregation compilers ([MongoMatchCompiler], [MongoAggregationCompiler]) on the bindings of
- * [MongoQuerySchemaAdapter]. Records have the shape of `SnapshotRecord.toQueryRecord()` ([MongoSnapshotDocuments]),
- * projected as [MongoProjections] says.
+ * A query backend of one aggregate type on MongoDB: the four primitives over one of the aggregate type's own
+ * collections, compiled by the 9.x filter, sort and aggregation compilers ([MongoMatchCompiler],
+ * [MongoAggregationCompiler]) on the bindings of [MongoQuerySchemaAdapter], its documents read as [documents] says: its
+ * snapshot collection (decision D131, D161), which `MongoSnapshotStore` writes, records of the shape of
+ * `SnapshotRecord.toQueryRecord()` ([MongoSnapshotDocuments]); or its log collection (decisions D162, D235), one record
+ * per stream ([MongoEventDocuments]). Records are projected as [MongoProjections] says.
  *
  * Every command carries `maxTimeMS` of the admitted timeout (decision D150), and MongoDB cancelling it there is a
  * [QueryTimeoutException]. A bounded count is `countDocuments` with `limit = n + 1`. Lists and offset pages end their
- * sort with the tenant and the aggregate ID, so their order is total; a keyset page orders by the cursor's sort alone,
+ * sort with the documents' tie-breakers (a snapshot's tenant and aggregate ID), so their order is total; a keyset page orders by the cursor's sort alone,
  * which admission ended with the identity. Driver calls run on [dispatcher], virtual threads by default (decision
  * D29). A collection not created yet holds no documents, so every primitive answers as over an empty collection.
  */
@@ -71,6 +72,7 @@ class MongoSnapshotQueryBackend internal constructor(
     private val collection: MongoCollection<Document>,
     private val options: MongoQueryOptions,
     private val dispatcher: CoroutineDispatcher,
+    private val documents: MongoQueryDocuments = MongoSnapshotDocuments,
 ) : QueryBackend {
     override val cursorPositions: CursorPositionCodec = MongoCursorCodec
 
@@ -162,7 +164,7 @@ class MongoSnapshotQueryBackend internal constructor(
     override fun aggregate(query: AdmittedQuery<AggregationQuery>, window: GroupWindow): Flow<ObjectNode> = flow {
         val limit = (window as? GroupWindow.First)?.limit
         // Without groups, `$group` with a null id emits nothing over no documents: the core emits the empty summary.
-        val pipeline = collection.aggregate(MongoAggregationCompiler.compile(query, limit))
+        val pipeline = collection.aggregate(MongoAggregationCompiler.compile(query, limit, documents.edgeTieBreakers))
             .allowDiskUse(true)
             .maxTime(query.timeout)
         timed(query.timeout) {
@@ -174,7 +176,7 @@ class MongoSnapshotQueryBackend internal constructor(
 
     /** The query record of [document], projected. */
     private fun row(query: AdmittedQuery<Queryable<*>>, document: Document): ObjectNode =
-        MongoProjections.project(query, MongoSnapshotDocuments.record(document))
+        MongoProjections.project(query, documents.record(document))
 
     /**
      * The sort of a list or an offset page: the query's, then the tenant and the aggregate ID where the query does not
@@ -183,7 +185,7 @@ class MongoSnapshotQueryBackend internal constructor(
     private fun totalSort(query: AdmittedQuery<Queryable<*>>): Bson? {
         val sort = physicalSort(query, query.query.sort)
         val named = sort.map { it.field.path }.toSet()
-        val keys = listOf(MongoSnapshotDocuments.TENANT_ID, MongoSnapshotDocuments.AGGREGATE_ID)
+        val keys = documents.tieBreakers
             .filterNot(named::contains)
             .map { Sort(QueryField(it), Sort.Direction.ASC) }
         return MongoKeyset.sort(sort + keys)

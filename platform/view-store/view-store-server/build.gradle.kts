@@ -22,6 +22,16 @@ dependencies {
     implementation(project(":spring-boot"))
     // The `postgres` profile: the host keeps the views on PostgreSQL and serves their snapshot queries there.
     implementation(project(":postgres"))
+    // The `cosec` profile (roadmap P.15, decision D229 G-3): CoSec verifies each request's token, and the edge reads
+    // the user and the application CoSec authorized from CoSec's security context (decisions D232, D236); CoSec
+    // itself is the application's to bring.
+    implementation(project(":cosec"))
+    implementation(libs.cosec.spring.boot.starter)
+    implementation(libs.cosec.webflux)
+    implementation(libs.cosec.jwt)
+    // Traces and metrics on the node's seams (decision D174), through the OpenTelemetry Java agent when the
+    // deployment attaches one, a no-op otherwise.
+    implementation(project(":opentelemetry"))
     implementation("com.zaxxer:HikariCP")
     implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation("org.springframework:spring-test")
