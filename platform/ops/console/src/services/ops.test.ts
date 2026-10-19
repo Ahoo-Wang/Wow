@@ -14,7 +14,7 @@
 import { TokenStorage } from "@ahoo-wang/fetcher-cosec";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CallerStore, type OpsCaller } from "./caller.ts";
-import { APP_ID } from "./cosec.ts";
+import { APP_ID, noRefresh } from "./cosec.ts";
 import { createOpsServices } from "./ops.ts";
 import { accessToken } from "./testing.ts";
 
@@ -80,5 +80,11 @@ describe("the ops services", () => {
     await expect(services.history("p-1")).rejects.toThrow();
     expect(callers.get()).toEqual(VIEWER);
     expect(sent(fetch)).toMatchObject({ "X-User": "victor" });
+  });
+
+  it("refresh no token: the operator signs in again", async () => {
+    await expect(
+      noRefresh.refresh({ accessToken: "a", refreshToken: "a" }),
+    ).rejects.toThrow("sign in again");
   });
 });
