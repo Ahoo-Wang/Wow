@@ -58,20 +58,21 @@ class SnapshotPolicyGateway(
     override suspend fun admitRecord(selection: FilterExpression, record: ObjectNode, caller: QueryCaller): ObjectNode? =
         admission.admitRecord(selection, record, schemaProvider.schema(), caller)
 
-    override suspend fun single(query: ISingleQuery, caller: QueryCaller): ObjectNode? = unqueried()
+    override suspend fun single(query: ISingleQuery, caller: QueryCaller): ObjectNode? = throw unqueried()
 
-    override fun list(query: IListQuery, caller: QueryCaller): Flow<ObjectNode> = unqueried()
+    override fun list(query: IListQuery, caller: QueryCaller): Flow<ObjectNode> = throw unqueried()
 
-    override suspend fun paged(query: IPagedQuery, caller: QueryCaller): PagedList<ObjectNode> = unqueried()
+    override suspend fun paged(query: IPagedQuery, caller: QueryCaller): PagedList<ObjectNode> = throw unqueried()
 
-    override suspend fun cursor(query: ICursorQuery, caller: QueryCaller): CursorPage<ObjectNode> = unqueried()
+    override suspend fun cursor(query: ICursorQuery, caller: QueryCaller): CursorPage<ObjectNode> = throw unqueried()
 
-    override suspend fun count(query: ICountQuery, caller: QueryCaller): CountResult = unqueried()
+    override suspend fun count(query: ICountQuery, caller: QueryCaller): CountResult = throw unqueried()
 
-    override fun aggregate(query: AggregationQuery, caller: QueryCaller): Flow<ObjectNode> = unqueried()
+    override fun aggregate(query: AggregationQuery, caller: QueryCaller): Flow<ObjectNode> = throw unqueried()
 
-    override suspend fun describe(entry: QueryEntry, defaultListSize: Int?): QueryModelDescriptor = unqueried()
+    override suspend fun describe(entry: QueryEntry, defaultListSize: Int?): QueryModelDescriptor = throw unqueried()
 
-    private fun unqueried(): Nothing =
-        throw QueryExecutionException("The snapshots of $aggregateType are not queried.")
+    /** The failure of every query: its snapshots are not queried. */
+    private fun unqueried(): QueryExecutionException =
+        QueryExecutionException("The snapshots of $aggregateType are not queried.")
 }

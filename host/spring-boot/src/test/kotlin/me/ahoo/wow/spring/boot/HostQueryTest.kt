@@ -21,6 +21,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.manifest.AggregateManifest
@@ -32,6 +34,7 @@ import me.ahoo.wow.query.QueryBackendStorages
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntryPolicy
+import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
@@ -91,6 +94,22 @@ class ScannedEvents {
     }
 }
 
+/** An application query policy that hides every aggregate from `mallory`. */
+@Configuration(proxyBeanMethods = false)
+class HideFromMallory {
+    @Bean
+    fun malloryPolicy(): QueryPolicy =
+        QueryPolicy { caller, _ -> if (caller.subject == "mallory") MatchNoneFilter else MatchAllFilter }
+}
+
+/** The application's own [me.ahoo.wow.runtime.node.BackendFactory]: in memory, opened by no layout of the host's. */
+@Configuration(proxyBeanMethods = false)
+class ApplicationBackends {
+    @Bean
+    fun ownBackends(properties: WowProperties): HostBackends =
+        HostBackends.of(HostBackends.memory(properties.log.partitions).factory)
+}
+
 /** The query plane of a host on the memory backend (work package 6.2c). */
 class HostQueryTest {
     private fun Host.openAccount(owner: String): String {
@@ -138,6 +157,51 @@ class HostQueryTest {
             eventsOf("gold").assert().isEmpty()
             eventsOf("standard").map { it["version"].asInt() }.assert().containsExactly(1)
         }
+    }
+
+    @Test
+    fun `an application's own backend factory should get no events scan, even with wow-query-memory-enabled`() {
+        startHost(
+            "wow.query.memory.enabled" to true,
+            sources = listOf(HostTestApp::class.java, ApplicationBackends::class.java),
+        ).use { host ->
+            host.context.getBean(HostBackends::class.java).layout.assert().isNull()
+            host.context.getBean(EventQueryBackend::class.java).binding(ACCOUNT).assert().isNull()
+            host.context.getBean(HttpQueries::class.java).events(ACCOUNT).assert().isNull()
+            val id = host.openAccount("mona")
+            host.post("/bank/account/events/query", """{"kind":"list","filter":{"op":"ID","value":"$id"}}""")
+                .status.assert().isEqualTo(404)
+        }
+    }
+
+    @Test
+    fun `the memory events scan should serve only the node's own contexts`() {
+        startHost("wow.query.memory.enabled" to true).use { host ->
+            val events = host.context.getBean(EventQueryBackend::class.java)
+            events.binding(ACCOUNT).assert().isNotNull()
+            events.binding(AggregateType("elsewhere", "thing")).assert().isNull()
+        }
+    }
+
+    @Test
+    fun `an application's query policy should hide events without a snapshot query gateway, ABAC off`() {
+        startHost(sources = listOf(HostTestApp::class.java, ScannedEvents::class.java, HideFromMallory::class.java))
+            .use { host ->
+                val id = host.openAccount("mona")
+                val queries = host.context.getBean(HttpQueries::class.java)
+                queries.visibility(ACCOUNT).assert().isInstanceOf(SnapshotPolicyGateway::class.java)
+                val events = queries.events(ACCOUNT)!!
+                fun eventsOf(subject: String, aggregate: String = id) = runBlocking {
+                    events.list(
+                        ListQuery(AggregateIdFilter(aggregate)),
+                        QueryCaller(Caller(subject = subject))
+                    ).toList()
+                }
+                eventsOf("mallory").assert().isEmpty()
+                eventsOf("alice").map { it["version"].asInt() }.assert().containsExactly(1)
+                // An aggregate with no committed state has no streams.
+                eventsOf("alice", "no-such-account").assert().isEmpty()
+            }
     }
 
     @Test

@@ -25,13 +25,17 @@ import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.MatchNoneFilter
 import me.ahoo.wow.api.query.PagedQuery
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.query.AbacQueryOptions
 import me.ahoo.wow.query.AbacQueryPolicy
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
+import me.ahoo.wow.query.QueryErrors
 import me.ahoo.wow.query.QueryExecutionException
+import me.ahoo.wow.query.QueryPolicy
+import me.ahoo.wow.query.events.EventVisibility
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.spi.json.WowJson
 import org.junit.jupiter.api.Test
@@ -65,6 +69,34 @@ class SnapshotPolicyGatewayTest {
     }
 
     @Test
+    fun `an application policy that denies hides the state from everyone it denies`(): Unit = runBlocking {
+        val denying = SnapshotPolicyGateway(
+            type,
+            catalog.policyProvider(type),
+            listOf(QueryPolicy { caller, _ -> if (caller.subject == "admin") MatchAllFilter else MatchNoneFilter }),
+        )
+        StateVisibility.visible(denying, QueryCaller(Caller(subject = "alice")), state).assert().isFalse()
+        StateVisibility.visible(denying, QueryCaller(Caller(subject = "admin")), state).assert().isTrue()
+    }
+
+    @Test
+    fun `a state without the caller's tag, or with another value, is hidden`(): Unit = runBlocking {
+        StateVisibility.visible(gateway, tagged("west"), state.copy(tags = emptyMap())).assert().isFalse()
+        StateVisibility.visible(gateway, tagged("east"), state.copy(tags = mapOf("region" to listOf("north"))))
+            .assert().isFalse()
+    }
+
+    @Test
+    fun `the events of an aggregate are hidden under it, and an aggregate with no state shows nothing`(): Unit =
+        runBlocking {
+            val visible = EventVisibility.of({ gateway }) { state }
+            visible.visible(state.ref, tagged("east")).assert().isTrue()
+            visible.visible(state.ref, tagged("west")).assert().isFalse()
+            visible.seesAll(type, tagged("east")).assert().isFalse()
+            EventVisibility.of({ gateway }) { null }.visible(state.ref, tagged("east")).assert().isFalse()
+        }
+
+    @Test
     fun `the policy schema is compiled once per type, over no storage`(): Unit = runBlocking {
         catalog.policyProvider(type).assert().isSameAs(catalog.policyProvider(type))
         catalog.policyProvider(type).schema().assert().isNotNull()
@@ -85,7 +117,9 @@ class SnapshotPolicyGatewayTest {
             { gateway.describe(QueryEntry.HTTP) },
         )
         unqueried.forEach { query ->
-            assertThrows<QueryExecutionException> { runBlocking { query() } }
+            val refused = assertThrows<QueryExecutionException> { runBlocking { query() } }
+            refused.errorCode.assert().isEqualTo(QueryErrors.FAILED)
+            refused.errorMsg.assert().isEqualTo("The snapshots of $type are not queried.")
         }
     }
 }
