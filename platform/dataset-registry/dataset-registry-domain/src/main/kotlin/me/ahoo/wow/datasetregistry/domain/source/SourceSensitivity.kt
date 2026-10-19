@@ -70,7 +70,11 @@ internal object SourceSensitivity {
     }
 
     /** What the source gives once the [keys] pending take what [claimed] says of them; a value it names no more goes. */
-    fun approve(current: List<FieldSensitivity>, claimed: List<FieldSensitivity>, keys: Set<String>): List<FieldSensitivity> {
+    fun approve(
+        current: List<FieldSensitivity>,
+        claimed: List<FieldSensitivity>,
+        keys: Set<String>
+    ): List<FieldSensitivity> {
         val next = claimed.associateBy { it.keyOf() }
         val kept = current.filter { it.keyOf() !in keys }
         val approved = keys.mapNotNull { next[it] }

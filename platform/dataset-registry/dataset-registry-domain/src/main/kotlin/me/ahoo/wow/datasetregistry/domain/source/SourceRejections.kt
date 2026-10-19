@@ -17,7 +17,10 @@ import me.ahoo.wow.api.annotation.ErrorCode
 
 /** The codes a [Source] rejects a command with. */
 object SourceRejections {
-    @ErrorCode(description = "The request is not a valid change of the source: its id, columns or values.", status = 400)
+    @ErrorCode(
+        description = "The request is not a valid change of the source: its id, columns or values.",
+        status = 400
+    )
     const val INVALID = "dataset-registry.invalid"
 
     @ErrorCode(description = "The warehouse has no such table in the configured databases.", status = 404)
