@@ -86,6 +86,8 @@ configurations.create("wowContractElements") {
 /** Makes [api] carry the contract of the domain module [domain]; several domain modules may pair with one api. */
 fun pairApi(api: Project, domain: String) {
     api.pluginManager.withPlugin("java") {
+        // Its consumers compile against its classes, never its jar, which waits for the domain's contract.
+        api.pluginManager.apply("java-library")
         val contracts = api.configurations.findByName("wowContract") ?: assembly(api)
         api.dependencies.add(contracts.name, api.project(domain))
     }

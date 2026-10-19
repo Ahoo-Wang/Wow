@@ -159,7 +159,12 @@ class PeerContractsTest {
         val own = peer("shop-api", "shop")
         val outside = PeerContracts.outside(
             listOf("shop"),
-            listOf(peer("inventory-api", "inventory"), own, peer("again", "shop"), peer("monolith-api", "shop", "audit")),
+            listOf(
+                peer("inventory-api", "inventory"),
+                own,
+                peer("again", "shop"),
+                peer("monolith-api", "shop", "audit")
+            ),
         )
         outside.map { it.source }.assert().containsExactly("inventory-api", "monolith-api")
         outside.last().manifest.contexts.map { it.name }.assert().containsExactly("audit")

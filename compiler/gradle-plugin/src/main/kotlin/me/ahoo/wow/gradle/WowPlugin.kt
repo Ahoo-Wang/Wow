@@ -27,6 +27,7 @@ import org.gradle.api.attributes.Usage
 import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.FileTree
+import org.gradle.api.plugins.JavaLibraryPlugin
 import org.gradle.api.plugins.JavaPlugin
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Input
@@ -173,9 +174,13 @@ class WowPlugin : Plugin<Project> {
      * Makes [api] carry the contract of the domain module [domain]: its [CONTRACT_CONFIGURATION] resolves the
      * domain's [CONTRACT_ELEMENTS], and its jar includes what [ASSEMBLE_CONTRACT_TASK] keeps. Several domain modules
      * may pair with one api module.
+     *
+     * The api module becomes a `java-library`: its consumers then compile against its classes, never its jar, which
+     * waits for the domain's contract, so compiling the domain module needs no jar of its api module.
      */
     private fun pairApi(api: Project, domain: String) {
         api.pluginManager.withPlugin("java") {
+            api.pluginManager.apply(JavaLibraryPlugin::class.java)
             val contracts = api.configurations.findByName(CONTRACT_CONFIGURATION) ?: assembly(api)
             api.dependencies.add(contracts.name, api.project(domain))
         }

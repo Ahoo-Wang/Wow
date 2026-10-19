@@ -186,7 +186,9 @@ object PeerContracts {
         contracts.flatMap { contract -> contract.manifest.contexts.map { it.name to contract.source } }
             .groupBy({ it.first }, { it.second })
             .filterValues { it.size > 1 }
-            .map { (context, sources) -> "context $context is declared by the contracts ${sources.joinToString(" and ")}" }
+            .map { (context, sources) ->
+                "context $context is declared by the contracts " + sources.joinToString(" and ")
+            }
 
     private const val DEFS_PREFIX = "#/\$defs/"
 }
