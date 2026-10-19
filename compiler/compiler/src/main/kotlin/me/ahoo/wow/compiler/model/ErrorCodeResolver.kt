@@ -96,14 +96,7 @@ internal object ErrorCodeResolver {
      * without templates. A Java literal has no templates: `$` is itself.
      */
     fun literal(source: String, line: Int, name: String, java: Boolean = false): String? {
-        val start = source.lineSequence().take((line - 1).coerceAtLeast(0)).sumOf { it.length + 1 }
-        val pattern = if (java) {
-            """\bString\s+${Regex.escape(name)}\s*=\s*"""
-        } else {
-            """\bval\s+`?${Regex.escape(name)}`?\s*(:\s*[\w.]+\s*)?=\s*"""
-        }
-        val declaration = Regex(pattern).find(source, start.coerceAtMost(source.length)) ?: return null
-        var index = declaration.range.last + 1
+        var index = initializer(source, line, name, java) ?: return null
         if (source.getOrNull(index) != '"' || source.startsWith("\"\"\"", index)) {
             return null
         }
@@ -112,17 +105,7 @@ internal object ErrorCodeResolver {
         while (index < source.length) {
             when (val char = source[index]) {
                 '"' -> return literal.toString().takeIf { endsDeclaration(source, index + 1) }
-                '\\' -> {
-                    val escaped = source.getOrNull(index + 1) ?: return null
-                    if (escaped == 'u') {
-                        val hex = source.substring(index + 2, (index + 6).coerceAtMost(source.length))
-                        literal.append(hex.toIntOrNull(HEX)?.toChar() ?: return null)
-                        index += UNICODE_ESCAPE_LENGTH
-                    } else {
-                        literal.append(ESCAPES[escaped] ?: return null)
-                        index++
-                    }
-                }
+                '\\' -> index += escape(source, index, literal) ?: return null
                 '\n' -> return null
                 '$' -> if (java) literal.append(char) else return null
                 else -> literal.append(char)
@@ -130,6 +113,33 @@ internal object ErrorCodeResolver {
             index++
         }
         return null
+    }
+
+    /**
+     * Appends the escape sequence at [index] of [source] (its backslash) to [literal]; how many characters past the
+     * backslash it took, or null when it is not one.
+     */
+    private fun escape(source: String, index: Int, literal: StringBuilder): Int? {
+        val escaped = source.getOrNull(index + 1) ?: return null
+        return if (escaped == 'u') {
+            val hex = source.substring(index + 2, (index + 6).coerceAtMost(source.length))
+            literal.append(hex.toIntOrNull(HEX)?.toChar() ?: return null)
+            UNICODE_ESCAPE_LENGTH
+        } else {
+            literal.append(ESCAPES[escaped] ?: return null)
+            1
+        }
+    }
+
+    /** Where the initializer of [name] declared at or after line [line] of [source] starts; null when not found. */
+    private fun initializer(source: String, line: Int, name: String, java: Boolean): Int? {
+        val start = source.lineSequence().take((line - 1).coerceAtLeast(0)).sumOf { it.length + 1 }
+        val pattern = if (java) {
+            """\bString\s+${Regex.escape(name)}\s*=\s*"""
+        } else {
+            """\bval\s+`?${Regex.escape(name)}`?\s*(:\s*[\w.]+\s*)?=\s*"""
+        }
+        return Regex(pattern).find(source, start.coerceAtMost(source.length))?.let { it.range.last + 1 }
     }
 
     /** Whether nothing but a comment, a `;` or the end of the enclosing block follows the literal on its line. */
