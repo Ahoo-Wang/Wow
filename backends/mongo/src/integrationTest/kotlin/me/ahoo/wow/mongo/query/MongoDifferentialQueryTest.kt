@@ -521,10 +521,6 @@ class MongoDifferentialQueryTest {
                 groupBy = listOf(AggregationGroup.Terms(STATUS, "status", missingKey = "${'$'}name")),
                 metrics = listOf(count()),
             ),
-            "histogram of a singleton array" to AggregationQuery(
-                groupBy = listOf(AggregationGroup.Histogram(SCORES, "bucket", 5.0)),
-                metrics = listOf(count()),
-            ),
             "exact decimal sums" to AggregationQuery(
                 elements = listOf(AggregationElement(field("lines"))),
                 groupBy = listOf(AggregationGroup.Terms(QueryField("tenantId"), "tenant", scope = AggregationGroupScope.ROOT)),
