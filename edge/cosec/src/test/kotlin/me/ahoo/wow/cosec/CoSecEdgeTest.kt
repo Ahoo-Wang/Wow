@@ -121,6 +121,54 @@ class CoSecEdgeTest {
     }
 
     @Test
+    fun `the application of an injected request is not recorded unless the host trusts it`() {
+        val injected = mapOf("X-User" to "alice", "X-Granted" to "injected", AppIdCapable.APP_ID_KEY to "shop-app")
+        node.post("/shop/cart/open-cart", headers = injected).assertSucceeded()
+        headers.single().assert().isEmpty()
+    }
+
+    @Test
+    fun `a host that trusts injected applications records the one the gateway forwarded, and no other`() {
+        val recorded = CopyOnWriteArrayList<Map<String, String>>()
+        val trusting = CoSecNode(
+            callers = CoSecCallerResolver(CoSecCallerOptions(trustInjectedApp = true)),
+            transformers = listOf(
+                object : CommandTransformer {
+                    override val input = CommandType("$CONTEXT.cart.OpenCart", OpenCart::class.java)
+
+                    override suspend fun transform(input: CommandInput): CommandTarget {
+                        recorded += input.headers
+                        return CommandTarget(input.type, input.aggregateId, input.body, input.headers)
+                    }
+                },
+            ),
+        )
+        val injected = mapOf("X-User" to "alice", "X-Granted" to "injected")
+        trusting.post("/shop/cart/open-cart", headers = injected + (AppIdCapable.APP_ID_KEY to " shop-app "))
+            .assertSucceeded()
+        trusting.post("/shop/cart/open-cart", headers = injected + (AppIdCapable.APP_ID_KEY to " ")).assertSucceeded()
+        trusting.post("/shop/cart/open-cart", headers = injected + ("app_id" to "forged")).assertSucceeded()
+        // A request CoSec authorized here still needs the application's role, whatever the option.
+        trusting.post(
+            "/shop/cart/open-cart",
+            headers = mapOf("X-User" to "root", AppIdCapable.APP_ID_KEY to "shop-app"),
+        ).assertSucceeded()
+        trusting.post(
+            "/shop/cart/open-cart",
+            headers = mapOf("X-User" to "bob", "X-Granted" to "app-role", AppIdCapable.APP_ID_KEY to "console"),
+        ).assertSucceeded()
+        recorded.toList().assert().isEqualTo(
+            listOf(
+                mapOf(RequestFacts.APP_ID to "shop-app"),
+                emptyMap(),
+                emptyMap(),
+                emptyMap(),
+                mapOf(RequestFacts.APP_ID to "console"),
+            ),
+        )
+    }
+
+    @Test
     fun `request facts already listed are kept as they are`() {
         val options = WowHttpOptions(requestFacts = CoSecRequestFacts.NAMES)
         CoSecRequestFacts.addTo(options).assert().isSameAs(options)

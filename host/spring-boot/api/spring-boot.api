@@ -536,10 +536,12 @@ public final class me/ahoo/wow/spring/boot/WowProperties$CoSec {
 	public final fun getCrossScope ()Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Principals;
 	public final fun getService ()Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Principals;
 	public final fun getTenantLevel ()Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Principals;
+	public final fun getTrustInjectedApp ()Z
 	public final fun setAuthorizer (Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Authorizer;)V
 	public final fun setCrossScope (Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Principals;)V
 	public final fun setService (Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Principals;)V
 	public final fun setTenantLevel (Lme/ahoo/wow/spring/boot/WowProperties$CoSec$Principals;)V
+	public final fun setTrustInjectedApp (Z)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$CoSec$Authorizer {
