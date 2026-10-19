@@ -19,6 +19,7 @@ import com.google.devtools.ksp.symbol.FileLocation
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
 import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.Modifier
+import com.google.devtools.ksp.symbol.Origin
 import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.manifest.ErrorManifest
 import me.ahoo.wow.manifest.FrameworkErrors
@@ -33,8 +34,9 @@ internal data class ErrorCodeBinding(
 )
 
 /**
- * Reads `@ErrorCode` properties (decision D121). KSP has no API for a property's value, so the code is read from the
- * source: the initializer must be one string literal, without templates.
+ * Reads `@ErrorCode` properties (decision D121): a Kotlin `const val`, or a Java `static final String` field (decision
+ * D229 G-8). KSP has no API for a property's value, so the code is read from the source: the initializer must be one
+ * string literal, without templates.
  */
 internal object ErrorCodeResolver {
     val ERROR_CODE: String = ErrorCode::class.java.name
@@ -45,12 +47,15 @@ internal object ErrorCodeResolver {
     fun resolve(property: KSPropertyDeclaration, stringType: KSType): ErrorCodeBinding {
         val name = property.qualifiedName?.asString() ?: property.simpleName.asString()
         val annotation = property.getAnnotationsByType(ErrorCode::class).first()
-        if (Modifier.CONST !in property.modifiers || property.type.resolve() != stringType) {
-            return ErrorCodeBinding(name, null, listOf("@ErrorCode property $name must be a const val of type String"))
+        val java = property.origin == Origin.JAVA
+        if (!isConstant(property, java) || property.type.resolve().makeNotNullable() != stringType) {
+            val form = if (java) "a static final String field" else "a const val of type String"
+            return ErrorCodeBinding(name, null, listOf("@ErrorCode property $name must be $form"))
         }
         // A property of the module's sources has a file location.
         val location = property.location as FileLocation
-        val code = literal(File(location.filePath).readText(), location.lineNumber, property.simpleName.asString())
+        val source = File(location.filePath).readText()
+        val code = literal(source, location.lineNumber, property.simpleName.asString(), java)
             ?: return ErrorCodeBinding(
                 name,
                 null,
@@ -77,14 +82,27 @@ internal object ErrorCodeResolver {
         )
     }
 
+    /** A Kotlin `const val`, or a Java field that is `static final`. */
+    private fun isConstant(property: KSPropertyDeclaration, java: Boolean): Boolean =
+        if (java) {
+            Modifier.JAVA_STATIC in property.modifiers && Modifier.FINAL in property.modifiers
+        } else {
+            Modifier.CONST in property.modifiers
+        }
+
     /**
-     * The string literal that initializes the property [name] declared at or after line [line] (1-based) of [source];
-     * null when the initializer is not one string literal without templates.
+     * The string literal that initializes the property [name] declared at or after line [line] (1-based) of [source],
+     * a Kotlin `val` or, when [java], a Java `String` field; null when the initializer is not one string literal
+     * without templates. A Java literal has no templates: `$` is itself.
      */
-    fun literal(source: String, line: Int, name: String): String? {
+    fun literal(source: String, line: Int, name: String, java: Boolean = false): String? {
         val start = source.lineSequence().take((line - 1).coerceAtLeast(0)).sumOf { it.length + 1 }
-        val declaration = Regex("""\bval\s+`?${Regex.escape(name)}`?\s*(:\s*[\w.]+\s*)?=\s*""")
-            .find(source, start.coerceAtMost(source.length)) ?: return null
+        val pattern = if (java) {
+            """\bString\s+${Regex.escape(name)}\s*=\s*"""
+        } else {
+            """\bval\s+`?${Regex.escape(name)}`?\s*(:\s*[\w.]+\s*)?=\s*"""
+        }
+        val declaration = Regex(pattern).find(source, start.coerceAtMost(source.length)) ?: return null
         var index = declaration.range.last + 1
         if (source.getOrNull(index) != '"' || source.startsWith("\"\"\"", index)) {
             return null
@@ -105,7 +123,8 @@ internal object ErrorCodeResolver {
                         index++
                     }
                 }
-                '$', '\n' -> return null
+                '\n' -> return null
+                '$' -> if (java) literal.append(char) else return null
                 else -> literal.append(char)
             }
             index++
