@@ -74,6 +74,8 @@ export const FrameworkErrorCodes = {
   QUERY_TIMEOUT: 'wow.query.timeout',
   /** 429, with `Retry-After`: the query's store runs as many queries as it allows; retry later. */
   QUERY_BUSY: 'wow.query.busy',
+  /** 403: the calling service may not call this command (a synchronous call on the internal port, decision D226). */
+  CALL_COMMAND_FORBIDDEN: 'wow.call.command-forbidden',
 } as const;
 
 /** A {@link FrameworkErrorCodes} value. */

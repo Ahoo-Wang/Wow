@@ -18,6 +18,7 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.decide.ReservationTenancy
@@ -223,6 +224,30 @@ class CommandTransformerTest {
             import to Creation.NONE,
             register to Creation.REQUIRED,
         )
+    }
+
+    @Test
+    fun `a service's call of a transformed command should name its input`(): Unit = runBlocking {
+        val call = CallContext(
+            commandId = "call-1",
+            tenantId = TENANT,
+            scope = Scope("carol"),
+            causation = Causation("root-1", "root-1"),
+        )
+        val result = gateway().execute(
+            CommandRequest(
+                context = CONTEXT,
+                aggregate = "account",
+                command = "Import",
+                body = CommandBody.of("""{"username":"erin","legacyId":"3"}"""),
+                caller = Caller(subject = "service:legacy", service = true),
+                requestId = "call-request-1",
+                call = call,
+            ),
+        )
+        result.status.assert().describedAs(result.toString()).isEqualTo(CommandResult.Status.SUCCEEDED)
+        result.commandId.assert().isEqualTo("call-1")
+        result.transformedFrom.assert().isEqualTo(TransformedFrom("$TYPE.Import"))
     }
 
     @Test

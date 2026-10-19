@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.CancellationException
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.problem.Problem
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import me.ahoo.wow.viewstore.domain.ViewStoreRejections
@@ -106,7 +107,7 @@ class SystemViewRoutes(private val views: StoredSystemViews, private val callers
         const val SYSTEM_VIEWS: String = "/${ViewStoreContext.NAME}/system-views"
         const val ID: String = "id"
         const val DEFINITION_ID: String = "definitionId"
-        private const val UNAUTHENTICATED: String = "wow.auth.unauthenticated"
+        private const val UNAUTHENTICATED: String = FrameworkErrors.AUTH_UNAUTHENTICATED
         private val logger = KotlinLogging.logger {}
     }
 }

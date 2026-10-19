@@ -51,6 +51,7 @@ class FrameworkErrorsTest {
                 "wow.query.failed" to 500,
                 "wow.query.timeout" to 503,
                 "wow.query.busy" to 429,
+                "wow.call.command-forbidden" to 403,
             ),
         )
         FrameworkErrors.DOMAIN_REJECTION_STATUS.assert().isEqualTo(422)

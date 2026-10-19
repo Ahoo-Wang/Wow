@@ -505,6 +505,8 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'test/test-dsl/src/main/kotlin/A.kt',
     'test/tck/src/main/kotlin/A.kt',
     'test/tck-containers/build.gradle.kts',
+    // The coverage report v10.yml uploads (v10CoverageReport).
+    'test/code-coverage-report/build.gradle.kts',
     'edge/cosec/src/main/kotlin/A.kt',
     'extensions/cosid/src/main/kotlin/A.kt',
     'query/query/src/main/kotlin/A.kt',
@@ -541,7 +543,6 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'test/wow-it/src/integrationTest/kotlin/A.kt',
     'test/wow-tck/src/main/kotlin/Spec.kt',
     'test/wow-test/src/main/kotlin/A.kt',
-    'test/code-coverage-report/build.gradle.kts',
     'example/example-domain/src/main/kotlin/A.kt',
     'typescript/wow-client/src/index.ts',
     'documentation/designs/v10/roadmap.md',
@@ -802,6 +803,12 @@ test('the unit matrix reruns a package and the packages built on it', () => {
     ]),
     ['sdk', 'contract'],
   );
+  // So does the V10 framework error table's snapshot (review R2.5-4), which
+  // also runs v10.yml.
+  const errorTable = 'api/manifest/src/test/resources/framework-errors.json';
+  assert.deepEqual(unitPackages([errorTable]), ['wow-client']);
+  assert.deepEqual(on([errorTable]), ['sdk']);
+  assert.ok(scopes([errorTable]).v10);
   // Whatever else turns the sdk scope on reruns them all.
   for (const path of [
     '.github/workflows/typescript.yml',
