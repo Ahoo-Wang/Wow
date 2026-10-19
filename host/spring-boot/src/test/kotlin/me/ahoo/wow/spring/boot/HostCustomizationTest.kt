@@ -27,6 +27,7 @@ import me.ahoo.wow.spi.id.GlobalIdGenerator
 import org.junit.jupiter.api.AfterAll
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
+import org.springframework.boot.builder.SpringApplicationBuilder
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.util.concurrent.atomic.AtomicInteger
@@ -151,6 +152,10 @@ class HostCustomizationTest {
 
 /** The host refuses a configuration it cannot serve, before anything starts. */
 class HostRefusalTest {
+    private companion object {
+        const val CLUSTER_TOKEN = "bank-cluster-token-0123456789abcdef"
+    }
+
     private fun refusal(vararg properties: Pair<String, Any>): String {
         val failure = runCatching { startHost(*properties).close() }.exceptionOrNull()
         checkNotNull(failure) { "The host started." }
@@ -165,6 +170,23 @@ class HostRefusalTest {
     @Test
     fun `partitioned routing should be refused on the memory backend`() {
         refusal("wow.cluster.router" to "partitioned").assert().contains("memory backend")
+    }
+
+    @Test
+    fun `auto without a durable backend should be refused outside a development node`() {
+        // Review R3.5-1: the node started in memory with a warning, and lost its commands on a restart.
+        refusal("wow.internal.host" to "0.0.0.0", "wow.internal.token" to CLUSTER_TOKEN).assert()
+            .contains("No durable backend").contains("wow.backend=memory")
+        startHost(
+            "wow.internal.host" to "0.0.0.0",
+            "wow.internal.token" to CLUSTER_TOKEN,
+            "wow.backend" to "memory"
+        ).use { it.context.getBean(HostBackends::class.java).kind.assert().isEqualTo(BackendKind.MEMORY) }
+        SpringApplicationBuilder(HostTestApp::class.java)
+            .properties(hostProperties + mapOf("wow.internal.host" to "0.0.0.0", "wow.internal.token" to CLUSTER_TOKEN))
+            .profiles("dev")
+            .run()
+            .use { it.getBean(HostBackends::class.java).kind.assert().isEqualTo(BackendKind.MEMORY) }
     }
 
     @Test
