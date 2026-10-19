@@ -1,0 +1,16 @@
+# Count mode (counts.sh, decision D224's count-based tier): PostgreSQL with pg_stat_statements, so every statement is
+# counted by its text. MongoDB needs no change: counts.sh turns its profiler on at run time.
+services:
+  postgres:
+    command:
+      - postgres
+      - -c
+      - max_connections=300
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - pg_stat_statements.track=all
+      - -c
+      - pg_stat_statements.max=10000

@@ -19,8 +19,15 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 import java.util.concurrent.CompletableFuture
 
+/**
+ * The prefix of the accounts' ids, `acc` unless `--account-prefix` names another: the harness gives each cell of a grid
+ * that reuses its servers an account set of its own, so no cell starts on aggregates an earlier one wrote.
+ */
+@Volatile
+var accountPrefix: String = "acc"
+
 /** The id of the seeded account [index]. */
-fun accountId(index: Int): String = "acc-%07d".format(index)
+fun accountId(index: Int): String = "$accountPrefix-%07d".format(index)
 
 /** The owner of the seeded account [index]: a hundred owners share the accounts. */
 fun ownerOf(index: Int): String = "owner-${index % OWNERS}"

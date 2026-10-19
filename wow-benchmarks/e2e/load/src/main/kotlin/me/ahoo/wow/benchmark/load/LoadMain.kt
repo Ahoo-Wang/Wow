@@ -39,6 +39,10 @@ import kotlin.system.exitProcess
 fun main(args: Array<String>) {
     val command = args.firstOrNull() ?: usage()
     val options = Options.parse(args.drop(1))
+    if (command == "alloc") {
+        exitProcess(alloc(options))
+    }
+    options.optional("account-prefix")?.let { accountPrefix = it }
     val adapter = VersionAdapter.of(options.required("version"))
     val targets = options.required("targets").split(',').map { URI.create(it.trim().trimEnd('/')) }
     val executor = Executors.newFixedThreadPool(
@@ -80,7 +84,10 @@ private fun usage(): Nothing {
                     --accounts=1000 --seed=20261015 --max-in-flight=20000 --out=<dir> --label=<text>
                     --pids=name:pid,… --containers=name,… --mongo=<container> --postgres=<container>
                     --postgres-database=transfer_v10 --kafka=<container> --repository=<dir> --meta=key=value;…
-          saturate: --scenario=… --start-concurrency=1 --max-concurrency=256 --warm-up=5 --step=10 --out=<dir>
+          saturate: --scenario=… --start-concurrency=1 --max-concurrency=256 --warm-up=5 --step=10 --flat-steps=2
+                    --refine=0 (bisection steps after the doubling) --out=<dir>
+          alloc:    --pids=name:pid,… (no --version or --targets): each JVM's bytes allocated since it started
+          every command: --account-prefix=acc (the accounts' ids are <prefix>-<7 digits>)
         """.trimIndent(),
     )
     exitProcess(2)
@@ -226,6 +233,8 @@ private fun saturate(client: Client, targets: List<URI>, options: Options): Int 
         maxConcurrency = options.int("max-concurrency", 256),
         warmUpSeconds = options.int("warm-up", 5),
         stepSeconds = options.int("step", 10),
+        flatSteps = options.int("flat-steps", ClosedLoop.FLAT_STEPS),
+        refineSteps = options.int("refine", 0),
     ) { println("[saturate] ${client.adapter.name} ${scenario.label}: $it") }.run()
     val best = steps.maxByOrNull { it.throughput }
     val result = mapOf(
@@ -236,6 +245,13 @@ private fun saturate(client: Client, targets: List<URI>, options: Options): Int 
         "targets" to targets.map { it.toString() },
         "saturationThroughput" to best?.throughput,
         "saturationConcurrency" to best?.concurrency,
+        "search" to mapOf(
+            "startConcurrency" to options.int("start-concurrency", 1),
+            "warmUpSeconds" to options.int("warm-up", 5),
+            "stepSeconds" to options.int("step", 10),
+            "flatSteps" to options.int("flat-steps", ClosedLoop.FLAT_STEPS),
+            "refineSteps" to options.int("refine", 0),
+        ),
         "note" to "Closed loop: the latencies only show the knee; open-loop runs at 50% and 80% of the saturation throughput give the results.",
         "steps" to steps.map { step ->
             mapOf(
@@ -256,6 +272,19 @@ private fun saturate(client: Client, targets: List<URI>, options: Options): Int 
         "[saturate] saturation: ${best?.throughput?.let { "%.1f".format(it) }}/s at concurrency ${best?.concurrency}"
     )
     return 0
+}
+
+/**
+ * Prints, as one JSON object, the bytes each JVM of `--pids` allocated on its heap since it started
+ * (`com.sun.management.ThreadMXBean.getTotalThreadAllocatedBytes`, read over a local JMX connection the Attach API
+ * opens): the harness reads it before and after a window to count the allocations per operation. A JVM it cannot
+ * read is null.
+ */
+private fun alloc(options: Options): Int {
+    val pids = options.list("pids").associate { it.substringBefore(':') to it.substringAfter(':').toLong() }
+    val bytes = pids.mapValues { (_, pid) -> Allocations.totalAllocatedBytes(pid) }
+    println(Json.write(bytes))
+    return if (bytes.values.all { it != null }) 0 else 1
 }
 
 /** The `--name=value` options. */

@@ -59,6 +59,16 @@ object Report {
                 )
             }
         }
+        val warmUpSeconds = (0 until measured.warmUpPerSecond.length()).mapNotNull { index ->
+            measured.warmUpPerSecond.get(index)?.let { histogram ->
+                mapOf(
+                    "second" to index,
+                    "ok" to histogram.count,
+                    "p50Ms" to histogram.percentile(50.0) / MICROS_PER_MILLI,
+                    "p99Ms" to histogram.percentile(99.0) / MICROS_PER_MILLI,
+                )
+            }
+        }
         val worstSecond = seconds.maxByOrNull { it["p99Ms"] as Double }
         return mapOf(
             "schema" to "wow-e2e-bench/run/1",
@@ -89,6 +99,7 @@ object Report {
                 "maxSendLagMs" to measured.maxSendLagNanos.get() / OpenLoop.NANOS_PER_MICRO / MICROS_PER_MILLI,
                 "failedLatencyMs" to latencies(measured.errorLatency),
                 "perSecond" to seconds,
+                "warmUpPerSecond" to warmUpSeconds,
                 "histogram" to mapOf(
                     "unit" to "microseconds",
                     "subBucketBits" to Histogram.SUB_BITS,

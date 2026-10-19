@@ -50,10 +50,16 @@ class OpenLoop(
     }
 
     /** What the measured phase recorded. */
-    class Measured(seconds: Int) {
+    class Measured(seconds: Int, warmUpSeconds: Int = 0) {
         val latency = Histogram()
         val errorLatency = Histogram()
         val perSecond = AtomicReferenceArray<Histogram>(seconds)
+
+        /**
+         * The warm-up's successful latencies, per second: not part of the results, they let the harness check whether
+         * a shorter warm-up would have reached the same steady state (`stability.py`).
+         */
+        val warmUpPerSecond = AtomicReferenceArray<Histogram>(warmUpSeconds)
         val errors = ConcurrentHashMap<String, LongAdder>()
         val scheduled = AtomicLong()
         val maxSendLagNanos = AtomicLong()
@@ -62,6 +68,13 @@ class OpenLoop(
             perSecond.get(index)?.let { return it }
             perSecond.compareAndSet(index, null, Histogram())
             return perSecond.get(index)
+        }
+
+        /** Records a warm-up operation scheduled at [scheduled] in [second] of the warm-up, when it succeeded. */
+        fun warmUp(second: Int, scheduled: Long, error: String?, failure: Throwable?) {
+            if (error != null || failure != null || second !in 0 until warmUpPerSecond.length()) return
+            warmUpPerSecond.get(second) ?: warmUpPerSecond.compareAndSet(second, null, Histogram())
+            warmUpPerSecond.get(second).record((System.nanoTime() - scheduled) / NANOS_PER_MICRO)
         }
 
         fun error(kind: String) = errors.computeIfAbsent(kind) { LongAdder() }.increment()
@@ -85,7 +98,7 @@ class OpenLoop(
 
     /** Runs the warm-up and the measured phase, and waits for the operations still in flight. */
     fun run(): Measured {
-        val measured = Measured(measureSeconds)
+        val measured = Measured(measureSeconds, warmUpSeconds)
         val interval = NANOS_PER_SECOND / rate
         val total = ((warmUpSeconds + measureSeconds) * rate).toLong()
         val warmUpEnd = warmUpSeconds * NANOS_PER_SECOND
@@ -121,8 +134,13 @@ class OpenLoop(
             }
             outstanding.incrementAndGet()
             val second = ((offset - warmUpEnd) / NANOS_PER_SECOND).toInt()
+            val warmUpSecond = (offset / NANOS_PER_SECOND).toInt()
             scenario.run(client, target).handle { error, failure ->
-                if (inMeasure) measured.complete(second, scheduled, error, failure)
+                if (inMeasure) {
+                    measured.complete(second, scheduled, error, failure)
+                } else {
+                    measured.warmUp(warmUpSecond, scheduled, error, failure)
+                }
                 inFlight.decrementAndGet()
                 if (outstanding.decrementAndGet() == 0L) done.countDown()
             }

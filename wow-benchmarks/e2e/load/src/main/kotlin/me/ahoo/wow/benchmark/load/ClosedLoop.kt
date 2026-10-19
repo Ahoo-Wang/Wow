@@ -24,8 +24,11 @@ import java.util.concurrent.atomic.LongAdder
  * The closed-loop saturation finder (decision D224): [concurrency] workers each send an operation and send the next
  * when it completes, for a step of [stepSeconds] after [warmUpSeconds]; the concurrency doubles from
  * [startConcurrency] until the throughput stops growing by [minGain] two steps in a row, errors pass [maxErrorRate],
- * or [maxConcurrency] is reached. The highest throughput seen is the saturation point the open-loop runs take their
- * 50% and 80% rates from. A closed loop's latencies understate a saturated server's (coordinated omission): they are
+ * or [maxConcurrency] is reached ([flatSteps] steps in a row, two by default). With [refineSteps] above zero, a
+ * bisection follows: between the knee (the lowest concurrency within [minGain] of the best throughput) and the highest
+ * concurrency below it, at most [refineSteps] more steps, so short steps and a single flat step still find the knee
+ * (decision D224's measurement tiers). The highest throughput seen is the saturation point the open-loop runs take
+ * their 50% and 80% rates from. A closed loop's latencies understate a saturated server's (coordinated omission): they are
  * recorded only to show where the knee is, never as a result.
  */
 class ClosedLoop(
@@ -39,6 +42,8 @@ class ClosedLoop(
     private val stepSeconds: Int,
     private val minGain: Double = DEFAULT_MIN_GAIN,
     private val maxErrorRate: Double = DEFAULT_MAX_ERROR_RATE,
+    private val flatSteps: Int = FLAT_STEPS,
+    private val refineSteps: Int = 0,
     private val log: (String) -> Unit = {},
 ) {
     /** One step: its concurrency, throughput and latencies. */
@@ -57,20 +62,42 @@ class ClosedLoop(
         val steps = mutableListOf<Step>()
         var concurrency = startConcurrency
         var flat = 0
+        var failed = false
         while (concurrency <= maxConcurrency) {
-            val step = step(concurrency)
-            log(
-                "concurrency=$concurrency throughput=${"%.1f".format(step.throughput)}/s " +
-                    "p50=${step.latency.percentile(P50) / MICROS_PER_MILLI}ms errors=${step.errors}",
-            )
+            val step = logged(step(concurrency))
             val best = steps.maxOfOrNull { it.throughput } ?: 0.0
             steps += step
-            if (step.errorRate > maxErrorRate) break
+            if (step.errorRate > maxErrorRate) {
+                failed = true
+                break
+            }
             flat = if (step.throughput < best * (1 + minGain)) flat + 1 else 0
-            if (flat >= FLAT_STEPS) break
+            if (flat >= flatSteps) break
             concurrency *= 2
         }
+        if (!failed) refine(steps)
         return steps
+    }
+
+    /** Bisects between the knee and the concurrency below it, at most [refineSteps] steps. */
+    private fun refine(steps: MutableList<Step>) {
+        repeat(refineSteps) {
+            val best = steps.maxOf { it.throughput }
+            val knee = steps.filter { it.throughput >= best * (1 - minGain) }.minBy { it.concurrency }
+            val below = steps.filter { it.concurrency < knee.concurrency }.maxByOrNull { it.concurrency } ?: return
+            val middle = (below.concurrency + knee.concurrency) / 2
+            if (middle <= below.concurrency || steps.any { it.concurrency == middle }) return
+            val step = logged(step(middle))
+            steps += step
+            if (step.errorRate > maxErrorRate) return
+        }
+    }
+
+    private fun logged(step: Step): Step = step.also {
+        log(
+            "concurrency=${it.concurrency} throughput=${"%.1f".format(it.throughput)}/s " +
+                "p50=${it.latency.percentile(P50) / MICROS_PER_MILLI}ms errors=${it.errors}",
+        )
     }
 
     private fun step(concurrency: Int): Step {
@@ -118,7 +145,7 @@ class ClosedLoop(
     companion object {
         const val DEFAULT_MIN_GAIN = 0.05
         const val DEFAULT_MAX_ERROR_RATE = 0.01
-        private const val FLAT_STEPS = 2
+        const val FLAT_STEPS = 2
         private const val P50 = 50.0
         private const val MICROS_PER_MILLI = 1_000
         private const val MILLIS_PER_SECOND = 1_000L
