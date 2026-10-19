@@ -40,7 +40,9 @@ import me.ahoo.wow.spi.timer.TimerStore
  * - `index-prefix`: a prefix of every index name (`<prefix>_wow_snapshot__<context>__<aggregate>`), for a cluster
  *   several services or environments share; none by default;
  * - `refresh`: when a write becomes visible to searches, `wait_for` (the default: a snapshot is queryable once its
- *   write returns), `true` (an immediate refresh, for tests) or `false` (within the index's refresh interval).
+ *   write returns), `true` (an immediate refresh, for tests) or `false` (within the index's refresh interval);
+ * - `query-client`: the `Rest5Client` bean the store's queries use, so they draw on a connection pool of their own
+ *   instead of the one the snapshot writes use; the store's `client` by default.
  *
  * Found by `ServiceLoader`. It is never `available`: Elasticsearch holds no log, so `wow.backend=auto` never takes it.
  */
@@ -49,18 +51,32 @@ internal class ElasticsearchStoreProvider : StoreProvider {
 
     override val requirement: String = "wow-elasticsearch on the classpath and a Rest5Client bean"
 
-    override fun open(config: StoreConfig): Store = ElasticsearchStore(
-        config,
-        config.resources.resource(Rest5Client::class.java, config.option(CLIENT), "${config.key}.$CLIENT"),
-        ElasticsearchNames(config.option(INDEX_PREFIX).orEmpty()),
-        refreshOf(config.option(REFRESH), "${config.key}.$REFRESH"),
-    )
+    override fun open(config: StoreConfig): Store {
+        val restClient = config.resources.resource(
+            Rest5Client::class.java,
+            config.option(CLIENT),
+            "${config.key}.$CLIENT"
+        )
+        val queryClient = config.option(QUERY_CLIENT)?.let {
+            config.resources.resource(Rest5Client::class.java, it, "${config.key}.$QUERY_CLIENT")
+        }
+        return ElasticsearchStore(
+            config,
+            restClient,
+            ElasticsearchNames(config.option(INDEX_PREFIX).orEmpty()),
+            refreshOf(config.option(REFRESH), "${config.key}.$REFRESH"),
+            queryRestClient = queryClient?.takeIf { it !== restClient },
+        )
+    }
 
     companion object {
         const val TYPE = "elasticsearch"
 
         /** The option naming the store's `Rest5Client` bean. */
         const val CLIENT = "client"
+
+        /** The option naming the `Rest5Client` bean of the store's queries, when they have a pool of their own. */
+        const val QUERY_CLIENT = "query-client"
 
         /** The option of the prefix of the store's index names. */
         const val INDEX_PREFIX = "index-prefix"
@@ -80,17 +96,24 @@ internal class ElasticsearchStoreProvider : StoreProvider {
 
 /**
  * A store on Elasticsearch over [restClient]: each context's snapshots, one index per aggregate type, in the indices
- * [names] gives. It holds no log, so no checkpoints, leases, failure ledger, reservations or timers either: the node
- * keeps those with its log.
+ * [names] gives; its queries over [queryRestClient] when it has one, else over [restClient] too. It holds no log, so
+ * no checkpoints, leases, failure ledger, reservations or timers either: the node keeps those with its log.
  */
 internal class ElasticsearchStore(
     config: StoreConfig,
     val restClient: Rest5Client,
     val names: ElasticsearchNames,
     val refresh: Refresh = Refresh.WaitFor,
+    val queryRestClient: Rest5Client? = null,
 ) : Store(config) {
     /** The client of Wow's JSON (decision D122): a state's numbers are read and written exactly. */
     val client: ElasticsearchAsyncClient by lazy { client(restClient) }
+
+    /** The client of the store's queries: its own pool's when it has one, else [client]. */
+    val queryClient: ElasticsearchAsyncClient by lazy { queryRestClient?.let(::client) ?: client }
+
+    /** Whether the queries draw on the connection pool the snapshot writes use. */
+    val queriesShareWrites: Boolean get() = queryRestClient == null
 
     override val location: Any get() = restClient
 

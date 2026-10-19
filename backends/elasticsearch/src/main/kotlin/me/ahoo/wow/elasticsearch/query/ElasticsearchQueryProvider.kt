@@ -20,6 +20,7 @@ import me.ahoo.wow.elasticsearch.ElasticsearchIndices
 import me.ahoo.wow.elasticsearch.ElasticsearchNames
 import me.ahoo.wow.elasticsearch.ElasticsearchStore
 import me.ahoo.wow.elasticsearch.ElasticsearchStoreProvider
+import me.ahoo.wow.elasticsearch.maxConnectionsPerRoute
 import me.ahoo.wow.elasticsearch.query.schema.ElasticsearchQuerySchemaAdapter
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotDocuments
 import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotIndex
@@ -49,7 +50,32 @@ internal class ElasticsearchQueryProvider : StoreQueryProvider {
 
     override fun snapshots(store: Store, options: StoreQueryOptions): SnapshotQueries {
         val elasticsearch = store as ElasticsearchStore
-        return ElasticsearchSnapshotQueries(elasticsearch.client, elasticsearch.names, options.indexDdl)
+        return ElasticsearchSnapshotQueries(elasticsearch.queryClient, elasticsearch.names, options.indexDdl)
+    }
+
+    /**
+     * How many queries of [store] run at once when its configuration names no limit (decision D247): from the
+     * per-route connections of the HTTP pool its queries use. With the default wait `SNAPSHOT` (D69) a command waits
+     * for its snapshot's write, so queries that share the writes' pool take a quarter of it (at least [MIN_SHARED])
+     * and never hold the connections the writes wait for; a pool of the queries' own (`query-client`) is theirs whole.
+     * The bulkhead of `:query` applies it (R3-B): this becomes the override of `StoreQueryProvider.maxConcurrent`.
+     */
+    fun maxConcurrent(store: Store): Int {
+        val elasticsearch = store as ElasticsearchStore
+        val pool = (elasticsearch.queryRestClient ?: elasticsearch.restClient).maxConnectionsPerRoute()
+        return maxConcurrent(pool, elasticsearch.queriesShareWrites)
+    }
+
+    companion object {
+        /** The fewest queries a store whose queries share the writes' pool runs at once. */
+        const val MIN_SHARED: Int = 2
+
+        /** The share of the writes' pool the queries take: one connection in four. */
+        const val SHARED_FRACTION: Int = 4
+
+        /** The bound of a pool of [perRoute] connections per node: a share of it when the writes [shared] it. */
+        fun maxConcurrent(perRoute: Int, shared: Boolean): Int =
+            if (shared) maxOf(MIN_SHARED, perRoute / SHARED_FRACTION) else perRoute.coerceAtLeast(1)
     }
 }
 
