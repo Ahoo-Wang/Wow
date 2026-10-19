@@ -94,6 +94,7 @@ data class ImportCart(val legacyNote: String = "")
 
 class Cart {
     var items = 0
+    var note = ""
 }
 
 data class CartOpened(val note: String)
@@ -131,7 +132,7 @@ fun cartModel(commands: MutableList<Command<*>>, mounted: Boolean = false) = agg
             else -> Decision.NoOp
         }
     }
-    evolve<CartOpened> { }
+    evolve<CartOpened> { note = it.note }
     evolve<ItemAdded> { items += it.quantity }
 }
 

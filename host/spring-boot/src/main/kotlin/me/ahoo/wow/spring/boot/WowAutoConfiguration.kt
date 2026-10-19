@@ -43,6 +43,8 @@ import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.ModelProvider
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
+import me.ahoo.wow.query.mask.PayloadMasks
+import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
@@ -511,9 +513,20 @@ class WowAutoConfiguration {
         server.doOnChannelInit { _, channel, _ -> KeepAliveReads.install(channel) }
     }
 
+    /**
+     * The response masks of the state reads and the `events` model (09 §17 G-2): the Manifest's sensitive fields, with
+     * the application's [MaskStrategyResolver] for its custom strategies, as the snapshot queries mask them.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    @InternalWowApi
+    fun wowPayloadMasks(manifest: Manifest, strategies: ObjectProvider<MaskStrategyResolver>): PayloadMasks =
+        PayloadMasks(manifest, strategies.getIfAvailable { MaskStrategyResolver.NONE })
+
     /** The public routes, served by the application's WebFlux server; the query routes when [QueryAutoConfiguration] gives them. */
     @Bean
     @InternalWowApi
+    @Suppress("LongParameterList") // One parameter per part of the routes, each a bean.
     fun wowRouterFunction(
         manifest: Manifest,
         node: ServiceNode,
@@ -521,6 +534,7 @@ class WowAutoConfiguration {
         callers: CallerResolver,
         options: WowHttpOptions,
         queries: ObjectProvider<HttpQueries>,
+        masks: PayloadMasks,
     ): RouterFunction<ServerResponse> = wowRoutes(
         manifest,
         node.gateway,
@@ -528,6 +542,7 @@ class WowAutoConfiguration {
         callers,
         options,
         queries.getIfAvailable { HttpQueries.NONE },
+        masks,
     )
 
     /**
