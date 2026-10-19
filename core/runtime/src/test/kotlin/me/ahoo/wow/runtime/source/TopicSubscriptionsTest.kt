@@ -20,6 +20,7 @@ import me.ahoo.wow.kernel.StartFrom
 import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
 import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemoryTopics
+import me.ahoo.wow.runtime.cluster.FlakyLeases
 import me.ahoo.wow.runtime.cluster.LeaseGroup
 import me.ahoo.wow.runtime.cluster.fastOptions
 import me.ahoo.wow.runtime.subscription.Handled
@@ -31,6 +32,7 @@ import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.runtime.subscription.testOptions
 import me.ahoo.wow.spi.ledger.ParkedAggregate
 import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.subscription.LeaseStore
 import me.ahoo.wow.spi.transport.EnvelopeCodec
 import me.ahoo.wow.spi.transport.TopicMessage
 import org.junit.jupiter.api.AfterEach
@@ -38,6 +40,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Instant
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 
 /**
@@ -372,6 +375,86 @@ class TopicSubscriptionsTest {
             // Nothing read before the partitions were added was handled again.
             handled.size.assert().isEqualTo(3)
         }
+
+    @Test
+    fun `a join that fails should be retried until the node reads the topic`(): Unit = runBlocking {
+        // Review R2.1-8: the heartbeat fails twice, then the first reconcile once.
+        val flaky = FlakyLeases(leases).apply {
+            heartbeats.set(2)
+            memberReadsFirst.set(1)
+            memberReads.set(1)
+        }
+        val subscriptions = topicSubscriptions(flaky)
+        subscriptions.joinState.assert().isEqualTo(TopicSubscriptions.JoinState.STOPPED)
+        subscriptions.start()
+        subscriptions.awaitStarted()
+        subscriptions.joinState.assert().isEqualTo(TopicSubscriptions.JoinState.READING)
+        subscriptions.joinFailures.assert().isZero()
+        subscriptions.lastJoinFailure.assert().isNull()
+        flaky.failures.get().assert().isEqualTo(3)
+        eventually { subscriptions.ownership?.owned == (0 until PARTITIONS).toSet() }
+        topics.publish(orderRecord("o-1", 1))
+        eventually { handled.size == 1 }
+        subscriptions.stop()
+        subscriptions.joinState.assert().isEqualTo(TopicSubscriptions.JoinState.STOPPED)
+    }
+
+    @Test
+    fun `a node that cannot join should say it is joining, and stop`(): Unit = runBlocking {
+        val flaky = FlakyLeases(leases).apply { heartbeats.set(Int.MAX_VALUE) }
+        val subscriptions = topicSubscriptions(flaky)
+        subscriptions.start()
+        eventually { subscriptions.joinFailures >= 3 }
+        subscriptions.joinState.assert().isEqualTo(TopicSubscriptions.JoinState.JOINING)
+        subscriptions.lastJoinFailure!!.message.assert().contains("heartbeat")
+        subscriptions.runtime.assert().isNull()
+        subscriptions.stop()
+        subscriptions.joinState.assert().isEqualTo(TopicSubscriptions.JoinState.STOPPED)
+        leases.members(LeaseGroup.topic(SERVICE, ORDER_TOPIC).name).assert().isEmpty()
+        // Started again once the store is back, it joins.
+        flaky.heartbeats.set(0)
+        subscriptions.start()
+        subscriptions.awaitStarted()
+        subscriptions.joinState.assert().isEqualTo(TopicSubscriptions.JoinState.READING)
+    }
+
+    @Test
+    fun `a join over partitions added that fails should be retried until it reads them all`(): Unit = runBlocking {
+        val topic = "wow.sales.flaky.state"
+        topics.create(topic, 2)
+        val flaky = FlakyLeases(leases)
+        val growing = topicSubscriptions(flaky, topic, partitionRefresh = 20.milliseconds)
+        growing.start()
+        growing.awaitStarted()
+        eventually { growing.ownership?.owned == setOf(0, 1) }
+        flaky.heartbeats.set(3)
+        topics.grow(topic, PARTITIONS)
+        eventually { growing.ownership?.owned == (0 until PARTITIONS).toSet() }
+        flaky.failures.get().assert().isEqualTo(3)
+        growing.joinState.assert().isEqualTo(TopicSubscriptions.JoinState.READING)
+        val record = EnvelopeCodec.message(orderRecord("o-3", 1))
+        topics.send(topic, TopicMessage(record.key, record.value, record.headers, PARTITIONS - 1))
+        eventually { handled.versionsOf("o-3") == listOf(1) }
+    }
+
+    private fun topicSubscriptions(
+        store: LeaseStore,
+        topic: String = ORDER_TOPIC,
+        partitionRefresh: Duration = Duration.INFINITE,
+    ): TopicSubscriptions = TopicSubscriptions(
+        service = SERVICE,
+        topic = topic,
+        node = "node-1",
+        addressOf = { "node-1.internal:9090" },
+        source = topics,
+        checkpoints = checkpoints,
+        leases = store,
+        ledger = ledger,
+        subscriptions = listOf(board),
+        options = testOptions(),
+        cluster = fastOptions(),
+        partitionRefresh = partitionRefresh,
+    ).also { started += it }
 
     private companion object {
         const val SERVICE = "board-service"
