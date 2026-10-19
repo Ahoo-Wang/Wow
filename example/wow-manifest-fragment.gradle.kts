@@ -8,6 +8,10 @@
  * `x-wow-*` query keywords) and the state fingerprints. The completed fragment takes the place of the compiler's in the
  * module's resources, so the Manifest a server merges from its runtime class path carries them.
  *
+ * The completion reads the classes variants of the runtime class path (a project's classes directories, a module's
+ * jar), never a project's jar: an api module's jar carries the contract of the domain modules that depend on it
+ * (example/wow-contract.gradle.kts, applied last), so reading it would be a task cycle.
+ *
  * As the plugin's worker does, the tools run in a class loader of their own over the module's classes and runtime class
  * path first, then the tools' (victools, Jackson, the kernel), with the JDK's platform class loader as parent: none of
  * them reaches the build script's class path, and the module's classes are read with the Jackson they run with.
@@ -42,8 +46,14 @@ val generateWowManifestFragment = tasks.register("generateWowManifestFragment") 
     group = "wow"
     description = "Completes this module's Manifest fragment with the schemas of its types."
     val fragments = compilerFragments
-    val classpath = files(main.output.classesDirs, configurations.named(main.runtimeClasspathConfigurationName))
-    val tools = wowManifestTools
+    val runtimeClasses = configurations.getByName(main.runtimeClasspathConfigurationName).incoming.artifactView {
+        attributes {
+            attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.CLASSES))
+        }
+    }.files
+    val classpath = files(main.output.classesDirs, runtimeClasses)
+    val tools: FileCollection = files(wowManifestTools)
+    val directoryName = fragmentDirectoryName
     val output = completedDirectory
     inputs.files(fragments).withPathSensitivity(PathSensitivity.NAME_ONLY).withPropertyName("fragments")
     inputs.files(classpath).withNormalizer(ClasspathNormalizer::class.java).withPropertyName("classpath")
@@ -57,7 +67,7 @@ val generateWowManifestFragment = tasks.register("generateWowManifestFragment") 
             val complete = Class.forName("me.ahoo.wow.manifest.tools.ManifestTools", true, loader).methods
                 .single { it.name == "completeFragment" }
             fragments.files.sortedBy { it.name }.forEach { fragment ->
-                val completed = File(root, "$fragmentDirectoryName/${fragment.name}")
+                val completed = File(root, "$directoryName/${fragment.name}")
                 try {
                     complete.invoke(null, fragment, completed, emptyMap<String, String>())
                 } catch (failure: java.lang.reflect.InvocationTargetException) {
@@ -72,3 +82,6 @@ main.output.dir(mapOf("builtBy" to generateWowManifestFragment), completedDirect
 tasks.named<ProcessResources>(main.processResourcesTaskName) {
     exclude("$fragmentDirectoryName/**")
 }
+
+// The module's peer contract, which the api modules it declares in `api(...)` carry (decision D234).
+apply(from = rootProject.file("example/wow-contract.gradle.kts"))

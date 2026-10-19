@@ -461,7 +461,7 @@ class ServiceNodeTest {
         strict.stop()
 
         val node = node("node-2", backends = InMemoryBackends(), peers = ContractFixtures.peers)
-        node.contracts.serviceOf("inventory").assert().isEqualTo("inventory-service")
+        node.contracts.hasContext("inventory").assert().isTrue()
         node.start()
         // Admitted and committed; no signal comes from the peer here, so the wait ends at COMMITTED.
         val result = node.gateway.execute(deposit(id = "a-2", wait = peer))

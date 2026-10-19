@@ -14,6 +14,7 @@
 package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.contract.ContractException
 import org.junit.jupiter.api.Test
@@ -25,24 +26,24 @@ import java.io.File
 import java.net.URLClassLoader
 
 /**
- * The peers a host reads on a class path several services share (DX gap G21): another server on it carries this
- * service's Manifest as its own peer, which is no peer of this one; two other services that claim one context still
+ * The peer contracts a host reads on a class path several services share (DX gap G21, decision D234): the api jar of
+ * its own context carries a contract of it, which is no peer of the node; two other contracts that declare one context
  * conflict.
  */
-class SharedClassPathPeersTest {
+class SharedClassPathContractsTest {
     @TempDir
     lateinit var directory: File
 
-    /** A class loader over the test's own, with the peer Manifests [peers] (a service and its contexts) beside it. */
-    private fun withPeers(vararg peers: Pair<String, List<String>>): ClassLoader {
-        val peersDirectory = File(directory, "META-INF/wow/peers").apply { mkdirs() }
-        peers.forEach { (service, contexts) ->
+    /** A class loader over the test's own, with an api jar's contract of each of [apis] (its contexts) beside it. */
+    private fun withContracts(vararg apis: Pair<String, List<String>>): ClassLoader {
+        val urls = apis.map { (api, contexts) ->
+            val root = File(directory, api)
             val declared = contexts.joinToString(",") { """{"name":"$it"}""" }
-            File(peersDirectory, "$service.json")
-                .writeText("""{"format":1,"service":{"name":"$service"},"contexts":[$declared]}""")
+            File(root, PeerContracts.RESOURCE).apply { parentFile.mkdirs() }
+                .writeText("""{"format":1,"contexts":[$declared]}""")
+            root.toURI().toURL()
         }
-        File(peersDirectory, "index").writeText(peers.joinToString("\n", postfix = "\n") { "${it.first}.json" })
-        return URLClassLoader(arrayOf(directory.toURI().toURL()), javaClass.classLoader)
+        return URLClassLoader(urls.toTypedArray(), javaClass.classLoader)
     }
 
     private fun start(classLoader: ClassLoader): Host = Host(
@@ -53,24 +54,25 @@ class SharedClassPathPeersTest {
     )
 
     @Test
-    fun `a host should start beside another server's copy of its own Manifest`() {
-        start(withPeers("bank-service" to listOf(BANK), "ledger-service" to listOf("ledger"))).use { host ->
+    fun `a host should start beside the contract of its own context`() {
+        start(withContracts("bank-api" to listOf(BANK), "ledger-api" to listOf("ledger"))).use { host ->
             host.node.contexts.keys.assert().containsExactly(BANK)
             val contracts = host.context.getBean(ContractDirectory::class.java)
-            contracts.peers.map { it.manifest.service?.name }.assert().containsExactly("ledger-service")
+            contracts.peers.map { it.source }.single().assert().endsWith("ledger-api/${PeerContracts.RESOURCE}")
             contracts.isLocal(BANK).assert().isTrue()
-            contracts.serviceOf("ledger").assert().isEqualTo("ledger-service")
+            contracts.hasContext("ledger").assert().isTrue()
         }
     }
 
     @Test
-    fun `a host should not start when two other services claim one context`() {
+    fun `a host should not start when two contracts declare one context`() {
         val failure = assertThrows<Exception> {
-            start(withPeers("ledger-service" to listOf("ledger"), "audit-service" to listOf("audit", "ledger")))
+            start(withContracts("ledger-api" to listOf("ledger"), "audit-api" to listOf("audit", "ledger")))
         }
         val conflict = generateSequence<Throwable>(failure) { it.cause }.filterIsInstance<ContractException>().first()
         conflict.problems.single().assert()
-            .startsWith("context ledger is declared by the peers ledger-service (")
-            .contains("audit-service (")
+            .startsWith("context ledger is declared by the contracts ")
+            .contains("ledger-api/${PeerContracts.RESOURCE} and ")
+            .endsWith("audit-api/${PeerContracts.RESOURCE}")
     }
 }

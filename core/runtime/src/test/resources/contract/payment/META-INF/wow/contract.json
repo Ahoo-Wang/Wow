@@ -1,6 +1,5 @@
 {
   "format": 1,
-  "service": { "name": "payment-service", "version": "2.0.0" },
   "contexts": [
     {
       "name": "payment",

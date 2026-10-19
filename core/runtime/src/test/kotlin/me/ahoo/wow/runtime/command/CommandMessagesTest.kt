@@ -320,7 +320,7 @@ class CommandMessagesTest {
             sender.typeOf(Command("c", "r", ref, CancelSchedule("k"))).assert().isEqualTo(Schedules.CANCEL)
             sender.typeOf(Command("c", "r", ref, DeleteAggregate)).assert().isEqualTo(Lifecycle.DELETE_AGGREGATE)
             assertThrows<IllegalStateException> { sender.typeOf(Command("c", "r", ref, "not a command")) }
-                .message.assert().contains("wowPeers")
+                .message.assert().contains("depend on the api module of stock")
             val wrong = AggregateType(STOCK, "warehouse").ref(TENANT, "w")
             assertThrows<IllegalStateException> { sender.typeOf(Command("c", "r", wrong, Reserve(1))) }
                 .message.assert().contains("not one of stock.warehouse")

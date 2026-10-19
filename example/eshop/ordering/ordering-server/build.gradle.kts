@@ -11,12 +11,9 @@ application {
     mainClass.set("me.ahoo.wow.example.eshop.ordering.server.OrderingServerKt")
 }
 
-// The service's Manifest, which the basket service takes as its peer, and the inventory's as this service's peer: the
-// order-process saga sends the inventory's commands, and the stock-confirmation saga reads its stock stream. The plugin
-// `me.ahoo.wow` cannot be applied inside the build that produces it, so the server applies the repository's script in
-// its place (DX gap G6).
+// The inventory's contract comes in the jar of :eshop-inventory-api, which the domain depends on (decision D234): the
+// order-process saga sends the inventory's commands, and the stock-confirmation saga reads its stock stream.
 extra["wowService"] = "eshop-ordering-service"
-apply(from = rootProject.file("example/wow-peers.gradle.kts"))
 // The Manifest compatibility gate (decision D76): `check` compares the service's Manifest with manifest/baseline.json.
 apply(from = rootProject.file("example/eshop/wow-manifest-compatibility.gradle.kts"))
 
@@ -26,7 +23,6 @@ dependencies {
     // The `kafka` profile: the basket's orders arrive on wow.eshop-ordering.commands, the inventory's commands and the
     // order stream go out, and the inventory's receipts and stock stream come in.
     implementation(project(":kafka"))
-    "wowPeers"(project(":eshop-inventory-server"))
     // The `postgres` profile: the host runs on PostgreSQL when the application gives it a DataSource.
     implementation(project(":postgres"))
     implementation("com.zaxxer:HikariCP")

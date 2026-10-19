@@ -26,7 +26,6 @@ import me.ahoo.wow.manifest.ContextManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.PublishedManifest
-import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.SubscriptionKind
 import me.ahoo.wow.manifest.SubscriptionSource
 import me.ahoo.wow.manifest.copyWith
@@ -45,11 +44,7 @@ class ContractDirectoryTest {
         assertThrows<ContractException> { ContractDirectory(manifest, ContractFixtures.peers, nullable) }.problems
 
     @Test
-    fun `contexts should resolve to their services`() {
-        directory.serviceOf("shop").assert().isEqualTo(SHOP_SERVICE)
-        directory.serviceOf("inventory").assert().isEqualTo("inventory-service")
-        directory.serviceOf("payment").assert().isEqualTo("payment-service")
-        directory.serviceOf("unknown").assert().isNull()
+    fun `contexts should resolve to their contracts`() {
         directory.isLocal("shop").assert().isTrue()
         directory.isLocal("inventory").assert().isFalse()
         directory.isLocal("unknown").assert().isFalse()
@@ -194,8 +189,8 @@ class ContractDirectoryTest {
     fun `a directory without peers should know the service's own contexts only`() {
         val alone = ContractDirectory(shop(subscriptions = listOf(subscription("CartProjector.onCart"))))
         alone.peers.assert().isEmpty()
-        alone.serviceOf("shop").assert().isEqualTo(SHOP_SERVICE)
-        alone.serviceOf("inventory").assert().isNull()
+        alone.isLocal("shop").assert().isTrue()
+        alone.hasContext("inventory").assert().isFalse()
     }
 
     @Test
@@ -287,63 +282,59 @@ class ContractDirectoryTest {
     }
 
     @Test
-    fun `two peers of different services declaring one context should fail`() {
+    fun `two contracts declaring one context should fail`() {
         val rival = ManifestFragment(
-            "rival.json",
-            Manifest(
-                service = ServiceInfo("rival"),
-                contexts = listOf(ContextManifest("inventory"), ContextManifest("shop"))
-            ),
+            "rival-api.jar!/META-INF/wow/contract.json",
+            Manifest(contexts = listOf(ContextManifest("inventory"), ContextManifest("shop"))),
         )
         assertThrows<ContractException> { ContractDirectory(shop(), ContractFixtures.peers + rival) }
             .problems.assert().containsExactly(
-                "context inventory is declared by the peers inventory-service " +
-                    "(${ContractFixtures.peers.first().source}) and rival (rival.json)",
+                "context inventory is declared by the contracts ${ContractFixtures.peers.first().source} and " +
+                    "rival-api.jar!/META-INF/wow/contract.json",
             )
     }
 
     @Test
-    fun `a copy of the service's own Manifest among the peers should be no peer of the contexts it serves`() {
-        // On a class path several servers share (DX gap G21): another server carries this service's Manifest as its
-        // peer, twice here, and a third peer declares a context the node serves besides one of its own.
-        val copy = ManifestFragment("other-server.jar!/$SHOP_SERVICE.json", shop())
-        val again = ManifestFragment("third-server.jar!/$SHOP_SERVICE.json", shop())
+    fun `the contract of the service's own contexts should be no peer of them`() {
+        // The service's own api is on its class path, twice here (on a class path several services share, DX gap
+        // G21), and a third contract declares a context the node serves besides another one.
+        val copy = ManifestFragment("shop-api.jar!/META-INF/wow/contract.json", shop().copyWith(service = null))
+        val again = ManifestFragment("other.jar!/META-INF/wow/contract.json", shop().copyWith(service = null))
         val monolith = ManifestFragment(
-            "monolith.json",
-            Manifest(
-                service = ServiceInfo("monolith"),
-                contexts = listOf(ContextManifest("shop"), ContextManifest("audit"))
-            ),
+            "monolith-api.jar!/META-INF/wow/contract.json",
+            Manifest(contexts = listOf(ContextManifest("shop"), ContextManifest("audit"))),
         )
         val contracts = ContractDirectory(shop(), ContractFixtures.peers + copy + again + monolith)
 
-        contracts.peers.map { it.manifest.service?.name }.assert()
-            .containsExactly("inventory-service", "payment-service", "monolith")
+        contracts.peers.map { it.source }.assert().containsExactly(
+            ContractFixtures.peers[0].source,
+            ContractFixtures.peers[1].source,
+            "monolith-api.jar!/META-INF/wow/contract.json",
+        )
         contracts.peers.last().manifest.contexts.map { it.name }.assert().containsExactly("audit")
         contracts.isLocal("shop").assert().isTrue()
-        contracts.serviceOf("shop").assert().isEqualTo(SHOP_SERVICE)
-        contracts.serviceOf("audit").assert().isEqualTo("monolith")
-        contracts.serviceOf("inventory").assert().isEqualTo("inventory-service")
+        contracts.isLocal("audit").assert().isFalse()
+        contracts.hasContext("audit").assert().isTrue()
     }
 
     @Test
-    fun `a copy of the service's own Manifest should keep the contexts the node does not serve`() {
+    fun `a contract of the service's own contexts should keep the contexts the node does not serve`() {
         val own = shop()
         val copy = ManifestFragment(
-            "other-server.jar!/$SHOP_SERVICE.json",
-            own.copyWith(contexts = own.contexts + ContextManifest("shop-admin")),
+            "shop-api.jar!/META-INF/wow/contract.json",
+            own.copyWith(service = null, contexts = own.contexts + ContextManifest("shop-admin")),
         )
         val contracts = ContractDirectory(own, ContractFixtures.peers + copy)
 
         contracts.peers.last().manifest.contexts.map { it.name }.assert().containsExactly("shop-admin")
         contracts.isLocal("shop-admin").assert().isFalse()
-        contracts.serviceOf("shop-admin").assert().isEqualTo(SHOP_SERVICE)
+        contracts.hasContext("shop-admin").assert().isTrue()
     }
 
     @Test
-    fun `load should read the peers on the class loader`() {
-        val loaded = ContractDirectory.load(shop(), peersLoader("peers"))
-        loaded.peers.map { it.manifest.service?.name }.assert().containsExactly("inventory-service", "payment-service")
+    fun `load should read the contracts on the class loader`() {
+        val loaded = ContractDirectory.load(shop(), contractsLoader("inventory", "payment"))
+        loaded.peers.map { it.manifest.contexts.single().name }.assert().containsExactly("inventory", "payment")
         loaded.local.assert().isEqualTo(shop())
     }
 }

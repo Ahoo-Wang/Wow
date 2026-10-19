@@ -14,57 +14,67 @@
 package me.ahoo.wow.runtime.contract
 
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.manifest.PeerManifests
+import me.ahoo.wow.manifest.PeerContracts
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
+import java.net.URL
 import java.net.URLClassLoader
+import java.util.Collections
+import java.util.Enumeration
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
-class PeerManifestReaderTest {
-    private val peersDirectory = File(requireNotNull(javaClass.getResource("/contract/peers/")).toURI())
-
-    /** A jar holding the fixture peers of `contract/peers`, as the Gradle plugin puts them in a module's jar. */
-    private fun jar(directory: File, name: String): File = File(directory, name).also { jar ->
+class ContractReaderTest {
+    /** An api jar holding the fixture contract of `contract/<name>`, as the Gradle plugin packages it. */
+    private fun jar(directory: File, name: String, fixture: String): File = File(directory, name).also { jar ->
+        val contract = requireNotNull(javaClass.getResource("/contract/$fixture/${PeerContracts.RESOURCE}"))
         ZipOutputStream(jar.outputStream()).use { zip ->
-            zip.putNextEntry(ZipEntry("${PeerManifests.DIRECTORY}/"))
-            File(peersDirectory, PeerManifests.DIRECTORY).listFiles()!!.sorted().forEach { file ->
-                zip.putNextEntry(ZipEntry("${PeerManifests.DIRECTORY}/${file.name}"))
-                zip.write(file.readBytes())
-            }
+            zip.putNextEntry(ZipEntry(PeerContracts.RESOURCE))
+            zip.write(contract.readBytes())
         }
     }
 
     @Test
-    fun `the peers of a directory should be read from beside its index`() {
-        val peers = PeerManifestReader(peersLoader("peers")).read()
-        peers.map { it.manifest.service?.name }.assert().containsExactly("inventory-service", "payment-service")
-        peers.first().source.assert().endsWith("contract/peers/${PeerManifests.resource("inventory")}")
-        peers.first().manifest.contexts.single().published.size.assert().isEqualTo(2)
+    fun `the contract of each directory should be read`() {
+        val contracts = ContractReader(contractsLoader("inventory", "payment")).read()
+        contracts.map { it.manifest.contexts.single().name }.assert().containsExactly("inventory", "payment")
+        contracts.first().source.assert().endsWith("contract/inventory/${PeerContracts.RESOURCE}")
+        contracts.first().manifest.service.assert().isNull()
+        contracts.first().manifest.contexts.single().published.size.assert().isEqualTo(2)
     }
 
     @Test
-    fun `the peers of jars should be read, the same Manifest once`(@TempDir directory: File) {
-        val jars = listOf(jar(directory, "a.jar"), jar(directory, "b.jar"))
+    fun `the contracts of jars should be read, the same contract once`(@TempDir directory: File) {
+        val jars = listOf(
+            jar(directory, "inventory-api.jar", "inventory"),
+            jar(directory, "copy.jar", "inventory"),
+            jar(directory, "payment-api.jar", "payment"),
+        )
         val loader = URLClassLoader(jars.map { it.toURI().toURL() }.toTypedArray(), null)
-        val peers = PeerManifestReader(loader).read()
-        peers.map { it.manifest.service?.name }.assert().containsExactly("inventory-service", "payment-service")
-        peers.first().source.assert().startsWith("jar:file:").endsWith("a.jar!/${PeerManifests.resource("inventory")}")
+        val contracts = ContractReader(loader).read()
+        contracts.map { it.manifest.contexts.single().name }.assert().containsExactly("inventory", "payment")
+        contracts.first().source.assert().startsWith("jar:file:")
+            .endsWith("inventory-api.jar!/${PeerContracts.RESOURCE}")
     }
 
     @Test
-    fun `a class path without peers should have none`() {
-        PeerManifestReader(URLClassLoader(emptyArray(), null)).read().assert().isEmpty()
+    fun `a class path without contracts should have none`() {
+        ContractReader(URLClassLoader(emptyArray(), null)).read().assert().isEmpty()
     }
 
     @Test
-    fun `every peer that cannot be read should be reported`() {
-        val problems = assertThrows<ContractException> { PeerManifestReader(peersLoader("broken")).read() }.problems
+    fun `every contract that cannot be read should be reported`(@TempDir directory: File) {
+        val missing = File(directory, "missing.json").toURI().toURL()
+        val loader = object : ClassLoader(contractsLoader("malformed", "format")) {
+            override fun getResources(name: String): Enumeration<URL> =
+                Collections.enumeration(parent.getResources(name).toList() + missing)
+        }
+        val problems = assertThrows<ContractException> { ContractReader(loader).read() }.problems
         problems.size.assert().isEqualTo(3)
-        problems[0].assert().contains("missing.json cannot be read")
-        problems[1].assert().contains("malformed.json is not JSON")
-        problems[2].assert().contains("format.json is not a Manifest: Manifest format 2 is not supported")
+        problems[0].assert().contains("malformed/${PeerContracts.RESOURCE} is not JSON")
+        problems[1].assert().contains("format/${PeerContracts.RESOURCE} is not a Manifest: Manifest format 2")
+        problems[2].assert().contains("missing.json cannot be read")
     }
 }

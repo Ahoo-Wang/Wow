@@ -10,11 +10,9 @@ application {
     mainClass.set("me.ahoo.wow.example.eshop.inventory.server.InventoryServerKt")
 }
 
-// The service's Manifest, which the ordering service takes as its peer: the ordering saga sends this context's
-// commands, and reads its stock stream. The plugin `me.ahoo.wow` cannot be applied inside the build that produces it,
-// so the server applies the repository's script in its place (DX gap G6).
+// The ordering service knows this context by the contract in the jar of :eshop-inventory-api (decision D234): its saga
+// sends this context's commands, and reads its stock stream.
 extra["wowService"] = "eshop-inventory-service"
-apply(from = rootProject.file("example/wow-peers.gradle.kts"))
 // The Manifest compatibility gate (decision D76): `check` compares the service's Manifest with manifest/baseline.json.
 apply(from = rootProject.file("example/eshop/wow-manifest-compatibility.gradle.kts"))
 
