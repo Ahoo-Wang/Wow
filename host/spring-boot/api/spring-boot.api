@@ -1,13 +1,3 @@
-public final class me/ahoo/wow/spring/boot/BackendKind : java/lang/Enum {
-	public static final field AUTO Lme/ahoo/wow/spring/boot/BackendKind;
-	public static final field MEMORY Lme/ahoo/wow/spring/boot/BackendKind;
-	public static final field MONGO Lme/ahoo/wow/spring/boot/BackendKind;
-	public static final field POSTGRES Lme/ahoo/wow/spring/boot/BackendKind;
-	public static fun getEntries ()Lkotlin/enums/EnumEntries;
-	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/spring/boot/BackendKind;
-	public static fun values ()[Lme/ahoo/wow/spring/boot/BackendKind;
-}
-
 public final class me/ahoo/wow/spring/boot/ClickHouseAutoConfiguration {
 	public static final field CLICKHOUSE_SINKS Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/spring/boot/ClickHouseAutoConfiguration$Companion;
@@ -105,8 +95,8 @@ public final class me/ahoo/wow/spring/boot/HostBackends {
 	public final fun getAppendQueue ()Lme/ahoo/wow/runtime/log/AppendQueueOptions;
 	public final fun getContexts ()Ljava/util/Map;
 	public final fun getFactory ()Lme/ahoo/wow/runtime/node/BackendFactory;
-	public final fun getKind ()Lme/ahoo/wow/spring/boot/BackendKind;
-	public final fun getStores ()Ljava/util/Map;
+	public final fun getLocal ()Z
+	public final fun getType ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/spring/boot/HostBackends$Companion {
@@ -412,7 +402,7 @@ public final class me/ahoo/wow/spring/boot/WowProperties {
 	public static final field PREFIX Ljava/lang/String;
 	public fun <init> ()V
 	public final fun getAggregates ()Ljava/util/Map;
-	public final fun getBackend ()Lme/ahoo/wow/spring/boot/BackendKind;
+	public final fun getBackend ()Ljava/lang/String;
 	public final fun getCalls ()Lme/ahoo/wow/spring/boot/WowProperties$Calls;
 	public final fun getCluster ()Lme/ahoo/wow/spring/boot/WowProperties$Cluster;
 	public final fun getContexts ()Lme/ahoo/wow/spring/boot/WowProperties$Contexts;
@@ -439,7 +429,7 @@ public final class me/ahoo/wow/spring/boot/WowProperties {
 	public final fun getTimers ()Lme/ahoo/wow/spring/boot/WowProperties$Timers;
 	public final fun getWait ()Lme/ahoo/wow/spring/boot/WowProperties$Wait;
 	public final fun setAggregates (Ljava/util/Map;)V
-	public final fun setBackend (Lme/ahoo/wow/spring/boot/BackendKind;)V
+	public final fun setBackend (Ljava/lang/String;)V
 	public final fun setCalls (Lme/ahoo/wow/spring/boot/WowProperties$Calls;)V
 	public final fun setCluster (Lme/ahoo/wow/spring/boot/WowProperties$Cluster;)V
 	public final fun setContexts (Lme/ahoo/wow/spring/boot/WowProperties$Contexts;)V
@@ -916,12 +906,14 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Store {
 	public final fun getDataSource ()Ljava/lang/String;
 	public final fun getDatabase ()Ljava/lang/String;
 	public final fun getDdl ()Lme/ahoo/wow/spi/StoreDdl;
-	public final fun getType ()Lme/ahoo/wow/spring/boot/BackendKind;
+	public final fun getOptions ()Ljava/util/Map;
+	public final fun getType ()Ljava/lang/String;
 	public final fun setClient (Ljava/lang/String;)V
 	public final fun setDataSource (Ljava/lang/String;)V
 	public final fun setDatabase (Ljava/lang/String;)V
 	public final fun setDdl (Lme/ahoo/wow/spi/StoreDdl;)V
-	public final fun setType (Lme/ahoo/wow/spring/boot/BackendKind;)V
+	public final fun setOptions (Ljava/util/Map;)V
+	public final fun setType (Ljava/lang/String;)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Subscription {

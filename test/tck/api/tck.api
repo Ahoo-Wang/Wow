@@ -129,6 +129,20 @@ protected final class me/ahoo/wow/tck/reservation/ReservationStoreSpec$Companion
 	public final fun getTTL-UwyO8pc ()J
 }
 
+public abstract class me/ahoo/wow/tck/sink/SinkSpec {
+	public fun <init> ()V
+	public final fun a batch written again leaves no more than duplicates of its records ()V
+	public final fun a retry of a partly written batch writes the rest ()V
+	public final fun an aggregate's records keep their version order ()V
+	public final fun an empty batch writes nothing ()V
+	protected abstract fun createSink ()Lme/ahoo/wow/spi/sink/Sink;
+	protected fun getAggregateType ()Lme/ahoo/wow/api/aggregate/AggregateType;
+	protected fun getVisibleWithin-UwyO8pc ()J
+	protected fun record (Lme/ahoo/wow/api/aggregate/AggregateRef;I)Lme/ahoo/wow/spi/state/StateEventRecord;
+	public final fun what a write returned is at the destination ()V
+	protected abstract fun written (Lme/ahoo/wow/api/aggregate/AggregateRef;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
 public abstract class me/ahoo/wow/tck/snapshot/SnapshotStoreSpec {
 	public static final field CONCURRENT_VERSIONS I
 	public static final field CONTEXT_SUFFIX I

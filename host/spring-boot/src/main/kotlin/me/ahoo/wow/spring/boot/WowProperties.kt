@@ -44,6 +44,7 @@ import me.ahoo.wow.runtime.wait.WaitOptions
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.ledger.ParkedRetrySpec
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.log.TailPolling
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.net.URI
 import java.time.Duration
@@ -64,8 +65,9 @@ import kotlin.time.toKotlinDuration
  *   that may go without one (decision D226), see [Internal].
  * - `wow.contexts.include`, `wow.contexts.exclude`: the bounded contexts the node serves among the domain modules on
  *   the class path, by default all of them (decision D169), see [Contexts].
- * - `wow.backend`: `auto` (the default), `memory`, `postgres` or `mongo` ([BackendKind]); `wow.mongo.database`: the one
- *   store of a node that names none; `wow.ddl` (`auto`, `validate` or `none`), how the stores manage the framework's
+ * - `wow.backend`: `auto` (the default), `memory`, `postgres`, `mongo`, or the type of a community backend's store
+ *   provider (`me.ahoo.wow.spi.store.StoreProvider`, review R3.3-1); `wow.mongo.database`: the database of a MongoDB
+ *   store that names none; `wow.ddl` (`auto`, `validate` or `none`), how the stores manage the framework's
  *   tables (review A5-10), `wow.stores.<name>.ddl` per store.
  * - `wow.stores.<name>.*`: the named store instances (decision D177, [Store]); `wow.log.store` and
  *   `wow.snapshot.store`, the stores of the aggregates' logs and snapshots by default; per aggregate type,
@@ -143,7 +145,7 @@ class WowProperties {
      * unless a profile of `wow.internal.dev-profiles` is active or the internal port binds the loopback interface
      * alone; `memory` keeps the data in memory on purpose, for one node whose data does not outlive it.
      */
-    var backend: BackendKind = BackendKind.AUTO
+    var backend: String = "auto"
 
     /**
      * How the stores manage the framework's tables, collections and indexes (review A5-10): `auto` creates what is
@@ -285,21 +287,30 @@ class WowProperties {
 
     /**
      * A named store instance (decision D177, `wow.stores.<name>`), as 9.x's `storage-routing` binds one: its [type],
-     * `memory`, `postgres` or `mongo`; on PostgreSQL, the `DataSource` bean [dataSource] names (the only one when not
-     * set); on MongoDB, the `MongoClient` bean [client] names (the only one when not set) and its [database] (`wow`
-     * when not set). Two stores of one type may serve different databases; two log stores may not share one.
+     * `memory`, `postgres`, `mongo` or a community backend's (the type of its store provider, review R3.3-1); on
+     * PostgreSQL, the `DataSource` bean [dataSource] names (the only one when not set); on MongoDB, the `MongoClient`
+     * bean [client] names (the only one when not set) and its [database] (`wow.mongo.database` when not set); any
+     * other setting of its provider in [options] (`wow.stores.<name>.options.<key>`). Two stores of one type may serve
+     * different databases; two log stores may not share one.
      */
     class Store {
-        var type: BackendKind? = null
+        var type: String? = null
         var dataSource: String? = null
         var client: String? = null
         var database: String? = null
 
+        /** The settings of the store's provider beyond the ones above, by key. */
+        var options: MutableMap<String, String> = LinkedHashMap()
+
         /** How this store manages the framework's schema, over `wow.ddl`. */
         var ddl: StoreDdl? = null
 
-        /** [ddl], else the node's [default] (`wow.ddl`). */
-        internal fun ddlOr(default: StoreDdl): StoreDdl = ddl ?: default
+        /** The settings its provider reads ([me.ahoo.wow.spi.store.StoreConfig.options]): [options] and the named ones. */
+        internal fun options(): Map<String, String> = options + listOfNotNull(
+            dataSource?.let { "data-source" to it },
+            client?.let { "client" to it },
+            database?.let { "database" to it },
+        )
     }
 
     /**
@@ -981,22 +992,4 @@ class WowProperties {
         private val DEFAULT_PARKED = ParkedRetryOptions()
         private val DEFAULT_HEALTH = HealthOptions()
     }
-}
-
-/** The backend of a node's log and stores (`wow.backend`, decision D110). */
-enum class BackendKind {
-    /**
-     * PostgreSQL or MongoDB by what the classpath and the application's beans offer; when neither, memory in a
-     * development profile or on a loopback-only internal port, and a failed startup otherwise (review R3.5-1).
-     */
-    AUTO,
-
-    /** In memory: for one node, whose data does not outlive it. */
-    MEMORY,
-
-    /** PostgreSQL, through the application's `DataSource`. */
-    POSTGRES,
-
-    /** MongoDB, through the application's `MongoClient`. */
-    MONGO,
 }

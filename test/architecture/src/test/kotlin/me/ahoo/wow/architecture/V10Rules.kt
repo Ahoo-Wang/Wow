@@ -54,6 +54,9 @@ object V10Rules {
     /** The SPI contract specs every backend runs (decision D196). */
     val TCK = V10Module("tck", "test/tck")
 
+    /** The query backend contract specs every query backend runs (review R3.3-2). */
+    val QUERY_TCK = V10Module("query-tck", "query/query-tck")
+
     /** The TCK's shared Testcontainers, apart from [TCK] so a spec needs no Docker. */
     val TCK_CONTAINERS = V10Module("tck-containers", "test/tck-containers")
 
@@ -61,7 +64,7 @@ object V10Rules {
      * The test modules (decision D196), the gate of every iteration: any module's tests may build on them, through a
      * test configuration (`testImplementation`, `integrationTestImplementation`, ...); no module's main code may.
      */
-    val TEST_MODULES = listOf(TEST_DSL, TCK, TCK_CONTAINERS)
+    val TEST_MODULES = listOf(TEST_DSL, TCK, QUERY_TCK, TCK_CONTAINERS)
 
     /** The ops context's API: its commands and events (roadmap 6.3f, 7.1a; decision D141). */
     val OPS_API = V10Module("ops-api", "platform/ops/ops-api")
@@ -109,14 +112,18 @@ object V10Rules {
      */
     val QUICKSTART = V10Module("quickstart", "example/quickstart")
 
-    /**
-     * The V10 examples, the eShop (decisions D159, D204) and the quickstart (D217): applications of the V10 modules,
-     * not ones of them, and the end-to-end tests across them.
-     */
-    val EXAMPLES = ESHOP + QUICKSTART
+    /** The Java smoke test (decision D229 G-8): a domain module written in Java, built on the kernel only. */
+    val JAVA_SMOKE = V10Module("java-smoke", "example/java-smoke")
 
-    /** Whether [project] belongs to a V10 example, the eShop (decisions D159, D204) or the quickstart (D217). */
-    fun isExample(project: String): Boolean = project.startsWith("eshop-") || project == QUICKSTART.name
+    /**
+     * The V10 examples, the eShop (decisions D159, D204), the quickstart (D217) and the Java smoke test (D229 G-8):
+     * applications of the V10 modules, not ones of them, and the end-to-end tests across them.
+     */
+    val EXAMPLES = ESHOP + QUICKSTART + JAVA_SMOKE
+
+    /** Whether [project] belongs to a V10 example ([EXAMPLES]). */
+    fun isExample(project: String): Boolean =
+        project.startsWith("eshop-") || project == QUICKSTART.name || project == JAVA_SMOKE.name
 
     /**
      * Whether [project] is one of the examples' domain or API modules: an example project that is neither a server
@@ -194,6 +201,8 @@ object V10Rules {
         TEST_DSL to setOf("kernel"),
         // The contract specs test the ports, and only them (06 §1).
         TCK to setOf("spi"),
+        // The query backend specs test the query engine's backend SPI, and only it.
+        QUERY_TCK to setOf("query"),
         TCK_CONTAINERS to emptySet(),
         // A platform domain is an application's domain (decision D149): its API on wow-api, its domain on the kernel,
         // compiled by the compiler; never the runtime. The ops domain declares its state's times to the query engine
@@ -357,7 +366,7 @@ object V10Rules {
      */
     val TEST_MODULES_ARE_FRAMEWORK_FREE = DependencyRule(
         name = "wow-test and wow-tck import no Spring, Reactor, HTTP, driver or Testcontainers types",
-        modules = listOf(TEST_DSL, TCK).map { it.dir },
+        modules = listOf(TEST_DSL, TCK, QUERY_TCK).map { it.dir },
         forbidden = SPRING + REACTOR_TYPES + HTTP_TYPES + DRIVERS + listOf("org.testcontainers"),
     )
 

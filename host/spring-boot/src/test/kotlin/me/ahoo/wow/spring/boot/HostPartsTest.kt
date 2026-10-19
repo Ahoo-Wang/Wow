@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.spring.boot
 
+import com.mongodb.client.MongoClient
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.kernel.AggregateModel
@@ -32,6 +33,7 @@ import me.ahoo.wow.runtime.subscription.SubscriptionStart
 import me.ahoo.wow.runtime.wait.UnknownContexts
 import me.ahoo.wow.spi.id.AggregateIdGenerator
 import me.ahoo.wow.spi.id.AggregateIdGeneratorSource
+import me.ahoo.wow.spi.store.StoreResources
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.support.DefaultListableBeanFactory
@@ -43,35 +45,40 @@ import org.springframework.core.env.MapPropertySource
 import org.springframework.core.env.StandardEnvironment
 import java.time.Duration
 import java.time.Instant
+import javax.sql.DataSource
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 class BackendSelectionTest {
+    /** The backend [configured] selects when a PostgreSQL ([postgres]) or MongoDB ([mongo]) bean is there. */
+    private fun select(configured: String, postgres: Boolean, mongo: Boolean, memoryOptIn: String? = null): String {
+        val resources = object : StoreResources {
+            override fun has(type: Class<*>): Boolean =
+                postgres && type == DataSource::class.java || mongo && type == MongoClient::class.java
+
+            override fun <T : Any> resource(type: Class<T>, name: String?, key: String): T = error("not opened")
+        }
+        return BackendSelection.select(configured, providers, resources, memoryOptIn)
+    }
+
+    /** Memory's, and PostgreSQL's and MongoDB's from the classpath. */
+    private val providers = StoreProviders.load(javaClass.classLoader)
+
     @Test
     fun `auto should pick the backend whose bean the application has`() {
-        BackendSelection.select(
-            BackendKind.AUTO,
-            postgres = true,
-            mongo = false
-        ).assert().isEqualTo(BackendKind.POSTGRES)
-        BackendSelection.select(BackendKind.AUTO, postgres = false, mongo = true).assert().isEqualTo(BackendKind.MONGO)
-        BackendSelection.select(
-            BackendKind.AUTO,
-            postgres = false,
-            mongo = false,
-            memoryOptIn = "profile dev",
-        ).assert().isEqualTo(BackendKind.MEMORY)
+        select("auto", postgres = true, mongo = false).assert().isEqualTo("postgres")
+        select("auto", postgres = false, mongo = true).assert().isEqualTo("mongo")
+        select("auto", postgres = false, mongo = false, memoryOptIn = "profile dev").assert().isEqualTo("memory")
     }
 
     @Test
     fun `auto without a durable backend should fail unless a development node opts in to memory`() {
         // Review R3.5-1: auto fell back to memory with a warning, and lost every command on a restart.
         assertThrows<IllegalStateException> {
-            BackendSelection.select(BackendKind.AUTO, postgres = false, mongo = false)
+            select("auto", postgres = false, mongo = false)
         }.message.assert().isEqualTo(BackendSelection.NO_DURABLE_BACKEND).contains("wow.backend=memory")
-        BackendSelection.select(BackendKind.MEMORY, postgres = false, mongo = false)
-            .assert().isEqualTo(BackendKind.MEMORY)
+        select("memory", postgres = false, mongo = false).assert().isEqualTo("memory")
     }
 
     @Test
@@ -89,33 +96,46 @@ class BackendSelectionTest {
 
     @Test
     fun `auto should refuse two backends`() {
-        assertThrows<IllegalStateException> { BackendSelection.select(BackendKind.AUTO, postgres = true, mongo = true) }
+        assertThrows<IllegalStateException> { select("auto", postgres = true, mongo = true) }
+            .message.assert().contains("postgres", "mongo")
     }
 
     @Test
     fun `a configured backend should be taken when it is available`() {
-        BackendSelection.select(
-            BackendKind.POSTGRES,
-            postgres = true,
-            mongo = true
-        ).assert().isEqualTo(BackendKind.POSTGRES)
-        BackendSelection.select(BackendKind.MONGO, postgres = true, mongo = true).assert().isEqualTo(BackendKind.MONGO)
-        BackendSelection.select(
-            BackendKind.MEMORY,
-            postgres = true,
-            mongo = true
-        ).assert().isEqualTo(BackendKind.MEMORY)
+        select("postgres", postgres = true, mongo = true).assert().isEqualTo("postgres")
+        select("MONGO", postgres = true, mongo = true).assert().isEqualTo("mongo")
+        select("memory", postgres = true, mongo = true).assert().isEqualTo("memory")
+    }
+
+    @Test
+    fun `a configured backend should fail when it is not available`() {
+        assertThrows<IllegalStateException> { select("postgres", postgres = false, mongo = true) }
+            .message.assert().isEqualTo(
+                "wow.backend=postgres needs wow-postgres on the classpath and a DataSource bean."
+            )
+        assertThrows<IllegalStateException> { select("mongo", postgres = true, mongo = false) }
+            .message.assert().contains("a MongoClient bean")
+        assertThrows<IllegalStateException> { select("nope", postgres = true, mongo = false) }
+            .message.assert().contains("wow.backend is nope, which no store provider offers")
+        assertThrows<IllegalStateException> {
+            BackendSelection.select(
+                "postgres",
+                StoreProviders(mapOf("memory" to MemoryStoreProvider())),
+                StoreResources.NONE
+            )
+        }.message.assert().isEqualTo("wow.backend is postgres, which needs wow-postgres on the classpath.")
     }
 
     @Test
     fun `the router should follow the backend`() {
         val properties = WowProperties()
-        WowAutoConfiguration.routing(properties, BackendKind.MEMORY).assert().isEqualTo(Routing.LOCAL)
-        WowAutoConfiguration.routing(properties, BackendKind.POSTGRES).assert().isEqualTo(Routing.PARTITIONED)
-        WowAutoConfiguration.routing(properties, null).assert().isEqualTo(Routing.PARTITIONED)
+        WowAutoConfiguration.routing(properties, local = true).assert().isEqualTo(Routing.LOCAL)
+        WowAutoConfiguration.routing(properties, local = false).assert().isEqualTo(Routing.PARTITIONED)
         properties.cluster.router = Routing.LOCAL
-        WowAutoConfiguration.routing(properties, BackendKind.MONGO).assert().isEqualTo(Routing.LOCAL)
-        WowAutoConfiguration.routing(properties, BackendKind.MEMORY).assert().isEqualTo(Routing.LOCAL)
+        WowAutoConfiguration.routing(properties, local = false).assert().isEqualTo(Routing.LOCAL)
+        WowAutoConfiguration.routing(properties, local = true).assert().isEqualTo(Routing.LOCAL)
+        properties.cluster.router = Routing.PARTITIONED
+        assertThrows<IllegalStateException> { WowAutoConfiguration.routing(properties, local = true) }
     }
 
     @Test
@@ -142,7 +162,8 @@ class BackendSelectionTest {
         backends.factory.backends("bank")
         backends.factory.backends("bank")
         opened.assert().isEqualTo(1)
-        backends.kind.assert().isNull()
+        backends.type.assert().isNull()
+        backends.local.assert().isFalse()
         backends.appendQueue.assert().isEqualTo(AppendQueueOptions())
     }
 
@@ -206,7 +227,7 @@ class WowPropertiesTest {
     @Test
     fun `the defaults should be the runtime's`() {
         val properties = WowProperties()
-        properties.backend.assert().isEqualTo(BackendKind.AUTO)
+        properties.backend.assert().isEqualTo("auto")
         properties.internal.port.assert().isEqualTo(9090)
         properties.log.partitions.assert().isEqualTo(64)
         properties.cluster.options().assert().isEqualTo(ClusterOptions())
@@ -247,7 +268,7 @@ class WowPropertiesTest {
         properties.node.id.assert().isEqualTo("n1")
         properties.node.address.assert().isEqualTo("10.0.0.1:9191")
         properties.internal.port.assert().isEqualTo(9191)
-        properties.backend.assert().isEqualTo(BackendKind.MONGO)
+        properties.backend.assert().isEqualTo("mongo")
         properties.mongo.database.assert().isEqualTo("shop")
         properties.log.partitions.assert().isEqualTo(16)
         properties.log.appendQueue.options(AppendQueueOptions.MONGO).enabled.assert().isFalse()

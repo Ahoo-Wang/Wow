@@ -21,8 +21,6 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.AbacQueryPolicy
 import me.ahoo.wow.query.DefaultQueryGateway
-import me.ahoo.wow.query.QueryBackend
-import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.QueryBackendStorages
 import me.ahoo.wow.query.QueryCountCache
@@ -42,7 +40,6 @@ import me.ahoo.wow.query.events.EventQueryGateways
 import me.ahoo.wow.query.events.EventVisibility
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.mask.PayloadMasks
-import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.schema.EventsQuerySchemas
 import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.query.schema.QueryModel
@@ -64,7 +61,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import java.nio.file.Path
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * The query plane (decisions D126–D131, D150, D151), active when wow-query is on the classpath (wow-http brings it)
@@ -120,18 +116,16 @@ class QueryAutoConfiguration {
             node: ServiceNode,
             properties: QueryProperties,
             backends: HostBackends,
+            providers: StoreProviders,
             factories: ObjectProvider<QueryBackendFactory<*>>,
         ): SnapshotQueryBackend {
             factories.ifAvailable?.let { return SnapshotQueryBackend(it) }
-            val ddl = properties.index.ddl
-            // One backend per store the snapshots are on (decision D177), each type's routed to its store's.
+            val options = properties.storeQueryOptions()
+            // One backend per store the snapshots are on (decision D177), each type's routed to its store's, from the
+            // query provider of the store's type (review R3.3-1).
             val byStore = backends.layout?.snapshotStores.orEmpty().associateWith { name ->
                 val store = backends.stores.getValue(name)
-                when (store.kind) {
-                    BackendKind.POSTGRES -> PostgresQueries.open(store, ddl)
-                    BackendKind.MONGO -> MongoQueries.open(store, ddl)
-                    else -> MemoryQueries.open(store)
-                }
+                providers.queriesOf(store.type)?.snapshots(store, options)?.let(SnapshotQueryBackend::of)
             }
             val types = snapshotTypes(manifest, node.contexts.keys)
             val backend = SnapshotQueryBackend.routing(types) { type ->
@@ -140,7 +134,7 @@ class QueryAutoConfiguration {
             val unserved = types.filterNot(backend::serves)
             if (unserved.isNotEmpty()) {
                 logger.info {
-                    "No snapshot query backend serves the snapshots of $unserved (${backends.kind ?: "the application's"} " +
+                    "No snapshot query backend serves the snapshots of $unserved (${backends.type ?: "the application's"} " +
                         "stores): they are not queried; give the node a QueryBackendFactory bean to query them, or set " +
                         "wow.query.memory.enabled on the memory backend."
                 }
@@ -150,11 +144,11 @@ class QueryAutoConfiguration {
 
         /**
          * The `events` query backend of each aggregate type (decision D235), by the store its log is on (D177): the
-         * application's own [EventQueryBackend] bean when it has one, else PostgreSQL's or MongoDB's over the log in
-         * place (`wow.query.events.mongo-read-preference`), and a log in memory scanned in memory when
-         * `wow.query.memory.enabled` is on, as its snapshots are queried then (review R3.4-1). Any other log, in memory
-         * without it or the application's own, is not queried: its `events` model is not served, and an info log says
-         * so.
+         * application's own [EventQueryBackend] bean when it has one, else the one of the query provider of the store's
+         * type (review R3.3-1): PostgreSQL's or MongoDB's over the log in place (`wow.query.events.mongo-read-preference`),
+         * and a log in memory scanned in memory when `wow.query.memory.enabled` is on, as its snapshots are queried then
+         * (review R3.4-1). Any other log, in memory without it, on a store whose type has no query provider, or the
+         * application's own, is not queried: its `events` model is not served, and an info log says so.
          */
         @Bean
         @ConditionalOnMissingBean
@@ -164,39 +158,25 @@ class QueryAutoConfiguration {
             node: ServiceNode,
             properties: QueryProperties,
             backends: HostBackends,
+            providers: StoreProviders,
         ): EventQueryBackend {
             val layout = backends.layout
-            val scanned = ConcurrentHashMap<String, InMemoryEventQueryStorage>()
+            val options = properties.storeQueryOptions()
             val byStore = layout?.logStores.orEmpty().associateWith { name ->
                 val store = backends.stores.getValue(name)
-                when (store.kind) {
-                    BackendKind.POSTGRES -> EventQueryBackends.postgres(store)
-                    BackendKind.MONGO -> EventQueryBackends.mongo(store, properties.events.mongoReadPreference)
-                    BackendKind.MEMORY -> if (properties.memory.enabled) scan(node, scanned) else null
-                    else -> null
-                }
+                providers.queriesOf(store.type)?.events(store, options)
             }
-            val backend = EventQueryBackend { type -> layout?.let { byStore[it.logStoreOf(type)] }?.invoke(type) }
+            val backend = EventQueryBackend { type -> layout?.let { byStore[it.logStoreOf(type)] }?.binding(type) }
             val unserved = queryTypes(manifest, node.contexts.keys, QueryRoutes.EVENTS)
                 .filter { backend.binding(it) == null }
             if (unserved.isNotEmpty()) {
                 logger.info {
-                    "No events query backend serves the logs of $unserved (${backends.kind ?: "the application's"} " +
+                    "No events query backend serves the logs of $unserved (${backends.type ?: "the application's"} " +
                         "stores): their events are not queried; give the node an EventQueryBackend bean to query them, " +
                         "or set wow.query.memory.enabled on the memory backend."
                 }
             }
             return backend
-        }
-
-        /** The log of [type]'s context on [node] scanned in memory, one storage per context. */
-        private fun scan(
-            node: ServiceNode,
-            scanned: ConcurrentHashMap<String, InMemoryEventQueryStorage>,
-        ): (AggregateType) -> QueryBackendBinding<QueryBackend>? = { type ->
-            node.contexts[type.context]?.let { context ->
-                scanned.computeIfAbsent(type.context) { InMemoryEventQueryStorage.of(context.log) }.create(type)
-            }
         }
 
         /**

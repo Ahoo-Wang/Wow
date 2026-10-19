@@ -32,10 +32,12 @@ import me.ahoo.wow.manifest.tools.ManifestJson
 import org.gradle.api.Action
 import org.gradle.api.GradleException
 import org.gradle.api.Project
+import org.gradle.api.ProjectConfigurationException
 import org.gradle.api.artifacts.ExternalModuleDependency
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.DocsType
 import org.gradle.api.internal.component.SoftwareComponentInternal
+import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.bundling.Jar
 import org.gradle.language.jvm.tasks.ProcessResources
@@ -67,11 +69,31 @@ class WowPluginTest {
     private fun ExternalModuleDependency.coordinates(): String = "$group:$name:$version"
 
     @Test
-    fun `without the Kotlin plugin it should only add its extension`() {
+    fun `without the Kotlin plugin it should fail once the project is evaluated, naming the fix`() {
         val project = project(kotlin = false)
+        project.pluginManager.apply("java")
         project.extensions.getByType(WowExtension::class.java).serviceName.get().assert().isEqualTo("shop")
         project.tasks.findByName(WowPlugin.GENERATE_FRAGMENT_TASK).assert().isNull()
         project.pluginManager.hasPlugin("com.google.devtools.ksp").assert().isFalse()
+        val failure = assertThrows<ProjectConfigurationException> { (project as ProjectInternal).evaluate() }
+        generateSequence<Throwable>(failure) { it.cause }.map { it.message }.toList().assert()
+            .contains(WowPlugin.missingKotlinJvm(":"))
+    }
+
+    @Test
+    fun `the Kotlin plugin applied after it should satisfy it`() {
+        val project = project()
+        (project as ProjectInternal).evaluate()
+        project.tasks.findByName(WowPlugin.GENERATE_FRAGMENT_TASK).assert().isNotNull()
+    }
+
+    @Test
+    fun `applied to an evaluated project without the Kotlin plugin it should fail at once`() {
+        val project = ProjectBuilder.builder().withProjectDir(directory).withName("plain").build()
+        (project as ProjectInternal).evaluate()
+        val failure = assertThrows<Exception> { project.pluginManager.apply("me.ahoo.wow") }
+        generateSequence<Throwable>(failure) { it.cause }.map { it.message }.toList().assert()
+            .contains(WowPlugin.missingKotlinJvm(":"))
     }
 
     @Test

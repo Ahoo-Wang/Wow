@@ -442,7 +442,13 @@ class V10ArchitectureTest {
 
     @Test
     fun `eShop domain modules should be its APIs and domains, not its servers or e2e tests`() {
-        listOf("eshop-catalog-api", "eshop-catalog-domain", "eshop-payment-api", "eshop-payment-domain").forEach {
+        listOf(
+            "eshop-catalog-api",
+            "eshop-catalog-domain",
+            "eshop-payment-api",
+            "eshop-payment-domain",
+            "java-smoke"
+        ).forEach {
             V10Rules.isExampleDomain(it).assert().describedAs(it).isTrue()
         }
         listOf("eshop-catalog-server", "eshop-payment-server", "eshop-e2e", "quickstart").forEach {

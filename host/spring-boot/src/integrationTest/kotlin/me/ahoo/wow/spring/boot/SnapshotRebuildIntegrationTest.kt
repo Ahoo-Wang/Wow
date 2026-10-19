@@ -17,6 +17,9 @@ import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import me.ahoo.wow.spi.store.Store
+import me.ahoo.wow.spi.store.StoreConfig
+import me.ahoo.wow.spi.store.StoreResources
 import me.ahoo.wow.tck.containers.WowContainers
 import javax.sql.DataSource
 
@@ -36,9 +39,17 @@ private object RebuildDatabases {
 
     val client: MongoClient by lazy { MongoClients.create(WowContainers.mongo.replicaSetUrl) }
 
-    fun postgres(name: String): HostStore = PostgresStore(name, dataSource)
+    /** The store providers on the classpath: the stores open as the host opens them (review R3.3-1). */
+    private val providers = StoreProviders.load(javaClass.classLoader)
 
-    fun mongo(name: String): HostStore = MongoStore(name, client, DATABASE)
+    private val resources = StoreResources.of(mapOf("dataSource" to dataSource, "client" to client))
+
+    fun postgres(name: String): Store = open(name, StoreTypes.POSTGRES)
+
+    fun mongo(name: String): Store = open(name, StoreTypes.MONGO, mapOf("database" to DATABASE))
+
+    private fun open(name: String, type: String, options: Map<String, String> = emptyMap()): Store =
+        providers.of(type, "test").open(StoreConfig.of(name, type, options = options, resources = resources))
 
     private const val POOL_SIZE = 16
     private const val DATABASE = "wow_rebuild"
@@ -49,7 +60,7 @@ private object RebuildDatabases {
  * MongoDB: a snapshot store of another type backfilled from a PostgreSQL log.
  */
 class PostgresSnapshotRebuildTest : SnapshotRebuildSpec() {
-    override fun store(name: String): HostStore =
+    override fun store(name: String): Store =
         if (name == A) RebuildDatabases.postgres(name) else RebuildDatabases.mongo(name)
 }
 
@@ -58,6 +69,6 @@ class PostgresSnapshotRebuildTest : SnapshotRebuildSpec() {
  * PostgreSQL.
  */
 class MongoSnapshotRebuildTest : SnapshotRebuildSpec() {
-    override fun store(name: String): HostStore =
+    override fun store(name: String): Store =
         if (name == A) RebuildDatabases.mongo(name) else RebuildDatabases.postgres(name)
 }

@@ -22,7 +22,7 @@ dependencies {
     testImplementation("org.springframework:spring-context")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
     // The in-memory reference query backend, behind the snapshot query routes.
-    testImplementation(testFixtures(project(":query")))
+    testImplementation(project(":query-tck"))
     testImplementation(testFixtures(project(":manifest")))
     // The answers of the routes, checked against the schemas of the document GET /wow/openapi serves.
     testImplementation(libs.json.schema.validator)

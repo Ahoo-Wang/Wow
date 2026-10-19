@@ -2283,3 +2283,55 @@ public final class me/ahoo/wow/query/schema/Temporal$Formatted : me/ahoo/wow/que
 	public fun toString ()Ljava/lang/String;
 }
 
+public abstract interface class me/ahoo/wow/query/store/EventQueries {
+	public abstract fun binding (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/QueryBackendBinding;
+}
+
+public final class me/ahoo/wow/query/store/QueryIndexReport {
+	public static final field Companion Lme/ahoo/wow/query/store/QueryIndexReport$Companion;
+	public static final field NONE Lme/ahoo/wow/query/store/QueryIndexReport;
+	public fun <init> ()V
+	public fun <init> (Ljava/util/List;Ljava/util/List;Ljava/util/List;)V
+	public synthetic fun <init> (Ljava/util/List;Ljava/util/List;Ljava/util/List;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCreated ()Ljava/util/List;
+	public final fun getInvalid ()Ljava/util/List;
+	public final fun getMissing ()Ljava/util/List;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/query/store/QueryIndexReport$Companion {
+}
+
+public abstract interface class me/ahoo/wow/query/store/SnapshotQueries {
+	public abstract fun binding (Lme/ahoo/wow/api/aggregate/AggregateType;)Lme/ahoo/wow/query/QueryBackendBinding;
+	public fun getManagesIndexes ()Z
+	public fun manageIndexes (Lme/ahoo/wow/api/aggregate/AggregateType;Lme/ahoo/wow/query/schema/QueryModelSchema;Ljava/util/List;)Lme/ahoo/wow/query/store/QueryIndexReport;
+	public fun prepare (Lme/ahoo/wow/api/aggregate/AggregateType;)V
+}
+
+public final class me/ahoo/wow/query/store/StoreQueryOptions {
+	public static final field Companion Lme/ahoo/wow/query/store/StoreQueryOptions$Companion;
+	public static final field DEFAULT Lme/ahoo/wow/query/store/StoreQueryOptions;
+	public final fun getEventsReadPreference ()Ljava/lang/String;
+	public final fun getIndexDdl ()Lme/ahoo/wow/query/index/QueryIndexDdl;
+	public static final fun of ()Lme/ahoo/wow/query/store/StoreQueryOptions;
+	public static final fun of (Lme/ahoo/wow/query/index/QueryIndexDdl;)Lme/ahoo/wow/query/store/StoreQueryOptions;
+	public static final fun of (Lme/ahoo/wow/query/index/QueryIndexDdl;Ljava/lang/String;)Lme/ahoo/wow/query/store/StoreQueryOptions;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/query/store/StoreQueryOptions$Companion {
+	public final fun of ()Lme/ahoo/wow/query/store/StoreQueryOptions;
+	public final fun of (Lme/ahoo/wow/query/index/QueryIndexDdl;)Lme/ahoo/wow/query/store/StoreQueryOptions;
+	public final fun of (Lme/ahoo/wow/query/index/QueryIndexDdl;Ljava/lang/String;)Lme/ahoo/wow/query/store/StoreQueryOptions;
+	public static synthetic fun of$default (Lme/ahoo/wow/query/store/StoreQueryOptions$Companion;Lme/ahoo/wow/query/index/QueryIndexDdl;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/query/store/StoreQueryOptions;
+}
+
+public abstract interface class me/ahoo/wow/query/store/StoreQueryProvider {
+	public fun events (Lme/ahoo/wow/spi/store/Store;Lme/ahoo/wow/query/store/StoreQueryOptions;)Lme/ahoo/wow/query/store/EventQueries;
+	public abstract fun getType ()Ljava/lang/String;
+	public fun snapshots (Lme/ahoo/wow/spi/store/Store;Lme/ahoo/wow/query/store/StoreQueryOptions;)Lme/ahoo/wow/query/store/SnapshotQueries;
+}
+

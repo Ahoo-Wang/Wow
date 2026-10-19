@@ -433,6 +433,7 @@ test('V10 modules skip the TypeScript workflow jobs and the mixed-version test',
     'example/eshop/e2e/src/integrationTest/kotlin/A.kt',
     'example/eshop/README.md',
     'example/quickstart/src/main/kotlin/A.kt',
+    'example/java-smoke/src/main/java/A.java',
   ]) {
     assert.ok(none([path]), path);
     assert.ok(!scopes([path]).mixedVersion, path);
@@ -513,6 +514,7 @@ test('V10 modules, their tests, the platform and the root build run v10.yml', ()
     'example/eshop/e2e/build.gradle.kts',
     'example/eshop/DX-GAPS.md',
     'example/quickstart/build.gradle.kts',
+    'example/java-smoke/build.gradle.kts',
     // The V10-against-9.x end-to-end benchmark (D224): its V10 side is in v10Check.
     'wow-benchmarks/e2e/bench-v10/build.gradle.kts',
     'wow-benchmarks/e2e/load/src/main/kotlin/A.kt',
@@ -571,7 +573,7 @@ test('the V10 store, what its suites import, the service and its modules run the
     'api/api/src/main/kotlin/A.kt',
     'compiler/compiler/src/main/kotlin/A.kt',
     'core/kernel/src/main/kotlin/A.kt',
-    'query/query/src/testFixtures/kotlin/A.kt',
+    'query/query-tck/src/main/kotlin/A.kt',
     'backends/postgres/src/main/kotlin/A.kt',
     'edge/http/src/main/kotlin/A.kt',
     'host/spring-boot/src/main/kotlin/A.kt',
