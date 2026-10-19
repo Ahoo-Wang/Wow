@@ -16,7 +16,7 @@ package me.ahoo.wow.http
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.http.query.DatasetVisibility
+import me.ahoo.wow.query.dataset.DatasetVisibility
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.AbacQueryOptions

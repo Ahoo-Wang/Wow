@@ -15,7 +15,7 @@ package me.ahoo.wow.http
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
-import me.ahoo.wow.http.query.EventQueryGateway
+import me.ahoo.wow.query.events.EventQueryGateway
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.manifest.QueryManifest

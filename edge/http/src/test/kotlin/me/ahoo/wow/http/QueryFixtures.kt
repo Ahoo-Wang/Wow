@@ -15,9 +15,10 @@ package me.ahoo.wow.http
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
-import me.ahoo.wow.http.query.EventQueryGateway
+import me.ahoo.wow.query.events.EventQueryGateway
+import me.ahoo.wow.query.events.EventVisibility
+import me.ahoo.wow.query.state.CommittedState
 import me.ahoo.wow.http.query.HttpQueries
-import me.ahoo.wow.http.read.StateVisibility
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.copyWith
@@ -111,9 +112,12 @@ class QueryNode(
                     cartType,
                     log,
                     entryPolicy = entryPolicy,
-                    visibility = { ref, caller ->
-                        // As the host wires it: the latest state, visible through the snapshot queries (review A3-11).
-                        http.reads.latest(ref)?.let { StateVisibility.visible(gateway, caller, it) } ?: true
+                    // As the host wires it: the latest committed state, visible through the snapshot queries
+                    // (reviews A3-11, R2.3-6).
+                    visibility = EventVisibility.of({ gateway }) { ref ->
+                        http.reads.committed(ref)?.let {
+                            CommittedState(it.ref, it.version, it.scope, it.deleted, it.tags, it.state)
+                        }
                     },
                     masks = PayloadMasks(manifest),
                 ),

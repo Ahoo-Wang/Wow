@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.http.query
+package me.ahoo.wow.query.dataset
 
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.query.AbacQueryOptions

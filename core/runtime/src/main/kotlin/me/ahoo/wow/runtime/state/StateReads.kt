@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.http.read
+package me.ahoo.wow.runtime.state
 
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.Scope
@@ -28,14 +28,22 @@ import tools.jackson.databind.JsonNode
 import java.time.Instant
 
 /**
- * The state reads of the public port (decisions D40, D112): `GET /{context}/{aggregate}/{id}/state` reads [latest],
- * `?version=` and `?at=` read [at], `GET …/{id}/state/trace` reads [trace]. The edge checks the caller's scope against
- * the state's.
+ * The state point reads of the node's aggregates (decisions D40, D112, D231): the public port's
+ * `GET /{context}/{aggregate}/{id}/state` reads [latest], `?version=` and `?at=` read [at], `GET …/{id}/state/trace`
+ * reads [trace]; the events query model decides which aggregates a caller sees on [committed] (reviews A3-11,
+ * R2.3-6). They read what is committed, for no caller: an entry checks the caller's scope against the state's and
+ * admits and masks the state as the snapshot queries do (`me.ahoo.wow.query.state.StateVisibility`).
  */
 @InternalWowApi
 interface StateReads {
     /** The latest state of [ref] the read model holds, or null when it holds none. */
     suspend fun latest(ref: AggregateRef): StateReadView?
+
+    /**
+     * The latest committed state of [ref]: the one the read model holds ([latest]), else, before its first snapshot
+     * is written, the state its log holds (review R2.3-6); null when no commit of [ref] is known.
+     */
+    suspend fun committed(ref: AggregateRef): StateReadView?
 
     /** The committed state of [ref] at [version], or null when the log does not hold that version. */
     suspend fun at(ref: AggregateRef, version: Int): StateReadView?
@@ -58,6 +66,8 @@ interface StateReads {
         @JvmField
         val NONE: StateReads = object : StateReads {
             override suspend fun latest(ref: AggregateRef): StateReadView? = null
+
+            override suspend fun committed(ref: AggregateRef): StateReadView? = null
 
             override suspend fun at(ref: AggregateRef, version: Int): StateReadView? = null
 
@@ -110,8 +120,9 @@ data class EventView(val name: String, val revision: Int, val body: JsonNode)
  * ([Kernel.stateAt], [Kernel.trace]) from the snapshot when it comes before what is asked, else from version 1.
  *
  * An aggregate whose model [registry] does not know, or whose context has no [ContextReads], is not found. So is the
- * latest state of an aggregate without a snapshot: reads come from the read model, not the log. States are trees of
- * Wow's JSON (decision D122), so a decimal keeps its digits and its scale.
+ * latest state of an aggregate without a snapshot: reads come from the read model, not the log; its [committed] state
+ * is the log replayed then. States are trees of Wow's JSON (decision D122), so a decimal keeps its digits and its
+ * scale.
  */
 @InternalWowApi
 class KernelStateReads(private val registry: ModelRegistry, contexts: Map<String, ContextReads>) : StateReads {
@@ -124,15 +135,14 @@ class KernelStateReads(private val registry: ModelRegistry, contexts: Map<String
     override suspend fun latest(ref: AggregateRef): StateReadView? {
         val reads = contexts[ref.type.context] ?: return null
         registry.find(ref.type) ?: return null
-        val snapshot = reads.snapshots.load(ref) ?: return null
-        return StateReadView(
-            ref = snapshot.ref,
-            version = snapshot.version,
-            scope = snapshot.scope,
-            deleted = snapshot.deleted,
-            tags = snapshot.tags,
-            state = WowJson.mapper.readTree(snapshot.state),
-        )
+        return reads.snapshots.load(ref)?.view()
+    }
+
+    override suspend fun committed(ref: AggregateRef): StateReadView? {
+        val reads = contexts[ref.type.context] ?: return null
+        val model = registry.find(ref.type)?.erased() ?: return null
+        reads.snapshots.load(ref)?.let { return it.view() }
+        return reads.kernel.stateAt(model, ref, Instant.MAX)?.view(ref)
     }
 
     override suspend fun at(ref: AggregateRef, version: Int): StateReadView? {
@@ -174,19 +184,29 @@ class KernelStateReads(private val registry: ModelRegistry, contexts: Map<String
     ): StateReadView? {
         val reads = contexts[ref.type.context] ?: return null
         val model = registry.find(ref.type)?.erased() ?: return null
-        val state = read(reads.kernel, model, reads.snapshots.load(ref)) ?: return null
-        return StateReadView(
-            ref = ref,
-            version = state.version,
-            scope = state.scope,
-            deleted = state.deleted,
-            tags = state.tags,
-            state = WowJson.mapper.valueToTree(state.state),
-        )
+        return read(reads.kernel, model, reads.snapshots.load(ref))?.view(ref)
     }
 
     private companion object {
         @Suppress("UNCHECKED_CAST") // The kernel takes the model and its state together; nothing here names the type.
         fun AggregateModel<*>.erased(): AggregateModel<Any> = this as AggregateModel<Any>
+
+        fun SnapshotRecord.view(): StateReadView = StateReadView(
+            ref = ref,
+            version = version,
+            scope = scope,
+            deleted = deleted,
+            tags = tags,
+            state = WowJson.mapper.readTree(state),
+        )
+
+        fun CachedState.view(ref: AggregateRef): StateReadView = StateReadView(
+            ref = ref,
+            version = version,
+            scope = scope,
+            deleted = deleted,
+            tags = tags,
+            state = WowJson.mapper.valueToTree(state),
+        )
     }
 }

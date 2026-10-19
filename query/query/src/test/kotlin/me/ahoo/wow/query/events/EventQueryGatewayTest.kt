@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.http.query
+package me.ahoo.wow.query.events
 
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -37,9 +37,6 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
-import me.ahoo.wow.kernel.EventCodec
-import me.ahoo.wow.kernel.aggregate
-import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
@@ -48,7 +45,6 @@ import me.ahoo.wow.query.QueryError
 import me.ahoo.wow.spi.log.EventRecord
 import me.ahoo.wow.spi.log.EventStreamRecord
 import org.junit.jupiter.api.Test
-import tools.jackson.databind.node.ObjectNode
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.nio.charset.StandardCharsets
@@ -57,25 +53,22 @@ import java.util.Base64
 /** The `events` model's gateway in process: its ranges, totals, cursors and records, without the HTTP route. */
 class EventQueryGatewayTest {
     private val type = AggregateType("shop", "cart")
-    private val log = InMemoryEventLog(partitions = 1)
+    private val log = StreamsLog()
 
     init {
-        runBlocking {
-            (1..3).forEach { version ->
-                log.append(
-                    EventStreamRecord(
-                        ref = type.ref(TENANT, "c-1"),
-                        version = version,
-                        commandId = "cmd-$version",
-                        requestId = "req-$version",
-                        commandType = "shop.cart.AddItem",
-                        commitTime = 1000L * version,
-                        events = listOf(EventRecord("shop.cart.ItemAdded", 1, """{"n":$version}""")),
-                        scope = Scope("alice", "s-1"),
-                    ),
-                    null,
-                )
-            }
+        (1..3).forEach { version ->
+            log.add(
+                EventStreamRecord(
+                    ref = type.ref(TENANT, "c-1"),
+                    version = version,
+                    commandId = "cmd-$version",
+                    requestId = "req-$version",
+                    commandType = "shop.cart.AddItem",
+                    commitTime = 1000L * version,
+                    events = listOf(EventRecord("shop.cart.ItemAdded", 1, """{"n":$version}""")),
+                    scope = Scope("alice", "s-1"),
+                ),
+            )
         }
     }
 
@@ -211,45 +204,37 @@ class EventQueryGatewayTest {
         const val TENANT = "acme"
     }
 
-    data class ItemAdded(val n: Int, val unit: String)
-
-    class Cart
-
     @Test
-    fun `events should read as the model reads them now when the host gives the model`() {
-        val model = aggregate<Cart>("shop", "cart") {
-            initial { Cart() }
-            evolve<ItemAdded>(revision = 2) { }
-            alias<ItemAdded>("shop.cart.ItemPut")
-            upgrade<ItemAdded>(from = 1) { payload -> (payload as ObjectNode).put("unit", "piece") }
-            retired("shop.cart.ItemGone")
-        }
-        val stored = InMemoryEventLog(partitions = 1)
-        runBlocking {
-            stored.append(
-                EventStreamRecord(
-                    ref = type.ref(TENANT, "c-2"),
-                    version = 1,
-                    commandId = "cmd-1",
-                    requestId = "req-1",
-                    commandType = "shop.cart.AddItem",
-                    commitTime = 1000L,
-                    events = listOf(
-                        EventRecord("shop.cart.ItemPut", 1, """{"n":1}"""),
-                        EventRecord("shop.cart.ItemGone", 1, "{}"),
-                        EventRecord("shop.cart.ItemAdded", 2, """{"n":2,"unit":"box"}"""),
-                    ),
-                    scope = Scope("alice", "s-1"),
+    fun `events should read as the host's reading gives them`() {
+        val stored = StreamsLog()
+        stored.add(
+            EventStreamRecord(
+                ref = type.ref(TENANT, "c-2"),
+                version = 1,
+                commandId = "cmd-1",
+                requestId = "req-1",
+                commandType = "shop.cart.AddItem",
+                commitTime = 1000L,
+                events = listOf(
+                    EventRecord("shop.cart.ItemPut", 1, """{"n":1}"""),
+                    EventRecord("shop.cart.ItemGone", 1, "{}"),
+                    EventRecord("shop.cart.ItemAdded", 2, """{"n":2,"unit":"box"}"""),
                 ),
-                null,
-            )
-        }
-        val codec = EventCodec()
+                scope = Scope("alice", "s-1"),
+            ),
+        )
+        // As the host reads them with the model (finding A4-16): renamed, upgraded, a retired event left out.
         val reading = EventQueryGateway(
             type,
             stored,
             entryPolicy = QueryEntryPolicy(inProcessTimeout = null),
-        ) { codec.current(model, it) }
+        ) { event ->
+            when (event.name) {
+                "shop.cart.ItemGone" -> null
+                "shop.cart.ItemPut" -> EventRecord("shop.cart.ItemAdded", 2, """{"n":1,"unit":"piece"}""")
+                else -> event
+            }
+        }
         val events = runBlocking { reading.single(SingleQuery(AggregateIdFilter("c-2")), inProcess) }!!["events"]
         (0 until events.size()).map {
             events[it]
@@ -257,7 +242,7 @@ class EventQueryGatewayTest {
             """shop.cart.ItemAdded@2:{"n":1,"unit":"piece"}""",
             """shop.cart.ItemAdded@2:{"n":2,"unit":"box"}""",
         )
-        // Without the model, as the log stores them.
+        // Without a reading, as the log stores them.
         val stored3 = runBlocking {
             EventQueryGateway(type, stored, entryPolicy = QueryEntryPolicy(inProcessTimeout = null))
                 .single(SingleQuery(AggregateIdFilter("c-2")), inProcess)
