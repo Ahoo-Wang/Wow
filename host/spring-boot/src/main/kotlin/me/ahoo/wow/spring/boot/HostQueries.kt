@@ -15,6 +15,7 @@ package me.ahoo.wow.spring.boot
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.coroutines.runBlocking
+import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
@@ -37,6 +38,7 @@ import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.runtime.admission.TenantPolicy
+import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.spi.store.Store
 import org.springframework.context.SmartLifecycle
@@ -206,6 +208,24 @@ internal object HostQueryBulkheads {
         val queued = own?.maxQueued ?: global.maxQueued ?: (max * QueryBulkhead.DEFAULT_QUEUE_FACTOR)
         name to QueryBulkhead(name, max, wait.toKotlinDuration(), queued)
     }.toMap()
+
+    /**
+     * The state reads' replays (decision D246 ⑥), each under the bulkhead of its aggregate type's log store
+     * ([logStoreOf]) among [bulkheads]; one of a store without a bulkhead runs at once.
+     */
+    fun replays(bulkheads: Map<String, QueryBulkhead>, logStoreOf: (AggregateType) -> String?): ReplayGate =
+        if (bulkheads.isEmpty()) {
+            ReplayGate.OPEN
+        } else {
+            object : ReplayGate {
+                override suspend fun <T> replay(ref: AggregateRef, read: suspend () -> T): T {
+                    val bulkhead = logStoreOf(ref.type)?.let(bulkheads::get) ?: return read()
+                    return bulkhead.run(read)
+                }
+
+                override fun toString(): String = "ReplayGate(${bulkheads.values})"
+            }
+        }
 
     /**
      * Whether [type]'s events queries that name no aggregate run (review R3.4-2): its
