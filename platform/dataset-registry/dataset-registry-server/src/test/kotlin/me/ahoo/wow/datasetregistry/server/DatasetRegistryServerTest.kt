@@ -90,6 +90,12 @@ class DatasetRegistryServerTest {
         val ids = registry.sources().assertOk().json.values().map { it["aggregateId"].asString() }
         ids.assert().contains(id)
         registry.sources(Who.NOBODY_IN_PARTICULAR).status.assert().isEqualTo(BAD_REQUEST)
+        // The table dropped: the watcher marks its source missing.
+        warehouse.tables.remove("${MemoryWarehouse.DATABASE}.${ORDERS.name}")
+        eventually("the dropped table seen") { registry.state(id)["state"]["missing"].asBoolean() }
+        registry.command(id, "mark-source-reviewed", "{}").assertProblem(CONFLICT, "dataset-registry.table-missing")
+        warehouse.put(ORDERS)
+        eventually("the table back") { !registry.state(id)["state"]["missing"].asBoolean() }
         // A reference to an aggregate the catalog does not know.
         registry.command(
             id,
