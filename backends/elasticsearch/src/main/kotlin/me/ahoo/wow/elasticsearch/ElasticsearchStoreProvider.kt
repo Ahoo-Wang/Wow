@@ -123,20 +123,20 @@ internal class ElasticsearchStore(
         ElasticsearchSnapshotStore(client, names, context, ddl = config.ddl, refresh = refresh)
             .also { schema(it::createSchema) }
 
-    override fun openCheckpoints(): CheckpointStore = noLog()
+    override fun openCheckpoints(): CheckpointStore = throw noLog()
 
-    override fun openLeases(): LeaseStore = noLog()
+    override fun openLeases(): LeaseStore = throw noLog()
 
-    override fun openLedger(): FailureLedger = noLog()
+    override fun openLedger(): FailureLedger = throw noLog()
 
-    override fun openReservations(): ReservationStore = noLog()
+    override fun openReservations(): ReservationStore = throw noLog()
 
-    override fun openLog(context: String, partitions: Int): EventLog = noLog()
+    override fun openLog(context: String, partitions: Int): EventLog = throw noLog()
 
-    override fun openTimers(context: String): TimerStore = noLog()
+    override fun openTimers(context: String): TimerStore = throw noLog()
 
-    private fun noLog(): Nothing =
-        throw UnsupportedOperationException(
+    private fun noLog(): UnsupportedOperationException =
+        UnsupportedOperationException(
             "The Elasticsearch store $name holds no log (decision D13): snapshots only."
         )
 

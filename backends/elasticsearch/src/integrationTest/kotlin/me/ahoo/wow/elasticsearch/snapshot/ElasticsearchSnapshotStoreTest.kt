@@ -55,4 +55,18 @@ class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
             runBlocking { store.load(AggregateType(context, "aggregate").ref("tenant", "a")) }
         }
     }
+
+    @Test
+    fun `a refused save marks a stale version once, and a deleted index loads nothing`(): Unit = runBlocking {
+        val context = ElasticsearchFixture.newContext()
+        val store = createStore(context)
+        val type = AggregateType(context, "aggregate")
+        val newer = snapshot("a", 2, aggregate = type).copyWith(stateRevision = 2)
+        store.save(newer).assert().isTrue()
+        store.save(snapshot("a", 5, aggregate = type)).assert().isFalse()
+        store.save(snapshot("a", 4, aggregate = type)).assert().isFalse()
+        store.pending(type, 2, limit = 10).assert().containsExactly(newer.ref)
+        ElasticsearchFixture.client.indices().delete { it.index(ElasticsearchFixture.names.snapshots(context, "aggregate")) }.get()
+        store.load(newer.ref).assert().isNull()
+    }
 }

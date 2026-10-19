@@ -22,6 +22,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountQuery
+import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.TotalMode
 import me.ahoo.wow.api.query.EqualFilter
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
@@ -33,6 +35,7 @@ import me.ahoo.wow.elasticsearch.snapshot.ElasticsearchSnapshotStore
 import me.ahoo.wow.query.QueryAdmission
 import me.ahoo.wow.query.aggregate
 import me.ahoo.wow.query.countBounded
+import me.ahoo.wow.query.cursor
 import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.list
 import me.ahoo.wow.query.paged
@@ -88,6 +91,9 @@ class ElasticsearchSnapshotQueriesTest {
         backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema)).toList().assert().isEmpty()
         backend.countBounded(QueryAdmission.Trusted.count(CountQuery(MatchAllFilter), schema)).count.assert().isEqualTo(0L)
         backend.paged(QueryAdmission.Trusted.paged(PagedQuery(MatchAllFilter), schema)).total.assert().isEqualTo(0L)
+        backend.paged(QueryAdmission.Trusted.paged(PagedQuery(MatchAllFilter, total = TotalMode.NONE), schema))
+            .list.assert().isEmpty()
+        backend.cursor(QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter), schema)).list.assert().isEmpty()
         backend.aggregate(
             QueryAdmission.Trusted.aggregate(AggregationQuery(metrics = listOf(AggregationMetric.Count("count"))), schema),
         ).toList().single().path("count").longValue().assert().isEqualTo(0L)
@@ -98,6 +104,22 @@ class ElasticsearchSnapshotQueriesTest {
         runCatching { backend.paged(QueryAdmission.Trusted.paged(PagedQuery(MatchAllFilter), schema)) }
             .exceptionOrNull().assert().isInstanceOf(QuerySchemaUnavailableException::class.java)
         schema(queries).provisional.assert().isFalse()
+    }
+
+    @Test
+    fun `a failure other than a missing index fails the query and the load`(): Unit = runBlocking {
+        val queries = queries()
+        queries.prepare(type)
+        store.save(snapshot("a", """{"name":"A"}"""))
+        val schema = schema(queries)
+        ElasticsearchFixture.client.indices().close { it.index(index) }.get()
+        val backend = queries.binding(type).backend
+        runCatching { backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), schema)).toList() }
+            .exceptionOrNull().assert().isNotNull()
+        runCatching { backend.paged(QueryAdmission.Trusted.paged(PagedQuery(MatchAllFilter), schema)) }
+            .exceptionOrNull().assert().isNotNull()
+        runCatching { store.load(type.ref("tenant", "a")) }.exceptionOrNull().assert().isNotNull()
+        ElasticsearchFixture.client.indices().open { it.index(index) }.get()
     }
 
     @Test

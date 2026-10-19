@@ -330,6 +330,32 @@ class ElasticsearchQueryFeaturesTest {
         ids(MatchAllFilter).size.assert().isEqualTo(5)
     }
 
+    @Test
+    fun `any and terms read keys of every native type, and a percentile of no value is null`() {
+        val row = aggregate(
+            AggregationQuery(
+                metrics = listOf(
+                    AggregationMetric.Any(QueryField("state.quantity"), "anyQuantity", EqualFilter(QueryField("state.quantity"), 3)),
+                    AggregationMetric.Any(AMOUNT_FIELD, "anyAmount", EqualFilter(QueryField("state.quantity"), 3)),
+                    AggregationMetric.Any(QueryField("state.status"), "anyNone", EqualFilter(QueryField("state.status"), "NONE")),
+                    AggregationMetric.Percentile(QUANTITY, 50.0, "noMedian", EqualFilter(QueryField("state.status"), "NONE")),
+                    AggregationMetric.First(QueryField("state.name"), "noFirst", QueryField("state.createdAt"), EqualFilter(QueryField("state.status"), "NONE")),
+                ),
+            ),
+        ).single()
+        row.path("anyQuantity").longValue().assert().isEqualTo(3L)
+        row.path("anyAmount").doubleValue().assert().isEqualTo(30.25)
+        row.path("anyNone").isNull.assert().isTrue()
+        row.path("noMedian").isNull.assert().isTrue()
+        row.path("noFirst").isNull.assert().isTrue()
+        aggregate(
+            AggregationQuery(
+                groupBy = listOf(AggregationGroup.Terms(AMOUNT_FIELD, "amount"), AggregationGroup.Terms(QueryField("state.quantity"), "quantity")),
+                metrics = listOf(AggregationMetric.Count("count")),
+            ),
+        ).map { it.path("amount").doubleValue() }.assert().containsExactly(10.5, 20.0, 30.25, 40.0, 50.0)
+    }
+
     private companion object {
         const val T0 = 1_700_000_000_000L
         const val DAY = 86_400_000L

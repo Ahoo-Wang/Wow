@@ -1,0 +1,68 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.elasticsearch.query
+
+import co.elastic.clients.elasticsearch._types.SortOptions
+import co.elastic.clients.elasticsearch._types.query_dsl.Query
+import co.elastic.clients.elasticsearch.core.search.SourceFilter
+import co.elastic.clients.elasticsearch.indices.GetIndicesSettingsResponse
+import me.ahoo.wow.api.query.AggregationQuery
+import me.ahoo.wow.api.query.CountQuery
+import me.ahoo.wow.api.query.CursorQuery
+import me.ahoo.wow.api.query.FilterExpression
+import me.ahoo.wow.api.query.ListQuery
+import me.ahoo.wow.api.query.MatchAllFilter
+import me.ahoo.wow.api.query.Projection
+import me.ahoo.wow.api.query.Sort
+import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationCompiler
+import me.ahoo.wow.elasticsearch.query.aggregation.ElasticsearchAggregationPlan
+import me.ahoo.wow.query.QueryAdmission
+import me.ahoo.wow.query.schema.QueryModelSchema
+
+/*
+ * Compiler fixtures: every native compiler consumes an admitted query, so these admit the logical input first,
+ * exactly as the gateway and the backends do.
+ */
+
+internal fun ElasticsearchFilterCompiler.compile(filter: FilterExpression, schema: QueryModelSchema): Query =
+    QueryAdmission.Trusted.count(CountQuery(filter), schema).let { compile(it.query.filter, it) }
+
+internal fun ElasticsearchAggregationCompiler.compile(
+    query: AggregationQuery,
+    schema: QueryModelSchema,
+): ElasticsearchAggregationPlan = compile(QueryAdmission.Trusted.aggregate(query, schema))
+
+internal fun ElasticsearchSortCompiler.compile(sort: List<Sort>, schema: QueryModelSchema): List<SortOptions> =
+    QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, sort = sort), schema).let { compile(it.query.sort, it) }
+
+/** Compiles the admitted cursor sort of [sort], which ends with the model's identity tie-breaker. */
+internal fun ElasticsearchSortCompiler.compileCursor(sort: List<Sort>, schema: QueryModelSchema): List<SortOptions> =
+    QueryAdmission.Trusted.cursor(
+        CursorQuery(MatchAllFilter, sort = sort),
+        schema
+    ).let { compileCursor(it.query.sort, it) }
+
+internal fun ElasticsearchProjectionCompiler.compile(projection: Projection, schema: QueryModelSchema): SourceFilter =
+    QueryAdmission.Trusted.list(ListQuery(MatchAllFilter, projection), schema).let { compile(it.query.projection, it) }
+
+/** The settings of one index, declaring [maxResultWindow] as `index.max_result_window` unless it is `null`. */
+internal fun indexSettingsResponse(maxResultWindow: Int? = null): GetIndicesSettingsResponse =
+    GetIndicesSettingsResponse.of { response ->
+        response.settings("index") { state ->
+            state.settings { settings ->
+                maxResultWindow?.let { window -> settings.index { index -> index.maxResultWindow(window) } }
+                settings
+            }
+        }
+    }

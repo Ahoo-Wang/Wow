@@ -77,9 +77,8 @@ internal suspend fun <T> CompletableFuture<T>.awaitElasticsearch(): T = try {
     await()
 } catch (failure: ElasticsearchException) {
     throw ElasticsearchFailures.translate(failure)
-} catch (failure: TransportException) {
-    throw ElasticsearchFailures.translate(failure)
 } catch (failure: IOException) {
+    // A TransportException too: the request got no answer Elasticsearch gave.
     throw ElasticsearchFailures.translate(failure)
 }
 
