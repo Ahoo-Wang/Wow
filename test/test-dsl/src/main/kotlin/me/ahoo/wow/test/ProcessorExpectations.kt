@@ -33,6 +33,7 @@ class ProcessorExpectations internal constructor(
     val handled: List<String>,
     private val result: Result<ProcessorSpec.Handled>,
     private val again: () -> Result<ProcessorSpec.Handled>,
+    private val forker: ((String, ProcessorSpec.() -> Unit) -> Unit)? = null,
 ) {
     private var errorChecked = false
 
@@ -62,6 +63,18 @@ class ProcessorExpectations internal constructor(
         if (called != bodies.toList()) {
             throw AssertionError("Expected the calls ${bodies.toList()} but got $called.")
         }
+    }
+
+    /**
+     * Runs [block] on a copy of the specification as this handling left it, as [ProcessorSpec.fork] does (decision
+     * D245): the scenarios after a handling branch from its checks, a rejection of the command it derived in one
+     * fork and its receipt in another, say. A check that fails before it ends the block, so the forks after it do not
+     * run.
+     */
+    fun fork(name: String = "", block: ProcessorSpec.() -> Unit) {
+        val forker =
+            checkNotNull(forker) { "These expectations come from a time step: fork the specification instead." }
+        forker(name, block)
     }
 
     /** The handlers called no command synchronously. */

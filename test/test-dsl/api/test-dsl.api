@@ -30,6 +30,8 @@ public final class me/ahoo/wow/test/AggregateSpecKt {
 	public static final field ANOTHER_AGGREGATE Ljava/lang/String;
 	public static final fun aggregateSpec (Lme/ahoo/wow/kernel/AggregateModel;Ljava/lang/String;Ljava/lang/String;Ljava/time/Instant;Lkotlin/jvm/functions/Function1;)V
 	public static synthetic fun aggregateSpec$default (Lme/ahoo/wow/kernel/AggregateModel;Ljava/lang/String;Ljava/lang/String;Ljava/time/Instant;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
+	public static final fun aggregateSpecTests (Lme/ahoo/wow/kernel/AggregateModel;Ljava/lang/String;Ljava/lang/String;Ljava/time/Instant;Lkotlin/jvm/functions/Function1;)Ljava/util/stream/Stream;
+	public static synthetic fun aggregateSpecTests$default (Lme/ahoo/wow/kernel/AggregateModel;Ljava/lang/String;Ljava/lang/String;Ljava/time/Instant;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Ljava/util/stream/Stream;
 	public static final fun getDEFAULT_START ()Ljava/time/Instant;
 }
 
@@ -65,6 +67,8 @@ public final class me/ahoo/wow/test/Expectations {
 	public final fun expectState (Lkotlin/jvm/functions/Function1;)V
 	public final fun expectTags (Ljava/util/Map;)V
 	public final fun expectUnchanged ()V
+	public final fun fork (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun fork$default (Lme/ahoo/wow/test/Expectations;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public final fun getError ()Ljava/lang/Throwable;
 	public final fun getOutcome ()Lme/ahoo/wow/kernel/CommandOutcome;
 }
@@ -93,6 +97,8 @@ public final class me/ahoo/wow/test/ProcessorExpectations {
 	public static synthetic fun expectScheduleCancelled$default (Lme/ahoo/wow/test/ProcessorExpectations;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/Object;)V
 	public final fun expectScheduled (Ljava/lang/String;Ljava/lang/Object;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/aggregate/AggregateRef;)V
 	public static synthetic fun expectScheduled$default (Lme/ahoo/wow/test/ProcessorExpectations;Ljava/lang/String;Ljava/lang/Object;Lme/ahoo/wow/api/schedule/ScheduleRule;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/Object;)V
+	public final fun fork (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun fork$default (Lme/ahoo/wow/test/ProcessorExpectations;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public final fun getCalls ()Ljava/util/List;
 	public final fun getCommands ()Ljava/util/List;
 	public final fun getError ()Ljava/lang/Throwable;
@@ -103,6 +109,8 @@ public final class me/ahoo/wow/test/ProcessorExpectations {
 public final class me/ahoo/wow/test/ProcessorSpec {
 	public fun <init> (Ljava/util/List;Lme/ahoo/wow/api/result/FunctionKind;)V
 	public final fun answerCalls (Lkotlin/jvm/functions/Function1;)V
+	public final fun fork (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public static synthetic fun fork$default (Lme/ahoo/wow/test/ProcessorSpec;Ljava/lang/String;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)V
 	public final fun getHandlers ()Ljava/util/List;
 	public final fun getProcessor ()Ljava/lang/String;
 	public final fun whenCommitted (Lme/ahoo/wow/api/decide/Command;ILjava/lang/String;ZLjava/lang/String;Lkotlin/jvm/functions/Function1;)V
@@ -122,8 +130,11 @@ public final class me/ahoo/wow/test/ProcessorSpecKt {
 	public static synthetic fun commandRejected$default (Lme/ahoo/wow/api/decide/Command;Lme/ahoo/wow/api/subscribe/ExecutionId;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/subscribe/CommandRejected;
 	public static final fun commandTypeOf (Lme/ahoo/wow/api/decide/Command;)Ljava/lang/String;
 	public static final fun projectionSpec (Ljava/util/List;Lkotlin/jvm/functions/Function1;)V
+	public static final fun projectionSpecTests (Ljava/util/List;Lkotlin/jvm/functions/Function1;)Ljava/util/stream/Stream;
 	public static final fun reactorSpec (Ljava/util/List;Lkotlin/jvm/functions/Function1;)V
+	public static final fun reactorSpecTests (Ljava/util/List;Lkotlin/jvm/functions/Function1;)Ljava/util/stream/Stream;
 	public static final fun sagaSpec (Ljava/util/List;Lkotlin/jvm/functions/Function1;)V
+	public static final fun sagaSpecTests (Ljava/util/List;Lkotlin/jvm/functions/Function1;)Ljava/util/stream/Stream;
 }
 
 public final class me/ahoo/wow/test/ScheduleSpec {

@@ -4,4 +4,6 @@ description = "Wow test DSL: the aggregate and processor specs that run a domain
 // artifact is wow-test: a project named :test would clash with the root build's `test` task (decision D87).
 dependencies {
     api(project(":kernel"))
+    // The tree of tests a @TestFactory returns (decision D245): JUnit's DynamicNode is in the DSL's signatures.
+    api("org.junit.jupiter:junit-jupiter-api")
 }
