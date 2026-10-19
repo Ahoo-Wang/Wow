@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.kernel
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.id.Ids
 import me.ahoo.wow.api.subscribe.CommandCommitted
@@ -93,6 +94,18 @@ fun committedContextOf(
     handler: CommittedBinding<*>,
     committed: CommandCommitted<*>,
     ids: Ids = IdGenerators.DEFAULT,
+): SagaContext = committedContextOf(handler, committed, ids, CommandTypes.NONE)
+
+/**
+ * The context an `@OnCommitted` handler gets for [committed], as [committedContextOf] gives it, whose commands without
+ * a ref go to the aggregate type [commandTypes] assigns their class (decision D234 ⑤).
+ */
+@InternalWowApi
+fun committedContextOf(
+    handler: CommittedBinding<*>,
+    committed: CommandCommitted<*>,
+    ids: Ids,
+    commandTypes: CommandTypes,
 ): SagaContext = ReceiptSagaContext(
     ExecutionId(handler.name, committed.executionId.ref, committed.executionId.version),
     committed.commandId,
@@ -101,4 +114,5 @@ fun committedContextOf(
     committed.scope,
     ids,
     committed.headers,
+    commandTypes,
 )

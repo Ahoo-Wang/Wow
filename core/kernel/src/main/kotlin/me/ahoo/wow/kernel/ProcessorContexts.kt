@@ -99,6 +99,19 @@ class ExecutionSagaContext @InternalWowApi constructor(
         )
     }
 
+    /**
+     * A command to the aggregate [id] of the type that decides [body]'s class ([CommandTypes.aggregatesOf]), in the
+     * tenant of the commit (decision D234 ⑤).
+     */
+    override fun <C : Any> command(id: String, body: C): Command<C> =
+        command(commandTypes.omittedTargetOf(body.javaClass, executionId.subscription).ref(tenantId, id), body)
+
+    /** A creation without an id (decision D191) of the type that decides [body]'s class (decision D234 ⑤). */
+    override fun <C : Any> command(body: C): Command<C> =
+        command(commandTypes.omittedTargetOf(body.javaClass, executionId.subscription), body)
+
+    private val tenantId: String get() = executionId.ref.tenantId
+
     override fun schedule(key: String, rule: ScheduleRule, target: AggregateRef, command: Any): Command<SetSchedule> {
         val type = requireNotNull(commandTypes.nameOf(target.type, command.javaClass)) {
             "${executionId.subscription} schedules ${command.javaClass.name} for $target, a command no Manifest of the " +

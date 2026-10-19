@@ -22,6 +22,7 @@ import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.ProcessorBinding
+import me.ahoo.wow.kernel.CommandTypes
 import me.ahoo.wow.kernel.committedContextOf
 import me.ahoo.wow.kernel.rejectionContextOf
 import me.ahoo.wow.runtime.command.ReceiptHandler
@@ -65,6 +66,8 @@ internal class SagaReceipts(
     /** Signals a hop to the node that waits for it ([me.ahoo.wow.runtime.wait.WaitCoordinator.signal]). */
     private val signal: suspend (WaitContext, CommandResult) -> Unit = { _, _ -> },
     private val clock: () -> Long = System::currentTimeMillis,
+    /** Assigns the commands a handler leaves the ref out of their aggregate type (decision D234 ⑤). */
+    private val commandTypes: CommandTypes = CommandTypes.NONE,
 ) : ReceiptHandler {
     private val sagas: Map<String, ProcessorBinding<*>> =
         sagas.filter { it.kind == FunctionKind.SAGA }.associateBy { it.name }
@@ -81,7 +84,7 @@ internal class SagaReceipts(
      */
     override suspend fun rejected(rejected: CommandRejected<*>, command: Class<*>): List<String>? {
         val handler = sagas[rejected.executionId.subscription]?.rejectionHandlerOf(command) ?: return null
-        val context = rejectionContextOf(handler, rejected, ids)
+        val context = rejectionContextOf(handler, rejected, ids, commandTypes)
         val executed = derived.execute(call(handler.blocking) { handler.invoke(rejected, context) }, wait = null)
         executed.rejected?.let { throw DerivedCommandRejectedException(it.command, it.rejection) }
         return executed.executed
@@ -99,7 +102,7 @@ internal class SagaReceipts(
         wait: WaitContext?,
     ): List<String>? {
         val handler = sagas[committed.executionId.subscription]?.committedHandlerOf(command) ?: return null
-        val sagaContext = committedContextOf(handler, committed, ids)
+        val sagaContext = committedContextOf(handler, committed, ids, commandTypes)
         val commands = call(handler.blocking) { handler.invoke(committed, sagaContext) }
         val executed = derived.execute(commands, DerivedCommands.waitOf(wait, context, handler.name))
         val rejected = executed.rejected

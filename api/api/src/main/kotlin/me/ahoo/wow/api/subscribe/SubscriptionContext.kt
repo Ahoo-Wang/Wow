@@ -82,6 +82,35 @@ interface SagaContext : SubscriptionContext {
         command(type.unassigned(executionId.ref.tenantId), body)
 
     /**
+     * A command asking [body] of the aggregate [id] of the type that decides [body]'s class, in the tenant of the
+     * upstream commit (decision D234 ⑤): the local Manifest and the peer contracts on the class path (each api jar's
+     * `META-INF/wow/contract.json`) assign each command class its aggregate, so the target's type can be left out.
+     * Otherwise it is [command] of the full ref, `command(type.ref(executionId.ref.tenantId, id), body)`.
+     *
+     * Only an `@OnEvent`, `@OnRejected` or `@OnCommitted` handler leaves the ref out: it inherits the tenant of the
+     * commit or receipt it handles. An `@OnSchedule` job writes the full ref (its tick belongs to the job, not to a
+     * tenant's commit), and so does a command to another tenant.
+     *
+     * @throws IllegalArgumentException when no contract on the class path assigns [body]'s class (its context's api
+     * module is not a dependency), when several aggregates decide it (the message names them: write the full ref),
+     * or when the handler is an `@OnSchedule` job's.
+     */
+    fun <C : Any> command(id: String, body: C): Command<C> = throw UnsupportedOperationException(
+        "This context does not resolve the aggregate of ${body.javaClass.name}: write command(ref, body) (decision D234).",
+    )
+
+    /**
+     * A creation command asking [body] of a new aggregate of the type that decides [body]'s class, in the tenant of
+     * the upstream commit, that leaves its id to the target's admission as [command] of an [AggregateType] does
+     * (decisions D191, D234 ⑤): `command(type, body)` with the type the contracts assign to [body]'s class. The same
+     * rules as [command] of an id apply: an `@OnEvent`, `@OnRejected` or `@OnCommitted` handler only, one aggregate
+     * type deciding the class, and its contract on the class path.
+     */
+    fun <C : Any> command(body: C): Command<C> = throw UnsupportedOperationException(
+        "This context does not resolve the aggregate of ${body.javaClass.name}: write command(type, body) (decision D234).",
+    )
+
+    /**
      * The system command `wow.schedule.Set` to [target], asking it to schedule [command] for itself under [key] as
      * [rule] says (decision D198), derived from this execution as [command] derives one: its id and request id come
      * from [executionId] and the order of the calls, so handling the commit again derives the same request. Return

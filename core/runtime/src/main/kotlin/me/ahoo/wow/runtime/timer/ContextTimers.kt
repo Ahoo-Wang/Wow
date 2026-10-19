@@ -44,6 +44,15 @@ internal class ContextCommandTypes(models: Collection<AggregateModel<*>>, privat
         models[target]?.let { model -> return model.commandTypes.firstOrNull { it.type == command }?.name }
         return contracts.commandTypeOf(Manifest.schemaRef(command.name))?.takeIf { it.startsWith("$target.") }
     }
+
+    /**
+     * The aggregate types that decide [command] (decision D234 ⑤): the context's models that decide it, and every
+     * aggregate of the service's Manifest and the peer contracts that lists its schema.
+     */
+    override fun aggregatesOf(command: Class<*>): List<AggregateType> {
+        val local = models.values.filter { model -> model.commandTypes.any { it.type == command } }.map { it.type }
+        return (local + contracts.aggregatesOf(Manifest.schemaRef(command.name))).distinct()
+    }
 }
 
 /**
