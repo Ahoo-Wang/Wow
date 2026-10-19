@@ -21,8 +21,8 @@ import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
-import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.CommandTypes
+import me.ahoo.wow.kernel.ProcessorBinding
 import me.ahoo.wow.kernel.committedContextOf
 import me.ahoo.wow.kernel.rejectionContextOf
 import me.ahoo.wow.runtime.command.ReceiptHandler

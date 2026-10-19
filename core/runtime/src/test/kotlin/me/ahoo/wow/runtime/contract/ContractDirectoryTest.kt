@@ -85,7 +85,9 @@ class ContractDirectoryTest {
         // Decision D234 ⑤: where a saga sends a command whose ref it leaves out.
         directory.aggregatesOf(Manifest.schemaRef("sample.inventory.ReserveStock"))
             .assert().containsExactly(AggregateType("inventory", "stock"))
-        directory.aggregatesOf(Manifest.schemaRef("sample.shop.AddItem")).assert().containsExactly(AggregateType("shop", "cart"))
+        directory.aggregatesOf(
+            Manifest.schemaRef("sample.shop.AddItem")
+        ).assert().containsExactly(AggregateType("shop", "cart"))
         directory.aggregatesOf(Manifest.schemaRef("sample.Unknown")).assert().isEmpty()
         val note = Manifest.schemaRef("sample.Note")
         val shared = ContractDirectory(
@@ -105,7 +107,9 @@ class ContractDirectoryTest {
             ),
             ContractFixtures.peers,
         )
-        shared.aggregatesOf(note).assert().containsExactly(AggregateType("billing", "ledger"), AggregateType("billing", "invoice"))
+        shared.aggregatesOf(
+            note
+        ).assert().containsExactly(AggregateType("billing", "ledger"), AggregateType("billing", "invoice"))
     }
 
     @Test

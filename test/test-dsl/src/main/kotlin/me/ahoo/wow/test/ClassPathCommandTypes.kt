@@ -50,8 +50,8 @@ internal class ClassPathCommandTypes(private val aggregates: Map<String, List<Ag
             loaded.computeIfAbsent(classLoader, ::read)
 
         private fun read(classLoader: ClassLoader): ClassPathCommandTypes {
-            val fragments = runCatching { ModelProvider.load(classLoader).map { it.fragment } }.getOrDefault(emptyList())
-                .mapNotNull(classLoader::getResource)
+            val providers = runCatching { ModelProvider.load(classLoader) }.getOrDefault(emptyList())
+            val fragments = providers.mapNotNull { classLoader.getResource(it.fragment) }
             val contracts = classLoader.getResources(CONTRACT).toList()
             val aggregates = LinkedHashMap<String, MutableSet<AggregateType>>()
             (fragments + contracts).distinct().forEach { resource ->
