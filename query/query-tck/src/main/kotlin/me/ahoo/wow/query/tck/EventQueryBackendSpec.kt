@@ -119,7 +119,11 @@ abstract class EventQueryBackendSpec {
                         state = StateManifest("#/\$defs/tck.OrderState"),
                         events = listOf(
                             EventManifest("OrderCreated", schema = "#/\$defs/tck.OrderCreated"),
-                            EventManifest("ItemAdded", aliases = listOf("LineAdded"), schema = "#/\$defs/tck.ItemAdded"),
+                            EventManifest(
+                                "ItemAdded",
+                                aliases = listOf("LineAdded"),
+                                schema = "#/\$defs/tck.ItemAdded"
+                            ),
                             EventManifest("OrderPaid", revision = 2, schema = "#/\$defs/tck.OrderPaid"),
                         ),
                         retired = listOf("LegacyNoted"),
@@ -207,10 +211,21 @@ abstract class EventQueryBackendSpec {
             listOf(event("OrderCreated", """{"customerId":"c-one","amount":10}""")),
             operator = Operator("user-1", TENANT, false),
         ),
-        stream("o1", 2, T0 + 2, listOf(event("ItemAdded", """{"sku":"A","qty":2}"""), event("ItemAdded", """{"sku":"B","qty":3}"""))),
+        stream(
+            "o1",
+            2,
+            T0 + 2,
+            listOf(event("ItemAdded", """{"sku":"A","qty":2}"""), event("ItemAdded", """{"sku":"B","qty":3}"""))
+        ),
         stream("o1", 3, T0 + 3, listOf(event("OrderPaid", """{"total":10}"""))),
         stream("o1", 4, T0 + 4, listOf(event("LegacyNoted", """{"note":"x"}"""))),
-        stream("o2", 1, T0 + 1, listOf(event("OrderCreated", """{"customerId":"c-two","amount":20}""")), scope = Scope("owner-2")),
+        stream(
+            "o2",
+            1,
+            T0 + 1,
+            listOf(event("OrderCreated", """{"customerId":"c-two","amount":20}""")),
+            scope = Scope("owner-2")
+        ),
         stream("o2", 2, T0 + 5, listOf(event("LineAdded", """{"sku":"A","qty":1}""")), scope = Scope("owner-2")),
         stream(
             "o3",
@@ -238,7 +253,9 @@ abstract class EventQueryBackendSpec {
     @Test
     fun `a record is one stream with its system fields and its events as stored`() = blocking {
         val fixture = given()
-        val record = fixture.list(ListQuery(AndFilter(listOf(AggregateIdFilter("o1"), EqualFilter(VERSION, 1))))).single()
+        val record = fixture.list(
+            ListQuery(AndFilter(listOf(AggregateIdFilter("o1"), EqualFilter(VERSION, 1))))
+        ).single()
         record.path("aggregateId").stringValue().assert().isEqualTo("o1")
         record.path("tenantId").stringValue().assert().isEqualTo(TENANT)
         record.path("version").intValue().assert().isEqualTo(1)
@@ -332,7 +349,9 @@ abstract class EventQueryBackendSpec {
     @Test
     fun `a sort by an event field is rejected`() {
         rejected(QueryErrorCodes.ELEMENT_SCOPE_REQUIRED) {
-            given().list(ListQuery(MatchAllFilter, sort = listOf(Sort(QueryField("events.body.qty"), Sort.Direction.ASC))))
+            given().list(
+                ListQuery(MatchAllFilter, sort = listOf(Sort(QueryField("events.body.qty"), Sort.Direction.ASC)))
+            )
         }
     }
 
@@ -359,7 +378,10 @@ abstract class EventQueryBackendSpec {
         val seen = mutableListOf<String>()
         var cursor: String? = null
         do {
-            val admitted = QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, size = 2, cursor = cursor), fixture.schema)
+            val admitted = QueryAdmission.Trusted.cursor(
+                CursorQuery(MatchAllFilter, size = 2, cursor = cursor),
+                fixture.schema
+            )
             val page = fixture.backend.cursor(admitted)
             seen += page.list.map { "${it.path("tenantId").stringValue()}/${it.key()}" }
             cursor = page.nextCursor
@@ -390,7 +412,9 @@ abstract class EventQueryBackendSpec {
     @Test
     fun `a projection inside the events is rejected`() {
         rejected(QueryErrorCodes.STORAGE_UNSUPPORTED) {
-            given().list(ListQuery(MatchAllFilter, projection = Projection(include = listOf(QueryField("events.name")))))
+            given().list(
+                ListQuery(MatchAllFilter, projection = Projection(include = listOf(QueryField("events.name"))))
+            )
         }
     }
 
@@ -399,7 +423,9 @@ abstract class EventQueryBackendSpec {
     @Test
     fun `an aggregation counts commits at the root`() = blocking {
         val fixture = given()
-        val row = fixture.aggregate(AggregationQuery(TenantIdFilter(TENANT), metrics = listOf(AggregationMetric.Count("commits"))))
+        val row = fixture.aggregate(
+            AggregationQuery(TenantIdFilter(TENANT), metrics = listOf(AggregationMetric.Count("commits")))
+        )
             .single()
         row.path("commits").longValue().assert().isEqualTo(6L)
         Unit
@@ -409,7 +435,10 @@ abstract class EventQueryBackendSpec {
     fun `an expanded aggregation counts the events, retired ones left out`() = blocking {
         val fixture = given()
         val row = fixture.aggregate(
-            AggregationQuery(elements = listOf(AggregationElement(EVENTS)), metrics = listOf(AggregationMetric.Count("events"))),
+            AggregationQuery(
+                elements = listOf(AggregationElement(EVENTS)),
+                metrics = listOf(AggregationMetric.Count("events"))
+            ),
         ).single()
         row.path("events").longValue().assert().isEqualTo(7L)
         Unit
@@ -423,7 +452,11 @@ abstract class EventQueryBackendSpec {
                 elements = listOf(AggregationElement(EVENTS, name("ItemAdded"))),
                 metrics = listOf(
                     AggregationMetric.Count("items"),
-                    AggregationMetric.Numeric(AggregationFunction.SUM, AggregationExpression.Field(QueryField("body.qty")), "qty"),
+                    AggregationMetric.Numeric(
+                        AggregationFunction.SUM,
+                        AggregationExpression.Field(QueryField("body.qty")),
+                        "qty"
+                    ),
                 ),
             ),
         ).single()
@@ -439,7 +472,9 @@ abstract class EventQueryBackendSpec {
         val rows = fixture.aggregate(
             AggregationQuery(
                 elements = listOf(AggregationElement(EVENTS)),
-                groupBy = listOf(AggregationGroup.Terms(QueryField("aggregateId"), "aggregate", scope = AggregationGroupScope.ROOT)),
+                groupBy = listOf(
+                    AggregationGroup.Terms(QueryField("aggregateId"), "aggregate", scope = AggregationGroupScope.ROOT)
+                ),
                 metrics = listOf(AggregationMetric.Count("events")),
             ),
         )
@@ -501,14 +536,19 @@ abstract class EventQueryBackendSpec {
         )
         val records = gateway.list(ListQuery(TenantIdFilter(TENANT), limit = MAX_LIST), QueryCaller.IN_PROCESS).toList()
             .associateBy { it.key() }
-        records.getValue("o1@1").path("events")[0].path("body").path("customerId").stringValue().assert().isEqualTo("c****")
+        records.getValue(
+            "o1@1"
+        ).path("events")[0].path("body").path("customerId").stringValue().assert().isEqualTo("c****")
         records.getValue("o2@2").path("events")[0].path("name").stringValue().assert().isEqualTo(prefix + "ItemAdded")
         records.getValue("o1@3").path("events")[0].let { paid ->
             paid.path("revision").intValue().assert().isEqualTo(2)
             paid.path("body").path("amount").intValue().assert().isEqualTo(10)
         }
         records.getValue("o1@4").path("events").isEmpty.assert().isTrue()
-        gateway.count(CountQuery(events(name("ItemAdded"))), QueryCaller.IN_PROCESS).assert().isEqualTo(CountResult(2, true))
+        gateway.count(
+            CountQuery(events(name("ItemAdded"))),
+            QueryCaller.IN_PROCESS
+        ).assert().isEqualTo(CountResult(2, true))
         val descriptor = gateway.describe(me.ahoo.wow.query.QueryEntry.HTTP)
         descriptor.model.assert().isEqualTo(QueryModel.EVENTS)
         Unit

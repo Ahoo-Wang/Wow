@@ -237,7 +237,9 @@ abstract class DatasetQueryBackendSpec {
 
     @Test
     fun `counts are bounded by their limit`() = blocking {
-        val count = orders.backend.countBounded(QueryAdmission.Trusted.count(CountQuery(MatchAllFilter, 3), orders.schema))
+        val count = orders.backend.countBounded(
+            QueryAdmission.Trusted.count(CountQuery(MatchAllFilter, 3), orders.schema)
+        )
         count.assert().isEqualTo(CountResult(3, exact = false))
         Unit
     }
@@ -442,14 +444,22 @@ abstract class DatasetQueryBackendSpec {
     @Test
     fun `the gateway restricts every query to the caller's tenant column`() = blocking {
         val datasets = QueryDatasets(listOf(orders.dataset))
-        val gateways = DatasetQueryGateways.of(datasets, catalog(datasets), factory, policies = listOf(ScopeQueryPolicy()))
+        val gateways = DatasetQueryGateways.of(
+            datasets,
+            catalog(datasets),
+            factory,
+            policies = listOf(ScopeQueryPolicy())
+        )
         val gateway = checkNotNull(gateways[orders.dataset.name])
         val t2 = QueryCaller(Caller(tenantId = "t2"), entry = QueryEntry.HTTP)
         gateway.count(CountQuery(MatchAllFilter), t2).assert().isEqualTo(CountResult(1, exact = true))
         gateway.list(ListQuery(MatchAllFilter, limit = 10), t2).toList().map { it.path(ID).stringValue() }
             .assert().containsExactly("o6")
         gateway.single(SingleQuery(IdsFilter(listOf("o1"))), t2).assert().isNull()
-        gateway.count(CountQuery(MatchAllFilter), QueryCaller.IN_PROCESS).assert().isEqualTo(CountResult(6, exact = true))
+        gateway.count(
+            CountQuery(MatchAllFilter),
+            QueryCaller.IN_PROCESS
+        ).assert().isEqualTo(CountResult(6, exact = true))
         Unit
     }
 

@@ -25,4 +25,3 @@ internal object KafkaHeaders {
         headers.forEach { header -> header.value()?.let { put(header.key(), String(it, Charsets.UTF_8)) } }
     }
 }
-

@@ -426,10 +426,6 @@ public final class me/ahoo/wow/spi/log/TailPacer {
 
 public final class me/ahoo/wow/spi/log/TailPacer$Pace {
 	public synthetic fun <init> (JZLkotlin/jvm/internal/DefaultConstructorMarker;)V
-	public final fun component1-UwyO8pc ()J
-	public final fun component2 ()Z
-	public final fun copy-VtjQ1oo (JZ)Lme/ahoo/wow/spi/log/TailPacer$Pace;
-	public static synthetic fun copy-VtjQ1oo$default (Lme/ahoo/wow/spi/log/TailPacer$Pace;JZILjava/lang/Object;)Lme/ahoo/wow/spi/log/TailPacer$Pace;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getIdle-UwyO8pc ()J
 	public final fun getWoken ()Z

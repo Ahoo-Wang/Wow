@@ -16,10 +16,10 @@ package me.ahoo.wow.postgres.subscription
 import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.PostgresFormat
-import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.subscription.Checkpoint
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import javax.sql.DataSource

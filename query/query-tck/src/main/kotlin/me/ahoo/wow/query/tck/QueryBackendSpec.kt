@@ -19,10 +19,10 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
-import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.api.query.AfterNowFilter
 import me.ahoo.wow.api.query.AggregateIdFilter
 import me.ahoo.wow.api.query.AggregateIdsFilter
+import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AggregationElement
 import me.ahoo.wow.api.query.AggregationExpression
 import me.ahoo.wow.api.query.AggregationFunction
@@ -30,7 +30,6 @@ import me.ahoo.wow.api.query.AggregationGroup
 import me.ahoo.wow.api.query.AggregationGroupScope
 import me.ahoo.wow.api.query.AggregationMetric
 import me.ahoo.wow.api.query.AggregationQuery
-import me.ahoo.wow.api.query.AggregationDateUnit
 import me.ahoo.wow.api.query.AndFilter
 import me.ahoo.wow.api.query.BeforeNowFilter
 import me.ahoo.wow.api.query.ComparisonOperator
@@ -64,6 +63,7 @@ import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.SpaceIdFilter
 import me.ahoo.wow.api.query.TenantIdFilter
 import me.ahoo.wow.api.query.TotalMode
+import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.query.AdmittedQuery
 import me.ahoo.wow.query.DefaultQueryGateway
 import me.ahoo.wow.query.QueryAdmission
@@ -89,9 +89,9 @@ import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaContext
 import me.ahoo.wow.query.schema.QuerySchemaRegistration
+import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueType
-import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.SupportMode
 import me.ahoo.wow.query.schema.querySchema
@@ -103,9 +103,9 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestFactory
 import tools.jackson.databind.node.ObjectNode
 import java.time.Duration
-import kotlin.time.toKotlinDuration
 import java.time.Instant
 import java.util.UUID
+import kotlin.time.toKotlinDuration
 
 /**
  * The query backend contract (decision D126; the 9.x `SnapshotQueryBackendSpec` of wow-tck, ported to the V10 snapshot
@@ -343,7 +343,10 @@ abstract class QueryBackendSpec {
         fixture.ids(IsNullFilter(QueryField("operator"))).assert().containsExactly("p4")
         fixture.ids(
             AggregateIdsFilter(listOf("p1", "p2", "p3")),
-            listOf(Sort(QueryField("operator.id"), Sort.Direction.DESC), Sort(QueryField("aggregateId"), Sort.Direction.ASC)),
+            listOf(
+                Sort(QueryField("operator.id"), Sort.Direction.DESC),
+                Sort(QueryField("aggregateId"), Sort.Direction.ASC)
+            ),
         ).assert().containsExactly("p2", "p3", "p1")
         val record = checkNotNull(
             fixture.backend.single(QueryAdmission.Trusted.single(SingleQuery(AggregateIdFilter("p2")), fixture.schema)),
@@ -444,7 +447,10 @@ abstract class QueryBackendSpec {
     fun `single returns the first record in sort order, or none`() = blocking {
         val fixture = given(orders())
         val first = fixture.backend.single(
-            QueryAdmission.Trusted.single(SingleQuery(MatchAllFilter, sort = listOf(Sort(AMOUNT, Sort.Direction.DESC))), fixture.schema),
+            QueryAdmission.Trusted.single(
+                SingleQuery(MatchAllFilter, sort = listOf(Sort(AMOUNT, Sort.Direction.DESC))),
+                fixture.schema
+            ),
         )
         first?.id().assert().isEqualTo("o5")
         fixture.backend.single(QueryAdmission.Trusted.single(SingleQuery(AggregateIdFilter("none")), fixture.schema))
@@ -513,7 +519,11 @@ abstract class QueryBackendSpec {
     @Test
     fun `paged bounded total stops at its limit and says it is not exact`() = blocking {
         val fixture = given(orders())
-        val query = PagedQuery(MatchAllFilter, sort = listOf(Sort(AMOUNT, Sort.Direction.ASC)), pagination = Pagination(1, 2))
+        val query = PagedQuery(
+            MatchAllFilter,
+            sort = listOf(Sort(AMOUNT, Sort.Direction.ASC)),
+            pagination = Pagination(1, 2)
+        )
         val admitted = QueryAdmission.Trusted.paged(query, fixture.schema)
         fixture.backend.paged(admitted, totalLimit = 3).let { page ->
             page.list.map { it.id() }.assert().containsExactly("o1", "o2")
@@ -581,10 +591,15 @@ abstract class QueryBackendSpec {
         val fixture = given(orders())
         Assumptions.assumeTrue(fixture.schema.storage.paging.keyset != SupportMode.NONE)
         val sort = listOf(Sort(QueryField("state.quantity"), Sort.Direction.DESC), Sort(AMOUNT, Sort.Direction.DESC))
-        val first = fixture.backend.cursor(QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, sort = sort, size = 3), fixture.schema))
+        val first = fixture.backend.cursor(
+            QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, sort = sort, size = 3), fixture.schema)
+        )
         first.list.map { it.id() }.assert().containsExactly("o5", "o4", "o3")
         val second = fixture.backend.cursor(
-            QueryAdmission.Trusted.cursor(CursorQuery(MatchAllFilter, sort = sort, size = 3, cursor = first.nextCursor), fixture.schema),
+            QueryAdmission.Trusted.cursor(
+                CursorQuery(MatchAllFilter, sort = sort, size = 3, cursor = first.nextCursor),
+                fixture.schema
+            ),
         )
         second.list.map { it.id() }.assert().containsExactly("o2", "o1")
         second.nextCursor.assert().isNull()
@@ -609,7 +624,11 @@ abstract class QueryBackendSpec {
         do {
             val query = CursorQuery(MatchAllFilter, sort = sort, size = 1, cursor = cursor)
             val admitted = QueryAdmission.Trusted.cursor(query, fixture.schema)
-            admitted.query.sort.map { it.field.path }.assert().containsExactly("state.status", "tenantId", "aggregateId")
+            admitted.query.sort.map { it.field.path }.assert().containsExactly(
+                "state.status",
+                "tenantId",
+                "aggregateId"
+            )
             val page = fixture.backend.cursor(admitted)
             seen += page.list.map { it.path("tenantId").stringValue() to it.id() }
             cursor = page.nextCursor
@@ -635,8 +654,15 @@ abstract class QueryBackendSpec {
         val fixture = given(orders())
         Assumptions.assumeTrue(fixture.schema.storage.paging.keyset != SupportMode.NONE)
         val byAmount = CursorQuery(MatchAllFilter, sort = listOf(Sort(AMOUNT, Sort.Direction.ASC)), size = 1)
-        val token = checkNotNull(fixture.backend.cursor(QueryAdmission.Trusted.cursor(byAmount, fixture.schema)).nextCursor)
-        val byName = CursorQuery(MatchAllFilter, sort = listOf(Sort(QueryField("state.name"), Sort.Direction.ASC)), size = 1, cursor = token)
+        val token = checkNotNull(
+            fixture.backend.cursor(QueryAdmission.Trusted.cursor(byAmount, fixture.schema)).nextCursor
+        )
+        val byName = CursorQuery(
+            MatchAllFilter,
+            sort = listOf(Sort(QueryField("state.name"), Sort.Direction.ASC)),
+            size = 1,
+            cursor = token
+        )
         val error = runCatching { fixture.backend.cursor(QueryAdmission.Trusted.cursor(byName, fixture.schema)) }
             .exceptionOrNull()
         (error as QueryRequestException).violation.assert().isEqualTo(QueryViolation.InvalidCursor)
@@ -780,7 +806,11 @@ abstract class QueryBackendSpec {
                 groupBy = listOf(AggregationGroup.Terms(QueryField("sku"), "sku")),
                 metrics = listOf(
                     AggregationMetric.Count("lines"),
-                    AggregationMetric.Numeric(AggregationFunction.SUM, AggregationExpression.Field(QueryField("quantity")), "quantity"),
+                    AggregationMetric.Numeric(
+                        AggregationFunction.SUM,
+                        AggregationExpression.Field(QueryField("quantity")),
+                        "quantity"
+                    ),
                 ),
             ),
         )
@@ -816,7 +846,9 @@ abstract class QueryBackendSpec {
         val row = fixture.aggregate(
             AggregationQuery(
                 filter = MatchAllFilter,
-                metrics = listOf(AggregationMetric.DistinctCount(AggregationExpression.Field(QueryField("state.status")), "statuses")),
+                metrics = listOf(
+                    AggregationMetric.DistinctCount(AggregationExpression.Field(QueryField("state.status")), "statuses")
+                ),
             ),
         ).single()
         row.path("statuses").longValue().assert().isEqualTo(3L)
@@ -831,11 +863,17 @@ abstract class QueryBackendSpec {
         val rows = fixture.aggregate(
             AggregationQuery(
                 filter = GreaterThanOrEqualFilter(QueryField("state.createdAt"), T0 + DAY),
-                groupBy = listOf(AggregationGroup.DateHistogram(QueryField("state.createdAt"), "day", AggregationDateUnit.DAY)),
+                groupBy = listOf(
+                    AggregationGroup.DateHistogram(QueryField("state.createdAt"), "day", AggregationDateUnit.DAY)
+                ),
                 metrics = listOf(AggregationMetric.Count("count")),
             ),
         )
-        rows.map { it.path("day").longValue() }.assert().containsExactly(T0 + DAY, T0 + 2 * DAY, T0 + 3 * DAY, T0 + 4 * DAY)
+        rows.map {
+            it.path(
+                "day"
+            ).longValue()
+        }.assert().containsExactly(T0 + DAY, T0 + 2 * DAY, T0 + 3 * DAY, T0 + 4 * DAY)
         Unit
     }
 
@@ -850,14 +888,26 @@ abstract class QueryBackendSpec {
             (error is QueryTimeoutException).assert().describedAs("$error").isTrue()
             (error as QueryTimeoutException).errorCode.assert().isEqualTo(QueryErrors.TIMEOUT)
         }
-        fails { fixture.backend.list(QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), fixture.schema).withTimeout(expired)).toList() }
-        fails { fixture.backend.paged(QueryAdmission.Trusted.paged(PagedQuery(MatchAllFilter), fixture.schema).withTimeout(expired)) }
         fails {
-            fixture.backend.countBounded(QueryAdmission.Trusted.count(CountQuery(MatchAllFilter), fixture.schema).withTimeout(expired))
+            fixture.backend.list(
+                QueryAdmission.Trusted.list(ListQuery(MatchAllFilter), fixture.schema).withTimeout(expired)
+            ).toList()
+        }
+        fails {
+            fixture.backend.paged(
+                QueryAdmission.Trusted.paged(PagedQuery(MatchAllFilter), fixture.schema).withTimeout(expired)
+            )
+        }
+        fails {
+            fixture.backend.countBounded(
+                QueryAdmission.Trusted.count(CountQuery(MatchAllFilter), fixture.schema).withTimeout(expired)
+            )
         }
         fails {
             val aggregation = AggregationQuery(MatchAllFilter, metrics = listOf(AggregationMetric.Count("count")))
-            fixture.backend.aggregate(QueryAdmission.Trusted.aggregate(aggregation, fixture.schema).withTimeout(expired)).toList()
+            fixture.backend.aggregate(
+                QueryAdmission.Trusted.aggregate(aggregation, fixture.schema).withTimeout(expired)
+            ).toList()
         }
     }
 
@@ -879,7 +929,10 @@ abstract class QueryBackendSpec {
         val gateway = DefaultQueryGateway(type, fixture.backend, FixedQueryModelSchemaProvider(fixture.schema))
         gateway.list(ListQuery(MatchAllFilter, sort = listOf(Sort(AMOUNT, Sort.Direction.ASC))), QueryCaller.IN_PROCESS)
             .toList().map { it.id() }.assert().containsExactly("o1", "o2", "o3", "o5")
-        gateway.count(CountQuery(MatchAllFilter), QueryCaller.IN_PROCESS).assert().isEqualTo(CountResult(4, exact = true))
+        gateway.count(
+            CountQuery(MatchAllFilter),
+            QueryCaller.IN_PROCESS
+        ).assert().isEqualTo(CountResult(4, exact = true))
         gateway.single(SingleQuery(AggregateIdFilter("o4")), QueryCaller.IN_PROCESS).assert().isNull()
         Unit
     }
@@ -887,8 +940,15 @@ abstract class QueryBackendSpec {
     @Test
     fun `the gateway bounds counts and totals by the entry's budget`() = blocking {
         val fixture = given(orders())
-        val policy = QueryEntryPolicy(http = QueryBudget(QueryBudget.HTTP_LABEL, countLimit = 2, timeout = GENEROUS.toKotlinDuration()))
-        val gateway = DefaultQueryGateway(type, fixture.backend, FixedQueryModelSchemaProvider(fixture.schema), entryPolicy = policy)
+        val policy = QueryEntryPolicy(
+            http = QueryBudget(QueryBudget.HTTP_LABEL, countLimit = 2, timeout = GENEROUS.toKotlinDuration())
+        )
+        val gateway = DefaultQueryGateway(
+            type,
+            fixture.backend,
+            FixedQueryModelSchemaProvider(fixture.schema),
+            entryPolicy = policy
+        )
         val http = QueryCaller(entry = QueryEntry.HTTP)
         gateway.count(CountQuery(MatchAllFilter), http).assert().isEqualTo(CountResult(2, exact = false))
         gateway.paged(PagedQuery(MatchAllFilter, pagination = Pagination(1, 1)), http).let { page ->
@@ -896,8 +956,15 @@ abstract class QueryBackendSpec {
             page.total.assert().isEqualTo(2L)
             page.exact.assert().isFalse()
         }
-        val exact = runCatching { gateway.paged(PagedQuery(MatchAllFilter, total = TotalMode.EXACT), http) }.exceptionOrNull()
-        (exact as QueryRequestException).code.assert().isEqualTo(me.ahoo.wow.api.query.QueryErrorCodes.EXPENSIVE_OPERATOR_DISABLED)
+        val exact = runCatching {
+            gateway.paged(
+                PagedQuery(MatchAllFilter, total = TotalMode.EXACT),
+                http
+            )
+        }.exceptionOrNull()
+        (exact as QueryRequestException).code.assert().isEqualTo(
+            me.ahoo.wow.api.query.QueryErrorCodes.EXPENSIVE_OPERATOR_DISABLED
+        )
         Unit
     }
 
@@ -950,6 +1017,5 @@ abstract class QueryBackendSpec {
         }
 
         private fun ObjectNode.id(): String = path("aggregateId").stringValue()
-
     }
 }

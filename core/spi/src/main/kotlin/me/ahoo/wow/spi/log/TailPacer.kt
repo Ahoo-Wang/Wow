@@ -73,7 +73,14 @@ class TailPacer(partitions: Int, val interval: Duration, val maxInterval: Durati
     }
 
     /** The wait after the next empty poll, and whether a commit of this log woke the next poll. */
-    data class Pace(val idle: Duration, val woken: Boolean)
+    class Pace(val idle: Duration, val woken: Boolean) {
+        override fun equals(other: Any?): Boolean =
+            this === other || other is Pace && idle == other.idle && woken == other.woken
+
+        override fun hashCode(): Int = 31 * idle.hashCode() + woken.hashCode()
+
+        override fun toString(): String = "Pace(idle=$idle, woken=$woken)"
+    }
 }
 
 /**

@@ -32,5 +32,5 @@ dependencies {
     // The default handler strategies of a router function served without Spring Boot read the locale context.
     testImplementation("org.springframework:spring-context")
     // The in-memory reference query backend, behind a query gateway.
-    testImplementation(testFixtures(project(":query")))
+    testImplementation(project(":query-tck"))
 }
