@@ -43,6 +43,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.schema.MaskStrategyResolver
+import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommandTransformer
@@ -71,6 +72,7 @@ import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.store.StoreProvider
 import me.ahoo.wow.spi.subscription.FailureClassifier
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
@@ -111,7 +113,8 @@ import jakarta.validation.Validator as JakartaValidator
  *   application's beans ([BeanFactoryDependencies]), the Manifest merged from the modules' fragments
  *   ([ManifestLoader], read with [WowJson.mapper], never Spring's mapper), and with it the peer contracts on the
  *   classpath ([ContractDirectory], decisions D139, D234).
- * - **Backend** (`wow.backend`, [BackendSelection]): PostgreSQL over the application's `DataSource`, MongoDB over its
+ * - **Backend** (`wow.backend`, [BackendSelection]; each store opened by the [StoreProvider] of its type,
+ *   [StoreProviders]): PostgreSQL over the application's `DataSource`, MongoDB over its
  *   `MongoClient`, in memory (one node, with a warning) when `wow.backend=memory`, or when it has neither and runs in
  *   a development profile or on a loopback-only internal port (it refuses to start otherwise, review R3.5-1), or the
  *   application's own [BackendFactory] bean. With `wow.stores`, the named store instances instead ([StoreInstances]), each aggregate's
@@ -223,26 +226,49 @@ class WowAutoConfiguration {
             WowJson.mapper
         )
 
+    /**
+     * The store providers (review R3.3-1): memory, built in (its snapshots queryable under `wow.query.memory.enabled`),
+     * those on the classpath (`ServiceLoader`: PostgreSQL's, MongoDB's, a community backend's) and the application's
+     * [StoreProvider] and [StoreQueryProvider] beans, each over the one of its type before it.
+     */
     @Bean
     @ConditionalOnMissingBean
     @InternalWowApi
+    fun wowStoreProviders(
+        beanFactory: ConfigurableListableBeanFactory,
+        queries: ObjectProvider<QueryProperties>,
+        providers: ObjectProvider<StoreProvider>,
+        queryProviders: ObjectProvider<StoreQueryProvider>,
+    ): StoreProviders {
+        val memoryQueries = queries.ifAvailable?.memory?.enabled == true
+        return StoreProviders.load(
+            beanFactory.beanClassLoader,
+            memory = MemoryStoreProvider(memoryQueries),
+            memoryQueries = MemoryQueryProvider(memoryQueries),
+            beans = providers.orderedStream().toList(),
+            queryBeans = queryProviders.orderedStream().toList(),
+        )
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @InternalWowApi
+    @Suppress("LongParameterList") // One parameter per input of the stores, each a bean the application may give.
     fun wowBackends(
         properties: WowProperties,
         beanFactory: ConfigurableListableBeanFactory,
         factories: ObjectProvider<BackendFactory>,
+        providers: StoreProviders,
         models: WowModels,
-        queries: ObjectProvider<QueryProperties>,
         identity: ObjectProvider<NodeIdentity>,
         environment: Environment,
     ): HostBackends {
         factories.ifAvailable?.let { return HostBackends.of(it) }
-        val memoryQueries = queries.ifAvailable?.memory?.enabled == true
         val node = identity.ifAvailable
         val stores = StoreInstances.open(
             properties,
-            beanFactory,
-            beanFactory.beanClassLoader,
-            memoryQueries,
+            providers,
+            BeanStoreResources(beanFactory),
             node?.service.orEmpty(),
             BackendSelection.memoryOptIn(
                 environment.activeProfiles.toList(),
@@ -251,7 +277,7 @@ class WowAutoConfiguration {
             ),
         )
         val layout = StoreLayout.of(properties, stores, models.models)
-        val memory = (layout.logStores + layout.snapshotStores).filter { stores.getValue(it).kind == BackendKind.MEMORY }
+        val memory = (layout.logStores + layout.snapshotStores).filterNot { stores.getValue(it).durable }
         if (memory.isNotEmpty()) {
             logger.warn {
                 "Wow keeps data in memory on the stores $memory (wow.backend=memory, a store of type memory, or no " +
@@ -362,7 +388,7 @@ class WowAutoConfiguration {
         classifiers: ObjectProvider<FailureClassifier>,
     ): ServiceNode {
         checkShutdownTimeout(environment)
-        val routing = routing(properties, backends.kind)
+        val routing = routing(properties, backends.local)
         val stepListeners = listeners.orderedStream().toList()
         return ServiceNode(
             service = identity.service,
@@ -713,12 +739,12 @@ class WowAutoConfiguration {
         }
 
         /**
-         * Where commands run: `wow.cluster.router`, by default local on the memory backend, whose stores no other
-         * node shares, and partitioned on the others. The memory backend refuses partitioned routing.
+         * Where commands run: `wow.cluster.router`, by default local when a log is on a store no other node shares
+         * ([local]: the memory backend's), and partitioned on the others. Such a store refuses partitioned routing.
          */
-        internal fun routing(properties: WowProperties, kind: BackendKind?): Routing {
+        internal fun routing(properties: WowProperties, local: Boolean): Routing {
             val configured = properties.cluster.router
-            if (kind == BackendKind.MEMORY) {
+            if (local) {
                 check(configured != Routing.PARTITIONED) {
                     "wow.cluster.router=partitioned routes across nodes, which the memory backend cannot serve: " +
                         "back Wow with PostgreSQL or MongoDB."

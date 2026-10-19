@@ -7,10 +7,10 @@ dependencies {
     // The log and the stores run on the sync driver and virtual threads, like wow-postgres (D27).
     api("org.mongodb:mongodb-driver-sync")
     implementation("tools.jackson.core:jackson-databind")
-    testImplementation(testFixtures(project(":query")))
+    testImplementation(project(":query-tck"))
     integrationTestImplementation(project(":tck"))
     integrationTestImplementation(project(":tck-containers"))
-    integrationTestImplementation(testFixtures(project(":query")))
+    integrationTestImplementation(project(":query-tck"))
 }
 
 // Spike H1 (MongoDB) measures throughput only on demand: ./gradlew :mongo:integrationTest -Dwow.spike.h1=true

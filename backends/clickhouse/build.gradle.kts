@@ -7,9 +7,11 @@ dependencies {
     api(libs.clickhouse.client.v2)
     implementation("io.github.oshai:kotlin-logging-jvm")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test")
-    testImplementation(testFixtures(project(":query")))
+    testImplementation(project(":query-tck"))
     // DatasetQueryBackendSpec, the dataset backend contract.
-    integrationTestImplementation(testFixtures(project(":query")))
+    integrationTestImplementation(project(":query-tck"))
+    // SinkSpec, the Sink contract.
+    integrationTestImplementation(project(":tck"))
     integrationTestImplementation(sourceSets["test"].output)
     // The shared ClickHouse container (decision D196).
     integrationTestImplementation(project(":tck-containers"))

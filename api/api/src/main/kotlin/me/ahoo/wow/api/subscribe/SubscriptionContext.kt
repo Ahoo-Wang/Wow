@@ -107,6 +107,9 @@ interface SagaContext : SubscriptionContext {
      * where the target being online is a precondition and the saga needs the result now; the target's address is the
      * host's configuration (`wow.calls.contexts.<context>.url`).
      *
+     * It is a `suspend` function, so a Java saga cannot call it (decision D229 G-8; a blocking bridge is planned for
+     * 10.x): a Java saga derives its commands instead.
+     *
      * @throws CallRejectedException when the target refuses it, a business outcome that is not retried.
      * @throws CallFailedException when it reaches no result: the handler fails, is retried within its subscription's
      * budget, then parks its aggregate.

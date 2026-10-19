@@ -13,11 +13,8 @@
 
 package me.ahoo.wow.kafka
 
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.asCoroutineDispatcher
 import org.apache.kafka.common.header.Headers
 import org.apache.kafka.common.header.internals.RecordHeader
-import java.util.concurrent.Executors
 
 /** Headers as Kafka holds them, UTF-8 text both ways; a header without a value is left out, a repeated one's last wins. */
 internal object KafkaHeaders {
@@ -27,9 +24,4 @@ internal object KafkaHeaders {
     fun of(headers: Headers): Map<String, String> = buildMap {
         headers.forEach { header -> header.value()?.let { put(header.key(), String(it, Charsets.UTF_8)) } }
     }
-}
-
-/** The blocking calls of `kafka-clients` run on virtual threads (decision D31), as wow-postgres runs JDBC. */
-internal object VirtualThreads {
-    val dispatcher: CoroutineDispatcher by lazy { Executors.newVirtualThreadPerTaskExecutor().asCoroutineDispatcher() }
 }

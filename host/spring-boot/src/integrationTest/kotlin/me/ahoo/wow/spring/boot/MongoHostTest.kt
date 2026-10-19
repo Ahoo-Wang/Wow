@@ -54,7 +54,7 @@ class MongoHostTest {
 
     @Test
     fun `the host should run on MongoDB with the append queue`() {
-        host.context.getBean(HostBackends::class.java).kind.assert().isEqualTo(BackendKind.MONGO)
+        host.context.getBean(HostBackends::class.java).type.assert().isEqualTo("mongo")
         host.node.options.appendQueue.enabled.assert().isTrue()
         host.node.options.routing.assert().isEqualTo(Routing.PARTITIONED)
     }

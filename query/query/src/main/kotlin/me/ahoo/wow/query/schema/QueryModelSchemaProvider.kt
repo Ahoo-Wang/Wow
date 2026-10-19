@@ -32,8 +32,9 @@ interface QueryModelSchemaProvider {
     suspend fun refresh(): QueryModelSchema
 }
 
-/** A provider of one fixed [schema], for a model whose schema is built in code (tests, tools). */
-internal class FixedQueryModelSchemaProvider(private val schema: QueryModelSchema) : QueryModelSchemaProvider {
+/** A provider of one fixed [schema], for a model whose schema is built in code (tests, tools, the query TCK). */
+@InternalWowApi
+class FixedQueryModelSchemaProvider(private val schema: QueryModelSchema) : QueryModelSchemaProvider {
     override suspend fun schema(): QueryModelSchema = schema
 
     override suspend fun refresh(): QueryModelSchema = schema

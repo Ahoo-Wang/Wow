@@ -15,6 +15,7 @@ package me.ahoo.wow.query
 
 import kotlinx.coroutines.flow.Flow
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.ICountQuery
 import me.ahoo.wow.api.query.IListQuery
@@ -56,6 +57,7 @@ data class QueryBackendBinding<out B : QueryBackend>(
  * BSON values, decimals) to them. The core checks every returned row, so no backend repeats the check: a row with a
  * `NaN`, an infinity, a POJO, a binary or missing node fails the query in the core.
  */
+@WowSpi
 interface QueryBackend {
     /** The aggregate type whose records this backend reads. */
     val aggregateType: AggregateType

@@ -14,6 +14,7 @@
 package me.ahoo.wow.query
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.WowSpi
 import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.schema.QueryModel
@@ -25,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap
  * Pairs a query backend with its storage adapter, for each aggregate type: what a storage module (PostgreSQL 6.2a,
  * MongoDB 6.2b) registers for the snapshot model.
  */
+@WowSpi
 fun interface QueryBackendFactory<out B : QueryBackend> {
     fun create(aggregateType: AggregateType): QueryBackendBinding<B>
 }

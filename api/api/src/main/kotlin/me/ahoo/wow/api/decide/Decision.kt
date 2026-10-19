@@ -19,6 +19,12 @@ import me.ahoo.wow.api.annotation.InternalWowApi
  * What a decide function concluded about a command: the events it produces, that it changes nothing, or that it
  * rejects the command. A rejection is a value, not an exception: it is a business outcome the caller is told about,
  * and nothing is written.
+ *
+ * From Java (decision D229 G-8): a decide function returns `Decision.events(...)`, `Decision.NoOp.INSTANCE` or
+ * `Decision.reject(code, message)`, statics of this interface. A Java decide function is plain, not `suspend`: it
+ * cannot call [DecideScope.reserve] (a `suspend` function), and a Java saga cannot call
+ * [me.ahoo.wow.api.subscribe.SagaContext.call]; the test DSL (`wow-test`) is Kotlin only, so a Java domain's tests
+ * are written in Kotlin. A Java facade and a blocking bridge for them are planned for 10.x.
  */
 sealed interface Decision {
     /**
@@ -74,12 +80,15 @@ sealed interface Decision {
 
     companion object {
         /** Produces [events]. */
+        @JvmStatic
         fun events(vararg events: Any): Decision = Events(events.toList())
 
         /**
          * Rejects the command with [code], a human-readable [message], and the structured [extensions] a client reads
          * instead of parsing the message ([Rejection.extensions]).
          */
+        @JvmStatic
+        @JvmOverloads
         fun reject(code: String, message: String, extensions: Map<String, Any?> = emptyMap()): Decision =
             Rejected(Rejection(code, message, extensions))
     }

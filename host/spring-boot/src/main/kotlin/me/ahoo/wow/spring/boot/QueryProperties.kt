@@ -20,6 +20,7 @@ import me.ahoo.wow.query.QueryCountCacheOptions
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.schema.QuerySensitivityPolicy
+import me.ahoo.wow.query.store.StoreQueryOptions
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 import kotlin.time.toJavaDuration
@@ -138,6 +139,9 @@ class QueryProperties {
 
         fun options(): QueryCountCacheOptions = QueryCountCacheOptions(maxEntries, ttl.toKotlinDuration())
     }
+
+    /** The settings each store's queries are opened with ([me.ahoo.wow.query.store.StoreQueryProvider]). */
+    internal fun storeQueryOptions(): StoreQueryOptions = StoreQueryOptions(index.ddl, events.mongoReadPreference)
 
     class Memory {
         var enabled: Boolean = false
