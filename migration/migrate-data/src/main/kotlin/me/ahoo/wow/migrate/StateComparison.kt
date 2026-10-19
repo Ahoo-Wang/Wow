@@ -152,7 +152,7 @@ class StateComparison(
                     kinds = kinds,
                 )
             }
-            checkpoints.save(checkpoints.load().with(aggregate, checkpoint))
+            checkpoints.update { it.with(aggregate, checkpoint) }
             if (!checkpoint.completed) {
                 report(reportOf(aggregate, instances, checkpoint).render())
             }

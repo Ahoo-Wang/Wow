@@ -247,6 +247,8 @@ enum class Routing {
  * - [maxInFlight]: the commands the node may have in flight in its executors, all contexts together (decision D228 ②,
  *   [me.ahoo.wow.runtime.InFlightLimit]); beyond it a command is refused as busy. Each partition append queue holds at
  *   most as many.
+ * - [maxRegisteredWaits]: the waits the node holds at once (review R3.4-3, [WaitOptions.maxRegistered]); beyond it a
+ *   command that would register one is refused as busy, before it runs.
  * - [stateCacheCapacity]: the aggregate states kept per context between commands; 0 keeps none.
  * - [stateViews]: the bounds of each context's state views, shared by its state consumers (decision D133).
  * - [timers]: the timer runner of each context that has a timer store (decision D166).
@@ -285,6 +287,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
     /** The snapshot maintenance of each context (decision D172): claims, in-place rebuilds, backfills. */
     val snapshots: SnapshotOptions = SnapshotOptions(),
     val maxInFlight: Int = InFlightLimit.DEFAULT_MAX,
+    val maxRegisteredWaits: Int = WaitOptions.DEFAULT_MAX_REGISTERED,
 ) {
     init {
         require(maxInFlight >= 1) { "A node takes at least one command in flight." }
@@ -313,6 +316,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
         ledger: LedgerPublishing? = this.ledger,
         snapshots: SnapshotOptions = this.snapshots,
         maxInFlight: Int = this.maxInFlight,
+        maxRegisteredWaits: Int = this.maxRegisteredWaits,
     ): ServiceNodeOptions = ServiceNodeOptions(
         cluster,
         routing,
@@ -331,6 +335,7 @@ class ServiceNodeOptions @InternalWowApi constructor(
         ledger,
         snapshots,
         maxInFlight,
+        maxRegisteredWaits,
     )
 
     override fun equals(other: Any?): Boolean =
@@ -344,12 +349,12 @@ class ServiceNodeOptions @InternalWowApi constructor(
             "laneCapacity=$laneCapacity, stateCacheCapacity=$stateCacheCapacity, " +
             "defaultWaitTimeout=$defaultWaitTimeout, stateViews=$stateViews, timers=$timers, " +
             "schedules=$schedules, kafkaRouted=$kafkaRouted, unknownWaitContexts=$unknownWaitContexts, " +
-            "ledger=$ledger, snapshots=$snapshots, maxInFlight=$maxInFlight)"
+            "ledger=$ledger, snapshots=$snapshots, maxInFlight=$maxInFlight, maxRegisteredWaits=$maxRegisteredWaits)"
 
     private fun valueFields(): List<Any?> = listOf(
         cluster, routing, maxWaitTimeout, maxWaitHops, subscription, appendQueue, laneCapacity, stateCacheCapacity,
         defaultWaitTimeout, stateViews, timers, schedules, kafkaRouted, unknownWaitContexts, ledger, snapshots,
-        maxInFlight,
+        maxInFlight, maxRegisteredWaits,
     )
 
     companion object {

@@ -376,11 +376,37 @@ class MongoEventLogTest : EventLogSpec() {
         }
     }
 
+    /** [stream] with an event too large for one MongoDB document: 17 MiB, beyond the 16 MiB limit. */
+    private fun oversized(stream: EventStreamRecord): EventStreamRecord = stream.copyWith(
+        events = listOf(EventRecord("x.aggregate.Imported", 1, """{"blob":"${"x".repeat(OVERSIZED_BYTES)}"}""")),
+    )
+
+    @Test
+    fun `a stream beyond the document size limit is rejected, and in appendAll fails alone`(): Unit = runBlocking {
+        val context = MongoLogFixture.newContext()
+        val log = MongoLogFixture.log(1, context)
+        val type = AggregateType(context, "order")
+        val big = oversized(stream("big", 1, aggregate = type))
+        // Finding R2.2-2: the driver's size check escaped as an exception rather than a refusal.
+        log.append(big).assert().isInstanceOf(AppendOutcome.Rejected::class.java)
+        log.head(0).assert().isNull()
+        val outcomes = log.appendAll(
+            listOf(stream("before", 1, aggregate = type) to null, big to null, stream("after", 1, aggregate = type) to null),
+        )
+        outcomes[0].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        outcomes[1].assert().isInstanceOf(AppendOutcome.Rejected::class.java)
+        outcomes[2].assert().isInstanceOf(AppendOutcome.Committed::class.java)
+        log.read(big.ref).toList().assert().isEmpty()
+        withTimeout(TAIL_TIMEOUT_MS) { log.tail(0).take(2).toList() }.map { it.stream.ref.id }
+            .assert().containsExactlyInAnyOrder("before", "after")
+    }
+
     private companion object {
         const val TAIL_STALL_MS = 500L
         const val RACES = 5
         const val IDLE_POLLS = 13
         const val COMMITS = 5
         const val SETTLE_MS = 100L
+        const val OVERSIZED_BYTES = 17 * 1024 * 1024
     }
 }

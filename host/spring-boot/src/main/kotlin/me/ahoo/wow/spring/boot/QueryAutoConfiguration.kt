@@ -19,6 +19,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.query.QueryBackendFactory
+import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.QueryCountCache
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryObserver
@@ -30,9 +31,11 @@ import me.ahoo.wow.query.dataset.DatasetVisibility
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.engine.ManifestTypes
 import me.ahoo.wow.query.engine.QueryEngine
+import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.schema.MaskStrategyResolver
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.state.CommittedState
@@ -99,19 +102,19 @@ class QueryAutoConfiguration {
             backends: HostBackends,
             providers: StoreProviders,
             factories: ObjectProvider<QueryBackendFactory<*>>,
+            wow: ObjectProvider<WowProperties>,
         ): SnapshotQueryBackend {
             factories.ifAvailable?.let { return SnapshotQueryBackend(it) }
-            val options = properties.storeQueryOptions()
             // One backend per store the snapshots are on (decision D177), each type's routed to its store's, from the
-            // query provider of the store's type (review R3.3-1).
+            // query provider of the store's type (review R3.3-1), with the store's own query settings (R3.4-2).
             val byStore = backends.layout?.snapshotStores.orEmpty().associateWith { name ->
                 val store = backends.stores.getValue(name)
+                val options = properties.storeQueryOptions(wow.ifAvailable?.stores?.get(name))
                 providers.queriesOf(store.type)?.snapshots(store, options)?.let(SnapshotQueryBackend::of)
             }
             val types = ManifestTypes.snapshots(manifest, node.contexts.keys)
-            val backend = SnapshotQueryBackend.routing(types) { type ->
-                backends.snapshotStoreOf(type)?.let { byStore[it.name] }
-            }
+            val storeOf = { type: AggregateType -> backends.snapshotStoreOf(type)?.name }
+            val backend = SnapshotQueryBackend.routing(types, storeOf) { type -> storeOf(type)?.let(byStore::get) }
             val unserved = types.filterNot(backend::serves)
             if (unserved.isNotEmpty()) {
                 logger.info {
@@ -140,14 +143,17 @@ class QueryAutoConfiguration {
             properties: QueryProperties,
             backends: HostBackends,
             providers: StoreProviders,
+            wow: ObjectProvider<WowProperties>,
         ): EventQueryBackend {
             val layout = backends.layout
-            val options = properties.storeQueryOptions()
             val byStore = layout?.logStores.orEmpty().associateWith { name ->
                 val store = backends.stores.getValue(name)
+                val options = properties.storeQueryOptions(wow.ifAvailable?.stores?.get(name))
                 providers.queriesOf(store.type)?.events(store, options)
             }
-            val backend = EventQueryBackend { type -> layout?.let { byStore[it.logStoreOf(type)] }?.binding(type) }
+            val backend = EventQueryBackend(
+                store = { type -> layout?.logStoreOf(type)?.takeIf { byStore[it] != null } },
+            ) { type -> layout?.let { byStore[it.logStoreOf(type)] }?.binding(type) }
             val unserved = ManifestTypes.events(manifest, node.contexts.keys)
                 .filter { backend.binding(it) == null }
             if (unserved.isNotEmpty()) {
@@ -195,6 +201,7 @@ class QueryAutoConfiguration {
             counts: ObjectProvider<QueryCountCache>,
             reads: ObjectProvider<StateReads>,
             masks: PayloadMasks,
+            stores: QueryStores,
         ): QueryEngine = QueryEngine.Builder(manifest)
             .contexts(node.contexts.keys)
             .snapshots(backend.factory, backend::serves)
@@ -211,6 +218,14 @@ class QueryAutoConfiguration {
             .filters(beans.filters.orderedStream().toList())
             .observers(beans.observers.orderedStream().toList())
             .entryPolicy(entryPolicy)
+            .bulkheads { type, model ->
+                when (model) {
+                    QueryModel.SNAPSHOT -> backend.storeOf(type)
+                    QueryModel.EVENTS -> events.storeOf(type)
+                    else -> null
+                }?.let(stores.bulkheads::get)
+            }
+            .unpinnedEvents(stores::unpinned)
             .counts(
                 counts.ifAvailable,
                 // The events' own cache (a cache is keyed by type, not by model), valid while the type's snapshot
@@ -238,6 +253,35 @@ class QueryAutoConfiguration {
                 }
             }
             .build()
+
+        /**
+         * How the queries of each store run (review R3.4-2): the bulkheads of the stores (`wow.stores.<name>.query
+         * .max-concurrent`, `wow.query.max-concurrent`, else the provider's from its pool), and whether each type's
+         * events queries that name no aggregate run.
+         */
+        @Bean
+        @InternalWowApi
+        fun wowQueryStores(
+            properties: QueryProperties,
+            backends: HostBackends,
+            providers: StoreProviders,
+            events: EventQueryBackend,
+            wow: ObjectProvider<WowProperties>,
+        ): QueryStores {
+            val settings = wow.ifAvailable
+            val bulkheads = HostQueryBulkheads.of(
+                backends.stores,
+                providers,
+                properties,
+                settings?.stores.orEmpty(),
+            )
+            if (bulkheads.isNotEmpty()) {
+                logger.info { "The stores' queries run under ${bulkheads.values}." }
+            }
+            return QueryStores(bulkheads) { type ->
+                HostQueryBulkheads.unpinned(type, events.storeOf(type), properties.events.unpinned, settings)
+            }
+        }
 
         /** The application's beans the engine is built of, which it may give or not. */
         @Bean
@@ -320,6 +364,19 @@ class QueryAutoConfiguration {
     private companion object {
         val logger = KotlinLogging.logger {}
     }
+}
+
+/**
+ * How the queries of the node's stores run (review R3.4-2): the [bulkheads] of the stores, by name, and whether each
+ * aggregate type's events queries that name no aggregate run ([unpinned]).
+ */
+@InternalWowApi
+class QueryStores internal constructor(
+    val bulkheads: Map<String, QueryBulkhead>,
+    private val unpinned: (AggregateType) -> UnpinnedEvents,
+) {
+    /** Whether [type]'s events queries that name no aggregate run. */
+    fun unpinned(type: AggregateType): UnpinnedEvents = unpinned.invoke(type)
 }
 
 /** The application's beans a [QueryEngine] is built of: each it may give, or not. */

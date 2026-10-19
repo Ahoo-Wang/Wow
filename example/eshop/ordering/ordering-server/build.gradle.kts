@@ -20,6 +20,10 @@ apply(from = rootProject.file("example/eshop/wow-manifest-compatibility.gradle.k
 dependencies {
     implementation(project(":eshop-ordering-domain"))
     implementation(project(":spring-boot"))
+    // Actuator's health endpoint, which the host gives the node's readiness and liveness (review R3.5-3): the
+    // deployment's probes read /actuator/health/readiness and /actuator/health/liveness.
+    implementation("org.springframework.boot:spring-boot-health")
+    implementation("org.springframework.boot:spring-boot-actuator-autoconfigure")
     // The `kafka` profile: the basket's orders arrive on wow.eshop-ordering.commands, the inventory's commands and the
     // order stream go out, and the inventory's receipts and stock stream come in.
     implementation(project(":kafka"))

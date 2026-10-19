@@ -479,6 +479,11 @@ describe('problems', () => {
       retryable: true,
       sameRequestId: false,
     });
+    expect(retryHintOf('wow.query.busy', 429, 1000)).toEqual({
+      retryable: true,
+      sameRequestId: false,
+      afterMs: 1000,
+    });
     expect(retryHintOf(undefined, 503).retryable).toBe(true);
     expect(retryHintOf(undefined, 500).retryable).toBe(false);
     expect(retryHintOf('wow.aggregate.exists', 409).retryable).toBe(false);

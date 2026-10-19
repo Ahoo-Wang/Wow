@@ -109,8 +109,12 @@ internal class RecordingStatements : ClickHouseStatements {
     /** Completed by the first insert that waits on [gate]. */
     val waiting = kotlinx.coroutines.CompletableDeferred<Unit>()
 
+    /** The comments of the views, by `database.name`, as the flat view statements executed set them. */
+    val comments = mutableMapOf<String, String>()
+
     override suspend fun execute(sql: String) {
         executed += sql
+        VIEW.find(sql)?.let { comments["${it.groupValues[1]}.${it.groupValues[2]}"] = it.groupValues[3] }
     }
 
     override suspend fun insert(table: String, body: ByteArray, token: String) {
@@ -127,8 +131,18 @@ internal class RecordingStatements : ClickHouseStatements {
     override suspend fun columns(database: String, name: String): List<ClickHouseColumn> =
         tables["$database.$name"].orEmpty()
 
+    override suspend fun comment(database: String, name: String): String? =
+        comments["$database.$name"] ?: "".takeIf { "$database.$name" in tables }
+
+    /** The flat view statements executed. */
+    val flatViews: List<String> get() = executed.filter { it.startsWith("CREATE OR REPLACE VIEW") }
+
     /** Declares every object of [schema] as the Sink expects it. */
     fun create(schema: ClickHouseSinkSchema) {
         schema.expected.forEach { tables["${schema.database}.${it.name}"] = it.columns ?: emptyList() }
+    }
+
+    private companion object {
+        val VIEW = Regex("^CREATE OR REPLACE VIEW `([^`]+)`\\.`([^`]+)`[\\s\\S]*\\nCOMMENT '([^']*)'$")
     }
 }

@@ -98,6 +98,13 @@ class MongoFailuresTest {
     }
 
     @Test
+    fun `a document beyond the size limit should be told from other defects`() {
+        // Finding R2.2-2: the stream can never be stored, so it is refused rather than left unknown.
+        MongoFailures.isTooLarge(MongoException(BSON_OBJECT_TOO_LARGE, "BSONObj size is invalid")).assert().isTrue()
+        MongoFailures.isTooLarge(MongoException(DUPLICATE_KEY, "E11000 duplicate key error")).assert().isFalse()
+    }
+
+    @Test
     fun `the request id lookup on an unreachable server should throw the retryable error (C1 F2)`() {
         val log = MongoEventLog(unreachable, "wow", "shop", partitions = 1, dispatcher = Dispatchers.IO)
         assertThrows<StorageUnavailableException> {
@@ -163,6 +170,7 @@ class MongoFailuresTest {
         const val SELECTION_TIMEOUT_MS = 200L
         const val SHUTDOWN_IN_PROGRESS = 91
         const val DUPLICATE_KEY = 11000
+        const val BSON_OBJECT_TOO_LARGE = 10334
     }
 }
 

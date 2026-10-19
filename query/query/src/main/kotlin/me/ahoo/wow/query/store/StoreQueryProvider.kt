@@ -43,6 +43,20 @@ interface StoreQueryProvider {
 
     /** The `events` queries of [store]'s logs, or null when they are not queried. */
     fun events(store: Store, options: StoreQueryOptions): EventQueries? = null
+
+    /**
+     * How many queries of [store] run at once when its configuration names no limit (`wow.stores.<name>.query
+     * .max-concurrent`, `wow.query.max-concurrent`; review R3.4-2): the snapshot and `events` queries of every
+     * aggregate type on it share the bound, and one beyond it is `wow.query.busy`. A provider that knows the pool its
+     * queries draw from derives it from the pool, leaving room for the appends when the pool is theirs too;
+     * [DEFAULT_MAX_CONCURRENT] otherwise.
+     */
+    fun maxConcurrent(store: Store): Int = DEFAULT_MAX_CONCURRENT
+
+    companion object {
+        /** The bound of a store's concurrent queries when neither its configuration nor its provider gives one. */
+        const val DEFAULT_MAX_CONCURRENT: Int = 16
+    }
 }
 
 /**
@@ -101,9 +115,12 @@ class QueryIndexReport(
 }
 
 /**
- * The query settings a store's queries are opened with: [indexDdl] (`wow.query.index.ddl`, decision D151), and
- * [eventsReadPreference] (`wow.query.events.mongo-read-preference`), the replica a backend with replicas reads the
- * `events` queries from (MongoDB's `secondaryPreferred`, say), null for its primary.
+ * The query settings a store's queries are opened with: [indexDdl] (`wow.query.index.ddl`, decision D151),
+ * [eventsReadPreference] (`wow.stores.<name>.query.read-preference`, else `wow.query.events.mongo-read-preference`), the
+ * replica a backend with replicas reads the `events` queries from (MongoDB's `secondaryPreferred`, say), null for its
+ * primary, and [snapshotsReadPreference] (`wow.stores.<name>.query.read-preference`), the one it reads the snapshot
+ * queries from (review R3.4-2): a snapshot read from a secondary may be behind the snapshot a command's default wait
+ * waited for, so it is the primary unless the store says otherwise.
  *
  * Fields may be added (decision D216): the host builds it, so the constructor is internal to Wow; a provider's test
  * builds one with [of].
@@ -112,9 +129,11 @@ class QueryIndexReport(
 class StoreQueryOptions @InternalWowApi constructor(
     val indexDdl: QueryIndexDdl = QueryIndexDdl.AUTO,
     val eventsReadPreference: String? = null,
+    val snapshotsReadPreference: String? = null,
 ) {
     override fun toString(): String =
-        "StoreQueryOptions(indexDdl=$indexDdl, eventsReadPreference=$eventsReadPreference)"
+        "StoreQueryOptions(indexDdl=$indexDdl, eventsReadPreference=$eventsReadPreference, " +
+            "snapshotsReadPreference=$snapshotsReadPreference)"
 
     companion object {
         /** The defaults: indexes `auto`, `events` read from the primary. */
@@ -126,5 +145,13 @@ class StoreQueryOptions @InternalWowApi constructor(
         @JvmOverloads
         fun of(indexDdl: QueryIndexDdl = QueryIndexDdl.AUTO, eventsReadPreference: String? = null): StoreQueryOptions =
             StoreQueryOptions(indexDdl, eventsReadPreference)
+
+        /** Options of the given fields, the snapshot queries' read preference among them. */
+        @JvmStatic
+        fun of(
+            indexDdl: QueryIndexDdl,
+            eventsReadPreference: String?,
+            snapshotsReadPreference: String?,
+        ): StoreQueryOptions = StoreQueryOptions(indexDdl, eventsReadPreference, snapshotsReadPreference)
     }
 }

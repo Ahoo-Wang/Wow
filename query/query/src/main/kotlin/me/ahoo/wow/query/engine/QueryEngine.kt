@@ -24,6 +24,7 @@ import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.QueryBackendStorages
+import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.QueryCountCache
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryGateway
@@ -39,6 +40,7 @@ import me.ahoo.wow.query.dataset.DatasetVisibility
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.events.EventQueryGateways
 import me.ahoo.wow.query.events.EventVisibility
+import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.schema.EventsQuerySchemas
@@ -49,6 +51,7 @@ import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.query.state.SnapshotPolicyGateway
+import me.ahoo.wow.query.under
 import me.ahoo.wow.spi.log.EventRecord
 
 /**
@@ -64,7 +67,9 @@ import me.ahoo.wow.spi.log.EventRecord
  *   not queried still has its policies evaluated on its states ([SnapshotPolicyGateway], review R3.3-3), so its state
  *   reads and its events fail closed;
  * - an aggregate the snapshot queries hide is hidden from the events model and the state reads too (reviews A3-11,
- *   R2.3-6).
+ *   R2.3-6);
+ * - every query of the snapshots and the events runs under its store's [QueryBulkhead] (review R3.4-2), whichever entry
+ *   asks, and an events query that names no aggregate is refused where [UnpinnedEvents.REFUSE] says so.
  */
 @InternalWowApi
 class QueryEngine private constructor(
@@ -124,6 +129,8 @@ class QueryEngine private constructor(
         private var eventCounts: QueryCountCache? = null
         private var committed: CommittedStates = CommittedStates.NONE
         private var reading: (AggregateType) -> ((EventRecord) -> EventRecord?) = { { it } }
+        private var bulkheads: (AggregateType, QueryModel) -> QueryBulkhead? = { _, _ -> null }
+        private var unpinned: (AggregateType) -> UnpinnedEvents = { UnpinnedEvents.ALLOW }
 
         /** The contexts the node hosts: every context of the Manifest by default. */
         fun contexts(contexts: Set<String>) = apply { this.contexts = contexts }
@@ -189,6 +196,17 @@ class QueryEngine private constructor(
         /** How each aggregate type's events are read: as its model reads them now (finding A4-16). */
         fun reading(reading: (AggregateType) -> ((EventRecord) -> EventRecord?)) = apply { this.reading = reading }
 
+        /**
+         * The bulkhead of the store each aggregate type's [model] (snapshots or events) is queried on (review R3.4-2),
+         * one instance per store, null for none: the queries of every model on one store share it.
+         */
+        fun bulkheads(bulkheads: (type: AggregateType, model: QueryModel) -> QueryBulkhead?) = apply {
+            this.bulkheads = bulkheads
+        }
+
+        /** Whether each aggregate type's events queries that name no aggregate run ([UnpinnedEvents.ALLOW] by default). */
+        fun unpinnedEvents(unpinned: (AggregateType) -> UnpinnedEvents) = apply { this.unpinned = unpinned }
+
         fun build(): QueryEngine {
             val masks = masks ?: PayloadMasks(manifest, strategies)
             val catalog = catalog()
@@ -211,7 +229,7 @@ class QueryEngine private constructor(
                 val binding = eventBackend(type) ?: return@mapNotNull null
                 EventQueryGateways.create(
                     aggregateType = type,
-                    backend = binding.backend,
+                    backend = binding.backend.under(bulkheads(type, QueryModel.EVENTS)),
                     schemaProvider = catalog.provider(type, QueryModel.EVENTS),
                     filters = filters,
                     policies = gatewayPolicies,
@@ -222,6 +240,7 @@ class QueryEngine private constructor(
                     tenants = tenants,
                     masks = masks,
                     reading = reading(type),
+                    unpinned = unpinned(type),
                 )
             }
             val datasetGateways = datasetGateways(catalog, gatewayPolicies, observer)
@@ -292,7 +311,7 @@ class QueryEngine private constructor(
             return servedSnapshots().map { type ->
                 DefaultQueryGateway(
                     aggregateType = type,
-                    backend = factory.create(type).backend,
+                    backend = factory.create(type).backend.under(bulkheads(type, QueryModel.SNAPSHOT)),
                     schemaProvider = catalog.provider(type, QueryModel.SNAPSHOT),
                     filters = filters,
                     policies = gatewayPolicies,

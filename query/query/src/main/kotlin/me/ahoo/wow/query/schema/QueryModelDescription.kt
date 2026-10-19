@@ -399,6 +399,16 @@ internal fun QueryPathTemplate.logicalPath(): String = segments.mapNotNull {
     }
 }.joinToString(".")
 
+/**
+ * This descriptor with [extra] appended to its constraints and its version computed again, or itself without any: a
+ * rule the gateway adds to its model's, such as [me.ahoo.wow.query.events.UnpinnedEventsPolicy.CONSTRAINT].
+ */
+internal fun QueryModelDescriptor.withConstraints(extra: List<ConstraintDescriptor>): QueryModelDescriptor {
+    if (extra.isEmpty()) return this
+    val described = copy(version = "", constraints = constraints + extra)
+    return described.copy(version = versionOf(described))
+}
+
 /** `sha256:` of the canonical JSON: object members sorted by name, so equal content always has equal versions. */
 private fun versionOf(descriptor: QueryModelDescriptor): String {
     val canonical = StringBuilder().also { QueryJson.mapper.valueToTree<JsonNode>(descriptor).canonical(it) }.toString()

@@ -30,12 +30,14 @@ import me.ahoo.wow.api.query.ISingleQuery
 import me.ahoo.wow.api.query.PagedList
 import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.api.query.TotalMode
+import me.ahoo.wow.query.descriptor.ConstraintDescriptor
 import me.ahoo.wow.query.descriptor.QueryModelDescriptor
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.mask.SchemaMasker
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
 import me.ahoo.wow.query.schema.describe
+import me.ahoo.wow.query.schema.withConstraints
 import me.ahoo.wow.spi.observation.Observation
 import me.ahoo.wow.spi.observation.observe
 import tools.jackson.databind.node.ObjectNode
@@ -102,6 +104,8 @@ interface QueryGateway {
  *
  * Each record a backend returns is masked by the schema's response masks; with [records], it is read by [records]
  * instead (the `events` model reads each event as its aggregate reads it now and masks it by its own schema).
+ * [constraints] are rules its [policies] add to the schema's, which [describe] lists after the schema's own (the
+ * `events` model's [AGGREGATE_REQUIRED][me.ahoo.wow.query.events.UnpinnedEventsPolicy.AGGREGATE_REQUIRED]).
  */
 @InternalWowApi
 class DefaultQueryGateway(
@@ -114,6 +118,7 @@ class DefaultQueryGateway(
     override val entryPolicy: QueryEntryPolicy = QueryEntryPolicy.DEFAULT,
     private val counts: QueryCountCache? = null,
     private val records: QueryRecordReader? = null,
+    private val constraints: List<ConstraintDescriptor> = emptyList(),
 ) : QueryGateway {
     private val admission = QueryAdmission(aggregateType, filters, policies, entryPolicy)
 
@@ -153,6 +158,7 @@ class DefaultQueryGateway(
 
     override suspend fun describe(entry: QueryEntry, defaultListSize: Int?): QueryModelDescriptor =
         schemaProvider.schema().describe(entryPolicy.budget(entryPolicy.admit(entry)), defaultListSize)
+            .withConstraints(constraints)
 
     /**
      * Reads each backend record by [records], else masks it by the schema's response masks (every caller sees masked
