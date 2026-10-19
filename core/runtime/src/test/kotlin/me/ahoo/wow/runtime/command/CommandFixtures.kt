@@ -33,6 +33,7 @@ import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.spi.wait.WaitContext
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -224,6 +225,22 @@ fun stockManifest(): Manifest = Manifest(
             ),
         ),
     ),
+)
+
+/**
+ * [manifest] with its command [from] named [to], the same schema: the contract of a newer version of its service, as
+ * a peer that upgraded first has it.
+ */
+fun renamed(manifest: Manifest, from: String, to: String): Manifest = manifest.copyWith(
+    contexts = manifest.contexts.map { context ->
+        context.copyWith(
+            aggregates = context.aggregates.map { aggregate ->
+                aggregate.copyWith(
+                    commands = aggregate.commands.map { if (it.name == from) it.copyWith(name = to) else it },
+                )
+            },
+        )
+    },
 )
 
 /** [manifest] as a peer's merged Manifest on the class path (decision D139). */
