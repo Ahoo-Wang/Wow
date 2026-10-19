@@ -71,6 +71,7 @@ import me.ahoo.wow.spi.id.GlobalIdGenerator
 import me.ahoo.wow.spi.id.IdGenerators
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.observation.Observer
+import me.ahoo.wow.spi.subscription.FailureClassifier
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory
@@ -358,6 +359,7 @@ class WowAutoConfiguration {
         notifiers: ObjectProvider<ParkedNotifier>,
         observers: ObjectProvider<Observer>,
         callers: ObjectProvider<CommandCaller>,
+        classifiers: ObjectProvider<FailureClassifier>,
     ): ServiceNode {
         checkShutdownTimeout(environment)
         val routing = routing(properties, backends.kind)
@@ -419,6 +421,7 @@ class WowAutoConfiguration {
             parkedNotifier = ParkedNotifier.of(notifiers.orderedStream().toList()),
             observer = observers.getIfUnique { Observer.NONE },
             caller = callers.ifAvailable,
+            failureClassifiers = classifiers.orderedStream().toList(),
         )
     }
 

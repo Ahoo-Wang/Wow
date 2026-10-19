@@ -55,6 +55,18 @@ object WowMetrics {
     const val PARKED_NOTICES: String = "wow.subscription.parked.notices"
 
     /**
+     * Gauge: whether a subscription has paused a partition on a systemic failure (decision D243), 1 while it is, 0 for
+     * a partition of the log it runs; tags group, subscription, partition.
+     */
+    const val PAUSED: String = "wow.subscription.paused"
+
+    /**
+     * Counter: the partitions a subscription paused on a systemic failure (kind `paused`) and resumed (kind `resumed`),
+     * decision D243; tags group, subscription, partition, kind.
+     */
+    const val PAUSED_NOTICES: String = "wow.subscription.paused.notices"
+
+    /**
      * Counter: the messages of a topic this version cannot decode (review A3-14); tags topic, and outcome `parked`
      * (its key names an aggregate, parked there) or `skipped` (passed over).
      */
@@ -117,4 +129,6 @@ object WowMetrics {
     const val TOPIC: String = "topic"
     const val PARKED_OUTCOME: String = "parked"
     const val SKIPPED_OUTCOME: String = "skipped"
+    const val PAUSED_KIND: String = "paused"
+    const val RESUMED_KIND: String = "resumed"
 }
