@@ -170,8 +170,11 @@ class HostHealthTest {
                     ComponentHealth("bank", HealthStatus.DEGRADED, mapOf("failures" to 1, "lastError" to null)),
                     ComponentHealth.of("group", listOf(ComponentHealth("inner", HealthStatus.UP))),
                 ),
+                mapOf("kept" to 1, "gone" to null),
             ),
         )
+        health.details["kept"].assert().isEqualTo(1)
+        health.details.assert().doesNotContainKey("gone")
         health.status.assert().isEqualTo(HealthAutoConfiguration.DEGRADED)
         health.status.code.assert().isEqualTo("DEGRADED")
         @Suppress("UNCHECKED_CAST")

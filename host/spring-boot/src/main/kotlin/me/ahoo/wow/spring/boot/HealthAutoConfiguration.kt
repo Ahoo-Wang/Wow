@@ -67,7 +67,7 @@ class HealthAutoConfiguration {
     @InternalWowApi
     fun wowHealthContributor(health: NodeHealth): HealthContributor = CompositeHealthContributor.fromMap(
         COMPONENTS.associateWith { name ->
-            HealthIndicator { health.health().component(name)?.let(::toHealth) ?: Health.unknown().build() }
+            HealthIndicator { toHealth(health.health().components.first { it.name == name }) }
         },
     )
 
