@@ -281,6 +281,22 @@ class ScheduledCommandsTest {
     }
 
     @Test
+    fun `a schedule of a command type its target does not decide is rejected when set, and stores no timer`(): Unit =
+        runBlocking {
+            // Review X-7: a misspelt cron schedule fails now, not at its first firing.
+            val node = node("node-1", TimedBackends()).also { it.start() }
+            node.send("o-1", PlaceOrder(payWithinMillis = 60_000))
+            val placed = node.streams("o-1")
+            val set = SetSchedule("nightly", ScheduleRule.cron("0 0 3 * * *"), "shop.order.CancelOrdr", "{}")
+            val result = node.send("o-1", set)
+            result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            result.error!!.code.assert().isEqualTo(KernelRejections.UNHANDLED)
+            result.error!!.message.assert().contains("shop.order.CancelOrdr")
+            node.streams("o-1").assert().isEqualTo(placed)
+            node.timer(order("o-1"), "nightly").assert().isNull()
+        }
+
+    @Test
     fun `a node whose clock is ahead fires early, and the target waits for the due time`(): Unit = runBlocking {
         val ahead = Clock.offset(Clock.systemUTC(), java.time.Duration.ofMillis(AHEAD_MILLIS))
         val node = node("node-1", TimedBackends(), clock = ahead).also { it.start() }

@@ -25,9 +25,14 @@ import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
+import me.ahoo.wow.api.result.FunctionInfo
+import me.ahoo.wow.api.result.FunctionKind
+import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.kernel.AggregateModel
+import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.cluster.ClusterCodec
@@ -69,10 +74,15 @@ import kotlin.time.Duration.Companion.seconds
  *    acknowledged by the broker **before** the entry completes, so the checkpoint never passes a rejection whose
  *    receipt is not durable. A crash in between handles the command again from the checkpoint: it is rejected again
  *    and its receipt sent again, which the sender drops by the command id (decision D136).
- * 3. **Technical failures** throw: an aggregate type or command type the context does not know, a contended or unknown
- *    outcome, an executor that is closing, a receipt the broker does not acknowledge. The subscription retries
- *    them, then parks the aggregate in the context's failure ledger under [NAME], at the command's offset
+ * 3. **Technical failures** throw: a contended or unknown outcome, an executor that is closing, a store that is down,
+ *    a receipt the broker does not acknowledge. The subscription retries them, then parks the aggregate in the
+ *    context's failure ledger under [NAME], at the command's offset
  *    ([me.ahoo.wow.spi.ledger.ParkedAggregate.fromPosition]); its later commands wait until it is resumed or skipped.
+ *
+ * An aggregate type or command type the context does not know is the sender's mistake, or a contract the sender has
+ * and this service does not yet (review X-5): it is not this aggregate's failure, and parking it would hold its
+ * later commands for an operator. Such a command is rejected as [FrameworkCodes.UNHANDLED], with its receipt as in 2
+ * ([unhandled]).
  *
  * A command the node refuses as busy (decision D228 ②) is backpressure, not a failure (review R2.1-1): the intake
  * throws a [me.ahoo.wow.runtime.CommandBusyException], which its subscription retries after a backoff without
@@ -118,12 +128,10 @@ class CommandIntake internal constructor(
             ledger.execute(wire)?.let { reply(wire, it, null) }
             return
         }
-        val model = checkNotNull(models[wire.ref.type]) {
-            "Context $context has no aggregate ${wire.ref.type}, which the command ${wire.id} is sent to."
-        }
-        val received = checkNotNull(ClusterCodec.command(model, wire)) {
-            "${wire.ref.type} has no command type ${wire.type}, which the command ${wire.id} is."
-        }
+        val model = models[wire.ref.type]
+            ?: return unhandled(wire, wait, "Context $context has no aggregate ${wire.ref.type}.")
+        val received = ClusterCodec.command(model, wire)
+            ?: return unhandled(wire, wait, "${wire.ref.type} has no command type ${wire.type}.")
         // A creation that names no aggregate takes the id its request created, or a new one (decision D191).
         val command = creations.assign(model, received)
         awaitDue(command)
@@ -146,6 +154,39 @@ class CommandIntake internal constructor(
             )
         }
         replyCommitted(wire, settlement.committed, next)
+    }
+
+    /**
+     * Refuses [wire], of an aggregate type or a command type this context does not know, as
+     * [FrameworkCodes.UNHANDLED] (review X-5): a sender's mistake, or a contract the sender has and this service does
+     * not yet, which no retry here mends. It is the sender's rejection, not a failure of the aggregate it names, so
+     * that aggregate's later commands go on: the node waiting on [wait] is signalled the rejection at the context's
+     * COMMITTED hop, and the receipt goes where [wire] says, as for a decide function's rejection; the sender's saga
+     * takes it in its `@OnRejected` handler, or parks there without one.
+     */
+    private suspend fun unhandled(wire: CommandWire, wait: WaitContext?, message: String) {
+        logger.warn { "Command ${wire.id} (${wire.type}) on ${wire.ref} is refused: $message" }
+        val error = ErrorInfo(FrameworkCodes.UNHANDLED, message)
+        wait?.takeUnless { it.expiredAt(clock()) }?.let { coordinator.signal(it, unhandledResult(wire, it, error)) }
+        reply(wire, error, null)
+    }
+
+    /** The REJECTED result of [wire], refused with [error] before any decide function, at [wait]'s COMMITTED hop. */
+    private fun unhandledResult(wire: CommandWire, wait: WaitContext, error: ErrorInfo): CommandResult {
+        val type = wire.ref.type
+        val hop = wait.remaining.takeWhile { it.stage != Stage.HANDLED }.firstOrNull { it.stage == Stage.COMMITTED }
+            ?: Hop.committed(type.context)
+        return CommandResult(
+            commandId = wire.id,
+            requestId = wire.requestId,
+            correlationId = wire.causation?.correlationId ?: wire.id,
+            ref = wire.ref,
+            hop = hop,
+            function = FunctionInfo(FunctionKind.COMMAND, type.context, type.name, wire.type.substringAfterLast('.')),
+            status = CommandResult.Status.REJECTED,
+            error = error,
+            signalTime = clock(),
+        )
     }
 
     /**
