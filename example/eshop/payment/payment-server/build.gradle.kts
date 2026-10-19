@@ -25,7 +25,8 @@ dependencies {
     // The `kafka` profile: the order stream comes in, the ordering's commands go out, and the receipts of those the
     // ordering rejects come back.
     implementation(project(":kafka"))
-    "wowPeers"(project(":eshop-ordering-server"))
+    // SPIKE D234: no wowPeers; the ordering's contract comes from :eshop-ordering-api's jar, on the runtime class
+    // path through :eshop-payment-domain.
     // The `postgres` profile: the host runs on PostgreSQL when the application gives it a DataSource.
     implementation(project(":postgres"))
     implementation("com.zaxxer:HikariCP")

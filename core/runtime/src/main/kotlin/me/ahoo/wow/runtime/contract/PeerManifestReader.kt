@@ -13,9 +13,11 @@
 
 package me.ahoo.wow.runtime.contract
 
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.PeerManifests
+import me.ahoo.wow.manifest.ServiceInfo
 import tools.jackson.core.JacksonException
 import tools.jackson.databind.json.JsonMapper
 import java.io.IOException
@@ -35,18 +37,35 @@ internal class PeerManifestReader(
 ) {
     fun read(): List<ManifestFragment> {
         val problems = mutableListOf<String>()
-        val peers = classLoader.getResources(PeerManifests.INDEX).toList().flatMap { index ->
+        val manifests = indexed(PeerManifests.INDEX, problems)
+        // SPIKE D234: the contracts the api jars on the class path carry, each a peer of no service yet; a peer
+        // Manifest of wowPeers takes precedence over the contract of the same context (the migration).
+        val declared = manifests.flatMap { peer -> peer.manifest.contexts.map { it.name } }.toSet()
+        val contracts = indexed(CONTRACT_INDEX, problems)
+            .filter { contract -> contract.manifest.contexts.none { it.name in declared } }
+            .map { contract ->
+                val manifest = contract.manifest
+                val service = ServiceInfo(manifest.contexts.joinToString { it.name } + " (contract)")
+                ManifestFragment(
+                    contract.source,
+                    Manifest(manifest.format, service, manifest.contexts, manifest.errors, manifest.defs),
+                )
+            }
+        val peers = manifests + contracts
+        if (problems.isNotEmpty()) {
+            throw ContractException(problems)
+        }
+        return peers.distinctBy { it.manifest }
+    }
+
+    private fun indexed(resource: String, problems: MutableList<String>): List<ManifestFragment> =
+        classLoader.getResources(resource).toList().flatMap { index ->
             val base = index.toString().removeSuffix(INDEX_NAME)
             index.openStream().use { it.readBytes() }.decodeToString().lines()
                 .map { it.trim() }
                 .filter { it.isNotEmpty() && !it.startsWith("#") }
                 .mapNotNull { name -> read(base + name, problems) }
         }
-        if (problems.isNotEmpty()) {
-            throw ContractException(problems)
-        }
-        return peers.distinctBy { it.manifest }
-    }
 
     private fun read(source: String, problems: MutableList<String>): ManifestFragment? {
         val problem = try {
@@ -65,5 +84,8 @@ internal class PeerManifestReader(
 
     private companion object {
         val INDEX_NAME: String = PeerManifests.INDEX.substringAfterLast('/')
+
+        /** SPIKE D234: where an api jar carries its contexts' contracts. */
+        const val CONTRACT_INDEX: String = "META-INF/wow/contract/index"
     }
 }

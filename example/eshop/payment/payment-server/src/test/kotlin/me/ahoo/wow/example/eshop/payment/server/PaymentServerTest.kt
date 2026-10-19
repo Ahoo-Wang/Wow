@@ -83,8 +83,12 @@ class PaymentServerTest {
         node.hostedContexts.assert().containsExactly("eshop-payment")
         context.getBean(Manifest::class.java).contexts.single().aggregates.map { it.name }
             .assert().containsExactly("payment")
-        context.getBean(ContractDirectory::class.java).serviceOf("eshop-ordering")
-            .assert().isEqualTo("eshop-ordering-service")
+        // SPIKE D234: the ordering's contract is read from the ordering api's jar, not from a wowPeers Manifest; the
+        // payment's own contract, in the payment api's jar, is dropped as the node's own context.
+        val contracts = context.getBean(ContractDirectory::class.java)
+        contracts.contextOf("eshop-ordering").assert().isNotNull()
+        contracts.peers.map { it.source }.single()
+            .assert().contains("eshop-ordering-api").endsWith("META-INF/wow/contract/eshop-ordering.json")
     }
 
     @Test
