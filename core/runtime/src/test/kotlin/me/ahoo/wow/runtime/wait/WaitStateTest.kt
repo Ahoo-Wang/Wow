@@ -251,7 +251,7 @@ class WaitStateTest {
     @Test
     fun `a signal is taken once per hop, command and function`() {
         val registry = WaitRegistry()
-        val waiting = registry.register("w-1", listOf(saga, committed), "root")
+        val waiting = checkNotNull(registry.register("w-1", listOf(saga, committed), "root"))
         val sagaDone = result("root", saga, sagaFunction, derived = listOf("d-1", "d-2"))
         registry.signal(WaitSignal(waitId = "w-1", result = sagaDone)).assert().isTrue()
         registry.signal(WaitSignal(waitId = "w-1", result = sagaDone)).assert().isFalse()

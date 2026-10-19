@@ -20,18 +20,21 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitSignal
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * The waits started on this node (design 04 §6.3): a wait is registered before its command is executed, takes the
  * signals of its hops as they arrive, and is removed when its caller has its answer or gives up. A signal for a wait
- * this node does not hold (ended, timed out, or never here) is dropped.
+ * this node does not hold (ended, timed out, or never here) is dropped. It holds at most the bound each registration
+ * names (review R3.4-3): a registration beyond it is refused.
  */
 @InternalWowApi
 class WaitRegistry {
     private val waits = ConcurrentHashMap<String, Waiting>()
+    private val registered = AtomicInteger()
 
     /** The waits registered now. */
-    val size: Int get() = waits.size
+    val size: Int get() = registered.get()
 
     /**
      * Applies [signal] to its wait.
@@ -41,14 +44,30 @@ class WaitRegistry {
      */
     fun signal(signal: WaitSignal): Boolean = waits[signal.waitId]?.offer(signal.result) ?: false
 
-    internal fun register(waitId: String, hops: List<Hop>, rootCommandId: String): Waiting {
+    /** Registers the wait [waitId] unless [max] waits are registered already: null then. */
+    internal fun register(waitId: String, hops: List<Hop>, rootCommandId: String, max: Int = Int.MAX_VALUE): Waiting? {
+        while (true) {
+            val count = registered.get()
+            if (count >= max) {
+                return null
+            }
+            if (registered.compareAndSet(count, count + 1)) {
+                break
+            }
+        }
         val waiting = Waiting(WaitState(hops, rootCommandId))
-        check(waits.putIfAbsent(waitId, waiting) == null) { "Wait $waitId is already registered." }
+        if (waits.putIfAbsent(waitId, waiting) != null) {
+            registered.decrementAndGet()
+            error("Wait $waitId is already registered.")
+        }
         return waiting
     }
 
     internal fun remove(waitId: String) {
-        waits.remove(waitId)?.close()
+        waits.remove(waitId)?.let { waiting ->
+            registered.decrementAndGet()
+            waiting.close()
+        }
     }
 }
 
