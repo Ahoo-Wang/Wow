@@ -229,6 +229,7 @@ public final class me/ahoo/wow/spring/boot/QueryProperties {
 	public final fun getCountCache ()Lme/ahoo/wow/spring/boot/QueryProperties$CountCache;
 	public final fun getDataset ()Lme/ahoo/wow/spring/boot/QueryProperties$Dataset;
 	public final fun getEnabled ()Z
+	public final fun getEvents ()Lme/ahoo/wow/spring/boot/QueryProperties$Events;
 	public final fun getHttp ()Lme/ahoo/wow/spring/boot/QueryProperties$Http;
 	public final fun getInProcessTimeout ()Ljava/time/Duration;
 	public final fun getIndex ()Lme/ahoo/wow/spring/boot/QueryProperties$Index;
@@ -240,6 +241,7 @@ public final class me/ahoo/wow/spring/boot/QueryProperties {
 	public final fun setCountCache (Lme/ahoo/wow/spring/boot/QueryProperties$CountCache;)V
 	public final fun setDataset (Lme/ahoo/wow/spring/boot/QueryProperties$Dataset;)V
 	public final fun setEnabled (Z)V
+	public final fun setEvents (Lme/ahoo/wow/spring/boot/QueryProperties$Events;)V
 	public final fun setHttp (Lme/ahoo/wow/spring/boot/QueryProperties$Http;)V
 	public final fun setInProcessTimeout (Ljava/time/Duration;)V
 	public final fun setIndex (Lme/ahoo/wow/spring/boot/QueryProperties$Index;)V
@@ -280,6 +282,12 @@ public final class me/ahoo/wow/spring/boot/QueryProperties$Dataset {
 	public fun <init> ()V
 	public final fun getConfigDirectory ()Ljava/lang/String;
 	public final fun setConfigDirectory (Ljava/lang/String;)V
+}
+
+public final class me/ahoo/wow/spring/boot/QueryProperties$Events {
+	public fun <init> ()V
+	public final fun getMongoReadPreference ()Ljava/lang/String;
+	public final fun setMongoReadPreference (Ljava/lang/String;)V
 }
 
 public final class me/ahoo/wow/spring/boot/QueryProperties$Http {

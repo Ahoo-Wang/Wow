@@ -13,13 +13,19 @@
 
 package me.ahoo.wow.spring.boot
 
+import com.mongodb.ReadPreference
+import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.mongo.query.MongoEventQueryStorage
 import me.ahoo.wow.mongo.query.MongoQueryIndexes
 import me.ahoo.wow.mongo.query.MongoQueryOptions
 import me.ahoo.wow.mongo.query.MongoSnapshotQueryStorage
+import me.ahoo.wow.postgres.query.PostgresEventQueryStorage
 import me.ahoo.wow.postgres.query.PostgresQueryIndexes
 import me.ahoo.wow.postgres.query.PostgresQueryOptions
 import me.ahoo.wow.postgres.query.PostgresSnapshotQueryStorage
 import me.ahoo.wow.postgres.snapshot.PostgresSnapshotStore
+import me.ahoo.wow.query.QueryBackend
+import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.index.QueryIndexDdl
 import java.util.concurrent.ConcurrentHashMap
@@ -78,4 +84,33 @@ internal object MongoQueries {
 internal object MemoryQueries {
     fun open(store: HostStore): SnapshotQueryBackend? =
         (store as MemoryStore).queries?.let { SnapshotQueryBackend(factory = it) }
+}
+
+/**
+ * The `events` query backends of the log stores (decision D235), one per aggregate type, by the store its log is on
+ * (decision D177): PostgreSQL's and MongoDB's read the log tables and collections in place; any other log (in memory,
+ * or the application's own) is scanned in memory ([me.ahoo.wow.query.memory.InMemoryEventQueryStorage.of]). Each
+ * storage is opened once per store and context, and loaded only when its module is on the classpath.
+ */
+internal object EventQueryBackends {
+    fun postgres(store: HostStore): (AggregateType) -> QueryBackendBinding<QueryBackend> {
+        val postgres = store as PostgresStore
+        val storages = ConcurrentHashMap<String, PostgresEventQueryStorage>()
+        return { type ->
+            storages.computeIfAbsent(type.context) {
+                PostgresEventQueryStorage(postgres.dataSource, it)
+            }.create(type)
+        }
+    }
+
+    fun mongo(store: HostStore, readPreference: String?): (AggregateType) -> QueryBackendBinding<QueryBackend> {
+        val mongo = store as MongoStore
+        val preference = readPreference?.let(ReadPreference::valueOf)
+        val storages = ConcurrentHashMap<String, MongoEventQueryStorage>()
+        return { type ->
+            storages.computeIfAbsent(type.context) {
+                MongoEventQueryStorage(mongo.client, mongo.database, it, readPreference = preference)
+            }.create(type)
+        }
+    }
 }
