@@ -407,6 +407,7 @@ class WowAutoConfiguration {
                 maxWaitTimeout = properties.wait.maxTimeout.toKotlinDuration(),
                 maxWaitHops = properties.wait.maxHops,
                 unknownWaitContexts = properties.wait.unknownContexts,
+                maxRegisteredWaits = properties.wait.maxRegistered,
                 subscription = properties.subscription.options(properties.subscriptions),
                 appendQueue = properties.log.appendQueue.options(backends.appendQueue),
                 laneCapacity = properties.executor.laneCapacity,

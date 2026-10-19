@@ -18,6 +18,7 @@ import kotlinx.coroutines.test.runTest
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.clickhouse.sink.SinkFixtures.ORDER
 import me.ahoo.wow.clickhouse.sink.SinkFixtures.recordOf
+import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.tck.containers.WowContainers
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
@@ -157,6 +158,33 @@ class ClickHouseSinkIntegrationTest {
         val sink = sinks(ClickHouseSinkOptions(database = database, ddl = DdlMode.VALIDATE)).sinkOf("shop", "order")
         val error = runCatching { sink.write(listOf(recordOf())) }.exceptionOrNull()
         error?.message.assert().contains("shop_order_state_events does not exist")
+    }
+
+    @Test
+    fun `writers of two state schemas should keep the newer flat view, its lineage in its comment`(): Unit = runTest {
+        // Finding X-15: during a rolling upgrade the old and the new instances replaced the view in turn.
+        val newer = Manifest(
+            contexts = SinkFixtures.MANIFEST.contexts,
+            defs = mapOf(
+                "OrderState" to SinkFixtures.ORDER_STATE_SCHEMA + (
+                    "properties" to (SinkFixtures.ORDER_STATE_SCHEMA["properties"] as Map<*, *>) +
+                        ("weight" to mapOf("type" to "number"))
+                    ),
+            ),
+        )
+        val old = sinks().sinkOf("shop", "order")
+        old.write(listOf(recordOf(version = 1)))
+        val new = ClickHouseSinks(client, newer, ClickHouseSinkOptions(database = database)).sinkOf("shop", "order")
+        new.write(listOf(recordOf(version = 2)))
+        // An old instance restarts.
+        sinks().sinkOf("shop", "order").write(listOf(recordOf(version = 3)))
+
+        val statements = ClientStatements(client)
+        statements.columns(database, "shop_order_state_flat").map { it.name }.assert().contains("weight")
+        FlatLineage.of(statements.comment(database, "shop_order_state_flat")).fingerprints
+            .assert().containsExactly(old.schema.flatFingerprint, new.schema.flatFingerprint)
+        statements.comment(database, "absent").assert().isNull()
+        count("shop_order_state_events").assert().isEqualTo(3)
     }
 
     private fun count(table: String): Long = row("SELECT count() AS n FROM $database.$table").getLong("n")

@@ -60,6 +60,7 @@ object FrameworkErrors {
     const val QUERY_INVALID: String = "wow.query.invalid"
     const val QUERY_FAILED: String = "wow.query.failed"
     const val QUERY_TIMEOUT: String = "wow.query.timeout"
+    const val QUERY_BUSY: String = "wow.query.busy"
     const val CALL_COMMAND_FORBIDDEN: String = "wow.call.command-forbidden"
 
     /** The status of a domain rejection, a code the domain chose, unless the host configures another for the code. */
@@ -144,6 +145,11 @@ object FrameworkErrors {
             QUERY_TIMEOUT,
             503,
             "The query ran longer than its budget allows; narrow it, or retry later.",
+        ),
+        ErrorManifest(
+            QUERY_BUSY,
+            429,
+            "The query was not run: its store has as many queries running as it allows; retry later.",
         ),
         ErrorManifest(
             CALL_COMMAND_FORBIDDEN,

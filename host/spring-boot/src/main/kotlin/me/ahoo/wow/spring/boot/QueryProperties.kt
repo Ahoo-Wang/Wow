@@ -16,8 +16,10 @@ package me.ahoo.wow.spring.boot
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.query.AbacQueryOptions
 import me.ahoo.wow.query.QueryBudget
+import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.QueryCountCacheOptions
 import me.ahoo.wow.query.QueryEntryPolicy
+import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.query.store.StoreQueryOptions
@@ -53,7 +55,19 @@ import kotlin.time.toKotlinDuration
  *   local runs, demos and tests, not for production.
  * - `wow.query.events.*` (D235): the `events` model, served from each aggregate's log store:
  *   `mongo-read-preference` (none, the primary), the MongoDB read preference of its queries (`secondaryPreferred`,
- *   say), so a free filter scans a secondary rather than the primary the log appends to.
+ *   say), so a free filter scans a secondary rather than the primary the log appends to;
+ *   `wow.stores.<name>.query.read-preference` takes its place for one store, and sets that of its snapshot queries
+ *   too. `unpinned` (`allow`, or `refuse`; review R3.4-2): whether an events query that names no `aggregateId` runs,
+ *   over which `wow.stores.<name>.query.events.unpinned` and `wow.aggregates.[<context>.<aggregate>].query.events
+ *   .unpinned` decide for one store or aggregate type; refused, it is `wow.query.invalid` (`STORAGE_UNSUPPORTED` on
+ *   `aggregateId`), and the model's descriptor lists the constraint `AGGREGATE_REQUIRED`.
+ * - `wow.query.max-concurrent` (none: each store's provider derives one from its pool, PostgreSQL a quarter of a pool
+ *   the appends share, at least 2, or all of a `query-data-source` of its own, 16 otherwise; review R3.4-2): how many
+ *   snapshot and `events` queries each store runs at once, whichever entry asks, beyond which a query is
+ *   `wow.query.busy` (429, with `Retry-After`); `wow.stores.<name>.query.max-concurrent` takes its place for one store;
+ *   `0` for no bound. A query beyond the bound waits in a FIFO queue (decision D247) at most `wow.query.max-wait`
+ *   (200ms) for a permit, and is refused when the wait runs out or when `wow.query.max-queued` (4 per permit) queries
+ *   wait already; `wow.stores.<name>.query.max-wait` and `.max-queued` take their place for one store.
  */
 @ConfigurationProperties(prefix = QueryProperties.PREFIX)
 class QueryProperties {
@@ -69,6 +83,9 @@ class QueryProperties {
     var countCache: CountCache = CountCache()
     var memory: Memory = Memory()
     var events: Events = Events()
+    var maxConcurrent: Int? = null
+    var maxWait: Duration = QueryBulkhead.DEFAULT_MAX_WAIT.toJavaDuration()
+    var maxQueued: Int? = null
 
     /** The entry policy these settings give every gateway. */
     fun entryPolicy(): QueryEntryPolicy = QueryEntryPolicy(
@@ -140,8 +157,14 @@ class QueryProperties {
         fun options(): QueryCountCacheOptions = QueryCountCacheOptions(maxEntries, ttl.toKotlinDuration())
     }
 
-    /** The settings each store's queries are opened with ([me.ahoo.wow.query.store.StoreQueryProvider]). */
-    internal fun storeQueryOptions(): StoreQueryOptions = StoreQueryOptions(index.ddl, events.mongoReadPreference)
+    /**
+     * The settings the queries of a store whose own settings are [store] are opened with
+     * ([me.ahoo.wow.query.store.StoreQueryProvider]): its read preference over `events.mongo-read-preference`.
+     */
+    internal fun storeQueryOptions(store: WowProperties.Store? = null): StoreQueryOptions {
+        val preference = store?.query?.readPreference?.takeIf { it.isNotBlank() }
+        return StoreQueryOptions(index.ddl, preference ?: events.mongoReadPreference, preference)
+    }
 
     class Memory {
         var enabled: Boolean = false
@@ -149,6 +172,7 @@ class QueryProperties {
 
     class Events {
         var mongoReadPreference: String? = null
+        var unpinned: UnpinnedEvents = UnpinnedEvents.ALLOW
     }
 
     class Dataset {

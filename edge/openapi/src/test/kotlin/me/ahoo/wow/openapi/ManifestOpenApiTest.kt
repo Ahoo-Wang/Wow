@@ -327,7 +327,9 @@ class ManifestOpenApiTest {
         @Suppress("UNCHECKED_CAST")
         ((schema(responses(events)["200"]) as Map<String, Any?>)["anyOf"] as List<Any?>).assert().hasSize(6)
         paths().containsKey("/shop/cart/custom/query").assert().isFalse()
-        responses(events).keys.assert().containsExactly("200", "400", "401", "403", "404", "406", "415", "500", "503")
+        // 429 is the store's query bulkhead (review R3.4-2), `wow.query.busy`.
+        responses(events).keys.assert()
+            .containsExactly("200", "400", "401", "403", "404", "406", "415", "429", "500", "503")
     }
 
     @Test
@@ -342,6 +344,8 @@ class ManifestOpenApiTest {
         responses(operation("get", "/wow/id/global")).keys.assert().containsExactly("200", "401")
         responses(operation("post", "/wow/dataset/{context}/{dataset}/query"))["404"]
             .assert().isEqualTo(ref("responses", "wow.dataset-query.404"))
+        // A dataset backend has no query bulkhead: its queries are never `wow.query.busy`.
+        responses(operation("post", "/wow/dataset/{context}/{dataset}/query")).containsKey("429").assert().isFalse()
         val none = ManifestOpenApi.write(
             MANIFEST,
             OpenApiOptions(
