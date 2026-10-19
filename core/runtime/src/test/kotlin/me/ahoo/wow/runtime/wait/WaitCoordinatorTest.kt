@@ -244,6 +244,31 @@ class WaitCoordinatorTest {
     }
 
     @Test
+    fun `a wait beyond the node's bound is refused busy before its command runs (R3-4-3)`(): Unit = runBlocking {
+        started()
+        val gate = CompletableDeferred<Unit>().also { snapshotGate = it }
+        val capped = coordinator(WaitOptions(origin, maxRegistered = 1))
+        val first = place()
+        val held = async { capped.execute(order, first) }
+        eventually { registry.size == 1 }
+        val second = place()
+        val refused = capped.execute(order, second)
+        refused.status.assert().isEqualTo(CommandResult.Status.FAILED)
+        refused.error!!.code.assert().isEqualTo(ResultCodes.BUSY)
+        refused.hop.assert().isEqualTo(Hop.accepted("shop"))
+        log.findByRequestId("t", second.requestId).assert().isNull()
+        // A COMMITTED wait is registered too, and the stream refuses it alike.
+        capped.stream(order, place(wait = WaitPlan.COMMITTED)).toList().single().error!!.code
+            .assert().isEqualTo(ResultCodes.BUSY)
+        gate.complete(Unit)
+        withTimeout(5.seconds) { held.await() }.hop.assert().isEqualTo(Hop.snapshot("shop"))
+        registry.size.assert().isEqualTo(0)
+        capped.execute(order, second).status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+        assertThrows<IllegalArgumentException> { WaitOptions(origin, maxRegistered = 0) }
+        WaitOptions(origin).maxRegistered.assert().isEqualTo(WaitOptions.DEFAULT_MAX_REGISTERED)
+    }
+
+    @Test
     fun `a COMMITTED wait answers once the events are appended, and writes no wait context`(): Unit = runBlocking {
         started()
         snapshotGate = CompletableDeferred()

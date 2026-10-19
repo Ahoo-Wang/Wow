@@ -13,22 +13,37 @@
 
 package me.ahoo.wow.query.engine
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.query.AggregateIdFilter
+import me.ahoo.wow.api.query.CountQuery
+import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
+import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.manifest.AggregateManifest
 import me.ahoo.wow.manifest.ContextManifest
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryManifest
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.query.AbacQueryOptions
+import me.ahoo.wow.query.QueryBulkhead
 import me.ahoo.wow.query.QueryCaller
+import me.ahoo.wow.query.QueryEntry
+import me.ahoo.wow.query.QueryError
 import me.ahoo.wow.query.QueryPolicy
+import me.ahoo.wow.query.events.UnpinnedEvents
+import me.ahoo.wow.query.events.UnpinnedEventsPolicy
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
@@ -131,6 +146,65 @@ class QueryEngineTest {
             engine.events.map { it.aggregateType }.assert().containsExactly(cart)
             engine.catalog.assert().isNotNull()
         }
+
+    @Test
+    fun `the snapshot and events queries of one store should share its bulkhead, whichever model asks`(): Unit =
+        runBlocking {
+            val bulkhead = QueryBulkhead("main", 1)
+            val events = InMemoryEventQueryStorage({ emptyList() })
+            val engine = QueryEngine.Builder(manifest)
+                .snapshots(InMemoryQueryStorage())
+                .events { type -> events.create(type) }
+                .bulkheads { _, model -> bulkhead.takeIf { model == QueryModel.SNAPSHOT || model == QueryModel.EVENTS } }
+                .build()
+            val caller = QueryCaller(Caller(tenantId = "acme"))
+            val snapshots = engine.snapshots.first { it.aggregateType == order }
+            val orderEvents = engine.events.first { it.aggregateType == order }
+            val gate = CompletableDeferred<Unit>()
+            val entered = CompletableDeferred<Unit>()
+            val held = async(Dispatchers.Default) {
+                bulkhead.run {
+                    entered.complete(Unit)
+                    gate.await()
+                }
+            }
+            entered.await()
+            listOf(
+                runCatching { snapshots.list(ListQuery(MatchAllFilter, limit = 10), caller).toList() },
+                runCatching { orderEvents.count(CountQuery(AggregateIdFilter("o-1")), caller) },
+            ).forEach { refused ->
+                (refused.exceptionOrNull() as QueryError).errorCode.assert().isEqualTo(FrameworkErrors.QUERY_BUSY)
+            }
+            gate.complete(Unit)
+            held.await()
+            snapshots.list(ListQuery(MatchAllFilter, limit = 10), caller).toList().assert().isEmpty()
+            orderEvents.count(CountQuery(AggregateIdFilter("o-1")), caller).count.assert().isZero()
+        }
+
+    @Test
+    fun `an events query that names no aggregate should be refused where the type refuses it`(): Unit = runBlocking {
+        val events = InMemoryEventQueryStorage({ emptyList() })
+        val engine = builder()
+            .events { type -> events.create(type) }
+            .unpinnedEvents { type -> if (type == cart) UnpinnedEvents.REFUSE else UnpinnedEvents.ALLOW }
+            .build()
+        val caller = QueryCaller(Caller(tenantId = "acme"))
+        val carts = engine.events.first { it.aggregateType == cart }
+        val orders = engine.events.first { it.aggregateType == order }
+        val refused = runCatching { carts.list(ListQuery(MatchAllFilter, limit = 10), caller).toList() }
+            .exceptionOrNull() as QueryError
+        refused.errorCode.assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+        refused.bindingErrors.single().code.assert().isEqualTo(QueryErrorCodes.STORAGE_UNSUPPORTED)
+        refused.bindingErrors.single().name.assert().isEqualTo("aggregateId")
+        carts.list(ListQuery(AggregateIdFilter("c-1"), limit = 10), caller).toList().assert().isEmpty()
+        orders.list(ListQuery(MatchAllFilter, limit = 10), caller).toList().assert().isEmpty()
+        val described = carts.describe(QueryEntry.HTTP)
+        described.constraints.single { it.type == UnpinnedEventsPolicy.AGGREGATE_REQUIRED }
+            .fields.assert().containsExactly("aggregateId")
+        val allowed = orders.describe(QueryEntry.HTTP)
+        allowed.constraints.none { it.type == UnpinnedEventsPolicy.AGGREGATE_REQUIRED }.assert().isTrue()
+        described.version.assert().isNotEqualTo(allowed.version)
+    }
 
     @Test
     fun `the facade with no policy reads every state as it is`(): Unit = runBlocking {
