@@ -18,7 +18,6 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryBackendFactory
@@ -27,14 +26,9 @@ import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.index.QueryIndexDeclaration
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
-import me.ahoo.wow.query.schema.ManifestQuerySchemaSource
-import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
-import me.ahoo.wow.query.schema.QuerySchemaContext
-import me.ahoo.wow.query.schema.QuerySchemaDeclaration
-import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.store.EventQueries
 import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.query.store.SnapshotQueries
@@ -54,44 +48,6 @@ import java.util.concurrent.ConcurrentHashMap
 internal class HostQueryTenants(private val tenants: TenantPolicy) : QueryTenantPolicy {
     override fun tenantOf(type: AggregateType, caller: QueryCaller): String? =
         tenants.fixedTenant(type) ?: caller.tenantId
-}
-
-/**
- * The Manifest's state schemas as the query schema source ([ManifestQuerySchemaSource], decision D37), for each
- * aggregate whose state schema the Manifest carries in `$defs`; the Gradle plugin's manifest-tools writes them
- * (decision D73). An aggregate without one, from a module built with the compiler alone, is queried by its system
- * fields only, and a warning says so once.
- */
-internal class ManifestStateSchemas(
-    private val manifest: Manifest,
-    strategies: MaskStrategyResolver = MaskStrategyResolver.NONE,
-) : QuerySchemaSource {
-    private val source = ManifestQuerySchemaSource(manifest, strategies)
-    private val warned = ConcurrentHashMap.newKeySet<AggregateType>()
-
-    override val priority: Int = source.priority
-
-    override suspend fun load(context: QuerySchemaContext): List<QuerySchemaDeclaration> {
-        if (declares(context.aggregateType)) return source.load(context)
-        if (warned.add(context.aggregateType)) {
-            logger.warn {
-                "The Manifest carries no state schema of ${context.aggregateType}: only its system fields are " +
-                    "queried. Build its module with the Wow Gradle plugin, which writes the schemas."
-            }
-        }
-        return emptyList()
-    }
-
-    /** Whether the Manifest carries the state schema of [type]. */
-    fun declares(type: AggregateType): Boolean {
-        val aggregate = manifest.contexts.firstOrNull { it.name == type.context }
-            ?.aggregates?.firstOrNull { it.name == type.name } ?: return false
-        return Manifest.schemaKey(aggregate.state.schema) in manifest.defs
-    }
-
-    private companion object {
-        val logger = KotlinLogging.logger {}
-    }
 }
 
 /**
@@ -206,26 +162,6 @@ class EventQueryBackend(private val binding: (AggregateType) -> QueryBackendBind
         val NONE: EventQueryBackend = EventQueryBackend { null }
     }
 }
-
-/**
- * The aggregate types of [manifest] in [contexts] whose snapshots are queried: the Manifest lists their
- * [snapshot model][QueryRoutes.SNAPSHOT] (decision D128).
- */
-internal fun snapshotTypes(manifest: Manifest, contexts: Set<String>): List<AggregateType> =
-    queryTypes(manifest, contexts, QueryRoutes.SNAPSHOT)
-
-/** Every aggregate type of [manifest] in [contexts]. */
-internal fun hostedTypes(manifest: Manifest, contexts: Set<String>): List<AggregateType> =
-    manifest.contexts.filter { it.name in contexts }.flatMap { context ->
-        context.aggregates.map { AggregateType(context.name, it.name) }
-    }
-
-/** The aggregate types of [manifest] in [contexts] whose [model] the Manifest lists. */
-internal fun queryTypes(manifest: Manifest, contexts: Set<String>, model: String): List<AggregateType> =
-    manifest.contexts.filter { it.name in contexts }.flatMap { context ->
-        context.aggregates.filter { aggregate -> aggregate.queries.any { it.model == model } }
-            .map { AggregateType(context.name, it.name) }
-    }
 
 /**
  * Manages the indexes of every aggregate type in [types] at startup (decision D151), after the backends' schemas

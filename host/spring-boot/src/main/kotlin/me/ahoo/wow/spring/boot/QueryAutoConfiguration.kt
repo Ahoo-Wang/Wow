@@ -18,17 +18,13 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.AbacQueryPolicy
 import me.ahoo.wow.query.DefaultQueryGateway
 import me.ahoo.wow.query.QueryBackendFactory
-import me.ahoo.wow.query.QueryBackendStorages
 import me.ahoo.wow.query.QueryCountCache
 import me.ahoo.wow.query.QueryEntryPolicy
-import me.ahoo.wow.query.QueryGateway
 import me.ahoo.wow.query.QueryLogObserver
 import me.ahoo.wow.query.QueryObserver
-import me.ahoo.wow.query.QueryOwnership
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.ScopeQueryPolicy
@@ -36,14 +32,13 @@ import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.DatasetVisibility
 import me.ahoo.wow.query.dataset.QueryDatasets
+import me.ahoo.wow.query.engine.ManifestTypes
+import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.events.EventQueryGateways
-import me.ahoo.wow.query.events.EventVisibility
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.schema.EventsQuerySchemas
 import me.ahoo.wow.query.schema.MaskStrategyResolver
-import me.ahoo.wow.query.schema.QueryModel
-import me.ahoo.wow.query.schema.QueryModelCompiler
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.state.CommittedState
@@ -71,7 +66,7 @@ import java.nio.file.Path
  *   snapshots are on a store of that type (decision D177); the snapshots in memory (or of the application's own
  *   [me.ahoo.wow.runtime.node.BackendFactory]) are not queried without one, and their routes are not served;
  * - a [QuerySchemaCatalog] compiling each aggregate's snapshot model from the Manifest
- *   ([ManifestStateSchemas], with the application's [MaskStrategyResolver] and [QuerySchemaSource] beans) under
+ *   ([me.ahoo.wow.query.engine.ManifestStateSchemas], with the application's [MaskStrategyResolver] and [QuerySchemaSource] beans) under
  *   `wow.query.sensitivity`;
  * - a gateway per aggregate type the node hosts: [DefaultQueryGateway] for its snapshots, under the
  *   [ScopeQueryPolicy] (tenant by [HostQueryTenants], D116), the [AbacQueryPolicy] (`wow.query.abac`) and the
@@ -127,7 +122,7 @@ class QueryAutoConfiguration {
                 val store = backends.stores.getValue(name)
                 providers.queriesOf(store.type)?.snapshots(store, options)?.let(SnapshotQueryBackend::of)
             }
-            val types = snapshotTypes(manifest, node.contexts.keys)
+            val types = ManifestTypes.snapshots(manifest, node.contexts.keys)
             val backend = SnapshotQueryBackend.routing(types) { type ->
                 backends.snapshotStoreOf(type)?.let { byStore[it.name] }
             }
@@ -167,7 +162,7 @@ class QueryAutoConfiguration {
                 providers.queriesOf(store.type)?.events(store, options)
             }
             val backend = EventQueryBackend { type -> layout?.let { byStore[it.logStoreOf(type)] }?.binding(type) }
-            val unserved = queryTypes(manifest, node.contexts.keys, QueryRoutes.EVENTS)
+            val unserved = ManifestTypes.events(manifest, node.contexts.keys)
                 .filter { backend.binding(it) == null }
             if (unserved.isNotEmpty()) {
                 logger.info {
@@ -191,87 +186,112 @@ class QueryAutoConfiguration {
                 beanFactory.beanClassLoader ?: QueryAutoConfiguration::class.java.classLoader,
             )
 
+        /**
+         * The node's read side (decision D237): the [QueryEngine] of the Manifest over the snapshot, events and dataset
+         * backends, the application's schema sources, mask strategies, policies, filters and observers, its count
+         * caches and the node's committed states, under `wow.query.*` (ABAC, sensitivity, entry policy). The engine
+         * holds every security rule of the read side; this only maps the configuration onto it.
+         */
         @Bean
         @ConditionalOnMissingBean
-        @Suppress("LongParameterList") // One parameter per part of the Catalog, each a bean the application may give.
+        @Suppress("LongParameterList") // One parameter per input of the engine, each a bean the application may give.
         @InternalWowApi
-        fun wowQuerySchemaCatalog(
+        fun wowQueryEngine(
             manifest: Manifest,
             node: ServiceNode,
             properties: QueryProperties,
             backend: SnapshotQueryBackend,
             events: EventQueryBackend,
             datasets: QueryDatasets,
-            datasetBackends: ObjectProvider<DatasetQueryBackendFactory>,
-            strategies: ObjectProvider<MaskStrategyResolver>,
-            sources: ObjectProvider<QuerySchemaSource>,
-        ): QuerySchemaCatalog {
-            val resolver = strategies.getIfAvailable { MaskStrategyResolver.NONE }
-            val manifestSource = ManifestStateSchemas(manifest, resolver)
-            val contexts = node.contexts.keys
-            return QuerySchemaCatalog(
-                storages = QueryBackendStorages(
-                    backend.factory,
-                    datasetBackends.ifAvailable,
-                    datasets,
-                    events::binding
-                ),
-                compiler = QueryModelCompiler.of(
-                    listOf(manifestSource) + sources.orderedStream().toList(),
-                    properties.sensitivity.policy(),
-                    datasets,
-                    EventsQuerySchemas(manifest, resolver),
-                ),
-                aggregates = (
-                    snapshotTypes(manifest, contexts).filter(backend::serves) +
-                        queryTypes(manifest, contexts, QueryRoutes.EVENTS)
-                    ).distinct(),
-                datasets = datasets,
-            )
-        }
-
-        /**
-         * A gateway per dataset (decision D145) over the [DatasetQueryBackendFactory] bean (ClickHouse's, say), under
-         * the snapshots' policies, filters, observers and entry policy; it follows the [QueryDatasets] as datasets join,
-         * change or leave, and a dataset that leaves is evicted from the backend. Without a dataset backend, none.
-         */
-        @Bean
-        @ConditionalOnMissingBean
-        @Suppress("LongParameterList") // One parameter per part of a gateway, each a bean the application may give.
-        @InternalWowApi
-        fun wowDatasetQueryGateways(
-            manifest: Manifest,
-            properties: QueryProperties,
-            datasets: QueryDatasets,
-            catalog: QuerySchemaCatalog,
             entryPolicy: QueryEntryPolicy,
             tenants: QueryTenantPolicy,
+            beans: QueryBeans,
+            counts: ObjectProvider<QueryCountCache>,
+            reads: ObjectProvider<StateReads>,
+            masks: PayloadMasks,
+        ): QueryEngine = QueryEngine.Builder(manifest)
+            .contexts(node.contexts.keys)
+            .snapshots(backend.factory, backend::serves)
+            .events(events::binding)
+            .datasets(datasets, beans.datasetBackends.ifAvailable)
+            .datasetVisibility(beans.datasetVisibility.ifAvailable)
+            .schemaSources(beans.sources.orderedStream().toList())
+            .maskStrategies(beans.strategies.getIfAvailable { MaskStrategyResolver.NONE })
+            .sensitivity(properties.sensitivity.policy())
+            .masks(masks)
+            .tenants(tenants)
+            .abac(properties.abac.options())
+            .policies(beans.policies.orderedStream().toList())
+            .filters(beans.filters.orderedStream().toList())
+            .observers(beans.observers.orderedStream().toList())
+            .entryPolicy(entryPolicy)
+            .counts(
+                counts.ifAvailable,
+                // The events' own cache (a cache is keyed by type, not by model), valid while the type's snapshot
+                // write checkpoint holds, which moves as the snapshots follow the log.
+                counts.ifAvailable?.let {
+                    QueryCountCache(
+                        node::snapshotCheckpointOf,
+                        properties.countCache.options()
+                    )
+                },
+            )
+            .committedStates { ref ->
+                reads.ifAvailable?.committed(ref)?.let {
+                    CommittedState(it.ref, it.version, it.scope, it.deleted, it.tags, it.state)
+                }
+            }
+            .reading { type ->
+                val context = node.contexts[type.context]
+                // Events read as the model reads them now (finding A4-16): current names and revisions, as typed.
+                val model = context?.models?.firstOrNull { it.type == type }
+                if (context == null || model == null) {
+                    { it }
+                } else {
+                    { record -> context.codec.current(model, record) }
+                }
+            }
+            .build()
+
+        /** The application's beans the engine is built of, which it may give or not. */
+        @Bean
+        @InternalWowApi
+        @Suppress("LongParameterList") // One parameter per kind of bean.
+        fun wowQueryBeans(
             datasetBackends: ObjectProvider<DatasetQueryBackendFactory>,
+            datasetVisibility: ObjectProvider<DatasetVisibility>,
+            strategies: ObjectProvider<MaskStrategyResolver>,
+            sources: ObjectProvider<QuerySchemaSource>,
             policies: ObjectProvider<QueryPolicy>,
             filters: ObjectProvider<QueryFilter>,
             observers: ObjectProvider<QueryObserver>,
-        ): DatasetQueryGateways {
-            val factory = datasetBackends.ifAvailable
-            if (factory == null) {
-                if (datasets.all.isNotEmpty()) {
-                    logger.warn {
-                        "No dataset query backend is wired: the datasets ${datasets.all.map { it.name }} are not " +
-                            "served; add wow-clickhouse with wow.clickhouse.endpoint, or a DatasetQueryBackendFactory bean."
-                    }
-                }
-                return DatasetQueryGateways.NONE
-            }
-            val gateways = DatasetQueryGateways.of(
-                datasets,
-                catalog,
-                factory,
-                filters = filters.orderedStream().toList(),
-                policies = scopePolicies(manifest, tenants, properties) + policies.orderedStream().toList(),
-                observer = observerOf(observers),
-                entryPolicy = entryPolicy,
-            )
-            HostDatasets.evictOnRemoval(datasets, factory)
-            return gateways
+        ): QueryBeans = QueryBeans(
+            datasetBackends,
+            datasetVisibility,
+            strategies,
+            sources,
+            policies,
+            filters,
+            observers
+        )
+
+        /** The engine's schema Catalog (decision D150). */
+        @Bean
+        @InternalWowApi
+        fun wowQuerySchemaCatalog(engine: QueryEngine): QuerySchemaCatalog = engine.catalog
+
+        /**
+         * The engine's dataset gateways (decision D145); a dataset that leaves the [QueryDatasets] is evicted from the
+         * dataset backend.
+         */
+        @Bean
+        @InternalWowApi
+        fun wowDatasetQueryGateways(
+            engine: QueryEngine,
+            datasets: QueryDatasets,
+            datasetBackends: ObjectProvider<DatasetQueryBackendFactory>,
+        ): DatasetQueryGateways = engine.datasets.also {
+            datasetBackends.ifAvailable?.let { HostDatasets.evictOnRemoval(datasets, it) }
         }
 
         /**
@@ -287,160 +307,12 @@ class QueryAutoConfiguration {
             properties.countCache.options(),
         )
 
+        /** The query models the public routes serve: the engine's, `wow.query.http.default-list-size`. */
         @Bean
         @ConditionalOnMissingBean
-        @Suppress("LongParameterList") // One parameter per part of a gateway, each a bean the application may give.
         @InternalWowApi
-        fun wowHttpQueries(
-            manifest: Manifest,
-            node: ServiceNode,
-            properties: QueryProperties,
-            backend: SnapshotQueryBackend,
-            events: EventQueryBackend,
-            catalog: QuerySchemaCatalog,
-            entryPolicy: QueryEntryPolicy,
-            tenants: QueryTenantPolicy,
-            policies: ObjectProvider<QueryPolicy>,
-            filters: ObjectProvider<QueryFilter>,
-            observers: ObjectProvider<QueryObserver>,
-            datasets: DatasetQueryGateways,
-            visibility: ObjectProvider<DatasetVisibility>,
-            counts: ObjectProvider<QueryCountCache>,
-            reads: ObjectProvider<StateReads>,
-            masks: PayloadMasks,
-        ): HttpQueries {
-            val contexts = node.contexts.keys
-            val observer = observerOf(observers)
-            val scope = scopePolicies(manifest, tenants, properties)
-            val applicationPolicies = policies.orderedStream().toList()
-            val gatewayPolicies = scope + applicationPolicies
-            val factory = backend.factory
-            val snapshots = if (factory == null) {
-                emptyList()
-            } else {
-                snapshotTypes(manifest, contexts).filter(backend::serves).map { type ->
-                    DefaultQueryGateway(
-                        aggregateType = type,
-                        backend = factory.create(type).backend,
-                        schemaProvider = catalog.provider(type, QueryModel.SNAPSHOT),
-                        filters = filters.orderedStream().toList(),
-                        policies = gatewayPolicies,
-                        observer = observer,
-                        entryPolicy = entryPolicy,
-                        counts = counts.ifAvailable,
-                    )
-                }
-            }
-            // An aggregate the snapshot queries hide is hidden from the events model and its state reads too (reviews
-            // A3-11, R2.3-6); only ABAC and the application's policies hide one from a caller of its scope.
-            val hides = properties.abac.enabled || applicationPolicies.isNotEmpty()
-            val policyGateways = policyGateways(hides, hostedTypes(manifest, contexts), snapshots) { type ->
-                SnapshotPolicyGateway(type, catalog.policyProvider(type), gatewayPolicies, entryPolicy)
-            }
-            val eventGateways = eventGateways(
-                manifest,
-                node,
-                EventGatewayParts(
-                    events,
-                    catalog,
-                    filters.orderedStream().toList(),
-                    gatewayPolicies,
-                    observer,
-                    entryPolicy,
-                    counts.ifAvailable?.let {
-                        QueryCountCache(
-                            node::snapshotCheckpointOf,
-                            properties.countCache.options()
-                        )
-                    },
-                    eventVisibility(snapshots + policyGateways, hides, reads),
-                    tenants,
-                    masks,
-                ),
-            )
-            return HttpQueries(
-                snapshots,
-                eventGateways,
-                properties.http.defaultListSize,
-                datasets,
-                visibility.getIfAvailable { DatasetVisibility.of(properties.abac.options()) },
-                node.snapshotStatus,
-                policyGateways,
-            )
-        }
-
-        /**
-         * When policies [hides] an aggregate from a caller of its scope, the [SnapshotPolicyGateway] [gateway] gives for
-         * each of [types] no gateway of [snapshots] queries, so its policies are evaluated on its states alone (review
-         * R3.3-3); none otherwise.
-         */
-        private fun policyGateways(
-            hides: Boolean,
-            types: List<AggregateType>,
-            snapshots: List<QueryGateway>,
-            gateway: (AggregateType) -> SnapshotPolicyGateway,
-        ): List<QueryGateway> {
-            if (!hides) return emptyList()
-            val queried = snapshots.map { it.aggregateType }.toSet()
-            return types.filterNot(queried::contains).map(gateway)
-        }
-
-        /**
-         * The events model's visibility: the latest committed state [reads] reads, under the gateway of its type among
-         * [gateways].
-         */
-        private fun eventVisibility(
-            gateways: List<QueryGateway>,
-            hides: Boolean,
-            reads: ObjectProvider<StateReads>,
-        ): EventVisibility {
-            val byType = gateways.associateBy { it.aggregateType }
-            return EventVisibility.of(byType::get, hides) { ref ->
-                reads.ifAvailable?.committed(ref)?.let {
-                    CommittedState(it.ref, it.version, it.scope, it.deleted, it.tags, it.state)
-                }
-            }
-        }
-
-        /** What every events gateway of [eventGateways] is built of, the beans and policies [wowHttpQueries] holds. */
-        private class EventGatewayParts(
-            val events: EventQueryBackend,
-            val catalog: QuerySchemaCatalog,
-            val filters: List<QueryFilter>,
-            val policies: List<QueryPolicy>,
-            val observer: QueryObserver,
-            val entryPolicy: QueryEntryPolicy,
-            /**
-             * The events' own count cache (a cache is keyed by type, not by model), valid while the type's snapshot
-             * write checkpoint holds, which moves as the snapshots follow the log.
-             */
-            val counts: QueryCountCache?,
-            val visibility: EventVisibility,
-            val tenants: QueryTenantPolicy,
-            val masks: PayloadMasks,
-        )
-
-        /** The events gateway of each aggregate type an [EventQueryBackend] serves (decision D235). */
-        private fun eventGateways(manifest: Manifest, node: ServiceNode, parts: EventGatewayParts) =
-            queryTypes(manifest, node.contexts.keys, QueryRoutes.EVENTS).mapNotNull { type ->
-                val binding = parts.events.binding(type) ?: return@mapNotNull null
-                val context = node.contexts.getValue(type.context)
-                // Events read as the model reads them now (finding A4-16): current names and revisions, as typed.
-                val model = context.models.firstOrNull { it.type == type }
-                EventQueryGateways.create(
-                    aggregateType = type,
-                    backend = binding.backend,
-                    schemaProvider = parts.catalog.provider(type, QueryModel.EVENTS),
-                    filters = parts.filters,
-                    policies = parts.policies,
-                    observer = parts.observer,
-                    entryPolicy = parts.entryPolicy,
-                    counts = parts.counts,
-                    visibility = parts.visibility,
-                    tenants = parts.tenants,
-                    masks = parts.masks,
-                ) { record -> if (model == null) record else context.codec.current(model, record) }
-            }
+        fun wowHttpQueries(engine: QueryEngine, node: ServiceNode, properties: QueryProperties): HttpQueries =
+            HttpQueries.of(engine, properties.http.defaultListSize, node.snapshotStatus)
 
         @Bean
         @InternalWowApi
@@ -452,7 +324,7 @@ class QueryAutoConfiguration {
             catalog: QuerySchemaCatalog,
         ): QueryIndexesLifecycle = QueryIndexesLifecycle(
             manifest,
-            snapshotTypes(manifest, node.contexts.keys),
+            ManifestTypes.snapshots(manifest, node.contexts.keys),
             backend,
             catalog,
             properties.index.ddl,
@@ -461,25 +333,20 @@ class QueryAutoConfiguration {
 
     private companion object {
         val logger = KotlinLogging.logger {}
-
-        /**
-         * The scope and ABAC policies every gateway runs first (decision D129), the owner applying to the aggregates
-         * [manifest] says belong to their owners (decision D189).
-         */
-        fun scopePolicies(
-            manifest: Manifest,
-            tenants: QueryTenantPolicy,
-            properties: QueryProperties,
-        ): List<QueryPolicy> = listOf(
-            ScopeQueryPolicy(tenants, ownerships = QueryOwnership.of(manifest)),
-            AbacQueryPolicy(properties.abac.options()),
-        )
-
-        /** The query log and the application's observers. */
-        fun observerOf(observers: ObjectProvider<QueryObserver>): QueryObserver =
-            QueryObserver.of(listOf(QueryLogObserver()) + observers.orderedStream().toList())
     }
 }
+
+/** The application's beans a [QueryEngine] is built of: each it may give, or not. */
+@InternalWowApi
+class QueryBeans internal constructor(
+    internal val datasetBackends: ObjectProvider<DatasetQueryBackendFactory>,
+    internal val datasetVisibility: ObjectProvider<DatasetVisibility>,
+    internal val strategies: ObjectProvider<MaskStrategyResolver>,
+    internal val sources: ObjectProvider<QuerySchemaSource>,
+    internal val policies: ObjectProvider<QueryPolicy>,
+    internal val filters: ObjectProvider<QueryFilter>,
+    internal val observers: ObjectProvider<QueryObserver>,
+)
 
 /** A class of wow-query, present only when the application has the module. */
 internal const val QUERY_MODULE = "me.ahoo.wow.query.QueryModule"
