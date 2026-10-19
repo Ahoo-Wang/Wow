@@ -21,6 +21,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.subscribe.CallRejectedException
+import me.ahoo.wow.api.subscribe.ExecutionId
 import me.ahoo.wow.api.subscribe.StateEvent
 import me.ahoo.wow.kernel.CommittedBinding
 import me.ahoo.wow.kernel.ProcessorBinding
@@ -71,7 +72,12 @@ class ProcessorForkTest {
         )
     }
 
-    private fun placed(total: Int, version: Int = 1) = stateEvent(order, Order("order-1"), OrderPlaced(total), version = version)
+    private fun placed(total: Int, version: Int = 1) = stateEvent(
+        order,
+        Order("order-1"),
+        OrderPlaced(total),
+        version = version
+    )
 
     @Test
     fun `a saga forks after a handling without handling it again`() {
@@ -145,8 +151,14 @@ class ProcessorForkTest {
                 fork("passes") { whenCommitted(reserve) { expectCommand(Confirm(1)) } }
                 fork { }
             }
-            whenRejected(commandRejected(Command("c", "r", stock, Reserve("o", 1)), executionOf(), "y"), Reserve::class) { }
-            whenCommitted(commandCommitted(Command("c", "r", stock, Reserve("o", 1)), executionOf()), Reserve::class) { }
+            whenRejected(
+                commandRejected(Command("c", "r", stock, Reserve("o", 1)), executionOf(), "y"),
+                Reserve::class
+            ) { }
+            whenCommitted(
+                commandCommitted(Command("c", "r", stock, Reserve("o", 1)), executionOf()),
+                Reserve::class
+            ) { }
             whenEvent(stateEvent(order, Order("order-1"), Cancel("no"))) { }
         }.results()
         results.paths.assert().containsExactly(
@@ -161,7 +173,7 @@ class ProcessorForkTest {
             .containsExactly("fails/whenRejected(Reserve, x)", "whenEvent(Cancel)")
     }
 
-    private fun executionOf() = me.ahoo.wow.api.subscribe.ExecutionId("OrderSaga.onOrder", order, 1)
+    private fun executionOf() = ExecutionId("OrderSaga.onOrder", order, 1)
 
     @Test
     fun `projections and reactors run as trees of tests`() {

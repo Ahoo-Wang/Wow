@@ -72,7 +72,8 @@ class ProcessorExpectations internal constructor(
      * run.
      */
     fun fork(name: String = "", block: ProcessorSpec.() -> Unit) {
-        val forker = checkNotNull(forker) { "These expectations come from a time step: fork the specification instead." }
+        val forker =
+            checkNotNull(forker) { "These expectations come from a time step: fork the specification instead." }
         forker(name, block)
     }
 

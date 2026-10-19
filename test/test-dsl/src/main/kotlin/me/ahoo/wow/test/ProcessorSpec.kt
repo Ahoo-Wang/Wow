@@ -273,7 +273,11 @@ class ProcessorSpec private constructor(
     fun fork(name: String = "", block: ProcessorSpec.() -> Unit) {
         val label = name.ifBlank { "fork ${++forks}" }
         val path = forkName?.let { "$it > $label" } ?: label
-        val fork: (TestTree?) -> ProcessorSpec = { branch -> ProcessorSpec(handlers, kind, this, branch).also { it.forkName = path } }
+        val fork: (TestTree?) -> ProcessorSpec = { branch ->
+            ProcessorSpec(handlers, kind, this, branch).also {
+                it.forkName = path
+            }
+        }
         runFork(tree, label, path, fork, block)
     }
 
