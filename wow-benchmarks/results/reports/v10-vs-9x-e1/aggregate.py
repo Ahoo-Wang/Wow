@@ -2,14 +2,17 @@
 """Aggregates the B.1 (E1 write) cells of decision D224: per setup, distribution and rate, the median and the min-max
 of the three repetitions, plus the resource cost per 1,000 completed commands. Standard library only.
 
-    python3 -I aggregate.py            # Markdown tables on stdout, summary.json beside this script
+    python3 -I aggregate.py [<folder>] # Markdown tables on stdout, summary.json in the folder (this script's by default)
+
+The folder is a tier's report folder of one scenario (harness/tiers.sh): v10-vs-9x-e1, -e2 or -e3. Two repetitions
+are a cell's median when no third was needed.
 """
 import json
 import os
 import statistics
 import sys
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = sys.argv[1] if len(sys.argv) > 1 else os.path.dirname(os.path.abspath(__file__))
 SETUPS = ["9x-mongo", "v10-mongo", "v10-postgres"]
 DISTRIBUTIONS = ["uniform", "zipf", "hot"]
 SETUP_NAMES = {"9x-mongo": "9.x Mongo", "v10-mongo": "V10 Mongo", "v10-postgres": "V10 PostgreSQL"}

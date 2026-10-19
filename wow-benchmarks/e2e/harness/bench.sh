@@ -215,12 +215,9 @@ session_clear() {
     docker exec wow-e2e-bench-postgres psql -U postgres -d postgres -qc \
       "drop database if exists transfer_v10 with (force)" -c "create database transfer_v10" >/dev/null
   fi
-  local topic
-  for topic in $(docker exec wow-e2e-bench-kafka kafka-topics --bootstrap-server localhost:9092 --list 2>/dev/null \
-    | grep -v '^__' || true); do
-    docker exec wow-e2e-bench-kafka kafka-topics --bootstrap-server localhost:9092 --delete --topic "$topic" \
-      >/dev/null 2>&1 || true
-  done
+  # Every topic but Kafka's own (__consumer_offsets), in one call: --topic takes a regular expression.
+  docker exec wow-e2e-bench-kafka kafka-topics --bootstrap-server localhost:9092 --delete --topic '[^_].*' \
+    >/dev/null 2>&1 || true
   # Topic deletion is asynchronous: wait until none is left before a node recreates them.
   local attempt
   for attempt in $(seq 1 30); do

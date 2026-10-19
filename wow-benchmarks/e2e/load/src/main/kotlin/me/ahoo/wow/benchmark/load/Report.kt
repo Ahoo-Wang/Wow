@@ -15,6 +15,7 @@ package me.ahoo.wow.benchmark.load
 
 import java.net.URI
 import java.time.Instant
+import java.util.concurrent.atomic.AtomicReferenceArray
 
 /** The results of a run: the JSON the report is built from, and a short Markdown summary of it. */
 object Report {
@@ -48,27 +49,8 @@ object Report {
         val ok = measured.latency.count
         val errors = measured.errors.mapValues { it.value.sum() }.toSortedMap()
         val failed = errors.values.sum()
-        val seconds = (0 until measure).mapNotNull { index ->
-            measured.perSecond.get(index)?.let { histogram ->
-                mapOf(
-                    "second" to index,
-                    "ok" to histogram.count,
-                    "p50Ms" to histogram.percentile(50.0) / MICROS_PER_MILLI,
-                    "p99Ms" to histogram.percentile(99.0) / MICROS_PER_MILLI,
-                    "maxMs" to histogram.max / MICROS_PER_MILLI,
-                )
-            }
-        }
-        val warmUpSeconds = (0 until measured.warmUpPerSecond.length()).mapNotNull { index ->
-            measured.warmUpPerSecond.get(index)?.let { histogram ->
-                mapOf(
-                    "second" to index,
-                    "ok" to histogram.count,
-                    "p50Ms" to histogram.percentile(50.0) / MICROS_PER_MILLI,
-                    "p99Ms" to histogram.percentile(99.0) / MICROS_PER_MILLI,
-                )
-            }
-        }
+        val seconds = perSecond(measured.perSecond, withMax = true)
+        val warmUpSeconds = perSecond(measured.warmUpPerSecond, withMax = false)
         val worstSecond = seconds.maxByOrNull { it["p99Ms"] as Double }
         return mapOf(
             "schema" to "wow-e2e-bench/run/1",
@@ -111,6 +93,20 @@ object Report {
             "meta" to meta,
         )
     }
+
+    /** One entry per second that recorded a latency: its count, p50, p99 and, [withMax], its max. */
+    private fun perSecond(seconds: AtomicReferenceArray<Histogram>, withMax: Boolean): List<Map<String, Any>> =
+        (0 until seconds.length()).mapNotNull { index ->
+            seconds.get(index)?.let { histogram ->
+                buildMap {
+                    put("second", index)
+                    put("ok", histogram.count)
+                    put("p50Ms", histogram.percentile(50.0) / MICROS_PER_MILLI)
+                    put("p99Ms", histogram.percentile(99.0) / MICROS_PER_MILLI)
+                    if (withMax) put("maxMs", histogram.max / MICROS_PER_MILLI)
+                }
+            }
+        }
 
     /** A few lines for a person: what ran, how fast, how long it took, what it cost. */
     @Suppress("UNCHECKED_CAST")

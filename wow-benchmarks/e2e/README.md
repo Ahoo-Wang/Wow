@@ -94,6 +94,32 @@ wow-benchmarks/e2e/harness/bench.sh run --version=v10 --nodes=3 --scenario=E1 --
 wow-benchmarks/e2e/harness/bench.sh saturate --version=9x --scenario=E1 --max-concurrency=256
 ```
 
+## Measurement tiers
+
+Decision D224's implementation note of 2026-10-19 splits the measurements by what they depend on.
+
+**Counts** (`harness/counts.sh`, `harness/counts.py`) do not depend on the machine's load, so they run at a low rate on any machine at any time:
+
+- `counts.sh scenarios <setup> <out>`: per E1, E2 or E3 operation, the store round trips by kind (request-id check, aggregate load, log append, snapshot, state read, tail, checkpoint, lease), the store operations, the Kafka messages and the server's heap allocations. The method is B.D's: an idle window gives the periodic work's rate, which is taken off each load window (20/s, 60 s by default). MongoDB's profiler and `serverStatus` counters, or PostgreSQL's `pg_stat_statements` (`harness/compose.counts.yml`), count the store's side; the load generator's `alloc` reads each server JVM's allocated bytes over a local JMX connection.
+- `counts.sh ps2 <mongo|postgres> <out>`: PS-2 (decision D240 ②), what each partition costs with no traffic and under a trickle of 10 commands/s, for P = 64, 128 and 256 and 0, 1, 5 and 10 subscriptions beyond the service's own (`--bench.extra-subscriptions`, a harness-only factory of no-op projections in `bench-v10`, `transfer/ps2/`: the one file `diff -r` shows beyond the twin domain).
+
+**Timing** (`harness/tiers.sh`) needs a machine of its own; it runs only when the user says so:
+
+- `tiers.sh quick`: V10 MongoDB against 9.x MongoDB, E1, uniform and Zipf keys, each side at 80% of both sides' saturation, two repetitions (about 40 minutes).
+- `tiers.sh full`: E1 to E3, the three setups, uniform, Zipf and hot keys, at 50% and 80%.
+- `tiers.sh night`: `full`, unattended; it refuses to start while a Gradle build or another benchmark runs and keeps the machine awake (`caffeinate`).
+- `tiers.sh plan quick|full` prints the cells and an estimate; `tiers.sh status quick|full` the cells that have results.
+
+What makes a tier cheaper than one `bench.sh run` per cell:
+
+- **Sessions.** A setup's containers stay up across its cells. Between cells (`--isolation`), `restart` (the default) empties the stores and the topics and restarts the server JVMs; `keys` keeps the JVMs too and gives each cell an account set of its own (`--account-prefix`), at the cost of stores that grow over the cells; `fresh` starts new containers, as `bench.sh run` does. A running V10 node cannot have its store emptied under it (its state cache, partition counters and leases would outlive the data), and the framework has no hook for it, so clearing always restarts the nodes.
+- **Saturation by bisection.** The finder doubles the concurrency from 4 with 5 s steps after a 2 s warm-up, then bisects between the knee and the concurrency below it (3 more steps), instead of 10 s steps from 1.
+- **Adaptive repetitions.** Two runs per cell; a third only when they differ by more than 5% in p99 or throughput.
+- **Shorter phases once shown stable.** The load generator records the warm-up's per-second latencies. `harness/stability.py` compares, on runs of 30 s warm-up and 60 s measured, the window a 20 s warm-up and 45 s measured phase would have used; once four or more runs differ by at most 5% in throughput, median per-second p50 and p99, `stability.json` accepts the shortening and `--timing=auto` uses it.
+- **Resumable.** A cell whose result is in the report folder is skipped. Results go to `wow-benchmarks/results/reports/v10-vs-9x-e1/` (and `-e2`, `-e3`), `<setup>/<distribution>/<rate>-r<repetition>/`; `v10-vs-9x-e1/aggregate.py <folder>` makes the tables.
+
+## Results
+
 A run writes `result.json` (load, results, histogram, resources, machine, commit, JVM and configuration) and `summary.md` beside the servers' logs to `wow-benchmarks/results/e2e/<time>-<label>-<version>-<backend>-n<nodes>-<scenario>/`, which git ignores; a report copies the results it cites into `results/reports/`. Ports: public 18080 to 18082, V10 internal 19090 to 19092, MongoDB 27017, PostgreSQL 5432, Kafka 9092.
 
 On one machine every service, store and the load generator share the CPU: results are directional, and the report says so (D224).
