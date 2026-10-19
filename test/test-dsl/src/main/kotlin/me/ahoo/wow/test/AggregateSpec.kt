@@ -43,9 +43,7 @@ import me.ahoo.wow.spi.timer.Timer
 import me.ahoo.wow.spi.timer.TimerChange
 import me.ahoo.wow.spi.timer.TimerStatus
 import me.ahoo.wow.spi.timer.Timers
-import org.junit.jupiter.api.DynamicContainer
 import org.junit.jupiter.api.DynamicNode
-import org.junit.jupiter.api.DynamicTest
 import java.time.Instant
 import java.util.stream.Stream
 import kotlin.time.Duration
@@ -133,7 +131,8 @@ fun <S : Any> aggregateSpecTests(
     block: AggregateSpec<S>.() -> Unit,
 ): Stream<DynamicNode> {
     val tree = TestTree()
-    AggregateSpec(model, model.type.ref(tenantId, id), start, tree).run(tree, block)
+    val spec = AggregateSpec(model, model.type.ref(tenantId, id), start, tree)
+    tree.run { spec.block() }
     return tree.nodes.stream()
 }
 
@@ -429,13 +428,7 @@ class AggregateSpec<S : Any> private constructor(
     }
 
     /** Runs [action], one step of the specification: a test of its own in a [tree], which reports its failure. */
-    private fun step(name: String, action: () -> Unit) {
-        val tree = tree ?: return action()
-        // The forks the step's checks start come after it.
-        val at = tree.nodes.size
-        val failure = tree.failureOf(action)
-        tree.nodes.add(at, DynamicTest.dynamicTest(name) { failure?.let { throw it } })
-    }
+    private fun step(name: String, action: () -> Unit) = step(tree, name, action)
 
     /**
      * Marks the current point as [name]: a later [fork] from it starts the aggregate where it is now, whatever the
@@ -473,28 +466,9 @@ class AggregateSpec<S : Any> private constructor(
             marks[from] ?: throw IllegalArgumentException("No ref $from: the refs are ${marks.keys}.")
         }
         val label = name.ifBlank { from ?: "fork ${++forks}" }
-        if (tree != null) {
-            val branch = TestTree()
-            val fork = AggregateSpec(model, ref, start, origin, branch)
-            fork.forkName = forkName?.let { "$it > $label" } ?: label
-            fork.run(branch, block)
-            tree.nodes += DynamicContainer.dynamicContainer(label, branch.nodes)
-            return
-        }
-        val fork = AggregateSpec(model, ref, start, origin, null)
-        fork.forkName = forkName?.let { "$it > $label" } ?: label
-        try {
-            fork.block()
-        } catch (failure: ForkAssertionError) {
-            throw failure
-        } catch (failure: AssertionError) {
-            throw ForkAssertionError("In fork \"${fork.forkName}\": ${failure.message}", failure)
-        }
-    }
-
-    /** Runs [block] on this specification, a tree of tests, reporting an exception outside a step as `Error`. */
-    internal fun run(tree: TestTree, block: AggregateSpec<S>.() -> Unit) {
-        tree.failureOf { block() }?.let { failure -> tree.nodes += DynamicTest.dynamicTest("Error") { throw failure } }
+        val path = forkName?.let { "$it > $label" } ?: label
+        val fork = { branch: TestTree? -> AggregateSpec(model, ref, start, origin, branch).also { it.forkName = path } }
+        runFork(tree, label, path, fork, block)
     }
 
     /** A copy of everything the specification holds now, which a fork starts from. */
