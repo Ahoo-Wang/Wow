@@ -23,6 +23,7 @@ import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import org.springframework.beans.factory.ObjectProvider
+import org.springframework.beans.factory.config.BeanFactoryPostProcessor
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -88,6 +89,11 @@ class OpsConfiguration {
         const val COSEC_AUTHORIZER_ENABLED: String = "wow.cosec.authorizer.enabled"
 
         private const val DEFAULT_TENANT: String = "wow.tenant.default"
+
+        /** The public port's resolver first, beside CoSec's internal one ([PublicCallersFirst]). */
+        @Bean
+        @JvmStatic
+        fun publicCallersFirst(): BeanFactoryPostProcessor = PublicCallersFirst()
 
         private val logger = KotlinLogging.logger {}
     }
