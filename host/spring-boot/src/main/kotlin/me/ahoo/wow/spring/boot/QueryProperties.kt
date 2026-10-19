@@ -48,7 +48,8 @@ import kotlin.time.toKotlinDuration
  *   dataset files, `{context}.{dataset}.json`; each takes precedence over the classpath's `META-INF/wow/dataset/` file
  *   of the same dataset. The datasets of both are served when a dataset backend is wired (ClickHouse's, say).
  * - `wow.query.memory.enabled` (false; D209): whether the snapshots on a store in memory are queried, from the
- *   in-memory reference query backend: for local runs, demos and tests, not for production.
+ *   in-memory reference query backend, and the events of a log in memory, scanned in memory (review R3.4-1): for
+ *   local runs, demos and tests, not for production.
  * - `wow.query.events.*` (D235): the `events` model, served from each aggregate's log store:
  *   `mongo-read-preference` (none, the primary), the MongoDB read preference of its queries (`secondaryPreferred`,
  *   say), so a free filter scans a secondary rather than the primary the log appends to.
