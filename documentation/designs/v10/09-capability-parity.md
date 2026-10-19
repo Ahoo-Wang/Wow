@@ -230,7 +230,7 @@
 | 优雅停机 | `WowRuntimeSpringLifecycle` | A | `host/spring-boot/.../WowLifecycles.kt` |
 | 健康指示器（就绪、存活） | 无 | E | 两边都没有，V10 的新缺口：审查 R3.5-3，工作包 R3-H |
 | 缺少持久存储时快速失败 | 默认 Mongo，缺失即启动失败 | E | V10 静默退回内存，回退：审查 R3.5-1，工作包 R3-D |
-| Maven 构建 | 运行期反射，Maven 可运行 | E | V10 只支持 Gradle（KSP、Manifest 补全）：审查 R3.7-1，待决 |
+| Maven 构建 | 运行期反射，Maven 可运行 | C | D239 ②：V10 目前只支持 Gradle（KSP、Manifest 补全）；快速开始与迁移 Skill 写明 |
 | CLI：TS 生成器 | `wow-generator` | A | `typescript/wow-generator`（Manifest 输入，5a.3） |
 
 ## 15. TypeScript
