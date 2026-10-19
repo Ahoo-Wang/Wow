@@ -280,6 +280,8 @@ project(":eshop-e2e").projectDir = file("example/eshop/e2e")
 // The V10 quickstart (decision D217): the sample the quickstart page shows, one module, its domain and its server.
 include(":quickstart")
 project(":quickstart").projectDir = file("example/quickstart")
+include(":java-smoke")
+project(":java-smoke").projectDir = file("example/java-smoke")
 // The V10 side of the end-to-end architecture benchmark (decision D224, roadmap M7.5 B.0): the twin benchmark domain
 // and its server on V10 modules only. Never published.
 include(":e2e-bench-v10")

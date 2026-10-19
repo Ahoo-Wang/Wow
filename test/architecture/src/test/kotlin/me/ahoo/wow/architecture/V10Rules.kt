@@ -109,14 +109,18 @@ object V10Rules {
      */
     val QUICKSTART = V10Module("quickstart", "example/quickstart")
 
-    /**
-     * The V10 examples, the eShop (decisions D159, D204) and the quickstart (D217): applications of the V10 modules,
-     * not ones of them, and the end-to-end tests across them.
-     */
-    val EXAMPLES = ESHOP + QUICKSTART
+    /** The Java smoke test (decision D229 G-8): a domain module written in Java, built on the kernel only. */
+    val JAVA_SMOKE = V10Module("java-smoke", "example/java-smoke")
 
-    /** Whether [project] belongs to a V10 example, the eShop (decisions D159, D204) or the quickstart (D217). */
-    fun isExample(project: String): Boolean = project.startsWith("eshop-") || project == QUICKSTART.name
+    /**
+     * The V10 examples, the eShop (decisions D159, D204), the quickstart (D217) and the Java smoke test (D229 G-8):
+     * applications of the V10 modules, not ones of them, and the end-to-end tests across them.
+     */
+    val EXAMPLES = ESHOP + QUICKSTART + JAVA_SMOKE
+
+    /** Whether [project] belongs to a V10 example ([EXAMPLES]). */
+    fun isExample(project: String): Boolean =
+        project.startsWith("eshop-") || project == QUICKSTART.name || project == JAVA_SMOKE.name
 
     /**
      * Whether [project] is one of the examples' domain or API modules: an example project that is neither a server
