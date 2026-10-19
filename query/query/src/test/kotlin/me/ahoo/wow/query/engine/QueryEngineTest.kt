@@ -109,7 +109,9 @@ class QueryEngineTest {
             val admin = QueryCaller(Caller(subject = "admin", tenantId = "acme", scope = Scope("alice", null)))
             val cartState = state(cart, "east")
             engine.reads.read(alice, { cartState }, { it }).assert().isSameAs(ReadFacade.Read.Hidden)
-            engine.reads.read(alice, { null }, { it: CommittedState -> it }).assert().isSameAs(ReadFacade.Read.Missing)
+            engine.reads.read(alice, {
+                null
+            }, { committed: CommittedState -> committed }).assert().isSameAs(ReadFacade.Read.Missing)
             val visible = engine.reads.read(admin, { cartState }, { it }) as ReadFacade.Read.Visible
             visible.view.assert().isSameAs(cartState)
             visible.state["items"].asInt().assert().isEqualTo(2)

@@ -18,31 +18,24 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.query.AbacQueryPolicy
-import me.ahoo.wow.query.DefaultQueryGateway
 import me.ahoo.wow.query.QueryBackendFactory
 import me.ahoo.wow.query.QueryCountCache
 import me.ahoo.wow.query.QueryEntryPolicy
-import me.ahoo.wow.query.QueryLogObserver
 import me.ahoo.wow.query.QueryObserver
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.query.QueryTenantPolicy
-import me.ahoo.wow.query.ScopeQueryPolicy
 import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
 import me.ahoo.wow.query.dataset.DatasetVisibility
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.engine.ManifestTypes
 import me.ahoo.wow.query.engine.QueryEngine
-import me.ahoo.wow.query.events.EventQueryGateways
 import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.mask.PayloadMasks
-import me.ahoo.wow.query.schema.EventsQuerySchemas
 import me.ahoo.wow.query.schema.MaskStrategyResolver
 import me.ahoo.wow.query.schema.QuerySchemaCatalog
 import me.ahoo.wow.query.schema.QuerySchemaSource
 import me.ahoo.wow.query.state.CommittedState
-import me.ahoo.wow.query.state.SnapshotPolicyGateway
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.state.StateReads
 import org.springframework.beans.factory.ObjectProvider
@@ -65,22 +58,15 @@ import java.nio.file.Path
  *   [QueryBackendFactory] bean when it has one, else, for each aggregate type, PostgreSQL or MongoDB when its
  *   snapshots are on a store of that type (decision D177); the snapshots in memory (or of the application's own
  *   [me.ahoo.wow.runtime.node.BackendFactory]) are not queried without one, and their routes are not served;
- * - a [QuerySchemaCatalog] compiling each aggregate's snapshot model from the Manifest
- *   ([me.ahoo.wow.query.engine.ManifestStateSchemas], with the application's [MaskStrategyResolver] and [QuerySchemaSource] beans) under
- *   `wow.query.sensitivity`;
- * - a gateway per aggregate type the node hosts: [DefaultQueryGateway] for its snapshots, under the
- *   [ScopeQueryPolicy] (tenant by [HostQueryTenants], D116), the [AbacQueryPolicy] (`wow.query.abac`) and the
- *   application's [QueryPolicy] and [QueryFilter] beans, observed by [QueryLogObserver] and the [QueryObserver] beans,
- *   its counts and paged totals cached in the [QueryCountCache] (`wow.query.count-cache`, D152); and, on the same
- *   engine, policies, filters and observers, the gateway of its events ([EventQueryGateways], D235) over the
- *   [EventQueryBackend] of its log store (PostgreSQL or MongoDB in place, a log in memory scanned in memory under
- *   `wow.query.memory.enabled`, any other log not queried), the events' schema from the Manifest
- *   ([EventsQuerySchemas]), A3-11 visibility as a policy, and a count cache of its own; with ABAC or an application's
- *   policy, a [SnapshotPolicyGateway] for each type whose snapshots are not queried, so its events and state reads
- *   stay under those policies (review R3.3-3);
- * - the [QueryDatasets] of the dataset files (decisions D75, D145; [HostDatasets]), compiled by the same Catalog
- *   against the storage of the application's [DatasetQueryBackendFactory] bean (ClickHouse's, when wow-clickhouse
- *   is wired), and their [DatasetQueryGateways] under the same policies, filters and observers;
+ * - the [EventQueryBackend] of each aggregate type's log store, from the query provider of the store's type
+ *   (PostgreSQL or MongoDB in place, a log in memory scanned in memory under `wow.query.memory.enabled`, any other log
+ *   not queried), and the [QueryDatasets] of the dataset files (decisions D75, D145; [HostDatasets]);
+ * - the [QueryEngine] (decision D237): this maps `wow.query.*` (ABAC, sensitivity, the entry gates, the count caches)
+ *   and the application's beans (its [DatasetQueryBackendFactory], [MaskStrategyResolver], [QuerySchemaSource],
+ *   [QueryPolicy], [QueryFilter], [QueryObserver] and [DatasetVisibility] beans) onto [QueryEngine.Builder], whose are
+ *   every rule of the read side: the Catalog, the gateways of the three models and their policies, the policy gateways
+ *   of the types whose snapshots are not queried (review R3.3-3), the events' visibility and the state reads'
+ *   [me.ahoo.wow.query.engine.ReadFacade]. The host decides no query policy itself (an architecture rule holds it);
  * - [HttpQueries], which the public routes serve (the datasets under `/wow/dataset`, seen as [DatasetVisibility]
  *   says: the application's bean, else by scope and `wow.query.abac`), and [QueryIndexesLifecycle], which manages
  *   the `x-wow-index` indexes at startup as `wow.query.index.ddl` says.

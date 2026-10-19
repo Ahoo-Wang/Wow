@@ -792,59 +792,6 @@ public final class me/ahoo/wow/query/dataset/QueryDatasets {
 public final class me/ahoo/wow/query/dataset/QueryDatasets$Companion {
 }
 
-public final class me/ahoo/wow/query/engine/CommittedStates$Companion {
-}
-
-public final class me/ahoo/wow/query/engine/QueryEngine$Builder {
-	public fun <init> (Lme/ahoo/wow/manifest/Manifest;)V
-	public final fun abac (Lme/ahoo/wow/query/AbacQueryOptions;)Lme/ahoo/wow/query/engine/QueryEngine$Builder;
-	public final fun build ()Lme/ahoo/wow/query/engine/QueryEngine;
-	public final fun committedStates (Lme/ahoo/wow/query/engine/CommittedStates;)Lme/ahoo/wow/query/engine/QueryEngine$Builder;
-	public final fun contexts (Ljava/util/Set;)Lme/ahoo/wow/query/engine/QueryEngine$Builder;
-	public final fun counts (Lme/ahoo/wow/query/QueryCountCache;Lme/ahoo/wow/query/QueryCountCache;)Lme/ahoo/wow/query/engine/QueryEngine$Builder;
-	public final fun datasetVisibility (Lme/ahoo/wow/query/dataset/DatasetVisibility;)Lme/ahoo/wow/query/engine/QueryEngine$Builder;
-	public final fun datasets (Lme/ahoo/wow/query/dataset/QueryDatasets;Lme/ahoo/wow/query/dataset/DatasetQueryBackendFactory;)Lme/ahoo/wow/query/engine/QueryEngine$Builder;
-	public final fun entryPolicy (Lme/ahoo/wow/query/QueryEntryPolicy;)Lme/ahoo/wow/query/engine/QueryEngine$Builder;
-	public final fun events (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/query/engine/QueryEngine$Builder;
-	public final fun filters (Ljava/util/List;)Lme/ahoo/wow/query/engine/QueryEngine$Builder;
-	public final fun maskStrategies (Lme/ahoo/wow/query/schema/MaskStrategyResolver;)Lme/ahoo/wow/query/engine/QueryEngine$Builder;
-	public final fun masks (Lme/ahoo/wow/query/mask/PayloadMasks;)Lme/ahoo/wow/query/engine/QueryEngine$Builder;
-	public final fun observers (Ljava/util/List;)Lme/ahoo/wow/query/engine/QueryEngine$Builder;
-	public final fun policies (Ljava/util/List;)Lme/ahoo/wow/query/engine/QueryEngine$Builder;
-	public final fun reading (Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/query/engine/QueryEngine$Builder;
-	public final fun schemaSources (Ljava/util/List;)Lme/ahoo/wow/query/engine/QueryEngine$Builder;
-	public final fun sensitivity (Lme/ahoo/wow/query/schema/QuerySensitivityPolicy;)Lme/ahoo/wow/query/engine/QueryEngine$Builder;
-	public final fun snapshots (Lme/ahoo/wow/query/QueryBackendFactory;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/query/engine/QueryEngine$Builder;
-	public static synthetic fun snapshots$default (Lme/ahoo/wow/query/engine/QueryEngine$Builder;Lme/ahoo/wow/query/QueryBackendFactory;Lkotlin/jvm/functions/Function1;ILjava/lang/Object;)Lme/ahoo/wow/query/engine/QueryEngine$Builder;
-	public final fun tenants (Lme/ahoo/wow/query/QueryTenantPolicy;)Lme/ahoo/wow/query/engine/QueryEngine$Builder;
-}
-
-public final class me/ahoo/wow/query/engine/ReadFacade$Companion {
-}
-
-public abstract interface class me/ahoo/wow/query/engine/ReadFacade$Read {
-}
-
-public final class me/ahoo/wow/query/engine/ReadFacade$Read$Hidden : me/ahoo/wow/query/engine/ReadFacade$Read {
-	public static final field INSTANCE Lme/ahoo/wow/query/engine/ReadFacade$Read$Hidden;
-	public fun equals (Ljava/lang/Object;)Z
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/query/engine/ReadFacade$Read$Missing : me/ahoo/wow/query/engine/ReadFacade$Read {
-	public static final field INSTANCE Lme/ahoo/wow/query/engine/ReadFacade$Read$Missing;
-	public fun equals (Ljava/lang/Object;)Z
-	public fun hashCode ()I
-	public fun toString ()Ljava/lang/String;
-}
-
-public final class me/ahoo/wow/query/engine/ReadFacade$Read$Visible : me/ahoo/wow/query/engine/ReadFacade$Read {
-	public fun <init> (Ljava/lang/Object;Ltools/jackson/databind/JsonNode;)V
-	public final fun getState ()Ltools/jackson/databind/JsonNode;
-	public final fun getView ()Ljava/lang/Object;
-}
-
 public final class me/ahoo/wow/query/filter/FilterStructureKt {
 	public static final fun predicateField (Lme/ahoo/wow/api/query/FilterExpression;)Lme/ahoo/wow/api/query/QueryField;
 }

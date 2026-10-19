@@ -100,6 +100,7 @@ class QueryEngine private constructor(
      * node hosts, the backends of the models, the schema sources and masks, the tenant and ABAC options, the
      * application's policies, filters and observers, the count caches, the committed states and how events are read.
      */
+    @InternalWowApi
     @Suppress("TooManyFunctions") // One setter per input of the engine.
     class Builder(private val manifest: Manifest) {
         private var contexts: Set<String> = manifest.contexts.map { it.name }.toSet()
@@ -223,24 +224,7 @@ class QueryEngine private constructor(
                     reading = reading(type),
                 )
             }
-            val datasetGateways = datasetBackend?.let { factory ->
-                DatasetQueryGateways.of(
-                    datasets,
-                    catalog,
-                    factory,
-                    filters = filters,
-                    policies = gatewayPolicies,
-                    observer = observer,
-                    entryPolicy = entryPolicy,
-                )
-            } ?: DatasetQueryGateways.NONE.also {
-                if (datasets.all.isNotEmpty()) {
-                    logger.warn {
-                        "No dataset query backend is wired: the datasets ${datasets.all.map { it.name }} are not " +
-                            "served; add wow-clickhouse with wow.clickhouse.endpoint, or a DatasetQueryBackendFactory bean."
-                    }
-                }
-            }
+            val datasetGateways = datasetGateways(catalog, gatewayPolicies, observer)
             return QueryEngine(
                 catalog,
                 snapshots,
@@ -249,6 +233,33 @@ class QueryEngine private constructor(
                 datasetGateways,
                 datasetVisibility ?: DatasetVisibility.of(abac),
                 masks,
+            )
+        }
+
+        /** The gateway of each dataset over the dataset backend; none without one, with a warning if any is declared. */
+        private fun datasetGateways(
+            catalog: QuerySchemaCatalog,
+            gatewayPolicies: List<QueryPolicy>,
+            observer: QueryObserver,
+        ): DatasetQueryGateways {
+            val factory = datasetBackend
+            if (factory == null) {
+                if (datasets.all.isNotEmpty()) {
+                    logger.warn {
+                        "No dataset query backend is wired: the datasets ${datasets.all.map { it.name }} are not " +
+                            "served; add wow-clickhouse with wow.clickhouse.endpoint, or a DatasetQueryBackendFactory bean."
+                    }
+                }
+                return DatasetQueryGateways.NONE
+            }
+            return DatasetQueryGateways.of(
+                datasets,
+                catalog,
+                factory,
+                filters = filters,
+                policies = gatewayPolicies,
+                observer = observer,
+                entryPolicy = entryPolicy,
             )
         }
 

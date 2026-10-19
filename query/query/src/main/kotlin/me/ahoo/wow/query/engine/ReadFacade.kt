@@ -32,6 +32,7 @@ fun interface CommittedStates {
     /** [ref]'s latest committed state, or null when it has none. */
     suspend fun committed(ref: AggregateRef): CommittedState?
 
+    @InternalWowApi
     companion object {
         /** No state: every read finds none. */
         @JvmField
@@ -55,14 +56,18 @@ class ReadFacade(
     private val masks: PayloadMasks = PayloadMasks.NONE,
 ) {
     /** What reading a state found: [Missing], [Hidden] from the caller, or [Visible] with its masked tree. */
+    @InternalWowApi
     sealed interface Read<out V> {
         /** No such state. */
+        @InternalWowApi
         data object Missing : Read<Nothing>
 
         /** A state the caller may not see, answered as a missing one. */
+        @InternalWowApi
         data object Hidden : Read<Nothing>
 
         /** The [view] read, its state [state] as the caller sees it. */
+        @InternalWowApi
         class Visible<V>(val view: V, val state: JsonNode) : Read<V>
     }
 
@@ -89,6 +94,7 @@ class ReadFacade(
     /** The body of an event [name] of [type] as every caller sees it: masked as the Manifest declares. */
     fun event(type: AggregateType, name: String, body: JsonNode): JsonNode = masks.event(type, name, body)
 
+    @InternalWowApi
     companion object {
         /** No policy and no mask: every state is seen as it is. */
         @JvmField
