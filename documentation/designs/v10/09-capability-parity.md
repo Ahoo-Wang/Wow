@@ -186,7 +186,7 @@
 | 能力 | 9.x | 类 | V10 位置 / 决定 |
 |---|---|---|---|
 | 聚合测试 | `AggregateSpec`、`aggregateVerifier` | A | `test/test-dsl` `aggregateSpec`（artifact `wow-test`，已发布） |
-| `fork`/`ref`、`givenState`、按类型 `expectError` | `wow-test` | A | 同上（P.5） |
+| `fork`/`ref`、`givenState`、按类型 `expectError` | `wow-test` | 部分 | `givenState`、`expectError` 为 A；`fork` 是重放步骤而非复制状态（重复调用 mock），且无测试树，见 X-17、D245（工作包 T.1） |
 | Saga/投影/反应器测试 | `SagaSpec` | A | `sagaSpec`、`projectionSpec`、`reactorSpec`（`ProcessorSpec.kt`） |
 | Java 测试 API | `AggregateVerifier`（Java 可用） | E | G-8 |
 | `TestValidator` | `test/validation` | C | D200 |
