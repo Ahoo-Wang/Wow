@@ -77,7 +77,7 @@ object CommandMessages {
      * type and tenant spread over the partitions and lanes, and a park holds up only the request that failed: the
      * copies of one request keep to one lane, and creations of different requests have no order to keep.
      */
-    fun laneOf(wire: CommandWire): AggregateRef = wire.ref.takeIf { it.isAssigned }
+    internal fun laneOf(wire: CommandWire): AggregateRef = wire.ref.takeIf { it.isAssigned }
         ?: wire.ref.type.ref(wire.ref.tenantId, "${AggregateRef.UNASSIGNED}:${wire.requestId}")
 
     /** The command [envelope] holds. */
