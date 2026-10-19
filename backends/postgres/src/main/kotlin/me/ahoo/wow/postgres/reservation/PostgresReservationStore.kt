@@ -18,7 +18,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.postgres.PostgresFormat
-import me.ahoo.wow.postgres.VirtualThreads
+import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.inTransaction
 import me.ahoo.wow.postgres.jdbc

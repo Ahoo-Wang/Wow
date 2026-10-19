@@ -21,7 +21,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.ExactBson
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoOperators
-import me.ahoo.wow.mongo.VirtualThreads
+import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.mongo.log.MongoEventLog
 import me.ahoo.wow.query.AbstractQueryBackendFactory
 import me.ahoo.wow.query.QueryBackendBinding

@@ -22,7 +22,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.postgres.PostgresFormat
-import me.ahoo.wow.postgres.VirtualThreads
+import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.postgres.autoCommitted
 import me.ahoo.wow.postgres.jdbc
 import me.ahoo.wow.spi.StoreDdl

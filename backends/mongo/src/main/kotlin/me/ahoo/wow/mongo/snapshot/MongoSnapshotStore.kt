@@ -35,7 +35,7 @@ import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoOperators
 import me.ahoo.wow.mongo.MongoRules
-import me.ahoo.wow.mongo.VirtualThreads
+import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.mongo.conditionalUpsert
 import me.ahoo.wow.mongo.isDuplicateKey
 import me.ahoo.wow.mongo.mongo

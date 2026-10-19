@@ -25,6 +25,7 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.log.AppendOutcome
 import me.ahoo.wow.spi.log.EventLog
@@ -33,6 +34,7 @@ import me.ahoo.wow.spi.log.EventStreamRecord
 import me.ahoo.wow.spi.log.LogEntry
 import me.ahoo.wow.spi.log.LogPosition
 import me.ahoo.wow.spi.log.Partitioner
+import me.ahoo.wow.spi.log.TailPacer
 import me.ahoo.wow.spi.log.Transport
 import me.ahoo.wow.spi.reservation.ReservationKey
 import me.ahoo.wow.spi.wait.Origin

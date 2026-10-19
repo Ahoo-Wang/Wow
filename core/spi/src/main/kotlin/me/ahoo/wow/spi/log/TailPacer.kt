@@ -11,13 +11,16 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.postgres
+package me.ahoo.wow.spi.log
 
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.withTimeoutOrNull
+import me.ahoo.wow.api.annotation.WowSpi
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * How often a tail polls (finding A2-14): every [interval] while it finds entries, backing off when it finds none, each
@@ -30,8 +33,12 @@ import kotlin.time.Duration
  * so on a partition only this node appends to (decision D6's partitioned routing) a commit costs one read of the tail,
  * not a run of short polls backing off again. Entries found without a wake, from another node, still bring the tail
  * back to [interval].
+ *
+ * A backend whose [EventLog] polls its storage for the tails ([EventLog.tail]) paces them with one of these, of
+ * [TailPolling]'s intervals (`wow.log.poll-interval`, `wow.log.max-poll-interval`), counting each commit of its own.
  */
-internal class TailPacer(partitions: Int, val interval: Duration, val maxInterval: Duration) {
+@WowSpi
+class TailPacer(partitions: Int, val interval: Duration, val maxInterval: Duration) {
     init {
         require(interval.isPositive()) { "The poll interval is positive." }
         require(maxInterval >= interval) { "The longest poll interval is at least the poll interval." }
@@ -67,4 +74,32 @@ internal class TailPacer(partitions: Int, val interval: Duration, val maxInterva
 
     /** The wait after the next empty poll, and whether a commit of this log woke the next poll. */
     data class Pace(val idle: Duration, val woken: Boolean)
+}
+
+/**
+ * How often the tails of a polled log poll (finding A2-14): every [interval] while they find entries, backing off up to
+ * [maxInterval] while they find none (`wow.log.poll-interval`, `wow.log.max-poll-interval`).
+ */
+@WowSpi
+class TailPolling(val interval: Duration, val maxInterval: Duration) {
+    init {
+        require(interval.isPositive()) { "The poll interval is positive." }
+        require(maxInterval >= interval) { "The longest poll interval is at least the poll interval." }
+    }
+
+    /** A pacer of the tails of a log of [partitions] partitions, at these intervals. */
+    fun pacer(partitions: Int): TailPacer = TailPacer(partitions, interval, maxInterval)
+
+    override fun equals(other: Any?): Boolean =
+        this === other || other is TailPolling && interval == other.interval && maxInterval == other.maxInterval
+
+    override fun hashCode(): Int = 31 * interval.hashCode() + maxInterval.hashCode()
+
+    override fun toString(): String = "TailPolling(interval=$interval, maxInterval=$maxInterval)"
+
+    companion object {
+        /** 50 ms while entries come, backing off to 1 s. */
+        @JvmField
+        val DEFAULT: TailPolling = TailPolling(50.milliseconds, 1.seconds)
+    }
 }

@@ -11,13 +11,21 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.postgres
+package me.ahoo.wow.spi
 
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
+import me.ahoo.wow.api.annotation.WowSpi
 import java.util.concurrent.Executors
 
-/** The default dispatcher of every JDBC call in this module: a virtual thread per call (decisions D27, D29). */
-internal object VirtualThreads {
-    val dispatcher: CoroutineDispatcher = Executors.newVirtualThreadPerTaskExecutor().asCoroutineDispatcher()
+/**
+ * The dispatcher a backend runs its blocking driver calls on (JDBC, the MongoDB and Kafka clients; decisions D27, D29,
+ * D31): a virtual thread per call, one executor for every backend of the node, so a backend need not start its own.
+ */
+@WowSpi
+object VirtualThreads {
+    /** A virtual thread per call. */
+    val dispatcher: CoroutineDispatcher by lazy {
+        Executors.newVirtualThreadPerTaskExecutor().asCoroutineDispatcher()
+    }
 }

@@ -12,6 +12,11 @@ public final class me/ahoo/wow/spi/StoreDdl : java/lang/Enum {
 	public static fun values ()[Lme/ahoo/wow/spi/StoreDdl;
 }
 
+public final class me/ahoo/wow/spi/VirtualThreads {
+	public static final field INSTANCE Lme/ahoo/wow/spi/VirtualThreads;
+	public final fun getDispatcher ()Lkotlinx/coroutines/CoroutineDispatcher;
+}
+
 public abstract interface class me/ahoo/wow/spi/id/AggregateIdGenerator {
 	public static final field Companion Lme/ahoo/wow/spi/id/AggregateIdGenerator$Companion;
 	public static final field UUID_V7 Lme/ahoo/wow/spi/id/AggregateIdGenerator;
@@ -407,6 +412,44 @@ public final class me/ahoo/wow/spi/log/Partitioner {
 	public final fun hash (Ljava/lang/String;)J
 	public final fun key (Lme/ahoo/wow/api/aggregate/AggregateRef;)Ljava/lang/String;
 	public final fun partitionOf (Lme/ahoo/wow/api/aggregate/AggregateRef;I)I
+}
+
+public final class me/ahoo/wow/spi/log/TailPacer {
+	public synthetic fun <init> (IJJLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun await-gwCluXo (IJZJZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun await-gwCluXo$default (Lme/ahoo/wow/spi/log/TailPacer;IJZJZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public final fun committed (I)V
+	public final fun getInterval-UwyO8pc ()J
+	public final fun getMaxInterval-UwyO8pc ()J
+	public final fun mark (I)J
+}
+
+public final class me/ahoo/wow/spi/log/TailPacer$Pace {
+	public synthetic fun <init> (JZLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1-UwyO8pc ()J
+	public final fun component2 ()Z
+	public final fun copy-VtjQ1oo (JZ)Lme/ahoo/wow/spi/log/TailPacer$Pace;
+	public static synthetic fun copy-VtjQ1oo$default (Lme/ahoo/wow/spi/log/TailPacer$Pace;JZILjava/lang/Object;)Lme/ahoo/wow/spi/log/TailPacer$Pace;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getIdle-UwyO8pc ()J
+	public final fun getWoken ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/log/TailPolling {
+	public static final field Companion Lme/ahoo/wow/spi/log/TailPolling$Companion;
+	public static final field DEFAULT Lme/ahoo/wow/spi/log/TailPolling;
+	public synthetic fun <init> (JJLkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getInterval-UwyO8pc ()J
+	public final fun getMaxInterval-UwyO8pc ()J
+	public fun hashCode ()I
+	public final fun pacer (I)Lme/ahoo/wow/spi/log/TailPacer;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/log/TailPolling$Companion {
 }
 
 public final class me/ahoo/wow/spi/log/Transport {

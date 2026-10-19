@@ -17,7 +17,7 @@ import com.mongodb.client.MongoClient
 import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
-import me.ahoo.wow.mongo.VirtualThreads
+import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.mongo.snapshot.MongoSnapshotStore
 import me.ahoo.wow.query.AbstractQueryBackendFactory
 import me.ahoo.wow.query.QueryBackendBinding

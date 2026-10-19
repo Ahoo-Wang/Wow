@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.mongo
+package me.ahoo.wow.spi.log
 
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
