@@ -82,4 +82,27 @@ class ViewStoreAuthorizerTest {
         val shared = caller(ViewStoreContext.SHARED_OWNER_ID, ViewStoreCallers.SHARED_WRITER)
         allowed(shared, preferences(Scope(ownerId = ViewStoreContext.SHARED_OWNER_ID))).assert().isTrue()
     }
+
+    private fun refusal(caller: Caller, action: CommandAction): String =
+        (runBlocking { authorizer.authorize(caller, action) } as Authorization.Denied).message
+
+    @Test
+    fun `preferences written as no owner, or by a caller without one, should be refused naming the missing owner`() {
+        refusal(caller("alice", ViewStoreCallers.SHARED_WRITER), preferences(Scope.NONE)).assert()
+            .contains("as no owner")
+            .contains("own owner (alice)")
+        val tenantLevel = caller(null, ViewStoreCallers.SHARED_WRITER, ViewStoreCallers.SYSTEM_WRITER)
+        refusal(tenantLevel, preferences(Scope(ownerId = "alice"))).assert()
+            .contains("An anonymous caller may not")
+            .contains("as alice")
+            .contains("own owner (none)")
+    }
+
+    @Test
+    fun `a write that acts as no owner should be refused before the roles are consulted`() {
+        val tenantLevel = caller(null, ViewStoreCallers.SHARED_WRITER, ViewStoreCallers.SYSTEM_WRITER)
+        refusal(tenantLevel, rename(Scope.NONE)).assert().contains("and this one names none")
+        refusal(caller("alice"), rename(Scope(ownerId = ViewStoreContext.SHARED_OWNER_ID))).assert()
+            .contains("it needs ${ViewStoreCallers.SHARED_WRITER}")
+    }
 }

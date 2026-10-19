@@ -13,11 +13,17 @@
 
 package me.ahoo.wow.viewstore.server.system
 
+import ch.qos.logback.classic.Level
+import ch.qos.logback.classic.Logger
+import ch.qos.logback.classic.spi.ILoggingEvent
+import ch.qos.logback.core.read.ListAppender
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
@@ -30,6 +36,7 @@ import me.ahoo.wow.spi.StorageUnavailableException
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import org.junit.jupiter.api.Test
+import org.slf4j.LoggerFactory
 import org.springframework.test.web.reactive.server.WebTestClient
 import tools.jackson.databind.node.ObjectNode
 
@@ -105,12 +112,17 @@ class SystemViewsTest {
     }
 
     @OptIn(InternalWowApi::class)
-    private fun views(records: () -> Flow<ObjectNode>): WebTestClient {
+    private fun storedViews(records: () -> Flow<ObjectNode>): StoredSystemViews {
         val gateway = mockk<QueryGateway> {
             every { aggregateType } returns AggregateType(ViewStoreContext.NAME, ViewStoreContext.VIEW)
             every { list(any(), any()) } answers { records() }
         }
-        val views = StoredSystemViews(ConfiguredSystemViews(emptyList())) { HttpQueries(listOf(gateway)) }
+        return StoredSystemViews(ConfiguredSystemViews(emptyList())) { HttpQueries(listOf(gateway)) }
+    }
+
+    @OptIn(InternalWowApi::class)
+    private fun views(records: () -> Flow<ObjectNode>): WebTestClient {
+        val views = storedViews(records)
         val callers = CallerResolver { Caller(tenantId = "t1") }
         return WebTestClient.bindToRouterFunction(SystemViewRoutes(views, callers).routes()).build()
     }
@@ -143,5 +155,36 @@ class SystemViewsTest {
             .exchange()
             .expectStatus().isEqualTo(500)
             .expectHeader().contentType("application/problem+json")
+    }
+
+    @Test
+    fun `a stored view failing the checks should be logged by its id, or without one, and left out (R2_3-7)`() {
+        val nameless = stored("nameless", "Nameless").apply { remove("aggregateId") }
+        val broken = stored("system:x", "Broken")
+        val views = storedViews { flowOf(stored("kept", "Kept"), broken, nameless) }
+        val logger = LoggerFactory.getLogger(StoredSystemViews::class.java) as Logger
+        val appender = ListAppender<ILoggingEvent>().apply { start() }
+        logger.addAppender(appender)
+        val listed = try {
+            runBlocking { views.systemViews("t1", "app") }
+        } finally {
+            logger.detachAppender(appender)
+        }
+        listed.map { it.id }.assert().containsExactly("kept")
+        val warnings = appender.list.filter { it.level == Level.WARN }.map { it.formattedMessage }
+        warnings.assert().hasSize(2)
+        warnings[0].assert().contains("[system:x] of app is not a valid system view")
+        warnings[1].assert().contains("[null] of app is not a valid system view")
+    }
+
+    @Test
+    fun `a cancelled request should stay cancelled, not be answered as a problem (R2_3-8)`() {
+        val cancelled = views { flow { throw CancellationException("The client went away.") } }
+        cancelled.get().uri(SystemViewRoutes.SYSTEM_VIEWS)
+            .header(ViewStoreContext.APP_ID_HEADER, "app")
+            .exchange()
+            .expectStatus().isEqualTo(500)
+            .expectHeader().doesNotExist("Content-Type")
+            .expectBody().isEmpty()
     }
 }
