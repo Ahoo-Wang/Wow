@@ -15,13 +15,13 @@ package me.ahoo.wow.spring.boot
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
-import me.ahoo.wow.query.dataset.DatasetVisibility
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.dataset.AbstractDatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryBackend
 import me.ahoo.wow.query.dataset.DatasetQueryBackendFactory
 import me.ahoo.wow.query.dataset.DatasetQueryGateways
+import me.ahoo.wow.query.dataset.DatasetVisibility
 import me.ahoo.wow.query.dataset.QueryDataset
 import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.query.memory.InMemoryDatasetStorage

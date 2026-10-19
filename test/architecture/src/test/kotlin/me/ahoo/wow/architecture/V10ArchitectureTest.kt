@@ -167,6 +167,45 @@ class V10ArchitectureTest {
     }
 
     @Test
+    fun `http read rule should catch the log or the kernel in the query and read packages only`(@TempDir root: File) {
+        root.writeSource(
+            V10Rules.HTTP.dir,
+            "me/ahoo/wow/http/read/Bad.kt",
+            """
+            package me.ahoo.wow.http.read
+
+            import me.ahoo.wow.spi.log.EventLog
+
+            val kernel: me.ahoo.wow.kernel.Kernel? = null
+            """.trimIndent(),
+        )
+        root.writeSource(
+            V10Rules.HTTP.dir,
+            "me/ahoo/wow/http/query/Bad.kt",
+            """
+            package me.ahoo.wow.http.query
+
+            import me.ahoo.wow.spi.snapshot.SnapshotStore
+            """.trimIndent(),
+        )
+        // The rest of wow-http may read them: the command routes run the kernel's gateway.
+        root.writeSource(
+            V10Rules.HTTP.dir,
+            "me/ahoo/wow/http/command/Fine.kt",
+            """
+            package me.ahoo.wow.http.command
+
+            import me.ahoo.wow.spi.log.EventLog
+            """.trimIndent(),
+        )
+        V10Rules.HTTP_READS_ADAPT_ONLY.violations(root).assert().containsExactly(
+            "${V10Rules.HTTP.dir}/src/main/kotlin/me/ahoo/wow/http/query/Bad.kt:3: me.ahoo.wow.spi.snapshot.SnapshotStore",
+            "${V10Rules.HTTP.dir}/src/main/kotlin/me/ahoo/wow/http/read/Bad.kt:3: me.ahoo.wow.spi.log.EventLog",
+            "${V10Rules.HTTP.dir}/src/main/kotlin/me/ahoo/wow/http/read/Bad.kt:5: me.ahoo.wow.kernel.Kernel",
+        )
+    }
+
+    @Test
     fun `api rule should catch a 9x type, Jackson or kotlinx anywhere in wow-api`(@TempDir root: File) {
         root.writeSource(
             V10Rules.API.dir,
