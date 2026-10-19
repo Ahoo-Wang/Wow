@@ -72,22 +72,26 @@ spec:
               value: $(POD_IP)
             - name: WOW_NODE_ADDRESS
               value: $(POD_NAME).eshop-ordering-cluster.$(POD_NAMESPACE).svc.cluster.local:9093
-          # The public server starts only once the node has started (its backends, internal port and partitions) and
-          # stops first, so its port is the node's readiness. The internal port serves until the node has stopped, so
-          # it is the liveness: a draining node is not restarted.
+          # Actuator's probe groups on the HTTP port (review R3.5-3); the internal port stays cluster-only (D226). The
+          # readiness fails until the node runs, while its log or lease store is down, while it owns none of its
+          # partitions past the hand-over grace, or while a topic it reads is still joining. The liveness fails only
+          # when the node is stuck, never for a storage outage, and not while the node drains: no restart storm.
           startupProbe:
-            tcpSocket:
+            httpGet:
+              path: /actuator/health/readiness
               port: http
             periodSeconds: 5
             failureThreshold: 36
           readinessProbe:
-            tcpSocket:
+            httpGet:
+              path: /actuator/health/readiness
               port: http
             periodSeconds: 5
             failureThreshold: 2
           livenessProbe:
-            tcpSocket:
-              port: internal
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
             periodSeconds: 10
             failureThreshold: 3
           lifecycle:

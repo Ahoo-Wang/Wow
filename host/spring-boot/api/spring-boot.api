@@ -82,6 +82,13 @@ public final class me/ahoo/wow/spring/boot/ConfigurationKeys$Companion {
 	public static synthetic fun of$default (Lme/ahoo/wow/spring/boot/ConfigurationKeys$Companion;Ljava/lang/ClassLoader;Ljava/util/Collection;ILjava/lang/Object;)Lme/ahoo/wow/spring/boot/ConfigurationKeys;
 }
 
+public final class me/ahoo/wow/spring/boot/HealthAutoConfiguration {
+	public static final field LIVENESS_INDICATOR Ljava/lang/String;
+	public static final field READINESS_INDICATOR Ljava/lang/String;
+	public static final field WOW_CONTRIBUTOR Ljava/lang/String;
+	public fun <init> ()V
+}
+
 public final class me/ahoo/wow/spring/boot/HostBackends {
 	public static final field Companion Lme/ahoo/wow/spring/boot/HostBackends$Companion;
 	public final fun createSchemas ()V
@@ -403,6 +410,7 @@ public final class me/ahoo/wow/spring/boot/WowProperties {
 	public final fun getCosid ()Lme/ahoo/wow/spring/boot/WowProperties$CosId;
 	public final fun getDdl ()Lme/ahoo/wow/spi/StoreDdl;
 	public final fun getExecutor ()Lme/ahoo/wow/spring/boot/WowProperties$Executor;
+	public final fun getHealth ()Lme/ahoo/wow/spring/boot/WowProperties$Health;
 	public final fun getHttp ()Lme/ahoo/wow/spring/boot/WowProperties$Http;
 	public final fun getInternal ()Lme/ahoo/wow/spring/boot/WowProperties$Internal;
 	public final fun getLog ()Lme/ahoo/wow/spring/boot/WowProperties$Log;
@@ -429,6 +437,7 @@ public final class me/ahoo/wow/spring/boot/WowProperties {
 	public final fun setCosid (Lme/ahoo/wow/spring/boot/WowProperties$CosId;)V
 	public final fun setDdl (Lme/ahoo/wow/spi/StoreDdl;)V
 	public final fun setExecutor (Lme/ahoo/wow/spring/boot/WowProperties$Executor;)V
+	public final fun setHealth (Lme/ahoo/wow/spring/boot/WowProperties$Health;)V
 	public final fun setHttp (Lme/ahoo/wow/spring/boot/WowProperties$Http;)V
 	public final fun setInternal (Lme/ahoo/wow/spring/boot/WowProperties$Internal;)V
 	public final fun setLog (Lme/ahoo/wow/spring/boot/WowProperties$Log;)V
@@ -608,6 +617,66 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Executor {
 	public final fun getMaxInFlight ()I
 	public final fun setLaneCapacity (I)V
 	public final fun setMaxInFlight (I)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Health {
+	public fun <init> ()V
+	public final fun getEnabled ()Z
+	public final fun getExecutor ()Lme/ahoo/wow/spring/boot/WowProperties$HealthExecutor;
+	public final fun getLiveness ()Lme/ahoo/wow/spring/boot/WowProperties$HealthLiveness;
+	public final fun getOwnership ()Lme/ahoo/wow/spring/boot/WowProperties$HealthOwnership;
+	public final fun getSampleInterval ()Ljava/time/Duration;
+	public final fun getStores ()Lme/ahoo/wow/spring/boot/WowProperties$HealthStores;
+	public final fun getSubscriptions ()Lme/ahoo/wow/spring/boot/WowProperties$HealthSubscriptions;
+	public final fun getTopics ()Lme/ahoo/wow/spring/boot/WowProperties$HealthTopics;
+	public final fun setEnabled (Z)V
+	public final fun setExecutor (Lme/ahoo/wow/spring/boot/WowProperties$HealthExecutor;)V
+	public final fun setLiveness (Lme/ahoo/wow/spring/boot/WowProperties$HealthLiveness;)V
+	public final fun setOwnership (Lme/ahoo/wow/spring/boot/WowProperties$HealthOwnership;)V
+	public final fun setSampleInterval (Ljava/time/Duration;)V
+	public final fun setStores (Lme/ahoo/wow/spring/boot/WowProperties$HealthStores;)V
+	public final fun setSubscriptions (Lme/ahoo/wow/spring/boot/WowProperties$HealthSubscriptions;)V
+	public final fun setTopics (Lme/ahoo/wow/spring/boot/WowProperties$HealthTopics;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$HealthExecutor {
+	public fun <init> ()V
+	public final fun getSaturation ()D
+	public final fun setSaturation (D)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$HealthLiveness {
+	public fun <init> ()V
+	public final fun getStallTimeout ()Ljava/time/Duration;
+	public final fun setStallTimeout (Ljava/time/Duration;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$HealthOwnership {
+	public fun <init> ()V
+	public final fun getHandoverGrace ()Ljava/time/Duration;
+	public final fun setHandoverGrace (Ljava/time/Duration;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$HealthStores {
+	public fun <init> ()V
+	public final fun getDownAfter ()Ljava/time/Duration;
+	public final fun getWindow ()Ljava/time/Duration;
+	public final fun setDownAfter (Ljava/time/Duration;)V
+	public final fun setWindow (Ljava/time/Duration;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$HealthSubscriptions {
+	public fun <init> ()V
+	public final fun getLagDegradedAt ()J
+	public final fun getParkedDegradedAt ()I
+	public final fun setLagDegradedAt (J)V
+	public final fun setParkedDegradedAt (I)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$HealthTopics {
+	public fun <init> ()V
+	public final fun getRequired ()Z
+	public final fun setRequired (Z)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Http {

@@ -38,6 +38,9 @@ import me.ahoo.wow.runtime.cluster.Deposit
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.contract.ContractException
+import me.ahoo.wow.runtime.health.HealthOptions
+import me.ahoo.wow.runtime.health.HealthStatus
+import me.ahoo.wow.runtime.health.NodeHealth
 import me.ahoo.wow.runtime.node.InMemoryBackends
 import me.ahoo.wow.runtime.node.NODE_SERVICE
 import me.ahoo.wow.runtime.node.ServiceNode
@@ -51,10 +54,12 @@ import me.ahoo.wow.runtime.subscription.Subscription
 import me.ahoo.wow.runtime.subscription.SubscriptionFilter
 import me.ahoo.wow.runtime.subscription.eventually
 import me.ahoo.wow.spi.state.StateEventPayload
+import me.ahoo.wow.spi.transport.PartitionedSource
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.concurrent.CopyOnWriteArrayList
+import kotlin.time.Duration
 
 /**
  * A node whose annotated handlers read another context's published stream (decisions D134, D138, D140): the bindings
@@ -165,6 +170,47 @@ class SourcedNodeTest {
             node.stop()
             subscriptions.runtime.assert().isNull()
         }
+
+    @Test
+    fun `a topic still joining should make the node not ready until it reads it (R3-H)`(): Unit = runBlocking {
+        val gated = object : PartitionedSource by topics {
+            @Volatile
+            var open = false
+
+            override suspend fun partitions(topic: String): List<Int> =
+                if (open) topics.partitions(topic) else emptyList()
+        }
+        val node = node(topics = SourceTopics(gated, PREFIX))
+        val health = NodeHealth(node, HealthOptions(storeDownAfter = Duration.ZERO))
+        node.start()
+        val readiness = health.readiness()
+        readiness.status.assert().isEqualTo(HealthStatus.DOWN)
+        val topic = readiness.component(NodeHealth.TOPICS)!!.components.single()
+        topic.name.assert().isEqualTo(TOPIC)
+        topic.status.assert().isEqualTo(HealthStatus.DOWN)
+        topic.details["state"].assert().isEqualTo("JOINING")
+        eventually {
+            (health.readiness().component(NodeHealth.TOPICS)!!.components.single().details["joinFailures"] as Int) > 0
+        }
+        health.readiness().component(NodeHealth.TOPICS)!!.components.single().details["lastJoinFailure"].assert()
+            .isEqualTo("IllegalStateException")
+        // A node that does not wait for its topics is ready, its topic degraded.
+        NodeHealth(node, HealthOptions(topicsRequired = false)).readiness().let {
+            it.status.assert().isEqualTo(HealthStatus.UP)
+            it.component(NodeHealth.TOPICS)!!.status.assert().isEqualTo(HealthStatus.DEGRADED)
+        }
+
+        gated.open = true
+        node.topicSubscriptions.getValue(TOPIC).awaitStarted()
+        eventually { health.readiness().status == HealthStatus.UP }
+        // The topic's lease group is among the ownerships, and its runtime among the subscriptions.
+        health.sample()
+        val all = health.health()
+        all.component(NodeHealth.OWNERSHIP)!!.components.map { it.name }.assert()
+            .contains("$NODE_SERVICE/topic:$TOPIC")
+        all.component(NodeHealth.SUBSCRIPTIONS)!!.components.map { it.name }.assert()
+            .contains("$NODE_SERVICE/topic:$TOPIC")
+    }
 
     @Test
     fun `a sourced handler's subscription carries its own retry budget (P3)`() {
