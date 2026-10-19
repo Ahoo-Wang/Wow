@@ -16,7 +16,7 @@ public final class me/ahoo/wow/cosec/CoSecAutoConfiguration {
 	public final fun wowCoSecCallAuthorizer (Lme/ahoo/cosec/api/authorization/Authorization;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/http/caller/CallAuthorizer;
 	public final fun wowCoSecCallerResolver (Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/cosec/CoSecCallerResolver;
 	public final fun wowCoSecCommandAuthorizer (Lme/ahoo/cosec/api/authorization/Authorization;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/cosec/CoSecCommandAuthorizer;
-	public final fun wowCoSecInternalCallerResolver (Lme/ahoo/cosec/context/request/RequestParser;Lme/ahoo/cosec/context/SecurityContextParser;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/cosec/CoSecInternalCallerResolver;
+	public final fun wowCoSecInternalCallerResolver (Lme/ahoo/cosec/context/request/RequestParser;Lme/ahoo/cosec/token/TokenVerifier;Lorg/springframework/core/env/Environment;)Lme/ahoo/wow/cosec/CoSecInternalCallerResolver;
 	public static final fun wowCoSecRequestFacts ()Lorg/springframework/beans/factory/config/BeanPostProcessor;
 }
 
@@ -81,7 +81,7 @@ public final class me/ahoo/wow/cosec/CoSecCommandAuthorizer$Companion {
 }
 
 public final class me/ahoo/wow/cosec/CoSecInternalCallerResolver : me/ahoo/wow/http/caller/InternalCallerResolver {
-	public fun <init> (Lme/ahoo/cosec/context/request/RequestParser;Lme/ahoo/cosec/context/SecurityContextParser;Lme/ahoo/wow/cosec/CoSecCallerResolver;)V
+	public fun <init> (Lme/ahoo/cosec/context/request/RequestParser;Lme/ahoo/cosec/token/TokenVerifier;Lme/ahoo/wow/cosec/CoSecCallerResolver;)V
 	public fun resolve (Lorg/springframework/web/reactive/function/server/ServerRequest;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 

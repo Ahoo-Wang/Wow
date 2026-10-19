@@ -36,6 +36,10 @@ import me.ahoo.wow.runtime.snapshot.SnapshotStatus
  *
  * [snapshotStatus] tells whether an aggregate type's snapshots are being rebuilt or backfilled (decision D172): its
  * snapshot query and descriptor then answer with `Wow-Rebuilding: true`.
+ *
+ * [policies] are the gateways that admit the states of each aggregate type whose snapshots are not queried while
+ * query policies may hide one (review R3.3-3, [me.ahoo.wow.query.state.SnapshotPolicyGateway]); no route serves them,
+ * and a state read sees a state as [visibility] says.
  */
 class HttpQueries @InternalWowApi constructor(
     snapshots: Collection<QueryGateway> = emptyList(),
@@ -45,18 +49,31 @@ class HttpQueries @InternalWowApi constructor(
     val datasetVisibility: DatasetVisibility = DatasetVisibility.DEFAULT,
     @InternalWowApi
     val snapshotStatus: SnapshotStatus = SnapshotStatus.NONE,
+    policies: Collection<QueryGateway> = emptyList(),
 ) {
     private val snapshots: Map<AggregateType, QueryGateway> = snapshots.associateBy { it.aggregateType }
     private val events: Map<AggregateType, QueryGateway> = events.associateBy { it.aggregateType }
+    private val policies: Map<AggregateType, QueryGateway> = policies.associateBy { it.aggregateType }
 
     init {
         require(defaultListSize >= 0) { "defaultListSize must be greater than or equal to 0." }
         require(this.snapshots.size == snapshots.size) { "One snapshot query gateway per aggregate type." }
         require(this.events.size == events.size) { "One events query gateway per aggregate type." }
+        require(this.policies.size == policies.size) { "One snapshot policy gateway per aggregate type." }
+        require(this.policies.keys.none(this.snapshots::containsKey)) {
+            "A snapshot policy gateway is only for an aggregate type whose snapshots are not queried."
+        }
     }
 
     /** The snapshot query gateway of [type], or null when no backend serves its snapshots. */
     fun snapshots(type: AggregateType): QueryGateway? = snapshots[type]
+
+    /**
+     * The gateway whose policies decide which of [type]'s states a caller sees ([me.ahoo.wow.query.state.StateVisibility]):
+     * its snapshot query gateway, else its snapshot policy gateway; null when no policy applies to it.
+     */
+    @InternalWowApi
+    fun visibility(type: AggregateType): QueryGateway? = snapshots[type] ?: policies[type]
 
     /** The events query gateway of [type], or null when no backend serves its events. */
     fun events(type: AggregateType): QueryGateway? = events[type]

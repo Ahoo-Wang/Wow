@@ -49,20 +49,22 @@ fun interface EventVisibility {
 
         /**
          * An aggregate the snapshot queries of its type hide from the caller is hidden from the events model too
-         * (review A3-11): [StateVisibility] of its latest committed state, which [latest] reads, under the snapshot
-         * query gateway [snapshots] gives for its type, so ABAC and the application's query policies hide the same
-         * aggregates from both models whichever entry asks.
+         * (review A3-11): [StateVisibility] of its latest committed state, which [latest] reads, under the gateway
+         * [snapshots] gives for its type, so ABAC and the application's query policies hide the same aggregates from
+         * both models whichever entry asks. That gateway is the type's snapshot query gateway, or, for a type whose
+         * snapshots are not queried, a [me.ahoo.wow.query.state.SnapshotPolicyGateway] that evaluates the same policies
+         * on the state alone (review R3.3-3).
          *
          * [latest] gives the aggregate's latest state: its snapshot, else, before its first snapshot is written, the
          * state its log holds (review R2.3-6), so a new aggregate follows the rule from its first commit instead of
          * showing its streams to every caller of its tenant while its snapshot lags. An aggregate with no committed
          * state (null) shows nothing: it has no streams yet, and one committed between the check and the read is not
-         * shown unchecked. A type without a snapshot query gateway has no policies to apply: every aggregate of it is
-         * visible, and no state is read.
+         * shown unchecked.
          *
          * [hides] says whether the snapshot queries may hide an aggregate from a caller of its scope at all: ABAC or an
-         * application's query policy is configured. When they cannot, or the type has no snapshot query gateway, a
-         * caller [seesAll] the type's aggregates, so an events query need not name its aggregate.
+         * application's query policy is configured. When they cannot, a caller [seesAll] the type's aggregates, so an
+         * events query need not name its aggregate. When they can, a type [snapshots] gives no gateway for fails closed
+         * (review R3.3-3): none of its aggregates is visible, since no policy could be evaluated on it.
          */
         @JvmOverloads
         fun of(
@@ -71,12 +73,11 @@ fun interface EventVisibility {
             latest: suspend (AggregateRef) -> CommittedState?,
         ): EventVisibility = object : EventVisibility {
             override suspend fun visible(ref: AggregateRef, caller: QueryCaller): Boolean {
-                val gateway = snapshots(ref.type)
-                return gateway == null || latest(ref)?.let { StateVisibility.visible(gateway, caller, it) } == true
+                val gateway = snapshots(ref.type) ?: return !hides
+                return latest(ref)?.let { StateVisibility.visible(gateway, caller, it) } == true
             }
 
-            override suspend fun seesAll(type: AggregateType, caller: QueryCaller): Boolean =
-                !hides || snapshots(type) == null
+            override suspend fun seesAll(type: AggregateType, caller: QueryCaller): Boolean = !hides
         }
     }
 }
