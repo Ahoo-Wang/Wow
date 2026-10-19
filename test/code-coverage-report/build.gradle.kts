@@ -84,6 +84,8 @@ val classesSharedWithNineX = mapOf(":api" to listOf("me/ahoo/wow/api/annotation/
 // leaves out the V10 module's classes. The V10 view-store (D146, D216) keeps 9.x view-store's packages
 // `me.ahoo.wow.viewstore.*` and many of its class names, so a report that covers both leaves out the V10 module's.
 // The V10 models (:models, D187) keep 9.x wow-models' package `me.ahoo.wow.models` and its class names, likewise.
+// The V10 dataset registry (9.3b, D238) keeps 9.x dataset-registry's packages `me.ahoo.wow.datasetregistry.api` and
+// `.domain`, where both declare `DatasetRegistryBoundedContext`, likewise.
 val classesSharedWithNineXWhenBoth = mapOf(
     ":query-api" to (":wow-api" to listOf("me/ahoo/wow/api/query/**")),
     ":query" to (":wow-query" to listOf("me/ahoo/wow/query/**")),
@@ -95,6 +97,8 @@ val classesSharedWithNineXWhenBoth = mapOf(
     ":view-store-domain" to (":wow-view-store-domain" to listOf("me/ahoo/wow/viewstore/**")),
     ":view-store-server" to (":wow-view-store-server" to listOf("me/ahoo/wow/viewstore/**")),
     ":models" to (":wow-models" to listOf("me/ahoo/wow/models/**")),
+    ":dataset-registry-api" to (":wow-dataset-registry-api" to listOf("me/ahoo/wow/datasetregistry/**")),
+    ":dataset-registry-domain" to (":wow-dataset-registry-domain" to listOf("me/ahoo/wow/datasetregistry/**")),
 )
 
 /** A module of a report: its main source roots, and the class files the report covers of it. */
