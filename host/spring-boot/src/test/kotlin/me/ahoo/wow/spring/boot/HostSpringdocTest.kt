@@ -23,8 +23,11 @@ import me.ahoo.wow.openapi.OpenApiSecurityScheme
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springdoc.core.models.GroupedOpenApi
+import org.springdoc.core.properties.AbstractSwaggerUiConfigProperties.SwaggerUrl
+import org.springdoc.core.properties.SwaggerUiConfigProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.mock.env.MockEnvironment
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -108,6 +111,24 @@ class HostSpringdocTest {
             host.context.getBeansOfType(GroupedOpenApi::class.java).assert().isEmpty()
             pathsOf(host.get(API_DOCS).body!!).assert().containsExactly("/accounts/{owner}/summary")
         }
+    }
+
+    @Test
+    fun `Swagger UI should list the default document first, unless the application lists its own`() {
+        val processor = SpringdocAutoConfiguration.wowSwaggerUiDefaultDocument(MockEnvironment())
+        val ui = SwaggerUiConfigProperties()
+        processor.postProcessBeforeInitialization(ui, "ui")
+        ui.urls.single().url.assert().isEqualTo(API_DOCS)
+        ui.urlsPrimaryName.assert().isEqualTo(SpringdocAutoConfiguration.DEFAULT_DOCUMENT)
+        val own = SwaggerUiConfigProperties().apply { urls = linkedSetOf(SwaggerUrl("mine", "/mine", "Mine")) }
+        processor.postProcessBeforeInitialization(own, "ui")
+        own.urls.single().name.assert().isEqualTo("mine")
+        val off = SwaggerUiConfigProperties()
+        SpringdocAutoConfiguration.wowSwaggerUiDefaultDocument(
+            MockEnvironment().withProperty("springdoc.enable-default-api-docs", "false"),
+        ).postProcessBeforeInitialization(off, "ui")
+        off.urls.isNullOrEmpty().assert().isTrue()
+        processor.postProcessBeforeInitialization("other", "other").assert().isEqualTo("other")
     }
 
     private fun springdocHost(

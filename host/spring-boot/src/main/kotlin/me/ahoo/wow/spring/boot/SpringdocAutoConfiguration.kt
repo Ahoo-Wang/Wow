@@ -26,14 +26,18 @@ import me.ahoo.wow.runtime.node.ServiceNode
 import org.springdoc.api.AbstractOpenApiResource
 import org.springdoc.core.customizers.OpenApiCustomizer
 import org.springdoc.core.models.GroupedOpenApi
+import org.springdoc.core.properties.AbstractSwaggerUiConfigProperties.SwaggerUrl
+import org.springdoc.core.properties.SwaggerUiConfigProperties
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.SmartInitializingSingleton
+import org.springframework.beans.factory.config.BeanPostProcessor
 import org.springframework.boot.autoconfigure.AutoConfiguration
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
+import org.springframework.core.env.Environment
 import org.springframework.util.ReflectionUtils
 import java.util.Locale
 
@@ -46,7 +50,8 @@ import java.util.Locale
  *   both define (path and method) or a component name both use for different definitions fails the startup, since
  *   [wowSpringdocStartupCheck] renders the default document once the beans are ready, as springdoc's pre-loading does.
  * - [wowGroupedOpenApi] is the group `wow.http.openapi.springdoc.group` (`wow`, `/v3/api-docs/wow`): the Wow routes
- *   alone, none of the application's.
+ *   alone, none of the application's. Swagger UI lists the default document first ([wowSwaggerUiDefaultDocument]),
+ *   then the groups.
  * - The document's security schemes and global `security` are the [WowOpenApiSecurity] bean's: the host's from its
  *   [CallerResolver] (CoSec's bearer token), unless the application gives its own.
  * - The document has the public port's routes alone: the internal port's call routes, cluster channel and signals are
@@ -120,6 +125,35 @@ class SpringdocAutoConfiguration {
     companion object {
         /** The group of the Wow routes by default. */
         const val DEFAULT_GROUP: String = "wow"
+
+        /** The name of the default document in Swagger UI's list ([wowSwaggerUiDefaultDocument]). */
+        const val DEFAULT_DOCUMENT: String = "default"
+
+        /**
+         * Lists springdoc's default document in Swagger UI, first and opened by default, beside the groups: with a
+         * group, springdoc lists the groups alone, and the default document is the one with the application's
+         * controllers and the Wow routes together. An application that lists Swagger UI's documents itself
+         * (`springdoc.swagger-ui.urls`) keeps its list.
+         */
+        @Bean
+        @JvmStatic
+        @InternalWowApi
+        fun wowSwaggerUiDefaultDocument(environment: Environment): BeanPostProcessor = object : BeanPostProcessor {
+            override fun postProcessBeforeInitialization(bean: Any, beanName: String): Any {
+                if (bean is SwaggerUiConfigProperties && bean.urls.isNullOrEmpty() &&
+                    environment.getProperty(DEFAULT_API_DOCS, Boolean::class.java, true)
+                ) {
+                    val path = environment.getProperty(API_DOCS_PATH, DEFAULT_API_DOCS_PATH)
+                    bean.urls = linkedSetOf(SwaggerUrl(DEFAULT_DOCUMENT, path, "All routes"))
+                    bean.urlsPrimaryName = bean.urlsPrimaryName ?: DEFAULT_DOCUMENT
+                }
+                return bean
+            }
+        }
+
+        private const val DEFAULT_API_DOCS = "springdoc.enable-default-api-docs"
+        private const val API_DOCS_PATH = "springdoc.api-docs.path"
+        private const val DEFAULT_API_DOCS_PATH = "/v3/api-docs"
         private val logger = KotlinLogging.logger {}
     }
 }

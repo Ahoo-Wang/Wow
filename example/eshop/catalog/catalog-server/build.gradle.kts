@@ -25,4 +25,8 @@ dependencies {
     implementation(project(":postgres"))
     implementation("com.zaxxer:HikariCP")
     testImplementation("org.springframework:spring-test")
+    // The springdoc bridge's acceptance (decision D233): the catalog's routes in springdoc's documents and Swagger UI,
+    // the document checked against the OpenAPI 3.1 schema.
+    testImplementation("org.springdoc:springdoc-openapi-starter-webflux-ui")
+    testImplementation(libs.json.schema.validator)
 }
