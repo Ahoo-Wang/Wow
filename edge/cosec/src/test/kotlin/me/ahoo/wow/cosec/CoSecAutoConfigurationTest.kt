@@ -116,7 +116,7 @@ class CoSecAutoConfigurationTest {
     fun `the CoSec request facts join the edge's options`() {
         runner.withUserConfiguration(CoSec::class.java).run { context ->
             context.getBean(WowHttpOptions::class.java).requestFacts.assert()
-                .containsExactlyInAnyOrder("X-Trace", CoSecRequestFacts.APP_ID, CoSecRequestFacts.DEVICE_ID)
+                .containsExactlyInAnyOrder("X-Trace", CoSecRequestFacts.DEVICE_ID)
         }
     }
 

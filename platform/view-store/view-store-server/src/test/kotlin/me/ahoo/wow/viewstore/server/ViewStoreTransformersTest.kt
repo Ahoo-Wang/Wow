@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.runtime.admission.CommandInput
 import me.ahoo.wow.runtime.admission.CommandTransformer
 import me.ahoo.wow.viewstore.api.preferences.SetViewPreferences
@@ -30,7 +31,7 @@ class ViewStoreTransformersTest {
     private val alice = Caller.of(scope = Scope(ownerId = "alice"))
 
     private fun CommandTransformer.target(body: Any, app: String?, named: String? = null): String? {
-        val headers = app?.let { mapOf("cosec-app-id" to it) }.orEmpty()
+        val headers = app?.let { mapOf(RequestFacts.APP_ID to it) }.orEmpty()
         val input = CommandInput(this.input, body, named, headers, "request-1", alice)
         return runBlocking { transform(input) }.aggregateId
     }

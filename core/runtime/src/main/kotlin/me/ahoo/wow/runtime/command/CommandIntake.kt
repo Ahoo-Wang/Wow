@@ -21,6 +21,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
@@ -178,6 +179,7 @@ class CommandIntake internal constructor(
             executionId = replyTo.executionId(),
             operator = wire.operator,
             scope = wire.scope,
+            headers = RequestFacts.propagatedOf(wire.headers),
         )
         // The receipt goes on in the trace the command was executed in (decision D174).
         producer.send(
@@ -203,6 +205,7 @@ class CommandIntake internal constructor(
             executionId = replyTo.executionId(),
             operator = wire.operator,
             scope = wire.scope,
+            headers = RequestFacts.propagatedOf(wire.headers),
         )
         // The receipt goes on in the trace the command was executed in (decision D174).
         val trace = currentCoroutineContext().trace

@@ -15,11 +15,13 @@ package me.ahoo.wow.runtime.command
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.ScheduleContext
@@ -108,11 +110,22 @@ class CommandIntakeTest {
         channel.bind(it.address, it.forwardHandler)
     }
 
-    private suspend fun ServiceNode.place(id: String, quantity: Int): CommandResult {
+    private suspend fun ServiceNode.place(
+        id: String,
+        quantity: Int,
+        headers: Map<String, String> = emptyMap(),
+    ): CommandResult {
         val context = context(SALES)
         return context.coordinator.execute(
             context.models.first(),
-            Command("place-$id", "place-$id", ORDER.ref(TENANT, id), PlaceOrder(quantity), wait = WaitPlan.COMMITTED),
+            Command(
+                "place-$id",
+                "place-$id",
+                ORDER.ref(TENANT, id),
+                PlaceOrder(quantity),
+                headers = headers,
+                wait = WaitPlan.COMMITTED,
+            ),
         )
     }
 
@@ -219,6 +232,26 @@ class CommandIntakeTest {
         rejections.size.assert().isEqualTo(1)
         cancelled.size.assert().isEqualTo(1)
     }
+
+    @Test
+    fun `a saga's command, its receipt and the compensation should carry only the facts that propagate`(): Unit =
+        runBlocking {
+            stockNode().start()
+            val sales = salesNode().also { it.start() }
+            val facts = mapOf(RequestFacts.APP_ID to "console", RequestFacts.REMOTE_IP to "10.0.0.7", "X-T" to "t")
+            sales.place("o-3", AVAILABLE + 1, facts)
+            eventually { cancelled.size == 1 }
+            val propagated = mapOf(RequestFacts.APP_ID to "console")
+            // Decision D232: the application goes along the chain, the client's address does not.
+            CommandMessages.commandOf(EnvelopeCodec.decode(topics.messages(COMMANDS).single().value)).headers
+                .assert().isEqualTo(propagated)
+            CommandMessages.rejectedOf(EnvelopeCodec.decode(topics.messages(RECEIPTS).single().value)).headers
+                .assert().isEqualTo(propagated)
+            rejections.single().headers.assert().isEqualTo(propagated)
+            val compensated = salesBackends.backends(SALES).log.read(ORDER.ref(TENANT, "o-3")).toList().last()
+            compensated.commandType.assert().isEqualTo("sales.order.CancelOrder")
+            compensated.headers.assert().isEqualTo(propagated)
+        }
 
     @Test
     fun `the intake should not start unless its command topic has the log's partitions`(): Unit = runBlocking {

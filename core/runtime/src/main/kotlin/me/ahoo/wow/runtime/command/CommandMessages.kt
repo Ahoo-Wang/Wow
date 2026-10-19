@@ -40,10 +40,11 @@ import me.ahoo.wow.spi.wait.WaitContext
  *   the log's partitioner gives that ref among the topic's partitions, which are the target context's log partitions.
  * - **Receipt** ([EnvelopeKind.COMMAND_RECEIPT]): `id` is the rejected command's id, the one a reader deduplicates by,
  *   `type` its type, `payload` the rejection as the saga's `@OnRejected` handler takes it, `{commandId, commandType,
- *   ref, error, causation, executionId, operator, scope}` (decisions D157, D163, D189), without the command's body. Keyed by the ref of the commit
+ *   ref, error, causation, executionId, operator, scope, headers}` (decisions D157, D163, D189, D232; `headers` the
+ *   command's request facts that propagate), without the command's body. Keyed by the ref of the commit
  *   the saga handled, so the receipts of one saga aggregate keep their order. A success receipt (decision D192), the
  *   same kind and id, carries the commit instead: `{commandId, commandType, ref, version, result, causation,
- *   executionId, operator, scope}`, its `result` the command's [CommandResult] at its `committed` hop, no state.
+ *   executionId, operator, scope, headers}`, its `result` the command's [CommandResult] at its `committed` hop, no state.
  *
  * Bodies and payloads are read and written with the cluster channel's lenient mapper ([ClusterCodec]): unknown fields
  * are ignored, and numbers keep their exact value.
@@ -109,6 +110,7 @@ object CommandMessages {
                     rejected.executionId,
                     rejected.operator,
                     rejected.scope,
+                    rejected.headers,
                 ),
             ),
             transport = transportOf(wait, trace),
@@ -118,7 +120,7 @@ object CommandMessages {
 
     /**
      * The success receipt of [committed] (decision D192): `id` is the command's id, as a rejection's, and `payload`
-     * `{commandId, commandType, ref, version, result, causation, executionId, operator, scope}`, without the state,
+     * `{commandId, commandType, ref, version, result, causation, executionId, operator, scope, headers}`, without the state,
      * carrying the propagation fields of its [trace] (decision D174) and, in its transport, the [wait] of the command
      * it answers past its commit: the rest of the chain, whose next hop is the saga's `@OnCommitted` handler.
      */
@@ -142,6 +144,7 @@ object CommandMessages {
                     committed.executionId,
                     committed.operator,
                     committed.scope,
+                    committed.headers,
                 ),
             ),
             transport = transportOf(wait, trace),
@@ -175,6 +178,7 @@ object CommandMessages {
             wire.executionId,
             wire.operator,
             wire.scope,
+            wire.headers,
         )
     }
 
@@ -192,6 +196,7 @@ object CommandMessages {
             wire.executionId,
             wire.operator,
             wire.scope,
+            wire.headers,
         )
     }
 
@@ -206,6 +211,7 @@ object CommandMessages {
         val executionId: ExecutionId,
         val operator: Operator? = null,
         val scope: Scope = Scope.NONE,
+        val headers: Map<String, String> = emptyMap(),
     )
 
     private data class CommittedWire(
@@ -218,5 +224,6 @@ object CommandMessages {
         val executionId: ExecutionId,
         val operator: Operator? = null,
         val scope: Scope = Scope.NONE,
+        val headers: Map<String, String> = emptyMap(),
     )
 }

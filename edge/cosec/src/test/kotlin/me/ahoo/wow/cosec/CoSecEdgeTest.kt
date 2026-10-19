@@ -13,7 +13,9 @@
 
 package me.ahoo.wow.cosec
 
+import me.ahoo.cosec.api.context.request.AppIdCapable
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.kernel.CommandType
@@ -88,12 +90,13 @@ class CoSecEdgeTest {
     }
 
     @Test
-    fun `the CoSec request facts reach the command beside the host's own`() {
+    fun `the CoSec request facts and the application CoSec authorized reach the command beside the host's own`() {
         node.post(
             "/shop/cart/open-cart",
             headers = mapOf(
                 "X-User" to "alice",
-                CoSecRequestFacts.APP_ID to "shop-app",
+                "X-Granted" to "app-role",
+                AppIdCapable.APP_ID_KEY to "shop-app",
                 CoSecRequestFacts.DEVICE_ID to "device-1",
                 "X-Trace" to "t-1",
                 "X-Other" to "ignored",
@@ -101,11 +104,20 @@ class CoSecEdgeTest {
         ).assertSucceeded()
         headers.single().assert().isEqualTo(
             mapOf(
-                CoSecRequestFacts.APP_ID to "shop-app",
+                RequestFacts.APP_ID to "shop-app",
                 CoSecRequestFacts.DEVICE_ID to "device-1",
                 "X-Trace" to "t-1",
             ),
         )
+    }
+
+    @Test
+    fun `a CoSec-App-Id CoSec did not authorize the request in is not recorded`() {
+        node.post(
+            "/shop/cart/open-cart",
+            headers = mapOf("X-User" to "root", AppIdCapable.APP_ID_KEY to "shop-app", "app_id" to "forged"),
+        ).assertSucceeded()
+        headers.single().assert().isEmpty()
     }
 
     @Test

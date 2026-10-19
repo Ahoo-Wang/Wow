@@ -17,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.annotation.Name
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.ErrorInfo
 import me.ahoo.wow.api.result.FunctionInfo
@@ -121,6 +122,7 @@ fun commandRejected(
     causation = command.causation ?: Causation(command.id, command.id),
     executionId = executionId,
     operator = command.operator,
+    headers = RequestFacts.propagatedOf(command.headers),
 )
 
 /**
@@ -162,6 +164,7 @@ fun commandCommitted(
         executionId = executionId,
         operator = command.operator,
         scope = command.scope,
+        headers = RequestFacts.propagatedOf(command.headers),
     )
 }
 

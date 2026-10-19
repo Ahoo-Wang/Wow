@@ -43,7 +43,8 @@ import me.ahoo.cosec.api.authorization.Authorization as CoSecAuthorization
  *   `wow.cosec.cross-scope.policies` and `wow.cosec.tenant-level.roles` / `wow.cosec.tenant-level.policies` (the
  *   tenant-level callers, decision D189), `wow.cosec.service.roles` / `wow.cosec.service.policies` (the service
  *   identities, decision D193), comma-separated or indexed lists.
- * - The CoSec request facts ([CoSecRequestFacts]) join the edge's request-fact list (`wow.http.request-facts`).
+ * - The CoSec request fact `CoSec-Device-Id` ([CoSecRequestFacts]) joins the edge's request-fact list
+ *   (`wow.http.request-facts`); the application CoSec authorized a request in is the standard fact `app_id` (D232).
  * - [CoSecCommandAuthorizer] is the host's [CommandAuthorizer] when `wow.cosec.authorizer.enabled` is true, the
  *   application has CoSec's `Authorization` and no authorizer of its own. On the public port CoSec's WebFilter
  *   already authorizes the command routes by path and method.

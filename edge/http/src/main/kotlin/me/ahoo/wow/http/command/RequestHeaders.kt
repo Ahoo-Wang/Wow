@@ -15,6 +15,7 @@ package me.ahoo.wow.http.command
 
 import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.http.WowHeaders
 import me.ahoo.wow.http.caller.CallPermits
@@ -35,8 +36,8 @@ import kotlin.time.Duration
  * Reads the Wow headers of a request (decisions D95, D98, D99); a header that does not parse is answered as a problem
  * before the command has a ref: `wow.wait.invalid` for the wait, `wow.command.malformed` for the others.
  *
- * [publicPort] is whether the requests come to the public port, the one port whose commands carry the default request
- * facts ([facts]): on the internal port the peer is a service of the cluster, not the client.
+ * [publicPort] is whether the requests come to the public port, the one port whose commands carry the client's address
+ * and `User-Agent` ([facts]): on the internal port the peer is a service of the cluster, not the client.
  */
 internal class RequestHeaders(private val statuses: ErrorStatuses, private val publicPort: Boolean = false) {
     /**
@@ -129,12 +130,15 @@ internal class RequestHeaders(private val statuses: ErrorStatuses, private val p
     fun requestId(request: ServerRequest): String? = request.header(WowHeaders.REQUEST_ID)
 
     /**
-     * The request facts [names] lists that [request] carries, as named in [names], and on the public port the default
-     * request facts (09 §17 G-10), as 9.x's header appenders wrote them:
+     * The request facts [names] lists that [request] carries, as named in [names], and the standard request facts
+     * ([RequestFacts]) the framework fills itself:
      *
-     * - [USER_AGENT], the request's `User-Agent`, when it has one;
-     * - [REMOTE_IP], the address literal of the request's remote address (never a host name, which a reverse DNS
-     *   lookup would block the event loop for; an unresolved address as it was given), when the server knows it.
+     * - [RequestFacts.APP_ID], the [app][Caller.app] of the [caller] its resolver authenticated (decision D232), on
+     *   either port: on the internal port the calling service's own; none for a caller without one;
+     * - on the public port (09 §17 G-10), as 9.x's header appenders wrote them, [RequestFacts.USER_AGENT], the
+     *   request's `User-Agent`, when it has one, and [RequestFacts.REMOTE_IP], the address literal of the request's
+     *   remote address (never a host name, which a reverse DNS lookup would block the event loop for; an unresolved
+     *   address as it was given), when the server knows it.
      *
      * The remote address is the server's: the connection's peer or, when the host trusts a proxy in front of it, the
      * client that proxy forwarded for. `X-Forwarded-For` and `Forwarded` are never read here: 9.x took the first
@@ -142,22 +146,26 @@ internal class RequestHeaders(private val statuses: ErrorStatuses, private val p
      * where its server is configured: Spring Boot's `server.forward-headers-strategy` (`native` or `framework`)
      * rewrites the remote address from the forwarded headers before the routes see the request.
      *
-     * No request sets either fact itself (the trust boundary of decision D226): a listed name that is one of them is
-     * not copied, on either port, and on the internal port, whose peer is a service of the cluster, neither is
-     * recorded. A command forwarded to its owner over the cluster channel keeps the facts the public port recorded.
+     * No request sets a standard fact itself (the trust boundary of decision D226): a listed name that is one of them,
+     * in any case, is not copied, on either port, and on the internal port, whose peer is a service of the cluster,
+     * neither the address nor the `User-Agent` is recorded. A command forwarded to its owner over the cluster channel
+     * keeps the facts the edge recorded.
      */
-    fun facts(request: ServerRequest, names: Set<String>): Map<String, String> {
-        val listed = names.filter { it.lowercase() !in DEFAULT_FACTS }
+    fun facts(request: ServerRequest, names: Set<String>, caller: Caller): Map<String, String> {
+        val listed = names.filter { it.lowercase() !in RequestFacts.STANDARD }
             .mapNotNull { name -> request.header(name)?.let { name to it } }
             .toMap()
-        if (!publicPort) {
-            return listed
+        val standard = buildMap {
+            caller.app?.let { put(RequestFacts.APP_ID, it.trim()) }
+            if (publicPort) {
+                request.header(HttpHeaders.USER_AGENT)?.takeIf { it.isNotEmpty() }
+                    ?.let { put(RequestFacts.USER_AGENT, it) }
+                request.remoteAddress().ifPresent { remote ->
+                    put(RequestFacts.REMOTE_IP, remote.address?.hostAddress ?: remote.hostString)
+                }
+            }
         }
-        val defaults = buildMap {
-            request.header(HttpHeaders.USER_AGENT)?.takeIf { it.isNotEmpty() }?.let { put(USER_AGENT, it) }
-            request.remoteAddress().ifPresent { put(REMOTE_IP, it.address?.hostAddress ?: it.hostString) }
-        }
-        return listed + defaults
+        return listed + standard
     }
 
     private fun problem(code: String, detail: String) = ProblemException(statuses.problemOf(code, detail))
@@ -165,13 +173,6 @@ internal class RequestHeaders(private val statuses: ErrorStatuses, private val p
     private fun ServerRequest.header(name: String): String? = headers().firstHeader(name)?.trim()
 
     companion object {
-        /** The command header of the client's `User-Agent`, a default request fact of the public port (G-10). */
-        const val USER_AGENT: String = "user_agent"
-
-        /** The command header of the client's address, a default request fact of the public port (G-10). */
-        const val REMOTE_IP: String = "remote_ip"
-
-        private val DEFAULT_FACTS = setOf(USER_AGENT, REMOTE_IP)
         private val logger = KotlinLogging.logger {}
     }
 }

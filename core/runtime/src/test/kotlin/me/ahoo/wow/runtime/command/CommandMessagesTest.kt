@@ -22,6 +22,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.RequestFacts
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.ledger.ResumeParked
 import me.ahoo.wow.api.lifecycle.DeleteAggregate
@@ -128,6 +129,7 @@ class CommandMessagesTest {
             execution,
             Operator("alice", "t0"),
             Scope("alice", "space-a"),
+            mapOf(RequestFacts.APP_ID to "console"),
         )
         val message = CommandMessages.receipt(rejected)
         message.key.assert().isEqualTo(execution.ref.toString())
@@ -168,6 +170,7 @@ class CommandMessagesTest {
             executionId = execution,
             operator = Operator("alice", "t0"),
             scope = Scope("alice", "space-a"),
+            headers = mapOf(RequestFacts.APP_ID to "console"),
         )
     }
 
@@ -211,6 +214,21 @@ class CommandMessagesTest {
         assertThrows<IllegalArgumentException> { CommandMessages.committedOf(command) }
         assertThrows<IllegalArgumentException> { CommandMessages.receiptOf(command) }
     }
+
+    @Test
+    fun `a receipt written before decision D232 carries no request facts`() {
+        listOf(CommandMessages.receipt(committed()), CommandMessages.receipt(committed().toRejected())).forEach {
+            val envelope = EnvelopeCodec.decode(it.value)
+            (envelope.payload as tools.jackson.databind.node.ObjectNode).remove("headers")
+            when (val receipt = CommandMessages.receiptOf(envelope)) {
+                is CommandCommitted<*> -> receipt.headers.assert().isEmpty()
+                else -> (receipt as CommandRejected<*>).headers.assert().isEmpty()
+            }
+        }
+    }
+
+    private fun CommandCommitted<Any>.toRejected(): CommandRejected<Any> =
+        CommandRejected(commandId, commandType, ref, ErrorInfo("e", "m"), causation, executionId, headers = headers)
 
     @Test
     fun `a reply should ask for the success receipt only when it says so, false for an older writer`() {

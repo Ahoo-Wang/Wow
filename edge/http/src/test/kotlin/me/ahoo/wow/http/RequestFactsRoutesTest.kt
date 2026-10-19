@@ -14,6 +14,9 @@
 package me.ahoo.wow.http
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.decide.RequestFacts
+import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.internal.InternalServer
 import org.junit.jupiter.api.Test
 import org.springframework.test.web.reactive.server.WebTestClient
@@ -57,5 +60,26 @@ class RequestFactsRoutesTest {
         // The in-memory exchange has no remote address: no `remote_ip` at all rather than the forged one.
         node.commands.single().headers.assert()
             .isEqualTo(mapOf("X-App-Id" to "app-1", "user_agent" to "shop-app/1.0"))
+    }
+
+    @Test
+    fun `a command records the application its caller's resolver authenticated, never one a request names`() {
+        // The resolver authenticated the application: the `X-Authenticated-App` stands for its credential here.
+        val callers = CallerResolver { request ->
+            Caller.of(
+                subject = "alice",
+                attributes = request.headers().firstHeader("X-Authenticated-App")
+                    ?.let { mapOf(Caller.APP to listOf(it)) }.orEmpty(),
+            )
+        }
+        val node = HttpNode(callers = callers, options = WowHttpOptions(requestFacts = setOf("app_id")))
+        node.post(
+            "/shop/cart/c-1/add-item",
+            """{"sku":"apple"}""",
+            headers = mapOf("X-Authenticated-App" to "console", "app_id" to "forged"),
+        ).status.assert().isEqualTo(200)
+        node.post("/shop/cart/c-2/add-item", """{"sku":"apple"}""", headers = mapOf("app_id" to "forged"))
+            .status.assert().isEqualTo(200)
+        node.commands.map { it.headers[RequestFacts.APP_ID] }.assert().containsExactly("console", null)
     }
 }
