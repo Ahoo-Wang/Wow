@@ -17,11 +17,13 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.spi.transport.PartitionOffsets
@@ -43,6 +45,8 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.util.Optional
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executor
+import kotlin.concurrent.thread
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
@@ -221,13 +225,17 @@ class KafkaTransportUnitTest {
             next.updateEndOffsets(mapOf(zero to 0L))
             next.updateBeginningOffsets(mapOf(zero to 0L))
             val made = ArrayDeque(listOf(stopping, next))
-            // The first coroutine makes its consumer only once the leave and the join below are done.
+            // The first coroutine makes its consumer only once the leave and the join below are done. It is the first
+            // to make one because the test waits for it to be making it before the leave: the second coroutine, started
+            // by the join, could otherwise make its consumer first and take `stopping`.
+            val entered = CountDownLatch(1)
             val making = CountDownLatch(1)
             val shared = SharedTopicConsumer(
                 topic,
                 {
                     val consumer = synchronized(made) { made.removeFirst() }
                     if (consumer === stopping) {
+                        entered.countDown()
                         making.await()
                     }
                     consumer
@@ -236,6 +244,7 @@ class KafkaTransportUnitTest {
                 Dispatchers.IO,
             )
             val last = checkNotNull(shared.join(1, 0))
+            withTimeout(10.seconds) { runInterruptible(Dispatchers.IO) { entered.await() } }
             // Runs up to its wait for the coroutine to stop, a wait it cannot be cancelled out of.
             val leaving = CoroutineScope(Dispatchers.Default).async(start = CoroutineStart.UNDISPATCHED) {
                 shared.leave(last)
@@ -252,6 +261,41 @@ class KafkaTransportUnitTest {
             next.closed().assert().isTrue()
             // Leaving twice does nothing.
             shared.leave(joined)
+            shared.close()
+        }
+
+    @Test
+    fun `a partition joining as the last one leaves should get its own consumer, whichever session runs first`(): Unit =
+        runBlocking {
+            // The other order of the test above: the coroutine of the session the join starts makes its consumer before
+            // the coroutine of the session the leave ends has run at all. Each session closes the consumer it made.
+            val first = consumerWith(0, 0, 0, 1)
+            val second = consumerWith(0, 0, 0, 1)
+            val made = ArrayDeque(listOf(first, second))
+            // Holds each session's coroutine, so the test starts them in the order it chooses.
+            val held = ArrayList<Runnable>()
+            val dispatcher = Executor { task -> synchronized(held) { held += task } }.asCoroutineDispatcher()
+            val consumers = { synchronized(made) { made.removeFirst() } }
+            val shared = SharedTopicConsumer(topic, consumers, 1.milliseconds, dispatcher)
+            val last = checkNotNull(shared.join(1, 0))
+            val leaving = CoroutineScope(Dispatchers.Default).async(start = CoroutineStart.UNDISPATCHED) {
+                shared.leave(last)
+            }
+            val joined = checkNotNull(shared.join(0, 0))
+            val (stopped, started) = synchronized(held) { held.toList() }.also { it.size.assert().isEqualTo(2) }
+            thread { started.run() }
+            eventually { synchronized(made) { made.size == 1 } }
+            thread { stopped.run() }
+
+            withTimeout(10.seconds) { leaving.await() }
+            second.closed().assert().isTrue()
+            first.closed().assert().isFalse()
+            eventually { first.assignment() == setOf(TopicPartition(topic, 0)) }
+            first.addRecord(record(0, "a0"))
+            withTimeout(10.seconds) { joined.channel.receive() }.offset.assert().isEqualTo(0L)
+            shared.leave(joined)
+            first.closed().assert().isTrue()
+            synchronized(held) { held.size }.assert().isEqualTo(2)
             shared.close()
         }
 
