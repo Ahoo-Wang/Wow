@@ -133,6 +133,28 @@ object V10Rules {
      */
     val EXAMPLES = ESHOP + QUICKSTART + JAVA_SMOKE
 
+    /**
+     * The V10 projects that are neither modules, platform services nor examples (review R2.5-7): the V10 BOM, these
+     * rules, the spikes H3, H2 and H6 (decision D90) and the V10 side of the end-to-end benchmark (decision D224).
+     */
+    val TOOLS = listOf(
+        V10Module("bom", "bom/bom"),
+        V10Module("architecture", "test/architecture"),
+        V10Module("kernel-benchmarks", "test/kernel-benchmarks"),
+        V10Module("routing-spike", "test/routing-spike"),
+        V10Module("lease-spike", "test/lease-spike"),
+        V10Module("e2e-bench-v10", "wow-benchmarks/e2e/bench-v10"),
+    )
+
+    /**
+     * Every project of the settings' `//region v10`, each in one group whose rules apply to it (review R2.5-7): a
+     * project in none would escape every rule of the module graph.
+     */
+    val V10_PROJECTS: List<V10Module> = MODULES + PLATFORM_SERVERS + EXAMPLES + TOOLS
+
+    /** The 9.x project every V10 one may build on: the dependency versions, which the V10 POMs import (D87). */
+    val SHARED_9X: Set<String> = setOf("wow-dependencies")
+
     /** Whether [project] belongs to a V10 example ([EXAMPLES]). */
     fun isExample(project: String): Boolean =
         project.startsWith("eshop-") || project == QUICKSTART.name || project == JAVA_SMOKE.name
@@ -152,8 +174,8 @@ object V10Rules {
     val RUNTIME_MODULES = MODULES - COMPILER - GRADLE_PLUGIN - MANIFEST_TOOLS - TEST_MODULES.toSet()
 
     /**
-     * The project dependencies each V10 module may declare (06 §3). A module not listed here, such as wow-query, is a
-     * 9.x module V10 still builds on until its V10 module replaces it (decision D85).
+     * The project dependencies each V10 module may declare (06 §3): every module of [MODULES] has its entry, and
+     * none names a 9.x module ([nineXReachViolations] checks the transitive graph too).
      */
     val ALLOWED_PROJECT_DEPENDENCIES: Map<V10Module, Set<String>> = mapOf(
         API to emptySet(),
@@ -544,6 +566,57 @@ object V10Rules {
                     .map { (v10, nineX) -> "$project reaches both :$v10 and :$nineX" }
             }
     }
+
+    /**
+     * No V10 project reaches a 9.x project (decision D85; review R2.5-7), directly or transitively, but the shared
+     * dependency versions ([SHARED_9X]): V10 replaces 9.x instead of building on it, and 9.x changes or goes (M9)
+     * without touching V10. Only [BOTH_SIDES_EXEMPT] may, spike H3 measuring both kernels.
+     */
+    fun nineXReachViolations(repositoryRoot: File): List<String> {
+        val graph = projectGraph(repositoryRoot)
+        val v10 = v10SettingsProjects(repositoryRoot)
+        return v10.sorted()
+            .filterNot { it in BOTH_SIDES_EXEMPT }
+            .flatMap { project ->
+                reachable(graph, project).filterNot { it in v10 || it in SHARED_9X }.sorted()
+                    .map { "$project reaches :$it" }
+            }
+    }
+
+    /**
+     * The projects that use Wow as an application does (decision D216; `v10UserProjects` of the root build): the
+     * examples, the platform's domains and services and the end-to-end benchmark. They compile against the public API
+     * as a user does, so they never opt in to `InternalWowApi` (an `ERROR`-level opt-in).
+     */
+    val USER_PROJECTS: List<V10Module> =
+        EXAMPLES + listOf(OPS_DOMAIN, VIEW_STORE_DOMAIN) + PLATFORM_SERVERS + TOOLS.filter { it.name == "e2e-bench-v10" }
+
+    private val INTERNAL_OPT_IN = Regex("""\bInternalWowApi\b""")
+
+    /**
+     * The lines of [USER_PROJECTS]' build scripts and production sources that name `InternalWowApi` (review R2.5-7):
+     * an `@OptIn(InternalWowApi::class)` or a compiler `optIn`, which would build an application on a declaration Wow
+     * promises nothing about. Their tests may opt in, to build a fixture as a module does.
+     */
+    fun internalOptIns(repositoryRoot: File): List<String> =
+        USER_PROJECTS.flatMap { module ->
+            val build = File(repositoryRoot, "${module.dir}/build.gradle.kts")
+            val sources = listOf("src/main/kotlin", "src/main/java")
+                .map { File(repositoryRoot, "${module.dir}/$it") }
+                .filter { it.isDirectory }
+                .flatMap { root ->
+                    root.walkTopDown().filter { it.isFile && (it.extension == "kt" || it.extension == "java") }
+                }
+            (listOf(build).filter { it.isFile } + sources).flatMap { file ->
+                file.readLines().mapIndexedNotNull { index, line ->
+                    if (INTERNAL_OPT_IN.containsMatchIn(line)) {
+                        "${file.relativeTo(repositoryRoot).invariantSeparatorsPath}:${index + 1}: ${line.trim()}"
+                    } else {
+                        null
+                    }
+                }
+            }
+        }
 
     private val V10_REGION = Regex("""(?ms)^//region v10\b(.*?)^//endregion""")
 

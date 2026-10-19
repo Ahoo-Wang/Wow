@@ -45,6 +45,78 @@ class V10ArchitectureTest {
             .isEqualTo(V10Rules.EXAMPLES.map { it.name }.toSet())
     }
 
+    @Test
+    fun `every project of the settings' V10 region should be in one group of the rules`() {
+        val groups = V10Rules.V10_PROJECTS.map { it.name }
+        groups.groupingBy { it }.eachCount().filterValues { it > 1 }.keys.assert()
+            .describedAs("projects in more than one group").isEmpty()
+        V10Rules.v10SettingsProjects(repositoryRoot).assert()
+            .describedAs("the projects of the settings' V10 region, as V10Rules.V10_PROJECTS lists them")
+            .isEqualTo(groups.toSet())
+        V10Rules.TOOLS.forEach { tool ->
+            File(repositoryRoot, "${tool.dir}/build.gradle.kts").isFile.assert().describedAs(tool.dir).isTrue()
+        }
+    }
+
+    @Test
+    fun `every V10 module and platform service should have its allowed dependencies`() {
+        V10Rules.ALLOWED_PROJECT_DEPENDENCIES.keys.assert().isEqualTo(V10Rules.MODULES.toSet())
+        V10Rules.ALLOWED_SERVER_DEPENDENCIES.keys.assert().isEqualTo(V10Rules.PLATFORM_SERVERS.toSet())
+    }
+
+    @Test
+    fun `no V10 project should reach a 9x project`() {
+        V10Rules.nineXReachViolations(repositoryRoot).assert().isEmpty()
+    }
+
+    @Test
+    fun `no application of the V10 modules should opt in to their internal API`() {
+        V10Rules.internalOptIns(repositoryRoot).assert().isEmpty()
+    }
+
+    @Test
+    fun `9x reach rule should catch a V10 project reaching a 9x project, but the shared versions`(@TempDir root: File) {
+        root.writeBuild(
+            mapOf(
+                "wow-core" to "wow-core",
+                "wow-dependencies" to "wow-dependencies",
+                "spi" to "core/spi",
+                "routing-spike" to "test/routing-spike",
+                "kernel-benchmarks" to "test/kernel-benchmarks",
+            ),
+            mapOf(
+                "spi" to listOf("wow-dependencies"),
+                "routing-spike" to listOf("spi", "wow-core"),
+                "kernel-benchmarks" to listOf("spi", "wow-core"),
+            ),
+            v10 = setOf("spi", "routing-spike", "kernel-benchmarks"),
+        )
+        V10Rules.nineXReachViolations(root).assert().containsExactly("routing-spike reaches :wow-core")
+    }
+
+    @Test
+    fun `internal opt-in rule should catch an application's opt-in in its sources or build only`(@TempDir root: File) {
+        val server = V10Rules.OPS_SERVER.dir
+        root.writeSource(
+            server,
+            "me/ahoo/wow/ops/server/Bad.kt",
+            "package me.ahoo.wow.ops.server\n\n@OptIn(me.ahoo.wow.api.annotation.InternalWowApi::class)\nfun bad() = Unit\n",
+        )
+        File(
+            root,
+            "$server/build.gradle.kts"
+        ).writeText("kotlin { compilerOptions { optIn.add(\"InternalWowApi\") } }\n")
+        File(root, "$server/src/test/kotlin/Fixture.kt").apply { parentFile.mkdirs() }
+            .writeText("@OptIn(InternalWowApi::class)\nfun fixture() = Unit\n")
+        // Wow's own modules opt in through the root build.
+        root.writeSource(V10Rules.RUNTIME.dir, "Own.kt", "@OptIn(InternalWowApi::class)\nfun own() = Unit\n")
+        V10Rules.internalOptIns(root).assert().containsExactly(
+            "$server/build.gradle.kts:1: kotlin { compilerOptions { optIn.add(\"InternalWowApi\") } }",
+            "$server/src/main/kotlin/me/ahoo/wow/ops/server/Bad.kt:3: " +
+                "@OptIn(me.ahoo.wow.api.annotation.InternalWowApi::class)",
+        )
+    }
+
     @TestFactory
     fun `V10 modules should depend only on the projects the module graph allows`(): List<DynamicTest> =
         V10Rules.MODULES.map { module ->

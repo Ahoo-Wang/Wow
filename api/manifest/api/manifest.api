@@ -116,6 +116,7 @@ public final class me/ahoo/wow/manifest/FrameworkErrors {
 	public static final field AGGREGATE_VERSION_MISMATCH Ljava/lang/String;
 	public static final field AUTH_FORBIDDEN Ljava/lang/String;
 	public static final field AUTH_UNAUTHENTICATED Ljava/lang/String;
+	public static final field CALL_COMMAND_FORBIDDEN Ljava/lang/String;
 	public static final field COMMAND_BUSY Ljava/lang/String;
 	public static final field COMMAND_CONTENDED Ljava/lang/String;
 	public static final field COMMAND_FAILED Ljava/lang/String;

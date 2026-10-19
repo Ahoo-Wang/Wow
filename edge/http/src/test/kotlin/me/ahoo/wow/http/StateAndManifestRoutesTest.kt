@@ -74,9 +74,22 @@ class StateAndManifestRoutesTest {
     }
 
     @Test
+    fun `the latest state before the first snapshot is the log replayed (D246)`() {
+        twoItems(snapshot = false)
+        val answer = node.get("/shop/cart/c-1/state")
+        answer.status.assert().isEqualTo(200)
+        answer.headers.eTag.assert().isEqualTo("\"2\"")
+        answer.body!!["version"].asInt().assert().isEqualTo(2)
+        answer.body!!["state"]["items"].asInt().assert().isEqualTo(3)
+        node.get("/shop/cart/c-1/state", headers = mapOf("If-None-Match" to "\"2\"")).status.assert().isEqualTo(304)
+        // The caller's scope holds as for a snapshot.
+        node.get("/shop/cart/c-1/state", user = "bob").assertCode(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
+    }
+
+    @Test
     fun `a state that is not there is 404, a version that is not one 400`() {
         twoItems(snapshot = false)
-        node.get("/shop/cart/c-1/state").assertCode(404, FrameworkCodes.NOT_FOUND)
+        node.get("/shop/cart/c-2/state").assertCode(404, FrameworkCodes.NOT_FOUND)
         node.get("/shop/cart/c-1/state?version=3").assertCode(404, FrameworkCodes.NOT_FOUND)
         node.get("/shop/cart/c-1/state?version=0").assertCode(400, FrameworkCodes.MALFORMED)
         node.get("/shop/cart/c-1/state?version=one").assertCode(400, FrameworkCodes.MALFORMED)

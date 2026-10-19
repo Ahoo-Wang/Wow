@@ -15,6 +15,7 @@ package me.ahoo.wow.runtime
 
 import me.ahoo.wow.kernel.KernelRejections
 import me.ahoo.wow.kernel.schedule.ScheduleJobModel
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.runtime.wait.ResultCodes
 
 /**
@@ -22,27 +23,28 @@ import me.ahoo.wow.runtime.wait.ResultCodes
  * map to its statuses: the admission codes defined here, the kernel's rejections ([KernelRejections]) and the
  * runtime's results ([ResultCodes]), and the job aggregate's rejection ([ScheduleJobModel.JOB_INVALID]). A domain's own codes are not among them.
  *
- * The Manifest's error table lists the same codes for clients; until the two are generated from one source, a code
- * added here is added there too.
+ * They are codes of the Manifest's error table ([FrameworkErrors], the one source of truth, review R2.5-4): the ones
+ * defined here and in [ResultCodes] are its constants, and the kernel's repeat its strings; a test of `wow-http`
+ * fails when a code here is missing from the table.
  */
 object FrameworkCodes {
     /** The request carries no credentials the edge accepts (HTTP 401). The edge answers it; admission never does. */
-    const val UNAUTHENTICATED = "wow.auth.unauthenticated"
+    const val UNAUTHENTICATED = FrameworkErrors.AUTH_UNAUTHENTICATED
 
     /**
      * The caller may not do this (decision D95): an authorizer denied the action, or the request asked for another
      * scope (`Wow-Scope`) without the permission to act across scopes.
      */
-    const val AUTH_FORBIDDEN = "wow.auth.forbidden"
+    const val AUTH_FORBIDDEN = FrameworkErrors.AUTH_FORBIDDEN
 
     /**
      * The request cannot be read as the command it names: its body does not decode as the command type, or it gives
      * an identity fact twice or not at all (decision D92).
      */
-    const val MALFORMED = "wow.command.malformed"
+    const val MALFORMED = FrameworkErrors.COMMAND_MALFORMED
 
     /** The command's body breaks a validation rule; the error lists the violations (decision D106). */
-    const val INVALID = "wow.command.invalid"
+    const val INVALID = FrameworkErrors.COMMAND_INVALID
 
     const val UNHANDLED = KernelRejections.UNHANDLED
     const val AGGREGATE_FORBIDDEN = KernelRejections.FORBIDDEN
