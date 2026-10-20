@@ -244,7 +244,7 @@ GET    /view-store/tenant/(platform)/owner/(system)/view/requests/{requestId}   
 
 - 写：`PUT …/owner/(shared)/datasets/{dataset}/wording`，请求体 `{title?, recordNoun?, fields?}`，带期望版本（`0` 即从没写过）；`DELETE` 同一路径清掉它。标题去空白后 1～120 字，名词 1～40 字，`fields` 是对象、不超过 64 KB，服务端不解释其语义，也不校验字段路径——数据集删了列，措辞照旧存着，引擎套用时略过。
 - 读：`dataset_wording` 的快照查询（`POST …/owner/(shared)/dataset_wording/snapshot/list`），照例只读到本应用的。
-- 设计见 Wow 仓 `documentation/designs/2026-10-11-dataset-wording-storage-design.md`。
+- 设计见 Wow 仓 `documentation/designs/2026-10-11-dataset-wording-storage-design.md`（在 `main` 分支）。
 
 ## 安全模型
 

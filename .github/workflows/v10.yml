@@ -22,6 +22,9 @@ on:
     branches: [v10]
   push:
     branches: [v10]
+  # A merge queue's group (its commit is what lands on the branch); the scope
+  # job compares it with the branch's tip, and the gate job reports on it.
+  merge_group:
   workflow_dispatch:
 
 permissions:
@@ -88,6 +91,9 @@ jobs:
       - name: Check the V10 publications
         run: ./gradlew v10PublicationCheck --stacktrace
       - name: Upload V10 coverage
+        # A merge group's commit is what lands on the branch, whose push run
+        # uploads the same coverage for it; an upload here would double it.
+        if: github.event_name != 'merge_group'
         uses: codecov/codecov-action@v7
         with:
           use_oidc: true
@@ -142,6 +148,9 @@ jobs:
           ./gradlew v10IntegrationTest :code-coverage-report:v10IntegrationCoverageReport
           "-Pwow.integration.projects=$PROJECTS" --stacktrace
       - name: Upload V10 integration coverage
+        # A merge group's commit is what lands on the branch, whose push run
+        # uploads the same coverage for it; an upload here would double it.
+        if: github.event_name != 'merge_group'
         uses: codecov/codecov-action@v7
         with:
           use_oidc: true
