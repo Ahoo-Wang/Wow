@@ -321,6 +321,20 @@ class ManifestOpenApiTest {
             ),
         )
         operation("get", "/shop/cart/snapshot/query")["operationId"].assert().isEqualTo("shop.cart.snapshot.describe")
+        // A streamed list is resumable (decision D253): each row's id, the end event, Last-Event-ID.
+        parameters(snapshot).assert().containsExactly("Wow-Scope", "Last-Event-ID")
+        val ok = responses(snapshot)["200"]
+
+        @Suppress("UNCHECKED_CAST")
+        val streamed = content(ok as Map<String, Any?>)["text/event-stream"] as Map<String, Any?>
+
+        @Suppress("UNCHECKED_CAST")
+        val events200 = streamed["x-wow-events"] as Map<String, Any?>
+        events200["event"].assert().isEqualTo(listOf("row", "end", "error"))
+        events200["id"].toString().assert().contains("Last-Event-ID")
+        @Suppress("UNCHECKED_CAST")
+        ((events200["end"] as Map<String, Any?>)["required"]).assert().isEqualTo(listOf("reason", "resumable"))
+        (components("parameters")["Last-Event-ID"] as Map<*, *>)["in"].assert().isEqualTo("header")
         val events = operation("post", "/shop/order/events/query")
         // Every model aggregates on the unified engine (decision D235).
         events["description"].toString().assert().contains("`aggregate` (an array of groups)")
