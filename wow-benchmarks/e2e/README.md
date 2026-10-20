@@ -114,9 +114,10 @@ git push origin v10:v10-bench-run/20261020
 
 Runs follow D224's tiers: run the smallest one that answers the question. L0, the JMH microbenchmarks, is outside this workflow (its 9.x-era `benchmark-ab.yml` left with 9.x, D262). The others are:
 
+- **L1**: component counts, `component-mongo` and `component-pg`, at 1k. They take the head against the baseline when there is one.
 - **L2** (the default): end-to-end points, head against baseline. They are `e1-mongo-uniform`, `e1-pg-uniform`, `e3-mongo` and `e3-pg`.
 - **L3**: the end-to-end grid, every `ab` suite, run before an rc or after a major merge.
-- **L4**: the special runs, the sustainable rates, cliffs and the cluster.
+- **L4**: the special runs: the sustainable rates, cliffs, the cluster, and `cold-*` at a million accounts.
 
 Named `suites` replace the tier's list. Each suite runs at the tier's data sets:
 
@@ -143,6 +144,9 @@ The workflow can also be dispatched by hand, with the same settings as inputs pl
 | Group | Suite | What it answers |
 | --- | --- | --- |
 | `ab` | `e1-mongo-uniform`, `e1-mongo-zipf`, `e1-pg-uniform`, `e2-mongo`, `e3-mongo`, `e3-pg` | Head against baseline, paired on one runner: throughput and CPU per operation at each arm's calibrated rate, latency at one rate for both |
+| `component` | `component-mongo`, `component-pg` | L1: the domain on the kernel and one store in one JVM, no HTTP (`bench.sh component`, `ComponentBench` in `bench-v10`), E1, E3 and E1-large. Each operation's store round trips by command (MongoDB driver commands; PostgreSQL statements, commits and rollbacks) and bytes allocated, and an indicative closed-loop timing. A head above the baseline by more than 5% in round trips or allocation is flagged. A baseline older than ComponentBench reports `unavailable` |
+| `ab` | `large-mongo`, `large-pg` | E1 with a large payload (D224 note ⑥): `Annotate`, five ~2 KB events per command. It exists in V10's domain only; a baseline older than it fails its runs |
+| `head` | `cold-mongo`, `cold-pg` | A million accounts (cold caches): E1 at 200/s and E4 point reads at 500/s |
 | `ab` | `mixed-mongo`, `mixed-pg` | Reads and writes together (`--mix=E1:50,E4-state:40,E4-list:10`): whether the query bulkheads keep the writes fast; each scenario's latency is reported apart |
 | `head` | `sustainable-mongo` (E1, E2, E3), `sustainable-pg` (E1, E3) | The sustainable rate of each scenario: the highest open-loop rate with at most 1% errors, at least 97% completed and p99 within the limit, found by bisection below the closed-loop saturation |
 | `head` | `e5-mongo`, `e5-pg` | Three nodes, requests round-robin, E1 at 150/s and E3 at 50/s for 90 s, once steady and once with node 2 stopped 25 s into the measured phase (SIGTERM, so its partitions hand over) and restarted 20 s later with its own command line |
@@ -180,6 +184,8 @@ Two more anomalies are flagged:
 Where a run went past what the node keeps up with by design (probes, cliff steps that did not keep up), only the signals are flagged.
 
 On a runner of 4 or more CPUs, the load generator gets the last CPU to itself, and the servers and containers get the others (`bench.sh --load-cpus`, `--server-cpus`; D224 note ③). The run then records the load generator's own CPU and names the busiest consumer, the servers, a container or the generator, as the bottleneck.
+
+With `"profile": true`, every paired suite adds one more run per arm after its timed rounds, never inside them (D224 note ⑧). This run takes a flight recording (`--jfr`, settings `profile`) at the rate the latencies compare at. The recording uses the JDK's `profile` settings plus safepoint events, and socket reads, writes and thread parks from 1 ms (`jfr configure`, passed as `bench.sh --jfr-settings`). The summary shows the first lines of `jfr view` hot-methods, allocation-by-class, contention-by-site, gc-pauses, safepoints, latencies-by-type and socket-reads-by-host, so a tail can be attributed to GC pauses, safepoints, store latency or lock and pool waits. On PostgreSQL the profile run also loads `pg_stat_statements` and dumps the top statements, the checkpoints and the waits after the run (`postgres-stats.txt`). The run's directory keeps the full views and the recordings.
 
 Significance (D224 note ②) works in two steps:
 

@@ -110,9 +110,7 @@ class KafkaCommandIntakeTest {
     private val commits = CopyOnWriteArrayList<CommandCommitted<*>>()
 
     init {
-        admin.createTopics(
-            listOf(NewTopic(PREFIX + "wow.stock.commands", PARTITIONS, 1.toShort()), NewTopic(PREFIX + "wow.sales.receipts", 2, 1.toShort())),
-        ).all().get()
+        admin.createVisible(options, NewTopic(PREFIX + "wow.stock.commands", PARTITIONS, 1.toShort()), NewTopic(PREFIX + "wow.sales.receipts", 2, 1.toShort()))
     }
 
     @AfterEach
@@ -224,9 +222,7 @@ class KafkaCommandIntakeTest {
     fun `a success receipt should come back once, though a stock node that crashed before its checkpoint sends it again`(): Unit =
         runBlocking {
             val prefix = "committed."
-            admin.createTopics(
-                listOf(NewTopic(prefix + "wow.stock.commands", PARTITIONS, 1.toShort()), NewTopic(prefix + "wow.sales.receipts", 2, 1.toShort())),
-            ).all().get()
+            admin.createVisible(options, NewTopic(prefix + "wow.stock.commands", PARTITIONS, 1.toShort()), NewTopic(prefix + "wow.sales.receipts", 2, 1.toShort()))
             // The first stock node never saves a checkpoint: it crashes after each receipt, before the save.
             val stockBackends = InMemoryContexts()
             val crashing = BackendFactory { stockBackends.backends(it).copyWith(checkpoints = DroppedCheckpoints) }
@@ -259,7 +255,7 @@ class KafkaCommandIntakeTest {
     fun `a command of the other service from code that is no saga should go through its command topic (M-1)`(): Unit =
         runBlocking {
             val prefix = "peer."
-            admin.createTopics(listOf(NewTopic(prefix + "wow.stock.commands", PARTITIONS, 1.toShort()))).all().get()
+            admin.createVisible(options, NewTopic(prefix + "wow.stock.commands", PARTITIONS, 1.toShort()))
             stockNode(topics(prefix, intake = true)).also { it.start() }
             val sales = salesNode(topics(prefix)).also { it.start() }
             fun reserve(item: String, quantity: Int, wait: WaitPlan) =
@@ -282,7 +278,7 @@ class KafkaCommandIntakeTest {
 
     @Test
     fun `the intake should not start when its command topic's partitions are not the log's`(): Unit = runBlocking {
-        admin.createTopics(listOf(NewTopic("mismatch.wow.stock.commands", PARTITIONS - 1, 1.toShort()))).all().get()
+        admin.createVisible(options, NewTopic("mismatch.wow.stock.commands", PARTITIONS - 1, 1.toShort()))
         val stock = stockNode(topics("mismatch.", intake = true))
         assertThrows<IllegalStateException> { runBlocking { stock.start() } }.message.assert()
             .contains("has ${PARTITIONS - 1} partitions").contains("must have $PARTITIONS")

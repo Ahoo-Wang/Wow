@@ -115,7 +115,12 @@ class ProcessorForkTest {
     @Test
     fun `a fork answers calls as the specification did, until it answers them otherwise`() {
         val calling = listOf(
-            ProcessorBinding.saga("Checker", "onOrder", Order::class.java) { event: StateEvent<Order>, context ->
+            ProcessorBinding.saga(
+                "Checker",
+                "onOrder",
+                Order::class.java,
+                calls = listOf(Check::class.java),
+            ) { event: StateEvent<Order>, context ->
                 context.call(context.command(stock, Check(event.ref.id)))
                 emptyList()
             },
@@ -128,6 +133,20 @@ class ProcessorForkTest {
                 whenEvent(placed(1)) { expectCalls(Check("order-1")) }
             }
             whenEvent(placed(1)) { expectError<CallRejectedException>() }
+        }
+    }
+
+    @Test
+    fun `a call of a class the handler does not declare should fail its handling`() {
+        val undeclared = listOf(
+            ProcessorBinding.saga("Checker", "onOrder", Order::class.java) { event: StateEvent<Order>, context ->
+                context.call(context.command(stock, Check(event.ref.id)))
+                emptyList()
+            },
+        )
+        sagaSpec(undeclared) {
+            answerCalls { committedResult(it) }
+            whenEvent(placed(1)) { expectError<IllegalArgumentException>() }
         }
     }
 

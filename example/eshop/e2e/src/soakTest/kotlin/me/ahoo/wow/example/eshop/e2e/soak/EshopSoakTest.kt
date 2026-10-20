@@ -42,12 +42,16 @@ class EshopSoakTest {
         config.dir.mkdirs()
         // The services' output, kept for the evidence of a violation.
         System.setProperty("eshop.logs", File(config.dir, "logs-$stamp").path)
+        // The nodes take SoakSignals (this source set's output on their class path, see the build) and turn it on.
+        check(System.getProperty("eshop.extra-classpath") != null) { "eshop.extra-classpath is not set." }
         log("config ${config.describe()}")
         val begun = System.currentTimeMillis()
         val report = linkedMapOf<String, Any?>("config" to config.describe(), "began" to begun)
         var violations: Long
+        val logs = File(config.dir, "logs-$stamp")
         SoakStack(config, ::log).use { stack ->
             stack.start()
+            val resources = SoakResources(stack).also { it.start() }
             seed(stack)
             log("started in ${System.currentTimeMillis() - begun} ms")
             val faults = FaultInjector(stack, config, ::log)
@@ -71,9 +75,15 @@ class EshopSoakTest {
             checks.stopSampling()
             checks.finalChecks(load)
             report["load"] = mapOf("began" to loadBegan, "ended" to loadEnded, "millis" to loadEnded - loadBegan)
+            resources.stop()
+            resources.writeCurves(File(config.dir, "resources-$stamp.jsonl")) { json.writeValueAsString(it) }
+            report["resources"] = resources.summary()
             violations = record(report, load, faults, checks)
             writeRequests(File(config.dir, "requests-$stamp.jsonl"), load.orders.toList())
         }
+        // Every node's last signals line (the nodes have stopped, so each wrote its last), summed per service.
+        @Suppress("UNCHECKED_CAST")
+        report["signals"] = SoakResources.signals(logs) { json.readValue(it, Map::class.java) as Map<String, Any?> }
         val file = File(config.dir, "report-$stamp.json")
         file.writeText(json.writerWithDefaultPrettyPrinter().writeValueAsString(report))
         log("report: ${file.absolutePath}")

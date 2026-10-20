@@ -71,6 +71,13 @@ internal data class HandlerBinding(
     /** `@OnEvent(schedules)`: the full type names of the commands a saga's handler declares it schedules (D166). */
     val schedules: List<String> = emptyList(),
     /**
+     * `@OnEvent(calls)`: the binary names of the command classes a saga's handler declares it calls with
+     * `SagaContext.call` (decision D259), a sealed type read as its concrete subclasses.
+     */
+    val calls: List<String> = emptyList(),
+    /** The qualified names of [calls], as the generated binding writes them. */
+    val callSources: List<String> = emptyList(),
+    /**
      * `@OnEvent(start)` (decision D194): `BEGINNING` or `END` when the handler declares where its subscription starts;
      * null leaves it to its kind and source ([startIn]).
      */

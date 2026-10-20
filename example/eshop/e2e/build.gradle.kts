@@ -161,6 +161,9 @@ tasks.register<Test>("soakTest") {
     val soakDir = layout.buildDirectory.dir("eshop-soak")
     jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Deshop.soak.dir=${soakDir.get().asFile}") })
     providers.gradlePropertiesPrefixedBy("wow.soak.").get().forEach { (name, value) -> systemProperty(name, value) }
+    // The nodes' class path takes this source set's output too: SoakSignals and its auto-configuration (D224 note ⑦).
+    val soakOutput = soakTestSourceSet.output
+    jvmArgumentProviders.add(CommandLineArgumentProvider { listOf("-Deshop.extra-classpath=${soakOutput.asPath}") })
     // A soak is never up to date, and never retried: a second try would hide the first one's violations.
     outputs.upToDateWhen { false }
     // The root build may set retries for CI on every Test task; set last, before the run.

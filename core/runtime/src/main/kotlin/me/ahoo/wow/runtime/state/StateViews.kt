@@ -180,7 +180,8 @@ class StateViews(
             return
         }
         val stream = committed.stream
-        val view = Stripes.pick(stripes, stream.ref).forget(stream.ref)?.takeIf { it.isOf(stream) }?.view
+        val stripe = Stripes.pick(stripes, stream.ref)
+        val view = stripe.pending(stream.ref, stream)
             ?: SerializedState(
                 stream.version,
                 codec.stateText(committed.state),
@@ -189,7 +190,7 @@ class StateViews(
                 committed.tags,
                 committed.schedules,
             )
-        put(stream.ref, view)
+        stripe.commit(stream.ref, view, readersOf.getValue(model.type))
     }
 
     /** Drops the pending view of [ref], if any: its lane is done with the command that [expect]ed it. */
@@ -216,13 +217,8 @@ class StateViews(
      * The view after [stream], a committed stream a reader holds: the one taken at its version, else the pending
      * view [expect]ed for that very append, which then becomes a view the other readers get too; null without either.
      */
-    fun get(stream: EventStreamRecord): SerializedState? {
-        val ref = stream.ref
-        val stripe = Stripes.pick(stripes, ref)
-        return stripe.get(ref, stream.version) ?: stripe.pending(ref, stream)?.also { view ->
-            readersOf[ref.type]?.let { stripe.put(ref, view, it) }
-        }
-    }
+    fun get(stream: EventStreamRecord): SerializedState? =
+        Stripes.pick(stripes, stream.ref).committed(stream, readersOf[stream.ref.type])
 
     /** The latest view of [ref] before [version], or null when there is none. */
     fun floor(ref: AggregateRef, version: Int): SerializedState? = Stripes.pick(stripes, ref).floor(ref, version)
@@ -289,6 +285,26 @@ class StateViews(
 
         fun pending(ref: AggregateRef, stream: EventStreamRecord): SerializedState? = lock.withLock {
             expected[ref]?.takeIf { it.isOf(stream) }?.view
+        }
+
+        /**
+         * Puts [view] of [ref] and drops the aggregate's pending view under one hold of the lock (finding F-1): a reader
+         * between the two would find neither, and read the store.
+         */
+        fun commit(ref: AggregateRef, view: SerializedState, readers: Set<String>) = lock.withLock {
+            put(ref, view, readers)
+            expected.remove(ref)
+        }
+
+        /**
+         * The view at [stream]'s version, else the pending view of that very append, made a view when some [readers]
+         * read its type: both looked up under one hold of the lock, so a [commit] in between cannot hide the view.
+         */
+        fun committed(stream: EventStreamRecord, readers: Set<String>?): SerializedState? = lock.withLock {
+            val ref = stream.ref
+            get(ref, stream.version) ?: expected[ref]?.takeIf { it.isOf(stream) }?.view?.also { view ->
+                readers?.let { put(ref, view, it) }
+            }
         }
 
         fun floor(ref: AggregateRef, version: Int): SerializedState? = lock.withLock {

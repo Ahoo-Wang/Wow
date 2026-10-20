@@ -455,11 +455,15 @@ class ProcessorSpec private constructor(
     private fun handle(called: List<ProcessorBinding<*>>, event: StateEvent<*>): Result<Handled> = runCatchingAll {
         val commands = ArrayList<Command<*>>()
         val calls = ArrayList<Command<*>>()
-        val answering = CommandCalls { command ->
-            calls += command
-            answer(command)
-        }
         called.forEach { handler ->
+            // As the runtime does (decision D259): a call of a class the handler does not declare is refused.
+            val answering = CommandCalls { command ->
+                require(command.body.javaClass in handler.calls) {
+                    "${handler.name} calls ${command.body.javaClass.name}, which its @OnEvent(calls) does not declare."
+                }
+                calls += command
+                answer(command)
+            }
             val context = contextOf(
                 handler.kind,
                 handler.name,
