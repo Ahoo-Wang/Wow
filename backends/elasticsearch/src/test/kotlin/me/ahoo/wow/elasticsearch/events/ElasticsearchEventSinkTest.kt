@@ -49,7 +49,7 @@ import java.util.concurrent.CompletableFuture
 class ElasticsearchEventSinkTest {
     private val type = AggregateType("shop", "order")
     private val client = mockk<ElasticsearchAsyncClient>()
-    private val sink = ElasticsearchEventSink(client, ElasticsearchNames("p"), type, StoreDdl.NONE)
+    private val sink = ElasticsearchEventSink(client, ElasticsearchNames("p"), type, StoreDdl.NONE, null)
 
     private fun record(id: String, version: Int, operator: Operator? = null) = StateEventRecord.of(
         type.ref("tenant", id),

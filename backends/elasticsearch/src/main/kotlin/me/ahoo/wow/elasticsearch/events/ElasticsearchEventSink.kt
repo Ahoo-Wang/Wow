@@ -17,7 +17,6 @@ import co.elastic.clients.elasticsearch.ElasticsearchAsyncClient
 import co.elastic.clients.elasticsearch._types.Refresh
 import co.elastic.clients.elasticsearch.core.BulkRequest
 import co.elastic.clients.elasticsearch.core.bulk.BulkOperation
-import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.elasticsearch.ElasticsearchFailures
@@ -60,8 +59,8 @@ class ElasticsearchEventSink internal constructor(
     private val client: ElasticsearchAsyncClient,
     names: ElasticsearchNames,
     val type: AggregateType,
-    private val ddl: StoreDdl = StoreDdl.AUTO,
-    private val refresh: Refresh? = null,
+    private val ddl: StoreDdl,
+    private val refresh: Refresh?,
 ) : Sink {
     /** The type's events index. */
     val index: String = names.events(type.context, type.name)
@@ -84,11 +83,18 @@ class ElasticsearchEventSink internal constructor(
         }
         val response = whenShardReady { client.bulk(request).awaitElasticsearch() }
         if (!response.errors()) return
-        val failed = response.items().filter { it.error() != null && it.status() != ElasticsearchFailures.CONFLICT }
+        val failed = response.items().mapNotNull { item ->
+            item.error()?.takeIf { item.status() != ElasticsearchFailures.CONFLICT }?.let { item to it }
+        }
         if (failed.isEmpty()) return
+        val reported = failed.take(MAX_REPORTED).joinToString("; ") { (item, error) ->
+            "${item.id()}: ${item.status()} ${error.type()} ${error.reason()}"
+        }
         val message = "The Elasticsearch Sink of $type did not write ${failed.size} of ${records.size} streams to " +
-            "[$index]: ${failed.take(MAX_REPORTED).joinToString("; ", transform = ::describe)}."
-        if (failed.any { it.status() in TRANSIENT_STATUSES }) throw StorageUnavailableException(message)
+            "[$index]: $reported."
+        if (failed.any { (item) -> ElasticsearchFailures.isTransient(item.status()) }) {
+            throw StorageUnavailableException(message)
+        }
         throw IllegalStateException(message)
     }
 
@@ -112,13 +118,9 @@ class ElasticsearchEventSink internal constructor(
         }
     }
 
-    private fun describe(item: BulkResponseItem): String =
-        "${item.id()}: ${item.status()} ${item.error()?.type()} ${item.error()?.reason()}"
-
     override fun toString(): String = "ElasticsearchEventSink($index)"
 
     private companion object {
-        val TRANSIENT_STATUSES = setOf(429, 502, 503, 504)
         const val MAX_REPORTED = 3
     }
 }

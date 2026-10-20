@@ -184,38 +184,6 @@ internal class ElasticsearchStateMappings(
         val NUMBERS = setOf(QueryValueType.INTEGER, QueryValueType.DECIMAL)
         val FLATTENED: Property.Kind = Property.Kind.Flattened
 
-        /**
-         * The value one field maps: the one non-null alternative of this value; with [merge], the alternatives of
-         * the variants of a union taken together when they map alike (objects as one object of all their properties,
-         * scalars of one type as that scalar, arrays as an array of their items); null when they do not, or there is
-         * none.
-         */
-        fun QueryValueSchema.mappable(merge: Boolean): QueryValueSchema? {
-            val branches = alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }
-            branches.singleOrNull()?.let { return it }
-            if (!merge || branches.isEmpty()) return null
-            val first = branches.first()
-            return when {
-                branches.all { it.kind == QueryValueKind.OBJECT && it.additionalProperties == null } ->
-                    QueryValueSchema(
-                        QueryValueKind.OBJECT,
-                        properties = branches.flatMap { it.properties.keys }.distinct().associateWith { name ->
-                            union(branches.mapNotNull { it.properties[name] })
-                        },
-                    )
-                branches.all {
-                    it.kind == QueryValueKind.SCALAR && it.valueTypes == first.valueTypes &&
-                        it.semanticType == first.semanticType
-                } -> first
-                branches.all { it.kind == QueryValueKind.ARRAY } ->
-                    QueryValueSchema(QueryValueKind.ARRAY, items = union(branches.map { checkNotNull(it.items) }))
-                else -> null
-            }
-        }
-
-        private fun union(values: List<QueryValueSchema>): QueryValueSchema =
-            values.distinct().singleOrNull() ?: QueryValueSchema(QueryValueKind.UNION, alternatives = values.distinct())
-
         fun typed(type: String): ObjectNode = nodes.objectNode().put("type", type)
 
         fun keyword(): ObjectNode = typed(
@@ -229,6 +197,37 @@ internal class ElasticsearchStateMappings(
         fun flattened(): ObjectNode = typed("flattened").put("ignore_above", ElasticsearchSnapshotIndex.KEYWORD_LIMIT)
     }
 }
+
+/**
+ * The value one field maps: the one non-null alternative of this value; with [merge], the alternatives of the variants
+ * of a union taken together when they map alike (objects as one object of all their properties, scalars of one type as
+ * that scalar, arrays as an array of their items); null when they do not, or there is none.
+ */
+internal fun QueryValueSchema.mappable(merge: Boolean): QueryValueSchema? {
+    val branches = alternativesOrSelf().filter { it.kind != QueryValueKind.NULL }
+    branches.singleOrNull()?.let { return it }
+    if (!merge || branches.isEmpty()) return null
+    val first = branches.first()
+    return when {
+        branches.all { it.kind == QueryValueKind.OBJECT && it.additionalProperties == null } ->
+            QueryValueSchema(
+                QueryValueKind.OBJECT,
+                properties = branches.flatMap { it.properties.keys }.distinct().associateWith { name ->
+                    unionOf(branches.mapNotNull { it.properties[name] })
+                },
+            )
+        branches.all {
+            it.kind == QueryValueKind.SCALAR && it.valueTypes == first.valueTypes &&
+                it.semanticType == first.semanticType
+        } -> first
+        branches.all { it.kind == QueryValueKind.ARRAY } ->
+            QueryValueSchema(QueryValueKind.ARRAY, items = unionOf(branches.map { checkNotNull(it.items) }))
+        else -> null
+    }
+}
+
+private fun unionOf(values: List<QueryValueSchema>): QueryValueSchema =
+    values.distinct().singleOrNull() ?: QueryValueSchema(QueryValueKind.UNION, alternatives = values.distinct())
 
 /**
  * Where the payload whose fields [ElasticsearchStateMappings] maps lies in a document: its dotted [path], its logical

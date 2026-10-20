@@ -43,9 +43,12 @@ internal object ElasticsearchFailures {
     /** The status of a request Elasticsearch refused as malformed: a document it cannot parse, say. */
     const val BAD_REQUEST = 400
 
+    /** Whether [status] is an answer that the cluster cannot take the request now. */
+    fun isTransient(status: Int): Boolean = status in TRANSIENT_STATUSES
+
     /** Whether [failure] is a transient failure of the cluster or the connection. */
     fun isTransient(failure: Throwable): Boolean = when (failure) {
-        is ElasticsearchException -> failure.status() in TRANSIENT_STATUSES
+        is ElasticsearchException -> isTransient(failure.status())
         is TransportException, is IOException -> true
         else -> false
     }
