@@ -35,15 +35,14 @@ const PACKAGE = 'package';
 // ci.yml's JVM jobs: `:check` and the integration
 // tests. Not a TypeScript scope. Decided apart from RULES, by JVM_PATH: the
 // V10 modules, their tests and spikes, the V10 examples (the eShop, the Java
-// smoke test and the quickstart, with the quickstart pages its test keeps in
-// step), the end-to-end benchmark (test/benchmarks, D224; not its README or
+// smoke test and the quickstart), the end-to-end benchmark (test/benchmarks, D224; not its README or
 // reports), the platform
 // they import, the coverage reports ci.yml uploads (test/code-coverage-report:
 // coverageReport), and the root build and Gradle configuration every module
 // reads.
 const JVM = 'jvm';
 const JVM_PATH =
-  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|tck|tck-containers|benchmarks\/(?:server|load|harness))|example\/(?:eshop|quickstart|java-smoke)|wow-dependencies|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|documentation\/docs\/(?:en|zh)\/guide\/v10\/quickstart\.md$|\.github\/workflows\/ci\.yml$)/;
+  /^(?:(?:api|bom|compiler|core|query|backends|edge|host|extensions|migration|platform|test\/(?:architecture|code-coverage-report|routing-spike|lease-spike|test-dsl|tck|tck-containers|benchmarks\/(?:server|load|harness))|example\/(?:eshop|quickstart|java-smoke)|wow-dependencies|gradle|config)\/|(?:build\.gradle\.kts|settings\.gradle\.kts|gradle\.properties|gradlew)$|\.github\/workflows\/ci\.yml$)/;
 // ci.yml's view-store-contract job: `test` of integration-test, the
 // V10 store (`@ahoo-wang/wow-view-store`) and the view engine on it
 // against the V10 view store service (platform/view-store) built from this
