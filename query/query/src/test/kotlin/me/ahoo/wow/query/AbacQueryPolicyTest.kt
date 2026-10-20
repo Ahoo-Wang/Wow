@@ -53,6 +53,14 @@ class AbacQueryPolicyTest {
     private val enabled = AbacQueryPolicy(AbacQueryOptions(enabled = true))
 
     @Test
+    fun `each policy declares how it restricts the events, pinned unless it says otherwise (D254, D259)`() {
+        enabled.events.assert().isEqualTo(EventsMode.PINNED)
+        AbacQueryPolicy().events.assert().isEqualTo(EventsMode.NONE)
+        ScopeQueryPolicy().events.assert().isEqualTo(EventsMode.PUSHDOWN)
+        QueryPolicy { _, _ -> MatchAllFilter }.events.assert().isEqualTo(EventsMode.PINNED)
+    }
+
+    @Test
     fun `empty tags match all`() {
         emptyMap<String, List<String>>().toFilterExpression().assert().isSameAs(MatchAllFilter)
     }

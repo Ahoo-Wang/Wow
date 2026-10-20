@@ -24,8 +24,10 @@ import kotlin.time.Duration.Companion.seconds
  *
  * - [sampleInterval]: how often [NodeHealth] samples what a probe must not wait for (each log's head, the
  *   subscriptions' lag and parked counts), and probes the stores the node has not called successfully since.
- * - [storeDownAfter]: a store whose calls have failed (or whose probe has not answered) for this long, with no success
- *   since, is `DOWN`; failing for less, `DEGRADED`. [storeWindow]: a store with a failure this recent is `DEGRADED`.
+ * - [storeDownAfter]: how long a store must keep failing, with no success since, before it is `DOWN`; failing for
+ *   less, `DEGRADED`. A failure is a call or a probe that failed, or a probe that timed out (after this long, at least
+ *   a second); a probe still under way is not one. With zero, a store is `DOWN` at its first failure, never because a
+ *   sample is pending. [storeWindow]: a store with a failure this recent is `DEGRADED`.
  * - [handoverGrace]: a lease group whose owned partitions differ from the node's share for longer is `DEGRADED`, and
  *   `DOWN` when the node owns none of a share that is not empty (a hand-over within it is normal).
  * - [topicsRequired]: whether a topic the node is still joining (decision D134, review R2.1-8) makes it not ready.

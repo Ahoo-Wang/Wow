@@ -92,5 +92,7 @@ class AnalyticsCatalogAuthorizerTest {
             .assert().isEqualTo(me.ahoo.wow.api.query.MatchAllFilter)
         assertThrows<QueryRequestException> { policy.evaluate(QueryCaller(caller("other")), context) }
             .code.assert().isEqualTo(AnalyticsCatalogQueryPolicy.READER_REQUIRED)
+        // It hides no row, so the catalog's events queries need not name their aggregates.
+        policy.events.assert().isEqualTo(me.ahoo.wow.query.EventsMode.NONE)
     }
 }

@@ -26,7 +26,8 @@ import java.util.concurrent.TimeUnit
 /**
  * Observes every query a gateway runs (decision D174): a span `query <context>.<aggregate>` with its query type, the
  * child of the span the query is asked in, and its time in the [WowMetrics.QUERY] timer of [meters], tagged with how
- * it ended: `ok`, `error` or `cancelled`.
+ * it ended: `ok`, `error` or `cancelled`. The aggregates a pinned events query had checked count in
+ * [WowMetrics.EVENTS_PINNED], by how they were read.
  */
 @InternalWowApi
 class OtelQueryObserver(openTelemetry: OpenTelemetry, meters: MeterRegistry) : QueryObserver {
@@ -55,5 +56,23 @@ class OtelQueryObserver(openTelemetry: OpenTelemetry, meters: MeterRegistry) : Q
                 outcome,
             ).record(nanos, TimeUnit.NANOSECONDS)
         }
+    }
+
+    override fun onEventsPinned(aggregateType: AggregateType, batched: Int, pointReads: Int) {
+        pinned(aggregateType, WowMetrics.BATCH_READ, batched)
+        pinned(aggregateType, WowMetrics.POINT_READ, pointReads)
+    }
+
+    private fun pinned(aggregateType: AggregateType, read: String, count: Int) {
+        if (count == 0) return
+        cached.counter(
+            WowMetrics.EVENTS_PINNED,
+            WowMetrics.CONTEXT,
+            aggregateType.context,
+            WowMetrics.AGGREGATE,
+            aggregateType.name,
+            WowMetrics.READ,
+            read,
+        ).increment(count.toDouble())
     }
 }

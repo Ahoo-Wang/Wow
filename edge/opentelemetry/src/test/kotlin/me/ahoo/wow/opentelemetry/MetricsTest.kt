@@ -98,6 +98,17 @@ class MetricsTest {
     }
 
     @Test
+    fun `the aggregates a pinned events query checked should be counted by how they were read`() {
+        val queries = OtelQueryObserver(telemetry.sdk, telemetry.meters)
+        queries.onEventsPinned(ORDER, 3, 1)
+        queries.onEventsPinned(ORDER, 2, 0)
+        fun count(read: String) = telemetry.meters.find(WowMetrics.EVENTS_PINNED)
+            .tags(WowMetrics.CONTEXT, SALES, WowMetrics.AGGREGATE, "order", WowMetrics.READ, read).counter()?.count()
+        count(WowMetrics.BATCH_READ).assert().isEqualTo(5.0)
+        count(WowMetrics.POINT_READ).assert().isEqualTo(1.0)
+    }
+
+    @Test
     fun `each parked notice should be counted by subscription and kind`(): Unit = runBlocking {
         val parked = ParkedMetrics(telemetry.meters)
         val entry = ParkedAggregate("Board.onOrder", ORDER.ref("t", "o-1"), 1, "boom", 0)

@@ -267,6 +267,7 @@ public final class me/ahoo/wow/runtime/admission/TargetScope {
 
 public abstract interface class me/ahoo/wow/runtime/call/CommandCaller {
 	public abstract fun call (Lme/ahoo/wow/runtime/call/OutgoingCall;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun reaches (Ljava/lang/String;)Z
 }
 
 public final class me/ahoo/wow/runtime/call/OutgoingCall {
@@ -424,6 +425,7 @@ public final class me/ahoo/wow/runtime/contract/ContractDirectory : me/ahoo/wow/
 	public final fun commandTypeOf (Ljava/lang/String;)Ljava/lang/String;
 	public final fun commandsOutside (Ljava/util/Set;)Ljava/util/Map;
 	public final fun contextOf (Ljava/lang/String;)Lme/ahoo/wow/manifest/ContextManifest;
+	public final fun contextsCalled ()Ljava/util/Map;
 	public fun covers (Ljava/lang/String;Lme/ahoo/wow/api/aggregate/AggregateType;)Z
 	public fun derivedContextsOf (Ljava/lang/String;Ljava/lang/String;)Ljava/util/Set;
 	public final fun getLocal ()Lme/ahoo/wow/manifest/Manifest;

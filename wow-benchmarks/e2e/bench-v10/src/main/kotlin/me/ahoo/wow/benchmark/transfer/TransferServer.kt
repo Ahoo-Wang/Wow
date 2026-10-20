@@ -13,10 +13,14 @@
 
 package me.ahoo.wow.benchmark.transfer
 
+import com.mongodb.ConnectionString
+import com.mongodb.MongoClientSettings
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoClients
+import com.mongodb.event.CommandListener
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import org.springframework.beans.factory.ObjectProvider
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 import org.springframework.context.annotation.Bean
@@ -33,13 +37,21 @@ import javax.sql.DataSource
 @SpringBootApplication(proxyBeanMethods = false)
 class TransferServer
 
-/** The `mongo` profile: the application's `MongoClient` on `spring.mongodb.uri`, which selects the MongoDB backend. */
+/**
+ * The `mongo` profile: the application's `MongoClient` on `spring.mongodb.uri`, which selects the MongoDB backend. It
+ * takes the application's driver [CommandListener]s: none in the server, the round-trip counter in ComponentBench.
+ */
 @Configuration(proxyBeanMethods = false)
 @Profile("mongo")
 class MongoBackend {
     @Bean(destroyMethod = "close")
-    fun mongoClient(environment: Environment): MongoClient =
-        MongoClients.create(environment.getRequiredProperty("spring.mongodb.uri"))
+    fun mongoClient(environment: Environment, listeners: ObjectProvider<CommandListener>): MongoClient =
+        MongoClients.create(
+            MongoClientSettings.builder()
+                .applyConnectionString(ConnectionString(environment.getRequiredProperty("spring.mongodb.uri")))
+                .apply { listeners.orderedStream().forEach(::addCommandListener) }
+                .build(),
+        )
 }
 
 /** The `postgres` profile: a pooled `DataSource` on `spring.datasource.*`, which selects the PostgreSQL backend. */

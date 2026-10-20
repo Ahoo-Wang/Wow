@@ -126,8 +126,9 @@ fun SubscriptionManifest.copyWith(
     retry: RetryManifest? = this.retry,
     committed: List<String>? = this.committed,
     job: JobManifest? = this.job,
+    calls: List<String>? = this.calls,
 ): SubscriptionManifest =
-    SubscriptionManifest(name, kind, source, function, derives, rejected, start, schedules, retry, committed, job)
+    SubscriptionManifest(name, kind, source, function, derives, rejected, start, schedules, retry, committed, job, calls)
 
 fun JobManifest.copyWith(
     name: String = this.name,
