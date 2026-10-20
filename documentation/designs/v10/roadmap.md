@@ -339,8 +339,8 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | BM-1 | 基准测试迁到 `test/benchmarks/`（D265 ③，用户决定）：harness、`:benchmark-load`、`:benchmark-server`、results，工作流 `bench.yml`；作为基准工作流叠加 PR 的最后一个 | 根目录没有 `wow-benchmarks/` |
 | H-1 | 仓库卫生（D266，残留审查 R24、R05、R07、R27、R29）：V10 指南里指向已删除示例的链接改到 eShop，并给文档链接测试加上 `blob`/`tree` 目标存在性检查；删除构建脚本里已为空的 9.x 发布排除块；PR 标签规则改为 V10 目录；清理 todo 台账；删除 `schema/` | 文档站从 v10 部署时没有 404；V10 的 PR 有领域标签 |
 | SK-1 | Skill 改写为 V10（D266 ③）：wow-develop、wow-client、wow-view-*、wow-data-query 与 skills README；9.x 参考留在 main；DX-1d 之后，与 9.1 并行 | v10 上的 Skill 只教 V10 |
-| CI-3 | GA 切换（D265 ④，随 9.4）：分支改名与默认分支、工作流分支过滤、发布门禁放行正式版标签、npm `latest`、文档 `tree/v10/` 链接、`nightly.yml` 与 `release.yml` 整理 | 正式版标签能发布；定时任务在默认分支生效 |
-| 9.4 | rc（须用户确认，D202）；按 D265 ④ 切换：`main` 改名 `v9`，`v10` 改名 `main` 并设为默认分支（不做合并）；发 `10.0.0`（打标签前问用户） | GA |
+| CI-3 | 分支切换（D265 ④，rc 时做：SW-1 与 9.x 侧 PR 先行，约 2～3 小时）：分支改名与默认分支；GA 时：工作流分支过滤、发布门禁放行正式版标签、npm `latest`、文档 `tree/v10/` 链接、`nightly.yml` 与 `release.yml` 整理 | 正式版标签能发布；定时任务在默认分支生效 |
+| 9.4 | rc（须用户确认，D202），rc 时按 D265 ④ 切换：`main` 改名 `v9`，`v10` 改名 `main` 并设为默认分支（不做合并）；发 `10.0.0`（打标签前问用户） | GA |
 
 ## 4. 并行与关键路径
 
