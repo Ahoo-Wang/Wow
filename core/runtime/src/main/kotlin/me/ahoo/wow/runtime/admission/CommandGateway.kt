@@ -66,8 +66,11 @@ import kotlin.time.Duration
  * Admission runs in this order, and the first step that refuses answers the request:
  *
  * 1. Resolve the command type from [registry], by its model name or the part of it after the aggregate type
- *    (`AddItem` for `shop.cart.AddItem`), among the commands the aggregate decides and those mounted under it: an
- *    aggregate or a command this node does not serve is [FrameworkCodes.UNHANDLED].
+ *    (`AddItem` for `shop.cart.AddItem`), or by the class of a command object ([CommandBody.Value], decision D258),
+ *    among the commands the aggregate decides and those mounted under it: a command this node does not serve is
+ *    [FrameworkCodes.UNHANDLED]. An aggregate it does not serve is a peer context's when [peers] knows its contract
+ *    (decision D259, review M-1): admitted as [admitPeer] says and sent to that context's command topic; any other is
+ *    [FrameworkCodes.UNHANDLED].
  * 2. Decide the identity, each fact by one rule (decisions D95–D97); a fact given twice, or missing, is
  *    [FrameworkCodes.MALFORMED]:
  *    - the tenant and the scope are the caller's; a [CommandRequest.target] replaces them only for a caller with
@@ -95,7 +98,9 @@ import kotlin.time.Duration
  *    An id longer than 256 characters (a request, aggregate, tenant or space id) is [FrameworkCodes.MALFORMED]
  *    ([AdmissionLimits]).
  * 4. Decode the body as the command type with [mapper]; one that does not decode, or that writes `\u0000` in a string
- *    or a key, which not every store keeps ([AdmissionLimits]), is [FrameworkCodes.MALFORMED].
+ *    or a key, which not every store keeps ([AdmissionLimits]), is [FrameworkCodes.MALFORMED]. A command object is
+ *    not decoded: it must be of the command type, and is checked as the JSON [mapper] writes it as. A request whose
+ *    ref names another tenant than the one decided ([CommandRequest.tenantId]) is [FrameworkCodes.MALFORMED] too.
  * 5. Transform the command with the one of [transformers] that takes its type, if any ([CommandTransformer]). The
  *    command it becomes must be decided by an aggregate this node serves ([FrameworkCodes.UNHANDLED] otherwise); its
  *    tenant is decided again for that aggregate type, and its scope, request id, expected version and wait plan are
@@ -204,38 +209,25 @@ class CommandGateway @InternalWowApi constructor(
         }
         when (admission) {
             is Admission.Refused -> emit(observedRefusal(admission.result))
-            is Admission.Relayed -> {
-                // A peer's command (M-1): through its command topic; any coordinator follows its wait.
-                val coordinator = coordinators.values.first()
-                val (command, function, relay) = admission
-                when {
-                    command.wait.isAcceptedOnly -> emit(traced(trace) { coordinator.acceptRelayed(command, function, relay) })
-                    streaming -> {
-                        val relayed = coordinator.relay(command, function, relay)
-                        (if (trace === EmptyCoroutineContext) relayed else relayed.flowOn(trace)).collect { emit(it) }
-                    }
-
-                    else -> emit(traced(trace) { coordinator.executeRelayed(command, function, relay) })
-                }
-            }
-
+            is Admission.Relayed -> relay(admission, streaming, trace, emit)
             is Admission.Admitted -> {
                 val coordinator = coordinators.getValue(admission.command.ref.type.context)
                 val from = admission.transformedFrom
+                val tagged: suspend (CommandResult) -> Unit = {
+                    emit(if (from == null) it else it.copyWith(transformedFrom = from))
+                }
                 val call = admission.call
                 if (call != null) {
                     // Apart from the caller and bounded by its plan's timeout (review R2.5-2).
-                    val settled = traced(trace) { coordinator.call(admission.model, admission.command, call.wait) }
-                    emit(if (from == null) settled else settled.copyWith(transformedFrom = from))
+                    tagged(traced(trace) { coordinator.call(admission.model, admission.command, call.wait) })
                 } else if (accepted != null) {
-                    emit(if (from == null) accepted else accepted.copyWith(transformedFrom = from))
+                    tagged(accepted)
                 } else if (streaming) {
                     val streamed = coordinator.stream(admission.model, admission.command)
                     val results = if (trace === EmptyCoroutineContext) streamed else streamed.flowOn(trace)
-                    results.collect { emit(if (from == null) it else it.copyWith(transformedFrom = from)) }
+                    results.collect { tagged(it) }
                 } else {
-                    val result = traced(trace) { coordinator.execute(admission.model, admission.command) }
-                    emit(if (from == null) result else result.copyWith(transformedFrom = from))
+                    tagged(traced(trace) { coordinator.execute(admission.model, admission.command) })
                 }
             }
         }
@@ -257,6 +249,29 @@ class CommandGateway @InternalWowApi constructor(
             (model.findCommandType(type) ?: model.mountedCommandTypes.firstOrNull { it.type == type })?.name
         } ?: peers?.let { peers -> peers.aggregateOf(aggregate)?.let { peers.resolve(aggregate, it, type.name)?.name } }
         return if (name == null) request else request.copyWith(command = name)
+    }
+
+    /**
+     * Sends [admission], a peer's command (decision D259, review M-1), through its command topic and hands [emit] its
+     * results as [dispatch] does; any coordinator follows its wait, which no execution here is part of.
+     */
+    private suspend fun relay(
+        admission: Admission.Relayed,
+        streaming: Boolean,
+        trace: CoroutineContext,
+        emit: suspend (CommandResult) -> Unit,
+    ) {
+        val coordinator = coordinators.values.first()
+        val (command, function, relay) = admission
+        when {
+            command.wait.isAcceptedOnly -> emit(traced(trace) { coordinator.acceptRelayed(command, function, relay) })
+            streaming -> {
+                val relayed = coordinator.relay(command, function, relay)
+                (if (trace === EmptyCoroutineContext) relayed else relayed.flowOn(trace)).collect { emit(it) }
+            }
+
+            else -> emit(traced(trace) { coordinator.executeRelayed(command, function, relay) })
+        }
     }
 
     /** [refused], told to the observer by its code (review A5-11). */

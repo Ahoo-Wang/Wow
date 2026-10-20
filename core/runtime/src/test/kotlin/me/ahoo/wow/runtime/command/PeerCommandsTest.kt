@@ -107,7 +107,13 @@ class PeerCommandsTest {
             },
             validators = listOf(
                 CommandValidator { _, body ->
-                    if ((body as? Reserve)?.quantity == 0) listOf(Violation("quantity", "Min", "At least 1.")) else emptyList()
+                    if ((body as? Reserve)?.quantity == 0) {
+                        listOf(
+                            Violation("quantity", "Min", "At least 1.")
+                        )
+                    } else {
+                        emptyList()
+                    }
                 },
             ),
         ),
@@ -217,7 +223,10 @@ class PeerCommandsTest {
         sales.gateway.execute(reserve(1, caller = Caller(TENANT, Scope("m"), subject = "mallory")))
             .error!!.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         sales.gateway.execute(
-            CommandRequest.builder(Reserve(1), ITEM.ref(TENANT, "i")).caller(clerk).target(TargetScope(TENANT, Scope("x")))
+            CommandRequest.builder(
+                Reserve(1),
+                ITEM.ref(TENANT, "i")
+            ).caller(clerk).target(TargetScope(TENANT, Scope("x")))
                 .build(),
         ).error!!.code.assert().isEqualTo(FrameworkCodes.AUTH_FORBIDDEN)
         sales.gateway.execute(CommandRequest.builder(Reserve(1), ITEM.ref("other", "i")).caller(clerk).build())
@@ -237,12 +246,20 @@ class PeerCommandsTest {
     fun `an unknown command or context stays unhandled`(): Unit = runBlocking {
         val sales = started()
         val unknownCommand = sales.gateway.execute(
-            CommandRequest.builder(STOCK, "item", "Release", CommandBody.of("{}")).caller(clerk).aggregateId("i").build(),
+            CommandRequest.builder(
+                STOCK,
+                "item",
+                "Release",
+                CommandBody.of("{}")
+            ).caller(clerk).aggregateId("i").build(),
         )
         unknownCommand.error!!.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
         unknownCommand.error!!.message.assert().contains("has no command Release")
         val unknownContext = sales.gateway.execute(
-            CommandRequest.builder(Reserve(1), AggregateType("billing", "invoice").ref(TENANT, "x")).caller(clerk).build(),
+            CommandRequest.builder(
+                Reserve(1),
+                AggregateType("billing", "invoice").ref(TENANT, "x")
+            ).caller(clerk).build(),
         )
         unknownContext.error!!.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
         unknownContext.error!!.message.assert().contains("No aggregate billing.invoice is served here")

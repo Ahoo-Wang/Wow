@@ -31,8 +31,8 @@ import me.ahoo.wow.manifest.Creation as ManifestCreation
 /**
  * The commands of peer contexts that the [CommandGateway] admits (decision D259, review M-1): the aggregates of a
  * context another service serves, known from the contract its api jar carries ([contracts], decision D234). Such a
- * command is written to the peer's command topic, `wow.<context>.commands`, through [sender], the path a saga's command
- * to another context takes (decisions D33, D137), and the peer's intake executes it. Without a [sender], the node has
+ * command is written to the peer's command topic, `wow.<context>.commands`, through the node's command sender, the path a saga's command
+ * to another context takes (decisions D33, D137), and the peer's intake executes it. Without one, the node has
  * no command transport and refuses them.
  *
  * A command's class is found from its contract's schema reference (`#/$defs/<binary name>`) on [classLoader]: the
@@ -74,12 +74,12 @@ class PeerCommands(
 
     /** Where a command of the command type [name] (`ctx.agg.Command`) is written; null without a transport. */
     fun relayOf(name: String): CommandRelay? {
-        val sender = sender ?: return null
+        val commands = sender ?: return null
         return object : CommandRelay {
-            override val topic: String = sender.topicOf(name.substringBefore('.'))
+            override val topic: String = commands.topicOf(name.substringBefore('.'))
 
             override suspend fun send(command: Command<*>, wait: WaitContext?) =
-                sender.send(ClusterCodec.wire(name, command), wait)
+                commands.send(ClusterCodec.wire(name, command), wait)
         }
     }
 
@@ -93,7 +93,6 @@ class PeerCommands(
     } catch (_: LinkageError) {
         null
     }
-
 }
 
 /**

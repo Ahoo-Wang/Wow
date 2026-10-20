@@ -45,10 +45,10 @@ import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.InFlightLimit
 import me.ahoo.wow.runtime.LruStateCache
 import me.ahoo.wow.runtime.admission.CommandGateway
-import me.ahoo.wow.runtime.admission.PeerCommands
 import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.admission.ModelRegistry
+import me.ahoo.wow.runtime.admission.PeerCommands
 import me.ahoo.wow.runtime.call.CommandCaller
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
@@ -622,7 +622,9 @@ class ServiceNode @InternalWowApi constructor(
      * The topics the node's contexts own and use (decision D168), which [start] validates or creates as
      * [SourceTopics.ddl] says: the command topic of each context that takes commands from it, with exactly its log's
      * partitions; the receipts topic of each context that reads its rejections; with a producer, the topic of each
-     * stream its contexts publish. None without [topics].
+     * stream its contexts publish, and, under [TopicDdl.VALIDATE], the command topic of each peer context whose
+     * contract lists commands, where the gateway sends them (decision D259, review M-1): that topic is the peer's, so
+     * it is checked, never created. None without [topics].
      */
     val topicRequirements: List<TopicRequirement> = topicRequirements()
 
@@ -658,6 +660,18 @@ class ServiceNode @InternalWowApi constructor(
                     )
                 }
             }
+        }
+        if (sources.producer != null && sources.ddl == TopicDdl.VALIDATE) {
+            contracts.peers.flatMap { it.manifest.contexts }
+                .filter { context -> context.aggregates.any { aggregate -> aggregate.commands.any { !it.mounted } } }
+                .forEach { peer ->
+                    requirements += TopicRequirement(
+                        sources.commandsOf(peer.name),
+                        1,
+                        exact = false,
+                        "the command topic of peer context ${peer.name}, where this node sends its commands",
+                    )
+                }
         }
         return requirements.distinctBy { it.topic }
     }

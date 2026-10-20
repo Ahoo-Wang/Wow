@@ -161,7 +161,10 @@ class CommandValueAdmissionTest {
         unknown.error!!.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
         unknown.error!!.message.assert().contains(Unknown::class.java.name)
         val elsewhere = gateway().execute(
-            CommandRequest.builder(AddItem("x"), AggregateType("elsewhere", "cart").ref(TENANT, "c")).caller(alice).build()
+            CommandRequest.builder(
+                AddItem("x"),
+                AggregateType("elsewhere", "cart").ref(TENANT, "c")
+            ).caller(alice).build()
         )
         elsewhere.error!!.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
     }
