@@ -16,7 +16,7 @@ V10 在长期分支 `v10` 上开发，全部完成后一次合入 main（D2）�
 | main 上的分工 | V10 要替换的 JVM 运行时模块（wow-core 运行时、总线、存储、补偿）在 main 上只修缺陷；V10 沿用的部分（查询协议、view-engine、数据集、TS 包）照常开发，经前向合并进入 `v10` |
 | CI | `local-test`、`contract-test`、`integration-test`、`typescript*` 覆盖 `v10`；9 → 10 不混部，由迁移演练取代 `mixed-version`；但 10.x 内相邻次版本必须能滚动升级（D48），所以 `mixed-version` 在 10.0 GA 后以「上一个 10.x 次版本 + 当前构建」重新启用 |
 | 预发布 | 第一个预发布提前到 M7 之后（D217，修订 D124、D147）：`10.0.0-alpha.3` 已发布（alpha.1、alpha.2 未完整发布，D218），不做兼容性承诺；之后的 alpha、beta 自行发布，rc 与 GA 须用户确认（D202） |
-| 合入 | M9 的出口满足后：先从 main 切出 `release-9.x`，再把 `v10` 合入 main，从 main 发 `10.0.0` |
+| 合入 | M9 的出口满足后按 D265 ④ 切换：`main` 改名为 `v9`（9.x 维护线），`v10` 改名为 `main` 并设为默认分支（不做合并），从 main 发 `10.0.0` |
 
 ## 2. 里程碑总览
 
@@ -339,8 +339,8 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | BM-1 | 基准测试迁到 `test/benchmarks/`（D265 ③，用户决定）：harness、`:benchmark-load`、`:benchmark-server`、results，工作流 `bench.yml`；作为基准工作流叠加 PR 的最后一个 | 根目录没有 `wow-benchmarks/` |
 | H-1 | 仓库卫生（D266，残留审查 R24、R05、R07、R27、R29）：V10 指南里指向已删除示例的链接改到 eShop，并给文档链接测试加上 `blob`/`tree` 目标存在性检查；删除构建脚本里已为空的 9.x 发布排除块；PR 标签规则改为 V10 目录；清理 todo 台账；删除 `schema/` | 文档站从 v10 部署时没有 404；V10 的 PR 有领域标签 |
 | SK-1 | Skill 改写为 V10（D266 ③）：wow-develop、wow-client、wow-view-*、wow-data-query 与 skills README；9.x 参考留在 main；DX-1d 之后，与 9.1 并行 | v10 上的 Skill 只教 V10 |
-| CI-3 | GA 切换（D265 ④，随 9.4）：分支改名与默认分支、工作流分支过滤、发布门禁放行正式版标签、npm `latest`、文档 `tree/v10/` 链接、`nightly.yml` 与 `release.yml` 整理 | 正式版标签能发布；定时任务在默认分支生效 |
-| 9.4 | rc（须用户确认，D202）；按 D265 ④ 切换：`main` 改名 `release-9.x`，`v10` 改名 `main` 并设为默认分支（不做合并）；发 `10.0.0`（打标签前问用户） | GA |
+| CI-3 | 分支切换（D265 ④，rc 时做：SW-1 与 9.x 侧 PR 先行，约 2～3 小时）：分支改名与默认分支；GA 时：工作流分支过滤、发布门禁放行正式版标签、npm `latest`、文档 `tree/v10/` 链接、`nightly.yml` 与 `release.yml` 整理 | 正式版标签能发布；定时任务在默认分支生效 |
+| 9.4 | rc（须用户确认，D202），rc 时按 D265 ④ 切换：`main` 改名 `v9`，`v10` 改名 `main` 并设为默认分支（不做合并）；发 `10.0.0`（打标签前问用户） | GA |
 
 ## 4. 并行与关键路径
 
