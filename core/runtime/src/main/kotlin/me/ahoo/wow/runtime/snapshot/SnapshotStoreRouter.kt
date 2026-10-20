@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
 
@@ -33,6 +34,15 @@ class SnapshotStoreRouter(
     fun storeOf(type: AggregateType): SnapshotStore = stores[type] ?: default
 
     override suspend fun save(snapshot: SnapshotRecord): Boolean = storeOf(snapshot.ref.type).save(snapshot)
+
+    /** Each store's snapshots with one call of its own [SnapshotStore.saveAll]; the outcomes in the order given. */
+    override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> {
+        val outcomes = arrayOfNulls<SnapshotSaveOutcome>(snapshots.size)
+        snapshots.indices.groupBy { storeOf(snapshots[it].ref.type) }.forEach { (store, indexes) ->
+            store.saveAll(indexes.map(snapshots::get)).forEachIndexed { at, outcome -> outcomes[indexes[at]] = outcome }
+        }
+        return outcomes.map { checkNotNull(it) }
+    }
 
     override suspend fun load(ref: AggregateRef): SnapshotRecord? = storeOf(ref.type).load(ref)
 

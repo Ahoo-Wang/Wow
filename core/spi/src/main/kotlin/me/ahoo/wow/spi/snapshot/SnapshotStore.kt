@@ -17,6 +17,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * The snapshots of one bounded context: each aggregate's latest committed state, the default read model (V10 axiom
@@ -30,6 +31,7 @@ import me.ahoo.wow.api.annotation.WowSpi
  * - a snapshot never replaces one of a higher state revision ([SnapshotRecord.stateRevision], decision D172): a node
  *   of the older code, during a rolling upgrade or after a rollback began, does not overwrite what the newer code
  *   wrote. Its save marks the stored snapshot stale instead, so the rebuild brings it up to the version the log holds;
+ * - [saveAll] saves several, each as [save] would, and says how each ended;
  * - there is no delete: a deleted aggregate keeps its snapshot with [SnapshotRecord.deleted] set.
  *
  * **Rebuilds** (decision D172) work per aggregate type, its table: the store records the state revision the table is
@@ -45,6 +47,24 @@ interface SnapshotStore {
      * one stale ([markStale]).
      */
     suspend fun save(snapshot: SnapshotRecord): Boolean
+
+    /**
+     * Saves [snapshots], each exactly as [save] would (the version guard, a stale mark for a higher state revision),
+     * and returns their outcomes in the same order (decision D248 ②): the snapshot subscription writes what it
+     * coalesced from a batch of entries with one call, so a backend may write them together to share the round trips.
+     * A batch that holds a ref more than once is applied as saving its snapshots in that order
+     * ([SnapshotSaveOutcome.rounds]). A snapshot the backend fails to save alone is [SnapshotSaveOutcome.Failed]; a
+     * failure of the whole call, the database unreachable say, is thrown. By default they are saved one by one.
+     */
+    suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> = snapshots.map { snapshot ->
+        try {
+            SnapshotSaveOutcome.of(save(snapshot))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            SnapshotSaveOutcome.Failed(failure)
+        }
+    }
 
     /** The snapshot of [ref], or null when there is none. */
     suspend fun load(ref: AggregateRef): SnapshotRecord?

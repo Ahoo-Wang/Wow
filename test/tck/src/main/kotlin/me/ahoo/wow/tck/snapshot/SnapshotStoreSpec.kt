@@ -25,6 +25,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.api.schedule.ScheduleRule
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
 import me.ahoo.wow.tck.ExactJson
@@ -174,6 +175,140 @@ abstract class SnapshotStoreSpec {
         written.assert().contains(true)
         store.load(type.ref("tenant", "a")).assertSameAs(snapshot("a", CONCURRENT_VERSIONS))
         store.save(snapshot("a", CONCURRENT_VERSIONS)).assert().isFalse()
+    }
+
+    @Test
+    fun `an empty batch saves nothing`(): Unit = runBlocking {
+        createStore().saveAll(emptyList()).assert().isEmpty()
+    }
+
+    @Test
+    fun `a batch saves each snapshot as save would`(): Unit = runBlocking {
+        val store = createStore()
+        val other = AggregateType(context, "other")
+        store.save(snapshot("a", 2)).assert().isTrue()
+        store.save(snapshot("c", 5).copyWith(stateRevision = 2)).assert().isTrue()
+        store.save(snapshot("d", 4)).assert().isTrue()
+        val batch = listOf(
+            snapshot("a", 3),
+            snapshot("b", 1),
+            // An old node of revision 1 cannot write over the revision 2 snapshot: it marks it stale.
+            snapshot("c", 6),
+            snapshot("d", 4).copyWith(state = """{"changed":true}"""),
+            snapshot("d", 1, aggregate = other),
+            snapshot("a", 7, tenant = "t2"),
+        )
+        store.saveAll(batch).assert().containsExactly(
+            SnapshotSaveOutcome.Written,
+            SnapshotSaveOutcome.Written,
+            SnapshotSaveOutcome.Refused,
+            SnapshotSaveOutcome.Refused,
+            SnapshotSaveOutcome.Written,
+            SnapshotSaveOutcome.Written,
+        )
+        store.load(batch[0].ref).assertSameAs(batch[0])
+        store.load(batch[1].ref).assertSameAs(batch[1])
+        store.load(batch[2].ref).assertSameAs(snapshot("c", 5).copyWith(stateRevision = 2))
+        store.load(batch[3].ref).assertSameAs(snapshot("d", 4))
+        store.load(batch[4].ref).assertSameAs(batch[4])
+        store.load(batch[5].ref).assertSameAs(batch[5])
+        store.pending(type, 2, limit = 10).assert().contains(batch[2].ref)
+        store.pending(type, 1, limit = 10).assert().containsExactly(batch[2].ref)
+    }
+
+    @Test
+    fun `a batch holding a ref more than once saves its snapshots in order`(): Unit = runBlocking {
+        val store = createStore()
+        val batch = listOf(
+            snapshot("a", 2),
+            snapshot("a", 1),
+            snapshot("b", 1),
+            snapshot("a", 3),
+            snapshot("a", 3).copyWith(state = """{"changed":true}"""),
+            // In order, the revision 2 snapshot lands first and the later one of revision 1 marks it stale.
+            snapshot("c", 5).copyWith(stateRevision = 2),
+            snapshot("c", 6),
+        )
+        store.saveAll(batch).assert().containsExactly(
+            SnapshotSaveOutcome.Written,
+            SnapshotSaveOutcome.Refused,
+            SnapshotSaveOutcome.Written,
+            SnapshotSaveOutcome.Written,
+            SnapshotSaveOutcome.Refused,
+            SnapshotSaveOutcome.Written,
+            SnapshotSaveOutcome.Refused,
+        )
+        store.load(batch[3].ref).assertSameAs(batch[3])
+        store.load(batch[2].ref).assertSameAs(batch[2])
+        store.load(batch[5].ref).assertSameAs(batch[5])
+        // A revision 2 snapshot is pending at revision 2 only when marked stale.
+        store.pending(type, 2, limit = 10).assert().contains(batch[5].ref)
+    }
+
+    @Test
+    fun `a batch clears a stale mark up to each snapshot's version`(): Unit = runBlocking {
+        val store = createStore()
+        store.save(snapshot("b", 3).copyWith(stateRevision = 2)).assert().isTrue()
+        store.save(snapshot("b", 5)).assert().isFalse()
+        store.save(snapshot("c", 2).copyWith(stateRevision = 2)).assert().isTrue()
+        store.save(snapshot("c", 6)).assert().isFalse()
+        val b = type.ref("tenant", "b")
+        val c = type.ref("tenant", "c")
+        store.pending(type, 2, limit = 10).assert().containsExactly(b, c)
+        val batch = listOf(snapshot("b", 6).copyWith(stateRevision = 2), snapshot("c", 4).copyWith(stateRevision = 2))
+        store.saveAll(batch).assert().containsExactly(SnapshotSaveOutcome.Written, SnapshotSaveOutcome.Written)
+        // B's mark of version 5 is cleared by version 6; c's of version 6 stays over version 4.
+        store.pending(type, 2, limit = 10).assert().containsExactly(c)
+        store.load(c).assertSameAs(batch[1])
+    }
+
+    @Test
+    fun `a snapshot a batch fails to save fails alone`(): Unit = runBlocking {
+        // Finding A2-7 again: PostgreSQL refuses a NUL character as a value, MongoDB keeps it. Refused or kept, the
+        // other snapshots of the batch are saved.
+        val store = createStore()
+        val refused = snapshot("nul", 1).copyWith(state = """{"name":"a\u0000b"}""")
+        val batch = listOf(snapshot("a", 1), refused, snapshot("b", 2))
+        val outcomes = store.saveAll(batch)
+        outcomes.size.assert().isEqualTo(batch.size)
+        outcomes[0].assert().isEqualTo(SnapshotSaveOutcome.Written)
+        outcomes[2].assert().isEqualTo(SnapshotSaveOutcome.Written)
+        when (val outcome = outcomes[1]) {
+            is SnapshotSaveOutcome.Failed -> {
+                outcome.cause.assert().isInstanceOf(IllegalArgumentException::class.java)
+                store.load(refused.ref).assert().isNull()
+            }
+            else -> {
+                outcome.assert().isEqualTo(SnapshotSaveOutcome.Written)
+                store.load(refused.ref).assertSameAs(refused)
+            }
+        }
+        store.load(batch[0].ref).assertSameAs(batch[0])
+        store.load(batch[2].ref).assertSameAs(batch[2])
+    }
+
+    @Test
+    fun `concurrent batches and saves leave the highest version of each ref`(): Unit = runBlocking {
+        val store = createStore()
+        val ids = listOf("a", "b", "c", "d")
+        val written = coroutineScope {
+            (1..CONCURRENT_VERSIONS).shuffled().map { version ->
+                async(Dispatchers.Default) {
+                    if (version % 2 == 0) {
+                        store.saveAll(ids.shuffled().map { snapshot(it, version) }).map { it.written }
+                    } else {
+                        ids.map { store.save(snapshot(it, version)) }
+                    }
+                }
+            }.awaitAll()
+        }
+        written.flatten().assert().contains(true)
+        ids.forEach { id ->
+            store.load(type.ref("tenant", id)).assertSameAs(snapshot(id, CONCURRENT_VERSIONS))
+        }
+        store.saveAll(ids.map { snapshot(it, CONCURRENT_VERSIONS) }).forEach {
+            it.assert().isEqualTo(SnapshotSaveOutcome.Refused)
+        }
     }
 
     @Test

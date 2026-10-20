@@ -152,15 +152,21 @@ public abstract class me/ahoo/wow/tck/snapshot/SnapshotStoreSpec {
 	protected static final field Companion Lme/ahoo/wow/tck/snapshot/SnapshotStoreSpec$Companion;
 	public static final field FIRST_EVENT_TIME J
 	public fun <init> ()V
+	public final fun a batch clears a stale mark up to each snapshot's version ()V
+	public final fun a batch holding a ref more than once saves its snapshots in order ()V
+	public final fun a batch saves each snapshot as save would ()V
 	public final fun a claim raises the revision, and lowers it only for a rollback ()V
 	public final fun a lower state revision never replaces a higher one but marks it stale ()V
 	public final fun a ref without a snapshot loads null ()V
 	public final fun a rewrite replaces the same version or a lower one whatever the revision ()V
+	public final fun a snapshot a batch fails to save fails alone ()V
 	public final fun a snapshot loads back as saved ()V
 	public final fun a stale mark keeps a snapshot pending until a rewrite reaches its version ()V
 	public final fun a state with a NUL character loads back as saved, or is refused as a value ()V
 	public final fun a table's first claim records it at the revision, not yet backfilled ()V
 	public final fun absent access facts and the deleted mark load back as saved ()V
+	public final fun an empty batch saves nothing ()V
+	public final fun concurrent batches and saves leave the highest version of each ref ()V
 	public final fun concurrent claims leave one revision ()V
 	public final fun concurrent saves of different versions leave the highest ()V
 	protected abstract fun createStore (Ljava/lang/String;)Lme/ahoo/wow/spi/snapshot/SnapshotStore;
