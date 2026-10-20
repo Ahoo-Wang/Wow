@@ -4,7 +4,7 @@
  * you may obtain a copy at http://www.apache.org/licenses/LICENSE-2.0
  */
 import { execFileSync } from 'node:child_process';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { PUBLISHED } from './publish-npm.mjs';
 
@@ -308,29 +308,59 @@ export function scopes(paths) {
   return result;
 }
 
+/**
+ * The commits a run compares, `{ base, head }`, or undefined to check
+ * everything. A merge queue's run (`merge_group`) compares the group's commit
+ * with the tip of the branch it merges into, both from the event payload, as
+ * no workflow expression names them; every other event passes BASE_SHA and
+ * HEAD_SHA (a pull request's base and head, a push's before and after). No base
+ * (manual dispatch, a new branch's first push) checks everything.
+ */
+export function changeRange({ eventName, event, baseSha, headSha }) {
+  const [base, head] =
+    eventName === 'merge_group'
+      ? [event?.merge_group?.base_sha, event?.merge_group?.head_sha]
+      : [baseSha, headSha];
+  return base && head && !/^0+$/.test(base) ? { base, head } : undefined;
+}
+
+/** The changeRange of this run, from what GitHub Actions sets in `env`. */
+export function runChangeRange(env = process.env) {
+  const { GITHUB_EVENT_NAME, GITHUB_EVENT_PATH, BASE_SHA, HEAD_SHA } = env;
+  const event =
+    GITHUB_EVENT_NAME === 'merge_group' && GITHUB_EVENT_PATH
+      ? JSON.parse(readFileSync(GITHUB_EVENT_PATH, 'utf8'))
+      : undefined;
+  return changeRange({
+    eventName: GITHUB_EVENT_NAME,
+    event,
+    baseSha: BASE_SHA,
+    headSha: HEAD_SHA,
+  });
+}
+
 if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
-  const { BASE_SHA, HEAD_SHA, GITHUB_OUTPUT } = process.env;
-  // No base (manual dispatch, a new branch's first push) runs everything.
-  const paths =
-    BASE_SHA && HEAD_SHA && !/^0+$/.test(BASE_SHA)
-      ? execFileSync(
-          'git',
-          // Three dots: this branch's own changes, not main's since it branched.
-          [
-            'diff',
-            '--no-renames',
-            '--name-only',
-            '-z',
-            `${BASE_SHA}...${HEAD_SHA}`,
-          ],
-          { encoding: 'utf8' },
-        )
-          .split('\0')
-          .filter(Boolean)
-      : ['*'];
+  const { GITHUB_OUTPUT } = process.env;
+  const range = runChangeRange();
+  const paths = range
+    ? execFileSync(
+        'git',
+        // Three dots: this branch's own changes, not main's since it branched.
+        [
+          'diff',
+          '--no-renames',
+          '--name-only',
+          '-z',
+          `${range.base}...${range.head}`,
+        ],
+        { encoding: 'utf8' },
+      )
+        .split('\0')
+        .filter(Boolean)
+    : ['*'];
   for (const [key, value] of Object.entries(scopes(paths)))
     appendFileSync(GITHUB_OUTPUT, `${key}=${value}\n`);
   appendFileSync(
