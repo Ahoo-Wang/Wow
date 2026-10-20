@@ -407,6 +407,24 @@ class WowPluginTest {
     }
 
     @Test
+    fun `an api project evaluated before its domain module should be configured at once`() {
+        val root = ProjectBuilder.builder().withProjectDir(directory).withName("services").build()
+        val api = ProjectBuilder.builder().withParent(root).withName("shop-api")
+            .withProjectDir(File(directory, "shop-api")).build()
+        api.pluginManager.apply("org.jetbrains.kotlin.jvm")
+        (api as ProjectInternal).evaluate()
+        val domain = ProjectBuilder.builder().withParent(root).withName("shop-domain")
+            .withProjectDir(File(directory, "shop-domain")).build()
+        domain.pluginManager.apply("me.ahoo.wow")
+        domain.pluginManager.apply("org.jetbrains.kotlin.jvm")
+        domain.dependencies.add("api", domain.dependencies.project(mapOf("path" to ":shop-api")))
+        api.tasks.findByName(WowPlugin.GENERATE_CONTRACT_SOURCES_TASK).assert().isNotNull()
+        val views = api.configurations.getByName("apiElements").outgoing.variants
+            .map { it.attributes.getAttribute(WowPlugin.API_VIEW) }
+        views.assert().contains(WowPlugin.coreView(":shop-domain"))
+    }
+
+    @Test
     fun `an api project without the Kotlin plugin should carry no generated code`() {
         val root = ProjectBuilder.builder().withProjectDir(directory).withName("services").build()
         val api = ProjectBuilder.builder().withParent(root).withName("java-api")

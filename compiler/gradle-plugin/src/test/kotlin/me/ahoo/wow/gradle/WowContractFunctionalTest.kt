@@ -257,7 +257,7 @@ class WowContractFunctionalTest {
         contractOf(File(published, "shop-api-1.0.0.jar"))!!.contexts.map { it.name }
             .assert().containsExactly("audit", "shop")
         listOf("shop-api-1.0.0.pom", "shop-api-1.0.0.module").forEach { metadata ->
-            File(published, metadata).readText().assert().doesNotContain("domain", "wow-contract")
+            File(published, metadata).readText().assert().doesNotContain("domain", "wow-contract", "api-view")
         }
     }
 
