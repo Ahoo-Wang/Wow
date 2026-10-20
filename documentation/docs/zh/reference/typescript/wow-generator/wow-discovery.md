@@ -151,8 +151,8 @@ description: 'Wow 聚合识别 — @ahoo-wang/wow-generator'
 
 ## 实现源码
 
-[typescript/wow-generator/src/wow/resolveWowModel.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/wow/resolveWowModel.ts)
+[typescript/wow-generator/src/wow/resolveWowModel.ts](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/typescript/wow-generator/src/wow/resolveWowModel.ts)
 
-[typescript/wow-generator/src/wow/conventions.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/wow/conventions.ts)
+[typescript/wow-generator/src/wow/conventions.ts](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/typescript/wow-generator/src/wow/conventions.ts)
 
 [typescript/wow-generator/src/openapi/components.ts](https://github.com/Ahoo-Wang/Wow/blob/main/typescript/wow-generator/src/openapi/components.ts)

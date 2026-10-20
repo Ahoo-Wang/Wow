@@ -93,21 +93,6 @@ export function emitModel(
   target: EmitTarget,
 ): void {
   const module = target.modules.module(declaration.file);
-  if (declaration.emptyMessageBody) {
-    const alias = module.add<TypeAliasDeclarationStructure>({
-      kind: StructureKind.TypeAlias,
-      name: declaration.info.name,
-      type: 'globalThis.Record<string, never>',
-      isExported: true,
-    });
-    addMainSchemaJSDoc(
-      alias,
-      declaration.docSchema,
-      declaration.key,
-      target.schemaDocs === 'full',
-    );
-    return;
-  }
   new ModelEmitter(declaration, module, target).write();
 }
 
@@ -141,10 +126,7 @@ export function uniqueEnumMemberNames(
 }
 
 /** The model a {@link ModelEmitter} writes. */
-export type ModelSource = Pick<
-  ModelDeclaration,
-  'key' | 'info' | 'schema' | 'docSchema'
->;
+export type ModelSource = Pick<ModelDeclaration, 'key' | 'info' | 'schema'>;
 
 /**
  * Writes one model into a module: the declaration its schema calls for,
@@ -185,7 +167,7 @@ export class ModelEmitter {
     if (node) {
       addMainSchemaJSDoc(
         node,
-        this.model.docSchema,
+        this.model.schema,
         this.model.key,
         this.target.schemaDocs === 'full',
       );

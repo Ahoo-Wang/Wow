@@ -42,11 +42,6 @@ export const COMPONENTS: Components = {
     },
     'shop.Item': { type: 'object', properties: { sku: { type: 'string' } } },
     'shop.Status': { type: 'string', enum: ['NEW'] },
-    'wow.api.query.ListQuery': {
-      type: 'object',
-      properties: { filter: { type: 'object' } },
-    },
-    'wow.api.command.CommandResult': { type: 'object' },
     // Type names keep the document's acronyms; a part with a separator is
     // still pascal-cased.
     MCPListTools: { type: 'object' },
@@ -177,15 +172,6 @@ export const CASES: readonly ResolverCase[] = [
     name: 'reference to a global name from an API client',
     schema: ref('Response'),
     scope: API_CLIENT,
-  },
-  {
-    name: 'reference to a Wow type',
-    schema: ref('wow.api.query.ListQuery'),
-    scope: API_CLIENT,
-  },
-  {
-    name: 'reference to a Wow command type',
-    schema: ref('wow.api.command.CommandResult'),
   },
   {
     name: 'reference whose name another import took',

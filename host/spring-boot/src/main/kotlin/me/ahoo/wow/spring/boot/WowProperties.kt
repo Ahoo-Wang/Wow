@@ -19,6 +19,7 @@ import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.Misfire
 import me.ahoo.wow.client.HttpCommandCaller
+import me.ahoo.wow.client.WowClient
 import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.http.ops.WebhookNotifier
@@ -56,6 +57,7 @@ import java.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
 import kotlin.time.toKotlinDuration
+import me.ahoo.wow.client.RetryPolicy as ClientRetryPolicy
 
 /**
  * The host's configuration, the `wow.*` namespace (decision D110). No key keeps a 9.x meaning; the defaults are the
@@ -136,6 +138,10 @@ import kotlin.time.toKotlinDuration
  *   [Http.Service].
  * - `wow.calls.contexts.<context>.url`, `wow.calls.token`, `wow.calls.timeout` (10s), `wow.calls.connect-timeout`
  *   (2s): the synchronous calls of the sagas to other contexts' command gateways (decision D193), see [Calls].
+ * - `wow.clients.contexts.<context>.url`, `internal-url` and `mode`, `wow.clients.mode` (`service`),
+ *   `wow.clients.timeout` (30s), `wow.clients.connect-timeout` (2s), `wow.clients.forwarded-headers`
+ *   (`Authorization`), `wow.clients.retry.max-attempts` (3), `max-retry-after` (5s) and `backoff` (200ms): the typed
+ *   clients of the peers over HTTP (decisions D257, D259), see [Clients].
  * - `wow.aggregates.[<context>.<aggregate>].tenant`: a fixed tenant per aggregate type (decision D116);
  *   `wow.aggregates.[<context>.<aggregate>].query.events.unpinned` (`allow` or `refuse`, over its events store's and
  *   `wow.query.events.unpinned`; review R3.4-2): whether its `events` queries that name no aggregate run;
@@ -196,6 +202,7 @@ class WowProperties {
     var tenant: Tenant = Tenant()
     var http: Http = Http()
     var calls: Calls = Calls()
+    var clients: Clients = Clients()
     var ops: Ops = Ops()
 
     /** Per aggregate type, by `<context>.<aggregate>` (bracketed in a property name: `wow.aggregates.[shop.cart]`). */
@@ -959,6 +966,50 @@ class WowProperties {
         /** Where one context's command gateway is: its public port's base [url]. */
         class CallTarget {
             var url: URI? = null
+        }
+    }
+
+    /**
+     * The typed clients of the peer contexts over HTTP (decisions D257, D259), `wow-client`'s: a peer context listed in
+     * [contexts] (one the api jars on the class path declare, decision D234) is reached over HTTP by the service's
+     * [me.ahoo.wow.api.client.CommandClient] and [me.ahoo.wow.api.read.QueryApi] beans, in its [ClientTarget.mode] (or
+     * [mode]); any other context as without these clients (its commands through its topic, review M-1). Where each is:
+     * its public routes' base [ClientTarget.url] (user mode) and its internal port's [ClientTarget.internalUrl]
+     * (service mode; `wow.calls.contexts.<context>.url` when not set, which the sagas' calls use too), or what an
+     * application's [me.ahoo.wow.client.EndpointResolver] bean resolves. Each request is answered within [timeout]
+     * (a command's longer wait aside) after connecting within [connectTimeout], and retried as [retry] says; a user-mode
+     * request forwards the [forwardedHeaders] of the public request it serves. The service mode presents the
+     * [me.ahoo.wow.client.ServiceCredential] bean (`wow.calls.token`).
+     */
+    class Clients {
+        var contexts: MutableMap<String, ClientTarget> = LinkedHashMap()
+        var mode: Mode = Mode.SERVICE
+        var timeout: Duration = WowClient.DEFAULT_TIMEOUT.toJavaDuration()
+        var connectTimeout: Duration = HttpCommandCaller.DEFAULT_CONNECT_TIMEOUT.toJavaDuration()
+        var forwardedHeaders: MutableList<String> = mutableListOf("Authorization")
+        var retry: Retry = Retry()
+
+        /** One peer context: its public [url], its internal port's [internalUrl] and the [mode] it is called in. */
+        class ClientTarget {
+            var url: URI? = null
+            var internalUrl: URI? = null
+            var mode: Mode? = null
+        }
+
+        /** How a problem a retry may get past is retried ([me.ahoo.wow.client.RetryPolicy]). */
+        class Retry {
+            var maxAttempts: Int = ClientRetryPolicy.DEFAULT.maxAttempts
+            var maxRetryAfter: Duration = ClientRetryPolicy.DEFAULT.maxRetryAfter.toJavaDuration()
+            var backoff: Duration = ClientRetryPolicy.DEFAULT.backoff.toJavaDuration()
+        }
+
+        /** The mode of a client ([me.ahoo.wow.client.ClientMode]). */
+        enum class Mode {
+            /** The internal port, as this service asserting the caller as the root context. */
+            SERVICE,
+
+            /** The public routes, forwarding the end user's credential. */
+            USER,
         }
     }
 

@@ -58,6 +58,7 @@ class Resources(
 
     @Volatile
     private var sampling = false
+    private var loadCpuBefore = 0.0
     private var storesBefore: Map<String, Any?> = emptyMap()
     private var cpuBefore: Map<String, Double> = emptyMap()
 
@@ -67,6 +68,7 @@ class Resources(
     /** Starts the samplers: the CPU times first, then the stores' counters, which take a moment to read. */
     fun start() {
         startedAt = System.currentTimeMillis()
+        loadCpuBefore = ownCpuSeconds()
         cpuBefore = ps().mapValues { (it.value["cpuSeconds"] as Number).toDouble() }
         sampling = true
         psThread = thread(name = "ps-sampler", isDaemon = true) {
@@ -95,6 +97,7 @@ class Resources(
         sampling = false
         val seconds = (System.currentTimeMillis() - startedAt) / MILLIS_PER_SECOND.toDouble()
         val cpuAfter = ps().mapValues { (it.value["cpuSeconds"] as Number).toDouble() }
+        val loadCpu = ownCpuSeconds() - loadCpuBefore
         samplers.forEach { it.destroy() }
         psThread?.join()
         val storesAfter = storeCounters()
@@ -112,6 +115,12 @@ class Resources(
                     "gc" to gc(synchronized(gcLines) { gcLines.getValue(name).toList() }),
                 )
             },
+            // The load generator's own CPU, to tell a run it could not drive from one the servers could not keep up with.
+            "loadGenerator" to mapOf(
+                "cpuSeconds" to loadCpu,
+                "averageCores" to loadCpu / seconds,
+                "availableProcessors" to Runtime.getRuntime().availableProcessors(),
+            ),
             "containers" to containers(synchronized(dockerLines) { dockerLines.toList() }),
             "stores" to mapOf("before" to storesBefore, "after" to storesAfter, "delta" to delta(storesBefore, storesAfter)),
             "samplers" to "ps every ${SAMPLE_MILLIS}ms; jstat -gc -t <pid> $SAMPLE_MILLIS per JVM; one docker stats stream",
@@ -133,6 +142,10 @@ class Resources(
             }
         }
     }
+
+    /** This JVM's CPU time so far, in seconds. */
+    private fun ownCpuSeconds(): Double =
+        ProcessHandle.current().info().totalCpuDuration().map { it.toNanos() / NANOS_PER_SECOND }.orElse(0.0)
 
     /** `ps` of every process: its cumulative CPU time and resident memory. */
     private fun ps(): Map<String, Map<String, Any>> {
@@ -272,6 +285,7 @@ class Resources(
         private val JSTAT = File(System.getProperty("java.home"), "bin/jstat").path
         private const val MILLIS_PER_SECOND = 1_000L
         private const val KB_PER_MB = 1_024.0
+        private const val NANOS_PER_SECOND = 1_000_000_000.0
         private const val SIXTY = 60.0
         private const val SECONDS_PER_DAY = 86_400.0
         private const val PS_FIELDS = 3

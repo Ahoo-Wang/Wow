@@ -17,11 +17,10 @@
  * and what the types admit in test/models/.
  */
 
-import type { OpenAPI, Schema } from '@ahoo-wang/fetcher-openapi';
+import type { Schema } from '@ahoo-wang/fetcher-openapi';
 import { describe, expect, it } from 'vitest';
 import { emitDocument, openAPIDocument } from '../support/emission';
 import { writeModels } from '../support/models';
-import { wowDocument } from '../support/specs';
 
 /** Collapses every run of whitespace, which the indentation settles. */
 function words(text: string): string {
@@ -150,33 +149,6 @@ describe('model doc comments', () => {
     );
     expect(file('types.ts').getFullText()).toContain(
       ' * - schema: \n * ```json\n * {\n *   "type": "boolean"\n * }\n * ```',
-    );
-  });
-
-  it('reads the doc of a command body with what the Wow metadata lends it, and the type without', () => {
-    const { file } = emitDocument(
-      wowDocument({ commands: ['create_order'] }) as OpenAPI,
-    );
-    const types = file('shop/order/types.ts');
-    const createOrder = types.getInterfaceOrThrow('CreateOrder');
-    expect(createOrder.getJsDocs()[0].getInnerText()).toContain('create_order');
-    expect(createOrder.getText()).toContain('id: string;');
-  });
-
-  it('writes a command or event body without fields as an empty record', () => {
-    const { file } = emitDocument(
-      wowDocument({
-        events: [{ name: 'order_closed', body: { type: 'object' } }],
-      }) as OpenAPI,
-    );
-    const alias = file('shop/order/types.ts').getTypeAliasOrThrow(
-      'OrderClosed',
-    );
-    expect(alias.getTypeNodeOrThrow().getText()).toBe(
-      'globalThis.Record<string, never>',
-    );
-    expect(alias.getJsDocs()[0].getInnerText()).toContain(
-      '- key: shop.order.OrderClosed',
     );
   });
 });

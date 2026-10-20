@@ -9,7 +9,7 @@ description: 在 Node.js 脚本和服务端、以及 Next.js App Router 等服�
 
 `@ahoo-wang/wow-client` 和生成的客户端在 Node.js 中无需改动即可运行：它们用的是平台自带的 `fetch`、`ReadableStream` 和 `TextDecoderStream`，Node 都内置了。服务端真正不同的是归属。浏览器标签页只属于一个用户，所以在那里共用一个配置好的 Fetcher 是安全的；服务端进程同时处理许多用户的请求，所以凡是携带用户身份的东西都必须按请求创建。
 
-<!-- typecheck-generated: typescript/integration-test/src/generated -->
+<!-- typecheck-generated: example/eshop/web/src/generated/basket -->
 
 ## 要求
 
@@ -26,6 +26,7 @@ description: 在 Node.js 脚本和服务端、以及 Next.js App Router 等服�
 
 Fetcher 的 `default` 实例和所有 `NamedFetcher` 都是进程级的。在服务端，永远不要把用户的令牌交给它们，也不要对它们应用 `CoSecConfigurer`：否则它的令牌存储会服务进程里的所有用户。改为按请求创建 Fetcher，传给客户端，随请求一起丢弃：
 
+<!-- typecheck: skip — V10 已删除的 OpenAPI 路径所生成的 9.x 客户端（D266）；本页的 V10 重写改用 Manifest 客户端 -->
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
 import { cartQueryClientFactory } from './generated/index.js';

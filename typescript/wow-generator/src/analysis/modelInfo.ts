@@ -12,15 +12,14 @@
  */
 
 import { GeneratorError } from '../api/errors';
-import type { Components, Reference, Schema } from '@ahoo-wang/fetcher-openapi';
+import type { Components, Reference } from '@ahoo-wang/fetcher-openapi';
 import {
   COMPONENTS_SCHEMAS_REF,
   extractComponentKey,
   extractSchema,
 } from '../openapi/components';
 import type { ModelInfo } from '../naming/modelInfo';
-import { toTypeIdentifier, upperSnakeCase } from '../naming/naming';
-import { wowTypeOf } from '../wow/conventions';
+import { toTypeIdentifier } from '../naming/naming';
 
 export type { ModelInfo } from '../naming/modelInfo';
 
@@ -41,18 +40,10 @@ export type { ModelInfo } from '../naming/modelInfo';
  * @param schemaKey - The dot-separated schema key (e.g., "com.example.User")
  * @returns ModelInfo object containing the parsed name and path
  */
-export function resolveModelInfo(
-  schemaKey: string,
-  schema?: Schema,
-): ModelInfo {
+export function resolveModelInfo(schemaKey: string): ModelInfo {
   if (!schemaKey) {
     return { name: '', path: '/' };
   }
-  const wowType = wowTypeOf(schemaKey, schema?.properties);
-  if (wowType) {
-    return wowType;
-  }
-
   const parts = schemaKey.split('.');
   let modelNameIndex = -1;
 
@@ -75,6 +66,16 @@ export function resolveModelInfo(
   return { name, path };
 }
 
+/**
+ * The model a reference names.
+ *
+ * @param reference - A reference to a component schema
+ * @param components - The document's components; given, the reference is
+ * followed to its schema, so a chain of references that comes back to itself
+ * fails here rather than as code that cannot compile
+ * @throws GeneratorError for a reference outside the component schemas, or
+ * a cyclic one
+ */
 export function resolveReferenceModelInfo(
   reference: Reference,
   components?: Components,
@@ -85,13 +86,6 @@ export function resolveReferenceModelInfo(
       `Unsupported schema reference: ${reference.$ref}. Bundle or inline external schemas before generation.`,
     );
   }
-  const componentKey = extractComponentKey(reference);
-  const schema = components ? extractSchema(reference, components) : undefined;
-  return resolveModelInfo(componentKey, schema);
-}
-
-export function resolveContextDeclarationName(contextAlias: string): string {
-  const contextUpperName = upperSnakeCase(contextAlias);
-  const name = `${contextUpperName}_BOUNDED_CONTEXT_ALIAS`;
-  return /^\p{N}/u.test(name) ? `_${name}` : name;
+  if (components) extractSchema(reference, components);
+  return resolveModelInfo(extractComponentKey(reference));
 }

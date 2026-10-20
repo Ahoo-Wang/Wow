@@ -13,46 +13,11 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  clientModulePath,
-  resolveClassName,
   resolveMethodName,
   uniqueParameterName,
 } from '../../src/analysis/clientNames';
 
 describe('client names', () => {
-  describe('resolveClassName', () => {
-    it('should generate client class name with suffix', () => {
-      const aggregate = {
-        aggregateName: 'user',
-      };
-
-      const result = resolveClassName(aggregate as any, 'Client');
-      expect(result).toBe('UserClient');
-    });
-
-    it('should handle complex aggregate names', () => {
-      const aggregate = {
-        aggregateName: 'user-profile',
-      };
-
-      const result = resolveClassName(aggregate as any, 'QueryClient');
-      expect(result).toBe('UserProfileQueryClient');
-    });
-  });
-
-  describe('clientModulePath', () => {
-    it('places a client under its bounded context and aggregate', () => {
-      const aggregate = {
-        contextAlias: 'test-context',
-        aggregateName: 'test-aggregate',
-      };
-
-      expect(clientModulePath(aggregate as any, 'TestFile')).toBe(
-        'test-context/test-aggregate/TestFile.ts',
-      );
-    });
-  });
-
   describe('resolveMethodName', () => {
     it.each([
       ['getUserProfile', 'getUserProfile'],

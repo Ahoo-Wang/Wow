@@ -28,7 +28,7 @@ npm 首发（`9.2.0-rc.0`）之前要做的事记在这里，按顺序做，同�
 
 ### Wow 服务端（Kotlin）
 
-视图引擎之外、要改 Wow 服务端的事。10.0 才能动的线格式不在这里，在 [`docs/compat-debt.md`「Held Until v10」](../../../../docs/compat-debt.md#held-until-v10)。
+视图引擎之外、要改 Wow 服务端的事。
 
 - **ES 的时间分组、派生指标与表达式不跑逐文档脚本**（R2-58 余项）：#3847 只让 UTC、单值、顶层、整型 epoch-millis 字段的 `DATE_HISTOGRAM` 直接按字段分组（ES 拒绝数值字段上的任何 `time_zone`）；其他时区、`DATE_PART`、`DATE_DIFF` 与表达式（分组、指标、指标条件）仍每文档跑 Painless，限制脚本或 `allow_expensive_queries=false` 的集群会拒绝，ES 指南已写明。建议的 `date` 映射没做。判据：策划的 mapping 与存量模板把 Wow 的时间字段映射为 `date`（`format: epoch_millis`，`_source` 不变，不是存储格式变化）；映射是 `date` 时时间分组与日期部件直接用字段并带 `time_zone`；旧索引保留脚本路径；TCK 两条路径都过。落点：`wow-elasticsearch` 的 `ElasticsearchAggregationSources.kt`、`ElasticsearchAggregationScripts.kt`、索引模板，文档站 `guide/extensions/elasticsearch.md`。
 - **后端之间的过滤语义差异**（R2-93）：`IS_EMPTY` 对 null 与 `[]`、`EXPRESSION` 的 double 精度、前导通配、无字段的 `SEARCH`，ES 与 MongoDB 不一致，目前只在 TCK 里记下并跳过（`ElasticsearchSnapshotQueryBackendTest.kt`）。推迟：控制台的系统视图一个都不用。判据：后端差异文档逐条写明；描述符为每一项加能力标志，准入据此拒绝而不是给出不同结果。落点：`wow-elasticsearch` 的过滤编译、`wow-query` 的描述符、文档站 ES 指南。

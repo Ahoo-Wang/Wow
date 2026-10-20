@@ -15,7 +15,6 @@ import { Project } from 'ts-morph';
 import { describe, expect, it } from 'vitest';
 import {
   addImport,
-  addImportBoundedContext,
   addImportRefModel,
   modelModuleSpecifier,
   relativeModuleSpecifier,
@@ -123,26 +122,6 @@ describe('imports', () => {
           path: 'products',
         }),
       ).toBe('../output/products/types.js');
-    });
-  });
-
-  describe('addImportBoundedContext', () => {
-    it('imports the alias constant of a bounded context', () => {
-      const target = module();
-
-      addImportBoundedContext(
-        target,
-        '/src',
-        'example',
-        'EXAMPLE_BOUNDED_CONTEXT_ALIAS',
-      );
-
-      expect(target.imports.structures()).toEqual([
-        {
-          moduleSpecifier: './example/boundedContext.js',
-          namedImports: ['EXAMPLE_BOUNDED_CONTEXT_ALIAS'],
-        },
-      ]);
     });
   });
 

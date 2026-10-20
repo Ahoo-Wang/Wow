@@ -21,11 +21,6 @@ import { parseContent } from './parsers';
 import type { LoadResourceOptions } from './resources';
 import { isHttpLocation, loadResource } from './resources';
 
-// compat(fetcher): the configuration was named fetcher-generator.config.json before the
-// package moved to Wow; read it, with a deprecation warning, when the new name is absent.
-// Removed in v10.
-export const LEGACY_CONFIG_PATH = './fetcher-generator.config.json';
-
 /**
  * A configuration, and the warnings reading it gave: keys the generator does
  * not read, an empty file.
@@ -49,9 +44,8 @@ export interface ResolvedConfiguration extends LoadedConfiguration {
  * Finds and loads the generator configuration.
  *
  * A path the caller names has to exist. Without one the generator reads
- * {@link DEFAULT_CONFIG_PATH}, then the pre-Wow name
- * {@link LEGACY_CONFIG_PATH} with a deprecation warning, and generates with
- * the defaults when neither exists.
+ * {@link DEFAULT_CONFIG_PATH}, and generates with the defaults when it does
+ * not exist.
  *
  * @param configPath - The path or URL the caller named, if any
  * @param logger - Receives what was read, at `debug`
@@ -73,20 +67,13 @@ export async function resolveConfiguration(
     );
     return { ...loaded, origin: describeSource(configPath) };
   }
-  for (const path of [DEFAULT_CONFIG_PATH, LEGACY_CONFIG_PATH]) {
-    const loaded = await loadConfiguration(
-      { path, explicit: false },
-      logger,
-      options,
-    );
-    if (loaded === undefined) continue;
-    const warnings = [...loaded.warnings];
-    if (path === LEGACY_CONFIG_PATH) {
-      warnings.push(
-        `${describeSource(path)} uses the deprecated name; rename it to ${DEFAULT_CONFIG_PATH.slice(2)}. The old name is no longer read from v10.`,
-      );
-    }
-    return { config: loaded.config, origin: describeSource(path), warnings };
+  const loaded = await loadConfiguration(
+    { path: DEFAULT_CONFIG_PATH, explicit: false },
+    logger,
+    options,
+  );
+  if (loaded !== undefined) {
+    return { ...loaded, origin: describeSource(DEFAULT_CONFIG_PATH) };
   }
   logger.debug('No configuration file found, generating with defaults');
   return { config: {}, warnings: [] };

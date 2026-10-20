@@ -18,10 +18,7 @@ import { emitDocument, openAPIDocument } from '../support/emission';
 
 function generate(
   openAPI: Partial<OpenAPI>,
-  options: {
-    config?: GeneratorConfiguration;
-    aggregateTags?: Set<string>;
-  } = {},
+  options: { config?: GeneratorConfiguration } = {},
 ) {
   return emitDocument(openAPIDocument(openAPI), options);
 }
@@ -37,29 +34,21 @@ function operation(extra: Partial<Operation> = {}): Operation {
 
 describe('API clients', () => {
   describe('clients', () => {
-    it('writes a client per tag, under the bounded context of a Wow document', () => {
+    it('writes a client per tag, with the tag description as its doc', () => {
       const { file } = generate({
-        info: { title: 'T', version: '1', 'x-wow-context-alias': 'shop' },
         paths: { '/items': { get: operation() } },
         tags: [{ name: 'Items', description: 'The items' }],
       });
-      const client = file('shop/itemsApiClient.ts');
       expect(
-        client
+        file('itemsApiClient.ts')
           .getClassOrThrow('ItemsApiClient')
           .getJsDocs()[0]
           .getDescription()
           .trim(),
       ).toBe('The items');
-      expect(client.getText()).toContain(
-        'this.apiMetadata = { basePath: SHOP_BOUNDED_CONTEXT_ALIAS, ...apiMetadata };',
-      );
-      expect(client.getText()).toContain(
-        "import { SHOP_BOUNDED_CONTEXT_ALIAS } from './boundedContext.js';",
-      );
     });
 
-    it('takes an optional apiMetadata without a bounded context', () => {
+    it('takes an optional apiMetadata', () => {
       const { file } = generate({ paths: { '/items': { get: operation() } } });
       expect(
         file('itemsApiClient.ts')
@@ -68,22 +57,6 @@ describe('API clients', () => {
           .getText()
           .replace(/\s+/g, ' '),
       ).toBe('constructor(public readonly apiMetadata?: ApiMetadata) { }');
-    });
-
-    it('leaves out Wow, Actuator and aggregate tags', () => {
-      const { project } = generate(
-        {
-          paths: {
-            '/a': { get: operation({ tags: ['wow'], operationId: 'a' }) },
-            '/b': { get: operation({ tags: ['Actuator'], operationId: 'b' }) },
-            '/c': {
-              get: operation({ tags: ['shop.order'], operationId: 'c' }),
-            },
-          },
-        },
-        { aggregateTags: new Set(['shop.order']) },
-      );
-      expect(project.getSourceFiles()).toEqual([]);
     });
   });
 
@@ -277,19 +250,6 @@ describe('API clients', () => {
         'Skipping GET /a: it has no operationId, and the operationId names its method.',
         'Skipping GET /b: it has no tag, and the tag names its API client.',
       ]);
-    });
-
-    it('leaves an aggregate route that also carries a business tag to the aggregate', () => {
-      const { warnings, project } = generate(
-        {
-          paths: {
-            '/a': { get: operation({ tags: ['shop.order', 'Items'] }) },
-          },
-        },
-        { aggregateTags: new Set(['shop.order']) },
-      );
-      expect(project.getSourceFiles()).toEqual([]);
-      expect(warnings).toEqual([]);
     });
   });
 });
