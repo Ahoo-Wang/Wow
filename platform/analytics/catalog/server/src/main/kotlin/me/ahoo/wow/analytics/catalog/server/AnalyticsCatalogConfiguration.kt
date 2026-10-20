@@ -23,12 +23,12 @@ import me.ahoo.wow.analytics.catalog.domain.warehouse.KnownAggregates
 import me.ahoo.wow.analytics.catalog.domain.warehouse.TrustedWriters
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.query.QueryPolicy
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
-import me.ahoo.wow.runtime.admission.CommandGateway
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
@@ -114,9 +114,9 @@ class AnalyticsCatalogConfiguration {
     @ConditionalOnProperty(prefix = AnalyticsCatalogProperties.PREFIX, name = ["watch"], matchIfMissing = true)
     fun catalogWatcher(
         catalog: WarehouseCatalog,
-        gateway: ObjectProvider<CommandGateway>,
+        commands: ObjectProvider<CommandClient>,
         properties: AnalyticsCatalogProperties,
-    ): CatalogWatcher = CatalogWatcher(catalog, { gateway.getObject() }, properties.refreshInterval)
+    ): CatalogWatcher = CatalogWatcher(catalog, { commands.getObject() }, properties.refreshInterval)
 
     companion object {
         /** The switch that takes the callers from the request headers ([AnalyticsCatalogCallers]): off by default. */

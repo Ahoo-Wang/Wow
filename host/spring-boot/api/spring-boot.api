@@ -419,6 +419,7 @@ public final class me/ahoo/wow/spring/boot/WowAutoConfiguration {
 	public fun <init> ()V
 	public final fun wowAggregateIdGenerator (Lme/ahoo/wow/spi/id/GlobalIdGenerator;)Lme/ahoo/wow/spi/id/AggregateIdGenerator;
 	public final fun wowCallerResolver (Lme/ahoo/wow/spring/boot/WowProperties;)Lme/ahoo/wow/http/caller/CallerResolver;
+	public final fun wowCommandClient (Lme/ahoo/wow/runtime/admission/CommandGateway;)Lme/ahoo/wow/api/client/CommandClient;
 	public final fun wowCommandGateway (Lme/ahoo/wow/runtime/node/ServiceNode;)Lme/ahoo/wow/runtime/admission/CommandGateway;
 	public final fun wowContractDirectory (Lme/ahoo/wow/manifest/Manifest;Lorg/springframework/beans/factory/config/ConfigurableListableBeanFactory;)Lme/ahoo/wow/runtime/contract/ContractDirectory;
 	public final fun wowDependencies (Lorg/springframework/beans/factory/config/ConfigurableListableBeanFactory;)Lme/ahoo/wow/kernel/Dependencies;

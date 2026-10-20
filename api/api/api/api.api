@@ -261,6 +261,85 @@ public final class me/ahoo/wow/api/caller/Operator$Companion {
 	public static synthetic fun system$default (Lme/ahoo/wow/api/caller/Operator$Companion;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/api/caller/Operator;
 }
 
+public abstract interface class me/ahoo/wow/api/client/CommandClient {
+	public abstract fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/client/CommandClient;
+	public abstract fun send (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun send$default (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+	public abstract fun stream (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun stream$default (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+	public abstract fun wait (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public static synthetic fun wait$default (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;Lkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/api/client/CommandRejectedException : java/lang/RuntimeException {
+	public fun <init> (Lme/ahoo/wow/api/result/CommandResult;)V
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getResult ()Lme/ahoo/wow/api/result/CommandResult;
+}
+
+public final class me/ahoo/wow/api/client/RetryHint {
+	public static final field Companion Lme/ahoo/wow/api/client/RetryHint$Companion;
+	public static final field NONE Lme/ahoo/wow/api/client/RetryHint;
+	public fun <init> (ZZ)V
+	public synthetic fun <init> (ZZLkotlin/time/Duration;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public synthetic fun <init> (ZZLkotlin/time/Duration;Lkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getRetryAfter-FghU774 ()Lkotlin/time/Duration;
+	public final fun getRetryable ()Z
+	public final fun getSameRequestId ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/client/RetryHint$Companion {
+}
+
+public final class me/ahoo/wow/api/client/SendOptions {
+	public static final field Companion Lme/ahoo/wow/api/client/SendOptions$Companion;
+	public static final field DEFAULT Lme/ahoo/wow/api/client/SendOptions;
+	public synthetic fun <init> (Lme/ahoo/wow/api/result/WaitPlan;Lkotlin/time/Duration;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getExpectedVersion ()Ljava/lang/Integer;
+	public final fun getPlan ()Lme/ahoo/wow/api/result/WaitPlan;
+	public final fun getRequestId ()Ljava/lang/String;
+	public final fun getTargetScope ()Lme/ahoo/wow/api/aggregate/Scope;
+	public final fun getTargetTenant ()Ljava/lang/String;
+	public final fun getTargeted ()Z
+	public final fun getTimeout-FghU774 ()Lkotlin/time/Duration;
+	public final fun getWait ()Lme/ahoo/wow/api/result/WaitPlan;
+	public fun hashCode ()I
+	public static final fun of ()Lme/ahoo/wow/api/client/SendOptions;
+	public static final fun of (Lme/ahoo/wow/api/result/WaitPlan;)Lme/ahoo/wow/api/client/SendOptions;
+	public static final fun of-6Au4x4Y (Lme/ahoo/wow/api/result/WaitPlan;Lkotlin/time/Duration;)Lme/ahoo/wow/api/client/SendOptions;
+	public static final fun of-C2H2yOE (Lme/ahoo/wow/api/result/WaitPlan;Lkotlin/time/Duration;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;)Lme/ahoo/wow/api/client/SendOptions;
+	public static final fun of-Kx4hsE0 (Lme/ahoo/wow/api/result/WaitPlan;Lkotlin/time/Duration;Ljava/lang/String;)Lme/ahoo/wow/api/client/SendOptions;
+	public static final fun of-hhJSO8g (Lme/ahoo/wow/api/result/WaitPlan;Lkotlin/time/Duration;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/api/client/SendOptions;
+	public static final fun of-i8z2VEo (Lme/ahoo/wow/api/result/WaitPlan;Lkotlin/time/Duration;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;)Lme/ahoo/wow/api/client/SendOptions;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/api/client/SendOptions$Companion {
+	public final fun of ()Lme/ahoo/wow/api/client/SendOptions;
+	public final fun of (Lme/ahoo/wow/api/result/WaitPlan;)Lme/ahoo/wow/api/client/SendOptions;
+	public final fun of-6Au4x4Y (Lme/ahoo/wow/api/result/WaitPlan;Lkotlin/time/Duration;)Lme/ahoo/wow/api/client/SendOptions;
+	public final fun of-C2H2yOE (Lme/ahoo/wow/api/result/WaitPlan;Lkotlin/time/Duration;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;)Lme/ahoo/wow/api/client/SendOptions;
+	public final fun of-Kx4hsE0 (Lme/ahoo/wow/api/result/WaitPlan;Lkotlin/time/Duration;Ljava/lang/String;)Lme/ahoo/wow/api/client/SendOptions;
+	public final fun of-hhJSO8g (Lme/ahoo/wow/api/result/WaitPlan;Lkotlin/time/Duration;Ljava/lang/String;Ljava/lang/Integer;)Lme/ahoo/wow/api/client/SendOptions;
+	public final fun of-i8z2VEo (Lme/ahoo/wow/api/result/WaitPlan;Lkotlin/time/Duration;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;)Lme/ahoo/wow/api/client/SendOptions;
+	public static synthetic fun of-i8z2VEo$default (Lme/ahoo/wow/api/client/SendOptions$Companion;Lme/ahoo/wow/api/result/WaitPlan;Lkotlin/time/Duration;Ljava/lang/String;Ljava/lang/Integer;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ILjava/lang/Object;)Lme/ahoo/wow/api/client/SendOptions;
+}
+
+public final class me/ahoo/wow/api/client/WowProblemException : java/lang/RuntimeException {
+	public fun <init> (Ljava/lang/String;ILme/ahoo/wow/api/client/RetryHint;Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/String;ILme/ahoo/wow/api/client/RetryHint;Ljava/lang/String;Lme/ahoo/wow/api/result/CommandResult;)V
+	public fun <init> (Ljava/lang/String;ILme/ahoo/wow/api/client/RetryHint;Ljava/lang/String;Lme/ahoo/wow/api/result/CommandResult;Ljava/lang/Throwable;)V
+	public synthetic fun <init> (Ljava/lang/String;ILme/ahoo/wow/api/client/RetryHint;Ljava/lang/String;Lme/ahoo/wow/api/result/CommandResult;Ljava/lang/Throwable;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun getCode ()Ljava/lang/String;
+	public final fun getResult ()Lme/ahoo/wow/api/result/CommandResult;
+	public final fun getRetryHint ()Lme/ahoo/wow/api/client/RetryHint;
+	public final fun getStatus ()I
+}
+
 public final class me/ahoo/wow/api/decide/Causation {
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;)V
 	public final fun component1 ()Ljava/lang/String;

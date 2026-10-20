@@ -17,6 +17,7 @@ import io.github.oshai.kotlinlogging.KotlinLogging
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.http.WowHttpOptions
 import me.ahoo.wow.http.call.HttpCommandCaller
 import me.ahoo.wow.http.call.ServiceCredential
@@ -52,6 +53,7 @@ import me.ahoo.wow.runtime.admission.CommandValidator
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.call.CommandCaller
+import me.ahoo.wow.runtime.client.InProcessCommandClient
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.contract.ContractDirectory
 import me.ahoo.wow.runtime.manifest.ManifestLoader
@@ -528,6 +530,15 @@ class WowAutoConfiguration {
      */
     @Bean(destroyMethod = "")
     fun wowCommandGateway(node: ServiceNode): CommandGateway = node.gateway
+
+    /**
+     * The service's [CommandClient] (decisions D257, D258, D259): command objects sent through the node's gateway, in
+     * process to the aggregates it serves, to its peers' command topics for the contexts their api jars declare. It
+     * sends as an anonymous caller; [CommandClient.of] gives it another.
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    fun wowCommandClient(gateway: CommandGateway): CommandClient = InProcessCommandClient(gateway)
 
     @Bean
     @ConditionalOnMissingBean
