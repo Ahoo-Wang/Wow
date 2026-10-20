@@ -146,7 +146,8 @@ class BasketServerTest {
         val employee = mapOf(BasketCallers.USER to "erin", BasketCallers.ROLE to BasketCallers.EMPLOYEE)
         read("erin-buyer", employee).first.assert().isEqualTo(OK)
         read("erin-buyer", emptyMap()).first.assert().isEqualTo(OK)
-        read("erin-buyer", mapOf(BasketCallers.USER to "dave")).first.assert().isEqualTo(FORBIDDEN)
+        // Another buyer's basket is not found for it: what a caller may not see is not found (decision D254 ④).
+        read("erin-buyer", mapOf(BasketCallers.USER to "dave")).first.assert().isEqualTo(NOT_FOUND)
     }
 
     private fun read(id: String, headers: Map<String, String>): Pair<Int, String> {
@@ -185,6 +186,7 @@ class BasketServerTest {
     private companion object {
         const val OK = 200
         const val FORBIDDEN = 403
+        const val NOT_FOUND = 404
         const val UNPROCESSABLE = 422
         const val TOKEN = "basket-test-service-token-0123456789abcdef"
         val TIMEOUT: Duration = Duration.ofSeconds(30)

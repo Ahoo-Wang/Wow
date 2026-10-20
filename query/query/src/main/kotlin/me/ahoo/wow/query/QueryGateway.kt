@@ -43,7 +43,6 @@ import me.ahoo.wow.query.schema.withConstraints
 import me.ahoo.wow.spi.observation.Observation
 import me.ahoo.wow.spi.observation.observe
 import tools.jackson.databind.node.ObjectNode
-import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * The queries of one aggregate type's read model (decision D126), each run for an explicit [QueryCaller]: admitted
@@ -320,25 +319,8 @@ class DefaultQueryGateway(
     private fun trail(queryType: QueryType, query: Any, caller: QueryCaller): QueryAuditTrail? =
         if (observer.audits) QueryAuditTrail(aggregateType, queryType, query, caller) else null
 
-    /** The terminal signal: a completion, a cancellation (the collector stopped early) or an error. */
-    private fun finished(queryType: QueryType, trail: QueryAuditTrail?, error: Throwable?) {
-        val outcome = when (error) {
-            null -> {
-                observer.isolated { onComplete(aggregateType, queryType) }
-                QueryAudit.Outcome.COMPLETE
-            }
-            is CancellationException -> {
-                observer.isolated { onCancel(aggregateType, queryType) }
-                QueryAudit.Outcome.CANCEL
-            }
-            else -> {
-                trail?.error(error)
-                observer.isolated { onError(aggregateType, queryType, error) }
-                QueryAudit.Outcome.ERROR
-            }
-        }
-        trail?.let { observer.isolated { onAudit(it.audit(outcome)) } }
-    }
+    private fun finished(queryType: QueryType, trail: QueryAuditTrail?, error: Throwable?) =
+        observer.finished(aggregateType, queryType, trail, error)
 }
 
 /**

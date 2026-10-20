@@ -39,6 +39,10 @@ object QueryErrorCodes {
     const val RESIDUAL_GROUPS_EXCEEDED = "RESIDUAL_GROUPS_EXCEEDED"
     const val EXPLICIT_ENTRY_REQUIRED = "EXPLICIT_ENTRY_REQUIRED"
 
+    // A state point read (GET …/{id}/state?version=|at=, …/state/trace); BindingError.name is the query parameter.
+    // The state asked for is more commits away from the snapshot, or from version 1, than a state read replays.
+    const val REPLAY_TOO_LONG = "REPLAY_TOO_LONG"
+
     // Admission against the query model; BindingError.name is the absolute logical field path (for an element-scoped
     // field, the full path such as items.price), or "" for model-level violations.
     const val UNKNOWN_FIELD = "UNKNOWN_FIELD"

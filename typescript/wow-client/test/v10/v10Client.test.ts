@@ -753,16 +753,43 @@ describe('StateClient', () => {
     ]);
   });
 
-  it('answers notModified for the version held', async () => {
-    stubFetch(
-      () => new Response(null, { status: 304, headers: { ETag: '"2"' } }),
+  it('answers notModified for the entity tag held', async () => {
+    const { requests } = stubFetch(
+      () =>
+        new Response(null, {
+          status: 304,
+          headers: { ETag: '"2-0123456789abcdef"' },
+        }),
     );
     const states = new StateClient(PRODUCT, client());
-    expect(await states.read('p1', { ifNoneMatch: 2 })).toEqual({
+    expect(
+      await states.read('p1', { ifNoneMatch: '2-0123456789abcdef' }),
+    ).toEqual({
       notModified: true,
       version: 2,
+      etag: '2-0123456789abcdef',
     });
+    expect(requests[0].headers.get('If-None-Match')).toBe(
+      '"2-0123456789abcdef"',
+    );
     await expect(states.get('p1')).rejects.toThrow('304');
+  });
+
+  it('answers a state with its entity tag', async () => {
+    stubFetch(
+      () =>
+        new Response(JSON.stringify(view), {
+          headers: {
+            'Content-Type': 'application/json',
+            ETag: '"2-0123456789abcdef"',
+          },
+        }),
+    );
+    expect(await new StateClient(PRODUCT, client()).read('p1')).toEqual({
+      notModified: false,
+      view,
+      etag: '2-0123456789abcdef',
+    });
   });
 
   it('rejects a missing state with its problem', async () => {

@@ -859,6 +859,8 @@ public final class me/ahoo/wow/query/filter/QueryType : java/lang/Enum {
 	public static final field LIST Lme/ahoo/wow/query/filter/QueryType;
 	public static final field PAGED Lme/ahoo/wow/query/filter/QueryType;
 	public static final field SINGLE Lme/ahoo/wow/query/filter/QueryType;
+	public static final field STATE Lme/ahoo/wow/query/filter/QueryType;
+	public static final field TRACE Lme/ahoo/wow/query/filter/QueryType;
 	public static fun getEntries ()Lkotlin/enums/EnumEntries;
 	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/query/filter/QueryType;
 	public static fun values ()[Lme/ahoo/wow/query/filter/QueryType;

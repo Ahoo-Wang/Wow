@@ -96,9 +96,10 @@ class EdgeCasesTest {
     @Test
     fun `If-None-Match takes a list, weak tags and any`() {
         snapshot(Scope("alice"))
-        listOf("*", "W/\"1\"", "\"7\", \"1\"").forEach { tag ->
+        val current = node.get("/shop/cart/c-1/state").headers.eTag!!
+        listOf("*", "W/$current", "\"7\", $current").forEach { tag ->
             node.get("/shop/cart/c-1/state", headers = mapOf("If-None-Match" to tag)).assertStatus(304)
-                .headers.eTag.assert().isEqualTo("\"1\"")
+                .headers.eTag.assert().isEqualTo(current)
         }
         node.get("/shop/cart/c-1/state", headers = mapOf("If-None-Match" to "\"7\", W/\"8\"")).assertStatus(200)
     }
@@ -107,7 +108,7 @@ class EdgeCasesTest {
     fun `a reader in a space reads only the states of that space`() {
         val inHome = mapOf("X-Spaces" to "home", WowHeaders.SPACE to "home")
         snapshot(Scope("alice"))
-        node.get("/shop/cart/c-1/state", headers = inHome).assertStatus(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
+        node.get("/shop/cart/c-1/state", headers = inHome).assertStatus(404, FrameworkCodes.NOT_FOUND)
     }
 
     @Test
@@ -119,7 +120,7 @@ class EdgeCasesTest {
             .assertStatus(200).body!!["scope"]["spaceId"].asString().assert().isEqualTo("home")
         // A reader that names no space reads it too: Scope.NONE fields are not checked.
         node.get("/shop/cart/c-1/state").assertStatus(200)
-        node.get("/shop/cart/c-1/state", user = "bob").assertStatus(403, FrameworkCodes.AGGREGATE_FORBIDDEN)
+        node.get("/shop/cart/c-1/state", user = "bob").assertStatus(404, FrameworkCodes.NOT_FOUND)
     }
 
     @Test

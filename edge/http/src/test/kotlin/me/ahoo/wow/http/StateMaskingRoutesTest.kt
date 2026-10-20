@@ -119,14 +119,14 @@ class StateMaskingRoutesTest {
     }
 
     @Test
-    fun `the ETag is the version, the same for every caller since the masks are, and 304 still answers it`() {
+    fun `the ETag is the same for every caller since the masks are, and 304 still answers it`() {
         val node = opened(QueryNode(manifest = sensitiveManifest()))
         val alice = node.read("/shop/cart/c-1/state", "alice")
         val admin = node.read("/shop/cart/c-1/state", "admin")
-        alice.headers.eTag.assert().isEqualTo("\"2\"")
+        alice.headers.eTag!!.matches(Regex("\"2-[0-9a-f]{16}\"")).assert().isTrue()
         admin.headers.eTag.assert().isEqualTo(alice.headers.eTag)
         admin.body.assert().isEqualTo(alice.body)
-        val revalidated = node.read("/shop/cart/c-1/state", "admin", mapOf("If-None-Match" to "\"2\""))
+        val revalidated = node.read("/shop/cart/c-1/state", "admin", mapOf("If-None-Match" to alice.headers.eTag!!))
         revalidated.status.assert().isEqualTo(304)
         revalidated.body.assert().isNull()
     }

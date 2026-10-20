@@ -17,11 +17,14 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
+import me.ahoo.wow.query.state.InvalidStateReadException
+import me.ahoo.wow.query.state.StateNotFoundException
 
 /**
  * Logs every failed query by who must act on it:
- * - a rejection the caller can fix (an error-catalog violation, a missing caller scope) at DEBUG, by its
- *   message alone: it is the client's error, answered 4xx, and logging it louder lets callers flood the log;
+ * - a rejection the caller can fix (an error-catalog violation, a missing caller scope, a state read's parameter) at
+ *   DEBUG, by its message alone: it is the client's error, answered 4xx, and logging it louder lets callers flood the
+ *   log; so is a state read answered as not found, whatever the reason, which the audit keeps;
  * - a server fault the core states ([QueryExecutionException]) at ERROR, by its message and its cause chain with
  *   every message redacted: a cause can hold record values (a failing mask strategy sees the raw value, a storage
  *   driver echoes the query), so only each cause's class name and stack trace reach the log;
@@ -36,8 +39,7 @@ class QueryLogObserver : QueryObserver {
 
     override fun onError(aggregateType: AggregateType, queryType: QueryType, error: Throwable) {
         when {
-            error is QuerySchemaValidationException || error is QueryRequestException || error.isMissingScope() ->
-                log.debug { "Query [$aggregateType/$queryType] rejected: ${error.message}" }
+            error.isRejection() -> log.debug { "Query [$aggregateType/$queryType] rejected: ${error.message}" }
 
             error is QueryExecutionException -> {
                 val cause = error.cause
@@ -47,6 +49,14 @@ class QueryLogObserver : QueryObserver {
         }
     }
 }
+
+/** A failure the caller can fix, or a state it may not read: answered 4xx. */
+private fun Throwable.isRejection(): Boolean =
+    this is QuerySchemaValidationException ||
+        this is QueryRequestException ||
+        this is InvalidStateReadException ||
+        this is StateNotFoundException ||
+        isMissingScope()
 
 /**
  * A missing caller scope, whichever component rejected it ([QueryScopeRequiredException], an ABAC policy that requires

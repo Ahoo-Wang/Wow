@@ -648,5 +648,6 @@ class QueryBudgetTest {
         QueryType.CURSOR -> check(query as ICursorQuery, scope)
         QueryType.COUNT -> check(query as ICountQuery, scope)
         QueryType.AGGREGATION -> check(query as AggregationQuery, scope)
+        QueryType.STATE, QueryType.TRACE -> error("A state read has no query budget.")
     }
 }

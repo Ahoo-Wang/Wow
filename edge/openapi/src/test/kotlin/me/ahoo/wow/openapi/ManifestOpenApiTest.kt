@@ -301,7 +301,7 @@ class ManifestOpenApiTest {
             ),
         )
         ok["headers"].assert().isEqualTo(mapOf("ETag" to ref("headers", "ETag")))
-        responses(state).keys.assert().containsExactly("200", "304", "400", "401", "403", "404", "406", "503")
+        responses(state).keys.assert().containsExactly("200", "304", "400", "401", "403", "404", "406", "429", "503")
         val trace = operation("get", "/shop/cart/{id}/state/trace")
         parameters(trace).assert().containsExactly("id", "from", "to", "limit", "Wow-Scope")
     }

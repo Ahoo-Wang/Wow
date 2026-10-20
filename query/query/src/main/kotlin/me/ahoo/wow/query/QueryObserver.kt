@@ -95,6 +95,34 @@ private class CompositeObservation(private val observations: List<Observation>) 
 
 private val log = KotlinLogging.logger { }
 
+/**
+ * Tells this observer how a query or a state read of [aggregateType] ended, then audits it on [trail]: a completion,
+ * a cancellation (the collector stopped early) or an error.
+ */
+internal fun QueryObserver.finished(
+    aggregateType: AggregateType,
+    queryType: QueryType,
+    trail: QueryAuditTrail?,
+    error: Throwable?,
+) {
+    val outcome = when (error) {
+        null -> {
+            isolated { onComplete(aggregateType, queryType) }
+            QueryAudit.Outcome.COMPLETE
+        }
+        is CancellationException -> {
+            isolated { onCancel(aggregateType, queryType) }
+            QueryAudit.Outcome.CANCEL
+        }
+        else -> {
+            trail?.error(error)
+            isolated { onError(aggregateType, queryType, error) }
+            QueryAudit.Outcome.ERROR
+        }
+    }
+    trail?.let { isolated { onAudit(it.audit(outcome)) } }
+}
+
 /** The observation [start] returns, or none when the observer fails to start one: an observer never fails a query. */
 @Suppress("TooGenericExceptionCaught")
 internal fun QueryObserver.started(aggregateType: AggregateType, queryType: QueryType): Observation = try {

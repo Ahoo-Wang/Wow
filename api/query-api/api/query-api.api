@@ -1658,6 +1658,7 @@ public final class me/ahoo/wow/api/query/QueryErrorCodes {
 	public static final field PREVIOUS_UNSHIFTABLE Ljava/lang/String;
 	public static final field PROTECTED_AGGREGATION Ljava/lang/String;
 	public static final field PROTECTED_COMPARISON Ljava/lang/String;
+	public static final field REPLAY_TOO_LONG Ljava/lang/String;
 	public static final field RESIDUAL_GROUPS_EXCEEDED Ljava/lang/String;
 	public static final field SIZE_OUT_OF_RANGE Ljava/lang/String;
 	public static final field SORT_FIELD_DUPLICATE Ljava/lang/String;
