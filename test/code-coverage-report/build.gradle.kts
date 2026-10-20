@@ -172,8 +172,9 @@ fun registerLayerCoverageReport(
     taskName: String,
     projects: Iterable<Project>,
     testTaskName: String,
+    testProjects: Iterable<Project> = projects,
 ) {
-    val layerTestTasks = testTasks(projects, testTaskName)
+    val layerTestTasks = testTasks(testProjects, testTaskName)
     tasks.register<JacocoReport>(taskName) {
         description = "Generates the ${taskName.removeSuffix("CoverageReport")} coverage report."
         group = LifecycleBasePlugin.VERIFICATION_GROUP
@@ -201,4 +202,12 @@ val v10Projects = (rootProject.ext.get("v10Projects") as Iterable<Project>) - e2
 @Suppress("UNCHECKED_CAST")
 val v10IntegrationTestProjects = rootProject.ext.get("v10IntegrationTestProjects") as Iterable<Project>
 registerLayerCoverageReport("v10CoverageReport", v10Projects, "test")
-registerLayerCoverageReport("v10IntegrationCoverageReport", v10IntegrationTestProjects, "integrationTest")
+// A shard of v10.yml's integration matrix (`-Pwow.integration.projects`) reports the test data of its own projects.
+@Suppress("UNCHECKED_CAST")
+val v10IntegrationShardProjects = rootProject.ext.get("v10IntegrationShardProjects") as Iterable<Project>
+registerLayerCoverageReport(
+    "v10IntegrationCoverageReport",
+    v10IntegrationTestProjects,
+    "integrationTest",
+    v10IntegrationShardProjects,
+)

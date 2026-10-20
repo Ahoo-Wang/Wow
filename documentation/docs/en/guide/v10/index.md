@@ -202,8 +202,6 @@ dependencies {
 | `wow.manifest.module` | The fragment's file name, `META-INF/wow/manifest/<module>.json`; the context's name when unset |
 | `wow.context` | The context of the module; the module's one `@BoundedContext` when unset |
 
-Inside the repository, Gradle runs with `-Pwow.scope=v10` to build only the V10 projects.
-
 ## Name the context
 
 A domain module declares its bounded context once, on an object of its own:

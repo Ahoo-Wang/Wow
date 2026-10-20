@@ -40,7 +40,7 @@ import kotlin.io.path.writeText
 /**
  * The capability descriptor's JSON (the `GET` of the query route, decision D127), golden: the snapshot model of the
  * Manifest fixture of every query keyword, on the HTTP entry. Regenerate the golden file with
- * `./gradlew -Pwow.scope=v10 :query:test --tests "*QueryModelDescriptorJsonTest" -Dwow.snapshot.update=true`.
+ * `./gradlew :query:test --tests "*QueryModelDescriptorJsonTest" -Dwow.snapshot.update=true`.
  */
 class QueryModelDescriptorJsonTest {
     private suspend fun descriptor(budget: QueryBudget? = QueryBudget.HTTP_DEFAULT): QueryModelDescriptor =

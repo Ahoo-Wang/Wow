@@ -16,6 +16,7 @@ package me.ahoo.wow.manifest.tools
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.ManifestTree
+import me.ahoo.wow.manifest.PeerContracts
 import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.io.File
 import java.io.InputStream
@@ -58,6 +59,20 @@ object ManifestJson {
         }
 
         else -> emptyList()
+    }
+
+    /** The peer contract (`META-INF/wow/contract.json`, decision D234) of [entry], a directory or a jar; null if none. */
+    fun contract(entry: File): ManifestFragment? = when {
+        entry.isDirectory -> File(entry, PeerContracts.RESOURCE).takeIf { it.isFile }
+            ?.let { ManifestFragment(it.path, read(it)) }
+
+        entry.isFile && entry.name.endsWith(".jar") -> ZipFile(entry).use { jar ->
+            jar.getEntry(PeerContracts.RESOURCE)?.let {
+                ManifestFragment("${entry.path}!/${it.name}", jar.getInputStream(it).use(::read))
+            }
+        }
+
+        else -> null
     }
 
     private const val JSON = ".json"

@@ -19,7 +19,7 @@ tasks.named<Test>("integrationTest") {
 
 // Spike H2, stage 2 (decision D155): three node JVMs on the Spring Boot host, forwarding over the real cluster channel
 // (HTTP/2 on the internal port), on a durable PostgreSQL; an owner is killed mid-run. Outside every check and the
-// integration tests: `./gradlew -Pwow.scope=v10 :routing-spike:h2Stage2 -Pwow.h2.stage2.duration=PT5M`, or
+// integration tests: `./gradlew :routing-spike:h2Stage2 -Pwow.h2.stage2.duration=PT5M`, or
 // `-Pwow.h2.stage2.mode=smoke` for a run of seconds that only checks the harness. The Gradle properties
 // `wow.h2.stage2.*` (Stage2Settings) reach the test JVM as system properties; the report and the nodes' output go to
 // build/h2-stage2/. The workflow v10-h2-stage2.yml runs it on a GitHub-hosted runner.

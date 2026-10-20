@@ -19,11 +19,11 @@
 #
 # On v10 (R.1, D217) it releases the 10.x pre-releases only (`v10.*-alpha.n`,
 # `-beta.n`, `-rc.n`; AGENTS.md "Releasing a V10 pre-release"): the gates and
-# the Maven publications run in the V10 build scope (`-Pwow.scope=v10`), so
-# they cover the V10 modules, the V10 BOM and wow-dependencies and never a 9.x
-# module (D90); npm publishes under `alpha`/`beta`/`next`, never `latest`
-# (publish-npm.mjs); v10-image-deploy.yml pushes the V10 server images under
-# the version alone; and the GitHub pre-release carries the notes of
+# the Maven publications cover the V10 modules, the V10 BOM and
+# wow-dependencies, the only projects the build has (D262); npm publishes
+# under `alpha`/`beta`/`next`, never `latest` (publish-npm.mjs);
+# v10-image-deploy.yml pushes the V10 server images under the version alone;
+# and the GitHub pre-release carries the notes of
 # .github/release-notes/v10-prerelease.md.
 name: Packages Deploy
 on:
@@ -163,7 +163,7 @@ jobs:
       # detekt and the ABI of the V10 modules (v10Check), and their
       # container-backed tests.
       - name: Verify release build
-        run: ./gradlew -Pwow.scope=v10 v10Check v10IntegrationTest
+        run: ./gradlew v10Check v10IntegrationTest
 
       # Builds and signs every publication the deploy jobs upload, publishes
       # them into a scratch repository and checks them: jars, sources,
@@ -172,7 +172,7 @@ jobs:
       # prebuilt publish without the key and requires the same files, every
       # signature verifying (v10PublicationCheck).
       - name: Verify release artifacts
-        run: ./gradlew -Pwow.scope=v10 -Pwow.publication.signed=true v10PublicationCheck
+        run: ./gradlew -Pwow.publication.signed=true v10PublicationCheck
         env:
           SIGNING_KEYID: ${{ secrets.SIGNING_KEYID }}
           SIGNING_SECRETKEY: ${{ secrets.SIGNING_SECRETKEY }}
@@ -227,7 +227,7 @@ jobs:
       # v10PublicationCheck ran this publish and checked what it uploads.
       - name: Publish package
         run: |
-          ./gradlew -Pwow.scope=v10 -Pwow.publication.prebuilt=true \
+          ./gradlew -Pwow.publication.prebuilt=true \
             publishAllPublicationsToGitHubPackagesRepository
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -268,7 +268,7 @@ jobs:
       # v10PublicationCheck ran this publish and checked what it uploads.
       - name: Publish package
         run: |
-          ./gradlew -Pwow.scope=v10 -Pwow.publication.prebuilt=true \
+          ./gradlew -Pwow.publication.prebuilt=true \
             publishToSonatype closeAndReleaseSonatypeStagingRepository
         env:
           SONATYPE_USERNAME: ${{ secrets.SONATYPE_USERNAME }}

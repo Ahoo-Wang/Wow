@@ -41,6 +41,11 @@ plugins {
 // The projects at the given paths, for the lists below.
 fun includedProjects(vararg paths: String): Set<Project> = paths.map { project(it) }.toSet()
 
+// The repository's test logging, relative to the test JVM's working directory (the project's): a JVM argument is an
+// input of the test task, so it is the same in every checkout and the build cache hits across them.
+fun Project.testLogbackConfiguration(): String =
+    "-Dlogback.configurationFile=${projectDir.toPath().relativize(rootProject.file("config/logback.xml").toPath())}"
+
 val dependenciesProject = project(":wow-dependencies")
 // The V10 BOM (`:bom` in bom/bom, artifact wow-bom per D87).
 val v10BomProject = project(":bom")
@@ -70,8 +75,8 @@ val e2eBenchmarkProjects = includedProjects(":e2e-bench-v10", ":e2e-bench-load")
 // (spike H6) and the examples (:eshop-*, :quickstart, :java-smoke) are never published.
 val v10Projects = listOf(
     "api", "manifest", "query-api", "spi", "kernel", "runtime", "reactor", "query", "query-tck",
-    "postgres", "mongo", "kafka", "clickhouse", "elasticsearch", "openapi", "http", "cosec", "opentelemetry",
-    "spring-boot", "cosid",
+    "postgres", "mongo", "kafka", "clickhouse", "elasticsearch", "openapi", "http", "client", "cosec",
+    "opentelemetry", "spring-boot", "cosid",
     "models", "migrate-data", "architecture",
     "test-dsl", "tck", "tck-containers", "ops-api", "ops-domain", "ops-server",
     "view-store-api", "view-store-domain", "view-store-server",
@@ -86,8 +91,8 @@ val v10Projects = listOf(
 // their contract is not a JVM signature.
 val v10PublishedProjects = includedProjects(
     ":api", ":manifest", ":query-api", ":spi", ":kernel", ":runtime", ":reactor", ":query",
-    ":postgres", ":mongo", ":kafka", ":clickhouse", ":elasticsearch", ":openapi", ":http", ":cosec", ":opentelemetry",
-    ":spring-boot",
+    ":postgres", ":mongo", ":kafka", ":clickhouse", ":elasticsearch", ":openapi", ":http", ":client", ":cosec",
+    ":opentelemetry", ":spring-boot",
     ":cosid", ":models", ":test-dsl", ":tck", ":query-tck", ":tck-containers", ":ops-api", ":view-store-api",
     ":compiler", ":gradle-plugin",
 )
@@ -159,11 +164,22 @@ val v10IntegrationTestProjects = includedProjects(
     ":migrate-data",
 )
 val integrationTestProjects = v10IntegrationTestProjects
+// v10.yml runs the integration tests in shards (its `integration` matrix): `-Pwow.integration.projects=":mongo :postgres"`
+// narrows `v10IntegrationTest`, and the test data `v10IntegrationCoverageReport` reads, to those projects. The report
+// still covers the classes of every project above, so a shard's tests count on the modules of the other shards too.
+val v10IntegrationShardProjects = providers.gradleProperty("wow.integration.projects").orNull?.let { paths ->
+    paths.split(' ', ',').filter(String::isNotBlank).map { path ->
+        project(path).also {
+            require(it in v10IntegrationTestProjects) { "$path is not a V10 integration test project" }
+        }
+    }.toSet()
+} ?: v10IntegrationTestProjects
 
 ext.set("localTestProjects", localTestProjects)
 ext.set("integrationTestProjects", integrationTestProjects)
 ext.set("v10Projects", v10Projects)
 ext.set("v10IntegrationTestProjects", v10IntegrationTestProjects)
+ext.set("v10IntegrationShardProjects", v10IntegrationShardProjects)
 
 fun Project.registerJvmTestLayer(
     layer: WowTestLayer,
@@ -198,7 +214,7 @@ fun Project.registerJvmTestLayer(
         testLogging {
             exceptionFormat = TestExceptionFormat.FULL
         }
-        jvmArgs = listOf("-Dlogback.configurationFile=${rootProject.rootDir}/config/logback.xml")
+        jvmArgs = listOf(testLogbackConfiguration())
         retry {
             if (isInCI) {
                 maxRetries = 2
@@ -308,7 +324,7 @@ configure(libraryProjects) {
             systemProperty("wow.snapshot.update", it)
         }
         // fix logging missing code for JacocoPlugin
-        jvmArgs = listOf("-Dlogback.configurationFile=${rootProject.rootDir}/config/logback.xml")
+        jvmArgs = listOf(testLogbackConfiguration())
         retry {
             if (isInCI) {
                 maxRetries = 2
@@ -365,7 +381,7 @@ tasks.register("v10Check") {
 tasks.register("v10IntegrationTest") {
     description = "Runs the container-backed integration tests of the V10 modules."
     group = LifecycleBasePlugin.VERIFICATION_GROUP
-    dependsOn(v10IntegrationTestProjects.map { it.tasks.named(WowTestLayer.INTEGRATION.taskName) })
+    dependsOn(v10IntegrationShardProjects.map { it.tasks.named(WowTestLayer.INTEGRATION.taskName) })
 }
 
 // Signatures: a release signs in CI with the key in SIGNING_*; elsewhere the signing.* properties of
@@ -529,7 +545,7 @@ configure(v10ReleaseProjects) {
     }
 }
 
-// The release rehearsal of the V10 publications (R.1): `./gradlew -Pwow.scope=v10 v10PublicationCheck` builds and
+// The release rehearsal of the V10 publications (R.1): `./gradlew v10PublicationCheck` builds and
 // signs every V10 release module and :wow-dependencies as the release's preflight does (with the release key and
 // `-Pwow.publication.signed=true` there, with a throwaway key elsewhere, see Signatures), publishes them into
 // build/v10-publication-check/repo, then checks that each library has its jar, sources and javadoc jars, POM and
@@ -653,7 +669,7 @@ tasks.register("v10PublicationCheck") {
         val deploy = ProcessBuilder(
             listOf(
                 File(rootDirectory, "gradlew").path, "--no-daemon", "--quiet",
-                "-Pwow.scope=v10", "-Pwow.publication.prebuilt=true", "-Pversion=$releaseVersion",
+                "-Pwow.publication.prebuilt=true", "-Pversion=$releaseVersion",
                 "publishAllPublicationsToV10DeployCheckRepository",
             ) + listOfNotNull("--offline".takeIf { offline }),
         ).directory(rootDirectory).inheritIO()
@@ -746,7 +762,7 @@ tasks.register("v10PublicationCheck") {
 // The JVM ABI of every published library but :migrate-data and :manifest-tools (`v10AbiProjects`) is kept in its
 // `api/<module>.api`; `check` and `v10Check` run `checkKotlinAbi` against it, so a public signature cannot change
 // unnoticed. AGENTS.md ("Binary Compatibility") says when a dump may change. The dumps date from the
-// API freeze (D216); `./gradlew -Pwow.scope=v10 updateKotlinAbi` rewrites their dumps, and between the M7 exit and
+// API freeze (D216); `./gradlew updateKotlinAbi` rewrites their dumps, and between the M7 exit and
 // 10.0.0 GA a removed or changed line there takes the `breaking-change` label.
 configure(v10AbiProjects) {
     configure<KotlinJvmProjectExtension> {

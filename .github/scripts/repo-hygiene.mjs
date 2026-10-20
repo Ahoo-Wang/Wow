@@ -25,22 +25,7 @@ const ROOT = fileURLToPath(new URL('../..', import.meta.url));
  * here and the check tightens. Keys are what the problem names:
  * `<file>: <entry>`; values name the owner.
  */
-export const ALLOWED = new Map([
-  // The release cleanup (#4656) drops the catalog entries the 9.x code used.
-  ...[
-    'versions.opentelemetry-proto',
-    'versions.reactor-kafka',
-    'versions.jmh',
-    'versions.jmh-plugin',
-    'libraries.reactor-kafka',
-    'libraries.opentelemetry-proto',
-    'libraries.clickhouse-jdbc',
-    'libraries.jmh-core',
-    'libraries.jmh-generator-annprocess',
-    'libraries.jmh-generator-bytecode',
-    'plugins.jmh',
-  ].map(entry => [`gradle/libs.versions.toml: ${entry}`, '#4656']),
-]);
+export const ALLOWED = new Map([]);
 
 export function trackedFiles(cwd = ROOT) {
   return execFileSync('git', ['ls-files', '-z'], { cwd, encoding: 'utf8' })

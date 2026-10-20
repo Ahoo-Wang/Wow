@@ -99,11 +99,12 @@ class OrderProcessSaga {
 
     /**
      * A release the inventory rejects needs no compensation: it rejects one only for a product it has no stock of,
-     * which reserved nothing either. Without this handler, the rejection would park the order for the saga.
+     * which reserved nothing either. Without this handler, the rejection would park the order for the saga; returning
+     * `Unit` accepts it and derives nothing.
      */
-    @Suppress("UnusedParameter", "FunctionOnlyReturningConstant")
+    @Suppress("UnusedParameter")
     @OnRejected
-    fun onReleaseRejected(rejected: CommandRejected<ReleaseReservation>): Command<CancelOrder>? = null
+    fun onReleaseRejected(rejected: CommandRejected<ReleaseReservation>) = Unit
 
     @OnEvent
     fun onOrderShipped(event: StateEvent<OrderState>, context: SagaContext): List<Command<CommitReservation>> =

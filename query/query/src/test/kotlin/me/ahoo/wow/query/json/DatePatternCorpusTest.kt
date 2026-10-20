@@ -29,7 +29,7 @@ import kotlin.io.path.writeText
  * the rest by `DateTimeFormatter.ofPattern`.
  *
  * It only reads the fixture, which 9.x `wow-api` owns (its `source` line names that test). It writes the fixture only
- * with `./gradlew -Pwow.scope=v10 :query:test --tests "*DatePatternCorpusTest" -Dwow.snapshot.update=true`.
+ * with `./gradlew :query:test --tests "*DatePatternCorpusTest" -Dwow.snapshot.update=true`.
  */
 class DatePatternCorpusTest {
     companion object {

@@ -129,7 +129,7 @@ Behaviour changes (no code change needed, but callers or operations that relied 
 
 ## Upgrading from 9.5 to 9.6.0
 
-For `wow-openapi`, 9.6.0 makes route contracts pure data (design: `documentation/designs/2026-10-09-wow-openapi-refactor-design.md`). Routes, route ids and the generated OpenAPI document are unchanged, and REST, OpenAPI and wire formats are unchanged, so 9.5.x and 9.6.0 nodes can share one cluster. Code compiled against 9.5 must be recompiled; code that implements `RouteContributor` or builds route contracts needs the source changes below.
+For `wow-openapi`, 9.6.0 makes route contracts pure data (design: `documentation/designs/2026-10-09-wow-openapi-refactor-design.md` (on the `main` branch)). Routes, route ids and the generated OpenAPI document are unchanged, and REST, OpenAPI and wire formats are unchanged, so 9.5.x and 9.6.0 nodes can share one cluster. Code compiled against 9.5 must be recompiled; code that implements `RouteContributor` or builds route contracts needs the source changes below.
 
 | Change | Who is affected | What to do |
 |---|---|---|
@@ -168,7 +168,7 @@ The moved declarations without a deprecated alias need their imports changed. Th
 
 ## Upgrading from 9.4 to 9.5.0
 
-For `wow-schema` and `wow-openapi`, 9.5.0 is an internal refactor (design: `documentation/designs/2026-10-09-wow-schema-refactor-design.md`). Every generated JSON Schema, OpenAPI document and query model is byte-for-byte the same as in 9.4.0, and REST, storage and wire formats are unchanged, so 9.4.x and 9.5.0 nodes can share one cluster. Code compiled against 9.4 must be recompiled, and code that uses the schema builders directly may need the source changes below; schema compatibility was not kept at the source level, to keep the module clean. The 9.5.0 release notes on the [releases page](https://github.com/Ahoo-Wang/Wow/releases) list every change with its pull request.
+For `wow-schema` and `wow-openapi`, 9.5.0 is an internal refactor (design: `documentation/designs/2026-10-09-wow-schema-refactor-design.md` (on the `main` branch)). Every generated JSON Schema, OpenAPI document and query model is byte-for-byte the same as in 9.4.0, and REST, storage and wire formats are unchanged, so 9.4.x and 9.5.0 nodes can share one cluster. Code compiled against 9.4 must be recompiled, and code that uses the schema builders directly may need the source changes below; schema compatibility was not kept at the source level, to keep the module clean. The 9.5.0 release notes on the [releases page](https://github.com/Ahoo-Wang/Wow/releases) list every change with its pull request.
 
 | Change | Who is affected | What to do |
 |---|---|---|

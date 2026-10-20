@@ -202,8 +202,6 @@ dependencies {
 | `wow.manifest.module` | 片段的文件名 `META-INF/wow/manifest/<module>.json`；不设置时取上下文名 |
 | `wow.context` | 模块的上下文；不设置时取模块中唯一的 `@BoundedContext` |
 
-在仓库内，Gradle 用 `-Pwow.scope=v10` 只构建 V10 项目。
-
 ## 命名上下文
 
 领域模块在一个单独的对象上声明一次它的限界上下文：

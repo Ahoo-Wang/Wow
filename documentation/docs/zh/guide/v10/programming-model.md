@@ -233,7 +233,7 @@ class OrderNotifier(private val mail: Mail) {
 
 ### Saga
 
-Saga 从已提交的事件派生命令。它的处理函数返回一个 `Command`、它们的列表，或者 `null`、空列表表示没有命令；每条命令由 `SagaContext.command(ref, body)` 构造：
+Saga 从已提交的事件派生命令。它的处理函数返回一个 `Command`、它们的列表，或者 `null`、空列表、什么也不返回（`Unit`）表示没有命令；每条命令由 `SagaContext.command(ref, body)` 构造：
 
 ```kotlin
 @Saga
@@ -254,7 +254,7 @@ class CartSaga {
 - 同上下文的命令提交后、跨上下文的命令被 broker 接收后，Saga 的这一跳完成。
 - 派生命令带上它所派生自的那次提交的作用域（所有者与空间）与操作人，租户取自 Saga 给出的 `ref`。它创建的聚合属于同一个所有者：购物车结账创建的订单属于购物车的买家。目标的作用域守卫会检查这个作用域，所以发给别的所有者的聚合的命令会被拒绝，除非目标属于租户（`Ownership.TENANT`，例如库存）。Saga 可以收窄它返回的命令的作用域：订单可以有空间而购物车没有，所以示例的 `CartSaga` 返回 `command.copy(scope = command.scope.copy(spaceId = null))`。补偿（`@OnRejected`）与定时命令同样带上它们所跟随的命令的作用域。
 - `context.command(type, body)` 用 `AggregateType` 代替 ref，派生一条把聚合 ID 留给目标准入的创建类命令：目标取该请求已创建的聚合的 ID，否则取新号，所以再次处理同一提交仍得到第一次的 ID。若在 Saga 里用 `context.ids` 取 ID，再次处理提交时会取到新号，所以只能用于它所命名的那条创建命令，靠请求 ID 防止目标重复创建。
-- 处理函数的返回类型没有说明命令时（例如 `List<Command<*>>`），用 `@OnEvent(derives = ["<context>.<aggregate>.<Command>"])` 声明，等待链才能跟随 Saga 的这一跳进入那些上下文。
+- 处理函数的返回类型没有说明命令时（例如 `List<Command<*>>`），用 `@OnEvent(derives = [ConfirmPayment::class, FailPayment::class])` 声明这些命令类，等待链才能跟随 Saga 的这一跳进入那些上下文。密封类型代表它的各个子类，在 `derives` 里和返回类型 `Command<S>` 里都是如此，后者因此不必再写 `derives`。服务构建时，若某个类既不由本服务、也不由类路径上对端 api 的任何上下文决定，构建失败。
 
 ### Saga 预期的拒绝：`@OnRejected`
 
@@ -266,7 +266,7 @@ fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: SagaCont
     context.command(rejected.executionId.ref, CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}"))
 ```
 
-`CommandRejected` 给出命令（`commandId`、`commandType`、`ref`）、`error`（错误码、消息、字段违例）、`causation`，以及派生它的那次 Saga 执行的 `executionId`；它不带命令体。运行时对每个拒绝只交付一次。Saga 没有处理函数的拒绝，会像失败一样为该 Saga 的订阅停放这个聚合。处理函数返回 `null` 表示接受拒绝、不做补偿。
+`CommandRejected` 给出命令（`commandId`、`commandType`、`ref`）、`error`（错误码、消息、字段违例）、`causation`，以及派生它的那次 Saga 执行的 `executionId`；它不带命令体。运行时对每个拒绝只交付一次。Saga 没有处理函数的拒绝，会像失败一样为该 Saga 的订阅停放这个聚合。处理函数什么也不返回（`Unit`，或 `null`）表示接受拒绝、不做补偿，也不派生命令；`@OnCommitted` 处理函数同样可以返回 `Unit`。
 
 ### 订阅从哪里开始
 

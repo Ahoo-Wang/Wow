@@ -63,7 +63,10 @@ internal data class HandlerBinding(
     val blocking: Boolean = false,
     /** `@OnEvent(aggregates)`: the aggregates it reads, each `context.aggregate`, all of one context (decision D138). */
     val aggregates: List<String> = emptyList(),
-    /** `@OnEvent(derives)`: the full type names of the commands a saga's handler declares it derives. */
+    /**
+     * `@OnEvent(derives)`: the binary names of the command classes a saga's handler declares it derives, a sealed type
+     * read as its concrete subclasses (decision D259).
+     */
     val derives: List<String> = emptyList(),
     /** `@OnEvent(schedules)`: the full type names of the commands a saga's handler declares it schedules (D166). */
     val schedules: List<String> = emptyList(),
@@ -74,7 +77,8 @@ internal data class HandlerBinding(
     val start: String? = null,
     /**
      * The binary names of the command classes a saga's handler returns, as its return type says (`Command<X>`, a
-     * list of them); null when it does not say (`Command<*>`), and for a projection or a reactor.
+     * list of them, the subclasses of a sealed `X`; none for `Unit`); null when it does not say (`Command<*>`), and for
+     * a projection or a reactor.
      */
     val derived: List<String>? = null,
     /**

@@ -36,6 +36,7 @@ import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.query.IListQuery
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.http.caller.Authenticator
 import me.ahoo.wow.http.command.CommandHandler
 import me.ahoo.wow.http.command.CommandTarget
