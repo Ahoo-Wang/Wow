@@ -61,7 +61,9 @@ class JavaFacadeSignaturesTest {
                 val at = "${type.simpleName}.${method.name}"
                 leaks(method.genericReturnType, at) + method.genericParameterTypes.flatMap { leaks(it, at) }
             }
-            val constructors = type.declaredConstructors.filter { Modifier.isPublic(it.modifiers) && !it.isSynthetic }.flatMap { constructor ->
+            val constructors = type.declaredConstructors.filter {
+                Modifier.isPublic(it.modifiers) && !it.isSynthetic
+            }.flatMap { constructor ->
                 constructor.genericParameterTypes.flatMap { leaks(it, "${type.simpleName}.<init>") }
             }
             methods + constructors
