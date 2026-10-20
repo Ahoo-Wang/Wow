@@ -23,6 +23,13 @@ public abstract class me/ahoo/wow/gradle/GenerateContract : org/gradle/api/Defau
 	public abstract fun getOutputFile ()Lorg/gradle/api/file/RegularFileProperty;
 }
 
+public abstract class me/ahoo/wow/gradle/GenerateContractSources : org/gradle/api/DefaultTask {
+	public fun <init> ()V
+	public final fun generate ()V
+	public abstract fun getContract ()Lorg/gradle/api/file/ConfigurableFileCollection;
+	public abstract fun getOutputDirectory ()Lorg/gradle/api/file/DirectoryProperty;
+}
+
 public abstract class me/ahoo/wow/gradle/GenerateManifestFragment : org/gradle/api/DefaultTask {
 	public fun <init> (Lorg/gradle/workers/WorkerExecutor;)V
 	public final fun generate ()V
@@ -74,8 +81,10 @@ public final class me/ahoo/wow/gradle/WowPlugin : org/gradle/api/Plugin {
 	public static final field CONTRACT_CONFIGURATION Ljava/lang/String;
 	public static final field CONTRACT_DOCS_TYPE Ljava/lang/String;
 	public static final field CONTRACT_ELEMENTS Ljava/lang/String;
+	public static final field CONTRACT_SOURCE_SET Ljava/lang/String;
 	public static final field Companion Lme/ahoo/wow/gradle/WowPlugin$Companion;
 	public static final field EXTENSION Ljava/lang/String;
+	public static final field GENERATE_CONTRACT_SOURCES_TASK Ljava/lang/String;
 	public static final field GENERATE_CONTRACT_TASK Ljava/lang/String;
 	public static final field GENERATE_FRAGMENT_TASK Ljava/lang/String;
 	public static final field MANIFEST_CLASSIFIER Ljava/lang/String;
@@ -91,6 +100,8 @@ public final class me/ahoo/wow/gradle/WowPlugin : org/gradle/api/Plugin {
 }
 
 public final class me/ahoo/wow/gradle/WowPlugin$Companion {
+	public final fun coreView (Ljava/lang/String;)Ljava/lang/String;
+	public final fun getAPI_VIEW ()Lorg/gradle/api/attributes/Attribute;
 	public final fun getVersion ()Ljava/lang/String;
 }
 
