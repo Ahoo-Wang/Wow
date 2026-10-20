@@ -84,8 +84,30 @@ class HostQueryIsolationTest {
                 busy.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_BUSY)
                 // A snapshot is read without one.
                 host.get("/bank/account/$id/state").status.assert().isEqualTo(200)
+                // A state at a version or a time, and a trace, replay the log too (review R4-Q, Q-1).
+                listOf("state?version=1", "state?at=2100-01-01T00:00:00Z", "state/trace").forEach { read ->
+                    host.get("/bank/account/$id/$read").status.assert().describedAs(read).isEqualTo(429)
+                }
             }
             host.get("/bank/account/unknown/state").status.assert().isEqualTo(404)
+            host.get("/bank/account/$id/state?version=1").status.assert().isEqualTo(200)
+        }
+    }
+
+    @Test
+    fun `a state read should replay at most wow-query-state-max-replay commits`() {
+        startHost("wow.query.memory.enabled" to true, "wow.query.state.max-replay" to 1).use { host ->
+            host.context.getBean(QueryProperties::class.java).state.maxReplay.assert().isEqualTo(1)
+            val id = host.openAccount("bounded")
+            repeat(2) { host.post("/bank/account/$id/deposit", """{"amount":1}""").status.assert().isEqualTo(200) }
+            host.get("/bank/account/$id/state?version=1").status.assert().isEqualTo(200)
+            listOf("state?version=2" to "version", "state/trace?from=3" to "from").forEach { (read, parameter) ->
+                val refused = host.get("/bank/account/$id/$read")
+                refused.status.assert().describedAs(read).isEqualTo(400)
+                refused.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_INVALID)
+                refused.body!!["violations"][0]["code"].asString().assert().isEqualTo(QueryErrorCodes.REPLAY_TOO_LONG)
+                refused.body!!["violations"][0]["path"].asString().assert().isEqualTo(parameter)
+            }
         }
     }
 

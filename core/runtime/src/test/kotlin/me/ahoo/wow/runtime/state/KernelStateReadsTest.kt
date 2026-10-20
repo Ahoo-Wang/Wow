@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.ReplayLimitExceededException
 import me.ahoo.wow.kernel.aggregate
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
@@ -119,7 +120,7 @@ class KernelStateReadsTest {
     }
 
     @Test
-    fun `only the latest state's replay runs under the gate`(): Unit = runBlocking {
+    fun `every replay but the committed state's runs under the gate`(): Unit = runBlocking {
         val gated = mutableListOf<AggregateRef>()
         val refusing = KernelStateReads(
             registry,
@@ -132,15 +133,52 @@ class KernelStateReadsTest {
             },
         )
         addItems(1)
-        runCatching { refusing.latest(cart) }.exceptionOrNull()!!.message.assert().isEqualTo("busy")
-        gated.assert().containsExactly(cart)
+        // The latest state before the first snapshot, a state at a version or a time, and a trace (review R4-Q, Q-1).
+        listOf<suspend () -> Any?>(
+            { refusing.latest(cart) },
+            { refusing.at(cart, 1) },
+            { refusing.at(cart, Instant.MAX) },
+            { refusing.trace(cart, 1, 1, 1) },
+        ).forEach { read ->
+            runCatching { read() }.exceptionOrNull()!!.message.assert().isEqualTo("busy")
+        }
+        gated.assert().containsExactly(cart, cart, cart, cart)
         // The events model's committed state is read outside the gate.
         refusing.committed(cart)!!.version.assert().isEqualTo(1)
         // A snapshot is read without a replay.
         snapshots.save(EventCodec().snapshotOf(cartModel, cart, Cart().apply { items = 1 }, 1, Scope.NONE, 1L, 1L))
         refusing.latest(cart)!!.version.assert().isEqualTo(1)
-        gated.assert().hasSize(1)
+        gated.assert().hasSize(4)
         ReplayGate.OPEN.toString().assert().isEqualTo("ReplayGate.OPEN")
+    }
+
+    @Test
+    fun `a replay longer than the bound is refused, the committed state unbounded`(): Unit = runBlocking {
+        val bounded = KernelStateReads(
+            registry,
+            mapOf(CONTEXT to KernelStateReads.ContextReads(Kernel(log), snapshots)),
+            maxReplay = 2,
+        )
+        addItems(4)
+        listOf<suspend () -> Any?>(
+            { bounded.latest(cart) },
+            { bounded.at(cart, 4) },
+            { bounded.at(cart, Instant.MAX) },
+            { bounded.trace(cart, 4, 4, 1) },
+        ).forEach { read ->
+            val refused = runCatching { read() }.exceptionOrNull() as ReplayLimitExceededException
+            refused.ref.assert().isEqualTo(cart)
+            refused.limit.assert().isEqualTo(2)
+        }
+        bounded.committed(cart)!!.version.assert().isEqualTo(4)
+        bounded.at(cart, 2)!!.version.assert().isEqualTo(2)
+        bounded.trace(cart, 1, 4, 4).assert().hasSize(4)
+        // Counted from the snapshot when it fits.
+        snapshots.save(EventCodec().snapshotOf(cartModel, cart, Cart().apply { items = 3 }, 2, Scope.NONE, 1L, 2000L))
+        bounded.at(cart, 4)!!.state["items"].asInt().assert().isEqualTo(10)
+        runCatching { KernelStateReads(registry, emptyMap(), maxReplay = 0) }.exceptionOrNull()
+            .assert().isInstanceOf(IllegalArgumentException::class.java)
+        KernelStateReads.DEFAULT_MAX_REPLAY.assert().isEqualTo(10_000)
     }
 
     private suspend fun addItems(count: Int) {

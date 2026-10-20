@@ -113,13 +113,18 @@ internal class ErrorResponses(manifest: Manifest, private val overrides: Map<Str
         val COMMAND: List<String> = FrameworkErrors.ALL.map { it.code }
             .filterNot { it.startsWith(QUERY_PREFIX) || it == FrameworkErrors.CALL_COMMAND_FORBIDDEN }
 
-        /** The codes a state read or a trace answers. */
+        /**
+         * The codes a state read or a trace answers (review R4-Q): a parameter it cannot read, or a replay longer than
+         * the node's bound, is a query error (Q-4, Q-1); whatever the caller may not see is not found (Q-5); a replay
+         * runs under the log store's query bulkhead (Q-1).
+         */
         val STATE: List<String> = listOf(
             FrameworkErrors.AUTH_UNAUTHENTICATED,
             FrameworkErrors.AUTH_FORBIDDEN,
-            FrameworkErrors.AGGREGATE_FORBIDDEN,
-            FrameworkErrors.COMMAND_MALFORMED,
+            FrameworkErrors.QUERY_MALFORMED,
+            FrameworkErrors.QUERY_INVALID,
             FrameworkErrors.AGGREGATE_NOT_FOUND,
+            FrameworkErrors.QUERY_BUSY,
             FrameworkErrors.STORAGE_UNAVAILABLE,
         )
 

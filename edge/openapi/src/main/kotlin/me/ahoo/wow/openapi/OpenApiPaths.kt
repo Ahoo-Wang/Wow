@@ -308,11 +308,11 @@ internal class OpenApiPaths(
                 "parameters" to readParameters.map(OpenApiParameters::ref),
                 "responses" to obj(
                     "200" to obj(
-                        "description" to "The state, its version as the ETag.",
+                        "description" to "The state; its ETag is its version and a digest of the body (`\"3-<digest>\"`).",
                         "headers" to obj(Http.ETAG_HEADER to Json.ref(Json.HEADERS, Http.ETAG_HEADER)),
                         "content" to json(view),
                     ),
-                    "304" to obj("description" to "Not Modified: the state is at the version If-None-Match names."),
+                    "304" to obj("description" to "Not Modified: the state is still the one If-None-Match names."),
                 ) + errors.of("state", ErrorResponses.STATE, http = mapOf(ErrorResponses.NOT_ACCEPTABLE)),
             ),
         )

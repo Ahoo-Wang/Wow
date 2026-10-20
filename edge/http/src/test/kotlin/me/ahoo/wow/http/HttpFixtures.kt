@@ -15,6 +15,7 @@ package me.ahoo.wow.http
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.onEach
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
@@ -58,6 +59,7 @@ import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.snapshot.SnapshotRebuildModel
 import me.ahoo.wow.runtime.state.KernelStateReads
+import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.wait.LocalSignalSender
 import me.ahoo.wow.runtime.wait.SubscriptionDirectory
 import me.ahoo.wow.runtime.wait.WaitCoordinator
@@ -78,6 +80,7 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.time.Duration.Companion.seconds
 import me.ahoo.wow.manifest.Creation as ManifestCreation
 import me.ahoo.wow.manifest.FunctionKind as ManifestFunctionKind
@@ -224,6 +227,10 @@ class HttpNode(
     rebuilds: Boolean = false,
     /** The node's bound on its commands in flight (decision D228 ②). */
     val inFlight: InFlightLimit = InFlightLimit(),
+    /** How the state reads replay the log (review R4-Q, Q-1): at once, unless a test gates them. */
+    replayGate: ReplayGate = ReplayGate.OPEN,
+    /** The most streams a state read replays. */
+    maxReplay: Int = KernelStateReads.DEFAULT_MAX_REPLAY,
     queries: (EventLog) -> HttpQueries = { HttpQueries.NONE },
 ) {
     val log = InMemoryEventLog(partitions = 2)
@@ -236,11 +243,14 @@ class HttpNode(
     @Volatile
     var unavailable: Boolean = false
 
+    /** The streams read from [log] by [EventLog.read], by the kernel, the state reads and the queries. */
+    val streamsRead = AtomicInteger()
+
     /** [log] as the node reads it: unavailable while [unavailable] is set. */
     private val store: EventLog = object : EventLog by log {
         override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> {
             ensureAvailable()
-            return log.read(ref, fromVersion, toVersion)
+            return log.read(ref, fromVersion, toVersion).onEach { streamsRead.incrementAndGet() }
         }
 
         override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String) =
@@ -288,7 +298,12 @@ class HttpNode(
         ids = ids,
         tenants = tenants,
     )
-    val reads = KernelStateReads(models, mapOf(CONTEXT to KernelStateReads.ContextReads(kernel, snapshots)))
+    val reads = KernelStateReads(
+        models,
+        mapOf(CONTEXT to KernelStateReads.ContextReads(kernel, snapshots)),
+        replayGate,
+        maxReplay,
+    )
 
     /** The node's public routes, which [client] calls and a test may serve on a real server. */
     val routes: RouterFunction<ServerResponse> = wowRoutes(

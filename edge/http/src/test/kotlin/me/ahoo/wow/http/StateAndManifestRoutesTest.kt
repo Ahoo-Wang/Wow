@@ -18,13 +18,13 @@ import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.kernel.EventCodec
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.ManifestTree
 import me.ahoo.wow.manifest.Ownership
 import me.ahoo.wow.manifest.copyWith
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import org.junit.jupiter.api.Test
-import me.ahoo.wow.manifest.FrameworkErrors
 
 /** `GET …/{id}/state`, `?version=` (decision D112) and `GET /wow/manifest`. */
 class StateAndManifestRoutesTest {
