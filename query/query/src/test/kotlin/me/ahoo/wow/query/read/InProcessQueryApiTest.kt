@@ -35,6 +35,7 @@ import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.query.Sort
 import me.ahoo.wow.api.query.TotalMode
+import me.ahoo.wow.api.read.MinVersionNotReachedException
 import me.ahoo.wow.api.read.dynamic
 import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.manifest.AggregateManifest
@@ -47,6 +48,7 @@ import me.ahoo.wow.manifest.StateManifest
 import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryError
+import me.ahoo.wow.query.QueryErrors
 import me.ahoo.wow.query.engine.QueryEngine
 import me.ahoo.wow.query.memory.InMemoryEventQueryStorage
 import me.ahoo.wow.query.memory.InMemoryQueryStorage
@@ -282,6 +284,28 @@ class InProcessQueryApiTest {
         assertThrows<IllegalStateException> { api.trusted().snapshots<CartState>().state("a") }
         api.trusted().snapshots<CartState>().state(cart.ref("other", "b"))!!.scope.assert().isEqualTo(Scope("bob"))
     }
+
+    @Test
+    fun `a state read of a minimum version fails only for a state the caller may see (Q-13, Q-5)`(): Unit =
+        runBlocking {
+            val api = api(
+                latest = { ref ->
+                    if (ref.id == "missing") null else committed(ref, if (ref.id == "b") "bob" else "alice")
+                },
+            )
+            val carts = api.of(alice).snapshots<CartState>()
+            carts.state("a", 3)!!.version.assert().isEqualTo(3)
+            val behind = assertThrows<MinVersionNotReachedException> { carts.state("a", 4) }
+            behind.version.assert().isEqualTo(3)
+            behind.minVersion.assert().isEqualTo(4)
+            // Hidden, and missing, answer as without a minimum version: null.
+            carts.state("b", 4).assert().isNull()
+            carts.state("missing", 1).assert().isNull()
+            carts.state(cart.ref("acme", "a"), 3)!!.state.assert().isEqualTo(CartState(7))
+            assertThrows<IllegalArgumentException> { carts.state("a", 0) }
+            assertThrows<IllegalStateException> { api.trusted().snapshots<CartState>().state("a", 1) }
+            MinVersionNotReachedException.CODE.assert().isEqualTo(QueryErrors.MIN_VERSION_NOT_REACHED)
+        }
 
     @Test
     fun `a handler's queries should read the whole tenant of its commit, and others only trusted`(): Unit =
