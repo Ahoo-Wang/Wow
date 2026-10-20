@@ -18,9 +18,11 @@ in `wow_datasets` (the only DDL the catalog runs); every node serving queries re
 snapshots (`DatasetPublicationWatcher`: what changed every 5 seconds, everything every 5 minutes) and serves the current
 version under `/wow/dataset/<context>/<name>/query`, each value masked as its sources say. A retired dataset's views are
 dropped 7 days later. A change of a source recompiles the datasets that read it (`DatasetRecompilation`): what compiles
-otherwise is published as the next version, what no longer compiles marks the dataset `NEEDS_REVISION`, whose queries are
+with the same columns (names and types) is published as the next version (stricter masking, another rendering); anything
+else (no longer compiling, columns that would change, a new approval) marks the dataset `NEEDS_REVISION`. Its published
+version goes on serving while its view still gives the columns it was published with; once it does not, queries are
 answered 409 `wow.query.dataset-unavailable` ("needs revision"; the problems are in the dataset's state and the log)
-until it is revised and published or its sources come back.
+until a revision is published or its sources come back.
 
 | Module | Contents |
 | --- | --- |

@@ -152,10 +152,12 @@ class Dataset(private val state: DatasetState) {
     }
 
     /**
-     * Compiles the published definition again after a source changed (decision D259 7.2b-2): the same compilation
-     * changes nothing (or clears a revision it needed); another one is published as the next version, unless it
-     * now takes an approver the published one did not; one that does not compile, or whose view the warehouse does
-     * not create, marks the dataset as needing revision.
+     * Compiles the published definition again after a source changed (decision D259 7.2b-2). The same compilation
+     * changes nothing (or clears a revision it needed). Another one is published as the next version only when its
+     * contract holds: the view gives the same columns, by name and type, as the published one, and it takes no new
+     * approval, so only its masking or its rendering differs. Anything else (a definition that no longer compiles,
+     * columns that would change, a new approval) marks the dataset as needing revision; the published version goes on
+     * serving while its view still gives the columns it was published with, and is refused otherwise.
      */
     @Suppress("UnusedParameter", "ReturnCount") // No body; each outcome returns its decision.
     @OnCommand(produces = [DatasetPublished::class, DatasetNeedsRevision::class, DatasetRevisionCleared::class])
@@ -167,37 +169,61 @@ class Dataset(private val state: DatasetState) {
     ): Decision {
         val published = state.published()
         if (published == null || state.status !in RECOMPILED) return Decision.NoOp
-        val artifact = when (val compiled = compiled(published.definition, sources, policy)) {
-            is DatasetCompilation.Invalid -> return needsRevision(compiled.problems)
-            is DatasetCompilation.Compiled -> compiled.artifact
-        }
-        if (same(published.artifact, artifact)) {
+        val current = published.artifact
+        val compiled = compiled(published.definition, sources, policy)
+        val artifact = (compiled as? DatasetCompilation.Compiled)?.artifact
+        if (artifact != null && same(current, artifact)) {
             return if (state.status == DatasetStatus.NEEDS_REVISION) {
-                Decision.events(DatasetRevisionCleared(published.artifact.version))
+                Decision.events(DatasetRevisionCleared(current.version))
             } else {
                 Decision.NoOp
             }
         }
-        val unapproved = artifact.approvals - published.artifact.approvals.toSet()
-        if (unapproved.isNotEmpty()) {
-            return needsRevision(unapproved.map { "$it It takes an approver, which the published version did not." })
+        if (artifact == null) {
+            return needsRevision((compiled as DatasetCompilation.Invalid).problems, holds(current, warehouse))
         }
+        val problems = incompatibility(current, artifact, warehouse)
+        if (problems.isNotEmpty()) return needsRevision(problems, holds(current, warehouse))
         val columns = try {
             warehouse.create(artifact)
         } catch (failed: DatasetWarehouseException) {
-            return needsRevision(listOf("The view ${artifact.database}.${artifact.view}: ${failed.message}"))
+            val problem = "The view ${artifact.database}.${artifact.view}: ${failed.message}"
+            return needsRevision(listOf(problem), holds(current, warehouse))
         }
         return Decision.events(
             DatasetPublished(artifact.copy(columns = columns), published.definition, recompiled = true)
         )
     }
 
-    private fun needsRevision(problems: List<String>): Decision =
-        if (state.status == DatasetStatus.NEEDS_REVISION && state.problems == problems) {
-            Decision.NoOp
-        } else {
-            Decision.events(DatasetNeedsRevision(problems))
+    /** Why [next] does not keep [current]'s contract: new approvals, or columns of other names or types. */
+    private suspend fun incompatibility(
+        current: DatasetArtifact,
+        next: DatasetArtifact,
+        warehouse: DatasetWarehouse,
+    ): List<String> {
+        val unapproved = next.approvals - current.approvals.toSet()
+        if (unapproved.isNotEmpty()) {
+            return unapproved.map { "$it It takes an approver, which the published version did not." }
         }
+        val columns = warehouse.describe(next.select)
+            ?: return listOf("The warehouse cannot describe the recompiled view of ${current.context}.${current.name}.")
+        if (columns == current.columns) return emptyList()
+        val was = current.columns.map { "${it.name} ${it.type}" }
+        val now = columns.map { "${it.name} ${it.type}" }
+        return listOf("Its columns would change: ${was - now.toSet()} would become ${now - was.toSet()}.")
+    }
+
+    /** Whether [current]'s view still gives the columns it was published with: it can go on serving. */
+    private suspend fun holds(current: DatasetArtifact, warehouse: DatasetWarehouse): Boolean {
+        val view = "${DatasetCompiler.quote(current.database)}.${DatasetCompiler.quote(current.view)}"
+        return warehouse.describe("SELECT * FROM $view") == current.columns
+    }
+
+    private fun needsRevision(problems: List<String>, serving: Boolean): Decision {
+        val unchanged = state.status == DatasetStatus.NEEDS_REVISION && state.problems == problems &&
+            state.stillServing == serving
+        return if (unchanged) Decision.NoOp else Decision.events(DatasetNeedsRevision(problems, serving))
+    }
 
     /** [definition] as the next version, against the catalog's [sources] and the [policy]'s database. */
     private suspend fun compiled(definition: DatasetDefinition, sources: DatasetSources, policy: DatasetPolicy) =

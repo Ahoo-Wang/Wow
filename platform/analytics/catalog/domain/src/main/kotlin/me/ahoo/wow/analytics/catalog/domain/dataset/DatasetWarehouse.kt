@@ -29,6 +29,12 @@ interface DatasetWarehouse {
      */
     suspend fun create(artifact: DatasetArtifact): List<SourceColumn>
 
+    /**
+     * The columns [select] gives now, in order, as the warehouse describes it without running it; null when the
+     * warehouse cannot (a column it reads is gone, say).
+     */
+    suspend fun describe(select: String): List<SourceColumn>?
+
     /** Drops the [views] of [database] that are there. */
     suspend fun drop(database: String, views: List<String>)
 
@@ -38,6 +44,8 @@ interface DatasetWarehouse {
         val NONE: DatasetWarehouse = object : DatasetWarehouse {
             override suspend fun create(artifact: DatasetArtifact): List<SourceColumn> =
                 throw DatasetWarehouseException("The catalog has no warehouse to create ${artifact.view} in.")
+
+            override suspend fun describe(select: String): List<SourceColumn>? = null
 
             override suspend fun drop(database: String, views: List<String>) = Unit
         }

@@ -125,7 +125,8 @@ class DatasetPublicationWatcher(
             logger.warn { "$name comes from a dataset file, which takes precedence over its publication." }
             return false
         }
-        val revision = state.status == DatasetStatus.NEEDS_REVISION
+        // Needing revision, a dataset whose published version no longer holds is served unavailable.
+        val revision = state.status == DatasetStatus.NEEDS_REVISION && state.serving() == null
         val serving = state.serving() ?: state.published()?.artifact?.takeIf { revision }
         // A dataset that needs revision is served unavailable: a version of its own, never one a publication has.
         val version = serving?.version?.let { if (revision) -it else it }

@@ -66,10 +66,20 @@ class MemoryDatasetWarehouse : DatasetWarehouse {
     val dropped = mutableListOf<String>()
     var failing: String? = null
 
+    /** The columns a recompiled view would give; [COLUMNS] unless a test changes them, none when it cannot tell. */
+    var described: List<SourceColumn>? = COLUMNS
+
     override suspend fun create(artifact: DatasetArtifact): List<SourceColumn> {
         failing?.let { throw DatasetWarehouseException(it) }
         created["${artifact.database}.${artifact.view}"] = artifact
         return COLUMNS
+    }
+
+    override suspend fun describe(select: String): List<SourceColumn>? = if (select.startsWith("SELECT * FROM ")) {
+        // A published view gives its columns while it is there.
+        COLUMNS.takeIf { select.removePrefix("SELECT * FROM ").replace("`", "") in created }
+    } else {
+        described
     }
 
     override suspend fun drop(database: String, views: List<String>) {
@@ -292,50 +302,82 @@ class DatasetSpec {
     }
 
     @Test
-    fun `a source's change should publish what compiles otherwise, and mark what no longer compiles`() = spec {
-        drafted()
-        whenCommand(RecompileDataset) { expectUnchanged() }
-        whenCommand(PublishDataset) { expectEventTypes(DatasetPublished::class) }
-        whenCommand(RecompileDataset) { expectUnchanged() }
-        // The member's phone more protected now: the next version masks it so.
-        val tighter = tighterMembers()
-        catalog[MEMBERS_ID] = tighter
-        whenCommand(RecompileDataset) {
-            expectEventTypes(DatasetPublished::class)
-            expectState {
-                current.assert().isEqualTo(2)
-                serving()!!.fields.first { it.name == "member_phone" }.sensitivity!!.level.assert()
-                    .isEqualTo(SensitivityLevel.CONFIDENTIAL)
+    fun `a source's change should publish what keeps the contract, and mark what does not, serving what still holds`() =
+        spec {
+            drafted()
+            whenCommand(RecompileDataset) { expectUnchanged() }
+            whenCommand(PublishDataset) { expectEventTypes(DatasetPublished::class) }
+            whenCommand(RecompileDataset) { expectUnchanged() }
+            // The member's phone more protected now, the view's columns the same: published, masked so.
+            catalog[MEMBERS_ID] = tighterMembers()
+            whenCommand(RecompileDataset) {
+                expectEventTypes(DatasetPublished::class)
+                expectState {
+                    current.assert().isEqualTo(2)
+                    serving()!!.fields.first { it.name == "member_phone" }.sensitivity!!.level.assert()
+                        .isEqualTo(SensitivityLevel.CONFIDENTIAL)
+                }
+            }
+            // A source gone, the published view still whole: it needs revision and goes on serving.
+            catalog[REGIONS_ID] = null
+            val gone = listOf("The catalog has no source $REGIONS_ID.")
+            whenCommand(RecompileDataset) {
+                expectEvents(DatasetNeedsRevision(gone, serving = true))
+                expectState {
+                    status.assert().isEqualTo(DatasetStatus.NEEDS_REVISION)
+                    serving()!!.version.assert().isEqualTo(2)
+                }
+            }
+            whenCommand(RecompileDataset) { expectUnchanged() }
+            // The view no longer holds: refused.
+            warehouse.created.remove("bi.ds_shop_orders_v2")
+            whenCommand(RecompileDataset) {
+                expectEvents(DatasetNeedsRevision(gone, serving = false))
+                expectState { serving().assert().isNull() }
+            }
+            // Back: the published version serves again.
+            warehouse.created["bi.ds_shop_orders_v2"] = checkNotNull(warehouse.created["bi.ds_shop_orders_v1"])
+            catalog[REGIONS_ID] = SOURCES[REGIONS_ID]
+            whenCommand(RecompileDataset) {
+                expectEvents(DatasetRevisionCleared(2))
+                expectState { status.assert().isEqualTo(DatasetStatus.PUBLISHED) }
             }
         }
-        // A source gone: the dataset needs revision, once.
-        catalog[REGIONS_ID] = null
-        whenCommand(RecompileDataset) {
-            expectEvents(DatasetNeedsRevision(listOf("The catalog has no source $REGIONS_ID.")))
-            expectState {
-                status.assert().isEqualTo(DatasetStatus.NEEDS_REVISION)
-                serving().assert().isNull()
-                problems.assert().hasSize(1)
+
+    @Test
+    fun `a recompilation into other columns, or one the warehouse cannot describe or create, should need revision`() =
+        spec {
+            drafted()
+            whenCommand(PublishDataset) { expectEventTypes(DatasetPublished::class) }
+            catalog[MEMBERS_ID] = tighterMembers()
+            // A column retyped: not published under the dashboards that read it.
+            warehouse.described = MemoryDatasetWarehouse.COLUMNS.map { it.copy(type = "Nullable(String)") }
+            whenCommand(RecompileDataset) {
+                expectEventTypes(DatasetNeedsRevision::class)
+                expectState {
+                    problems.single().assert().contains("Its columns would change")
+                    stillServing.assert().isTrue()
+                    current.assert().isEqualTo(1)
+                }
             }
+            warehouse.described = null
+            whenCommand(RecompileDataset) {
+                expectState { problems.single().assert().contains("cannot describe") }
+            }
+            warehouse.described = MemoryDatasetWarehouse.COLUMNS
+            warehouse.failing = "no privileges"
+            whenCommand(RecompileDataset) {
+                expectEventTypes(DatasetNeedsRevision::class)
+                expectState { problems.single().assert().contains("no privileges") }
+            }
+            warehouse.failing = null
+            whenCommand(RecompileDataset) {
+                expectEventTypes(DatasetPublished::class)
+                expectState { status.assert().isEqualTo(DatasetStatus.PUBLISHED) }
+            }
+            whenCommand(RetireDataset) { expectEventTypes(DatasetRetired::class) }
+            whenCommand(RecompileDataset) { expectUnchanged() }
         }
-        whenCommand(RecompileDataset) { expectUnchanged() }
-        // Back: the published version serves again.
-        catalog[REGIONS_ID] = SOURCES[REGIONS_ID]
-        whenCommand(RecompileDataset) {
-            expectEvents(DatasetRevisionCleared(2))
-            expectState { status.assert().isEqualTo(DatasetStatus.PUBLISHED) }
-        }
-        // A view the warehouse refuses needs revision too.
-        catalog[MEMBERS_ID] = SOURCES[MEMBERS_ID]
-        warehouse.failing = "no privileges"
-        whenCommand(RecompileDataset) {
-            expectEventTypes(DatasetNeedsRevision::class)
-            expectState { problems.single().assert().contains("no privileges") }
-        }
-        warehouse.failing = null
-        whenCommand(RetireDataset) { expectEventTypes(DatasetRetired::class) }
-        whenCommand(RecompileDataset) { expectUnchanged() }
-    }
 
     @Test
     fun `a recompilation that now takes an approver should need revision instead of publishing`() = spec {
@@ -360,7 +402,10 @@ class DatasetSpec {
         )
         whenCommand(RecompileDataset) {
             expectEventTypes(DatasetNeedsRevision::class)
-            expectState { problems.single().assert().contains("takes an approver") }
+            expectState {
+                problems.single().assert().contains("takes an approver")
+                serving()!!.version.assert().isEqualTo(2)
+            }
         }
     }
 

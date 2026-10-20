@@ -62,8 +62,12 @@ class DatasetState {
     var requestReasons: List<String> = emptyList()
         private set
 
-    /** Why the published definition no longer compiles, while the dataset [DatasetStatus.NEEDS_REVISION]. */
+    /** Why the published definition needs revision, while the dataset [DatasetStatus.NEEDS_REVISION]. */
     var problems: List<String> = emptyList()
+        private set
+
+    /** Whether a dataset that needs revision still serves its published version, whose view still holds. */
+    var stillServing: Boolean = false
         private set
 
     /** Whether a retired dataset's views were dropped. */
@@ -107,6 +111,7 @@ class DatasetState {
         requested = null
         requestReasons = emptyList()
         problems = emptyList()
+        stillServing = false
     }
 
     fun onSourcing(event: DatasetRolledBack) {
@@ -114,16 +119,19 @@ class DatasetState {
         status = DatasetStatus.PUBLISHED
         dropped = false
         problems = emptyList()
+        stillServing = false
     }
 
     fun onSourcing(event: DatasetNeedsRevision) {
         status = DatasetStatus.NEEDS_REVISION
         problems = event.problems
+        stillServing = event.serving
     }
 
     fun onSourcing(@Suppress("UNUSED_PARAMETER") event: DatasetRevisionCleared) {
         status = DatasetStatus.PUBLISHED
         problems = emptyList()
+        stillServing = false
     }
 
     fun onSourcing(event: DatasetPublicationRequested) {
@@ -144,6 +152,11 @@ class DatasetState {
         dropped = true
     }
 
-    /** The artifact queries read, or null when none is published or the dataset is retired. */
-    fun serving(): DatasetArtifact? = published()?.artifact?.takeIf { status == DatasetStatus.PUBLISHED }
+    /**
+     * The artifact queries read, or null when none is published, the dataset is retired, or it needs revision and its
+     * published version no longer holds.
+     */
+    fun serving(): DatasetArtifact? = published()?.artifact?.takeIf {
+        status == DatasetStatus.PUBLISHED || status == DatasetStatus.NEEDS_REVISION && stillServing
+    }
 }

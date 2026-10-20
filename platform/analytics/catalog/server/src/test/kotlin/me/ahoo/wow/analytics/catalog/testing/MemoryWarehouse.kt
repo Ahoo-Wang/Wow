@@ -67,8 +67,21 @@ class MemoryDatasetWarehouse : DatasetWarehouse {
 
     override suspend fun create(artifact: DatasetArtifact): List<SourceColumn> {
         created["${artifact.database}.${artifact.view}"] = artifact
+        return columnsOf(artifact)
+    }
+
+    private fun columnsOf(artifact: DatasetArtifact): List<SourceColumn> {
         val scope = listOfNotNull(artifact.scope.tenant, artifact.scope.owner, artifact.scope.space)
         return (scope + artifact.fields.map { it.name }).map { SourceColumn(it, "String") }
+    }
+
+    /** The columns of a view created, or that the published artifact's select gives: text, by the artifact's names. */
+    override suspend fun describe(select: String): List<SourceColumn>? {
+        val artifact = created.values.firstOrNull {
+            select == it.select || select.replace("`", "") == "SELECT * FROM ${it.database}.${it.view}"
+        }
+            ?: created.values.firstOrNull { it.select == select }
+        return artifact?.let { columnsOf(it) }
     }
 
     override suspend fun drop(database: String, views: List<String>) {

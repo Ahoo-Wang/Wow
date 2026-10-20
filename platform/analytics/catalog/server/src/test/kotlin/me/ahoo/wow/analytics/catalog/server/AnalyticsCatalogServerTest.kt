@@ -185,6 +185,7 @@ class AnalyticsCatalogServerTest {
         node.datasetCommand(id, "publish-dataset", "{}", Who.VIEWER).assertProblem(FORBIDDEN, "wow.auth.forbidden")
         node.datasetCommand(id, "publish-dataset", "{}", Who.EDITOR).assertOk()
         views.created.keys.assert().containsExactly("wow_datasets.ds_shop_invoices_v1")
+        val publishedArtifact = views.created["wow_datasets.ds_shop_invoices_v1"]
         val name = AggregateType("shop", "invoices")
         eventually("the dataset served") { datasets[name] != null }
         val served = datasets[name]!!
@@ -193,11 +194,19 @@ class AnalyticsCatalogServerTest {
         val phone = served.declaration.fields.getValue(QueryField("phone"))
         phone.maskRule.toString().assert().contains("DISPLAY").contains("prefix=3")
 
-        // The phone column gone from its source: the dataset needs revision, served unavailable; back, served again.
+        // The phone column gone from its source: the dataset needs revision; its view still holds here (the views
+        // are in memory), so it goes on serving. Once the view no longer holds, it is served unavailable.
         warehouse.put(INVOICES.copy(columns = INVOICES.columns.filter { it.name != "phone" }))
-        eventually("the dataset needing revision") { datasets[name]?.unavailable == "needs revision" }
-        node.dataset(id)["state"]["status"].asString().assert().isEqualTo("NEEDS_REVISION")
+        eventually("the dataset needing revision") {
+            node.dataset(id)["state"]["status"].asString() == "NEEDS_REVISION"
+        }
         node.dataset(id)["state"]["problems"].values().single().asString().assert().contains("phone is not a column")
+        node.dataset(id)["state"]["stillServing"].asBoolean().assert().isTrue()
+        datasets[name]!!.unavailable.assert().isNull()
+        views.created.remove("wow_datasets.ds_shop_invoices_v1")
+        warehouse.put(INVOICES.copy(uuid = "uuid-invoices-2", columns = INVOICES.columns.filter { it.name != "phone" }))
+        eventually("the dataset served unavailable") { datasets[name]?.unavailable == "needs revision" }
+        views.created["wow_datasets.ds_shop_invoices_v1"] = checkNotNull(publishedArtifact)
         warehouse.put(INVOICES)
         eventually("the dataset served again") { datasets[name]?.let { it.unavailable == null } == true }
 

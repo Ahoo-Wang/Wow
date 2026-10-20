@@ -175,6 +175,9 @@ class DatasetPublicationIntegrationTest {
                 .assert().containsExactly("o2")
 
             // A source's schema changes under the published view: its queries are refused, plainly, not failed.
+            // The catalog sees a table change by its metadata time, in seconds: change it in a later second than its
+            // creation.
+            Thread.sleep(SECOND)
             execute("ALTER TABLE $DATABASE.customers DROP COLUMN phone")
             eventually("the dataset needing revision") { node.post(QUERY, query, t1).status == CONFLICT }
             node.post(QUERY, query, t1).assertProblem(CONFLICT, "wow.query.dataset-unavailable").json["detail"]
@@ -220,6 +223,9 @@ class DatasetPublicationIntegrationTest {
             artifact.copy(ddl = "CREATE OR REPLACE VIEW `$VIEWS`.`ds_shop_maps_v1` AS SELECT 't' AS tenant_id, ['a'] AS m"),
         )
         created.map { it.type }.assert().containsExactly("String", "Array(String)")
+        warehouse.describe("SELECT * FROM `$VIEWS`.`ds_shop_maps_v1`")!!.map { it.name }.assert().containsExactly("tenant_id", "m")
+        warehouse.describe("SELECT 1 AS one, toString(now()) AS at")!!.map { it.type }.assert().containsExactly("UInt8", "String")
+        warehouse.describe("SELECT nothing FROM `$VIEWS`.`ds_shop_maps_v1`").assert().isNull()
         warehouse.drop(VIEWS, listOf("ds_shop_maps_v1", "ds_shop_none_v1"))
     }
 
@@ -231,5 +237,6 @@ class DatasetPublicationIntegrationTest {
         const val BAD_REQUEST = 400
         const val NOT_FOUND = 404
         const val CONFLICT = 409
+        const val SECOND = 1100L
     }
 }

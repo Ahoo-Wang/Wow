@@ -12,7 +12,7 @@
       "description" : "A wide table over the catalog's sources: its definition, its versions and where each is published",
       "state" : {
         "schema" : "#/$defs/me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState",
-        "fingerprint" : "8018770d5c5fa5e07022cd377f8935d390140fe749edb3afcd8c608e5fbda5f6"
+        "fingerprint" : "df39c48b3950bd9b9d89807f368ad52573e960fe2ac8c24fdb6e287e730cdee3"
       },
       "snapshot" : {
         "enabled" : true
@@ -661,6 +661,9 @@
             }
           }
         },
+        "select" : {
+          "type" : "string"
+        },
         "sources" : {
           "type" : "array",
           "items" : {
@@ -810,6 +813,9 @@
           "items" : {
             "type" : "string"
           }
+        },
+        "serving" : {
+          "type" : "boolean"
         }
       },
       "required" : [ "problems" ],
@@ -1446,6 +1452,9 @@
           "type" : "string",
           "enum" : [ "DRAFT", "PUBLISHED", "RETIRED", "NEEDS_REVISION" ]
         },
+        "stillServing" : {
+          "type" : "boolean"
+        },
         "title" : {
           "type" : [ "string", "null" ]
         },
@@ -1465,7 +1474,7 @@
           }
         }
       },
-      "required" : [ "context", "current", "dropped", "name", "problems", "requestReasons", "sources", "status", "versions" ]
+      "required" : [ "context", "current", "dropped", "name", "problems", "requestReasons", "sources", "status", "stillServing", "versions" ]
     },
     "me.ahoo.wow.analytics.catalog.domain.source.SourceState" : {
       "type" : "object",

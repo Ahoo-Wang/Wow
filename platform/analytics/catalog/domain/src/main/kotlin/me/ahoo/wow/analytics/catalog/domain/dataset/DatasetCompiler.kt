@@ -106,6 +106,7 @@ object DatasetCompiler {
             database = database,
             view = view,
             ddl = "CREATE OR REPLACE VIEW ${quote(database)}.${quote(view)} AS\n$select",
+            select = select,
             title = title,
             scope = scope.value,
             fields = dataset.columns.map { column ->

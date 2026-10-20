@@ -53,11 +53,13 @@ data class DatasetRetired(val version: Int)
 data class DatasetViewsDropped(val views: List<String>)
 
 /**
- * The dataset's published definition no longer compiles against the catalog, for [problems]: its queries are
- * answered `wow.query.dataset-unavailable` until it is revised and published, or its sources come back.
+ * The dataset's published definition needs revision, for [problems]: it no longer compiles against the catalog, or it
+ * compiles into other columns than its published version has, or it now takes an approver. While the published
+ * version's view still gives the columns it was published with, it goes on [serving]; otherwise its queries are
+ * answered `wow.query.dataset-unavailable` until a revision is published or its sources come back.
  */
 @Summary("A dataset needs revision")
-data class DatasetNeedsRevision(val problems: List<String>)
+data class DatasetNeedsRevision(val problems: List<String>, val serving: Boolean = false)
 
 /** The dataset's published version [version] compiles again: its queries read it again. */
 @Summary("A dataset's version compiles again")
