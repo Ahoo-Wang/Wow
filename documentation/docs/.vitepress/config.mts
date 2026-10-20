@@ -8,6 +8,7 @@ import {navbarEn} from "./configs/navbar.en";
 import {sidebarEn} from "./configs/sidebar.en";
 import {head} from "./configs/head";
 import {isStorybookLink, storybookLinks} from "./storybook-links.mjs";
+import {writeRedirects} from "./redirects.mjs";
 
 // https://vitepress.dev/reference/site-config
 const userConfig = defineConfig({
@@ -20,14 +21,14 @@ const userConfig = defineConfig({
         isStorybookLink,
     ],
     head: head,
+    // The pages of 9.x URLs that have a successor here (redirects.mjs).
+    buildEnd: (siteConfig) => writeRedirects(siteConfig.outDir),
     rewrites: (id) => id.startsWith('en/') ? id.slice(3) : id,
     transformHead({page, title, description}) {
         const isChinese = page.startsWith('zh/')
-        const isArticle = (page.startsWith('articles/') || page.startsWith('zh/articles/')) &&
-            !page.endsWith('articles/index.md')
         return [
             ['meta', {property: 'og:site_name', content: 'Wow'}],
-            ['meta', {property: 'og:type', content: isArticle ? 'article' : 'website'}],
+            ['meta', {property: 'og:type', content: 'website'}],
             ['meta', {property: 'og:title', content: title}],
             ['meta', {property: 'og:description', content: description}],
             ['meta', {property: 'og:locale', content: isChinese ? 'zh_CN' : 'en_US'}],
@@ -110,7 +111,7 @@ const userConfig = defineConfig({
                 sidebar: sidebarEn,
                 notFound: {
                     title: 'Page Not Found',
-                    quote: 'The page you are looking for does not exist.',
+                    quote: 'The page you are looking for does not exist. The pages of Wow 9.x are under /9.x/.',
                     linkText: 'Go home'
                 }
             }
@@ -148,7 +149,7 @@ const userConfig = defineConfig({
                 sidebar: sidebarZh,
                 notFound: {
                     title: '页面未找到',
-                    quote: '你访问的页面不存在。',
+                    quote: '你访问的页面不存在。Wow 9.x 的页面在 /9.x/ 下。',
                     linkText: '返回首页'
                 }
             }
