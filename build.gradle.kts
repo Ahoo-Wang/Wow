@@ -553,7 +553,7 @@ configure(v10ReleaseProjects) {
     }
 }
 
-// The release rehearsal of the V10 publications (R.1): `./gradlew -Pwow.scope=v10 v10PublicationCheck` builds and
+// The release rehearsal of the V10 publications (R.1): `./gradlew v10PublicationCheck` builds and
 // signs every V10 release module and :wow-dependencies as the release's preflight does (with the release key and
 // `-Pwow.publication.signed=true` there, with a throwaway key elsewhere, see Signatures), publishes them into
 // build/v10-publication-check/repo, then checks that each library has its jar, sources and javadoc jars, POM and
@@ -677,7 +677,7 @@ tasks.register("v10PublicationCheck") {
         val deploy = ProcessBuilder(
             listOf(
                 File(rootDirectory, "gradlew").path, "--no-daemon", "--quiet",
-                "-Pwow.scope=v10", "-Pwow.publication.prebuilt=true", "-Pversion=$releaseVersion",
+                "-Pwow.publication.prebuilt=true", "-Pversion=$releaseVersion",
                 "publishAllPublicationsToV10DeployCheckRepository",
             ) + listOfNotNull("--offline".takeIf { offline }),
         ).directory(rootDirectory).inheritIO()
@@ -770,7 +770,7 @@ tasks.register("v10PublicationCheck") {
 // The JVM ABI of every published library is kept in its `api/<module>.api`; `check` runs `checkKotlinAbi`
 // against it, so a 9.x patch cannot change a public signature unnoticed. `./gradlew updateKotlinAbi` rewrites
 // the dumps; AGENTS.md ("Binary Compatibility") says when that is allowed. The published V10 modules joined at the
-// API freeze (D216); `./gradlew -Pwow.scope=v10 updateKotlinAbi` rewrites their dumps, and between the M7 exit and
+// API freeze (D216); `./gradlew updateKotlinAbi` rewrites their dumps, and between the M7 exit and
 // 10.0.0 GA a removed or changed line there takes the `breaking-change` label.
 configure(publishProjects - bomProjects - v10PublishedLibraries + v10AbiProjects) {
     configure<KotlinJvmProjectExtension> {

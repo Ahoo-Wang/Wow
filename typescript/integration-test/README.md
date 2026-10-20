@@ -189,7 +189,7 @@ own configuration serves its snapshot queries from memory
 (`wow.query.memory.enabled`). Build it first, with JDK 21:
 
 ```bash
-./gradlew -Pwow.scope=v10 :view-store-server:installDist
+./gradlew :view-store-server:installDist
 pnpm --filter @ahoo-wang/wow-view-store... build
 pnpm --dir typescript/integration-test test:v10
 ```

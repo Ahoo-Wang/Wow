@@ -202,8 +202,6 @@ dependencies {
 | `wow.manifest.module` | 片段的文件名 `META-INF/wow/manifest/<module>.json`；不设置时取上下文名 |
 | `wow.context` | 模块的上下文；不设置时取模块中唯一的 `@BoundedContext` |
 
-在仓库内，Gradle 用 `-Pwow.scope=v10` 只构建 V10 项目。
-
 ## 命名上下文
 
 领域模块在一个单独的对象上声明一次它的限界上下文：
@@ -273,11 +271,6 @@ import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Decision
 import java.math.BigDecimal
 
-object ProductRejections {
-    @ErrorCode(description = "A price is never negative.")
-    const val NEGATIVE_PRICE = "catalog.product.negative-price"
-}
-
 /** 第一个事件之前每个属性都要有值：内核按原样序列化状态。 */
 class ProductState(val id: String) {
     var name: String = ""
@@ -302,9 +295,14 @@ class Product(private val state: ProductState) {
     @OnCommand(produces = [PriceChanged::class])
     fun onCommand(command: ChangePrice): Decision = when {
         command.price.signum() < 0 ->
-            Decision.reject(ProductRejections.NEGATIVE_PRICE, "${command.price} is negative.")
+            Decision.reject(Rejections.NEGATIVE_PRICE, "${command.price} is negative.")
         command.price.compareTo(state.price) == 0 -> Decision.NoOp
         else -> Decision.events(PriceChanged(command.price))
+    }
+
+    object Rejections {
+        @ErrorCode(description = "A price is never negative.")
+        const val NEGATIVE_PRICE = "negative-price" // catalog.product.negative-price
     }
 }
 ```
@@ -341,7 +339,7 @@ class ProductSpec {
     @Test
     fun `a negative price is rejected`() = aggregateSpec(model, id = "apple") {
         given(ProductListed("Apple", BigDecimal("2.50")))
-        whenCommand(ChangePrice(BigDecimal("-1"))) { expectRejected(ProductRejections.NEGATIVE_PRICE) }
+        whenCommand(ChangePrice(BigDecimal("-1"))) { expectRejected(Product.Rejections.NEGATIVE_PRICE) }
     }
 
     @Test

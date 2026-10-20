@@ -87,7 +87,7 @@ test('any other workflow, the release workflow included, runs only the workflow 
   for (const path of [
     '.github/workflows/package-deploy.yml',
     '.github/workflows/documentation-deploy.yml',
-    '.github/workflows/view-store-deploy.yml',
+    '.github/workflows/v10-image-deploy.yml',
     '.github/workflows/v10-nightly.yml',
     '.github/workflows/gitee-sync.yml',
   ])

@@ -18,8 +18,7 @@ rootProject.name = "Wow"
 
 /*
  * Only V10 projects remain: the 9.x code left `v10` early (decisions D244, D262; it lives on at the side branch
- * `v10-9x-baseline` and on main). The build scope `-Pwow.scope` that told the two apart is gone; a `-Pwow.scope=v10`
- * a caller still passes is an unused property and changes nothing.
+ * `v10-9x-baseline` and on main). The build scope `-Pwow.scope` that told the two apart is gone.
  */
 
 /*
