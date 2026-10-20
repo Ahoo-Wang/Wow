@@ -58,6 +58,7 @@ object WowHttpContract {
     /** The query parameters of a state read and of a trace. */
     const val VERSION_PARAMETER: String = "version"
     const val AT_PARAMETER: String = "at"
+    const val MIN_VERSION_PARAMETER: String = "minVersion"
     const val FROM_PARAMETER: String = "from"
     const val TO_PARAMETER: String = "to"
     const val LIMIT_PARAMETER: String = "limit"

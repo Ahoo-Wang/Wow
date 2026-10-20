@@ -18,6 +18,7 @@ import com.zaxxer.hikari.HikariDataSource
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.runtime.node.Routing
 import me.ahoo.wow.spi.log.Partitioner
@@ -111,6 +112,37 @@ class PostgresClusterTest {
         state.status.assert().isEqualTo(200)
         state.body!!["state"]["balance"].asLong().assert().isEqualTo(7)
         state.body!!["version"].asInt().assert().isEqualTo(2)
+    }
+
+    @Test
+    fun `a node should read its own write by version, refuse one not reached, and page totals with their rows`() {
+        val id = "rmv-${System.nanoTime()}"
+        val committed = mapOf(WowHeaders.WAIT to "committed")
+        first.post("/bank/account/$id/open-account", """{"owner":"rita"}""", committed).status.assert().isEqualTo(200)
+        val deposited = first.post("/bank/account/$id/deposit", """{"amount":5}""", committed)
+        deposited.status.assert().isEqualTo(200)
+        val version = deposited.body!!["version"].asInt()
+        version.assert().isEqualTo(2)
+        // Read your writes on the other node, whatever its snapshot holds yet (review R4-Q, Q-13).
+        val read = second.get("/bank/account/$id/state?minVersion=$version")
+        read.status.assert().isEqualTo(200)
+        read.body!!["version"].asInt().assert().isEqualTo(version)
+        read.body!!["state"]["balance"].asLong().assert().isEqualTo(5)
+        // A version not committed within the wait: 409 with the current version.
+        val behind = second.get("/bank/account/$id/state?minVersion=${version + 1}")
+        behind.status.assert().isEqualTo(409)
+        behind.body!!["code"].asString().assert().isEqualTo("wow.query.min-version-not-reached")
+        behind.body!!["version"].asInt().assert().isEqualTo(version)
+        // A paged total is counted with its page on every node (Q-12): it agrees with the rows.
+        val filter = """{"op":"EQ","field":"state.owner","value":"rita"}"""
+        hosts.forEach { host ->
+            val paged = host.post(
+                "/bank/account/snapshot/query",
+                """{"kind":"paged","filter":$filter,"pagination":{"index":1,"size":10}}""",
+            )
+            paged.status.assert().isEqualTo(200)
+            paged.body!!["total"].asLong().assert().isEqualTo(paged.body!!["list"].size().toLong())
+        }
     }
 
     @Test
