@@ -232,7 +232,7 @@ fun `a placed order should show in the order list`() {
 
 ## 测试绑定索引与片段
 
-领域模块的测试可以加载编译器生成的内容：`ModelProvider.load()` 找到模块的绑定索引，`provider.models(Dependencies.of(stubs…))` 构建它的模型，`provider.fragment` 给出要读取并检查的片段资源（路由、事件、错误码、订阅）。`provider.processors(dependencies)` 构造模块的每个处理器，所以需要它们全部的服务。示例的 [`ShopDomainModelProviderTest`](https://github.com/Ahoo-Wang/Wow/tree/v10/example/shop/shop-domain/src/test/kotlin/me/ahoo/wow/example/shop/domain/ShopDomainModelProviderTest.kt) 就是这样做的。
+领域模块的测试可以加载编译器生成的内容：`ModelProvider.load()` 找到模块的绑定索引，`provider.models(Dependencies.of(stubs…))` 构建它的模型，`provider.fragment` 给出要读取并检查的片段资源（路由、事件、错误码、订阅）。`provider.processors(dependencies)` 构造模块的每个处理器，所以需要它们全部的服务。eShop 订单上下文的 [`OrderingDomainModelProviderTest`](https://github.com/Ahoo-Wang/Wow/blob/v10/example/eshop/ordering/ordering-domain/src/test/kotlin/me/ahoo/wow/example/eshop/ordering/domain/OrderingDomainModelProviderTest.kt) 就是这样做的。
 
 ## 测试服务端
 

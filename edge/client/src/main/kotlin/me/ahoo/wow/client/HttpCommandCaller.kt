@@ -14,6 +14,7 @@
 package me.ahoo.wow.client
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.runBlocking
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.result.CommandResult
@@ -73,6 +74,14 @@ class HttpCommandCaller internal constructor(private val transport: HttpTranspor
         client: HttpClient,
         timeout: Duration,
     ) : this(HttpTransport(endpoints, ClientMode.Service(credential), client, timeout, RetryPolicy.NONE))
+
+    /**
+     * Whether the endpoints give [context] an internal URL (decision D259): the node does not start when a saga calls
+     * a context without one, rather than failing the call later. A resolver that discovers its services is asked once,
+     * at that check.
+     */
+    override fun reaches(context: String): Boolean =
+        runBlocking { transport.endpoints.resolve(context, Port.INTERNAL) } != null
 
     @Suppress("TooGenericExceptionCaught") // Whatever fails the exchange is a call that reached no result.
     override suspend fun call(call: OutgoingCall): CommandResult {

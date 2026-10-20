@@ -49,7 +49,8 @@ fun interface CommandCaller {
 
     /**
      * Whether it knows where to call [context]'s gateway (decision D259): a node whose sagas call a context its caller
-     * does not reach is not built. True unless the caller says otherwise.
+     * does not reach is not built. The default answers true; the host's HTTP caller (`wow-client`'s
+     * `HttpCommandCaller`) answers whether its endpoints give [context] an internal URL.
      */
     fun reaches(context: String): Boolean = true
 }

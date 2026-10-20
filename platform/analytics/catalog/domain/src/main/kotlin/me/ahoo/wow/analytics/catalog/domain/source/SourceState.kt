@@ -73,6 +73,10 @@ class SourceState {
         private set
     var spaceColumn: String? = null
         private set
+
+    /** Whether the source is a platform dimension: every tenant shares its rows, and it has no tenant column. */
+    var platform: Boolean = false
+        private set
     var references: List<SourceReference> = emptyList()
         private set
     var sensitivity: List<FieldSensitivity> = emptyList()
@@ -111,6 +115,7 @@ class SourceState {
         ownerColumn = event.ownerColumn
         spaceColumn = event.spaceColumn
         references = event.references
+        platform = event.platform
         status = SourceStatus.DRAFT
     }
 
@@ -155,6 +160,7 @@ class SourceState {
         tenantColumn = event.tenantColumn
         ownerColumn = event.ownerColumn
         spaceColumn = event.spaceColumn
+        platform = false
         references = event.references
         sensitivity = event.sensitivity
         claimed = event.claimed
