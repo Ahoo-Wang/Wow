@@ -26,6 +26,7 @@ import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.ScheduleJobs
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.kernel.Creation

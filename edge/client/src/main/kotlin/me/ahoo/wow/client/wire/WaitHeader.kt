@@ -11,8 +11,9 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.http.command
+package me.ahoo.wow.client.wire
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.Stage
 import me.ahoo.wow.api.result.WaitPlan
@@ -42,7 +43,8 @@ import java.time.Duration as JavaDuration
  *
  * [format] prints a plan as [parse] reads it, the inverse of [parse].
  */
-internal object WaitHeader {
+@InternalWowApi
+object WaitHeader {
     private val HOP = Regex("""^([A-Za-z]+)\s*(?:\(\s*([^()]*?)\s*\))?$""")
     private val NAME = Regex("""^[A-Za-z0-9_.\-]+$""")
     private val SHORT_TIMEOUT = Regex("""^(\d{1,9})\s*(ms|s|m)$""")

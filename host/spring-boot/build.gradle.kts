@@ -3,6 +3,8 @@ description = "Wow Spring Boot: auto-configuration by classpath; wiring only"
 dependencies {
     api(project(":runtime"))
     api(project(":http"))
+    // The typed clients of the peers (decision D257) and the sagas' synchronous calls (decision D193).
+    api(project(":client"))
     // The OpenAPI document of the public routes, and the security schemes an application declares for it (D233).
     api(project(":openapi"))
     // The starter, as every Spring Boot starter has: auto-configuration, logging and SnakeYAML, so an application that

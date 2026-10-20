@@ -24,6 +24,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.query.QueryErrorCodes
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.read.StateHandler
 import me.ahoo.wow.kernel.EventCodec

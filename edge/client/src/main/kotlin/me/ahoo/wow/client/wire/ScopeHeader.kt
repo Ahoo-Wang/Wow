@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-package me.ahoo.wow.http.command
+package me.ahoo.wow.client.wire
 
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.runtime.admission.TargetScope
