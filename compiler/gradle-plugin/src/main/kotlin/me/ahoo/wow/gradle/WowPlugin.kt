@@ -252,10 +252,14 @@ class WowPlugin : Plugin<Project> {
     private fun contractSources(api: Project, main: SourceSet, assemble: TaskProvider<AssembleContract>) {
         val sourceSets = api.extensions.getByType(SourceSetContainer::class.java)
         val generated = sourceSets.create(CONTRACT_SOURCE_SET)
+        val tools = toolsConfiguration(api)
         val generate = api.tasks.register(GENERATE_CONTRACT_SOURCES_TASK, GenerateContractSources::class.java) { task ->
             task.group = GROUP_NAME
-            task.description = "Generates the constants and refs of this api module's contexts from its contract."
+            task.description = "Generates the constants, refs and query fields of this api module's contexts from " +
+                "its contract."
             task.contract.from(assemble.map { it.outputDirectory.file(PeerContracts.RESOURCE) })
+            task.classpath.from(api.provider { generated.compileClasspath })
+            task.tools.from(tools)
             task.outputDirectory.set(api.layout.buildDirectory.dir("generated/wow/contract/kotlin"))
         }
         (generated.extensions.getByName("kotlin") as SourceDirectorySet).srcDir(generate)
@@ -437,6 +441,7 @@ class WowPlugin : Plugin<Project> {
      * `me.ahoo.wow:wow-manifest-tools` of the plugin's version; declaring a dependency in it replaces that default.
      */
     private fun toolsConfiguration(project: Project): Configuration {
+        project.configurations.findByName(TOOLS_CONFIGURATION)?.let { return it }
         val objects = project.objects
         return project.configurations.create(TOOLS_CONFIGURATION) { configuration ->
             configuration.description = "The tools the Wow Manifest tasks run in their isolated workers."

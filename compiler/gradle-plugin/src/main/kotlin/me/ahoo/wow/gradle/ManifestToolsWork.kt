@@ -14,6 +14,7 @@
 package me.ahoo.wow.gradle
 
 import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
@@ -75,6 +76,25 @@ internal object ManifestToolsWork {
                 parameters.classpath.files.toList<File>(),
                 parameters.serviceName.get(),
                 parameters.serviceVersion.orNull,
+                parameters.output.get().asFile,
+            )
+        }
+    }
+
+    /** Generates the Kotlin sources of an api module's contract (`ManifestTools.generateContractSources`). */
+    abstract class GenerateContractSources : WorkAction<GenerateContractSources.Parameters> {
+        interface Parameters : WorkParameters {
+            val contracts: ConfigurableFileCollection
+            val queryFields: Property<Boolean>
+            val output: DirectoryProperty
+        }
+
+        override fun execute() {
+            call(
+                javaClass.classLoader,
+                "generateContractSources",
+                parameters.contracts.files.toList<File>(),
+                parameters.queryFields.get(),
                 parameters.output.get().asFile,
             )
         }

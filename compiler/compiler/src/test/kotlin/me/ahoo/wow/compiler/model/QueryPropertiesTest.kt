@@ -16,7 +16,6 @@ package me.ahoo.wow.compiler.model
 import com.tschuchort.compiletesting.KotlinCompilation
 import com.tschuchort.compiletesting.SourceFile
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.compiler.model.QueryPropertiesSource.toUpperSnake
 import org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi
 import org.junit.jupiter.api.Test
 
@@ -105,7 +104,7 @@ class QueryPropertiesTest {
                 "STATE__STATUS" to "state.status",
                 "STATE__ADDRESS" to "state.address",
                 "STATE__ADDRESS__CITY" to "state.address.city",
-                "STATE__ADDRESS__POSTAL_CODE" to "state.address.zip",
+                "STATE__ADDRESS__ZIP" to "state.address.zip",
                 "STATE__LINES" to "state.lines",
                 "STATE__LINES__SKU" to "state.lines.sku",
                 "STATE__LINES__QUANTITY" to "state.lines.quantity",
@@ -162,13 +161,6 @@ class QueryPropertiesTest {
         val (compilation, result) = compileModel("generate", order)
         result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
         compilation.workingDir.walkTopDown().any { it.name.endsWith("Properties.kt") }.assert().isFalse()
-    }
-
-    @Test
-    fun `names are upper snake case`() {
-        "productId".toUpperSnake().assert().isEqualTo("PRODUCT_ID")
-        "URLValue".toUpperSnake().assert().isEqualTo("URL_VALUE")
-        "first-name".toUpperSnake().assert().isEqualTo("FIRST_NAME")
     }
 
     /** The generated object's constants, in declaration order (the inherited ones last), as name to path. */

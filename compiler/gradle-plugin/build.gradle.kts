@@ -54,6 +54,8 @@ dependencies {
     functionalPluginClasspath("org.jetbrains.kotlin:kotlin-gradle-plugin:${libs.versions.kotlin.asProvider().get()}")
     // The generated models build on the kernel, which brings wow-api.
     fixtureCompileClasspath(project(":kernel"))
+    // The query fields of the states: the compiler's <State>Properties and the api's generated <Context>Contract.
+    fixtureCompileClasspath(project(":query-api"))
     fixtureCompileClasspath("com.fasterxml.jackson.core:jackson-annotations")
     fixtureCompileClasspath(platform(project(":wow-dependencies")))
     fixtureProcessorClasspath(project(":compiler"))

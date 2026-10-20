@@ -13,32 +13,48 @@
 
 package me.ahoo.wow.gradle
 
-import me.ahoo.wow.manifest.ContextManifest
-import me.ahoo.wow.manifest.Manifest
-import me.ahoo.wow.manifest.PeerContracts
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.tasks.CacheableTask
+import org.gradle.api.tasks.Classpath
+import org.gradle.api.tasks.CompileClasspath
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.gradle.workers.WorkerExecutor
 import java.io.File
+import java.util.zip.ZipException
+import java.util.zip.ZipFile
+import javax.inject.Inject
 
 /**
  * Generates the Kotlin sources of an api module's [contract], `META-INF/wow/contract.json` as
  * [WowPlugin.ASSEMBLE_CONTRACT_TASK] assembles it (decisions D256 ①, D259): per context the object
- * `<api package>.<Context>Contract` ([ContractSources]), which the api module compiles in its
- * [WowPlugin.CONTRACT_SOURCE_SET] source set and its jar carries. No contract, no source.
+ * `<api package>.<Context>Contract` with the context's name and, per aggregate, its `TYPE`, `ref(tenantId, id)`,
+ * ownership, snapshot and query models, and the `QueryField` constants of its state's paths, named as the compiler
+ * names the domain module's `<State>Properties`. The api module compiles them in its [WowPlugin.CONTRACT_SOURCE_SET]
+ * source set and its jar carries them. No contract, no source.
+ *
+ * The query fields need `wow-query-api`, as the compiler's do: they are generated only when the [classpath] the code
+ * compiles against holds it. The generator runs in a worker over [tools] (`wow-manifest-tools`).
  */
 @CacheableTask
-abstract class GenerateContractSources : DefaultTask() {
+abstract class GenerateContractSources @Inject constructor(private val workers: WorkerExecutor) : DefaultTask() {
     /** The api module's assembled contract: one file, or none when no context is the api module's. */
     @get:InputFiles
     @get:PathSensitive(PathSensitivity.NAME_ONLY)
     abstract val contract: ConfigurableFileCollection
+
+    /** The class path the generated code compiles against. */
+    @get:CompileClasspath
+    abstract val classpath: ConfigurableFileCollection
+
+    /** The generator: the `wowManifestTools` configuration of the api module. */
+    @get:Classpath
+    abstract val tools: ConfigurableFileCollection
 
     /** The root of the generated Kotlin sources. */
     @get:OutputDirectory
@@ -46,70 +62,29 @@ abstract class GenerateContractSources : DefaultTask() {
 
     @TaskAction
     fun generate() {
-        val output = outputDirectory.get().asFile
-        output.deleteRecursively()
-        contract.files.filter { it.isFile }.map(ContractJson::read).flatMap(ContractSources::of).forEach { source ->
-            File(output, source.path).apply { parentFile.mkdirs() }.writeText(source.text)
-        }
-    }
-}
-
-/**
- * The Kotlin sources of a contract (decision D259 "契约常量"): per context `<package>.<Context>Contract`, whose
- * package is the one its command and event classes share, holding the context's `NAME` and, per aggregate, an object
- * with the aggregate's `TYPE` and `ref(tenantId, id)`.
- */
-internal object ContractSources {
-    /** One generated file: its [path] under the source root and its [text]. */
-    data class Source(val path: String, val text: String)
-
-    fun of(contract: Manifest): List<Source> = contract.contexts.map(::of)
-
-    fun of(context: ContextManifest): Source {
-        val pkg = packageOf(PeerContracts.classesOf(context))
-        val name = "${pascal(context.name)}Contract"
-        val aggregates = context.aggregates.joinToString("") { aggregate ->
-            """
-            |
-            |    /** The aggregate `${aggregate.name}`. */
-            |    object ${pascal(aggregate.name)} {
-            |        @JvmField
-            |        val TYPE: AggregateType = AggregateType(NAME, "${aggregate.name}")
-            |
-            |        /** Refers to the instance [id] of `${aggregate.name}` under [tenantId]. */
-            |        @JvmStatic
-            |        fun ref(tenantId: String, id: String): AggregateRef = TYPE.ref(tenantId, id)
-            |    }
-            |
-            """.trimMargin()
-        }
-        val header = if (pkg.isEmpty()) "" else "package $pkg\n\n"
-        val text = header +
-            """
-            |import me.ahoo.wow.api.aggregate.AggregateRef
-            |import me.ahoo.wow.api.aggregate.AggregateType
-            |
-            |/** The context `${context.name}`, generated from its peer contract. Do not edit. */
-            |object $name {
-            |    const val NAME: String = "${context.name}"
-            |
-            """.trimMargin() + aggregates + "}\n"
-        val directory = if (pkg.isEmpty()) "" else pkg.replace('.', '/') + "/"
-        return Source("$directory$name.kt", text)
+        val queryFields = hasQueryApi(classpath.files)
+        workers.classLoaderIsolation { spec -> spec.classpath.from(tools) }
+            .submit(ManifestToolsWork.GenerateContractSources::class.java) { parameters ->
+                parameters.contracts.from(contract)
+                parameters.queryFields.set(queryFields)
+                parameters.output.set(outputDirectory)
+            }
     }
 
-    /** The package the binary names [classes] share: the longest common one, empty when they share none. */
-    fun packageOf(classes: List<String>): String {
-        val packages = classes.map { it.substringBeforeLast('.', "").split('.').filter(String::isNotEmpty) }
-        val common = packages.reduceOrNull { shared, next ->
-            shared.zip(
-                next
-            ).takeWhile { it.first == it.second }.map { it.first }
-        }
-        return common.orEmpty().joinToString(".")
-    }
+    internal companion object {
+        private const val QUERY_FIELD = "me/ahoo/wow/api/query/QueryField.class"
 
-    /** `eshop-inventory` → `EshopInventory`: the name's words, capitalised, without separators. */
-    fun pascal(name: String): String = name.split('-', '_', '.', ' ').filter(String::isNotEmpty)
-        .joinToString("") { word -> word.replaceFirstChar(Char::uppercaseChar) }
+        /** Whether [classpath] holds `wow-query-api`, whose `QueryField` the query field constants are. */
+        fun hasQueryApi(classpath: Iterable<File>): Boolean = classpath.any { entry ->
+            when {
+                entry.isDirectory -> File(entry, QUERY_FIELD).isFile
+                entry.isFile -> try {
+                    ZipFile(entry).use { it.getEntry(QUERY_FIELD) != null }
+                } catch (_: ZipException) {
+                    false
+                }
+                else -> false
+            }
+        }
+    }
 }
