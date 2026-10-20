@@ -85,7 +85,8 @@ sealed interface Decision {
 
         /**
          * Rejects the command with [code], a human-readable [message], and the structured [extensions] a client reads
-         * instead of parsing the message ([Rejection.extensions]).
+         * instead of parsing the message ([Rejection.extensions]). A [code] without a dot is the local name of a code
+         * of the deciding aggregate (decision D259), which the kernel qualifies as `context.aggregate.code`.
          */
         @JvmStatic
         @JvmOverloads

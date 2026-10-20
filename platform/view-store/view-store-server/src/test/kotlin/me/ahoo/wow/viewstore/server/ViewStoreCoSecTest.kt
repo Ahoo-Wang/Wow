@@ -27,7 +27,7 @@ import me.ahoo.cosec.principal.SimpleTenantPrincipal
 import me.ahoo.cosec.tenant.SimpleTenant
 import me.ahoo.cosec.token.TokenConverter
 import me.ahoo.test.asserts.assert
-import me.ahoo.wow.http.WowHeaders
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.viewstore.api.ViewStoreContext
 import me.ahoo.wow.viewstore.domain.ViewStoreRejections
 import org.junit.jupiter.api.AfterAll

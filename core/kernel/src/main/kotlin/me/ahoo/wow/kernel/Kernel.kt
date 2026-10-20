@@ -362,7 +362,9 @@ class Kernel(
         ) {
             is Decision.Events -> decision.events
             Decision.NoOp -> emptyList()
-            is Decision.Rejected -> return Prepared.Done(CommandOutcome.Rejected(decision.rejection))
+            // Decision D259: a local code is named by the deciding command's aggregate type from here on.
+            is Decision.Rejected ->
+                return Prepared.Done(CommandOutcome.Rejected(RejectionCodes.qualified(decision.rejection, model.type)))
         }
         if (before != null) {
             check(codec.stateText(state) == before) {

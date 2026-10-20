@@ -46,7 +46,7 @@ pnpm generate     # regenerate src/generated/ from the ops server's Manifest bas
 `pnpm test:e2e` runs Playwright against the real ops server in a JVM of its own, on its memory backend with its snapshot queries on (`wow.query.memory.enabled`, D209), serving `dist/` (`e2e/start-ops-server.mjs`; Playwright starts and stops it). The owning services' ledgers are the server's ledger simulator (`LedgerSimulatorRoutes`, in the ops server's test classes). Build first, from the repository root, with JDK 21:
 
 ```bash
-./gradlew -Pwow.scope=v10 :ops-server:installDist :ops-server:testClasses
+./gradlew :ops-server:installDist :ops-server:testClasses
 pnpm --dir platform/ops/console build
 pnpm --dir platform/ops/console test:e2e   # OPS_E2E_CHANNEL=chrome uses the installed Chrome
 ```

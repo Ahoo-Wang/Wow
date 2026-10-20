@@ -18,7 +18,7 @@ import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.ledger.Ledger
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.schedule.Misfire
-import me.ahoo.wow.http.call.HttpCommandCaller
+import me.ahoo.wow.client.HttpCommandCaller
 import me.ahoo.wow.http.internal.HttpSignalSender
 import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.http.ops.WebhookNotifier
@@ -900,10 +900,14 @@ class WowProperties {
          * without them, the domain commands alone; a system command (`wow.*`: the lifecycle, the snapshot rebuild, the
          * schedules) only when an entry naming `wow.` lists it; an entry naming a domain command narrows the domain
          * commands to those listed. A CoSec service principal is configured here by its id, with [commands] alone.
+         * The [reads] narrow the models it may read on the internal port's read routes (decision D259), by
+         * `context.aggregate.model` (`ordering.order.snapshot`, `.events`, `.state`) or a dataset's `context.dataset`,
+         * patterns with `*`: without them, every model the node serves.
          */
         class Service {
             var tokens: MutableList<String> = ArrayList()
             var commands: MutableList<String> = ArrayList()
+            var reads: MutableList<String> = ArrayList()
         }
 
         class Error {
@@ -942,7 +946,7 @@ class WowProperties {
      * context's base URL ([contexts], `wow.calls.contexts.<context>.url`: the target's internal port, `http://host:port`
      * of an address in its internal network, never its public port, which refuses calls), the service token the node
      * presents as `Authorization: Bearer` ([token]; an application's
-     * [me.ahoo.wow.http.call.ServiceCredential] bean, such as one that renews a CoSec token, replaces it), how long one
+     * [me.ahoo.wow.client.ServiceCredential] bean, such as one that renews a CoSec token, replaces it), how long one
      * call may take ([timeout]) and connect ([connectTimeout]). A saga that calls a context without a URL fails, then
      * parks.
      */

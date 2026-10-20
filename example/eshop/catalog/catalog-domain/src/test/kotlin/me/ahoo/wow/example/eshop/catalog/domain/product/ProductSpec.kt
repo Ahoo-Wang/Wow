@@ -53,8 +53,8 @@ class ProductSpec {
 
     @Test
     fun `creating a product should need a name and a positive price`() = aggregateSpec(model, id = "mug") {
-        whenCommand(CreateProduct(" ", BigDecimal("8.50"))) { expectRejected(ProductRejections.BLANK_NAME) }
-        whenCommand(CreateProduct("Wow mug", BigDecimal.ZERO)) { expectRejected(ProductRejections.INVALID_PRICE) }
+        whenCommand(CreateProduct(" ", BigDecimal("8.50"))) { expectRejected(Product.Rejections.BLANK_NAME) }
+        whenCommand(CreateProduct("Wow mug", BigDecimal.ZERO)) { expectRejected(Product.Rejections.INVALID_PRICE) }
     }
 
     @Test
@@ -77,7 +77,7 @@ class ProductSpec {
             whenCommand(UpdateProduct("Big mug", "Half a litre", brandId = "wow", categoryId = "mugs")) {
                 expectUnchanged()
             }
-            whenCommand(UpdateProduct("", "")) { expectRejected(ProductRejections.BLANK_NAME) }
+            whenCommand(UpdateProduct("", "")) { expectRejected(Product.Rejections.BLANK_NAME) }
         }
 
     @Test
@@ -85,7 +85,7 @@ class ProductSpec {
         given(mug)
         given(ProductPublished)
         whenCommand(UpdateProduct("Wow mug", "A mug", brandId = null, categoryId = "mugs")) {
-            expectRejected(ProductRejections.INCOMPLETE)
+            expectRejected(Product.Rejections.INCOMPLETE)
         }
         whenCommand(UpdateProduct("Wow cup", "A mug", brandId = "wow", categoryId = "cups")) {
             expectEvents(ProductUpdated("Wow cup", "A mug", "wow", "cups"))
@@ -100,13 +100,13 @@ class ProductSpec {
             expectState { price.assert().isEqualByComparingTo("9.00") }
         }
         whenCommand(ChangeProductPrice(BigDecimal("9.000"))) { expectUnchanged() }
-        whenCommand(ChangeProductPrice(BigDecimal("-1"))) { expectRejected(ProductRejections.INVALID_PRICE) }
+        whenCommand(ChangeProductPrice(BigDecimal("-1"))) { expectRejected(Product.Rejections.INVALID_PRICE) }
     }
 
     @Test
     fun `publishing should need a brand and a category`() = aggregateSpec(model, id = "mug") {
         given(draft)
-        whenCommand(PublishProduct) { expectRejected(ProductRejections.INCOMPLETE) }
+        whenCommand(PublishProduct) { expectRejected(Product.Rejections.INCOMPLETE) }
         whenCommand(UpdateProduct("Wow mug", brandId = "wow", categoryId = "mugs")) {
             expectEventTypes(ProductUpdated::class.java)
         }
@@ -120,13 +120,13 @@ class ProductSpec {
     @Test
     fun `a published product should be delisted and published again`() = aggregateSpec(model, id = "mug") {
         given(mug)
-        whenCommand(DelistProduct()) { expectRejected(ProductRejections.NOT_PUBLISHED) }
+        whenCommand(DelistProduct()) { expectRejected(Product.Rejections.NOT_PUBLISHED) }
         given(ProductPublished)
         whenCommand(DelistProduct("Out of season")) {
             expectEvents(ProductDelisted("Out of season"))
             expectState { status.assert().isEqualTo(ProductStatus.DELISTED) }
         }
-        whenCommand(DelistProduct()) { expectRejected(ProductRejections.NOT_PUBLISHED) }
+        whenCommand(DelistProduct()) { expectRejected(Product.Rejections.NOT_PUBLISHED) }
         whenCommand(PublishProduct) {
             expectEvents(ProductPublished)
             expectState { status.assert().isEqualTo(ProductStatus.PUBLISHED) }

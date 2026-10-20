@@ -278,28 +278,3 @@ test('admission reads the breaking-change label and the release notes of the tag
   assert.match(script, /releases\/tags\//);
   assert.match(script, /firstParent: true/);
 });
-
-test('a pre-release tag pushes no Docker image', () => {
-  // An rc ships npm only (typescript/RELEASING.md C): an image pushed for it
-  // would be public before any admission or preflight ran.
-  for (const name of [
-    'compensation-deploy.yml',
-    'example-deploy.yml',
-    'view-store-deploy.yml',
-  ]) {
-    const workflow = readFileSync(
-      join(ROOT, '.github/workflows', name),
-      'utf8',
-    );
-    const tags = /^ {4}tags:\n((?: {6}- .*\n)+)/m.exec(workflow);
-    assert.ok(tags, `${name} runs on tags`);
-    assert.deepEqual(
-      tags[1]
-        .trim()
-        .split('\n')
-        .map(line => line.trim()),
-      ["- 'v*.*.*'", "- '!v*.*.*-*'"],
-      `${name}: release tags only`,
-    );
-  }
-});

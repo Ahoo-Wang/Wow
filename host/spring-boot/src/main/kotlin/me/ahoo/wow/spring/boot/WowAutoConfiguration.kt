@@ -18,9 +18,9 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
+import me.ahoo.wow.client.HttpCommandCaller
+import me.ahoo.wow.client.ServiceCredential
 import me.ahoo.wow.http.WowHttpOptions
-import me.ahoo.wow.http.call.HttpCommandCaller
-import me.ahoo.wow.http.call.ServiceCredential
 import me.ahoo.wow.http.callRoutes
 import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallPermits
@@ -35,6 +35,7 @@ import me.ahoo.wow.http.internal.InternalHttp
 import me.ahoo.wow.http.internal.internalRoutes
 import me.ahoo.wow.http.ops.WebhookNotifier
 import me.ahoo.wow.http.ops.parkedRoutes
+import me.ahoo.wow.http.peerReadRoutes
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.http.wowRoutes
 import me.ahoo.wow.kernel.AggregateModel
@@ -487,9 +488,13 @@ class WowAutoConfiguration {
         internalCallers: ObjectProvider<InternalCallerResolver>,
         options: WowHttpOptions,
         environment: Environment,
+        reads: StateReads,
+        queries: ObjectProvider<HttpQueries>,
+        masks: PayloadMasks,
     ): InternalServer {
         val internal = internalCallers.ifAvailable?.let { resolver -> CallerResolver { resolver.resolve(it) } }
         val services = serviceTokens(properties).resolver(internal ?: callers)
+        val permits = callPermits(properties)
         return InternalServer(
             properties.internal.port,
             identity.bindHost,
@@ -498,7 +503,22 @@ class WowAutoConfiguration {
                 node.waits,
                 tokens = clusterTokens(properties, environment, identity.bindHost),
                 services = services,
-            ).and(callRoutes(manifest, node.gateway, services, options, callPermits(properties))),
+            )
+                // The services' peer reads (decision D259), before the call routes: their catch-all routes of an
+                // unknown command would take a query's POST.
+                .and(
+                    peerReadRoutes(
+                        manifest,
+                        node.gateway,
+                        services,
+                        queries.getIfAvailable { HttpQueries.NONE },
+                        reads,
+                        options,
+                        permits,
+                        masks,
+                    ),
+                )
+                .and(callRoutes(manifest, node.gateway, services, options, permits)),
             InternalHttp.messageLimit(publicCodecLimit(environment)),
         )
     }
@@ -705,7 +725,10 @@ class WowAutoConfiguration {
 
         /** The commands each service may call on the internal port (`wow.http.services.*.commands`, decision D226). */
         internal fun callPermits(properties: WowProperties): CallPermits =
-            CallPermits(properties.http.services.mapValues { it.value.commands.toList() })
+            CallPermits(
+                properties.http.services.mapValues { it.value.commands.toList() },
+                properties.http.services.mapValues { it.value.reads.toList() },
+            )
 
         /** The cluster token this node sends (`wow.internal.token`, the first), or null without one (decision D226). */
         internal fun clusterTokenOf(properties: WowProperties): String? = clusterTokenList(properties).firstOrNull()

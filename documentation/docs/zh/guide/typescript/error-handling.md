@@ -56,7 +56,7 @@ export async function findCart(
 
 - `toWowError` 是异步的：它要读取错误响应体，读的是克隆，其他处理者仍能读原响应。
 - 重新抛出 `wowError ?? error`：Wow 没有应答时，原始错误才是值得记录的那个。
-- 按 `errorCode` 对照 `ErrorCodes` 分支，不要按 HTTP 状态：好几个错误码共用 400。映射关系在 [`ErrorHttpStatusMapping`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/exception/ErrorHttpStatusMapping.kt)；服务自行注册的错误码默认映射为 400。
+- 按 `errorCode` 对照 `ErrorCodes` 分支，不要按 HTTP 状态：好几个错误码共用 400。映射关系在 [`ErrorHttpStatusMapping`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/exception/ErrorHttpStatusMapping.kt)；服务自行注册的错误码默认映射为 400。
 
 ## 在表单上展示校验错误
 

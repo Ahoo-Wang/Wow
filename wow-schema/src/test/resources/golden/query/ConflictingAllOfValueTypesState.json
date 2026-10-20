@@ -1,4 +1,0 @@
-{
-  "error" : "me.ahoo.wow.query.schema.QuerySchemaConflictException",
-  "message" : "Conflicting query schema declaration: [ConflictingAllOfValueTypesState.value.value.kind]."
-}

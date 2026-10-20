@@ -23,9 +23,8 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 
 /**
- * The eShop's fault-injection soak (work package C.1, decision D196): `./gradlew -Pwow.scope=v10
- * :eshop-e2e:soakTest`, one hour by default, `-Pwow.soak.mode=short` for five minutes ([SoakConfig] has every
- * property).
+ * The eShop's fault-injection soak (work package C.1, decision D196): `./gradlew :eshop-e2e:soakTest`, one hour by
+ * default, `-Pwow.soak.mode=short` for five minutes ([SoakConfig] has every property).
  *
  * It starts [SoakStack] (the basket, ordering, inventory and payment services on PostgreSQL and Kafka), drives the
  * checkout flow with [SoakLoad] while [FaultInjector] kills and replaces nodes and pauses or restarts PostgreSQL and

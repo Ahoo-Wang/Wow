@@ -2,6 +2,8 @@ description = "Wow HTTP: routes materialized from the Manifest, problem+json, SS
 
 dependencies {
     api(project(":runtime"))
+    // The wire grammar both ends share (the Wow headers, `Wow-Call`) and the service credential (decision D257).
+    api(project(":client"))
     // The query routes (decision D127) run the query engine's gateways and read its protocol with QueryJson.
     api(project(":query"))
     // GET /wow/openapi: the OpenAPI document of the routes, from the same Manifest (roadmap 5a.2).

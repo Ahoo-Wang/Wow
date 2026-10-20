@@ -56,8 +56,9 @@ import me.ahoo.wow.manifest.SubscriptionStart
  *   on `wow.<context>.<aggregate>.state`;
  * - a subscription's `start` (decisions D154, D194): what `@OnEvent(start)` declares, else the beginning for a
  *   projection or a handler of another context's stream, the end for a reactor or a saga of its own context's log;
- * - a saga's `derives` (decision D138): what `@OnEvent(derives)` declares, else the commands its return type names, a
- *   command a module's aggregate decides by its full type name and any other by its class's schema reference;
+ * - a saga's `derives` (decisions D138, D259): the classes `@OnEvent(derives)` declares, else the commands its return
+ *   type names (the subclasses of a sealed one; none for `Unit`), a command a module's aggregate decides by its full
+ *   type name and any other by its class's schema reference;
  * - the source `@OnEvent(aggregates)` names, of this context or another (decision D138);
  * - a saga's `@OnRejected` handlers (decisions D136, D153) as subscriptions with `rejected`, and its `@OnCommitted`
  *   handlers (decision D192) as subscriptions with `committed`;
@@ -99,8 +100,8 @@ internal object ManifestFragmentBuilder {
 
     /**
      * What the fragment of [context] cannot say of [subscriptions]: an `@OnEvent(aggregates)` of [context] that is not
-     * an aggregate of the module whose state the handler takes, and a command a saga's return type derives, which a
-     * module's aggregate decides, that its `@OnEvent(derives)` does not list.
+     * an aggregate of the module whose state the handler takes, and a command a saga's return type derives that its
+     * `@OnEvent(derives)` does not list.
      */
     fun problems(
         context: String,
@@ -132,8 +133,8 @@ internal object ManifestFragmentBuilder {
         if (handler.derives.isEmpty()) {
             return emptyList()
         }
-        return handler.derived.orEmpty().mapNotNull { commands.nameOf(it) }.filterNot { it in handler.derives }.map {
-            "$where returns $it, which its @OnEvent(derives) does not list"
+        return handler.derived.orEmpty().filterNot { it in handler.derives }.map {
+            "$where returns ${commands.nameOf(it) ?: it}, which its @OnEvent(derives) does not list"
         }
     }
 
@@ -277,13 +278,11 @@ internal object ManifestFragmentBuilder {
         return SubscriptionSource(context, listOf(aggregate.aggregateName), nullableState = nullable)
     }
 
-    /** The declared [derives], else the [derived] classes by [commands]' references; null when neither says. */
+    /**
+     * The declared [derives] classes, else the [derived] ones, by [commands]' references; null when neither says.
+     */
     private fun derives(derives: List<String>, derived: List<String>?, commands: CommandNames): List<String>? =
-        if (derives.isNotEmpty()) {
-            derives.distinct().sorted()
-        } else {
-            derived?.map(commands::referenceOf)?.distinct()?.sorted()
-        }
+        derives.ifEmpty { derived }?.map(commands::referenceOf)?.distinct()?.sorted()
 
     /**
      * The full type names of the commands the module's aggregates decide, by their classes' binary names: a class two

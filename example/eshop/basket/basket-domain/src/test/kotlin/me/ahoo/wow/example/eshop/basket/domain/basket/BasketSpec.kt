@@ -55,7 +55,7 @@ class BasketSpec {
     @Test
     fun `another buyer should not create the basket`() = basketSpec {
         whenCommand(AddBasketItem(MUG, MUG_PRICE, 2), scope = Scope(ownerId = "bob")) {
-            expectRejected(BasketRejections.NOT_OWNER)
+            expectRejected(Basket.Rejections.NOT_OWNER)
         }
     }
 
@@ -70,8 +70,8 @@ class BasketSpec {
 
     @Test
     fun `an item of no quantity or a negative price should be rejected`() = basketSpec {
-        whenCommand(AddBasketItem(MUG, MUG_PRICE, 0)) { expectRejected(BasketRejections.INVALID_ITEM) }
-        whenCommand(AddBasketItem(MUG, BigDecimal("-1"), 1)) { expectRejected(BasketRejections.INVALID_ITEM) }
+        whenCommand(AddBasketItem(MUG, MUG_PRICE, 0)) { expectRejected(Basket.Rejections.INVALID_ITEM) }
+        whenCommand(AddBasketItem(MUG, BigDecimal("-1"), 1)) { expectRejected(Basket.Rejections.INVALID_ITEM) }
     }
 
     @Test
@@ -84,8 +84,8 @@ class BasketSpec {
             }
         }
         whenCommand(ChangeBasketItemQuantity(MUG, 5)) { expectUnchanged() }
-        whenCommand(ChangeBasketItemQuantity(MUG, 0)) { expectRejected(BasketRejections.INVALID_ITEM) }
-        whenCommand(ChangeBasketItemQuantity("hat", 1)) { expectRejected(BasketRejections.ITEM_NOT_FOUND) }
+        whenCommand(ChangeBasketItemQuantity(MUG, 0)) { expectRejected(Basket.Rejections.INVALID_ITEM) }
+        whenCommand(ChangeBasketItemQuantity("hat", 1)) { expectRejected(Basket.Rejections.ITEM_NOT_FOUND) }
     }
 
     @Test
@@ -129,7 +129,7 @@ class BasketSpec {
     @Test
     fun `an empty basket should not be checked out`() = basketSpec {
         given(BasketItemAdded(MUG, MUG_PRICE, 2), BasketCleared)
-        whenCommand(CheckoutBasket) { expectRejected(BasketRejections.EMPTY) }
+        whenCommand(CheckoutBasket) { expectRejected(Basket.Rejections.EMPTY) }
     }
 
     private companion object {

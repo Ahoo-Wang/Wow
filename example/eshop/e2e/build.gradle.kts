@@ -92,7 +92,7 @@ tasks.named<Test>("integrationTest") {
     eshopServers()
 }
 
-// The load script (EshopLoad.kt), outside every check: `./gradlew -Pwow.scope=v10 :eshop-e2e:eshopLoad`, with the
+// The load script (EshopLoad.kt), outside every check: `./gradlew :eshop-e2e:eshopLoad`, with the
 // properties `-Peshop.load.checkouts=200 -Peshop.load.concurrency=8 -Peshop.load.warm-up=40` (e2e/README.md, its baseline).
 tasks.register<JavaExec>("eshopLoad") {
     description = "Drives checkouts through the eShop's five services and reports their throughput and latency."
@@ -107,7 +107,7 @@ tasks.register<JavaExec>("eshopLoad") {
 
 // The whole eShop in one JVM, on the memory backend and in-memory topics (EshopLocal.kt), for the web UI
 // (`example/eshop/web`, work package E.7) and for trying the shop out without Kafka:
-// `./gradlew -Pwow.scope=v10 :eshop-e2e:eshopLocal`, on the README's ports. Outside every check.
+// `./gradlew :eshop-e2e:eshopLocal`, on the README's ports. Outside every check.
 tasks.register<JavaExec>("eshopLocal") {
     description = "Runs the eShop's five services in one JVM, in memory, on ports 8081 to 8085."
     classpath = project.the<SourceSetContainer>()["integrationTest"].runtimeClasspath
@@ -127,7 +127,7 @@ tasks.register("eshopLocalClasspath") {
 }
 
 // The fault-injection and soak harness (work package C.1, decision D196), outside every check and CI workflow:
-// `./gradlew -Pwow.scope=v10 :eshop-e2e:soakTest -Pwow.soak.duration=PT1H`. It has a source set of its own, on the
+// `./gradlew :eshop-e2e:soakTest -Pwow.soak.duration=PT1H`. It has a source set of its own, on the
 // integration tests' classes (EshopService), so integrationTest and v10IntegrationTest neither compile nor run it.
 // The Gradle properties `wow.soak.*` (SoakConfig) reach the test JVM as system properties; the report and the
 // services' output go to build/eshop-soak/.
