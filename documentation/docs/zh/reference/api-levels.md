@@ -42,11 +42,20 @@ description: "公开 API 每个级别的承诺，以及实验性与 SPI 的声�
 | `me.ahoo.wow.query.dataset.QueryDatasetListener` | interface | `wow-query` |
 | `me.ahoo.wow.query.dataset.QueryDatasets` | class | `wow-query` |
 | `me.ahoo.wow.query.read.datasetTrees` | fun | `wow-query` |
+| `me.ahoo.wow.query.schema.DeclarationValue` | interface | `wow-query` |
+| `me.ahoo.wow.query.schema.QuerySchemaDeclaration` | class | `wow-query` |
+| `me.ahoo.wow.query.schema.QueryFieldDeclaration` | class | `wow-query` |
+| `me.ahoo.wow.query.schema.QueryFieldDeclarationBuilder` | class | `wow-query` |
+| `me.ahoo.wow.query.schema.QueryValueType` | class | `wow-query` |
+| `me.ahoo.wow.query.schema.QueryValueKind` | class | `wow-query` |
+| `me.ahoo.wow.query.schema.QuerySemanticType` | interface | `wow-query` |
+| `me.ahoo.wow.query.schema.Temporal` | interface | `wow-query` |
 | `me.ahoo.wow.clickhouse.query.ClickHouseDatasetQueryBackendFactory` | class | `wow-clickhouse` |
 | `me.ahoo.wow.clickhouse.query.ClickHouseDatasetOptions` | class | `wow-clickhouse` |
 | `me.ahoo.wow.http.ops.parkedRoutes` | fun | `wow-http` |
 | `me.ahoo.wow.http.ops.OpsPaths` | object | `wow-http` |
 | `me.ahoo.wow.http.ops.WebhookNotifier` | class | `wow-http` |
+| `me.ahoo.wow.client.java.JavaQueries.datasets` | fun | `wow-client` |
 
 ## SPI 声明
 
