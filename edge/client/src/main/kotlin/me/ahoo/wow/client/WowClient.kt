@@ -60,6 +60,7 @@ class WowClient private constructor(
         private var commandTypes: CommandTypes? = null
         private var contracts: ContractDirectory? = null
         private var ids: GlobalIdGenerator = GlobalIdGenerator.UUID_V7
+        private var manifestPeers: Set<String> = emptySet()
 
         /** Where each context's service is (none by default: every call fails until it is given). */
         fun endpoints(endpoints: EndpointResolver): Builder = apply { this.endpoints = endpoints }
@@ -94,6 +95,12 @@ class WowClient private constructor(
         /** The class loader whose api jars carry the peers' contracts: the thread's context class loader by default. */
         fun classLoader(classLoader: ClassLoader): Builder = apply { this.classLoader = classLoader }
 
+        /**
+         * The peer contexts described by their Manifest alone (none by default), called without their api jars: each
+         * takes [NamedCommand]s only, which its `GET /wow/manifest` must declare (decision D257).
+         */
+        fun manifestPeers(contexts: Set<String>): Builder = apply { manifestPeers = contexts.toSet() }
+
         /** Names the commands as a node does, from its models and the contracts it knows: Wow's host gives its own. */
         @InternalWowApi
         fun commandTypes(commandTypes: CommandTypes): Builder = apply { this.commandTypes = commandTypes }
@@ -118,7 +125,12 @@ class WowClient private constructor(
                 ?: ContractDirectory.load(Manifest(), classLoader ?: Thread.currentThread().contextClassLoader)
             val names = commandTypes ?: ContractCommandTypes(contracts)
             return WowClient(
-                HttpCommandClient(transport, names, ids),
+                HttpCommandClient(
+                    transport,
+                    names,
+                    ids,
+                    described = manifestPeers.takeIf { it.isNotEmpty() }?.let { ManifestPeers(it, transport) },
+                ),
                 HttpQueryApi(transport, PeerModels.of(contracts.peers.map { it.manifest }), ids),
             )
         }

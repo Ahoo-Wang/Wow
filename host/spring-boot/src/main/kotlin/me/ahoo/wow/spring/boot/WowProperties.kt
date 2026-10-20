@@ -144,7 +144,8 @@ import me.ahoo.wow.client.RetryPolicy as ClientRetryPolicy
  *   [Http.Service].
  * - `wow.calls.contexts.<context>.url`, `wow.calls.token`, `wow.calls.timeout` (10s), `wow.calls.connect-timeout`
  *   (2s): the synchronous calls of the sagas to other contexts' command gateways (decision D193), see [Calls].
- * - `wow.clients.contexts.<context>.url`, `internal-url` and `mode`, `wow.clients.mode` (`service`),
+ * - `wow.clients.contexts.<context>.url`, `internal-url`, `mode` and `contract` (`jar`, or `manifest` for a peer
+ *   called by its Manifest alone), `wow.clients.mode` (`service`),
  *   `wow.clients.timeout` (30s), `wow.clients.connect-timeout` (2s), `wow.clients.forwarded-headers`
  *   (`Authorization`), `wow.clients.retry.max-attempts` (3), `max-retry-after` (5s) and `backoff` (200ms): the typed
  *   clients of the peers over HTTP (decisions D257, D259), see [Clients].
@@ -1003,7 +1004,9 @@ class WowProperties {
 
     /**
      * The typed clients of the peer contexts over HTTP (decisions D257, D259), `wow-client`'s: a peer context listed in
-     * [contexts] (one the api jars on the class path declare, decision D234) is reached over HTTP by the service's
+     * [contexts] (one the api jars on the class path declare, decision D234, or one described by its Manifest alone,
+     * [ClientTarget.contract] `manifest`, which takes [me.ahoo.wow.client.NamedCommand]s) is reached over HTTP by the
+     * service's
      * [me.ahoo.wow.api.client.CommandClient] and [me.ahoo.wow.api.read.QueryApi] beans, in its [ClientTarget.mode] (or
      * [mode]); any other context as without these clients (its commands through its topic, review M-1). Where each is:
      * its public routes' base [ClientTarget.url] (user mode) and its internal port's [ClientTarget.internalUrl]
@@ -1021,11 +1024,27 @@ class WowProperties {
         var forwardedHeaders: MutableList<String> = mutableListOf("Authorization")
         var retry: Retry = Retry()
 
-        /** One peer context: its public [url], its internal port's [internalUrl] and the [mode] it is called in. */
+        /**
+         * One peer context: its public [url], its internal port's [internalUrl], the [mode] it is called in and where
+         * its [contract] comes from.
+         */
         class ClientTarget {
             var url: URI? = null
             var internalUrl: URI? = null
             var mode: Mode? = null
+            var contract: Contract = Contract.JAR
+        }
+
+        /** Where a peer's contract comes from (decisions D234, D257). */
+        enum class Contract {
+            /** Its api jar on the class path: its command objects are sent. */
+            JAR,
+
+            /**
+             * Its Manifest alone, read from its `GET /wow/manifest`: a console, a gateway or a tool calls it with
+             * [me.ahoo.wow.client.NamedCommand]s, without its api jar.
+             */
+            MANIFEST,
         }
 
         /** How a problem a retry may get past is retried ([me.ahoo.wow.client.RetryPolicy]). */
