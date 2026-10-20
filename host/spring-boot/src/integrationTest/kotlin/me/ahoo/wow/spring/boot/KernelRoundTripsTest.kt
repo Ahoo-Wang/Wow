@@ -59,6 +59,7 @@ import javax.sql.DataSource
  * did) for the round trips it saves. No timing is measured.
  */
 abstract class KernelRoundTripsSpec {
+    data class Open(val owner: String)
     data class Add(val amount: Int)
     data class Check(val amount: Int)
     data class Refuse(val reason: String)
@@ -71,6 +72,7 @@ abstract class KernelRoundTripsSpec {
     private val context = "trips_" + UUID.randomUUID().toString().replace("-", "").take(CONTEXT_SUFFIX)
     private val model: AggregateModel<Counter> = aggregate(context, "counter") {
         initial { Counter() }
+        decide<Open>(Creation.REQUIRED) { _, _ -> Decision.events(Added(0)) }
         decide<Add>(Creation.ALLOWED) { _, body -> Decision.events(Added(body.amount)) }
         decideSuspending<Check> { _, body -> Decision.events(Added(body.amount)) }
         decide<Refuse> { _, body -> Decision.reject("refused", body.reason) }
@@ -136,6 +138,18 @@ abstract class KernelRoundTripsSpec {
         outcome.assert().isEqualTo(CommandOutcome.AlreadyCommitted(first.stream))
         trips.assert().isEqualTo(1)
     }
+
+    @Test
+    fun `a creation retried beyond the recent requests is a duplicate, by the lookup before refusing`(): Unit =
+        runBlocking {
+            val kernel = kernel(2)
+            val ref = ref("beyond")
+            val created = kernel.execute(model, command(ref, Open("ahoo"), requestId = "open")) as CommandOutcome.Committed
+            repeat(3) { kernel.execute(model, command(ref, Add(1))) }
+            val (outcome, trips) = kernel.trips(command(ref, Open("ahoo"), requestId = "open"))
+            outcome.assert().isEqualTo(CommandOutcome.AlreadyCommitted(created.stream))
+            trips.assert().isEqualTo(1)
+        }
 
     @Test
     fun `a warm refusal keeps the lookup and the version slot read`(): Unit = runBlocking {

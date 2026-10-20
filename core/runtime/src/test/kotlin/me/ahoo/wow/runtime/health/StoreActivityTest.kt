@@ -102,6 +102,7 @@ class StoreActivityTest {
         val ref = me.ahoo.wow.runtime.subscription.cart("c-1")
         log.read(ref).toList().size.assert().isEqualTo(1)
         log.readEntries(ref).toList().size.assert().isEqualTo(1)
+        log.readTail(ref, 1, 1).streams.size.assert().isEqualTo(1)
         log.tail(me.ahoo.wow.spi.log.Partitioner.partitionOf(ref, 2)).let { tail ->
             kotlinx.coroutines.withTimeoutOrNull(100) { tail.collect { } }
         }

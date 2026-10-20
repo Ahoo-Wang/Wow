@@ -400,6 +400,18 @@ class KernelRecentRequestsTest {
     }
 
     @Test
+    fun `the lease a command runs under is told apart, and a cache drops nothing unless it keeps partitions`() {
+        ExecutionLease.HELD.held.assert().isTrue()
+        ExecutionLease.NOT_HELD.held.assert().isFalse()
+        ExecutionLease.HELD.toString().assert().isEqualTo("ExecutionLease(held)")
+        ExecutionLease.NOT_HELD.toString().assert().isEqualTo("ExecutionLease(not held)")
+        StateCache.None.invalidate(0, 1)
+        states.put(ref, CachedState(CartState(ref.id), 1))
+        states.invalidate(0, 1)
+        states.states.assert().containsKey(ref)
+    }
+
+    @Test
     fun `without recent requests every command looks its request id up first, as D46 did`(): Unit = runTest {
         val snapshots = InMemorySnapshotStore()
         val kernel = kernel(recentRequests = 0, snapshots = snapshots)
