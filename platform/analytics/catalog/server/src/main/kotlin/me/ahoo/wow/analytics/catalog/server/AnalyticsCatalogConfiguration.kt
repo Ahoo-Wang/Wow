@@ -19,6 +19,7 @@ import me.ahoo.cosec.api.authorization.Authorization
 import me.ahoo.cosec.context.DefaultSecurityContextParser
 import me.ahoo.cosec.context.SecurityContextParser
 import me.ahoo.cosec.token.TokenVerifier
+import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetSources
 import me.ahoo.wow.analytics.catalog.domain.warehouse.KnownAggregates
 import me.ahoo.wow.analytics.catalog.domain.warehouse.TrustedWriters
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
@@ -47,7 +48,8 @@ import org.springframework.core.env.Environment
  * - The catalog (decision D241): the [WarehouseCatalog] of the ClickHouse server the host's client reaches
  *   (`wow.clickhouse.endpoint`), over `wow.analytics.catalog.databases` (`wow.clickhouse.database` when none), or
  *   [WarehouseCatalog.NONE] without one; the [TrustedWriters] of `wow.analytics.catalog.trusted-writers`; the
- *   [KnownAggregates] of the sources' snapshots; and the [CatalogWatcher] that syncs what changed every
+ *   [KnownAggregates] of the sources' snapshots; the [DatasetSources] a dataset's definition is checked against,
+ *   the sources' latest states; and the [CatalogWatcher] that syncs what changed every
  *   `wow.analytics.catalog.refresh-interval`, unless `wow.analytics.catalog.watch=false`.
  */
 @Configuration(proxyBeanMethods = false)
@@ -109,6 +111,10 @@ class AnalyticsCatalogConfiguration {
     @Bean
     fun knownAggregates(queries: ObjectProvider<QueryApi>): KnownAggregates =
         QueriedKnownAggregates { queries.getObject() }
+
+    @Bean
+    fun datasetSources(queries: ObjectProvider<QueryApi>): DatasetSources =
+        QueriedDatasetSources { queries.getObject() }
 
     @Bean
     @ConditionalOnProperty(prefix = AnalyticsCatalogProperties.PREFIX, name = ["watch"], matchIfMissing = true)
