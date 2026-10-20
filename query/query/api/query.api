@@ -712,6 +712,7 @@ public final class me/ahoo/wow/query/dataset/QueryDataset {
 	public final fun getUnavailable ()Ljava/lang/String;
 	public fun hashCode ()I
 	public static final fun nameOf (Ljava/lang/String;)Lme/ahoo/wow/api/aggregate/AggregateType;
+	public static final fun of (Lme/ahoo/wow/api/aggregate/AggregateType;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/query/dataset/QueryDataset;
 	public static final fun parse (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;)Lme/ahoo/wow/query/dataset/QueryDataset;
 	public fun toString ()Ljava/lang/String;
 	public final fun withUnavailable (Ljava/lang/String;)Lme/ahoo/wow/query/dataset/QueryDataset;
@@ -719,7 +720,25 @@ public final class me/ahoo/wow/query/dataset/QueryDataset {
 
 public final class me/ahoo/wow/query/dataset/QueryDataset$Companion {
 	public final fun nameOf (Ljava/lang/String;)Lme/ahoo/wow/api/aggregate/AggregateType;
+	public final fun of (Lme/ahoo/wow/api/aggregate/AggregateType;Lkotlin/jvm/functions/Function1;)Lme/ahoo/wow/query/dataset/QueryDataset;
 	public final fun parse (Lme/ahoo/wow/api/aggregate/AggregateType;Ljava/lang/String;)Lme/ahoo/wow/query/dataset/QueryDataset;
+}
+
+public final class me/ahoo/wow/query/dataset/QueryDatasetBuilder {
+	public fun <init> (Lme/ahoo/wow/api/aggregate/AggregateType;)V
+	public final fun build ()Lme/ahoo/wow/query/dataset/QueryDataset;
+	public final fun eventTime (Ljava/lang/String;)V
+	public final fun field (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public final fun identity (Ljava/lang/String;)V
+	public final fun owner (Ljava/lang/String;)V
+	public final fun platform ()V
+	public final fun sensitive (Ljava/lang/String;Lme/ahoo/wow/api/query/annotation/SensitivityLevel;Lme/ahoo/wow/query/schema/QueryMask;Lme/ahoo/wow/query/schema/MaskStrategyResolver;)V
+	public static synthetic fun sensitive$default (Lme/ahoo/wow/query/dataset/QueryDatasetBuilder;Ljava/lang/String;Lme/ahoo/wow/api/query/annotation/SensitivityLevel;Lme/ahoo/wow/query/schema/QueryMask;Lme/ahoo/wow/query/schema/MaskStrategyResolver;ILjava/lang/Object;)V
+	public final fun space (Ljava/lang/String;)V
+	public final fun storage (Ltools/jackson/databind/node/ObjectNode;)V
+	public final fun tag (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun tenant (Ljava/lang/String;)V
+	public final fun title (Ljava/lang/String;)V
 }
 
 public abstract interface class me/ahoo/wow/query/dataset/QueryDatasetChange {
@@ -965,6 +984,9 @@ public final class me/ahoo/wow/query/read/QueryApiTrees {
 public final class me/ahoo/wow/query/schema/AggregationSupport$Companion {
 }
 
+public abstract interface class me/ahoo/wow/query/schema/DeclarationValue {
+}
+
 public final class me/ahoo/wow/query/schema/DeclarationValue$Set : me/ahoo/wow/query/schema/DeclarationValue {
 	public fun <init> (Ljava/lang/Object;)V
 	public final fun component1 ()Ljava/lang/Object;
@@ -1005,6 +1027,77 @@ public abstract interface class me/ahoo/wow/query/schema/MaskStrategyResolver {
 
 public final class me/ahoo/wow/query/schema/MaskStrategyResolver$Companion {
 	public final fun of (Ljava/util/Map;)Lme/ahoo/wow/query/schema/MaskStrategyResolver;
+}
+
+public final class me/ahoo/wow/query/schema/QueryFieldDeclaration {
+	public fun <init> ()V
+	public fun <init> (Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;)V
+	public synthetic fun <init> (Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public final fun component1 ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun component10 ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun component11 ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun component12 ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun component13 ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun component14 ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun component15 ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun component16 ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun component17 ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun component2 ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun component3 ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun component4 ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun component5 ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun component6 ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun component7 ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun component8 ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun component9 ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun copy (Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;)Lme/ahoo/wow/query/schema/QueryFieldDeclaration;
+	public static synthetic fun copy$default (Lme/ahoo/wow/query/schema/QueryFieldDeclaration;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;Lme/ahoo/wow/query/schema/DeclarationValue;ILjava/lang/Object;)Lme/ahoo/wow/query/schema/QueryFieldDeclaration;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAdditionalProperties ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun getAliases ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun getAlternatives ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun getDeprecated ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun getDescription ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun getEnumDescriptions ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun getEnumValues ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun getItems ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun getKind ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun getMaskRule ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun getNullable ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun getProperties ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun getRequired ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun getSemanticType ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun getTitle ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun getValueTypes ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public final fun getVariant ()Lme/ahoo/wow/query/schema/DeclarationValue;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/query/schema/QueryFieldDeclarationBuilder {
+	public fun <init> ()V
+	public final fun aliases ([Ljava/lang/String;)V
+	public final fun build ()Lme/ahoo/wow/query/schema/QueryFieldDeclaration;
+	public final fun deprecated (Ljava/lang/String;)V
+	public static synthetic fun deprecated$default (Lme/ahoo/wow/query/schema/QueryFieldDeclarationBuilder;Ljava/lang/String;ILjava/lang/Object;)V
+	public final fun description (Ljava/lang/String;)V
+	public final fun enumValue (Ljava/lang/Object;Ljava/lang/String;)V
+	public static synthetic fun enumValue$default (Lme/ahoo/wow/query/schema/QueryFieldDeclarationBuilder;Ljava/lang/Object;Ljava/lang/String;ILjava/lang/Object;)V
+	public final fun items (Lkotlin/jvm/functions/Function1;)V
+	public final fun items (Lme/ahoo/wow/query/schema/QueryFieldDeclaration;)V
+	public final fun kind (Lme/ahoo/wow/query/schema/QueryValueKind;)V
+	public final fun nullable (Z)V
+	public final fun property (Ljava/lang/String;Lkotlin/jvm/functions/Function1;)V
+	public final fun reference (Ljava/lang/String;Ljava/lang/String;)V
+	public final fun required (Z)V
+	public final fun semantic (Lme/ahoo/wow/query/schema/QuerySemanticType;)V
+	public final fun temporalEpoch (Ljava/util/concurrent/TimeUnit;)V
+	public static synthetic fun temporalEpoch$default (Lme/ahoo/wow/query/schema/QueryFieldDeclarationBuilder;Ljava/util/concurrent/TimeUnit;ILjava/lang/Object;)V
+	public final fun temporalFormatted (Ljava/lang/String;)V
+	public final fun title (Ljava/lang/String;)V
+	public final fun types ([Lme/ahoo/wow/query/schema/QueryValueType;)V
+	public final fun values (Lkotlin/jvm/functions/Function1;)V
+	public final fun values (Lme/ahoo/wow/query/schema/QueryFieldDeclaration;)V
 }
 
 public abstract interface class me/ahoo/wow/query/schema/QueryMask {
@@ -1121,7 +1214,21 @@ public final class me/ahoo/wow/query/schema/QuerySchemaCatalog$Status {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/query/schema/QuerySchemaDeclaration {
+	public fun <init> (Ljava/util/Map;)V
+	public final fun component1 ()Ljava/util/Map;
+	public final fun copy (Ljava/util/Map;)Lme/ahoo/wow/query/schema/QuerySchemaDeclaration;
+	public static synthetic fun copy$default (Lme/ahoo/wow/query/schema/QuerySchemaDeclaration;Ljava/util/Map;ILjava/lang/Object;)Lme/ahoo/wow/query/schema/QuerySchemaDeclaration;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getFields ()Ljava/util/Map;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public final class me/ahoo/wow/query/schema/QuerySchemaRefreshListener$Companion {
+}
+
+public abstract interface class me/ahoo/wow/query/schema/QuerySemanticType {
 }
 
 public final class me/ahoo/wow/query/schema/QuerySemanticType$Unknown : me/ahoo/wow/query/schema/QuerySemanticType {
@@ -1138,6 +1245,31 @@ public final class me/ahoo/wow/query/schema/QueryStorageFamilyRules$Companion {
 }
 
 public final class me/ahoo/wow/query/schema/QueryStorageLocator$Companion {
+}
+
+public final class me/ahoo/wow/query/schema/QueryValueKind : java/lang/Enum {
+	public static final field ARRAY Lme/ahoo/wow/query/schema/QueryValueKind;
+	public static final field NULL Lme/ahoo/wow/query/schema/QueryValueKind;
+	public static final field OBJECT Lme/ahoo/wow/query/schema/QueryValueKind;
+	public static final field SCALAR Lme/ahoo/wow/query/schema/QueryValueKind;
+	public static final field UNION Lme/ahoo/wow/query/schema/QueryValueKind;
+	public static final field UNKNOWN Lme/ahoo/wow/query/schema/QueryValueKind;
+	public static fun getEntries ()Lkotlin/enums/EnumEntries;
+	public static fun valueOf (Ljava/lang/String;)Lme/ahoo/wow/query/schema/QueryValueKind;
+	public static fun values ()[Lme/ahoo/wow/query/schema/QueryValueKind;
+}
+
+public final class me/ahoo/wow/query/schema/QueryValueType {
+	public static final field Companion Lme/ahoo/wow/query/schema/QueryValueType$Companion;
+	public fun <init> (Ljava/lang/String;)V
+	public final fun component1 ()Ljava/lang/String;
+	public final fun copy (Ljava/lang/String;)Lme/ahoo/wow/query/schema/QueryValueType;
+	public static synthetic fun copy$default (Lme/ahoo/wow/query/schema/QueryValueType;Ljava/lang/String;ILjava/lang/Object;)Lme/ahoo/wow/query/schema/QueryValueType;
+	public fun equals (Ljava/lang/Object;)Z
+	public static final fun from (Ljava/lang/String;)Lme/ahoo/wow/query/schema/QueryValueType;
+	public final fun getValue ()Ljava/lang/String;
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
 }
 
 public final class me/ahoo/wow/query/schema/QueryValueType$Companion {
@@ -1715,6 +1847,9 @@ public final class me/ahoo/wow/query/schema/QueryViolation$ValueMismatch : me/ah
 }
 
 public final class me/ahoo/wow/query/schema/StorageSupport$Companion {
+}
+
+public abstract interface class me/ahoo/wow/query/schema/Temporal : me/ahoo/wow/query/schema/QuerySemanticType {
 }
 
 public final class me/ahoo/wow/query/schema/Temporal$Date : me/ahoo/wow/query/schema/Temporal {

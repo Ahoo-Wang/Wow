@@ -14,6 +14,7 @@
 package me.ahoo.wow.query.schema
 
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.query.jsonValue
@@ -40,7 +41,7 @@ class QuerySchemaDeclarationBuilder {
 }
 
 /** One field or nested value: its shape (kind, types, nullability, structure) and semantics (enum, time, text). */
-@InternalWowApi
+@ExperimentalWowApi
 class QueryFieldDeclarationBuilder {
     private var kind: DeclarationValue<QueryValueKind> = DeclarationValue.Unset
     private var types: DeclarationValue<Set<QueryValueType>> = DeclarationValue.Unset

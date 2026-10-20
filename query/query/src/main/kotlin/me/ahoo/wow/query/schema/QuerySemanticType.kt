@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
@@ -23,7 +24,7 @@ import java.util.concurrent.TimeUnit
  * descriptor's `type`) are `TEMPORAL_DATE`, `TEMPORAL_EPOCH`, `TEMPORAL_FORMATTED`, `DECIMAL`, `MONEY`, `DURATION` and
  * `REFERENCE`, as [QueryJson][me.ahoo.wow.query.json.QueryJson] writes them.
  */
-@InternalWowApi
+@ExperimentalWowApi
 interface QuerySemanticType {
     /**
      * A semantic type whose `type` this version does not know, read from a newer server: treat the field as having
@@ -32,7 +33,7 @@ interface QuerySemanticType {
     data object Unknown : QuerySemanticType
 }
 
-@InternalWowApi
+@ExperimentalWowApi
 sealed interface Temporal : QuerySemanticType {
     data object Date : Temporal
     data class Epoch(

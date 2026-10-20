@@ -677,7 +677,7 @@ A context that sends commands to, or reads the published streams of, another con
 
 ## Datasets
 
-9.x `me.ahoo.wow.query.schema.QueryDataset` is `me.ahoo.wow.query.dataset.QueryDataset` in V10 `wow-query`, an `@ExperimentalWowApi` (opt in with `@OptIn(ExperimentalWowApi::class)`): named by an `AggregateType` (`QueryDataset.nameOf("<context>.<dataset>")`) instead of a `MaterializedNamedAggregate`, declared in a dataset file (`QueryDatasetFiles`: `<config directory>/wow/dataset/`, then `META-INF/wow/dataset/` on the class path) or published by the analytics catalog. A 9.x dataset declared in code becomes a dataset file: V10 has no public code DSL for datasets (`QueryDataset.of` is internal). Its scope names the tenant column or declares the dataset platform-level. Datasets are served under `/wow/dataset` ([Routing](#routing)); a 9.x dataset backend other than ClickHouse needs a `DatasetQueryBackendFactory`.
+9.x `me.ahoo.wow.query.schema.QueryDataset` is `me.ahoo.wow.query.dataset.QueryDataset` in V10 `wow-query`, an `@ExperimentalWowApi` (opt in with `@OptIn(ExperimentalWowApi::class)`): named by an `AggregateType` (`QueryDataset.nameOf("<context>.<dataset>")`) instead of a `MaterializedNamedAggregate`, declared with `QueryDataset.of(name) { … }` or a dataset file (`QueryDatasetFiles`: `<config directory>/wow/dataset/`, then `META-INF/wow/dataset/` on the class path). Its scope names the tenant column or declares the dataset platform-level. Datasets are served under `/wow/dataset` ([Routing](#routing)); a 9.x dataset backend other than ClickHouse needs a `DatasetQueryBackendFactory`.
 
 ## Custom message functions
 

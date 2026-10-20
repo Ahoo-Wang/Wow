@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.annotation.InternalWowApi
 
 private val QUERY_SCHEMA_IDENTIFIER_PATTERN = Regex("[A-Za-z_][A-Za-z0-9_-]*")
@@ -72,7 +73,7 @@ enum class QueryCapability {
     AGGREGATE_TEMPORAL,
 }
 
-@InternalWowApi
+@ExperimentalWowApi
 data class QueryValueType(
     val value: String,
 ) {
@@ -101,5 +102,5 @@ enum class QueryCardinality {
 }
 
 /** Structural value facts shared by schema declarations and metadata. */
-@InternalWowApi
+@ExperimentalWowApi
 enum class QueryValueKind { UNKNOWN, NULL, SCALAR, OBJECT, ARRAY, UNION }

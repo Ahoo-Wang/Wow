@@ -34,7 +34,6 @@ import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
-import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.FilterOperator
 import me.ahoo.wow.api.query.IListQuery
 import me.ahoo.wow.api.query.QueryField
@@ -49,7 +48,7 @@ import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
 
-@OptIn(ExperimentalWowApi::class, InternalWowApi::class)
+@OptIn(ExperimentalWowApi::class)
 class DatasetPublicationWatcherTest {
     private var rows: List<Snapshot<DatasetState>> = emptyList()
     private val queries = mutableListOf<IListQuery>()

@@ -11,11 +11,9 @@
  * limitations under the License.
  */
 
-@file:OptIn(InternalWowApi::class)
-
 package me.ahoo.wow.analytics.catalog.server
 
-import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.query.schema.QueryFieldDeclarationBuilder
 import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueType
@@ -27,6 +25,7 @@ import me.ahoo.wow.query.schema.Temporal
  * integer, a decimal (floats too), a boolean, or an array of text; `Nullable` and `LowCardinality` wrap any of them.
  * Any other type (a map, a tuple, a `JSON` column) is not one a dataset serves.
  */
+@OptIn(ExperimentalWowApi::class)
 internal object ClickHouseDatasetColumns {
     private const val NULLABLE = "Nullable("
     private const val LOW_CARDINALITY = "LowCardinality("
