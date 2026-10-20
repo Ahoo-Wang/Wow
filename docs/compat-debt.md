@@ -105,7 +105,7 @@ When you add compatibility code, add its marker and list the file under an entry
 
 ### Wow 8.x Contract Matrix
 
-- **Kept compatible**: the TypeScript contract tests run the client and generated code against published `wow-example-server` images 8.10.8 (Condition only) and 8.11.5 (filters), as fetcher's `generator-test.yml` did. The matrix is the `legacy-contract` job of `.github/workflows/typescript-contract.yml`; against the 8.x images it generates clients and type-checks them, and does not run the integration cases. The Condition integration cases (`cartSnapshotQueryClient.test.ts`, `cartEventStreamQueryClient.test.ts`) run in the same-source contract job, whose server still accepts Condition queries, beside the `filter.*` cases.
+- **Kept compatible**: the TypeScript contract tests run the client and generated code against published `wow-example-server` images 8.10.8 (Condition only) and 8.11.5 (filters), as fetcher's `generator-test.yml` did. The matrix is the `legacy-contract` job of `.github/workflows/typescript-contract.yml`; against the 8.x images it generates clients and type-checks them, and does not run the integration cases. The Condition integration cases (`cartSnapshotQueryClient.test.ts`, `cartEventStreamQueryClient.test.ts`) ran beside the `filter.*` cases in the same-source contract job against the 9.x example server built from the commit; on `v10` that job left with the 9.x example (decision D262), so they run on main only.
 - **Markers**: `.github/workflows/typescript-contract.yml`, `typescript/integration-test/test/wow/cart/cartSnapshotQueryClient.test.ts`, `typescript/integration-test/test/wow/cart/cartEventStreamQueryClient.test.ts`
 - **Replacement**: the same-source contract job, which builds the server from this repository.
 - **Removal in v10**: drop the 8.x images from the matrix and move the integration cases to `filter.*`.
@@ -151,13 +151,6 @@ When you add compatibility code, add its marker and list the file under an entry
 - **Markers**: `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys.kt`, `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contributor/aggregate/snapshot/SnapshotRouteContributor.kt`, `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contributor/aggregate/event/EventRouteContributor.kt`, `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/query/QuerySchemaRefreshHandlerFunction.kt`, `wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/webflux/route/QueryRouteModule.kt`
 - **Replacement**: the `wowQuerySchema` actuator endpoint, and periodic revalidation (`wow.query.schema.revalidate-interval`).
 - **Removal in v10**: delete the two route contracts, the `SCHEMA_REFRESH` keys, `QuerySchemaRefreshHandlerFunctionFactory` and its two registrations, then update the OpenAPI snapshots and the route inventory.
-
-### Wow 9.1 Compensation Console Links
-
-- **Kept compatible**: alert messages sent by 9.1 link to the 9.1 console's pages (`/to-retry?id=…`, `/unrecoverable?id=…`, `/active`, …). Each redirects (302) to `/executions` on the system view of the same name, with the same execution open.
-- **Markers**: `compensation/wow-compensation-server/src/main/kotlin/me/ahoo/wow/compensation/server/dashboard/DashboardConfiguration.kt`
-- **Replacement**: the links 9.2 sends, `/executions?view=system:execution-failed:<view>&id=<id>`.
-- **Removal in v10**: delete `legacyNav`. Alerts sent before the 9.2 upgrade then open a 404, so v10's release notes say so.
 
 ### Wow 9.2 Aggregate Policies On `@AggregateRoute`
 

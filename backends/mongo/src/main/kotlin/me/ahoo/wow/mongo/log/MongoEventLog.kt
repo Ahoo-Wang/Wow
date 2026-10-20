@@ -74,6 +74,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -142,9 +143,10 @@ class MongoEventLog(
     /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
     private val ddl: StoreDdl = StoreDdl.AUTO,
     /**
-     * How long an append's transaction, its retries included, may take (decision D261): the driver retries a transient
-     * failure for up to two minutes otherwise, past any command's wait. Below the default wait timeout, so a command
-     * appending during an outage is answered: the retryable storage error when no commit was sent, else unknown.
+     * How long one attempt of an append's transaction may take (decision D261): a server that does not answer fails
+     * it, and is not retried, so a command appending during an outage is answered before its wait ends, with the
+     * retryable storage error when no commit was sent, else unknown. Below the default wait timeout. Write conflicts
+     * on the partition's counter are retried, each attempt bounded anew ([transact]).
      */
     transactionTimeout: Duration = DEFAULT_TRANSACTION_TIMEOUT,
 ) : EventLog {
@@ -292,7 +294,7 @@ class MongoEventLog(
         var committing = false
         val outcome = try {
             client.startSession().use { session ->
-                session.withTransaction({
+                transact(session, committing = { committing = true }) {
                     val current = collection.log.find(session, refFilter(stream.ref))
                         .sort(Sorts.descending(VERSION))
                         .limit(1)
@@ -309,8 +311,8 @@ class MongoEventLog(
                         )!!.getLong(SEQUENCE)
                         collection.log.insertOne(session, document.append(SEQUENCE, sequence))
                         AppendOutcome.Committed(LogPosition(partition, sequence))
-                    }.also { committing = true }
-                }, transaction)
+                    }
+                }
             }
         } catch (tooLarge: BsonMaximumSizeExceededException) {
             // The driver refused the document before sending it, so the transaction wrote nothing (finding R2.2-2).
@@ -319,6 +321,76 @@ class MongoEventLog(
             outcomeOf(failure, committing, collection, stream)
         }
         return if (outcome is AppendOutcome.Conflict) duplicateOr(collection, stream, outcome) else outcome
+    }
+
+    /**
+     * Runs [body] in a transaction of [session] and commits it, retrying as the driver's `withTransaction` does: the
+     * whole transaction on a `TransientTransactionError` (a write conflict on the partition's counter, say), the commit
+     * on an `UnknownTransactionCommitResult`, for at most [MAX_RETRY]. Unlike it, each attempt is bounded by the
+     * transaction timeout, and a server that cannot be reached ([MongoFailures.isUnreachable]) is not retried, so a
+     * command appending during an outage is answered before its wait ends. [committing] is called before each commit.
+     */
+    private fun <T> transact(session: ClientSession, committing: () -> Unit = {}, body: () -> T): T {
+        val until = System.nanoTime() + MAX_RETRY.inWholeNanoseconds
+        while (true) {
+            session.startTransaction(transaction)
+            val result = attempt(session, until, body) ?: continue
+            committing()
+            if (committed(session, until)) {
+                return result.value
+            }
+        }
+    }
+
+    /** What [body] returned in one attempt of a transaction; null when the transaction is to be tried again. */
+    private fun <T> attempt(session: ClientSession, until: Long, body: () -> T): Attempted<T>? = try {
+        Attempted(body())
+    } catch (failure: MongoException) {
+        abort(session, failure)
+        if (!retries(failure, MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL, until)) throw failure
+        null
+    } catch (
+        @Suppress("TooGenericExceptionCaught") // Aborts whatever else failed, then rethrows it unchanged.
+        failure: RuntimeException,
+    ) {
+        abort(session, failure)
+        throw failure
+    }
+
+    /** Commits [session]'s transaction: true once committed, false when the whole transaction is to be tried again. */
+    private fun committed(session: ClientSession, until: Long): Boolean {
+        while (true) {
+            try {
+                session.commitTransaction()
+                return true
+            } catch (failure: MongoException) {
+                when {
+                    retries(failure, MongoException.UNKNOWN_TRANSACTION_COMMIT_RESULT_LABEL, until) -> Unit
+                    retries(failure, MongoException.TRANSIENT_TRANSACTION_ERROR_LABEL, until) -> {
+                        abort(session, failure)
+                        return false
+                    }
+
+                    else -> throw failure
+                }
+            }
+        }
+    }
+
+    /** Whether [failure], labelled [label], is retried: a server that answered, before [until] (nanoseconds). */
+    private fun retries(failure: MongoException, label: String, until: Long): Boolean =
+        failure.hasErrorLabel(label) && !MongoFailures.isUnreachable(failure) && System.nanoTime() < until
+
+    private class Attempted<T>(val value: T)
+
+    /** Aborts [session]'s transaction after [failure], when it is still open; a failing abort joins [failure]. */
+    private fun abort(session: ClientSession, failure: Throwable) {
+        if (!session.hasActiveTransaction()) return
+        try {
+            session.abortTransaction()
+        } catch (aborting: MongoException) {
+            failure.addSuppressed(aborting)
+        }
     }
 
     /**
@@ -422,7 +494,7 @@ class MongoEventLog(
         val collections = members.map { it.first.ref.type }.distinct().associateWith { collectionOf(it) }
         return try {
             client.startSession().use { session ->
-                session.withTransaction({ appendGroup(session, partition, collections, members) }, transaction)
+                transact(session) { appendGroup(session, partition, collections, members) }
             }.mapIndexed { index, outcome ->
                 val stream = members[index].first
                 if (outcome is AppendOutcome.Conflict) {
@@ -837,6 +909,9 @@ class MongoEventLog(
         const val AGGREGATE = "aggregate"
         const val BRANCH = "branch"
         const val HEAD = "head"
+
+        /** How long the driver's `withTransaction` retries a transaction; [transact] retries as long. */
+        val MAX_RETRY: Duration = 2.minutes
 
         /** How long an append's transaction may take by default: below the default wait timeout of 10 seconds. */
         val DEFAULT_TRANSACTION_TIMEOUT: Duration = 5.seconds

@@ -1,0 +1,292 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.api.query.descriptor
+
+import com.fasterxml.jackson.annotation.JsonInclude
+import me.ahoo.wow.api.query.AggregationDatePart
+import me.ahoo.wow.api.query.AggregationDateUnit
+import me.ahoo.wow.api.query.DateDiffUnit
+import me.ahoo.wow.api.query.DeletionState
+import me.ahoo.wow.api.query.FilterOperator
+import me.ahoo.wow.api.query.SearchMode
+import me.ahoo.wow.api.query.WindowFunction
+import me.ahoo.wow.api.query.annotation.SensitivityLevel
+import me.ahoo.wow.api.query.schema.QueryDeprecation
+import me.ahoo.wow.api.query.schema.QueryModel
+import me.ahoo.wow.api.query.schema.QuerySemanticType
+import me.ahoo.wow.api.query.schema.QueryValueKind
+import me.ahoo.wow.api.query.schema.QueryValueType
+import tools.jackson.databind.JsonNode
+
+/**
+ * How a query model can be queried on one entry: the answer `GET …/schema` gives to agents and the view engine.
+ *
+ * It publishes conclusions, never storage vocabulary: every listed operator, sort, group and function is admitted when
+ * used on its own, anything unlisted is rejected; combination rules are in [constraints]. Values, scopes and policy
+ * conditions may still reject a query at run time, with a structured violation. It exposes no physical names and does
+ * not depend on the caller, so it is cacheable; [version] is a hash of its content and doubles as the ETag.
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class QueryModelDescriptor(
+    val model: QueryModel,
+    val version: String,
+    /** The server's default time zone, used when a request names none. */
+    val timeZone: String,
+    val record: RecordDescriptor,
+    val limits: LimitsDescriptor,
+    val analysis: AnalysisDescriptor,
+    /** Every queryable field by logical path, fields inside elements included (see [FieldDescriptor.scope]). */
+    val fields: List<FieldDescriptor>,
+    val elements: List<ElementDescriptor>,
+    /** Fields under dynamic map keys, written with `{key}` in place of the key. */
+    val dynamic: List<DynamicFieldDescriptor>,
+    val constraints: List<ConstraintDescriptor>,
+    /** The variants of an element whose records differ by a discriminator, or `null` when the model has none. */
+    val variants: VariantsDescriptor? = null,
+)
+
+/**
+ * An element of every record whose fields differ by variant: an EventStream record's `body` holds events whose
+ * payload fields depend on `bodyType`. A condition on one variant's field must be written inside an `ELEMENT_MATCH`
+ * on [element] together with the [discriminator], so both apply to the same element.
+ */
+data class VariantsDescriptor(
+    /** The element holding the variants, e.g. `body`. */
+    val element: String,
+    /** The element-relative field naming each element's variant, e.g. `bodyType`. */
+    val discriminator: String,
+    val values: List<VariantDescriptor>,
+)
+
+/** One variant: its discriminator [value] and the fields it has, by paths relative to the element. */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class VariantDescriptor(
+    val value: String,
+    val fields: List<FieldDescriptor>,
+    val description: String? = null,
+)
+
+enum class PagingMode { LIST, PAGED, CURSOR }
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class RecordDescriptor(
+    val identity: String,
+    val paging: List<PagingMode>,
+    /** The deletion scope applied when a query states none; `null` when the model has none. */
+    val defaultScope: DeletionState?,
+    /**
+     * Operators that name no field of their own: the system-field operators, and `EXPRESSION` (whose expression names
+     * its fields) when computed expressions are allowed.
+     */
+    val rootOperators: List<FilterOperator>,
+    /** Model-wide full-text search, or `null` when the model offers none. */
+    val search: SearchDescriptor?,
+)
+
+/**
+ * Full-text search in one scope. For the record, [modes] are those of a model-wide `SEARCH` (without fields) and
+ * [fields] the record-level fields a `SEARCH` may name. For an element, `SEARCH` goes inside an `ELEMENT_MATCH` on it
+ * and must name fields: [fields] are its searchable fields, by full logical path (written relative to the element in
+ * the query), and [modes] those every listed field accepts.
+ */
+data class SearchDescriptor(val modes: List<SearchMode>, val fields: List<String>)
+
+/** Effective limits of this entry: protocol limits and the entry's budget, whichever is smaller; `null` is unlimited. */
+data class LimitsDescriptor(
+    val maxListSize: Int?,
+    val defaultListSize: Int?,
+    val maxPageSize: Int?,
+    val maxPageWindow: Long?,
+    val maxFilterNodes: Int?,
+    val maxFilterValues: Int?,
+    val maxSortFields: Int,
+    val aggregation: AggregationLimitsDescriptor,
+)
+
+data class AggregationLimitsDescriptor(
+    val maxGroups: Int,
+    val maxMetrics: Int,
+    val maxElements: Int,
+    val maxLimit: Int,
+    val maxExpressionDepth: Int,
+    val maxExpressionNodes: Int,
+    /**
+     * The most groups an aggregation may read when the core computes part of it (HAVING, top-N by a metric, dense
+     * fill or windows the storage declares RESIDUAL), beyond which the query fails; `null` is unlimited.
+     */
+    val maxResidualGroups: Int? = null,
+)
+
+data class AnalysisDescriptor(
+    val metrics: List<String>,
+    /** The [metrics] whose results this backend estimates rather than computes exactly. */
+    val approximate: List<String>,
+    /**
+     * Whether computed expressions (arithmetic and `DATE_DIFF`) may feed metrics and TERMS / HISTOGRAM groups, and be
+     * compared by an `EXPRESSION` filter. A `DATE_DIFF` operand is any field whose `aggregate.groups` lists
+     * `DATE_HISTOGRAM`.
+     */
+    val expressions: Boolean,
+    val having: HavingDescriptor,
+    val sort: AnalysisSortDescriptor,
+    val dense: Boolean,
+    /** The calendar units a `DATE_HISTOGRAM` group may bucket by. */
+    val dateUnits: List<AggregationDateUnit>,
+    /** The calendar parts a `DATE_PART` group may group by. */
+    val dateParts: List<AggregationDatePart>,
+    /** The units a `DATE_DIFF` expression may measure in; empty when [expressions] is `false`. */
+    val dateDiffUnits: List<DateDiffUnit>,
+    /**
+     * The field FIRST and LAST order by when they name no `orderBy`, at the record level; `null` when the model has
+     * no event time or the storage offers no FIRST / LAST. An explicit `orderBy` is any single-valued field whose
+     * `sort.paged` is `true` in the metric's scope.
+     */
+    @get:JsonInclude(JsonInclude.Include.NON_NULL)
+    val firstLastOrderBy: String? = null,
+    /** The window functions a derived metric may compute over the groups; empty when DERIVED is not offered. */
+    val windows: List<WindowFunction> = emptyList(),
+    /**
+     * Whether a group of a query that expands elements may read a root field (`scope: ROOT`); `false` where the
+     * storage cannot group elements by their record's fields.
+     */
+    val rootGroups: Boolean = false,
+)
+
+data class HavingDescriptor(val metrics: List<String>)
+
+data class AnalysisSortDescriptor(val groups: Boolean, val metrics: Boolean)
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class FieldDescriptor(
+    val path: String,
+    /**
+     * The system role of a system field: a system-field filter target (`SystemField`, e.g. `TENANT_ID`), or one of the
+     * model's times ([EVENT_TIME], [FIRST_EVENT_TIME]); `null` for ordinary fields.
+     */
+    val role: String?,
+    val types: Set<QueryValueType>,
+    val kind: QueryValueKind,
+    val nullable: Boolean,
+    val semantic: QuerySemanticType?,
+    /** Declared values; never listed for protected fields. */
+    val enum: List<EnumValueDescriptor>?,
+    val description: String?,
+    val sensitivity: SensitivityDescriptor?,
+    val project: Boolean,
+    val filter: FieldFilterDescriptor,
+    val sort: FieldSortDescriptor,
+    /** `null` when the field cannot be aggregated at all. */
+    val aggregate: FieldAggregateDescriptor?,
+    /** The element this field lives in, or `null` at the record level. */
+    val scope: String?,
+    /** Set when the field is deprecated: still queryable, but new queries should avoid it. */
+    val deprecated: QueryDeprecation? = null,
+    /** Other paths a query may use for this field; admission replaces them with [path]. */
+    val aliases: List<String> = emptyList(),
+) {
+    companion object {
+        /**
+         * When the record's events happened: a snapshot's last event (`eventTime`), an event stream's events
+         * (`createTime`). FIRST and LAST order by it when they name no `orderBy`.
+         */
+        const val EVENT_TIME = "EVENT_TIME"
+
+        /** When a snapshot's aggregate got its first event, i.e. was created (`firstEventTime`). */
+        const val FIRST_EVENT_TIME = "FIRST_EVENT_TIME"
+    }
+}
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class EnumValueDescriptor(val value: JsonNode, val description: String? = null)
+
+/**
+ * A sensitive field's protection: its [level] and whether filters and paged sorts may still compare its raw value.
+ * [comparable] is `false` for [SensitivityLevel.CONFIDENTIAL], and for [SensitivityLevel.DISPLAY] when the server
+ * turned comparison off.
+ */
+data class SensitivityDescriptor(val level: SensitivityLevel, val comparable: Boolean)
+
+data class FieldFilterDescriptor(val operators: List<FilterOperator>)
+
+data class FieldSortDescriptor(val paged: Boolean, val cursor: Boolean)
+
+data class FieldAggregateDescriptor(
+    val groups: List<String>,
+    val missingKey: Boolean,
+    val functions: List<String>,
+    val distinctCount: Boolean,
+    val percentile: Boolean,
+    val any: Boolean,
+    /** Whether FIRST / LAST may read this field's value. */
+    val firstLast: Boolean,
+    val expressionInput: Boolean,
+    val inMetricFilter: Boolean,
+)
+
+/**
+ * An element (a nested array) that `ELEMENT_MATCH` can scope; [search] is full-text search on its fields, `null` when
+ * storage can search none of them.
+ */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class ElementDescriptor(
+    val path: String,
+    val filter: Boolean,
+    val aggregate: Boolean,
+    val search: SearchDescriptor? = null,
+)
+
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class DynamicFieldDescriptor(
+    val pattern: String,
+    val types: Set<QueryValueType>,
+    val kind: QueryValueKind,
+    val filter: FieldFilterDescriptor,
+    /** Keys that are declared separately and therefore excluded from this pattern. */
+    val excludedKeys: List<String>?,
+)
+
+/** A combination rule that per-field listings cannot express. */
+@JsonInclude(JsonInclude.Include.NON_NULL)
+data class ConstraintDescriptor(
+    val type: String,
+    val appended: String? = null,
+    /** The fields the constraint is about, when it names several. */
+    val fields: List<String>? = null,
+) {
+    companion object {
+        /** A cursor's sort always ends with the identity field, appended when absent. */
+        const val CURSOR_UNIQUE_SORT = "CURSOR_UNIQUE_SORT"
+
+        /** A count or paged query must not match every record. */
+        const val COUNT_REQUIRES_FILTER = "COUNT_REQUIRES_FILTER"
+
+        /** STARTS_WITH needs a non-empty, case-sensitive prefix. */
+        const val STARTS_WITH_REQUIRES_PREFIX = "STARTS_WITH_REQUIRES_PREFIX"
+
+        /**
+         * A sort names at most one of [fields]: they are array-valued and the storage cannot order by two independent
+         * arrays. Fields on one array path (one nested in the other) may still combine.
+         */
+        const val PARALLEL_ARRAY_SORT = "PARALLEL_ARRAY_SORT"
+
+        /**
+         * On [fields], a stored `null` or empty array is indistinguishable from a missing field: `EXISTS` does not
+         * match it, `NOT_EXISTS` and `IS_NULL` do, and `IS_EMPTY` also matches a missing or `null` field.
+         */
+        const val NULL_OR_EMPTY_AS_MISSING = "NULL_OR_EMPTY_AS_MISSING"
+
+        /** `EQ` and `NE` accept only a scalar operand: the storage cannot compare a whole array. */
+        const val ARRAY_EQUALITY = "ARRAY_EQUALITY"
+    }
+}
