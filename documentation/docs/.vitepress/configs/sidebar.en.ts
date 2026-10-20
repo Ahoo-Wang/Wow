@@ -156,6 +156,15 @@ export const sidebarEn: DefaultTheme.Sidebar = {
             ],
         },
     ],
+    '/reference/': [
+        {
+            base: '/reference/',
+            text: 'Reference',
+            items: [
+                {text: 'Wire Protocols', link: 'protocols'},
+            ],
+        },
+    ],
     '/contribute/': [
         {
             base: '/contribute/',

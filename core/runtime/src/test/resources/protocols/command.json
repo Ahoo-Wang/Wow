@@ -1,0 +1,72 @@
+{
+  "format": 1,
+  "kind": "command",
+  "id": "c-3",
+  "type": "bank.account.Withdraw",
+  "payload": {
+    "type": "bank.account.Withdraw",
+    "id": "c-3",
+    "requestId": "tr-9@1#0",
+    "ref": {
+      "type": {
+        "context": "bank",
+        "name": "account"
+      },
+      "tenantId": "t1",
+      "id": "alice",
+      "isAssigned": true
+    },
+    "body": {
+      "amount": 30
+    },
+    "expectedVersion": null,
+    "scope": {
+      "ownerId": null,
+      "spaceId": null
+    },
+    "headers": {},
+    "causation": {
+      "correlationId": "c-1",
+      "causationId": "bank.transfer/t1/tr-9@1"
+    },
+    "operator": {
+      "id": "u-42",
+      "tenantId": "t1",
+      "crossScope": false
+    },
+    "replyTo": {
+      "context": "bank",
+      "subscription": "TransferSaga.onRequested",
+      "ref": {
+        "type": {
+          "context": "bank",
+          "name": "transfer"
+        },
+        "tenantId": "t1",
+        "id": "tr-9",
+        "isAssigned": true
+      },
+      "version": 1,
+      "committed": false
+    }
+  },
+  "transport": {
+    "wait": {
+      "waitId": "w-7",
+      "origin": {
+        "node": "bank-1",
+        "address": "10.0.0.5:9090",
+        "service": "bank-service"
+      },
+      "remaining": [
+        {
+          "stage": "HANDLED",
+          "context": "bank",
+          "subscription": "snapshot"
+        }
+      ],
+      "deadline": 1760950810000
+    },
+    "trace": {}
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "format": 1,
+  "kind": "command-receipt",
+  "id": "c-3",
+  "type": "bank.account.Withdraw",
+  "payload": {
+    "commandId": "c-3",
+    "commandType": "bank.account.Withdraw",
+    "ref": {
+      "type": {
+        "context": "bank",
+        "name": "account"
+      },
+      "tenantId": "t1",
+      "id": "alice",
+      "isAssigned": true
+    },
+    "error": {
+      "code": "bank.account.insufficient-balance",
+      "message": "The balance is 20.",
+      "violations": [],
+      "extensions": {}
+    },
+    "causation": {
+      "correlationId": "c-1",
+      "causationId": "bank.transfer/t1/tr-9@1"
+    },
+    "executionId": {
+      "subscription": "TransferSaga.onRequested",
+      "ref": {
+        "type": {
+          "context": "bank",
+          "name": "transfer"
+        },
+        "tenantId": "t1",
+        "id": "tr-9",
+        "isAssigned": true
+      },
+      "version": 1
+    },
+    "operator": {
+      "id": "u-42",
+      "tenantId": "t1",
+      "crossScope": false
+    },
+    "scope": {
+      "ownerId": "u-42",
+      "spaceId": null
+    },
+    "headers": {}
+  },
+  "transport": null
+}

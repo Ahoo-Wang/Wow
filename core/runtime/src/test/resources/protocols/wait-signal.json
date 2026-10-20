@@ -1,0 +1,40 @@
+{
+  "format": 1,
+  "waitId": "w-7",
+  "result": {
+    "format": 1,
+    "commandId": "c-2",
+    "requestId": "r-2",
+    "correlationId": "c-2",
+    "ref": {
+      "type": {
+        "context": "bank",
+        "name": "account"
+      },
+      "tenantId": "t1",
+      "id": "alice",
+      "isAssigned": true
+    },
+    "hop": {
+      "stage": "HANDLED",
+      "context": "bank",
+      "subscription": "snapshot"
+    },
+    "function": {
+      "kind": "SNAPSHOT",
+      "context": "bank",
+      "processor": "snapshot",
+      "name": "snapshot"
+    },
+    "status": "SUCCEEDED",
+    "version": 2,
+    "duplicate": false,
+    "error": null,
+    "results": {},
+    "derived": [],
+    "signalTime": 1760950800042,
+    "transformedFrom": null,
+    "chainEnded": false,
+    "pending": []
+  }
+}

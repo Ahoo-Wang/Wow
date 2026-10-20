@@ -40,6 +40,7 @@ export const navbarEn: DefaultTheme.NavItem[] = [
     {
         text: 'Reference',
         items: [
+            {text: 'Wire Protocols', link: '/reference/protocols'},
             {text: 'Configuration Keys', link: '/guide/v10/configuration'},
             {text: 'What the Compiler Generates', link: '/guide/v10/generated-code'},
             {text: 'Kotlin API', link: '/dokka/index.html', target: '_blank'},
