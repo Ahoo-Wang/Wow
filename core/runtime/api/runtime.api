@@ -286,6 +286,18 @@ public final class me/ahoo/wow/runtime/call/OutgoingCall {
 	public fun toString ()Ljava/lang/String;
 }
 
+public final class me/ahoo/wow/runtime/client/InProcessCommandClient : me/ahoo/wow/api/client/CommandClient {
+	public fun of (Lme/ahoo/wow/api/caller/Caller;)Lme/ahoo/wow/api/client/CommandClient;
+	public fun send (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun stream (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;Lkotlin/jvm/functions/Function2;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun wait (Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+}
+
+public final class me/ahoo/wow/runtime/client/InProcessCommandClientKt {
+	public static final fun results (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;)Lkotlinx/coroutines/flow/Flow;
+	public static synthetic fun results$default (Lme/ahoo/wow/api/client/CommandClient;Ljava/lang/Object;Lme/ahoo/wow/api/aggregate/AggregateRef;Lme/ahoo/wow/api/client/SendOptions;ILjava/lang/Object;)Lkotlinx/coroutines/flow/Flow;
+}
+
 public final class me/ahoo/wow/runtime/cluster/ClusterOptions {
 	public synthetic fun <init> (JJJJJJJIJIJILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public fun equals (Ljava/lang/Object;)Z

@@ -21,7 +21,7 @@ import me.ahoo.cosec.api.authorization.Authorization
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseTableInfo
-import me.ahoo.wow.runtime.admission.CommandGateway
+import me.ahoo.wow.api.client.CommandClient
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.springframework.beans.factory.ObjectProvider
@@ -87,7 +87,7 @@ class AnalyticsCatalogConfigurationTest {
                 error("the warehouse is down")
             }
         }
-        val watcher = CatalogWatcher(failing, { mockk<CommandGateway>() }, Duration.ofMillis(10))
+        val watcher = CatalogWatcher(failing, { mockk<CommandClient>() }, Duration.ofMillis(10))
         watcher.phase.assert().isEqualTo(org.springframework.context.SmartLifecycle.DEFAULT_PHASE)
         watcher.isRunning.assert().isFalse()
         watcher.start()
