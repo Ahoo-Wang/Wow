@@ -298,6 +298,37 @@ class WaitCoordinator(
         run(model, command) { emit(it) }
     }.flowOn(executionContext)
 
+    /**
+     * Sends [command], admitted here for an aggregate of another service's context (a peer's, decision D259 M-1), to
+     * its context's command topic through [relay], and emits a result for each hop of its wait plan as it is reached,
+     * as the `Kafka` router's commands do (decision D143): ACCEPTED once the broker acknowledged it, durable from then
+     * on; the target's intake executes it and signals its COMMITTED result here. [function] names the command in the
+     * results this node makes. The command's plan has only ACCEPTED and COMMITTED hops of its context: admission
+     * refuses any other.
+     */
+    fun relay(command: Command<*>, function: FunctionInfo, relay: CommandRelay): Flow<CommandResult> = flow {
+        run(null, command, function, relay) { emit(it) }
+    }.flowOn(executionContext)
+
+    /** Sends [command] as [relay] does and returns the result its wait ends with: the last one [relay] would emit. */
+    suspend fun executeRelayed(command: Command<*>, function: FunctionInfo, relay: CommandRelay): CommandResult =
+        withContext(executionContext) {
+            var last: CommandResult? = null
+            run(null, command, function, relay) { last = it }
+            checkNotNull(last) { "The wait of ${command.id} ended without a result." }
+        }
+
+    /**
+     * Sends [command], whose plan has only an ACCEPTED hop, as [relay] does, and returns its result at ACCEPTED once
+     * the broker acknowledged it; FAILED at ACCEPTED when it did not within the plan's timeout ([sendThrough]).
+     */
+    suspend fun acceptRelayed(command: Command<*>, function: FunctionInfo, relay: CommandRelay): CommandResult {
+        require(command.wait.isAcceptedOnly) { "Only a plan whose only hop is ACCEPTED is answered at once." }
+        val deadline = clock() + minOf(command.wait.timeout, options.maxTimeout).inWholeMilliseconds
+        return sendThrough(relay, command, function, null, deadline)
+            ?: reachedResult(command, function, Hop.accepted(command.ref.type.context), clock())
+    }
+
     /** [emit], counting a timeout the wait ends with (review A5-11). */
     private suspend fun observed(command: Command<*>, result: CommandResult, emit: suspend (CommandResult) -> Unit) {
         if (result.error?.code == ResultCodes.WAIT_TIMEOUT) {
@@ -307,10 +338,24 @@ class WaitCoordinator(
     }
 
     /** Runs [command]'s wait as [stream] describes, handing each result to [emit]; the caller picks the context. */
-    @Suppress("LongMethod") // One wait from admission to its end, the Kafka router's branch included.
     private suspend fun run(model: AggregateModel<*>, command: Command<*>, results: suspend (CommandResult) -> Unit) {
+        val relay = topicRouter?.takeIf { it.routes(command.ref.type) }?.relayOf(model)
+        run(model, command, commandFunction(model, command), relay, results)
+    }
+
+    /**
+     * Runs [command]'s wait, handing each result to [emit]: through [relay] when there is one (the `Kafka` router's
+     * command topic, or a peer's), else executed on [model]'s aggregate, routed by [router].
+     */
+    @Suppress("LongMethod") // One wait from admission to its end, the command topic's branch included.
+    private suspend fun run(
+        model: AggregateModel<*>?,
+        command: Command<*>,
+        function: FunctionInfo,
+        relay: CommandRelay?,
+        results: suspend (CommandResult) -> Unit,
+    ) {
         val emit: suspend (CommandResult) -> Unit = { observed(command, it, results) }
-        val function = commandFunction(model, command)
         val context = command.ref.type.context
         val checked = WaitChain.of(command.wait, command.ref.type, directory, options.maxHops, options.unknownContexts)
         val chain = when (checked) {
@@ -339,13 +384,12 @@ class WaitCoordinator(
         }
         val settled = AtomicBoolean()
         var expiry: ScheduledFuture<*>? = null
-        val topic = topicRouter?.takeIf { it.routes(command.ref.type) }
         try {
-            if (topic != null) {
-                // The Kafka router (D143): ACCEPTED once durable; the owner signals the rest.
+            if (relay != null) {
+                // A command topic (D143, M-1): ACCEPTED once durable; the owner signals the rest.
                 val remaining = chain.hops.dropWhile { it.stage == Stage.ACCEPTED }
                 val wait = WaitContext(waitId, options.origin, remaining, deadline).takeIf { remaining.isNotEmpty() }
-                sendToTopic(topic, model, command, wait, deadline)?.let { failed ->
+                sendThrough(relay, command, function, wait, deadline)?.let { failed ->
                     emit(failed)
                     return
                 }
@@ -360,7 +404,7 @@ class WaitCoordinator(
             // Once ACCEPTED is reached: a timeout answers at the last hop reached.
             expiry = expireAt(deadline, waiting, settled)
             val wait = WaitContext(waitId, options.origin, chain.hops, deadline)
-            settle(model, command, wait, waiting)?.let { settlement ->
+            settle(checkNotNull(model), command, wait, waiting)?.let { settlement ->
                 if (withdrawn(settlement)) {
                     // Withdrawn because the deadline passed (review X-12): the wait ends as the deadline ends it,
                     // whichever of the lane's timer and the deadline thread fired first.
@@ -436,32 +480,31 @@ class WaitCoordinator(
             return reachedResult(command, function, hop, clock())
         }
         val deadline = clock() + minOf(command.wait.timeout, options.maxTimeout).inWholeMilliseconds
-        return sendToTopic(topic, model, command, null, deadline) ?: reachedResult(command, function, hop, clock())
+        return sendThrough(topic.relayOf(model), command, function, null, deadline)
+            ?: reachedResult(command, function, hop, clock())
     }
 
     /**
-     * Writes [command] to [topic]'s command topic with [wait] (the Kafka router, decision D143); null once the broker
-     * acknowledged it, else its result at ACCEPTED, FAILED: [ResultCodes.UNKNOWN] when the send failed, the command
-     * perhaps written all the same, or [ResultCodes.WAIT_TIMEOUT] at [deadline]. Either way a retry with the same
-     * request id is safe.
+     * Writes [command] to [relay]'s command topic with [wait] (the Kafka router, decision D143, or a peer's topic,
+     * M-1); null once the broker acknowledged it, else its result at ACCEPTED, FAILED: [ResultCodes.UNKNOWN] when the
+     * send failed, the command perhaps written all the same, or [ResultCodes.WAIT_TIMEOUT] at [deadline]. Either way a
+     * retry with the same request id is safe.
      */
     @Suppress("TooGenericExceptionCaught") // Whatever the producer throws, the command may or may not be written.
-    private suspend fun sendToTopic(
-        topic: TopicRouter,
-        model: AggregateModel<*>,
+    private suspend fun sendThrough(
+        relay: CommandRelay,
         command: Command<*>,
+        function: FunctionInfo,
         wait: WaitContext?,
         deadline: Long,
     ): CommandResult? {
-        val accepted = {
-            reachedResult(command, commandFunction(model, command), Hop.accepted(command.ref.type.context), clock())
-        }
+        val accepted = { reachedResult(command, function, Hop.accepted(command.ref.type.context), clock()) }
         val sent = try {
-            withTimeoutOrNull((deadline - clock()).coerceAtLeast(0).milliseconds) { topic.send(model, command, wait) }
+            withTimeoutOrNull((deadline - clock()).coerceAtLeast(0).milliseconds) { relay.send(command, wait) }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
-            logger.warn(failure) { "Command ${command.id} on ${command.ref} was not acknowledged on ${topic.topic}." }
+            logger.warn(failure) { "Command ${command.id} on ${command.ref} was not acknowledged on ${relay.topic}." }
             return accepted().failed(
                 ResultCodes.UNKNOWN,
                 "The command topic did not acknowledge the command; whether it was written is unknown. Retry it " +
@@ -471,7 +514,7 @@ class WaitCoordinator(
         return if (sent == null) {
             accepted().failed(
                 ResultCodes.WAIT_TIMEOUT,
-                "The wait timed out at ACCEPTED, before the command topic ${topic.topic} acknowledged the command.",
+                "The wait timed out at ACCEPTED, before the command topic ${relay.topic} acknowledged the command.",
             )
         } else {
             null
@@ -830,6 +873,26 @@ class WaitCoordinator(
 
         const val MAX_DEADLINE_SHARDS = 4
     }
+}
+
+/**
+ * Writes the commands admitted on a node to a command topic instead of executing them there: the `Kafka` router's
+ * (decision D143) or a peer context's (decision D259 M-1). The target's intake executes them.
+ */
+@InternalWowApi
+interface CommandRelay {
+    /** The command topic, as a failure names it. */
+    val topic: String
+
+    /** Writes [command] with [wait] and the trace it is sent in, and waits for the broker; throws when it did not ack. */
+    suspend fun send(command: Command<*>, wait: WaitContext?)
+}
+
+/** This router's relay of [model]'s commands. */
+private fun TopicRouter.relayOf(model: AggregateModel<*>): CommandRelay = object : CommandRelay {
+    override val topic: String get() = this@relayOf.topic
+
+    override suspend fun send(command: Command<*>, wait: WaitContext?) = this@relayOf.send(model, command, wait)
 }
 
 /** Whether this plan's only hop is ACCEPTED: the caller is answered at admission (decision D100). */

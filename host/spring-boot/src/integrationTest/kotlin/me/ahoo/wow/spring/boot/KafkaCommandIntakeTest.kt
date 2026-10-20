@@ -18,10 +18,13 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.aggregate.AggregateType
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.api.lifecycle.Lifecycle
 import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.result.WaitPlan
 import me.ahoo.wow.api.subscribe.CommandCommitted
 import me.ahoo.wow.api.subscribe.CommandRejected
@@ -48,6 +51,7 @@ import me.ahoo.wow.manifest.ManifestFragment
 import me.ahoo.wow.manifest.PeerContracts
 import me.ahoo.wow.manifest.ServiceInfo
 import me.ahoo.wow.manifest.StateManifest
+import me.ahoo.wow.runtime.admission.CommandRequest
 import me.ahoo.wow.runtime.binding.SubscriptionBindings
 import me.ahoo.wow.runtime.cluster.ClusterOptions
 import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
@@ -61,6 +65,8 @@ import me.ahoo.wow.runtime.node.SourceTopics
 import me.ahoo.wow.runtime.node.TopicDdl
 import me.ahoo.wow.runtime.subscription.RetryPolicy
 import me.ahoo.wow.runtime.subscription.SubscriptionOptions
+import me.ahoo.wow.runtime.wait.ResultCodes
+import me.ahoo.wow.runtime.wait.SignalSender
 import me.ahoo.wow.spi.log.Partitioner
 import me.ahoo.wow.spi.subscription.CheckpointStore
 import me.ahoo.wow.tck.containers.WowContainers
@@ -157,6 +163,8 @@ class KafkaCommandIntakeTest {
         manifest,
         backends,
         channel,
+        // Each node signals the other's waits, as /wow/internal/signals would.
+        remoteSignals = SignalSender { origin, signal -> nodes.firstOrNull { it.node == origin.node }?.waits?.signal(signal) },
         options = NODE_OPTIONS,
         subscriptions = bindings,
         contracts = contracts,
@@ -245,6 +253,31 @@ class KafkaCommandIntakeTest {
             reservations.assert().containsExactly("o-3")
             commits.size.assert().isEqualTo(1)
             confirmations.assert().containsExactly("o-3")
+        }
+
+    @Test
+    fun `a command of the other service from code that is no saga should go through its command topic (M-1)`(): Unit =
+        runBlocking {
+            val prefix = "peer."
+            admin.createTopics(listOf(NewTopic(prefix + "wow.stock.commands", PARTITIONS, 1.toShort()))).all().get()
+            stockNode(topics(prefix, intake = true)).also { it.start() }
+            val sales = salesNode(topics(prefix)).also { it.start() }
+            fun reserve(item: String, quantity: Int, wait: WaitPlan) =
+                CommandRequest.builder(Reserve(quantity), ITEM.ref(TENANT, item)).caller(CLERK).wait(wait).build()
+            val accepted = sales.gateway.execute(reserve("m-1", 1, WaitPlan.ACCEPTED))
+            accepted.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            accepted.hop.assert().isEqualTo(Hop.accepted(STOCK))
+            eventually { "m-1" in reservations }
+            val committed = sales.gateway.execute(reserve("m-2", 2, WaitPlan.COMMITTED.within(30.seconds)))
+            committed.status.assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            committed.hop.assert().isEqualTo(Hop.committed(STOCK))
+            committed.version.assert().isEqualTo(1)
+            val rejected = sales.gateway.execute(reserve("m-3", AVAILABLE + 1, WaitPlan.COMMITTED.within(30.seconds)))
+            rejected.status.assert().isEqualTo(CommandResult.Status.REJECTED)
+            rejected.error!!.code.assert().isEqualTo(INSUFFICIENT)
+            val beyond = sales.gateway.execute(reserve("m-4", 1, WaitPlan.SNAPSHOT))
+            beyond.error!!.code.assert().isEqualTo(ResultCodes.WAIT_INVALID)
+            reservations.assert().containsExactly("m-1", "m-2")
         }
 
     @Test
@@ -374,6 +407,7 @@ class KafkaCommandIntakeTest {
         const val TENANT = "t"
         const val AVAILABLE = 5
         const val INSUFFICIENT = "stock.insufficient"
+        val CLERK: Caller = Caller(TENANT, Scope("clerk"), subject = "clerk")
         val ORDER = AggregateType(SALES, "order")
         val ITEM = AggregateType(STOCK, "item")
 

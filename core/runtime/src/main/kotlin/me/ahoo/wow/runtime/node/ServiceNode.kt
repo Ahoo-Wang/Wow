@@ -33,6 +33,7 @@ import me.ahoo.wow.api.result.Hop
 import me.ahoo.wow.api.schedule.ScheduleJobs
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CommandTypes
+import me.ahoo.wow.kernel.ContextQueries
 import me.ahoo.wow.kernel.Dependencies
 import me.ahoo.wow.kernel.EventCodec
 import me.ahoo.wow.kernel.Kernel
@@ -48,6 +49,7 @@ import me.ahoo.wow.runtime.admission.CommandGateway
 import me.ahoo.wow.runtime.admission.CommittedRequests
 import me.ahoo.wow.runtime.admission.CreationIds
 import me.ahoo.wow.runtime.admission.ModelRegistry
+import me.ahoo.wow.runtime.admission.PeerCommands
 import me.ahoo.wow.runtime.call.CommandCaller
 import me.ahoo.wow.runtime.cluster.ClusterChannel
 import me.ahoo.wow.runtime.cluster.ClusterChannelHandler
@@ -175,6 +177,8 @@ class ContextNode internal constructor(
     val caller: CommandCaller? = null,
     /** The contexts of the node: a saga derives the commands of these, and calls only the others (decision D193). */
     val served: Set<String> = setOf(context),
+    /** The queries the context's handlers read with, by the commit's tenant (decision D259); none by default. */
+    val queries: ContextQueries = ContextQueries.NONE,
 ) {
     /**
      * The ids of the context's creation commands that name no aggregate (decision D191): a saga's derived command, one
@@ -358,6 +362,11 @@ class ServiceNode @InternalWowApi constructor(
      * and the runtime's own ([FailureClassification.of]); none by default.
      */
     failureClassifiers: List<FailureClassifier> = emptyList(),
+    /**
+     * The queries the subscription handlers read with (decision D259), by the tenant of the commit they handle: the
+     * host's query API, resolved when a handler first reads; none by default, and a read then fails.
+     */
+    private val queries: ContextQueries = ContextQueries.NONE,
 ) {
     /** How every subscription of the node classifies its handler's failures. */
     private val classification = FailureClassification.of(failureClassifiers)
@@ -535,6 +544,7 @@ class ServiceNode @InternalWowApi constructor(
             contexts[type.context]?.log?.findByRequestId(type, tenantId, requestId)
         },
         observer = observer,
+        peers = PeerCommands(contracts, sender),
     )
 
     /**
@@ -620,7 +630,9 @@ class ServiceNode @InternalWowApi constructor(
      * The topics the node's contexts own and use (decision D168), which [start] validates or creates as
      * [SourceTopics.ddl] says: the command topic of each context that takes commands from it, with exactly its log's
      * partitions; the receipts topic of each context that reads its rejections; with a producer, the topic of each
-     * stream its contexts publish. None without [topics].
+     * stream its contexts publish, and, under [TopicDdl.VALIDATE], the command topic of each peer context whose
+     * contract lists commands, where the gateway sends them (decision D259, review M-1): that topic is the peer's, so
+     * it is checked, never created. None without [topics].
      */
     val topicRequirements: List<TopicRequirement> = topicRequirements()
 
@@ -656,6 +668,18 @@ class ServiceNode @InternalWowApi constructor(
                     )
                 }
             }
+        }
+        if (sources.producer != null && sources.ddl == TopicDdl.VALIDATE) {
+            contracts.peers.flatMap { it.manifest.contexts }
+                .filter { context -> context.aggregates.any { aggregate -> aggregate.commands.any { !it.mounted } } }
+                .forEach { peer ->
+                    requirements += TopicRequirement(
+                        sources.commandsOf(peer.name),
+                        1,
+                        exact = false,
+                        "the command topic of peer context ${peer.name}, where this node sends its commands",
+                    )
+                }
         }
         return requirements.distinctBy { it.topic }
     }
@@ -1203,6 +1227,7 @@ class ServiceNode @InternalWowApi constructor(
                 maintenance,
                 caller,
                 registry.contexts,
+                queries,
             )
         }
     }

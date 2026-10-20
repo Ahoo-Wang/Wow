@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.spring.boot
 
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
@@ -20,9 +22,14 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.AggregateIdFilter
+import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.MatchAllFilter
 import me.ahoo.wow.api.query.MatchNoneFilter
+import me.ahoo.wow.api.query.SingleQuery
+import me.ahoo.wow.api.read.QueryApi
+import me.ahoo.wow.api.read.TrustedQueries
+import me.ahoo.wow.api.read.snapshots
 import me.ahoo.wow.http.query.HttpQueries
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.manifest.AggregateManifest
@@ -35,6 +42,7 @@ import me.ahoo.wow.query.QueryBudget
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntryPolicy
 import me.ahoo.wow.query.QueryPolicy
+import me.ahoo.wow.query.QueryRequestException
 import me.ahoo.wow.query.QueryTenantPolicy
 import me.ahoo.wow.query.engine.ManifestStateSchemas
 import me.ahoo.wow.query.index.QueryIndexDdl
@@ -159,7 +167,7 @@ class HostQueryTest {
             val events = queries.events(ACCOUNT)!!
             fun eventsOf(tier: String) = runBlocking {
                 val caller = QueryCaller(Caller(attributes = mapOf("abac.$TIER" to listOf(tier))))
-                events.list(ListQuery(AggregateIdFilter(id)), caller).toList()
+                events.list(ListQuery(AggregateIdFilter(id), limit = 10), caller).toList()
             }
             // Review R3.3-3: a caller whose tags the account's do not match reads none of its events.
             eventsOf("gold").assert().isEmpty()
@@ -201,7 +209,7 @@ class HostQueryTest {
                 val events = queries.events(ACCOUNT)!!
                 fun eventsOf(subject: String, aggregate: String = id) = runBlocking {
                     events.list(
-                        ListQuery(AggregateIdFilter(aggregate)),
+                        ListQuery(AggregateIdFilter(aggregate), limit = 10),
                         QueryCaller(Caller(subject = subject))
                     ).toList()
                 }
@@ -277,7 +285,7 @@ class HostQueryTest {
             // In process, the same gateway answers without the HTTP budget.
             runBlocking {
                 queries.events(ACCOUNT)!!.list(
-                    ListQuery(AggregateIdFilter(listed.body!![0]["aggregateId"].asString())),
+                    ListQuery(AggregateIdFilter(listed.body!![0]["aggregateId"].asString()), limit = 10),
                     QueryCaller.IN_PROCESS.copy(caller = Caller()),
                 ).toList()
             }.assert().hasSize(1)
@@ -295,7 +303,7 @@ class HostQueryTest {
             val snapshots = host.context.getBean(HttpQueries::class.java).snapshots(ACCOUNT)!!
             fun visibleTo(tier: String): Boolean = runBlocking {
                 val caller = QueryCaller(Caller(attributes = mapOf("abac.$TIER" to listOf(tier))))
-                snapshots.list(ListQuery(AggregateIdFilter(id)), caller).toList().isNotEmpty()
+                snapshots.list(ListQuery(AggregateIdFilter(id), limit = 10), caller).toList().isNotEmpty()
             }
             eventually { visibleTo("standard") }
             visibleTo("gold").assert().isFalse()
@@ -372,6 +380,56 @@ class HostQueryTest {
     }
 
     @Test
+    fun `the node's QueryApi should read the snapshots, events and states of its models as a caller`() {
+        startHost("wow.query.memory.enabled" to true, "wow.query.in-process.max-list-size" to 5).use { host ->
+            val id = host.openAccount("mona")
+            host.post("/bank/account/$id/deposit", """{"amount":3}""").status.assert().isEqualTo(200)
+            val api = host.context.getBean(QueryApi::class.java)
+            val accounts = api.of(Caller.ANONYMOUS).snapshots<Account>()
+            accounts.type.assert().isEqualTo(ACCOUNT)
+            eventually {
+                runBlocking { accounts.single(SingleQuery(AggregateIdFilter(id)))?.state?.balance == 3L }
+            }
+            runBlocking {
+                accounts.state(id)!!.state.owner.assert().isEqualTo("mona")
+                api.of(Caller.of(tenantId = "other")).snapshots<Account>().state(id).assert().isNull()
+                val events = api.trusted().events(ACCOUNT).list(ListQuery(AggregateIdFilter(id))).toList()
+                events.map { it.events.single().body }.assert().containsExactly(AccountOpened("mona"), Deposited(3))
+                // wow.query.in-process.*: the in-process budget, trusted code's too.
+                runCatching { api.trusted().snapshots(ACCOUNT).list(ListQuery(MatchAllFilter, limit = 6)).toList() }
+                    .exceptionOrNull().assert().isInstanceOf(QueryRequestException::class.java)
+                api.trusted().unbounded().snapshots(ACCOUNT).list(ListQuery(MatchAllFilter, limit = 6)).toList()
+                    .assert().hasSize(1)
+            }
+        }
+    }
+
+    @Test
+    fun `the handlers' queries should read the whole tenant of a commit through the node`() {
+        startHost("wow.query.memory.enabled" to true).use { host ->
+            val id = host.openAccount("mona")
+            val node = host.context.getBean(ServiceNode::class.java)
+            // The node resolves the query plane's ContextQueries when a handler first reads (decision D259).
+            val queries = node.contexts.getValue(BANK).queries.of(Caller.DEFAULT_TENANT)
+            queries.tenantId.assert().isEqualTo(Caller.DEFAULT_TENANT)
+            eventually { runBlocking { queries.snapshots<Account>().single(SingleQuery(AggregateIdFilter(id))) != null } }
+            runBlocking {
+                queries.snapshots<Account>().state(id)!!.state.owner.assert().isEqualTo("mona")
+                node.contexts.getValue(BANK).queries.of("other").snapshots<Account>()
+                    .single(SingleQuery(AggregateIdFilter(id))).assert().isNull()
+                queries.trusted().snapshots(ACCOUNT).count(CountQuery(MatchAllFilter)).count.assert().isEqualTo(1)
+            }
+        }
+    }
+
+    @Test
+    fun `an application's own QueryApi should serve the handlers as a caller of the commit's tenant`() {
+        val trusted = mockk<TrustedQueries>()
+        val api = mockk<QueryApi> { every { trusted() } returns trusted }
+        QueryAutoConfiguration.NodeQueries().wowContextQueries(api).of("acme").trusted().assert().isSameAs(trusted)
+    }
+
+    @Test
     fun `the query plane should be off when wow-query-enabled is false`() {
         startHost("wow.query.enabled" to false).use { host ->
             host.context.getBeanNamesForType(HttpQueries::class.java).assert().isEmpty()
@@ -417,6 +475,9 @@ class HostQueryTest {
         properties.index.ddl.assert().isEqualTo(QueryIndexDdl.AUTO)
         properties.memory.enabled.assert().isFalse()
         properties.http.defaultListSize.assert().isEqualTo(HttpQueries.DEFAULT_LIST_SIZE)
+        policy.inProcess!!.maxListSize.assert().isEqualTo(QueryBudget.HTTP_DEFAULT.maxListSize)
+        policy.inProcess!!.label.assert().isEqualTo(QueryBudget.IN_PROCESS_LABEL)
+        properties.inProcess.defaultListSize.assert().isEqualTo(HttpQueries.DEFAULT_LIST_SIZE)
         properties.inProcessTimeout = Duration.ZERO
         properties.entryPolicy().inProcessTimeout.assert().isNull()
     }

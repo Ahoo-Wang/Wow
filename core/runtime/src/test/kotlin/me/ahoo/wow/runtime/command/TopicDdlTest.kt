@@ -142,6 +142,30 @@ class TopicDdlTest {
         }
 
     @Test
+    fun `validate should check the command topic of each peer context, which the node never creates (M-1)`(): Unit =
+        runBlocking {
+            topics.create(RECEIPTS, 1)
+            topics.create(ORDERS, PARTITIONS)
+            val sales = salesNode(TopicDdl.VALIDATE)
+            sales.topicRequirements.last().assert().isEqualTo(
+                TopicRequirement(
+                    COMMANDS,
+                    1,
+                    exact = false,
+                    "the command topic of peer context stock, where this node sends its commands"
+                ),
+            )
+            assertThrows<IllegalStateException> { runBlocking { sales.start() } }.message.assert()
+                .contains("$COMMANDS does not exist")
+            nodes.clear()
+            // Under auto, the peer creates it: the node neither creates it nor waits for it.
+            salesNode(TopicDdl.AUTO).topicRequirements.map { it.topic }.assert().doesNotContain(COMMANDS)
+            nodes.clear()
+            topics.create(COMMANDS, PARTITIONS)
+            salesNode(TopicDdl.VALIDATE).also { it.start() }.isReady.assert().isTrue()
+        }
+
+    @Test
     fun `a topic DDL other than none should need an admin`() {
         assertThrows<IllegalArgumentException> { SourceTopics(topics, ddl = TopicDdl.VALIDATE) }
         assertThrows<IllegalArgumentException> { TopicRequirement("t", 0, exact = false, "nothing") }

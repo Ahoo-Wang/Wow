@@ -278,7 +278,7 @@ class V10ArchitectureTest {
     }
 
     @Test
-    fun `api rule should catch a 9x type, Jackson or kotlinx anywhere in wow-api`(@TempDir root: File) {
+    fun `api rule should catch a 9x type, Jackson or kotlinx but Flow anywhere in wow-api`(@TempDir root: File) {
         root.writeSource(
             V10Rules.API.dir,
             "me/ahoo/wow/api/subscribe/Bad.kt",
@@ -295,13 +295,15 @@ class V10ArchitectureTest {
             """
             package me.ahoo.wow.api.annotation
 
-            import kotlinx.coroutines.flow.Flow
+            import kotlinx.coroutines.CoroutineScope
             import me.ahoo.wow.api.messaging.function.FunctionKind
+            import kotlinx.coroutines.flow.Flow
+            import me.ahoo.wow.api.query.IListQuery
             """.trimIndent(),
         )
         val api = "${V10Rules.API.dir}/src/main/kotlin/me/ahoo/wow/api"
         V10Rules.API_STANDS_ALONE.violations(root).assert().containsExactly(
-            "$api/annotation/Old.kt:3: kotlinx.coroutines.flow.Flow",
+            "$api/annotation/Old.kt:3: kotlinx.coroutines.CoroutineScope",
             "$api/annotation/Old.kt:4: me.ahoo.wow.api.messaging.function.FunctionKind",
             "$api/subscribe/Bad.kt:3: me.ahoo.wow.api.messaging.Message",
             "$api/subscribe/Bad.kt:4: tools.jackson.databind.JsonNode",
