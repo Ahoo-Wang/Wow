@@ -57,6 +57,10 @@ class DerivedCommandsTest {
                 }
 
                 sealed interface NoCommand
+
+                data object Refresh
+
+                typealias Pay = ConfirmPayment
                 """.trimIndent(),
             ),
         )
@@ -207,6 +211,65 @@ class DerivedCommandsTest {
             .contains(
                 "handler BrokenSaga.nothing returns Unit, so it derives no commands, but declares @OnEvent(derives)"
             )
+    }
+
+    @Test
+    fun `objects and type aliases should name commands, and a sealed type without subclasses none`() {
+        val extras = SourceFile.kotlin(
+            "Extras.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.annotation.Saga
+            import me.ahoo.wow.api.decide.Command
+            import me.ahoo.wow.api.subscribe.StateEvent
+            import peer.NoCommand
+            import peer.Pay
+            import peer.Refresh
+
+            @Saga
+            class Extras {
+                @OnEvent(derives = [Refresh::class, Pay::class])
+                fun objects(event: StateEvent<Order>): Command<*>? = null
+
+                @OnEvent
+                fun none(event: StateEvent<Order>): Command<NoCommand>? = null
+            }
+            """.trimIndent(),
+        )
+        val (compilation, result) = compileModelAgainst("generate", options, listOf(peerApi), model, extras)
+        result.exitCode.assert().withFailMessage { result.messages }.isEqualTo(KotlinCompilation.ExitCode.OK)
+        val fragment = compilation.workingDir.walkTopDown().first { it.isFile && it.name == "shop-domain.json" }
+        val subscriptions = ManifestTree.read(jacksonObjectMapper().readValue(fragment, Map::class.java))
+            .contexts.single().subscriptions.associateBy { it.name.substringAfter('.') }
+        subscriptions.getValue("objects").derives.assert()
+            .isEqualTo(listOf(ref("peer.ConfirmPayment"), ref("peer.Refresh")))
+        // A sealed type no class implements names no command: the return type does not say.
+        subscriptions.getValue("none").derives.assert().isNull()
+    }
+
+    @Test
+    fun `derives on a processor of no kind should fail with its kind`() {
+        val kindless = SourceFile.kotlin(
+            "Kindless.kt",
+            """
+            package sample
+
+            import me.ahoo.wow.api.annotation.OnEvent
+            import me.ahoo.wow.api.decide.Command
+            import me.ahoo.wow.api.subscribe.StateEvent
+            import peer.ConfirmPayment
+
+            class Kindless {
+                @OnEvent(derives = [ConfirmPayment::class])
+                fun onEvent(event: StateEvent<Order>): Command<ConfirmPayment>? = null
+            }
+            """.trimIndent(),
+        )
+        val (_, result) = compileModelAgainst("generate", options, listOf(peerApi), model, kindless)
+        result.exitCode.assert().isEqualTo(KotlinCompilation.ExitCode.COMPILATION_ERROR)
+        result.messages.assert().contains("processor Kindless is none of @Projection, @Reactor, @Saga")
     }
 
     @Test
