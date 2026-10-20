@@ -14,7 +14,9 @@
 # The harness of the end-to-end benchmark (decision D224; wow-benchmarks/e2e/README.md). Each run starts from empty
 # stores: it starts the stores and the bus (compose.yml), starts the servers of one version in their topology (one node
 # or a cluster), seeds the accounts, checks every scenario once, runs the load generator, then stops the servers and
-# removes the containers with their volumes, whatever happens. Runs on macOS's bash 3.2.
+# removes the containers with their volumes, whatever happens. Runs on macOS's bash 3.2. The 9.x server left this
+# branch (decision D262): set WOW_BENCH_9X_REPO to a worktree of the side branch v10-9x-baseline, where `build` builds
+# it and `--version=9x` runs it from.
 #
 #   bench.sh build
 #   bench.sh run      --version=9x|v10 [--backend=mongo|postgres] [--nodes=1|3] --scenario=E1 --rate=50 [options]
@@ -31,13 +33,14 @@ REPO="$(cd "$HARNESS/../../.." && pwd)"
 JAVA_HOME="${JAVA_HOME:?Set JAVA_HOME to a JDK 21.}"
 export JAVA_HOME
 LOAD="$REPO/wow-benchmarks/e2e/load/build/install/e2e-bench-load/bin/e2e-bench-load"
+NINE_X_REPO="${WOW_BENCH_9X_REPO:-}"
 PUBLIC_PORT=18080
 INTERNAL_PORT=19090
 SERVER_PIDS=()
 TARGETS=()
 
 usage() {
-  sed -n '14,26p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '14,28p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 2
 }
 
@@ -47,8 +50,12 @@ compose() { docker compose -f "$HARNESS/compose.yml" "$@"; }
 
 build() {
   log "building the servers and the load generator"
-  (cd "$REPO" && ./gradlew --console=plain -q \
-    :e2e-bench-9x:installDist :e2e-bench-v10:installDist :e2e-bench-load:installDist)
+  (cd "$REPO" && ./gradlew --console=plain -q :e2e-bench-v10:installDist :e2e-bench-load:installDist)
+  if [ -n "$NINE_X_REPO" ]; then
+    (cd "$NINE_X_REPO" && ./gradlew --console=plain -q :e2e-bench-9x:installDist)
+  else
+    log "WOW_BENCH_9X_REPO is not set: the 9.x server is not built"
+  fi
 }
 
 down() {
@@ -109,7 +116,9 @@ start_node() {
   if [ "$(opt jfr false)" = true ]; then
     jvm="$jvm -XX:StartFlightRecording=filename=$OUT/node-$n.jfr,settings=profile"
   fi
-  JAVA_OPTS="$jvm" "$REPO/wow-benchmarks/e2e/bench-$VERSION/build/install/e2e-bench-$VERSION/bin/e2e-bench-$VERSION" \
+  local home=$REPO
+  if [ "$VERSION" = 9x ]; then home=$NINE_X_REPO; fi
+  JAVA_OPTS="$jvm" "$home/wow-benchmarks/e2e/bench-$VERSION/build/install/e2e-bench-$VERSION/bin/e2e-bench-$VERSION" \
     "${args[@]}" >"$OUT/node-$n.log" 2>&1 &
   SERVER_PIDS+=($!)
   TARGETS+=("http://127.0.0.1:$port")
@@ -136,6 +145,9 @@ setup() {
   if [ "$VERSION" != 9x ] && [ "$VERSION" != v10 ]; then log "--version=9x|v10"; usage; fi
   BACKEND=$(opt backend mongo)
   if [ "$VERSION" = 9x ] && [ "$BACKEND" != mongo ]; then log "9.x runs on MongoDB only (D224)"; exit 2; fi
+  if [ "$VERSION" = 9x ] && [ -z "$NINE_X_REPO" ]; then
+    log "--version=9x needs WOW_BENCH_9X_REPO, a worktree of v10-9x-baseline (D262)"; exit 2
+  fi
   NODES=$(opt nodes 1)
   HEAP=$(opt heap 1g)
   ACCOUNTS=$(opt accounts 1000)

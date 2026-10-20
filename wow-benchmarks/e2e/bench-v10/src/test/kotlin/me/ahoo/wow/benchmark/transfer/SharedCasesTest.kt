@@ -16,16 +16,23 @@ package me.ahoo.wow.benchmark.transfer
 import me.ahoo.test.asserts.assert
 import org.junit.jupiter.api.Test
 import java.io.File
+import java.security.MessageDigest
 
 /**
- * Both versions' specs run the same table: this module's TransferCases.kt is the 9.x module's, byte for byte, read
- * from the source tree (the build passes both paths), so the check holds in the V10 build scope too.
+ * Both versions' specs run the same table: this module's TransferCases.kt is the 9.x module's, byte for byte. The 9.x
+ * module left `v10` (decision D262) and runs from the side branch `v10-9x-baseline`, where its
+ * `wow-benchmarks/e2e/bench-9x/src/test/kotlin/me/ahoo/wow/benchmark/transfer/TransferCases.kt` stays as it is, so the
+ * check compares against that file's SHA-256. Changing the table here means changing it there too.
  */
 class SharedCasesTest {
     @Test
     fun `the table of cases should be the 9x module's`() {
-        val nineX = File(System.getProperty("wow.benchmark.nine-x-cases"))
         val v10 = File(System.getProperty("wow.benchmark.v10-cases"))
-        v10.readText().assert().isEqualTo(nineX.readText())
+        val digest = MessageDigest.getInstance("SHA-256").digest(v10.readBytes()).joinToString("") { "%02x".format(it) }
+        digest.assert().isEqualTo(NINE_X_CASES_SHA256)
+    }
+
+    private companion object {
+        const val NINE_X_CASES_SHA256 = "7c9e8b6fd7762693690d1db2c6e1de840fba535613f39b72c2fb92150509475c"
     }
 }

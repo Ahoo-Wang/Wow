@@ -56,7 +56,7 @@ export async function findCart(
 
 - `toWowError` is asynchronous: it reads the error body, from a clone, so another handler can still read it.
 - Rethrow `wowError ?? error`: when Wow did not answer, the original error is the one worth logging.
-- Switch on `errorCode` against `ErrorCodes`, not on the HTTP status: several codes share 400. The mapping is in [`ErrorHttpStatusMapping`](https://github.com/Ahoo-Wang/Wow/blob/main/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/exception/ErrorHttpStatusMapping.kt); a code the service registers itself defaults to 400.
+- Switch on `errorCode` against `ErrorCodes`, not on the HTTP status: several codes share 400. The mapping is in [`ErrorHttpStatusMapping`](https://github.com/Ahoo-Wang/Wow/blob/v10-9x-baseline/wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/exception/ErrorHttpStatusMapping.kt); a code the service registers itself defaults to 400.
 
 ## Show validation errors on a form
 
