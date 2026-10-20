@@ -25,6 +25,7 @@ import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.runtime.health.ComponentHealth
+import me.ahoo.wow.runtime.health.HealthOptions
 import me.ahoo.wow.runtime.health.HealthStatus
 import me.ahoo.wow.runtime.health.NodeHealth
 import me.ahoo.wow.runtime.node.BackendFactory
@@ -53,7 +54,9 @@ import kotlin.time.Duration
 class HostHealthTest {
     @Test
     fun `the probe groups should include the node's readiness and liveness`() {
-        startHost(*DETAILS).use { host ->
+        // The default down-after: with 0s, a store whose sample probe is still under way is down, so a probe that
+        // lands while one runs on a slow machine answers 503.
+        startHost(*SHOWN).use { host ->
             val readiness = host.eventually("/actuator/health/readiness", 200)
             readiness.body!!["status"].asString().assert().isEqualTo("UP")
             readiness.body["components"].propertyNames().assert().containsExactlyInAnyOrder(
@@ -87,7 +90,8 @@ class HostHealthTest {
             store["adaptive"].asBoolean().assert().isTrue()
             store["pressure"].asBoolean().assert().isFalse()
             store["decreases"].asLong().assert().isZero()
-            host.context.getBean(NodeHealth::class.java).options.storeDownAfter.assert().isEqualTo(Duration.ZERO)
+            host.context.getBean(NodeHealth::class.java).options.storeDownAfter
+                .assert().isEqualTo(HealthOptions.DEFAULT_STORE_DOWN_AFTER)
         }
     }
 
@@ -106,6 +110,7 @@ class HostHealthTest {
             sources = listOf(HostTestApp::class.java, FlakyStoresConfiguration::class.java)
         ).use { host ->
             host.context.getBean(FlakyStores::class.java).assert().isSameAs(FlakyStoresConfiguration.STORES)
+            host.context.getBean(NodeHealth::class.java).options.storeDownAfter.assert().isEqualTo(Duration.ZERO)
             val flaky = FlakyStoresConfiguration.STORES
             host.eventually("/actuator/health/readiness", 200)
 
@@ -316,12 +321,14 @@ class HostHealthTest {
     }
 
     private companion object {
-        /** The details shown, a store down at its first failure, and a sample every 100 ms. */
-        val DETAILS: Array<Pair<String, Any>> = arrayOf(
+        /** The details shown, and a sample every 100 ms. */
+        val SHOWN: Array<Pair<String, Any>> = arrayOf(
             "management.endpoint.health.show-details" to "always",
             "management.endpoint.health.show-components" to "always",
-            "wow.health.stores.down-after" to "0s",
             "wow.health.sample-interval" to "100ms",
         )
+
+        /** [SHOWN], with a store down at its first failure. */
+        val DETAILS: Array<Pair<String, Any>> = SHOWN + ("wow.health.stores.down-after" to "0s")
     }
 }
