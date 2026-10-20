@@ -94,7 +94,10 @@ internal object OpenApiParameters {
     )
 
     fun headers(): Map<String, Any?> = linkedMapOf(
-        Http.ETAG_HEADER to obj("description" to "The version, as an entity tag: `\"3\"`.", "schema" to type("string")),
+        Http.ETAG_HEADER to obj(
+            "description" to "The entity tag of the representation, which If-None-Match names to be answered 304.",
+            "schema" to type("string"),
+        ),
         Http.RETRY_AFTER_HEADER to obj(
             "description" to "The seconds after which the request may be retried.",
             "schema" to type("integer"),

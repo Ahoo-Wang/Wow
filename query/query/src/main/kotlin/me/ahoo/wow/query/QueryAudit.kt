@@ -26,6 +26,7 @@ import me.ahoo.wow.query.schema.QueryModelProfile
 import me.ahoo.wow.query.schema.QueryModelSchema
 import me.ahoo.wow.query.spec.SystemField
 import me.ahoo.wow.query.spec.spec
+import me.ahoo.wow.query.state.StateNotFoundException
 import java.time.Duration
 
 /**
@@ -36,7 +37,8 @@ import java.time.Duration
  * @property aggregateType the aggregate type queried.
  * @property queryType the gateway operation.
  * @property entry the query's entry, as the caller stated it.
- * @property model the queried model, or `null` when the query was rejected before its schema loaded.
+ * @property model the queried model, or `null` when the query was rejected before its schema loaded, and for a state
+ * read ([QueryType.STATE], [QueryType.TRACE]), which reads no query model.
  * @property modelVersion the content hash of the model's schema ([QueryModelSchema.version]).
  * @param fingerprinter computes [fingerprint] on first read.
  * @property scopeFields the fields the caller's scope restricts (`tenantId`, `ownerId`, ...), not their values.
@@ -46,7 +48,8 @@ import java.time.Duration
  * projection so an alias cannot hide one; empty for a count, an aggregation or a query rejected before admission.
  * @property outcome how the query ended.
  * @property errorCode the error code of a failed query ([QueryError.errorCode] and, when it states one, the rule code
- * of its first binding error).
+ * of its first binding error); for a state read answered as not found, `wow.aggregate.not-found:<reason>`
+ * ([StateNotFoundException.Reason]).
  * @property caller who ran the query, for the principal and its attributes.
  * @property elapsed the time from the start of the query to its end.
  */
@@ -199,6 +202,8 @@ private fun SystemField.scopeField(profile: QueryModelProfile?): QueryField? =
     profile?.systemField(this) ?: takeIf { it != SystemField.IDENTITY }?.let(QueryModelProfile::metadataField)
 
 private fun errorCodeOf(error: Throwable): String {
+    // A state read answered as not found records why: the reason reaches the audit only (decision D254 ④).
+    if (error is StateNotFoundException) return "${error.errorCode}:${error.reason}"
     val info = error as? QueryError ?: return error.javaClass.simpleName
     val rule = info.bindingErrors.firstOrNull()?.code
     return if (rule == null) info.errorCode else "${info.errorCode}:$rule"

@@ -84,8 +84,10 @@ describe('V10 client edges', () => {
       await new SnapshotQueryClient(PRODUCT, client()).describe('v9'),
     ).toEqual({ notModified: true, version: 'v9' });
     expect(
-      await new StateClient(PRODUCT, client()).read('p1', { ifNoneMatch: 4 }),
-    ).toEqual({ notModified: true, version: 4 });
+      await new StateClient(PRODUCT, client()).read('p1', {
+        ifNoneMatch: '4-0123456789abcdef',
+      }),
+    ).toEqual({ notModified: true, version: 4, etag: '4-0123456789abcdef' });
   });
 
   it('reads unnamed events as rows and skips others', async () => {

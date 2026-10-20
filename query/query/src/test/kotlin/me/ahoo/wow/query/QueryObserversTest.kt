@@ -25,6 +25,8 @@ import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QuerySchemaValidationException
 import me.ahoo.wow.query.schema.QueryViolation
+import me.ahoo.wow.query.state.InvalidStateReadException
+import me.ahoo.wow.query.state.StateNotFoundException
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.slf4j.LoggerFactory
@@ -136,6 +138,17 @@ class QueryObserversTest {
                 aggregate,
                 QueryType.LIST,
                 QuerySchemaValidationException(QueryViolation.UnknownField(QueryField("missing"))),
+            )
+            // A state read the caller got wrong, or one answered as not found (review R4-Q, Q-4, Q-5).
+            QueryLogObserver().onError(
+                aggregate,
+                QueryType.STATE,
+                InvalidStateReadException("'version' is a whole number from 1: '0'.", "INVALID_VALUE", "version"),
+            )
+            QueryLogObserver().onError(
+                aggregate,
+                QueryType.TRACE,
+                StateNotFoundException(aggregate.ref("t", "a-1"), StateNotFoundException.Reason.HIDDEN),
             )
         }
         errors.assert().isEmpty()

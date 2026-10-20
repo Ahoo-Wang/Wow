@@ -67,10 +67,13 @@ class StateVisibilityRoutesTest {
         node.http.get("/shop/cart/c-one/state?version=1", user, tenantLevel).status.assert().isEqualTo(200)
         node.http.get("/shop/cart/c-one/state/trace", user, tenantLevel).status.assert().isEqualTo(200)
 
+        node.http.streamsRead.set(0)
         node.http.get("/shop/cart/c-two/state", user, tenantLevel).assertNotFound()
         node.http.get("/shop/cart/c-two/state?version=1", user, tenantLevel).assertNotFound()
         node.http.get("/shop/cart/c-two/state?at=2100-01-01T00:00:00Z", user, tenantLevel).assertNotFound()
         node.http.get("/shop/cart/c-two/state/trace", user, tenantLevel).assertNotFound()
+        // The policies refuse the caller on the snapshot, before the log is replayed (review R4-Q, Q-1).
+        node.http.streamsRead.get().assert().isZero()
         // The caller the policy lets through reads it.
         node.http.get("/shop/cart/c-two/state", "admin", tenantLevel).status.assert().isEqualTo(200)
         node.http.get("/shop/cart/c-two/state/trace", "admin", tenantLevel).status.assert().isEqualTo(200)

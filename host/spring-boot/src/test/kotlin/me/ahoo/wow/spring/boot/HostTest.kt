@@ -171,7 +171,7 @@ class HostTest {
         host.post("/bank/account/$id/deposit", """{"amount":5}""").status.assert().isEqualTo(200)
         val state = host.get("/bank/account/$id/state")
         state.status.assert().isEqualTo(200)
-        state.headers.getFirst(WowHeaders.ETAG).assert().isEqualTo("\"2\"")
+        state.headers.getFirst(WowHeaders.ETAG)!!.matches(Regex("\"2-[0-9a-f]{16}\"")).assert().isTrue()
         state.body!!["state"]["balance"].asLong().assert().isEqualTo(5)
         state.body["state"]["owner"].asString().assert().isEqualTo("bob")
         host.get("/bank/account/$id/state?version=1").body!!["state"]["balance"].asLong().assert().isEqualTo(0)

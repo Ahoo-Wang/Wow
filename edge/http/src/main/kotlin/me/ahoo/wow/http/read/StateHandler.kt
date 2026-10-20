@@ -18,6 +18,8 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.query.QueryErrorCodes
+import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowPaths
 import me.ahoo.wow.http.caller.Authenticator
@@ -27,12 +29,17 @@ import me.ahoo.wow.http.command.RequestHeaders
 import me.ahoo.wow.http.problem.ErrorStatuses
 import me.ahoo.wow.http.problem.ProblemException
 import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryEntry
 import me.ahoo.wow.query.QueryError
 import me.ahoo.wow.query.engine.ReadFacade
 import me.ahoo.wow.query.mask.PayloadMasks
 import me.ahoo.wow.query.state.CommittedState
+import me.ahoo.wow.query.state.InvalidStateReadException
+import me.ahoo.wow.query.state.StateNotFoundException
+import me.ahoo.wow.query.state.StateNotFoundException.Reason
+import me.ahoo.wow.query.state.StateRead
 import me.ahoo.wow.runtime.FrameworkCodes
 import me.ahoo.wow.runtime.admission.TargetScope
 import me.ahoo.wow.runtime.admission.TenantConflictException
@@ -40,39 +47,54 @@ import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.state.CommitView
 import me.ahoo.wow.runtime.state.StateReadView
 import me.ahoo.wow.runtime.state.StateReads
+import me.ahoo.wow.runtime.state.StateReplayLimitException
 import org.springframework.http.HttpHeaders
 import org.springframework.http.MediaType
 import org.springframework.web.reactive.function.server.ServerRequest
 import org.springframework.web.reactive.function.server.ServerResponse
 import org.springframework.web.reactive.function.server.bodyValueAndAwait
 import org.springframework.web.reactive.function.server.buildAndAwait
+import tools.jackson.databind.JsonNode
+import java.security.MessageDigest
 import java.time.Instant
 import java.time.format.DateTimeParseException
+import java.util.HexFormat
 
 /**
  * The state reads of the public port (decisions D40, D112), over the node's [StateReads] (`:runtime`, decision D231):
  *
  * - `GET /{context}/{aggregate}/{id}/state`, `?version=` and `?at=` ([handle]): the [StateReadView] of [reads], with
- *   `ETag: "<version>"`; 304 when `If-None-Match` names that tag. The latest state is the snapshot, else, before
- *   the aggregate's first snapshot, its log replayed (decision D246 ⑥), each read alike. `?at=` takes an ISO-8601 instant (an offset is
- *   read as the instant it names, `+` written `%2B`) and reads the state after the last commit at or before it.
+ *   `ETag: "<version>-<digest>"`, the digest a hash of the body as the caller reads it (review R4-Q, Q-6), so a state
+ *   whose version stays while what is read of it changes (a state revision rebuilt, decision D172; an upcaster; the
+ *   masks) is tagged anew; 304 when `If-None-Match` names that tag. The latest state is the snapshot, else, before the
+ *   aggregate's first snapshot, its log replayed (decision D246 ⑥), each read alike. `?at=` takes an ISO-8601 instant
+ *   (an offset is read as the instant it names, `+` written `%2B`) and reads the state after the last commit at or
+ *   before it.
  * - `GET /{context}/{aggregate}/{id}/state/trace?from=&to=&limit=` ([trace]): `{"ref", "commits"}`, the commits from
  *   version `from` (default 1) up to `to` (default the last), at most `limit` of them (default [DEFAULT_TRACE_LIMIT],
  *   at most [MAX_TRACE_LIMIT]: replaying is not free, decision D40), each with its events and the state after it. The
  *   next page starts after the last commit's version.
  *
+ * A read that replays the log (a state at a version or a time, a trace, the latest state before the first snapshot)
+ * runs under the replay gate of [reads], the query bulkhead of the aggregate's log store (429 `wow.query.busy` when it
+ * is full), and replays a bounded number of commits: a state further away is 400 `wow.query.invalid` with the
+ * violation `REPLAY_TOO_LONG` on the parameter that asks for it (review R4-Q, Q-1). Before it replays anything, the
+ * caller is checked on the aggregate's latest state, as a read of it would be: a caller who may not see it never
+ * makes the log be read.
+ *
  * The ref's tenant is the caller's, or the one `Wow-Scope` names for a caller that may act across scopes (403
  * `wow.auth.forbidden` for another), unless [tenants] fixes the aggregate type's tenant (decision D116), as admission
- * does: then it is that tenant, and a `Wow-Scope` that names another is 400 `wow.command.malformed`. A state outside
- * the caller's scope (an owner or a space it names and the state does not have) is 403 `wow.aggregate.forbidden`, as
- * for a command (decision D94); the caller's owner is not checked for an aggregate of its tenant, as [ownerships] say
- * (decision D189); in a trace, every commit's state is checked so, as each `?version=` read would be. A
- * missing state, or a trace with no commit, is 404 `wow.aggregate.not-found`, and so is a state the snapshot queries of
- * its type hide from the caller (ABAC and the application's query policies, review A3-11), each commit of a trace
- * checked so too. Every state, and every event of a trace, is masked as the snapshot queries mask a state, for every
- * caller alike (09 §17 G-2): both through the [ReadFacade] of `:query` (decision D237), the one read path of every entry; since the masks do not
- * depend on the caller, the `ETag` (the version) still tags the one body every caller reads. A deleted aggregate's state is read as any other, `deleted` set. A query parameter that cannot be read is 400 `wow.command.malformed`, the code of a
- * request the edge cannot read, as for a `Wow-Scope` it cannot.
+ * does: then it is that tenant, and a `Wow-Scope` that names another is 400 `wow.query.malformed`, as on the query
+ * routes. Whatever the caller may not see is 404 `wow.aggregate.not-found`, as a missing state is (decision D254 ④,
+ * review R4-Q Q-5): a state outside the caller's scope (an owner or a space it names and the state does not have; the
+ * caller's owner is not checked for an aggregate of its tenant, as [ownerships] say, decision D189), and one the
+ * snapshot queries of its type hide from the caller (ABAC and the application's query policies, review A3-11); in a
+ * trace, every commit's state is checked so, as each `?version=` read would be. Only the audit learns why. Every state,
+ * and every event of a trace, is masked as the snapshot queries mask a state, for every caller alike (09 §17 G-2):
+ * both through the [ReadFacade] of `:query` (decision D237), the one read path of every entry, which observes and
+ * audits each read as a query of type `STATE` or `TRACE` (review R4-Q, Q-7). A deleted aggregate's state is read as
+ * any other, `deleted` set. A query parameter that cannot be read, or is out of range, is 400 `wow.query.invalid`
+ * with a violation naming it (review R4-Q, Q-4).
  */
 internal class StateHandler(
     private val reads: StateReads,
@@ -88,40 +110,58 @@ internal class StateHandler(
     private val facade: ReadFacade = queries.reads ?: ReadFacade(queries::visibility, masks)
 
     suspend fun handle(request: ServerRequest, type: AggregateType): ServerResponse {
-        val (scope, ref, caller) = reader(request, type)
-        val read = admitted(type) {
-            facade.read(caller, { read(request, ref) }, { it.committed() }) { checkScope(scope, it.scope, ref) }
+        val reader = reader(request, type)
+        val what = when {
+            request.queryParam(WowPaths.VERSION).isPresent -> StateRead.VERSION
+            request.queryParam(WowPaths.AT).isPresent -> StateRead.AT
+            else -> StateRead.LATEST
         }
-        val (view, state) = when (read) {
-            is ReadFacade.Read.Visible -> read.view to read.state
-            else -> throw problem(FrameworkCodes.NOT_FOUND, "No state of $ref.", type)
+        val (view, state) = answering(type) {
+            facade.observed(type, what, reader.caller) {
+                val asked = asked(request, type)
+                replaying(asked.parameter) {
+                    if (what != StateRead.LATEST) {
+                        // The caller is checked on the latest state before the log is replayed (review R4-Q, Q-1).
+                        reader.visible { reads.latest(reader.ref) }
+                    }
+                    reader.visible { asked.read(reads, reader.ref) }
+                }
+            }
         }
-        // The masks are the same for every caller, so the version tags the one body every caller gets.
-        val tag = "\"${view.version}\""
+        val body = HttpJson.write(view.copy(state = state))
+        val tag = entityTag(view.version, body)
         if (request.headers().header(HttpHeaders.IF_NONE_MATCH).any { matches(it, tag) }) {
             return ServerResponse.status(NOT_MODIFIED).eTag(tag).buildAndAwait()
         }
-        return ServerResponse.ok().eTag(tag).contentType(MediaType.APPLICATION_JSON)
-            .bodyValueAndAwait(HttpJson.write(view.copy(state = state)))
+        return ServerResponse.ok().eTag(tag).contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(body)
     }
 
     suspend fun trace(request: ServerRequest, type: AggregateType): ServerResponse {
-        val (scope, ref, caller) = reader(request, type)
-        val from = request.number(WowPaths.FROM, type, min = 1) ?: 1
-        val to = request.number(WowPaths.TO, type, min = from) ?: Int.MAX_VALUE
-        val limit = request.number(WowPaths.LIMIT, type, min = 1, max = MAX_TRACE_LIMIT) ?: DEFAULT_TRACE_LIMIT
-        val commits = reads.trace(ref, from, to, limit)
-        if (commits.isEmpty()) {
-            throw problem(FrameworkCodes.NOT_FOUND, "No commit of $ref from version $from.", type)
-        }
-        commits.forEach { checkScope(scope, it.scope, ref) }
-        val masked = commits.map { commit ->
-            val state = admitted(type) { facade.admitted(caller, commit.committed(ref)) }
-                ?: throw problem(FrameworkCodes.NOT_FOUND, "No commit of $ref from version $from.", type)
-            commit.copy(
-                state = state,
-                events = commit.events.map { it.copy(body = facade.event(type, it.name, it.body)) }
-            )
+        val reader = reader(request, type)
+        val ref = reader.ref
+        val masked = answering(type) {
+            facade.observed(type, StateRead.TRACE, reader.caller, rows = { it.size.toLong() }) {
+                val from = request.number(WowPaths.FROM, min = 1) ?: 1
+                val to = request.number(WowPaths.TO, min = from) ?: Int.MAX_VALUE
+                val limit = request.number(WowPaths.LIMIT, min = 1, max = MAX_TRACE_LIMIT) ?: DEFAULT_TRACE_LIMIT
+                val commits = replaying(WowPaths.FROM) {
+                    // The caller is checked on the latest state before the log is replayed (review R4-Q, Q-1).
+                    reader.visible { reads.latest(ref) }
+                    reads.trace(ref, from, to, limit)
+                }
+                if (commits.isEmpty()) {
+                    throw StateNotFoundException(ref, Reason.MISSING, "No commit of $ref from version $from.")
+                }
+                commits.forEach { reader.checkScope(it.scope) }
+                commits.map { commit ->
+                    val state = facade.admitted(reader.caller, commit.committed(ref))
+                        ?: throw StateNotFoundException(ref, Reason.HIDDEN, "No commit of $ref from version $from.")
+                    commit.copy(
+                        state = state,
+                        events = commit.events.map { it.copy(body = facade.event(type, it.name, it.body)) }
+                    )
+                }
+            }
         }
         return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
             .bodyValueAndAwait(HttpJson.write(mapOf("ref" to ref, "commits" to masked)))
@@ -131,7 +171,7 @@ internal class StateHandler(
     private suspend fun reader(request: ServerRequest, type: AggregateType): Reader {
         val caller = authenticator.authenticate(request)
         Negotiation.checkAcceptable(request, alsoEventStream = false)
-        val target = headers.target(request)
+        val target = headers.target(request, FrameworkErrors.QUERY_MALFORMED)
         if (target != null && !caller.crossScope) {
             throw problem(FrameworkCodes.AUTH_FORBIDDEN, "The caller may not read in another scope.", type)
         }
@@ -143,66 +183,95 @@ internal class StateHandler(
     }
 
     /** Who reads which state: the [scope] it reads in, the [ref] it reads and the [caller] its queries are admitted as. */
-    private data class Reader(val scope: Scope, val ref: AggregateRef, val caller: QueryCaller)
+    private inner class Reader(val scope: Scope, val ref: AggregateRef, val caller: QueryCaller) {
+        /**
+         * The state [load] reads, as [caller] sees it: [StateNotFoundException] when there is none, when it is
+         * outside the caller's [scope] or when the query policies of its type hide it, each answered alike.
+         */
+        suspend fun visible(load: suspend () -> StateReadView?): Pair<StateReadView, JsonNode> =
+            when (val read = facade.read(caller, load, { it.committed() }) { checkScope(it.scope) }) {
+                is ReadFacade.Read.Visible -> read.view to read.state
+                ReadFacade.Read.Missing -> throw StateNotFoundException(ref, Reason.MISSING)
+                ReadFacade.Read.Hidden -> throw StateNotFoundException(ref, Reason.HIDDEN)
+            }
+
+        fun checkScope(state: Scope) {
+            if (!scope.covers(state)) {
+                throw StateNotFoundException(ref, Reason.OUT_OF_SCOPE)
+            }
+        }
+    }
+
+    /** What a state read asks for: the [version] or the instant [at] it reads, else the latest state. */
+    private class Asked(val version: Int?, val at: Instant?) {
+        /** The query parameter that asks for a replay, or `""` for the latest state. */
+        val parameter: String
+            get() = when {
+                version != null -> WowPaths.VERSION
+                at != null -> WowPaths.AT
+                else -> ""
+            }
+
+        suspend fun read(reads: StateReads, ref: AggregateRef): StateReadView? = when {
+            version != null -> reads.at(ref, version)
+            at != null -> reads.at(ref, at)
+            else -> reads.latest(ref)
+        }
+    }
+
+    /** What [request] asks for: the latest state, the one at `?version=` or the one as of `?at=`. */
+    private fun asked(request: ServerRequest, type: AggregateType): Asked {
+        val version = request.number(WowPaths.VERSION, min = 1)
+        val at = request.instant(WowPaths.AT)
+        if (version != null && at != null) {
+            throw InvalidStateReadException(
+                "A state of $type is read at a version or at a time, not both.",
+                QueryErrorCodes.INVALID_REQUEST,
+                WowPaths.AT,
+            )
+        }
+        return Asked(version, at)
+    }
 
     /**
-     * What [check] answers; a query policy that refuses the caller (a query error, such as an application the
-     * request does not name) is that query error's problem, as on the query routes.
+     * [read]'s result; a read whose replay is longer than the state reads replay is the client's request asking too
+     * much on [parameter] (review R4-Q, Q-1).
+     */
+    private suspend inline fun <T> replaying(parameter: String, read: () -> T): T = try {
+        read()
+    } catch (tooLong: StateReplayLimitException) {
+        throw InvalidStateReadException(
+            "The state asked for is more than ${tooLong.limit} commits from the aggregate's snapshot, or from its " +
+                "first version: a state read replays at most ${tooLong.limit}.",
+            QueryErrorCodes.REPLAY_TOO_LONG,
+            parameter,
+        )
+    }
+
+    /**
+     * What [read] answers; a state the caller may not see is 404 with nothing of why, and a query error (a policy that
+     * refuses the caller, a parameter the request got wrong, a bulkhead that is full) is that query error's problem,
+     * with its violations, as on the query routes.
      */
     // QueryError is an interface of the query exceptions, which a catch cannot name: anything else propagates.
     @Suppress("TooGenericExceptionCaught", "InstanceOfCheckForException")
-    private suspend inline fun <T> admitted(type: AggregateType, check: () -> T): T = try {
-        check()
+    private suspend inline fun <T> answering(type: AggregateType, read: () -> T): T = try {
+        read()
+    } catch (notFound: StateNotFoundException) {
+        throw problem(notFound.errorCode, notFound.message!!, type)
     } catch (refused: Exception) {
         if (refused !is QueryError) throw refused
-        throw problem(refused.errorCode, refused.errorMsg, type)
-    }
-
-    private fun checkScope(reader: Scope, state: Scope, ref: AggregateRef) {
-        if (!reader.covers(state)) {
-            throw problem(FrameworkCodes.AGGREGATE_FORBIDDEN, "$ref is outside the caller's scope.", ref.type)
-        }
+        val problem = statuses.problemOf(refused.errorCode, refused.errorMsg, type.context).copy(
+            violations = refused.bindingErrors.map { Violation(path = it.name, code = it.code, message = it.msg) },
+        )
+        throw ProblemException(problem)
     }
 
     /** The tenant [caller] reads an aggregate of [type] in, naming [target] (decision D116). */
     private fun tenantOf(type: AggregateType, caller: Caller, target: TargetScope?): String = try {
         tenants.tenantOf(type, caller, target)
     } catch (conflict: TenantConflictException) {
-        throw problem(FrameworkCodes.MALFORMED, conflict.message!!, type)
-    }
-
-    /** The state of [ref] the request asks for: the latest, the one at `?version=` or the one as of `?at=`. */
-    private suspend fun read(request: ServerRequest, ref: AggregateRef): StateReadView {
-        val version = request.number(WowPaths.VERSION, ref.type, min = 1)
-        val at = request.instant(WowPaths.AT, ref.type)
-        if (version != null && at != null) {
-            throw problem(FrameworkCodes.MALFORMED, "A state is read at a version or at a time, not both.", ref.type)
-        }
-        val view = when {
-            version != null -> reads.at(ref, version)
-            at != null -> reads.at(ref, at)
-            else -> reads.latest(ref)
-        }
-        val asked = version?.let { " at version $it" } ?: at?.let { " at $it" }.orEmpty()
-        return view ?: throw problem(FrameworkCodes.NOT_FOUND, "No state of $ref$asked.", ref.type)
-    }
-
-    /** The ISO-8601 instant of query parameter [name]; null when the request has none. */
-    private fun ServerRequest.instant(name: String, type: AggregateType): Instant? {
-        val value = queryParam(name).orElse(null) ?: return null
-        return try {
-            Instant.parse(value)
-        } catch (_: DateTimeParseException) {
-            throw problem(FrameworkCodes.MALFORMED, "'$name' is an ISO-8601 instant: '$value'.", type)
-        }
-    }
-
-    /** The whole number of query parameter [name], from [min] up to [max]; null when the request has none. */
-    private fun ServerRequest.number(name: String, type: AggregateType, min: Int, max: Int = Int.MAX_VALUE): Int? {
-        val value = queryParam(name).orElse(null) ?: return null
-        val range = if (max == Int.MAX_VALUE) "from $min" else "from $min to $max"
-        return value.toIntOrNull()?.takeIf { it in min..max }
-            ?: throw problem(FrameworkCodes.MALFORMED, "'$name' is a whole number $range: '$value'.", type)
+        throw problem(FrameworkErrors.QUERY_MALFORMED, conflict.message!!, type)
     }
 
     private fun problem(code: String, detail: String, type: AggregateType) =
@@ -217,6 +286,9 @@ internal class StateHandler(
 
         private const val NOT_MODIFIED = 304
 
+        /** The hex digits of the body digest an entity tag carries: 64 bits. */
+        private const val DIGEST_HEX_LENGTH = 16
+
         /** Whether this scope, the reader's, admits a state of [scope]: a field it names, the state has too. */
         private fun Scope.covers(scope: Scope): Boolean =
             (ownerId == null || ownerId == scope.ownerId) && (spaceId == null || spaceId == scope.spaceId)
@@ -225,7 +297,43 @@ internal class StateHandler(
 
         private fun CommitView.committed(ref: AggregateRef) = CommittedState(ref, version, scope, deleted, tags, state)
 
+        /**
+         * The entity tag of a state at [version] read as [body] (review R4-Q, Q-6): `"<version>-<digest>"`, the digest
+         * the first 64 bits of the SHA-256 of the body, so that the tag changes with whatever changes what the caller
+         * reads (the state revision and schema the state is read in, decision D172; the masks), not only with the
+         * version.
+         */
+        internal fun entityTag(version: Int, body: ByteArray): String {
+            val digest = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(body))
+            return "\"$version-${digest.take(DIGEST_HEX_LENGTH)}\""
+        }
+
         private fun matches(ifNoneMatch: String, tag: String): Boolean =
             ifNoneMatch.split(',').map { it.trim().removePrefix("W/") }.any { it == "*" || it == tag }
+
+        /** The ISO-8601 instant of query parameter [name]; null when the request has none. */
+        private fun ServerRequest.instant(name: String): Instant? {
+            val value = queryParam(name).orElse(null) ?: return null
+            return try {
+                Instant.parse(value)
+            } catch (_: DateTimeParseException) {
+                throw InvalidStateReadException(
+                    "'$name' is an ISO-8601 instant: '$value'.",
+                    QueryErrorCodes.INVALID_VALUE,
+                    name,
+                )
+            }
+        }
+
+        /** The whole number of query parameter [name], from [min] up to [max]; null when the request has none. */
+        private fun ServerRequest.number(name: String, min: Int, max: Int = Int.MAX_VALUE): Int? {
+            val value = queryParam(name).orElse(null) ?: return null
+            val range = if (max == Int.MAX_VALUE) "from $min" else "from $min to $max"
+            return value.toIntOrNull()?.takeIf { it in min..max } ?: throw InvalidStateReadException(
+                "'$name' is a whole number $range: '$value'.",
+                QueryErrorCodes.INVALID_VALUE,
+                name,
+            )
+        }
     }
 }

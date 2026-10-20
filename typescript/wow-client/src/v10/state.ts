@@ -32,14 +32,30 @@ export interface StateReadOptions extends RequestOptions {
   readonly version?: number;
   /** The committed state as of this instant (ISO-8601, or a `Date`). */
   readonly at?: string | Date;
-  /** The version already held: a 304 then answers `notModified`. */
-  readonly ifNoneMatch?: number;
+  /**
+   * The entity tag of the state already held, as a read answered it
+   * (`etag`): a 304 then answers `notModified`. The tag is the version and a
+   * digest of the body (`3-<digest>`), so it changes whenever what is read
+   * does, not only with the version.
+   */
+  readonly ifNoneMatch?: string;
 }
 
-/** A state read: the view, or `notModified` when the version held is current. */
+/**
+ * A state read: the view and its entity tag, or `notModified` when the state
+ * held is current, with its tag and the version the tag names.
+ */
 export type StateReadResult<S> =
-  | { readonly notModified: false; readonly view: StateView<S> }
-  | { readonly notModified: true; readonly version: number };
+  | {
+      readonly notModified: false;
+      readonly view: StateView<S>;
+      readonly etag?: string;
+    }
+  | {
+      readonly notModified: true;
+      readonly version: number;
+      readonly etag: string;
+    };
 
 /** Which commits a trace reads (decision D40). */
 export interface StateTraceOptions extends RequestOptions {
@@ -91,12 +107,18 @@ export class StateClient<S = unknown, E extends EventView = EventView> {
       notModified: true,
     });
     if (response.status === 304) {
+      const etag = entityTag(response) ?? options.ifNoneMatch ?? '';
       return {
         notModified: true,
-        version: Number(entityTag(response) ?? options.ifNoneMatch),
+        version: Number.parseInt(etag, 10),
+        etag,
       };
     }
-    return { notModified: false, view: await json<StateView<S>>(response) };
+    return {
+      notModified: false,
+      view: await json<StateView<S>>(response),
+      etag: entityTag(response),
+    };
   }
 
   /** The latest state, or the one the options ask for, without a cache. */

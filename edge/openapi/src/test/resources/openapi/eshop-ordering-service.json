@@ -1392,7 +1392,7 @@
         } ],
         "responses" : {
           "200" : {
-            "description" : "The state, its version as the ETag.",
+            "description" : "The state; its ETag is its version and a digest of the body (`\"3-<digest>\"`).",
             "headers" : {
               "ETag" : {
                 "$ref" : "#/components/headers/ETag"
@@ -1412,7 +1412,7 @@
             }
           },
           "304" : {
-            "description" : "Not Modified: the state is at the version If-None-Match names."
+            "description" : "Not Modified: the state is still the one If-None-Match names."
           },
           "400" : {
             "$ref" : "#/components/responses/wow.state.400"
@@ -1428,6 +1428,9 @@
           },
           "406" : {
             "$ref" : "#/components/responses/wow.state.406"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.state.429"
           },
           "503" : {
             "$ref" : "#/components/responses/wow.state.503"
@@ -1489,6 +1492,9 @@
           },
           "406" : {
             "$ref" : "#/components/responses/wow.state.406"
+          },
+          "429" : {
+            "$ref" : "#/components/responses/wow.state.429"
           },
           "503" : {
             "$ref" : "#/components/responses/wow.state.503"
@@ -3391,7 +3397,7 @@
         "x-wow-error-codes" : [ "wow.wait.timeout" ]
       },
       "wow.state.400" : {
-        "description" : "`wow.command.malformed`: The command body cannot be read as the command type.",
+        "description" : "`wow.query.malformed`: The query body cannot be read as a query.\n`wow.query.invalid`: The query failed admission; the problem lists the violations, each with its code (UNKNOWN_FIELD, ...).",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3399,7 +3405,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.command.malformed" ]
+        "x-wow-error-codes" : [ "wow.query.malformed", "wow.query.invalid" ]
       },
       "wow.state.401" : {
         "description" : "`wow.auth.unauthenticated`: The request carries no valid credentials.",
@@ -3413,7 +3419,7 @@
         "x-wow-error-codes" : [ "wow.auth.unauthenticated" ]
       },
       "wow.state.403" : {
-        "description" : "`wow.auth.forbidden`: The caller may not send this command.\n`wow.aggregate.forbidden`: The aggregate is outside the caller's scope.",
+        "description" : "`wow.auth.forbidden`: The caller may not send this command.",
         "content" : {
           "application/problem+json" : {
             "schema" : {
@@ -3421,7 +3427,7 @@
             }
           }
         },
-        "x-wow-error-codes" : [ "wow.auth.forbidden", "wow.aggregate.forbidden" ]
+        "x-wow-error-codes" : [ "wow.auth.forbidden" ]
       },
       "wow.state.404" : {
         "description" : "`wow.aggregate.not-found`: The aggregate does not exist.",
@@ -3443,6 +3449,17 @@
             }
           }
         }
+      },
+      "wow.state.429" : {
+        "description" : "`wow.query.busy`: The query was not run: its store has as many queries running as it allows; retry later.",
+        "content" : {
+          "application/problem+json" : {
+            "schema" : {
+              "$ref" : "#/components/schemas/wow.Problem"
+            }
+          }
+        },
+        "x-wow-error-codes" : [ "wow.query.busy" ]
       },
       "wow.state.503" : {
         "description" : "`wow.storage.unavailable`: A store could not be reached or did not answer in time; retry later, a command with the same request id.",
@@ -3768,7 +3785,7 @@
     },
     "headers" : {
       "ETag" : {
-        "description" : "The version, as an entity tag: `\"3\"`.",
+        "description" : "The entity tag of the representation, which If-None-Match names to be answered 304.",
         "schema" : {
           "type" : "string"
         }

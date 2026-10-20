@@ -80,6 +80,7 @@ class QueryEngine private constructor(
     val datasets: DatasetQueryGateways,
     val datasetVisibility: DatasetVisibility,
     masks: PayloadMasks,
+    observer: QueryObserver,
 ) {
     private val snapshotGateways = snapshots.associateBy { it.aggregateType }
     private val eventGateways = events.associateBy { it.aggregateType }
@@ -97,8 +98,8 @@ class QueryEngine private constructor(
     /** The gateway whose policies decide which of [type]'s states a caller sees, or null when none applies. */
     fun visibility(type: AggregateType): QueryGateway? = snapshotGateways[type] ?: policyGateways[type]
 
-    /** Every entry's state reads: read, check against [visibility], mask. */
-    val reads: ReadFacade = ReadFacade(::visibility, masks)
+    /** Every entry's state reads: read, check against [visibility], mask, observed as the queries are. */
+    val reads: ReadFacade = ReadFacade(::visibility, masks, observer)
 
     /**
      * What a host gives the engine of [manifest], each from its configuration or the application: the [contexts] the
@@ -252,6 +253,7 @@ class QueryEngine private constructor(
                 datasetGateways,
                 datasetVisibility ?: DatasetVisibility.of(abac),
                 masks,
+                observer,
             )
         }
 

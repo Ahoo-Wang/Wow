@@ -43,6 +43,7 @@ import me.ahoo.wow.api.query.windowFunction
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.filter.predicateField
 import me.ahoo.wow.query.filter.valueCount
+import me.ahoo.wow.query.state.StateRead
 import java.security.MessageDigest
 import java.util.HexFormat
 
@@ -90,6 +91,8 @@ internal fun queryShapeOf(queryType: QueryType, query: Any): String = QueryShape
             token("limit", count.limit ?: 0)
         }
         QueryType.AGGREGATION -> aggregation(query as AggregationQuery)
+        // A state read's shape is what it asks for: no id, version or time.
+        QueryType.STATE, QueryType.TRACE -> token((query as StateRead).name)
     }
 }.toString()
 

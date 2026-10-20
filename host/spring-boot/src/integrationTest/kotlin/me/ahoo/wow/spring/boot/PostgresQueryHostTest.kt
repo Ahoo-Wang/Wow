@@ -90,7 +90,7 @@ class PostgresQueryHostTest {
         }
         val state = host.get("/bank/account/$id/state")
         state.status.assert().isEqualTo(200)
-        state.headers.eTag.assert().isEqualTo("\"2\"")
+        state.headers.eTag!!.matches(Regex("\"2-[0-9a-f]{16}\"")).assert().isTrue()
         state.body!!["state"]["balance"].asLong().assert().isEqualTo(4)
         host.get("/bank/account/none-$id/state").status.assert().isEqualTo(404)
     }

@@ -24,6 +24,7 @@ import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.query.store.StoreQueryOptions
+import me.ahoo.wow.runtime.state.KernelStateReads
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 import kotlin.time.toJavaDuration
@@ -78,6 +79,9 @@ import kotlin.time.toKotlinDuration
  *   was refused raises it by one up to `ceiling` (none: the provider's, PostgreSQL half a pool the appends share, all of
  *   a `query-data-source`'s). `enabled` (true) turns it off; `wow.stores.<name>.query.adaptive.enabled`, `.floor` and
  *   `.ceiling` take their place for one store.
+ * - `wow.query.state.max-replay` (10000; review R4-Q, Q-1): the most commits a state point read replays from the
+ *   aggregate's snapshot, or from version 1 (`GET …/state?version=` or `?at=`, `…/state/trace`, the latest state
+ *   before the first snapshot); a state further away is 400 `wow.query.invalid` (`REPLAY_TOO_LONG`).
  */
 @ConfigurationProperties(prefix = QueryProperties.PREFIX)
 class QueryProperties {
@@ -93,6 +97,7 @@ class QueryProperties {
     var countCache: CountCache = CountCache()
     var memory: Memory = Memory()
     var events: Events = Events()
+    var state: State = State()
     var maxConcurrent: Int? = null
     var maxWait: Duration = QueryBulkhead.DEFAULT_MAX_WAIT.toJavaDuration()
     var maxQueued: Int? = null
@@ -206,6 +211,10 @@ class QueryProperties {
     class Events {
         var mongoReadPreference: String? = null
         var unpinned: UnpinnedEvents = UnpinnedEvents.ALLOW
+    }
+
+    class State {
+        var maxReplay: Int = KernelStateReads.DEFAULT_MAX_REPLAY
     }
 
     class Dataset {

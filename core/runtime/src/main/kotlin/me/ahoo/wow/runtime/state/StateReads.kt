@@ -20,6 +20,7 @@ import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.kernel.AggregateModel
 import me.ahoo.wow.kernel.CachedState
 import me.ahoo.wow.kernel.Kernel
+import me.ahoo.wow.kernel.ReplayLimitExceededException
 import me.ahoo.wow.runtime.admission.ModelRegistry
 import me.ahoo.wow.spi.json.WowJson
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
@@ -49,18 +50,23 @@ interface StateReads {
      */
     suspend fun committed(ref: AggregateRef): StateReadView?
 
-    /** The committed state of [ref] at [version], or null when the log does not hold that version. */
+    /**
+     * The committed state of [ref] at [version], or null when the log does not hold that version. Its replay runs
+     * under the node's [ReplayGate] and folds a bounded number of streams (review R4-Q, Q-1): past the bound, it
+     * throws [StateReplayLimitException].
+     */
     suspend fun at(ref: AggregateRef, version: Int): StateReadView?
 
     /**
      * The committed state of [ref] as of [instant]: after the last commit at or before it by commit time; null when
-     * none had committed by then.
+     * none had committed by then. Replayed as [at] a version is.
      */
     suspend fun at(ref: AggregateRef, instant: Instant): StateReadView?
 
     /**
      * The commits of [ref] from version [fromVersion] up to [toVersion], at most [limit], in version order, each with
-     * its events and the state after it; empty when the log holds none of those versions.
+     * its events and the state after it; empty when the log holds none of those versions. Replayed as [at] a version
+     * is, the state before [fromVersion] included.
      */
     suspend fun trace(ref: AggregateRef, fromVersion: Int, toVersion: Int, limit: Int): List<CommitView>
 
@@ -84,9 +90,10 @@ interface StateReads {
 }
 
 /**
- * How a node's state reads that replay the log run (review R3.4-2): [KernelStateReads] replays an aggregate's latest
- * state without a snapshot inside [replay], which the host runs under the query bulkhead of the aggregate's log store,
- * so that reads of aggregates without snapshots cannot take every connection the store's appends draw from.
+ * How a node's state reads that replay the log run (reviews R3.4-2, R4-Q Q-1): [KernelStateReads] replays an
+ * aggregate's latest state without a snapshot, a state at a version or a time, and a trace inside [replay], which the
+ * host runs under the query bulkhead of the aggregate's log store, so that point reads cannot take every connection
+ * the store's appends draw from.
  */
 @InternalWowApi
 interface ReplayGate {
@@ -104,6 +111,15 @@ interface ReplayGate {
         }
     }
 }
+
+/**
+ * A state read of [ref] that would replay more than [limit] streams of its log (review R4-Q, Q-1): refused before the
+ * stream past [limit] is folded. The state exists; it is only too far from the snapshot, or from version 1, to be
+ * replayed for a point read, which an entry answers as the client's request asking too much.
+ */
+@InternalWowApi
+class StateReplayLimitException(val ref: AggregateRef, val limit: Int, cause: Throwable? = null) :
+    RuntimeException("Reading this state of $ref replays more than $limit commits of its log.", cause)
 
 /** An aggregate's state at [version] with what the kernel keeps beside it, as a state read answers it. */
 @InternalWowApi
@@ -145,7 +161,9 @@ data class EventView(val name: String, val revision: Int, val body: JsonNode)
  * model, design 03 §3), else, while an aggregate has none, its log replayed by the context's [Kernel] from version 1
  * ([Kernel.stateAt], as the write side loads a state without a snapshot; decision D246 ⑥) under [gate]; a state at a
  * version or a time, and a trace, are the log replayed ([Kernel.stateAt], [Kernel.trace]) from the snapshot when it
- * comes before what is asked, else from version 1.
+ * comes before what is asked, else from version 1, under [gate] too (review R4-Q, Q-1). Every replay but [committed]'s
+ * folds the log as it reads it and at most [maxReplay] streams of it: a read that needs more is refused with
+ * [StateReplayLimitException].
  *
  * A snapshot behind the log's head is the latest state as it is: the snapshot is the read model, which the default
  * wait (`SNAPSHOT`, decision D69) has caught up before a command's answer. An aggregate whose model [registry] does
@@ -157,37 +175,48 @@ class KernelStateReads(
     private val registry: ModelRegistry,
     contexts: Map<String, ContextReads>,
     private val gate: ReplayGate = ReplayGate.OPEN,
+    private val maxReplay: Int = DEFAULT_MAX_REPLAY,
 ) : StateReads {
+    init {
+        require(maxReplay >= 1) { "A state read replays at least one stream." }
+    }
+
     private val contexts: Map<String, ContextReads> = contexts.toMap()
 
     /** What [KernelStateReads] reads a context from: its kernel and its snapshot store. */
     @InternalWowApi
     class ContextReads(val kernel: Kernel, val snapshots: SnapshotStore)
 
-    override suspend fun latest(ref: AggregateRef): StateReadView? = latest(ref, gate)
+    override suspend fun latest(ref: AggregateRef): StateReadView? = latest(ref, gate, maxReplay)
 
-    override suspend fun committed(ref: AggregateRef): StateReadView? = latest(ref, ReplayGate.OPEN)
+    override suspend fun committed(ref: AggregateRef): StateReadView? = latest(ref, ReplayGate.OPEN, Int.MAX_VALUE)
 
-    /** The snapshot of [ref], else its log replayed under [gate]. */
-    private suspend fun latest(ref: AggregateRef, gate: ReplayGate): StateReadView? {
+    /** The snapshot of [ref], else its log replayed under [gate], at most [maxReplay] streams of it. */
+    private suspend fun latest(ref: AggregateRef, gate: ReplayGate, maxReplay: Int): StateReadView? {
         val reads = contexts[ref.type.context] ?: return null
         val model = registry.find(ref.type)?.erased() ?: return null
         reads.snapshots.load(ref)?.let { return it.view() }
-        return gate.replay(ref) { reads.kernel.stateAt(model, ref, Instant.MAX) }?.view(ref)
+        return gate.replay(ref) {
+            bounded { reads.kernel.stateAt(model, ref, Instant.MAX, maxReplay = maxReplay) }
+        }?.view(ref)
     }
 
     override suspend fun at(ref: AggregateRef, version: Int): StateReadView? {
         require(version >= 1) { "A committed state has a version from 1." }
-        return replayed(ref) { kernel, model, snapshot -> kernel.stateAt(model, ref, version, snapshot) }
+        return replayed(ref) { kernel, model, snapshot -> kernel.stateAt(model, ref, version, snapshot, maxReplay) }
     }
 
     override suspend fun at(ref: AggregateRef, instant: Instant): StateReadView? =
-        replayed(ref) { kernel, model, snapshot -> kernel.stateAt(model, ref, instant, snapshot) }
+        replayed(ref) { kernel, model, snapshot -> kernel.stateAt(model, ref, instant, snapshot, maxReplay) }
 
     override suspend fun trace(ref: AggregateRef, fromVersion: Int, toVersion: Int, limit: Int): List<CommitView> {
         val reads = contexts[ref.type.context] ?: return emptyList()
         val model = registry.find(ref.type)?.erased() ?: return emptyList()
-        return reads.kernel.trace(model, ref, fromVersion, toVersion, limit, reads.snapshots.load(ref)).map { commit ->
+        val snapshot = reads.snapshots.load(ref)
+        val commits = gate.replay(ref) {
+            bounded { reads.kernel.trace(model, ref, fromVersion, toVersion, limit, snapshot, maxReplay) }
+        }
+        return commits.map { commit ->
             val stream = commit.stream
             CommitView(
                 version = commit.version,
@@ -208,21 +237,39 @@ class KernelStateReads(
         }
     }
 
-    /** The view of the state [read] gives from the context's kernel, its model and the aggregate's snapshot. */
-    private suspend inline fun replayed(
+    /**
+     * The view of the state [read] gives under [gate] from the context's kernel, its model and the aggregate's
+     * snapshot.
+     */
+    private suspend fun replayed(
         ref: AggregateRef,
-        read: (Kernel, AggregateModel<Any>, snapshot: SnapshotRecord?) -> CachedState?,
+        read: suspend (Kernel, AggregateModel<Any>, snapshot: SnapshotRecord?) -> CachedState?,
     ): StateReadView? {
         val reads = contexts[ref.type.context] ?: return null
         val model = registry.find(ref.type)?.erased() ?: return null
-        return read(reads.kernel, model, reads.snapshots.load(ref))?.view(ref)
+        val snapshot = reads.snapshots.load(ref)
+        return gate.replay(ref) { bounded { read(reads.kernel, model, snapshot) } }?.view(ref)
     }
 
-    private companion object {
-        @Suppress("UNCHECKED_CAST") // The kernel takes the model and its state together; nothing here names the type.
-        fun AggregateModel<*>.erased(): AggregateModel<Any> = this as AggregateModel<Any>
+    /** [replay]'s result; a replay past the kernel's bound is this read's [StateReplayLimitException]. */
+    private inline fun <T> bounded(replay: () -> T): T = try {
+        replay()
+    } catch (tooLong: ReplayLimitExceededException) {
+        throw StateReplayLimitException(tooLong.ref, tooLong.limit, tooLong)
+    }
 
-        fun SnapshotRecord.view(): StateReadView = StateReadView(
+    @InternalWowApi
+    companion object {
+        /**
+         * The most streams a state read replays by default (review R4-Q, Q-1): a point read of a history longer than
+         * this, counted from the snapshot when it fits, else from version 1, is refused rather than replayed.
+         */
+        const val DEFAULT_MAX_REPLAY: Int = 10_000
+
+        @Suppress("UNCHECKED_CAST") // The kernel takes the model and its state together; nothing here names the type.
+        private fun AggregateModel<*>.erased(): AggregateModel<Any> = this as AggregateModel<Any>
+
+        private fun SnapshotRecord.view(): StateReadView = StateReadView(
             ref = ref,
             version = version,
             scope = scope,
@@ -231,7 +278,7 @@ class KernelStateReads(
             state = WowJson.mapper.readTree(state),
         )
 
-        fun CachedState.view(ref: AggregateRef): StateReadView = StateReadView(
+        private fun CachedState.view(ref: AggregateRef): StateReadView = StateReadView(
             ref = ref,
             version = version,
             scope = scope,

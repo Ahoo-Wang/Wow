@@ -959,11 +959,12 @@ export function fakeV10ViewStore(
         'wow.aggregate.not-found',
         `view-store.view/${id} does not exist.`,
       );
+    // What the caller may not see is not found, as on the server (decision D254 ④).
     if (aggregate.ownerId !== caller.ownerId)
       fail(
-        403,
-        'wow.aggregate.forbidden',
-        `view-store.view/${id} is outside the caller's scope.`,
+        404,
+        'wow.aggregate.not-found',
+        `view-store.view/${id} does not exist.`,
       );
     const version = query.get('version');
     const at =
