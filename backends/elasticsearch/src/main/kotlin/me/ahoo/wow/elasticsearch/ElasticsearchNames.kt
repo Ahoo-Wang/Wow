@@ -27,7 +27,10 @@ internal class ElasticsearchNames(prefix: String = "") {
     /** The index of [aggregate]'s snapshots in [context]: `[<prefix>_]wow_snapshot__<context>__<aggregate>`. */
     fun snapshots(context: String, aggregate: String): String = prefix + of(SNAPSHOT, context, aggregate)
 
-    /** The index of [aggregate]'s event streams in [context], written by the event search Sink. */
+    /**
+     * The index of [aggregate]'s event streams in [context], written by the event search Sink:
+     * `[<prefix>_]wow_events__<context>__<aggregate>`.
+     */
     fun events(context: String, aggregate: String): String = prefix + of(EVENTS, context, aggregate)
 
     /** The index of the snapshot tables' records (decision D172), one document per snapshot index. */
@@ -68,5 +71,11 @@ internal class ElasticsearchNames(prefix: String = "") {
         fun documentId(ref: AggregateRef): String = documentId(ref.tenantId, ref.id)
 
         fun documentId(tenantId: String, id: String): String = "${tenantId.length}:$tenantId:$id"
+
+        /**
+         * The document id of [ref]'s event stream at [version] in its events index: its snapshot's id and the version
+         * (`<length>:<tenant>:<id>@<version>`), the commit's identity, so a stream written again replaces nothing.
+         */
+        fun streamId(ref: AggregateRef, version: Int): String = documentId(ref) + "@" + version
     }
 }
