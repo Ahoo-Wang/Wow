@@ -30,7 +30,7 @@
  *
  * Build them first, from the repository root, with JDK 21:
  *
- *   ./gradlew -Pwow.scope=v10 :ops-server:installDist :ops-server:testClasses
+ *   ./gradlew :ops-server:installDist :ops-server:testClasses
  */
 
 import { spawn } from "node:child_process";
@@ -48,7 +48,7 @@ const SOURCES = [
   "me.ahoo.wow.ops.testing.LedgerSimulatorRoutes",
 ];
 const BUILD =
-  "./gradlew -Pwow.scope=v10 :ops-server:installDist :ops-server:testClasses";
+  "./gradlew :ops-server:installDist :ops-server:testClasses";
 
 const port = process.env.OPS_E2E_PORT ?? "18188";
 const cosecSecret = process.env.OPS_E2E_COSEC_SECRET;
