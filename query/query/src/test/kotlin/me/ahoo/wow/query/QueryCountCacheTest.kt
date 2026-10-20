@@ -207,11 +207,26 @@ class QueryCountCacheTest {
     }
 
     @Test
-    fun `a paged total should be cached and the page read without counting`() {
+    fun `a paged total should be counted with its page by default, so that it agrees with the rows (Q-12)`() {
+        runTest {
+            write("o1")
+            val (gateway, _) = gateway()
+            val query = PagedQuery(MatchAllFilter, pagination = Pagination(1, 1), total = TotalMode.EXACT)
+            gateway.paged(query, QueryCaller.IN_PROCESS).total.assert().isEqualTo(1)
+            // Another node's write, which this node's checkpoint does not see yet.
+            write("o2")
+            gateway.paged(query, QueryCaller.IN_PROCESS).total.assert().isEqualTo(2)
+            outcomes.assert().isEmpty()
+            QueryCountCacheOptions().pagedTotals.assert().isFalse()
+        }
+    }
+
+    @Test
+    fun `a paged total should be cached when asked, and the page read without counting`() {
         runTest {
             write("o1")
             write("o2")
-            val (gateway, _) = gateway()
+            val (gateway, _) = gateway(cache(QueryCountCacheOptions(pagedTotals = true)))
             val pagination = Pagination(1, 1)
             listOf(TotalMode.BOUNDED, TotalMode.EXACT).forEach { mode ->
                 val query = PagedQuery(MatchAllFilter, pagination = pagination, total = mode)

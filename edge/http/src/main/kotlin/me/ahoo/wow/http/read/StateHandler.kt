@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.Ownership
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.query.QueryErrorCodes
+import me.ahoo.wow.api.read.MinVersionNotReachedException
 import me.ahoo.wow.api.result.Violation
 import me.ahoo.wow.http.HttpJson
 import me.ahoo.wow.http.WowPaths
@@ -69,7 +70,10 @@ import java.util.HexFormat
  *   masks) is tagged anew; 304 when `If-None-Match` names that tag. The latest state is the snapshot, else, before the
  *   aggregate's first snapshot, its log replayed (decision D246 ⑥), each read alike. `?at=` takes an ISO-8601 instant
  *   (an offset is read as the instant it names, `+` written `%2B`) and reads the state after the last commit at or
- *   before it.
+ *   before it. `?minVersion=` (review R4-Q, Q-13: read your writes) reads the latest state at that version or later,
+ *   a lagging snapshot caught up with the log ([StateReads.latest] of a version); a state the caller may see that
+ *   stays below it through the read's wait is 409 `wow.query.min-version-not-reached`, the problem's `version` its
+ *   current version, with `Retry-After`. It reads no version or time besides (400).
  * - `GET /{context}/{aggregate}/{id}/state/trace?from=&to=&limit=` ([trace]): `{"ref", "commits"}`, the commits from
  *   version `from` (default 1) up to `to` (default the last), at most `limit` of them (default [DEFAULT_TRACE_LIMIT],
  *   at most [MAX_TRACE_LIMIT]: replaying is not free, decision D40), each with its events and the state after it. The
@@ -124,7 +128,7 @@ internal class StateHandler(
                         // The caller is checked on the latest state before the log is replayed (review R4-Q, Q-1).
                         reader.visible { reads.latest(reader.ref) }
                     }
-                    reader.visible { asked.read(reads, reader.ref) }
+                    asked.minVersion?.let { reader.reached(it) } ?: reader.visible { asked.read(reads, reader.ref) }
                 }
             }
         }
@@ -195,6 +199,33 @@ internal class StateHandler(
                 ReadFacade.Read.Hidden -> throw StateNotFoundException(ref, Reason.HIDDEN)
             }
 
+        /**
+         * The latest state at [minVersion] or later, as [caller] sees it; only a state it may see answers that it is
+         * below [minVersion] (review R4-Q, Q-5): a hidden one, and one with no commit, are not found.
+         */
+        suspend fun reached(minVersion: Int): Pair<StateReadView, JsonNode> {
+            var notReached: MinVersionNotReachedException? = null
+            val read = visible {
+                try {
+                    reads.latest(ref, minVersion)
+                } catch (behind: MinVersionNotReachedException) {
+                    notReached = behind
+                    if (behind.version == 0) null else reads.latest(ref)
+                }
+            }
+            notReached?.let { behind ->
+                throw ProblemException(
+                    statuses.problemOf(
+                        FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED,
+                        behind.message!!,
+                        ref.type.context
+                    )
+                        .copy(extensions = mapOf(WowPaths.VERSION to behind.version)),
+                )
+            }
+            return read
+        }
+
         fun checkScope(state: Scope) {
             if (!scope.covers(state)) {
                 throw StateNotFoundException(ref, Reason.OUT_OF_SCOPE)
@@ -202,8 +233,11 @@ internal class StateHandler(
         }
     }
 
-    /** What a state read asks for: the [version] or the instant [at] it reads, else the latest state. */
-    private class Asked(val version: Int?, val at: Instant?) {
+    /**
+     * What a state read asks for: the [version] or the instant [at] it reads, else the latest state, at [minVersion]
+     * or later when it names one.
+     */
+    private class Asked(val version: Int?, val at: Instant?, val minVersion: Int? = null) {
         /** The query parameter that asks for a replay, or `""` for the latest state. */
         val parameter: String
             get() = when {
@@ -223,6 +257,7 @@ internal class StateHandler(
     private fun asked(request: ServerRequest, type: AggregateType): Asked {
         val version = request.number(WowPaths.VERSION, min = 1)
         val at = request.instant(WowPaths.AT)
+        val minVersion = request.number(WowPaths.MIN_VERSION, min = 1)
         if (version != null && at != null) {
             throw InvalidStateReadException(
                 "A state of $type is read at a version or at a time, not both.",
@@ -230,7 +265,14 @@ internal class StateHandler(
                 WowPaths.AT,
             )
         }
-        return Asked(version, at)
+        if (minVersion != null && (version != null || at != null)) {
+            throw InvalidStateReadException(
+                "A minimum version reads the latest state of $type, not one at a version or a time.",
+                QueryErrorCodes.INVALID_REQUEST,
+                WowPaths.MIN_VERSION,
+            )
+        }
+        return Asked(version, at, minVersion)
     }
 
     /**
