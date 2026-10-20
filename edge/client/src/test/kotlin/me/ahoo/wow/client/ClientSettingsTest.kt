@@ -90,6 +90,16 @@ class ClientSettingsTest {
     }
 
     @Test
+    fun `only a connection never made should count as a request not sent`() {
+        with(HttpTransport) {
+            java.net.ConnectException("refused").unsent().assert().isTrue()
+            java.net.http.HttpConnectTimeoutException("late").unsent().assert().isTrue()
+            java.net.http.HttpTimeoutException("no answer").unsent().assert().isFalse()
+            java.io.IOException("reset").unsent().assert().isFalse()
+        }
+    }
+
+    @Test
     fun `a builder should check its bounds`() {
         assertThrownBy<IllegalArgumentException> { WowClient.builder().timeout(Duration.ZERO) }
         assertThrownBy<IllegalArgumentException> { WowClient.builder().connectTimeout(Duration.ZERO) }
