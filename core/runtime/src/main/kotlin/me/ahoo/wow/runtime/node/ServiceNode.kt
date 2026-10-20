@@ -501,7 +501,7 @@ class ServiceNode @InternalWowApi constructor(
 
                     caller == null || !caller.reaches(context) ->
                         "$subscription calls $context, which the node's caller does not reach (with Spring Boot, " +
-                            "set wow.calls.contexts.$context.url)"
+                            "set wow.calls.contexts.$context.url or wow.clients.contexts.$context.internal-url)"
 
                     else -> null
                 }

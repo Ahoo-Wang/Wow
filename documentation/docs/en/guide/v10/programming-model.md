@@ -417,7 +417,7 @@ suspend fun onBasketCheckedOut(event: StateEvent<BasketState>, context: SagaCont
 }
 ```
 
-A call needs no command topic: the node reaches the target at `wow.calls.contexts.<context>.url`, and does not start when a saga calls a command no Manifest it knows decides. A command of the saga's own context is derived, never called.
+A call needs no command topic: the node reaches the target at `wow.calls.contexts.<context>.url` (or `wow.clients.contexts.<context>.internal-url`), and does not start when a saga calls a context without that URL, or a command no Manifest it knows decides. A command of the saga's own context is derived, never called.
 
 ### Peers
 
