@@ -95,7 +95,7 @@ internal object ElasticsearchFailures {
                         )
                     is ResponseException ->
                         cause.response.statusCode == UNAVAILABLE &&
-                            SHARD_NOT_READY.any { type -> cause.message.orEmpty().contains("\"$type\"") }
+                            SHARD_NOT_READY.any { type -> "${cause.message}".contains("\"$type\"") }
                     else -> false
                 }
             }

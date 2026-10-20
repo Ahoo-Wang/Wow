@@ -151,6 +151,9 @@ class ElasticsearchStoreProviderTest {
         ).assert().isTrue()
         ElasticsearchFailures.isShardNotReady(elasticsearchException(503)).assert().isFalse()
         ElasticsearchFailures.isShardNotReady(
+            elasticsearchException(503, "search_phase_execution_exception", "illegal_index_shard_state_exception"),
+        ).assert().isTrue()
+        ElasticsearchFailures.isShardNotReady(
             elasticsearchException(400, "no_shard_available_action_exception")
         ).assert().isFalse()
         // A real-time GET's answer reaches the client as the low-level ResponseException, its body in the message.
