@@ -392,7 +392,7 @@ A node without a command transport does not start when one of its sagas derives,
 Node <node> has no command transport (with Spring Boot, set wow.kafka.bootstrap-servers), but example/OrderSaga.onOrderCreated sends commands to inventory: a command across contexts goes through its context's command topic (decision D33).
 ```
 
-In production the transport is Kafka (`wow.kafka.bootstrap-servers`). A test without Kafka gives the node in-memory topics: an `InMemoryTopics` bean (`me.ahoo.wow.kernel.memory`) and a `SourceTopics` bean over it (`me.ahoo.wow.runtime.node`), as the shop's tests do:
+In production the transport is Kafka (`wow.kafka.bootstrap-servers`). To try a service out on one machine without Kafka, set `wow.topics.in-memory: true`: the node keeps its command topics and published streams in its JVM, executes its own command topic, and warns at startup; nothing reaches another JVM or survives a restart (DX gap G27). A test without Kafka can give the node in-memory topics itself: an `InMemoryTopics` bean (`me.ahoo.wow.kernel.memory`) and a `SourceTopics` bean over it (`me.ahoo.wow.runtime.node`), as the shop's tests do:
 
 ```kotlin
 class InMemoryShopTopics {
