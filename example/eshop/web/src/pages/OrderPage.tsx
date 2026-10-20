@@ -14,7 +14,7 @@
 import { useState } from "react";
 import { useParams } from "react-router";
 import { RefreshCwIcon, TruckIcon } from "lucide-react";
-import { WowProblemError } from "@ahoo-wang/wow-client/v10";
+import { WowProblemError } from "@ahoo-wang/wow-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {

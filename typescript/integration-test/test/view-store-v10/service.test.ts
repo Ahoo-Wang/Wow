@@ -21,14 +21,14 @@
 
 import { Fetcher } from '@ahoo-wang/fetcher';
 import { asc, desc, filter } from '@ahoo-wang/wow-client';
-import { SnapshotQueryClient } from '@ahoo-wang/wow-client/v10';
+import { SnapshotQueryClient } from '@ahoo-wang/wow-client';
 import type { ViewConfig, ViewInstance } from '@ahoo-wang/wow-view-engine';
 import {
   viewSourceOf,
   WowDatasetWordings,
   WowViewStore,
   WowViewStoreErrorCodes,
-} from '@ahoo-wang/wow-view-store/v10';
+} from '@ahoo-wang/wow-view-store';
 import { describe, expect, it } from 'vitest';
 import {
   actingAs,

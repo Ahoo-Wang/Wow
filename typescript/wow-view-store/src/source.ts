@@ -22,7 +22,7 @@ import type {
   PagedQuery,
   QueryModelClient,
   RequestOptions,
-} from '@ahoo-wang/wow-client/v10';
+} from '@ahoo-wang/wow-client';
 import type {
   DatasetCatalog,
   RecordData,

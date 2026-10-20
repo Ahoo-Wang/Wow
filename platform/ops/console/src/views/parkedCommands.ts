@@ -15,7 +15,7 @@ import type { Fetcher } from "@ahoo-wang/fetcher";
 import {
   WowProblemError,
   type CommandOptions,
-} from "@ahoo-wang/wow-client/v10";
+} from "@ahoo-wang/wow-client";
 import {
   opsWait,
   ParkedCommandClient,

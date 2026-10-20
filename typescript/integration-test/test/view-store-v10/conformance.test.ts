@@ -25,7 +25,7 @@
  * system views as either.
  */
 
-import { WowViewStore } from '@ahoo-wang/wow-view-store/v10';
+import { WowViewStore } from '@ahoo-wang/wow-view-store';
 import { describeViewStoreConformance } from '../../../wow-view-engine/test/conformance/viewStoreConformance.js';
 import {
   actingAs,

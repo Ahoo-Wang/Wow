@@ -12,7 +12,7 @@
  */
 
 import type { Fetcher } from '@ahoo-wang/fetcher';
-import type { SystemViewBody } from '../wire.js';
+import type { SystemViewBody } from './views.js';
 import { request } from './errors.js';
 
 /**

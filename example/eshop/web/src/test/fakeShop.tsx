@@ -13,7 +13,7 @@
 
 import { render } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import type { CommandResult } from "@ahoo-wang/wow-client/v10";
+import type { CommandResult } from "@ahoo-wang/wow-client";
 import { routes } from "@/App";
 import { SessionProvider, type User } from "@/shop/session";
 

@@ -75,7 +75,7 @@ export const ENTRIES = [
   ['@ahoo-wang/wow-client', 'filter', { require: true }],
   ['@ahoo-wang/wow-client/dsl', 'filter', { require: true }],
   ['@ahoo-wang/wow-client/legacy', 'zh_CN', { require: true }],
-  ['@ahoo-wang/wow-client/v10', 'CommandGateway', { require: true }],
+  ['@ahoo-wang/wow-client', 'CommandGateway', { require: true }],
   ['@ahoo-wang/wow-react', 'useFetcherPagedQuery', { require: true }],
   ['@ahoo-wang/wow-generator', 'CodeGenerator', { require: true }],
   ['@ahoo-wang/wow-view-engine', 'ViewEngine', { require: false }],
@@ -96,7 +96,7 @@ export const ENTRIES = [
     { require: false },
   ],
   ['@ahoo-wang/wow-view-store', 'WowViewStore', { require: false }],
-  ['@ahoo-wang/wow-view-store/v10', 'viewSourceOf', { require: false }],
+  ['@ahoo-wang/wow-view-store', 'viewSourceOf', { require: false }],
 ];
 
 /** The view engine's style sheets a host imports (README「Styles」). */
@@ -162,7 +162,7 @@ export function floorPeers(workspaceYaml) {
 /** Consumers compiled under each resolution mode. */
 const CLIENT_AND_GENERATOR = `import { filter } from '@ahoo-wang/wow-client';
 import { zh_CN } from '@ahoo-wang/wow-client/legacy';
-import { CommandGateway } from '@ahoo-wang/wow-client/v10';
+import { CommandGateway } from '@ahoo-wang/wow-client';
 import { CodeGenerator } from '@ahoo-wang/wow-generator';
 
 // A condition is not a number.
@@ -185,7 +185,7 @@ import { AnalysisChart } from '@ahoo-wang/wow-view-engine/ui';
 import { ActionRefusedError } from '@ahoo-wang/wow-view-engine/testing';
 import { useReactRouter } from '@ahoo-wang/wow-view-engine/react-router';
 import { WowViewStore } from '@ahoo-wang/wow-view-store';
-import { WowViewStore as V10ViewStore } from '@ahoo-wang/wow-view-store/v10';
+import { WowViewStore as V10ViewStore } from '@ahoo-wang/wow-view-store';
 
 // @ts-expect-error the engine takes options, not a number
 export const engine = new ViewEngine(42);

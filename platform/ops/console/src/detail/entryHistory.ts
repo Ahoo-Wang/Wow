@@ -13,7 +13,7 @@
 
 import type { Fetcher } from "@ahoo-wang/fetcher";
 import { filter } from "@ahoo-wang/wow-client";
-import type { EventStreamRecord, EventView } from "@ahoo-wang/wow-client/v10";
+import type { EventStreamRecord, EventView } from "@ahoo-wang/wow-client";
 import {
   ParkedEventQueryClient,
   type ParkedEvent,

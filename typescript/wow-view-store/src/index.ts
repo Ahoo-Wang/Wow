@@ -11,11 +11,18 @@
  * limitations under the License.
  */
 
-// The public surface, name by name (test/surface/root.txt).
+// `@ahoo-wang/wow-view-store`: the view engine on a Wow V10 service.
+// The public surface, name by name (test/surface/v10.txt).
 export { WowViewStore, type WowViewStoreOptions } from './wowViewStore.js';
-export { SHARED_OWNER_ID, SYSTEM_OWNER_ID, SYSTEM_TENANT_ID } from './paths.js';
-export { WowViewStoreErrorCodes } from './errors.js';
 export {
   WowDatasetWordings,
   type WowDatasetWordingsOptions,
 } from './datasetWordings.js';
+export { WowViewStoreErrorCodes } from './errors.js';
+export { SHARED_SCOPE, SYSTEM_SCOPE } from './wire.js';
+export { datasetCatalogOf, viewSourceOf } from './source.js';
+export {
+  SHARED_OWNER_ID,
+  SYSTEM_OWNER_ID,
+  SYSTEM_TENANT_ID,
+} from './paths.js';

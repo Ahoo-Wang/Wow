@@ -168,7 +168,7 @@ src/
     operator.ts               — Operator enum — use FilterOperator
     queryable.ts              — Condition queries and their factories
     locale/                   — i18n for the Operator enum (en_US, zh_CN)
-  v10/                        — `@ahoo-wang/wow-client/v10`: the client of a Wow V10 service's routes (design §8)
+  v10/                        — `@ahoo-wang/wow-client`: the client of a Wow V10 service's routes (design §8)
     index.ts                  — The entry
     wire.ts                   — The V10 wire model: CommandResult, Hop, StateView, SnapshotRecord, EventStreamRecord, …
     problem.ts                — Problem, FrameworkErrorCodes, WowProblemError and its retry hint, toWowProblemError

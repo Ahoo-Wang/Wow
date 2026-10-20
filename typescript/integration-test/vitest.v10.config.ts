@@ -13,7 +13,7 @@
 
 import { defineConfig } from 'vitest/config';
 
-// The contract of `@ahoo-wang/wow-view-store/v10` and the view engine on it
+// The contract of `@ahoo-wang/wow-view-store` and the view engine on it
 // against the V10 view store service (`pnpm test:v10`): only
 // test/view-store-v10/, whose global setup starts the service in a JVM on
 // ports bound to 0 (or takes WOW_V10_VIEW_STORE_URL). It needs neither the

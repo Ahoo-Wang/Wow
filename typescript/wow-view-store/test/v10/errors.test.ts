@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { WowProblemError } from '@ahoo-wang/wow-client/v10';
+import { WowProblemError } from '@ahoo-wang/wow-client';
 import { ViewStoreError } from '@ahoo-wang/wow-view-engine';
 import {
   boardTitles,

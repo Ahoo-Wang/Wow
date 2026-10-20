@@ -25,7 +25,7 @@ import type {
 import { camelCase, quoteStringLiteral } from '../naming/naming';
 
 /** The entry of the V10 client every generated module imports from. */
-export const V10_CLIENT = '@ahoo-wang/wow-client/v10';
+export const V10_CLIENT = '@ahoo-wang/wow-client';
 
 /** A doc comment of the lines given, those without text left out. */
 function doc(lines: readonly (string | undefined)[], indent = ''): string {
@@ -80,7 +80,7 @@ function importTypes(
  * Describes every file a Manifest generates to its module (decision D74,
  * roadmap 5a.3): the types of each bounded context, its error codes and wait
  * helpers, and the aggregate, command and query clients of each aggregate,
- * all on `@ahoo-wang/wow-client/v10`.
+ * all on `@ahoo-wang/wow-client`.
  *
  * @param model - What the Manifest generates
  * @param modules - The modules of the run

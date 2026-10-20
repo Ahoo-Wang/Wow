@@ -38,7 +38,7 @@ import {
 /** Where each entry's list lives, beside this suite. */
 const LISTS: Record<Entry, string> = {
   '@ahoo-wang/wow-view-store': 'surface/root.txt',
-  '@ahoo-wang/wow-view-store/v10': 'surface/v10.txt',
+  '@ahoo-wang/wow-view-store': 'surface/v10.txt',
 };
 
 /** One entry's list as the file holds it: a heading, then `kind name`. */

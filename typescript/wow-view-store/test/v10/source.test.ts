@@ -12,7 +12,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { DatasetClient, EventQueryClient } from '@ahoo-wang/wow-client/v10';
+import { DatasetClient, EventQueryClient } from '@ahoo-wang/wow-client';
 import { datasetCatalogOf, viewSourceOf } from '../../src/v10/index.js';
 import type { FakeDataset } from '../support/fakeV10ViewStore.js';
 import { actingAs, installFake } from './support.js';

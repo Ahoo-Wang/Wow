@@ -16,7 +16,7 @@ It replaces the 9.x compensation dashboard (`compensation/dashboard`), which sta
 
 What it does not show of the 9.x dashboard: a failure's stack trace. The owning services record a failure as `<exception class>: <message>` (`LedgerEntry.reason`) and send no stack trace, so the cause is that line; the error type is its class (`state.errorType`).
 
-The client is generated from the ops service's Manifest (`src/generated/`, by wow-generator, on `@ahoo-wang/wow-client/v10`); `src/generated.test.ts` regenerates it and compares byte for byte.
+The client is generated from the ops service's Manifest (`src/generated/`, by wow-generator, on `@ahoo-wang/wow-client`); `src/generated.test.ts` regenerates it and compares byte for byte.
 
 ## How it is served
 

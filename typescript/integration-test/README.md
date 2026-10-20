@@ -173,7 +173,7 @@ aggregates up on each first.
 
 ## The V10 store against the V10 view store service
 
-`test/view-store-v10/` holds `@ahoo-wang/wow-view-store/v10` and the view
+`test/view-store-v10/` holds `@ahoo-wang/wow-view-store` and the view
 engine on it to the V10 view store service (`platform/view-store`, roadmap
 7.3a): the port's conformance suite, tenant and application isolation, the
 stored and configured system views, the service's writer roles, the

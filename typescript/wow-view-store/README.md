@@ -111,10 +111,10 @@ gateway decides who may, by the role it admits to
 
 ### On a Wow V10 service
 
-`@ahoo-wang/wow-view-store/v10` is the same port on the **V10** view store
+`@ahoo-wang/wow-view-store` is the same port on the **V10** view store
 service (`platform/view-store` in the Wow repository): `WowViewStore` and
 `WowDatasetWordings` of the same names and options, built on the clients
-generated from the service's Manifest (`@ahoo-wang/wow-client/v10`), and
+generated from the service's Manifest (`@ahoo-wang/wow-client`), and
 `viewSourceOf` / `datasetCatalogOf`, which put the engine's queries on V10
 query routes. The root entry stays the 9.x store; a host picks one by the
 entry it imports.
@@ -127,14 +127,14 @@ declare const permissionsFromRoles: (definitionId: string) => ViewPermissions;
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
-import { DatasetClient, SnapshotQueryClient } from '@ahoo-wang/wow-client/v10';
+import { DatasetClient, SnapshotQueryClient } from '@ahoo-wang/wow-client';
 import { DatasetResources, ViewEngine } from '@ahoo-wang/wow-view-engine';
 import {
   WowDatasetWordings,
   WowViewStore,
   datasetCatalogOf,
   viewSourceOf,
-} from '@ahoo-wang/wow-view-store/v10';
+} from '@ahoo-wang/wow-view-store';
 
 // The V10 service takes the tenant and the owner from the principal: the
 // fetcher's interceptors send the authorization and `CoSec-App-Id`, and no

@@ -223,7 +223,7 @@ export class CodeGenerator {
   /**
    * Generates the clients of a Wow V10 service from its Manifest (decision
    * D74, roadmap 5a.3): the types of its schemas, and for each aggregate its
-   * command, query and state clients on `@ahoo-wang/wow-client/v10`. The
+   * command, query and state clients on `@ahoo-wang/wow-client`. The
    * configuration's API clients are an OpenAPI document's and do not apply.
    */
   private async generateFromManifest(

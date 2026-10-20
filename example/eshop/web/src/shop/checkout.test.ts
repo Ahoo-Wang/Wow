@@ -11,7 +11,7 @@
  * limitations under the License.
  */
 
-import { formatWaitPlan, WowProblemError } from "@ahoo-wang/wow-client/v10";
+import { formatWaitPlan, WowProblemError } from "@ahoo-wang/wow-client";
 import { describe, expect, it } from "vitest";
 import { ALICE, fakeServices, problemAnswer, result } from "@/test/fakeShop";
 import { shopClients } from "./clients";

@@ -17,10 +17,10 @@ import {
   type FetchExchange,
   type RequestInterceptor,
 } from '@ahoo-wang/fetcher';
-import { DatasetClient } from '@ahoo-wang/wow-client/v10';
+import { DatasetClient } from '@ahoo-wang/wow-client';
 import { ViewEngine } from '@ahoo-wang/wow-view-engine';
 import { DataWorkbench, zhCN } from '@ahoo-wang/wow-view-engine/ui';
-import { viewSourceOf, WowViewStore } from '@ahoo-wang/wow-view-store/v10';
+import { viewSourceOf, WowViewStore } from '@ahoo-wang/wow-view-store';
 import {
   fakeV10ViewStore,
   type FakeV10ViewStore,
@@ -49,7 +49,7 @@ import '@ahoo-wang/wow-view-engine/styles.css';
 
 /**
  * The record workbench on a Wow **V10** service, through
- * `@ahoo-wang/wow-view-store/v10` (roadmap 7.3a): the views, the
+ * `@ahoo-wang/wow-view-store` (roadmap 7.3a): the views, the
  * preferences and the system views in the V10 view store, the rows through
  * a V10 dataset query route (`viewSourceOf`). The service is the in-memory
  * stand-in `wow-view-store`'s own suites run on, installed as the page's

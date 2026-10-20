@@ -16,7 +16,7 @@
  * (`platform/view-store/view-store-server`), as a `fetch`: the routes the
  * Manifest lists for `view`, `view_preferences` and `dataset_wording`, the
  * service's own system views route, and optionally a service's datasets.
- * The suites of `@ahoo-wang/wow-view-store/v10` run the real store and the
+ * The suites of `@ahoo-wang/wow-view-store` run the real store and the
  * real generated clients over it, and the Storybook's V10 stories install it
  * as the page's `fetch` (it imports nothing but the platform, so a browser
  * runs it as it is).

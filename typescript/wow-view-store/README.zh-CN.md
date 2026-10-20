@@ -91,7 +91,7 @@ await datasets.refresh();
 
 ### 在 Wow V10 服务上
 
-`@ahoo-wang/wow-view-store/v10` 是同一个端口在 **V10** 视图存储服务（Wow 仓库的 `platform/view-store`）上的实现：同名、同选项的 `WowViewStore` 与 `WowDatasetWordings`，建在由服务的 Manifest 生成的客户端（`@ahoo-wang/wow-client/v10`）之上；`viewSourceOf`／`datasetCatalogOf` 把引擎的查询放到 V10 的查询路由上。根入口仍是 9.x 的 store，宿主按导入的入口二选一。
+`@ahoo-wang/wow-view-store` 是同一个端口在 **V10** 视图存储服务（Wow 仓库的 `platform/view-store`）上的实现：同名、同选项的 `WowViewStore` 与 `WowDatasetWordings`，建在由服务的 Manifest 生成的客户端（`@ahoo-wang/wow-client`）之上；`viewSourceOf`／`datasetCatalogOf` 把引擎的查询放到 V10 的查询路由上。根入口仍是 9.x 的 store，宿主按导入的入口二选一。
 
 <!-- typecheck-context
 import type { ViewDefinition, ViewPermissions } from '@ahoo-wang/wow-view-engine';
@@ -101,14 +101,14 @@ declare const permissionsFromRoles: (definitionId: string) => ViewPermissions;
 
 ```ts
 import { Fetcher } from '@ahoo-wang/fetcher';
-import { DatasetClient, SnapshotQueryClient } from '@ahoo-wang/wow-client/v10';
+import { DatasetClient, SnapshotQueryClient } from '@ahoo-wang/wow-client';
 import { DatasetResources, ViewEngine } from '@ahoo-wang/wow-view-engine';
 import {
   WowDatasetWordings,
   WowViewStore,
   datasetCatalogOf,
   viewSourceOf,
-} from '@ahoo-wang/wow-view-store/v10';
+} from '@ahoo-wang/wow-view-store';
 
 // V10 服务从主体取租户与所有者：fetcher 的拦截器带上认证与 `CoSec-App-Id`，
 // 路径里不出现两者。

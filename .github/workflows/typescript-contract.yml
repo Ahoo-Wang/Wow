@@ -143,7 +143,7 @@ jobs:
           WOW_SERVER_VERSION: ${{ matrix.wow-version }}
         run: pnpm exec vitest run --config vitest.released.config.ts --maxWorkers=2
 
-  # The V10 store (`@ahoo-wang/wow-view-store/v10`) and the view engine on it
+  # The V10 store (`@ahoo-wang/wow-view-store`) and the view engine on it
   # against the V10 view store service (platform/view-store) built from this
   # commit in the V10 build scope (`pnpm test:v10`, roadmap 7.3a). The suites'
   # global setup starts the service in a JVM on the memory backend, every port

@@ -131,7 +131,7 @@ View Engine 的每个场景都放在宿主应用里评判：`shared/AppShell.tsx
 
 ## V10 视图存储的回归夹具
 
-`view-engine/V10ViewStore.test.stories.tsx`（标题 `View Engine/回归夹具/V10 视图存储`，标签 `['!dev', '!autodocs', 'test']`，不进目录与导航）让记录工作台跑在 Wow V10 上（路线图 7.3a）：视图、偏好与系统视图经 `@ahoo-wang/wow-view-store/v10` 的 `WowViewStore` 存在 V10 视图存储里，行经 `viewSourceOf` 走 V10 的数据集查询路由（`POST /wow/dataset/sales/orders/query`）。
+`view-engine/V10ViewStore.test.stories.tsx`（标题 `View Engine/回归夹具/V10 视图存储`，标签 `['!dev', '!autodocs', 'test']`，不进目录与导航）让记录工作台跑在 Wow V10 上（路线图 7.3a）：视图、偏好与系统视图经 `@ahoo-wang/wow-view-store` 的 `WowViewStore` 存在 V10 视图存储里，行经 `viewSourceOf` 走 V10 的数据集查询路由（`POST /wow/dataset/sales/orders/query`）。
 
 - **服务端**是 `wow-view-store` 自己的单元测试用的内存替身（`typescript/wow-view-store/test/support/fakeV10ViewStore.ts`，按工作区路径引入），由故事的 `beforeEach` 装成页面的 `fetch`，结束时放回原来的。它照真服务端的路由、`Wow-Scope`、`Wow-Request-Id`、`If-Match` 与 problem 作答；真服务端由 `typescript/integration-test` 的 `pnpm test:v10` 守着同样的行为。
 - **数据**是订单夹具的六张单（`rowSource`）；一个配置的系统视图，一个共享视图与一个个人视图在 `beforeEach` 里经 V10 store 写入。

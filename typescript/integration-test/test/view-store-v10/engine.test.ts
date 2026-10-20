@@ -31,7 +31,7 @@ import {
   AggregationFunction,
   AggregationGroupType,
 } from '@ahoo-wang/wow-client';
-import { SnapshotQueryClient } from '@ahoo-wang/wow-client/v10';
+import { SnapshotQueryClient } from '@ahoo-wang/wow-client';
 import {
   DEFAULT_RUNTIME_LIMITS,
   defaultRuntimeEnvironment,
@@ -44,7 +44,7 @@ import {
   type ViewRuntime,
   type ViewWriteError,
 } from '@ahoo-wang/wow-view-engine';
-import { viewSourceOf, WowViewStore } from '@ahoo-wang/wow-view-store/v10';
+import { viewSourceOf, WowViewStore } from '@ahoo-wang/wow-view-store';
 import { describe, expect, it } from 'vitest';
 import { nextResult } from '../view-engine/salesOrders';
 import { actingAs, SHARED_WRITER } from './v10ViewStoreServer';
