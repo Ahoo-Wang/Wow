@@ -518,13 +518,20 @@ class WowAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @InternalWowApi
-    fun wowStateReads(node: ServiceNode, backends: HostBackends, gate: ObjectProvider<ReplayGate>): StateReads {
+    fun wowStateReads(
+        node: ServiceNode,
+        backends: HostBackends,
+        gate: ObjectProvider<ReplayGate>,
+        queries: ObjectProvider<QueryProperties>,
+    ): StateReads {
         val opened = backends.contexts
         val contexts = node.contexts.mapNotNull { (name, context) ->
             opened[name]?.snapshots?.let { name to KernelStateReads.ContextReads(context.kernel, it) }
         }.toMap()
-        // The query plane's gate runs a state read's replay under its log store's bulkhead (decision D246 ⑥).
-        return KernelStateReads(node.registry, contexts, gate.getIfAvailable { ReplayGate.OPEN })
+        // The query plane's gate runs a state read's replay under its log store's bulkhead (decision D246 ⑥, review
+        // R4-Q Q-1), and `wow.query.state.max-replay` bounds it.
+        val maxReplay = queries.ifAvailable?.state?.maxReplay ?: KernelStateReads.DEFAULT_MAX_REPLAY
+        return KernelStateReads(node.registry, contexts, gate.getIfAvailable { ReplayGate.OPEN }, maxReplay)
     }
 
     @Bean

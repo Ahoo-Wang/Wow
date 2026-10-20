@@ -23,6 +23,7 @@ import me.ahoo.wow.query.events.UnpinnedEvents
 import me.ahoo.wow.query.index.QueryIndexDdl
 import me.ahoo.wow.query.schema.QuerySensitivityPolicy
 import me.ahoo.wow.query.store.StoreQueryOptions
+import me.ahoo.wow.runtime.state.KernelStateReads
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.time.Duration
 import kotlin.time.toJavaDuration
@@ -68,6 +69,9 @@ import kotlin.time.toKotlinDuration
  *   `0` for no bound. A query beyond the bound waits in a FIFO queue (decision D247) at most `wow.query.max-wait`
  *   (200ms) for a permit, and is refused when the wait runs out or when `wow.query.max-queued` (4 per permit) queries
  *   wait already; `wow.stores.<name>.query.max-wait` and `.max-queued` take their place for one store.
+ * - `wow.query.state.max-replay` (10000; review R4-Q, Q-1): the most commits a state point read replays from the
+ *   aggregate's snapshot, or from version 1 (`GET …/state?version=` or `?at=`, `…/state/trace`, the latest state
+ *   before the first snapshot); a state further away is 400 `wow.query.invalid` (`REPLAY_TOO_LONG`).
  */
 @ConfigurationProperties(prefix = QueryProperties.PREFIX)
 class QueryProperties {
@@ -83,6 +87,7 @@ class QueryProperties {
     var countCache: CountCache = CountCache()
     var memory: Memory = Memory()
     var events: Events = Events()
+    var state: State = State()
     var maxConcurrent: Int? = null
     var maxWait: Duration = QueryBulkhead.DEFAULT_MAX_WAIT.toJavaDuration()
     var maxQueued: Int? = null
@@ -173,6 +178,10 @@ class QueryProperties {
     class Events {
         var mongoReadPreference: String? = null
         var unpinned: UnpinnedEvents = UnpinnedEvents.ALLOW
+    }
+
+    class State {
+        var maxReplay: Int = KernelStateReads.DEFAULT_MAX_REPLAY
     }
 
     class Dataset {

@@ -19,6 +19,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
@@ -525,25 +526,37 @@ class Kernel(
      * streams after it up to [version] when it fits, as on a cache miss, else the log replayed up to [version]. A
      * snapshot past [version], of another aggregate or not fitting is passed over. The state cache is not touched.
      *
+     * The log is folded as it is read, never held whole, and at most [maxReplay] streams are folded (review R4-Q,
+     * Q-1): a read that needs more, counted from the snapshot when it fits, else from version 1, is refused before it
+     * reads the log.
+     *
      * @return the state at [version] with the metadata the kernel keeps beside it (scope, deleted mark, tags); null
      *   when the log does not hold [version].
+     * @throws ReplayLimitExceededException when the state at [version] is more than [maxReplay] streams away.
      */
     suspend fun <S : Any> stateAt(
         model: AggregateModel<S>,
         ref: AggregateRef,
         version: Int,
         snapshot: SnapshotRecord? = null,
+        maxReplay: Int = Int.MAX_VALUE,
     ): CachedState? {
         require(ref.type == model.type) { "$ref is not a ${model.type}." }
         require(version >= 1) { "A committed state has a version from 1." }
+        require(maxReplay >= 1) { "A replay folds at least one stream." }
         if (snapshot != null && snapshot.ref == ref && snapshot.version <= version) {
-            fromSnapshot(model, snapshot, version)?.let { return it.takeIf { state -> state.version == version } }
+            if (version - snapshot.version > maxReplay) {
+                throw ReplayLimitExceededException(ref, maxReplay)
+            }
+            fromSnapshot(model, snapshot, version, maxReplay = maxReplay)?.let {
+                return it.takeIf { state -> state.version == version }
+            }
         }
-        val streams = log.read(ref, 1, version).toList()
-        if (streams.lastOrNull()?.version != version) {
-            return null
+        if (version > maxReplay) {
+            throw ReplayLimitExceededException(ref, maxReplay)
         }
-        return replay(model, CachedState(model.initialState(ref), 0), streams)
+        return replay(model, ref, CachedState(model.initialState(ref), 0), log.read(ref, 1, version), maxReplay)
+            .takeIf { it.version == version }
     }
 
     /**
@@ -605,35 +618,40 @@ class Kernel(
      * [at], of another aggregate or not fitting is passed over. Every event is read as the model's current schema,
      * upgraded from the revision it was written in (D82). The state cache is not touched.
      *
+     * The log is folded as it is read, never held whole, and at most [maxReplay] streams are folded (review R4-Q,
+     * Q-1): the read is refused as soon as it would fold one more.
+     *
      * @return the state with the metadata the kernel keeps beside it (scope, deleted mark, tags); null when no stream
      *   of [ref] had committed by [at].
+     * @throws ReplayLimitExceededException when the state as of [at] is more than [maxReplay] streams away.
      */
     suspend fun <S : Any> stateAt(
         model: AggregateModel<S>,
         ref: AggregateRef,
         at: Instant,
         snapshot: SnapshotRecord? = null,
+        maxReplay: Int = Int.MAX_VALUE,
     ): CachedState? {
         require(ref.type == model.type) { "$ref is not a ${model.type}." }
+        require(maxReplay >= 1) { "A replay folds at least one stream." }
         val by = at.epochMillis()
         if (snapshot != null && snapshot.ref == ref && snapshot.lastEventTime <= by) {
-            fromSnapshot(model, snapshot, committedBy = by)?.let { return it }
+            fromSnapshot(model, snapshot, committedBy = by, maxReplay = maxReplay)?.let { return it }
         }
-        val streams = log.read(ref).takeWhile { it.commitTime <= by }.toList()
-        if (streams.isEmpty()) {
-            return null
-        }
-        return replay(model, CachedState(model.initialState(ref), 0), streams)
+        val streams = log.read(ref).takeWhile { it.commitTime <= by }
+        return replay(model, ref, CachedState(model.initialState(ref), 0), streams, maxReplay)
+            .takeIf { it.version > 0 }
     }
 
     /**
      * The commits of [ref] from version [fromVersion] up to [toVersion], at most [limit] of them, in version order,
      * read-only (decision D40, design 03 §4): each stream with its events, read as the model's current schema (D82),
      * and the state and metadata after it. The state before [fromVersion] is the one [stateAt] gives for its version,
-     * from [snapshot] and the tail when it fits, so the log is not replayed from version 1 then. The state cache is
-     * not touched.
+     * from [snapshot] and the tail when it fits, so the log is not replayed from version 1 then; reaching it folds at
+     * most [maxReplay] streams (review R4-Q, Q-1). The state cache is not touched.
      *
      * @return the commits, empty when the log holds no version from [fromVersion] up to [toVersion].
+     * @throws ReplayLimitExceededException when the state before [fromVersion] is more than [maxReplay] streams away.
      */
     @Suppress("LongParameterList")
     suspend fun <S : Any> trace(
@@ -643,6 +661,7 @@ class Kernel(
         toVersion: Int,
         limit: Int,
         snapshot: SnapshotRecord? = null,
+        maxReplay: Int = Int.MAX_VALUE,
     ): List<CommitTrace> {
         require(ref.type == model.type) { "$ref is not a ${model.type}." }
         require(fromVersion >= 1) { "A commit has a version from 1." }
@@ -651,7 +670,7 @@ class Kernel(
         var current = if (fromVersion == 1) {
             CachedState(model.initialState(ref), 0)
         } else {
-            stateAt(model, ref, fromVersion - 1, snapshot) ?: return emptyList()
+            stateAt(model, ref, fromVersion - 1, snapshot, maxReplay) ?: return emptyList()
         }
         val last = minOf(toVersion.toLong(), fromVersion.toLong() + limit - 1).toInt()
         val traces = ArrayList<CommitTrace>()
@@ -689,13 +708,15 @@ class Kernel(
      * The tail is read from the snapshot's own version, so the same read proves the log holds that version; that
      * stream is already folded and is skipped. The
      * tail stops at [until], and before the first stream committed after [committedBy] (epoch milliseconds): a
-     * snapshot whose own stream committed after it does not fit either.
+     * snapshot whose own stream committed after it does not fit either. The tail is folded as it is read, at most
+     * [maxReplay] streams of it ([ReplayLimitExceededException] past them).
      */
     private suspend fun <S : Any> fromSnapshot(
         model: AggregateModel<S>,
         snapshot: SnapshotRecord,
         until: Int = Int.MAX_VALUE,
         committedBy: Long = Long.MAX_VALUE,
+        maxReplay: Int = Int.MAX_VALUE,
     ): CachedState? {
         if (snapshot.stateRevision != model.stateRevision) {
             logger.debug { "The snapshot of ${snapshot.ref} is of state revision ${snapshot.stateRevision}; replaying its log." }
@@ -714,19 +735,30 @@ class Kernel(
             logger.warn(failure) { "The snapshot of ${snapshot.ref} does not decode whole; replaying its log." }
             return null
         }
-        val streams = log.read(
-            snapshot.ref,
-            snapshot.version,
-            until
-        ).takeWhile { it.commitTime <= committedBy }.toList()
-        if (streams.firstOrNull()?.version != snapshot.version) {
-            logger.warn { "The snapshot of ${snapshot.ref} is at version ${snapshot.version}, beyond its log; replaying it." }
-            return null
-        }
         val restored =
             CachedState(state, snapshot.version, snapshot.scope, snapshot.deleted, snapshot.tags, snapshot.schedules)
-        // Its stored tags are the effective ones it was written with: the keys the state derives are derived anew.
-        return replay(model, derived(model, restored), streams.subList(1, streams.size))
+        var current: CachedState? = null
+        var replayed = 0
+        log.read(snapshot.ref, snapshot.version, until)
+            // The first stream must be the snapshot's own: else the snapshot is beyond the log, and nothing is folded.
+            .takeWhile { it.commitTime <= committedBy && (current != null || it.version == snapshot.version) }
+            .collect { stream ->
+                val base = current
+                current = if (base == null) {
+                    // Its stored tags are the effective ones it was written with: the keys the state derives are
+                    // derived anew. Its own stream is already folded.
+                    derived(model, restored)
+                } else {
+                    if (++replayed > maxReplay) {
+                        throw ReplayLimitExceededException(snapshot.ref, maxReplay)
+                    }
+                    evolve(model, base, stream)
+                }
+            }
+        return current ?: run {
+            logger.warn { "The snapshot of ${snapshot.ref} is at version ${snapshot.version}, beyond its log; replaying it." }
+            null
+        }
     }
 
     /**
@@ -738,6 +770,28 @@ class Kernel(
         initial: CachedState,
         streams: List<EventStreamRecord>,
     ): CachedState = streams.fold(initial) { current, stream -> evolve(model, current, stream) }
+
+    /**
+     * Evolves [initial] with [streams] of [ref] as they are read, never holding them (review R4-Q, Q-1), as the other
+     * [replay] does; [ReplayLimitExceededException] before folding a stream past [maxReplay].
+     */
+    private suspend fun <S : Any> replay(
+        model: AggregateModel<S>,
+        ref: AggregateRef,
+        initial: CachedState,
+        streams: Flow<EventStreamRecord>,
+        maxReplay: Int,
+    ): CachedState {
+        var current = initial
+        var replayed = 0
+        streams.collect { stream ->
+            if (++replayed > maxReplay) {
+                throw ReplayLimitExceededException(ref, maxReplay)
+            }
+            current = evolve(model, current, stream)
+        }
+        return current
+    }
 
     /**
      * Evolves [current] with the events of [stream], adding each event, read as the model's current schema, to

@@ -16,11 +16,17 @@ package me.ahoo.wow.query.engine
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.query.QueryAuditTrail
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
+import me.ahoo.wow.query.QueryObserver
+import me.ahoo.wow.query.finished
 import me.ahoo.wow.query.mask.PayloadMasks
+import me.ahoo.wow.query.started
 import me.ahoo.wow.query.state.CommittedState
+import me.ahoo.wow.query.state.StateRead
 import me.ahoo.wow.query.state.StateVisibility
+import me.ahoo.wow.spi.observation.observe
 import tools.jackson.databind.JsonNode
 
 /**
@@ -49,11 +55,15 @@ fun interface CommittedStates {
  * as the snapshot queries mask a state (09 §17 G-2); [event] masks an event body the same way.
  *
  * A query policy that refuses the caller throws its query error, which the entry answers as its own problem.
+ *
+ * An entry runs each state read in [observed], so that [observer] (the query log and the application's observers,
+ * the audit trail among them) sees it as it sees a query (review R4-Q, Q-7).
  */
 @InternalWowApi
 class ReadFacade(
     private val visibility: (AggregateType) -> QueryGateway?,
     private val masks: PayloadMasks = PayloadMasks.NONE,
+    private val observer: QueryObserver = QueryObserver.NONE,
 ) {
     /** What reading a state found: [Missing], [Hidden] from the caller, or [Visible] with its masked tree. */
     @InternalWowApi
@@ -90,6 +100,35 @@ class ReadFacade(
     /** The tree of [state] as [caller] may see it, masked, or null when its policies hide it from the caller. */
     suspend fun admitted(caller: QueryCaller, state: CommittedState): JsonNode? =
         StateVisibility.admitted(visibility(state.ref.type), caller, state, masks)
+
+    /**
+     * Runs [read], one state read of [type] for [caller] asking [what], observed as a query is (review R4-Q, Q-7):
+     * [observer] starts it as a stage of work of [StateRead.queryType], is told how it ended, and audits it with the
+     * [rows] it returned (one state, or the commits of a trace). A read answered as not found throws
+     * [me.ahoo.wow.query.state.StateNotFoundException], whose reason only the audit records.
+     */
+    @Suppress("TooGenericExceptionCaught") // Every failure is observed, then propagates.
+    suspend fun <T> observed(
+        type: AggregateType,
+        what: StateRead,
+        caller: QueryCaller,
+        rows: (T) -> Long = { 1 },
+        read: suspend () -> T,
+    ): T {
+        val queryType = what.queryType
+        return observer.started(type, queryType).observe {
+            val trail = if (observer.audits) QueryAuditTrail(type, queryType, what, caller) else null
+            try {
+                read().also { result ->
+                    trail?.rows(rows(result))
+                    observer.finished(type, queryType, trail, null)
+                }
+            } catch (error: Throwable) {
+                observer.finished(type, queryType, trail, error)
+                throw error
+            }
+        }
+    }
 
     /** The body of an event [name] of [type] as every caller sees it: masked as the Manifest declares. */
     fun event(type: AggregateType, name: String, body: JsonNode): JsonNode = masks.event(type, name, body)
