@@ -16,6 +16,7 @@ package me.ahoo.wow.query.filter
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.query.RewritableFilter
 import me.ahoo.wow.query.QueryEntry
+import me.ahoo.wow.query.schema.QueryModel
 import me.ahoo.wow.query.schema.QueryModelSchema
 
 /**
@@ -34,4 +35,7 @@ data class QueryContext<Q : RewritableFilter<Q>>(
     val schema: QueryModelSchema,
     val queryType: QueryType,
     val entry: QueryEntry,
-)
+) {
+    /** The model queried (`snapshot`, `events`, `dataset`), all a policy reads of the [schema] (review R3.2-3). */
+    val model: QueryModel get() = schema.model
+}

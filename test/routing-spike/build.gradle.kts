@@ -37,7 +37,7 @@ dependencies {
     "stage2Implementation"(project(":spring-boot"))
 }
 
-// detekt (and so v10Check) covers stage 2, which no check compiles otherwise.
+// detekt (and so :check) covers stage 2, which no check compiles otherwise.
 tasks.named<io.gitlab.arturbosch.detekt.Detekt>("detekt") {
     source(files("src/stage2/kotlin"))
 }

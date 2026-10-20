@@ -22,9 +22,6 @@ on:
     branches: [v10]
   push:
     branches: [v10]
-  # A merge queue's group (its commit is what lands on the branch); the scope
-  # job compares it with the branch's tip, and the gate job reports on it.
-  merge_group:
   workflow_dispatch:
 
 permissions:
@@ -82,18 +79,15 @@ jobs:
           # default; v10's pushes write it here, and pull requests to v10 read it.
           cache-read-only: ${{ github.ref != 'refs/heads/v10' }}
       - name: Check the V10 modules with coverage
-        run: ./gradlew v10Check :code-coverage-report:v10CoverageReport --stacktrace
+        run: ./gradlew :check :code-coverage-report:coverageReport --stacktrace
       # The release rehearsal of the Maven publications (R.1), signed with a
       # throwaway key the check generates (gpg): every V10 release module has
       # its jar, sources, javadoc, POM and metadata, signed, the BOM constrains
       # exactly them, no 9.x module is published, and the deploy jobs'
       # prebuilt publish uploads all of it with its signatures.
       - name: Check the V10 publications
-        run: ./gradlew v10PublicationCheck --stacktrace
+        run: ./gradlew publicationCheck --stacktrace
       - name: Upload V10 coverage
-        # A merge group's commit is what lands on the branch, whose push run
-        # uploads the same coverage for it; an upload here would double it.
-        if: github.event_name != 'merge_group'
         uses: codecov/codecov-action@v7
         with:
           use_oidc: true
@@ -102,11 +96,11 @@ jobs:
           fail_ci_if_error: true
           verbose: true
           disable_search: true
-          files: ./test/code-coverage-report/build/reports/jacoco/v10CoverageReport/v10CoverageReport.xml
+          files: ./test/code-coverage-report/build/reports/jacoco/coverageReport/coverageReport.xml
 
   # The container-backed tests of the V10 modules, in shards that run in parallel, each on a runner and a Docker of
   # its own; the H2 and H6 spikes' suites skip themselves unless their flags are set. Each project of
-  # `v10IntegrationTestProjects` (build.gradle.kts) is in exactly one shard's `projects`: the scope job checks it
+  # `integrationTestProjects` (build.gradle.kts) is in exactly one shard's `projects`: the scope job checks it
   # (.github/scripts/v10-integration-shards.mjs). The shards are balanced by the tests' measured durations (eShop end
   # to end about 3 minutes, the host's about 1¾, Elasticsearch's 1¼, MongoDB's ¾, the rest under ½ each).
   integration:
@@ -145,12 +139,9 @@ jobs:
         env:
           PROJECTS: ${{ matrix.projects }}
         run: >-
-          ./gradlew v10IntegrationTest :code-coverage-report:v10IntegrationCoverageReport
+          ./gradlew :integrationTest :code-coverage-report:integrationCoverageReport
           "-Pwow.integration.projects=$PROJECTS" --stacktrace
       - name: Upload V10 integration coverage
-        # A merge group's commit is what lands on the branch, whose push run
-        # uploads the same coverage for it; an upload here would double it.
-        if: github.event_name != 'merge_group'
         uses: codecov/codecov-action@v7
         with:
           use_oidc: true
@@ -159,7 +150,7 @@ jobs:
           fail_ci_if_error: true
           verbose: true
           disable_search: true
-          files: ./test/code-coverage-report/build/reports/jacoco/v10IntegrationCoverageReport/v10IntegrationCoverageReport.xml
+          files: ./test/code-coverage-report/build/reports/jacoco/integrationCoverageReport/integrationCoverageReport.xml
 
   v10-gate:
     name: v10-gate

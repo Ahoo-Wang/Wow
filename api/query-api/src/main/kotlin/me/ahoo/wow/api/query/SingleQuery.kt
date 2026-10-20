@@ -39,7 +39,7 @@ interface ISingleQuery : Queryable<ISingleQuery>
  * )
  * ```
  */
-data class SingleQuery(
+data class SingleQuery @JvmOverloads constructor(
     override val filter: FilterExpression,
     override val projection: Projection = Projection.ALL,
     override val sort: List<Sort> = emptyList()

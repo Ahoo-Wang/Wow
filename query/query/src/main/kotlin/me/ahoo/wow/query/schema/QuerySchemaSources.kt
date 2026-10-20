@@ -13,10 +13,13 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /**
  * The declarations registered in code ([querySchemaRegistration]), each for the model its context names. 9.x's
  * classpath and working-directory declaration files are gone: the Manifest ([ManifestQuerySchemaSource]) states what they supplemented.
  */
+@InternalWowApi
 class BeanQuerySchemaSource(
     registrations: List<QuerySchemaRegistration>,
 ) : QuerySchemaSource {

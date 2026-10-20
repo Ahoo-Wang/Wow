@@ -2,7 +2,7 @@ description = "Wow V10 architecture rules: module graph, forbidden dependencies 
 
 // The rules scan the build scripts and production sources of the V10 modules, and the settings and every build script
 // for the module graph; declare them as inputs so a change there re-runs the tests instead of reusing a cached result.
-val v10ModuleDirs = listOf(
+val moduleDirs = listOf(
     "api/api", "api/manifest", "api/query-api", "core/spi", "core/kernel", "core/runtime",
     "core/reactor", "query/query", "backends/postgres", "backends/mongo", "backends/kafka", "backends/clickhouse",
     "backends/elasticsearch",
@@ -17,13 +17,13 @@ val v10ModuleDirs = listOf(
 tasks.named<Test>("test") {
     systemProperty("wow.repository.root", projectDir.toPath().relativize(rootDir.toPath()).toString())
     inputs.files(
-        v10ModuleDirs.flatMap {
+        moduleDirs.flatMap {
             listOf(
                 rootProject.layout.projectDirectory.dir("$it/src/main"),
                 rootProject.layout.projectDirectory.file("$it/build.gradle.kts"),
             )
         },
-    ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("v10Sources")
+    ).withPathSensitivity(PathSensitivity.RELATIVE).withPropertyName("moduleSources")
     // The ABI dumps of the modules that hold no data class (decisions D227, D228).
     inputs.files(listOf("api/api", "core/spi", "api/manifest").map { rootProject.layout.projectDirectory.dir("$it/api") })
         .withPathSensitivity(PathSensitivity.RELATIVE)

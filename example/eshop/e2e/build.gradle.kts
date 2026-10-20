@@ -128,7 +128,7 @@ tasks.register("eshopLocalClasspath") {
 
 // The fault-injection and soak harness (work package C.1, decision D196), outside every check and CI workflow:
 // `./gradlew :eshop-e2e:soakTest -Pwow.soak.duration=PT1H`. It has a source set of its own, on the
-// integration tests' classes (EshopService), so integrationTest and v10IntegrationTest neither compile nor run it.
+// integration tests' classes (EshopService), so integrationTest and :integrationTest neither compile nor run it.
 // The Gradle properties `wow.soak.*` (SoakConfig) reach the test JVM as system properties; the report and the
 // services' output go to build/eshop-soak/.
 val integrationTestSourceSet = sourceSets["integrationTest"]
@@ -144,7 +144,7 @@ dependencies {
     "soakTestImplementation"(project(":tck-containers"))
 }
 
-// detekt (and so v10Check) covers the harness, which no check compiles otherwise.
+// detekt (and so :check) covers the harness, which no check compiles otherwise.
 tasks.named<io.gitlab.arturbosch.detekt.Detekt>("detekt") {
     source(files("src/soakTest/kotlin"))
 }

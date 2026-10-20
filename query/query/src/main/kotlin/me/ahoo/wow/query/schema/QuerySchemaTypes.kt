@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 private val QUERY_SCHEMA_IDENTIFIER_PATTERN = Regex("[A-Za-z_][A-Za-z0-9_-]*")
 
 private fun requireQuerySchemaIdentifier(value: String) {
@@ -54,6 +57,7 @@ data class QueryModel(
  * What storage lets a field do. A closed set: a backend grants a subset per field, and every query rule is written
  * against these values.
  */
+@InternalWowApi
 enum class QueryCapability {
     PRESENCE,
     EXACT_MATCH,
@@ -69,6 +73,7 @@ enum class QueryCapability {
     AGGREGATE_TEMPORAL,
 }
 
+@ExperimentalWowApi
 data class QueryValueType(
     val value: String,
 ) {
@@ -90,10 +95,12 @@ data class QueryValueType(
     }
 }
 
+@InternalWowApi
 enum class QueryCardinality {
     SINGLE,
     MANY,
 }
 
 /** Structural value facts shared by schema declarations and metadata. */
+@ExperimentalWowApi
 enum class QueryValueKind { UNKNOWN, NULL, SCALAR, OBJECT, ARRAY, UNION }
