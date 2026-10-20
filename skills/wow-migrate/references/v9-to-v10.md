@@ -592,7 +592,7 @@ Kotlin callers of 9.x `CommandGateway` move to the host's `CommandClient` bean (
 
 | 9.x | V10 |
 |---|---|
-| `commandGateway.sendAndWaitForSnapshot(command.toCommandMessage(aggregateId = id, tenantId = t))` | `commandClient.of(caller).wait(command, AggregateType("ordering", "order").ref(t, id))`: the server's default plan |
+| `commandGateway.sendAndWaitForSnapshot(command.toCommandMessage(aggregateId = id, tenantId = t))` | `commandClient.of(caller).wait(command, OrderingContract.Order.ref(t, id))` (the api jar's generated `<Context>Contract`): the server's default plan |
 | `send(message, WaitStrategy)` with `waitStage = PROCESSED` / `SNAPSHOT` | `wait(command, ref, SendOptions.of(wait = WaitPlan.COMMITTED))` (or `WaitPlan.SNAPSHOT`, any `Wow-Wait` plan), `timeout = …` |
 | `send(message)` (`SENT`) | `send(command, ref)`: answers at ACCEPTED |
 | `CommandResultFlux` / per-stage results | `stream(command, ref, options) { result -> … }`, or the `results(…)` flow of `me.ahoo.wow.runtime.client` |

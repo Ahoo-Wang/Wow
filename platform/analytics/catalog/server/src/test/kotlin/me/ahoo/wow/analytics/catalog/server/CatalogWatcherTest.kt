@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.runBlocking
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
+import me.ahoo.wow.analytics.catalog.api.source.AnalyticsCatalogContract
 import me.ahoo.wow.analytics.catalog.api.source.SyncSource
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseTableInfo
@@ -88,8 +89,10 @@ class CatalogWatcherTest {
         sent.map { it.second.table }.assert().containsExactly("ok", "bad", "down")
         sent.all { it.first == CatalogWatcher.CALLER }.assert().isTrue()
         sent.first().third.assert().isEqualTo(
-            me.ahoo.wow.api.aggregate.AggregateType(AnalyticsCatalogContext.NAME, AnalyticsCatalogContext.SOURCE)
-                .ref(CatalogWatcher.CALLER.tenantId, AnalyticsCatalogContext.sourceIdOf("ch", "db", "ok")),
+            AnalyticsCatalogContract.Source.ref(
+                CatalogWatcher.CALLER.tenantId,
+                AnalyticsCatalogContext.sourceIdOf("ch", "db", "ok")
+            ),
         )
         sent.clear()
         commands.down = false

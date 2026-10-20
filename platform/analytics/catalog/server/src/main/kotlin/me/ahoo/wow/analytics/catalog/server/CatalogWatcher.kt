@@ -24,9 +24,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
+import me.ahoo.wow.analytics.catalog.api.source.AnalyticsCatalogContract
 import me.ahoo.wow.analytics.catalog.api.source.SyncSource
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
@@ -76,7 +76,10 @@ class CatalogWatcher(
 
     /** Sends `SyncSource` of [database]'s [table]; whether it succeeded, so a failed one is sent again next time. */
     private suspend fun sync(database: String, table: String): Boolean {
-        val ref = SOURCE.ref(CALLER.tenantId, AnalyticsCatalogContext.sourceIdOf(catalog.connection, database, table))
+        val ref = AnalyticsCatalogContract.Source.ref(
+            CALLER.tenantId,
+            AnalyticsCatalogContext.sourceIdOf(catalog.connection, database, table)
+        )
         return try {
             commands().of(CALLER).wait(SyncSource(database, table), ref)
             true
@@ -121,7 +124,6 @@ class CatalogWatcher(
     override fun getPhase(): Int = SmartLifecycle.DEFAULT_PHASE
 
     companion object {
-        private val SOURCE = AggregateType(AnalyticsCatalogContext.NAME, AnalyticsCatalogContext.SOURCE)
 
         /** The catalog administrator the watcher sends as. */
         @JvmField
