@@ -196,6 +196,46 @@ class DatasetCompilerTest {
     }
 
     @Test
+    fun `a sensitive value that is not text should be shown by its text, so it can be masked`() {
+        val definition = DEFINITION.copy(
+            columns = listOf(
+                DatasetColumn("phone", from = "o.phone"),
+                DatasetColumn("member_phone", from = "m.state.customer.phone"),
+                DatasetColumn(
+                    "amount",
+                    from = "o.amount",
+                    sensitivity = DatasetSensitivity(SensitivityLevel.CONFIDENTIAL)
+                ),
+                DatasetColumn("masked", expression = "concat(o.phone, 'x')"),
+                DatasetColumn("plain", from = "o.amount"),
+            ),
+            identity = null,
+            eventTime = null,
+        )
+        val ddl = DatasetCompiler.compile(bound(definition), "shop", "orders", 1).ddl
+        ddl.assert().contains("`o`.`phone` AS `phone`")
+            .contains("JSONExtractString(`m`.`state`, 'customer', 'phone') AS `member_phone`")
+            .contains("toString(`o`.`amount`) AS `amount`")
+            .contains("toString(concat(`o`.`phone`, 'x')) AS `masked`")
+            .contains("`o`.`amount` AS `plain`")
+        val json = DatasetFixtures.analyst(
+            "events",
+            listOf(SourceColumn("tenant", "String"), SourceColumn("doc", "JSON")),
+            tenant = "tenant",
+            sensitivity = listOf(
+                me.ahoo.wow.analytics.catalog.api.source.FieldSensitivity("doc", SensitivityLevel.DISPLAY)
+            ),
+        )
+        val inside = DatasetDefinition(
+            sources = listOf(DatasetSource("e", "events")),
+            subject = "e",
+            columns = listOf(DatasetColumn("city", from = "e.doc.address.city")),
+        )
+        DatasetCompiler.compile(bound(inside, mapOf("events" to json)), "shop", "events", 1).ddl.assert()
+            .contains("toString(`e`.`doc`.`address`.`city`) AS `city`")
+    }
+
+    @Test
     fun `a view's name should be safe and its version positive`() {
         DatasetCompiler.viewOf("shop-ops", "Orders", 12).assert().isEqualTo("ds_shop_ops_orders_v12")
         assertThrownBy<IllegalArgumentException> { DatasetCompiler.compile(bound(DEFINITION), "shop", "orders", 0) }

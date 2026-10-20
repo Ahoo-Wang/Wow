@@ -83,7 +83,7 @@ object DatasetCompiler {
         val select = buildString {
             append("SELECT\n")
             val columns = scope.columns.map { (column, ref) -> "${expression(ref, dataset)} AS ${quote(column)}" } +
-                dataset.columns.map { "${expression(it.expression, dataset)} AS ${quote(it.name)}" }
+                dataset.columns.map { "${column(it, dataset)} AS ${quote(it.name)}" }
             append(columns.joinToString(",\n") { "    $it" })
             append("\nFROM ").append(source(dataset.subject))
             dataset.joins.forEach { join ->
@@ -211,6 +211,25 @@ object DatasetCompiler {
     }
 
     private val JSON_TYPE = Regex("^(Nullable\\()?(JSON|Object\\()")
+
+    /** The text types: `String` and `FixedString`, maybe `Nullable` or `LowCardinality`. */
+    private val TEXT_TYPE = Regex("^(LowCardinality\\()?(Nullable\\()?(String|FixedString\\(\\d+\\))\\)*$")
+
+    /**
+     * [column]'s value in the view: a sensitive value is masked as text, so one that is not text already (a number, a
+     * date, a value computed or inside a `JSON` column) is shown by its text, `toString(...)`.
+     */
+    private fun column(column: BoundColumn, dataset: BoundDataset): String {
+        val sql = expression(column.expression, dataset)
+        return if (column.sensitivity == null || text(column.expression, dataset)) sql else "toString($sql)"
+    }
+
+    /** Whether [expression] is text already: a column of a text type, or a value read out of JSON text. */
+    private fun text(expression: DatasetExpression, dataset: BoundDataset): Boolean {
+        val ref = expression as? DatasetExpression.Ref ?: return false
+        val type = dataset.sources.first { it.alias == ref.alias }.state.columns.first { it.name == ref.column }.type
+        return if (ref.path.isEmpty()) TEXT_TYPE.matches(type) else !JSON_TYPE.containsMatchIn(type)
+    }
 
     /**
      * A comparison as the query protocol means it (`FilterExpression`): `= null` is `IS NULL`, `!= null` is
