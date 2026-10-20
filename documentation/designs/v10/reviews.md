@@ -103,8 +103,8 @@
 | 编号 | 级别 | 范围 | 发现（违反的要求） | 归属 | 状态 |
 | --- | --- | --- | --- | --- | --- |
 | Q-1 | P1 | `:runtime` `StateReads`、`:http` `StateHandler` | 历史点读（`?version=`、`?at=`、`/state/trace`）重放日志不经 `ReplayGate`、无长度上限，且 trace 在范围与策略检查之前就读（`StateReads.kt` `at`/`trace`，`Kernel.kt:542/622/654`，`StateHandler.kt:113`）：对 50 万事件的聚合循环请求即把整段日志装入堆，被拒的调用者也一样（R2、R3） | 点读加固 | 待修 |
-| Q-2 | P1 | `:query` events 可见性 | 任一 ABAC 标志或 `QueryPolicy` 让 events 查询只能钉住至多 100 个聚合加租户，否则 400 `STORAGE_UNSUPPORTED`（`EventVisibilityPolicy.kt:63-72`）；钉住时逐个点读、无舱壁；描述符不列此约束——启用策略的用户失去 D235 的跨聚合时间线（R3、R5、R7） | events 可见性下推（待定） | 待议 |
-| Q-3 | P1 | `:query`、`:http` | 没有受支持的类型安全进程内查询 API：网关取自 `:http` 的 `HttpQueries`，行是 `ObjectNode`，默认 `QueryCaller` 受信任且无租户、进程内预算为空（列表无界、计数精确），Java 只有 suspend/Flow（R3、R7） | 类型化读 API（待定） | 待议 |
+| Q-2 | P1 | `:query` events 可见性 | 任一 ABAC 标志或 `QueryPolicy` 让 events 查询只能钉住至多 100 个聚合加租户，否则 400 `STORAGE_UNSUPPORTED`（`EventVisibilityPolicy.kt:63-72`）；钉住时逐个点读、无舱壁；描述符不列此约束——启用策略的用户失去 D235 的跨聚合时间线（R3、R5、R7） | R4-Q2（D254、D259） | 待修 |
+| Q-3 | P1 | `:query`、`:http` | 没有受支持的类型安全进程内查询 API：网关取自 `:http` 的 `HttpQueries`，行是 `ObjectNode`，默认 `QueryCaller` 受信任且无租户、进程内预算为空（列表无界、计数精确），Java 只有 suspend/Flow（R3、R7） | R4-Q3（D254、D259） | 待修 |
 | Q-4 | P2 | 错误模型 | 状态读参数错误答 `wow.command.malformed`；`single` 未命中对 events 与数据集也答 `wow.aggregate.not-found`；未知数据集 404 无错误码；`wow.query.timeout` 带 `Retry-After: 1` 且 TS 视为可重试，诱导立即重跑已耗尽预算的查询（R5、R2） | 小修（超时状态待定） | 待议 |
 | Q-5 | P2 | `:http` `StateHandler` | 所有者或空间不符答 403 `wow.aggregate.forbidden`（ABAC 与查询则为 404 或过滤）：可探测聚合 ID 是否存在（R3） | 点读加固（待定） | 待议 |
 | Q-6 | P2 | `:http` `StateHandler` | 状态 ETag 只是版本号：D172 修订号重建、新掩码、升级器变化后 304 仍返回旧的或未掩码的体（R6） | 点读加固 | 待修 |
@@ -122,3 +122,19 @@
 | Q-18 | P2 | 演进 | `@QueryAlias` 只覆盖请求路径，响应只带新字段名，老客户端读到 `undefined`（门禁会报出，但没有增量的改名路径）（R6；场景 S9） | 契约与客户端保真 | 待修 |
 
 另：R3.3-2 在 `v10` 上已部分完成（`QueryBackend` 已是 `@WowSpi`，规范在独立的 `query/query-tck`）。数据集查询的舱壁随 7.2c（D247）。
+
+## 6. 9.x 替代落空审查 M（2026-10-20，基线 `f98d366c4f`，只读）
+
+起因：D187 放弃 `wow-apiclient` 时所说的「生成的客户端」只有 TypeScript（已由 D257 补上）。逐行核对 09 与 D183、D184、D187、D213、D229、D239、D244 声称的替代是否真实存在、是否公开、是否覆盖 9.x 的用法。协调者已对照代码核实 M-1、M-3。
+
+| 编号 | 级别 | 范围 | 发现 | 归属 | 状态 |
+| --- | --- | --- | --- | --- | --- |
+| M-1 | P1 | `:runtime` `CommandGateway` | Saga 以外的代码不能向其他上下文发命令：网关对本节点不服务的聚合答 `UNHANDLED`（`CommandGateway.kt:307`），命令主题只有 Saga 写；9.x 任何 Bean 都能经 Kafka 命令总线发（`DefaultCommandGateway.kt:95`）；迁移 Skill 的映射（`v9-to-v10.md:591`）对此误导 | CMD-1（D259） | 待修 |
+| M-2 | P2 | `:runtime`、Java | Java 调不了命令网关（`send` 返回 `Flow`、`execute` 是 suspend），文档与测试都没有桥接写法；09 引用的 D149 是错的 | D257 的 Java 门面；先补文档与冒烟测试 | 待修 |
+| M-3 | P2 | `:spring-boot`、`:http` | 9.x 给应用自己路由的全局错误处理器（`DefaultGlobalExceptionHandler`，默认开启）在 V10 没有，应用端点的错误体静默变成 Spring 默认格式 | M-3（D259，默认开启） | 待修 |
+| M-4 | P2 | `:clickhouse` Sink | 没有集群拓扑（9.x 默认 `ON CLUSTER`、复制表与分布式表）也没有命令表；集群用户须手写与 Sink 列一致的 DDL | 文档与公布列 DDL；集群 DDL 生成 10.x | 待修 |
+| M-5 | P2 | 迁移 | ES 用户没有迁移指引：`migrate-data` 只支持 PostgreSQL、MongoDB，Skill 不提 ES，重建能否填满 ES 快照目标未核实 | 文档；`migrate-data` 的 ES 支持 10.x | 待修 |
+| M-6 | P3 | 迁移 | Kafka 命令主题与线路格式变了（`wow.<ctx>.commands`、`CommandWire`），外部命令生产者的切换没有文档 | 文档（与 M-1 相关） | 待修 |
+| M-7 | P3 | 可观测性 | 指标与 span 名称全部改名，Skill 与 07 没有对照，告警与看板会静默失效 | 文档（对照表） | 待修 |
+| M-8 | P3 | 迁移 | `wow-cocache` 放弃但没有替代写法 | 文档 | 待修 |
+| M-9 | P3 | 设计文档 | 09 多处过时或有误（D149 误引、ES 已实现、R3-H 与 R3-D 已合并、Skill 已覆盖的条目、`wow-apiclient` 应指向 D257） | 协调者刷新 09 | 待修 |
