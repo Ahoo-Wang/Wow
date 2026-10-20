@@ -232,6 +232,8 @@ class HttpNode(
     replayGate: ReplayGate = ReplayGate.OPEN,
     /** The most streams a state read replays. */
     maxReplay: Int = KernelStateReads.DEFAULT_MAX_REPLAY,
+    /** How long a state read of a minimum version waits for it (review R4-Q, Q-13). */
+    minVersionWait: kotlin.time.Duration = KernelStateReads.DEFAULT_MIN_VERSION_WAIT,
     queries: (EventLog) -> HttpQueries = { HttpQueries.NONE },
 ) {
     val log = InMemoryEventLog(partitions = 2)
@@ -304,6 +306,7 @@ class HttpNode(
         mapOf(CONTEXT to KernelStateReads.ContextReads(kernel, snapshots)),
         replayGate,
         maxReplay,
+        minVersionWait,
     )
 
     /** The query models of the node's routes. */

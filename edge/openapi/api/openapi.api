@@ -66,6 +66,7 @@ public final class me/ahoo/wow/openapi/WowHttpContract {
 	public static final field LIMIT_PARAMETER Ljava/lang/String;
 	public static final field MANIFEST_PATH Ljava/lang/String;
 	public static final field MAX_TRACE_LIMIT I
+	public static final field MIN_VERSION_PARAMETER Ljava/lang/String;
 	public static final field OPENAPI_PATH Ljava/lang/String;
 	public static final field REQUEST_ID_HEADER Ljava/lang/String;
 	public static final field RETRY_AFTER_HEADER Ljava/lang/String;
