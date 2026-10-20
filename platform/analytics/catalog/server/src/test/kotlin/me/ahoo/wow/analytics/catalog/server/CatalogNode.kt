@@ -78,6 +78,14 @@ class CatalogNode(val context: ConfigurableApplicationContext) : AutoCloseable {
     fun command(id: String, command: String, body: String, who: Who = Who.ADMIN): Answer =
         post("/analytics-catalog/source/$id/$command", body, who)
 
+    /** Sends the dataset command [command] (`draft-dataset`, ...) of [id] with [body]. */
+    fun datasetCommand(id: String, command: String, body: String, who: Who = Who.ADMIN): Answer =
+        post("/analytics-catalog/dataset/$id/$command", body, who)
+
+    /** The state of dataset [id]. */
+    fun dataset(id: String, who: Who = Who.VIEWER): JsonNode =
+        get("/analytics-catalog/dataset/$id/state", who).assertOk().json
+
     /** The sources' snapshots, as [who] lists them. */
     fun sources(who: Who = Who.VIEWER): Answer =
         post(QUERY, """{"kind":"list","filter":{"op":"MATCH_ALL"}}""", who)

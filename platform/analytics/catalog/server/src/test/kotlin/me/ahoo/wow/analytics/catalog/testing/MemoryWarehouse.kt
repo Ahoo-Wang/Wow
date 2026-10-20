@@ -22,6 +22,7 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicInteger
 
 /** A warehouse in memory, which a test fills: its tables, by `<database>.<name>`, and their `wow_catalog` rows. */
 class MemoryWarehouse(override val connection: String = "warehouse") : WarehouseCatalog {
@@ -31,11 +32,15 @@ class MemoryWarehouse(override val connection: String = "warehouse") : Warehouse
 
     override val databases: List<String> = listOf(DATABASE)
 
+    /** How many times the tables were listed: the watcher lists them once a look. */
+    val listings = AtomicInteger()
+
     fun put(table: WarehouseTable) {
         tables["${table.database}.${table.name}"] = table
     }
 
     override suspend fun tables(database: String): List<WarehouseTableInfo> = tables.values
+        .also { listings.incrementAndGet() }
         .filter { it.database == database }
         .map { WarehouseTableInfo(it.name, it.uuid, it.tableEngine, it.columns.size.toString()) }
 
