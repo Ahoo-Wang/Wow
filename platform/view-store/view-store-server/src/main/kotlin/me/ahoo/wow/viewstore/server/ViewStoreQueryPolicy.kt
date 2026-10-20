@@ -37,7 +37,7 @@ import me.ahoo.wow.viewstore.api.ViewStoreContext
 class ViewStoreQueryPolicy : QueryPolicy {
     override suspend fun evaluate(caller: QueryCaller, context: QueryContext<*>): FilterExpression {
         // Every aggregate this service serves is the view store's; the event streams carry no state to restrict by.
-        if (caller.caller == null || context.schema.model != QueryModel.SNAPSHOT) {
+        if (caller.caller == null || context.model != QueryModel.SNAPSHOT) {
             return MatchAllFilter
         }
         val app = caller.caller?.app ?: throw QueryRequestException(

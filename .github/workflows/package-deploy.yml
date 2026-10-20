@@ -160,19 +160,19 @@ jobs:
           cache-read-only: true
 
       # The V10 gates on the release commit itself: compile, unit tests,
-      # detekt and the ABI of the V10 modules (v10Check), and their
+      # detekt and the ABI of the V10 modules (:check), and their
       # container-backed tests.
       - name: Verify release build
-        run: ./gradlew v10Check v10IntegrationTest
+        run: ./gradlew :check :integrationTest
 
       # Builds and signs every publication the deploy jobs upload, publishes
       # them into a scratch repository and checks them: jars, sources,
       # javadoc, POMs, module metadata and signatures, the BOM against the
       # published modules, and no 9.x module. Then runs the deploy jobs'
       # prebuilt publish without the key and requires the same files, every
-      # signature verifying (v10PublicationCheck).
+      # signature verifying (publicationCheck).
       - name: Verify release artifacts
-        run: ./gradlew -Pwow.publication.signed=true v10PublicationCheck
+        run: ./gradlew -Pwow.publication.signed=true publicationCheck
         env:
           SIGNING_KEYID: ${{ secrets.SIGNING_KEYID }}
           SIGNING_SECRETKEY: ${{ secrets.SIGNING_SECRETKEY }}
@@ -224,7 +224,7 @@ jobs:
       # signatures: the wow.publication.prebuilt property (settings.gradle.kts)
       # leaves out every task that makes one, Sign tasks included (no key
       # here), and requires the preflight's .asc files. The preflight's
-      # v10PublicationCheck ran this publish and checked what it uploads.
+      # publicationCheck ran this publish and checked what it uploads.
       - name: Publish package
         run: |
           ./gradlew -Pwow.publication.prebuilt=true \
@@ -265,7 +265,7 @@ jobs:
       # signatures: the wow.publication.prebuilt property (settings.gradle.kts)
       # leaves out every task that makes one, Sign tasks included (no key
       # here), and requires the preflight's .asc files. The preflight's
-      # v10PublicationCheck ran this publish and checked what it uploads.
+      # publicationCheck ran this publish and checked what it uploads.
       - name: Publish package
         run: |
           ./gradlew -Pwow.publication.prebuilt=true \

@@ -14,6 +14,7 @@
 package me.ahoo.wow.analytics.catalog.server
 
 import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.query.schema.DeclarationValue
 import me.ahoo.wow.query.schema.QueryFieldDeclarationBuilder
 import me.ahoo.wow.query.schema.QueryValueKind
@@ -23,6 +24,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 
+@OptIn(ExperimentalWowApi::class)
 class ClickHouseDatasetColumnsTest {
     private fun declared(type: String) =
         QueryFieldDeclarationBuilder().apply { ClickHouseDatasetColumns.declare(this, type) }.build()

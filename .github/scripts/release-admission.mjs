@@ -43,7 +43,7 @@ import {
 //    BREAKING CHANGE footer (typescript/RELEASING.md「发版准入」).
 //
 // The Gradle workflows are not in REQUIRED: the release workflow's preflight
-// runs `./gradlew build allIntegrationTest` (unit, contract and integration
+// runs `./gradlew :check :integrationTest` (unit, contract and integration
 // tests) on this very commit before anything is published.
 
 /** Workflows that must pass in full on the release commit, with their gate job. */

@@ -384,7 +384,7 @@ context.command(AggregateType("inventory", "stock").ref(event.ref.tenantId, prod
 - 目标服务设置 `wow.kafka.command-intake: true` 后执行它的命令主题。主题必须已存在，且分区数恰好等于目标的日志分区数（`wow.log.partitions`，默认 64），否则那个节点无法启动。
 - 拒绝以回执的形式写回发送方的 `wow.<sender>.receipts`，交给 Saga 的 `@OnRejected` 处理函数。
 - 发送方从目标的 Manifest 中找到命令的类型名，该 Manifest 是发送服务的对端。
-- `ref` 的租户原样传递：一个系统中的所有上下文共用一个租户空间（见[部署](./deployment.md#一个租户空间)）。目标聚合类型固定了租户时，会拒绝其他租户的命令。
+- `ref` 的租户原样传递：一个系统中的所有上下文共用一个租户空间（见[部署](./deployment.md#一个租户空间)）。
 
 节点的某个 Saga 派生、定时或处理其他上下文命令的拒绝时，没有命令传输的节点无法启动。错误信息指出每个 Saga 与上下文：
 
@@ -415,6 +415,21 @@ suspend fun onBasketCheckedOut(event: StateTypedEvent<BasketState, BasketChecked
 ```
 
 调用不需要命令主题：节点通过 `wow.calls.contexts.<context>.url`（或 `wow.clients.contexts.<context>.internal-url`）找到目标；Saga 调用的上下文没有这个地址，或调用的命令没有任何已知 Manifest 决定，节点都不会启动。Saga 自己上下文的命令只派生、不调用。
+
+### 从 Java 调用
+
+命令与查询客户端（`CommandClient`、`QueryApi`）是 Kotlin 的 `suspend` 函数与 flow。Java 代码通过 `wow-client` 的门面调用它们：每个调用都有阻塞形式，以及返回 `CompletableFuture` 的 `…Async` 形式；列表返回 `List`，流返回 `java.util.stream.Stream`，超时用 `java.time.Duration`：
+
+```java
+JavaCommandClient commands = JavaCommandClient.of(commandClient).of(caller);
+CommandResult submitted = commands.sendAndWait(new SubmitOrder(items), EshopOrderingContract.Order.ref(tenant, id),
+    JavaCommandClient.options().timeout(Duration.ofSeconds(5)).build());
+
+JavaSnapshotQueries<OrderState> orders = JavaQueryApi.of(queryApi).of(caller).snapshots(OrderState.class);
+CompletableFuture<Integer> open = orders.listAsync(new ListQuery(MatchAllFilter.INSTANCE)).thenApply(List::size);
+```
+
+被拒绝时抛出 `CommandRejectedException`（带 `code`），技术性失败抛出 `WowProblemException`，两者都是非受检异常；异步调用的 future 以它们完成。阻塞形式只在你自己的线程上调用，不要在 Netty 或 WebFlux 的事件循环线程上调用。
 
 ### 对端
 
