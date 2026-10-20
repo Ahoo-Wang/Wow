@@ -13,6 +13,9 @@
 
 package me.ahoo.wow.analytics.catalog.testing
 
+import me.ahoo.wow.analytics.catalog.api.dataset.DatasetArtifact
+import me.ahoo.wow.analytics.catalog.api.source.SourceColumn
+import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetWarehouse
 import me.ahoo.wow.analytics.catalog.domain.warehouse.CatalogRow
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseTable
@@ -57,10 +60,33 @@ class MemoryWarehouse(override val connection: String = "warehouse") : Warehouse
     }
 }
 
-/** Puts a [MemoryWarehouse] in place of the ClickHouse catalog. */
+/** The datasets' views in memory: those created, by `<database>.<view>`, and those dropped. */
+class MemoryDatasetWarehouse : DatasetWarehouse {
+    val created = ConcurrentHashMap<String, DatasetArtifact>()
+    val dropped = CopyOnWriteArrayList<String>()
+
+    override suspend fun create(artifact: DatasetArtifact): List<SourceColumn> {
+        created["${artifact.database}.${artifact.view}"] = artifact
+        val scope = listOfNotNull(artifact.scope.tenant, artifact.scope.owner, artifact.scope.space)
+        return (scope + artifact.fields.map { it.name }).map { SourceColumn(it, "String") }
+    }
+
+    override suspend fun drop(database: String, views: List<String>) {
+        views.forEach {
+            created.remove("$database.$it")
+            dropped += "$database.$it"
+        }
+    }
+}
+
+/** Puts a [MemoryWarehouse] in place of the ClickHouse catalog, and a [MemoryDatasetWarehouse] of the views. */
 @Configuration(proxyBeanMethods = false)
 class MemoryWarehouseConfiguration {
     @Bean
     @Primary
     fun memoryWarehouse(): MemoryWarehouse = MemoryWarehouse()
+
+    @Bean
+    @Primary
+    fun memoryDatasetWarehouse(): MemoryDatasetWarehouse = MemoryDatasetWarehouse()
 }

@@ -15,28 +15,38 @@ package me.ahoo.wow.analytics.catalog.server
 
 import com.clickhouse.client.api.Client
 import io.github.oshai.kotlinlogging.KotlinLogging
+import io.micrometer.core.instrument.Gauge
+import io.micrometer.core.instrument.MeterRegistry
 import me.ahoo.cosec.api.authorization.Authorization
 import me.ahoo.cosec.context.DefaultSecurityContextParser
 import me.ahoo.cosec.context.SecurityContextParser
 import me.ahoo.cosec.token.TokenVerifier
+import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetPolicy
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetSources
+import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetWarehouse
 import me.ahoo.wow.analytics.catalog.domain.warehouse.KnownAggregates
 import me.ahoo.wow.analytics.catalog.domain.warehouse.TrustedWriters
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
 import me.ahoo.wow.api.caller.Caller
 import me.ahoo.wow.api.client.CommandClient
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.cosec.CoSecCommandAuthorizer
 import me.ahoo.wow.http.caller.CallerResolver
 import me.ahoo.wow.query.QueryPolicy
+import me.ahoo.wow.query.dataset.QueryDatasets
 import me.ahoo.wow.runtime.admission.CommandAuthorizer
 import org.springframework.beans.factory.ObjectProvider
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.boot.health.contributor.Health
+import org.springframework.boot.health.contributor.HealthIndicator
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
+import java.time.Instant
+import kotlin.time.toKotlinDuration
 
 /**
  * The analytics catalog's beans: who calls it and what each caller may send or read, and the catalog's ports.
@@ -51,6 +61,11 @@ import org.springframework.core.env.Environment
  *   [KnownAggregates] of the sources' snapshots; the [DatasetSources] a dataset's definition is checked against,
  *   the sources' latest states; and the [CatalogWatcher] that syncs what changed every
  *   `wow.analytics.catalog.refresh-interval`, unless `wow.analytics.catalog.watch=false`.
+ * - The datasets (decision D259 7.2b-2): the [DatasetWarehouse] their versions' views are created in, on the same
+ *   ClickHouse server ([DatasetWarehouse.NONE] without one), the [DatasetPolicy] of `wow.analytics.catalog.datasets.*`,
+ *   and, unless `wow.analytics.catalog.datasets.serve=false`, the [DatasetPublicationWatcher] that serves the published
+ *   versions on this node, with its readiness (`datasetPublications`, out of service until its first read) and its
+ *   metrics (`wow.analytics.catalog.datasets.sync.age`, `wow.analytics.catalog.datasets.publication.lag`, seconds).
  */
 @Configuration(proxyBeanMethods = false)
 @EnableConfigurationProperties(AnalyticsCatalogProperties::class)
@@ -117,6 +132,53 @@ class AnalyticsCatalogConfiguration {
         QueriedDatasetSources { queries.getObject() }
 
     @Bean
+    fun datasetWarehouse(client: ObjectProvider<Client>): DatasetWarehouse =
+        client.ifAvailable?.let(::ClickHouseDatasetWarehouse) ?: DatasetWarehouse.NONE
+
+    @Bean
+    fun datasetPolicy(properties: AnalyticsCatalogProperties): DatasetPolicy =
+        DatasetPolicy(properties.datasets.database, properties.datasets.retention.toKotlinDuration())
+
+    @Bean
+    @OptIn(ExperimentalWowApi::class)
+    @ConditionalOnProperty(prefix = DATASETS, name = ["serve"], matchIfMissing = true)
+    fun datasetPublicationWatcher(
+        queries: ObjectProvider<QueryApi>,
+        datasets: QueryDatasets,
+        properties: AnalyticsCatalogProperties,
+        meters: ObjectProvider<MeterRegistry>,
+    ): DatasetPublicationWatcher {
+        val watcher = DatasetPublicationWatcher(
+            { queries.getObject() },
+            datasets,
+            properties.datasets.refreshInterval,
+            properties.datasets.reconcileInterval,
+        )
+        meters.ifAvailable?.let { registry ->
+            Gauge.builder("$PREFIX.datasets.sync.age", watcher) { watcher.syncAge() }
+                .description("Seconds since the node last read the datasets' publications; NaN before the first read.")
+                .baseUnit("seconds")
+                .register(registry)
+            Gauge.builder("$PREFIX.datasets.publication.lag", watcher) { it.lag.toMillis() / MILLIS }
+                .description("Seconds the newest publication the node applied took to be served.")
+                .baseUnit("seconds")
+                .register(registry)
+        }
+        return watcher
+    }
+
+    /** `datasetPublications`: out of service until the node read the datasets' publications once. */
+    @Bean
+    @ConditionalOnProperty(prefix = DATASETS, name = ["serve"], matchIfMissing = true)
+    fun datasetPublicationsHealthIndicator(watcher: DatasetPublicationWatcher): HealthIndicator = HealthIndicator {
+        if (watcher.synced) {
+            Health.up().withDetail("lastSuccess", Instant.ofEpochMilli(watcher.lastSuccess).toString()).build()
+        } else {
+            Health.outOfService().withDetail("reason", "the datasets' publications were never read").build()
+        }
+    }
+
+    @Bean
     @ConditionalOnProperty(prefix = AnalyticsCatalogProperties.PREFIX, name = ["watch"], matchIfMissing = true)
     fun catalogWatcher(
         catalog: WarehouseCatalog,
@@ -133,6 +195,9 @@ class AnalyticsCatalogConfiguration {
         const val DEFAULT_TENANT: String = "wow.tenant.default"
         const val CLICKHOUSE_DATABASE: String = "wow.clickhouse.database"
         const val DEFAULT_DATABASE: String = "default"
+        const val PREFIX: String = AnalyticsCatalogProperties.PREFIX
+        const val DATASETS: String = "${AnalyticsCatalogProperties.PREFIX}.datasets"
+        private const val MILLIS = 1000.0
 
         /** The public port's resolver first, beside CoSec's internal one ([PublicCallersFirst]). */
         @Bean

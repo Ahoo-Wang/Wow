@@ -15,8 +15,10 @@ package me.ahoo.wow.analytics.catalog.domain
 
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
+import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetPolicy
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetRejections
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetSources
+import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetWarehouse
 import me.ahoo.wow.analytics.catalog.domain.source.SourceRejections
 import me.ahoo.wow.analytics.catalog.domain.warehouse.KnownAggregates
 import me.ahoo.wow.analytics.catalog.domain.warehouse.TrustedWriters
@@ -35,6 +37,8 @@ class AnalyticsCatalogDomainModelProviderTest {
         TrustedWriters.NONE,
         KnownAggregates { _, _ -> false },
         DatasetSources { null },
+        DatasetWarehouse.NONE,
+        DatasetPolicy(),
     )
 
     @Test
@@ -65,5 +69,7 @@ class AnalyticsCatalogDomainModelProviderTest {
             .containsEntry(SourceRejections.TABLE_MISSING, 409)
             .containsEntry(DatasetRejections.DEFINITION_INVALID, 400)
             .containsEntry(DatasetRejections.NAME_TAKEN, 409)
+            .containsEntry(DatasetRejections.NOT_PUBLISHED, 409)
+            .containsEntry(DatasetRejections.VIEW_FAILED, 503)
     }
 }

@@ -28,3 +28,19 @@ data class DatasetDrafted(
 /** The dataset's definition is now [definition], which reads the catalog's [sources]. */
 @Summary("A dataset was revised")
 data class DatasetRevised(val definition: DatasetDefinition, val sources: List<String>, val title: String? = null)
+
+/** [definition] was published as the dataset's version [DatasetArtifact.version], its view created: [artifact]. */
+@Summary("A dataset's version was published")
+data class DatasetPublished(val artifact: DatasetArtifact, val definition: DatasetDefinition)
+
+/** The dataset's queries read its version [version] again, in place of [from]. */
+@Summary("A dataset was switched back to an earlier version")
+data class DatasetRolledBack(val version: Int, val from: Int)
+
+/** The dataset is retired: its queries stop; [version] was the one they read. */
+@Summary("A dataset was retired")
+data class DatasetRetired(val version: Int)
+
+/** The retired dataset's [views] were dropped from the warehouse. */
+@Summary("A retired dataset's views were dropped")
+data class DatasetViewsDropped(val views: List<String>)

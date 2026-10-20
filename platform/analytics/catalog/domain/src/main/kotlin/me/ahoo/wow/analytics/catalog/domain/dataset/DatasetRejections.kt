@@ -25,4 +25,10 @@ object DatasetRejections {
 
     @ErrorCode(description = "An aggregate of the catalog's sources already takes the dataset's name.", status = 409)
     const val NAME_TAKEN = "analytics.catalog.name-taken"
+
+    @ErrorCode(description = "The dataset was never published.", status = 409)
+    const val NOT_PUBLISHED = "analytics.catalog.not-published"
+
+    @ErrorCode(description = "The warehouse did not create the dataset version's view.", status = 503)
+    const val VIEW_FAILED = "analytics.catalog.view-failed"
 }
