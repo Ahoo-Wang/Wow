@@ -679,6 +679,40 @@ public final class me/ahoo/wow/spi/snapshot/SnapshotRecord$Companion {
 	public static synthetic fun of$default (Lme/ahoo/wow/spi/snapshot/SnapshotRecord$Companion;Lme/ahoo/wow/api/aggregate/AggregateRef;ILjava/lang/String;Ljava/lang/String;Lme/ahoo/wow/api/aggregate/Scope;ZJJLjava/util/Map;Lme/ahoo/wow/api/caller/Operator;Lme/ahoo/wow/api/caller/Operator;Ljava/util/Map;IILjava/lang/Object;)Lme/ahoo/wow/spi/snapshot/SnapshotRecord;
 }
 
+public abstract interface class me/ahoo/wow/spi/snapshot/SnapshotSaveOutcome {
+	public abstract fun getWritten ()Z
+}
+
+public final class me/ahoo/wow/spi/snapshot/SnapshotSaveOutcome$Failed : me/ahoo/wow/spi/snapshot/SnapshotSaveOutcome {
+	public static final field Companion Lme/ahoo/wow/spi/snapshot/SnapshotSaveOutcome$Failed$Companion;
+	public fun equals (Ljava/lang/Object;)Z
+	public final fun getCause ()Ljava/lang/Throwable;
+	public fun getWritten ()Z
+	public fun hashCode ()I
+	public static final fun of (Ljava/lang/Throwable;)Lme/ahoo/wow/spi/snapshot/SnapshotSaveOutcome$Failed;
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/snapshot/SnapshotSaveOutcome$Failed$Companion {
+	public final fun of (Ljava/lang/Throwable;)Lme/ahoo/wow/spi/snapshot/SnapshotSaveOutcome$Failed;
+}
+
+public final class me/ahoo/wow/spi/snapshot/SnapshotSaveOutcome$Refused : me/ahoo/wow/spi/snapshot/SnapshotSaveOutcome {
+	public static final field INSTANCE Lme/ahoo/wow/spi/snapshot/SnapshotSaveOutcome$Refused;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getWritten ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
+public final class me/ahoo/wow/spi/snapshot/SnapshotSaveOutcome$Written : me/ahoo/wow/spi/snapshot/SnapshotSaveOutcome {
+	public static final field INSTANCE Lme/ahoo/wow/spi/snapshot/SnapshotSaveOutcome$Written;
+	public fun equals (Ljava/lang/Object;)Z
+	public fun getWritten ()Z
+	public fun hashCode ()I
+	public fun toString ()Ljava/lang/String;
+}
+
 public abstract interface class me/ahoo/wow/spi/snapshot/SnapshotStore {
 	public abstract fun claim (Lme/ahoo/wow/api/aggregate/AggregateType;IZLkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public static synthetic fun claim$default (Lme/ahoo/wow/spi/snapshot/SnapshotStore;Lme/ahoo/wow/api/aggregate/AggregateType;IZLkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
@@ -690,6 +724,7 @@ public abstract interface class me/ahoo/wow/spi/snapshot/SnapshotStore {
 	public static synthetic fun pending$default (Lme/ahoo/wow/spi/snapshot/SnapshotStore;Lme/ahoo/wow/api/aggregate/AggregateType;ILme/ahoo/wow/api/aggregate/AggregateRef;ILkotlin/coroutines/Continuation;ILjava/lang/Object;)Ljava/lang/Object;
 	public abstract fun rewrite (Lme/ahoo/wow/spi/snapshot/SnapshotRecord;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun save (Lme/ahoo/wow/spi/snapshot/SnapshotRecord;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
+	public fun saveAll (Ljava/util/List;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 	public abstract fun table (Lme/ahoo/wow/api/aggregate/AggregateType;Lkotlin/coroutines/Continuation;)Ljava/lang/Object;
 }
 

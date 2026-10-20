@@ -48,6 +48,7 @@ import me.ahoo.wow.query.store.QueryIndexReport
 import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import org.junit.jupiter.api.Test
 import org.springframework.context.annotation.Bean
@@ -63,6 +64,11 @@ class QueriedSnapshots(private val store: SnapshotStore, private val queries: In
     SnapshotStore by store {
     override suspend fun save(snapshot: SnapshotRecord): Boolean =
         store.save(snapshot).also { written -> if (written) queries.save(snapshot) }
+
+    override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> =
+        store.saveAll(snapshots).also { outcomes ->
+            outcomes.forEachIndexed { index, outcome -> if (outcome.written) queries.save(snapshots[index]) }
+        }
 }
 
 /**

@@ -13,10 +13,13 @@
 
 package me.ahoo.wow.mongo.snapshot
 
+import com.mongodb.ErrorCategory
+import com.mongodb.MongoBulkWriteException
 import com.mongodb.MongoWriteException
 import com.mongodb.client.MongoClient
 import com.mongodb.client.MongoCollection
 import com.mongodb.client.MongoDatabase
+import com.mongodb.client.model.BulkWriteOptions
 import com.mongodb.client.model.Filters
 import com.mongodb.client.model.FindOneAndUpdateOptions
 import com.mongodb.client.model.IndexOptions
@@ -24,6 +27,8 @@ import com.mongodb.client.model.Indexes
 import com.mongodb.client.model.Projections
 import com.mongodb.client.model.ReturnDocument
 import com.mongodb.client.model.Sorts
+import com.mongodb.client.model.UpdateOneModel
+import com.mongodb.client.model.UpdateOptions
 import com.mongodb.client.model.Updates
 import kotlinx.coroutines.CoroutineDispatcher
 import me.ahoo.wow.api.aggregate.AggregateRef
@@ -31,6 +36,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.mongo.ExactBson
+import me.ahoo.wow.mongo.MongoFailures
 import me.ahoo.wow.mongo.MongoFormat
 import me.ahoo.wow.mongo.MongoNames
 import me.ahoo.wow.mongo.MongoOperators
@@ -41,6 +47,7 @@ import me.ahoo.wow.mongo.mongo
 import me.ahoo.wow.spi.StoreDdl
 import me.ahoo.wow.spi.VirtualThreads
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.snapshot.SnapshotTable
 import org.bson.Document
@@ -101,14 +108,12 @@ class MongoSnapshotStore(
 
     override suspend fun save(snapshot: SnapshotRecord): Boolean = dispatcher.mongo {
         require(snapshot.ref.type.context == context) { "${snapshot.ref} is not in context $context." }
-        val snapshots = collectionOf(snapshot.ref.type.name)
-        // A snapshot written before state revisions has none: it is of revision 1, which no revision is below.
-        val guarded = Filters.and(
-            keyFilter(snapshot.ref),
-            Filters.lt(VERSION, snapshot.version),
-            Filters.or(Filters.lte(STATE_REVISION, snapshot.stateRevision), Filters.exists(STATE_REVISION, false)),
-        )
-        val written = upsert(snapshots, guarded, snapshot)
+        saveNow(collectionOf(snapshot.ref.type.name), snapshot)
+    }
+
+    /** The version-guarded save of [snapshot]; a refused one marks a higher state revision stale. */
+    private fun saveNow(snapshots: MongoCollection<Document>, snapshot: SnapshotRecord): Boolean {
+        val written = upsert(snapshots, guardOf(snapshot), snapshot)
         if (!written) {
             // Refused: when the stored snapshot is of a higher state revision, the log has moved past it (D172).
             snapshots.updateOne(
@@ -120,7 +125,94 @@ class MongoSnapshotStore(
                 Updates.max(STALE_VERSION, snapshot.version),
             )
         }
-        written
+        return written
+    }
+
+    /**
+     * Saves [snapshots] (decision D248 ②): in the rounds [SnapshotSaveOutcome.rounds] gives, each round's snapshots of
+     * one aggregate type with one unordered `bulkWrite` of conditional upserts, each guarded as [save] guards one. Each
+     * update is a pipeline that clears a stale mark of a version up to its own in the same write, so a batch that all
+     * lands is one round trip whatever marks it meets. A snapshot whose upsert met the key (the guard refused it, or
+     * a concurrent insert won the key) is saved again alone, as [save] would ([conditionalUpsert]), which also marks
+     * a higher state revision stale; one the server refused with another error, or whose state cannot be BSON, is
+     * [SnapshotSaveOutcome.Failed] alone.
+     */
+    override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> = dispatcher.mongo {
+        snapshots.forEach { require(it.ref.type.context == context) { "${it.ref} is not in context $context." } }
+        val outcomes = arrayOfNulls<SnapshotSaveOutcome>(snapshots.size)
+        SnapshotSaveOutcome.rounds(snapshots).forEach { round ->
+            round.groupBy { snapshots[it].ref.type.name }.forEach { (aggregate, indexes) ->
+                saveRound(collectionOf(aggregate), indexes, snapshots, outcomes)
+            }
+        }
+        outcomes.map { checkNotNull(it) }
+    }
+
+    /** Saves the [indexes] of [batch], of distinct refs of the collection [snapshots], into [outcomes]. */
+    private fun saveRound(
+        snapshots: MongoCollection<Document>,
+        indexes: List<Int>,
+        batch: List<SnapshotRecord>,
+        outcomes: Array<SnapshotSaveOutcome?>,
+    ) {
+        val written = ArrayList<Int>(indexes.size)
+        val upserts = ArrayList<UpdateOneModel<Document>>(indexes.size)
+        indexes.forEach { index ->
+            val snapshot = batch[index]
+            try {
+                upserts += UpdateOneModel(guardOf(snapshot), pipelineOf(snapshot), UPSERT)
+                written += index
+            } catch (refused: IllegalArgumentException) {
+                // The state cannot be BSON, as a save would refuse it (ExactBson).
+                outcomes[index] = SnapshotSaveOutcome.Failed(refused)
+            }
+        }
+        if (upserts.isEmpty()) {
+            return
+        }
+        val again = try {
+            snapshots.bulkWrite(upserts, UNORDERED)
+            emptyList()
+        } catch (failure: MongoBulkWriteException) {
+            if (failure.writeConcernError != null) {
+                throw failure
+            }
+            failure.writeErrors.mapNotNull { error ->
+                val index = written[error.index]
+                if (error.category == ErrorCategory.DUPLICATE_KEY) {
+                    index
+                } else {
+                    outcomes[index] = SnapshotSaveOutcome.Failed(
+                        MongoFailures.translate(MongoWriteException(error, failure.serverAddress, failure.errorLabels)),
+                    )
+                    null
+                }
+            }
+        }
+        written.forEach { index -> if (outcomes[index] == null && index !in again) outcomes[index] = SnapshotSaveOutcome.Written }
+        again.forEach { index -> outcomes[index] = SnapshotSaveOutcome.of(saveNow(snapshots, batch[index])) }
+    }
+
+    /** The filter of [snapshot]'s save: its key, a lower stored version, of the same or a lower state revision. */
+    private fun guardOf(snapshot: SnapshotRecord): Bson = Filters.and(
+        keyFilter(snapshot.ref),
+        Filters.lt(VERSION, snapshot.version),
+        // A snapshot written before state revisions has none: it is of revision 1, which no revision is below.
+        Filters.or(Filters.lte(STATE_REVISION, snapshot.stateRevision), Filters.exists(STATE_REVISION, false)),
+    )
+
+    /**
+     * The update of [snapshot]'s save as a pipeline: every field set to its value (`$literal`, so a value that reads
+     * like an expression is written as it is), and a stale mark of a version up to [snapshot]'s removed.
+     */
+    private fun pipelineOf(snapshot: SnapshotRecord): List<Bson> {
+        val fields = Document()
+        fieldsOf(snapshot).forEach { (field, value) -> fields[field] = Document(LITERAL, value) }
+        fields[STALE_VERSION] = Document(
+            "\$cond",
+            listOf(Document("\$lte", listOf("\$$STALE_VERSION", snapshot.version)), "\$\$REMOVE", "\$$STALE_VERSION"),
+        )
+        return listOf(Document("\$set", fields))
     }
 
     override suspend fun rewrite(snapshot: SnapshotRecord): Boolean = dispatcher.mongo {
@@ -138,21 +230,7 @@ class MongoSnapshotStore(
      * the write, of the version it wrote, stays.
      */
     private fun upsert(snapshots: MongoCollection<Document>, guarded: Bson, snapshot: SnapshotRecord): Boolean {
-        val update = Updates.combine(
-            Updates.set(VERSION, snapshot.version),
-            Updates.set(SCHEMA_FINGERPRINT, snapshot.schemaFingerprint),
-            Updates.set(STATE, ExactBson.document(snapshot.state)),
-            Updates.set(OWNER_ID, snapshot.scope.ownerId),
-            Updates.set(SPACE_ID, snapshot.scope.spaceId),
-            Updates.set(DELETED, snapshot.deleted),
-            Updates.set(FIRST_EVENT_TIME, snapshot.firstEventTime),
-            Updates.set(LAST_EVENT_TIME, snapshot.lastEventTime),
-            Updates.set(TAGS, Document(snapshot.tags)),
-            Updates.set(OPERATOR, MongoOperators.document(snapshot.operator)),
-            Updates.set(FIRST_OPERATOR, MongoOperators.document(snapshot.firstOperator)),
-            Updates.set(SCHEDULES, Document(snapshot.schedules.mapValues { MongoRules.document(it.value) })),
-            Updates.set(STATE_REVISION, snapshot.stateRevision),
-        )
+        val update = Updates.combine(fieldsOf(snapshot).map { (field, value) -> Updates.set(field, value) })
         // Before the write: the stored document's stale mark, null when it has none or there was no document.
         var marked: Number? = null
         val written = conditionalUpsert { upsert ->
@@ -174,6 +252,23 @@ class MongoSnapshotStore(
         }
         return written
     }
+
+    /** The fields a save writes of [snapshot], each with its BSON value. */
+    private fun fieldsOf(snapshot: SnapshotRecord): List<Pair<String, Any?>> = listOf(
+        VERSION to snapshot.version,
+        SCHEMA_FINGERPRINT to snapshot.schemaFingerprint,
+        STATE to ExactBson.document(snapshot.state),
+        OWNER_ID to snapshot.scope.ownerId,
+        SPACE_ID to snapshot.scope.spaceId,
+        DELETED to snapshot.deleted,
+        FIRST_EVENT_TIME to snapshot.firstEventTime,
+        LAST_EVENT_TIME to snapshot.lastEventTime,
+        TAGS to Document(snapshot.tags),
+        OPERATOR to MongoOperators.document(snapshot.operator),
+        FIRST_OPERATOR to MongoOperators.document(snapshot.firstOperator),
+        SCHEDULES to Document(snapshot.schedules.mapValues { MongoRules.document(it.value) }),
+        STATE_REVISION to snapshot.stateRevision,
+    )
 
     override suspend fun markStale(ref: AggregateRef): Boolean = dispatcher.mongo {
         require(ref.type.context == context) { "$ref is not in context $context." }
@@ -378,6 +473,13 @@ class MongoSnapshotStore(
         const val SCHEDULES = "schedules"
         const val STATE_REVISION = "state_revision"
         const val STALE_VERSION = "stale_version"
+
+        private const val LITERAL = "\$literal"
+
+        /** The bulk write of a batch: unordered, so one refused upsert does not stop the others. */
+        private val UNORDERED: BulkWriteOptions = BulkWriteOptions().ordered(false)
+
+        private val UPSERT: UpdateOptions = UpdateOptions().upsert(true)
 
         /** What a save reads of the document it replaces: the stale mark alone. */
         private val STALE_PROJECTION: Bson = Projections.fields(

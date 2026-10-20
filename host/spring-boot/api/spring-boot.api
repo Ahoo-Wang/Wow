@@ -957,6 +957,7 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Snapshot {
 	public final fun getPrimary ()Ljava/lang/String;
 	public final fun getStore ()Ljava/lang/String;
 	public final fun getTargets ()Ljava/util/List;
+	public final fun getWriteBatch ()I
 	public final fun options ()Lme/ahoo/wow/runtime/snapshot/SnapshotOptions;
 	public final fun setBatch (I)V
 	public final fun setInterval (Ljava/time/Duration;)V
@@ -964,6 +965,7 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Snapshot {
 	public final fun setPrimary (Ljava/lang/String;)V
 	public final fun setStore (Ljava/lang/String;)V
 	public final fun setTargets (Ljava/util/List;)V
+	public final fun setWriteBatch (I)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$StateCache {

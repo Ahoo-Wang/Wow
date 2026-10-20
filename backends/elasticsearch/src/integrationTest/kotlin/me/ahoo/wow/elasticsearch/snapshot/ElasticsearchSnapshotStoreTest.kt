@@ -24,6 +24,7 @@ import me.ahoo.test.asserts.assertThrownBy
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.elasticsearch.ElasticsearchFixture
 import me.ahoo.wow.spi.StoreDdl
+import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.tck.snapshot.SnapshotStoreSpec
 import org.junit.jupiter.api.Test
@@ -73,6 +74,33 @@ class ElasticsearchSnapshotStoreTest : SnapshotStoreSpec() {
         store.pending(type, 2, limit = 10).assert().containsExactly(newer.ref)
         ElasticsearchFixture.client.indices().delete { it.index(ElasticsearchFixture.names.snapshots(context, "aggregate")) }.get()
         store.load(newer.ref).assert().isNull()
+    }
+
+    @Test
+    fun `a batch's document Elasticsearch refuses fails alone`(): Unit = runBlocking {
+        val context = ElasticsearchFixture.newContext()
+        val store = createStore(context)
+        val type = AggregateType(context, "aggregate")
+        val saved = snapshot("a", 1, aggregate = type)
+        // A field name Elasticsearch cannot map.
+        val refused = snapshot("b", 1, aggregate = type).copyWith(state = """{"":1}""")
+        val outcomes = store.saveAll(listOf(saved, refused))
+        outcomes[0].assert().isEqualTo(SnapshotSaveOutcome.Written)
+        (outcomes[1] as SnapshotSaveOutcome.Failed).cause.assert().isInstanceOf(IllegalArgumentException::class.java)
+        store.load(saved.ref)?.version.assert().isEqualTo(1)
+        store.load(refused.ref).assert().isNull()
+    }
+
+    @Test
+    fun `a batch reads alone what its multi-get could not read`(): Unit = runBlocking {
+        val context = ElasticsearchFixture.newContext()
+        val store = createStore(context)
+        val type = AggregateType(context, "aggregate")
+        store.save(snapshot("a", 1, aggregate = type)).assert().isTrue()
+        // The index is gone under the store, which made sure of it: each document reads as missing.
+        ElasticsearchFixture.client.indices().delete { it.index(ElasticsearchFixture.names.snapshots(context, "aggregate")) }.get()
+        val outcomes = store.saveAll(listOf(snapshot("a", 2, aggregate = type), snapshot("b", 1, aggregate = type)))
+        outcomes.assert().containsExactly(SnapshotSaveOutcome.Written, SnapshotSaveOutcome.Written)
     }
 
     @Test

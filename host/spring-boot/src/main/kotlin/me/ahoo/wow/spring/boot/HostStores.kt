@@ -28,6 +28,7 @@ import me.ahoo.wow.spi.ledger.FailureLedger
 import me.ahoo.wow.spi.log.EventLog
 import me.ahoo.wow.spi.reservation.ReservationStore
 import me.ahoo.wow.spi.snapshot.SnapshotRecord
+import me.ahoo.wow.spi.snapshot.SnapshotSaveOutcome
 import me.ahoo.wow.spi.snapshot.SnapshotStore
 import me.ahoo.wow.spi.store.Store
 import me.ahoo.wow.spi.store.StoreConfig
@@ -92,6 +93,11 @@ internal class QueriedSnapshotStore(private val store: SnapshotStore, private va
     SnapshotStore by store {
     override suspend fun save(snapshot: SnapshotRecord): Boolean =
         store.save(snapshot).also { written -> if (written) queries.save(snapshot) }
+
+    override suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> =
+        store.saveAll(snapshots).also { outcomes ->
+            outcomes.forEachIndexed { index, outcome -> if (outcome.written) queries.save(snapshots[index]) }
+        }
 
     override suspend fun rewrite(snapshot: SnapshotRecord): Boolean =
         store.rewrite(snapshot).also { written -> if (written) queries.rewrite(snapshot) }
