@@ -165,6 +165,8 @@ export const sidebarZh: DefaultTheme.Sidebar = {
                 {text: '配置项', link: 'configuration'},
                 {text: '错误码', link: 'error-codes'},
                 {text: '注解', link: 'annotations'},
+                {text: '模块与制品', link: 'modules'},
+                {text: 'API 级别', link: 'api-levels'},
             ],
         },
     ],
