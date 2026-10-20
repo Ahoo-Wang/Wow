@@ -21,7 +21,9 @@
 
 import { readFileSync } from 'node:fs';
 
-const SNAPSHOTS = '../../../../wow-openapi/src/test/resources/openapi/';
+// Fixed copies of the 9.x wow-openapi snapshots: 9.x left the v10 branch
+// (decision D262); TS-9x deletes them.
+const SNAPSHOTS = './nine-x/wow-openapi/src/test/resources/openapi/';
 
 function readSnapshot<T>(name: string): T {
   return JSON.parse(
