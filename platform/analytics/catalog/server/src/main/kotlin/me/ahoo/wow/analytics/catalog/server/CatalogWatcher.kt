@@ -24,15 +24,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import me.ahoo.wow.analytics.catalog.api.AnalyticsCatalogContext
-import me.ahoo.wow.analytics.catalog.api.source.SyncSource
 import me.ahoo.wow.analytics.catalog.domain.warehouse.WarehouseCatalog
-import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.caller.Caller
-import me.ahoo.wow.api.client.CommandClient
-import me.ahoo.wow.api.client.CommandRejectedException
-import me.ahoo.wow.api.client.WowProblemException
+import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.runtime.admission.CommandBody
+import me.ahoo.wow.runtime.admission.CommandGateway
+import me.ahoo.wow.runtime.admission.CommandRequest
 import org.springframework.context.SmartLifecycle
+import tools.jackson.databind.json.JsonMapper
 import java.time.Duration
 
 /**
@@ -42,12 +42,12 @@ import java.time.Duration
  * aggregate reads the table again and applies the trust rules. Its first look, at startup, syncs every table, which
  * changes nothing where nothing changed.
  *
- * It sends through the node's [CommandClient] (decision D257) as [CALLER], a catalog administrator (`SyncSource` reads only what the warehouse says, so whoever sends
+ * It sends as [CALLER], a catalog administrator (`SyncSource` reads only what the warehouse says, so whoever sends
  * it changes nothing the warehouse does not). A failed look is logged and tried again at the next one.
  */
 class CatalogWatcher(
     private val catalog: WarehouseCatalog,
-    private val commands: () -> CommandClient,
+    private val gateway: () -> CommandGateway,
     private val interval: Duration,
 ) : SmartLifecycle {
     private val seen = HashMap<String, String>()
@@ -76,17 +76,21 @@ class CatalogWatcher(
 
     /** Sends `SyncSource` of [database]'s [table]; whether it succeeded, so a failed one is sent again next time. */
     private suspend fun sync(database: String, table: String): Boolean {
-        val ref = SOURCE.ref(CALLER.tenantId, AnalyticsCatalogContext.sourceIdOf(catalog.connection, database, table))
-        return try {
-            commands().of(CALLER).wait(SyncSource(database, table), ref)
-            true
-        } catch (rejected: CommandRejectedException) {
-            logger.warn { "SyncSource of $database.$table was rejected: ${rejected.code} ${rejected.result.error?.message}" }
-            false
-        } catch (failed: WowProblemException) {
-            logger.warn { "SyncSource of $database.$table did not succeed: ${failed.code} ${failed.message}" }
-            false
+        val body = json.createObjectNode().put("database", database).put("table", table)
+        val request = CommandRequest.builder(
+            AnalyticsCatalogContext.NAME,
+            AnalyticsCatalogContext.SOURCE,
+            SYNC,
+            CommandBody.Tree(body),
+        )
+            .caller(CALLER)
+            .aggregateId(AnalyticsCatalogContext.sourceIdOf(catalog.connection, database, table))
+            .build()
+        val result = gateway().execute(request)
+        if (result.status != CommandResult.Status.SUCCEEDED) {
+            logger.warn { "SyncSource of $database.$table did not succeed: ${result.error?.code} ${result.error?.message}" }
         }
+        return result.status == CommandResult.Status.SUCCEEDED
     }
 
     override fun start() {
@@ -121,7 +125,7 @@ class CatalogWatcher(
     override fun getPhase(): Int = SmartLifecycle.DEFAULT_PHASE
 
     companion object {
-        private val SOURCE = AggregateType(AnalyticsCatalogContext.NAME, AnalyticsCatalogContext.SOURCE)
+        private const val SYNC = "SyncSource"
 
         /** The catalog administrator the watcher sends as. */
         @JvmField
@@ -132,6 +136,7 @@ class CatalogWatcher(
             attributes = mapOf(AnalyticsCatalogCallers.ROLES_ATTRIBUTE to listOf(AnalyticsCatalogCallers.ADMIN)),
         )
 
+        private val json: JsonMapper = JsonMapper.builder().build()
         private val logger = KotlinLogging.logger {}
     }
 }
