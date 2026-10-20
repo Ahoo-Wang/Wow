@@ -18,13 +18,14 @@ import { test } from 'node:test';
 import { scopes, unitPackages } from './ci-scope.mjs';
 
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
-// The TypeScript scopes; `package` is derived from them, `jvm` gates the JVM jobs, and `viewStoreContract` and
-// `opsConsole` are decided apart from the rules; each has its own tests.
+// The TypeScript scopes; `package` is derived from them, `jvm` gates the JVM jobs, and `viewStoreContract`,
+// `opsConsole` and `catalogConsole` are decided apart from the rules; each has its own tests.
 const KOTLIN_GATES = new Set([
   'package',
   'jvm',
   'viewStoreContract',
   'opsConsole',
+  'catalogConsole',
 ]);
 const gates = paths =>
   Object.entries(scopes(paths)).filter(([key]) => !KOTLIN_GATES.has(key));
@@ -66,7 +67,13 @@ test('ci.yml runs every job it defines, and the static checks', () => {
     'workflows',
   ]);
   const ci = scopes(['.github/workflows/ci.yml']);
-  assert.ok(ci.jvm && ci.viewStoreContract && ci.opsConsole && ci.package);
+  assert.ok(
+    ci.jvm &&
+      ci.viewStoreContract &&
+      ci.opsConsole &&
+      ci.catalogConsole &&
+      ci.package,
+  );
   // Scheduled and dispatched only: nothing it defines runs on a pull request.
   assert.deepEqual(
     on(['.github/workflows/typescript-storybook-browsers.yml']),
@@ -563,6 +570,35 @@ test('the ops console, the ops service and what the console builds with run the 
   assert.ok(scopes(['platform/ops/console/src/main.tsx']).jvm);
 });
 
+test('the catalog console, the catalog service and what the console builds with run the catalog-console jobs', () => {
+  for (const path of [
+    'platform/analytics/catalog/console/src/main.tsx',
+    'platform/analytics/catalog/console/package.json',
+    'platform/analytics/catalog/server/src/main/resources/application.yaml',
+    'platform/analytics/catalog/server/manifest/baseline.json',
+    'platform/analytics/catalog/domain/src/main/kotlin/A.kt',
+    'typescript/wow-client/src/index.ts',
+    'typescript/wow-view-engine/src/index.ts',
+    'pnpm-lock.yaml',
+    '.github/workflows/ci.yml',
+    'new-directory/index.ts',
+  ])
+    assert.ok(scopes([path]).catalogConsole, path);
+  for (const path of [
+    'platform/ops/console/src/main.tsx',
+    'core/kernel/src/main/kotlin/A.kt',
+    'README.md',
+    '.github/workflows/package-deploy.yml',
+  ])
+    assert.ok(!scopes([path]).catalogConsole, path);
+  // The console's own path turns on no TypeScript scope, and keeps the JVM's.
+  assert.deepEqual(on(['platform/analytics/catalog/console/src/main.tsx']), []);
+  assert.ok(scopes(['platform/analytics/catalog/console/src/main.tsx']).jvm);
+  assert.ok(
+    !scopes(['platform/analytics/catalog/console/src/main.tsx']).opsConsole,
+  );
+});
+
 test('isolated changes retain their relevant validation', () => {
   assert.deepEqual(on(['documentation/docs/index.md']), ['docs']);
   assert.deepEqual(
@@ -625,6 +661,7 @@ test('the command reads the diff and runs everything without a base', () => {
       `jvm=${value}\n` +
       `viewStoreContract=${value}\n` +
       `opsConsole=${value}\n` +
+      `catalogConsole=${value}\n` +
       `unitPackages=${value ? '["wow-client","wow-react","wow-generator","wow-view-store"]' : '[]'}\n`;
     assert.equal(run({ BASE_SHA: base, HEAD_SHA: head }), output(false));
     assert.equal(

@@ -64,6 +64,14 @@ const VIEW_STORE_CONTRACT_PATH =
 const OPS_CONSOLE = 'opsConsole';
 const OPS_CONSOLE_PATH =
   /^(?:platform\/ops\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|patches\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ci\.yml$)/;
+// ci.yml's catalog-console jobs: the analytics catalog console's lint, types,
+// tests and build, and its end-to-end suite against the catalog server it is
+// served by, as the ops-console jobs do the ops console's. Decided
+// apart from RULES, by CATALOG_CONSOLE_PATH: the console, the catalog service,
+// the workspace packages and files the console builds with, and the workflow.
+const CATALOG_CONSOLE = 'catalogConsole';
+const CATALOG_CONSOLE_PATH =
+  /^(?:platform\/analytics\/catalog\/|typescript\/wow-(?:client|generator|view-engine|view-store)\/|patches\/|(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig\.base\.json)$|\.github\/workflows\/ci\.yml$)/;
 
 // A light scope stands in for a full one when only Markdown changed, so it
 // turns off again once any path turns the full scope on.
@@ -177,6 +185,9 @@ const RULES = [
   // check it (OPS_CONSOLE_PATH), and the JVM jobs run with the ops server that
   // serves it (JVM_PATH).
   [/^platform\/ops\/console\//, []],
+  // The analytics catalog console (roadmap 7.2c), the same way: the
+  // catalog-console jobs check it (CATALOG_CONSOLE_PATH).
+  [/^platform\/analytics\/catalog\/console\//, []],
   // The site's samples compile against the eShop's committed generated
   // clients (documentation/test/typescript-samples.mjs); the eshop-web jobs
   // checks the eShop web app itself.
@@ -252,6 +263,7 @@ export function scopes(paths) {
     JVM,
     VIEW_STORE_CONTRACT,
     OPS_CONSOLE,
+    CATALOG_CONSOLE,
   ];
   const result = Object.fromEntries(keys.map(key => [key, false]));
   // Light scopes a path asks for alongside their full scope (the workflow
@@ -281,6 +293,8 @@ export function scopes(paths) {
   );
   // And the ops console's, the same way.
   result[OPS_CONSOLE] = paths.some(path => OPS_CONSOLE_PATH.test(path));
+  // And the analytics catalog console's.
+  result[CATALOG_CONSOLE] = paths.some(path => CATALOG_CONSOLE_PATH.test(path));
   return result;
 }
 

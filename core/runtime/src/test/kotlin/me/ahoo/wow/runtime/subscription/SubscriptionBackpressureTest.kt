@@ -13,8 +13,11 @@
 
 package me.ahoo.wow.runtime.subscription
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import me.ahoo.test.asserts.assert
 import me.ahoo.wow.api.client.RetryHint
 import me.ahoo.wow.api.client.WowProblemException
@@ -65,14 +68,30 @@ class SubscriptionBackpressureTest {
 
     @Test
     fun `derived commands that time out under load throttle the partition and never pause it`(): Unit = runBlocking {
-        val overloaded = AtomicBoolean(true)
-        val attempts = AtomicInteger()
+        // The load ends at one point all lanes agree on: no attempt is between reading it and failing ([gate]), and
+        // no success is handled before every failure before it was (the throttle hears of a failure only after the
+        // lane gives back its room), so the partition is throttled once and lifted once, however slow the machine.
+        val gate = Mutex()
+        var overloaded = true
+        var failed = 0
+        // The failures before the load ended, -1 while it lasts.
+        val failedBeforeLift = AtomicInteger(-1)
+        val drained = CompletableDeferred<Unit>()
         val handled = Handled()
-        val saga = Subscription("saga", SubscriptionFilter("shop")) { entry ->
-            attempts.incrementAndGet()
-            if (overloaded.get()) {
-                throw timedOut(entry.ref.id)
+        signals.onBackpressure = { reported ->
+            val before = failedBeforeLift.get()
+            if (before >= 0 && reported >= before) {
+                drained.complete(Unit)
             }
+        }
+        val saga = Subscription("saga", SubscriptionFilter("shop")) { entry ->
+            gate.withLock {
+                if (overloaded) {
+                    failed++
+                    throw timedOut(entry.ref.id)
+                }
+            }
+            drained.await()
             handled.record(entry)
         }
         val patient = options.copyWith(
@@ -86,13 +105,19 @@ class SubscriptionBackpressureTest {
         AGGREGATES.forEach { appender.append(it) }
         runtime.start(setOf(0))
         // Far beyond what pauses a partition (3 aggregates within the window) and every aggregate's own budget.
-        eventually { attempts.get() > AGGREGATES.size * MAX_ATTEMPTS * 2 }
+        eventually { signals.codes.size > AGGREGATES.size * MAX_ATTEMPTS * 2 }
         runtime.paused().assert().isEmpty()
         runtime.throttled().single().assert().satisfies({
             it.subscription.assert().isEqualTo("saga")
             it.limit.assert().isEqualTo(1)
         })
-        overloaded.set(false)
+        gate.withLock {
+            overloaded = false
+            failedBeforeLift.set(failed)
+        }
+        if (signals.codes.size >= failedBeforeLift.get()) {
+            drained.complete(Unit)
+        }
         eventually { handled.size == AGGREGATES.size }
         eventually { checkpoints.load("group", "saga", 0) == appender.ends[0] }
         eventually { runtime.throttled().isEmpty() }
@@ -236,8 +261,13 @@ class SubscriptionBackpressureTest {
             events += "${if (throttled) "throttled" else "unthrottled"} $subscription@$partition"
         }
 
+        /** Told how many backpressures were reported so far, after each one. */
+        @Volatile
+        var onBackpressure: (Int) -> Unit = {}
+
         override fun backpressured(group: String, subscription: String, partition: Int, code: String) {
             codes += code
+            onBackpressure(codes.size)
         }
     }
 
