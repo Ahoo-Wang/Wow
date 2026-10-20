@@ -86,6 +86,7 @@ val v10Projects = listOf(
     "models", "migrate-data", "architecture",
     "test-dsl", "tck", "tck-containers", "ops-api", "ops-domain", "ops-server",
     "view-store-api", "view-store-domain", "view-store-server",
+    "analytics-catalog-api", "analytics-catalog-domain", "analytics-catalog-server",
     "kernel-benchmarks", "compiler", "gradle-plugin", "manifest-tools",
     "routing-spike", "lease-spike", "e2e-bench-v10",
 ).plus(v10ExampleNames).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
@@ -113,7 +114,8 @@ val v10AbiProjects = v10PublishedProjects
 // and :architecture. They do not opt in to `@InternalWowApi` or `@ExperimentalWowApi`, so the compiler shows where
 // they reach past the public API.
 val v10UserProjects = v10ExampleProjects + includedProjects(
-    ":ops-domain", ":ops-server", ":view-store-domain", ":view-store-server", ":architecture", ":e2e-bench-v10",
+    ":ops-domain", ":ops-server", ":view-store-domain", ":view-store-server", ":analytics-catalog-domain",
+    ":analytics-catalog-server", ":architecture", ":e2e-bench-v10",
 )
 
 // D87: a V10 project's name and directory carry no `wow-` prefix (`:kernel` in core/kernel); its jar, Kotlin module and
@@ -200,6 +202,7 @@ val v10IntegrationTestProjects = includedProjects(
     ":eshop-e2e",
     ":ops-server",
     ":view-store-server",
+    ":analytics-catalog-server",
     ":migrate-data",
 )
 val integrationTestProjects = includedProjects(
