@@ -212,7 +212,7 @@ export const plain = text =>
 
 /** The first sentence of a text. */
 export const firstSentence = text => {
-  const match = /^.*?[.!?](?=\s+[A-Z`(\[]|$)/s.exec(text);
+  const match = /^.*?[.!?](?=\s+[A-Z`([]|$)/s.exec(text);
   return (match ? match[0] : text).trim();
 };
 
