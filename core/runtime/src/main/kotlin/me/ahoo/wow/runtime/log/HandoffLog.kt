@@ -152,14 +152,13 @@ class HandoffLog(
     }
 
     /**
-     * Closes [ticket], after its commits were handed over: a tail waiting on a gap learns the append returned. One that
-     * handed nothing over (an outcome other than committed, a failure) nudges the tails, which wake for nothing else.
+     * Closes [ticket], after its commits were handed over, and nudges the tails waiting on a gap: one may be waiting for
+     * this very append, which handed its entry over before it closed. One that handed nothing over (an outcome other
+     * than committed, a failure) nudges every tail of the partition.
      */
     private fun settle(partition: Int, ticket: Long, handed: Boolean) {
         inFlight[partition].close(ticket)
-        if (!handed) {
-            listeners[partition].forEach { it.nudge() }
-        }
+        listeners[partition].forEach { if (!handed || it.waiting) it.nudge() }
     }
 
     /** Hands [outcome] over when it is a commit; whether it was one. */
@@ -218,8 +217,12 @@ class HandoffLog(
         val entries = Channel<LogEntry>(capacity)
         val overflowed = AtomicBoolean()
 
-        /** An append that handed nothing over returned: a tail waiting on a gap looks again. */
+        /** An append returned: a tail waiting on a gap looks again. */
         val nudges = Channel<Unit>(Channel.CONFLATED)
+
+        /** Whether the tail is waiting on a gap, so that every append that returns nudges it. */
+        @Volatile
+        var waiting = false
 
         fun offer(entry: LogEntry) {
             if (!entries.trySend(entry).isSuccess) {
@@ -291,7 +294,17 @@ class HandoffLog(
         private suspend fun awaitGap(): Boolean {
             val appends = inFlight[partition]
             val horizon = appends.horizon()
-            return withTimeoutOrNull(options.gapWait) {
+            // Set before the appends are looked at: one that closes after the look nudges this tail.
+            listener.waiting = true
+            return try {
+                gapWithin(appends, horizon)
+            } finally {
+                listener.waiting = false
+            }
+        }
+
+        private suspend fun gapWithin(appends: InFlight, horizon: Long): Boolean =
+            withTimeoutOrNull(options.gapWait) {
                 while (!pending.containsKey(cursor + 1) && !listener.overflowed.get()) {
                     if (appends.returnedBefore(horizon)) {
                         // Their commits were handed over before they returned: take what they handed, then look.
@@ -308,7 +321,6 @@ class HandoffLog(
                 }
                 true
             } ?: false
-        }
 
         private fun drain() {
             while (true) {

@@ -307,6 +307,22 @@ class HandoffLogTest {
         }
 
     @Test
+    fun `a gap is read at once even when the append after it closes only once the tail waits`(): Unit = runBlocking {
+        // The tail may take an append's entry before that append marks itself returned: its return wakes the tail.
+        repeat(ROUNDS) { round ->
+            val store = InMemoryEventLog(PARTITIONS)
+            val log = HandoffLog(store, "bank", HandoffOptions(gapWait = 30.seconds))
+            val (seen, job) = collect(log)
+            delay(2)
+            store.append(next(refs[0]).copyWith(version = 1, requestId = "other-$round"))
+            log.append(next(refs[1]).copyWith(version = 1, requestId = "own-$round"))
+            withTimeout(5.seconds) { List(2) { seen.receive() } }.map { it.position.sequence }
+                .assert().isEqualTo(listOf(1L, 2L))
+            job.cancelAndJoin()
+        }
+    }
+
+    @Test
     fun `a gap waits for an append of this node in flight, and is read once it returns without it`(): Unit =
         runBlocking {
             val gated = GateFirst(store)
@@ -453,6 +469,7 @@ class HandoffLogTest {
 
     private companion object {
         const val PARTITIONS = 4
+        const val ROUNDS = 200
     }
 }
 
