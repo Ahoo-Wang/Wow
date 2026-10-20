@@ -42,7 +42,8 @@ import me.ahoo.wow.runtime.snapshot.SnapshotStatus
  * [policies] are the gateways that admit the states of each aggregate type whose snapshots are not queried while
  * query policies may hide one (review R3.3-3, [me.ahoo.wow.query.state.SnapshotPolicyGateway]); no route serves them,
  * and a state read sees a state as [visibility] says. [reads] is the read path of the state reads
- * ([ReadFacade], decision D237), the [QueryEngine]'s when it comes from one ([of]).
+ * ([ReadFacade], decision D237), the [QueryEngine]'s when it comes from one ([of]). [streams] is how a `list` streams
+ * as server-sent events (decision D253).
  */
 class HttpQueries @InternalWowApi constructor(
     snapshots: Collection<QueryGateway> = emptyList(),
@@ -55,6 +56,8 @@ class HttpQueries @InternalWowApi constructor(
     policies: Collection<QueryGateway> = emptyList(),
     @InternalWowApi
     val reads: ReadFacade? = null,
+    @InternalWowApi
+    val streams: QueryStreams = QueryStreams(),
 ) {
     private val snapshots: Map<AggregateType, QueryGateway> = snapshots.associateBy { it.aggregateType }
     private val events: Map<AggregateType, QueryGateway> = events.associateBy { it.aggregateType }
@@ -99,14 +102,15 @@ class HttpQueries @InternalWowApi constructor(
         val NONE: HttpQueries = HttpQueries()
 
         /**
-         * The query models [engine] composed (decision D237), with [defaultListSize] and the [snapshotStatus] of the
-         * node's snapshots.
+         * The query models [engine] composed (decision D237), with [defaultListSize], the [snapshotStatus] of the
+         * node's snapshots and how lists stream ([streams]).
          */
         @InternalWowApi
         fun of(
             engine: QueryEngine,
             defaultListSize: Int = DEFAULT_LIST_SIZE,
             snapshotStatus: SnapshotStatus = SnapshotStatus.NONE,
+            streams: QueryStreams = QueryStreams(),
         ): HttpQueries = HttpQueries(
             engine.snapshots,
             engine.events,
@@ -116,6 +120,7 @@ class HttpQueries @InternalWowApi constructor(
             snapshotStatus,
             engine.policies,
             engine.reads,
+            streams,
         )
     }
 }

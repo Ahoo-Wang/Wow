@@ -16,6 +16,7 @@ package me.ahoo.wow.http
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.http.query.HttpQueries
+import me.ahoo.wow.http.query.QueryStreams
 import me.ahoo.wow.manifest.EventManifest
 import me.ahoo.wow.manifest.Manifest
 import me.ahoo.wow.manifest.QueryRoutes
@@ -150,6 +151,8 @@ class QueryNode(
     policies: List<QueryPolicy> = emptyList(),
     /** The node's Manifest: the cart's query models and state schema, its sensitive fields among them. */
     manifest: Manifest = queryManifest(),
+    /** How lists stream as server-sent events. */
+    val streams: QueryStreams = QueryStreams(),
 ) {
     private val gateway = snapshots(cartSnapshots(storage, entryPolicy, policies = policies, manifest = manifest))
 
@@ -189,6 +192,7 @@ class QueryNode(
             defaultListSize = defaultListSize,
             snapshotStatus = snapshotStatus,
             policies = listOfNotNull(policyGateway),
+            streams = streams,
         )
     }
 
@@ -232,10 +236,16 @@ class QueryNode(
     ): Answer = http.get("/shop/cart/$model/query", user, headers)
 
     /** A streamed `list` of [body]: its events, each `event` to `data`. */
-    fun stream(body: String, model: String = QueryRoutes.SNAPSHOT, user: String = "alice"): Streamed {
+    fun stream(
+        body: String,
+        model: String = QueryRoutes.SNAPSHOT,
+        user: String = "alice",
+        lastEventId: String? = null,
+    ): Streamed {
         val result = http.client.post().uri("/shop/cart/$model/query")
             .header("X-User", user)
             .header("Content-Type", "application/json")
+            .headers { headers -> lastEventId?.let { headers.set("Last-Event-ID", it) } }
             .accept(MediaType.TEXT_EVENT_STREAM)
             .bodyValue(body)
             .exchange()
@@ -259,4 +269,12 @@ class QueryNode(
 
 class StreamedEvent(val event: String?, val id: String?, val data: tools.jackson.databind.JsonNode)
 
-class Streamed(val status: Int, val contentType: String?, val events: List<StreamedEvent>, val body: String)
+class Streamed(val status: Int, val contentType: String?, val events: List<StreamedEvent>, val body: String) {
+    /** The `row` events. */
+    val rows: List<StreamedEvent>
+        get() = events.filter { it.event == "row" }
+
+    /** The data of the `end` event, the last one, or null when the stream ended without one. */
+    val end: tools.jackson.databind.JsonNode?
+        get() = events.lastOrNull()?.takeIf { it.event == "end" }?.data
+}

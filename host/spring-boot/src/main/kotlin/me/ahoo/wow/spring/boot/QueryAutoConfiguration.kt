@@ -380,7 +380,14 @@ class QueryAutoConfiguration {
         @ConditionalOnMissingBean
         @InternalWowApi
         fun wowHttpQueries(engine: QueryEngine, node: ServiceNode, properties: QueryProperties): HttpQueries =
-            HttpQueries.of(engine, properties.http.defaultListSize, node.snapshotStatus)
+            HttpQueries.of(engine, properties.http.defaultListSize, node.snapshotStatus, properties.stream.streams())
+
+        /** Ends the open query streams before the public server's graceful shutdown waits for them (decision D253). */
+        @Bean
+        @InternalWowApi
+        fun wowQueryStreamsLifecycle(queries: HttpQueries): QueryStreamsLifecycle = QueryStreamsLifecycle(
+            queries.streams
+        )
 
         @Bean
         @InternalWowApi

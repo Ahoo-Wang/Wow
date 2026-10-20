@@ -54,6 +54,7 @@ public final class me/ahoo/wow/openapi/WowHttpContract {
 	public static final field BAGGAGE_HEADER Ljava/lang/String;
 	public static final field DATASETS_PATH Ljava/lang/String;
 	public static final field DEFAULT_TRACE_LIMIT I
+	public static final field END_EVENT Ljava/lang/String;
 	public static final field ERROR_EVENT Ljava/lang/String;
 	public static final field ETAG_HEADER Ljava/lang/String;
 	public static final field FROM_PARAMETER Ljava/lang/String;
@@ -61,6 +62,7 @@ public final class me/ahoo/wow/openapi/WowHttpContract {
 	public static final field IF_MATCH_HEADER Ljava/lang/String;
 	public static final field IF_NONE_MATCH_HEADER Ljava/lang/String;
 	public static final field INSTANCE Lme/ahoo/wow/openapi/WowHttpContract;
+	public static final field LAST_EVENT_ID_HEADER Ljava/lang/String;
 	public static final field LIMIT_PARAMETER Ljava/lang/String;
 	public static final field MANIFEST_PATH Ljava/lang/String;
 	public static final field MAX_TRACE_LIMIT I
@@ -78,6 +80,7 @@ public final class me/ahoo/wow/openapi/WowHttpContract {
 	public static final field VERSION_PARAMETER Ljava/lang/String;
 	public static final field WAIT_HEADER Ljava/lang/String;
 	public static final field WAIT_TIMEOUT_HEADER Ljava/lang/String;
+	public final fun getEND_REASONS ()Ljava/util/List;
 	public final fun getQUERY_KINDS ()Ljava/util/List;
 	public final fun getSTAGES ()Ljava/util/List;
 }

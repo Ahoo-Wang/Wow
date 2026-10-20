@@ -47,6 +47,9 @@ object WowHttpContract {
     const val ETAG_HEADER: String = "ETag"
     const val RETRY_AFTER_HEADER: String = "Retry-After"
 
+    /** The position a streamed list resumes after: the `id` of the last `row` event read (decision D253). */
+    const val LAST_EVENT_ID_HEADER: String = "Last-Event-ID"
+
     /** The W3C trace context headers a command request carries its trace in (decision D174). */
     const val TRACEPARENT_HEADER: String = "traceparent"
     const val TRACESTATE_HEADER: String = "tracestate"
@@ -69,6 +72,15 @@ object WowHttpContract {
     /** The server-sent event of each record of a streamed list, and the one that ends a list that failed. */
     const val ROW_EVENT: String = "row"
     const val ERROR_EVENT: String = "error"
+
+    /**
+     * The event that ends a resumable streamed list (decision D253): `{"reason", "resumable"}`, the reason one of
+     * [END_REASONS].
+     */
+    const val END_EVENT: String = "end"
+
+    /** Why a resumable stream ended: every reason but `complete` is resumable. */
+    val END_REASONS: List<String> = listOf("complete", "hold-expired", "permit-reclaimed", "node-stopping")
 
     /** The stages a command's server-sent events are named after, lower case (decision D61). */
     val STAGES: List<String> = listOf("accepted", "committed", "handled")

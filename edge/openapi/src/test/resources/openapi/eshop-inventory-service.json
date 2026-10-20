@@ -130,7 +130,7 @@
       "post" : {
         "tags" : [ "wow" ],
         "summary" : "Queries a dataset (decision D145), as a snapshot model is queried.",
-        "description" : "The body's `kind` is the operation: `list` (an array, or with `Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count` or `aggregate` (an array of groups).",
+        "description" : "The body's `kind` is the operation: `list` (an array, or with `Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count` or `aggregate` (an array of groups). A streamed `list` is resumable (decision D253): each `row` event's `id` is the record's position, an opaque cursor token; the stream reads keyset chunks, bounded by time and query permits rather than rows, and ends with an `end` event `{\"reason\", \"resumable\"}` (`complete`, or the resumable `hold-expired`, `permit-reclaimed` and `node-stopping`); the same request with `Last-Event-ID` continues strictly after that position. Chunks are not one snapshot: a record written meanwhile is read when it sorts after the position. A list whose sort cannot order a cursor (or a model whose descriptor says `record.stream.resumable: false`) streams without `id`s, and every `end` it sends says `\"resumable\": false`.",
         "operationId" : "wow.dataset.query",
         "parameters" : [ {
           "$ref" : "#/components/parameters/context"
@@ -138,6 +138,8 @@
           "$ref" : "#/components/parameters/dataset"
         }, {
           "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Last-Event-ID"
         } ],
         "requestBody" : {
           "required" : true,
@@ -198,9 +200,23 @@
                   "description" : "Server-sent events."
                 },
                 "x-wow-events" : {
-                  "event" : [ "row", "error" ],
+                  "event" : [ "row", "end", "error" ],
                   "data" : {
                     "type" : "object"
+                  },
+                  "id" : "The record's position: send it as `Last-Event-ID` to resume after it.",
+                  "end" : {
+                    "type" : "object",
+                    "required" : [ "reason", "resumable" ],
+                    "properties" : {
+                      "reason" : {
+                        "type" : "string",
+                        "enum" : [ "complete", "hold-expired", "permit-reclaimed", "node-stopping" ]
+                      },
+                      "resumable" : {
+                        "type" : "boolean"
+                      }
+                    }
                   }
                 }
               }
@@ -1229,10 +1245,12 @@
       "post" : {
         "tags" : [ "eshop-inventory.stock" ],
         "summary" : "Queries the snapshot model (decision D127).",
-        "description" : "The body's `kind` is the operation: `list` (an array, or with `Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count` or `aggregate` (an array of groups).",
+        "description" : "The body's `kind` is the operation: `list` (an array, or with `Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count` or `aggregate` (an array of groups). A streamed `list` is resumable (decision D253): each `row` event's `id` is the record's position, an opaque cursor token; the stream reads keyset chunks, bounded by time and query permits rather than rows, and ends with an `end` event `{\"reason\", \"resumable\"}` (`complete`, or the resumable `hold-expired`, `permit-reclaimed` and `node-stopping`); the same request with `Last-Event-ID` continues strictly after that position. Chunks are not one snapshot: a record written meanwhile is read when it sorts after the position. A list whose sort cannot order a cursor (or a model whose descriptor says `record.stream.resumable: false`) streams without `id`s, and every `end` it sends says `\"resumable\": false`.",
         "operationId" : "eshop-inventory.stock.snapshot.query",
         "parameters" : [ {
           "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Last-Event-ID"
         } ],
         "requestBody" : {
           "required" : true,
@@ -1313,12 +1331,26 @@
                   "description" : "Server-sent events."
                 },
                 "x-wow-events" : {
-                  "event" : [ "row", "error" ],
+                  "event" : [ "row", "end", "error" ],
                   "data" : {
                     "$ref" : "#/components/schemas/wow.SnapshotRecord",
                     "properties" : {
                       "state" : {
                         "$ref" : "#/components/schemas/me.ahoo.wow.example.eshop.inventory.domain.stock.StockState"
+                      }
+                    }
+                  },
+                  "id" : "The record's position: send it as `Last-Event-ID` to resume after it.",
+                  "end" : {
+                    "type" : "object",
+                    "required" : [ "reason", "resumable" ],
+                    "properties" : {
+                      "reason" : {
+                        "type" : "string",
+                        "enum" : [ "complete", "hold-expired", "permit-reclaimed", "node-stopping" ]
+                      },
+                      "resumable" : {
+                        "type" : "boolean"
                       }
                     }
                   }
@@ -1400,10 +1432,12 @@
       "post" : {
         "tags" : [ "eshop-inventory.stock" ],
         "summary" : "Queries the events model (decision D127).",
-        "description" : "The body's `kind` is the operation: `list` (an array, or with `Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count` or `aggregate` (an array of groups).",
+        "description" : "The body's `kind` is the operation: `list` (an array, or with `Accept: text/event-stream` one `row` event per record), `paged`, `cursor`, `single`, `count` or `aggregate` (an array of groups). A streamed `list` is resumable (decision D253): each `row` event's `id` is the record's position, an opaque cursor token; the stream reads keyset chunks, bounded by time and query permits rather than rows, and ends with an `end` event `{\"reason\", \"resumable\"}` (`complete`, or the resumable `hold-expired`, `permit-reclaimed` and `node-stopping`); the same request with `Last-Event-ID` continues strictly after that position. Chunks are not one snapshot: a record written meanwhile is read when it sorts after the position. A list whose sort cannot order a cursor (or a model whose descriptor says `record.stream.resumable: false`) streams without `id`s, and every `end` it sends says `\"resumable\": false`.",
         "operationId" : "eshop-inventory.stock.events.query",
         "parameters" : [ {
           "$ref" : "#/components/parameters/Wow-Scope"
+        }, {
+          "$ref" : "#/components/parameters/Last-Event-ID"
         } ],
         "requestBody" : {
           "required" : true,
@@ -1464,9 +1498,23 @@
                   "description" : "Server-sent events."
                 },
                 "x-wow-events" : {
-                  "event" : [ "row", "error" ],
+                  "event" : [ "row", "end", "error" ],
                   "data" : {
                     "$ref" : "#/components/schemas/wow.EventStreamRecord"
+                  },
+                  "id" : "The record's position: send it as `Last-Event-ID` to resume after it.",
+                  "end" : {
+                    "type" : "object",
+                    "required" : [ "reason", "resumable" ],
+                    "properties" : {
+                      "reason" : {
+                        "type" : "string",
+                        "enum" : [ "complete", "hold-expired", "permit-reclaimed", "node-stopping" ]
+                      },
+                      "resumable" : {
+                        "type" : "boolean"
+                      }
+                    }
                   }
                 }
               }
@@ -3373,6 +3421,14 @@
         "name" : "If-None-Match",
         "in" : "header",
         "description" : "The entity tag the client holds: 304 when it is still the current one.",
+        "schema" : {
+          "type" : "string"
+        }
+      },
+      "Last-Event-ID" : {
+        "name" : "Last-Event-ID",
+        "in" : "header",
+        "description" : "Resumes a streamed `list` strictly after this position, the `id` of the last `row` event read (decision D253): send the same query body again. A position of another model or sort is `wow.query.invalid`.",
         "schema" : {
           "type" : "string"
         }

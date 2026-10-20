@@ -292,7 +292,7 @@ private suspend fun QueryBackend.earlierGroups(
 private fun emptySummary(metrics: List<AggregationMetric>): ObjectNode =
     WowJson.mapper.valueToTree(EmptyAggregationValues.values(metrics))
 
-private fun ObjectNode.requireStandardRecord(): ObjectNode = requireStandardJson { path -> "Query result [$path]" }
+internal fun ObjectNode.requireStandardRecord(): ObjectNode = requireStandardJson { path -> "Query result [$path]" }
 
 private fun ObjectNode.requireStandardAggregation(metrics: Set<String>): ObjectNode = requireStandardJson { path ->
     val alias = path.substringBefore('.')

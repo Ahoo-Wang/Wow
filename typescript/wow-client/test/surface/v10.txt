@@ -1,4 +1,4 @@
-# @ahoo-wang/wow-client/v10 — 93 names, from src/v10/index.ts.
+# @ahoo-wang/wow-client/v10 — 98 names, from src/v10/index.ts.
 # Written by test/publicSurface.test.ts; a change here is a change to
 # the public surface.
 type  AggregateManifest
@@ -35,6 +35,7 @@ type  FunctionKind
 type  Hop
 type  LifecycleCommand
 value LifecycleCommands
+type  ListStreamOptions
 value MANIFEST_FORMAT
 type  Manifest
 type  Operator
@@ -65,6 +66,10 @@ type  StateReadResult
 type  StateTrace
 type  StateTraceOptions
 type  StateView
+type  StreamEnd
+type  StreamEndReason
+type  StreamResumeOptions
+type  StreamedRow
 type  SubscriptionManifest
 type  SystemEvent
 type  Tags

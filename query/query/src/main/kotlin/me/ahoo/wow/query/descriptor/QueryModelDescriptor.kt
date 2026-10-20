@@ -74,7 +74,18 @@ data class RecordDescriptor(
     val rootOperators: List<FilterOperator>,
     /** Model-wide full-text search, or `null` when the model offers none. */
     val search: SearchDescriptor?,
+    /** How a `list` streamed as server-sent events behaves (decision D253). */
+    val stream: StreamDescriptor,
 )
+
+/**
+ * A streamed `list` (decision D253). When [resumable], the storage pages by keyset: a list whose sort orders a cursor
+ * (every sort field's [FieldSortDescriptor.cursor]) streams with each record's position as its event `id`, resumable
+ * with `Last-Event-ID`; any other list, and every list when not [resumable], streams without positions, and its `end`
+ * event, the hold time's included, says `"resumable": false`.
+ */
+@InternalWowApi
+data class StreamDescriptor(val resumable: Boolean)
 
 /**
  * Full-text search in one scope. For the record, [modes] are those of a model-wide `SEARCH` (without fields) and

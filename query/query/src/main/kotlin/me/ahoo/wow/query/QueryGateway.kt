@@ -21,6 +21,7 @@ import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.AggregationQuery
 import me.ahoo.wow.api.query.CountResult
 import me.ahoo.wow.api.query.CursorPage
+import me.ahoo.wow.api.query.CursorQuery
 import me.ahoo.wow.api.query.FilterExpression
 import me.ahoo.wow.api.query.ICountQuery
 import me.ahoo.wow.api.query.ICursorQuery
@@ -36,6 +37,7 @@ import me.ahoo.wow.query.filter.QueryFilter
 import me.ahoo.wow.query.filter.QueryType
 import me.ahoo.wow.query.mask.SchemaMasker
 import me.ahoo.wow.query.schema.QueryModelSchemaProvider
+import me.ahoo.wow.query.schema.QueryViolation
 import me.ahoo.wow.query.schema.describe
 import me.ahoo.wow.query.schema.withConstraints
 import me.ahoo.wow.spi.observation.Observation
@@ -59,6 +61,31 @@ interface QueryGateway {
 
     /** The records [query] matches, streamed. */
     fun list(query: IListQuery, caller: QueryCaller): Flow<ObjectNode>
+
+    /**
+     * Whether [query] streams as a resumable stream ([stream], decision D253): its model's storage pages by keyset and
+     * its sort, with the model's unique key appended, orders a cursor. A list that does not is streamed by [list].
+     */
+    suspend fun resumes(query: IListQuery): Boolean = false
+
+    /**
+     * The records [query] matches as a resumable stream (decision D253): keyset chunks of [chunkSize] records read one
+     * after the other, each record with the cursor token of its position, from strictly after the position [after]
+     * names when given. [after] is a token of this model and effective sort (a stream's or a `cursor` query's); any
+     * other is `wow.query.invalid`. The query is admitted like a `cursor` query, so a stream resumed with the same
+     * query from another node or after a restart reads on from the same place, under its caller's scope again; at most
+     * [query]'s limit records are read (`0`: all of them), and its budget bounds neither the limit nor the chunks.
+     * Each chunk runs within the query's timeout and under one bulkhead permit, given back before its records are
+     * emitted. Chunks are not one snapshot: see [chunks]. Only for a query [resumes].
+     */
+    fun stream(
+        query: IListQuery,
+        caller: QueryCaller,
+        after: String? = null,
+        chunkSize: Int = DEFAULT_STREAM_CHUNK_SIZE,
+    ): Flow<PositionedRecord> = flow {
+        throw QueryViolation.StorageUnsupported("resumable streams").rejection()
+    }
 
     /** One page of the records [query] matches, with its total as [IPagedQuery.total] asks (decision D150). */
     suspend fun paged(query: IPagedQuery, caller: QueryCaller): PagedList<ObjectNode>
@@ -89,6 +116,11 @@ interface QueryGateway {
      * admits every record.
      */
     suspend fun admitRecord(selection: FilterExpression, record: ObjectNode, caller: QueryCaller): ObjectNode? = record
+
+    companion object {
+        /** The records a [stream] reads per chunk by default (decision D253). */
+        const val DEFAULT_STREAM_CHUNK_SIZE: Int = 500
+    }
 }
 
 /**
@@ -128,6 +160,21 @@ class DefaultQueryGateway(
 
     override fun list(query: IListQuery, caller: QueryCaller): Flow<ObjectNode> =
         stream(QueryOperation.LIST, query, caller) { admitted -> backend.list(admitted).map(admitted.reader()) }
+
+    override suspend fun resumes(query: IListQuery): Boolean = schemaProvider.schema().streamsByKeyset(query.sort)
+
+    override fun stream(
+        query: IListQuery,
+        caller: QueryCaller,
+        after: String?,
+        chunkSize: Int,
+    ): Flow<PositionedRecord> {
+        val chunks = CursorQuery(query.filter, query.projection, query.sort, chunkSize, after)
+        return stream(QueryOperation.STREAM, chunks, caller) { admitted ->
+            val reader = admitted.reader()
+            backend.chunks(admitted, query.limit).map { PositionedRecord(reader(it.record), it.position) }
+        }
+    }
 
     override suspend fun paged(query: IPagedQuery, caller: QueryCaller): PagedList<ObjectNode> =
         run(QueryOperation.PAGED, query, caller, rows = { it.list.size.toLong() }) { admitted, observation ->
@@ -243,12 +290,12 @@ class DefaultQueryGateway(
 
     /** Runs one streaming query: admitted when collected, executed, and its outcome observed and audited. */
     @Suppress("TooGenericExceptionCaught") // Every failure is observed, then propagates.
-    private fun <Q : RewritableFilter<Q>> stream(
+    private fun <Q : RewritableFilter<Q>, T> stream(
         operation: QueryOperation<Q>,
         query: Q,
         caller: QueryCaller,
-        execute: (AdmittedQuery<Q>) -> Flow<ObjectNode>,
-    ): Flow<ObjectNode> = flow {
+        execute: (AdmittedQuery<Q>) -> Flow<T>,
+    ): Flow<T> = flow {
         // Its rows are emitted to the collector, so the observation times the stream without running it in its context.
         val observed = observer.started(aggregateType, operation.queryType)
         val trail = trail(operation.queryType, query, caller)
