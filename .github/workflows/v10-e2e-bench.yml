@@ -298,6 +298,11 @@ jobs:
           HARNESS: ${{ steps.harness.outputs.harness }}
         run: |
           dist=$RUNNER_TEMP/dist
+          # One artifact alone (the head's, when no other build runs) downloads without a directory of its own.
+          if [ -f "$dist/server.tgz" ]; then
+            mkdir -p "$dist/e2e-bench-dist-head"
+            mv "$dist"/*.tgz "$dist/e2e-bench-dist-head/"
+          fi
           tar -xzf "$dist/e2e-bench-dist-head/server.tgz" -C repo
           if [ -f "$dist/e2e-bench-dist-9x/server.tgz" ]; then tar -xzf "$dist/e2e-bench-dist-9x/server.tgz" -C repo; fi
           if [ -f "$dist/e2e-bench-dist-base/server.tgz" ]; then
