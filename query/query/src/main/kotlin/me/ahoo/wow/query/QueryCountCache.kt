@@ -38,7 +38,9 @@ fun interface SnapshotWriteCheckpoint {
  * The bounds of a [QueryCountCache]: at most [maxEntries] counts, the least recently used evicted first, each served
  * for at most [ttl] after it was counted, however long its checkpoint holds. The [ttl] bounds what the checkpoint
  * cannot see: a snapshot written but not yet checkpointed (on another node, up to the checkpoint interval), or
- * written outside the snapshot subscription.
+ * written outside the snapshot subscription. [pagedTotals] lets it serve the totals of paged queries too, off by
+ * default (review R4-Q, Q-12): a total served from this node's cache while another node's write is already in the
+ * page's rows would not agree with them, so by default a total is counted with its page.
  *
  * Fields may be added (decision D216): Wow builds it from the host's configuration, so the constructor is internal
  * to Wow.
@@ -46,6 +48,7 @@ fun interface SnapshotWriteCheckpoint {
 class QueryCountCacheOptions @InternalWowApi constructor(
     val maxEntries: Int = DEFAULT_MAX_ENTRIES,
     val ttl: Duration = DEFAULT_TTL,
+    val pagedTotals: Boolean = false,
 ) {
     init {
         require(maxEntries > 0) { "maxEntries must be positive." }
@@ -57,9 +60,9 @@ class QueryCountCacheOptions @InternalWowApi constructor(
 
     override fun hashCode(): Int = valueFields().hashCode()
 
-    override fun toString(): String = "QueryCountCacheOptions(maxEntries=$maxEntries, ttl=$ttl)"
+    override fun toString(): String = "QueryCountCacheOptions(maxEntries=$maxEntries, ttl=$ttl, pagedTotals=$pagedTotals)"
 
-    private fun valueFields(): List<Any?> = listOf(maxEntries, ttl)
+    private fun valueFields(): List<Any?> = listOf(maxEntries, ttl, pagedTotals)
 
     companion object {
         const val DEFAULT_MAX_ENTRIES: Int = 10_000
@@ -70,7 +73,9 @@ class QueryCountCacheOptions @InternalWowApi constructor(
 
 /**
  * The count cache of snapshot queries (decision D152, work package 6.2d): the counts of [count][QueryGateway.count]
- * queries and the totals of [paged][QueryGateway.paged] ones, shared by the gateways of a node.
+ * queries, and the totals of [paged][QueryGateway.paged] ones when [QueryCountCacheOptions.pagedTotals] says so,
+ * shared by the gateways of a node. A cached count may lag the rows by up to [QueryCountCacheOptions.ttl] after
+ * another node's write.
  *
  * - **Key**: the aggregate type, the admitted filter (the query as admission rewrote it, with every value and the
  *   scope, tenant and ABAC conditions the policies appended: the full query fingerprint, not its value-free shape)

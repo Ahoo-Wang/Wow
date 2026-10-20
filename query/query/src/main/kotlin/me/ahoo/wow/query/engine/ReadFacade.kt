@@ -16,6 +16,7 @@ package me.ahoo.wow.query.engine
 import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
+import me.ahoo.wow.api.read.MinVersionNotReachedException
 import me.ahoo.wow.query.QueryAuditTrail
 import me.ahoo.wow.query.QueryCaller
 import me.ahoo.wow.query.QueryGateway
@@ -37,6 +38,20 @@ import tools.jackson.databind.JsonNode
 fun interface CommittedStates {
     /** [ref]'s latest committed state, or null when it has none. */
     suspend fun committed(ref: AggregateRef): CommittedState?
+
+    /**
+     * [ref]'s latest committed state at version [minVersion] or later (review R4-Q, Q-13); by default the latest one
+     * as it is, which fails when it is below [minVersion]. The runtime's catches a lagging snapshot up and waits.
+     *
+     * @throws MinVersionNotReachedException when it stays below [minVersion].
+     */
+    suspend fun committed(ref: AggregateRef, minVersion: Int): CommittedState? {
+        val state = committed(ref)
+        if (state == null || state.version < minVersion) {
+            throw MinVersionNotReachedException(ref, minVersion, state?.version ?: 0)
+        }
+        return state
+    }
 
     @InternalWowApi
     companion object {

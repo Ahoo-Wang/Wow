@@ -42,6 +42,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.http.HttpHeaders
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.time.Duration.Companion.ZERO
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -118,6 +119,35 @@ class StatePointReadRoutesTest {
         val (refused, none) = node.reading { get("/shop/cart/c-1/state?version=5000", user = "bob") }
         refused.assertNotFound()
         none.assert().isZero()
+    }
+
+    @Test
+    fun `a minimum version reads the snapshot caught up with the log, and one not reached is 409 with the version`() {
+        val node = HttpNode(minVersionWait = 50.milliseconds)
+        node.history(3)
+        node.snapshot(2)
+        node.get("/shop/cart/c-1/state").body!!["version"].asInt().assert().isEqualTo(2)
+        // Read your writes: the lagging snapshot is caught up with the log.
+        val caughtUp = node.get("/shop/cart/c-1/state?minVersion=3")
+        caughtUp.status.assert().isEqualTo(200)
+        caughtUp.body!!["version"].asInt().assert().isEqualTo(3)
+        caughtUp.body!!["state"]["items"].asInt().assert().isEqualTo(3)
+        node.get("/shop/cart/c-1/state?minVersion=2").body!!["version"].asInt().assert().isEqualTo(2)
+        // Not committed within the wait: 409, its current version, and a retry later.
+        val behind = node.get("/shop/cart/c-1/state?minVersion=4")
+        behind.status.assert().isEqualTo(409)
+        behind.body!!["code"].asString().assert().isEqualTo(FrameworkErrors.QUERY_MIN_VERSION_NOT_REACHED)
+        behind.body!!["version"].asInt().assert().isEqualTo(3)
+        behind.headers.getFirst(HttpHeaders.RETRY_AFTER).assert().isEqualTo("1")
+        // A caller who may not see it, and an aggregate with no commit, are not found as ever (Q-5).
+        node.get("/shop/cart/c-1/state?minVersion=4", user = "bob").assertNotFound()
+        node.get("/shop/cart/none/state?minVersion=1").assertNotFound()
+        // It reads the latest state: not with a version or a time, and from 1.
+        node.get("/shop/cart/c-1/state?minVersion=3&version=1")
+            .assertInvalid(QueryErrorCodes.INVALID_REQUEST, "minVersion")
+        node.get("/shop/cart/c-1/state?minVersion=3&at=1970-01-01T00:00:02Z")
+            .assertInvalid(QueryErrorCodes.INVALID_REQUEST, "minVersion")
+        node.get("/shop/cart/c-1/state?minVersion=0").status.assert().isEqualTo(400)
     }
 
     @Test

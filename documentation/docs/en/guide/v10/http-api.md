@@ -144,6 +144,7 @@ A `CommandResult` holds:
 | `GET /<context>/<aggregate>/{id}/state` | The latest state, with `ETag: "<version>"`; 304 for a matching `If-None-Match` |
 | `GET …/state?version=n` | The state at version `n` |
 | `GET …/state?at=<ISO-8601 instant>` | The state after the last commit at or before that instant (write `+` as `%2B`) |
+| `GET …/state?minVersion=n` | The latest state at version `n` or later: read your writes, `n` the `version` of a command's result. A lagging snapshot is caught up with the log; a version not committed within `wow.query.state.min-version-wait` (2s) is 409 `wow.query.min-version-not-reached`, whose `version` is the current one, with `Retry-After` |
 | `GET …/state/trace?from=&to=&limit=` | The commits from `from` (1) to `to` (the last), at most `limit`, each with its events and the state after it |
 
 A state outside the caller's scope is 403 `wow.aggregate.forbidden`; a missing one 404 `wow.aggregate.not-found`. The caller's owner is not checked for an aggregate of its tenant (`Ownership.TENANT`). A deleted aggregate's state is read as any other, with `deleted` set.

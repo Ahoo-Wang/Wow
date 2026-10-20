@@ -43,6 +43,7 @@ import me.ahoo.wow.api.query.SingleQuery
 import me.ahoo.wow.api.read.AggregateState
 import me.ahoo.wow.api.read.EventQueries
 import me.ahoo.wow.api.read.EventStream
+import me.ahoo.wow.api.read.MinVersionNotReachedException
 import me.ahoo.wow.api.read.Positioned
 import me.ahoo.wow.api.read.Queries
 import me.ahoo.wow.api.read.QueryApi
@@ -251,16 +252,31 @@ class HttpQueryApi internal constructor(
             return read(ref, ref.tenantId)
         }
 
-        /** The latest state of [ref], null when there is none, the caller may not see it, or it is in another tenant. */
-        private suspend fun read(ref: AggregateRef, tenantId: String?): AggregateState<S>? {
-            val path = "/${type.context}/${type.name}/${HttpTransport.encode(ref.id)}/state"
+        override suspend fun state(id: String, minVersion: Int): AggregateState<S>? =
+            read(type.ref(caller.tenantId, id), null, minVersion)
+
+        override suspend fun state(ref: AggregateRef, minVersion: Int): AggregateState<S>? {
+            require(ref.type == type) { "$ref is not an aggregate of $type." }
+            return read(ref, ref.tenantId, minVersion)
+        }
+
+        /**
+         * The latest state of [ref], at [minVersion] or later when given: null when there is none, the caller may not
+         * see it, or it is in another tenant; a peer's 409 `wow.query.min-version-not-reached` is a
+         * [MinVersionNotReachedException] with the version it names.
+         */
+        private suspend fun read(ref: AggregateRef, tenantId: String?, minVersion: Int? = null): AggregateState<S>? {
+            minVersion?.let { require(it >= 1) { "A committed state has a version from 1." } }
+            val query = minVersion?.let { "?$MIN_VERSION=$it" }.orEmpty()
+            val path = "/${type.context}/${type.name}/${HttpTransport.encode(ref.id)}/state$query"
             val request = PeerRequest(type.context, path, caller, rootOf(caller))
             val view = when (val answer = transport.exchange(request, PeerProblem::retriesQuery)) {
                 is Answer.Ok -> tree(answer.value)
-                is Answer.Problem -> if (answer.problem.status == NOT_FOUND) {
-                    return null
-                } else {
-                    throw answer.problem.exception("The state of $ref")
+                is Answer.Problem -> when {
+                    answer.problem.status == NOT_FOUND -> return null
+                    minVersion != null && answer.problem.code == MinVersionNotReachedException.CODE ->
+                        throw MinVersionNotReachedException(ref, minVersion, answer.problem.version ?: 0)
+                    else -> throw answer.problem.exception("The state of $ref")
                 }
             }
             val read = ClientJson.mapper.treeToValue(view.get(REF), AggregateRef::class.java)
@@ -327,6 +343,7 @@ class HttpQueryApi internal constructor(
         private const val NEXT_CURSOR = "nextCursor"
         private const val REF = "ref"
         private const val VERSION = "version"
+        private const val MIN_VERSION = "minVersion"
         private const val SCOPE = "scope"
         private const val DELETED = "deleted"
         private const val TAGS = "tags"

@@ -26,7 +26,7 @@ flowchart LR
 |---|---|---|
 | [`MemoryViewStore`](../../reference/typescript/wow-view-engine/store.md#api-MemoryViewStore) | 测试、演示、只查询不保存的页面 | 刷新即忘 |
 | `new MemoryViewStore({ snapshot: localStorageSnapshot(key) })` | 开发期、单人使用的工具 | 一个浏览器里的视图；另一个标签页的写入会被合并，或成为 `CONFLICT` |
-| `WowViewStore`（`@ahoo-wang/wow-view-store`） | 其余所有情况：个人视图与共享视图由 Wow 服务保管 | 服务引入 `wow-view-store-starter`，或在 CoSec 网关后面运行独立的 `wow-view-store-server`（[视图存储服务端](../extensions/view-store.md)） |
+| `WowViewStore`（`@ahoo-wang/wow-view-store`） | 其余所有情况：个人视图与共享视图由 Wow 服务保管 | 服务引入 `wow-view-store-starter`，或在 CoSec 网关后面运行独立的 `wow-view-store-server`（[视图存储服务端](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md)） |
 | 自己实现 `ViewStore` | 视图必须存在别的后端 | 只在后端不是 Wow 时才这样做（[自己写一个 ViewStore](#自己写一个-viewstore)） |
 
 无论选哪一种，端口都守着两条规则，引擎的冲突处理与重试都建立在它们上面（端口的签名见 [wow-view-engine 参考](../../reference/typescript/wow-view-engine/#persistence)）：
@@ -101,7 +101,7 @@ export const devStore = new MemoryViewStore({
 
 ## `WowViewStore`：视图存在 Wow 服务上
 
-Wow 应用把视图存在 Wow 的视图存储上：两个 Wow 聚合（视图与视图偏好），由引入 `wow-view-store-starter` 的 Wow 服务提供，或由独立的 `wow-view-store-server` 提供。前端用 `@ahoo-wang/wow-view-store` 的 `WowViewStore` 接它，不必为 Wow 后端自己写 store。服务端怎样部署、配置与加固见[视图存储服务端](../extensions/view-store.md)。
+Wow 应用把视图存在 Wow 的视图存储上：两个 Wow 聚合（视图与视图偏好），由引入 `wow-view-store-starter` 的 Wow 服务提供，或由独立的 `wow-view-store-server` 提供。前端用 `@ahoo-wang/wow-view-store` 的 `WowViewStore` 接它，不必为 Wow 后端自己写 store。服务端怎样部署、配置与加固见[视图存储服务端](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md)。
 
 ### 接上
 
@@ -172,7 +172,7 @@ export const store = new WowViewStore({ fetcher, permissions });
 
 ### 权限：只管按钮，网关来决定
 
-`permissions` 决定哪些按钮可用，从不决定一次写入能不能成：服务端相信它的路径，谁能用哪条路径由 CoSec 网关决定（[安全模型](../extensions/view-store.md#安全模型)）。所以宿主按**网关检查的同一个角色**给出它们，否则按钮亮着、写入却被网关拒绝，或者反过来。
+`permissions` 决定哪些按钮可用，从不决定一次写入能不能成：服务端相信它的路径，谁能用哪条路径由 CoSec 网关决定（[安全模型](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md)）。所以宿主按**网关检查的同一个角色**给出它们，否则按钮亮着、写入却被网关拒绝，或者反过来。
 
 | 成员 | 管的按钮 | 不写时 |
 |---|---|---|
@@ -340,6 +340,6 @@ describeViewStoreConformance({
 
 | 接下来 | 去读 |
 |---|---|
-| 部署、配置并加固视图存储服务端 | [视图存储服务端](../extensions/view-store.md) |
+| 部署、配置并加固视图存储服务端 | [视图存储服务端](https://github.com/Ahoo-Wang/Wow/blob/v10/deploy/v10/view-store/README.md) |
 | `WowViewStore` 的导出与合同 | [wow-view-store 参考](../../reference/typescript/wow-view-store/) |
 | `ViewStore` 端口的签名 | [wow-view-engine 参考](../../reference/typescript/wow-view-engine/#persistence) |

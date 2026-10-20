@@ -53,7 +53,7 @@ Choose the test layer that covers the affected behavior:
 | `src/test` | `<module>:test` | `allLocalTest`, `:check` | No containers |
 | `src/integrationTest` | `<module>:integrationTest` | `integrationTest` | Docker/Testcontainers |
 
-`check` includes `test`, but does not run `integrationTest`. For storage or broker changes, run the affected module's integration tests explicitly. Use only layers registered for that module in `build.gradle.kts`; see [test runtime guidance](documentation/docs/zh/guide/test-runtime.md) for module coverage and setup.
+`check` includes `test`, but does not run `integrationTest`. For storage or broker changes, run the affected module's integration tests explicitly. Use only layers registered for that module in `build.gradle.kts`.
 
 ```bash
 ./gradlew :kernel:test
@@ -142,7 +142,7 @@ The project version is the `version` property in `gradle.properties`. Maven and 
 A release is prepared in one pull request (`chore(release): prepare <version>`):
 
 1. `pnpm set-version <version>` writes `gradle.properties` and the version of every `typescript/*/package.json`, `platform/ops/console/package.json` and `documentation/package.json`. It then lists the tracked files that still mention the old version.
-2. Update the ones that track the release by hand: the version tables in `README.md` and `README.zh-CN.md`, `documentation/docs/{en,zh}/guide/existing-project.md` and `getting-started.md`, and `wow-openapi/src/test/resources/openapi/example-domain-openapi.snapshot.json`. A pre-release (`x.y.z-rc.n`) is published to npm only, so its PR updates the snapshot but leaves the README tables and those pages on the last stable version; they move with the stable release.
+2. Update the ones that track the release by hand: the version tables in `README.md` and `README.zh-CN.md`, `documentation/docs/{en,zh}/guide/v10/index.md` and `quickstart.md`, and `wow-openapi/src/test/resources/openapi/example-domain-openapi.snapshot.json`. A pre-release (`x.y.z-rc.n`) is published to npm only, so its PR updates the snapshot but leaves the README tables and those pages on the last stable version; they move with the stable release.
 3. `pnpm check:versions` confirms every `package.json` matches; the `quality` job of `typescript.yml` runs the same check.
 
 Breaking changes, Kotlin or TypeScript, ship only in an `x.Y.0` release. A change breaks when it changes public API (Kotlin, or a published npm package), REST behaviour, configuration, storage or wire formats; mark it with `!` in the conventional commit, or tick the PR template's **Breaking** box (it labels the PR `breaking-change`), and give the description a `## Breaking` section saying who is affected and how to migrate. A `## Behaviour changes` section is for user-visible changes that are not breaking; it adds no label. Release admission enforces this, and requires the x.Y.0 release notes to name each such PR. V10 keeps no compatibility code (decision D1): a replaced API goes in the same release instead of being deprecated, and `:architecture` rejects `@Deprecated` declarations and `compat(...)` markers.
