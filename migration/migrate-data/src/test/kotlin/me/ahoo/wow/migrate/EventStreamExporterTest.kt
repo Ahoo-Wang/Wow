@@ -78,6 +78,8 @@ class EventStreamExporterTest {
         scan.missing.assert().isEqualTo(3)
         scan.streams.assert().isEqualTo(mapOf(cartType to 6L, orderType to 5L))
         scan.render().assert().contains("example: 11 streams up to the heads, 3 not in 9.x")
+            .contains("VERDICT example: roll back by export: 3 streams go back to 9.x")
+        scan.closedAt.assert().isNull()
 
         val progress = exporter().export(scan)
         progress.exported.assert().isEqualTo(3)
@@ -134,6 +136,12 @@ class EventStreamExporterTest {
             mapOf("the V10 event example.order.OrderCreated@2 of example.order has no 9.x event in the map" to 1L),
         )
         scan.render().assert().contains("REFUSED the V10 event example.order.OrderCreated@2")
+            .contains("(1 streams, the first committed at ${java.time.Instant.ofEpochMilli(lastOrder.commitTime)})")
+        scan.closedAt.assert().isEqualTo(lastOrder.commitTime)
+        scan.verdict.assert().isEqualTo(
+            "VERDICT example: no rollback by export: the window closed at " +
+                "${java.time.Instant.ofEpochMilli(lastOrder.commitTime)}, when V10 first committed a type 9.x cannot read",
+        )
         assertThrows<IllegalStateException> { exporter().export(scan) }
         target.written.assert().isEmpty()
     }
@@ -149,6 +157,7 @@ class EventStreamExporterTest {
         val scan = exporter().scan(NineXExample.CONTEXT)
         scan.conflicts.single().assert().contains("v5 is command v10-receive in V10 and command 9x-command")
         scan.render().assert().contains("CONFLICT")
+        scan.verdict.assert().isEqualTo("VERDICT example: no rollback by export: 9.x was written after the cut-over")
         scan.passed.assert().isFalse()
     }
 
@@ -187,6 +196,12 @@ class EventStreamExporterTest {
         val exporter = EventStreamExporter(NineXExample.plan, { log }, racing, fresh, ExportOptions())
         assertThrows<MigrationException> { exporter.export(exporter.scan(NineXExample.CONTEXT)) }
             .message.assert().contains("9.x was written since the scan")
+    }
+
+    @Test
+    fun `a log V10 has not written to since the import should be rolled back by switching back`(): Unit = runTest {
+        exporter().scan(NineXExample.CONTEXT).verdict.assert()
+            .isEqualTo("VERDICT example: roll back by switching back: 9.x holds every stream V10 holds")
     }
 
     @Test
