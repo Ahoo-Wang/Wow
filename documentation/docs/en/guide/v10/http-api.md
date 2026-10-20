@@ -243,3 +243,5 @@ The framework's codes, as the Manifest lists them (`FrameworkErrors`):
 | `wow.query.timeout` | 503 | The query ran longer than its budget allows |
 
 `GET /wow/manifest` lists them under `errors`, and each context's own codes under the context.
+
+The application's own routes, served beside these, answer what fails on them the same way (`wow.http.global-errors`, on by default): a `CommandRejectedException` or `WowProblemException` from a `CommandClient` as its code, status and result; a store that is unavailable as `wow.storage.unavailable` with `Retry-After`; an HTTP status (no route, a method or media type not served) as a problem of that status alone (`about:blank`); anything else as a 500 that says nothing of its cause, which is logged. Turned off, those errors are Spring's.

@@ -243,3 +243,5 @@ curl -X POST localhost:8080/example/order/events/query \
 | `wow.query.timeout` | 503 | 查询超出了预算允许的时间 |
 
 `GET /wow/manifest` 在 `errors` 下列出它们，并在每个上下文下列出该上下文自己的错误码。
+
+与这些路由并列的应用自有路由，出错时以同样的方式应答（`wow.http.global-errors`，默认开启）：来自 `CommandClient` 的 `CommandRejectedException` 或 `WowProblemException` 按其错误码、状态码与结果；存储不可用为 `wow.storage.unavailable` 并带 `Retry-After`；HTTP 状态（无此路由、不支持的方法或媒体类型）为只有该状态的问题详情（`about:blank`）；其他一律为不透露原因的 500，原因记入日志。关闭后这些错误交给 Spring 处理。
