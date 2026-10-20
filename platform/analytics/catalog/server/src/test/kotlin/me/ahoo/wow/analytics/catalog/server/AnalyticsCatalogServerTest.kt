@@ -27,6 +27,7 @@ import me.ahoo.wow.analytics.catalog.testing.MemoryWarehouse
 import me.ahoo.wow.analytics.catalog.testing.MemoryWarehouseConfiguration
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.query.dataset.QueryDatasets
@@ -156,6 +157,7 @@ class AnalyticsCatalogServerTest {
     }
 
     @Test
+    @OptIn(InternalWowApi::class)
     fun `an editor should draft a dataset over a reviewed source, its definition checked against the catalog`() {
         warehouse.put(INVOICES)
         val source = AnalyticsCatalogContext.sourceIdOf("warehouse", MemoryWarehouse.DATABASE, INVOICES.name)

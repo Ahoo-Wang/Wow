@@ -15,6 +15,7 @@ package me.ahoo.wow.query.dataset
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.QueryField
 import me.ahoo.wow.api.query.annotation.SensitivityLevel
 import me.ahoo.wow.query.schema.DeclarationValue
@@ -107,6 +108,7 @@ data class QueryDataset(
 
     companion object {
         /** The dataset [block] declares under [name]. */
+        @InternalWowApi
         @JvmStatic
         fun of(name: AggregateType, block: QueryDatasetBuilder.() -> Unit): QueryDataset =
             QueryDatasetBuilder(name).apply(block).build()
@@ -131,7 +133,7 @@ data class QueryDataset(
 }
 
 /** Declares a [QueryDataset] in code: its profile columns, its fields and their sensitivity. */
-@ExperimentalWowApi
+@InternalWowApi
 class QueryDatasetBuilder(private val name: AggregateType) {
     private var tenant: QueryField? = null
     private var platform: Boolean = false

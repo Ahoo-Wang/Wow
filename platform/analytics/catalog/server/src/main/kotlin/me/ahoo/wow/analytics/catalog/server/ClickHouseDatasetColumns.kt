@@ -11,8 +11,11 @@
  * limitations under the License.
  */
 
+@file:OptIn(InternalWowApi::class)
+
 package me.ahoo.wow.analytics.catalog.server
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.query.schema.QueryFieldDeclarationBuilder
 import me.ahoo.wow.query.schema.QueryValueKind
 import me.ahoo.wow.query.schema.QueryValueType

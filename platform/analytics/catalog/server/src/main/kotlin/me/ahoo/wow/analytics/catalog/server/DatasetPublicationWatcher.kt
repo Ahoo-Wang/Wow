@@ -29,6 +29,7 @@ import me.ahoo.wow.analytics.catalog.api.dataset.DatasetStatus
 import me.ahoo.wow.analytics.catalog.domain.dataset.DatasetState
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.query.dsl.listQuery
 import me.ahoo.wow.api.read.QueryApi
 import me.ahoo.wow.api.read.Snapshot
@@ -198,6 +199,7 @@ class DatasetPublicationWatcher(
         private fun nameOf(state: DatasetState) = AggregateType(state.context, state.name)
 
         /** The dataset a query node serves for [artifact]: its version's view, its scope, its fields' protection. */
+        @OptIn(InternalWowApi::class)
         fun datasetOf(artifact: DatasetArtifact): QueryDataset =
             QueryDataset.of(AggregateType(artifact.context, artifact.name)) {
                 val scope = artifact.scope

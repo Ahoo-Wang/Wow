@@ -40,6 +40,7 @@ class QuerySchemaDeclarationBuilder {
 }
 
 /** One field or nested value: its shape (kind, types, nullability, structure) and semantics (enum, time, text). */
+@InternalWowApi
 class QueryFieldDeclarationBuilder {
     private var kind: DeclarationValue<QueryValueKind> = DeclarationValue.Unset
     private var types: DeclarationValue<Set<QueryValueType>> = DeclarationValue.Unset

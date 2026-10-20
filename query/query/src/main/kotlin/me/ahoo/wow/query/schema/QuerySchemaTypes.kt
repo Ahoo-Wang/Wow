@@ -72,6 +72,7 @@ enum class QueryCapability {
     AGGREGATE_TEMPORAL,
 }
 
+@InternalWowApi
 data class QueryValueType(
     val value: String,
 ) {
@@ -100,4 +101,5 @@ enum class QueryCardinality {
 }
 
 /** Structural value facts shared by schema declarations and metadata. */
+@InternalWowApi
 enum class QueryValueKind { UNKNOWN, NULL, SCALAR, OBJECT, ARRAY, UNION }
