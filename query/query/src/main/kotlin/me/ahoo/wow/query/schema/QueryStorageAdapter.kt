@@ -13,6 +13,7 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.annotation.WowSpi
 
 /**
@@ -21,6 +22,7 @@ import me.ahoo.wow.api.annotation.WowSpi
  * reported facts into a [QueryModelSchema], applying every rule that does not depend on the storage.
  */
 @WowSpi
+@InternalWowApi
 interface QueryStorageAdapter {
     /** The storage's facts about [logicalSchema], from its current native structures. */
     suspend fun facts(logicalSchema: LogicalQuerySchema): QueryStorageFacts
@@ -45,6 +47,7 @@ internal class UnavailableQueryStorageAdapter(val message: String) : QueryStorag
  * mapping options prove a capability is the storage's knowledge; what a logical value must be for a capability to
  * apply at all is the Catalog's ([compile]).
  */
+@InternalWowApi
 class QueryStorageFacts(
     val bindings: Map<QueryPathTemplate, QueryValueBindings>,
     /** The model-wide capabilities the storage proves, such as a full-text search over the whole record. */

@@ -16,6 +16,7 @@ package me.ahoo.wow.client
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toKotlinDuration
 
 /**
  * How often a client sends a request again that a peer answered with a problem a retry may get past (decision D254 ③),
@@ -81,5 +82,10 @@ class RetryPolicy private constructor(
             maxRetryAfter: Duration = DEFAULT.maxRetryAfter,
             backoff: Duration = DEFAULT.backoff,
         ): RetryPolicy = RetryPolicy(maxAttempts, maxRetryAfter, backoff)
+
+        /** A policy of the given bounds with Java types, for Java callers. */
+        @JvmStatic
+        fun of(maxAttempts: Int, maxRetryAfter: java.time.Duration, backoff: java.time.Duration): RetryPolicy =
+            RetryPolicy(maxAttempts, maxRetryAfter.toKotlinDuration(), backoff.toKotlinDuration())
     }
 }

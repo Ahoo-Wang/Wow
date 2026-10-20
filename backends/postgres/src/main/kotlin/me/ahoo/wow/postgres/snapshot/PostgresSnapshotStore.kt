@@ -20,6 +20,7 @@ import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.schedule.ScheduleRule
+import me.ahoo.wow.postgres.EnsuredTables
 import me.ahoo.wow.postgres.PostgresFailures
 import me.ahoo.wow.postgres.PostgresFormat
 import me.ahoo.wow.postgres.autoCommitted
@@ -37,7 +38,6 @@ import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.SQLException
 import java.sql.Types
-import java.util.concurrent.ConcurrentHashMap
 import javax.sql.DataSource
 
 /**
@@ -61,7 +61,7 @@ class PostgresSnapshotStore(
     /** How the store's tables are managed: created when missing by default (review A5-10). */
     private val ddl: StoreDdl = StoreDdl.AUTO,
 ) : SnapshotStore {
-    private val created = ConcurrentHashMap<String, PostgresSnapshotTables>()
+    private val created = EnsuredTables<PostgresSnapshotTables>()
 
     /**
      * Nothing to create up front: each aggregate type's table is created on its first use ([createTable]), since the
@@ -78,20 +78,18 @@ class PostgresSnapshotStore(
     }
 
     /**
-     * The tables of [aggregateName], created when this store has not yet made sure they are. Not `computeIfAbsent`:
-     * it would hold a monitor across the JDBC calls, and virtual threads blocked on a monitor pin their carriers (JDK
-     * 21), so concurrent first uses could take every carrier and deadlock. Concurrent creations are serialized by
-     * [PostgresFormat.creating] instead, and creating twice is harmless.
+     * The tables of [aggregateName], created when this store has not yet made sure they are: once, however many first
+     * uses ask at once ([EnsuredTables]).
      */
-    private fun tables(aggregateName: String): PostgresSnapshotTables = created[aggregateName]
-        ?: PostgresSnapshotTables(context, aggregateName).also { tables ->
+    private fun tables(aggregateName: String): PostgresSnapshotTables = created.get(aggregateName) {
+        PostgresSnapshotTables(context, aggregateName).also { tables ->
             dataSource.autoCommitted { connection ->
                 PostgresFormat.schema(connection, ddl, listOf(tables.base to PostgresSnapshotTables.FORMAT)) {
                     connection.createStatement().use { statement -> tables.ddl().forEach { statement.execute(it) } }
                 }
             }
-            created[aggregateName] = tables
         }
+    }
 
     override suspend fun save(snapshot: SnapshotRecord): Boolean = dispatcher.jdbc {
         require(snapshot.ref.type.context == context) { "${snapshot.ref} is not in context $context." }

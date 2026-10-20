@@ -13,11 +13,14 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.annotation.InternalWowApi
+
 /**
  * A storage-neutral family of native types a logical value may be stored as. A storage adapter maps each family to
  * its own native types (BSON types, Elasticsearch field kinds); which families a logical value needs for a capability
  * is the Catalog's decision ([storageFamilies]).
  */
+@InternalWowApi
 enum class QueryStorageFamily {
     /** Any string representation, analyzed text included. */
     STRING,
@@ -44,6 +47,7 @@ enum class QueryStorageFamily {
  * Where a storage still departs from the strict table of [storageFamilies]. Each rule is a known divergence between
  * storages, kept so that every adapter reproduces today's capabilities exactly; the defaults are the strict table.
  */
+@InternalWowApi
 data class QueryStorageFamilyRules(
     /**
      * Whether a [Temporal.Date] value supports the capabilities that compare operands to it (exact match, literal
@@ -74,6 +78,7 @@ data class QueryStorageFamilyRules(
  * families: they are storage structure, not value types.
  */
 @Suppress("CyclomaticComplexMethod") // One exhaustive table: capability by logical value.
+@InternalWowApi
 fun QueryValueSchema.storageFamilies(
     capability: QueryCapability,
     rules: QueryStorageFamilyRules = QueryStorageFamilyRules.STRICT,

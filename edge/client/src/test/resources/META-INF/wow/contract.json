@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "contexts": [
+    {
+      "name": "post",
+      "aggregates": [
+        {
+          "name": "parcel",
+          "state": { "schema": "#/$defs/me.ahoo.wow.client.java.ParcelState" },
+          "commands": [
+            { "name": "SendParcel", "schema": "#/$defs/me.ahoo.wow.client.java.SendParcel", "creation": "ALLOWED" }
+          ]
+        }
+      ]
+    }
+  ]
+}
