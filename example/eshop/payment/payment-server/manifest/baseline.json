@@ -163,7 +163,7 @@
       "source" : {
         "context" : "eshop-payment",
         "aggregates" : [ "payment" ],
-        "events" : [ ]
+        "events" : [ "PaymentFailed" ]
       },
       "function" : {
         "kind" : "SAGA",
@@ -179,7 +179,7 @@
       "source" : {
         "context" : "eshop-payment",
         "aggregates" : [ "payment" ],
-        "events" : [ ]
+        "events" : [ "PaymentSucceeded" ]
       },
       "function" : {
         "kind" : "SAGA",
@@ -195,7 +195,7 @@
       "source" : {
         "context" : "eshop-payment",
         "aggregates" : [ "payment" ],
-        "events" : [ ]
+        "events" : [ "PaymentRequested" ]
       },
       "function" : {
         "kind" : "SAGA",

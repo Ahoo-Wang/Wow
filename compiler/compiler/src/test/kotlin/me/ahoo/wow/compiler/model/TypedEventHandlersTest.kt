@@ -133,6 +133,7 @@ class TypedEventHandlersTest {
         """.trimIndent(),
     )
 
+    @Suppress("LongMethod") // The fragment, then the bindings called.
     @Test
     fun `typed handlers should read their aggregate's events and be called once per event`(): Unit = runBlocking {
         val (compilation, result) = compileModel("generate", options, model, processors)
@@ -151,7 +152,8 @@ class TypedEventHandlersTest {
         val services = compilation.workingDir.walkTopDown().first {
             it.isFile && it.name == ModelProviderSource.MODEL_PROVIDER
         }
-        val loader = URLClassLoader(arrayOf(services.parentFile.parentFile.parentFile.toURI().toURL()), result.classLoader)
+        val loader =
+            URLClassLoader(arrayOf(services.parentFile.parentFile.parentFile.toURI().toURL()), result.classLoader)
         val bindings = ModelProvider.load(loader).single().processors(Dependencies.NONE).associateBy { it.name }
         val placed = loader.loadClass("sample.OrderPlaced")
         val cancelled = loader.loadClass("sample.OrderCancelled")
@@ -179,7 +181,10 @@ class TypedEventHandlersTest {
         saga.eventType.assert().isEqualTo(placed)
         val derived = saga.invoke(stream, contextOf(FunctionKind.SAGA, saga.name, stream))
         // Two calls, one per OrderPlaced, in order; one context: the commands are the stream's 0th and 1st.
-        derived.map { it.body.toString() }.assert().containsExactly("CancelOrder(reason=mug)", "CancelOrder(reason=hat)")
+        derived.map { it.body.toString() }.assert().containsExactly(
+            "CancelOrder(reason=mug)",
+            "CancelOrder(reason=hat)"
+        )
         derived.map { it.id }.distinct().assert().hasSize(2)
         val again = saga.invoke(stream, contextOf(FunctionKind.SAGA, saga.name, stream))
         again.map { it.id }.assert().isEqualTo(derived.map { it.id })
@@ -241,7 +246,9 @@ class TypedEventHandlersTest {
         result.messages.assert()
             .contains("handler Broken.unknown takes sample.Elsewhere, which is no event of an aggregate of this module")
             .contains("handler Broken.several takes sample.Audited, an event of the aggregates of the states")
-            .contains("handler Broken.wrongState takes sample.OrderPlaced, which is no event of an aggregate of this module whose state is sample.Cart")
+            .contains(
+                "handler Broken.wrongState takes sample.OrderPlaced, which is no event of an aggregate of this module whose state is sample.Cart"
+            )
             .contains("handler Broken.noType takes a StateTypedEvent of no event type")
             .contains("handler Broken.peer takes each sample.OrderPlaced and reads @OnEvent(aggregates)")
     }

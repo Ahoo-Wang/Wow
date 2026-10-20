@@ -20,6 +20,7 @@ import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.subscribe.CommandRejected
 import me.ahoo.wow.api.subscribe.SagaContext
 import me.ahoo.wow.api.subscribe.StateEvent
+import me.ahoo.wow.api.subscribe.StateTypedEvent
 import me.ahoo.wow.example.eshop.ordering.api.order.CancelOrder
 import me.ahoo.wow.example.eshop.ordering.api.order.PayOrder
 import me.ahoo.wow.example.eshop.payment.api.payment.PaymentFailed
@@ -60,18 +61,17 @@ class OrderPaymentSaga {
         }
 
     @OnEvent
-    fun onPaymentSucceeded(event: StateEvent<PaymentState>, context: SagaContext): Command<PayOrder>? =
-        if (event.events.any { it is PaymentSucceeded }) {
-            context.command(event.state.orderId, PayOrder(event.ref.id, event.state.amount))
-        } else {
-            null
-        }
+    fun onPaymentSucceeded(
+        event: StateTypedEvent<PaymentState, PaymentSucceeded>,
+        context: SagaContext,
+    ): Command<PayOrder> = context.command(event.state.orderId, PayOrder(event.ref.id, event.state.amount))
 
     @OnEvent
-    fun onPaymentFailed(event: StateEvent<PaymentState>, context: SagaContext): Command<CancelOrder>? {
-        val failed = event.events.filterIsInstance<PaymentFailed>().firstOrNull() ?: return null
-        return context.command(event.state.orderId, CancelOrder("The payment failed: ${failed.reason}"))
-    }
+    fun onPaymentFailed(
+        event: StateTypedEvent<PaymentState, PaymentFailed>,
+        context: SagaContext
+    ): Command<CancelOrder> =
+        context.command(event.state.orderId, CancelOrder("The payment failed: ${event.event.reason}"))
 
     /** An order that refuses its payment has the payment refunded. */
     @OnRejected

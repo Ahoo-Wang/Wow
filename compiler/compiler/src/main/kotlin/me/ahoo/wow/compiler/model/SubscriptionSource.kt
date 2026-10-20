@@ -99,12 +99,7 @@ internal object SubscriptionSource {
         val nullable = handler.state != null && handler.nullableState
         val state = handler.state?.let { if (nullable) "$it?" else it } ?: "Any"
         val stateType = handler.state?.let { "$it::class.java" } ?: "null"
-        val body = handler.event?.let { eventBody(handler, it, kind) } ?: run {
-            val arguments = if (handler.context) "event, context" else "event"
-            val call = "processor.${handler.function}($arguments)"
-            val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
-            if (kind == SAGA) "$KERNEL.derivedOf($awaited)" else awaited
-        }
+        val body = handler.event?.let { eventBody(handler, it, kind) } ?: streamBody(handler, kind)
         val contextParameter = if (handler.context || handler.event != null) "context" else "_"
         val rejectionArgument = (if (rejections) ", rejections = rejections" else "") +
             if (commits) ", commits = commits" else ""
@@ -116,6 +111,14 @@ internal object SubscriptionSource {
         appendLine("                event: $STATE_EVENT<$state>, $contextParameter ->")
         appendLine("            $body")
         appendLine("        },")
+    }
+
+    /** The body of a handler of the whole stream: its call, a saga's read as the commands it derives. */
+    private fun streamBody(handler: HandlerBinding, kind: String): String {
+        val arguments = if (handler.context) "event, context" else "event"
+        val call = "processor.${handler.function}($arguments)"
+        val awaited = if (handler.reactor) "me.ahoo.wow.reactor.awaitResult($call)" else call
+        return if (kind == SAGA) "$KERNEL.derivedOf($awaited)" else awaited
     }
 
     /**

@@ -93,7 +93,10 @@ class TypedEventsTest {
         val plain = object : SubscriptionContext {
             override val executionId = context.executionId
         }
-        invocationOf<SubscriptionContext>(plain, 2).invocationKey.assert().isEqualTo("Auditor.onPlaced:shop.order/t/o-1@4:2")
+        invocationOf<SubscriptionContext>(
+            plain,
+            2
+        ).invocationKey.assert().isEqualTo("Auditor.onPlaced:shop.order/t/o-1@4:2")
         eachEvent(stream, Long::class.javaObjectType, context) { _, _ -> error("no event is a Long") }.assert()
             .isEmpty()
     }

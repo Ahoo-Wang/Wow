@@ -158,7 +158,7 @@
       "source" : {
         "context" : "eshop-ordering",
         "aggregates" : [ "order" ],
-        "events" : [ ]
+        "events" : [ "OrderAwaitingValidation" ]
       },
       "function" : {
         "kind" : "SAGA",
@@ -174,7 +174,7 @@
       "source" : {
         "context" : "eshop-ordering",
         "aggregates" : [ "order" ],
-        "events" : [ ]
+        "events" : [ "OrderCancelled" ]
       },
       "function" : {
         "kind" : "SAGA",
@@ -190,7 +190,7 @@
       "source" : {
         "context" : "eshop-ordering",
         "aggregates" : [ "order" ],
-        "events" : [ ]
+        "events" : [ "OrderShipped" ]
       },
       "function" : {
         "kind" : "SAGA",
@@ -206,7 +206,7 @@
       "source" : {
         "context" : "eshop-ordering",
         "aggregates" : [ "order" ],
-        "events" : [ ]
+        "events" : [ "OrderSubmitted" ]
       },
       "function" : {
         "kind" : "SAGA",

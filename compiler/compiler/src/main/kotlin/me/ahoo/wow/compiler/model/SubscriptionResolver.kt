@@ -354,27 +354,10 @@ internal object SubscriptionResolver {
         if (problems.size > count) {
             return null
         }
-        if (first!!.qualifiedName() != STATE_EVENT) {
-            val parameter = TypedEventResolver.resolve(where, first, aggregates, events, problems) ?: return null
-            return eventHandler(function, processor, context != null, reactor, parameter).copy(
-                derives = derives,
-                calls = calls.map { it.binaryName() },
-                callSources = calls.map { it.qualifiedName!!.asString() },
-                derived = if (kind == Kind.SAGA) returned?.let { derivedClasses(it, reactor) } else null,
-                retry = retry,
-            )
-        }
-        val stateType = first.arguments.firstOrNull()?.type?.resolve()
-        if (stateType != null && stateType.arguments.isNotEmpty()) {
-            problems += "$where takes a StateEvent of ${stateType.render()}: an aggregate's state takes no type " +
-                "arguments"
-            return null
-        }
-        return HandlerBinding(
+        val handler = HandlerBinding(
             function = name,
             subscription = "$processor.$name",
-            state = stateType?.qualifiedName(),
-            nullableState = stateType == null || stateType.isMarkedNullable,
+            state = null,
             context = context != null,
             suspending = Modifier.SUSPEND in function.modifiers,
             reactor = reactor,
@@ -388,28 +371,30 @@ internal object SubscriptionResolver {
             derived = if (kind == Kind.SAGA) returned?.let { derivedClasses(it, reactor) } else null,
             retry = retry,
         )
+        if (first!!.qualifiedName() != STATE_EVENT) {
+            // Decision D264: a handler of each event of a type, of the aggregate whose events they are.
+            val parameter = TypedEventResolver.resolve(where, first, aggregates, events, problems) ?: return null
+            return handler.copy(state = parameter.state, nullableState = false, event = parameter)
+        }
+        return streamHandler(handler, where, first, problems)
     }
 
-    /** A handler of each event of a type (decision D264), of the aggregate whose state [parameter] names. */
-    private fun eventHandler(
-        function: KSFunctionDeclaration,
-        processor: String,
-        context: Boolean,
-        reactor: Boolean,
-        parameter: EventParameter,
-    ): HandlerBinding {
-        val name = function.simpleName.asString()
-        return HandlerBinding(
-            function = name,
-            subscription = "$processor.$name",
-            state = parameter.state,
-            nullableState = false,
-            context = context,
-            suspending = Modifier.SUSPEND in function.modifiers,
-            reactor = reactor,
-            blocking = function.isHandler(BLOCKING),
-            start = startOf(function),
-            event = parameter,
+    /** [handler] of the whole stream, the `StateEvent<S>` it takes [first]: `S` takes no type arguments. */
+    private fun streamHandler(
+        handler: HandlerBinding,
+        where: String,
+        first: KSType,
+        problems: MutableList<String>,
+    ): HandlerBinding? {
+        val stateType = first.arguments.firstOrNull()?.type?.resolve()
+        if (stateType != null && stateType.arguments.isNotEmpty()) {
+            problems += "$where takes a StateEvent of ${stateType.render()}: an aggregate's state takes no type " +
+                "arguments"
+            return null
+        }
+        return handler.copy(
+            state = stateType?.qualifiedName(),
+            nullableState = stateType == null || stateType.isMarkedNullable,
         )
     }
 
