@@ -19,6 +19,13 @@ package me.ahoo.wow.api.annotation
  * the codes of its module in the context's `errors` of the Manifest fragment, with [status] and [description]. In
  * Java it goes on a `static final String` field (decision D229 G-8).
  *
+ * A code without a dot is a local name (decision D259), such as `"invalid-item"`: declare it in an `object` nested in
+ * its `@AggregateRoot` class (or, in Java, on a field of that class or of a class nested in it). The compiler writes
+ * it into the Manifest as `context.aggregate.code`, the kernel gives a rejection with it that name before the
+ * command's result, receipt or HTTP answer carries it, and the context's api module gets it as a constant of its
+ * generated contract (`<Context>Contract.<Aggregate>.Errors.INVALID_ITEM`) for its peers. A code with a dot is full, as
+ * written: one the context shares among its aggregates (`context.code`), or one declared outside an aggregate.
+ *
  * The compiler reads the code from the property's (or field's) initializer, which must be a string literal. A code may not take
  * the framework's `wow.` prefix, and a module declares each code once. Only the module the compiler processes is
  * read: the codes belong in the domain module, beside the functions that reject with them.

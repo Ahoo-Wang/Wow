@@ -32,21 +32,6 @@ import me.ahoo.wow.example.eshop.catalog.api.product.PublishProduct
 import me.ahoo.wow.example.eshop.catalog.api.product.UpdateProduct
 import java.math.BigDecimal
 
-/** The codes a product rejects a command with. */
-object ProductRejections {
-    @ErrorCode(description = "A product's name is never blank.")
-    const val BLANK_NAME = "eshop-catalog.product.blank-name"
-
-    @ErrorCode(description = "A product's price is more than zero.")
-    const val INVALID_PRICE = "eshop-catalog.product.invalid-price"
-
-    @ErrorCode(description = "A published product has a brand and a category.", status = 409)
-    const val INCOMPLETE = "eshop-catalog.product.incomplete"
-
-    @ErrorCode(description = "Only a published product can be delisted.", status = 409)
-    const val NOT_PUBLISHED = "eshop-catalog.product.not-published"
-}
-
 /**
  * A product of the catalog: a draft until it is published on the storefront, which takes a brand and a category; it
  * can be delisted and published again. Its name, description, brand, category and price change at any time.
@@ -74,7 +59,7 @@ class Product(private val state: ProductState) {
     fun onCommand(command: UpdateProduct): Decision {
         invalid(command.name)?.let { return it }
         if (state.status == ProductStatus.PUBLISHED && (command.brandId == null || command.categoryId == null)) {
-            return Decision.reject(ProductRejections.INCOMPLETE, "A published product keeps its brand and category.")
+            return Decision.reject(Rejections.INCOMPLETE, "A published product keeps its brand and category.")
         }
         val unchanged = command.name == state.name &&
             command.description == state.description &&
@@ -95,7 +80,7 @@ class Product(private val state: ProductState) {
     fun onCommand(command: PublishProduct): Decision = when {
         state.status == ProductStatus.PUBLISHED -> Decision.NoOp
         state.brandId == null || state.categoryId == null ->
-            Decision.reject(ProductRejections.INCOMPLETE, "The product needs a brand and a category.")
+            Decision.reject(Rejections.INCOMPLETE, "The product needs a brand and a category.")
 
         else -> Decision.events(ProductPublished)
     }
@@ -103,17 +88,35 @@ class Product(private val state: ProductState) {
     @OnCommand(produces = [ProductDelisted::class])
     fun onCommand(command: DelistProduct): Decision =
         if (state.status != ProductStatus.PUBLISHED) {
-            Decision.reject(ProductRejections.NOT_PUBLISHED, "The product is ${state.status}.")
+            Decision.reject(Rejections.NOT_PUBLISHED, "The product is ${state.status}.")
         } else {
             Decision.events(ProductDelisted(command.reason))
         }
 
     private fun invalid(name: String): Decision? =
-        if (name.isBlank()) Decision.reject(ProductRejections.BLANK_NAME, "A product needs a name.") else null
+        if (name.isBlank()) Decision.reject(Rejections.BLANK_NAME, "A product needs a name.") else null
 
     private fun invalid(price: BigDecimal): Decision? = if (price.signum() <= 0) {
-        Decision.reject(ProductRejections.INVALID_PRICE, "$price is not more than zero.")
+        Decision.reject(Rejections.INVALID_PRICE, "$price is not more than zero.")
     } else {
         null
+    }
+
+    /**
+     * The codes the aggregate rejects a command with, by their local names: the compiler and the kernel name them
+     * `<context>.product.<code>` (decision D259), as its peers read them from the api's generated contract.
+     */
+    object Rejections {
+        @ErrorCode(description = "A product's name is never blank.")
+        const val BLANK_NAME = "blank-name"
+
+        @ErrorCode(description = "A product's price is more than zero.")
+        const val INVALID_PRICE = "invalid-price"
+
+        @ErrorCode(description = "A published product has a brand and a category.", status = 409)
+        const val INCOMPLETE = "incomplete"
+
+        @ErrorCode(description = "Only a published product can be delisted.", status = 409)
+        const val NOT_PUBLISHED = "not-published"
     }
 }

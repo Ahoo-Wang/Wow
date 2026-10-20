@@ -804,8 +804,10 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Http$OpenApi {
 public final class me/ahoo/wow/spring/boot/WowProperties$Http$Service {
 	public fun <init> ()V
 	public final fun getCommands ()Ljava/util/List;
+	public final fun getReads ()Ljava/util/List;
 	public final fun getTokens ()Ljava/util/List;
 	public final fun setCommands (Ljava/util/List;)V
+	public final fun setReads (Ljava/util/List;)V
 	public final fun setTokens (Ljava/util/List;)V
 }
 

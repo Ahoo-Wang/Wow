@@ -17,6 +17,7 @@ package me.ahoo.wow.query.read
 
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.api.caller.Operator
 import me.ahoo.wow.api.read.CommittedEvent
 import me.ahoo.wow.api.read.EventStream
@@ -30,11 +31,13 @@ import tools.jackson.databind.JsonNode
 import tools.jackson.databind.node.ObjectNode
 
 /** [node] as [type]: the node itself when it is one (an `ObjectNode`, a `JsonNode`), else decoded by `WowJson`. */
-internal fun <T : Any> decode(node: JsonNode, type: Class<T>): T =
+@InternalWowApi
+fun <T : Any> decode(node: JsonNode, type: Class<T>): T =
     if (type.isInstance(node)) type.cast(node) else WowJson.mapper.treeToValue(node, type)
 
 /** This snapshot query record (decision D128, `SnapshotQueryRecords.kt`) of [type], its state decoded as [stateType]. */
-internal fun <S : Any> ObjectNode.toSnapshot(type: AggregateType, stateType: Class<S>): Snapshot<S> = Snapshot.of(
+@InternalWowApi
+fun <S : Any> ObjectNode.toSnapshot(type: AggregateType, stateType: Class<S>): Snapshot<S> = Snapshot.of(
     ref = type.ref(text(SnapshotFields.TENANT_ID), text(SnapshotFields.AGGREGATE_ID)),
     version = present(SnapshotFields.VERSION).asInt(),
     scope = scope(SnapshotFields.OWNER_ID, SnapshotFields.SPACE_ID),
@@ -50,7 +53,8 @@ internal fun <S : Any> ObjectNode.toSnapshot(type: AggregateType, stateType: Cla
  * This events query record (decision D235 ②, `EventQueryGateways.kt`) of [type], each event's body decoded as the
  * class [eventType] gives its name, a `Map` when it gives none.
  */
-internal fun ObjectNode.toEventStream(type: AggregateType, eventType: (String) -> Class<*>?): EventStream =
+@InternalWowApi
+fun ObjectNode.toEventStream(type: AggregateType, eventType: (String) -> Class<*>?): EventStream =
     EventStream.of(
         ref = type.ref(text(EventStreamFields.TENANT_ID), text(EventStreamFields.AGGREGATE_ID)),
         version = present(EventStreamFields.VERSION).asInt(),

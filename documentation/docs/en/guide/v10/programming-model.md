@@ -106,19 +106,24 @@ class CartState(val id: String) {
 
 ### Rejections and error codes
 
-A rejection code is a `const val` of type `String`, top-level or in an `object`, annotated `@ErrorCode`, in the domain module beside the functions that reject with it:
+A rejection code is a `const val` of type `String` annotated `@ErrorCode`, in the domain module beside the functions that reject with it. Write its local name, in an `object` nested in the `@AggregateRoot` class (decision D259):
 
 ```kotlin
-object OrderRejections {
-    @ErrorCode(description = "The order has no item.")
-    const val NO_ITEMS = "example.order.no-items"
+@AggregateRoot
+class Order(private val state: OrderState) {
+    // … command functions: Decision.reject(Rejections.WRONG_STATUS, "The order is ${state.status}.")
 
-    @ErrorCode(description = "The order's status does not allow the command.", status = 409)
-    const val WRONG_STATUS = "example.order.wrong-status"
+    object Rejections {
+        @ErrorCode(description = "The order has no item.")
+        const val NO_ITEMS = "no-items"
+
+        @ErrorCode(description = "The order's status does not allow the command.", status = 409)
+        const val WRONG_STATUS = "wrong-status"
+    }
 }
 ```
 
-The compiler lists the module's codes in the context's `errors` of the Manifest, with their HTTP status (400 to 599, 422 by default) and description. A code may not start with the framework's `wow.`, and a module declares each code once. The kernel's own codes are `wow.command.unhandled`, `wow.aggregate.not-found`, `wow.aggregate.exists`, `wow.aggregate.version-mismatch`, `wow.command.request-id-reused`, `wow.aggregate.deleted` and `wow.aggregate.forbidden` (`KernelRejections`).
+The compiler names a local code after its context and aggregate, `example.order.wrong-status`, and the kernel gives a rejection with it that name, so results, receipts, HTTP answers and the Manifest only carry the full code; the test DSL's `expectRejected` takes either. The api module's generated contract holds the full codes for the peers: `ExampleContract.Order.Errors.WRONG_STATUS`. A code with a dot is full, as written: `example.closed` for one the context's aggregates share. The compiler lists the module's codes in the context's `errors` of the Manifest, with their HTTP status (400 to 599, 422 by default) and description. A code may not start with the framework's `wow.`, and a module declares each code once. The kernel's own codes are `wow.command.unhandled`, `wow.aggregate.not-found`, `wow.aggregate.exists`, `wow.aggregate.version-mismatch`, `wow.command.request-id-reused`, `wow.aggregate.deleted` and `wow.aggregate.forbidden` (`KernelRejections`).
 
 ### Lifecycle commands
 
@@ -233,7 +238,7 @@ A reactor cannot send a command: a processor that sends commands is a saga.
 
 ### Sagas
 
-A saga derives commands from committed events. Its handler returns one `Command`, a list of them, or `null` or an empty list for none; `SagaContext.command(ref, body)` builds each one:
+A saga derives commands from committed events. Its handler returns one `Command`, a list of them, or `null`, an empty list or nothing (`Unit`) for none; `SagaContext.command(ref, body)` builds each one:
 
 ```kotlin
 @Saga
@@ -254,7 +259,7 @@ class CartSaga {
 - The saga's hop is done once its commands are committed in its own context, or, across contexts, once the broker has them.
 - A derived command carries the scope (owner and space) and the operator of the commit it is derived from, and the tenant of the `ref` the saga gives it. An aggregate it creates belongs to the same owner: a basket's checkout creates an order that belongs to the basket's buyer. The target's scope guard checks the scope, so a command to an aggregate of another owner is refused, unless the target belongs to its tenant (`Ownership.TENANT`, a stock, say). A saga may narrow the scope of a command it returns: the shop's `CartSaga` returns `command.copy(scope = command.scope.copy(spaceId = null))`, since a cart has no space while an order may. A compensation (`@OnRejected`) and a scheduled command carry the scope of the command they follow the same way.
 - `context.command(type, body)`, with an `AggregateType` instead of a ref, derives a creating command that leaves the aggregate's id to the target's admission: the target gives it the id of the aggregate its request already created, else a new one, so handling the commit again keeps the first id. `context.ids` draws an id in the saga instead; handling the commit again draws a new one, so use it only for the creating command it names, whose request id keeps the target from creating the aggregate twice.
-- When the handler's return type does not name the commands (a `List<Command<*>>`, say), declare them with `@OnEvent(derives = ["<context>.<aggregate>.<Command>"])`, so a wait can follow the saga's hop into their contexts.
+- When the handler's return type does not name the commands (a `List<Command<*>>`, say), declare their classes with `@OnEvent(derives = [ConfirmPayment::class, FailPayment::class])`, so a wait can follow the saga's hop into their contexts. A sealed type stands for its subclasses, both in `derives` and in a return type `Command<S>`, which then needs no `derives`. A class the service's build finds no context deciding, in the service or in a peer api on its class path, fails the build.
 
 ### Rejections a saga expects: `@OnRejected`
 
@@ -266,7 +271,7 @@ fun onReserveRejected(rejected: CommandRejected<ReserveStock>, context: SagaCont
     context.command(rejected.executionId.ref, CancelOrder("${rejected.ref.id} cannot be reserved: ${rejected.error.message}"))
 ```
 
-`CommandRejected` names the command (`commandId`, `commandType`, `ref`), the `error` (code, message, violations), the `causation` and the `executionId` of the saga's execution that derived it; it does not carry the command's body. The runtime hands each rejection over once. A rejection the saga has no handler for parks the aggregate for the saga's subscription, as a failure would. Return `null` from the handler to accept a rejection without compensating.
+`CommandRejected` names the command (`commandId`, `commandType`, `ref`), the `error` (code, message, violations), the `causation` and the `executionId` of the saga's execution that derived it; it does not carry the command's body. The runtime hands each rejection over once. A rejection the saga has no handler for parks the aggregate for the saga's subscription, as a failure would. A handler that returns nothing (`Unit`, or `null`) accepts the rejection without compensating, and derives no command; an `@OnCommitted` handler may return `Unit` too.
 
 ### Where a subscription starts
 

@@ -67,9 +67,13 @@ class BasketCheckoutSagaTest {
 
     @Test
     fun `an order the ordering context refuses should reach the saga as a rejection`() = sagaSpec(handlers) {
-        answerCalls { rejectedResult(it, "eshop-ordering.order.wrong-status") }
+        answerCalls { rejectedResult(it, EshopOrderingContract.Order.Errors.WRONG_STATUS) }
         whenEvent(event(checkedOut)) {
-            expectError<CallRejectedException> { code.assert().isEqualTo("eshop-ordering.order.wrong-status") }
+            expectError<CallRejectedException> {
+                code.assert().isEqualTo(
+                    EshopOrderingContract.Order.Errors.WRONG_STATUS
+                )
+            }
         }
     }
 

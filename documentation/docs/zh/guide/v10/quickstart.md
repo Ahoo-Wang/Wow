@@ -134,14 +134,6 @@ import me.ahoo.wow.api.annotation.ErrorCode
 import me.ahoo.wow.api.annotation.OnCommand
 import me.ahoo.wow.api.decide.Decision
 
-object AccountRejections {
-    @ErrorCode(description = "An amount is always positive.")
-    const val INVALID_AMOUNT = "bank.account.invalid-amount"
-
-    @ErrorCode(description = "The balance does not cover the withdrawal.", status = 409)
-    const val INSUFFICIENT_BALANCE = "bank.account.insufficient-balance"
-}
-
 class AccountState {
     var owner: String = ""
         private set
@@ -168,7 +160,7 @@ class Account(private val state: AccountState) {
     @OnCommand(produces = [Deposited::class])
     fun onCommand(command: Deposit): Decision =
         if (command.amount <= 0) {
-            Decision.reject(AccountRejections.INVALID_AMOUNT, "${command.amount} is not positive.")
+            Decision.reject(Rejections.INVALID_AMOUNT, "${command.amount} is not positive.")
         } else {
             Decision.events(Deposited(command.amount))
         }
@@ -176,12 +168,21 @@ class Account(private val state: AccountState) {
     @OnCommand(produces = [Withdrawn::class])
     fun onCommand(command: Withdraw): Decision = when {
         command.amount <= 0 ->
-            Decision.reject(AccountRejections.INVALID_AMOUNT, "${command.amount} is not positive.")
+            Decision.reject(Rejections.INVALID_AMOUNT, "${command.amount} is not positive.")
 
         command.amount > state.balance ->
-            Decision.reject(AccountRejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
+            Decision.reject(Rejections.INSUFFICIENT_BALANCE, "The balance is ${state.balance}.")
 
         else -> Decision.events(Withdrawn(command.amount))
+    }
+
+    /** The codes it rejects with, by local name: the Manifest and its answers say `bank.account.invalid-amount`. */
+    object Rejections {
+        @ErrorCode(description = "An amount is always positive.")
+        const val INVALID_AMOUNT = "invalid-amount"
+
+        @ErrorCode(description = "The balance does not cover the withdrawal.", status = 409)
+        const val INSUFFICIENT_BALANCE = "insufficient-balance"
     }
 }
 ```
@@ -224,7 +225,7 @@ class AccountSpec {
     @Test
     fun `a withdrawal the balance does not cover is rejected`() = aggregateSpec(model, id = "alice") {
         given(AccountOpened("Alice"), Deposited(100))
-        whenCommand(Withdraw(150)) { expectRejected(AccountRejections.INSUFFICIENT_BALANCE) }
+        whenCommand(Withdraw(150)) { expectRejected(Account.Rejections.INSUFFICIENT_BALANCE) }
         whenCommand(Withdraw(30)) {
             expectEvents(Withdrawn(30))
             expectState { balance.assert().isEqualTo(70) }
