@@ -22,7 +22,7 @@
  * (`wow.query.memory.enabled`, decision D209). Build it first, from the
  * repository root, with JDK 21:
  *
- *   ./gradlew -Pwow.scope=v10 :view-store-server:installDist
+ *   ./gradlew :view-store-server:installDist
  *
  * It is started with one configured system view, of `SYSTEM_VIEW_DEFINITION`
  * (`v10ViewStoreServer.ts`), as the 9.x servers are in CI.
@@ -49,7 +49,7 @@ const MAIN = 'me.ahoo.wow.viewstore.server.ViewStoreServerKt';
 /** How long the JVM may take to listen. */
 const START_DEADLINE_MS = 2 * 60_000;
 
-const BUILD = './gradlew -Pwow.scope=v10 :view-store-server:installDist';
+const BUILD = './gradlew :view-store-server:installDist';
 
 /** The class path: the distribution's jars. */
 function classPath(): string {
