@@ -59,6 +59,24 @@ function dropped(text: string): Response {
   });
 }
 
+/** A stream the test feeds and fails by hand, in the order it chooses. */
+function controlled() {
+  let feed!: ReadableStreamDefaultController<Uint8Array>;
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      feed = controller;
+    },
+  });
+  return {
+    response: new Response(body, {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+    }),
+    send: (text: string) => feed.enqueue(new TextEncoder().encode(text)),
+    fail: (error: Error) => feed.error(error),
+  };
+}
+
 function busy(retryAfter = '2'): Response {
   return new Response(
     JSON.stringify({
@@ -313,13 +331,40 @@ describe('resumable query streams (decision D253)', () => {
         await new SnapshotQueryClient(PRODUCT, client()).listStream(query),
       ),
     ).rejects.toThrow('cut off');
-    // A stream that drops after records without positions fails.
-    answers(() => dropped('event:row\ndata:{"id":"x"}\n\n'));
-    await expect(
-      readAll(
-        await new SnapshotQueryClient(PRODUCT, client()).listStream(query),
-      ),
-    ).rejects.toThrow('network error');
+  });
+
+  it('fails a stream that drops after records without positions, and one told not to resume', async () => {
+    // The drop is driven explicitly, once the record was read, so no record can be lost to it.
+    for (const options of [{}, { resume: false } as const]) {
+      const body = controlled();
+      const { requests } = answers(() => body.response);
+      const reader = (
+        await new SnapshotQueryClient(PRODUCT, client()).listStream(
+          query,
+          options,
+        )
+      ).getReader();
+      body.send('event:row\ndata:{"id":"x"}\n\n');
+      expect((await reader.read()).value).toEqual({ id: 'x' });
+      const next = reader.read();
+      body.fail(new TypeError('network error'));
+      await expect(next).rejects.toThrow('network error');
+      expect(requests).toHaveLength(1);
+    }
+    // Told not to resume, a drop after a position fails too.
+    const body = controlled();
+    const { requests } = answers(() => body.response);
+    const reader = (
+      await new SnapshotQueryClient(PRODUCT, client()).listStream(query, {
+        resume: false,
+      })
+    ).getReader();
+    body.send(row('p1'));
+    expect((await reader.read()).value).toEqual({ id: 'p1' });
+    const next = reader.read();
+    body.fail(new TypeError('network error'));
+    await expect(next).rejects.toThrow('network error');
+    expect(requests).toHaveLength(1);
   });
 
   it('stops waiting to resume once aborted', async () => {
