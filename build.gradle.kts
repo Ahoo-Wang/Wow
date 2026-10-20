@@ -38,7 +38,7 @@ plugins {
     jacoco
 }
 
-// The projects of the lists below; the 9.x ones left `v10` with the 9.x code (decisions D244, D262).
+// The projects at the given paths, for the lists below.
 fun includedProjects(vararg paths: String): Set<Project> = paths.map { project(it) }.toSet()
 
 val dependenciesProject = project(":wow-dependencies")
@@ -47,8 +47,8 @@ val v10BomProject = project(":bom")
 val bomProjects = setOf(dependenciesProject, v10BomProject)
 
 // The V10 example, the eShop (D158, D159, D204): built and checked with the V10 modules, never published, and named
-// like the 9.x examples, without the `wow-` prefix of a V10 artifact. It is five contexts of an API, a domain and a
-// server each, and its end-to-end tests, :eshop-e2e.
+// like an application's modules, without the `wow-` prefix of a V10 artifact. It is five contexts of an API, a domain
+// and a server each, and its end-to-end tests, :eshop-e2e.
 val eshopProjects = listOf("catalog", "basket", "ordering", "inventory", "payment").flatMap { context ->
     listOf("api", "domain", "server").map { "eshop-$context-$it" }
 } + "eshop-e2e"
@@ -81,7 +81,7 @@ val v10Projects = listOf(
 ).plus(v10ExampleNames).let { names -> includedProjects(*names.map { ":$it" }.toTypedArray()) }
 
 // The V10 modules a 10.x release publishes (06-modules.md §6; R.1 turns their publication on). Their ABI is kept in
-// `api/<module>.api` like a 9.x module's (D88, D147, D216; see `abiValidation` below). :migrate-data (a CLI
+// `api/<module>.api` (D88, D147, D216; see `abiValidation` below). :migrate-data (a CLI
 // application) and :manifest-tools (run in an isolated worker by the same-version Gradle plugin, D83) keep no dump:
 // their contract is not a JVM signature.
 val v10PublishedProjects = includedProjects(
@@ -517,14 +517,6 @@ configure(publishProjects) {
     }
 }
 
-// D90: v10 does not publish the 9.x modules; main does. A 10.0 pre-release from v10 would otherwise publish them as
-// 10.x. Their publications are still built (and signed), and their ABI is still checked below. A 10.x release
-// publishes the V10 modules, the V10 BOM and :wow-dependencies, which every V10 POM imports (R.1).
-configure(publishProjects - v10ReleaseProjects - dependenciesProject) {
-    tasks.withType<PublishToMavenRepository>().configureEach { enabled = false }
-    tasks.withType<PublishToMavenLocal>().configureEach { enabled = false }
-}
-
 // A V10 module's test fixtures (`:manifest`'s, say) are for Wow's own modules and stay unpublished
 // (09-capability-parity.md, "端口 TCK"); the published TCKs are `:tck` and `:query-tck` (review R3.3-2). `java-test-fixtures` would add them to the `java`
 // component, so the release would build and ship a `-test-fixtures` jar.
@@ -543,7 +535,7 @@ configure(v10ReleaseProjects) {
 // build/v10-publication-check/repo, then checks that each library has its jar, sources and javadoc jars, POM and
 // Gradle module metadata, each with its signature; that every POM carries what Maven Central requires; that no
 // published POM depends on a Wow module the release leaves out, or on another version; that the V10 BOM constrains
-// exactly the published libraries; and that nothing else (no 9.x module) was published.
+// exactly the published libraries; and that nothing else was published.
 //
 // A release's deploy jobs (package-deploy.yml) publish again with `-Pwow.publication.prebuilt=true`
 // (settings.gradle.kts): they upload the files the preflight's run of this check built and signed, and leave out every
@@ -751,12 +743,12 @@ tasks.register("v10PublicationCheck") {
     }
 }
 
-// The JVM ABI of every published library is kept in its `api/<module>.api`; `check` runs `checkKotlinAbi`
-// against it, so a 9.x patch cannot change a public signature unnoticed. `./gradlew updateKotlinAbi` rewrites
-// the dumps; AGENTS.md ("Binary Compatibility") says when that is allowed. The published V10 modules joined at the
+// The JVM ABI of every published library but :migrate-data and :manifest-tools (`v10AbiProjects`) is kept in its
+// `api/<module>.api`; `check` and `v10Check` run `checkKotlinAbi` against it, so a public signature cannot change
+// unnoticed. AGENTS.md ("Binary Compatibility") says when a dump may change. The dumps date from the
 // API freeze (D216); `./gradlew -Pwow.scope=v10 updateKotlinAbi` rewrites their dumps, and between the M7 exit and
 // 10.0.0 GA a removed or changed line there takes the `breaking-change` label.
-configure(publishProjects - bomProjects - v10PublishedLibraries + v10AbiProjects) {
+configure(v10AbiProjects) {
     configure<KotlinJvmProjectExtension> {
         @OptIn(ExperimentalAbiValidation::class)
         abiValidation {
