@@ -12,7 +12,7 @@
 #
 
 # The Storybook interaction tests (typescript/storybook) in Firefox and WebKit.
-# Pull requests run them in Chromium only (typescript-storybook.yml); this
+# Pull requests run them in Chromium only (ci.yml); this
 # workflow runs nightly and by hand, never on a pull request, so it is not a
 # merge signal and release admission does not read it. A failure here is a
 # browser-specific defect to triage, not a reason to retry.
@@ -86,7 +86,7 @@ jobs:
           BROWSER: ${{ matrix.browser }}
         run: pnpm --filter wow-storybook exec playwright install --with-deps "$BROWSER"
       # Only the browser project: the node unit tests of the story data do not
-      # depend on the browser and already run in typescript-storybook.yml. The
+      # depend on the browser and already run in ci.yml. The
       # shards split by measured duration, as there (scripts/shard-sequencer.mjs).
       # A longer per-test limit than the 15s of pull requests and local
       # runs (vitest.config.ts): these runners take 3–15× as long as a Mac
