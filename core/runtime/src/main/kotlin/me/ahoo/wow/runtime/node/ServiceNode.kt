@@ -749,11 +749,21 @@ class ServiceNode @InternalWowApi constructor(
      * Registers the application's subscriptions and joins every context's lease group: heartbeats, reconciles, and
      * acquires its share of the partitions, starting their subscriptions. A start that fails stops what it started
      * and throws.
+     *
+     * With [standby] (the dual-run window of a migration's cut-over, design 07 §3, decision D32) the node starts serving
+     * reads only: it registers the subscriptions but joins no lease group, so no subscription handles anything, no
+     * parked entry is retried and no job or schedule runs, and its gateway refuses every command
+     * ([FrameworkCodes.NODE_STANDBY]). [resume] then joins the groups, at the cut-over: a subscription that starts at
+     * the end of its stream starts where the stream ends then, not where it ended when the node booted.
      */
-    suspend fun start(): Unit = lifecycle.withLock {
+    suspend fun start(): Unit = start(standby = false)
+
+    /** Starts the node as [start] does, on standby when [standby] says so (see [start]). */
+    suspend fun start(standby: Boolean): Unit = lifecycle.withLock {
         check(state == State.NEW) { "Node $node is $state; a node starts once." }
         check(hasAddress) { "Node $node has no internal address: bind it before it starts." }
         state = State.STARTING
+        gateway.standby = standby
         try {
             topics?.let { NodeTopics.prepare(node, it, topicRequirements) }
             intakes.keys.forEach { context ->
@@ -772,10 +782,10 @@ class ServiceNode @InternalWowApi constructor(
                     context.logGroups.forEach { it.subscriptions.add(backfill.subscription) }
                 }
                 intakes[context]?.let { context.intake!!.add(it.subscription) }
-                context.ownership.start()
             }
-            topicSubscriptions.values.forEach { it.start() }
-            ledgerPublisher?.start()
+            if (!standby) {
+                join()
+            }
         } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
             // Whatever failed, what started is stopped; the failure is the start's.
             try {
@@ -786,9 +796,76 @@ class ServiceNode @InternalWowApi constructor(
             throw failure
         }
         state = State.RUNNING
+        if (standby) {
+            logger.warn {
+                "Node $node of $service started on standby: it serves reads, refuses commands and handles no " +
+                    "subscription until it is resumed. Contexts ${contexts.keys}."
+            }
+        } else {
+            work()
+            logger.info { "Node $node of $service started: contexts ${contexts.keys}." }
+        }
+    }
+
+    /** Whether the node is on standby: started with `standby` and not [resume]d yet. */
+    @InternalWowApi
+    val standby: Boolean
+        get() = gateway.standby
+
+    /** When and by whom the node was resumed from standby; null while it is on standby or never was. */
+    @InternalWowApi
+    @Volatile
+    var resumption: Resumption? = null
+        private set
+
+    /**
+     * Resumes a node started on standby, at a migration's cut-over: joins every context's lease group and every topic's,
+     * starting the subscriptions there (one that starts at the end of its stream starts where the stream ends now),
+     * the retries of the parked entries, the jobs and the snapshot maintenance, and then admits commands. It is the
+     * operator's act, recorded for the audit: [by] names who resumed it and [reason] why, both logged with the time.
+     * A node not on standby is left as it is: the answer says when it was resumed, if it ever was. A resume that fails
+     * stops the node and throws.
+     */
+    @InternalWowApi
+    suspend fun resume(by: String, reason: String? = null): Resumption = lifecycle.withLock {
+        check(state == State.RUNNING) { "Node $node is $state; only a running node resumes." }
+        if (!standby) {
+            return@withLock resumption ?: Resumption(node, null, by, reason, resumed = false)
+        }
+        try {
+            join()
+        } catch (@Suppress("TooGenericExceptionCaught") failure: Throwable) {
+            logger.error(failure) { "Node $node of $service failed to resume from standby; stopping." }
+            try {
+                shutdown()
+            } catch (@Suppress("TooGenericExceptionCaught") stopping: Exception) {
+                failure.addSuppressed(stopping)
+            }
+            throw failure
+        }
+        work()
+        gateway.standby = false
+        Resumption(node, System.currentTimeMillis(), by, reason, resumed = true).also {
+            resumption = it
+            logger.warn {
+                "Node $node of $service resumed from standby by [$by]${reason?.let { r -> " ($r)" }.orEmpty()} at " +
+                    "${java.time.Instant.ofEpochMilli(checkNotNull(it.at))}: it handles its subscriptions and admits " +
+                    "commands. Contexts ${contexts.keys}."
+            }
+        }
+    }
+
+    /** Joins every context's lease group and every topic's, and starts the ledger's publisher. */
+    private suspend fun join() {
+        contexts.values.forEach { it.ownership.start() }
+        topicSubscriptions.values.forEach { it.start() }
+        ledgerPublisher?.start()
+    }
+
+    /** Starts the jobs and the snapshot maintenance, in the background. */
+    private fun work() {
         startJobs()
         contexts.values.forEach { it.snapshotMaintenance?.start(background) }
-        logger.info { "Node $node of $service started: contexts ${contexts.keys}." }
     }
 
     /** Runs the node's background work: the startup of the SYSTEM jobs; cancelled when the node stops. */
@@ -1343,3 +1420,11 @@ class ServiceNode @InternalWowApi constructor(
         }
     }
 }
+
+/**
+ * The resumption of a node started on standby ([ServiceNode.resume]): the [node], when it was resumed ([at], epoch
+ * milliseconds; null for a node that never was), [by] whom and why ([reason]). [resumed] is false when the node was
+ * not on standby, so the call changed nothing.
+ */
+@InternalWowApi
+data class Resumption(val node: String, val at: Long?, val by: String, val reason: String?, val resumed: Boolean)

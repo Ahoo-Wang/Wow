@@ -122,6 +122,26 @@ kafka-topics --bootstrap-server localhost:9092 --create --topic wow.inventory.st
 
 宿主没有自己的健康端点。公开端口在节点启动完成（后端、内部端口、分区）后才打开，停止时最先关闭，所以探测公开端口能看出节点是否接收流量。内部端口一直开到节点停止完成，所以探测它能看出节点是否存活，排空期间也是。类路径上有 Spring Boot Actuator 时，节点开始停止后 `/actuator/health/readiness` 报告 `REFUSING_TRAFFIC`。
 
+## 迁移切换时的待机
+
+9.x 切换的双跑窗口里，`migrate-data tail` 持续导入 9.x 仍在写入的数据，V10 服务只提供读。为此让它的节点以 `wow.standby: true` 启动：
+
+- 节点为追尾导入的数据提供状态读取与查询。
+- 节点拒绝一切命令，返回 `wow.node.standby`（503），所以切换之前什么也不会写入 V10。
+- 节点不加入任何租约组：不处理订阅，不重试停放的条目，不运行作业或定时任务。从流末尾开始的 Saga 或 Reactor 从恢复时流的末尾开始，所以不会再对导入的 9.x 历史执行一遍。
+
+切换时，9.x 停止、最后一遍 `migrate-data import --restart` 完成之后，在每个节点的内部端口上带集群令牌恢复它。请求体写明由谁恢复，供审计：
+
+```bash
+curl -X POST "http://<node>:9090/wow/node/resume" \
+  -H "Wow-Cluster-Token: $WOW_INTERNAL_TOKEN" -H "Content-Type: application/json" \
+  -d '{"by": "<operator>", "reason": "cut-over <ticket>"}'
+```
+
+节点加入它的租约组，启动订阅、停放条目的重试、作业与快照维护，然后开始接收命令。它返回自己的待机状态：`standby: false`、`resumedAt`、`resumedBy` 与 `reason`，并以 `WARN` 级别记录同样的内容：由谁、为何、何时恢复。
+
+`GET /wow/node/standby`（集群令牌）随时返回该状态。恢复一个不在待机的节点不改变任何东西，只返回它何时被恢复过。要恢复服务的每个节点：留在待机的节点会继续拒绝命令，也不接管分区。
+
 ## Kubernetes
 
 [`deploy/v10/eshop-ordering`](https://github.com/Ahoo-Wang/Wow/tree/v10/deploy/v10/eshop-ordering) 把 eShop 的订单服务部署为 PostgreSQL 与 Kafka 上的两个节点，用 `kubectl apply -k` 应用普通清单。可以把它当作 V10 服务的模板。它的 README 说明了镜像构建和 Kafka 主题。

@@ -1,0 +1,177 @@
+/*
+ * Copyright [2021-present] [ahoo wang <ahoowang@qq.com> (https://github.com/Ahoo-Wang)].
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package me.ahoo.wow.runtime.binding
+
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
+import me.ahoo.test.asserts.assert
+import me.ahoo.wow.api.aggregate.Scope
+import me.ahoo.wow.api.caller.Caller
+import me.ahoo.wow.api.result.CommandResult
+import me.ahoo.wow.api.result.WaitPlan
+import me.ahoo.wow.kernel.ProcessorBinding
+import me.ahoo.wow.kernel.memory.InMemoryCheckpointStore
+import me.ahoo.wow.kernel.memory.InMemoryEventLog
+import me.ahoo.wow.kernel.memory.InMemoryFailureLedger
+import me.ahoo.wow.kernel.memory.InMemoryLeaseStore
+import me.ahoo.wow.kernel.memory.InMemoryReservationStore
+import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
+import me.ahoo.wow.runtime.FrameworkCodes
+import me.ahoo.wow.runtime.admission.CommandBody
+import me.ahoo.wow.runtime.admission.CommandRequest
+import me.ahoo.wow.runtime.cluster.LoopbackClusterChannel
+import me.ahoo.wow.runtime.node.BackendFactory
+import me.ahoo.wow.runtime.node.ContextBackends
+import me.ahoo.wow.runtime.node.ServiceNode
+import me.ahoo.wow.runtime.node.fastNodeOptions
+import me.ahoo.wow.runtime.subscription.eventually
+import me.ahoo.wow.spi.log.AppendOutcome
+import me.ahoo.wow.spi.log.EventRecord
+import me.ahoo.wow.spi.log.EventStreamRecord
+import org.junit.jupiter.api.AfterEach
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import java.util.concurrent.CopyOnWriteArrayList
+
+/**
+ * A node on standby through the dual-run window of a migration's cut-over (design 07 §3, decision D32): it refuses
+ * every command and handles no subscription while what `migrate-data tail` imports lands in its log; once resumed, a
+ * saga that starts at the end of its stream handles the commits after the resume only, never the imported history.
+ * The case is the 9.x example's: the cart saga of an order placed from a cart.
+ */
+class StandbyNodeTest {
+    private val log = InMemoryEventLog(PARTITIONS)
+    private val backends = BackendFactory {
+        ContextBackends(
+            log = log,
+            checkpoints = InMemoryCheckpointStore(),
+            leases = InMemoryLeaseStore(),
+            ledger = InMemoryFailureLedger(),
+            snapshots = InMemorySnapshotStore(),
+            reservations = InMemoryReservationStore(),
+        )
+    }
+    private val handled = CopyOnWriteArrayList<String>()
+
+    /** An order placed from a cart: the saga empties the cart named by its first item, as the 9.x CartSaga does. */
+    private val onOrderPlaced = ProcessorBinding.saga("CartSaga", "onOrderPlaced", OrderState::class.java) { event, c ->
+        handled += event.ref.id
+        event.events.filterIsInstance<Placed>().map {
+            c.command(CART.ref(event.ref.tenantId, it.items.first()), AddItems(it.items.drop(1)))
+        }
+    }
+
+    private var node: ServiceNode? = null
+
+    private fun node(): ServiceNode = ServiceNode(
+        SHOP_SERVICE,
+        "node-1",
+        "node-1.internal:9090",
+        listOf(orderModel(), cartModel()),
+        shopManifest(),
+        backends,
+        LoopbackClusterChannel(),
+        options = fastNodeOptions(),
+        subscriptions = SubscriptionBindings(mapOf(SHOP to listOf(onOrderPlaced))),
+    ).also { node = it }
+
+    @AfterEach
+    fun stop(): Unit = runBlocking { node?.stop() ?: Unit }
+
+    private fun place(order: String, vararg items: String) = CommandRequest(
+        context = SHOP,
+        aggregate = "order",
+        command = "Place",
+        body = CommandBody.of("""{"items":[${items.joinToString { "\"$it\"" }}]}"""),
+        caller = Caller(TENANT, Scope(ownerId = "bob")),
+        aggregateId = order,
+        wait = WaitPlan.COMMITTED,
+    )
+
+    /** What `migrate-data tail` appends while the node is on standby: an order placed in 9.x. */
+    private suspend fun imported(order: String) {
+        val stream = EventStreamRecord(
+            ORDER.ref(TENANT, order),
+            1,
+            "9x-$order",
+            "9x-$order",
+            "shop.order.Place",
+            System.currentTimeMillis(),
+            listOf(EventRecord("shop.order.Placed", 1, """{"items":["cart-$order","apple"]}""")),
+            Scope(ownerId = "bob"),
+        )
+        log.append(stream).assert().isInstanceOf(AppendOutcome.Committed::class.java)
+    }
+
+    @Test
+    fun `a node on standby refuses commands and handles nothing until it is resumed, then only what came after`(): Unit =
+        runBlocking {
+            val node = node()
+            node.start(standby = true)
+            node.standby.assert().isTrue()
+            node.resumption.assert().isNull()
+
+            val refused = node.gateway.send(place("o-standby", "cart-x", "pear")).toList().last()
+            refused.status.assert().isEqualTo(CommandResult.Status.FAILED)
+            refused.error!!.code.assert().isEqualTo(FrameworkCodes.NODE_STANDBY)
+
+            // The tail imports 9.x's orders meanwhile; nothing handles them on standby.
+            imported("o-9x-1")
+            imported("o-9x-2")
+            delay(SETTLE_MILLIS)
+            handled.assert().isEmpty()
+
+            val resumed = node.resume("operator-1", "cut-over")
+            resumed.resumed.assert().isTrue()
+            resumed.by.assert().isEqualTo("operator-1")
+            resumed.reason.assert().isEqualTo("cut-over")
+            resumed.at.assert().isNotNull()
+            node.standby.assert().isFalse()
+            node.resumption.assert().isEqualTo(resumed)
+            // Resuming again changes nothing, and says when it was.
+            node.resume("operator-2").assert().isEqualTo(resumed)
+
+            node.gateway.send(place("o-v10", "cart-v10", "plum")).toList().last().status
+                .assert().isEqualTo(CommandResult.Status.SUCCEEDED)
+            eventually { "o-v10" in handled }
+            delay(SETTLE_MILLIS)
+            // The saga's end of the stream was taken at the resume: the imported history is never handled again.
+            handled.assert().containsExactly("o-v10")
+            log.read(CART.ref(TENANT, "cart-o-9x-1")).toList().assert().isEmpty()
+        }
+
+    @Test
+    fun `a node not on standby resumes as a no-op, and a node on standby stops`(): Unit = runBlocking {
+        val running = node()
+        running.start()
+        running.standby.assert().isFalse()
+        running.resume("operator").also {
+            it.resumed.assert().isFalse()
+            it.at.assert().isNull()
+        }
+        running.stop()
+
+        val standby = node()
+        assertThrows<IllegalStateException> { standby.resume("operator") }
+        standby.start(standby = true)
+        standby.stop()
+        assertThrows<IllegalStateException> { standby.resume("operator") }
+    }
+
+    private companion object {
+        const val PARTITIONS = 4
+        const val SETTLE_MILLIS = 500L
+    }
+}

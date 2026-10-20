@@ -472,6 +472,7 @@ describe('problems', () => {
     });
     expect(retryHintOf('wow.schedule.not-due', 503).retryable).toBe(true);
     expect(retryHintOf('wow.node.closing', 503).retryable).toBe(true);
+    expect(retryHintOf('wow.node.standby', 503).retryable).toBe(true);
     expect(retryHintOf('wow.command.busy', 429).retryable).toBe(true);
     expect(retryHintOf('wow.command.contended', 409).retryable).toBe(true);
     expect(retryHintOf('wow.wait.timeout', 504).sameRequestId).toBe(true);

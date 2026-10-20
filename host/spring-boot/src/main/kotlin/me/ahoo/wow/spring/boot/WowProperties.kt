@@ -165,6 +165,7 @@ import me.ahoo.wow.client.RetryPolicy as ClientRetryPolicy
  *
  * - `wow.topics.in-memory` (false): the node's command topics and published streams in its JVM instead of Kafka, for
  *   local development (DX gap G27), see [Topics].
+ * - `wow.standby` (false): the node starts on standby, for the dual-run window of a migration's cut-over, see [standby].
  *
  * Every key is in the host's configuration metadata (`META-INF/spring-configuration-metadata.json`, review A5-9), and
  * a `wow.*` key that no property of the host or of a module names is reported at startup ([ConfigurationKeys]).
@@ -245,6 +246,15 @@ class WowProperties {
 
     /** The node's topics without Kafka (DX gap G27), see [Topics]. */
     var topics: Topics = Topics()
+
+    /**
+     * Whether the node starts on standby (design 07 §3, decision D32): through the dual-run window of a migration's
+     * cut-over it serves reads of what `migrate-data` imports, refuses every command (`wow.node.standby`, 503), and
+     * handles no subscription, retries no parked entry and runs no job, until its operator resumes it on the internal
+     * port (`POST /wow/node/resume` with the cluster token, naming who resumes it). A subscription that starts at the
+     * end of its stream starts where the stream ends at the resume.
+     */
+    var standby: Boolean = false
 
     /**
      * Topics for trying a service out without Kafka (DX gap G27). With `wow.topics.in-memory` (false), the node keeps

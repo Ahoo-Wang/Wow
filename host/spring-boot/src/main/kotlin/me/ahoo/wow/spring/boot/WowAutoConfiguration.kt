@@ -593,6 +593,7 @@ class WowAutoConfiguration {
                 node.waits,
                 tokens = clusterTokens(properties, environment, identity.bindHost),
                 services = services,
+                standby = NodeStandby(node),
             )
                 // The services' peer reads (decision D259), before the call routes: their catch-all routes of an
                 // unknown command would take a query's POST.
@@ -632,7 +633,8 @@ class WowAutoConfiguration {
         node: ServiceNode,
         events: ApplicationEventPublisher,
         availability: ObjectProvider<ApplicationAvailability>,
-    ): ServiceNodeLifecycle = ServiceNodeLifecycle(node, events) { availability.ifAvailable }
+        properties: WowProperties,
+    ): ServiceNodeLifecycle = ServiceNodeLifecycle(node, events, properties.standby) { availability.ifAvailable }
 
     /**
      * The node's command gateway (decision D92), through which the application sends commands in process. The node
