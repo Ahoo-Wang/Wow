@@ -18,9 +18,15 @@ import { test } from 'node:test';
 import { scopes, unitPackages } from './ci-scope.mjs';
 
 const script = new URL('./ci-scope.mjs', import.meta.url).pathname;
-// The TypeScript workflow scopes; `package` is derived from them, `v10` gates a Kotlin workflow, and `v10Contract` and
-// `opsConsole` are decided apart from the rules; each has its own tests.
-const KOTLIN_GATES = new Set(['package', 'v10', 'v10Contract', 'opsConsole']);
+// The TypeScript workflow scopes; `package` is derived from them, `v10` gates a Kotlin workflow, and `v10Contract`,
+// `opsConsole` and `catalogConsole` are decided apart from the rules; each has its own tests.
+const KOTLIN_GATES = new Set([
+  'package',
+  'v10',
+  'v10Contract',
+  'opsConsole',
+  'catalogConsole',
+]);
 const gates = paths =>
   Object.entries(scopes(paths)).filter(([key]) => !KOTLIN_GATES.has(key));
 const all = paths => gates(paths).every(([, value]) => value);
@@ -567,6 +573,35 @@ test('the ops console, the ops service and what the console builds with run ops-
   assert.ok(scopes(['.github/workflows/ops-console-test.yml']).workflows);
 });
 
+test('the catalog console, the catalog service and what the console builds with run catalog-console-test.yml', () => {
+  for (const path of [
+    'platform/analytics/catalog/console/src/main.tsx',
+    'platform/analytics/catalog/console/package.json',
+    'platform/analytics/catalog/server/src/main/resources/application.yaml',
+    'platform/analytics/catalog/server/manifest/baseline.json',
+    'platform/analytics/catalog/domain/src/main/kotlin/A.kt',
+    'typescript/wow-client/src/index.ts',
+    'typescript/wow-view-engine/src/index.ts',
+    'pnpm-lock.yaml',
+    '.github/workflows/catalog-console-test.yml',
+    'new-directory/index.ts',
+  ])
+    assert.ok(scopes([path]).catalogConsole, path);
+  for (const path of [
+    'platform/ops/console/src/main.tsx',
+    'core/kernel/src/main/kotlin/A.kt',
+    'README.md',
+    '.github/workflows/ops-console-test.yml',
+  ])
+    assert.ok(!scopes([path]).catalogConsole, path);
+  // The console's own path turns on no typescript.yml scope, and keeps v10.
+  assert.deepEqual(on(['platform/analytics/catalog/console/src/main.tsx']), []);
+  assert.ok(scopes(['platform/analytics/catalog/console/src/main.tsx']).v10);
+  assert.ok(
+    !scopes(['platform/analytics/catalog/console/src/main.tsx']).opsConsole,
+  );
+});
+
 test('isolated changes retain their relevant validation', () => {
   assert.deepEqual(on(['documentation/docs/index.md']), ['docs']);
   assert.deepEqual(
@@ -629,6 +664,7 @@ test('the command reads the diff and runs everything without a base', () => {
       `v10=${value}\n` +
       `v10Contract=${value}\n` +
       `opsConsole=${value}\n` +
+      `catalogConsole=${value}\n` +
       `unitPackages=${value ? '["wow-client","wow-react","wow-generator","wow-view-store"]' : '[]'}\n`;
     assert.equal(run({ BASE_SHA: base, HEAD_SHA: head }), output(false));
     assert.equal(

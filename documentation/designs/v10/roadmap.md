@@ -293,7 +293,7 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | R4-Q5 | 契约与客户端保真（D254 ⑤）：OpenAPI 查询描述、TS 精度、时区、投影类型、改名的增量路径 | 生成器得到精确的查询类型；TS 不丢精度 |
 | R4-Q7 | 小修（D254 ③⑦）：超时 504、错误码统一、ClickHouse 并列分页唯一键与 TCK 用例、跨租户范围 | — |
 | DX-1 | **已完成**（2026-10-20：DX-1b #4636、#4639、#4642；DX-1c #4674；DX-1d #4667）。 契约推导的名字与类型（D256）：api 的 jar 带上生成的上下文常量、`ref`、查询字段常量；错误码本地名加前缀推导；`derives` 收类或推导；对端事件类型化解码；`call` 进 Manifest；`@OnRejected` 可返回 `Unit`；与 R4-Q3 一起设计 | eShop 里不再手写上下文常量、`AggregateType("…")`、全名错误码、字符串 `derives` 与事件名匹配 |
-| DX-2 | DX 小修（D256）：本地开发的内存传输开关（G27）、数据集 schema 进 Manifest（G31）、约定的 `integrationTest` 源集（G17）、跨上下文租户的文档与启动校验（G13） | eShop 的这四条 DX 缺口关闭 |
+| DX-2 | DX 小修（D256）：本地开发的内存传输开关（G27）、数据集 schema 由目录服务提供、不进 Manifest（G31，D267 ⑦）、约定的 `integrationTest` 源集（G17）、跨上下文租户的文档与启动校验（G13） | eShop 的这四条 DX 缺口关闭 |
 | B.G | 写存储批处理（D248）：**B.G-1** PostgreSQL 原生 `appendAll`（一次分配 N 个序号、多行 `INSERT`、单条冲突单独失败、序号无空洞）；**B.G-2** 快照批量写与合并（`SnapshotStore.saveAll`，PostgreSQL、MongoDB、Elasticsearch 实现，快照订阅按批合并）；**B.G-3** 本节点的提交在内存里交给本地订阅（D249）；各一个 PR，计时测量之前完成 | `EventLogSpec` 与 `SnapshotStoreSpec` 的批量用例全过；计数测量中每条命令的往返次数与写放大下降 |
 | B.G-4 · B.G-5 | **已完成**（2026-10-20：#4628、#4627）。 B.G-4 按聚合从日志推导的精确去重集合（D261，条件 C1～C6）；B.G-5 先记录状态视图再交给本地订阅（D261）；计时测量之前完成 | 热聚合上每条会追加的命令少 1 次往返；E3 的 Saga 不再因状态视图未命中多读存储 |
 | R3-H | 健康模型（R3.5-3）：Actuator 的 `wow` 健康组（ownership、subscriptions、stores、topics、ledger），区分 readiness 与 liveness；K8s 清单改用 `/actuator/health/*` | 存储宕机或分区为 0 时就绪探针失败 |
@@ -320,7 +320,8 @@ H5（Skill 迁移）依赖 V10 API，放在 M8a。
 | 8b.2 | 逐聚合校验与快照生成 | 零差异报告 |
 | 8b.3 | 9.x `PrepareKey` 预留导入（D227 ③，审查 A4-8）：按所属聚合取租户、按映射写成已确认的 `TENANT` 或 `SYSTEM` 预留；映射核对覆盖全部预留名；`compare` 校验同 owner；全部事件被丢弃的流以 `retire` 导入（审查 A4-7） | 预留对比零差异 |
 | 8b.4 | 补偿数据迁移（D229 G-1）：9.x 补偿服务里未解决的 `ExecutionFailed` 导入各服务的停放台账（含重试规格与可恢复标记）；`compare` 校验 | 未解决执行的对比零差异；8c.1 前完成 |
-| 8c.1 | 蓝绿演练：example、compensation、view-store 的生产形数据 | 一次完整切换（含回滚演练，D32）（M8 出口） |
+| 8c.0 | 反向导出（D32）：`migrate-data export` 把 V10 中 9.x 已有类型的事件以 9.x 编解码写回 9.x 事件流；V10 独有类型拒绝并逐一列出；可续跑、幂等；按计数与 9.x 状态校验 | 切换后已写入仍可回滚；8c.1 前完成 |
+| 8c.1 | 蓝绿演练：example（以迁移测试夹具领域搭仅供演练的 V10 宿主，不发布）、compensation、view-store 的生产形数据；双跑窗口为 V10 服务读、`migrate-data tail` 跟随 9.x 写入，再原子切换写入，记录滞后、窗口时长与停写时刻 | 一次完整切换，含切换后写入再回滚与写入前回滚两种演练（D32）（M8 出口） |
 
 ### M9 发布
 
