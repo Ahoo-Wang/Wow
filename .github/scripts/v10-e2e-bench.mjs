@@ -142,7 +142,9 @@ export const SUITES = {
 };
 
 export const DRIFT = 0.05;
-const SATURATION = { warmUp: 3, step: 8, maxConcurrency: 256 };
+// bench.sh's default cap of 256 workers can stop the closed loop before V10 flattens (a local smoke run did), so the
+// cap is higher here; the doubling still stops after two steps that gain less than 5%.
+const SATURATION = { warmUp: 3, step: 8, maxConcurrency: 1024 };
 
 const integer = (name, value, min, max) => {
   const text = String(value ?? '').trim();
