@@ -273,5 +273,7 @@ class QueryEngineTest {
         runBlocking { schemas.load(QuerySchemaContext(order, QueryModel.SNAPSHOT)) }.assert().isEmpty()
         runBlocking { schemas.load(QuerySchemaContext(AggregateType("shop", "sales"), QueryModel.DATASET)) }.assert()
             .isEmpty()
+        runBlocking { schemas.load(QuerySchemaContext(AggregateType("crm", "leads"), QueryModel.DATASET)) }.assert()
+            .isEmpty()
     }
 }

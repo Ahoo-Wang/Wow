@@ -62,6 +62,14 @@ class HostInMemoryTopicsTest {
     }
 
     @Test
+    fun `a blank Kafka address should not count as Kafka`() {
+        runner.withPropertyValues("wow.topics.in-memory=true", "wow.kafka.bootstrap-servers= ").run { context ->
+            context.startupFailure.assert().isNull()
+            context.getBean(InMemoryTopics::class.java).assert().isNotNull()
+        }
+    }
+
+    @Test
     fun `a host with in-memory topics should execute its command topics and warn`() {
         startHost("wow.topics.in-memory" to "true").use { host ->
             host.node.context(BANK).intake.assert().isNotNull()
