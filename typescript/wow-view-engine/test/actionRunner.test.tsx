@@ -70,7 +70,7 @@ function refusal(detail: string) {
   return Object.assign(new Error('Request failed with status code 400'), {
     exchange: {
       response: { status: 400 },
-      extractResult: () => Promise.resolve({ errorCode: 'Refused', errorMsg }),
+      extractResult: () => Promise.resolve({ code: 'Refused', detail }),
     },
   });
 }

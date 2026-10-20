@@ -30,7 +30,7 @@ import {
   resourcesOf,
 } from './fixtures.js';
 
-const KEY = 'wow-compensation-dashboard:views';
+const KEY = 'host:views';
 
 function board(title = 'Board'): Omit<ViewInstance, 'id' | 'revision'> {
   return {

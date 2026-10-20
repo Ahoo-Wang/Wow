@@ -31,11 +31,10 @@ import {
   type ViewConfig,
 } from '../src/index.js';
 
-// A fixed copy of the 9.x view store's ViewConfigs.kt: 9.x left the v10 branch
-// (decision D262); TS-9x deletes it.
+// The view store service's ViewConfigs.kt.
 const VIEW_CONFIGS = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  'fixtures/nine-x/view-store/wow-view-store-domain/src/main/kotlin/me/ahoo/wow/viewstore/domain/view/ViewConfigs.kt',
+  '../../../platform/view-store/view-store-domain/src/main/kotlin/me/ahoo/wow/viewstore/domain/view/ViewConfigs.kt',
 );
 
 /** A `const val` of the Kotlin object, evaluated as the product it is written as. */

@@ -158,6 +158,7 @@ describe('sourceFailure', () => {
         message: 'Unknown type [NOPE] at [filter].',
       },
       errorCode: 'wow.query.malformed',
+      status: 400,
     });
   });
 
@@ -326,7 +327,7 @@ describe('queryFailureIssue', () => {
     );
   });
 
-  it('words the budget and gate codes of Wow 9.2 with the service’s words', async () => {
+  it('words the budget and gate codes with the service’s words', async () => {
     const found = await issueFor(
       'SIZE_OUT_OF_RANGE',
       'limit',

@@ -26,12 +26,16 @@
 import { expectTypeOf, it } from 'vitest';
 import type { Fetcher } from '@ahoo-wang/fetcher';
 import type {
-  FilterExpression,
-  FilterListQuery,
-  FilterPagedQuery,
-  FilterSingleQuery,
-  PagedList,
+  CountQuery,
+  CountResult,
+  PagedQuery,
+  PagedResult,
+  RequestOptions,
 } from '@ahoo-wang/wow-client';
+import type {
+  FilterListQuery,
+  FilterSingleQuery,
+} from '@ahoo-wang/wow-client/dsl';
 import type {
   ListStreamExecutor,
   QueryExecutor,
@@ -68,7 +72,7 @@ type ExecuteOptionKeys =
   | 'query'
   | 'initialQuery'
   | 'autoExecute'
-  | 'attributes'
+  | 'requestOptions'
   | 'execute'
   | 'onSuccess'
   | 'onError';
@@ -98,9 +102,9 @@ it('names the four query statuses as a plain string union', () => {
   expectTypeOf<'done'>().not.toExtend<QueryStatus>();
 });
 
-it('hands every executor the query, the attributes and a controller', () => {
+it('hands every executor the query and the request options with a signal', () => {
   expectTypeOf<QueryExecutor<string, number>>().parameters.toEqualTypeOf<
-    [string, Record<string, unknown> | undefined, AbortController]
+    [string, RequestOptions & { readonly signal: AbortSignal }]
   >();
   expectTypeOf<QueryExecutor<string, number>>().returns.toEqualTypeOf<
     Promise<number>
@@ -118,8 +122,8 @@ it('holds the members of the shared options and return', () => {
   expectTypeOf<Options['query']>().toEqualTypeOf<string | undefined>();
   expectTypeOf<Options['initialQuery']>().toEqualTypeOf<string | undefined>();
   expectTypeOf<Options['autoExecute']>().toEqualTypeOf<boolean | undefined>();
-  expectTypeOf<Options['attributes']>().toEqualTypeOf<
-    Record<string, unknown> | undefined
+  expectTypeOf<Options['requestOptions']>().toEqualTypeOf<
+    Omit<RequestOptions, 'signal'> | undefined
   >();
   expectTypeOf<Options['execute']>().toEqualTypeOf<
     QueryExecutor<string, number>
@@ -157,16 +161,16 @@ it('specializes the shared types for each request hook', () => {
     QueryHookReturn<FilterListQuery<Fields>, Item[]>
   >();
   expectTypeOf<UsePagedQueryOptions<Item, Fields>>().toEqualTypeOf<
-    QueryHookOptions<FilterPagedQuery<Fields>, PagedList<Item>>
+    QueryHookOptions<PagedQuery<Fields>, PagedResult<Item>>
   >();
   expectTypeOf<UsePagedQueryReturn<Item, Fields>>().toEqualTypeOf<
-    QueryHookReturn<FilterPagedQuery<Fields>, PagedList<Item>>
+    QueryHookReturn<PagedQuery<Fields>, PagedResult<Item>>
   >();
   expectTypeOf<UseCountQueryOptions<Fields>>().toEqualTypeOf<
-    QueryHookOptions<FilterExpression<Fields>, number>
+    QueryHookOptions<CountQuery<Fields>, CountResult>
   >();
   expectTypeOf<UseCountQueryReturn<Fields>>().toEqualTypeOf<
-    QueryHookReturn<FilterExpression<Fields>, number>
+    QueryHookReturn<CountQuery<Fields>, CountResult>
   >();
 });
 
@@ -205,15 +209,12 @@ it('takes the endpoint and the Fetcher in place of execute', () => {
   expectTypeOf<
     Pick<UseFetcherPagedQueryOptions<Item, Fields>, EndpointOptionKeys>
   >().toEqualTypeOf<
-    Pick<
-      Endpoint<FilterPagedQuery<Fields>, PagedList<Item>>,
-      EndpointOptionKeys
-    >
+    Pick<Endpoint<PagedQuery<Fields>, PagedResult<Item>>, EndpointOptionKeys>
   >();
   expectTypeOf<
     Pick<UseFetcherCountQueryOptions<Fields>, EndpointOptionKeys>
   >().toEqualTypeOf<
-    Pick<Endpoint<FilterExpression<Fields>, number>, EndpointOptionKeys>
+    Pick<Endpoint<CountQuery<Fields>, CountResult>, EndpointOptionKeys>
   >();
   expectTypeOf<
     Pick<UseFetcherListStreamQueryOptions<Item, Fields>, EndpointOptionKeys>

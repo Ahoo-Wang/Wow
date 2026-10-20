@@ -11,6 +11,8 @@
  * limitations under the License.
  */
 
+import type { RequestOptions } from '@ahoo-wang/wow-client';
+
 /**
  * Where a query hook stands:
  *
@@ -27,32 +29,29 @@
 export type QueryStatus = 'idle' | 'loading' | 'success' | 'error';
 
 /**
- * Runs one query: a query client method such as `pagedState`, or any function
- * that resolves to the result.
+ * Runs one query: a query client's method, such as a generated
+ * `…SnapshotQueryClient`'s `paged`, or any function that resolves to the
+ * result. Hand it over as an arrow function,
+ * `(query, options) => client.paged(query, options)`: a method loses its
+ * `this` when handed over alone.
  *
- * wow-client's clients, generated ones included, bind their methods, so
- * `execute: client.pagedState` works as is. A method of an object of your own
- * loses its `this` when handed over: pass `method.bind(object)` or an arrow
- * function instead.
- *
- * It receives the query, the hook's `attributes` option, and the
- * `AbortController` of this run. Hand the controller on to the request, so
- * that a newer query, `abort()`, `reset()` or an unmount cancels it; every
- * wow-client query method takes it as its last parameter.
+ * It receives the query and the request options of this run: the hook's
+ * `requestOptions`, with the `signal` of this run. Hand the options on to the
+ * request, so that a newer query, `abort()`, `reset()` or an unmount cancels
+ * it; every wow-client query method takes them as its last parameter.
  *
  * @template Q - The query
  * @template R - What the query resolves to
  */
 export type QueryExecutor<Q, R> = (
   query: Q,
-  attributes: Record<string, unknown> | undefined,
-  abortController: AbortController,
+  options: RequestOptions & { readonly signal: AbortSignal },
 ) => Promise<R>;
 
 /**
- * Opens the event stream of one query: a query client's `listStream` or
- * `listStateStream`, or any function that resolves to a stream of rows. It
- * receives what a {@link QueryExecutor} receives.
+ * Opens the event stream of one query: a query client's `listStream`, or any
+ * function that resolves to a stream of rows. It receives what a
+ * {@link QueryExecutor} receives.
  *
  * @template R - One row of the stream
  * @template Q - The query
@@ -84,8 +83,12 @@ export interface QueryHookOptions<Q, R, E = Error> {
    * default. With `false` it runs only through `execute()`.
    */
   autoExecute?: boolean;
-  /** Handed to `execute` with every run; not part of what identifies a run. */
-  attributes?: Record<string, unknown>;
+  /**
+   * Handed to `execute` with every run, with the run's `signal`: the scope,
+   * the space or more headers of the request. Not part of what identifies a
+   * run.
+   */
+  requestOptions?: Omit<RequestOptions, 'signal'>;
   /** Runs one query. */
   execute: QueryExecutor<Q, R>;
   /** Called with the result of each run that succeeds. */

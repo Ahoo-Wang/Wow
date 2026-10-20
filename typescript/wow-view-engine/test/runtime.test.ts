@@ -342,7 +342,7 @@ describe('DataViewRuntime execution', () => {
           response: { status: 400 },
           extractResult: () =>
             Promise.resolve({
-              errorCode: 'wow.query.malformed',
+              code: 'wow.query.malformed',
               detail: 'HTTP page window[12000] must not exceed 10000.',
             }),
         },

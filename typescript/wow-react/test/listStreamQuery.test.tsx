@@ -21,23 +21,18 @@
 import { StrictMode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { ExchangeError } from '@ahoo-wang/fetcher';
-import {
-  filter,
-  listQuery,
-  SnapshotQueryClient,
-  WowError,
-} from '@ahoo-wang/wow-client';
-import { eq, listQuery as legacyListQuery } from '@ahoo-wang/wow-client/legacy';
+import { QueryModelClient, WowProblemError } from '@ahoo-wang/wow-client';
+import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
 import { useFetcherListStreamQuery, useListStreamQuery } from '../src';
 import { PUBLISH_INTERVAL_MS } from '../src/internal/readStreamRows';
 import {
   deferred,
+  errorEvent,
   fakeServer,
   json,
   liveStream,
   sse,
-  wowError,
+  problem,
   type Handler,
   type LiveStream,
 } from './support/fakeServer';
@@ -51,7 +46,7 @@ const o1: OrderState = { id: 'o1', status: 'PAID' };
 const o2: OrderState = { id: 'o2', status: 'PAID' };
 const o3: OrderState = { id: 'o3', status: 'PAID' };
 const paidQuery = listQuery({ filter: filter.eq('state.status', 'PAID') });
-const URL = 'order/snapshot/list/state';
+const URL = '/shop/order/snapshot/query';
 
 /** Answers like Wow: an event stream only to a request that accepts one. */
 function wowList(stream: () => Response): Handler {
@@ -90,9 +85,12 @@ describe('useFetcherListStreamQuery', () => {
     expect(onSuccess).toHaveBeenCalledWith([o1, o2, o3]);
     const [request] = server.requests;
     expect(request.method).toBe('POST');
-    expect(request.path).toBe(`/${URL}`);
+    expect(request.path).toBe(URL);
     expect(request.headers.get('Accept')).toBe('text/event-stream');
-    expect(request.body).toEqual(JSON.parse(JSON.stringify(paidQuery)));
+    expect(request.body).toEqual({
+      ...JSON.parse(JSON.stringify(paidQuery)),
+      kind: 'list',
+    });
   });
 
   it('shows rows as they arrive and stays loading until the stream ends', async () => {
@@ -131,17 +129,11 @@ describe('useFetcherListStreamQuery', () => {
     expect(result.current.items).toEqual([]);
   });
 
-  it('ends with a WowError when the server sends an error event, keeping the rows before it', async () => {
+  it('ends with a WowProblemError when the server sends an error event, keeping the rows before it', async () => {
     const server = fakeServer(() =>
       sse(
         { data: o1 },
-        {
-          event: 'IllegalArgument',
-          data: {
-            errorCode: 'IllegalArgument',
-            errorMsg: 'Invalid filter request body.',
-          },
-        },
+        errorEvent('wow.query.invalid', 'Invalid filter request body.'),
       ),
     );
     const onError = vi.fn();
@@ -155,11 +147,8 @@ describe('useFetcherListStreamQuery', () => {
     );
     await waitFor(() => expect(result.current.status).toBe('error'));
     const { error } = result.current;
-    expect(error).toBeInstanceOf(WowError);
-    expect(error).toMatchObject({
-      errorCode: 'IllegalArgument',
-      errorMsg: 'Invalid filter request body.',
-    });
+    expect(error).toBeInstanceOf(WowProblemError);
+    expect(error).toMatchObject({ code: 'wow.query.invalid' });
     expect(onError).toHaveBeenCalledWith(error);
     expect(result.current.items).toEqual([o1]);
     expect(result.current.done).toBe(false);
@@ -167,7 +156,9 @@ describe('useFetcherListStreamQuery', () => {
   });
 
   it('sets a failed request as the error', async () => {
-    const server = fakeServer(() => wowError('Unauthorized', 'No token.', 401));
+    const server = fakeServer(() =>
+      problem('wow.auth.unauthenticated', 'No token.', 401),
+    );
     const { result } = renderHook(() =>
       useFetcherListStreamQuery<OrderState>({
         fetcher: server.fetcher,
@@ -176,57 +167,41 @@ describe('useFetcherListStreamQuery', () => {
       }),
     );
     await waitFor(() => expect(result.current.status).toBe('error'));
-    expect(result.current.error).toBeInstanceOf(ExchangeError);
+    expect(result.current.error).toBeInstanceOf(WowProblemError);
     expect(result.current.items).toEqual([]);
-  });
-
-  it('still takes a Condition query (compat)', async () => {
-    const server = fakeServer(wowList(() => sse({ data: o1 })));
-    const query = legacyListQuery({ condition: eq('state.status', 'PAID') });
-    const { result } = renderHook(() =>
-      useFetcherListStreamQuery<OrderState>({
-        fetcher: server.fetcher,
-        url: URL,
-        initialQuery: query,
-      }),
-    );
-    await waitFor(() => expect(result.current.items).toEqual([o1]));
-    expect(server.requests[0].body).toEqual(JSON.parse(JSON.stringify(query)));
   });
 });
 
 describe('useListStreamQuery with a query client', () => {
   it('reads the stream the client opens', async () => {
     const server = fakeServer(wowList(() => sse({ data: o1 }, { data: o2 })));
-    const client = new SnapshotQueryClient<OrderState>({
-      fetcher: server.fetcher,
-      basePath: 'order',
-    });
+    const client = new QueryModelClient<OrderState>(
+      '/shop/order/snapshot/query',
+      { fetcher: server.fetcher },
+    );
     const { result } = renderHook(() =>
       useListStreamQuery<OrderState>({
         initialQuery: paidQuery,
-        execute: (query, attributes, abortController) =>
-          client.listStateStream(query, attributes, abortController),
+        execute: (query, options) => client.listStream(query, options),
       }),
     );
     await waitFor(() => expect(result.current.done).toBe(true));
     expect(result.current.items).toEqual([o1, o2]);
-    expect(server.requests[0].path).toBe('/order/snapshot/list/state');
+    expect(server.requests[0].path).toBe('/shop/order/snapshot/query');
     expect(server.requests[0].headers.get('Accept')).toBe('text/event-stream');
   });
 
   it('waits for execute() when autoExecute is false, and runs again on execute()', async () => {
     const server = fakeServer(() => sse({ data: o1 }));
-    const client = new SnapshotQueryClient<OrderState>({
-      fetcher: server.fetcher,
-      basePath: 'order',
-    });
+    const client = new QueryModelClient<OrderState>(
+      '/shop/order/snapshot/query',
+      { fetcher: server.fetcher },
+    );
     const { result } = renderHook(() =>
       useListStreamQuery<OrderState>({
         initialQuery: paidQuery,
         autoExecute: false,
-        execute: (query, attributes, abortController) =>
-          client.listStateStream(query, attributes, abortController),
+        execute: (query, options) => client.listStream(query, options),
       }),
     );
     await settle();
@@ -282,15 +257,15 @@ describe('the stream lifecycle', () => {
     const server = fakeServer(() =>
       calls++ === 0 ? olderResponse.promise : sse({ data: o3 }),
     );
-    const client = new SnapshotQueryClient<OrderState>({
-      fetcher: server.fetcher,
-      basePath: 'order',
-    });
+    const client = new QueryModelClient<OrderState>(
+      '/shop/order/snapshot/query',
+      { fetcher: server.fetcher },
+    );
     const { result } = renderHook(() =>
       useListStreamQuery<OrderState>({
         initialQuery: paidQuery,
-        // No abortController handed on: the older request cannot be cancelled.
-        execute: query => client.listStateStream(query),
+        // No signal handed on: the older request cannot be cancelled.
+        execute: query => client.listStream(query),
       }),
     );
     await waitFor(() => expect(server.requests).toHaveLength(1));

@@ -168,6 +168,9 @@ export function resumableQueryRows<T>(
   let lastEventId = options.lastEventId;
   let received = 0;
   let failures = 0;
+  // Set once the reader cancels: a read in flight then ends, and must not be
+  // taken for a cut-off stream to ask for again.
+  let cancelled = false;
 
   /** Asks for the stream again, or throws `cause` once out of retries. */
   async function resume(cause: unknown, delayMs?: number): Promise<boolean> {
@@ -239,6 +242,7 @@ export function resumableQueryRows<T>(
           if (error === stop || error instanceof WowProblemError) throw error;
           stop = error;
         }
+        if (cancelled) return;
         // Only a stream read from the start, or whose records have positions, can be asked for again.
         if (signal?.aborted) throw signal.reason;
         if (lastEventId === undefined && received > 0) throw stop;
@@ -249,6 +253,7 @@ export function resumableQueryRows<T>(
       }
     },
     cancel(reason) {
+      cancelled = true;
       return reader.cancel(reason);
     },
   });

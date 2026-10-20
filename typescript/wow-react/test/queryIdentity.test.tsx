@@ -13,7 +13,7 @@
 
 /**
  * What makes a query hook run again: the controlled `query` compared by
- * content, `attributes`, `url`, `fetcher` and `autoExecute` — the request
+ * content, `requestOptions`, `url`, `fetcher` and `autoExecute` — the request
  * identity of `docs/design/architecture.md` §4. Written as a characterization
  * of fetcher-react 5.1.3 before the refactor of
  * `docs/design/refactor-2026-09.md`; it now pins the package's own state
@@ -27,12 +27,12 @@
 import { describe, expect, it } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { Fetcher } from '@ahoo-wang/fetcher';
+import { QueryModelClient } from '@ahoo-wang/wow-client';
 import {
   filter,
   listQuery,
-  SnapshotQueryClient,
   type FilterListQuery,
-} from '@ahoo-wang/wow-client';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   useFetcherListQuery,
   useFetcherListStreamQuery,
@@ -49,7 +49,7 @@ import {
 
 interface Props {
   query: FilterListQuery | undefined;
-  attributes?: Record<string, unknown>;
+  requestOptions?: { headers: Record<string, string> };
   url?: string;
   fetcher?: Fetcher;
   autoExecute?: boolean;
@@ -66,8 +66,8 @@ interface Hook {
   setQuery(query: FilterListQuery): void;
 }
 
-const LIST_URL = 'order/snapshot/list/state';
-const OTHER_URL = 'cart/snapshot/list/state';
+const LIST_URL = '/shop/order/snapshot/query';
+const OTHER_URL = '/shop/cart/snapshot/query';
 
 const paidQuery = listQuery({
   filter: filter.eq('state.status', 'PAID'),
@@ -103,19 +103,6 @@ function shown(hook: Hook): unknown {
   return hook.items ?? hook.result;
 }
 
-/** Records the `tenant` attribute of every exchange the Fetcher sends. */
-function readTenants(fetcher: Fetcher): unknown[] {
-  const tenants: unknown[] = [];
-  fetcher.interceptors.request.use({
-    name: 'ReadTenant',
-    order: 0,
-    intercept(exchange) {
-      tenants.push(exchange.attributes.get('tenant'));
-    },
-  });
-  return tenants;
-}
-
 interface Family {
   name: string;
   /** Whether the hook takes `url` and `fetcher` options. */
@@ -134,18 +121,17 @@ const families: Family[] = [
     name: 'useListQuery (query client as execute)',
     url: false,
     render(server, initialProps) {
-      const client = new SnapshotQueryClient<unknown>({
-        fetcher: server.fetcher,
-        basePath: 'order',
-      });
+      const client = new QueryModelClient<unknown>(
+        '/shop/order/snapshot/query',
+        { fetcher: server.fetcher },
+      );
       return renderHook(
-        ({ query, attributes, autoExecute }: Props) =>
+        ({ query, requestOptions, autoExecute }: Props) =>
           useListQuery<unknown>({
             query,
-            attributes,
+            requestOptions,
             autoExecute,
-            execute: (q, a, abortController) =>
-              client.listState(q, a, abortController),
+            execute: (q, options) => client.list(q, options),
           }),
         { initialProps },
       );
@@ -156,10 +142,10 @@ const families: Family[] = [
     url: true,
     render(server, initialProps) {
       return renderHook(
-        ({ query, attributes, autoExecute, url, fetcher }: Props) =>
+        ({ query, requestOptions, autoExecute, url, fetcher }: Props) =>
           useFetcherListQuery<unknown>({
             query,
-            attributes,
+            requestOptions,
             autoExecute,
             url: url ?? LIST_URL,
             fetcher: fetcher ?? server.fetcher,
@@ -172,18 +158,17 @@ const families: Family[] = [
     name: 'useListStreamQuery (query client as execute)',
     url: false,
     render(server, initialProps) {
-      const client = new SnapshotQueryClient<unknown>({
-        fetcher: server.fetcher,
-        basePath: 'order',
-      });
+      const client = new QueryModelClient<unknown>(
+        '/shop/order/snapshot/query',
+        { fetcher: server.fetcher },
+      );
       return renderHook(
-        ({ query, attributes, autoExecute }: Props) =>
+        ({ query, requestOptions, autoExecute }: Props) =>
           useListStreamQuery<unknown>({
             query,
-            attributes,
+            requestOptions,
             autoExecute,
-            execute: (q, a, abortController) =>
-              client.listStateStream(q, a, abortController),
+            execute: (q, options) => client.listStream(q, options),
           }),
         { initialProps },
       );
@@ -194,10 +179,10 @@ const families: Family[] = [
     url: true,
     render(server, initialProps) {
       return renderHook(
-        ({ query, attributes, autoExecute, url, fetcher }: Props) =>
+        ({ query, requestOptions, autoExecute, url, fetcher }: Props) =>
           useFetcherListStreamQuery<unknown>({
             query,
-            attributes,
+            requestOptions,
             autoExecute,
             url: url ?? LIST_URL,
             fetcher: fetcher ?? server.fetcher,
@@ -247,7 +232,10 @@ describe.each(families)('what runs $name again', family => {
       const { server, rerender, result } = await mounted();
       rerender({ query: shippedQuery });
       await waitFor(() => expect(server.requests).toHaveLength(2));
-      expect(server.requests[1].body).toEqual(wire(shippedQuery));
+      expect(server.requests[1].body).toEqual({
+        ...(wire(shippedQuery) as object),
+        kind: 'list',
+      });
       expect(result.current.getQuery()).toEqual(shippedQuery);
     });
 
@@ -305,7 +293,10 @@ describe.each(families)('what runs $name again', family => {
       await settle();
       hook.rerender({ query: shippedQuery });
       await waitFor(() => expect(server.requests).toHaveLength(2));
-      expect(server.requests[1].body).toEqual(wire(shippedQuery));
+      expect(server.requests[1].body).toEqual({
+        ...(wire(shippedQuery) as object),
+        kind: 'list',
+      });
       await waitFor(() => expect(hook.result.current.status).toBe('success'));
     });
 
@@ -325,20 +316,24 @@ describe.each(families)('what runs $name again', family => {
     });
   });
 
-  describe('attributes', () => {
+  describe('requestOptions', () => {
     it('a change does not run it again; the next execute() sends the new ones', async () => {
       const server = listServer();
-      const tenants = readTenants(server.fetcher);
       const hook = family.render(server, {
         query: paidQuery,
-        attributes: { tenant: 't1' },
+        requestOptions: { headers: { 'X-Tenant': 't1' } },
       });
       await waitFor(() => expect(hook.result.current.status).toBe('success'));
-      hook.rerender({ query: paidQuery, attributes: { tenant: 't2' } });
+      hook.rerender({
+        query: paidQuery,
+        requestOptions: { headers: { 'X-Tenant': 't2' } },
+      });
       await settle();
       expect(server.requests).toHaveLength(1);
       await act(() => hook.result.current.execute());
-      expect(tenants).toEqual(['t1', 't2']);
+      expect(
+        server.requests.map(request => request.headers.get('X-Tenant')),
+      ).toEqual(['t1', 't2']);
     });
   });
 
@@ -370,7 +365,7 @@ describe.each(families.filter(family => family.url))(
       rerender({ query: paidQuery, url: OTHER_URL });
       // B3 changed this (F7): was 1 request until the next execute().
       await waitFor(() => expect(server.requests).toHaveLength(2));
-      expect(server.requests[1].url).toBe(`${BASE_URL}${OTHER_URL}`);
+      expect(server.requests[1].url).toBe(`${BASE_URL}${OTHER_URL.slice(1)}`);
       await settle();
       expect(server.requests).toHaveLength(2);
     });
@@ -393,7 +388,7 @@ describe.each(families.filter(family => family.url))(
       // B3 changed this (F7): was 1 request until the next execute().
       await waitFor(() => expect(server.requests).toHaveLength(2));
       expect(server.requests[1].url).toBe(
-        `https://other.example.test/${LIST_URL}`,
+        `https://other.example.test${LIST_URL}`,
       );
       await settle();
       expect(server.requests).toHaveLength(2);

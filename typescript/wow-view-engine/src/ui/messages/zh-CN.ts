@@ -787,6 +787,8 @@ export const zhCN: Readonly<Record<string, string>> = {
     '这份汇总的分组太多，服务端没法按指标筛选或排序；先缩小数据范围。',
   'runtime.query.failed.explicit_entry_required':
     '查询没有指明要在哪个入口上运行：{reason}',
+  'runtime.query.failed.replay_too_long':
+    '要看的状态离现在的变更太多，无法重建：{reason}',
   'runtime.query.failed.temporal_aggregation_unsupported':
     '「{field}」没有按日期或时间戳存时间，不能按时间分组或计算时间差。',
   'runtime.query.failed.sort_too_many': '排序字段太多，去掉几个。',

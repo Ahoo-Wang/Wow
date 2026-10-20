@@ -20,19 +20,13 @@
 import { StrictMode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { FetcherError } from '@ahoo-wang/fetcher';
+import { QueryModelClient, WowProblemError } from '@ahoo-wang/wow-client';
 import {
   filter,
   listQuery,
   pagedQuery,
   singleQuery,
-  SnapshotQueryClient,
-  toWowError,
-} from '@ahoo-wang/wow-client';
-import {
-  eq,
-  pagedQuery as legacyPagedQuery,
-} from '@ahoo-wang/wow-client/legacy';
+} from '@ahoo-wang/wow-client/dsl';
 import {
   useCountQuery,
   useListQuery,
@@ -43,7 +37,7 @@ import {
   deferred,
   fakeServer,
   json,
-  wowError,
+  problem,
   type FakeServer,
 } from './support/fakeServer';
 
@@ -55,16 +49,19 @@ interface OrderState {
 const paid: OrderState = { id: 'o1', status: 'PAID' };
 const shipped: OrderState = { id: 'o2', status: 'SHIPPED' };
 const paidFilter = filter.eq('state.status', 'PAID');
+const paidCount = { filter: paidFilter };
 
-/** A value as the server receives it: JSON drops the `undefined` fields. */
-function wire(value: unknown): unknown {
-  return JSON.parse(JSON.stringify(value));
+/**
+ * A query as the route receives it: JSON drops the `undefined` fields, and
+ * `kind` names the operation.
+ */
+function wire(value: unknown, kind: string): unknown {
+  return { ...JSON.parse(JSON.stringify(value)), kind };
 }
 
 function orderClient(server: FakeServer) {
-  return new SnapshotQueryClient<OrderState>({
+  return new QueryModelClient<OrderState>('/shop/order/snapshot/query', {
     fetcher: server.fetcher,
-    basePath: 'order',
   });
 }
 
@@ -75,8 +72,7 @@ describe('each query hook with a query client', () => {
     const { result } = renderHook(() =>
       useSingleQuery<OrderState>({
         initialQuery: singleQuery({ filter: paidFilter }),
-        execute: (query, attributes, abortController) =>
-          client.singleState(query, attributes, abortController),
+        execute: (query, options) => client.single(query, options),
       }),
     );
     expect(result.current.loading).toBe(true);
@@ -86,8 +82,8 @@ describe('each query hook with a query client', () => {
     expect(server.requests).toHaveLength(1);
     expect(server.requests[0]).toMatchObject({
       method: 'POST',
-      path: '/order/snapshot/single/state',
-      body: wire(singleQuery({ filter: paidFilter })),
+      path: '/shop/order/snapshot/query',
+      body: wire(singleQuery({ filter: paidFilter }), 'single'),
     });
   });
 
@@ -97,14 +93,13 @@ describe('each query hook with a query client', () => {
     const { result } = renderHook(() =>
       useListQuery<OrderState>({
         initialQuery: listQuery({ filter: filter.matchAll(), limit: 2 }),
-        execute: (query, attributes, abortController) =>
-          client.listState(query, attributes, abortController),
+        execute: (query, options) => client.list(query, options),
       }),
     );
     await waitFor(() => expect(result.current.result).toEqual([paid, shipped]));
     expect(server.requests[0]).toMatchObject({
-      path: '/order/snapshot/list/state',
-      body: { limit: 2 },
+      path: '/shop/order/snapshot/query',
+      body: { limit: 2, kind: 'list' },
     });
   });
 
@@ -119,46 +114,32 @@ describe('each query hook with a query client', () => {
     const { result } = renderHook(() =>
       usePagedQuery<OrderState>({
         initialQuery: query,
-        execute: (q, attributes, abortController) =>
-          client.pagedState(q, attributes, abortController),
+        execute: (q, options) => client.paged(q, options),
       }),
     );
     await waitFor(() => expect(result.current.result).toEqual(page));
     expect(server.requests[0]).toMatchObject({
-      path: '/order/snapshot/paged/state',
-      body: wire(query),
+      path: '/shop/order/snapshot/query',
+      body: wire(query, 'paged'),
     });
   });
 
-  it('useCountQuery sends the filter and keeps the count', async () => {
-    const server = fakeServer(() => json(7));
+  it('useCountQuery sends the count and keeps its answer', async () => {
+    const server = fakeServer(() => json({ count: 7, exact: true }));
     const client = orderClient(server);
     const { result } = renderHook(() =>
       useCountQuery({
-        initialQuery: paidFilter,
-        execute: (query, attributes, abortController) =>
-          client.count(query, attributes, abortController),
+        initialQuery: paidCount,
+        execute: (query, options) => client.count(query, options),
       }),
     );
-    await waitFor(() => expect(result.current.result).toBe(7));
+    await waitFor(() =>
+      expect(result.current.result).toEqual({ count: 7, exact: true }),
+    );
     expect(server.requests[0]).toMatchObject({
-      path: '/order/snapshot/count',
-      body: wire(paidFilter),
+      path: '/shop/order/snapshot/query',
+      body: wire(paidCount, 'count'),
     });
-  });
-
-  it('still takes a Condition query (compat)', async () => {
-    const server = fakeServer(() => json({ total: 0, list: [] }));
-    const client = orderClient(server);
-    const query = legacyPagedQuery({ condition: eq('state.status', 'PAID') });
-    const { result } = renderHook(() =>
-      usePagedQuery<OrderState>({
-        initialQuery: query,
-        execute: q => client.pagedState(q),
-      }),
-    );
-    await waitFor(() => expect(result.current.status).toBe('success'));
-    expect(server.requests[0].body).toEqual(query);
   });
 });
 
@@ -170,7 +151,7 @@ describe('query state', () => {
       useSingleQuery<OrderState>({
         initialQuery: singleQuery({ filter: paidFilter }),
         autoExecute: false,
-        execute: q => client.singleState(q),
+        execute: q => client.single(q),
       }),
     );
     expect(result.current.status).toBe('idle');
@@ -189,13 +170,18 @@ describe('query state', () => {
     const { result } = renderHook(() =>
       usePagedQuery<unknown>({
         initialQuery: pagedQuery({ pagination: { index: 1, size: 10 } }),
-        execute: q => client.pagedState<never>(q),
+        execute: q => client.paged(q),
       }),
     );
     await waitFor(() => expect(result.current.status).toBe('success'));
     const next = pagedQuery({ pagination: { index: 2, size: 10 } });
     act(() => result.current.setQuery(next));
-    await waitFor(() => expect(result.current.result?.list[0]).toEqual(next));
+    await waitFor(() =>
+      expect(result.current.result?.list[0]).toEqual({
+        ...next,
+        kind: 'paged',
+      }),
+    );
     expect(result.current.getQuery()).toEqual(next);
     expect(server.requests).toHaveLength(2);
   });
@@ -206,33 +192,35 @@ describe('query state', () => {
       ({ id }: { id: string }) =>
         useSingleQuery<unknown>({
           query: singleQuery({ filter: filter.id(id) }),
-          execute: q => orderClient(server).singleState<never>(q),
+          execute: q => orderClient(server).single(q),
         }),
       { initialProps: { id: 'a' } },
     );
     await waitFor(() =>
-      expect(result.current.result).toEqual(
-        singleQuery({ filter: filter.id('a') }),
-      ),
+      expect(result.current.result).toEqual({
+        ...singleQuery({ filter: filter.id('a') }),
+        kind: 'single',
+      }),
     );
     rerender({ id: 'b' });
     await waitFor(() =>
-      expect(result.current.result).toEqual(
-        singleQuery({ filter: filter.id('b') }),
-      ),
+      expect(result.current.result).toEqual({
+        ...singleQuery({ filter: filter.id('b') }),
+        kind: 'single',
+      }),
     );
     expect(server.requests).toHaveLength(2);
   });
 
-  it('sets a failed request as the error, from which toWowError reads the errorCode', async () => {
+  it('sets the problem of a failed request as the error', async () => {
     const server = fakeServer(() =>
-      wowError('IllegalArgument', 'Invalid filter request body.'),
+      problem('wow.query.invalid', 'Invalid filter request body.'),
     );
     const client = orderClient(server);
     const onError = vi.fn();
     const { result } = renderHook(() =>
       useCountQuery({
-        initialQuery: paidFilter,
+        initialQuery: paidCount,
         execute: q => client.count(q),
         onError,
       }),
@@ -240,20 +228,22 @@ describe('query state', () => {
     await waitFor(() => expect(result.current.status).toBe('error'));
     expect(result.current.loading).toBe(false);
     expect(result.current.result).toBeUndefined();
-    expect(result.current.error).toBeInstanceOf(FetcherError);
+    expect(result.current.error).toBeInstanceOf(WowProblemError);
     expect(onError).toHaveBeenCalledWith(result.current.error);
-    const error = await toWowError(result.current.error);
-    expect(error?.errorCode).toBe('IllegalArgument');
-    expect(error?.status).toBe(400);
+    const error = result.current.error as WowProblemError;
+    expect(error.code).toBe('wow.query.invalid');
+    expect(error.status).toBe(400);
   });
 
   it('clears the error and the result on reset()', async () => {
-    const server = fakeServer(() => wowError('NotFound', 'gone', 404));
+    const server = fakeServer(() =>
+      problem('wow.aggregate.not-found', 'gone', 404),
+    );
     const client = orderClient(server);
     const { result } = renderHook(() =>
       useSingleQuery<OrderState>({
         initialQuery: singleQuery({ filter: paidFilter }),
-        execute: q => client.singleState(q),
+        execute: q => client.single(q),
       }),
     );
     await waitFor(() => expect(result.current.status).toBe('error'));
@@ -271,8 +261,7 @@ describe('races, aborts and StrictMode', () => {
     const { result } = renderHook(() =>
       useListQuery<OrderState>({
         initialQuery: listQuery({ filter: filter.id('first') }),
-        execute: (q, attributes, abortController) =>
-          client.listState(q, attributes, abortController),
+        execute: (q, options) => client.list(q, options),
       }),
     );
     await waitFor(() => expect(server.requests).toHaveLength(1));
@@ -295,8 +284,8 @@ describe('races, aborts and StrictMode', () => {
     const { result } = renderHook(() =>
       useListQuery<OrderState>({
         initialQuery: listQuery({ filter: filter.id('first') }),
-        // No abortController handed on: the first request cannot be cancelled.
-        execute: q => client.listState(q),
+        // No signal handed on: the first request cannot be cancelled.
+        execute: q => client.list(q),
       }),
     );
     await waitFor(() => expect(server.requests).toHaveLength(1));
@@ -310,22 +299,6 @@ describe('races, aborts and StrictMode', () => {
     expect(result.current.result).toEqual([shipped]);
   });
 
-  // wow-client's clients bind their methods, so one is handed over as is.
-  it('takes a client method as execute without a wrapper', async () => {
-    const server = fakeServer(() => json([paid]));
-    const client = orderClient(server);
-    const { result } = renderHook(() =>
-      useListQuery<OrderState>({
-        initialQuery: listQuery({ filter: paidFilter, limit: 10 }),
-        execute: client.listState,
-      }),
-    );
-    await waitFor(() => expect(result.current.status).toBe('success'));
-    expect(result.current.result).toEqual([paid]);
-    expect(result.current.error).toBeUndefined();
-    expect(server.requests).toHaveLength(1);
-  });
-
   it('aborts the request in flight on unmount', async () => {
     const pending = deferred<Response>();
     const server = fakeServer(() => pending.promise);
@@ -334,8 +307,7 @@ describe('races, aborts and StrictMode', () => {
     const { unmount } = renderHook(() =>
       usePagedQuery<OrderState>({
         initialQuery: pagedQuery({ filter: paidFilter }),
-        execute: (q, attributes, abortController) =>
-          client.pagedState(q, attributes, abortController),
+        execute: (q, options) => client.paged(q, options),
         onSuccess,
       }),
     );
@@ -352,9 +324,8 @@ describe('races, aborts and StrictMode', () => {
     const client = orderClient(server);
     const { result } = renderHook(() =>
       useCountQuery({
-        initialQuery: paidFilter,
-        execute: (q, attributes, abortController) =>
-          client.count(q, attributes, abortController),
+        initialQuery: paidCount,
+        execute: (q, options) => client.count(q, options),
       }),
     );
     await waitFor(() => expect(server.requests).toHaveLength(1));
@@ -371,8 +342,7 @@ describe('races, aborts and StrictMode', () => {
       () =>
         useSingleQuery<OrderState>({
           initialQuery: singleQuery({ filter: paidFilter }),
-          execute: (q, attributes, abortController) =>
-            client.singleState(q, attributes, abortController),
+          execute: (q, options) => client.single(q, options),
         }),
       { wrapper: StrictMode },
     );
@@ -382,26 +352,17 @@ describe('races, aborts and StrictMode', () => {
     expect(live).toHaveLength(1);
   });
 
-  it('passes the attributes option to the client', async () => {
-    const server = fakeServer(() => json(1));
-    const seen: unknown[] = [];
-    server.fetcher.interceptors.request.use({
-      name: 'ReadAttributes',
-      order: 0,
-      intercept(exchange) {
-        seen.push(exchange.attributes.get('tenant'));
-      },
-    });
+  it('passes the requestOptions option to the client', async () => {
+    const server = fakeServer(() => json({ count: 1, exact: true }));
     const client = orderClient(server);
     const { result } = renderHook(() =>
       useCountQuery({
-        initialQuery: paidFilter,
-        attributes: { tenant: 't1' },
-        execute: (q, attributes, abortController) =>
-          client.count(q, attributes, abortController),
+        initialQuery: paidCount,
+        requestOptions: { headers: { 'X-Tenant': 't1' } },
+        execute: (q, options) => client.count(q, options),
       }),
     );
-    await waitFor(() => expect(result.current.result).toBe(1));
-    expect(seen).toEqual(['t1']);
+    await waitFor(() => expect(result.current.status).toBe('success'));
+    expect(server.requests[0].headers.get('X-Tenant')).toBe('t1');
   });
 });

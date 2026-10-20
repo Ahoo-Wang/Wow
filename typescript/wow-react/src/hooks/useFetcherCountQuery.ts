@@ -11,9 +11,7 @@
  * limitations under the License.
  */
 
-import type { FilterExpression } from '@ahoo-wang/wow-client';
-// compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
-import type { Condition } from '@ahoo-wang/wow-client/legacy';
+import type { CountQuery, CountResult } from '@ahoo-wang/wow-client';
 import type { Endpoint } from '../internal/endpoint.js';
 import { useEndpointRunner } from '../internal/useEndpointRunner.js';
 import type { QueryHookOptions, QueryHookReturn } from '../types.js';
@@ -29,10 +27,9 @@ import type { QueryHookOptions, QueryHookReturn } from '../types.js';
 export interface UseFetcherCountQueryOptions<
   FIELDS extends string = string,
   E = Error,
-  Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
-    FilterExpression<FIELDS>,
+  Q extends CountQuery<FIELDS> = CountQuery<FIELDS>,
 >
-  extends Omit<QueryHookOptions<Q, number, E>, 'execute'>, Endpoint {}
+  extends Omit<QueryHookOptions<Q, CountResult, E>, 'execute'>, Endpoint {}
 
 /**
  * What {@link useFetcherCountQuery} returns: the count as `result`.
@@ -44,12 +41,11 @@ export interface UseFetcherCountQueryOptions<
 export interface UseFetcherCountQueryReturn<
   FIELDS extends string = string,
   E = Error,
-  Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
-    FilterExpression<FIELDS>,
-> extends QueryHookReturn<Q, number, E> {}
+  Q extends CountQuery<FIELDS> = CountQuery<FIELDS>,
+> extends QueryHookReturn<Q, CountResult, E> {}
 
 /**
- * POSTs a filter to a Wow count endpoint through a Fetcher and keeps the
+ * POSTs a count to a Wow query route through a Fetcher and keeps the
  * count as state.
  *
  * `url` is resolved against the Fetcher's `baseURL`; `fetcher` is a Fetcher
@@ -65,48 +61,43 @@ export interface UseFetcherCountQueryReturn<
  *
  * Returns `result` (the count, or `undefined` before the first success),
  * `loading`, `error`, `status`, `execute`, `abort`, `reset`, `getQuery` and
- * `setQuery`. A failed request sets `error` to a `FetcherError`;
- * `toWowError(error)` from `@ahoo-wang/wow-client` reads the server's
- * `errorCode` from it.
+ * `setQuery`. A failed request sets `error` to the
+ * `WowProblemError` the route answered with.
  *
  * @template FIELDS - The field names the filter may use
  * @template E - The error type, `Error` by default
  *
  * @example
  * ```tsx
- * import { filter } from '@ahoo-wang/wow-client';
+ * import { filter } from '@ahoo-wang/wow-client/dsl';
  * import { useFetcherCountQuery } from '@ahoo-wang/wow-react';
  *
  * function PaidCount() {
  *   const { result, error } = useFetcherCountQuery({
- *     url: 'order/snapshot/count',
- *     initialQuery: filter.eq('state.status', 'PAID'),
+ *     url: '/shop/order/snapshot/query',
+ *     initialQuery: { filter: filter.eq('state.status', 'PAID') },
  *   });
  *   if (error) return <p role="alert">{error.message}</p>;
- *   return <p>{result ?? '…'} paid orders</p>;
+ *   return <p>{result?.count ?? '…'} paid orders</p>;
  * }
  * ```
  */
 export function useFetcherCountQuery<FIELDS extends string = string, E = Error>(
-  options: UseFetcherCountQueryOptions<FIELDS, E, FilterExpression<FIELDS>>,
-): UseFetcherCountQueryReturn<FIELDS, E, FilterExpression<FIELDS>>;
-export function useFetcherCountQuery<FIELDS extends string = string, E = Error>(
-  options: UseFetcherCountQueryOptions<FIELDS, E, Condition<FIELDS>>,
-): UseFetcherCountQueryReturn<FIELDS, E, Condition<FIELDS>>;
+  options: UseFetcherCountQueryOptions<FIELDS, E, CountQuery<FIELDS>>,
+): UseFetcherCountQueryReturn<FIELDS, E, CountQuery<FIELDS>>;
 export function useFetcherCountQuery<
   FIELDS extends string = string,
   E = Error,
-  Q extends Condition<FIELDS> | FilterExpression<FIELDS> =
-    FilterExpression<FIELDS>,
+  Q extends CountQuery<FIELDS> = CountQuery<FIELDS>,
 >(
   options: UseFetcherCountQueryOptions<FIELDS, E, Q>,
 ): UseFetcherCountQueryReturn<FIELDS, E, Q>;
 export function useFetcherCountQuery<
   FIELDS extends string,
   E,
-  Q extends Condition<FIELDS> | FilterExpression<FIELDS>,
+  Q extends CountQuery<FIELDS>,
 >(
   options: UseFetcherCountQueryOptions<FIELDS, E, Q>,
 ): UseFetcherCountQueryReturn<FIELDS, E, Q> {
-  return useEndpointRunner<Q, number, E>(options);
+  return useEndpointRunner<Q, CountResult, E>(options, 'count');
 }

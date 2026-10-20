@@ -11,9 +11,7 @@
  * limitations under the License.
  */
 
-import type { FilterListQuery } from '@ahoo-wang/wow-client';
-// compat(wow<9): the hook also takes the Condition-based queries of `@ahoo-wang/wow-client/legacy`, which Wow < 8.11 needs; drop that overload in v10.
-import type { ListQuery, ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
+import type { FilterListQuery } from '@ahoo-wang/wow-client/dsl';
 import {
   type Endpoint,
   endpointIdentity,
@@ -32,15 +30,15 @@ import {
  * @template R - One row of the stream: the `data` of each event
  * @template FIELDS - The field names the query may use
  * @template E - The error type, `Error` by default: a failed request
- *   rejects with a `FetcherError`, an error event in the stream with a
- *   `WowError`
+ *   rejects with a `WowProblemError`, and so does an error event in the
+ *   stream
  * @template Q - The query type: `FilterListQuery` by default
  */
 export interface UseFetcherListStreamQueryOptions<
   R,
   FIELDS extends string = string,
   E = Error,
-  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
+  Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
 >
   extends
     Omit<UseListStreamQueryOptions<R, FIELDS, E, Q>, 'execute'>,
@@ -54,17 +52,17 @@ export interface UseFetcherListStreamQueryReturn<
   R,
   FIELDS extends string = string,
   E = Error,
-  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
+  Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
 > extends UseListStreamQueryReturn<R, FIELDS, E, Q> {}
 
 /**
- * Streams the rows of a list query from a Wow list endpoint and keeps them as
+ * Streams the rows of a list query from a Wow query route and keeps them as
  * state; see `useListStreamQuery` for the state it returns.
  *
  * It POSTs the query to `url` through `fetcher` (the default Fetcher when
- * omitted) with `Accept: text/event-stream`, the header a Wow server needs to
- * answer with an event stream rather than JSON. An error event in the stream
- * ends it with a `WowError` in `error`.
+ * omitted) with `Accept: text/event-stream`, the header a Wow service needs
+ * to answer with an event stream rather than JSON. An error event in the
+ * stream ends it with a `WowProblemError` in `error`.
  *
  * A change of `url`, or of `fetcher`, runs the query again. A Fetcher is
  * compared by its name, or by its `baseURL` when it has none, so one created
@@ -76,18 +74,19 @@ export interface UseFetcherListStreamQueryReturn<
  *
  * @example
  * ```tsx
- * import { filter, listQuery } from '@ahoo-wang/wow-client';
+ * import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
+ * import type { SnapshotRecord } from '@ahoo-wang/wow-client';
  * import { useFetcherListStreamQuery } from '@ahoo-wang/wow-react';
  *
  * function PaidOrders() {
- *   const { items, done, loading, error } = useFetcherListStreamQuery<OrderState>({
- *     url: 'order/snapshot/list/state',
+ *   const { items, done, loading, error } = useFetcherListStreamQuery<SnapshotRecord<OrderState>>({
+ *     url: '/shop/order/snapshot/query',
  *     initialQuery: listQuery({ filter: filter.eq('state.status', 'PAID') }),
  *   });
  *   if (error) return <p role="alert">{error.message}</p>;
  *   return (
  *     <>
- *       <ul>{items.map(order => <li key={order.id}>{order.id}</li>)}</ul>
+ *       <ul>{items.map(order => <li key={order.aggregateId}>{order.state.status}</li>)}</ul>
  *       {loading ? <p>Loading…</p> : done && <p>{items.length} orders</p>}
  *     </>
  *   );
@@ -110,14 +109,7 @@ export function useFetcherListStreamQuery<
   R,
   FIELDS extends string = string,
   E = Error,
->(
-  options: UseFetcherListStreamQueryOptions<R, FIELDS, E, ListQuery<FIELDS>>,
-): UseFetcherListStreamQueryReturn<R, FIELDS, E, ListQuery<FIELDS>>;
-export function useFetcherListStreamQuery<
-  R,
-  FIELDS extends string = string,
-  E = Error,
-  Q extends ListQueryRequest<FIELDS> = FilterListQuery<FIELDS>,
+  Q extends FilterListQuery<FIELDS> = FilterListQuery<FIELDS>,
 >(
   options: UseFetcherListStreamQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherListStreamQueryReturn<R, FIELDS, E, Q>;
@@ -125,7 +117,7 @@ export function useFetcherListStreamQuery<
   R,
   FIELDS extends string,
   E,
-  Q extends ListQueryRequest<FIELDS>,
+  Q extends FilterListQuery<FIELDS>,
 >(
   options: UseFetcherListStreamQueryOptions<R, FIELDS, E, Q>,
 ): UseFetcherListStreamQueryReturn<R, FIELDS, E, Q> {

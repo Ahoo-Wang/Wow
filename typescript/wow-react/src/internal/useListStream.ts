@@ -12,8 +12,7 @@
  */
 
 import { useCallback, useState } from 'react';
-// compat(wow<9): the stream hooks also take the Condition-based list query of `@ahoo-wang/wow-client/legacy`; narrow to FilterListQuery in v10.
-import type { ListQueryRequest } from '@ahoo-wang/wow-client/legacy';
+import type { FilterListQuery } from '@ahoo-wang/wow-client/dsl';
 import type {
   UseListStreamQueryOptions,
   UseListStreamQueryReturn,
@@ -25,7 +24,7 @@ import { useQueryRunner } from './useQueryRunner.js';
  * The list-stream hooks on the request state machine: a run opens the
  * stream and reads it into `items`. Each run starts from no rows; `abort()`
  * and an error keep the rows received; `reset()` empties them. The runner
- * aborts the run's controller whenever the run stops counting, and
+ * aborts the run's signal whenever the run stops counting, and
  * readStreamRows stops publishing then, so rows of a stale stream never
  * reach `items`.
  */
@@ -33,7 +32,7 @@ export function useListStream<
   R,
   FIELDS extends string,
   E,
-  Q extends ListQueryRequest<FIELDS>,
+  Q extends FilterListQuery<FIELDS>,
 >(
   options: UseListStreamQueryOptions<R, FIELDS, E, Q>,
   identity?: string,
@@ -44,10 +43,10 @@ export function useListStream<
     useQueryRunner<Q, R[], E>(
       {
         ...options,
-        execute: async (query, attributes, abortController) => {
+        execute: async (query, options) => {
           setItems([]);
-          const stream = await openStream(query, attributes, abortController);
-          return readStreamRows(stream, abortController.signal, setItems);
+          const stream = await openStream(query, options);
+          return readStreamRows(stream, options.signal, setItems);
         },
       },
       identity,

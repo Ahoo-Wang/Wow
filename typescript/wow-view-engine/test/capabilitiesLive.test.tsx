@@ -548,7 +548,7 @@ describe('an entry that needs a condition (Q3)', () => {
 
 /** A Wow rejection of a cursor it cannot read, as fetcher's `ExchangeError` carries it. */
 function invalidCursor() {
-  const body = { errorCode: 'wow.query.malformed', detail: 'Invalid cursor.' };
+  const body = { code: 'wow.query.malformed', detail: 'Invalid cursor.' };
   return Object.assign(new Error('Request failed with status code 400'), {
     exchange: {
       response: { status: 400 },
@@ -557,12 +557,12 @@ function invalidCursor() {
   });
 }
 
-/** The same refusal from Wow 9.2, which names it `INVALID_CURSOR`. */
-function codedInvalidCursor(errorMsg = 'Invalid cursor.') {
+/** The same refusal with its violation's code, `INVALID_CURSOR`. */
+function codedInvalidCursor(detail = 'Invalid cursor.') {
   const body = {
-    errorCode: 'wow.query.malformed',
-    errorMsg,
-    violations: [{ path: 'cursor', message: errorMsg, code: 'INVALID_CURSOR' }],
+    code: 'wow.query.malformed',
+    detail,
+    violations: [{ path: 'cursor', message: detail, code: 'INVALID_CURSOR' }],
   };
   return Object.assign(new Error('Request failed with status code 400'), {
     exchange: {
@@ -572,9 +572,9 @@ function codedInvalidCursor(errorMsg = 'Invalid cursor.') {
   });
 }
 
-/** A failure of the service itself, which Wow 9.2 answers with 500. */
+/** A failure of the service itself, which Wow answers with 500. */
 function serverFault(detail: string) {
-  const body = { errorCode: 'wow.query.failed', errorMsg };
+  const body = { code: 'wow.query.failed', detail };
   return Object.assign(new Error('Request failed with status code 500'), {
     exchange: {
       response: { status: 500 },

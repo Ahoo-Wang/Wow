@@ -463,4 +463,18 @@ describe('resumable query streams (decision D253)', () => {
     await cancelling.read();
     await cancelling.cancel('done');
   });
+
+  it('asks for nothing again once cancelled while a read is in flight', async () => {
+    const live = controlled();
+    const { requests } = answers(() => live.response);
+    const stream = await new SnapshotQueryClient(PRODUCT, client()).listStream(
+      query,
+    );
+    const reader = stream.getReader();
+    const reading = reader.read();
+    await reader.cancel('left');
+    await expect(reading).resolves.toEqual({ done: true, value: undefined });
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(requests).toHaveLength(1);
+  });
 });

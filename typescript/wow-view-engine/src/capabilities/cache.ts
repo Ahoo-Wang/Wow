@@ -11,8 +11,27 @@
  * limitations under the License.
  */
 
-import type { QueryDescriptorResult } from '../runtime/source.js';
 import type { QueryModelDescriptor } from '@ahoo-wang/wow-client/dsl';
+
+/**
+ * What a source's `describe` answers: the descriptor read in full, with its
+ * version to send next time, or word that the version sent is still current.
+ * Branch on `notModified`.
+ */
+export type QueryDescriptorResult =
+  | {
+      /** `false`: `descriptor` holds the descriptor. */
+      notModified: false;
+      descriptor: QueryModelDescriptor;
+      /** Its version, the same as `descriptor.version`; send it next time. */
+      version: string;
+    }
+  | {
+      /** `true`: keep the descriptor already held. */
+      notModified: true;
+      /** The version sent. */
+      version: string;
+    };
 
 /**
  * Reads one source's descriptor, sending the version already held so an

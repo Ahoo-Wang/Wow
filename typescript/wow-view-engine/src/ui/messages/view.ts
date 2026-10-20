@@ -194,6 +194,8 @@ export const viewMessages = {
     'This summary has too many groups for the service to filter or sort by a metric; narrow the data first.',
   'runtime.query.failed.explicit_entry_required':
     'The query named no entry to run against: {reason}',
+  'runtime.query.failed.replay_too_long':
+    'That state is too many changes away to rebuild: {reason}',
   'runtime.query.failed.temporal_aggregation_unsupported':
     '{field} does not store its time as a date or a timestamp, so it cannot be grouped or measured by time.',
   'runtime.query.failed.sort_too_many':

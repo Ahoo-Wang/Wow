@@ -267,7 +267,7 @@ describe('a record read whole', () => {
             response: { status: 400 },
             extractResult: () =>
               Promise.resolve({
-                errorCode: 'Forbidden',
+                code: 'Forbidden',
                 detail: 'No access.',
               }),
           },

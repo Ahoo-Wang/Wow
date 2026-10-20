@@ -14,7 +14,7 @@
 // Type-checked by `pnpm test:type`.
 
 import { expectTypeOf, it } from 'vitest';
-import type { SnapshotQueryClient } from '@ahoo-wang/wow-client';
+import type { QueryModelClient } from '@ahoo-wang/wow-client';
 import { useListStreamQuery } from '../src';
 import type {
   UseFetcherListStreamQueryOptions,
@@ -33,8 +33,8 @@ it('returns the rows of a stream as items, never the stream itself', () => {
   expectTypeOf<StreamReturn['items']>().toEqualTypeOf<Item[]>();
   expectTypeOf<StreamReturn['done']>().toEqualTypeOf<boolean>();
   expectTypeOf<StreamReturn>().not.toHaveProperty('result');
-  // A failed request is a FetcherError and an error event a WowError; both
-  // are Errors, the default.
+  // A failed request and an error event are both a WowProblemError, an
+  // Error, the default.
   expectTypeOf<StreamReturn['error']>().toEqualTypeOf<Error | undefined>();
   expectTypeOf<FetcherStreamReturn['items']>().toEqualTypeOf<Item[]>();
   expectTypeOf<FetcherStreamReturn>().not.toHaveProperty('result');
@@ -55,10 +55,9 @@ it('sets its own result extractor and Accept header on the endpoint hook', () =>
 });
 
 it('takes a query client stream method as execute', () => {
-  const useRead = (client: SnapshotQueryClient<Item, Fields>) =>
+  const useRead = (client: QueryModelClient<Item, Fields>) =>
     useListStreamQuery<Item, Fields>({
-      execute: (query, attributes, abortController) =>
-        client.listStateStream(query, attributes, abortController),
+      execute: (query, options) => client.listStream(query, options),
     }).items;
   expectTypeOf(useRead).returns.toEqualTypeOf<Item[]>();
 });

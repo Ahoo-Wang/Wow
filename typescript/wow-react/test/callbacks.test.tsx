@@ -23,13 +23,12 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { ExchangeError } from '@ahoo-wang/fetcher';
 import {
-  filter,
-  listQuery,
-  SnapshotQueryClient,
-  WowError,
+  type CountResult,
+  QueryModelClient,
+  WowProblemError,
 } from '@ahoo-wang/wow-client';
+import { filter, listQuery } from '@ahoo-wang/wow-client/dsl';
 import {
   useCountQuery,
   useFetcherCountQuery,
@@ -38,17 +37,29 @@ import {
 } from '../src';
 import {
   deferred,
+  errorEvent,
   fakeServer,
   json,
   liveStream,
   sse,
-  wowError,
+  problem,
   type FakeServer,
   type LiveStream,
 } from './support/fakeServer';
 
 const paidFilter = filter.eq('state.status', 'PAID');
-const shippedFilter = filter.eq('state.status', 'SHIPPED');
+const paidCount = { filter: paidFilter };
+const shippedCount = { filter: filter.eq('state.status', 'SHIPPED') };
+
+/** The answer of a count of `count` matches. */
+function counted(count: number): Response {
+  return json({ count, exact: true });
+}
+
+/** A count hook's `onSuccess` as the cells write it: with the number. */
+function onCount(onSuccess: Callbacks<number>['onSuccess']) {
+  return onSuccess && ((result: CountResult) => onSuccess(result.count));
+}
 
 interface Callbacks<R> {
   onSuccess?: (result: R) => void | Promise<void>;
@@ -60,7 +71,7 @@ interface Hook {
   execute(): Promise<void>;
   abort(): void;
   reset(): void;
-  setQuery(query: typeof paidFilter): void;
+  setQuery(query: typeof paidCount): void;
 }
 
 /** Lets late responses, extractors and batched updates run. */
@@ -105,17 +116,16 @@ const requestFamilies: {
   {
     name: 'useCountQuery (query client as execute)',
     render(server, callbacks) {
-      const client = new SnapshotQueryClient<unknown>({
-        fetcher: server.fetcher,
-        basePath: 'order',
-      });
+      const client = new QueryModelClient<unknown>(
+        '/shop/order/snapshot/query',
+        { fetcher: server.fetcher },
+      );
       return renderHook(
         ({ onSuccess, onError }: Callbacks<number>) =>
           useCountQuery({
-            initialQuery: paidFilter,
-            execute: (query, attributes, abortController) =>
-              client.count(query, attributes, abortController),
-            onSuccess,
+            initialQuery: paidCount,
+            execute: (query, options) => client.count(query, options),
+            onSuccess: onCount(onSuccess),
             onError,
           }),
         { initialProps: callbacks },
@@ -129,9 +139,9 @@ const requestFamilies: {
         ({ onSuccess, onError }: Callbacks<number>) =>
           useFetcherCountQuery({
             fetcher: server.fetcher,
-            url: 'order/snapshot/count',
-            initialQuery: paidFilter,
-            onSuccess,
+            url: '/shop/order/snapshot/query',
+            initialQuery: paidCount,
+            onSuccess: onCount(onSuccess),
             onError,
           }),
         { initialProps: callbacks },
@@ -150,7 +160,7 @@ describe.each(requestFamilies)('callbacks of $name', family => {
       },
     });
     await waitFor(() => expect(held.server.requests).toHaveLength(1));
-    held.answer(0, json(1));
+    held.answer(0, counted(1));
     await waitFor(() => expect(hook.result.current.status).toBe('success'));
     expect(seen).toEqual([[1, 'loading']]);
   });
@@ -164,13 +174,13 @@ describe.each(requestFamilies)('callbacks of $name', family => {
       },
     });
     await waitFor(() => expect(held.server.requests).toHaveLength(1));
-    held.answer(0, wowError('IllegalArgument', 'bad'));
+    held.answer(0, problem('wow.query.invalid', 'bad'));
     await waitFor(() => expect(hook.result.current.status).toBe('error'));
-    expect(seen).toEqual([[expect.any(ExchangeError), 'loading']]);
+    expect(seen).toEqual([[expect.any(WowProblemError), 'loading']]);
   });
 
   it('execute() waits for an async onSuccess', async () => {
-    const server = fakeServer(() => json(1));
+    const server = fakeServer(() => counted(1));
     const gate = deferred<void>();
     const hook = family.render(server, { onSuccess: () => gate.promise });
     await waitFor(() => expect(server.requests).toHaveLength(1));
@@ -188,7 +198,7 @@ describe.each(requestFamilies)('callbacks of $name', family => {
   });
 
   it('execute() resolves, not rejects, when the request fails', async () => {
-    const server = fakeServer(() => wowError('IllegalArgument', 'bad'));
+    const server = fakeServer(() => problem('wow.query.invalid', 'bad'));
     const onError = vi.fn();
     const hook = family.render(server, { onError });
     await waitFor(() => expect(hook.result.current.status).toBe('error'));
@@ -199,7 +209,7 @@ describe.each(requestFamilies)('callbacks of $name', family => {
   });
 
   it('an onSuccess that throws is logged; the hook still shows success', async () => {
-    const server = fakeServer(() => json(1));
+    const server = fakeServer(() => counted(1));
     const thrown = new Error('onSuccess failed');
     const hook = family.render(server, {
       onSuccess: () => {
@@ -211,7 +221,7 @@ describe.each(requestFamilies)('callbacks of $name', family => {
   });
 
   it('an onError that throws is logged; the hook still shows the error', async () => {
-    const server = fakeServer(() => wowError('IllegalArgument', 'bad'));
+    const server = fakeServer(() => problem('wow.query.invalid', 'bad'));
     const thrown = new Error('onError failed');
     const hook = family.render(server, {
       onError: () => {
@@ -229,7 +239,7 @@ describe.each(requestFamilies)('callbacks of $name', family => {
     const hook = family.render(held.server, { onSuccess: first });
     await waitFor(() => expect(held.server.requests).toHaveLength(1));
     hook.rerender({ onSuccess: latest });
-    held.answer(0, json(1));
+    held.answer(0, counted(1));
     await waitFor(() => expect(hook.result.current.status).toBe('success'));
     expect(first).not.toHaveBeenCalled();
     expect(latest).toHaveBeenCalledWith(1);
@@ -242,7 +252,7 @@ describe.each(requestFamilies)('callbacks of $name', family => {
     const hook = family.render(held.server, { onSuccess, onError });
     await waitFor(() => expect(held.server.requests).toHaveLength(1));
     await act(async () => hook.result.current.abort());
-    held.answer(0, json(1));
+    held.answer(0, counted(1));
     await settle();
     expect(onSuccess).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
@@ -254,10 +264,10 @@ describe.each(requestFamilies)('callbacks of $name', family => {
     const onError = vi.fn();
     const hook = family.render(held.server, { onSuccess, onError });
     await waitFor(() => expect(held.server.requests).toHaveLength(1));
-    act(() => hook.result.current.setQuery(shippedFilter));
+    act(() => hook.result.current.setQuery(shippedCount));
     await waitFor(() => expect(held.server.requests).toHaveLength(2));
-    held.answer(0, json(1));
-    held.answer(1, json(2));
+    held.answer(0, counted(1));
+    held.answer(1, counted(2));
     await waitFor(() => expect(hook.result.current.status).toBe('success'));
     await settle();
     expect(onSuccess).toHaveBeenCalledTimes(1);
@@ -271,7 +281,7 @@ describe.each(requestFamilies)('callbacks of $name', family => {
     const hook = family.render(held.server, { onSuccess });
     await waitFor(() => expect(held.server.requests).toHaveLength(1));
     act(() => hook.result.current.reset());
-    held.answer(0, json(1));
+    held.answer(0, counted(1));
     await settle();
     // B3 changed this: onSuccess ran with 1.
     expect(onSuccess).not.toHaveBeenCalled();
@@ -288,15 +298,14 @@ const streamFamilies: {
   {
     name: 'useListStreamQuery (query client as execute)',
     render(server, { onSuccess, onError }) {
-      const client = new SnapshotQueryClient<unknown>({
-        fetcher: server.fetcher,
-        basePath: 'order',
-      });
+      const client = new QueryModelClient<unknown>(
+        '/shop/order/snapshot/query',
+        { fetcher: server.fetcher },
+      );
       return renderHook(() =>
         useListStreamQuery<unknown>({
           initialQuery: listQuery({ filter: paidFilter }),
-          execute: (query, attributes, abortController) =>
-            client.listStateStream(query, attributes, abortController),
+          execute: (query, options) => client.listStream(query, options),
           onSuccess,
           onError,
         }),
@@ -309,7 +318,7 @@ const streamFamilies: {
       return renderHook(() =>
         useFetcherListStreamQuery<unknown>({
           fetcher: server.fetcher,
-          url: 'order/snapshot/list/state',
+          url: '/shop/order/snapshot/query',
           initialQuery: listQuery({ filter: paidFilter }),
           onSuccess,
           onError,
@@ -340,21 +349,15 @@ describe.each(streamFamilies)('callbacks of $name', family => {
     expect(onSuccess).toHaveBeenCalledWith([1, 2]);
   });
 
-  it('onError runs once with the WowError of an error event', async () => {
+  it('onError runs once with the WowProblemError of an error event', async () => {
     const server = fakeServer(() =>
-      sse(
-        { data: 1 },
-        {
-          event: 'IllegalArgument',
-          data: { errorCode: 'IllegalArgument', errorMsg: 'bad' },
-        },
-      ),
+      sse({ data: 1 }, errorEvent('wow.query.invalid', 'bad')),
     );
     const onError = vi.fn();
     const hook = family.render(server, { onError });
     await waitFor(() => expect(hook.result.current.status).toBe('error'));
     expect(onError).toHaveBeenCalledTimes(1);
-    expect(onError).toHaveBeenCalledWith(expect.any(WowError));
+    expect(onError).toHaveBeenCalledWith(expect.any(WowProblemError));
   });
 
   it('neither runs when the stream is aborted', async () => {
