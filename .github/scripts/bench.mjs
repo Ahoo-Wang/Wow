@@ -650,9 +650,15 @@ export function anomalies(suite, noise = {}) {
     return rows;
   }
   if (suite.kind === 'paired' && suite.arms?.length === 2 && !suite.aa) {
-    // The second arm (the head) allocating more per operation than the first, in the median of the calibrated pairs.
+    // The second arm (the head) allocating more per operation than the first, in the median of the equal-rate pairs:
+    // a node's background allocation per second is spread over the operations, so bytes per operation fall as the
+    // rate rises, and pairs at unequal rates would compare the rates. Suites without equal rounds use the calibrated.
+    const equal = pairs(suite, EQUAL);
+    const mode = equal.length > 0 ? EQUAL : CALIBRATED;
     const growth = median(
-      pairs(suite).map(pair => pair.ratios.allocatedBytesPerOp),
+      (equal.length > 0 ? equal : pairs(suite)).map(
+        pair => pair.ratios.allocatedBytesPerOp,
+      ),
     );
     if (growth > 1 + ANOMALY.componentGrowth) {
       const [a, b] = suite.arms.map(arm => arm.id);
@@ -661,7 +667,7 @@ export function anomalies(suite, noise = {}) {
         run: `${b} against ${a}`,
         context: 'cost',
         kind: 'more allocation',
-        detail: `${b} allocates ×${num(growth, 2)} the bytes per operation of ${a} (median of the calibrated pairs)`,
+        detail: `${b} allocates ×${num(growth, 2)} the bytes per operation of ${a} (median of the ${mode === EQUAL ? 'equal-rate' : 'calibrated'} pairs)`,
       });
     }
   }

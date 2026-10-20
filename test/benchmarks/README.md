@@ -182,7 +182,7 @@ The report reads every node's last such line and flags these anomalies:
 - more than 1% errors;
 - a measured second below half the rate;
 - p99 above 10× p50, when p99 is at least 50 ms;
-- the head allocating more than 5% more bytes per operation than the baseline, in the median of the calibrated pairs.
+- the head allocating more than 5% more bytes per operation than the baseline, in the median of the equal-rate pairs (bytes per operation fall as the rate rises, since a node's background allocation is spread over more operations).
 
 Two more anomalies are flagged:
 

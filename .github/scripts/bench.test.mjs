@@ -264,9 +264,34 @@ test('allocation per operation is reported when every server was read, and a hea
     row => row.kind === 'more allocation',
   );
   assert.equal(flagged.length, 1);
-  assert.match(flagged[0].detail, /×1\.10/);
+  assert.match(flagged[0].detail, /×1\.10 .*calibrated pairs/);
   assert.equal(
     anomalies(suite(4_100_000)).filter(row => row.kind === 'more allocation')
+      .length,
+    0,
+  );
+  // With equal-rate rounds, those decide: at unequal rates bytes per operation compare the rates.
+  const atEqualRates = suite(4_400_000);
+  atEqualRates.runs.push(
+    {
+      name: 'e1-base',
+      arm: 'base',
+      round: 0,
+      mode: 'equal',
+      status: 'ok',
+      metrics: metrics(allocating(100, 4_000_000)),
+    },
+    {
+      name: 'e1-head',
+      arm: 'head',
+      round: 0,
+      mode: 'equal',
+      status: 'ok',
+      metrics: metrics(allocating(100, 4_040_000)),
+    },
+  );
+  assert.equal(
+    anomalies(atEqualRates).filter(row => row.kind === 'more allocation')
       .length,
     0,
   );
