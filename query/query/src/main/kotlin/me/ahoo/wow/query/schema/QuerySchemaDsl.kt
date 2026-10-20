@@ -92,6 +92,11 @@ class QueryFieldDeclarationBuilder {
         semantic(Temporal.Formatted(pattern))
     }
 
+    /** The value is the id of an aggregate: [aggregateName] of the bounded context [contextName] (`REFERENCE`). */
+    fun reference(contextName: String, aggregateName: String) {
+        semantic(Reference(contextName = contextName, aggregateName = aggregateName))
+    }
+
     fun description(value: String) {
         description = description.set(value, "description")
     }

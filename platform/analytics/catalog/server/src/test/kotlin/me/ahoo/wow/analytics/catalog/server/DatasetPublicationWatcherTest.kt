@@ -151,12 +151,21 @@ class DatasetPublicationWatcherTest {
             identity = null,
             eventTime = "month",
             title = null,
-            fields = listOf(DatasetField("month"), DatasetField("name", sensitivity = DatasetSensitivity())),
+            fields = listOf(
+                DatasetField("month"),
+                DatasetField("name", sensitivity = DatasetSensitivity()),
+                DatasetField(
+                    "member",
+                    reference = me.ahoo.wow.analytics.catalog.api.dataset.DatasetReference("crm", "member")
+                ),
+            ),
         )
         val dataset = DatasetPublicationWatcher.datasetOf(artifact)
         dataset.scope.platform.assert().isTrue()
         dataset.eventTime.assert().isEqualTo(QueryField("month"))
         dataset.declaration.fields.getValue(QueryField("name")).maskRule.toString().assert().doesNotContain("DISPLAY")
+        dataset.declaration.fields.getValue(QueryField("member")).semanticType.toString().assert()
+            .contains("contextName=crm").contains("aggregateName=member")
     }
 
     @Test

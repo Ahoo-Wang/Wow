@@ -165,11 +165,12 @@ object DatasetFixtures {
         sensitivity: List<FieldSensitivity> = emptyList(),
         platform: Boolean = false,
         connection: String = FakeCatalog.CONNECTION,
+        references: List<me.ahoo.wow.analytics.catalog.api.source.SourceReference> = emptyList(),
     ): SourceState = SourceState().apply {
         onSourcing(
             SourceDrafted(connection, "clickhouse", FakeCatalog.DATABASE, table, "uuid-$table", "MergeTree", columns)
         )
-        onSourcing(SourceRevised(tenant, owner, platform = platform))
+        onSourcing(SourceRevised(tenant, owner, references = references, platform = platform))
         if (sensitivity.isNotEmpty()) onSourcing(SourceSensitivityReviewed(sensitivity))
         onSourcing(SourceReviewed)
     }
