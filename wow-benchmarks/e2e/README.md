@@ -112,7 +112,7 @@ A run starts when a branch under `v10-bench-run/` is pushed. The head is the pus
 git push origin v10:v10-bench-run/20261020
 ```
 
-Runs follow D224's tiers: run the smallest one that answers the question. L0 is the JMH A/B (`benchmark-ab.yml`). The others are:
+Runs follow D224's tiers: run the smallest one that answers the question. L0, the JMH microbenchmarks, is outside this workflow (its 9.x-era `benchmark-ab.yml` left with 9.x, D262). The others are:
 
 - **L2** (the default): end-to-end points, head against baseline. They are `e1-mongo-uniform`, `e1-pg-uniform`, `e3-mongo` and `e3-pg`.
 - **L3**: the end-to-end grid, every `ab` suite, run before an rc or after a major merge.
