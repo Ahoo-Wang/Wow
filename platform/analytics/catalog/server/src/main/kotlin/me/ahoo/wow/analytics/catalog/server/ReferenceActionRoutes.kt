@@ -54,7 +54,13 @@ fun referenceActionRoutes(actions: DatasetReferenceActions, callers: CallerResol
             answering(request, callers) { caller ->
                 val bytes = request.awaitBodyOrNull<ByteArray>()
                 val body = try {
-                    if (bytes == null || bytes.isEmpty()) WowJson.mapper.createObjectNode() else WowJson.mapper.readTree(bytes)
+                    if (bytes == null || bytes.isEmpty()) {
+                        WowJson.mapper.createObjectNode()
+                    } else {
+                        WowJson.mapper.readTree(
+                            bytes
+                        )
+                    }
                 } catch (malformed: JacksonException) {
                     throw ReferenceActionRefusal(
                         Problem(400, "Bad Request", malformed.originalMessage, FrameworkErrors.COMMAND_MALFORMED),
@@ -86,7 +92,9 @@ const val ACTIONS: String = "/analytics-catalog/datasets/{$DATASET}/reference-ac
 const val RELAY: String = "/analytics-catalog/datasets/{$DATASET}/rows/{$FIELD}/{$ID}/{$COMMAND}"
 
 private suspend fun json(value: Any): ServerResponse =
-    ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValueAndAwait(WowJson.mapper.writeValueAsBytes(value))
+    ServerResponse.ok().contentType(
+        MediaType.APPLICATION_JSON
+    ).bodyValueAndAwait(WowJson.mapper.writeValueAsBytes(value))
 
 @Suppress("TooGenericExceptionCaught") // Whatever fails is answered as a problem, never Spring's error page.
 private suspend fun answering(

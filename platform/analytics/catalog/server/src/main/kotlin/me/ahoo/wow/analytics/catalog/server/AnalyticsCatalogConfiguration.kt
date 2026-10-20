@@ -157,7 +157,10 @@ class AnalyticsCatalogConfiguration {
 
     /** The routes of the reference actions, on the public port as the callers [callers] resolves. */
     @Bean
-    fun referenceActionRouter(actions: DatasetReferenceActions, callers: CallerResolver): RouterFunction<ServerResponse> =
+    fun referenceActionRouter(
+        actions: DatasetReferenceActions,
+        callers: CallerResolver
+    ): RouterFunction<ServerResponse> =
         referenceActionRoutes(actions, callers)
 
     @Bean

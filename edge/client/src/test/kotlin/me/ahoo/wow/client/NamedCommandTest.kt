@@ -47,7 +47,12 @@ class NamedCommandTest {
     private val ref = BOX.ref("t1", "b-1")
     private val alice = Caller.of(tenantId = "t1", subject = "alice")
 
-    private fun client(mode: ClientMode = ClientMode.Service(ServiceCredential.bearer(TOKEN)), described: Set<String> = setOf("mail")) =
+    private fun client(
+        mode: ClientMode = ClientMode.Service(
+            ServiceCredential.bearer(TOKEN)
+        ),
+        described: Set<String> = setOf("mail")
+    ) =
         WowClient.builder()
             .endpoints(EndpointResolver.of(mapOf("mail" to peer.base), mapOf("mail" to peer.base)))
             .apply {
@@ -93,7 +98,11 @@ class NamedCommandTest {
 
     @Test
     fun `an undeclared command should fail before it is sent, the Manifest read again once`(): Unit = runBlocking {
-        peer.reply(Reply.json(ManifestTree.write(MANIFEST)), Reply.json(resultOf(ref)), Reply.json(ManifestTree.write(MANIFEST)))
+        peer.reply(
+            Reply.json(ManifestTree.write(MANIFEST)),
+            Reply.json(resultOf(ref)),
+            Reply.json(ManifestTree.write(MANIFEST))
+        )
         val commands = client().of(alice)
         commands.wait(deliver(), ref)
         assertThrownBy<IllegalArgumentException> {
@@ -109,10 +118,17 @@ class NamedCommandTest {
     @Test
     fun `a user-mode command should forward the end user's credential, and its refusal should pass through`(): Unit =
         runBlocking {
-            val rejected = resultOf(ref, CommandResult.Status.REJECTED, ErrorInfo("wow.auth.forbidden", "alice may not."))
+            val rejected = resultOf(
+                ref,
+                CommandResult.Status.REJECTED,
+                ErrorInfo("wow.auth.forbidden", "alice may not.")
+            )
             peer.reply(
                 Reply.json(ManifestTree.write(MANIFEST)),
-                Reply.problem(403, mapOf("code" to "wow.auth.forbidden", "detail" to "alice may not.", "result" to rejected)),
+                Reply.problem(
+                    403,
+                    mapOf("code" to "wow.auth.forbidden", "detail" to "alice may not.", "result" to rejected)
+                ),
             )
             val exception = assertThrownBy<CommandRejectedException> {
                 runBlocking(ForwardedHeaders(mapOf("Authorization" to "Bearer alice"))) {
@@ -131,10 +147,43 @@ class NamedCommandTest {
                 runBlocking { client(described = setOf("other")).wait(deliver(), ref) }
             }.hasMessageContaining("not described by its Manifest")
             assertThrownBy<IllegalArgumentException> {
-                runBlocking { client().wait(NamedCommand("mail.drawer.DeliverItems", WowJson.mapper.readTree("{}")), ref) }
+                runBlocking {
+                    client().wait(
+                        NamedCommand("mail.drawer.DeliverItems", WowJson.mapper.readTree("{}")),
+                        ref
+                    )
+                }
             }.hasMessageContaining("is not one of mail.box")
             peer.taken.assert().isEmpty()
         }
+
+    @Test
+    fun `the Manifest of a peer described by it should be read as the caller and kept`(): Unit = runBlocking {
+        peer.reply(Reply.json(ManifestTree.write(MANIFEST)))
+        val client = WowClient.builder()
+            .endpoints(EndpointResolver.of(mapOf("mail" to peer.base), mapOf("mail" to peer.base)))
+            .service(ServiceCredential.bearer(TOKEN))
+            .commandTypes(CommandTypes.SIMPLE_NAMES)
+            .manifestPeers(setOf("mail"))
+            .build()
+        client.manifestOf("mail", alice).assert().isEqualTo(MANIFEST)
+        client.manifestOf("mail", alice).assert().isEqualTo(MANIFEST)
+        peer.taken.single().path.assert().isEqualTo("/wow/manifest")
+        CallHeader.parse(peer.taken.single().headers.getValue(WowHeaders.CALL)).operator?.id.assert().isEqualTo("alice")
+        assertThrownBy<IllegalArgumentException> { runBlocking { client.manifestOf("other", alice) } }
+            .hasMessageContaining("not described by its Manifest")
+        val plain = WowClient.builder().endpoints(EndpointResolver.NONE).build()
+        assertThrownBy<IllegalArgumentException> { runBlocking { plain.manifestOf("mail", alice) } }
+            .hasMessageContaining("not described by its Manifest")
+    }
+
+    @Test
+    fun `a peer's Manifest that cannot be read should fail the send`(): Unit = runBlocking {
+        peer.reply(Reply.problem(403, mapOf("code" to "wow.auth.forbidden", "detail" to "No.")))
+        assertThrownBy<me.ahoo.wow.api.client.WowProblemException> {
+            runBlocking { client().of(alice).wait(deliver(), ref) }
+        }.hasMessageContaining("The Manifest of mail")
+    }
 
     @Test
     fun `a command object to a peer described by its Manifest should be a configuration error`(): Unit = runBlocking {

@@ -90,7 +90,7 @@ class DatasetReferenceActions(
     /** The reference actions of [dataset] for [caller], or null when no dataset of that id is served. */
     suspend fun actionsOf(dataset: String, caller: Caller): ReferenceActions? {
         val fields = referencesOf(dataset) ?: return null
-        val manifests = fields.values.map { it.context }.distinct().associateWith { manifestOf(it, caller) }
+        val read = fields.values.map { it.context }.distinct().associateWith { manifestOf(it, caller) }
         return ReferenceActions(
             dataset,
             fields.map { (field, reference) ->
@@ -98,7 +98,7 @@ class DatasetReferenceActions(
                     field,
                     reference.context,
                     reference.aggregate,
-                    manifests[reference.context]?.let { offered(it, reference) }.orEmpty().map { (command, inputs) ->
+                    read[reference.context]?.let { offered(it, reference) }.orEmpty().map { (command, inputs) ->
                         ReferenceCommand(command.name, command.description, inputs)
                     },
                 )
@@ -107,7 +107,10 @@ class DatasetReferenceActions(
     }
 
     /** Sends [command] with [body] to the aggregate [id] of [field] of [dataset] refers to, as [caller]. */
-    @Suppress("LongParameterList") // The relay's path, its body and its caller.
+    @Suppress(
+        "LongParameterList", // The relay's path, its body and its caller.
+        "TooGenericExceptionCaught", // The owning service's answers pass through; any other failure as it is.
+    )
     suspend fun send(
         dataset: String,
         field: String,
@@ -116,11 +119,7 @@ class DatasetReferenceActions(
         body: JsonNode,
         caller: Caller,
     ): CommandResult {
-        val fields = referencesOf(dataset) ?: throw notFound("No dataset $dataset is served.")
-        val reference = fields[field] ?: throw notFound("$field is no reference field of $dataset.")
-        if (reference.context !in described) throw unhandled(reference, command)
-        val manifest = manifestOf(reference.context, caller) ?: throw unhandled(reference, command)
-        if (offered(manifest, reference).none { it.first.name == command }) throw unhandled(reference, command)
+        val (reference, manifest) = offeredOf(dataset, field, command, caller)
         if (!body.isObject) {
             throw ReferenceActionRefusal(
                 problem(BAD_REQUEST, FrameworkErrors.COMMAND_MALFORMED, "A command's body is a JSON object."),
@@ -133,22 +132,47 @@ class DatasetReferenceActions(
                 type.ref(caller.tenantId, id),
                 SendOptions.of(wait = WaitPlan.DEFAULT),
             )
-        } catch (rejected: CommandRejectedException) {
-            val error = rejected.result.error
-            throw ReferenceActionRefusal(
-                Problem(
-                    statusOf(manifest, rejected.code),
-                    "Rejected",
-                    error?.message,
-                    rejected.code,
-                    result = rejected.result,
-                ),
-            )
-        } catch (problem: WowProblemException) {
-            throw ReferenceActionRefusal(
-                Problem(problem.status, "Not done", problem.message, problem.code, result = problem.result),
-            )
+        } catch (failure: RuntimeException) {
+            throw refusalOf(failure, manifest)
         }
+    }
+
+    /** The owning service's answer [failure] passed through, in its code and words; any other failure as it is. */
+    private fun refusalOf(failure: RuntimeException, manifest: Manifest): RuntimeException = when (failure) {
+        is CommandRejectedException -> ReferenceActionRefusal(
+            Problem(
+                statusOf(manifest, failure.code),
+                "Rejected",
+                failure.result.error?.message,
+                failure.code,
+                result = failure.result,
+            ),
+        )
+
+        is WowProblemException -> ReferenceActionRefusal(
+            Problem(failure.status, "Not done", failure.message, failure.code, result = failure.result),
+        )
+
+        else -> failure
+    }
+
+    /**
+     * The aggregate [field] of [dataset] refers to and its context's Manifest, once that Manifest declares [command]
+     * among those a row offers; else the refusal: 404 for an unknown dataset or field, 400 for a command not offered.
+     */
+    private suspend fun offeredOf(
+        dataset: String,
+        field: String,
+        command: String,
+        caller: Caller,
+    ): Pair<DatasetReference, Manifest> {
+        val fields = referencesOf(dataset)
+        val reference = fields?.get(field)
+            ?: throw notFound(if (fields == null) "No dataset $dataset is served." else "$field is no reference field of $dataset.")
+        val manifest = manifestOf(reference.context, caller)
+            ?.takeIf { manifest -> offered(manifest, reference).any { it.first.name == command } }
+            ?: throw unhandled(reference, command)
+        return reference to manifest
     }
 
     /** The REFERENCE fields of the version [dataset] serves, by name; null when it serves none. */

@@ -221,9 +221,15 @@ class ReferenceActionsServerTest {
         put("commandId", "c-1")
         put("requestId", "r-1")
         put("correlationId", "c-1")
-        put("ref", mapOf("type" to mapOf("context" to "crm", "name" to "member"), "tenantId" to "(platform)", "id" to id))
+        put(
+            "ref",
+            mapOf("type" to mapOf("context" to "crm", "name" to "member"), "tenantId" to "(platform)", "id" to id)
+        )
         put("hop", mapOf("stage" to "COMMITTED", "context" to "crm"))
-        put("function", mapOf("kind" to "COMMAND", "context" to "crm", "processor" to "member", "name" to "SuspendMember"))
+        put(
+            "function",
+            mapOf("kind" to "COMMAND", "context" to "crm", "processor" to "member", "name" to "SuspendMember")
+        )
         put("status", status)
         put("version", 1)
         error?.let { put("error", it) }
@@ -250,7 +256,11 @@ class ReferenceActionsServerTest {
             "invoices",
             "uuid-invoices-ref",
             "MergeTree",
-            listOf(SourceColumn("tenant", "String"), SourceColumn("member_id", "String"), SourceColumn("total", "Int64")),
+            listOf(
+                SourceColumn("tenant", "String"),
+                SourceColumn("member_id", "String"),
+                SourceColumn("total", "Int64")
+            ),
         )
 
         private const val DEFS = "#/\$defs/"
