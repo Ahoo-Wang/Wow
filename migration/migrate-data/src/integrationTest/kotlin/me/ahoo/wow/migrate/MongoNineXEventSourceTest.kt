@@ -30,9 +30,7 @@ class MongoNineXEventSourceTest {
         inventories.getValue(order).also {
             it.streams.assert().isEqualTo(4)
             it.events.assert().containsEntry(NineXEventType("order_created", "0.0.1"), 1L)
-            it.commands.assert().isEqualTo(
-                mapOf("create_order" to 1L, "change_address" to 1L, "pay_order" to 1L, "ship_order" to 1L)
-            )
+            it.commands.assert().isEqualTo(mapOf("create_order" to 1L, "change_address" to 1L, "pay_order" to 1L, "ship_order" to 1L))
             it.streamsWithoutCommand.assert().isEqualTo(0)
         }
         inventories.getValue(cart).commands.assert().containsEntry("add_cart_item", 2L)
@@ -53,10 +51,7 @@ class MongoNineXEventSourceTest {
             .replace("\"body\":{}}]", "\"body\":{}},$noted]")
         NineXMongoStore.insert(database, twice)
         NineXMongoStore.insert(database, reversed)
-        val shape = setOf(
-            NineXEventType("order_noted", NineXStream.DEFAULT_REVISION),
-            NineXEventType("order_shipped", "0.0.1")
-        )
+        val shape = setOf(NineXEventType("order_noted", NineXStream.DEFAULT_REVISION), NineXEventType("order_shipped", "0.0.1"))
         source.inventory().first { it.aggregate == order }.streamEventTypes.assert()
             .containsEntry(shape, 2L)
             .containsEntry(setOf(NineXEventType("order_shipped", "0.0.1")), 1L)
@@ -91,9 +86,7 @@ class MongoNineXEventSourceTest {
 
         val committed = source.committedSince(order, first.createTime, null, 2)
         committed.map { it.version }.assert().containsExactly(1, 1)
-        val next = source.committedSince(order, first.createTime, committed.last().let {
-            NineXPosition(it.createTime, it.id)
-        }, 10)
+        val next = source.committedSince(order, first.createTime, committed.last().let { NineXPosition(it.createTime, it.id) }, 10)
         next.map { it.version }.assert().containsExactly(2, 3, 4)
         source.committedSince(order, Long.MAX_VALUE, null, 10).assert().isEmpty()
     }

@@ -51,9 +51,7 @@ class TagsBackfillCostSpike {
         }
         measure("postgres") { context -> PostgresEventLog(postgres, context, PARTITIONS).also { it.createSchema() } }
         val mongo = MongoClients.create(WowContainers.mongo.replicaSetUrl)
-        measure(
-            "mongo"
-        ) { context -> MongoEventLog(mongo, "tags_spike", context, PARTITIONS).also { it.createSchema() } }
+        measure("mongo") { context -> MongoEventLog(mongo, "tags_spike", context, PARTITIONS).also { it.createSchema() } }
     }
 
     private fun measure(backend: String, logOf: (String) -> EventLog) = runBlocking {
@@ -66,9 +64,7 @@ class TagsBackfillCostSpike {
         val codec = EventCodec()
         val log = logOf(context)
         val seeding = TimeSource.Monotonic.markNow()
-        val byPartition = (0 until AGGREGATES).groupBy {
-            Partitioner.partitionOf(model.type.ref("tenant", "p-$it"), PARTITIONS)
-        }
+        val byPartition = (0 until AGGREGATES).groupBy { Partitioner.partitionOf(model.type.ref("tenant", "p-$it"), PARTITIONS) }
         (1..STREAMS).forEach { version ->
             byPartition.values.flatMap { it.chunked(BATCH) }.forEach { ids ->
                 log.appendAll(
