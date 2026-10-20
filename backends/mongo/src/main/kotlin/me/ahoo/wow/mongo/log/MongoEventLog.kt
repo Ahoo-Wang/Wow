@@ -71,6 +71,7 @@ import org.bson.BsonMaximumSizeExceededException
 import org.bson.Document
 import org.bson.conversions.Bson
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -140,6 +141,12 @@ class MongoEventLog(
     maxPollInterval: Duration = DEFAULT_MAX_POLL_INTERVAL,
     /** How the store's collections and indexes are managed: created when missing by default (review A5-10). */
     private val ddl: StoreDdl = StoreDdl.AUTO,
+    /**
+     * How long an append's transaction, its retries included, may take (decision D261): the driver retries a transient
+     * failure for up to two minutes otherwise, past any command's wait. Below the default wait timeout, so a command
+     * appending during an outage is answered: the retryable storage error when no commit was sent, else unknown.
+     */
+    transactionTimeout: Duration = DEFAULT_TRANSACTION_TIMEOUT,
 ) : EventLog {
     /** Validates the partition count first (decision D240): a log of another count is refused when it is built. */
     private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
@@ -154,6 +161,7 @@ class MongoEventLog(
     private val transaction = TransactionOptions.builder()
         .readConcern(ReadConcern.SNAPSHOT)
         .writeConcern(WriteConcern.MAJORITY)
+        .timeout(transactionTimeout.inWholeMilliseconds, TimeUnit.MILLISECONDS)
         .build()
 
     /** The aggregate collections whose creation and registration this log has made sure of. */
@@ -829,6 +837,9 @@ class MongoEventLog(
         const val AGGREGATE = "aggregate"
         const val BRANCH = "branch"
         const val HEAD = "head"
+
+        /** How long an append's transaction may take by default: below the default wait timeout of 10 seconds. */
+        val DEFAULT_TRANSACTION_TIMEOUT: Duration = 5.seconds
 
         /** The streams of tail [readTail]'s first batch holds beyond the earlier request keys. */
         const val READ_TAIL_BATCH = 1000

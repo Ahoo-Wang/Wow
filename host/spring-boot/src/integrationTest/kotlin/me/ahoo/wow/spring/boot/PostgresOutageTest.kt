@@ -25,7 +25,6 @@ import org.junit.jupiter.api.TestInstance
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
-import org.springframework.http.HttpHeaders
 import javax.sql.DataSource
 
 /**
@@ -58,9 +57,10 @@ class OutagePostgresDataSource {
 }
 
 /**
- * A command admitted while PostgreSQL does not answer (C.1 finding F2): its answer is the retryable
- * `wow.storage.unavailable` problem, 503 with `Retry-After` and the command's FAILED result, not a bare 500; once the
- * database is back, the same request id commits once.
+ * A command admitted while PostgreSQL does not answer (C.1 finding F2): its answer is a retryable 503 problem with
+ * the command's FAILED result, not a bare 500. Without the request-id lookup (decision D261) its append may already
+ * be sent when the database stops answering: then `wow.command.unknown`, and the retryable `wow.storage.unavailable`
+ * only when nothing was sent. Once the database is back, the same request id commits once.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class PostgresOutageTest {
@@ -80,7 +80,7 @@ class PostgresOutageTest {
     }
 
     @Test
-    fun `a command admitted while PostgreSQL is paused should answer the retryable storage error`() {
+    fun `a command appending while PostgreSQL is paused should answer a retryable error and commit once on retry`() {
         val id = "outage-account"
         host.post("/bank/account/$id/open-account", """{"owner":"olga"}""", COMMITTED).status.assert().isEqualTo(200)
         val deposit = COMMITTED + (WowHeaders.REQUEST_ID to "outage-deposit")
@@ -92,23 +92,27 @@ class PostgresOutageTest {
             postgres.dockerClient.unpauseContainerCmd(postgres.containerId).exec()
         }
 
-        failed.status.assert().isEqualTo(503)
+        // The append was sent on a connection the pool still held, then the database stopped answering: whether it
+        // committed is unknown (finding A2-6, decision D261). Both answers are 503 and retryable with the request id.
+        failed.status.assert().isEqualTo(UNAVAILABLE)
         failed.contentType.assert().isEqualTo("application/problem+json")
-        failed.headers.getFirst(HttpHeaders.RETRY_AFTER).assert().isEqualTo("1")
         val problem = failed.body!!
-        problem["code"].asString().assert().isEqualTo(FrameworkErrors.STORAGE_UNAVAILABLE)
-        problem["type"].asString().assert().isEqualTo("urn:wow:error:${FrameworkErrors.STORAGE_UNAVAILABLE}")
+        val code = problem["code"].asString()
+        code.assert().isIn(FrameworkErrors.COMMAND_UNKNOWN, FrameworkErrors.STORAGE_UNAVAILABLE)
+        problem["type"].asString().assert().isEqualTo("urn:wow:error:$code")
         problem["result"]["status"].asString().assert().isEqualTo("FAILED")
         problem["result"]["requestId"].asString().assert().isEqualTo("outage-deposit")
-        problem["result"]["error"]["code"].asString().assert().isEqualTo(FrameworkErrors.STORAGE_UNAVAILABLE)
+        problem["result"]["error"]["code"].asString().assert().isEqualTo(code)
 
-        // The client's retry with the same request id, once the database answers again, commits it once.
+        // The client's retry with the same request id, once the database answers again, commits it exactly once.
         val retried = retry { host.post("/bank/account/$id/deposit", """{"amount":7}""", deposit) }
         retried.status.assert().isEqualTo(200)
         retried.body!!["version"].asInt().assert().isEqualTo(2)
         val again = host.post("/bank/account/$id/deposit", """{"amount":7}""", deposit)
         again.body!!["duplicate"].asBoolean().assert().isTrue()
         again.body!!["version"].asInt().assert().isEqualTo(2)
+        // One stream for the request: the account's next deposit is version 3.
+        host.post("/bank/account/$id/deposit", """{"amount":1}""", COMMITTED).body!!["version"].asInt().assert().isEqualTo(3)
     }
 
     /** [send]'s answer, sent again while it is the retryable storage error and the deadline has not passed. */

@@ -23,6 +23,7 @@ import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.aggregate.Scope
 import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
+import me.ahoo.wow.api.decide.Decision
 import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemorySnapshotStore
 import me.ahoo.wow.spi.log.AggregateTail
@@ -409,6 +410,27 @@ class KernelRecentRequestsTest {
         states.put(ref, CachedState(CartState(ref.id), 1))
         states.invalidate(0, 1)
         states.states.assert().containsKey(ref)
+    }
+
+    @Test
+    fun `an append the log refuses by throwing is compensated, and its failure propagates`(): Unit = runTest {
+        // A backend throws only what surely wrote nothing: the store unreachable before the append was sent.
+        val compensated = mutableListOf<String>()
+        val model = aggregate<CartState>("example", "cart") {
+            initial { CartState(it.id) }
+            decide<CreateCart>(Creation.REQUIRED) { _, command ->
+                onAppendFailure { compensated += command.owner }
+                Decision.events(CartCreated(command.owner))
+            }
+            evolve<CartCreated> { owner = it.owner }
+        }
+        val failing = object : EventLog by log {
+            override suspend fun append(stream: EventStreamRecord, transport: Transport?): AppendOutcome =
+                throw IOException("The store is unreachable.")
+        }
+        val outcome = runCatching { Kernel(failing).execute(model, command(CreateCart("ahoo"))) }
+        outcome.exceptionOrNull().assert().isInstanceOf(IOException::class.java)
+        compensated.assert().containsExactly("ahoo")
     }
 
     @Test

@@ -53,6 +53,7 @@ import me.ahoo.wow.spi.log.TailPolling
 import org.springframework.boot.context.properties.ConfigurationProperties
 import java.net.URI
 import java.time.Duration
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
 import kotlin.time.toKotlinDuration
 
@@ -72,7 +73,8 @@ import kotlin.time.toKotlinDuration
  *   the class path, by default all of them (decision D169), see [Contexts].
  * - `wow.backend`: `auto` (the default), `memory`, `postgres`, `mongo`, or the type of a community backend's store
  *   provider (`me.ahoo.wow.spi.store.StoreProvider`, review R3.3-1); `wow.mongo.database`: the database of a MongoDB
- *   store that names none; `wow.ddl` (`auto`, `validate` or `none`), how the stores manage the framework's
+ *   store that names none, and `wow.mongo.transaction-timeout` (5s, decision D261) how long one of its appends'
+ *   transactions may take, retries included, unless its `options.transaction-timeout` says; `wow.ddl` (`auto`, `validate` or `none`), how the stores manage the framework's
  *   tables (review A5-10), `wow.stores.<name>.ddl` per store.
  * - `wow.stores.<name>.*`: the named store instances (decision D177, [Store]); `wow.log.store` and
  *   `wow.snapshot.store`, the stores of the aggregates' logs and snapshots by default; `wow.stores.<name>.query.*`,
@@ -287,6 +289,13 @@ class WowProperties {
     class Mongo {
         /** The database of the log and the stores on the MongoDB backend. */
         var database: String = DEFAULT_MONGO_DATABASE
+
+        /**
+         * How long an append's transaction, its retries included, may take on a store that sets none in its
+         * `options.transaction-timeout` (decision D261): below the default wait timeout, so a command appending during
+         * an outage is answered before its wait ends.
+         */
+        var transactionTimeout: Duration = 5.seconds.toJavaDuration()
     }
 
     class Log {
