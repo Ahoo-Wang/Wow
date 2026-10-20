@@ -134,7 +134,10 @@ class ElasticsearchSnapshotStore internal constructor(
             if (stale != null && stale >= snapshot.version) {
                 Decision.Keep(false)
             } else {
-                Decision.Write(stored.source.deepCopy().put(ElasticsearchSnapshotDocuments.STALE_VERSION, snapshot.version), false)
+                Decision.Write(
+                    stored.source.deepCopy().put(ElasticsearchSnapshotDocuments.STALE_VERSION, snapshot.version),
+                    false
+                )
             }
         }
         else -> Decision.Write(replacement(snapshot, stored.source), true)
@@ -187,7 +190,9 @@ class ElasticsearchSnapshotStore internal constructor(
             }
             pending = beaten
         }
-        throw IllegalStateException("The documents of [$index] kept changing over $MAX_ATTEMPTS attempts to write them.")
+        throw IllegalStateException(
+            "The documents of [$index] kept changing over $MAX_ATTEMPTS attempts to write them."
+        )
     }
 
     /** One write of a batch: the snapshot's [position] in it, its document [id], what was decided over [stored]. */
@@ -204,7 +209,11 @@ class ElasticsearchSnapshotStore internal constructor(
             if (item.isResult) {
                 val result = item.result()
                 if (result.found()) {
-                    Stored(checkNotNull(result.source()), checkNotNull(result.seqNo()), checkNotNull(result.primaryTerm()))
+                    Stored(
+                        checkNotNull(result.source()),
+                        checkNotNull(result.seqNo()),
+                        checkNotNull(result.primaryTerm())
+                    )
                 } else {
                     null
                 }
@@ -218,7 +227,11 @@ class ElasticsearchSnapshotStore internal constructor(
      * Writes [writes] with one `_bulk` request, their outcomes into [outcomes]; returns the positions of those another
      * write beat.
      */
-    private suspend fun writeAll(index: String, writes: List<BulkWrite>, outcomes: Array<SnapshotSaveOutcome?>): List<Int> {
+    private suspend fun writeAll(
+        index: String,
+        writes: List<BulkWrite>,
+        outcomes: Array<SnapshotSaveOutcome?>
+    ): List<Int> {
         val request = BulkRequest.of { bulk ->
             bulk.index(index).refresh(refresh).operations(writes.map(::operationOf))
         }
@@ -244,7 +257,10 @@ class ElasticsearchSnapshotStore internal constructor(
             operation.create<ObjectNode> { it.id(write.id).document(write.decision.document) }
         } else {
             operation.index<ObjectNode> {
-                it.id(write.id).document(write.decision.document).ifSeqNo(stored.seqNo).ifPrimaryTerm(stored.primaryTerm)
+                it.id(write.id)
+                    .document(write.decision.document)
+                    .ifSeqNo(stored.seqNo)
+                    .ifPrimaryTerm(stored.primaryTerm)
             }
         }
     }

@@ -60,8 +60,11 @@ class SnapshotWritesTest {
             gate?.await()
             failAll?.let { throw it }
             return snapshots.map {
-                if (it.ref.id in failing) SnapshotSaveOutcome.Failed(IllegalArgumentException(it.ref.id)) else
+                if (it.ref.id in failing) {
+                    SnapshotSaveOutcome.Failed(IllegalArgumentException(it.ref.id))
+                } else {
                     SnapshotSaveOutcome.of(delegate.save(it))
+                }
             }
         }
 
@@ -120,7 +123,9 @@ class SnapshotWritesTest {
     fun `a snapshot the store fails alone fails its own save, and its lower versions with it`(): Unit = runBlocking {
         val writes = SnapshotWrites(store, 8)
         store.failing = setOf("bad")
-        val saves = listOf(snapshot("a"), snapshot("bad", 1), snapshot("bad", 2)).map { async { runCatching { writes.save(it) } } }
+        val saves = listOf(snapshot("a"), snapshot("bad", 1), snapshot("bad", 2)).map {
+            async { runCatching { writes.save(it) } }
+        }
         val outcomes = saves.awaitAll()
         outcomes[0].getOrNull().assert().isEqualTo(true)
         outcomes[1].exceptionOrNull().assert().isInstanceOf(IllegalArgumentException::class.java)
@@ -132,7 +137,10 @@ class SnapshotWritesTest {
         val writes = SnapshotWrites(store, 8)
         store.failAll = IllegalStateException("The batch failed.")
         store.failing = setOf("bad")
-        val outcomes = listOf(snapshot("a"), snapshot("bad")).map { async { runCatching { writes.save(it) } } }.awaitAll()
+        val outcomes = listOf(
+            snapshot("a"),
+            snapshot("bad")
+        ).map { async { runCatching { writes.save(it) } } }.awaitAll()
         outcomes[0].getOrNull().assert().isEqualTo(true)
         outcomes[1].exceptionOrNull().assert().isInstanceOf(IllegalArgumentException::class.java)
         store.saves.assert().containsExactly("a", "bad")

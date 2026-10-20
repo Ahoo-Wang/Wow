@@ -56,6 +56,7 @@ interface SnapshotStore {
      * ([SnapshotSaveOutcome.rounds]). A snapshot the backend fails to save alone is [SnapshotSaveOutcome.Failed]; a
      * failure of the whole call, the database unreachable say, is thrown. By default they are saved one by one.
      */
+    @Suppress("TooGenericExceptionCaught") // Whatever one save throws is that snapshot's failure.
     suspend fun saveAll(snapshots: List<SnapshotRecord>): List<SnapshotSaveOutcome> = snapshots.map { snapshot ->
         try {
             SnapshotSaveOutcome.of(save(snapshot))

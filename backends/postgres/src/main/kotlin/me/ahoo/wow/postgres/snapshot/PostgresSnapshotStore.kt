@@ -137,7 +137,7 @@ class PostgresSnapshotStore(
                 SnapshotSaveOutcome.rounds(snapshots).forEach { round ->
                     round.groupBy { snapshots[it].ref.type.name }.forEach { (aggregate, indexes) ->
                         // In key order, so concurrent statements lock their common rows in the same order.
-                        val ordered = indexes.sortedWith { left, right -> KEY_ORDER.compare(snapshots[left], snapshots[right]) }
+                        val ordered = indexes.sortedWith(compareBy(KEY_ORDER) { snapshots[it] })
                         ordered.chunked(PostgresSnapshotTables.MAX_ROWS).forEach { chunk ->
                             val rows = chunk.map(snapshots::get)
                             saveRows(connection, tablesOf.getValue(aggregate), rows).forEachIndexed { at, outcome ->
@@ -162,7 +162,8 @@ class PostgresSnapshotStore(
     ): List<SnapshotSaveOutcome> {
         val written = try {
             connection.prepareStatement(tables.saveRows(snapshots.size)).use { save ->
-                snapshots.forEachIndexed { row, snapshot -> bind(save, row * PostgresSnapshotTables.ROW_PARAMETERS, snapshot) }
+                val width = PostgresSnapshotTables.ROW_PARAMETERS
+                snapshots.forEachIndexed { row, snapshot -> bind(save, row * width, snapshot) }
                 save.executeQuery().use { rows ->
                     buildSet<Pair<String, String>> {
                         while (rows.next()) {

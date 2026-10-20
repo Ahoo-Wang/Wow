@@ -128,16 +128,17 @@ internal class SnapshotWrites(private val store: SnapshotStore, private val maxB
             }
         }
         val writes = latest.values.toList()
+        // The leader's own cancellation puts the batch back (ensureActive); anything else is the store's failure.
         val outcomes = try {
             store.saveAll(writes.map { it.snapshot })
-        } catch (failure: Throwable) {
-            // The leader's own cancellation puts the batch back; anything else is the store's failure.
+        } catch (unavailable: StorageUnavailableException) {
             currentCoroutineContext().ensureActive()
-            if (writes.size > 1 && failure is Exception && failure !is StorageUnavailableException) {
-                alone(writes)
-            } else {
-                writes.map { SnapshotSaveOutcome.Failed(failure) }
-            }
+            writes.map { SnapshotSaveOutcome.Failed(unavailable) }
+        } catch (failure: Exception) {
+            currentCoroutineContext().ensureActive()
+            if (writes.size > 1) alone(writes) else listOf(SnapshotSaveOutcome.Failed(failure))
+        } catch (failure: Throwable) {
+            writes.map { SnapshotSaveOutcome.Failed(failure) }
         }
         writes.forEachIndexed { index, write -> write.end(outcomes[index]) }
         batch.forEach { write ->
