@@ -132,7 +132,7 @@ class CatalogWatcher(
         val CALLER: Caller = Caller.of(
             tenantId = AnalyticsCatalogContext.TENANT_ID,
             scope = Scope.NONE,
-            subject = "analytics-catalog-catalog",
+            subject = "analytics-catalog-watcher",
             attributes = mapOf(AnalyticsCatalogCallers.ROLES_ATTRIBUTE to listOf(AnalyticsCatalogCallers.ADMIN)),
         )
 
