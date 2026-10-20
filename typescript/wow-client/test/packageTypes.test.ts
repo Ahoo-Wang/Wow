@@ -20,23 +20,20 @@ it('preserves public Wow types under NodeNext without skipping declaration check
     new URL('./__package_consumer__.mts', import.meta.url),
   );
   const source = `
-    import { aggregation, type AggregationQuery, type QueryApi } from '@ahoo-wang/wow-client';
-    import { zh_CN, en_US, all, listQuery } from '@ahoo-wang/wow-client/legacy';
-    import { type CommandRequestHeaders, CommandStage, WowError } from '@ahoo-wang/wow-client';
-    import { filter, type FilterExpression } from '@ahoo-wang/wow-client/dsl';
-    const stage: CommandRequestHeaders = { 'Command-Wait-Stage': CommandStage.SNAPSHOT };
-    // @ts-expect-error The declarations keep the typed command headers.
-    const typo: CommandRequestHeaders = { 'Command-Wait-Stage': 'PROCESSSED' };
+    import { CommandGateway, type CommandResult, Stage, WowProblemError } from '@ahoo-wang/wow-client';
+    import { aggregation, type AggregationQuery, filter, type FilterExpression } from '@ahoo-wang/wow-client/dsl';
+    const stage: Stage = Stage.COMMITTED;
+    // @ts-expect-error The declarations keep the typed stages.
+    const typo: Stage = 'PROCESSSED';
     const expression: FilterExpression = filter.eq('state.status', 'PAID');
-    const code: string = new WowError({ errorCode: 'NotFound', errorMsg: '' }).errorCode;
+    const isProblem = (error: unknown): boolean => error instanceof WowProblemError;
     const valid: AggregationQuery = { metrics: [aggregation.count('orders')] };
     // @ts-expect-error Aggregation must retain its nonempty metrics contract.
     const empty: AggregationQuery = { metrics: [] };
-    // @ts-expect-error QueryApi is a real interface, not an unresolved type.
-    const invalidApi: QueryApi = {};
-    // The root query clients take the legacy entry's Condition queries.
-    const legacyList = (api: QueryApi<unknown>) => api.list(listQuery({ condition: all() }));
-    void [valid, empty, invalidApi, zh_CN, en_US, legacyList, stage, typo, expression, code];
+    // @ts-expect-error CommandResult is a real interface, not an unresolved type.
+    const invalidResult: CommandResult = {};
+    const send = (gateway: CommandGateway) => gateway.send('/shop/order/create', {});
+    void [valid, empty, invalidResult, stage, typo, expression, isProblem, send];
   `;
   const options: ts.CompilerOptions = {
     noEmit: true,

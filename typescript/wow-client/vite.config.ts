@@ -21,8 +21,6 @@ export default defineConfig({
       entry: {
         index: 'src/index.ts',
         dsl: 'src/dsl.ts',
-        legacy: 'src/legacy/index.ts',
-        v10: 'src/v10/index.ts',
       },
       name: 'WowClient',
       fileName: (format, entryName) => {
@@ -35,20 +33,16 @@ export default defineConfig({
       external: [
         '@ahoo-wang/fetcher',
         '@ahoo-wang/fetcher-eventstream',
-        '@ahoo-wang/fetcher-decorator',
       ],
       output: {
         // One output module per source file, so `sideEffects: false` lets an
-        // application's bundler drop what it does not import: the decorated
-        // client classes, and fetcher-decorator with them. A single file per
-        // entry kept every top-level decorator call. verify-package.mjs
-        // bundles a probe to hold this.
+        // application's bundler drop what it does not import.
+        // verify-package.mjs bundles a probe to hold this.
         preserveModules: true,
         preserveModulesRoot: 'src',
         globals: {
           '@ahoo-wang/fetcher': 'Fetcher',
           '@ahoo-wang/fetcher-eventstream': 'FetcherEventStream',
-          '@ahoo-wang/fetcher-decorator': 'FetcherDecorator',
         },
       },
     },

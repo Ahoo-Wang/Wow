@@ -24,7 +24,7 @@ import {
   type ElementFilterExpression,
   type MetadataFilter,
   type QueryField,
-} from '../../src';
+} from '../../src/dsl.js';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 
 describe('filter', () => {

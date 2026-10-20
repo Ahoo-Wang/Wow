@@ -28,7 +28,7 @@ import {
   aggregation,
   type DerivedExpression,
   type HavingExpression,
-} from '../../src';
+} from '../../src/dsl.js';
 
 const { having } = aggregation;
 const grouped = [aggregation.terms('status', 'status')];

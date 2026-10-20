@@ -4,104 +4,57 @@
 
 ```ts
 
-import { ApiMetadata } from '@ahoo-wang/fetcher-decorator';
-import { ApiMetadataCapable } from '@ahoo-wang/fetcher-decorator';
-import { ParameterRequest } from '@ahoo-wang/fetcher-decorator';
-import { PartialBy } from '@ahoo-wang/fetcher';
-import { RemoveReadonlyFields } from '@ahoo-wang/fetcher';
-import { RequestHeaders } from '@ahoo-wang/fetcher';
-import { ResultExtractor } from '@ahoo-wang/fetcher';
-import { UrlParams } from '@ahoo-wang/fetcher';
+import { Fetcher } from '@ahoo-wang/fetcher';
 
 // @public
-export interface AbacTaggable {
-    tags: AbacTags;
-}
-
-// @public
-export type AbacTagKey = string;
-
-// @public
-export type AbacTags = Record<AbacTagKey, AbacTagValue>;
-
-// @public
-export interface AbacTagsApplied extends AbacTaggable {
-}
-
-// @public
-export type AbacTagValue = string[];
-
-// @public
-export interface Aggregate extends ScopesCapable {
-    commands: string[];
-    events: string[];
-    id: string | null;
-    tenantId: string | null;
-    type: string | null;
-}
-
-// @public
-export interface AggregateId extends TenantId, NamedAggregate {
+export interface AggregateManifest {
     // (undocumented)
-    aggregateId: string;
+    readonly commands?: readonly CommandManifest[];
+    // (undocumented)
+    readonly description?: string;
+    // (undocumented)
+    readonly events?: readonly EventManifest[];
+    // (undocumented)
+    readonly lifecycle?: readonly string[];
+    // (undocumented)
+    readonly name: string;
+    // (undocumented)
+    readonly ownership?: Ownership;
+    // (undocumented)
+    readonly queries?: readonly QueryManifest[];
+    // (undocumented)
+    readonly schedules?: readonly string[];
+    // (undocumented)
+    readonly snapshot?: {
+        readonly enabled?: boolean;
+    };
+    // (undocumented)
+    readonly state: {
+        readonly schema: string;
+        readonly fingerprint?: string;
+    };
 }
 
 // @public
-export interface AggregateIdCapable {
-    aggregateId: AggregateId;
+export interface AggregateRef {
+    // (undocumented)
+    readonly id: string;
+    // (undocumented)
+    readonly tenantId: string;
+    // (undocumented)
+    readonly type: AggregateType;
 }
 
 // @public
-export interface AggregateNameCapable {
-    aggregateName: string;
+export interface AggregateType {
+    // (undocumented)
+    readonly context: string;
+    // (undocumented)
+    readonly name: string;
 }
 
 // @public
-export const aggregation: {
-    element(path: string, predicate?: ElementFilterExpression | ExpressionFilter): AggregationElement;
-    field<FIELDS extends string>(field: FIELDS): FieldAggregationExpression<FIELDS>;
-    constant(value: number): ConstantAggregationExpression;
-    dateDiff<FIELDS extends string>(from: FIELDS, to: FIELDS, unit: DateDiffUnit): DateDiffAggregationExpression<FIELDS>;
-    add: <FIELDS extends string>(left: AggregationExpression<FIELDS>, right: AggregationExpression<FIELDS>) => BinaryAggregationExpression<FIELDS>;
-    subtract: <FIELDS extends string>(left: AggregationExpression<FIELDS>, right: AggregationExpression<FIELDS>) => BinaryAggregationExpression<FIELDS>;
-    multiply: <FIELDS extends string>(left: AggregationExpression<FIELDS>, right: AggregationExpression<FIELDS>) => BinaryAggregationExpression<FIELDS>;
-    divide: <FIELDS extends string>(left: AggregationExpression<FIELDS>, right: AggregationExpression<FIELDS>) => BinaryAggregationExpression<FIELDS>;
-    terms<FIELDS extends string>(input: FIELDS | AggregationExpression<FIELDS>, alias: string, input2?: TermsAggregationOptions): TermsAggregationGroup<FIELDS>;
-    histogram<FIELDS extends string>(input: FIELDS | AggregationExpression<FIELDS>, alias: string, input2: HistogramAggregationOptions): HistogramAggregationGroup<FIELDS>;
-    dateHistogram<FIELDS extends string>(field: FIELDS, alias: string, input: DateHistogramAggregationOptions): DateHistogramAggregationGroup<FIELDS>;
-    datePart<FIELDS extends string>(field: FIELDS, alias: string, input: DatePartAggregationOptions): DatePartAggregationGroup<FIELDS>;
-    any<FIELDS extends string>(field: FIELDS, alias: string, input?: AggregationMetricOptions<FIELDS>): AnyAggregationMetric<FIELDS>;
-    first<FIELDS extends string>(field: FIELDS, alias: string, options?: EdgeAggregationOptions<FIELDS>): EdgeAggregationMetric<FIELDS>;
-    last<FIELDS extends string>(field: FIELDS, alias: string, options?: EdgeAggregationOptions<FIELDS>): EdgeAggregationMetric<FIELDS>;
-    count<FIELDS extends string = string>(alias: string, input?: AggregationMetricOptions<FIELDS>): CountAggregationMetric<FIELDS>;
-    sum: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
-    avg: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
-    min: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
-    max: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
-    stddev: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
-    variance: <FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, options?: AggregationMetricOptions<FIELDS>) => NumericAggregationMetric<FIELDS>;
-    distinctCount<FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, input?: AggregationMetricOptions<FIELDS>): DistinctCountAggregationMetric<FIELDS>;
-    percentile<FIELDS extends string>(expression: AggregationExpression<FIELDS>, alias: string, input: PercentileAggregationOptions<FIELDS>): PercentileAggregationMetric<FIELDS>;
-    derived(expression: DerivedExpression | ((d: DerivedExpressionDsl) => DerivedExpression), alias: string): DerivedAggregationMetric;
-    having: HavingDsl;
-    query<ROOT_FIELDS extends string = string, AGGREGATION_FIELDS extends string = ROOT_FIELDS>(query: AggregationQuery<ROOT_FIELDS, AGGREGATION_FIELDS>): AggregationQuery<ROOT_FIELDS, AGGREGATION_FIELDS>;
-};
-
-// @public
-export const AGGREGATION_LIMITS: Readonly<{
-    DEFAULT_LIMIT: 100;
-    MAX_LIMIT: 10000;
-    MAX_ELEMENTS: 5;
-    MAX_GROUPS: 32;
-    MAX_METRICS: 64;
-    MAX_SORT_FIELDS: 32;
-    MAX_EXPRESSION_DEPTH: 8;
-    MAX_EXPRESSION_NODES: 256;
-    MAX_WINDOWS: 8;
-}>;
-
-// @public
-export enum AggregationDatePart {
+enum AggregationDatePart {
     DAY_OF_MONTH = "DAY_OF_MONTH",
     DAY_OF_WEEK = "DAY_OF_WEEK",
     HOUR_OF_DAY = "HOUR_OF_DAY",
@@ -109,7 +62,7 @@ export enum AggregationDatePart {
 }
 
 // @public
-export enum AggregationDateUnit {
+enum AggregationDateUnit {
     // (undocumented)
     DAY = "DAY",
     // (undocumented)
@@ -129,16 +82,16 @@ export enum AggregationDateUnit {
 }
 
 // @public
-export interface AggregationElement {
+interface AggregationElement {
     filter?: ElementFilterExpression | ExpressionFilter;
     path: QueryField;
 }
 
 // @public
-export type AggregationExpression<FIELDS extends string = string> = FieldAggregationExpression<FIELDS> | ConstantAggregationExpression | BinaryAggregationExpression<FIELDS> | DateDiffAggregationExpression<FIELDS>;
+type AggregationExpression<FIELDS extends string = string> = FieldAggregationExpression<FIELDS> | ConstantAggregationExpression | BinaryAggregationExpression<FIELDS> | DateDiffAggregationExpression<FIELDS>;
 
 // @public
-export enum AggregationExpressionOperator {
+enum AggregationExpressionOperator {
     ADD = "ADD",
     DIVIDE = "DIVIDE",
     MULTIPLY = "MULTIPLY",
@@ -146,7 +99,7 @@ export enum AggregationExpressionOperator {
 }
 
 // @public
-export enum AggregationExpressionType {
+enum AggregationExpressionType {
     BINARY = "BINARY",
     CONSTANT = "CONSTANT",
     DATE_DIFF = "DATE_DIFF",
@@ -154,7 +107,7 @@ export enum AggregationExpressionType {
 }
 
 // @public
-export enum AggregationFunction {
+enum AggregationFunction {
     AVG = "AVG",
     MAX = "MAX",
     MIN = "MIN",
@@ -164,7 +117,7 @@ export enum AggregationFunction {
 }
 
 // @public
-export type AggregationGroup<FIELDS extends string = string> = TermsAggregationGroup<FIELDS> | HistogramAggregationGroup<FIELDS> | DateHistogramAggregationGroup<FIELDS> | DatePartAggregationGroup<FIELDS>;
+type AggregationGroup<FIELDS extends string = string> = TermsAggregationGroup<FIELDS> | HistogramAggregationGroup<FIELDS> | DateHistogramAggregationGroup<FIELDS> | DatePartAggregationGroup<FIELDS>;
 
 // @public
 interface AggregationGroupBase<FIELDS extends string = string> {
@@ -174,7 +127,7 @@ interface AggregationGroupBase<FIELDS extends string = string> {
 }
 
 // @public
-export type AggregationGroupInput<FIELDS extends string = string> = {
+type AggregationGroupInput<FIELDS extends string = string> = {
     field: QueryField<FIELDS>;
     expression?: undefined;
 } | {
@@ -183,18 +136,13 @@ export type AggregationGroupInput<FIELDS extends string = string> = {
 };
 
 // @public
-export enum AggregationGroupScope {
+enum AggregationGroupScope {
     ELEMENT = "ELEMENT",
     ROOT = "ROOT"
 }
 
 // @public
-export interface AggregationGroupScopeOptions {
-    scope?: AggregationGroupScope;
-}
-
-// @public
-export enum AggregationGroupType {
+enum AggregationGroupType {
     DATE_HISTOGRAM = "DATE_HISTOGRAM",
     DATE_PART = "DATE_PART",
     HISTOGRAM = "HISTOGRAM",
@@ -202,7 +150,7 @@ export enum AggregationGroupType {
 }
 
 // @public
-export interface AggregationLimitsDescriptor {
+interface AggregationLimitsDescriptor {
     maxElements: number;
     maxExpressionDepth: number;
     maxExpressionNodes: number;
@@ -213,15 +161,10 @@ export interface AggregationLimitsDescriptor {
 }
 
 // @public
-export type AggregationMetric<FIELDS extends string = string> = CountAggregationMetric<FIELDS> | NumericAggregationMetric<FIELDS> | AnyAggregationMetric<FIELDS> | DistinctCountAggregationMetric<FIELDS> | PercentileAggregationMetric<FIELDS> | DerivedAggregationMetric | EdgeAggregationMetric<FIELDS>;
+type AggregationMetric<FIELDS extends string = string> = CountAggregationMetric<FIELDS> | NumericAggregationMetric<FIELDS> | AnyAggregationMetric<FIELDS> | DistinctCountAggregationMetric<FIELDS> | PercentileAggregationMetric<FIELDS> | DerivedAggregationMetric | EdgeAggregationMetric<FIELDS>;
 
 // @public
-export interface AggregationMetricOptions<FIELDS extends string = string> {
-    filter?: FilterExpression<FIELDS>;
-}
-
-// @public
-export enum AggregationMetricType {
+enum AggregationMetricType {
     ANY = "ANY",
     COUNT = "COUNT",
     DERIVED = "DERIVED",
@@ -233,7 +176,7 @@ export enum AggregationMetricType {
 }
 
 // @public
-export interface AggregationQuery<ROOT_FIELDS extends string = string, AGGREGATION_FIELDS extends string = ROOT_FIELDS> {
+interface AggregationQuery<ROOT_FIELDS extends string = string, AGGREGATION_FIELDS extends string = ROOT_FIELDS> {
     elements?: AggregationElement[];
     filter?: FilterExpression<ROOT_FIELDS>;
     groupBy?: AggregationGroup<AGGREGATION_FIELDS>[];
@@ -247,16 +190,7 @@ export interface AggregationQuery<ROOT_FIELDS extends string = string, AGGREGATI
 }
 
 // @public
-export interface AliasAggregate extends AliasBoundedContext, AggregateNameCapable {
-}
-
-// @public
-export interface AliasBoundedContext {
-    contextAlias: string;
-}
-
-// @public
-export interface AnalysisDescriptor {
+interface AnalysisDescriptor {
     approximate: (AggregationMetricType | (string & {}))[];
     dateDiffUnits: DateDiffUnit[];
     dateParts: AggregationDatePart[];
@@ -272,19 +206,13 @@ export interface AnalysisDescriptor {
 }
 
 // @public
-export interface AnalysisSortDescriptor {
+interface AnalysisSortDescriptor {
     groups: boolean;
     metrics: boolean;
 }
 
 // @public
-function andFilter<FIELDS extends string>(operands: readonly ElementFilterExpression<FIELDS>[]): ElementLogicalFilter<FIELDS>;
-
-// @public
-function andFilter<FIELDS extends string>(operands: readonly FilterExpression<FIELDS>[]): LogicalFilter<FIELDS>;
-
-// @public
-export interface AnyAggregationMetric<FIELDS extends string = string> {
+interface AnyAggregationMetric<FIELDS extends string = string> {
     alias: string;
     field: QueryField<FIELDS>;
     filter?: FilterExpression<FIELDS>;
@@ -293,34 +221,20 @@ export interface AnyAggregationMetric<FIELDS extends string = string> {
 }
 
 // @public
-export interface ApplyAbacTags extends AbacTaggable {
+export interface ApplyTags {
+    // (undocumented)
+    readonly tags: Readonly<Record<string, readonly string[]>>;
 }
 
 // @public
-export interface ApplyResourceTags extends ApplyAbacTags {
-}
-
-// @public
-export type ApplyResourceTagsCommand = CommandBody<ApplyResourceTags>;
-
-// @public
-export function asc<FIELDS extends string = string>(field: FIELDS): FieldSort<FIELDS>;
-
-// @public
-export interface BatchResult extends ErrorInfo {
-    after: string;
-    size: number;
-}
-
-// @public
-export type BeforeTodayFilter<FIELDS extends string = string> = RelativeTimeFilterOptions & {
+type BeforeTodayFilter<FIELDS extends string = string> = RelativeTimeFilterOptions & {
     op: FilterOperator.BEFORE_TODAY;
     field: QueryField<FIELDS>;
     time: string;
 };
 
 // @public
-export type BetweenFilter<FIELDS extends string = string> = {
+type BetweenFilter<FIELDS extends string = string> = {
     op: FilterOperator.BETWEEN;
     field: QueryField<FIELDS>;
     lowerBound: ComparableFilterLiteral;
@@ -328,7 +242,7 @@ export type BetweenFilter<FIELDS extends string = string> = {
 };
 
 // @public
-export interface BinaryAggregationExpression<FIELDS extends string = string> {
+interface BinaryAggregationExpression<FIELDS extends string = string> {
     left: AggregationExpression<FIELDS>;
     operator: AggregationExpressionOperator;
     right: AggregationExpression<FIELDS>;
@@ -337,189 +251,132 @@ export interface BinaryAggregationExpression<FIELDS extends string = string> {
 }
 
 // @public
-export interface BindingError {
-    code?: QueryErrorCode;
-    // (undocumented)
-    msg: string;
-    // (undocumented)
-    name: string;
-}
-
-// @public
-export interface BodyCapable<T> {
-    body: T;
-}
-
-// @public
-export interface BoundedContext extends ScopesCapable, DescriptionCapable {
-    aggregates: Record<string, Aggregate>;
-    alias: string | null;
-}
-
-// @public
-export type CalendarFilter<FIELDS extends string = string> = RelativeTimeFilterOptions & {
+type CalendarFilter<FIELDS extends string = string> = RelativeTimeFilterOptions & {
     op: FilterOperator.TODAY | FilterOperator.TOMORROW | FilterOperator.THIS_WEEK | FilterOperator.NEXT_WEEK | FilterOperator.LAST_WEEK | FilterOperator.THIS_MONTH | FilterOperator.LAST_MONTH | FilterOperator.YESTERDAY | FilterOperator.NEXT_MONTH | FilterOperator.LAST_YEAR | FilterOperator.THIS_YEAR | FilterOperator.NEXT_YEAR;
     field: QueryField<FIELDS>;
 };
 
 // @public
-export type CollectionFilter<FIELDS extends string = string> = {
+type CollectionFilter<FIELDS extends string = string> = {
     op: FilterOperator.IN | FilterOperator.NOT_IN | FilterOperator.CONTAINS_ALL;
     field: QueryField<FIELDS>;
     values: ComparableFilterLiteral[];
 };
 
 // @public
-export const COMMAND_STREAM_ENDPOINT: {
-    readonly headers: {
-        readonly Accept: 'text/event-stream';
-    };
-    readonly resultExtractor: ResultExtractor<ReadableStream<CommandResult>>;
-};
-
-// @public
-export type CommandBody<C> = RemoveReadonlyFields<C>;
-
-// @public
-export class CommandClient implements ApiMetadataCapable {
-    constructor(apiMetadata?: ApiMetadata | undefined);
+export class CommandGateway {
+    constructor(client?: WowClientOptions);
     // (undocumented)
-    readonly apiMetadata?: ApiMetadata | undefined;
-    send<C extends object = object>(commandRequest: CommandRequest<C>, attributes?: Record<string, unknown>): Promise<CommandResult>;
-    sendAndWaitStream<C extends object = object>(commandRequest: CommandRequest<C>, attributes?: Record<string, unknown>): Promise<CommandResultEventStream>;
+    readonly client: WowClientOptions;
+    lifecycle<R = Record<string, unknown>>(aggregatePath: string, id: string, command: LifecycleCommand, body?: TransferOwner | TransferSpace | ApplyTags, options?: CommandOptions): Promise<CommandResult<R>>;
+    send<R = Record<string, unknown>>(path: string, body?: object, options?: CreateCommandOptions): Promise<CommandResult<R>>;
+    stream<R = Record<string, unknown>>(path: string, body?: object, options?: CreateCommandOptions): Promise<CommandResultStream<R>>;
 }
 
 // @public
-export interface CommandHeaderOptions {
-    aggregateId?: string;
-    aggregateVersion?: number;
-    localFirst?: boolean;
-    ownerId?: string;
-    requestId?: string;
-    spaceId?: string;
-    tenantId?: string;
-}
-
-// @public
-export const CommandHeaders: Readonly<{
-    readonly COMMAND_HEADERS_PREFIX: "Command-";
-    readonly TENANT_ID: "Command-Tenant-Id";
-    readonly OWNER_ID: "Command-Owner-Id";
-    readonly SPACE_ID: "Wow-Space-Id";
-    readonly AGGREGATE_ID: "Command-Aggregate-Id";
-    readonly AGGREGATE_VERSION: "Command-Aggregate-Version";
-    readonly WAIT_PREFIX: "Command-Wait-";
-    readonly WAIT_TIME_OUT: "Command-Wait-Timeout";
-    readonly WAIT_STAGE: "Command-Wait-Stage";
-    readonly WAIT_CONTEXT: "Command-Wait-Context";
-    readonly WAIT_PROCESSOR: "Command-Wait-Processor";
-    readonly WAIT_FUNCTION: "Command-Wait-Function";
-    readonly WAIT_TAIL_PREFIX: "Command-Wait-Tail-";
-    readonly WAIT_TAIL_STAGE: "Command-Wait-Tail-Stage";
-    readonly WAIT_TAIL_CONTEXT: "Command-Wait-Tail-Context";
-    readonly WAIT_TAIL_PROCESSOR: "Command-Wait-Tail-Processor";
-    readonly WAIT_TAIL_FUNCTION: "Command-Wait-Tail-Function";
-    readonly REQUEST_ID: "Command-Request-Id";
-    readonly LOCAL_FIRST: "Command-Local-First";
-    readonly COMMAND_AGGREGATE_CONTEXT: "Command-Aggregate-Context";
-    readonly COMMAND_AGGREGATE_NAME: "Command-Aggregate-Name";
-    readonly COMMAND_TYPE: "Command-Type";
-    readonly COMMAND_HEADER_X_PREFIX: "Command-Header-";
-}>;
-
-// @public
-export function commandHeaders(options: CommandHeaderOptions): CommandRequestHeaders;
-
-// @public
-export interface CommandId {
+export interface CommandManifest {
     // (undocumented)
-    commandId: string;
-}
-
-// @public
-export interface CommandRequest<C extends object = object> extends ParameterRequest<CommandBody<C>> {
-    body?: CommandBody<C>;
+    readonly aliases?: readonly string[];
     // (undocumented)
-    headers?: CommandRequestHeaders;
+    readonly creation?: Creation;
     // (undocumented)
-    urlParams?: CommandUrlParams;
-}
-
-// @public
-export interface CommandRequestHeaders extends RequestHeaders {
-    [CommandHeaders.COMMAND_AGGREGATE_CONTEXT]?: string;
-    [CommandHeaders.AGGREGATE_ID]?: string;
-    [CommandHeaders.COMMAND_AGGREGATE_NAME]?: string;
-    [CommandHeaders.AGGREGATE_VERSION]?: `${number}`;
-    [CommandHeaders.LOCAL_FIRST]?: 'true' | 'false';
-    [CommandHeaders.OWNER_ID]?: string;
-    [CommandHeaders.REQUEST_ID]?: string;
-    [CommandHeaders.TENANT_ID]?: string;
-    [CommandHeaders.COMMAND_TYPE]?: string;
-    [CommandHeaders.WAIT_CONTEXT]?: string;
-    [CommandHeaders.WAIT_FUNCTION]?: string;
-    [CommandHeaders.WAIT_PROCESSOR]?: string;
-    [CommandHeaders.WAIT_STAGE]?: CommandStageName;
-    [CommandHeaders.WAIT_TAIL_CONTEXT]?: string;
-    [CommandHeaders.WAIT_TAIL_FUNCTION]?: string;
-    [CommandHeaders.WAIT_TAIL_PROCESSOR]?: string;
-    [CommandHeaders.WAIT_TAIL_STAGE]?: CommandStageName;
-    [CommandHeaders.WAIT_TIME_OUT]?: `${number}`;
-    [CommandHeaders.SPACE_ID]?: string;
-}
-
-// @public
-export interface CommandResult extends Identifier, WaitCommandIdCapable, CommandStageCapable, NamedBoundedContext, AggregateNameCapable, AggregateId, CommandId, RequestId, ErrorInfo, FunctionInfoCapable, CommandResultCapable, SignalTimeCapable, NullableAggregateVersionCapable {
-}
-
-// @public
-export type CommandResultArray = CommandResult[];
-
-// @public
-export interface CommandResultCapable {
+    readonly mounted?: boolean;
     // (undocumented)
-    result: Record<string, unknown>;
-}
-
-// @public
-export type CommandResultEventStream = ReadableStream<CommandResult>;
-
-// @public
-export enum CommandStage {
-    EVENT_HANDLED = "EVENT_HANDLED",
-    PROCESSED = "PROCESSED",
-    PROJECTED = "PROJECTED",
-    SAGA_HANDLED = "SAGA_HANDLED",
-    SENT = "SENT",
-    SNAPSHOT = "SNAPSHOT"
-}
-
-// @public
-export interface CommandStageCapable {
+    readonly name: string;
     // (undocumented)
-    stage: CommandStage;
+    readonly produces?: readonly string[];
+    // (undocumented)
+    readonly routes?: readonly RouteManifest[];
+    readonly schema: string;
+    // (undocumented)
+    readonly transformsTo?: readonly string[];
 }
 
 // @public
-export type CommandStageName = CommandStage | `${CommandStage}`;
-
-// @public
-export interface CommandUrlParams extends Omit<UrlParams, 'path' | 'query'> {
-    path?: UrlPathParams;
+export interface CommandOptions extends RequestOptions {
+    readonly expectedVersion?: number;
+    readonly requestId?: string;
+    readonly resolveRejected?: boolean;
+    readonly wait?: WaitOptions;
 }
 
 // @public
-export type ComparableFilterLiteral = Exclude<FilterLiteral, null>;
+export interface CommandResult<R = Record<string, unknown>> {
+    readonly chainEnded?: boolean;
+    // (undocumented)
+    readonly commandId: string;
+    // (undocumented)
+    readonly correlationId: string;
+    readonly derived: readonly string[];
+    readonly duplicate: boolean;
+    readonly error?: ErrorInfo | null;
+    // (undocumented)
+    readonly format: number;
+    // (undocumented)
+    readonly function: FunctionInfo;
+    // (undocumented)
+    readonly hop: Hop;
+    readonly pending?: readonly Hop[];
+    // (undocumented)
+    readonly ref: AggregateRef;
+    // (undocumented)
+    readonly requestId: string;
+    // (undocumented)
+    readonly results: R;
+    readonly signalTime: number;
+    // (undocumented)
+    readonly status: CommandResultStatus;
+    // (undocumented)
+    readonly transformedFrom?: TransformedFrom | null;
+    readonly version?: number | null;
+}
 
 // @public
-export type ComparisonFilter<FIELDS extends string = string> = {
+export type CommandResultStatus = 'SUCCEEDED' | 'REJECTED' | 'FAILED';
+
+// @public
+export type CommandResultStream<R = Record<string, unknown>> = ReadableStream<CommandResult<R>>;
+
+// @public
+export function commandSegment(name: string): string;
+
+// @public
+export interface CommitView<S = unknown, E extends EventView = EventView> {
+    // (undocumented)
+    readonly commandId: string;
+    // (undocumented)
+    readonly commandType: string;
+    readonly commitTime: number;
+    // (undocumented)
+    readonly deleted: boolean;
+    // (undocumented)
+    readonly events: readonly E[];
+    // (undocumented)
+    readonly operator?: Operator | null;
+    // (undocumented)
+    readonly requestId: string;
+    // (undocumented)
+    readonly scope: Scope;
+    // (undocumented)
+    readonly state: S;
+    // (undocumented)
+    readonly tags: Tags;
+    // (undocumented)
+    readonly version: number;
+}
+
+// @public
+type ComparableFilterLiteral = Exclude<FilterLiteral, null>;
+
+// @public
+type ComparisonFilter<FIELDS extends string = string> = {
     op: FilterOperator.GT | FilterOperator.GTE | FilterOperator.LT | FilterOperator.LTE;
     field: QueryField<FIELDS>;
     value: ComparableFilterLiteral;
 };
 
 // @public
-export enum ComparisonOperator {
+enum ComparisonOperator {
     EQ = "EQ",
     GT = "GT",
     GTE = "GTE",
@@ -529,48 +386,41 @@ export enum ComparisonOperator {
 }
 
 // @public
-export interface CompensationTarget extends PartialBy<Identifier, 'id'>, FunctionInfoCapable {
-}
-
-// @public @deprecated
-interface Condition<FIELDS extends string = string> {
-    children?: Condition<FIELDS>[];
-    field?: FIELDS;
-    operator?: Operator;
-    options?: ConditionOptions;
-    value?: any;
-}
-
-// @public @deprecated
-interface ConditionCapable<FIELDS extends string = string> {
-    // @deprecated (undocumented)
-    condition: Condition<FIELDS>;
-}
-
-// @public @deprecated
-interface ConditionOptions {
-    [key: string]: any;
-    datePattern?: string;
-    ignoreCase?: boolean;
-    zoneId?: string;
-}
-
-// @public
-export interface ConstantAggregationExpression {
+interface ConstantAggregationExpression {
     // (undocumented)
     type: AggregationExpressionType.CONSTANT;
     value: number;
 }
 
 // @public
-export interface ConstraintDescriptor {
+interface ConstraintDescriptor {
     appended?: string;
     fields?: string[];
     type: QueryConstraintType;
 }
 
 // @public
-export interface CountAggregationMetric<FIELDS extends string = string> {
+export interface ContextManifest {
+    // (undocumented)
+    readonly aggregates?: readonly AggregateManifest[];
+    // (undocumented)
+    readonly description?: string;
+    // (undocumented)
+    readonly errors?: readonly ErrorManifest[];
+    // (undocumented)
+    readonly name: string;
+    // (undocumented)
+    readonly published?: readonly {
+        readonly aggregate: string;
+        readonly topic: string;
+        readonly includeState?: boolean;
+    }[];
+    // (undocumented)
+    readonly subscriptions?: readonly SubscriptionManifest[];
+}
+
+// @public
+interface CountAggregationMetric<FIELDS extends string = string> {
     alias: string;
     filter?: FilterExpression<FIELDS>;
     // (undocumented)
@@ -578,18 +428,34 @@ export interface CountAggregationMetric<FIELDS extends string = string> {
 }
 
 // @public
-export interface CreateTimeCapable {
-    createTime: number;
+export interface CountQuery<FIELDS extends string = string> extends FilterCapable<FIELDS> {
+    limit?: number;
 }
 
 // @public
-export interface CursorPage<T> {
+export interface CountResult {
+    // (undocumented)
+    readonly count: number;
+    // (undocumented)
+    readonly exact: boolean;
+}
+
+// @public
+export interface CreateCommandOptions extends CommandOptions {
+    readonly id?: string;
+}
+
+// @public
+export type Creation = 'NONE' | 'REQUIRED' | 'ALLOWED';
+
+// @public
+interface CursorPage<T> {
     list: T[];
     nextCursor: string | null;
 }
 
 // @public
-export interface CursorQuery<FIELDS extends string = string> {
+interface CursorQuery<FIELDS extends string = string> {
     cursor?: string | null;
     filter: FilterExpression<FIELDS>;
     projection?: Projection<FIELDS>;
@@ -598,82 +464,28 @@ export interface CursorQuery<FIELDS extends string = string> {
 }
 
 // @public
-export function cursorQuery<FIELDS extends string = string>(input: CursorQuery<FIELDS>): CursorQuery<FIELDS>;
-
-// @public
-export function datasetBasePath(context: string, dataset: string, resourceAttribution?: ResourceAttributionPathSpec): string;
-
-// @public
-export class DatasetDirectoryClient implements ApiMetadataCapable {
-    constructor(apiMetadata?: ApiMetadata | undefined);
+export class DatasetClient {
+    constructor(client?: WowClientOptions);
     // (undocumented)
-    readonly apiMetadata?: ApiMetadata | undefined;
-    // (undocumented)
-    list(attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<DatasetDirectoryEntry[]>;
+    readonly client: WowClientOptions;
+    dataset<R = Record<string, unknown>, FIELDS extends string = string>(context: string, dataset: string): QueryModelClient<R, FIELDS>;
+    list(options?: RequestOptions): Promise<DatasetEntry[]>;
 }
 
 // @public
-export interface DatasetDirectoryEntry {
+export interface DatasetEntry {
     // (undocumented)
-    contextName: string;
+    readonly context: string;
     // (undocumented)
-    name: string;
+    readonly dataset: string;
+    readonly name: string;
+    readonly path: string;
     // (undocumented)
-    title: string | null;
-    // (undocumented)
-    version: string | null;
+    readonly title?: string | null;
 }
 
 // @public
-export interface DatasetQueryApi<R = DynamicDocument, FIELDS extends string = string> {
-    aggregate<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
-    aggregateStream<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<Row>>;
-    count(filter: FilterExpression<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<number>;
-    cursor<T extends Partial<R> = R>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
-    describe(previous?: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<QueryDescriptorResult>;
-    list<T extends Partial<R> = R>(query: FilterListQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
-    listStream<T extends Partial<R> = R>(query: FilterListQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<T>>;
-    paged<T extends Partial<R> = R>(query: FilterPagedQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<PagedList<T>>;
-    single<T extends Partial<R> = R>(query: FilterSingleQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T>;
-}
-
-// @public
-export class DatasetQueryClient<R = DynamicDocument, FIELDS extends string = string> implements DatasetQueryApi<R, FIELDS>, ApiMetadataCapable {
-    constructor(options: DatasetQueryClientOptions);
-    // (undocumented)
-    aggregate<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
-    // (undocumented)
-    aggregateStream<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<Row>>;
-    // (undocumented)
-    readonly apiMetadata: ApiMetadata;
-    // (undocumented)
-    count(filter: FilterExpression<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<number>;
-    // (undocumented)
-    cursor<T extends Partial<R> = R>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
-    // (undocumented)
-    describe(previous?: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<QueryDescriptorResult>;
-    // (undocumented)
-    list<T extends Partial<R> = R>(query: FilterListQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
-    // (undocumented)
-    listStream<T extends Partial<R> = R>(query: FilterListQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<T>>;
-    // (undocumented)
-    paged<T extends Partial<R> = R>(query: FilterPagedQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<PagedList<T>>;
-    // (undocumented)
-    single<T extends Partial<R> = R>(query: FilterSingleQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T>;
-}
-
-// @public
-export interface DatasetQueryClientOptions extends PartialBy<ApiMetadata, 'basePath'> {
-    // (undocumented)
-    context: string;
-    // (undocumented)
-    dataset: string;
-    // (undocumented)
-    resourceAttribution?: ResourceAttributionPathSpec.NONE | ResourceAttributionPathSpec.TENANT;
-}
-
-// @public
-export interface DateDiffAggregationExpression<FIELDS extends string = string> {
+interface DateDiffAggregationExpression<FIELDS extends string = string> {
     from: QueryField<FIELDS>;
     to: QueryField<FIELDS>;
     // (undocumented)
@@ -682,7 +494,7 @@ export interface DateDiffAggregationExpression<FIELDS extends string = string> {
 }
 
 // @public
-export enum DateDiffUnit {
+enum DateDiffUnit {
     // (undocumented)
     DAY = "DAY",
     // (undocumented)
@@ -694,7 +506,7 @@ export enum DateDiffUnit {
 }
 
 // @public
-export interface DateHistogramAggregationGroup<FIELDS extends string = string> extends AggregationGroupBase<FIELDS> {
+interface DateHistogramAggregationGroup<FIELDS extends string = string> extends AggregationGroupBase<FIELDS> {
     dense?: boolean;
     timeZone?: string;
     // (undocumented)
@@ -703,14 +515,7 @@ export interface DateHistogramAggregationGroup<FIELDS extends string = string> e
 }
 
 // @public
-export interface DateHistogramAggregationOptions extends AggregationGroupScopeOptions {
-    dense?: boolean;
-    timeZone?: string;
-    unit: AggregationDateUnit;
-}
-
-// @public
-export interface DatePartAggregationGroup<FIELDS extends string = string> extends AggregationGroupBase<FIELDS> {
+interface DatePartAggregationGroup<FIELDS extends string = string> extends AggregationGroupBase<FIELDS> {
     dense?: boolean;
     part: AggregationDatePart;
     timeZone?: string;
@@ -719,52 +524,27 @@ export interface DatePartAggregationGroup<FIELDS extends string = string> extend
 }
 
 // @public
-export interface DatePartAggregationOptions extends AggregationGroupScopeOptions {
-    dense?: boolean;
-    part: AggregationDatePart;
-    timeZone?: string;
-}
-
-// @public
-export type DaysFilter<FIELDS extends string = string> = RelativeTimeFilterOptions & {
+type DaysFilter<FIELDS extends string = string> = RelativeTimeFilterOptions & {
     op: FilterOperator.RECENT_DAYS | FilterOperator.EARLIER_DAYS;
     field: QueryField<FIELDS>;
     days: number;
 };
 
 // @public
-export const DEFAULT_CURSOR_SIZE = 10;
-
-// @public
-export const DEFAULT_PAGINATION: Readonly<Pagination>;
-
-// @public
-export interface DeleteAggregate {
-}
-
-// @public
-export type DeleteAggregateCommand = CommandBody<DeleteAggregate>;
-
-// @public
-export interface DeletedCapable {
-    deleted: boolean;
-}
-
-// @public
-export type DeletionFilter = {
+type DeletionFilter = {
     op: FilterOperator.DELETION;
     state: DeletionState;
 };
 
 // @public
-export enum DeletionState {
+enum DeletionState {
     ACTIVE = "ACTIVE",
     ALL = "ALL",
     DELETED = "DELETED"
 }
 
 // @public
-export interface DerivedAggregationMetric {
+interface DerivedAggregationMetric {
     alias: string;
     expression: DerivedExpression;
     // (undocumented)
@@ -772,7 +552,7 @@ export interface DerivedAggregationMetric {
 }
 
 // @public
-export type DerivedExpression = {
+type DerivedExpression = {
     type: DerivedExpressionType.METRIC_REF;
     metric: string;
 } | {
@@ -786,31 +566,7 @@ export type DerivedExpression = {
 } | DerivedWindow;
 
 // @public
-export interface DerivedExpressionDsl {
-    add(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
-    constant(value: number): DerivedExpression;
-    divide(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
-    multiply(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
-    previous(metric: string, along: string, options?: {
-        shift?: number;
-        period?: AggregationDateUnit;
-    }): DerivedExpression;
-    rank(metric: string, options?: {
-        within?: string[];
-        direction?: SortDirection;
-    }): DerivedExpression;
-    ref(metric: string): DerivedExpression;
-    running(metric: string, order: FieldSort, options?: {
-        within?: string[];
-        frame?: number;
-        function?: RunningFunction;
-    }): DerivedExpression;
-    subtract(left: DerivedExpression, right: DerivedExpression): DerivedExpression;
-    total(metric: string, ...within: string[]): DerivedExpression;
-}
-
-// @public
-export enum DerivedExpressionType {
+enum DerivedExpressionType {
     BINARY = "BINARY",
     CONSTANT = "CONSTANT",
     METRIC_REF = "METRIC_REF",
@@ -821,7 +577,7 @@ export enum DerivedExpressionType {
 }
 
 // @public
-export type DerivedWindow = {
+type DerivedWindow = {
     type: DerivedExpressionType.TOTAL;
     metric: string;
     within?: string[];
@@ -846,16 +602,17 @@ export type DerivedWindow = {
 };
 
 // @public
-export function desc<FIELDS extends string = string>(field: FIELDS): FieldSort<FIELDS>;
+export type DescriptorResult = {
+    readonly notModified: false;
+    readonly version?: string;
+    readonly descriptor: QueryModelDescriptor;
+} | {
+    readonly notModified: true;
+    readonly version: string;
+};
 
 // @public
-export interface DescriptionCapable {
-    // (undocumented)
-    description: string;
-}
-
-// @public
-export interface DistinctCountAggregationMetric<FIELDS extends string = string> {
+interface DistinctCountAggregationMetric<FIELDS extends string = string> {
     alias: string;
     expression: AggregationExpression<FIELDS>;
     filter?: FilterExpression<FIELDS>;
@@ -864,62 +621,13 @@ export interface DistinctCountAggregationMetric<FIELDS extends string = string> 
 }
 
 // @public
-export interface DomainEvent<BODY> extends Identifier, Named, BodyCapable<BODY> {
-    bodyType: string;
-    revision: string;
-}
-
-// @public
-export interface DomainEventStream<DomainEventBody = unknown> extends Identifier, AggregateId, OwnerId, SpaceIdCapable, CommandId, CreateTimeCapable, RequestId, Version, BodyCapable<DomainEvent<DomainEventBody>[]> {
-    header: DomainEventStreamHeader;
-}
-
-// @public
-export interface DomainEventStreamHeader {
-    [key: string]: string | undefined;
-    command_operator?: string;
-    command_wait_endpoint?: string;
-    command_wait_stage?: CommandStage;
-    local_first?: string;
-    remote_ip?: string;
-    trace_id?: string;
-    user_agent?: string;
-}
-
-// @public
-export const DomainEventStreamMetadataFields: Readonly<{
-    readonly HEADER: "header";
-    readonly COMMAND_OPERATOR: "header.command_operator";
-    readonly AGGREGATE_ID: "aggregateId";
-    readonly TENANT_ID: "tenantId";
-    readonly OWNER_ID: "ownerId";
-    readonly SPACE_ID: "spaceId";
-    readonly COMMAND_ID: "commandId";
-    readonly REQUEST_ID: "requestId";
-    readonly VERSION: "version";
-    readonly BODY: "body";
-    readonly BODY_ID: "body.id";
-    readonly BODY_NAME: "body.name";
-    readonly BODY_TYPE: "body.bodyType";
-    readonly BODY_REVISION: "body.revision";
-    readonly BODY_BODY: "body.body";
-    readonly CREATE_TIME: "createTime";
-}>;
-
-// @public
-export interface DurationSemantic {
+interface DurationSemantic {
     timeUnit: TimeUnit;
     type: 'DURATION';
 }
 
 // @public
-export type DynamicDocument = Record<string, unknown>;
-
-// @public
-export type DynamicDocumentArray = DynamicDocument[];
-
-// @public
-export interface DynamicFieldDescriptor {
+interface DynamicFieldDescriptor {
     excludedKeys?: string[];
     filter: FieldFilterDescriptor;
     kind: QueryValueKind;
@@ -928,7 +636,7 @@ export interface DynamicFieldDescriptor {
 }
 
 // @public
-export interface EdgeAggregationMetric<FIELDS extends string = string> {
+interface EdgeAggregationMetric<FIELDS extends string = string> {
     alias: string;
     field: QueryField<FIELDS>;
     filter?: FilterExpression<FIELDS>;
@@ -938,12 +646,7 @@ export interface EdgeAggregationMetric<FIELDS extends string = string> {
 }
 
 // @public
-export interface EdgeAggregationOptions<FIELDS extends string = string> extends AggregationMetricOptions<FIELDS> {
-    orderBy?: FIELDS;
-}
-
-// @public
-export interface ElementDescriptor {
+interface ElementDescriptor {
     aggregate: boolean;
     filter: boolean;
     path: string;
@@ -951,116 +654,119 @@ export interface ElementDescriptor {
 }
 
 // @public
-export type ElementFilterExpression<FIELDS extends string = string> = MatchFilter | ElementLogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | ElementMatchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS> | NowFilter<FIELDS> | ElementSearchFilter<FIELDS>;
+type ElementFilterExpression<FIELDS extends string = string> = MatchFilter | ElementLogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | ElementMatchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS> | NowFilter<FIELDS> | ElementSearchFilter<FIELDS>;
 
 // @public
-export type ElementLogicalFilter<FIELDS extends string = string> = {
+type ElementLogicalFilter<FIELDS extends string = string> = {
     op: FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR;
     operands: ElementFilterExpression<FIELDS>[];
 };
 
 // @public
-export type ElementMatchFilter<FIELDS extends string = string, ELEMENT_FIELDS extends string = string> = {
+type ElementMatchFilter<FIELDS extends string = string, ELEMENT_FIELDS extends string = string> = {
     op: FilterOperator.ELEMENT_MATCH;
     field: QueryField<FIELDS>;
     predicate: ElementFilterExpression<ELEMENT_FIELDS>;
 };
 
 // @public
-export type ElementSearchFilter<FIELDS extends string = string> = SearchFilter<FIELDS> & {
+type ElementSearchFilter<FIELDS extends string = string> = SearchFilter<FIELDS> & {
     fields: [QueryField<FIELDS>, ...QueryField<FIELDS>[]];
 };
 
 // @public
-export const EMPTY_ABAC_TAGS: Readonly<AbacTags>;
-
-// @public
-export interface EnumValueDescriptor {
+interface EnumValueDescriptor {
     description?: string;
     value: unknown;
 }
 
 // @public
-export type EqualityFilter<FIELDS extends string = string> = {
+type EqualityFilter<FIELDS extends string = string> = {
     op: FilterOperator.EQ | FilterOperator.NE;
     field: QueryField<FIELDS>;
     value: EqualityFilterValue;
 };
 
 // @public
-export type EqualityFilterValue = FilterLiteral;
-
-// @public
-export type ErrorCode = WowErrorCode | (string & {});
-
-// @public
-export const ErrorCodes: Readonly<{
-    readonly SUCCEEDED: "Ok";
-    readonly NOT_FOUND: "NotFound";
-    readonly BAD_REQUEST: "BadRequest";
-    readonly ILLEGAL_ARGUMENT: "IllegalArgument";
-    readonly ILLEGAL_STATE: "IllegalState";
-    readonly REQUEST_TIMEOUT: "RequestTimeout";
-    readonly TOO_MANY_REQUESTS: "TooManyRequests";
-    readonly DUPLICATE_REQUEST_ID: "DuplicateRequestId";
-    readonly COMMAND_VALIDATION: "CommandValidation";
-    readonly REWRITE_NO_COMMAND: "RewriteNoCommand";
-    readonly EVENT_VERSION_CONFLICT: "EventVersionConflict";
-    readonly DUPLICATE_AGGREGATE_ID: "DuplicateAggregateId";
-    readonly COMMAND_EXPECT_VERSION_CONFLICT: "CommandExpectVersionConflict";
-    readonly SOURCING_VERSION_CONFLICT: "SourcingVersionConflict";
-    readonly ILLEGAL_ACCESS_DELETED_AGGREGATE: "IllegalAccessDeletedAggregate";
-    readonly ILLEGAL_ACCESS_OWNER_AGGREGATE: "IllegalAccessOwnerAggregate";
-    readonly ILLEGAL_ACCESS_SPACE_AGGREGATE: "IllegalAccessSpaceAggregate";
-    readonly ILLEGAL_ACCESS_QUERY_SCOPE: "IllegalAccessQueryScope";
-    readonly INTERNAL_SERVER_ERROR: "InternalServerError";
-    readonly QUERY_SCHEMA_VALIDATION: "QuerySchemaValidation";
-    readonly QUERY_SCHEMA_CONFLICT: "QuerySchemaConflict";
-    readonly QUERY_SCHEMA_UNAVAILABLE: "QuerySchemaUnavailable";
-    readonly BATCH_TASK_ERROR: "BatchTaskError";
-}>;
+type EqualityFilterValue = FilterLiteral;
 
 // @public
 export interface ErrorInfo {
-    bindingErrors?: BindingError[];
-    errorCode: ErrorCode;
-    errorMsg: string;
-}
-
-// @public
-export interface EventIdCapable {
-    eventId: string;
-}
-
-// @public
-export interface EventStreamQueryApi<DomainEventBody = unknown, FIELDS extends string = string> extends Omit<QueryApi<DomainEventStream<DomainEventBody>, FIELDS>, 'single'> {
-    load<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(id: string, headVersion: number, tailVersion: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
-    loadStream<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(id: string, headVersion: number, tailVersion: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<T>>;
-}
-
-// @public
-export class EventStreamQueryClient<DomainEventBody = unknown, FIELDS extends string = string> implements EventStreamQueryApi<DomainEventBody, FIELDS>, ApiMetadataCapable {
-    constructor(apiMetadata?: ApiMetadata | undefined);
-    aggregate<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
-    aggregateStream<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<Row>>;
+    readonly code: string;
+    readonly extensions?: Readonly<Record<string, unknown>>;
     // (undocumented)
-    readonly apiMetadata?: ApiMetadata | undefined;
-    count(filter: FilterExpression<FIELDS> | Condition<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<number>;
-    cursor<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
-    list<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
-    listStream<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<T>>;
-    load<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(id: string, headVersion: number, tailVersion: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
-    loadStream<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(id: string, headVersion: number, tailVersion: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<T>>;
-    paged<T extends Partial<DomainEventStream<DomainEventBody>> = DomainEventStream<DomainEventBody>>(pagedQuery: PagedQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<PagedList<T>>;
+    readonly message: string;
+    // (undocumented)
+    readonly violations?: readonly Violation[];
 }
 
 // @public
-export interface EventTimeCapable {
-    eventTime: number;
+export interface ErrorManifest {
+    // (undocumented)
+    readonly code: string;
+    // (undocumented)
+    readonly description?: string;
+    // (undocumented)
+    readonly status: number;
 }
 
 // @public
-export type ExpressionFilter<FIELDS extends string = string> = {
+export interface EventManifest {
+    // (undocumented)
+    readonly aliases?: readonly string[];
+    // (undocumented)
+    readonly name: string;
+    // (undocumented)
+    readonly revision?: number;
+    // (undocumented)
+    readonly schema: string;
+}
+
+// @public
+export class EventQueryClient<E extends EventView = EventView> extends QueryModelClient<EventStreamRecord<E>, EventStreamField> {
+    constructor(type: AggregateType, client?: WowClientOptions);
+    // (undocumented)
+    readonly type: AggregateType;
+}
+
+// @public
+export type EventStreamField = 'aggregateId' | 'tenantId' | 'version' | 'commitTime' | 'commandId' | 'requestId' | 'commandType' | 'ownerId' | 'spaceId' | 'operator' | 'operator.id' | 'operator.tenantId' | 'operator.crossScope' | 'events';
+
+// @public
+export interface EventStreamRecord<E extends EventView = EventView> {
+    // (undocumented)
+    readonly aggregateId: string;
+    // (undocumented)
+    readonly commandId: string;
+    // (undocumented)
+    readonly commandType: string;
+    readonly commitTime: number;
+    // (undocumented)
+    readonly events: readonly E[];
+    readonly operator?: Operator | null;
+    readonly ownerId?: string | null;
+    // (undocumented)
+    readonly requestId: string;
+    // (undocumented)
+    readonly spaceId?: string | null;
+    // (undocumented)
+    readonly tenantId: string;
+    // (undocumented)
+    readonly version: number;
+}
+
+// @public
+export interface EventView<N extends string = string, B = unknown> {
+    // (undocumented)
+    readonly body: B;
+    // (undocumented)
+    readonly name: N;
+    // (undocumented)
+    readonly revision: number;
+}
+
+// @public
+type ExpressionFilter<FIELDS extends string = string> = {
     op: FilterOperator.EXPRESSION;
     expression: AggregationExpression<FIELDS>;
     comparison: ComparisonOperator;
@@ -1068,7 +774,10 @@ export type ExpressionFilter<FIELDS extends string = string> = {
 };
 
 // @public
-export interface FieldAggregateDescriptor {
+export function fetchManifest(client?: WowClientOptions, options?: RequestOptions): Promise<Manifest>;
+
+// @public
+interface FieldAggregateDescriptor {
     any: boolean;
     distinctCount: boolean;
     expressionInput: boolean;
@@ -1081,14 +790,14 @@ export interface FieldAggregateDescriptor {
 }
 
 // @public
-export interface FieldAggregationExpression<FIELDS extends string = string> {
+interface FieldAggregationExpression<FIELDS extends string = string> {
     field: QueryField<FIELDS>;
     // (undocumented)
     type: AggregationExpressionType.FIELD;
 }
 
 // @public
-export interface FieldDescriptor {
+interface FieldDescriptor {
     aggregate?: FieldAggregateDescriptor;
     aliases: string[];
     deprecated?: QueryDeprecation;
@@ -1108,18 +817,18 @@ export interface FieldDescriptor {
 }
 
 // @public
-export interface FieldFilterDescriptor {
+interface FieldFilterDescriptor {
     operators: FilterOperator[];
 }
 
 // @public
-export type FieldPresenceFilter<FIELDS extends string = string> = {
+type FieldPresenceFilter<FIELDS extends string = string> = {
     op: FilterOperator.IS_EMPTY | FilterOperator.IS_EMPTY_STRING | FilterOperator.IS_NOT_EMPTY_STRING | FilterOperator.IS_NULL | FilterOperator.IS_NOT_NULL | FilterOperator.EXISTS | FilterOperator.NOT_EXISTS;
     field: QueryField<FIELDS>;
 };
 
 // @public
-export interface FieldSort<FIELDS extends string = string> {
+interface FieldSort<FIELDS extends string = string> {
     // (undocumented)
     direction: SortDirection;
     // (undocumented)
@@ -1127,87 +836,30 @@ export interface FieldSort<FIELDS extends string = string> {
 }
 
 // @public
-export interface FieldSortDescriptor {
+interface FieldSortDescriptor {
     cursor: boolean;
     paged: boolean;
 }
 
 // @public
-export const filter: {
-    matchAll(): MatchFilter;
-    matchNone(): MatchFilter;
-    id(value: string): MetadataValueFilter;
-    ids(values: readonly string[]): MetadataValuesFilter;
-    aggregateId(value: string): MetadataValueFilter;
-    aggregateIds(values: readonly string[]): MetadataValuesFilter;
-    tenantId(value: string): MetadataValueFilter;
-    ownerId(value: string): MetadataValueFilter;
-    spaceId(value: string): MetadataValueFilter;
-    and: typeof andFilter;
-    or: typeof orFilter;
-    nor: typeof norFilter;
-    eq<FIELDS extends string>(field: FIELDS, value: EqualityFilterValue): EqualityFilter<FIELDS>;
-    ne<FIELDS extends string>(field: FIELDS, value: EqualityFilterValue): EqualityFilter<FIELDS>;
-    gt<FIELDS extends string>(field: FIELDS, value: ComparableFilterLiteral): ComparisonFilter<FIELDS>;
-    gte<FIELDS extends string>(field: FIELDS, value: ComparableFilterLiteral): ComparisonFilter<FIELDS>;
-    lt<FIELDS extends string>(field: FIELDS, value: ComparableFilterLiteral): ComparisonFilter<FIELDS>;
-    lte<FIELDS extends string>(field: FIELDS, value: ComparableFilterLiteral): ComparisonFilter<FIELDS>;
-    contains<FIELDS extends string>(field: FIELDS, value: string, stringComparison?: StringComparison): StringFilter<FIELDS>;
-    startsWith<FIELDS extends string>(field: FIELDS, value: string, stringComparison?: StringComparison): StringFilter<FIELDS>;
-    endsWith<FIELDS extends string>(field: FIELDS, value: string, stringComparison?: StringComparison): StringFilter<FIELDS>;
-    isIn<FIELDS extends string>(field: FIELDS, values: readonly ComparableFilterLiteral[]): CollectionFilter<FIELDS>;
-    notIn<FIELDS extends string>(field: FIELDS, values: readonly ComparableFilterLiteral[]): CollectionFilter<FIELDS>;
-    containsAll<FIELDS extends string>(field: FIELDS, values: readonly ComparableFilterLiteral[]): CollectionFilter<FIELDS>;
-    between<FIELDS extends string>(field: FIELDS, lowerBound: ComparableFilterLiteral, upperBound: ComparableFilterLiteral): BetweenFilter<FIELDS>;
-    isEmpty<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
-    isEmptyString<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
-    isNotEmptyString<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
-    isNull<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
-    isNotNull<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
-    exists<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
-    notExists<FIELDS extends string>(field: FIELDS): FieldPresenceFilter<FIELDS>;
-    deletion(state: DeletionState): DeletionFilter;
-    elementMatch<FIELDS extends string, ELEMENT_FIELDS extends string>(field: FIELDS, predicate: ElementFilterExpression<ELEMENT_FIELDS>): ElementMatchFilter<FIELDS, ELEMENT_FIELDS>;
-    search: SearchBuilder;
-    today<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    beforeToday<FIELDS extends string>(field: FIELDS, time: string, options?: RelativeTimeFilterOptions): BeforeTodayFilter<FIELDS>;
-    tomorrow<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    thisWeek<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    nextWeek<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    lastWeek<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    thisMonth<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    lastMonth<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    yesterday<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    nextMonth<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    lastYear<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    thisYear<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    nextYear<FIELDS extends string>(field: FIELDS, options?: RelativeTimeFilterOptions): CalendarFilter<FIELDS>;
-    recentDays<FIELDS extends string>(field: FIELDS, days: number, options?: RelativeTimeFilterOptions): DaysFilter<FIELDS>;
-    earlierDays<FIELDS extends string>(field: FIELDS, days: number, options?: RelativeTimeFilterOptions): DaysFilter<FIELDS>;
-    beforeNow<FIELDS extends string>(field: FIELDS, offset?: string, options?: RelativeTimeFilterOptions): NowFilter<FIELDS>;
-    afterNow<FIELDS extends string>(field: FIELDS, offset?: string, options?: RelativeTimeFilterOptions): NowFilter<FIELDS>;
-    expression<FIELDS extends string>(expression: AggregationExpression<FIELDS>, comparison: ComparisonOperator, value: number): ExpressionFilter<FIELDS>;
-};
-
-// @public
-export interface FilterCapable<FIELDS extends string = string> {
+interface FilterCapable<FIELDS extends string = string> {
     // (undocumented)
     filter: FilterExpression<FIELDS>;
 }
 
 // @public
-export type FilterExpression<FIELDS extends string = string> = MatchFilter | MetadataFilter | LogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | DeletionFilter | ElementMatchFilter<FIELDS> | SearchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS> | NowFilter<FIELDS> | ExpressionFilter<FIELDS>;
+type FilterExpression<FIELDS extends string = string> = MatchFilter | MetadataFilter | LogicalFilter<FIELDS> | EqualityFilter<FIELDS> | ComparisonFilter<FIELDS> | StringFilter<FIELDS> | CollectionFilter<FIELDS> | BetweenFilter<FIELDS> | FieldPresenceFilter<FIELDS> | DeletionFilter | ElementMatchFilter<FIELDS> | SearchFilter<FIELDS> | CalendarFilter<FIELDS> | BeforeTodayFilter<FIELDS> | DaysFilter<FIELDS> | NowFilter<FIELDS> | ExpressionFilter<FIELDS>;
 
 // @public
-export interface FilterListQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
+interface FilterListQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
     limit?: number;
 }
 
 // @public
-export type FilterLiteral = null | string | number | boolean;
+type FilterLiteral = null | string | number | boolean;
 
 // @public
-export enum FilterOperator {
+enum FilterOperator {
     AFTER_NOW = "AFTER_NOW",
     // (undocumented)
     AGGREGATE_ID = "AGGREGATE_ID",
@@ -1314,75 +966,91 @@ export enum FilterOperator {
 }
 
 // @public
-export interface FilterPagedQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
+interface FilterPagedQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
     // (undocumented)
     pagination?: Pagination;
 }
 
 // @public
-export interface FilterQueryable<FIELDS extends string = string> extends FilterCapable<FIELDS>, ProjectionCapable<FIELDS>, SortCapable<FIELDS> {
+interface FilterQueryable<FIELDS extends string = string> extends FilterCapable<FIELDS>, ProjectionCapable<FIELDS>, SortCapable<FIELDS> {
 }
 
 // @public
-export interface FilterSingleQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
+interface FilterSingleQuery<FIELDS extends string = string> extends FilterQueryable<FIELDS> {
 }
 
 // @public
-export interface FirstEventTimeCapable {
-    firstEventTime: number;
-}
+export function formatHop(value: Hop): string;
 
 // @public
-export interface FirstOperatorCapable {
-    firstOperator: string;
-}
+export function formatScope(scope: TargetScope): string;
 
 // @public
-export interface FunctionInfo extends NamedBoundedContext, Named {
+export function formatWaitPlan(plan: readonly Hop[] | string): string;
+
+// @public
+export function formatWaitTimeout(timeout: number | string): string;
+
+// @public
+export const FRAMEWORK_ERROR_PREFIX = "wow.";
+
+// @public
+export type FrameworkErrorCode = (typeof FrameworkErrorCodes)[keyof typeof FrameworkErrorCodes];
+
+// @public
+export const FrameworkErrorCodes: {
+    readonly AUTH_UNAUTHENTICATED: "wow.auth.unauthenticated";
+    readonly AUTH_FORBIDDEN: "wow.auth.forbidden";
+    readonly AGGREGATE_FORBIDDEN: "wow.aggregate.forbidden";
+    readonly COMMAND_MALFORMED: "wow.command.malformed";
+    readonly COMMAND_INVALID: "wow.command.invalid";
+    readonly WAIT_INVALID: "wow.wait.invalid";
+    readonly COMMAND_UNHANDLED: "wow.command.unhandled";
+    readonly AGGREGATE_NOT_FOUND: "wow.aggregate.not-found";
+    readonly AGGREGATE_EXISTS: "wow.aggregate.exists";
+    readonly AGGREGATE_VERSION_MISMATCH: "wow.aggregate.version-mismatch";
+    readonly COMMAND_REQUEST_ID_REUSED: "wow.command.request-id-reused";
+    readonly COMMAND_CONTENDED: "wow.command.contended";
+    readonly AGGREGATE_DELETED: "wow.aggregate.deleted";
+    readonly COMMAND_BUSY: "wow.command.busy";
+    readonly COMMAND_UNKNOWN: "wow.command.unknown";
+    readonly COMMAND_FAILED: "wow.command.failed";
+    readonly NODE_CLOSING: "wow.node.closing";
+    readonly STORAGE_UNAVAILABLE: "wow.storage.unavailable";
+    readonly SCHEDULE_NOT_DUE: "wow.schedule.not-due";
+    readonly SCHEDULE_JOB_INVALID: "wow.schedule.job-invalid";
+    readonly SUBSCRIPTION_PARKED: "wow.subscription.parked";
+    readonly WAIT_TIMEOUT: "wow.wait.timeout";
+    readonly QUERY_MALFORMED: "wow.query.malformed";
+    readonly QUERY_INVALID: "wow.query.invalid";
+    readonly QUERY_FAILED: "wow.query.failed";
+    readonly QUERY_TIMEOUT: "wow.query.timeout";
+    readonly QUERY_BUSY: "wow.query.busy";
+    readonly CALL_COMMAND_FORBIDDEN: "wow.call.command-forbidden";
+};
+
+// @public
+export interface FunctionInfo {
     // (undocumented)
-    functionKind: FunctionKind;
+    readonly context: string;
     // (undocumented)
-    processorName: string;
-}
-
-// @public
-export interface FunctionInfoCapable {
+    readonly kind: FunctionKind;
     // (undocumented)
-    function: FunctionInfo;
+    readonly name: string;
+    // (undocumented)
+    readonly processor: string;
 }
 
 // @public
-export enum FunctionKind {
-    COMMAND = "COMMAND",
-    ERROR = "ERROR",
-    EVENT = "EVENT",
-    SOURCING = "SOURCING",
-    STATE_EVENT = "STATE_EVENT"
-}
+export type FunctionKind = 'COMMAND' | 'PROJECT' | 'REACT' | 'SAGA' | 'SNAPSHOT' | 'RESERVATION' | 'TIMERS';
 
 // @public
-export interface HavingDescriptor {
+interface HavingDescriptor {
     metrics: (AggregationMetricType | (string & {}))[];
 }
 
 // @public
-export interface HavingDsl {
-    and(operands: readonly HavingExpression[]): HavingExpression;
-    between(metric: string, lower: number, upper: number): HavingExpression;
-    eq(metric: string, value: number): HavingExpression;
-    gt(metric: string, value: number): HavingExpression;
-    gte(metric: string, value: number): HavingExpression;
-    isIn(metric: string, values: readonly number[]): HavingExpression;
-    isNotNull(metric: string): HavingExpression;
-    isNull(metric: string): HavingExpression;
-    lt(metric: string, value: number): HavingExpression;
-    lte(metric: string, value: number): HavingExpression;
-    ne(metric: string, value: number): HavingExpression;
-    or(operands: readonly HavingExpression[]): HavingExpression;
-}
-
-// @public
-export type HavingExpression = {
+type HavingExpression = {
     type: HavingExpressionType.CONDITION;
     metric: string;
     operator: ComparisonOperator;
@@ -1406,7 +1074,7 @@ export type HavingExpression = {
 };
 
 // @public
-export enum HavingExpressionType {
+enum HavingExpressionType {
     AND = "AND",
     BETWEEN = "BETWEEN",
     CONDITION = "CONDITION",
@@ -1416,7 +1084,7 @@ export enum HavingExpressionType {
 }
 
 // @public
-export type HistogramAggregationGroup<FIELDS extends string = string> = {
+type HistogramAggregationGroup<FIELDS extends string = string> = {
     type: AggregationGroupType.HISTOGRAM;
     alias: string;
     interval: number;
@@ -1424,23 +1092,32 @@ export type HistogramAggregationGroup<FIELDS extends string = string> = {
 } & AggregationGroupInput<FIELDS>;
 
 // @public
-export interface HistogramAggregationOptions extends AggregationGroupScopeOptions {
-    interval: number;
+export interface Hop {
+    // (undocumented)
+    readonly context?: string | null;
+    // (undocumented)
+    readonly stage: Stage;
+    // (undocumented)
+    readonly subscription?: string | null;
 }
 
 // @public
-export interface Identifier {
-    id: string;
-}
+export function isProblem(value: unknown): value is Problem;
 
 // @public
-export function isErrorInfo(value: unknown): value is ErrorInfo;
+export type LifecycleCommand = (typeof LifecycleCommands)[keyof typeof LifecycleCommands];
 
 // @public
-export type KnownQueryErrorCode = (typeof QueryErrorCodes)[keyof typeof QueryErrorCodes];
+export const LifecycleCommands: {
+    readonly DELETE_AGGREGATE: "wow.lifecycle.DeleteAggregate";
+    readonly RESTORE_AGGREGATE: "wow.lifecycle.RestoreAggregate";
+    readonly TRANSFER_OWNER: "wow.lifecycle.TransferOwner";
+    readonly TRANSFER_SPACE: "wow.lifecycle.TransferSpace";
+    readonly APPLY_TAGS: "wow.lifecycle.ApplyTags";
+};
 
 // @public
-export interface LimitsDescriptor {
+interface LimitsDescriptor {
     aggregation: AggregationLimitsDescriptor;
     defaultListSize: number | null;
     maxFilterNodes: number | null;
@@ -1451,135 +1128,69 @@ export interface LimitsDescriptor {
     maxSortFields: number;
 }
 
-// @public @deprecated
-interface ListQuery<FIELDS extends string = string> extends Queryable<FIELDS> {
-    limit?: number;
+// @public
+export interface ListStreamOptions extends RequestOptions {
+    readonly resume?: StreamResumeOptions | false;
 }
 
 // @public
-export function listQuery<FIELDS extends string = string>(input?: QueryOptions<FIELDS> & {
-    limit?: number;
-}): FilterListQuery<FIELDS>;
-
-// @public @deprecated
-type ListQueryRequest<FIELDS extends string = string> = FilterListQuery<FIELDS> | ListQuery<FIELDS>;
-
-// @public
-export interface LoadOwnerStateAggregateApi<S> {
-    load(attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
-    loadTimeBased(createTime: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
-    loadVersioned(version: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
-}
-
-// @public
-export class LoadOwnerStateAggregateClient<S> implements LoadOwnerStateAggregateApi<S>, ApiMetadataCapable {
-    constructor(apiMetadata?: ApiMetadata | undefined);
-    // (undocumented)
-    readonly apiMetadata?: ApiMetadata | undefined;
-    load(attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
-    loadTimeBased(createTime: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
-    loadVersioned(version: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
-}
-
-// @public
-export interface LoadStateAggregateApi<S> {
-    load(id: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
-    loadTimeBased(id: string, createTime: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
-    loadVersioned(id: string, version: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
-}
-
-// @public
-export class LoadStateAggregateClient<S> implements LoadStateAggregateApi<S>, ApiMetadataCapable {
-    constructor(apiMetadata?: ApiMetadata | undefined);
-    // (undocumented)
-    readonly apiMetadata?: ApiMetadata | undefined;
-    load(id: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
-    loadTimeBased(id: string, createTime: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
-    loadVersioned(id: string, version: number, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
-}
-
-// @public
-export type LogicalFilter<FIELDS extends string = string> = {
+type LogicalFilter<FIELDS extends string = string> = {
     op: FilterOperator.AND | FilterOperator.OR | FilterOperator.NOR;
     operands: FilterExpression<FIELDS>[];
 };
 
 // @public
-export type MatchFilter = {
+export interface Manifest {
+    // (undocumented)
+    readonly $defs?: Readonly<Record<string, unknown>>;
+    // (undocumented)
+    readonly contexts: readonly ContextManifest[];
+    // (undocumented)
+    readonly errors?: readonly ErrorManifest[];
+    // (undocumented)
+    readonly format: number;
+    // (undocumented)
+    readonly service?: {
+        readonly name: string;
+        readonly version?: string;
+    };
+}
+
+// @public
+export const MANIFEST_FORMAT = 1;
+
+// @public
+type MatchFilter = {
     op: FilterOperator.MATCH_ALL | FilterOperator.MATCH_NONE;
 };
 
 // @public
-export interface MaterializedSnapshot<S> extends StateCapable<S>, AggregateId, TenantId, OwnerId, SpaceIdCapable, Version, EventIdCapable, FirstOperatorCapable, OperatorCapable, FirstEventTimeCapable, EventTimeCapable, SnapshotTimeCapable, AbacTaggable, DeletedCapable {
-}
+type MetadataFilter = MetadataValueFilter | MetadataValuesFilter;
 
 // @public
-export const MAX_CURSOR_SIZE = 2147483646;
-
-// @public
-export const MAX_CURSOR_SORT_FIELDS = 32;
-
-// @public
-export interface MediumMaterializedSnapshot<S> extends StateCapable<S>, TenantId, OwnerId, SpaceIdCapable, Version, EventIdCapable, FirstOperatorCapable, OperatorCapable, FirstEventTimeCapable, EventTimeCapable, AbacTaggable {
-}
-
-// @public
-export enum MessageHeaderSqlType {
-    MAP = "MAP",
-    STRING = "STRING"
-}
-
-// @public
-export type MetadataFilter = MetadataValueFilter | MetadataValuesFilter;
-
-// @public
-export type MetadataValueFilter = {
+type MetadataValueFilter = {
     op: FilterOperator.ID | FilterOperator.AGGREGATE_ID | FilterOperator.TENANT_ID | FilterOperator.OWNER_ID | FilterOperator.SPACE_ID;
     value: string;
 };
 
 // @public
-export type MetadataValuesFilter = {
+type MetadataValuesFilter = {
     op: FilterOperator.IDS | FilterOperator.AGGREGATE_IDS;
     values: string[];
 };
 
 // @public
-export interface Named {
-    // (undocumented)
-    name: string;
-}
+export function newRequestId(): string;
 
 // @public
-export interface NamedAggregate extends NamedBoundedContext, AggregateNameCapable {
-}
-
-// @public
-export interface NamedBoundedContext {
-    // (undocumented)
-    contextName: string;
-}
-
-// @public
-function norFilter<FIELDS extends string>(operands: readonly ElementFilterExpression<FIELDS>[]): ElementLogicalFilter<FIELDS>;
-
-// @public
-function norFilter<FIELDS extends string>(operands: readonly FilterExpression<FIELDS>[]): LogicalFilter<FIELDS>;
-
-// @public
-export type NowFilter<FIELDS extends string = string> = RelativeTimeFilterOptions & {
+type NowFilter<FIELDS extends string = string> = RelativeTimeFilterOptions & {
     op: FilterOperator.BEFORE_NOW | FilterOperator.AFTER_NOW;
     field: QueryField<FIELDS>;
     offset: string;
 };
 
 // @public
-export interface NullableAggregateVersionCapable {
-    aggregateVersion?: number;
-}
-
-// @public
-export interface NumericAggregationMetric<FIELDS extends string = string> {
+interface NumericAggregationMetric<FIELDS extends string = string> {
     alias: string;
     expression: AggregationExpression<FIELDS>;
     filter?: FilterExpression<FIELDS>;
@@ -1589,13 +1200,13 @@ export interface NumericAggregationMetric<FIELDS extends string = string> {
 }
 
 // @public
-export interface NumericDecimal {
+interface NumericDecimal {
     scale: number;
     type: 'DECIMAL';
 }
 
 // @public
-export type NumericMoney = {
+type NumericMoney = {
     type: 'MONEY';
     scale: number;
 } & ({
@@ -1606,96 +1217,42 @@ export type NumericMoney = {
     currencyField: string;
 });
 
-// @public @deprecated
-enum Operator {
-    AGGREGATE_ID = "AGGREGATE_ID",
-    AGGREGATE_IDS = "AGGREGATE_IDS",
-    ALL = "ALL",
-    ALL_IN = "ALL_IN",
-    AND = "AND",
-    BEFORE_TODAY = "BEFORE_TODAY",
-    BETWEEN = "BETWEEN",
-    CONTAINS = "CONTAINS",
-    DELETED = "DELETED",
-    EARLIER_DAYS = "EARLIER_DAYS",
-    ELEM_MATCH = "ELEM_MATCH",
-    ENDS_WITH = "ENDS_WITH",
-    EQ = "EQ",
-    EXISTS = "EXISTS",
-    FALSE = "FALSE",
-    GT = "GT",
-    GTE = "GTE",
-    ID = "ID",
-    IDS = "IDS",
-    IN = "IN",
-    LAST_MONTH = "LAST_MONTH",
-    LAST_WEEK = "LAST_WEEK",
-    LT = "LT",
-    LTE = "LTE",
-    MATCH = "MATCH",
-    NE = "NE",
-    NEXT_WEEK = "NEXT_WEEK",
-    NOR = "NOR",
-    NOT_IN = "NOT_IN",
-    NOT_NULL = "NOT_NULL",
-    NULL = "NULL",
-    OR = "OR",
-    OWNER_ID = "OWNER_ID",
-    RAW = "RAW",
-    RECENT_DAYS = "RECENT_DAYS",
+// @public
+export interface Operator {
     // (undocumented)
-    SPACE_ID = "SPACE_ID",
-    STARTS_WITH = "STARTS_WITH",
-    TENANT_ID = "TENANT_ID",
-    THIS_MONTH = "THIS_MONTH",
-    THIS_WEEK = "THIS_WEEK",
-    TODAY = "TODAY",
-    TOMORROW = "TOMORROW",
-    TRUE = "TRUE"
-}
-
-// @public
-export interface OperatorCapable {
-    operator: string;
-}
-
-// @public
-function orFilter<FIELDS extends string>(operands: readonly ElementFilterExpression<FIELDS>[]): ElementLogicalFilter<FIELDS>;
-
-// @public
-function orFilter<FIELDS extends string>(operands: readonly FilterExpression<FIELDS>[]): LogicalFilter<FIELDS>;
-
-// @public
-export interface OwnerId {
-    ownerId: string;
-}
-
-// @public
-export interface PagedList<T> {
+    readonly crossScope: boolean;
     // (undocumented)
-    list: T[];
+    readonly id: string;
     // (undocumented)
-    total: number;
+    readonly tenantId: string;
 }
 
 // @public
-export function pagedList<T>(input?: Partial<PagedList<T>>): PagedList<T>;
+export type Ownership = 'OWNER' | 'TENANT';
 
-// @public @deprecated
-interface PagedQuery<FIELDS extends string = string> extends Queryable<FIELDS> {
-    pagination?: Pagination;
+// @public
+export interface OwnerTransferred {
+    // (undocumented)
+    readonly ownerId: string;
 }
 
 // @public
-export function pagedQuery<FIELDS extends string = string>(input?: QueryOptions<FIELDS> & {
-    pagination?: Pagination;
-}): FilterPagedQuery<FIELDS>;
-
-// @public @deprecated
-type PagedQueryRequest<FIELDS extends string = string> = FilterPagedQuery<FIELDS> | PagedQuery<FIELDS>;
+export interface PagedQuery<FIELDS extends string = string> extends FilterPagedQuery<FIELDS> {
+    total?: TotalMode;
+}
 
 // @public
-export interface Pagination {
+export interface PagedResult<T> {
+    // (undocumented)
+    readonly exact: boolean;
+    // (undocumented)
+    readonly list: readonly T[];
+    // (undocumented)
+    readonly total: number | null;
+}
+
+// @public
+interface Pagination {
     // (undocumented)
     index: number;
     // (undocumented)
@@ -1703,17 +1260,17 @@ export interface Pagination {
 }
 
 // @public
-export function pagination(input?: Partial<Pagination>): Pagination;
-
-// @public
-export enum PagingMode {
+enum PagingMode {
     CURSOR = "CURSOR",
     LIST = "LIST",
     PAGED = "PAGED"
 }
 
 // @public
-export interface PercentileAggregationMetric<FIELDS extends string = string> {
+export function parseRetryAfter(value: string | null | undefined, now?: number): number | undefined;
+
+// @public
+interface PercentileAggregationMetric<FIELDS extends string = string> {
     alias: string;
     expression: AggregationExpression<FIELDS>;
     filter?: FilterExpression<FIELDS>;
@@ -1723,12 +1280,27 @@ export interface PercentileAggregationMetric<FIELDS extends string = string> {
 }
 
 // @public
-export interface PercentileAggregationOptions<FIELDS extends string = string> extends AggregationMetricOptions<FIELDS> {
-    percentile: number;
+export interface Problem {
+    readonly code?: string;
+    // (undocumented)
+    readonly detail?: string;
+    readonly extensions?: Readonly<Record<string, unknown>>;
+    readonly result?: CommandResult;
+    // (undocumented)
+    readonly status: number;
+    // (undocumented)
+    readonly title: string;
+    // (undocumented)
+    readonly type: string;
+    // (undocumented)
+    readonly violations?: readonly Violation[];
 }
 
 // @public
-export interface Projection<FIELDS extends string = string> {
+export const PROBLEM_TYPE_PREFIX = "urn:wow:error:";
+
+// @public
+interface Projection<FIELDS extends string = string> {
     // (undocumented)
     exclude?: FIELDS[];
     // (undocumented)
@@ -1736,61 +1308,16 @@ export interface Projection<FIELDS extends string = string> {
 }
 
 // @public
-export function projection<FIELDS extends string = string>(input?: Projection<FIELDS>): Projection<FIELDS>;
-
-// @public
-export interface ProjectionCapable<FIELDS extends string = string> {
+interface ProjectionCapable<FIELDS extends string = string> {
     // (undocumented)
     projection?: Projection<FIELDS>;
 }
 
 // @public
-export const QUERY_STREAM_ENDPOINT: {
-    readonly headers: {
-        readonly Accept: 'text/event-stream';
-    };
-    readonly resultExtractor: ResultExtractor<ReadableStream<unknown>>;
-};
-
-// @public @deprecated
-interface Queryable<FIELDS extends string = string> extends ConditionCapable<FIELDS>, ProjectionCapable<FIELDS>, SortCapable<FIELDS> {
-}
+type QueryConstraintType = (typeof QueryConstraintTypes)[keyof typeof QueryConstraintTypes] | (string & {});
 
 // @public
-export interface QueryApi<R, FIELDS extends string = string> {
-    aggregate<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
-    aggregateStream<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<Row>>;
-    count(filter: FilterExpression<FIELDS> | Condition<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<number>;
-    cursor<T extends Partial<R> = R>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
-    list<T extends Partial<R> = R>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
-    listStream<T extends Partial<R> = R>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<T>>;
-    paged<T extends Partial<R> = R>(pagedQuery: PagedQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<PagedList<T>>;
-    single<T extends Partial<R> = R>(singleQuery: SingleQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T>;
-}
-
-// @public
-export class QueryClientFactory<S, FIELDS extends string = string, DomainEventBody = unknown> {
-    constructor(defaultOptions: QueryClientOptions);
-    createEventStreamQueryClient<EVENT_FIELDS extends string = string>(options?: QueryClientOptions): EventStreamQueryClient<DomainEventBody, EVENT_FIELDS>;
-    createLoadOwnerStateAggregateClient(options?: QueryClientOptions): LoadOwnerStateAggregateClient<S>;
-    createLoadStateAggregateClient(options?: QueryClientOptions): LoadStateAggregateClient<S>;
-    createQueryDescriptorClient(options?: QueryClientOptions): QueryDescriptorClient;
-    createSnapshotQueryClient(options?: QueryClientOptions): SnapshotQueryClient<S, FIELDS>;
-}
-
-// @public
-export interface QueryClientOptions extends PartialBy<ApiMetadata, 'basePath'>, Partial<AliasBoundedContext>, Partial<AggregateNameCapable> {
-    // (undocumented)
-    contextAlias?: string;
-    // (undocumented)
-    resourceAttribution?: ResourceAttributionPathSpec;
-}
-
-// @public
-export type QueryConstraintType = (typeof QueryConstraintTypes)[keyof typeof QueryConstraintTypes] | (string & {});
-
-// @public
-export const QueryConstraintTypes: Readonly<{
+const QueryConstraintTypes: Readonly<{
     readonly CURSOR_UNIQUE_SORT: "CURSOR_UNIQUE_SORT";
     readonly COUNT_REQUIRES_FILTER: "COUNT_REQUIRES_FILTER";
     readonly STARTS_WITH_REQUIRES_PREFIX: "STARTS_WITH_REQUIRES_PREFIX";
@@ -1800,103 +1327,18 @@ export const QueryConstraintTypes: Readonly<{
 }>;
 
 // @public
-export interface QueryDeprecation {
+interface QueryDeprecation {
     message?: string;
 }
 
 // @public
-export interface QueryDescriptorApi {
-    describeEventStream(previous?: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<QueryDescriptorResult>;
-    describeSnapshot(previous?: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<QueryDescriptorResult>;
-}
+type QueryField<FIELDS extends string = string> = FIELDS;
 
 // @public
-export class QueryDescriptorClient implements QueryDescriptorApi, ApiMetadataCapable {
-    constructor(apiMetadata?: ApiMetadata | undefined);
-    // (undocumented)
-    readonly apiMetadata?: ApiMetadata | undefined;
-    describeEventStream(previous?: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<QueryDescriptorResult>;
-    describeSnapshot(previous?: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<QueryDescriptorResult>;
-}
+type QueryFieldRole = (typeof QueryFieldRoles)[keyof typeof QueryFieldRoles] | (string & {});
 
 // @public
-export interface QueryDescriptorNotModified {
-    notModified: true;
-    version: string;
-}
-
-// @public
-export interface QueryDescriptorRead {
-    descriptor: QueryModelDescriptor;
-    notModified: false;
-    version: string;
-}
-
-// @public
-export type QueryDescriptorResult = QueryDescriptorRead | QueryDescriptorNotModified;
-
-// @public
-export type QueryErrorCode = KnownQueryErrorCode | (string & {});
-
-// @public
-export const QueryErrorCodes: Readonly<{
-    readonly INVALID_JSON: "INVALID_JSON";
-    readonly BODY_NOT_OBJECT: "BODY_NOT_OBJECT";
-    readonly EMPTY_BODY: "EMPTY_BODY";
-    readonly UNKNOWN_PROPERTY: "UNKNOWN_PROPERTY";
-    readonly UNKNOWN_TYPE: "UNKNOWN_TYPE";
-    readonly UNKNOWN_VALUE: "UNKNOWN_VALUE";
-    readonly INVALID_VALUE: "INVALID_VALUE";
-    readonly INVALID_REQUEST: "INVALID_REQUEST";
-    readonly CURSOR_SORT_DUPLICATE: "CURSOR_SORT_DUPLICATE";
-    readonly CURSOR_SORT_TOO_MANY: "CURSOR_SORT_TOO_MANY";
-    readonly INVALID_CURSOR: "INVALID_CURSOR";
-    readonly SIZE_OUT_OF_RANGE: "SIZE_OUT_OF_RANGE";
-    readonly FILTER_TOO_LARGE: "FILTER_TOO_LARGE";
-    readonly EXPENSIVE_OPERATOR_DISABLED: "EXPENSIVE_OPERATOR_DISABLED";
-    readonly COUNT_REQUIRES_FILTER: "COUNT_REQUIRES_FILTER";
-    readonly RESIDUAL_GROUPS_EXCEEDED: "RESIDUAL_GROUPS_EXCEEDED";
-    readonly EXPLICIT_ENTRY_REQUIRED: "EXPLICIT_ENTRY_REQUIRED";
-    readonly UNKNOWN_FIELD: "UNKNOWN_FIELD";
-    readonly UNSUPPORTED_CAPABILITY: "UNSUPPORTED_CAPABILITY";
-    readonly ELEMENT_SCOPE_REQUIRED: "ELEMENT_SCOPE_REQUIRED";
-    readonly VALUE_MISMATCH: "VALUE_MISMATCH";
-    readonly NOT_COLLECTION: "NOT_COLLECTION";
-    readonly NOT_SINGLE_STRING: "NOT_SINGLE_STRING";
-    readonly MODEL_SEARCH_UNSUPPORTED: "MODEL_SEARCH_UNSUPPORTED";
-    readonly CURSOR_NOT_ALLOWED: "CURSOR_NOT_ALLOWED";
-    readonly PROTECTED_AGGREGATION: "PROTECTED_AGGREGATION";
-    readonly PROTECTED_COMPARISON: "PROTECTED_COMPARISON";
-    readonly MISSING_KEY_REQUIRES_STRING: "MISSING_KEY_REQUIRES_STRING";
-    readonly ANY_REQUIRES_SINGLE_VALUE: "ANY_REQUIRES_SINGLE_VALUE";
-    readonly INCOMPLETE_PROJECTION: "INCOMPLETE_PROJECTION";
-    readonly METRIC_FILTER_SEARCH: "METRIC_FILTER_SEARCH";
-    readonly METRIC_FILTER_ELEMENT_MATCH: "METRIC_FILTER_ELEMENT_MATCH";
-    readonly METRIC_FILTER_ARRAY_FIELD: "METRIC_FILTER_ARRAY_FIELD";
-    readonly NOT_PROJECTABLE: "NOT_PROJECTABLE";
-    readonly EVENT_PROJECTION_TYPE_REQUIRED: "EVENT_PROJECTION_TYPE_REQUIRED";
-    readonly TEMPORAL_REPRESENTATION_REQUIRED: "TEMPORAL_REPRESENTATION_REQUIRED";
-    readonly TEMPORAL_CONFIGURATION_CONFLICT: "TEMPORAL_CONFIGURATION_CONFLICT";
-    readonly PARALLEL_ARRAY_SORT: "PARALLEL_ARRAY_SORT";
-    readonly ARRAY_EQUALITY: "ARRAY_EQUALITY";
-    readonly FIRST_LAST_REQUIRES_SINGLE_VALUE: "FIRST_LAST_REQUIRES_SINGLE_VALUE";
-    readonly FIRST_LAST_REQUIRES_ORDER_BY: "FIRST_LAST_REQUIRES_ORDER_BY";
-    readonly TEMPORAL_AGGREGATION_UNSUPPORTED: "TEMPORAL_AGGREGATION_UNSUPPORTED";
-    readonly SORT_TOO_MANY: "SORT_TOO_MANY";
-    readonly SORT_FIELD_DUPLICATE: "SORT_FIELD_DUPLICATE";
-    readonly IDENTITY_UNDEFINED: "IDENTITY_UNDEFINED";
-    readonly STORAGE_UNSUPPORTED: "STORAGE_UNSUPPORTED";
-    readonly PREVIOUS_UNSHIFTABLE: "PREVIOUS_UNSHIFTABLE";
-}>;
-
-// @public
-export type QueryField<FIELDS extends string = string> = FIELDS;
-
-// @public
-export type QueryFieldRole = (typeof QueryFieldRoles)[keyof typeof QueryFieldRoles] | (string & {});
-
-// @public
-export const QueryFieldRoles: Readonly<{
+const QueryFieldRoles: Readonly<{
     readonly IDENTITY: "IDENTITY";
     readonly AGGREGATE_ID: "AGGREGATE_ID";
     readonly TENANT_ID: "TENANT_ID";
@@ -1908,10 +1350,36 @@ export const QueryFieldRoles: Readonly<{
 }>;
 
 // @public
-export type QueryModel = (typeof QueryModels)[keyof typeof QueryModels] | (string & {});
+export interface QueryManifest {
+    // (undocumented)
+    readonly model: string;
+    // (undocumented)
+    readonly routes?: readonly RouteManifest[];
+}
 
 // @public
-export interface QueryModelDescriptor {
+type QueryModel = (typeof QueryModels)[keyof typeof QueryModels] | (string & {});
+
+// @public
+export class QueryModelClient<R, FIELDS extends string = string> {
+    constructor(path: string, client?: WowClientOptions);
+    aggregate<ROW = Record<string, unknown>>(query: AggregationQuery<FIELDS, string>, options?: RequestOptions): Promise<ROW[]>;
+    // (undocumented)
+    readonly client: WowClientOptions;
+    count(query: CountQuery<FIELDS>, options?: RequestOptions): Promise<CountResult>;
+    cursor(query: CursorQuery<FIELDS>, options?: RequestOptions): Promise<CursorPage<R>>;
+    describe(version?: string, options?: RequestOptions): Promise<DescriptorResult>;
+    list(query: FilterListQuery<FIELDS>, options?: RequestOptions): Promise<R[]>;
+    listStream(query: FilterListQuery<FIELDS>, options?: ListStreamOptions): Promise<ReadableStream<R>>;
+    listStreamRows(query: FilterListQuery<FIELDS>, options?: ListStreamOptions): Promise<ReadableStream<StreamedRow<R>>>;
+    paged(query: PagedQuery<FIELDS>, options?: RequestOptions): Promise<PagedResult<R>>;
+    // (undocumented)
+    readonly path: string;
+    single(query: FilterSingleQuery<FIELDS>, options?: RequestOptions): Promise<R>;
+}
+
+// @public
+interface QueryModelDescriptor {
     analysis: AnalysisDescriptor;
     constraints: ConstraintDescriptor[];
     dynamic: DynamicFieldDescriptor[];
@@ -1926,20 +1394,20 @@ export interface QueryModelDescriptor {
 }
 
 // @public
-export const QueryModels: Readonly<{
+const QueryModels: Readonly<{
     readonly SNAPSHOT: "SNAPSHOT";
     readonly EVENT_STREAM: "EVENT_STREAM";
     readonly DATASET: "DATASET";
 }>;
 
 // @public
-type QueryOptions<FIELDS extends string = string> = Partial<FilterQueryable<FIELDS>>;
+export function queryPath(type: AggregateType, model: string): string;
 
 // @public
-export type QuerySemanticType = TemporalDate | TemporalEpoch | TemporalFormatted | NumericDecimal | NumericMoney | DurationSemantic | ReferenceSemantic;
+type QuerySemanticType = TemporalDate | TemporalEpoch | TemporalFormatted | NumericDecimal | NumericMoney | DurationSemantic | ReferenceSemantic;
 
 // @public
-export enum QueryValueKind {
+enum QueryValueKind {
     ARRAY = "ARRAY",
     NULL = "NULL",
     OBJECT = "OBJECT",
@@ -1949,10 +1417,10 @@ export enum QueryValueKind {
 }
 
 // @public
-export type QueryValueType = (typeof QueryValueTypes)[keyof typeof QueryValueTypes] | (string & {});
+type QueryValueType = (typeof QueryValueTypes)[keyof typeof QueryValueTypes] | (string & {});
 
 // @public
-export const QueryValueTypes: Readonly<{
+const QueryValueTypes: Readonly<{
     readonly STRING: "STRING";
     readonly INTEGER: "INTEGER";
     readonly DECIMAL: "DECIMAL";
@@ -1961,14 +1429,10 @@ export const QueryValueTypes: Readonly<{
 }>;
 
 // @public
-export interface QueryViolation {
-    code: QueryErrorCode;
-    message: string;
-    path: string;
-}
+export function readProblem(response: Response): Promise<Problem>;
 
 // @public
-export interface RecordDescriptor {
+interface RecordDescriptor {
     defaultScope?: DeletionState;
     identity: string;
     paging: PagingMode[];
@@ -1977,21 +1441,7 @@ export interface RecordDescriptor {
 }
 
 // @public
-export enum RecoverableType {
-    RECOVERABLE = "RECOVERABLE",
-    UNKNOWN = "UNKNOWN",
-    UNRECOVERABLE = "UNRECOVERABLE"
-}
-
-// @public
-export interface RecoverAggregate {
-}
-
-// @public
-export type RecoverAggregateCommand = CommandBody<RecoverAggregate>;
-
-// @public
-export type ReferenceSemantic = {
+type ReferenceSemantic = {
     type: 'REFERENCE';
 } & ({
     contextName: string;
@@ -2006,32 +1456,44 @@ export type ReferenceSemantic = {
 });
 
 // @public
-export interface RelativeTimeFilterOptions {
+interface RelativeTimeFilterOptions {
     datePattern?: string;
     timeUnit?: TimeUnit;
     zoneId?: string;
 }
 
 // @public
-export interface RequestId {
-    // (undocumented)
-    requestId: string;
+export function requestIdOf(error: unknown): string | undefined;
+
+// @public
+export interface RequestOptions {
+    readonly headers?: Readonly<Record<string, string>>;
+    readonly scope?: TargetScope;
+    readonly signal?: AbortSignal;
+    readonly space?: string;
 }
 
 // @public
-export enum ResourceAttributionPathSpec {
+export interface RetryHint {
+    readonly afterMs?: number;
     // (undocumented)
-    NONE = "",
-    // (undocumented)
-    OWNER = "/owner/{ownerId}",
-    // (undocumented)
-    TENANT = "/tenant/{tenantId}",
-    // (undocumented)
-    TENANT_OWNER = "/tenant/{tenantId}/owner/{ownerId}"
+    readonly retryable: boolean;
+    readonly sameRequestId: boolean;
 }
 
 // @public
-export enum RunningFunction {
+export function retryHintOf(code: string | undefined, status: number, afterMs?: number): RetryHint;
+
+// @public
+export interface RouteManifest {
+    // (undocumented)
+    readonly method: string;
+    // (undocumented)
+    readonly path: string;
+}
+
+// @public
+enum RunningFunction {
     // (undocumented)
     AVG = "AVG",
     // (undocumented)
@@ -2039,28 +1501,48 @@ export enum RunningFunction {
 }
 
 // @public
-export interface ScopesCapable {
-    scopes: string[];
+export interface ScheduleCancelled {
+    // (undocumented)
+    readonly key: string;
 }
 
 // @public
-export interface SearchBuilder {
+export interface ScheduleRule {
     // (undocumented)
-    <FIELDS extends string>(query: string, options: SearchFilterOptions<FIELDS> & {
-        fields: readonly [QueryField<FIELDS>, ...QueryField<FIELDS>[]];
-    }): ElementSearchFilter<FIELDS>;
-    // (undocumented)
-    <FIELDS extends string>(query: string, options?: SearchFilterOptions<FIELDS>): SearchFilter<FIELDS>;
+    readonly [property: string]: unknown;
+    readonly type: string;
 }
 
 // @public
-export interface SearchDescriptor {
+export interface ScheduleSet {
+    // (undocumented)
+    readonly command: string;
+    // (undocumented)
+    readonly commandType: string;
+    // (undocumented)
+    readonly key: string;
+    // (undocumented)
+    readonly rule: ScheduleRule;
+    // (undocumented)
+    readonly target: AggregateRef;
+}
+
+// @public
+export interface Scope {
+    // (undocumented)
+    readonly ownerId?: string | null;
+    // (undocumented)
+    readonly spaceId?: string | null;
+}
+
+// @public
+interface SearchDescriptor {
     fields: string[];
     modes: SearchMode[];
 }
 
 // @public
-export type SearchFilter<FIELDS extends string = string> = {
+type SearchFilter<FIELDS extends string = string> = {
     op: FilterOperator.SEARCH;
     query: string;
     fields?: QueryField<FIELDS>[];
@@ -2068,116 +1550,69 @@ export type SearchFilter<FIELDS extends string = string> = {
 };
 
 // @public
-export interface SearchFilterOptions<FIELDS extends string = string> {
-    fields?: readonly QueryField<FIELDS>[];
-    mode?: SearchMode;
-}
-
-// @public
-export enum SearchMode {
+enum SearchMode {
     PHRASE = "PHRASE",
     TERMS = "TERMS"
 }
 
 // @public
-export interface SensitivityDescriptor {
+interface SensitivityDescriptor {
     comparable: boolean;
     level: SensitivityLevel;
 }
 
 // @public
-export enum SensitivityLevel {
+enum SensitivityLevel {
     CONFIDENTIAL = "CONFIDENTIAL",
     DISPLAY = "DISPLAY"
 }
 
 // @public
-export interface SignalTimeCapable {
+export const SNAPSHOT_SUBSCRIPTION = "snapshot";
+
+// @public
+export class SnapshotQueryClient<S = unknown, STATE_FIELDS extends string = `state.${string}`> extends QueryModelClient<SnapshotRecord<S>, SnapshotSystemField | STATE_FIELDS> {
+    constructor(type: AggregateType, client?: WowClientOptions);
     // (undocumented)
-    signalTime: number;
-}
-
-// @public @deprecated
-interface SingleQuery<FIELDS extends string = string> extends Queryable<FIELDS> {
+    readonly type: AggregateType;
 }
 
 // @public
-export function singleQuery<FIELDS extends string = string>(input?: QueryOptions<FIELDS>): FilterSingleQuery<FIELDS>;
-
-// @public @deprecated
-type SingleQueryRequest<FIELDS extends string = string> = FilterSingleQuery<FIELDS> | SingleQuery<FIELDS>;
-
-// @public
-export interface SmallMaterializedSnapshot<S> extends StateCapable<S>, Version, FirstEventTimeCapable {
-}
-
-// @public
-export const SnapshotMetadataFields: Readonly<{
-    readonly VERSION: "version";
-    readonly TENANT_ID: "tenantId";
-    readonly OWNER_ID: "ownerId";
-    readonly SPACE_ID: "spaceId";
-    readonly EVENT_ID: "eventId";
-    readonly FIRST_EVENT_TIME: "firstEventTime";
-    readonly EVENT_TIME: "eventTime";
-    readonly FIRST_OPERATOR: "firstOperator";
-    readonly OPERATOR: "operator";
-    readonly SNAPSHOT_TIME: "snapshotTime";
-    readonly TAGS: "tags";
-    readonly DELETED: "deleted";
-    readonly STATE: "state";
-}>;
-
-// @public
-export interface SnapshotQueryApi<S, FIELDS extends string = string> extends QueryApi<MaterializedSnapshot<S>, FIELDS> {
-    cursorState<T extends Partial<S> = S>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
-    getById(id: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<MaterializedSnapshot<S>>;
-    getByIds(ids: string[], attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<MaterializedSnapshot<S>[]>;
-    getStateById(id: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
-    getStateByIds(ids: string[], attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S[]>;
-    listState<T extends Partial<S> = S>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
-    listStateStream<T extends Partial<S> = S>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<T>>;
-    pagedState<T extends Partial<S> = S>(pagedQuery: PagedQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<PagedList<T>>;
-    singleState<T extends Partial<S> = S>(singleQuery: SingleQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T>;
-}
-
-// @public
-export class SnapshotQueryClient<S, FIELDS extends string = string> implements SnapshotQueryApi<S, FIELDS>, ApiMetadataCapable {
-    constructor(apiMetadata?: ApiMetadata | undefined);
-    aggregate<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<Row[]>;
-    aggregateStream<Row extends object = DynamicDocument, AGGREGATION_FIELDS extends string = string>(query: AggregationQuery<FIELDS, AGGREGATION_FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<Row>>;
+export interface SnapshotRecord<S = unknown> {
     // (undocumented)
-    readonly apiMetadata?: ApiMetadata | undefined;
-    count(filter: FilterExpression<FIELDS> | Condition<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<number>;
-    cursor<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
-    cursorState<T extends Partial<S> = S>(query: CursorQuery<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<CursorPage<T>>;
-    getById(id: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<MaterializedSnapshot<S>>;
-    getByIds(ids: string[], attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<MaterializedSnapshot<S>[]>;
-    getStateById(id: string, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S>;
-    getStateByIds(ids: string[], attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<S[]>;
-    list<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
-    listState<T extends Partial<S> = S>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T[]>;
-    listStateStream<T extends Partial<S> = S>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<T>>;
-    listStream<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(listQuery: ListQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<ReadableStream<T>>;
-    paged<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(pagedQuery: PagedQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<PagedList<T>>;
-    pagedState<T extends Partial<S> = S>(pagedQuery: PagedQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<PagedList<T>>;
-    single<T extends Partial<MaterializedSnapshot<S>> = MaterializedSnapshot<S>>(singleQuery: SingleQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T>;
-    singleState<T extends Partial<S> = S>(singleQuery: SingleQueryRequest<FIELDS>, attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<T>;
+    readonly aggregateId: string;
+    // (undocumented)
+    readonly deleted: boolean;
+    readonly firstEventTime: number;
+    readonly firstOperator: Operator | null;
+    readonly lastEventTime: number;
+    readonly operator: Operator | null;
+    // (undocumented)
+    readonly ownerId: string | null;
+    readonly schedules?: Readonly<Record<string, ScheduleRule>>;
+    // (undocumented)
+    readonly spaceId: string | null;
+    // (undocumented)
+    readonly state: S;
+    // (undocumented)
+    readonly tags: Tags;
+    // (undocumented)
+    readonly tenantId: string;
+    // (undocumented)
+    readonly version: number;
 }
 
 // @public
-export interface SnapshotTimeCapable {
-    snapshotTime: number;
-}
+export type SnapshotSystemField = 'tenantId' | 'aggregateId' | 'version' | 'ownerId' | 'spaceId' | 'deleted' | 'tags' | 'firstEventTime' | 'lastEventTime' | 'operator' | 'operator.id' | 'operator.tenantId' | 'operator.crossScope' | 'firstOperator' | 'firstOperator.id' | 'firstOperator.tenantId' | 'firstOperator.crossScope' | 'schedules';
 
 // @public
-export interface SortCapable<FIELDS extends string = string> {
+interface SortCapable<FIELDS extends string = string> {
     // (undocumented)
     sort?: FieldSort<FIELDS>[];
 }
 
 // @public
-export enum SortDirection {
+enum SortDirection {
     // (undocumented)
     ASC = "ASC",
     // (undocumented)
@@ -2185,28 +1620,113 @@ export enum SortDirection {
 }
 
 // @public
-export interface SpaceIdCapable {
-    spaceId: string;
-}
-
-// @public
-export interface StateCapable<S> {
+export interface SpaceTransferred {
     // (undocumented)
-    state: S;
+    readonly spaceId: string;
 }
 
 // @public
-export interface StateEvent<DomainEventBody = unknown, S = unknown> extends DomainEventStream<DomainEventBody>, StateCapable<S>, FirstOperatorCapable, FirstEventTimeCapable, DeletedCapable {
+export const Stage: {
+    readonly ACCEPTED: "ACCEPTED";
+    readonly COMMITTED: "COMMITTED";
+    readonly HANDLED: "HANDLED";
+};
+
+// @public
+export type Stage = (typeof Stage)[keyof typeof Stage];
+
+// @public
+export class StateClient<S = unknown, E extends EventView = EventView> {
+    constructor(type: AggregateType, client?: WowClientOptions);
+    // (undocumented)
+    readonly client: WowClientOptions;
+    get(id: string, options?: Omit<StateReadOptions, 'ifNoneMatch'>): Promise<StateView<S>>;
+    read(id: string, options?: StateReadOptions): Promise<StateReadResult<S>>;
+    trace(id: string, options?: StateTraceOptions): Promise<StateTrace<S, E>>;
+    // (undocumented)
+    readonly type: AggregateType;
 }
 
 // @public
-export enum StringComparison {
+export interface StateReadOptions extends RequestOptions {
+    readonly at?: string | Date;
+    readonly ifNoneMatch?: string;
+    readonly version?: number;
+}
+
+// @public
+export type StateReadResult<S> = {
+    readonly notModified: false;
+    readonly view: StateView<S>;
+    readonly etag?: string;
+} | {
+    readonly notModified: true;
+    readonly version: number;
+    readonly etag: string;
+};
+
+// @public
+export interface StateTrace<S = unknown, E extends EventView = EventView> {
+    // (undocumented)
+    readonly commits: readonly CommitView<S, E>[];
+    // (undocumented)
+    readonly ref: AggregateRef;
+}
+
+// @public
+export interface StateTraceOptions extends RequestOptions {
+    readonly from?: number;
+    readonly limit?: number;
+    readonly to?: number;
+}
+
+// @public
+export interface StateView<S = unknown> {
+    // (undocumented)
+    readonly deleted: boolean;
+    // (undocumented)
+    readonly ref: AggregateRef;
+    // (undocumented)
+    readonly scope: Scope;
+    // (undocumented)
+    readonly state: S;
+    // (undocumented)
+    readonly tags: Tags;
+    // (undocumented)
+    readonly version: number;
+}
+
+// @public
+export interface StreamedRow<T> {
+    readonly position?: string;
+    readonly record: T;
+}
+
+// @public
+export interface StreamEnd {
+    readonly reason: StreamEndReason | (string & {});
+    readonly resumable: boolean;
+}
+
+// @public
+export type StreamEndReason = 'complete' | 'hold-expired' | 'permit-reclaimed' | 'node-stopping';
+
+// @public
+export interface StreamResumeOptions {
+    readonly initialDelayMs?: number;
+    readonly lastEventId?: string;
+    readonly maxDelayMs?: number;
+    readonly maxRetries?: number;
+}
+
+// @public
+enum StringComparison {
     CASE_INSENSITIVE = "CASE_INSENSITIVE",
     CASE_SENSITIVE = "CASE_SENSITIVE"
 }
 
 // @public
-export type StringFilter<FIELDS extends string = string> = {
+type StringFilter<FIELDS extends string = string> = {
     op: FilterOperator.CONTAINS | FilterOperator.STARTS_WITH | FilterOperator.ENDS_WITH;
     field: QueryField<FIELDS>;
     value: string;
@@ -2214,30 +1734,67 @@ export type StringFilter<FIELDS extends string = string> = {
 };
 
 // @public
-export interface TemporalDate {
+export interface SubscriptionManifest {
+    // (undocumented)
+    readonly [property: string]: unknown;
+    // (undocumented)
+    readonly committed?: readonly string[];
+    // (undocumented)
+    readonly derives?: readonly string[];
+    // (undocumented)
+    readonly kind: 'PROJECTION' | 'REACTOR' | 'SAGA';
+    readonly name: string;
+    // (undocumented)
+    readonly rejected?: readonly string[];
+    // (undocumented)
+    readonly source: {
+        readonly context?: string;
+        readonly aggregates?: readonly string[];
+        readonly events?: readonly string[];
+    };
+}
+
+// @public
+export type SystemEvent = EventView<'wow.lifecycle.AggregateDeleted', Readonly<Record<string, never>>> | EventView<'wow.lifecycle.AggregateRestored', Readonly<Record<string, never>>> | EventView<'wow.lifecycle.OwnerTransferred', OwnerTransferred> | EventView<'wow.lifecycle.SpaceTransferred', SpaceTransferred> | EventView<'wow.lifecycle.TagsApplied', TagsApplied> | EventView<'wow.ScheduleSet', ScheduleSet> | EventView<'wow.ScheduleCancelled', ScheduleCancelled>;
+
+// @public
+export type Tags = Readonly<Record<string, readonly string[]>>;
+
+// @public
+export interface TagsApplied {
+    // (undocumented)
+    readonly tags: Tags;
+}
+
+// @public
+export interface TargetScope {
+    // (undocumented)
+    readonly ownerId?: string;
+    // (undocumented)
+    readonly spaceId?: string;
+    // (undocumented)
+    readonly tenantId?: string;
+}
+
+// @public
+interface TemporalDate {
     type: 'TEMPORAL_DATE';
 }
 
 // @public
-export interface TemporalEpoch {
+interface TemporalEpoch {
     timeUnit?: TimeUnit;
     type: 'TEMPORAL_EPOCH';
 }
 
 // @public
-export interface TemporalFormatted {
+interface TemporalFormatted {
     pattern: string;
     type: 'TEMPORAL_FORMATTED';
 }
 
 // @public
-export interface TenantId {
-    // (undocumented)
-    tenantId: string;
-}
-
-// @public
-export type TermsAggregationGroup<FIELDS extends string = string> = {
+type TermsAggregationGroup<FIELDS extends string = string> = {
     type: AggregationGroupType.TERMS;
     alias: string;
     missingKey?: string;
@@ -2245,12 +1802,7 @@ export type TermsAggregationGroup<FIELDS extends string = string> = {
 } & AggregationGroupInput<FIELDS>;
 
 // @public
-export interface TermsAggregationOptions extends AggregationGroupScopeOptions {
-    missingKey?: string;
-}
-
-// @public
-export enum TimeUnit {
+enum TimeUnit {
     // (undocumented)
     DAYS = "DAYS",
     // (undocumented)
@@ -2268,86 +1820,67 @@ export enum TimeUnit {
 }
 
 // @public
-export function toWowError(error: unknown): Promise<WowError | undefined>;
+export type TotalMode = 'EXACT' | 'BOUNDED' | 'NONE';
 
 // @public
-export interface UrlPathParams {
-    [key: string]: string | undefined;
-    id?: string;
-    ownerId?: string;
-    tenantId?: string;
+export function toWowProblemError(error: unknown): Promise<WowProblemError | undefined>;
+
+// @public
+export interface TransferOwner {
+    // (undocumented)
+    readonly ownerId: string;
 }
 
 // @public
-export interface VariantDescriptor {
+export interface TransferSpace {
+    // (undocumented)
+    readonly spaceId: string;
+}
+
+// @public
+export interface TransformedFrom {
+    // (undocumented)
+    readonly aggregateId?: string | null;
+    readonly command: string;
+}
+
+// @public
+interface VariantDescriptor {
     description?: string;
     fields: FieldDescriptor[];
     value: string;
 }
 
 // @public
-export interface VariantsDescriptor {
+interface VariantsDescriptor {
     discriminator: string;
     element: string;
     values: VariantDescriptor[];
 }
 
 // @public
-export interface Version {
-    // (undocumented)
-    version: number;
+export interface Violation {
+    readonly code: string;
+    readonly message: string;
+    readonly path: string;
 }
 
 // @public
-export interface WaitChainOptions extends WaitFunction {
-    // (undocumented)
-    stage: CommandStage.SAGA_HANDLED | 'SAGA_HANDLED';
-    // (undocumented)
-    tail: WaitFunction & {
-        stage: CommandStageName;
-    };
-    timeoutMs?: number;
+export const wait: {
+    readonly accepted: (context?: string) => Hop;
+    readonly committed: (context?: string) => Hop;
+    readonly snapshot: (context?: string) => Hop;
+    readonly handled: (subscription: string, context?: string) => Hop;
+};
+
+// @public
+export interface WaitOptions {
+    readonly plan?: readonly Hop[] | string;
+    readonly timeout?: number | string;
 }
 
 // @public
-export interface WaitCommandIdCapable {
-    // (undocumented)
-    waitCommandId: string;
-}
-
-// @public
-export interface WaitFunction {
-    // (undocumented)
-    context?: string;
-    // (undocumented)
-    function?: string;
-    // (undocumented)
-    processor?: string;
-}
-
-// @public
-export interface WaitSignal extends Identifier, WaitCommandIdCapable, CommandId, AggregateIdCapable, NullableAggregateVersionCapable, ErrorInfo, SignalTimeCapable, CommandResultCapable, FunctionInfoCapable {
-}
-
-// @public
-export interface WaitStageOptions extends WaitFunction {
-    stage?: CommandStageName;
-    // (undocumented)
-    tail?: never;
-    timeoutMs?: number;
-}
-
-// @public
-export function waitStrategy(options: WaitStrategyOptions): CommandRequestHeaders;
-
-// @public
-export type WaitStrategyOptions = WaitStageOptions | WaitChainOptions;
-
-// @public
-export const WILDCARD_ABAC_TAG_VALUES: readonly string[];
-
-// @public
-export enum WindowFunction {
+enum WindowFunction {
     // (undocumented)
     PREVIOUS = "PREVIOUS",
     // (undocumented)
@@ -2359,49 +1892,43 @@ export enum WindowFunction {
 }
 
 // @public
-export class WowError extends Error implements ErrorInfo {
-    constructor(errorInfo: ErrorInfo, options?: WowErrorOptions);
-    // (undocumented)
-    readonly bindingErrors: BindingError[];
+export interface WowClientOptions {
+    readonly basePath?: string;
+    readonly fetcher?: Fetcher;
+}
+
+// @public
+export const WowHeaders: {
+    readonly REQUEST_ID: "Wow-Request-Id";
+    readonly WAIT: "Wow-Wait";
+    readonly WAIT_TIMEOUT: "Wow-Wait-Timeout";
+    readonly SCOPE: "Wow-Scope";
+    readonly SPACE: "Wow-Space";
+    readonly IF_MATCH: "If-Match";
+    readonly IF_NONE_MATCH: "If-None-Match";
+    readonly ETAG: "ETag";
+    readonly RETRY_AFTER: "Retry-After";
+    readonly LAST_EVENT_ID: "Last-Event-ID";
+};
+
+// @public
+export class WowProblemError extends Error {
+    constructor(problem: Problem, options?: {
+        retryAfterMs?: number;
+        cause?: unknown;
+    });
     readonly cause?: unknown;
+    readonly code?: string;
+    get isFramework(): boolean;
     // (undocumented)
-    readonly errorCode: ErrorCode;
+    readonly name = "WowProblemError";
+    readonly problem: Problem;
+    get requestId(): string | undefined;
+    readonly result?: CommandResult;
+    readonly retry: RetryHint;
+    readonly status: number;
     // (undocumented)
-    readonly errorMsg: string;
-    // (undocumented)
-    readonly name = "WowError";
-    readonly status?: number;
-    readonly violation?: QueryViolation;
-}
-
-// @public
-export type WowErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
-
-// @public
-export interface WowErrorOptions {
-    cause?: unknown;
-    status?: number;
-}
-
-// @public
-export const WowHeaders: Readonly<{
-    readonly WOW_HEADERS_PREFIX: "Wow-";
-    readonly SPACE_ID: "Wow-Space-Id";
-    readonly ERROR_CODE: "Wow-Error-Code";
-}>;
-
-// @public
-export interface WowMetadata extends DescriptionCapable {
-    contexts: Record<string, BoundedContext>;
-}
-
-// @public
-export class WowMetadataClient implements ApiMetadataCapable {
-    constructor(apiMetadata?: ApiMetadata | undefined);
-    // (undocumented)
-    readonly apiMetadata?: ApiMetadata | undefined;
-    // (undocumented)
-    metadata(attributes?: Record<string, unknown>, abort?: AbortController | AbortSignal): Promise<WowMetadata>;
+    readonly violations: readonly Violation[];
 }
 
 // (No @packageDocumentation comment for this package)
