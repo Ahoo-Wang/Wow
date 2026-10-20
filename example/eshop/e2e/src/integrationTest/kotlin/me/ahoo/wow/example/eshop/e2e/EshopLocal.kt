@@ -32,7 +32,7 @@ import kotlin.system.exitProcess
 
 /**
  * The whole eShop in this one JVM, on the memory backend and without Kafka, for the web UI (work package E.7) and for
- * trying the shop out: `./gradlew -Pwow.scope=v10 :eshop-e2e:eshopLocal`. The five services share one class path, each
+ * trying the shop out: `./gradlew :eshop-e2e:eshopLocal`. The five services share one class path, each
  * serving its own context (`wow.contexts.include`, as [EshopSharedJvmTest] runs them), and one [InMemoryTopics] in
  * place of Kafka ([LocalTopicsBeans]): each one's sagas send other contexts' commands to it, its published streams are
  * written to it, and it executes the commands sent to its own command topic. So the checkout's whole chain runs, to

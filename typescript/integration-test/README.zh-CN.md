@@ -145,7 +145,7 @@ bin/wow-view-store-server \
 setup 在一个 JVM 里起内存后端的服务，端口都绑 0，结束时停掉。在内存后端上，服务自己的配置（`wow.query.memory.enabled`）从内存提供快照查询。先用 JDK 21 构建：
 
 ```bash
-./gradlew -Pwow.scope=v10 :view-store-server:installDist
+./gradlew :view-store-server:installDist
 pnpm --filter @ahoo-wang/wow-view-store... build
 pnpm --dir typescript/integration-test test:v10
 ```

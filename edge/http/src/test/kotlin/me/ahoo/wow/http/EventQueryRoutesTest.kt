@@ -24,6 +24,7 @@ import me.ahoo.wow.api.query.CountQuery
 import me.ahoo.wow.api.query.ListQuery
 import me.ahoo.wow.api.query.QueryErrorCodes
 import me.ahoo.wow.api.query.TenantIdFilter
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.manifest.FrameworkErrors
 import me.ahoo.wow.manifest.QueryRoutes
 import me.ahoo.wow.query.QueryBudget

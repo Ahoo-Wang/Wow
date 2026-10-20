@@ -13,23 +13,42 @@ coverage:
   precision: 2
   status:
     # Changed and new main code must be covered by the tests that run on the pull request.
+    # `flags` names every flag (the TypeScript uploads all carry `typescript`, which has no paths, so nothing is
+    # filtered out); it is there so these statuses, like the components', wait for the `v10` flag's after_n_builds.
     patch:
       default:
         target: 90%
         threshold: 1%
+        flags:
+          - v10
+          - typescript
     project:
       default:
         target: 80%
         threshold: 1%
+        flags:
+          - v10
+          - typescript
 # The JVM coverage is the `v10` flag (v10.yml): the V10 modules, their tests and
 # the examples. The JVM reports name each source file by its repository path
 # (test/code-coverage-report). The 9.x flags (`local`, `contract`,
 # `integration`, `full`) left with the 9.x code (decision D262).
+#
+# A full v10.yml run uploads the `v10` flag 5 times: the check and the 4 integration shards. Codecov judges a status
+# that reads a flag (the components', and patch and project above) only once that flag has `after_n_builds` uploads
+# of this commit, so a status is never judged on the check's coverage alone. A flag's real upload replaces the
+# carried-forward ones, which therefore count only until the first upload: a pull request that skips the JVM jobs
+# carries the 5 sessions of its base forward and is judged at once, and a run whose shard fails or uploads nothing
+# leaves those statuses unposted (not pending) for that commit. `codecov.notify.after_n_builds` and
+# `comment.after_n_builds` would count every session of the commit, the TypeScript packages' and the carried-forward
+# ones included, so no number there means "every v10 upload arrived"; they are left unset. Keep after_n_builds equal
+# to 1 + the shards of v10.yml's `integration` matrix.
 flag_management:
   default_rules:
     carryforward: true
   individual_flags:
     - name: v10
+      after_n_builds: 5
       paths:
         - api/**
         - core/**
@@ -175,6 +194,12 @@ component_management:
       name: v10-http
       paths:
         - edge/http/src/main/**
+      flag_regexes:
+        - "^v10$"
+    - component_id: v10-client
+      name: v10-client
+      paths:
+        - edge/client/src/main/**
       flag_regexes:
         - "^v10$"
     - component_id: v10-cosec

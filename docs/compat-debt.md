@@ -59,36 +59,6 @@ When you add compatibility code, add its marker and list the file under an entry
 - **Replacement**: `FilterExpression` and the `Filter*` queries everywhere. `getById()` and `getStateById()` already send `filter.aggregateId(id)`.
 - **Removal in v10**: narrow the unions in `src/client/query/requests.ts` to `FilterSingleQuery`, `FilterListQuery` and `FilterPagedQuery` and drop its `Condition` re-export; narrow the marked `count()` parameters to `FilterExpression`; delete the hooks' Condition overloads and their `/legacy` imports, and narrow `useListStream`'s query type to `FilterListQuery`. Code passing a Condition stops compiling; the migration guide points to `filter.*`.
 
-### Server-Side Condition: The Kotlin Query Model And Its Wire Format
-
-- **Kept compatible**: the Condition query model in `wow-api`, and the requests that use it. A 9.x server keeps accepting it so that code written against it keeps compiling, and so that a TypeScript client on the `/legacy` subpath (entry above) can still query a 9.x server:
-  - the types `Condition` and `Operator`, `Condition.toFilterExpression()`, and the deprecated `condition` constructors of `ListQuery`, `PagedQuery` and `SingleQuery`;
-  - on the wire, a list, paged or single query body with `condition` in place of `filter`. `QueryJsonDeserializer` reads it as the WebFlux path before 8.11 did: it strips the properties that path ignored, and only for such a body;
-  - a filter object without `op`, which the `FilterExpression` deserializer reads as a Condition. The count route's `HttpQueryGuard.strictCountFilter` is off by default, so a count body that names neither `op` nor `operator` still reads as the Condition `all()` and counts every row.
-- **Markers**: `wow-api/src/main/kotlin/me/ahoo/wow/api/query/Condition.kt`, `wow-api/src/main/kotlin/me/ahoo/wow/api/query/Operator.kt`, `wow-api/src/main/kotlin/me/ahoo/wow/api/query/LegacyConditionAdapter.kt`, `wow-api/src/main/kotlin/me/ahoo/wow/api/query/ListQuery.kt`, `wow-api/src/main/kotlin/me/ahoo/wow/api/query/PagedQuery.kt`, `wow-api/src/main/kotlin/me/ahoo/wow/api/query/SingleQuery.kt`, `wow-api/src/main/kotlin/me/ahoo/wow/api/query/QueryJsonDeserializer.kt`, `wow-api/src/main/kotlin/me/ahoo/wow/api/query/FilterExpression.kt`, `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/query/HttpQueryGuard.kt`
-- **Replacement**: `FilterExpression` and the `filter` property of every query.
-- **Removal in v10**: in the same release that deletes the TypeScript `/legacy` subpath, and never before it, because a 9.x client on `/legacy` sends `condition` to a 9.x server.
-  1. Delete `Condition.kt`, `Operator.kt` and `LegacyConditionAdapter.kt`, and the `condition` constructors of the three queries.
-  2. `QueryJsonDeserializer` reads only `filter`: drop `condition` from the `*QueryJson` inputs and delete the legacy property stripping. The `FilterExpression` deserializer rejects a filter without `op`.
-  3. Make the strict count body the only behaviour: delete `strictCountFilter` and the legacy `operator` check of `QueryBodyExtractor`.
-  4. Delete the entries below that build on `Condition` (the Kotlin DSL and the API client) in the same release.
-
-### Kotlin Condition DSL And API Client
-
-- **Kept compatible**: the deprecated Kotlin builders and client methods that take a `Condition`:
-  - in `wow-query`, the `condition { }` DSL (`ConditionDsl`, `condition(...)` in `Dsl.kt`), the `condition(...)` builders of `QueryableDsl`, and `Condition.count(...)` for the snapshot and event-stream gateways;
-  - in `wow-apiclient`, `SnapshotCountQueryApi.count(Condition)` and the `Condition.count` extensions of `ReactiveSnapshotCountQueryApi` and `SynchronousSnapshotCountQueryApi`.
-- **Markers**: `wow-query/src/main/kotlin/me/ahoo/wow/query/dsl/ConditionDsl.kt`, `wow-query/src/main/kotlin/me/ahoo/wow/query/dsl/Dsl.kt`, `wow-query/src/main/kotlin/me/ahoo/wow/query/dsl/QueryableDsl.kt`, `wow-query/src/main/kotlin/me/ahoo/wow/query/snapshot/QueryDsl.kt`, `wow-query/src/main/kotlin/me/ahoo/wow/query/event/QueryDsl.kt`, `wow-apiclient/src/main/kotlin/me/ahoo/wow/apiclient/query/SnapshotCountQueryApi.kt`, `wow-apiclient/src/main/kotlin/me/ahoo/wow/apiclient/query/ReactiveSnapshotCountQueryApi.kt`, `wow-apiclient/src/main/kotlin/me/ahoo/wow/apiclient/query/SynchronousSnapshotCountQueryApi.kt`
-- **Replacement**: `filterExpression { }` and `FilterDsl`, the `filter(...)` builders, `FilterExpression.count(...)` and `count(FilterExpression)`.
-- **Removal in v10**: with the server-side Condition above, delete `ConditionDsl.kt`, the `condition` builders and every `Condition.count`/`count(Condition)` overload, and their tests. Code that still calls them stops compiling; the migration guide points to `filterExpression { }`.
-
-### The Sort Bound On `AggregationQuery`
-
-- **Kept compatible**: `AggregationQuery.MAX_SORT_FIELDS`, released in 9.1.5. The bound applies to every query's `sort`, not only an aggregation's, so it moved to `Sort`; the old name is a deprecated `const` alias of the same value.
-- **Markers**: `wow-api/src/main/kotlin/me/ahoo/wow/api/query/AggregationQuery.kt`
-- **Replacement**: `Sort.MAX_FIELDS`.
-- **Removal in v10**: delete `AggregationQuery.MAX_SORT_FIELDS`. Code that still reads it stops compiling; `ReplaceWith` points to `Sort.MAX_FIELDS`.
-
 ### Generated Code Uses The Condition API
 
 - **Kept compatible**: `wow-generator` maps the Condition-only server schemas `wow.api.query.Condition`, `ConditionOptions` and `Operator`, and the `ListQuery` and `PagedQuery` schemas of servers before 8.11 (which have no `filter` property), to the `wow-client` types of the same names, imported from `@ahoo-wang/wow-client/legacy` (`WOW_LEGACY_TYPES`, `IMPORT_WOW_LEGACY_PATH`). A `ListQuery` or `PagedQuery` schema that carries `filter` maps to `FilterListQuery` or `FilterPagedQuery` from the root entry.
@@ -123,41 +93,6 @@ When you add compatibility code, add its marker and list the file under an entry
 - **Markers**: `typescript/wow-generator/src/input/configuration.ts`, `typescript/wow-generator/src/output/outputStore.ts`
 - **Replacement**: `wow-generator.config.json` and `.wow-generator.json`.
 - **Removal in v10**: delete `LEGACY_CONFIG_PATH`, `LEGACY_GENERATION_MANIFEST` and the fallbacks that read them. A project that still has only `fetcher-generator.config.json` must rename it, and output last generated before 9.x must be regenerated once with 9.x or cleaned by hand; the migration guide says so.
-
-### Wow 9.1 Query Annotations
-
-- **Kept compatible**: domain and API jars compiled against 9.1 name the 9.1 annotations, and the JVM silently drops an annotation whose class is missing, so removing them would serve masked fields unmasked. `@Masking`, `MaskStrategy<A>`, `CompiledMask`, `@Mask`, `@KeepMask`, `FullMaskStrategy` and `KeepMaskStrategy` (`me.ahoo.wow.api.query.mask`) and `me.ahoo.wow.api.query.schema.QueryTemporal(timeUnit)` stay. Schema discovery reads `@Mask` as `@Sensitive(SensitivityLevel.DISPLAY)`, `@KeepMask(prefix, suffix)` as `@Sensitive(DISPLAY, mask = Mask(prefix, suffix))`, any other annotation carrying `@Masking` as a `DISPLAY` field masked by its strategy (9.1 let filters and sorts compare the raw value, which `DISPLAY` keeps), and the old `QueryTemporal` as `@QueryTemporal(unit = timeUnit)`.
-- **Markers**: `wow-api/src/main/kotlin/me/ahoo/wow/api/query/mask/Masking.kt`, `wow-api/src/main/kotlin/me/ahoo/wow/api/query/schema/QueryTemporal.kt`, `wow-query/src/main/kotlin/me/ahoo/wow/query/schema/LegacyQueryAnnotations.kt`
-- **Replacement**: `@Sensitive` with `SensitivityLevel` and `Mask`, and `me.ahoo.wow.api.query.annotation.QueryTemporal(unit, pattern)`.
-- **Removal in v10**: delete the two files in `wow-api` and `LegacyQueryAnnotations.kt`; `effectiveMaskRule` reads only `@Sensitive`, `withMember` only the new `@QueryTemporal`, and `MaskRule` loses its `legacy` constructor. A jar still compiled against the old annotations then loses its masking, so the migration guide tells users to recompile against 9.2 first.
-
-### Wow 9.1 HTTP Query Limit Keys
-
-- **Kept compatible**: 9.1 read the HTTP query limits from `wow.webflux.query.{max-list-size, max-page-size, max-page-window, max-filter-nodes, max-filter-values, allow-expensive-operators}`. Each still applies, with a startup warning, where its `wow.query.http.*` key is not set, so an unchanged 9.1 configuration (or one shared by 9.1 and 9.2 nodes) keeps its limits. The configuration metadata marks them deprecated with `deprecation.replacement`.
-- **Markers**: `wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/query/LegacyHttpQueryKeys.kt`
-- **Replacement**: `wow.query.http.*`.
-- **Removal in v10**: delete `LegacyHttpQueryKeys.kt`, its call in `QueryAutoConfiguration.queryEntryPolicy` and the six `wow.webflux.query.*` entries in `additional-spring-configuration-metadata.json`.
-
-### Wow 9.1 Query Schema Declaration Location
-
-- **Kept compatible**: 9.1 fell back to `wow-query-schema/{context}/{aggregate}/{model}.json`, in a format 9.2 does not read, and 9.1 nodes may still need the file while 9.1 and 9.2 run side by side. When no source (classpath, working directory or bean) declares that model in 9.2, a file there is logged as a warning naming the 9.2 location and the model uses its inferred schema; `wow.query.schema.legacy-declarations=fail` (`LegacyQuerySchemaDeclarationPolicy.FAIL`) fails the model instead. Beside a 9.2 declaration it is only logged.
-- **Markers**: `wow-query/src/main/kotlin/me/ahoo/wow/query/schema/QuerySchemaSources.kt`, `wow-query/src/main/kotlin/me/ahoo/wow/query/schema/LegacyQuerySchemaDeclarations.kt`, `wow-query/src/main/kotlin/me/ahoo/wow/query/schema/QueryModelSchemaProvider.kt`
-- **Replacement**: `META-INF/wow/query-schema/{context}.{aggregate}.{model}.json` and `config/wow/query-schema/…`, in the 9.2 format (the key mapping and the mixed-cluster routes are in the query-model-schema guide).
-- **Removal in v10**: delete `legacyResourcePath`, the sources' `legacyDeclarations`, `LegacyQuerySchemaDeclarations.kt` (with `LegacyQuerySchemaDeclarationPolicy` and `wow.query.schema.legacy-declarations`) and the provider's check.
-
-### Wow 9.1 Schema Refresh Routes
-
-- **Kept compatible**: `POST /{aggregate}/snapshot/schema/refresh` and `POST /{aggregate}/event/schema/refresh` (route ids `….snapshot_schema.refresh`, `….event_schema.refresh`), which 9.2 replaced by the `wowQuerySchema` actuator endpoint. Each revalidates its own model of the aggregate through `QuerySchemaCatalog.revalidate(aggregate, model)` (concurrent calls share the reload in flight) and answers as `GET …/schema` (decision D77 of the view engine's design record).
-- **Markers**: `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contract/BuiltInHttpRouteHandlerKeys.kt`, `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contributor/aggregate/snapshot/SnapshotRouteContributor.kt`, `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/contributor/aggregate/event/EventRouteContributor.kt`, `wow-webflux/src/main/kotlin/me/ahoo/wow/webflux/route/query/QuerySchemaRefreshHandlerFunction.kt`, `wow-spring-boot-starter/src/main/kotlin/me/ahoo/wow/spring/boot/starter/webflux/route/QueryRouteModule.kt`
-- **Replacement**: the `wowQuerySchema` actuator endpoint, and periodic revalidation (`wow.query.schema.revalidate-interval`).
-- **Removal in v10**: delete the two route contracts, the `SCHEMA_REFRESH` keys, `QuerySchemaRefreshHandlerFunctionFactory` and its two registrations, then update the OpenAPI snapshots and the route inventory.
-
-### Wow 9.2 Aggregate Policies On `@AggregateRoute`
-
-- **Kept compatible**: 9.2 declared whether an aggregate is spaced and its owner policy on its routing annotation, `@AggregateRoute(spaced = …, owner = AggregateRoute.Owner.…)`. 9.3 declares them on the aggregate with `@Spaced` and `@AggregateOwner(OwnerPolicy.…)`; the old attributes and the nested `AggregateRoute.Owner` enum are deprecated but still read, at runtime and by the KSP processor, whenever the new annotation is absent (an attribute counts as declared only when it is not its default, `spaced = true` or `owner != NEVER`). Declaring both with different values fails at startup and at compile time. Code that uses the old type keeps compiling: the `AggregateRouteMetadata` primary constructor and its `owner` property.
-- **Markers**: `wow-api/src/main/kotlin/me/ahoo/wow/api/annotation/AggregateRoute.kt`, `wow-core/src/main/kotlin/me/ahoo/wow/modeling/annotation/AggregatePolicyResolver.kt`, `wow-compiler/src/main/kotlin/me/ahoo/wow/compiler/metadata/AggregatePolicyResolver.kt`, `wow-openapi/src/main/kotlin/me/ahoo/wow/openapi/metadata/AggregateRouteMetadata.kt`
-- **Replacement**: `@Spaced` and `@AggregateOwner(OwnerPolicy.…)` on the aggregate; `AggregateMetadata.spaced` and `AggregateMetadata.owner` for readers; the `OwnerPolicy` constructor and `ownerPolicy` of `AggregateRouteMetadata`.
-- **Removal in v10**: delete `spaced`, `owner` and `Owner` from `AggregateRoute` and the legacy branches of both `AggregatePolicyResolver`s (with their conflict checks, which only exist for the old attributes); `AggregateRouteMetadata`'s primary constructor takes `ownerPolicy: OwnerPolicy` in place of `owner`, and its secondary constructor and the `ownerPolicy` getter go. Code still writing the old attributes stops compiling; the migration guide maps `spaced = true` to `@Spaced` and `owner = Owner.X` to `@AggregateOwner(OwnerPolicy.X)`.
 
 ## Held Until v10
 

@@ -18,9 +18,9 @@ import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.result.FunctionInfo
 import me.ahoo.wow.api.result.FunctionKind
 import me.ahoo.wow.api.result.Hop
+import me.ahoo.wow.client.wire.CallHeader
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.example.eshop.ordering.api.order.EshopOrderingContract
-import me.ahoo.wow.http.WowHeaders
-import me.ahoo.wow.http.command.CallHeader
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.spi.json.WowJson
 import java.net.InetSocketAddress

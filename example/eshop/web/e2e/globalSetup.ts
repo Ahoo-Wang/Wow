@@ -20,7 +20,7 @@
  *   Its class path comes from the Gradle task that writes it; from the
  *   repository root, with JDK 21:
  *
- *     ./gradlew -Pwow.scope=v10 :eshop-e2e:eshopLocalClasspath
+ *     ./gradlew :eshop-e2e:eshopLocalClasspath
  *
  *   The JVM stops when its standard input closes, so it ends with this
  *   process even when the teardown does not run.
@@ -58,7 +58,7 @@ function startServices(): Promise<{
   if (!existsSync(CLASSPATH))
     throw new Error(
       "The eShop services are not built. From the repository root, with JDK 21: " +
-        "./gradlew -Pwow.scope=v10 :eshop-e2e:eshopLocalClasspath",
+        "./gradlew :eshop-e2e:eshopLocalClasspath",
     );
   const child = spawn(
     java(),

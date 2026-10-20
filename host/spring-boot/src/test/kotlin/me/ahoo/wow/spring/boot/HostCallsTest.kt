@@ -23,12 +23,12 @@ import me.ahoo.wow.api.decide.Causation
 import me.ahoo.wow.api.decide.Command
 import me.ahoo.wow.api.result.CommandResult
 import me.ahoo.wow.api.subscribe.CallFailedException
-import me.ahoo.wow.http.WowHeaders
-import me.ahoo.wow.http.call.HttpCommandCaller
-import me.ahoo.wow.http.call.ServiceCredential
+import me.ahoo.wow.client.HttpCommandCaller
+import me.ahoo.wow.client.ServiceCredential
+import me.ahoo.wow.client.wire.CallHeader
+import me.ahoo.wow.client.wire.WowHeaders
 import me.ahoo.wow.http.caller.CallAuthorizer
 import me.ahoo.wow.http.caller.CallPermits
-import me.ahoo.wow.http.command.CallHeader
 import me.ahoo.wow.runtime.admission.Authorization
 import me.ahoo.wow.runtime.admission.CallContext
 import me.ahoo.wow.runtime.admission.CommandAuthorizer

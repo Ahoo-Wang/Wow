@@ -1,5 +1,0 @@
-{
-  "title": "From the classpath",
-  "scope": { "tenant": "tenant_id" },
-  "fields": { "tenant_id": { "types": ["STRING"] } }
-}
