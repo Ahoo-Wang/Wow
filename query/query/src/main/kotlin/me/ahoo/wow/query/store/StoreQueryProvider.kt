@@ -53,6 +53,14 @@ interface StoreQueryProvider {
      */
     fun maxConcurrent(store: Store): Int = DEFAULT_MAX_CONCURRENT
 
+    /**
+     * The highest the adaptive limit of [store]'s queries may rise (decision D252) when its configuration names none
+     * (`wow.stores.<name>.query.adaptive.ceiling`, `wow.query.adaptive.ceiling`): a provider that knows the pool its
+     * queries draw from gives half of one the appends share, or all of one of the queries' own; [maxConcurrent]
+     * otherwise, so the limit only falls below its start and climbs back.
+     */
+    fun maxConcurrentCeiling(store: Store): Int = maxConcurrent(store)
+
     companion object {
         /** The bound of a store's concurrent queries when neither its configuration nor its provider gives one. */
         const val DEFAULT_MAX_CONCURRENT: Int = 16

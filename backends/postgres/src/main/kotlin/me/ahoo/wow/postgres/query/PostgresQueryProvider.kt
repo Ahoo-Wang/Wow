@@ -63,7 +63,20 @@ internal class PostgresQueryProvider : StoreQueryProvider {
         return if (postgres.queriesShareAppends) maxOf(MIN_SHARED, size / SHARED_FRACTION) else size
     }
 
+    /**
+     * The adaptive limit's ceiling (decision D252): half of a pool the appends share (never below [maxConcurrent]), all
+     * of one of the queries' own; [maxConcurrent] for a pool that does not say its size.
+     */
+    override fun maxConcurrentCeiling(store: Store): Int {
+        val postgres = store as PostgresStore
+        val size = postgres.queryDataSource.maximumPoolSize() ?: return maxConcurrent(store)
+        return if (postgres.queriesShareAppends) maxOf(maxConcurrent(store), size / SHARED_CEILING_FRACTION) else size
+    }
+
     companion object {
+        /** The share of the appends' pool the adaptive limit rises to at most: one connection in two. */
+        const val SHARED_CEILING_FRACTION: Int = 2
+
         /** The fewest queries a store whose queries share the appends' pool runs at once. */
         const val MIN_SHARED: Int = 2
 

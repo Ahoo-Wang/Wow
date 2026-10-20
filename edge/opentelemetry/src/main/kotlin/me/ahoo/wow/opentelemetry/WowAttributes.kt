@@ -115,6 +115,16 @@ object WowMetrics {
     /** Gauge: the appends queued on a context's partition append queue (decision D52); tag context. */
     const val APPEND_QUEUE_DEPTH: String = "wow.log.append-queue.depth"
 
+    /** Gauge: how many queries a store runs at once now, its query bulkhead's limit (decision D252); tag store. */
+    const val QUERY_LIMIT: String = "wow.query.limit"
+
+    /** Gauge: whether a store's writes pressed in the last period, 1 or 0 (decision D252); tag store. */
+    const val QUERY_PRESSURE: String = "wow.query.pressure"
+
+    /** Counter: how many times a store's query limit was halved for its writes (decision D252); tag store. */
+    const val QUERY_LIMIT_DECREASES: String = "wow.query.limit.decreases"
+
+    const val STORE: String = "store"
     const val CONTEXT: String = "context"
     const val AGGREGATE: String = "aggregate"
     const val SUBSCRIPTION: String = "subscription"

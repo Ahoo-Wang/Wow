@@ -19,6 +19,7 @@ import me.ahoo.wow.api.aggregate.AggregateRef
 import me.ahoo.wow.api.aggregate.AggregateType
 import me.ahoo.wow.api.annotation.InternalWowApi
 import me.ahoo.wow.manifest.Manifest
+import me.ahoo.wow.query.AdaptiveQueryLimit
 import me.ahoo.wow.query.QueryBackend
 import me.ahoo.wow.query.QueryBackendBinding
 import me.ahoo.wow.query.QueryBackendFactory
@@ -38,9 +39,11 @@ import me.ahoo.wow.query.store.SnapshotQueries
 import me.ahoo.wow.query.store.StoreQueryOptions
 import me.ahoo.wow.query.store.StoreQueryProvider
 import me.ahoo.wow.runtime.admission.TenantPolicy
+import me.ahoo.wow.runtime.node.ServiceNode
 import me.ahoo.wow.runtime.state.ReplayGate
 import me.ahoo.wow.runtime.store.StoreTypes
 import me.ahoo.wow.spi.store.Store
+import me.ahoo.wow.spi.store.WritePressure
 import org.springframework.context.SmartLifecycle
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.toKotlinDuration
@@ -189,6 +192,11 @@ class EventQueryBackend(
  * provider has no queries to bound. A query beyond the bound waits (decision D247) at most
  * `wow.stores.<name>.query.max-wait`, else `wow.query.max-wait` (200ms), in a queue of at most
  * `wow.stores.<name>.query.max-queued`, else `wow.query.max-queued` (4 per permit).
+ *
+ * A bound neither setting fixes adapts to the store's write pressure (decision D252) unless
+ * `wow.stores.<name>.query.adaptive.enabled`, else `wow.query.adaptive.enabled`, is off: it starts at the provider's,
+ * moves between the floor and the ceiling (`adaptive.floor`, `adaptive.ceiling`, store over global, the ceiling else
+ * the provider's [StoreQueryProvider.maxConcurrentCeiling]), and reads the store's [pressures].
  */
 internal object HostQueryBulkheads {
     fun of(
@@ -196,18 +204,48 @@ internal object HostQueryBulkheads {
         providers: StoreProviders,
         global: QueryProperties,
         settings: Map<String, WowProperties.Store>,
-    ): Map<String, QueryBulkhead> = stores.mapNotNull { (name, store) ->
-        val provider = providers.queriesOf(store.type) ?: return@mapNotNull null
-        val own = settings[name]?.query
-        val max = own?.maxConcurrent ?: global.maxConcurrent ?: provider.maxConcurrent(store)
-        check(max >= 0) {
-            "wow.stores.$name.query.max-concurrent (or wow.query.max-concurrent) is $max: 0 for no bound, or more."
-        }
-        if (max == 0) return@mapNotNull null
-        val wait = own?.maxWait ?: global.maxWait
-        val queued = own?.maxQueued ?: global.maxQueued ?: (max * QueryBulkhead.DEFAULT_QUEUE_FACTOR)
-        name to QueryBulkhead(name, max, wait.toKotlinDuration(), queued)
-    }.toMap()
+        pressures: (String) -> WritePressure = { WritePressure.NONE },
+    ): QueryStoreBulkheads {
+        val limits = ArrayList<AdaptiveQueryLimit>()
+        val bulkheads = stores.mapNotNull { (name, store) ->
+            val provider = providers.queriesOf(store.type) ?: return@mapNotNull null
+            val own = settings[name]?.query
+            val fixed = own?.maxConcurrent ?: global.maxConcurrent
+            val derived = fixed ?: provider.maxConcurrent(store)
+            check(derived >= 0) {
+                "wow.stores.$name.query.max-concurrent (or wow.query.max-concurrent) is $derived: 0 for no bound, or more."
+            }
+            if (derived == 0) return@mapNotNull null
+            val adaptive = fixed == null && (own?.adaptive?.enabled ?: global.adaptive.enabled)
+            val ceiling = if (adaptive) {
+                (own?.adaptive?.ceiling ?: global.adaptive.ceiling ?: provider.maxConcurrentCeiling(store)).also {
+                    check(it >= 1) { "wow.stores.$name.query.adaptive.ceiling (or wow.query.adaptive.ceiling) is $it." }
+                }
+            } else {
+                derived
+            }
+            val max = minOf(derived, ceiling)
+            val wait = own?.maxWait ?: global.maxWait
+            val queued = own?.maxQueued ?: global.maxQueued ?: (max * QueryBulkhead.DEFAULT_QUEUE_FACTOR)
+            val bulkhead = QueryBulkhead(name, max, wait.toKotlinDuration(), queued, maxOf(max, ceiling))
+            if (adaptive) {
+                val options = global.adaptive.options(own?.adaptive?.floor ?: global.adaptive.floor)
+                limits += AdaptiveQueryLimit(bulkhead, pressures(name), options)
+            }
+            name to bulkhead
+        }.toMap()
+        return QueryStoreBulkheads(bulkheads, limits)
+    }
+
+    /**
+     * The write pressure of [store] (decision D252): its appends' latency as [node] measures it, when a log of the
+     * node is on it, and the callers waiting for a connection of its pool, when it says.
+     */
+    fun pressureOf(node: ServiceNode, name: String, store: Store?): WritePressure {
+        val latency = node.writePressure(name) ?: WritePressure.NONE
+        if (store == null) return latency
+        return WritePressure { latency.sample().waiting(store.waitingForConnection() ?: 0) }
+    }
 
     /**
      * The state reads' replays (decision D246 ⑥), each under the bulkhead of its aggregate type's log store
