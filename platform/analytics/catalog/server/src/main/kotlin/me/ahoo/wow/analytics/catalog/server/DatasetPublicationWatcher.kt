@@ -139,7 +139,7 @@ class DatasetPublicationWatcher(
 
             serving == null || applied[name] == version -> false
             revision -> {
-                datasets.put(datasetOf(serving).copy(unavailable = NEEDS_REVISION))
+                datasets.put(datasetOf(serving).withUnavailable(NEEDS_REVISION))
                 applied[name] = checkNotNull(version)
                 logger.warn { "$name needs revision, its queries refused: ${state.problems}" }
                 true

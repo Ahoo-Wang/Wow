@@ -176,7 +176,7 @@ fun registerLayerCoverageReport(
 ) {
     val layerTestTasks = testTasks(testProjects, testTaskName)
     tasks.register<JacocoReport>(taskName) {
-        description = "Generates the ${taskName.removeSuffix("CoverageReport")} coverage report."
+        description = "Generates the ${taskName.removeSuffix("CoverageReport").ifEmpty { "unit test" }} coverage report."
         group = LifecycleBasePlugin.VERIFICATION_GROUP
         reports {
             xml.required.set(true)
@@ -198,16 +198,14 @@ tasks.named<JacocoReport>("codeCoverageReport") {
 // v10.yml uploads these under the `v10` Codecov flag: the unit tests of the V10 modules, and their container-backed
 // tests.
 @Suppress("UNCHECKED_CAST")
-val v10Projects = (rootProject.ext.get("v10Projects") as Iterable<Project>) - e2eBenchmarkProjects
-@Suppress("UNCHECKED_CAST")
-val v10IntegrationTestProjects = rootProject.ext.get("v10IntegrationTestProjects") as Iterable<Project>
-registerLayerCoverageReport("v10CoverageReport", v10Projects, "test")
+val moduleProjects = (rootProject.ext.get("moduleProjects") as Iterable<Project>) - e2eBenchmarkProjects
+registerLayerCoverageReport("coverageReport", moduleProjects, "test")
 // A shard of v10.yml's integration matrix (`-Pwow.integration.projects`) reports the test data of its own projects.
 @Suppress("UNCHECKED_CAST")
-val v10IntegrationShardProjects = rootProject.ext.get("v10IntegrationShardProjects") as Iterable<Project>
+val integrationShardProjects = rootProject.ext.get("integrationShardProjects") as Iterable<Project>
 registerLayerCoverageReport(
-    "v10IntegrationCoverageReport",
-    v10IntegrationTestProjects,
+    "integrationCoverageReport",
+    integrationTestProjects,
     "integrationTest",
-    v10IntegrationShardProjects,
+    integrationShardProjects,
 )

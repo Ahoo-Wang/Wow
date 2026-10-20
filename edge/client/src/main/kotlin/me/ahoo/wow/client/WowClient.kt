@@ -24,6 +24,7 @@ import me.ahoo.wow.spi.id.GlobalIdGenerator
 import java.net.http.HttpClient
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toKotlinDuration
 
 /**
  * The typed clients of the peers' HTTP routes (decisions D257, D259), all on one JDK [HttpClient] and one
@@ -72,6 +73,14 @@ class WowClient private constructor(
 
         /** The JDK client to send with; by default one of HTTP/1.1 that connects within [connectTimeout]. */
         fun httpClient(httpClient: HttpClient): Builder = apply { this.httpClient = httpClient }
+
+        /** [connectTimeout] of a [java.time.Duration], for Java callers. */
+        fun connectTimeout(connectTimeout: java.time.Duration): Builder = connectTimeout(
+            connectTimeout.toKotlinDuration()
+        )
+
+        /** [timeout] of a [java.time.Duration], for Java callers. */
+        fun timeout(timeout: java.time.Duration): Builder = timeout(timeout.toKotlinDuration())
 
         /** How long the default client takes to connect: 2 seconds by default. */
         fun connectTimeout(connectTimeout: Duration): Builder = apply {

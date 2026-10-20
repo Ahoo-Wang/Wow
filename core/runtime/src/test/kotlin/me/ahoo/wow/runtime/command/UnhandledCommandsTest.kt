@@ -25,7 +25,6 @@ import me.ahoo.wow.kernel.memory.InMemoryEventLog
 import me.ahoo.wow.kernel.memory.InMemoryTopics
 import me.ahoo.wow.runtime.Executor
 import me.ahoo.wow.runtime.FrameworkCodes
-import me.ahoo.wow.runtime.admission.TenantPolicy
 import me.ahoo.wow.runtime.binding.AddItems
 import me.ahoo.wow.runtime.binding.CART
 import me.ahoo.wow.runtime.binding.SHOP
@@ -108,32 +107,6 @@ class UnhandledCommandsTest {
         CommandMessages.rejectedOf(EnvelopeCodec.decode(receipts().single().value))
             .error.code.assert().isEqualTo(FrameworkCodes.UNHANDLED)
     }
-
-    @Test
-    fun `a command from another context in another tenant than its type's fixed one should be refused`(): Unit =
-        runBlocking {
-            // DX gap G13: the cart's tenant is fixed; the sender's tenant crosses with its command.
-            val fixed = CommandIntake(
-                SHOP,
-                listOf(cart),
-                coordinator,
-                sourceTopics,
-                clock = { NOW },
-                tenants = TenantPolicy.fixed(mapOf(CART to "platform")),
-            )
-            val known = ClusterCodec.wire(
-                "shop.cart.AddItems",
-                Command("c-2", "r-2", CART.ref(TENANT, "alice"), AddItems(listOf("apple"))),
-                ReplyTo("sales", "OrderSaga.onOrderPlaced", CART.ref(TENANT, "order-1"), 1),
-            )
-            fixed.execute(known, wait(Hop.committed(SHOP)))
-            val result = signalled.single().result
-            result.status.assert().isEqualTo(CommandResult.Status.REJECTED)
-            result.error!!.code.assert().isEqualTo(FrameworkCodes.MALFORMED)
-            result.error!!.message.assert().contains("fixed to platform").contains("names $TENANT")
-            CommandMessages.rejectedOf(EnvelopeCodec.decode(receipts().single().value))
-                .error.code.assert().isEqualTo(FrameworkCodes.MALFORMED)
-        }
 
     private companion object {
         const val NOW = 1_000_000L

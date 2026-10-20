@@ -13,6 +13,8 @@
 
 package me.ahoo.wow.query.schema
 
+import me.ahoo.wow.api.annotation.ExperimentalWowApi
+import me.ahoo.wow.api.annotation.InternalWowApi
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
@@ -22,6 +24,7 @@ import java.util.concurrent.TimeUnit
  * descriptor's `type`) are `TEMPORAL_DATE`, `TEMPORAL_EPOCH`, `TEMPORAL_FORMATTED`, `DECIMAL`, `MONEY`, `DURATION` and
  * `REFERENCE`, as [QueryJson][me.ahoo.wow.query.json.QueryJson] writes them.
  */
+@ExperimentalWowApi
 interface QuerySemanticType {
     /**
      * A semantic type whose `type` this version does not know, read from a newer server: treat the field as having
@@ -30,6 +33,7 @@ interface QuerySemanticType {
     data object Unknown : QuerySemanticType
 }
 
+@ExperimentalWowApi
 sealed interface Temporal : QuerySemanticType {
     data object Date : Temporal
     data class Epoch(
@@ -175,4 +179,5 @@ internal data class Reference(
  * A field kept only for existing callers: it can still be queried, but new queries and view definitions should avoid
  * it. [message] says why, or what to use instead; omitted when the declaration gave none.
  */
+@InternalWowApi
 data class QueryDeprecation(val message: String? = null)

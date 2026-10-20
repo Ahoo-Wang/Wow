@@ -106,6 +106,9 @@ public final class me/ahoo/wow/spring/boot/HostBackends$Companion {
 	public final fun of (Lme/ahoo/wow/runtime/node/BackendFactory;)Lme/ahoo/wow/spring/boot/HostBackends;
 }
 
+public final class me/ahoo/wow/spring/boot/InMemoryTopicsAutoConfiguration$Companion {
+}
+
 public final class me/ahoo/wow/spring/boot/InternalServer {
 	public fun <init> (ILjava/lang/String;Lorg/springframework/web/reactive/function/server/RouterFunction;)V
 	public fun <init> (ILjava/lang/String;Lorg/springframework/web/reactive/function/server/RouterFunction;I)V
@@ -502,6 +505,7 @@ public final class me/ahoo/wow/spring/boot/WowProperties {
 	public final fun getSubscriptions ()Ljava/util/Map;
 	public final fun getTenant ()Lme/ahoo/wow/spring/boot/WowProperties$Tenant;
 	public final fun getTimers ()Lme/ahoo/wow/spring/boot/WowProperties$Timers;
+	public final fun getTopics ()Lme/ahoo/wow/spring/boot/WowProperties$Topics;
 	public final fun getWait ()Lme/ahoo/wow/spring/boot/WowProperties$Wait;
 	public final fun setAggregates (Ljava/util/Map;)V
 	public final fun setBackend (Ljava/lang/String;)V
@@ -530,6 +534,7 @@ public final class me/ahoo/wow/spring/boot/WowProperties {
 	public final fun setSubscriptions (Ljava/util/Map;)V
 	public final fun setTenant (Lme/ahoo/wow/spring/boot/WowProperties$Tenant;)V
 	public final fun setTimers (Lme/ahoo/wow/spring/boot/WowProperties$Timers;)V
+	public final fun setTopics (Lme/ahoo/wow/spring/boot/WowProperties$Topics;)V
 	public final fun setWait (Lme/ahoo/wow/spring/boot/WowProperties$Wait;)V
 }
 
@@ -1193,6 +1198,12 @@ public final class me/ahoo/wow/spring/boot/WowProperties$Timers {
 	public final fun setMaxFireRate (Ljava/lang/Double;)V
 	public final fun setParallelism (I)V
 	public final fun setPollInterval (Ljava/time/Duration;)V
+}
+
+public final class me/ahoo/wow/spring/boot/WowProperties$Topics {
+	public fun <init> ()V
+	public final fun getInMemory ()Z
+	public final fun setInMemory (Z)V
 }
 
 public final class me/ahoo/wow/spring/boot/WowProperties$Wait {

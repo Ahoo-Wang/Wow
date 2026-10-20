@@ -54,7 +54,6 @@ import java.sql.PreparedStatement
 import java.sql.ResultSet
 import java.sql.SQLException
 import java.sql.Types
-import java.util.concurrent.ConcurrentHashMap
 import javax.sql.DataSource
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -120,7 +119,7 @@ class PostgresEventLog(
     private val pacer = TailPacer(Partitioner.requirePartitions(partitions), pollInterval, maxPollInterval)
 
     /** The aggregate tables whose creation and registration this log has made sure of. */
-    private val ensured = ConcurrentHashMap<String, AggregateLogTable>()
+    private val ensured = EnsuredTables<AggregateLogTable>()
 
     /** The aggregate tables of the context, as of the last read of the registry, in registry order. */
     @Volatile
@@ -174,11 +173,30 @@ class PostgresEventLog(
 
     /** The table of [aggregate], created and registered when this log has not yet made sure it is. */
     private fun tableOf(connection: Connection, aggregate: String): AggregateLogTable =
-        ensured[aggregate] ?: ensure(connection, tables.aggregate(aggregate)).also { ensured[aggregate] = it }
+        ensured.get(aggregate) { ensure(connection, tables.aggregate(aggregate)) }
 
     private fun tableOf(connection: Connection, type: AggregateType): AggregateLogTable {
         require(type.context == context) { "$type is not in context $context." }
         return tableOf(connection, type.name)
+    }
+
+    /**
+     * Runs [block] on [type]'s table. When the table is gone (`42P01`: dropped since this log made sure of it, by a
+     * test or a migration), the statement ran nothing: it makes sure of the table again and runs [block] once more.
+     */
+    private inline fun <T> withTable(
+        connection: Connection,
+        type: AggregateType,
+        block: (AggregateLogTable) -> T,
+    ): T {
+        val table = tableOf(connection, type)
+        return try {
+            block(table)
+        } catch (failure: PSQLException) {
+            if (failure.sqlState != UNDEFINED_TABLE) throw failure
+            ensured.forget(type.name, table)
+            block(tableOf(connection, type))
+        }
     }
 
     /**
@@ -231,9 +249,9 @@ class PostgresEventLog(
             var sent = false
             try {
                 dataSource.autoCommitted { connection ->
-                    val table = tableOf(connection, stream.ref.type)
+                    tableOf(connection, stream.ref.type)
                     sent = true
-                    appendIn(connection, table, partition, stream, transport)
+                    withTable(connection, stream.ref.type) { appendIn(connection, it, partition, stream, transport) }
                 }
             } catch (failure: SQLException) {
                 unsentOrOutcome(failure, sent)
@@ -263,6 +281,8 @@ class PostgresEventLog(
                 AppendOutcome.Committed(LogPosition(partition, sequence))
             }
         } catch (failure: PSQLException) {
+            // The table is gone: the statement ran nothing, and the caller makes sure of the table again.
+            if (failure.sqlState == UNDEFINED_TABLE) throw failure
             return when (failure.serverErrorMessage?.constraint) {
                 table.versionKey -> conflictOf(connection, table, stream)
                 table.requestKey -> findByRequestIdIn(connection, table, stream.ref.tenantId, stream.requestId)
@@ -348,9 +368,17 @@ class PostgresEventLog(
                 var sent = false
                 try {
                     dataSource.autoCommitted { connection ->
-                        group.forEach { (stream) -> tableOf(connection, stream.ref.type) }
+                        val types = group.map { (stream) -> stream.ref.type }.distinct()
+                        types.forEach { tableOf(connection, it) }
                         sent = true
-                        appendGroupIn(connection, partition, group)
+                        try {
+                            appendGroupIn(connection, partition, group)
+                        } catch (failure: PSQLException) {
+                            // A table is gone: the statement ran nothing ([withTable]); make sure of them again, once.
+                            if (failure.sqlState != UNDEFINED_TABLE) throw failure
+                            types.forEach { ensured.forget(it.name, tableOf(connection, it)) }
+                            appendGroupIn(connection, partition, group)
+                        }
                     }
                 } catch (failure: SQLException) {
                     val outcome = unsentOrOutcome(failure, sent)
@@ -428,13 +456,14 @@ class PostgresEventLog(
     override fun read(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<EventStreamRecord> = flow {
         val streams = dispatcher.jdbc {
             dataSource.autoCommitted { connection ->
-                val table = tableOf(connection, ref.type)
-                connection.prepareStatement(table.read).use { query ->
-                    query.setString(1, ref.id)
-                    query.setString(2, ref.tenantId)
-                    query.setInt(3, fromVersion)
-                    query.setInt(4, toVersion)
-                    query.executeQuery().use { rows -> rows.map { streamOf(table.aggregate, it) } }
+                withTable(connection, ref.type) { table ->
+                    connection.prepareStatement(table.read).use { query ->
+                        query.setString(1, ref.id)
+                        query.setString(2, ref.tenantId)
+                        query.setInt(3, fromVersion)
+                        query.setInt(4, toVersion)
+                        query.executeQuery().use { rows -> rows.map { streamOf(table.aggregate, it) } }
+                    }
                 }
             }
         }
@@ -446,13 +475,14 @@ class PostgresEventLog(
         require(limit >= 1) { "A page holds at least one aggregate." }
         return dispatcher.jdbc {
             dataSource.autoCommitted { connection ->
-                val table = tableOf(connection, type)
-                connection.prepareStatement(table.untagged).use { query ->
-                    query.setString(1, after?.id.orEmpty())
-                    query.setString(2, after?.tenantId.orEmpty())
-                    query.setInt(3, limit)
-                    query.executeQuery().use { rows ->
-                        rows.map { type.ref(it.getString("tenant_id"), it.getString("aggregate_id")) }
+                withTable(connection, type) { table ->
+                    connection.prepareStatement(table.untagged).use { query ->
+                        query.setString(1, after?.id.orEmpty())
+                        query.setString(2, after?.tenantId.orEmpty())
+                        query.setInt(3, limit)
+                        query.executeQuery().use { rows ->
+                            rows.map { type.ref(it.getString("tenant_id"), it.getString("aggregate_id")) }
+                        }
                     }
                 }
             }
@@ -465,16 +495,17 @@ class PostgresEventLog(
         if (tagsByVersion.isEmpty()) return 0
         return dispatcher.jdbc {
             dataSource.autoCommitted { connection ->
-                val table = tableOf(connection, ref.type)
-                connection.prepareStatement(table.recordTags).use { update ->
-                    tagsByVersion.forEach { (version, tags) ->
-                        update.setString(1, json.writeValueAsString(tags))
-                        update.setString(2, ref.id)
-                        update.setString(3, ref.tenantId)
-                        update.setInt(4, version)
-                        update.addBatch()
+                withTable(connection, ref.type) { table ->
+                    connection.prepareStatement(table.recordTags).use { update ->
+                        tagsByVersion.forEach { (version, tags) ->
+                            update.setString(1, json.writeValueAsString(tags))
+                            update.setString(2, ref.id)
+                            update.setString(3, ref.tenantId)
+                            update.setInt(4, version)
+                            update.addBatch()
+                        }
+                        update.executeBatch().sum()
                     }
-                    update.executeBatch().sum()
                 }
             }
         }
@@ -486,30 +517,31 @@ class PostgresEventLog(
         require(earlier >= 0) { "At most a non-negative number of earlier requests." }
         return dispatcher.jdbc {
             dataSource.autoCommitted { connection ->
-                val table = tableOf(connection, ref.type)
-                connection.prepareStatement(table.tail).use { query ->
-                    query.setString(1, ref.id)
-                    query.setString(2, ref.tenantId)
-                    query.setInt(3, fromVersion)
-                    query.setString(4, ref.id)
-                    query.setString(5, ref.tenantId)
-                    query.setInt(6, fromVersion)
-                    query.setInt(7, earlier)
-                    query.executeQuery().use { rows ->
-                        val streams = ArrayList<EventStreamRecord>()
-                        val keys = ArrayList<CommittedRequest>()
-                        while (rows.next()) {
-                            if (rows.getInt("part") == 0) {
-                                streams += streamOf(table.aggregate, rows)
-                            } else {
-                                keys += CommittedRequest(
-                                    rows.getInt("version"),
-                                    rows.getString("request_id"),
-                                    rows.getString("command_type"),
-                                )
+                withTable(connection, ref.type) { table ->
+                    connection.prepareStatement(table.tail).use { query ->
+                        query.setString(1, ref.id)
+                        query.setString(2, ref.tenantId)
+                        query.setInt(3, fromVersion)
+                        query.setString(4, ref.id)
+                        query.setString(5, ref.tenantId)
+                        query.setInt(6, fromVersion)
+                        query.setInt(7, earlier)
+                        query.executeQuery().use { rows ->
+                            val streams = ArrayList<EventStreamRecord>()
+                            val keys = ArrayList<CommittedRequest>()
+                            while (rows.next()) {
+                                if (rows.getInt("part") == 0) {
+                                    streams += streamOf(table.aggregate, rows)
+                                } else {
+                                    keys += CommittedRequest(
+                                        rows.getInt("version"),
+                                        rows.getString("request_id"),
+                                        rows.getString("command_type"),
+                                    )
+                                }
                             }
+                            AggregateTail(streams, keys.asReversed())
                         }
-                        AggregateTail(streams, keys.asReversed())
                     }
                 }
             }
@@ -519,14 +551,15 @@ class PostgresEventLog(
     override fun readEntries(ref: AggregateRef, fromVersion: Int, toVersion: Int): Flow<LogEntry> = flow {
         val entries = dispatcher.jdbc {
             dataSource.autoCommitted { connection ->
-                val table = tableOf(connection, ref.type)
-                connection.prepareStatement(table.entries).use { query ->
-                    query.setString(1, ref.id)
-                    query.setString(2, ref.tenantId)
-                    query.setInt(3, fromVersion)
-                    query.setInt(4, toVersion)
-                    query.executeQuery().use { rows ->
-                        rows.map { entryOf(it.getInt("partition"), table.aggregate, it) }
+                withTable(connection, ref.type) { table ->
+                    connection.prepareStatement(table.entries).use { query ->
+                        query.setString(1, ref.id)
+                        query.setString(2, ref.tenantId)
+                        query.setInt(3, fromVersion)
+                        query.setInt(4, toVersion)
+                        query.executeQuery().use { rows ->
+                            rows.map { entryOf(it.getInt("partition"), table.aggregate, it) }
+                        }
                     }
                 }
             }
@@ -536,12 +569,14 @@ class PostgresEventLog(
 
     override suspend fun positionOf(ref: AggregateRef, version: Int): LogPosition? = dispatcher.jdbc {
         dataSource.autoCommitted { connection ->
-            connection.prepareStatement(tableOf(connection, ref.type).position).use { query ->
-                query.setString(1, ref.id)
-                query.setString(2, ref.tenantId)
-                query.setInt(3, version)
-                query.executeQuery().use { rows ->
-                    if (rows.next()) LogPosition(rows.getInt("partition"), rows.getLong("sequence")) else null
+            withTable(connection, ref.type) { table ->
+                connection.prepareStatement(table.position).use { query ->
+                    query.setString(1, ref.id)
+                    query.setString(2, ref.tenantId)
+                    query.setInt(3, version)
+                    query.executeQuery().use { rows ->
+                        if (rows.next()) LogPosition(rows.getInt("partition"), rows.getLong("sequence")) else null
+                    }
                 }
             }
         }
@@ -551,7 +586,7 @@ class PostgresEventLog(
     override suspend fun findByRequestId(type: AggregateType, tenantId: String, requestId: String): EventStreamRecord? =
         dispatcher.jdbc {
             dataSource.autoCommitted { connection ->
-                findByRequestIdIn(connection, tableOf(connection, type), tenantId, requestId)
+                withTable(connection, type) { findByRequestIdIn(connection, it, tenantId, requestId) }
             }
         }
 
@@ -759,6 +794,9 @@ class PostgresEventLog(
 
         /** SQLSTATE `40P01`: the statement was rolled back to end a deadlock. */
         const val DEADLOCK_DETECTED = "40P01"
+
+        /** SQLSTATE `42P01`: a table the statement names does not exist; the statement ran nothing. */
+        const val UNDEFINED_TABLE = "42P01"
 
         /** The lineage columns of a partition's counter row (decision D240). */
         const val PARENT = "parent"
