@@ -196,6 +196,12 @@ class KafkaTransportUnitTest {
             eventually { own.assignment() == setOf(zero) }
             val second = async(Dispatchers.Default) { source.read(topic, 1, 0).take(1).toList() }
             eventually { shared.assignment() == setOf(zero, one) }
+            // A MockConsumer's end offsets do not follow its records: move them first, as a broker's do. Left behind,
+            // they put a reader that has read its records past its partition's end, and when the other reader's leave
+            // places it again the shared consumer fails it with an offset gap: its leave then returns at once, before
+            // the session closes the consumer (the flaky `closed()` below).
+            shared.updateEndOffsets(mapOf(zero to 2L, one to 1L))
+            own.updateEndOffsets(mapOf(zero to 6L))
             shared.addRecord(record(0, "a0"))
             shared.addRecord(record(1, "a1"))
             shared.addRecord(record(0, "b0", partition = 1))
@@ -206,7 +212,8 @@ class KafkaTransportUnitTest {
                 again.await().map { it.offset }.assert().containsExactly(5L)
             }
             made.assert().isEmpty()
-            // The last tail to leave closes the shared consumer.
+            // No reader met a gap: each one left by its own leave, the last of which closes the shared consumer.
+            source.offsetGaps.assert().isZero()
             shared.closed().assert().isTrue()
             own.closed().assert().isTrue()
             source.close()
