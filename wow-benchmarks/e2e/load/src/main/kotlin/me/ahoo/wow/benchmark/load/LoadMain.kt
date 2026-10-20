@@ -149,9 +149,8 @@ private fun prime(client: Client, targets: List<URI>, options: Options): Int {
     }
     CompletableFuture.allOf(*futures.toTypedArray()).join()
     val seconds = (System.nanoTime() - started) / OpenLoop.NANOS_PER_SECOND.toDouble()
-    println(
-        "[prime] ${client.adapter.name}: $accounts accounts in ${"%.1f".format(seconds)}s, ${failures.get()} failed"
-    )
+    val took = "%.1f".format(seconds)
+    println("[prime] ${client.adapter.name}: $accounts accounts in ${took}s, ${failures.get()} failed")
     options.optional("out")?.let {
         File(it).apply { mkdirs() }.resolve("prime.json").writeText(
             Json.write(mapOf("accounts" to accounts, "seconds" to seconds, "failed" to failures.get())) + "\n",
