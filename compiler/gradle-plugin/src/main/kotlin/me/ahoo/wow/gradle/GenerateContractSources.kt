@@ -24,6 +24,7 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.gradle.workers.WorkQueue
 import org.gradle.workers.WorkerExecutor
 import java.io.File
 import java.util.zip.ZipException
@@ -62,13 +63,17 @@ abstract class GenerateContractSources @Inject constructor(private val workers: 
 
     @TaskAction
     fun generate() {
+        submit(workers.classLoaderIsolation { spec -> spec.classpath.from(tools) })
+    }
+
+    /** One work item, writing the sources of [contract] into [outputDirectory]. */
+    internal fun submit(queue: WorkQueue) {
         val queryFields = hasQueryApi(classpath.files)
-        workers.classLoaderIsolation { spec -> spec.classpath.from(tools) }
-            .submit(ManifestToolsWork.GenerateContractSources::class.java) { parameters ->
-                parameters.contracts.from(contract)
-                parameters.queryFields.set(queryFields)
-                parameters.output.set(outputDirectory)
-            }
+        queue.submit(ManifestToolsWork.GenerateContractSources::class.java) { parameters ->
+            parameters.contracts.from(contract)
+            parameters.queryFields.set(queryFields)
+            parameters.output.set(outputDirectory)
+        }
     }
 
     internal companion object {
